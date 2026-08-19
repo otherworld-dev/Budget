@@ -952,6 +952,9 @@ class MigrationService {
             }
             $oldId = isset($row['id']) ? (int) $row['id'] : null;
             unset($row['id'], $row['user_id']);
+            // Archive content is user-supplied: its keys become SQL column
+            // identifiers below, so anything but plain snake_case is dropped
+            $row = $this->filterRowColumns($row);
             if ($hasUserColumn) {
                 $row['user_id'] = $userId;
             }
@@ -969,6 +972,21 @@ class MigrationService {
             }
         }
         return $count;
+    }
+
+    /**
+     * Keep only keys that are plausible column names (lowercase snake_case).
+     * Row keys come from an uploaded archive and are used as SQL identifiers
+     * in the import INSERT — never trust them further than this.
+     */
+    private function filterRowColumns(array $row): array {
+        $filtered = [];
+        foreach ($row as $column => $value) {
+            if (is_string($column) && preg_match('/^[a-z][a-z0-9_]*$/', $column) === 1) {
+                $filtered[$column] = $value;
+            }
+        }
+        return $filtered;
     }
 
     /**

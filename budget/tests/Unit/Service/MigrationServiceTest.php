@@ -597,6 +597,24 @@ class MigrationServiceTest extends TestCase {
 		$this->assertSame([40 => 200], $map);
 	}
 
+	public function testFilterRowColumnsRejectsHostileNames(): void {
+		// Column names in an uploaded archive are attacker-controlled and are
+		// used as SQL identifiers — anything but plain snake_case is dropped
+		$method = new \ReflectionMethod($this->service, 'filterRowColumns');
+		$method->setAccessible(true);
+
+		$row = $method->invoke($this->service, [
+			'currency' => 'GBP',
+			'rate_per_eur' => '1.17',
+			'evil"; DROP TABLE oc_users;--' => 'x',
+			'Robert(); --' => 'y',
+			'UPPER_CASE' => 'z',
+			'0leading_digit' => 'w',
+		]);
+
+		$this->assertSame(['currency' => 'GBP', 'rate_per_eur' => '1.17'], $row);
+	}
+
 	public function testExtraTablesRegistryIsInternallyConsistent(): void {
 		$refl = new \ReflectionClass(MigrationService::class);
 		$pre = $refl->getConstant('EXTRA_TABLES_PRE');
