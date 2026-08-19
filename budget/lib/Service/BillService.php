@@ -302,7 +302,8 @@ class BillService {
         ?int $remainingPayments = null,
         ?array $splitTemplate = null,
         ?string $startDate = null,
-        bool $excludedFromForecast = false
+        bool $excludedFromForecast = false,
+        string $amountType = 'fixed'
     ): Bill {
         // Validate auto-pay requires account
         if ($autoPayEnabled && $accountId === null) {
@@ -319,10 +320,27 @@ class BillService {
             throw new \InvalidArgumentException($this->l->t('Cannot transfer to the same account'));
         }
 
+        if (!in_array($amountType, ['fixed', 'statement'], true)) {
+            throw new \InvalidArgumentException($this->l->t('Invalid amount type'));
+        }
+        if ($amountType === 'statement') {
+            if (!$isTransfer || $destinationAccountId === null) {
+                throw new \InvalidArgumentException($this->l->t('Statement balance requires a transfer with a destination account'));
+            }
+            $destinationType = $this->accountMapper->findById($destinationAccountId)->getType();
+            if (!in_array($destinationType, ['credit_card', 'line_of_credit'], true)) {
+                throw new \InvalidArgumentException($this->l->t('Statement balance is only available for transfers to a credit card'));
+            }
+            // Initial estimate: what is owed on the card right now. Refined to
+            // the actual statement amount on every markPaid().
+            $amount = $this->transactionService->getStatementAmountForAccount($destinationAccountId, date('Y-m-d'));
+        }
+
         $bill = new Bill();
         $bill->setUserId($userId);
         $bill->setName($name);
         $bill->setAmount($amount);
+        $bill->setAmountType($amountType);
         $bill->setFrequency($frequency);
         $bill->setDueDay($dueDay);
         $bill->setDueMonth($dueMonth);
@@ -397,6 +415,30 @@ class BillService {
         if (array_key_exists('accountId', $updates) && $updates['accountId'] === null) {
             $updates['autoPayEnabled'] = false;
             $updates['autoPayFailed'] = false;
+        }
+
+        // Statement amount type: validate and refresh the estimate (#347)
+        if (array_key_exists('isTransfer', $updates) && !$updates['isTransfer']
+            && ($updates['amountType'] ?? $bill->getAmountType() ?? 'fixed') === 'statement') {
+            // No longer a transfer — statement resolution has nothing to resolve against
+            $updates['amountType'] = 'fixed';
+        }
+        if (isset($updates['amountType'])) {
+            if (!in_array($updates['amountType'], ['fixed', 'statement'], true)) {
+                throw new \InvalidArgumentException($this->l->t('Invalid amount type'));
+            }
+            if ($updates['amountType'] === 'statement') {
+                $isTransfer = $updates['isTransfer'] ?? ($bill->getIsTransfer() ?? false);
+                $destinationId = $updates['destinationAccountId'] ?? $bill->getDestinationAccountId();
+                if (!$isTransfer || $destinationId === null) {
+                    throw new \InvalidArgumentException($this->l->t('Statement balance requires a transfer with a destination account'));
+                }
+                $destinationType = $this->accountMapper->findById($destinationId)->getType();
+                if (!in_array($destinationType, ['credit_card', 'line_of_credit'], true)) {
+                    throw new \InvalidArgumentException($this->l->t('Statement balance is only available for transfers to a credit card'));
+                }
+                $updates['amount'] = $this->transactionService->getStatementAmountForAccount($destinationId, date('Y-m-d'));
+            }
         }
 
         foreach ($updates as $key => $value) {
@@ -484,6 +526,23 @@ class BillService {
             }
         }
 
+        // Switching to statement resolution: replace the pre-created
+        // placeholder so it carries the freshly resolved estimate (#347)
+        if (isset($updates['amountType']) && $updates['amountType'] === 'statement'
+            && ($bill->getAmountType() ?? 'fixed') !== 'statement') {
+            $fresh = $this->find($id, $userId);
+            if (($fresh->getCreateTransaction() ?? true) && $fresh->getIsActive()
+                && $fresh->getAccountId() !== null && $fresh->getNextDueDate() !== null) {
+                $this->transactionService->deleteScheduledBillTransactions($id);
+                try {
+                    $nextTransaction = $this->transactionService->createFromBill($userId, $fresh, null);
+                    $this->applySplitTemplate($fresh, $nextTransaction, $userId);
+                } catch (\Exception $e) {
+                    $this->logger->warning("Failed to refresh placeholder after switching bill {$id} to statement amount: {$e->getMessage()}");
+                }
+            }
+        }
+
         // Reload from database to ensure we return the actual saved state
         return $this->find($id, $userId);
     }
@@ -515,6 +574,7 @@ class BillService {
             'remainingPayments' => $bill->getRemainingPayments(),
             'isActive' => $bill->getIsActive(),
             'autoPayFailed' => $bill->getAutoPayFailed(),
+            'amount' => $bill->getAmount(),
         ];
         $createdTransactionIds = [];
         $hadScheduledTransaction = false;
@@ -530,6 +590,19 @@ class BillService {
         // immediately in the account balance, regardless of when the bill was due.
         $paidDate = $paidDate ?? date('Y-m-d');
         $bill->setLastPaidDate($paidDate);
+
+        // Statement bills resolve their amount now: what is owed on the card
+        // as of the due date being paid. Persisting it into the bill keeps
+        // lists, summaries and the next placeholder showing a real number,
+        // and the next placeholder inherits it as the estimate (#347).
+        $statementAmount = null;
+        if (($bill->getAmountType() ?? 'fixed') === 'statement'
+            && ($bill->getIsTransfer() ?? false)
+            && $bill->getDestinationAccountId() !== null) {
+            $boundary = $bill->getNextDueDate() ?? $paidDate;
+            $statementAmount = $this->transactionService->getStatementAmountForAccount($bill->getDestinationAccountId(), $boundary);
+            $bill->setAmount($statementAmount);
+        }
 
         // Handle transaction: either link existing or create new
         if ($existingTransactionId !== null && $bill->getAccountId() !== null) {
@@ -549,7 +622,7 @@ class BillService {
         } elseif ($createNextTransaction && $bill->getAccountId() !== null) {
             try {
                 // Clear pre-existing scheduled transaction(s), or create new cleared one
-                $transaction = $this->transactionService->clearScheduledBillTransaction($userId, $bill->getId(), $paidDate);
+                $transaction = $this->transactionService->clearScheduledBillTransaction($userId, $bill->getId(), $paidDate, $statementAmount);
                 if ($transaction) {
                     $hadScheduledTransaction = true;
                 } else {
@@ -634,6 +707,9 @@ class BillService {
             // this — silently recording nothing made app balances drift from
             // real bank balances (#89, #274).
             'paymentTransactionRecorded' => $paymentTransactionRecorded || $linkedExistingTransaction,
+            // Non-null only for statement bills: the amount resolved for
+            // this payment (#347)
+            'statementAmount' => $statementAmount,
         ];
     }
 
@@ -669,6 +745,11 @@ class BillService {
         }
         if (array_key_exists('autoPayFailed', $previousState)) {
             $bill->setAutoPayFailed($previousState['autoPayFailed'] ?? false);
+        }
+        // Statement bills overwrite the amount on markPaid — restore it.
+        // Older clients round-trip undo data without this key.
+        if (array_key_exists('amount', $previousState) && $previousState['amount'] !== null) {
+            $bill->setAmount((float) $previousState['amount']);
         }
 
         $bill = $this->mapper->update($bill);

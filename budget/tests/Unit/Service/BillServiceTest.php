@@ -23,6 +23,7 @@ class BillServiceTest extends TestCase {
 	private FrequencyCalculator $frequencyCalculator;
 	private RecurringBillDetector $recurringDetector;
 	private TransactionService $transactionService;
+	private AccountMapper $accountMapper;
 
 	protected function setUp(): void {
 		$this->mapper = $this->createMock(BillMapper::class);
@@ -37,7 +38,7 @@ class BillServiceTest extends TestCase {
 			}
 			return $text;
 		});
-		$accountMapper = $this->createMock(AccountMapper::class);
+		$this->accountMapper = $this->createMock(AccountMapper::class);
 		$currencyConversion = $this->createMock(CurrencyConversionService::class);
 		$splitService = $this->createMock(TransactionSplitService::class);
 		$logger = $this->createMock(LoggerInterface::class);
@@ -47,7 +48,7 @@ class BillServiceTest extends TestCase {
 			$this->recurringDetector,
 			$this->transactionService,
 			$l,
-			$accountMapper,
+			$this->accountMapper,
 			$currencyConversion,
 			$splitService,
 			$logger
@@ -815,5 +816,114 @@ class BillServiceTest extends TestCase {
 
 		$bill->setAmountType('statement');
 		$this->assertSame('statement', $bill->jsonSerialize()['amountType']);
+	}
+
+	private function makeCardAccount(int $id = 20, string $type = 'credit_card'): \OCA\Budget\Db\Account {
+		$account = new \OCA\Budget\Db\Account();
+		$account->setId($id);
+		$account->setUserId('user1');
+		$account->setName('Visa');
+		$account->setType($type);
+		$account->setCurrency('GBP');
+		return $account;
+	}
+
+	public function testCreateStatementBillRequiresTransferWithDestination(): void {
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Statement balance requires a transfer');
+
+		$this->service->create(
+			userId: 'user1', name: 'Visa payment', amount: 0.0,
+			amountType: 'statement'
+		);
+	}
+
+	public function testCreateStatementBillRejectsNonCardDestination(): void {
+		$this->accountMapper->method('findById')->willReturn($this->makeCardAccount(20, 'checking'));
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('only available for transfers to a credit card');
+
+		$this->service->create(
+			userId: 'user1', name: 'Visa payment', amount: 0.0,
+			accountId: 1, isTransfer: true, destinationAccountId: 20,
+			amountType: 'statement'
+		);
+	}
+
+	public function testCreateStatementBillResolvesInitialEstimate(): void {
+		$this->accountMapper->method('findById')->willReturn($this->makeCardAccount());
+		$this->transactionService->method('getStatementAmountForAccount')
+			->with(20, $this->anything())
+			->willReturn(440.0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-09-15');
+		$this->mapper->method('insert')->willReturnCallback(fn(Bill $b) => $b);
+
+		$bill = $this->service->create(
+			userId: 'user1', name: 'Visa payment', amount: 0.0, frequency: 'monthly',
+			dueDay: 15, accountId: 1, isTransfer: true, destinationAccountId: 20,
+			amountType: 'statement'
+		);
+
+		$this->assertSame('statement', $bill->getAmountType());
+		$this->assertEqualsWithDelta(440.0, $bill->getAmount(), 0.001);
+	}
+
+	public function testMarkPaidStatementBillResolvesAmountAtDueDate(): void {
+		$bill = $this->makeBill([
+			'isTransfer' => true, 'destinationAccountId' => 20,
+			'amount' => 300.0, 'nextDueDate' => '2026-08-15',
+		]);
+		$bill->setAmountType('statement');
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-09-15');
+		$this->transactionService->expects($this->once())
+			->method('getStatementAmountForAccount')
+			->with(20, '2026-08-15')
+			->willReturn(440.0);
+		$this->transactionService->expects($this->once())
+			->method('clearScheduledBillTransaction')
+			->with('user1', 1, $this->anything(), 440.0)
+			->willReturn(null);
+		$tx = new \OCA\Budget\Db\Transaction();
+		$tx->setId(55);
+		$this->transactionService->method('createFromBill')->willReturn($tx);
+
+		$result = $this->service->markPaid(1, 'user1');
+
+		$this->assertEqualsWithDelta(440.0, $result['bill']->getAmount(), 0.001);
+		$this->assertEqualsWithDelta(300.0, $result['previousState']['amount'], 0.001);
+		$this->assertEqualsWithDelta(440.0, $result['statementAmount'], 0.001);
+	}
+
+	public function testMarkPaidFixedBillNeverResolvesStatementAmount(): void {
+		$bill = $this->makeBill(['nextDueDate' => '2026-08-15']);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-09-15');
+		$this->transactionService->expects($this->never())->method('getStatementAmountForAccount');
+		$tx = new \OCA\Budget\Db\Transaction();
+		$tx->setId(55);
+		$this->transactionService->method('createFromBill')->willReturn($tx);
+
+		$result = $this->service->markPaid(1, 'user1');
+
+		$this->assertEqualsWithDelta(15.99, $result['bill']->getAmount(), 0.001);
+		$this->assertNull($result['statementAmount']);
+	}
+
+	public function testUndoPaidRestoresPreviousAmount(): void {
+		$bill = $this->makeBill(['amount' => 440.0]);
+		$bill->setAmountType('statement');
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$restored = $this->service->undoPaid(1, 'user1', [
+			'lastPaidDate' => null, 'nextDueDate' => '2026-08-15',
+			'isActive' => true, 'amount' => 300.0,
+		], []);
+
+		$this->assertEqualsWithDelta(300.0, $restored->getAmount(), 0.001);
 	}
 }
