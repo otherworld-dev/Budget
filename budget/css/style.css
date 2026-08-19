@@ -9226,6 +9226,19 @@ button.danger:hover {
     padding-top: 10px;
 }
 
+/* Statement-balance transfer bills (#347) */
+.statement-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 0.65em;
+    font-weight: normal;
+    background-color: var(--color-primary-element-light, #e5f1f4);
+    color: var(--color-primary-element, #0082c9);
+    vertical-align: middle;
+}
+
 .bill-details {
     display: flex;
     align-items: center;

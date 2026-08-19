@@ -297,7 +297,7 @@ export default class TransfersModule {
                             <h4 class="bill-name">${dom.escapeHtml(transfer.name)}</h4>
                             <span class="bill-frequency">${frequencyLabel}</span>
                         </div>
-                        <div class="bill-amount">${formatters.formatCurrency(transfer.amount, null, this.settings)}</div>
+                        <div class="bill-amount">${formatters.formatCurrency(transfer.amount, null, this.settings)}${transfer.amountType === 'statement' ? `<span class="statement-badge" title="${t('budget', 'Amount is resolved from the card balance at each due date')}">${t('budget', 'Statement')}</span>` : ''}</div>
                     </div>
                     <div class="bill-details">
                         <div class="bill-due-date">
@@ -392,7 +392,7 @@ export default class TransfersModule {
         document.getElementById('transfers-completed-count').textContent = completedThisMonth;
     }
 
-    showTransferModal(transfer = null) {
+    showTransferModal(transfer = null, prefill = null) {
         const isEdit = transfer !== null;
         const title = isEdit ? t('budget', 'Edit Transfer') : t('budget', 'Add Transfer');
 
@@ -421,6 +421,15 @@ export default class TransfersModule {
                                 <input type="number" id="transfer-amount"
                                 step="0.01" min="0" required
                                 value="${isEdit ? transfer.amount : ''}">
+                                </div>
+
+                                <div class="form-group" id="transfer-amount-type-group" style="display: none;">
+                                <label for="transfer-amount-type">${t('budget', 'Amount type')}</label>
+                                <select id="transfer-amount-type">
+                                <option value="fixed">${t('budget', 'Fixed amount')}</option>
+                                <option value="statement" ${isEdit && transfer.amountType === 'statement' ? 'selected' : ''}>${t('budget', 'Statement balance')}</option>
+                                </select>
+                                <small class="form-text">${t('budget', 'Statement balance pays whatever is owed on the destination card at each due date')}</small>
                                 </div>
 
                                 <div class="form-group">
@@ -562,6 +571,34 @@ export default class TransfersModule {
             }
         }
 
+        // Statement amount type: only offered for card-like destinations (#347)
+        const toAccountSelect = document.getElementById('recurring-transfer-to-account');
+        const amountTypeGroup = document.getElementById('transfer-amount-type-group');
+        const amountTypeSelect = document.getElementById('transfer-amount-type');
+        const amountInput = document.getElementById('transfer-amount');
+        const updateAmountTypeVisibility = () => {
+            const destination = this.accounts.find(a => a.id === parseInt(toAccountSelect.value));
+            const cardLike = !!destination && ['credit_card', 'line_of_credit'].includes(destination.type);
+            if (!cardLike && amountTypeSelect.value === 'statement') {
+                amountTypeSelect.value = 'fixed';
+            }
+            amountTypeGroup.style.display = cardLike ? 'block' : 'none';
+            const isStatement = cardLike && amountTypeSelect.value === 'statement';
+            amountInput.disabled = isStatement;
+            amountInput.required = !isStatement;
+            amountInput.placeholder = isStatement ? t('budget', 'Resolved from the card balance at each due date') : '';
+        };
+        toAccountSelect.addEventListener('change', updateAmountTypeVisibility);
+        amountTypeSelect.addEventListener('change', updateAmountTypeVisibility);
+
+        if (!isEdit && prefill) {
+            if (prefill.name) document.getElementById('transfer-name').value = prefill.name;
+            if (prefill.destinationAccountId) toAccountSelect.value = String(prefill.destinationAccountId);
+            if (prefill.dueDay) document.getElementById('transfer-due-day').value = String(prefill.dueDay);
+            if (prefill.amountType) amountTypeSelect.value = prefill.amountType;
+        }
+        updateAmountTypeVisibility();
+
         // Create transaction checkbox (show/hide date field)
         const createTransactionCheckbox = document.getElementById('transfer-create-transaction');
         if (createTransactionCheckbox) {
@@ -600,7 +637,10 @@ export default class TransfersModule {
 
     async saveTransfer(existingTransfer = null) {
         const name = document.getElementById('transfer-name').value;
-        const amount = parseFloat(document.getElementById('transfer-amount').value);
+        const amountType = document.getElementById('transfer-amount-type')?.value || 'fixed';
+        const amountValue = parseFloat(document.getElementById('transfer-amount').value);
+        // Statement bills resolve their amount server-side; the input is disabled
+        const amount = amountType === 'statement' ? (isNaN(amountValue) ? 0 : amountValue) : amountValue;
         const frequency = document.getElementById('transfer-frequency').value;
         const fromAccountId = parseInt(document.getElementById('recurring-transfer-from-account').value);
         const toAccountId = parseInt(document.getElementById('recurring-transfer-to-account').value);
@@ -633,6 +673,7 @@ export default class TransfersModule {
         const data = {
             name,
             amount,
+            amountType,
             frequency,
             accountId: fromAccountId,
             destinationAccountId: toAccountId,
