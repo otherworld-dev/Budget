@@ -1593,9 +1593,13 @@ export default class AccountsModule {
                 const due = paymentBill.nextDueDate
                     ? formatters.formatDate(paymentBill.nextDueDate, this.app.settings)
                     : t('budget', 'No due date');
-                infoEl.textContent = paymentBill.amountType === 'statement'
-                    ? t('budget', '{date} (statement balance)', { date: due })
-                    : `${due} · ${this.formatCurrency(paymentBill.amount, account.currency)}`;
+                const dynamicLabels = {
+                    statement: t('budget', '{date} (statement balance)', { date: due }),
+                    current_balance: t('budget', '{date} (current balance)', { date: due }),
+                    minimum_payment: t('budget', '{date} (minimum payment)', { date: due }),
+                };
+                infoEl.textContent = dynamicLabels[paymentBill.amountType]
+                    || `${due} · ${this.formatCurrency(paymentBill.amount, account.currency)}`;
             } else {
                 setupBtn.style.display = '';
             }

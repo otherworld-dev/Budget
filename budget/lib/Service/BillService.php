@@ -56,11 +56,56 @@ class BillService {
         $this->autoShareService = $autoShareService;
     }
 
+    /** Amount types whose figure is resolved from the destination card at payment time (#347) */
+    private const DYNAMIC_AMOUNT_TYPES = ['statement', 'current_balance', 'minimum_payment'];
+
     /**
      * @throws DoesNotExistException
      */
     public function find(int $id, string $userId): Bill {
         return $this->mapper->find($id, $userId);
+    }
+
+    /**
+     * A dynamic amount type needs a card-like transfer destination to
+     * resolve against.
+     */
+    private function validateAmountType(string $amountType, bool $isTransfer, ?int $destinationAccountId): void {
+        if ($amountType !== 'fixed' && !in_array($amountType, self::DYNAMIC_AMOUNT_TYPES, true)) {
+            throw new \InvalidArgumentException($this->l->t('Invalid amount type'));
+        }
+        if ($amountType === 'fixed') {
+            return;
+        }
+        if (!$isTransfer || $destinationAccountId === null) {
+            throw new \InvalidArgumentException($this->l->t('This amount type requires a transfer with a destination account'));
+        }
+        $destinationType = $this->accountMapper->findById($destinationAccountId)->getType();
+        if (!in_array($destinationType, ['credit_card', 'line_of_credit'], true)) {
+            throw new \InvalidArgumentException($this->l->t('This amount type is only available for transfers to a credit card'));
+        }
+    }
+
+    /**
+     * Resolve the payable amount for a dynamic-amount bill (#347).
+     * $dueDate is the statement cut-off (null = use $paidDate); $paidDate is
+     * when the money moves. Returns null for fixed-amount bills.
+     */
+    private function resolveDynamicAmount(string $amountType, ?int $destinationAccountId, ?string $dueDate, string $paidDate): ?float {
+        if (!in_array($amountType, self::DYNAMIC_AMOUNT_TYPES, true) || $destinationAccountId === null) {
+            return null;
+        }
+        if ($amountType === 'statement') {
+            // What was owed at the due date; later charges roll to the next statement
+            return $this->transactionService->getStatementAmountForAccount($destinationAccountId, $dueDate ?? $paidDate);
+        }
+        $owedNow = $this->transactionService->getStatementAmountForAccount($destinationAccountId, $paidDate);
+        if ($amountType === 'current_balance') {
+            return $owedNow;
+        }
+        // minimum_payment: the card's stored minimum, never more than is owed
+        $minimum = (float) ($this->accountMapper->findById($destinationAccountId)->getMinimumPayment() ?? 0);
+        return min($minimum, $owedNow);
     }
 
     public function findAll(string $userId): array {
@@ -320,20 +365,11 @@ class BillService {
             throw new \InvalidArgumentException($this->l->t('Cannot transfer to the same account'));
         }
 
-        if (!in_array($amountType, ['fixed', 'statement'], true)) {
-            throw new \InvalidArgumentException($this->l->t('Invalid amount type'));
-        }
-        if ($amountType === 'statement') {
-            if (!$isTransfer || $destinationAccountId === null) {
-                throw new \InvalidArgumentException($this->l->t('Statement balance requires a transfer with a destination account'));
-            }
-            $destinationType = $this->accountMapper->findById($destinationAccountId)->getType();
-            if (!in_array($destinationType, ['credit_card', 'line_of_credit'], true)) {
-                throw new \InvalidArgumentException($this->l->t('Statement balance is only available for transfers to a credit card'));
-            }
-            // Initial estimate: what is owed on the card right now. Refined to
-            // the actual statement amount on every markPaid().
-            $amount = $this->transactionService->getStatementAmountForAccount($destinationAccountId, date('Y-m-d'));
+        $this->validateAmountType($amountType, $isTransfer, $destinationAccountId);
+        if ($amountType !== 'fixed') {
+            // Initial estimate: resolved against the card right now. Refined to
+            // the actual amount on every markPaid().
+            $amount = $this->resolveDynamicAmount($amountType, $destinationAccountId, null, date('Y-m-d')) ?? $amount;
         }
 
         $bill = new Bill();
@@ -417,28 +453,19 @@ class BillService {
             $updates['autoPayFailed'] = false;
         }
 
-        // Statement amount type: validate and refresh the estimate (#347)
+        // Dynamic amount types: validate and refresh the estimate (#347)
         if (array_key_exists('isTransfer', $updates) && !$updates['isTransfer']
-            && ($updates['amountType'] ?? $bill->getAmountType() ?? 'fixed') === 'statement') {
-            // No longer a transfer — statement resolution has nothing to resolve against
+            && ($updates['amountType'] ?? $bill->getAmountType() ?? 'fixed') !== 'fixed') {
+            // No longer a transfer — nothing to resolve the amount against
             $updates['amountType'] = 'fixed';
         }
-        if (isset($updates['amountType'])) {
-            if (!in_array($updates['amountType'], ['fixed', 'statement'], true)) {
-                throw new \InvalidArgumentException($this->l->t('Invalid amount type'));
-            }
-            if ($updates['amountType'] === 'statement') {
-                $isTransfer = $updates['isTransfer'] ?? ($bill->getIsTransfer() ?? false);
-                $destinationId = $updates['destinationAccountId'] ?? $bill->getDestinationAccountId();
-                if (!$isTransfer || $destinationId === null) {
-                    throw new \InvalidArgumentException($this->l->t('Statement balance requires a transfer with a destination account'));
-                }
-                $destinationType = $this->accountMapper->findById($destinationId)->getType();
-                if (!in_array($destinationType, ['credit_card', 'line_of_credit'], true)) {
-                    throw new \InvalidArgumentException($this->l->t('Statement balance is only available for transfers to a credit card'));
-                }
-                $updates['amount'] = $this->transactionService->getStatementAmountForAccount($destinationId, date('Y-m-d'));
-            }
+        if (isset($updates['amountType']) && $updates['amountType'] !== 'fixed') {
+            $isTransfer = $updates['isTransfer'] ?? ($bill->getIsTransfer() ?? false);
+            $destinationId = $updates['destinationAccountId'] ?? $bill->getDestinationAccountId();
+            $this->validateAmountType($updates['amountType'], (bool) $isTransfer, $destinationId);
+            $updates['amount'] = $this->resolveDynamicAmount($updates['amountType'], $destinationId, null, date('Y-m-d'));
+        } elseif (isset($updates['amountType'])) {
+            $this->validateAmountType($updates['amountType'], true, null);
         }
 
         foreach ($updates as $key => $value) {
@@ -526,10 +553,10 @@ class BillService {
             }
         }
 
-        // Switching to statement resolution: replace the pre-created
+        // Switching to a dynamic amount type: replace the pre-created
         // placeholder so it carries the freshly resolved estimate (#347)
-        if (isset($updates['amountType']) && $updates['amountType'] === 'statement'
-            && ($bill->getAmountType() ?? 'fixed') !== 'statement') {
+        if (isset($updates['amountType']) && $updates['amountType'] !== 'fixed'
+            && ($bill->getAmountType() ?? 'fixed') !== $updates['amountType']) {
             $fresh = $this->find($id, $userId);
             if (($fresh->getCreateTransaction() ?? true) && $fresh->getIsActive()
                 && $fresh->getAccountId() !== null && $fresh->getNextDueDate() !== null) {
@@ -591,17 +618,21 @@ class BillService {
         $paidDate = $paidDate ?? date('Y-m-d');
         $bill->setLastPaidDate($paidDate);
 
-        // Statement bills resolve their amount now: what is owed on the card
-        // as of the due date being paid. Persisting it into the bill keeps
-        // lists, summaries and the next placeholder showing a real number,
-        // and the next placeholder inherits it as the estimate (#347).
+        // Dynamic-amount bills resolve their amount now: what the card calls
+        // for at this payment. Persisting it into the bill keeps lists,
+        // summaries and the next placeholder showing a real number, and the
+        // next placeholder inherits it as the estimate (#347).
         $statementAmount = null;
-        if (($bill->getAmountType() ?? 'fixed') === 'statement'
-            && ($bill->getIsTransfer() ?? false)
-            && $bill->getDestinationAccountId() !== null) {
-            $boundary = $bill->getNextDueDate() ?? $paidDate;
-            $statementAmount = $this->transactionService->getStatementAmountForAccount($bill->getDestinationAccountId(), $boundary);
-            $bill->setAmount($statementAmount);
+        if ($bill->getIsTransfer() ?? false) {
+            $statementAmount = $this->resolveDynamicAmount(
+                $bill->getAmountType() ?? 'fixed',
+                $bill->getDestinationAccountId(),
+                $bill->getNextDueDate(),
+                $paidDate
+            );
+            if ($statementAmount !== null) {
+                $bill->setAmount($statementAmount);
+            }
         }
 
         // Handle transaction: either link existing or create new

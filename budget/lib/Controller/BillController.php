@@ -121,14 +121,14 @@ class BillController extends Controller {
         try {
             $data = $this->request->getParams();
 
-            // Statement bills resolve their amount server-side — no amount needed (#347)
+            // Dynamic-amount bills resolve their amount server-side — no amount needed (#347)
             $amountType = $data['amountType'] ?? 'fixed';
-            if (!in_array($amountType, ['fixed', 'statement'], true)) {
+            if (!in_array($amountType, ['fixed', 'statement', 'current_balance', 'minimum_payment'], true)) {
                 return new DataResponse(['error' => $this->l->t('Invalid amount type')], Http::STATUS_BAD_REQUEST);
             }
 
             // Extract and validate required fields
-            if (!isset($data['name']) || (!isset($data['amount']) && $amountType !== 'statement')) {
+            if (!isset($data['name']) || (!isset($data['amount']) && $amountType === 'fixed')) {
                 return new DataResponse(['error' => $this->l->t('Name and amount are required')], Http::STATUS_BAD_REQUEST);
             }
 
@@ -546,7 +546,7 @@ class BillController extends Controller {
             // Handle amount type (#347) — deep validation (transfer +
             // card destination) happens in the service
             if (isset($data['amountType'])) {
-                if (!in_array($data['amountType'], ['fixed', 'statement'], true)) {
+                if (!in_array($data['amountType'], ['fixed', 'statement', 'current_balance', 'minimum_payment'], true)) {
                     return new DataResponse(['error' => $this->l->t('Invalid amount type')], Http::STATUS_BAD_REQUEST);
                 }
                 $updates['amountType'] = $data['amountType'];

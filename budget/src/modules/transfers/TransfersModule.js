@@ -297,7 +297,7 @@ export default class TransfersModule {
                             <h4 class="bill-name">${dom.escapeHtml(transfer.name)}</h4>
                             <span class="bill-frequency">${frequencyLabel}</span>
                         </div>
-                        <div class="bill-amount">${formatters.formatCurrency(transfer.amount, null, this.settings)}${transfer.amountType === 'statement' ? `<span class="statement-badge" title="${t('budget', 'Amount is resolved from the card balance at each due date')}">${t('budget', 'Statement')}</span>` : ''}</div>
+                        <div class="bill-amount">${formatters.formatCurrency(transfer.amount, null, this.settings)}${this.amountTypeBadge(transfer.amountType)}</div>
                     </div>
                     <div class="bill-details">
                         <div class="bill-due-date">
@@ -428,8 +428,10 @@ export default class TransfersModule {
                                 <select id="transfer-amount-type">
                                 <option value="fixed">${t('budget', 'Fixed amount')}</option>
                                 <option value="statement" ${isEdit && transfer.amountType === 'statement' ? 'selected' : ''}>${t('budget', 'Statement balance')}</option>
+                                <option value="current_balance" ${isEdit && transfer.amountType === 'current_balance' ? 'selected' : ''}>${t('budget', 'Current balance')}</option>
+                                <option value="minimum_payment" ${isEdit && transfer.amountType === 'minimum_payment' ? 'selected' : ''}>${t('budget', 'Minimum payment')}</option>
                                 </select>
-                                <small class="form-text">${t('budget', 'Statement balance pays whatever is owed on the destination card at each due date')}</small>
+                                <small class="form-text" id="transfer-amount-type-hint"></small>
                                 </div>
 
                                 <div class="form-group">
@@ -571,22 +573,29 @@ export default class TransfersModule {
             }
         }
 
-        // Statement amount type: only offered for card-like destinations (#347)
+        // Dynamic amount types: only offered for card-like destinations (#347)
         const toAccountSelect = document.getElementById('recurring-transfer-to-account');
         const amountTypeGroup = document.getElementById('transfer-amount-type-group');
         const amountTypeSelect = document.getElementById('transfer-amount-type');
+        const amountTypeHint = document.getElementById('transfer-amount-type-hint');
         const amountInput = document.getElementById('transfer-amount');
+        const amountTypeHints = {
+            statement: t('budget', 'Pays what was owed at the due date. Later charges roll to the next payment'),
+            current_balance: t('budget', 'Pays everything owed on the card at payment time'),
+            minimum_payment: t('budget', "Pays the card's minimum payment, never more than is owed"),
+        };
         const updateAmountTypeVisibility = () => {
             const destination = this.accounts.find(a => a.id === parseInt(toAccountSelect.value));
             const cardLike = !!destination && ['credit_card', 'line_of_credit'].includes(destination.type);
-            if (!cardLike && amountTypeSelect.value === 'statement') {
+            if (!cardLike && amountTypeSelect.value !== 'fixed') {
                 amountTypeSelect.value = 'fixed';
             }
             amountTypeGroup.style.display = cardLike ? 'block' : 'none';
-            const isStatement = cardLike && amountTypeSelect.value === 'statement';
-            amountInput.disabled = isStatement;
-            amountInput.required = !isStatement;
-            amountInput.placeholder = isStatement ? t('budget', 'Resolved from the card balance at each due date') : '';
+            const isDynamic = cardLike && amountTypeSelect.value !== 'fixed';
+            amountTypeHint.textContent = isDynamic ? amountTypeHints[amountTypeSelect.value] : '';
+            amountInput.disabled = isDynamic;
+            amountInput.required = !isDynamic;
+            amountInput.placeholder = isDynamic ? t('budget', 'Resolved from the card at each payment') : '';
         };
         toAccountSelect.addEventListener('change', updateAmountTypeVisibility);
         amountTypeSelect.addEventListener('change', updateAmountTypeVisibility);
@@ -639,8 +648,8 @@ export default class TransfersModule {
         const name = document.getElementById('transfer-name').value;
         const amountType = document.getElementById('transfer-amount-type')?.value || 'fixed';
         const amountValue = parseFloat(document.getElementById('transfer-amount').value);
-        // Statement bills resolve their amount server-side; the input is disabled
-        const amount = amountType === 'statement' ? (isNaN(amountValue) ? 0 : amountValue) : amountValue;
+        // Dynamic-amount bills resolve server-side; the input is disabled
+        const amount = amountType !== 'fixed' ? (isNaN(amountValue) ? 0 : amountValue) : amountValue;
         const frequency = document.getElementById('transfer-frequency').value;
         const fromAccountId = parseInt(document.getElementById('recurring-transfer-from-account').value);
         const toAccountId = parseInt(document.getElementById('recurring-transfer-to-account').value);
@@ -815,6 +824,16 @@ export default class TransfersModule {
     }
 
     // Helper methods
+    amountTypeBadge(amountType) {
+        const labels = {
+            statement: t('budget', 'Statement'),
+            current_balance: t('budget', 'Full balance'),
+            minimum_payment: t('budget', 'Minimum'),
+        };
+        if (!labels[amountType]) return '';
+        return `<span class="statement-badge" title="${t('budget', 'Amount is resolved from the card at each payment')}">${labels[amountType]}</span>`;
+    }
+
     isTransferPaidThisMonth(transfer) {
         const lastPaid = transfer.lastPaidDate || transfer.last_paid_date;
         if (!lastPaid) return false;

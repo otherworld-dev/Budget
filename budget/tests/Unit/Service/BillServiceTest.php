@@ -830,7 +830,7 @@ class BillServiceTest extends TestCase {
 
 	public function testCreateStatementBillRequiresTransferWithDestination(): void {
 		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessage('Statement balance requires a transfer');
+		$this->expectExceptionMessage('requires a transfer with a destination account');
 
 		$this->service->create(
 			userId: 'user1', name: 'Visa payment', amount: 0.0,
@@ -911,6 +911,90 @@ class BillServiceTest extends TestCase {
 
 		$this->assertEqualsWithDelta(15.99, $result['bill']->getAmount(), 0.001);
 		$this->assertNull($result['statementAmount']);
+	}
+
+	public function testMarkPaidCurrentBalanceResolvesAtPaidDate(): void {
+		// current_balance pays everything owed at payment time, so the
+		// boundary is the paid date, not the due date
+		$bill = $this->makeBill([
+			'isTransfer' => true, 'destinationAccountId' => 20,
+			'amount' => 300.0, 'nextDueDate' => '2026-08-15',
+		]);
+		$bill->setAmountType('current_balance');
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-09-15');
+		$this->transactionService->expects($this->once())
+			->method('getStatementAmountForAccount')
+			->with(20, '2026-08-19')
+			->willReturn(475.0);
+		$tx = new \OCA\Budget\Db\Transaction();
+		$tx->setId(55);
+		$this->transactionService->method('createFromBill')->willReturn($tx);
+
+		$result = $this->service->markPaid(1, 'user1', '2026-08-19');
+
+		$this->assertEqualsWithDelta(475.0, $result['bill']->getAmount(), 0.001);
+		$this->assertEqualsWithDelta(475.0, $result['statementAmount'], 0.001);
+	}
+
+	public function testMarkPaidMinimumPaymentUsesCardMinimum(): void {
+		$card = $this->makeCardAccount();
+		$card->setMinimumPayment(50.0);
+		$this->accountMapper->method('findById')->willReturn($card);
+		$bill = $this->makeBill([
+			'isTransfer' => true, 'destinationAccountId' => 20,
+			'amount' => 300.0, 'nextDueDate' => '2026-08-15',
+		]);
+		$bill->setAmountType('minimum_payment');
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-09-15');
+		$this->transactionService->method('getStatementAmountForAccount')
+			->with(20, '2026-08-19')
+			->willReturn(475.0);
+		$tx = new \OCA\Budget\Db\Transaction();
+		$tx->setId(55);
+		$this->transactionService->method('createFromBill')->willReturn($tx);
+
+		$result = $this->service->markPaid(1, 'user1', '2026-08-19');
+
+		$this->assertEqualsWithDelta(50.0, $result['bill']->getAmount(), 0.001);
+	}
+
+	public function testMarkPaidMinimumPaymentNeverExceedsOwed(): void {
+		// Owing less than the minimum: pay what is owed, like real cards
+		$card = $this->makeCardAccount();
+		$card->setMinimumPayment(50.0);
+		$this->accountMapper->method('findById')->willReturn($card);
+		$bill = $this->makeBill([
+			'isTransfer' => true, 'destinationAccountId' => 20,
+			'amount' => 300.0, 'nextDueDate' => '2026-08-15',
+		]);
+		$bill->setAmountType('minimum_payment');
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-09-15');
+		$this->transactionService->method('getStatementAmountForAccount')->willReturn(30.0);
+		$tx = new \OCA\Budget\Db\Transaction();
+		$tx->setId(55);
+		$this->transactionService->method('createFromBill')->willReturn($tx);
+
+		$result = $this->service->markPaid(1, 'user1', '2026-08-19');
+
+		$this->assertEqualsWithDelta(30.0, $result['bill']->getAmount(), 0.001);
+	}
+
+	public function testCreateCurrentBalanceBillRequiresCardDestination(): void {
+		$this->accountMapper->method('findById')->willReturn($this->makeCardAccount(20, 'savings'));
+
+		$this->expectException(\InvalidArgumentException::class);
+
+		$this->service->create(
+			userId: 'user1', name: 'Visa payment', amount: 0.0,
+			accountId: 1, isTransfer: true, destinationAccountId: 20,
+			amountType: 'current_balance'
+		);
 	}
 
 	public function testUndoPaidRestoresPreviousAmount(): void {
