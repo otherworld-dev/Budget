@@ -424,24 +424,35 @@ class TransactionService {
     }
 
     /**
-     * Find a scheduled transaction for a bill and mark it as cleared.
+     * Find a bill's scheduled transaction and mark it cleared. A transfer
+     * bill's placeholder is a LINKED PAIR — both legs are cleared (deleting
+     * the second leg used to drop the deposit from the destination account).
+     * $amount, when given, overwrites both legs: statement bills resolve
+     * their amount at payment time (#347).
      *
-     * @return Transaction|null The cleared transaction, or null if none found
+     * @return Transaction|null The cleared withdrawal leg, or null if none found
      */
-    public function clearScheduledBillTransaction(string $userId, int $billId, string $clearedDate): ?Transaction {
+    public function clearScheduledBillTransaction(string $userId, int $billId, string $clearedDate, ?float $amount = null): ?Transaction {
         $allScheduled = $this->mapper->findAllScheduledByBillId($billId);
         $cleared = null;
+        $partnerId = null;
 
-        foreach ($allScheduled as $i => $scheduled) {
-            if ($i === 0) {
-                // Clear the earliest scheduled transaction. It belongs to its
-                // account's owner, which may differ from the acting user when the
-                // bill points at a shared account — update under the owner (#334).
+        foreach ($allScheduled as $scheduled) {
+            $isPartner = $partnerId !== null && $scheduled->getId() === $partnerId;
+            if ($cleared === null || $isPartner) {
+                // Each leg belongs to its account's owner, which may differ
+                // from the acting user when the bill points at a shared
+                // account — update under the owner (#334).
                 $ownerUserId = $this->accountMapper->findById($scheduled->getAccountId())->getUserId();
-                $cleared = $this->update($scheduled->getId(), $ownerUserId, [
-                    'status' => 'cleared',
-                    'date' => $clearedDate,
-                ]);
+                $updates = ['status' => 'cleared', 'date' => $clearedDate];
+                if ($amount !== null) {
+                    $updates['amount'] = $amount;
+                }
+                $updated = $this->update($scheduled->getId(), $ownerUserId, $updates);
+                if ($cleared === null) {
+                    $cleared = $updated;
+                    $partnerId = $scheduled->getLinkedTransactionId();
+                }
             } else {
                 // Delete any duplicate scheduled transactions
                 $this->mapper->delete($scheduled);
@@ -1074,6 +1085,27 @@ class TransactionService {
         $newBalance = MoneyCalculator::add($openingBalance, $this->mapper->getNetChangeAll($accountId), $scale);
 
         $this->accountMapper->updateBalance($accountId, $newBalance, $userId);
+    }
+
+    /**
+     * Amount owed on an account as of the end of $boundaryDate: the stored
+     * balance minus everything dated after the boundary (scheduled rows are
+     * in neither). This is the "statement balance" a statement-amount
+     * transfer bill pays (#347) — with a payment made each cycle it equals
+     * the activity between the previous due date and this one, and any
+     * underpaid remainder carries forward. Liability balances are stored
+     * negative when owed; returns 0 when nothing is owed.
+     */
+    public function getStatementAmountForAccount(int $accountId, string $boundaryDate): float {
+        $account = $this->accountMapper->findById($accountId);
+        $scale = Currency::decimalsFor($account->getCurrency());
+        $asOfBoundary = MoneyCalculator::subtract(
+            (string) ($account->getBalance() ?? 0),
+            $this->mapper->getNetChangeAfterDate($accountId, $boundaryDate),
+            $scale
+        );
+        $owed = MoneyCalculator::toFloat($asOfBoundary);
+        return $owed < 0 ? -$owed : 0.0;
     }
 
     /**

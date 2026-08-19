@@ -27,14 +27,18 @@ class TransactionServiceTest extends TestCase {
     private \OCA\Budget\Db\AttachmentMapper $attachmentMapper;
     /** @var \OCA\Budget\Db\TransactionSplitMapper&\PHPUnit\Framework\MockObject\MockObject */
     private $splitMapper;
+    /** @var array<int, Account> per-test accounts served by the findById stub */
+    private array $accountById = [];
 
     protected function setUp(): void {
         $this->mapper = $this->createMock(TransactionMapper::class);
         $this->accountMapper = $this->createMock(AccountMapper::class);
         // createFromBill()/clearScheduledBillTransaction() resolve the account
         // owner via findById() (owner-agnostic). Default to a user1-owned account;
-        // shared-account tests override this per case.
-        $this->accountMapper->method('findById')->willReturn($this->makeAccount());
+        // tests needing a specific account seed $this->accountById[$id].
+        $this->accountMapper->method('findById')->willReturnCallback(
+            fn(int $id) => $this->accountById[$id] ?? $this->makeAccount()
+        );
         $this->transactionTagMapper = $this->createMock(TransactionTagMapper::class);
         $splitMapper = $this->createMock(\OCA\Budget\Db\TransactionSplitMapper::class);
         $splitMapper->method('findByTransactionIds')->willReturn([]);
@@ -1429,5 +1433,93 @@ class TransactionServiceTest extends TestCase {
             ->willReturn(true);
 
         $this->assertTrue($this->service->existsByImportId(10, 'import-1'));
+    }
+
+    // ── getStatementAmountForAccount (#347) ─────────────────────────
+
+    public function testStatementAmountIsOwedBalanceAsOfBoundary(): void {
+        // Card owes 520 today, of which 80 was charged after the due date:
+        // the statement covers what was owed at the due date, 440.
+        $this->accountById[20] = $this->makeAccount([
+            'id' => 20, 'type' => 'credit_card', 'balance' => -520.00, 'currency' => 'GBP',
+        ]);
+        $this->mapper->method('getNetChangeAfterDate')
+            ->with(20, '2026-08-15')
+            ->willReturn(-80.0);
+
+        $amount = $this->service->getStatementAmountForAccount(20, '2026-08-15');
+
+        $this->assertEqualsWithDelta(440.0, $amount, 0.001);
+    }
+
+    public function testStatementAmountZeroWhenNothingOwed(): void {
+        $this->accountById[20] = $this->makeAccount([
+            'id' => 20, 'type' => 'credit_card', 'balance' => 25.00,
+        ]);
+        $this->mapper->method('getNetChangeAfterDate')->willReturn(0.0);
+
+        $this->assertSame(0.0, $this->service->getStatementAmountForAccount(20, '2026-08-15'));
+    }
+
+    // ── clearScheduledBillTransaction transfer pairs (#347) ─────────
+
+    private function makeScheduledPair(): array {
+        $withdrawal = $this->makeTransaction([
+            'id' => 101, 'accountId' => 10, 'type' => 'debit',
+            'billId' => 7, 'linkedTransactionId' => 102, 'amount' => 300.00,
+        ]);
+        $withdrawal->setStatus('scheduled');
+        $deposit = $this->makeTransaction([
+            'id' => 102, 'accountId' => 20, 'type' => 'credit',
+            'billId' => 7, 'linkedTransactionId' => 101, 'amount' => 300.00,
+        ]);
+        $deposit->setStatus('scheduled');
+        return [$withdrawal, $deposit];
+    }
+
+    public function testClearScheduledTransferPairClearsBothLegs(): void {
+        [$withdrawal, $deposit] = $this->makeScheduledPair();
+        $this->mapper->method('findAllScheduledByBillId')->with(7)->willReturn([$withdrawal, $deposit]);
+        $this->mapper->method('find')->willReturnCallback(
+            fn($id) => $id === 101 ? $withdrawal : $deposit
+        );
+        $this->mapper->method('update')->willReturnArgument(0);
+        $this->mapper->expects($this->never())->method('delete');
+
+        $cleared = $this->service->clearScheduledBillTransaction('user1', 7, '2026-08-15');
+
+        $this->assertSame(101, $cleared->getId());
+        $this->assertSame('cleared', $withdrawal->getStatus());
+        $this->assertSame('cleared', $deposit->getStatus());
+        $this->assertSame('2026-08-15', $deposit->getDate());
+    }
+
+    public function testClearScheduledPairAppliesResolvedAmountToBothLegs(): void {
+        [$withdrawal, $deposit] = $this->makeScheduledPair();
+        $this->mapper->method('findAllScheduledByBillId')->with(7)->willReturn([$withdrawal, $deposit]);
+        $this->mapper->method('find')->willReturnCallback(
+            fn($id) => $id === 101 ? $withdrawal : $deposit
+        );
+        $this->mapper->method('update')->willReturnArgument(0);
+
+        $this->service->clearScheduledBillTransaction('user1', 7, '2026-08-15', 440.0);
+
+        $this->assertEqualsWithDelta(440.0, $withdrawal->getAmount(), 0.001);
+        $this->assertEqualsWithDelta(440.0, $deposit->getAmount(), 0.001);
+    }
+
+    public function testClearScheduledStillDeletesUnlinkedDuplicates(): void {
+        [$withdrawal, $deposit] = $this->makeScheduledPair();
+        $stray = $this->makeTransaction(['id' => 103, 'accountId' => 10, 'billId' => 7]);
+        $stray->setStatus('scheduled');
+        $this->mapper->method('findAllScheduledByBillId')->with(7)
+            ->willReturn([$withdrawal, $deposit, $stray]);
+        $this->mapper->method('find')->willReturnCallback(
+            fn($id) => $id === 101 ? $withdrawal : $deposit
+        );
+        $this->mapper->method('update')->willReturnArgument(0);
+        $this->mapper->expects($this->once())->method('delete')->with($stray);
+
+        $this->service->clearScheduledBillTransaction('user1', 7, '2026-08-15');
     }
 }

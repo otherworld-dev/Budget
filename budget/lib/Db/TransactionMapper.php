@@ -1689,7 +1689,11 @@ class TransactionMapper extends QBMapper {
             ->from($this->getTableName())
             ->where($qb->expr()->eq('bill_id', $qb->createNamedParameter($billId, IQueryBuilder::PARAM_INT)))
             ->andWhere($qb->expr()->eq('status', $qb->createNamedParameter('scheduled')))
-            ->orderBy('date', 'ASC');
+            // id tiebreak: a transfer pair shares its date — the withdrawal
+            // (inserted first) must be the leg clearScheduledBillTransaction
+            // clears first and returns
+            ->orderBy('date', 'ASC')
+            ->addOrderBy('id', 'ASC');
 
         return $this->findEntities($qb);
     }
