@@ -782,6 +782,9 @@ class MigrationService {
             // cleared ones, silently corrupting balances after a migration (#274)
             $transaction->setStatus($txnData['status'] ?? null);
             $transaction->setExcludedFromForecast(!empty($txnData['excludedFromForecast']));
+            // Without this the imported splits exist but the transaction
+            // doesn't show as split (#351)
+            $transaction->setIsSplit(!empty($txnData['isSplit']));
             $transaction->setCreatedAt($txnData['createdAt'] ?? date('Y-m-d H:i:s'));
             $transaction->setUpdatedAt($txnData['updatedAt'] ?? date('Y-m-d H:i:s'));
 
