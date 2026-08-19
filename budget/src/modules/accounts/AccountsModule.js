@@ -1040,6 +1040,9 @@ export default class AccountsModule {
             }
         }
 
+        // Payment bill tile / setup button for card accounts (#347)
+        this.updateCardPaymentInfo(account);
+
         const displayAvailable = isLiabilityAccount ? Math.abs(availableBalance) : availableBalance;
         document.getElementById('account-available-balance').textContent = this.formatCurrency(displayAvailable, currency);
         document.getElementById('account-available-balance').className = `balance-amount ${isLiabilityAccount ? (availableBalance < 0 ? 'negative' : 'positive') : (availableBalance >= 0 ? 'positive' : 'negative')}`;
@@ -1563,6 +1566,44 @@ export default class AccountsModule {
         if (pageInfo) pageInfo.textContent = t('budget', 'Page {current} of {total}', { current: this.accountCurrentPage, total: this.accountTotalPages });
     }
 
+    /**
+     * Credit-card payment bill surface (#347): show the linked payment
+     * bill's next due date, or offer to set one up when none exists.
+     */
+    async updateCardPaymentInfo(account) {
+        const setupBtn = document.getElementById('setup-card-payment-btn');
+        const infoTile = document.getElementById('card-payment-info');
+        const infoEl = document.getElementById('account-card-payment');
+        if (!setupBtn || !infoTile || !infoEl) return;
+        setupBtn.style.display = 'none';
+        infoTile.style.display = 'none';
+        if (!['credit_card', 'line_of_credit'].includes(account.type)) return;
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/bills?isTransfer=true'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) return;
+            const transfers = await response.json();
+            // The user may have navigated elsewhere while we fetched
+            if (this.currentAccount?.id !== account.id) return;
+            const paymentBill = transfers.find(b => b.destinationAccountId === account.id && b.isActive);
+            if (paymentBill) {
+                infoTile.style.display = 'block';
+                const due = paymentBill.nextDueDate
+                    ? formatters.formatDate(paymentBill.nextDueDate, this.app.settings)
+                    : t('budget', 'No due date');
+                infoEl.textContent = paymentBill.amountType === 'statement'
+                    ? t('budget', '{date} (statement balance)', { date: due })
+                    : `${due} · ${this.formatCurrency(paymentBill.amount, account.currency)}`;
+            } else {
+                setupBtn.style.display = '';
+            }
+        } catch (error) {
+            console.error('Failed to load card payment bill:', error);
+        }
+    }
+
     setupAccountDetailsEventListeners() {
         if (this._accountDetailsListenersSetup) return;
         this._accountDetailsListenersSetup = true;
@@ -1583,6 +1624,21 @@ export default class AccountsModule {
         const reconcileBtn = document.getElementById('reconcile-account-btn');
         if (reconcileBtn) {
             reconcileBtn.addEventListener('click', () => this.reconcileAccount(this.currentAccount.id));
+        }
+
+        // Set up a statement payment bill for this card (#347)
+        const setupPaymentBtn = document.getElementById('setup-card-payment-btn');
+        if (setupPaymentBtn) {
+            setupPaymentBtn.addEventListener('click', async () => {
+                const account = this.currentAccount;
+                if (!account) return;
+                await this.app.router.showView('transfers');
+                this.app.transfersModule.showTransferModal(null, {
+                    name: t('budget', '{account} payment', { account: account.name }),
+                    destinationAccountId: account.id,
+                    amountType: 'statement',
+                });
+            });
         }
 
         // Import button - navigate to import view with account pre-selected

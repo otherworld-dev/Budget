@@ -1151,6 +1151,10 @@ style('budget', 'budget-app');
                         <span class="icon-checkmark" aria-hidden="true"></span>
                         <?php p($l->t('Reconcile')); ?>
                     </button>
+                    <button id="setup-card-payment-btn" class="secondary" style="display: none;" title="<?php p($l->t('Create a bill that pays this card\'s statement each month')); ?>">
+                        <span class="icon-add" aria-hidden="true"></span>
+                        <?php p($l->t('Set up payment')); ?>
+                    </button>
                 </div>
             </div>
 
@@ -1195,6 +1199,10 @@ style('budget', 'budget-app');
                                 <div class="balance-item" id="minimum-payment-info" style="display: none;">
                                     <label><?php p($l->t('Min Payment')); ?></label>
                                     <div id="account-minimum-payment-display" class="balance-amount"></div>
+                                </div>
+                                <div class="balance-item" id="card-payment-info" style="display: none;">
+                                    <label><?php p($l->t('Payment due')); ?></label>
+                                    <div id="account-card-payment" class="balance-amount"></div>
                                 </div>
                                 <div class="balance-item" id="accrued-interest-info" style="display: none;">
                                     <label><?php p($l->t('Accrued Interest')); ?></label>
