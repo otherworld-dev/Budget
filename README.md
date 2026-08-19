@@ -8,15 +8,19 @@ A comprehensive financial management app for Nextcloud. Track spending habits, m
 
 ![Dashboard Screenshot](screenshots/dashboard.png)
 
-## What's New in v2.40
+## What's New in v2.41
 
-- **Keyboard shortcuts** - Drive Budget from the keyboard: press **?** anytime for a cheat sheet. `/` (or `Ctrl`/`Cmd`+`K`) focuses search, `g` then a letter jumps to any page, dialogs close with `Esc` (and trap `Tab`), and on the transactions list `j`/`k`/`e`/`x` move, edit and select rows
-- **Import rules: export, import & share** - Back up or move your rule set as a JSON file, and share rules with another Nextcloud user (read-only or read/write) just like accounts and categories ([#318](https://github.com/otherworld-dev/Budget/issues/318), [#320](https://github.com/otherworld-dev/Budget/issues/320))
-- **Rules can match on the account** - New Account and Account Type conditions scope a rule to a specific account or kind of account ([#322](https://github.com/otherworld-dev/Budget/issues/322))
-- **Full-precision crypto** - Accounts and transactions now store up to 8 decimals, following each currency's native precision ([#331](https://github.com/otherworld-dev/Budget/issues/331))
-- Plus shared-category and shared-bill fixes, and the browser Back button now moves between pages inside Budget — see the [full changelog](budget/CHANGELOG.md)
+- **Credit-card payments that work like real cards** - A recurring transfer to a credit card can now pay the **statement balance** (what was owed at the due date), the **current balance**, the card's **minimum payment**, or a fixed amount — resolved fresh from the card's ledger at every payment, and compatible with auto-pay. Cards gain a **Statement due day** field and a one-click **Set up payment** button on their account page ([#347](https://github.com/otherworld-dev/Budget/issues/347))
+- **Backups now contain everything** - The export/import archive used to carry only six data types; tags, splits, goals, assets, pensions and a dozen more silently vanished when moving servers. Every entity now round-trips, with all cross-references (including transfer links) rewired on import ([#351](https://github.com/otherworld-dev/Budget/issues/351))
+- **Receipt scanning** - Scan a receipt straight into the transaction form (or via the API), with per-item splits, tax and loyalty-savings handling, and your choice of OCR backend — see the [receipt scanning guide](https://budget.otherworld.dev/docs/receipt-scanning.html)
+- **Complete French translation** - Nearly 3,000 strings translated, thanks to [@jumaxotl](https://github.com/jumaxotl)
+- Plus full-filter CSV exports, a new Income & Expenses report, the Belarusian ruble, and fixes to transfer handling in reports — see the [full changelog](budget/CHANGELOG.md)
 
-Earlier highlights: auto-share new entities, revamped pensions, consistent "Exclude from reports" (v2.36); envelope/rollover budgets, statement reconciliation, budget digest, unusual-spending alerts and scheduled PDF reports (v2.30); the [Nextcloud integration pack](https://budget.otherworld.dev/docs/nextcloud-integration.html) — dashboard widgets, unified search, bills calendar feed, receipt attachments (v2.29).
+Earlier highlights: keyboard shortcuts, rule export/import/sharing, full-precision crypto (v2.40); auto-share new entities, revamped pensions, consistent "Exclude from reports" (v2.36); envelope/rollover budgets, statement reconciliation, budget digest, unusual-spending alerts and scheduled PDF reports (v2.30); the [Nextcloud integration pack](https://budget.otherworld.dev/docs/nextcloud-integration.html) — dashboard widgets, unified search, bills calendar feed, receipt attachments (v2.29).
+
+## Android App — Coming Soon
+
+**Budget Companion**, a native Android app, is in development: snap a receipt on your phone and it lands in Budget as a categorised draft transaction — items, tax and totals read automatically — plus quick capture for cash spending on the go. It talks to your own Nextcloud server through Budget's [public API](https://budget.otherworld.dev/docs/api.html), so your data never goes anywhere else. Watch the [releases page](https://github.com/otherworld-dev/Budget/releases) for the launch.
 
 ## Documentation
 
@@ -109,6 +113,7 @@ Sponsorship funds the time behind quick fixes, new features, and keeping the app
 - **Recurring Transfers** - Track and automate transfers between accounts
   - Monthly equivalent calculations for different frequencies
   - Integration with bills system for unified tracking
+  - Credit-card payment amounts resolved at payment time: statement balance, current balance, or minimum payment
 
 ### Assets & Goals
 - **Asset Tracking** - Track non-liquid assets (real estate, vehicles, jewelry, collectibles)
@@ -153,7 +158,7 @@ Sponsorship funds the time behind quick fixes, new features, and keeping the app
   - Session management with configurable timeout (15/30/60 minutes)
   - Auto-lock on inactivity with manual lock option
   - Failed attempt protection (5 attempts = 5-minute lockout)
-- **Data Export/Import** - Full data migration support for moving between Nextcloud instances
+- **Data Export/Import** - Complete backup and migration between Nextcloud instances: every entity is exported, and every cross-reference (transfer links, tags, splits) is rewired on import
 - **Factory Reset** - Restore app to empty state with one-click data deletion (preserves audit logs)
 - **Audit Logging** - Complete trail of all financial actions
 
@@ -395,7 +400,7 @@ Nextcloud Budget is fully translatable with 2,177+ strings. We'd love your help 
 
 Currently available in: English, German, Spanish, French, Russian, Portuguese (Brazil), and Czech.
 
-Special thanks to our translators: **[@SGiersch](https://github.com/SGiersch)** (German), **[@T0mFi](https://github.com/T0mFi)** and Pavel Borecki (Czech).
+Special thanks to our translators: **[@SGiersch](https://github.com/SGiersch)** (German), **[@jumaxotl](https://github.com/jumaxotl)** (French), **[@T0mFi](https://github.com/T0mFi)** and Pavel Borecki (Czech).
 
 > **Note:** Strings containing `{placeholders}` (e.g. `{amount}`, `{bill}`) must keep the placeholder names exactly as-is — only translate the surrounding text.
 
@@ -428,6 +433,7 @@ This app is shaped by its community. Thanks to everyone who reports bugs, sugges
 - **[@SGiersch](https://github.com/SGiersch)** — Top contributor: dozens of bug reports, feature discussions, and German translation
 - **[@TerjeTM](https://github.com/TerjeTM)** — Thorough testing and detailed bug reports that led to major improvements in the bills system and data repair tools
 - **[@JaviAZ](https://github.com/JaviAZ)** — Code contributions and bug reports around category spending and transfers
+- **[@jumaxotl](https://github.com/jumaxotl)** — Complete French translation
 - **[@H2Oufoe](https://github.com/H2Oufoe)** — Extensive bug reporting and testing across multiple releases
 - **[@st33vil](https://github.com/st33vil)** — Identified the pagination balance calculation bug
 - **[@T0mFi](https://github.com/T0mFi)**, **Pavel Borecki** — Czech translation
