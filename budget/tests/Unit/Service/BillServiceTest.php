@@ -806,4 +806,14 @@ class BillServiceTest extends TestCase {
 		$this->expectException(\InvalidArgumentException::class);
 		$this->service->recordMissedPayment(7, 'user1');
 	}
+
+	// ── amountType (#347) ───────────────────────────────────────────
+
+	public function testBillSerializesAmountTypeWithFixedDefault(): void {
+		$bill = $this->makeBill();
+		$this->assertSame('fixed', $bill->jsonSerialize()['amountType']);
+
+		$bill->setAmountType('statement');
+		$this->assertSame('statement', $bill->jsonSerialize()['amountType']);
+	}
 }

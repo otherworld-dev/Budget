@@ -18,6 +18,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setDescription(?string $description)
  * @method float getAmount()
  * @method void setAmount(float $amount)
+ * @method string|null getAmountType()
+ * @method void setAmountType(?string $amountType)
  * @method string getFrequency()
  * @method void setFrequency(string $frequency)
  * @method int|null getDueDay()
@@ -76,6 +78,7 @@ class Bill extends Entity implements JsonSerializable {
     protected $name;
     protected $description;
     protected $amount;
+    protected $amountType;      // 'fixed' (default) or 'statement' — resolve amount from the destination card at each due date (#347)
     protected $frequency;       // monthly, weekly, yearly, quarterly, custom
     protected $dueDay;          // Day of month (1-31) or day of week (1-7) for weekly
     protected $dueMonth;        // Month (1-12) for yearly bills
@@ -181,6 +184,7 @@ class Bill extends Entity implements JsonSerializable {
             'name' => $this->getName(),
             'description' => $this->getDescription(),
             'amount' => $this->getAmount(),
+            'amountType' => $this->getAmountType() ?? 'fixed',
             'frequency' => $this->getFrequency(),
             'dueDay' => $this->getDueDay(),
             'dueMonth' => $this->getDueMonth(),

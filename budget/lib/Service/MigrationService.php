@@ -567,6 +567,7 @@ class MigrationService {
             $bill->setName($billData['name']);
             $bill->setDescription($billData['description'] ?? null);
             $bill->setAmount($billData['amount'] ?? 0.0);
+            $bill->setAmountType($billData['amountType'] ?? null);
             $bill->setFrequency($billData['frequency'] ?? 'monthly');
             $bill->setDueDay($billData['dueDay'] ?? null);
             $bill->setDueMonth($billData['dueMonth'] ?? null);
