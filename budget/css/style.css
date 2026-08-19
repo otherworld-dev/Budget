@@ -9226,6 +9226,14 @@ button.danger:hover {
     padding-top: 10px;
 }
 
+/* Support-the-project buttons on the Help & Docs view */
+.help-support-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
 /* Statement-balance transfer bills (#347) */
 .statement-badge {
     display: inline-block;

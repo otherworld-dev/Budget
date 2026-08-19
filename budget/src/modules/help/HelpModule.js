@@ -53,6 +53,14 @@ export function helpDocUrl(doc) {
 /** The docs hub — the site's index of every guide. */
 export const DOCS_INDEX_URL = `${DOCS_BASE}/`;
 
+// Ways to support the project — mirrors the <donation> entries in
+// appinfo/info.xml, surfaced in-app for people who never see the app store
+// or GitHub. Keep the three places in sync when a link changes.
+export const SUPPORT_LINKS = {
+    github: 'https://github.com/sponsors/otherworld-dev',
+    paypal: 'https://www.paypal.com/donate/?hosted_button_id=MA56N6K8FSTQ2',
+};
+
 export default class HelpModule {
     constructor(app) {
         this.app = app;
@@ -99,6 +107,8 @@ export default class HelpModule {
     setupReportIssueButton() {
         this.bindExternalLink('help-report-issue-btn', 'https://github.com/otherworld-dev/budget/issues');
         this.bindExternalLink('help-docs-site-btn', DOCS_INDEX_URL);
+        this.bindExternalLink('help-sponsor-github-btn', SUPPORT_LINKS.github);
+        this.bindExternalLink('help-donate-paypal-btn', SUPPORT_LINKS.paypal);
     }
 
     /** Header buttons that open an external page, bound once. */

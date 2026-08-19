@@ -4775,6 +4775,28 @@ style('budget', 'budget-app');
                     <div id="help-docs-grid" class="help-docs-grid"></div>
                 </div>
 
+                <!-- Support the project -->
+                <div class="settings-section">
+                    <h3><?php p($l->t('Support Budget')); ?></h3>
+                    <div class="settings-group">
+                        <div class="settings-action-item">
+                            <div class="settings-action-info">
+                                <h4><?php p($l->t('Enjoying the app?')); ?></h4>
+                                <p><?php p($l->t('Budget is free and open source. If it helps you keep your finances straight, a donation helps keep it maintained — everything works fully without one.')); ?></p>
+                            </div>
+                            <div class="help-support-buttons">
+                                <button id="help-sponsor-github-btn" class="secondary" type="button">
+                                    <span class="icon-starred" aria-hidden="true"></span>
+                                    <?php p($l->t('Sponsor on GitHub')); ?>
+                                </button>
+                                <button id="help-donate-paypal-btn" class="secondary" type="button">
+                                    <?php p($l->t('Donate via PayPal')); ?>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Keyboard Shortcuts -->
                 <div class="settings-section">
                     <h3><?php p($l->t('Keyboard Shortcuts')); ?></h3>

@@ -98,7 +98,7 @@ import CategoriesModule from './modules/categories/CategoriesModule.js';
 import ExchangeRatesModule from './modules/exchange-rates/ExchangeRatesModule.js';
 import SharingModule from './modules/sharing/SharingModule.js';
 import BankSyncModule from './modules/bank-sync/BankSyncModule.js';
-import HelpModule, { HELP_TOPICS, helpDocUrl } from './modules/help/HelpModule.js';
+import HelpModule, { HELP_TOPICS, helpDocUrl, SUPPORT_LINKS } from './modules/help/HelpModule.js';
 
 class BudgetApp {
     constructor() {
@@ -932,6 +932,15 @@ class BudgetApp {
                         <li><a href="${helpDocUrl('import')}" target="_blank" rel="noopener">${t('budget', 'Importing Bank Statements')}</a></li>
                         <li><a href="${helpDocUrl('budget')}" target="_blank" rel="noopener">${t('budget', 'Budget Tracking')}</a></li>
                         <li><a href="${helpDocUrl('rules')}" target="_blank" rel="noopener">${t('budget', 'Auto-Categorisation Rules')}</a></li>
+                    </ul>
+                </div>
+                <hr>
+                <div class="help-support">
+                    <h4>${t('budget', 'Support Budget')}</h4>
+                    <p>${t('budget', 'Free and open source. If Budget helps you, a donation keeps it going.')}</p>
+                    <ul>
+                        <li><a href="${SUPPORT_LINKS.github}" target="_blank" rel="noopener">${t('budget', 'Sponsor on GitHub')}</a></li>
+                        <li><a href="${SUPPORT_LINKS.paypal}" target="_blank" rel="noopener">${t('budget', 'Donate via PayPal')}</a></li>
                     </ul>
                 </div>
             `;
