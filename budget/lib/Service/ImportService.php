@@ -158,7 +158,7 @@ class ImportService {
         $format = $this->parserFactory->detectFormat($fileId);
         $content = $file->getContent();
 
-        if (($format === 'ofx' || $format === 'qif') && !empty($accountMapping)) {
+        if ($this->isMultiAccountFormat($format) && !empty($accountMapping)) {
             return $this->previewMultiAccountImport($userId, $content, $format, $accountMapping, $skipDuplicates, $mapping);
         }
 
@@ -183,7 +183,7 @@ class ImportService {
         $format = $this->parserFactory->detectFormat($fileId);
         $content = $file->getContent();
 
-        if (($format === 'ofx' || $format === 'qif') && !empty($accountMapping)) {
+        if ($this->isMultiAccountFormat($format) && !empty($accountMapping)) {
             $result = $this->executeMultiAccountImport($userId, $fileId, $content, $format, $accountMapping, $skipDuplicates, $applyRules, $mapping);
         } else {
             $result = $this->executeSingleAccountImport($userId, $fileId, $content, $format, $mapping, $accountId, $skipDuplicates, $applyRules, $delimiter, $presetId);
@@ -369,6 +369,43 @@ class ImportService {
                     $row['reference'] ?? $row['id'] ?? '',
                 ];
             }
+        } elseif ($format === 'camt') {
+            $parsedCamt = $this->parserFactory->parseFull($content, 'camt');
+            foreach ($parsedCamt['accounts'] as $account) {
+                $sourceAccounts[] = [
+                    'accountId' => $account['accountId'],
+                    'bankId' => $account['bankId'] ?? null,
+                    'name' => $account['name'] ?? null,
+                    'bankName' => $account['bankName'] ?? null,
+                    'type' => $account['type'],
+                    'currency' => $account['currency'],
+                    'transactionCount' => count($account['transactions']),
+                    'ledgerBalance' => $account['ledgerBalance'],
+                ];
+            }
+
+            // The camt account id is the IBAN, which matchSourceAccounts
+            // already compares against each account's stored IBAN
+            $accountMatches = $this->matchSourceAccounts($userId, $sourceAccounts);
+            foreach ($sourceAccounts as &$sourceAccount) {
+                $sourceAccount['suggestedMatch'] = $accountMatches[$sourceAccount['accountId']] ?? null;
+            }
+            unset($sourceAccount);
+
+            // Keys must be what CamtParser emits (#338): 'name' is the counterparty
+            $columns = ['date', 'amount', 'description', 'name', 'memo', 'type', 'reference'];
+            $rawPreview = [$columns];
+            foreach ($preview as $row) {
+                $rawPreview[] = [
+                    $row['date'] ?? '',
+                    $row['rawAmount'] ?? $row['amount'] ?? '',
+                    $row['description'] ?? '',
+                    $row['name'] ?? '',
+                    $row['memo'] ?? '',
+                    $row['type'] ?? '',
+                    $row['reference'] ?? $row['id'] ?? '',
+                ];
+            }
         } elseif ($format === 'qif') {
             $parsedQif = $this->parserFactory->parseFull($content, 'qif');
             foreach ($parsedQif['accounts'] as $account) {
@@ -461,6 +498,15 @@ class ImportService {
     }
 
     /**
+     * Formats whose files carry their own account list and are routed per
+     * source account (OFX, QIF and ISO 20022 camt) rather than into one
+     * chosen account like CSV.
+     */
+    private function isMultiAccountFormat(string $format): bool {
+        return in_array($format, ['ofx', 'qif', 'camt'], true);
+    }
+
+    /**
      * The value the "Import Source" rule criterion matches on.
      *
      * Deliberately an untranslated literal, like the CSV and bank-sync ones:
@@ -470,6 +516,7 @@ class ImportService {
     private function importSourceLabel(string $format): string {
         return match ($format) {
             'qif' => 'QIF Import',
+            'camt' => 'camt.053 Import',
             default => 'OFX Import',
         };
     }
@@ -1622,7 +1669,7 @@ class ImportService {
      * @return array<int, array>
      */
     private function applyRememberedAccountLinks(string $userId, string $format, array $sourceAccounts): array {
-        if (($format !== 'ofx' && $format !== 'qif') || empty($sourceAccounts)) {
+        if (!$this->isMultiAccountFormat($format) || empty($sourceAccounts)) {
             return $sourceAccounts;
         }
 

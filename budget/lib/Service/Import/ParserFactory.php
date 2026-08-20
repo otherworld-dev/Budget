@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service\Import;
 
+use OCA\Budget\Service\Parser\CamtParser;
 use OCA\Budget\Service\Parser\OfxParser;
 use OCA\Budget\Service\Parser\QifParser;
 
@@ -13,6 +14,7 @@ use OCA\Budget\Service\Parser\QifParser;
 class ParserFactory {
     private ?OfxParser $ofxParser = null;
     private ?QifParser $qifParser = null;
+    private ?CamtParser $camtParser = null;
 
     /**
      * Detect file format from filename.
@@ -24,6 +26,8 @@ class ParserFactory {
             'csv', 'txt' => 'csv',
             'ofx' => 'ofx',
             'qif' => 'qif',
+            // ISO 20022 camt.053/052 statements are the only XML banks export (#350)
+            'xml' => 'camt',
             default => 'csv',
         };
     }
@@ -49,10 +53,20 @@ class ParserFactory {
     }
 
     /**
+     * Get the camt.053/camt.052 parser instance.
+     */
+    public function getCamtParser(): CamtParser {
+        if ($this->camtParser === null) {
+            $this->camtParser = new CamtParser();
+        }
+        return $this->camtParser;
+    }
+
+    /**
      * Parse file content based on format.
      *
      * @param string $content File content
-     * @param string $format File format (csv, ofx, qif)
+     * @param string $format File format (csv, ofx, qif, camt)
      * @param int|null $limit Maximum number of records to parse
      * @param string $delimiter CSV delimiter (comma, semicolon, or tab)
      * @return array Parsed data
@@ -62,6 +76,7 @@ class ParserFactory {
             'csv' => $this->parseCsv($content, $limit, $delimiter),
             'ofx' => $this->getOfxParser()->parseToTransactionList($content, $limit),
             'qif' => $this->getQifParser()->parseToTransactionList($content, $limit),
+            'camt' => $this->getCamtParser()->parseToTransactionList($content, $limit),
             default => throw new \Exception('Unsupported format: ' . $format),
         };
     }
@@ -73,6 +88,7 @@ class ParserFactory {
         return match ($format) {
             'ofx' => $this->getOfxParser()->parse($content),
             'qif' => $this->getQifParser()->parse($content),
+            'camt' => $this->getCamtParser()->parse($content),
             default => ['accounts' => [], 'transactions' => $this->parse($content, $format)],
         };
     }

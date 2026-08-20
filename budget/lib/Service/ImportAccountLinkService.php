@@ -20,7 +20,7 @@ use OCP\AppFramework\Db\DoesNotExistException;
  * find-then-upsert.
  */
 class ImportAccountLinkService {
-    private const FORMATS = ['ofx', 'qif'];
+    private const FORMATS = ['ofx', 'qif', 'camt'];
 
     private ImportAccountLinkMapper $mapper;
 

@@ -163,7 +163,7 @@ class FileValidatorTest extends TestCase {
 		$this->assertContains('ofx', $extensions);
 		$this->assertContains('qif', $extensions);
 		$this->assertContains('txt', $extensions);
-		$this->assertCount(4, $extensions);
+		$this->assertCount(5, $extensions);
 	}
 
 	public function testGetMaxFileSize(): void {
@@ -372,4 +372,33 @@ class FileValidatorTest extends TestCase {
 			unlink($tmp);
 		}
 	}
+
+    // ===== camt.053 XML (#350) =====
+
+    public function testXmlExtensionIsAllowed(): void {
+        $this->assertSame('xml', $this->validator->validateExtension('statement.xml'));
+    }
+
+    public function testCamtContentIsAccepted(): void {
+        $tmp = tempnam(sys_get_temp_dir(), 'camt');
+        file_put_contents($tmp, file_get_contents(__DIR__ . '/../Parser/fixtures/camt053-wir-sample.xml'));
+        try {
+            $this->validator->validateContent($tmp, 'xml');
+            $this->addToAssertionCount(1);
+        } finally {
+            unlink($tmp);
+        }
+    }
+
+    public function testArbitraryXmlIsRejected(): void {
+        $tmp = tempnam(sys_get_temp_dir(), 'camt');
+        file_put_contents($tmp, '<?xml version="1.0"?><note><to>Tove</to></note>');
+        try {
+            $this->expectException(\Exception::class);
+            $this->expectExceptionMessage('camt');
+            $this->validator->validateContent($tmp, 'xml');
+        } finally {
+            unlink($tmp);
+        }
+    }
 }

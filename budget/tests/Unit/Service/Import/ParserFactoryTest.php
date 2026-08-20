@@ -323,4 +323,18 @@ class ParserFactoryTest extends TestCase {
         $this->assertEquals('100.00', $result[0]['Column 2']);
         $this->assertEquals('Groceries', $result[0]['Column 3']);
     }
+
+    // ===== camt.053 (#350) =====
+
+    public function testDetectFormatXmlIsCamt(): void {
+        $this->assertEquals('camt', $this->factory->detectFormat('CAMT_053_CH21_2026-07-01.xml'));
+    }
+
+    public function testParseFullDispatchesCamt(): void {
+        $xml = file_get_contents(__DIR__ . '/../Parser/fixtures/camt053-wir-sample.xml');
+        $parsed = $this->factory->parseFull($xml, 'camt');
+        $this->assertSame('CH21212121212121', $parsed['accounts'][0]['accountId']);
+        $this->assertCount(1, $this->factory->parse($xml, 'camt'));
+        $this->assertSame(1, $this->factory->countRows($xml, 'camt'));
+    }
 }

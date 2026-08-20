@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Bank statements in camt.053 XML can now be imported.** Many European banks — Swiss ones in particular — export statements as ISO 20022 `camt.053` (and intraday `camt.052`) XML rather than CSV or OFX. Drop one on the Import page and it behaves like an OFX file: every account in the statement is listed with its IBAN, auto-matched to the account of yours carrying that IBAN, and routed there. The parser reads what the payer wrote (the remittance text), who the other side was (the counterparty, which becomes the vendor), the bank's own entry text, and the transaction type code, and a batch entry such as a collective payment is split into its individual transactions with their own counterparties. Duplicate detection uses the bank's own entry reference — more reliable than the CSV content hash — except where a bank stamps the same reference on every entry, in which case the hash is used rather than collapsing the statement into one transaction. Every camt.053 schema version parses, including files with the namespace stripped ([#350](https://github.com/otherworld-dev/Budget/issues/350))
+
 ## [2.41.0] - 2026-08-19
 
 ### Added

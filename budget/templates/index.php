@@ -2177,7 +2177,7 @@ style('budget', 'budget-app');
                     <div class="import-step active" id="import-step-1">
                         <div class="step-header">
                             <h3><?php p($l->t('Step 1: Select File')); ?></h3>
-                            <p><?php p($l->t('Choose your bank statement file (CSV, OFX, or QIF format)')); ?></p>
+                            <p><?php p($l->t('Choose your bank statement file (CSV, OFX, QIF, or camt.053 XML format)')); ?></p>
                         </div>
 
                         <div class="import-dropzone" id="import-dropzone">
@@ -2185,7 +2185,7 @@ style('budget', 'budget-app');
                             <p><?php p($l->t('Drag and drop your bank statement here')); ?></p>
                             <p><?php p($l->t('or')); ?></p>
                             <button id="import-browse-btn" class="secondary" aria-label="<?php p($l->t('Browse for file to import')); ?>"><?php p($l->t('Browse Files')); ?></button>
-                            <input type="file" id="import-file-input" accept=".csv,.ofx,.qif" style="display: none;">
+                            <input type="file" id="import-file-input" accept=".csv,.ofx,.qif,.xml" style="display: none;">
                         </div>
 
                         <div class="file-formats-info">
@@ -2193,6 +2193,7 @@ style('budget', 'budget-app');
                             <ul>
                                 <li><strong>CSV:</strong> <?php p($l->t('Comma-separated values from any bank')); ?></li>
                                 <li><strong>OFX:</strong> <?php p($l->t('Open Financial Exchange format')); ?></li>
+                                <li><strong>XML:</strong> <?php p($l->t('ISO 20022 camt.053 / camt.052 bank statements')); ?></li>
                                 <li><strong>QIF:</strong> <?php p($l->t('Quicken Interchange Format')); ?></li>
                             </ul>
                         </div>

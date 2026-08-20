@@ -76,7 +76,7 @@ Sponsorship funds the time behind quick fixes, new features, and keeping the app
   - Sync all connections at once with aggregated results
   - Encrypted credential storage
   - Admin-enabled with experimental feature warnings
-- **Smart Import** - Import bank statements from CSV, OFX, and QIF formats
+- **Smart Import** - Import bank statements from CSV, OFX, QIF and ISO 20022 camt.053 XML formats
   - Auto-detection of CSV delimiters (comma, semicolon, tab)
   - Dual-column amount mapping for separate income/expense columns
   - European number format support (1.234,56)
@@ -275,6 +275,7 @@ The app supports the following formats:
 - **CSV** - Most banks provide CSV exports (supports European formats)
 - **OFX** - Open Financial Exchange format
 - **QIF** - Quicken Interchange Format
+- **XML** - ISO 20022 camt.053 / camt.052 bank statements (common at European banks)
 
 #### CSV Import Tips
 

@@ -34,13 +34,14 @@ class FileValidator {
     }
 
     private const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-    private const ALLOWED_EXTENSIONS = ['csv', 'ofx', 'qif', 'txt'];
+    private const ALLOWED_EXTENSIONS = ['csv', 'ofx', 'qif', 'xml', 'txt'];
 
     private const MIME_TYPES = [
         'csv' => ['text/csv', 'text/plain', 'application/csv', 'application/vnd.ms-excel'],
         'txt' => ['text/plain'],
         'ofx' => ['text/plain', 'application/x-ofx', 'application/xml', 'text/xml', 'application/sgml'],
         'qif' => ['text/plain', 'application/qif', 'application/x-qif'],
+        'xml' => ['application/xml', 'text/xml', 'text/plain'],
     ];
 
     /**
@@ -121,6 +122,7 @@ class FileValidator {
             'csv', 'txt' => $this->validateCsvContent($content),
             'ofx' => $this->validateOfxContent($content),
             'qif' => $this->validateQifContent($content),
+            'xml' => $this->validateCamtContent($content),
             default => null,
         };
     }
@@ -189,6 +191,21 @@ class FileValidator {
 
         if (!$hasTransactionMarker) {
             throw new \Exception($this->t('File does not appear to be a valid QIF file. Missing transaction end markers (^).'));
+        }
+    }
+
+    /**
+     * Validate that an XML upload is an ISO 20022 camt.053/052 statement (#350).
+     * The root element and namespace sit in the first bytes, so the 4 KB
+     * content window is enough.
+     */
+    private function validateCamtContent(string $content): void {
+        $isCamt = stripos($content, 'BkToCstmrStmt') !== false
+            || stripos($content, 'BkToCstmrAcctRpt') !== false
+            || stripos($content, 'camt.05') !== false;
+
+        if (!$isCamt) {
+            throw new \Exception($this->t('File does not appear to be a camt.053 bank statement. Only ISO 20022 camt.053/camt.052 XML is supported.'));
         }
     }
 

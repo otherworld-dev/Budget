@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Document xsi:schemaLocation="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08 camt.053.001.08.xsd" xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <BkToCstmrStmt>
+    <GrpHdr>
+      <MsgId>1</MsgId>
+      <CreDtTm>2026-08-19T12:15:23+02:00</CreDtTm>
+      <MsgPgntn>
+        <PgNb>1</PgNb>
+        <LastPgInd>true</LastPgInd>
+      </MsgPgntn>
+      <AddtlInf>SPS/2.1/PROD</AddtlInf>
+    </GrpHdr>
+    <Stmt>
+      <Id>AlphaNumeric</Id>
+      <ElctrncSeqNb>190</ElctrncSeqNb>
+      <CreDtTm>2026-08-19T12:15:23+02:00</CreDtTm>
+      <FrToDt>
+        <FrDtTm>2026-07-01T00:00:00+02:00</FrDtTm>
+        <ToDtTm>2026-07-30T23:59:59+02:00</ToDtTm>
+      </FrToDt>
+      <CpyDplctInd>DUPL</CpyDplctInd>
+      <Acct>
+        <Id>
+          <IBAN>CH21212121212121</IBAN>
+        </Id>
+        <Tp>
+          <Prtry>Name of Account / CHF</Prtry>
+        </Tp>
+        <Ccy>CHF</Ccy>
+        <Ownr>
+          <Nm>LastName FirstName</Nm>
+        </Ownr>
+        <Svcr>
+          <FinInstnId>
+            <BICFI>WIRBCHBBXXX</BICFI>
+            <Nm>WIR Bank</Nm>
+          </FinInstnId>
+        </Svcr>
+      </Acct>
+      <Bal>
+        <Tp>
+          <CdOrPrtry>
+            <Cd>OPBD</Cd>
+          </CdOrPrtry>
+        </Tp>
+        <Amt Ccy="CHF">2343243461.4</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt>
+          <Dt>2026-07-01</Dt>
+        </Dt>
+      </Bal>
+      <Bal>
+        <Tp>
+          <CdOrPrtry>
+            <Cd>CLBD</Cd>
+          </CdOrPrtry>
+        </Tp>
+        <Amt Ccy="CHF">3343495.03</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt>
+          <Dt>2026-07-30</Dt>
+        </Dt>
+      </Bal>
+      <TxsSummry>
+        <TtlNtries>
+          <NbOfNtries>37</NbOfNtries>
+          <Sum>1723421.25</Sum>
+        </TtlNtries>
+        <TtlCdtNtries>
+          <NbOfNtries>16</NbOfNtries>
+          <Sum>872437.44</Sum>
+        </TtlCdtNtries>
+        <TtlDbtNtries>
+          <NbOfNtries>21</NbOfNtries>
+          <Sum>84243.81</Sum>
+        </TtlDbtNtries>
+      </TxsSummry>
+      <Ntry>
+        <Amt Ccy="CHF">11</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <RvslInd>false</RvslInd>
+        <Sts>
+          <Cd>BOOK</Cd>
+        </Sts>
+        <BookgDt>
+          <Dt>2026-07-01</Dt>
+        </BookgDt>
+        <ValDt>
+          <Dt>2026-07-01</Dt>
+        </ValDt>
+        <AcctSvcrRef>AlphaNumeric</AcctSvcrRef>
+        <BkTxCd>
+          <Domn>
+            <Cd>PMNT</Cd>
+            <Fmly>
+              <Cd>ICDT</Cd>
+              <SubFmlyCd>OTHR</SubFmlyCd>
+            </Fmly>
+          </Domn>
+        </BkTxCd>
+        <NtryDtls>
+          <Btch>
+            <TtlAmt Ccy="CHF">11</TtlAmt>
+          </Btch>
+        </NtryDtls>
+        <AddtlNtryInf>Comment</AddtlNtryInf>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>

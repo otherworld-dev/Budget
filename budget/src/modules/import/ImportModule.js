@@ -16,7 +16,8 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
  */
 const MAPPABLE_FIELDS = {
     ofx: ['description', 'notes', 'vendor', 'reference'],
-    qif: ['description', 'notes', 'vendor', 'reference']
+    qif: ['description', 'notes', 'vendor', 'reference'],
+    camt: ['description', 'notes', 'vendor', 'reference']
 };
 
 /**
@@ -900,13 +901,17 @@ export default class ImportModule {
      * keep being discarded (#338).
      */
     applyFormatDefaults(format, columns) {
-        if (format !== 'ofx' && format !== 'qif') return;
+        if (!['ofx', 'qif', 'camt'].includes(format)) return;
 
         const defaults = {
             'map-description': 'description',
             'map-notes': 'memo',
             'map-reference': 'reference'
         };
+        // camt carries the counterparty separately — it is the natural vendor
+        if (format === 'camt') {
+            defaults['map-vendor'] = 'name';
+        }
 
         Object.entries(defaults).forEach(([fieldId, column]) => {
             const select = document.getElementById(fieldId);
