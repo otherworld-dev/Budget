@@ -13,7 +13,7 @@ Track your spending habits, manage savings, and forecast future account balances
 
 ## Features
 
-* **Import Bank Statements**: Support for CSV, OFX, and QIF formats
+* **Import Bank Statements**: Support for CSV, OFX, QIF and ISO 20022 camt.053 XML formats
 * **Smart Categorization**: Automatic vendor matching and transaction categorization
 * **Auto-Categorization Rules**: Apply rules to existing transactions anytime with preview
 * **Split Transactions**: Allocate single transactions across multiple categories
@@ -42,7 +42,7 @@ Full user documentation: https://budget.otherworld.dev/docs/
 * PHP 8.1 or higher
 * PHP BCMath extension (`php-bcmath`)
     ]]></description>
-    <version>2.41.0</version>
+    <version>2.42.0</version>
     <licence>AGPL-3.0-or-later</licence>
     <author mail="adam@otherworld.dev" homepage="https://otherworld.dev">Adam Morgan</author>
     <namespace>Budget</namespace>

@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.42.0] - 2026-08-21
 
 ### Added
 - **Receipts can be filed wherever you keep your app data.** Uploaded receipts have always landed in `Budget/Receipts/<year>/<month>/` in your Files; a new **Receipts folder** setting lets you point that anywhere inside your own Files instead — `Applications/Budget`, say, to sit alongside other apps' folders. The year and month subfolders are still created underneath, and receipts attached before the change stay exactly where they are: the app never moves or deletes your files. Applies to uploads from the web form, the API and receipt scanning alike ([#352](https://github.com/otherworld-dev/Budget/issues/352))
