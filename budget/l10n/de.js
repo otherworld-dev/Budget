@@ -1793,7 +1793,6 @@ OC.L10N.register(
     "Map Columns" : "Spalten zuordnen",
     "Review & Import" : "Überprüfen & Importieren",
     "Step 1: Select File" : "Schritt 1: Datei auswählen",
-    "Choose your bank statement file (CSV, OFX, or QIF format)" : "Wähle deine Kontoauszug-Datei (CSV, OFX, oder QIF Format)",
     "Drag and drop your bank statement here" : "Lege deinen Kontoauszug hier ab",
     "or" : "oder",
     "Browse for file to import" : "Nach Datei zum Importieren durchsuchen",

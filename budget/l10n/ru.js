@@ -1422,7 +1422,6 @@ OC.L10N.register(
     "Map Columns" : "Настроить соответствие столбцов",
     "Review & Import" : "Просмотр и импорт",
     "Step 1: Select File" : "Шаг 1: Выберите файл",
-    "Choose your bank statement file (CSV, OFX, or QIF format)" : "Выберите файл банковской выпиской (CSV, OFX, или QIF формат)",
     "Drag and drop your bank statement here" : "Перетащите сюда ваш файл банковской выписки",
     "or" : "или",
     "Browse for file to import" : "Выберите файл для импорта",
