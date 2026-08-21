@@ -29,6 +29,7 @@ export default class SettingsModule {
             const settings = await response.json();
             await this.populateSettings(settings);
             this.updateNumberFormatPreview();
+            this.setupReceiptFolderPicker();
             await this.loadAdminSettings();
         } catch (error) {
             console.error('Error loading settings:', error);
@@ -290,6 +291,34 @@ export default class SettingsModule {
             }
         });
 
+    }
+
+    /**
+     * "Browse…" next to the receipts folder opens Nextcloud's own folder
+     * picker, so the path never has to be typed (#352). The picker returns
+     * an absolute Files path; the setting is stored relative to the root.
+     * Bound once — this view's DOM is permanent.
+     */
+    setupReceiptFolderPicker() {
+        const btn = document.getElementById('setting-receipt-folder-browse');
+        const input = document.getElementById('setting-receipt-folder');
+        if (!btn || !input || btn.dataset.bound) return;
+        btn.dataset.bound = '1';
+
+        btn.addEventListener('click', () => {
+            const current = input.value.trim() || 'Budget/Receipts';
+            OC.dialogs.filepicker(
+                t('budget', 'Select receipts folder'),
+                (path) => {
+                    input.value = String(path || '').replace(/^\/+|\/+$/g, '');
+                },
+                false,
+                'httpd/unix-directory',
+                true,
+                OC.dialogs.FILEPICKER_TYPE_CHOOSE,
+                '/' + current
+            );
+        });
     }
 
     async saveSettings() {

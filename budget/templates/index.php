@@ -4431,7 +4431,13 @@ style('budget', 'budget-app');
                     <div class="settings-group">
                         <div class="setting-item">
                             <label for="setting-receipt-folder"><?php p($l->t('Receipts folder')); ?></label>
-                            <input type="text" id="setting-receipt-folder" class="setting-input" placeholder="Budget/Receipts" aria-describedby="setting-receipt-folder-help">
+                            <div class="setting-input-with-action">
+                                <input type="text" id="setting-receipt-folder" class="setting-input" placeholder="Budget/Receipts" aria-describedby="setting-receipt-folder-help">
+                                <button type="button" class="secondary" id="setting-receipt-folder-browse">
+                                    <span class="icon-folder" aria-hidden="true"></span>
+                                    <?php p($l->t('Browse…')); ?>
+                                </button>
+                            </div>
                             <small id="setting-receipt-folder-help" class="form-text"><?php p($l->t('A path inside your Files, for example Applications/Budget. Leave empty for the default, Budget/Receipts.')); ?></small>
                         </div>
                     </div>

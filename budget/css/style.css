@@ -9226,6 +9226,17 @@ button.danger:hover {
     padding-top: 10px;
 }
 
+/* Text setting with an action button beside it (e.g. receipts folder Browse) */
+.setting-input-with-action {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.setting-input-with-action .setting-input {
+    flex: 1;
+    min-width: 0;
+}
+
 /* Support-the-project buttons on the Help & Docs view */
 .help-support-buttons {
     display: flex;
