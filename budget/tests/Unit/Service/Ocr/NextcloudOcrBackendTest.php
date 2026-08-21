@@ -106,11 +106,22 @@ class NextcloudOcrBackendTest extends TestCase {
 		$this->backend->extractText('bytes', 'image/png', 'user1');
 	}
 
-	public function testTheHoldingFolderIsCreatedWhenMissing(): void {
-		$userFolder = $this->createMock(Folder::class);
-		$userFolder->method('get')->willThrowException(new NotFoundException());
-		$userFolder->expects($this->once())->method('newFolder')->willReturn($this->folder);
+	/** Folder mock that records the names created beneath it and hands back the next level. */
+	private function recordingFolder(array &$created, Folder $leaf, int $depth): Folder {
+		$folder = $this->createMock(Folder::class);
+		$folder->method('get')->willThrowException(new NotFoundException());
+		$folder->method('nodeExists')->willReturn(false);
+		$folder->method('newFolder')->willReturnCallback(function (string $name) use (&$created, $leaf, $depth) {
+			$created[] = $name;
+			return $depth <= 1 ? $leaf : $this->recordingFolder($created, $leaf, $depth - 1);
+		});
+		return $folder;
+	}
 
+	public function testTheHoldingFolderIsCreatedWhenMissing(): void {
+		// Created segment by segment: the receipts folder itself may not exist yet
+		$created = [];
+		$userFolder = $this->recordingFolder($created, $this->folder, 3);
 		$rootFolder = $this->createMock(IRootFolder::class);
 		$rootFolder->method('getUserFolder')->willReturn($userFolder);
 
@@ -121,5 +132,25 @@ class NextcloudOcrBackendTest extends TestCase {
 		$backend = new NextcloudOcrBackend($container, $rootFolder, $this->createMock(LoggerInterface::class));
 
 		$this->assertSame('TEXT', $backend->extractText('bytes', 'image/webp', 'user1'));
+		$this->assertSame(['Budget', 'Receipts', '.ocr-tmp'], $created);
+	}
+
+	public function testTheHoldingFolderFollowsTheReceiptsFolderSetting(): void {
+		$created = [];
+		$userFolder = $this->recordingFolder($created, $this->folder, 3);
+		$rootFolder = $this->createMock(IRootFolder::class);
+		$rootFolder->method('getUserFolder')->willReturn($userFolder);
+
+		$container = $this->createMock(ContainerInterface::class);
+		$container->method('get')->willReturn($this->manager);
+		$this->taskFinishesWith(['output' => ['TEXT']]);
+
+		$attachments = $this->createMock(\OCA\Budget\Service\AttachmentService::class);
+		$attachments->method('receiptsFolderFor')->with('user1')->willReturn('Applications/Budget');
+
+		$backend = new NextcloudOcrBackend($container, $rootFolder, $this->createMock(LoggerInterface::class), $attachments);
+
+		$this->assertSame('TEXT', $backend->extractText('bytes', 'image/webp', 'user1'));
+		$this->assertSame(['Applications', 'Budget', '.ocr-tmp'], $created);
 	}
 }

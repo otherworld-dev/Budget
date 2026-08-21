@@ -288,4 +288,102 @@ class AttachmentServiceTest extends TestCase {
 
         $this->assertSame('receipt.jpg', $this->nameFor($transaction, '', 'image/jpeg'));
     }
+
+    // ── configurable receipts folder (#352) ─────────────────────────
+
+    public function testNormalizesFolderSlashesAndTrimsSeparators(): void {
+        $this->assertSame('Applications/Budget', AttachmentService::normalizeReceiptsFolder(chr(92) . 'Applications' . chr(92) . 'Budget' . chr(92)));
+        $this->assertSame('Applications/Budget', AttachmentService::normalizeReceiptsFolder('  /Applications//Budget/ '));
+        $this->assertSame('Budget/Receipts', AttachmentService::normalizeReceiptsFolder('Budget/Receipts'));
+    }
+
+    /** @dataProvider invalidFolders */
+    public function testRejectsFoldersThatEscapeOrAreEmpty(string $raw): void {
+        $this->expectException(\InvalidArgumentException::class);
+        AttachmentService::normalizeReceiptsFolder($raw);
+    }
+
+    public static function invalidFolders(): array {
+        return [
+            'empty' => [''],
+            'only slashes' => ['///'],
+            'parent traversal' => ['../etc'],
+            'traversal inside' => ['Applications/../../x'],
+            'dot segment' => ['./Budget'],
+            'control char' => ["Budget\x00Receipts"],
+        ];
+    }
+
+    private function serviceWithSetting(?string $stored): AttachmentService {
+        $settings = $this->createMock(\OCA\Budget\Service\SettingService::class);
+        $settings->method('get')->willReturn($stored);
+        return new AttachmentService(
+            $this->mapper,
+            $this->transactionMapper,
+            $this->createMock(IRootFolder::class),
+            $this->createMock(LoggerInterface::class),
+            $settings
+        );
+    }
+
+    public function testReceiptsFolderDefaultsWhenUnset(): void {
+        $this->assertSame('Budget/Receipts', $this->serviceWithSetting(null)->receiptsFolderFor('user1'));
+        $this->assertSame('Budget/Receipts', $this->serviceWithSetting('   ')->receiptsFolderFor('user1'));
+        // No SettingService wired at all (older construction) — still the default
+        $this->assertSame('Budget/Receipts', $this->service->receiptsFolderFor('user1'));
+    }
+
+    public function testReceiptsFolderUsesTheSetting(): void {
+        $this->assertSame('Applications/Budget', $this->serviceWithSetting('Applications/Budget/')->receiptsFolderFor('user1'));
+    }
+
+    public function testReceiptsFolderFallsBackWhenStoredValueIsInvalid(): void {
+        // A bad value can only get in around the controller's validation; it
+        // must never become a path the upload walks into
+        $this->assertSame('Budget/Receipts', $this->serviceWithSetting('../../etc')->receiptsFolderFor('user1'));
+    }
+
+    public function testUploadFilesIntoTheConfiguredFolder(): void {
+        $transaction = $this->transactionFor('2026-08-05', 'The Corner Deli', 'x', '23.77');
+        $transaction->setId(5);
+        $this->transactionMapper->method('find')->willReturn($transaction);
+        $this->mapper->method('insert')->willReturnCallback(fn($a) => $a);
+
+        // A folder tree that records every segment created beneath it
+        $created = [];
+        $makeFolder = null;
+        $makeFolder = function () use (&$created, &$makeFolder) {
+            $folder = $this->createMock(Folder::class);
+            $folder->method('nodeExists')->willReturn(false);
+            $folder->method('newFolder')->willReturnCallback(function (string $name) use (&$created, &$makeFolder) {
+                $created[] = $name;
+                return $makeFolder();
+            });
+            $file = $this->createMock(File::class);
+            $file->method('getId')->willReturn(321);
+            $file->method('getName')->willReturn('2026-08-05 The Corner Deli 23.77.png');
+            $file->method('getMimeType')->willReturn('image/png');
+            $file->method('getSize')->willReturn(8);
+            $file->method('getPath')->willReturn('/user1/files/x.png');
+            $folder->method('newFile')->willReturn($file);
+            return $folder;
+        };
+        $userFolder = $makeFolder();
+        $rootFolder = $this->createMock(IRootFolder::class);
+        $rootFolder->method('getUserFolder')->willReturn($userFolder);
+        $settings = $this->createMock(\OCA\Budget\Service\SettingService::class);
+        $settings->method('get')->willReturn('Applications/Budget');
+        $service = new AttachmentService($this->mapper, $this->transactionMapper, $rootFolder, $this->createMock(LoggerInterface::class), $settings);
+
+        $tmp = tempnam(sys_get_temp_dir(), 'rcpt');
+        // A genuine 1x1 PNG: finfo needs real chunks to call it image/png
+        file_put_contents($tmp, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='));
+        try {
+            $service->upload(5, 'user1', ['name' => 'IMG_1.png', 'type' => 'image/png', 'tmp_name' => $tmp, 'error' => UPLOAD_ERR_OK, 'size' => 70]);
+        } finally {
+            unlink($tmp);
+        }
+
+        $this->assertSame(['Applications', 'Budget', '2026', '08'], $created);
+    }
 }

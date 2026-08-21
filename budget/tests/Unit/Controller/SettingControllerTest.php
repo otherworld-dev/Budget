@@ -335,4 +335,41 @@ class SettingControllerTest extends TestCase {
 		$this->assertContains('json', $exportValues);
 		$this->assertContains('pdf', $exportValues);
 	}
+
+	// ── receipt_folder validation (#352) ────────────────────────────
+
+	public function testUpdateRejectsReceiptFolderThatEscapesFiles(): void {
+		$this->request->method('getParams')->willReturn(['receipt_folder' => '../../etc']);
+		$this->mapper->expects($this->never())->method('insert');
+		$this->mapper->expects($this->never())->method('update');
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testUpdateStoresNormalizedReceiptFolder(): void {
+		$this->request->method('getParams')->willReturn(['receipt_folder' => chr(92) . 'Applications' . chr(92) . 'Budget' . chr(92)]);
+		$this->mapper->method('findByKey')->willThrowException(new DoesNotExistException('none'));
+		$stored = null;
+		$this->mapper->method('insert')->willReturnCallback(function (Setting $s) use (&$stored) {
+			$stored = $s->getValue();
+			return $s;
+		});
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame('Applications/Budget', $stored);
+	}
+
+	public function testUpdateAcceptsBlankReceiptFolderAsDefault(): void {
+		$this->request->method('getParams')->willReturn(['receipt_folder' => '   ']);
+		$this->mapper->method('findByKey')->willThrowException(new DoesNotExistException('none'));
+		$this->mapper->method('insert')->willReturnArgument(0);
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
 }

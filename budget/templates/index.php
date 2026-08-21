@@ -4424,6 +4424,19 @@ style('budget', 'budget-app');
                     </div>
                 </div>
 
+                <!-- Receipts Section (#352) -->
+                <div class="settings-section">
+                    <h3><?php p($l->t('Receipts')); ?></h3>
+                    <p class="settings-description"><?php p($l->t('Where uploaded receipts are filed in your Files. Year and month subfolders are created underneath. Receipts already attached stay where they are.')); ?></p>
+                    <div class="settings-group">
+                        <div class="setting-item">
+                            <label for="setting-receipt-folder"><?php p($l->t('Receipts folder')); ?></label>
+                            <input type="text" id="setting-receipt-folder" class="setting-input" placeholder="Budget/Receipts" aria-describedby="setting-receipt-folder-help">
+                            <small id="setting-receipt-folder-help" class="form-text"><?php p($l->t('A path inside your Files, for example Applications/Budget. Leave empty for the default, Budget/Receipts.')); ?></small>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Scheduled Reports Section -->
                 <div class="settings-section">
                     <h3><?php p($l->t('Scheduled Reports')); ?></h3>

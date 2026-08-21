@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service\Ocr;
 
+use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\AppInfo\Application;
 use OCP\Files\IRootFolder;
 use Psr\Container\ContainerInterface;
@@ -34,12 +35,14 @@ class NextcloudOcrBackend {
     public const TASK_TYPE = 'core:image2text:ocr';
 
     /** Hidden holding folder inside the user's Files for in-flight scans. */
-    private const TMP_FOLDER = 'Budget/Receipts/.ocr-tmp';
+    /** Scratch folder for the task-processing hand-off, kept under the user's receipts folder (#352) */
+    private const TMP_SUBFOLDER = '.ocr-tmp';
 
     public function __construct(
         private ContainerInterface $container,
         private IRootFolder $rootFolder,
         private LoggerInterface $logger,
+        private ?AttachmentService $attachments = null,
     ) {
     }
 
@@ -65,9 +68,13 @@ class NextcloudOcrBackend {
             // so the bytes must briefly live in the user's own Files.
             $userFolder = $this->rootFolder->getUserFolder($userId);
             try {
-                $folder = $userFolder->get(self::TMP_FOLDER);
+                $folder = $userFolder->get($this->tmpFolderPath($userId));
             } catch (\OCP\Files\NotFoundException $e) {
-                $folder = $userFolder->newFolder(self::TMP_FOLDER);
+                // Create segment by segment: the receipts folder itself may not exist yet
+                $folder = $userFolder;
+                foreach (explode('/', $this->tmpFolderPath($userId)) as $segment) {
+                    $folder = $folder->nodeExists($segment) ? $folder->get($segment) : $folder->newFolder($segment);
+                }
             }
             $extension = str_replace('image/', '', $mime) === 'jpeg' ? 'jpg' : str_replace('image/', '', $mime);
             $file = $folder->newFile(uniqid('scan-', true) . '.' . $extension, $imageBytes);
@@ -120,5 +127,11 @@ class NextcloudOcrBackend {
                 }
             }
         }
+    }
+
+    /** <receipts folder>/.ocr-tmp — follows the user's receipts-folder setting. */
+    private function tmpFolderPath(string $userId): string {
+        $base = $this->attachments?->receiptsFolderFor($userId) ?? AttachmentService::DEFAULT_RECEIPTS_FOLDER;
+        return $base . '/' . self::TMP_SUBFOLDER;
     }
 }

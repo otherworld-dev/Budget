@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Controller;
 
+use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
@@ -48,6 +49,7 @@ class SettingController extends Controller {
         'report_email_enabled' => 'false',
         'import_auto_apply_rules' => 'true',
         'import_skip_duplicates' => 'true',
+        'receipt_folder' => AttachmentService::DEFAULT_RECEIPTS_FOLDER,
         'export_default_format' => 'csv',
         'budget_period' => 'monthly',
         'budget_start_day' => '1',
@@ -146,6 +148,15 @@ class SettingController extends Controller {
                     continue;
                 }
 
+                // Receipts folder: validated and normalised (#352); blank = default
+                if ($key === AttachmentService::RECEIPT_FOLDER_KEY) {
+                    try {
+                        $value = trim((string) $value) === '' ? '' : AttachmentService::normalizeReceiptsFolder((string) $value);
+                    } catch (\InvalidArgumentException $e) {
+                        return new DataResponse(['error' => $this->l->t('Invalid receipts folder: %1$s', [$e->getMessage()])], Http::STATUS_BAD_REQUEST);
+                    }
+                }
+
                 try {
                     // Try to find existing setting
                     $setting = $this->mapper->findByKey($this->getEffectiveUserId(), $key);
@@ -190,6 +201,14 @@ class SettingController extends Controller {
                     ['error' => $this->l->t('Value parameter is required')],
                     Http::STATUS_BAD_REQUEST
                 );
+            }
+
+            if ($key === AttachmentService::RECEIPT_FOLDER_KEY) {
+                try {
+                    $value = trim((string) $value) === '' ? '' : AttachmentService::normalizeReceiptsFolder((string) $value);
+                } catch (\InvalidArgumentException $e) {
+                    return new DataResponse(['error' => $this->l->t('Invalid receipts folder: %1$s', [$e->getMessage()])], Http::STATUS_BAD_REQUEST);
+                }
             }
 
             $now = date('Y-m-d H:i:s');

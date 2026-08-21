@@ -29,14 +29,62 @@ class AttachmentService {
         'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf',
     ];
     public const MAX_SIZE = 26214400; // 25 MB
-    private const RECEIPTS_FOLDER = 'Budget/Receipts';
+    /** Per-user setting key holding the receipts folder (relative to their Files) — #352 */
+    public const RECEIPT_FOLDER_KEY = 'receipt_folder';
+    public const DEFAULT_RECEIPTS_FOLDER = 'Budget/Receipts';
 
     public function __construct(
         private AttachmentMapper $mapper,
         private TransactionMapper $transactionMapper,
         private IRootFolder $rootFolder,
         private LoggerInterface $logger,
+        private ?SettingService $settings = null,
     ) {
+    }
+
+    /**
+     * Normalise a user-supplied receipts folder into a clean path relative to
+     * the user's Files root, or throw. Accepts either slash style and stray
+     * leading/trailing separators ("\Applications\Budget\" becomes
+     * "Applications/Budget"); refuses anything that could escape the user's
+     * own tree or that no filesystem accepts.
+     *
+     * @throws \InvalidArgumentException
+     */
+    public static function normalizeReceiptsFolder(string $raw): string {
+        $path = str_replace(chr(92), '/', trim($raw));
+        $path = preg_replace('#/+#', '/', $path) ?? $path;
+        $path = trim($path, '/');
+
+        if ($path === '') {
+            throw new \InvalidArgumentException('The receipts folder cannot be empty');
+        }
+        if (preg_match('/[\x00-\x1F]/', $path) === 1) {
+            throw new \InvalidArgumentException('The receipts folder contains invalid characters');
+        }
+        foreach (explode('/', $path) as $segment) {
+            if ($segment === '.' || $segment === '..') {
+                throw new \InvalidArgumentException('The receipts folder must stay inside your Files');
+            }
+        }
+        return $path;
+    }
+
+    /**
+     * The user's configured receipts folder, falling back to the default
+     * when unset or (should a bad value ever reach the store) invalid.
+     */
+    public function receiptsFolderFor(string $userId): string {
+        $stored = $this->settings?->get($userId, self::RECEIPT_FOLDER_KEY);
+        if ($stored === null || trim($stored) === '') {
+            return self::DEFAULT_RECEIPTS_FOLDER;
+        }
+        try {
+            return self::normalizeReceiptsFolder($stored);
+        } catch (\InvalidArgumentException $e) {
+            $this->logger->warning("Ignoring invalid receipt_folder setting for {$userId}: {$e->getMessage()}");
+            return self::DEFAULT_RECEIPTS_FOLDER;
+        }
     }
 
     /**
@@ -95,8 +143,9 @@ class AttachmentService {
     }
 
     /**
-     * Upload a new receipt into /Budget/Receipts/<year of transaction date>/
-     * in the user's Files and attach it.
+     * Upload a new receipt into <receipts folder>/<year>/<month>/ in the
+     * user's Files (default Budget/Receipts, configurable per user — #352)
+     * and attach it.
      *
      * @param array $uploadedFile PHP uploaded-file array (name, type, tmp_name, error, size)
      */
@@ -119,7 +168,7 @@ class AttachmentService {
         $year = substr($date, 0, 4) ?: date('Y');
         $month = substr($date, 5, 2) ?: date('m');
         $folder = $userFolder;
-        foreach ([...explode('/', self::RECEIPTS_FOLDER), $year, $month] as $segment) {
+        foreach ([...explode('/', $this->receiptsFolderFor($userId)), $year, $month] as $segment) {
             $folder = $folder->nodeExists($segment) ? $folder->get($segment) : $folder->newFolder($segment);
         }
 
