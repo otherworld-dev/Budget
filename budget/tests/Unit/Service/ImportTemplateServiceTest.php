@@ -106,6 +106,51 @@ class ImportTemplateServiceTest extends TestCase {
         $this->assertEquals($mapping, $template->getParsedMapping());
     }
 
+    public function testCreateCsvSupportsArrayMappings(): void {
+        $this->mapper->method('nameExists')->willReturn(false);
+        $this->mapper->method('insert')->willReturnCallback(fn (ImportTemplate $t) => $t);
+
+        $mapping = [
+            'date' => 'Date',
+            'amount' => 'Amount',
+            'description' => ['Memo', 'Payee'],
+            'notes' => ['Extra1', 'Extra2'],
+        ];
+
+        $template = $this->service->create('user1', 'Array Mapping', 'csv', $mapping);
+
+        $this->assertEquals($mapping, $template->getParsedMapping());
+    }
+
+    public function testCreateCsvDropsArrayMappingsForNonTextFields(): void {
+        $this->mapper->method('nameExists')->willReturn(false);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Map either an amount column or separate income/expense columns, but not both');
+
+        $mapping = [
+            'date' => 'Date',
+            'amount' => ['Amount', 'Credit'],
+            'description' => 'Memo',
+        ];
+
+        $this->service->create('user1', 'Scalar-only mapping', 'csv', $mapping);
+    }
+
+    public function testCreateCsvDropsBlankOnlyArrayMappings(): void {
+        $this->mapper->method('nameExists')->willReturn(false);
+        $this->mapper->method('insert')->willReturnCallback(fn (ImportTemplate $t) => $t);
+
+        $mapping = [
+            'date' => 'Date',
+            'amount' => 'Amount',
+            'description' => ['   ', '', 'Memo'],
+        ];
+
+        $template = $this->service->create('user1', 'Blank array mapping', 'csv', $mapping);
+
+        $this->assertSame(['date' => 'Date', 'amount' => 'Amount', 'description' => ['Memo']], $template->getParsedMapping());
+    }
+
     public function testCreateCsvDropsUnknownMappingKeys(): void {
         $this->mapper->method('nameExists')->willReturn(false);
         $this->mapper->method('insert')->willReturnCallback(fn (ImportTemplate $t) => $t);

@@ -93,7 +93,14 @@ class TransactionNormalizer {
                 continue;
             }
 
-            if (isset($row[$column])) {
+            if (is_array($column)) {
+                if (in_array($field, ['description', 'notes', 'vendor', 'reference'], true)) {
+                    $val = $this->extractMappedTextValue($row, $column);
+                    if ($val !== null) {
+                        $transaction[$field] = $val;
+                    }
+                }
+            } elseif (isset($row[$column])) {
                 $transaction[$field] = $row[$column];
             }
         }
@@ -319,6 +326,21 @@ class TransactionNormalizer {
      */
     private function pickSource(array $txn, array $mapping, string $target, array $defaults): ?string {
         $chosen = $mapping[$target] ?? null;
+        if (is_array($chosen)) {
+            $parts = [];
+            foreach ($chosen as $key) {
+                if (is_string($key) && $key !== '' && isset($txn[$key]) && is_scalar($txn[$key])) {
+                    $val = trim((string) $txn[$key]);
+                    if ($val !== '') {
+                        $parts[] = $val;
+                    }
+                }
+            }
+            if (!empty($parts)) {
+                return implode(', ', $parts);
+            }
+        }
+
         $candidates = is_string($chosen) && $chosen !== '' ? [$chosen] : [];
         $candidates = array_merge($candidates, $defaults);
 
@@ -591,7 +613,44 @@ class TransactionNormalizer {
      */
     private function mapsColumn(array $mapping, string $field): bool {
         $column = $mapping[$field] ?? null;
-        return !is_bool($column) && $column !== null && $column !== '';
+        if (is_bool($column) || $column === null || $column === '') {
+            return false;
+        }
+        if (is_array($column)) {
+            return !empty(array_filter($column, fn($c) => !is_bool($c) && $c !== null && $c !== ''));
+        }
+        return true;
+    }
+
+    /**
+     * Extract and concatenate mapped column value(s) for text fields.
+     */
+    private function extractMappedTextValue(array $row, mixed $columnMapping): ?string {
+        if (is_array($columnMapping)) {
+            $parts = [];
+            foreach ($columnMapping as $col) {
+                if (is_string($col) && $col !== '') {
+                    $colName = (string) $col;
+                    if (isset($row[$colName]) && is_scalar($row[$colName])) {
+                        $val = trim((string) $row[$colName]);
+                        if ($val !== '') {
+                            $parts[] = $val;
+                        }
+                    }
+                }
+            }
+            return !empty($parts) ? implode(', ', $parts) : null;
+        }
+
+        if (is_string($columnMapping) && $columnMapping !== '') {
+            $colName = (string) $columnMapping;
+            if (isset($row[$colName]) && is_scalar($row[$colName])) {
+                $val = trim((string) $row[$colName]);
+                return $val !== '' ? $val : null;
+            }
+        }
+
+        return null;
     }
 
     /**

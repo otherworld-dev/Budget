@@ -203,9 +203,26 @@ class ImportTemplateService extends AbstractCrudService {
      */
     private function sanitizeMapping(array $mapping, ?array $columnFields = null): array {
         $clean = [];
+        $allowArrayFields = ['description', 'notes', 'vendor', 'reference'];
         foreach ($columnFields ?? self::COLUMN_FIELDS as $field) {
-            if (isset($mapping[$field]) && $mapping[$field] !== '' && $mapping[$field] !== null) {
-                $clean[$field] = (string) $mapping[$field];
+            if (!isset($mapping[$field]) || $mapping[$field] === '' || $mapping[$field] === null) {
+                continue;
+            }
+
+            if (is_array($mapping[$field])) {
+                if (!in_array($field, $allowArrayFields, true)) {
+                    continue;
+                }
+                $cols = array_values(array_filter(array_map('strval', $mapping[$field]), fn($v) => trim($v) !== ''));
+                if (!empty($cols)) {
+                    $clean[$field] = $cols;
+                }
+                continue;
+            }
+
+            $val = trim((string) $mapping[$field]);
+            if ($val !== '') {
+                $clean[$field] = $val;
             }
         }
 

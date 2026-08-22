@@ -11407,11 +11407,11 @@ button.danger:hover {
 }
 
 /* Report account multi-select (checklist dropdown) — #299 */
-.account-multiselect {
+.custom-multiselect {
     position: relative;
 }
 
-.account-multiselect-toggle {
+.custom-multiselect-toggle {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -11428,23 +11428,22 @@ button.danger:hover {
     text-align: left;
 }
 
-.account-multiselect-toggle:hover {
+.custom-multiselect-toggle:hover {
     border-color: var(--color-primary-element);
 }
 
-.account-multiselect-toggle #report-account-summary,
-.account-multiselect-toggle > span:first-child {
+.custom-multiselect-summary {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.account-multiselect-caret {
+.custom-multiselect-caret {
     color: var(--color-text-maxcontrast);
     flex-shrink: 0;
 }
 
-.account-multiselect-menu {
+.custom-multiselect-menu {
     position: absolute;
     z-index: 50;
     top: calc(100% + 4px);
@@ -11459,7 +11458,7 @@ button.danger:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
-.account-multiselect-option {
+.custom-multiselect-option {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -11470,11 +11469,11 @@ button.danger:hover {
     white-space: nowrap;
 }
 
-.account-multiselect-option:hover {
+.custom-multiselect-option:hover {
     background: var(--color-background-hover);
 }
 
-.account-multiselect-all {
+.custom-multiselect-all {
     border-bottom: 1px solid var(--color-border);
     margin-bottom: 4px;
     padding-bottom: 8px;

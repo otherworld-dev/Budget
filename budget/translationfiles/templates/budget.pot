@@ -10313,6 +10313,10 @@ msgstr[1] ""
 msgid "Failed to add selected transfers"
 msgstr ""
 
+#: /app/src/utils/multiselect.js:19
+msgid "Select column(s)..."
+msgstr ""
+
 #: /app/src/utils/formatters.js:228 /app/templates/index.php:5703
 msgid "Mortgage"
 msgstr ""
