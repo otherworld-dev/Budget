@@ -86,6 +86,32 @@ class ImportControllerTest extends TestCase {
 		$this->assertSame($preview, $response->getData());
 	}
 
+	// The request's mapping is normalised before it reaches the service: a
+	// one-column list is the column, a list on a non-text field is dropped
+	// (the service reads those straight off the row and would throw).
+	public function testPreviewNormalisesListMappings(): void {
+		$this->service->expects($this->once())
+			->method('previewImport')
+			->with('user1', 'file123', ['date' => 'Date', 'description' => 'Memo', 'notes' => ['A', 'B']], null, null, true, ',')
+			->willReturn([]);
+
+		$this->controller->preview('file123', [
+			'date' => 'Date',
+			'description' => ['Memo'],
+			'notes' => ['A', 'B'],
+			'category' => ['Cat'],
+		]);
+	}
+
+	public function testProcessNormalisesListMappings(): void {
+		$this->service->expects($this->once())
+			->method('processImport')
+			->with('user1', 'file123', ['date' => 'Date', 'description' => 'Memo'], null, null, true, true, ',')
+			->willReturn(['imported' => 0, 'skipped' => 0, 'accountResults' => []]);
+
+		$this->controller->process('file123', ['date' => 'Date', 'description' => ['Memo'], 'type' => ['T']]);
+	}
+
 	// ── applyTemplate (exercised through preview) ───────────────────
 
 	// #340: an OFX/QIF template now carries the text-target mapping as well as

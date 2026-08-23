@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Several CSV columns can feed one text field.** Banks often split what belongs together — a merchant column and a details column, say, or a reference spread over two. On the import mapping step, Description, Notes, Vendor and Reference are now checklists: tick every column that belongs in the field and the values are joined with a comma, in the order the columns appear in the file, with blank cells skipped. The same works for those four fields on OFX, QIF and camt files, and a saved import template keeps the whole selection. A single ticked column imports exactly as it always has, so re-importing an overlapping statement still recognises its transactions. Thanks to @Saviq for the feature ([#355](https://github.com/otherworld-dev/Budget/pull/355))
+
 ## [2.42.0] - 2026-08-21
 
 ### Added

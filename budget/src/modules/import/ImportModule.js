@@ -5,19 +5,26 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
+import MultiSelect from '../../utils/multiselect.js';
 
 /**
- * Mapping targets each format can actually resolve (#338).
+ * The free-text targets. Each can be fed from several source columns at once
+ * (the server joins them with ", " in file order — #355), so these four are
+ * checklists (MultiSelect) where every other target is a plain <select>.
  *
- * OFX and QIF take date, amount and type from the file's own structure, and
- * have no per-row account, currency or dual-amount columns. Those selects are
- * hidden for them rather than left on screen implying an effect they cannot
- * have. A format missing here maps everything, which is what CSV wants.
+ * They are also exactly the mapping targets OFX/QIF/camt can resolve (#338):
+ * those formats take date, amount and type from the file's own structure and
+ * have no per-row account, currency or dual-amount columns, so the other
+ * selects are hidden for them rather than left on screen implying an effect
+ * they cannot have. A format missing from MAPPABLE_FIELDS maps everything,
+ * which is what CSV wants.
  */
+const TEXT_FIELDS = ['description', 'notes', 'vendor', 'reference'];
+
 const MAPPABLE_FIELDS = {
-    ofx: ['description', 'notes', 'vendor', 'reference'],
-    qif: ['description', 'notes', 'vendor', 'reference'],
-    camt: ['description', 'notes', 'vendor', 'reference']
+    ofx: TEXT_FIELDS,
+    qif: TEXT_FIELDS,
+    camt: TEXT_FIELDS
 };
 
 /**
@@ -39,6 +46,11 @@ const MAPPING_SELECT_IDS = {
     account: 'map-account',
     currency: 'map-currency'
 };
+
+/** Select id -> mapping target, the inverse of MAPPING_SELECT_IDS. */
+const SELECT_ID_TO_FIELD = Object.fromEntries(
+    Object.entries(MAPPING_SELECT_IDS).map(([field, id]) => [id, field])
+);
 
 export default class ImportModule {
     constructor(app) {
@@ -63,6 +75,9 @@ export default class ImportModule {
         // User-saved import template state
         this.userTemplates = [];
         this.selectedTemplate = null;
+
+        // Multiselect component instances
+        this.multiSelects = {};
     }
 
     // ============================================
@@ -304,12 +319,57 @@ export default class ImportModule {
      * @param {object} mapping Stored mapping (target -> column name)
      * @param {string[]} fields Mapping targets this call owns
      */
+    /**
+     * Build the checklist widgets for the text targets, once. Keyed by mapping
+     * target; the widget replaces the <select> in the container of that id.
+     */
+    initMultiSelects() {
+        TEXT_FIELDS.forEach(field => {
+            const el = document.getElementById(MAPPING_SELECT_IDS[field]);
+            if (el && !this.multiSelects[field]) {
+                this.multiSelects[field] = new MultiSelect(el, {
+                    labelledBy: `${el.id}-label`,
+                    onChange: () => this.updatePreviewMapping()
+                });
+            }
+        });
+    }
+
+    resetImportMultiSelects() {
+        Object.values(this.multiSelects).forEach(multiSelect => multiSelect.setValue([]));
+    }
+
+    /**
+     * Read a mapping control: the checklist's selection (null when empty,
+     * string[] otherwise) for a text target, the <select>'s value for the rest.
+     */
+    getSelectValue(el) {
+        if (!el) return null;
+        const multiSelect = this.multiSelects[SELECT_ID_TO_FIELD[el.id]];
+        if (multiSelect) {
+            const vals = multiSelect.getValue();
+            return vals.length > 0 ? vals : null;
+        }
+        return el.value || null;
+    }
+
+    /** Counterpart of getSelectValue: accepts a column name or a list of them. */
+    setSelectValue(el, val) {
+        if (!el) return;
+        const multiSelect = this.multiSelects[SELECT_ID_TO_FIELD[el.id]];
+        if (multiSelect) {
+            multiSelect.setValue(val);
+        } else {
+            el.value = val ?? '';
+        }
+    }
+
     applyColumnMappingToForm(mapping, fields) {
         if (!mapping || !Object.keys(mapping).length) return;
 
         fields.forEach(field => {
             const el = document.getElementById(MAPPING_SELECT_IDS[field]);
-            if (el) el.value = mapping[field] ?? '';
+            if (el) this.setSelectValue(el, mapping[field]);
         });
     }
 
@@ -440,8 +500,10 @@ export default class ImportModule {
             const format = (tpl.format || 'csv').toUpperCase();
             let meta;
             if ((tpl.format || 'csv') === 'csv') {
-                const columnCount = Object.keys(tpl.mapping || {})
-                    .filter(k => !['skipFirstRow', 'applyRules'].includes(k)).length;
+                // A text target may hold several columns; count them all.
+                const columnCount = Object.entries(tpl.mapping || {})
+                    .filter(([k]) => !['skipFirstRow', 'applyRules'].includes(k))
+                    .reduce((sum, [, v]) => sum + (Array.isArray(v) ? v.length : 1), 0);
                 meta = n('budget', '%n column mapped', '%n columns mapped', columnCount);
             } else {
                 const accountCount = Object.keys(tpl.accountMapping || {}).length;
@@ -617,6 +679,8 @@ export default class ImportModule {
     // ============================================
 
     setupImportEventListeners() {
+        this.initMultiSelects();
+
         // Tab navigation
         const tabButtons = document.querySelectorAll('.import-tab-btn');
         tabButtons.forEach(button => {
@@ -826,6 +890,8 @@ export default class ImportModule {
         // Kept for highlightMappedColumns, which has to turn a select's column
         // name back into its position in the preview table.
         this.previewColumns = Array.isArray(columns) ? columns.slice() : [];
+        this.initMultiSelects();
+        this.resetImportMultiSelects();
 
         const mappingSelects = {
             'map-date': document.getElementById('map-date'),
@@ -843,18 +909,23 @@ export default class ImportModule {
         };
 
         // Clear existing options and add columns
-        Object.values(mappingSelects).forEach(select => {
+        Object.entries(mappingSelects).forEach(([id, select]) => {
             if (!select) return;
-            const firstOption = select.firstElementChild;
-            select.innerHTML = '';
-            if (firstOption) select.appendChild(firstOption);
+            const multiSelect = this.multiSelects[SELECT_ID_TO_FIELD[id]];
+            if (multiSelect) {
+                multiSelect.setOptions(columns);
+            } else {
+                const firstOption = select.firstElementChild;
+                select.innerHTML = '';
+                if (firstOption) select.appendChild(firstOption);
 
-            columns.forEach((column, _index) => {
-                const option = document.createElement('option');
-                option.value = column;
-                option.textContent = column;
-                select.appendChild(option);
-            });
+                columns.forEach((column, _index) => {
+                    const option = document.createElement('option');
+                    option.value = column;
+                    option.textContent = column;
+                    select.appendChild(option);
+                });
+            }
         });
 
         // Auto-detect common column mappings
@@ -890,7 +961,7 @@ export default class ImportModule {
             );
 
             if (matchingColumn) {
-                select.value = matchingColumn;
+                this.setSelectValue(select, matchingColumn);
             }
         });
     }
@@ -916,7 +987,7 @@ export default class ImportModule {
         Object.entries(defaults).forEach(([fieldId, column]) => {
             const select = document.getElementById(fieldId);
             if (select && columns.includes(column)) {
-                select.value = column;
+                this.setSelectValue(select, column);
             }
         });
     }
@@ -946,6 +1017,9 @@ export default class ImportModule {
 
             wrapper.querySelectorAll('select').forEach(select => {
                 select.value = '';
+            });
+            wrapper.querySelectorAll('.custom-multiselect').forEach(msEl => {
+                this.setSelectValue(msEl, null);
             });
             wrapper.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
                 checkbox.checked = false;
@@ -1020,11 +1094,11 @@ export default class ImportModule {
             amount: document.getElementById('map-amount')?.value || null,
             incomeColumn: document.getElementById('map-income')?.value || null,
             expenseColumn: document.getElementById('map-expense')?.value || null,
-            description: document.getElementById('map-description')?.value || null,
-            notes: document.getElementById('map-notes')?.value || null,
+            description: this.getSelectValue(document.getElementById('map-description')),
+            notes: this.getSelectValue(document.getElementById('map-notes')),
             type: document.getElementById('map-type')?.value || null,
-            vendor: document.getElementById('map-vendor')?.value || null,
-            reference: document.getElementById('map-reference')?.value || null,
+            vendor: this.getSelectValue(document.getElementById('map-vendor')),
+            reference: this.getSelectValue(document.getElementById('map-reference')),
             category: document.getElementById('map-category')?.value || null,
             account: document.getElementById('map-account')?.value || null,
             currency: document.getElementById('map-currency')?.value || null,
@@ -1046,9 +1120,13 @@ export default class ImportModule {
         // never fired for any ordinary CSV header.
         const columns = this.previewColumns || [];
         Object.values(mapping).forEach(column => {
-            if (typeof column !== 'string' || column === '') return;
-            const header = headers[columns.indexOf(column)];
-            if (header) header.classList.add('mapped-column');
+            if (!column) return;
+            const colList = Array.isArray(column) ? column : [column];
+            colList.forEach(col => {
+                if (typeof col !== 'string' || col === '') return;
+                const header = headers[columns.indexOf(col)];
+                if (header) header.classList.add('mapped-column');
+            });
         });
     }
 
@@ -1142,9 +1220,10 @@ export default class ImportModule {
 
         const mapping = this.getCurrentMapping();
 
-        // Check required fields: date and description
+        // Check required fields: date and description (the latter is a
+        // checklist: null when nothing is ticked, a non-empty list otherwise)
         const hasDate = mapping.date !== null && mapping.date !== '';
-        const hasDescription = mapping.description !== null && mapping.description !== '';
+        const hasDescription = Array.isArray(mapping.description) && mapping.description.length > 0;
 
         // Check amount: either single amount column OR both income and expense columns
         const hasAmount = mapping.amount !== null && mapping.amount !== '';

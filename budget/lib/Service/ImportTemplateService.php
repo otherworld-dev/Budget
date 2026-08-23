@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service;
 
+use OCA\Budget\Service\Import\TransactionNormalizer;
 use OCA\Budget\Db\ImportTemplate;
 use OCA\Budget\Db\ImportTemplateMapper;
 use OCP\AppFramework\Db\Entity;
@@ -203,9 +204,24 @@ class ImportTemplateService extends AbstractCrudService {
      */
     private function sanitizeMapping(array $mapping, ?array $columnFields = null): array {
         $clean = [];
+        // Lists (several columns joined into one text field) are only kept on
+        // the text targets, trimmed and deduplicated, and a one-column list is
+        // stored as the plain column it is — so a template saved through the
+        // checklist is byte-identical to one saved before lists existed.
+        $mapping = TransactionNormalizer::normalizeMapping($mapping);
         foreach ($columnFields ?? self::COLUMN_FIELDS as $field) {
-            if (isset($mapping[$field]) && $mapping[$field] !== '' && $mapping[$field] !== null) {
-                $clean[$field] = (string) $mapping[$field];
+            if (!isset($mapping[$field]) || $mapping[$field] === '' || $mapping[$field] === null) {
+                continue;
+            }
+
+            if (is_array($mapping[$field])) {
+                $clean[$field] = $mapping[$field];
+                continue;
+            }
+
+            $val = trim((string) $mapping[$field]);
+            if ($val !== '') {
+                $clean[$field] = $val;
             }
         }
 

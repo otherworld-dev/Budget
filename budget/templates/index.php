@@ -2257,16 +2257,13 @@ style('budget', 'budget-app');
                                     <p class="hint"><?php p($l->t('For files with separate income and expense columns')); ?></p>
                                 </div>
                                 <div class="mapping-field required" data-map-field="description">
-                                    <label><?php p($l->t('Description')); ?> <span class="required">*</span></label>
-                                    <select id="map-description" required>
-                                        <option value=""><?php p($l->t('Select column...')); ?></option>
-                                    </select>
+                                    <label id="map-description-label"><?php p($l->t('Description')); ?> <span class="required">*</span></label>
+                                    <div id="map-description" class="custom-multiselect"></div>
+                                    <p class="hint"><?php p($l->t('Tick more than one column to join them with a comma, in the order they appear in the file')); ?></p>
                                 </div>
                                 <div class="mapping-field" data-map-field="notes">
-                                    <label><?php p($l->t('Notes')); ?></label>
-                                    <select id="map-notes">
-                                        <option value=""><?php p($l->t('Select column...')); ?></option>
-                                    </select>
+                                    <label id="map-notes-label"><?php p($l->t('Notes')); ?></label>
+                                    <div id="map-notes" class="custom-multiselect"></div>
                                     <p class="hint"><?php p($l->t('Column stored in the transaction\'s notes field')); ?></p>
                                 </div>
                                 <div class="mapping-field" data-map-field="type">
@@ -2276,16 +2273,12 @@ style('budget', 'budget-app');
                                     </select>
                                 </div>
                                 <div class="mapping-field" data-map-field="vendor">
-                                    <label><?php p($l->t('Vendor/Payee')); ?></label>
-                                    <select id="map-vendor">
-                                        <option value=""><?php p($l->t('Select column...')); ?></option>
-                                    </select>
+                                    <label id="map-vendor-label"><?php p($l->t('Vendor/Payee')); ?></label>
+                                    <div id="map-vendor" class="custom-multiselect"></div>
                                 </div>
                                 <div class="mapping-field" data-map-field="reference">
-                                    <label><?php p($l->t('Reference/Check Number')); ?></label>
-                                    <select id="map-reference">
-                                        <option value=""><?php p($l->t('Select column...')); ?></option>
-                                    </select>
+                                    <label id="map-reference-label"><?php p($l->t('Reference/Check Number')); ?></label>
+                                    <div id="map-reference" class="custom-multiselect"></div>
                                 </div>
                                 <div class="mapping-field" data-map-field="category">
                                     <label><?php p($l->t('Category')); ?></label>
@@ -3038,20 +3031,7 @@ style('budget', 'budget-app');
 
                 <div class="control-group">
                     <label id="report-account-label"><?php p($l->t('Account')); ?></label>
-                    <div id="report-account-multiselect" class="account-multiselect">
-                        <button type="button" id="report-account-toggle" class="account-multiselect-toggle"
-                                aria-haspopup="true" aria-expanded="false" aria-labelledby="report-account-label report-account-summary">
-                            <span id="report-account-summary"><?php p($l->t('All Accounts')); ?></span>
-                            <span class="account-multiselect-caret" aria-hidden="true">▾</span>
-                        </button>
-                        <div id="report-account-menu" class="account-multiselect-menu" role="group" style="display: none;">
-                            <label class="account-multiselect-option account-multiselect-all">
-                                <input type="checkbox" id="report-account-all" checked>
-                                <span><?php p($l->t('All Accounts')); ?></span>
-                            </label>
-                            <div id="report-account-options"><!-- populated by JS --></div>
-                        </div>
-                    </div>
+                    <div id="report-account-multiselect" class="custom-multiselect"></div>
                 </div>
 
                 <div class="control-group" id="report-exclude-shared-wrap" style="display: none;">

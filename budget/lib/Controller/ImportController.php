@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Controller;
 
+use OCA\Budget\Service\Import\TransactionNormalizer;
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\ImportService;
@@ -148,6 +149,7 @@ class ImportController extends Controller {
                         'accountMapping' => $accountMapping ?? [],
                     ]);
             }
+            $mapping = TransactionNormalizer::normalizeMapping($mapping);
 
             $preview = $this->service->previewImport(
                 $this->userId,
@@ -190,6 +192,7 @@ class ImportController extends Controller {
                         'accountMapping' => $accountMapping ?? [],
                     ]);
             }
+            $mapping = TransactionNormalizer::normalizeMapping($mapping);
 
             $result = $this->service->processImport(
                 $this->userId,
