@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-08-23 12:09+0000\n"
-"PO-Revision-Date: 2026-08-14 15:28+0000\n"
+"PO-Revision-Date: 2026-08-24 01:09+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -229,10 +229,8 @@ msgid "Failed to delete interest rate"
 msgstr "Zinssatz konnte nicht gelöscht werden"
 
 #: /app/lib/Controller/AdminSettingController.php:45
-#, fuzzy
-#| msgid "Receipt scanning is not set up on this server"
 msgid "Receipt scanning is not using the Otherworld relay."
-msgstr "Die Belegerkennung ist auf diesem Server nicht eingerichtet"
+msgstr "Die Belegerkennung verwendet nicht den Otherworld-Relay."
 
 #: /app/lib/Controller/AdminSettingController.php:49
 msgid "No license key is saved yet."
@@ -246,10 +244,10 @@ msgstr ""
 
 #: /app/lib/Controller/AdminSettingController.php:57
 #: /app/src/modules/settings/SettingsModule.js:153
-#, fuzzy
-#| msgid "This request is still being processed. Try again shortly"
 msgid "The billing portal could not be opened. Try again shortly."
-msgstr "Diese Anfrage wird noch verarbeitet. Versuche es in Kürze erneut"
+msgstr ""
+"Das Abrechnungsportal konnte nicht geöffnet werden. Versuche es in Kürze "
+"erneut."
 
 #: /app/lib/Controller/AlertController.php:51
 msgid "Failed to retrieve budget alerts"
@@ -2928,10 +2926,9 @@ msgid "\"%1$s\" is listed more than once; the entries were merged"
 msgstr ""
 
 #: /app/lib/Service/CategoryTransferService.php:321
-#, fuzzy, php-format
-#| msgid "Failed to load categories"
+#, php-format
 msgid "The file holds more than %1$d categories"
-msgstr "Kategorien konnten nicht geladen werden"
+msgstr "Die Datei enthält mehr als %1$d Kategorien"
 
 #: /app/lib/Service/CategoryTransferService.php:333
 #, php-format
@@ -4041,7 +4038,7 @@ msgstr "Aktuelle Zeile auswählen / Auswahl aufheben"
 #: /app/src/core/KeyboardShortcuts.js:372
 #: /app/src/core/KeyboardShortcuts.js:392 /app/src/main.js:923
 msgid "Keyboard shortcuts"
-msgstr ""
+msgstr "Tastenkürzel"
 
 #: /app/src/core/KeyboardShortcuts.js:393 /app/src/main.js:1961
 #: /app/src/main.js:1968 /app/src/main.js:1972
@@ -4113,7 +4110,7 @@ msgstr "Vollständige Anleitung lesen"
 
 #: /app/src/main.js:924
 msgid "Budget can be driven from the keyboard — press"
-msgstr ""
+msgstr "Budget kann über die Tastatur bedient werden – drücke"
 
 #: /app/src/main.js:924
 msgid "anytime to see the full list."
@@ -4152,14 +4149,16 @@ msgstr "Teile dein Budget"
 #: /app/src/main.js:940
 msgid "Free and open source. If Budget helps you, a donation keeps it going."
 msgstr ""
+"Kostenlos und Open Source. Wenn dir Budget hilft, unterstützt du mit einer "
+"Spende die Weiterentwicklung."
 
 #: /app/src/main.js:942 /app/templates/index.php:4799
 msgid "Sponsor on GitHub"
-msgstr ""
+msgstr "Über GitHub unterstützen"
 
 #: /app/src/main.js:943 /app/templates/index.php:4802
 msgid "Donate via PayPal"
-msgstr ""
+msgstr "Über PayPal spenden"
 
 #: /app/src/main.js:1158 /app/src/modules/accounts/AccountsModule.js:1443
 #: /app/src/modules/reports/ReportsModule.js:1823
@@ -5879,10 +5878,8 @@ msgid "{percent}% confidence"
 msgstr "{percent} % Wahrscheinlichkeit"
 
 #: /app/src/modules/bills/BillsModule.js:177
-#, fuzzy
-#| msgid "Delete bill"
 msgid "Create bill"
-msgstr "Rechnung löschen"
+msgstr "Rechnung erstellen"
 
 #: /app/src/modules/bills/BillsModule.js:178
 #: /app/src/modules/transactions/TransactionsModule.js:1444
@@ -6673,12 +6670,10 @@ msgstr[0] "%n Kategorie ist über dem Budget."
 msgstr[1] "%n Kategorien sind über dem Budget."
 
 #: /app/src/modules/categories/CategoriesModule.js:1493
-#, fuzzy
-#| msgid "No category"
 msgid "Import %n category"
 msgid_plural "Import %n categories"
-msgstr[0] "Keine Kategorie"
-msgstr[1] "Keine Kategorie"
+msgstr[0] "%n Kategorie importieren"
+msgstr[1] "%n Kategorien importieren"
 
 #: /app/src/modules/categories/CategoriesModule.js:1494
 #, fuzzy
@@ -10158,10 +10153,8 @@ msgstr ""
 "Budgets dieser zugreifen darf."
 
 #: /app/src/modules/sharing/SharingModule.js:101
-#, fuzzy
-#| msgid "Select account..."
 msgid "Select a user..."
-msgstr "Konto auswählen..."
+msgstr "Benutzer auswählen …"
 
 #: /app/src/modules/sharing/SharingModule.js:103
 msgid "Invite"
@@ -10891,7 +10884,7 @@ msgstr "Konto auswählen"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2286
 msgid "No receipts yet — they are attached when you save."
-msgstr ""
+msgstr "Noch keine Belege – sie werden beim Speichern angehängt."
 
 #: /app/src/modules/transactions/TransactionsModule.js:2294
 msgid "on save"
@@ -12673,18 +12666,18 @@ msgstr ""
 "Transaktion erfasst – dein Kontostand berücksichtigt diese Zahlungen nicht."
 
 #: /app/templates/index.php:2487
-#, fuzzy
-#| msgid "Failed to detect recurring bills"
 msgid "Suggested recurring bills"
-msgstr "Wiederkehrende Rechnungen konnten nicht ermittelt werden"
+msgstr "Vorgeschlagene wiederkehrende Rechnungen"
 
 #: /app/templates/index.php:2488
 msgid "Dismiss all"
-msgstr ""
+msgstr "Alle verwerfen"
 
 #: /app/templates/index.php:2490
 msgid "These payments look recurring but are not tracked as bills yet."
 msgstr ""
+"Diese Zahlungen scheinen wiederkehrend zu sein, werden aber noch nicht als "
+"Rechnungen erfasst."
 
 #: /app/templates/index.php:2529
 msgid "Paid This Month"
@@ -13250,10 +13243,8 @@ msgid "Projected at Retirement"
 msgstr "Prognose zum Zeitpunkt des Renteneintritts"
 
 #: /app/templates/index.php:3569
-#, fuzzy
-#| msgid "Projected at Retirement"
 msgid "Projected Income at Retirement"
-msgstr "Prognose zum Zeitpunkt des Renteneintritts"
+msgstr "Voraussichtliches Einkommen im Ruhestand"
 
 #: /app/templates/index.php:3580
 msgid "Pension Accounts"
@@ -13660,10 +13651,9 @@ msgstr ""
 "abzustimmen."
 
 #: /app/templates/index.php:4258
-#, fuzzy, php-format
-#| msgid "Budget Alerts"
+#, php-format
 msgid "Budget alert threshold (%%)"
-msgstr "Budgetalarme"
+msgstr "Schwellenwert für Budgetwarnung (%%)"
 
 #: /app/templates/index.php:4259
 msgid ""
@@ -13782,6 +13772,9 @@ msgid ""
 "Notify when a category runs well above its 6-month typical spending (max one "
 "alert per category per month)"
 msgstr ""
+"Benachrichtigen, wenn die Ausgaben einer Kategorie deutlich über den "
+"typischen Ausgaben der letzten 6 Monate liegen (maximal eine Warnung pro "
+"Kategorie und Monat)"
 
 #: /app/templates/index.php:4387
 #, fuzzy
@@ -13796,16 +13789,12 @@ msgstr ""
 "Ziele"
 
 #: /app/templates/index.php:4395
-#, fuzzy
-#| msgid "Frequency"
 msgid "Digest Frequency"
-msgstr "Häufigkeit"
+msgstr "Häufigkeit der Zusammenfassung"
 
 #: /app/templates/index.php:4396
-#, fuzzy
-#| msgid "Your monthly budget digest"
 msgid "How often the budget digest is sent"
-msgstr "Deine monatliche Budgetübersicht"
+msgstr "Wie oft die Budgetzusammenfassung gesendet wird"
 
 #: /app/templates/index.php:4408
 msgid "Email Digest"
@@ -13818,10 +13807,8 @@ msgstr ""
 "Mailserver)"
 
 #: /app/templates/index.php:4418 /app/templates/index.php:5619
-#, fuzzy
-#| msgid "Recent Imports"
 msgid "Receipts"
-msgstr "Zuletzt importierte Daten"
+msgstr "Belege"
 
 #: /app/templates/index.php:4419
 msgid ""
@@ -13852,10 +13839,8 @@ msgid "Scheduled Reports"
 msgstr "Geplant"
 
 #: /app/templates/index.php:4444
-#, fuzzy
-#| msgid "Monthly Totals"
 msgid "Monthly Report to Files"
-msgstr "Monatssummen"
+msgstr "MonatssummenMonatsbericht in Dateien speichern"
 
 #: /app/templates/index.php:4445
 msgid ""
@@ -13865,10 +13850,8 @@ msgstr ""
 "Dateien speichern"
 
 #: /app/templates/index.php:4454
-#, fuzzy
-#| msgid "Monthly Total"
 msgid "Monthly Report by Email"
-msgstr "Monatssumme"
+msgstr "Monatsbericht per E-Mail"
 
 #: /app/templates/index.php:4455
 msgid "Email the monthly PDF report (requires a working mail server)"
@@ -14030,10 +14013,8 @@ msgid "Recalculate"
 msgstr "Neu berechnen"
 
 #: /app/templates/index.php:4623
-#, fuzzy
-#| msgid "Export Data"
 msgid "Repair Data"
-msgstr "Daten exportieren"
+msgstr "Daten reparieren"
 
 #: /app/templates/index.php:4624
 msgid ""
@@ -14041,12 +14022,14 @@ msgid ""
 "bills with stuck due dates, and balance inconsistencies. Shows findings for "
 "your review before making any changes."
 msgstr ""
+"Sucht nach Problemen mit der Datenintegrität: doppelte automatisch erstellte "
+"Transaktionen, Rechnungen mit nicht aktualisierten Fälligkeitsterminen und "
+"Unstimmigkeiten bei Kontoständen. Zeigt die gefundenen Probleme zur "
+"Überprüfung an, bevor Änderungen vorgenommen werden."
 
 #: /app/templates/index.php:4628
-#, fuzzy
-#| msgid "Scan for Matches"
 msgid "Scan for Issues"
-msgstr "Nach Übereinstimmungen suchen"
+msgstr "Nach Problemen suchen"
 
 #: /app/templates/index.php:4636
 #, fuzzy
@@ -14243,10 +14226,8 @@ msgid "Reset All to Defaults"
 msgstr "Alle Einstellungen auf Standardwerte zurücksetzen"
 
 #: /app/templates/index.php:4769
-#, fuzzy
-#| msgid "Opened Date"
 msgid "Open docs site"
-msgstr "Eröffnungsdatum"
+msgstr "Dokumentationsseite öffnen"
 
 #: /app/templates/index.php:4773 /app/templates/index.php:7222
 msgid "Report an Issue"
@@ -14263,6 +14244,8 @@ msgid ""
 "A guide for every part of the app. Each one opens the full page on the "
 "documentation site."
 msgstr ""
+"Eine Anleitung für jeden Bereich der App. Jede Anleitung öffnet die "
+"vollständige Seite auf der Dokumentationswebsite."
 
 #: /app/templates/index.php:4793
 msgid "Enjoying the app?"
@@ -14791,7 +14774,7 @@ msgstr ""
 
 #: /app/templates/index.php:5572
 msgid "Merchant or person"
-msgstr ""
+msgstr "Händler oder Person"
 
 #: /app/templates/index.php:5597
 #, fuzzy
@@ -14821,29 +14804,31 @@ msgstr ""
 
 #: /app/templates/index.php:5622
 msgid "Upload receipt"
-msgstr ""
+msgstr "Beleg hochladen"
 
 #: /app/templates/index.php:5624
-#, fuzzy
-#| msgid "Browse Files"
 msgid "Choose from Files"
-msgstr "Dateien durchsuchen"
+msgstr "Aus Dateien auswählen"
 
 #: /app/templates/index.php:5626
 msgid ""
 "Receipts are stored in your Files (Budget/Receipts) and linked to this "
 "transaction."
 msgstr ""
+"Belege werden in deinen Dateien (Budget/Receipts) gespeichert und mit dieser "
+"Transaktion verknüpft."
 
 #: /app/templates/index.php:5637
 msgid "Exclude from forecast (extraordinary / one-time)"
-msgstr ""
+msgstr "Von der Prognose ausschließen (außergewöhnlich / einmalig)"
 
 #: /app/templates/index.php:5639
 msgid ""
 "Keeps this one-off amount out of forecast averages. It still affects your "
 "account balance."
 msgstr ""
+"Dieser einmalige Betrag wird bei den Durchschnittswerten der Prognose nicht "
+"berücksichtigt. Er wirkt sich weiterhin auf deinen Kontostand aus."
 
 #: /app/templates/index.php:5649
 #, fuzzy
