@@ -50,11 +50,15 @@ lint-fix:
 
 # Testing
 .PHONY: test
-test: test-php
+test: test-php test-js
 
 .PHONY: test-php
 test-php:
 	composer run test:unit
+
+.PHONY: test-js
+test-js:
+	npm test
 
 # Static Analysis
 .PHONY: psalm
@@ -99,6 +103,7 @@ build: clean composer build-js
 	--exclude="node_modules" \
 	--exclude="src" \
 	--exclude="webpack.config.js" \
+	--exclude="vitest.config.mjs" \
 	--exclude="package.json" \
 	--exclude="package-lock.json" \
 	--exclude="composer.json" \

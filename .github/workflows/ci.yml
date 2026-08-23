@@ -57,7 +57,7 @@ jobs:
         run: composer test:unit
 
   js:
-    name: JS Build & Lint
+    name: JS Lint, Test & Build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -78,6 +78,9 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Run tests
+        run: npm test
 
       - name: Build
         run: npm run build
