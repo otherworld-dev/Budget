@@ -2257,11 +2257,12 @@ style('budget', 'budget-app');
                                     <p class="hint"><?php p($l->t('For files with separate income and expense columns')); ?></p>
                                 </div>
                                 <div class="mapping-field required" data-map-field="description">
-                                    <label><?php p($l->t('Description')); ?> <span class="required">*</span></label>
+                                    <label id="map-description-label"><?php p($l->t('Description')); ?> <span class="required">*</span></label>
                                     <div id="map-description" class="custom-multiselect"></div>
+                                    <p class="hint"><?php p($l->t('Tick more than one column to join them with a comma, in the order they appear in the file')); ?></p>
                                 </div>
                                 <div class="mapping-field" data-map-field="notes">
-                                    <label><?php p($l->t('Notes')); ?></label>
+                                    <label id="map-notes-label"><?php p($l->t('Notes')); ?></label>
                                     <div id="map-notes" class="custom-multiselect"></div>
                                     <p class="hint"><?php p($l->t('Column stored in the transaction\'s notes field')); ?></p>
                                 </div>
@@ -2272,11 +2273,11 @@ style('budget', 'budget-app');
                                     </select>
                                 </div>
                                 <div class="mapping-field" data-map-field="vendor">
-                                    <label><?php p($l->t('Vendor/Payee')); ?></label>
+                                    <label id="map-vendor-label"><?php p($l->t('Vendor/Payee')); ?></label>
                                     <div id="map-vendor" class="custom-multiselect"></div>
                                 </div>
                                 <div class="mapping-field" data-map-field="reference">
-                                    <label><?php p($l->t('Reference/Check Number')); ?></label>
+                                    <label id="map-reference-label"><?php p($l->t('Reference/Check Number')); ?></label>
                                     <div id="map-reference" class="custom-multiselect"></div>
                                 </div>
                                 <div class="mapping-field" data-map-field="category">

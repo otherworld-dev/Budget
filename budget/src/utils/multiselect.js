@@ -1,5 +1,14 @@
 /**
  * MultiSelect - Reusable checklist dropdown component
+ *
+ * Renders a toggle button plus a checklist menu into a container. Used for
+ * the report account filter (#299) and for the text targets of the import
+ * mapping step, which can each take several columns (#355).
+ *
+ * The selection is always reported in OPTION order, not tick order. The
+ * import server joins columns in file order (the joined value feeds the
+ * import id, so it cannot depend on the order the user clicked), and the
+ * summary on the button shows that same order.
  */
 import { translate as t } from '@nextcloud/l10n';
 
@@ -9,6 +18,10 @@ export class MultiSelect {
      * @param {Object} [options] - Configuration options
      * @param {string} [options.placeholder] - Text when no item is selected
      * @param {Function} [options.onChange] - Selection change callback
+     * @param {boolean} [options.hasAllOption] - Leading "all" row that clears the selection
+     * @param {string} [options.allOptionLabel] - Label of that row
+     * @param {Function} [options.summaryFormatter] - (count, values, options) => button text
+     * @param {string} [options.labelledBy] - id of the element naming this control (aria)
      */
     constructor(container, options = {}) {
         this.container = typeof container === 'string' ? document.querySelector(container) : container;
@@ -21,6 +34,7 @@ export class MultiSelect {
         this.hasAllOption = options.hasAllOption || false;
         this.allOptionLabel = options.allOptionLabel || t('budget', 'All');
         this.summaryFormatter = options.summaryFormatter || null;
+        this.labelledBy = options.labelledBy || null;
 
         this.optionsList = [];
         this.selectedValues = new Set();
@@ -42,7 +56,13 @@ export class MultiSelect {
 
         this.summarySpan = document.createElement('span');
         this.summarySpan.className = 'custom-multiselect-summary';
+        this.summarySpan.id = `${this.container.id || 'multiselect'}-summary`;
         this.summarySpan.textContent = this.placeholder;
+
+        // Announce "<field name> <current selection>", as the native select did.
+        if (this.labelledBy) {
+            this.toggleBtn.setAttribute('aria-labelledby', `${this.labelledBy} ${this.summarySpan.id}`);
+        }
 
         this.caretSpan = document.createElement('span');
         this.caretSpan.className = 'custom-multiselect-caret';
@@ -70,10 +90,11 @@ export class MultiSelect {
     }
 
     bindEvents() {
-        this.toggleBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const isOpen = this.menu.style.display !== 'none';
-            if (isOpen) {
+        // The click is deliberately left to bubble: every other instance's
+        // document listener has to see it so an open sibling closes when this
+        // one opens (the import step stacks four of these).
+        this.toggleBtn.addEventListener('click', () => {
+            if (this.isOpen()) {
                 this.close();
             } else {
                 this.open();
@@ -86,6 +107,28 @@ export class MultiSelect {
             }
         };
         document.addEventListener('click', this._documentClickHandler);
+
+        // Escape closes and returns focus to the button, like a native select.
+        this.container.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isOpen()) {
+                e.stopPropagation();
+                this.close();
+                this.toggleBtn.focus();
+            }
+        });
+
+        // Tabbing out of the checklist closes it; a click elsewhere is handled
+        // above (relatedTarget is null for clicks on non-focusable targets, and
+        // for those the menu must stay open).
+        this.container.addEventListener('focusout', (e) => {
+            if (e.relatedTarget && !this.container.contains(e.relatedTarget)) {
+                this.close();
+            }
+        });
+    }
+
+    isOpen() {
+        return this.menu.style.display !== 'none';
     }
 
     open() {
@@ -144,6 +187,7 @@ export class MultiSelect {
                         this.onChange(this.getValue());
                     }
                 } else {
+                    // "All" can't be turned off directly — re-check it.
                     allCb.checked = true;
                 }
             });
@@ -158,9 +202,7 @@ export class MultiSelect {
 
         if (this.optionsList.length === 0) {
             const emptyLabel = document.createElement('div');
-            emptyLabel.style.padding = '6px 8px';
-            emptyLabel.style.color = 'var(--color-text-maxcontrast)';
-            emptyLabel.style.fontStyle = 'italic';
+            emptyLabel.className = 'custom-multiselect-empty';
             emptyLabel.textContent = t('budget', 'No options available');
             this.optionsContainer.appendChild(emptyLabel);
             return;
@@ -201,11 +243,23 @@ export class MultiSelect {
     }
 
     /**
-     * Get array of selected option values
+     * Selected options, in option order.
+     * @returns {Array<{value: string, label: string}>}
+     */
+    getSelectedOptions() {
+        return this.optionsList.filter(opt => this.selectedValues.has(opt.value));
+    }
+
+    /**
+     * Get array of selected option values, in option order (tick order is
+     * irrelevant — see the file header).
      * @returns {Array<string>}
      */
     getValue() {
-        return Array.from(this.selectedValues);
+        if (this.optionsList.length === 0) {
+            return Array.from(this.selectedValues);
+        }
+        return this.getSelectedOptions().map(opt => opt.value);
     }
 
     /**
@@ -246,19 +300,23 @@ export class MultiSelect {
     updateSummary() {
         const count = this.selectedValues.size;
         if (typeof this.summaryFormatter === 'function') {
-            this.summarySpan.textContent = this.summaryFormatter(count, Array.from(this.selectedValues), this.optionsList);
+            this.summarySpan.textContent = this.summaryFormatter(count, this.getValue(), this.optionsList);
+            this.toggleBtn.removeAttribute('title');
             return;
         }
 
         if (count === 0) {
             this.summarySpan.textContent = this.placeholder;
-        } else if (count === 1) {
-            const val = Array.from(this.selectedValues)[0];
-            const opt = this.optionsList.find(o => o.value === val);
-            this.summarySpan.textContent = opt ? opt.label : val;
-        } else {
-            this.summarySpan.textContent = t('budget', '{count} columns selected', { count });
+            this.toggleBtn.removeAttribute('title');
+            return;
         }
+
+        // The labels in option order, which is the order the columns will be
+        // joined in. Long lists get cut by the ellipsis; the title has it all.
+        const labels = this.getSelectedOptions().map(opt => opt.label);
+        const text = labels.length > 0 ? labels.join(', ') : Array.from(this.selectedValues).join(', ');
+        this.summarySpan.textContent = text;
+        this.toggleBtn.title = text;
     }
 
     destroy() {

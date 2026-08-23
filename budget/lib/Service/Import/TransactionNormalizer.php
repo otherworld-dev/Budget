@@ -74,8 +74,64 @@ class TransactionNormalizer {
         'reference' => self::MAX_REFERENCE_LENGTH,
     ];
 
+    /**
+     * Separator between the columns of a multi-column text mapping. Part of
+     * the CSV content hash once a row is imported, so it can never change.
+     */
+    public const TEXT_JOIN_SEPARATOR = ', ';
+
     /** @var string|null Cached date format detected from batch analysis */
     private ?string $detectedDateFormat = null;
+
+    /**
+     * Coerce a mapping into the one shape every consumer can rely on.
+     *
+     * A text target (description, notes, vendor, reference) may name several
+     * source columns; those arrive as a list. Everything else is a single
+     * column. Applied at both entry points (the import request and a stored
+     * template) so no reader has to handle the request's raw shape:
+     *
+     * - a list on a non-text field is dropped (the direct `$row[$mapping[...]]`
+     *   reads would otherwise throw on an array offset), never silently taken
+     *   as a column
+     * - list entries are trimmed and deduplicated, blanks and non-scalars go
+     * - a list that is left with ONE column collapses to that scalar, so a
+     *   single column picked through the checklist maps through exactly the
+     *   same path as it always has and keeps its import id (#340 hash freeze)
+     *
+     * @param array<string, mixed> $mapping
+     * @return array<string, mixed>
+     */
+    public static function normalizeMapping(array $mapping): array {
+        foreach ($mapping as $field => $column) {
+            if (!is_array($column)) {
+                continue;
+            }
+            if (!array_key_exists($field, self::TEXT_LIMITS)) {
+                unset($mapping[$field]);
+                continue;
+            }
+            $cols = [];
+            foreach ($column as $col) {
+                if (is_bool($col) || !is_scalar($col)) {
+                    continue;
+                }
+                $col = trim((string) $col);
+                if ($col === '' || in_array($col, $cols, true)) {
+                    continue;
+                }
+                $cols[] = $col;
+            }
+            if ($cols === []) {
+                unset($mapping[$field]);
+            } elseif (count($cols) === 1) {
+                $mapping[$field] = $cols[0];
+            } else {
+                $mapping[$field] = $cols;
+            }
+        }
+        return $mapping;
+    }
 
     /**
      * Map a CSV row to a transaction using the provided column mapping.
@@ -85,6 +141,7 @@ class TransactionNormalizer {
      * @return array Normalized transaction data
      */
     public function mapRowToTransaction(array $row, array $mapping): array {
+        $mapping = self::normalizeMapping($mapping);
         $transaction = [];
 
         foreach ($mapping as $field => $column) {
@@ -94,11 +151,11 @@ class TransactionNormalizer {
             }
 
             if (is_array($column)) {
-                if (in_array($field, ['description', 'notes', 'vendor', 'reference'], true)) {
-                    $val = $this->extractMappedTextValue($row, $column);
-                    if ($val !== null) {
-                        $transaction[$field] = $val;
-                    }
+                // Several columns joined into one text field. Only text
+                // targets ever hold a list after normalizeMapping().
+                $val = $this->joinMappedColumns($row, $column);
+                if ($val !== null) {
+                    $transaction[$field] = $val;
                 }
             } elseif (isset($row[$column])) {
                 $transaction[$field] = $row[$column];
@@ -259,6 +316,7 @@ class TransactionNormalizer {
      * @return array Normalized transaction data
      */
     public function mapOfxTransaction(array $txn, array $mapping = []): array {
+        $mapping = self::normalizeMapping($mapping);
         $amount = (float) ($txn['rawAmount'] ?? $txn['amount'] ?? 0);
 
         // <NAME> first, then <MEMO>: OfxParser writes '' rather than null for a
@@ -327,17 +385,9 @@ class TransactionNormalizer {
     private function pickSource(array $txn, array $mapping, string $target, array $defaults): ?string {
         $chosen = $mapping[$target] ?? null;
         if (is_array($chosen)) {
-            $parts = [];
-            foreach ($chosen as $key) {
-                if (is_string($key) && $key !== '' && isset($txn[$key]) && is_scalar($txn[$key])) {
-                    $val = trim((string) $txn[$key]);
-                    if ($val !== '') {
-                        $parts[] = $val;
-                    }
-                }
-            }
-            if (!empty($parts)) {
-                return implode(', ', $parts);
+            $joined = $this->joinMappedColumns($txn, $chosen);
+            if ($joined !== null) {
+                return $joined;
             }
         }
 
@@ -613,44 +663,37 @@ class TransactionNormalizer {
      */
     private function mapsColumn(array $mapping, string $field): bool {
         $column = $mapping[$field] ?? null;
-        if (is_bool($column) || $column === null || $column === '') {
-            return false;
-        }
-        if (is_array($column)) {
-            return !empty(array_filter($column, fn($c) => !is_bool($c) && $c !== null && $c !== ''));
-        }
-        return true;
+        return !is_bool($column) && $column !== null && $column !== '';
     }
 
     /**
-     * Extract and concatenate mapped column value(s) for text fields.
+     * Join several source columns into one text value.
+     *
+     * Parts are taken in the order the columns appear in the SOURCE ROW, not
+     * the order they were ticked: the joined string feeds the CSV content
+     * hash, so two identical selections have to produce the identical value
+     * whatever order the user clicked in. Blank cells are skipped; null when
+     * nothing was found so the caller can fall back as it would for a single
+     * missing column.
+     *
+     * @param array $source Parsed row (CSV) or transaction (OFX/QIF/camt)
+     * @param string[] $cols Source column names, as normalizeMapping() left them
      */
-    private function extractMappedTextValue(array $row, mixed $columnMapping): ?string {
-        if (is_array($columnMapping)) {
-            $parts = [];
-            foreach ($columnMapping as $col) {
-                if (is_string($col) && $col !== '') {
-                    $colName = (string) $col;
-                    if (isset($row[$colName]) && is_scalar($row[$colName])) {
-                        $val = trim((string) $row[$colName]);
-                        if ($val !== '') {
-                            $parts[] = $val;
-                        }
-                    }
-                }
-            }
-            return !empty($parts) ? implode(', ', $parts) : null;
-        }
+    private function joinMappedColumns(array $source, array $cols): ?string {
+        $positions = array_flip(array_keys($source));
+        usort($cols, static fn($a, $b) => ($positions[$a] ?? PHP_INT_MAX) <=> ($positions[$b] ?? PHP_INT_MAX));
 
-        if (is_string($columnMapping) && $columnMapping !== '') {
-            $colName = (string) $columnMapping;
-            if (isset($row[$colName]) && is_scalar($row[$colName])) {
-                $val = trim((string) $row[$colName]);
-                return $val !== '' ? $val : null;
+        $parts = [];
+        foreach ($cols as $col) {
+            if (!isset($source[$col]) || !is_scalar($source[$col])) {
+                continue;
+            }
+            $val = trim((string) $source[$col]);
+            if ($val !== '') {
+                $parts[] = $val;
             }
         }
-
-        return null;
+        return $parts === [] ? null : implode(self::TEXT_JOIN_SEPARATOR, $parts);
     }
 
     /**

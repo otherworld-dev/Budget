@@ -148,7 +148,40 @@ class ImportTemplateServiceTest extends TestCase {
 
         $template = $this->service->create('user1', 'Blank array mapping', 'csv', $mapping);
 
-        $this->assertSame(['date' => 'Date', 'amount' => 'Amount', 'description' => ['Memo']], $template->getParsedMapping());
+        // A one-column list is stored as the plain column, identical to a
+        // template saved before lists existed.
+        $this->assertSame(['date' => 'Date', 'amount' => 'Amount', 'description' => 'Memo'], $template->getParsedMapping());
+    }
+
+    public function testCreateCsvTrimsAndDeduplicatesArrayMappings(): void {
+        $this->mapper->method('nameExists')->willReturn(false);
+        $this->mapper->method('insert')->willReturnCallback(fn (ImportTemplate $t) => $t);
+
+        $mapping = [
+            'date' => 'Date',
+            'amount' => 'Amount',
+            'description' => [' Memo', 'Payee ', 'Memo', ['nested'], true],
+        ];
+
+        $template = $this->service->create('user1', 'Untrimmed array mapping', 'csv', $mapping);
+
+        $this->assertSame(['date' => 'Date', 'amount' => 'Amount', 'description' => ['Memo', 'Payee']], $template->getParsedMapping());
+    }
+
+    public function testCreateCsvDropsArrayMappingOnNonTextFieldInsteadOfStoringIt(): void {
+        $this->mapper->method('nameExists')->willReturn(false);
+        $this->mapper->method('insert')->willReturnCallback(fn (ImportTemplate $t) => $t);
+
+        $mapping = [
+            'date' => 'Date',
+            'amount' => 'Amount',
+            'description' => 'Memo',
+            'category' => ['Cat', 'Group'],
+        ];
+
+        $template = $this->service->create('user1', 'Array on category', 'csv', $mapping);
+
+        $this->assertSame(['date' => 'Date', 'amount' => 'Amount', 'description' => 'Memo'], $template->getParsedMapping());
     }
 
     public function testCreateCsvDropsUnknownMappingKeys(): void {

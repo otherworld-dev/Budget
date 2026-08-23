@@ -1355,6 +1355,147 @@ class TransactionNormalizerTest extends TestCase {
 		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
 
 		$this->assertSame('credit', $result['type']);
+		// The list was dropped, not read as a mapped-but-blank type column.
+		$this->assertArrayNotHasKey('_typeUnresolved', $result);
+	}
+
+	// A list on a field that is read straight off the row (category, account,
+	// currency, income/expense) must be ignored, not throw on the array offset.
+	public function testMapRowIgnoresArrayMappingForDirectlyReadFields(): void {
+		$row = ['date' => '2026-08-11', 'amount' => '40.00', 'desc' => 'Shop', 'cat' => 'Food', 'acc' => 'Main'];
+		$mapping = [
+			'date' => 'date',
+			'amount' => 'amount',
+			'description' => 'desc',
+			'category' => ['cat'],
+			'account' => ['acc'],
+			'currency' => ['cur'],
+			'incomeColumn' => ['amount'],
+		];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertSame('Shop', $result['description']);
+		$this->assertArrayNotHasKey('_categoryName', $result);
+		$this->assertArrayNotHasKey('_accountName', $result);
+		$this->assertArrayNotHasKey('_currency', $result);
+	}
+
+	// The checklist sends every selection as a list, one column included. A
+	// one-column list has to map through the scalar path so the #340 hash
+	// freeze still sees the raw cell and the import id does not change.
+	public function testMapRowSingleColumnListKeepsLegacyImportId(): void {
+		$row = ['date' => '2026-08-04', 'amt' => '-12.34', 'desc' => 'Coffee shop', 'ref' => '  CHQ 1042'];
+		$scalar = ['date' => 'date', 'amount' => 'amt', 'description' => 'desc', 'reference' => 'ref'];
+		$list = ['date' => 'date', 'amount' => 'amt', 'description' => ['desc'], 'reference' => ['ref']];
+
+		$fromScalar = $this->normalizer->mapRowToTransaction($row, $scalar);
+		$fromList = $this->normalizer->mapRowToTransaction($row, $list);
+
+		$this->assertSame('CHQ 1042', $fromList['reference']);
+		$this->assertSame(
+			$this->normalizer->generateImportId('f', 0, $fromScalar),
+			$this->normalizer->generateImportId('f', 0, $fromList)
+		);
+		$this->assertSame('hash_' . md5('2026-08-04' . 12.34 . 'Coffee shop' . '  CHQ 1042'), $this->normalizer->generateImportId('f', 0, $fromList));
+	}
+
+	// Same for a whitespace-only cell: scalar path hashes the raw '   '.
+	public function testMapRowSingleColumnListKeepsLegacyImportIdForBlankCell(): void {
+		$row = ['date' => '2026-08-04', 'amt' => '-12.34', 'desc' => 'Coffee shop', 'ref' => '   '];
+		$scalar = ['date' => 'date', 'amount' => 'amt', 'description' => 'desc', 'reference' => 'ref'];
+		$list = ['date' => 'date', 'amount' => 'amt', 'description' => 'desc', 'reference' => ['ref']];
+
+		$this->assertSame(
+			$this->normalizer->generateImportId('f', 0, $this->normalizer->mapRowToTransaction($row, $scalar)),
+			$this->normalizer->generateImportId('f', 0, $this->normalizer->mapRowToTransaction($row, $list))
+		);
+	}
+
+	// Joined in the order the columns appear in the file, whatever order they
+	// were ticked in, so the content hash does not depend on click order.
+	public function testMapRowJoinsColumnsInFileOrderRegardlessOfMappingOrder(): void {
+		$row = ['date' => '2026-08-11', 'amount' => '100.00', 'merchant' => 'Supermarket', 'details' => 'Weekly Groceries'];
+		$mapping = ['date' => 'date', 'amount' => 'amount', 'description' => ['details', 'merchant']];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertSame('Supermarket, Weekly Groceries', $result['description']);
+		$this->assertSame(
+			$this->normalizer->generateImportId('f', 0, $this->normalizer->mapRowToTransaction($row, ['date' => 'date', 'amount' => 'amount', 'description' => ['merchant', 'details']])),
+			$this->normalizer->generateImportId('f', 0, $result)
+		);
+	}
+
+	public function testMapRowJoinedColumnsDeduplicatedAndTrimmed(): void {
+		$row = ['date' => '2026-08-11', 'amount' => '100.00', 'merchant' => 'Supermarket', 'details' => 'Weekly Groceries'];
+		$mapping = ['date' => 'date', 'amount' => 'amount', 'description' => [' merchant', 'details', 'merchant ', '', null, false]];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertSame('Supermarket, Weekly Groceries', $result['description']);
+	}
+
+	public function testMapRowAllJoinedColumnsBlankLeavesFieldUnset(): void {
+		$row = ['date' => '2026-08-11', 'amount' => '100.00', 'desc' => 'Shop', 'a' => '', 'b' => '  '];
+		$mapping = ['date' => 'date', 'amount' => 'amount', 'description' => 'desc', 'notes' => ['a', 'b']];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertArrayNotHasKey('notes', $result);
+	}
+
+	// ── normalizeMapping ─────────────────────────────────────────────
+
+	public function testNormalizeMappingShapes(): void {
+		$this->assertSame(
+			['date' => 'Date', 'description' => 'Memo', 'notes' => ['A', 'B'], 'skipFirstRow' => true],
+			TransactionNormalizer::normalizeMapping([
+				'date' => 'Date',
+				'description' => ['Memo'],
+				'notes' => [' A', 'B ', 'A', '', null, ['nested'], false],
+				'vendor' => ['', '  '],
+				'type' => ['T1', 'T2'],
+				'category' => ['Cat'],
+				'skipFirstRow' => true,
+			])
+		);
+	}
+
+	// ── mapOfxTransaction with joined columns ────────────────────────
+
+	public function testMapOfxTransactionJoinsColumnsInSourceOrder(): void {
+		$txn = [
+			'date' => '2024-03-15',
+			'rawAmount' => -42.50,
+			'description' => 'COFFEE SHOP',
+			'name' => 'Cafe Ltd',
+			'memo' => 'Card 1234',
+			'id' => 'FITID456',
+		];
+
+		$result = $this->normalizer->mapOfxTransaction($txn, ['description' => ['memo', 'name'], 'notes' => ['memo', 'missing']]);
+
+		$this->assertSame('Cafe Ltd, Card 1234', $result['description']);
+		$this->assertSame('Card 1234', $result['notes']);
+	}
+
+	public function testMapOfxTransactionJoinedColumnsAllMissingFallsBackToDefaults(): void {
+		$txn = ['date' => '2024-03-15', 'rawAmount' => -42.50, 'description' => 'COFFEE SHOP', 'memo' => '  ', 'id' => 'F1'];
+
+		$result = $this->normalizer->mapOfxTransaction($txn, ['description' => ['nope', 'memo'], 'notes' => ['memo', 'nope']]);
+
+		$this->assertSame('COFFEE SHOP', $result['description']);
+		$this->assertNull($result['notes']);
+	}
+
+	public function testMapOfxTransactionJoinedNotesEqualToDescriptionAreDropped(): void {
+		$txn = ['date' => '2024-03-15', 'rawAmount' => -1, 'name' => 'A', 'memo' => 'B', 'id' => 'F1'];
+
+		$result = $this->normalizer->mapOfxTransaction($txn, ['description' => ['name', 'memo'], 'notes' => ['name', 'memo']]);
+
+		$this->assertSame('A, B', $result['description']);
+		$this->assertNull($result['notes']);
 	}
 
 	public function testMapRowArrayMappingWithSingleColumn(): void {

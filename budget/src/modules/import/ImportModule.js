@@ -8,17 +8,23 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import MultiSelect from '../../utils/multiselect.js';
 
 /**
- * Mapping targets each format can actually resolve (#338).
+ * The free-text targets. Each can be fed from several source columns at once
+ * (the server joins them with ", " in file order — #355), so these four are
+ * checklists (MultiSelect) where every other target is a plain <select>.
  *
- * OFX and QIF take date, amount and type from the file's own structure, and
- * have no per-row account, currency or dual-amount columns. Those selects are
- * hidden for them rather than left on screen implying an effect they cannot
- * have. A format missing here maps everything, which is what CSV wants.
+ * They are also exactly the mapping targets OFX/QIF/camt can resolve (#338):
+ * those formats take date, amount and type from the file's own structure and
+ * have no per-row account, currency or dual-amount columns, so the other
+ * selects are hidden for them rather than left on screen implying an effect
+ * they cannot have. A format missing from MAPPABLE_FIELDS maps everything,
+ * which is what CSV wants.
  */
+const TEXT_FIELDS = ['description', 'notes', 'vendor', 'reference'];
+
 const MAPPABLE_FIELDS = {
-    ofx: ['description', 'notes', 'vendor', 'reference'],
-    qif: ['description', 'notes', 'vendor', 'reference'],
-    camt: ['description', 'notes', 'vendor', 'reference']
+    ofx: TEXT_FIELDS,
+    qif: TEXT_FIELDS,
+    camt: TEXT_FIELDS
 };
 
 /**
@@ -40,6 +46,11 @@ const MAPPING_SELECT_IDS = {
     account: 'map-account',
     currency: 'map-currency'
 };
+
+/** Select id -> mapping target, the inverse of MAPPING_SELECT_IDS. */
+const SELECT_ID_TO_FIELD = Object.fromEntries(
+    Object.entries(MAPPING_SELECT_IDS).map(([field, id]) => [id, field])
+);
 
 export default class ImportModule {
     constructor(app) {
@@ -308,19 +319,16 @@ export default class ImportModule {
      * @param {object} mapping Stored mapping (target -> column name)
      * @param {string[]} fields Mapping targets this call owns
      */
+    /**
+     * Build the checklist widgets for the text targets, once. Keyed by mapping
+     * target; the widget replaces the <select> in the container of that id.
+     */
     initMultiSelects() {
-        this.multiSelects = this.multiSelects || {};
-        const textFields = [
-            { key: 'description', id: 'map-description' },
-            { key: 'notes', id: 'map-notes' },
-            { key: 'vendor', id: 'map-vendor' },
-            { key: 'reference', id: 'map-reference' }
-        ];
-        textFields.forEach(({ key, id }) => {
-            const el = document.getElementById(id);
-            if (el && !this.multiSelects[key]) {
-                this.multiSelects[key] = new MultiSelect(el, {
-                    placeholder: t('budget', 'Select column(s)...'),
+        TEXT_FIELDS.forEach(field => {
+            const el = document.getElementById(MAPPING_SELECT_IDS[field]);
+            if (el && !this.multiSelects[field]) {
+                this.multiSelects[field] = new MultiSelect(el, {
+                    labelledBy: `${el.id}-label`,
                     onChange: () => this.updatePreviewMapping()
                 });
             }
@@ -328,39 +336,29 @@ export default class ImportModule {
     }
 
     resetImportMultiSelects() {
-        Object.values(this.multiSelects || {}).forEach(multiSelect => {
-            multiSelect.setValue([]);
-        });
+        Object.values(this.multiSelects).forEach(multiSelect => multiSelect.setValue([]));
     }
 
+    /**
+     * Read a mapping control: the checklist's selection (null when empty,
+     * string[] otherwise) for a text target, the <select>'s value for the rest.
+     */
     getSelectValue(el) {
         if (!el) return null;
-        const key = el.id ? el.id.replace('map-', '') : null;
-        if (key && this.multiSelects && this.multiSelects[key]) {
-            const vals = this.multiSelects[key].getValue();
+        const multiSelect = this.multiSelects[SELECT_ID_TO_FIELD[el.id]];
+        if (multiSelect) {
+            const vals = multiSelect.getValue();
             return vals.length > 0 ? vals : null;
-        }
-        if (el.multiple) {
-            const selected = Array.from(el.selectedOptions)
-                .map(opt => opt.value)
-                .filter(val => val !== '');
-            return selected.length > 0 ? selected : null;
         }
         return el.value || null;
     }
 
+    /** Counterpart of getSelectValue: accepts a column name or a list of them. */
     setSelectValue(el, val) {
         if (!el) return;
-        const key = el.id ? el.id.replace('map-', '') : null;
-        if (key && this.multiSelects && this.multiSelects[key]) {
-            this.multiSelects[key].setValue(val);
-            return;
-        }
-        if (el.multiple) {
-            const targetValues = Array.isArray(val) ? val : (val ? [val] : []);
-            Array.from(el.options).forEach(opt => {
-                opt.selected = targetValues.includes(opt.value);
-            });
+        const multiSelect = this.multiSelects[SELECT_ID_TO_FIELD[el.id]];
+        if (multiSelect) {
+            multiSelect.setValue(val);
         } else {
             el.value = val ?? '';
         }
@@ -502,8 +500,10 @@ export default class ImportModule {
             const format = (tpl.format || 'csv').toUpperCase();
             let meta;
             if ((tpl.format || 'csv') === 'csv') {
-                const columnCount = Object.keys(tpl.mapping || {})
-                    .filter(k => !['skipFirstRow', 'applyRules'].includes(k)).length;
+                // A text target may hold several columns; count them all.
+                const columnCount = Object.entries(tpl.mapping || {})
+                    .filter(([k]) => !['skipFirstRow', 'applyRules'].includes(k))
+                    .reduce((sum, [, v]) => sum + (Array.isArray(v) ? v.length : 1), 0);
                 meta = n('budget', '%n column mapped', '%n columns mapped', columnCount);
             } else {
                 const accountCount = Object.keys(tpl.accountMapping || {}).length;
@@ -911,9 +911,9 @@ export default class ImportModule {
         // Clear existing options and add columns
         Object.entries(mappingSelects).forEach(([id, select]) => {
             if (!select) return;
-            const key = id.replace('map-', '');
-            if (this.multiSelects && this.multiSelects[key]) {
-                this.multiSelects[key].setOptions(columns);
+            const multiSelect = this.multiSelects[SELECT_ID_TO_FIELD[id]];
+            if (multiSelect) {
+                multiSelect.setOptions(columns);
             } else {
                 const firstOption = select.firstElementChild;
                 select.innerHTML = '';
@@ -1220,19 +1220,10 @@ export default class ImportModule {
 
         const mapping = this.getCurrentMapping();
 
-        const hasNonBlankSelection = (value) => {
-            if (value === null || value === undefined || value === '') {
-                return false;
-            }
-            if (Array.isArray(value)) {
-                return value.some(v => typeof v === 'string' ? v.trim() !== '' : (v !== null && v !== undefined && v !== ''));
-            }
-            return String(value).trim() !== '';
-        };
-
-        // Check required fields: date and description
+        // Check required fields: date and description (the latter is a
+        // checklist: null when nothing is ticked, a non-empty list otherwise)
         const hasDate = mapping.date !== null && mapping.date !== '';
-        const hasDescription = hasNonBlankSelection(mapping.description);
+        const hasDescription = Array.isArray(mapping.description) && mapping.description.length > 0;
 
         // Check amount: either single amount column OR both income and expense columns
         const hasAmount = mapping.amount !== null && mapping.amount !== '';

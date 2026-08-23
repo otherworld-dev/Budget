@@ -6766,7 +6766,8 @@ button.danger:hover {
     grid-template-columns: 300px 1fr;
     gap: 30px;
     margin-bottom: 20px;
-    overflow: hidden;
+    /* No overflow: hidden here — the text-target checklists open a menu below
+       the container's bottom edge. The preview column clips itself. */
 }
 
 .preview-data {
@@ -11406,7 +11407,8 @@ button.danger:hover {
     white-space: nowrap;
 }
 
-/* Report account multi-select (checklist dropdown) — #299 */
+/* Checklist dropdown (MultiSelect): report account filter (#299) and the
+   multi-column text targets on the import mapping step (#355) */
 .custom-multiselect {
     position: relative;
 }
@@ -11424,8 +11426,20 @@ button.danger:hover {
     background: var(--color-main-background);
     color: var(--color-main-text);
     font-size: 14px;
+    font-weight: normal;
     cursor: pointer;
     text-align: left;
+}
+
+/* Sit in the mapping grid like the native selects around it */
+.mapping-field .custom-multiselect-toggle {
+    width: 100%;
+}
+
+.custom-multiselect-empty {
+    padding: 6px 8px;
+    color: var(--color-text-maxcontrast);
+    font-style: italic;
 }
 
 .custom-multiselect-toggle:hover {
@@ -11471,6 +11485,12 @@ button.danger:hover {
 
 .custom-multiselect-option:hover {
     background: var(--color-background-hover);
+}
+
+/* Option rows are <label>s: keep the mapping step's label styling off them */
+.custom-multiselect-menu .custom-multiselect-option {
+    margin-bottom: 0;
+    font-weight: normal;
 }
 
 .custom-multiselect-all {

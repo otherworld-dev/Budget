@@ -177,10 +177,8 @@ export default class ReportsModule {
 
     /** Selected report account IDs (empty = all accounts). #299 */
     getSelectedReportAccountIds() {
-        if (this.accountMultiSelect) {
-            return this.accountMultiSelect.getValue().map(v => isNaN(v) ? v : Number(v));
-        }
-        return this.selectedReportAccounts ? Array.from(this.selectedReportAccounts) : [];
+        if (!this.accountMultiSelect) return [];
+        return this.accountMultiSelect.getValue().map(v => Number(v));
     }
 
     /** Append the selected account IDs to a URLSearchParams as accountIds[]. */
@@ -201,6 +199,7 @@ export default class ReportsModule {
         if (!this.accountMultiSelect) {
             this.accountMultiSelect = new MultiSelect(wrapper, {
                 placeholder: t('budget', 'All Accounts'),
+                labelledBy: 'report-account-label',
                 hasAllOption: true,
                 allOptionLabel: t('budget', 'All Accounts'),
                 summaryFormatter: (count, selectedValues, optionsList) => {
@@ -212,10 +211,7 @@ export default class ReportsModule {
                     }
                     return t('budget', '{count} accounts', { count });
                 },
-                onChange: (selectedValues) => {
-                    this.selectedReportAccounts = new Set(selectedValues.map(v => isNaN(v) ? v : Number(v)));
-                    this.generateReport();
-                }
+                onChange: () => this.generateReport()
             });
         }
     }
@@ -233,19 +229,22 @@ export default class ReportsModule {
         if (cb) cb.checked = this.excludeShared;
     }
 
-    populateReportAccountDropdown() {
+    /**
+     * (Re)build the account checklist from this.accounts. The current
+     * selection is kept unless `selectedIds` is given (restoring a saved
+     * report); ids of accounts that no longer exist are dropped by the widget.
+     * The widget is the only holder of the selection — read it through
+     * getSelectedReportAccountIds().
+     */
+    populateReportAccountDropdown(selectedIds = null) {
         this.setupReportAccountMultiselect();
-        this.selectedReportAccounts = this.selectedReportAccounts || new Set();
-
-        // Drop selected ids that no longer exist
-        this.selectedReportAccounts.forEach(id => {
-            if (!this.accounts?.some(a => a.id === id)) this.selectedReportAccounts.delete(id);
-        });
 
         if (this.accountMultiSelect) {
             const options = (this.accounts || []).map(a => ({ value: a.id, label: a.name }));
             this.accountMultiSelect.setOptions(options);
-            this.accountMultiSelect.setValue(Array.from(this.selectedReportAccounts));
+            if (Array.isArray(selectedIds)) {
+                this.accountMultiSelect.setValue(selectedIds);
+            }
         }
 
         this.syncExcludeSharedToggle();
@@ -346,9 +345,8 @@ export default class ReportsModule {
         }
 
         // Restore account selection (then re-render the checklist)
-        this.selectedReportAccounts = new Set(Array.isArray(config.accountIds) ? config.accountIds : []);
         this.excludeShared = !!config.excludeShared; // checkbox synced by populateReportAccountDropdown
-        this.populateReportAccountDropdown();
+        this.populateReportAccountDropdown(Array.isArray(config.accountIds) ? config.accountIds : []);
 
         // Restore tags
         this.selectedReportTags = new Set(Array.isArray(config.tagIds) ? config.tagIds : []);
