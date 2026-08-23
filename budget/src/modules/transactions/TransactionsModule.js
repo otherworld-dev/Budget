@@ -2756,7 +2756,18 @@ export default class TransactionsModule {
         this.refreshInlineSplitRows();
     }
 
-    addInlineSplitRow(isFirst = false, existingSplit = null) {
+    /**
+     * @param {boolean} isFirst   The first row cannot be removed.
+     * @param {object|null} existingSplit  A stored split to render into the row.
+     * @param {{defer?: boolean}} options
+     *        defer skips the trailing refresh. Callers that append several rows
+     *        in a row MUST use it and refresh once at the end: the refresh
+     *        recomputes the remainder against whatever rows exist so far, and
+     *        the row just appended is always the last one, so appending
+     *        one-at-a-time overwrites each amount as the next row arrives
+     *        (#358).
+     */
+    addInlineSplitRow(isFirst = false, existingSplit = null, { defer = false } = {}) {
         const container = document.getElementById('inline-splits-container');
         if (!container) return;
 
@@ -2766,10 +2777,18 @@ export default class TransactionsModule {
         const row = document.createElement('div');
         row.className = 'split-row';
 
+        // A stored part may legitimately be negative (a receipt's savings or
+        // coupon line). min="0.01" would make the form silently unsubmittable
+        // for it — the browser blocks submit and nothing explains why — so the
+        // constraint is lifted for exactly those rows, as applyReceiptSplits
+        // already does for the rows it fills in.
+        const storedAmount = existingSplit ? Number(existingSplit.amount) : null;
+        const minAttr = (storedAmount !== null && storedAmount < 0) ? '' : 'min="0.01"';
+
         row.innerHTML = `
             <div class="split-field split-amount-field">
                 <label>${t('budget', 'Amount')}</label>
-                <input type="number" class="inline-split-amount" step="0.01" min="0.01" placeholder="0.00"
+                <input type="number" class="inline-split-amount" step="0.01" ${minAttr} placeholder="0.00"
                        value="${existingSplit ? existingSplit.amount : ''}" required>
             </div>
             <div class="split-field split-category-field">
@@ -2807,7 +2826,9 @@ export default class TransactionsModule {
         });
 
         container.appendChild(row);
-        this.refreshInlineSplitRows();
+        if (!defer) {
+            this.refreshInlineSplitRows();
+        }
     }
 
     updateInlineSplitRemaining() {
@@ -2931,8 +2952,19 @@ export default class TransactionsModule {
             const splits = await response.json();
 
             if (splits.length > 0) {
+                // A stored set may contain a negative part (a receipt savings
+                // line). Say so before the rows land, or the single refresh
+                // below clamps the remainder row to 0.00 instead of restoring
+                // it.
+                this._allowNegativeRemainder = splits.some(s => Number(s.amount) < 0);
+                // defer: true is load-bearing. Refreshing after each append
+                // recomputes the remainder against a partial set, so every
+                // stored amount was overwritten as the next row arrived — a
+                // 1/3/6 split of 10 rendered as 1/9.00/0.00, and saving from
+                // that view dropped the third part (#358). Build all the rows
+                // first, settle the amounts once.
                 splits.forEach((split, index) => {
-                    this.addInlineSplitRow(index === 0, split);
+                    this.addInlineSplitRow(index === 0, split, { defer: true });
                 });
             } else {
                 this.addInlineSplitRow(true);
