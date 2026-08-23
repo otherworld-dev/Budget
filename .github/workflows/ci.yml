@@ -69,7 +69,10 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 22, not 20: jsdom's undici calls webidl.util.markAsUncloneable,
+          # which Node 20 does not provide, so the test run dies before it
+          # collects a file. Node 20 is also past end of life.
+          node-version: 22
           cache: npm
           cache-dependency-path: budget/package-lock.json
 
