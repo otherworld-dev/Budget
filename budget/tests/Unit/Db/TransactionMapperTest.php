@@ -265,6 +265,29 @@ class TransactionMapperTest extends TestCase {
         $this->assertNull($txs[0]->getCategoryId());
     }
 
+    /**
+     * A split parent carries no category of its own, so the bare
+     * "category_id IS NULL" predicate matched every split transaction and the
+     * dashboard's uncategorised widget listed them all (#356).
+     */
+    public function testFindUncategorizedExcludesSplitParents(): void {
+        $nulled = [];
+        $this->expr->method('isNull')
+            ->willReturnCallback(function (string $column) use (&$nulled) {
+                $nulled[] = $column;
+                return $column . ' IS NULL';
+            });
+
+        $this->result->method('fetch')->willReturn(false);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $this->mapper->findUncategorized('user1');
+
+        $this->assertContains('t.category_id', $nulled);
+        $this->assertContains('t.is_split', $nulled);
+    }
+
     // ===== search =====
 
     public function testSearchReturnsMatchingTransactions(): void {

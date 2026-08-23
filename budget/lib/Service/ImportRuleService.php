@@ -462,6 +462,13 @@ class ImportRuleService extends AbstractCrudService {
         // Filter uncategorized only
         if (!empty($filters['uncategorizedOnly'])) {
             $qb->andWhere($qb->expr()->isNull('t.category_id'));
+            // Never hand a split parent to a rule run: its null category is
+            // deliberate (the splits hold the categories), and categorising
+            // the parent double-counts it against its own splits (#356).
+            $qb->andWhere($qb->expr()->orX(
+                $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
+                $qb->expr()->isNull('t.is_split')
+            ));
         }
 
         $qb->orderBy('t.date', 'DESC');

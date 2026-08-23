@@ -394,4 +394,40 @@ class ImportRuleServiceTest extends TestCase {
         // Only the v1 rule should be in the migrated list
         $this->assertEquals([1], $result);
     }
+
+    // ===== findTransactionsForRules =====
+
+    /**
+     * "Only uncategorised transactions" must not offer up split parents: their
+     * category is deliberately null because the categories live on the split
+     * rows, so a rule run would re-categorise the parent and double-count it
+     * against its own splits (#356).
+     */
+    public function testFindTransactionsForRulesUncategorizedOnlyExcludesSplitParents(): void {
+        $nulled = [];
+        $expr = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
+        $expr->method('isNull')->willReturnCallback(function (string $column) use (&$nulled) {
+            $nulled[] = $column;
+            return $column . ' IS NULL';
+        });
+
+        $result = $this->createMock(\OCP\DB\IResult::class);
+        $result->method('fetch')->willReturn(false);
+        $result->method('closeCursor');
+
+        $qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
+        $qb->method('expr')->willReturn($expr);
+        $qb->method('createNamedParameter')->willReturn(':param');
+        $qb->method('executeQuery')->willReturn($result);
+        foreach (['select', 'from', 'where', 'andWhere', 'innerJoin', 'orderBy'] as $fluent) {
+            $qb->method($fluent)->willReturnSelf();
+        }
+
+        $this->db->method('getQueryBuilder')->willReturn($qb);
+
+        $this->service->findTransactionsForRules('user1', ['uncategorizedOnly' => true]);
+
+        $this->assertContains('t.category_id', $nulled);
+        $this->assertContains('t.is_split', $nulled);
+    }
 }

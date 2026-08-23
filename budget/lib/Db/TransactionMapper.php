@@ -809,9 +809,15 @@ class TransactionMapper extends QBMapper {
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
             ->andWhere($qb->expr()->isNull('t.category_id'))
+            // A split parent has no category of its own by design, so it is
+            // not "uncategorised" — its splits carry the categories (#356).
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
+                $qb->expr()->isNull('t.is_split')
+            ))
             ->orderBy('t.date', 'DESC')
             ->setMaxResults($limit);
-        
+
         return $this->findEntities($qb);
     }
 

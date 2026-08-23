@@ -325,6 +325,43 @@ class TransactionServiceTest extends TestCase {
         $this->assertNull($result->getCategoryId());
     }
 
+    /**
+     * A split parent's category is deliberately null — the categories live on
+     * its split rows. Bulk Edit reached update() through a blind setter loop
+     * with no is_split guard, so "filter by Uncategorized, select all, set a
+     * category" wrote a category onto every split parent and double-counted
+     * it against its own splits (#356).
+     */
+    public function testUpdateIgnoresCategoryChangeOnSplitParent(): void {
+        $tx = $this->makeTransaction(['categoryId' => null]);
+        $tx->setIsSplit(true);
+        $this->mapper->method('find')->willReturn($tx);
+        $this->mapper->method('update')->willReturnArgument(0);
+
+        $result = $this->service->update(1, 'user1', ['categoryId' => 7]);
+
+        $this->assertNull($result->getCategoryId());
+    }
+
+    /**
+     * Only the category is protected — the rest of a split parent's fields
+     * stay editable, so a bulk vendor or note change still applies.
+     */
+    public function testUpdateStillAppliesOtherFieldsOnSplitParent(): void {
+        $tx = $this->makeTransaction(['categoryId' => null]);
+        $tx->setIsSplit(true);
+        $this->mapper->method('find')->willReturn($tx);
+        $this->mapper->method('update')->willReturnArgument(0);
+
+        $result = $this->service->update(1, 'user1', [
+            'categoryId' => 7,
+            'description' => 'Weekly shop',
+        ]);
+
+        $this->assertNull($result->getCategoryId());
+        $this->assertEquals('Weekly shop', $result->getDescription());
+    }
+
     public function testUpdateRecalculatesBalanceFromLedger(): void {
         // Balance-affecting updates recompute from the ledger — amount/type/
         // status/account edits all flow through the same recompute instead of

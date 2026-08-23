@@ -33,6 +33,16 @@ class QueryFilterBuilder {
         if (!empty($filters['category'])) {
             if ($filters['category'] === 'uncategorized') {
                 $qb->andWhere($qb->expr()->isNull("{$alias}.category_id"));
+                // A split parent's own category is deliberately cleared when
+                // the transaction is split (the categories move to the split
+                // rows), so "category_id IS NULL" alone matches every split
+                // transaction and listed them all as uncategorised (#356).
+                // is_split predates a default, so legacy rows hold NULL and
+                // the eq() leg alone would hide them.
+                $qb->andWhere($qb->expr()->orX(
+                    $qb->expr()->eq("{$alias}.is_split", $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
+                    $qb->expr()->isNull("{$alias}.is_split")
+                ));
             } else {
                 $ids = array_values(array_filter(array_map('intval', explode(',', (string) $filters['category']))));
                 if (count($ids) > 1) {

@@ -528,6 +528,17 @@ class TransactionService {
             }
         }
 
+        // A split parent's category is deliberately null — the categories live
+        // on its split rows. The blind setter loop below has no idea about
+        // that, so bulk edit ("filter by Uncategorized, select all, set a
+        // category") wrote a category onto every split parent, which then
+        // double-counts against its own splits (#356). Unsplitting sets the
+        // category legitimately, so only protect a row that stays split.
+        $staysSplit = $transaction->getIsSplit() && ($updates['isSplit'] ?? true);
+        if ($staysSplit && array_key_exists('categoryId', $updates)) {
+            unset($updates['categoryId']);
+        }
+
         // Apply updates
         foreach ($updates as $key => $value) {
             $setter = 'set' . ucfirst($key);

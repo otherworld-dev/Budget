@@ -134,13 +134,46 @@ class QueryFilterBuilderTest extends TestCase {
     }
 
     public function testUncategorizedFilterUsesIsNull(): void {
-        $this->expr->expects($this->once())
-            ->method('isNull')
-            ->with('t.category_id');
-
-        $this->expr->expects($this->never())->method('eq');
+        $nulled = [];
+        $this->expr->method('isNull')
+            ->willReturnCallback(function (string $column) use (&$nulled) {
+                $nulled[] = $column;
+                return $column . ' IS NULL';
+            });
 
         $this->builder->applyTransactionFilters($this->qb, ['category' => 'uncategorized'], 't');
+
+        $this->assertContains('t.category_id', $nulled);
+    }
+
+    /**
+     * Splitting a transaction clears the parent's own category
+     * (TransactionSplitService::splitTransaction) because the categories now
+     * live on the split rows. A bare "category_id IS NULL" therefore matches
+     * every split parent, which is how split transactions ended up listed
+     * under the Uncategorized filter (#356). The parent must be excluded by
+     * is_split as well.
+     */
+    public function testUncategorizedFilterExcludesSplitParents(): void {
+        $nulled = [];
+        $this->expr->method('isNull')
+            ->willReturnCallback(function (string $column) use (&$nulled) {
+                $nulled[] = $column;
+                return $column . ' IS NULL';
+            });
+
+        $this->expr->expects($this->once())
+            ->method('eq')
+            ->with('t.is_split', ':param');
+
+        // Legacy rows predate the column and hold NULL, so the false check
+        // alone would drop them from the results entirely.
+        $this->expr->expects($this->once())->method('orX');
+
+        $this->builder->applyTransactionFilters($this->qb, ['category' => 'uncategorized'], 't');
+
+        $this->assertContains('t.category_id', $nulled);
+        $this->assertContains('t.is_split', $nulled);
     }
 
     public function testTypeFilterAppliesEq(): void {
