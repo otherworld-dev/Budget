@@ -159,6 +159,29 @@ export default class CategoriesModule {
             addBtn.addEventListener('click', () => this.showAddCategoryModal());
         }
 
+        // Category tree as a file (#354)
+        const exportBtn = document.getElementById('categories-export-btn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => this.exportCategories());
+        }
+        const importBtn = document.getElementById('categories-import-btn');
+        const importInput = document.getElementById('categories-import-input');
+        if (importBtn && importInput) {
+            importBtn.addEventListener('click', () => {
+                importInput.value = '';
+                importInput.click();
+            });
+            importInput.addEventListener('change', (e) => this.handleCategoriesImportFile(e));
+        }
+        const importConfirmBtn = document.getElementById('category-import-confirm-btn');
+        if (importConfirmBtn) {
+            importConfirmBtn.addEventListener('click', () => this.confirmCategoryImport());
+        }
+        const importCancelBtn = document.getElementById('category-import-cancel-btn');
+        if (importCancelBtn) {
+            importCancelBtn.addEventListener('click', () => this.closeCategoryImportModal());
+        }
+
         // Category details actions
         const editBtn = document.getElementById('edit-category-btn');
         const deleteBtn = document.getElementById('delete-category-btn');
@@ -1374,6 +1397,151 @@ export default class CategoriesModule {
             showError(error.message || t('budget', 'Failed to create default categories'));
         } finally {
             this._creatingDefaults = false;
+        }
+    }
+
+    // ===================================
+    // Category tree import / export (#354)
+    // ===================================
+
+    /** Download the user's own category tree as a JSON file. */
+    async exportCategories() {
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/categories/export'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) {
+                throw new Error(t('budget', 'Failed to export categories'));
+            }
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `budget-categories-${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Failed to export categories:', error);
+            showError(error.message || t('budget', 'Failed to export categories'));
+        }
+    }
+
+    /**
+     * A file was chosen via the Import button: send it for a dry run and
+     * show what would be created before anything is written.
+     */
+    async handleCategoriesImportFile(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        let content;
+        try {
+            content = await file.text();
+        } catch (e) {
+            showError(t('budget', 'Could not read that file: {error}', { error: e.message }));
+            return;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/categories/import/preview'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
+                body: JSON.stringify({ content })
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || t('budget', 'Failed to read the category file'));
+            }
+            this.pendingCategoryImport = content;
+            this.showCategoryImportModal(data);
+        } catch (error) {
+            console.error('Failed to preview category import:', error);
+            showError(error.message || t('budget', 'Failed to read the category file'));
+        }
+    }
+
+    showCategoryImportModal(plan) {
+        const modal = document.getElementById('category-import-modal');
+        if (!modal) return;
+        const counts = plan.counts || { create: 0, exists: 0, total: 0 };
+
+        const summary = document.getElementById('category-import-summary');
+        if (summary) {
+            summary.textContent = counts.exists > 0
+                ? t('budget', '{create} new categories will be created. {exists} already exist and will be left unchanged.', { create: counts.create, exists: counts.exists })
+                : n('budget', '%n new category will be created.', '%n new categories will be created.', counts.create);
+        }
+
+        const warningsEl = document.getElementById('category-import-warnings');
+        if (warningsEl) {
+            const warnings = Array.isArray(plan.warnings) ? plan.warnings : [];
+            warningsEl.innerHTML = warnings.map(w => `<li>${this.escapeHtml(w)}</li>`).join('');
+            warningsEl.style.display = warnings.length ? '' : 'none';
+        }
+
+        const treeEl = document.getElementById('category-import-tree');
+        if (treeEl) {
+            treeEl.innerHTML = this.renderCategoryImportNodes(plan.categories || [], 0);
+        }
+
+        const confirmBtn = document.getElementById('category-import-confirm-btn');
+        if (confirmBtn) {
+            confirmBtn.disabled = counts.create === 0;
+            confirmBtn.textContent = counts.create > 0
+                ? n('budget', 'Import %n category', 'Import %n categories', counts.create)
+                : t('budget', 'Nothing to import');
+        }
+
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    renderCategoryImportNodes(nodes, depth) {
+        return nodes.map(node => {
+            const badge = node.action === 'exists'
+                ? `<span class="category-import-badge exists">${t('budget', 'Exists')}</span>`
+                : `<span class="category-import-badge new">${t('budget', 'New')}</span>`;
+            const type = depth === 0
+                ? `<span class="category-import-type">${node.type === 'income' ? t('budget', 'Income') : t('budget', 'Expense')}</span>`
+                : '';
+            return `<div class="category-import-node" style="--depth: ${depth}">` +
+                `<span class="category-import-name">${this.escapeHtml(node.name)}</span>${type}${badge}</div>` +
+                this.renderCategoryImportNodes(node.children || [], depth + 1);
+        }).join('');
+    }
+
+    closeCategoryImportModal() {
+        dom.closeModal(document.getElementById('category-import-modal'));
+        this.pendingCategoryImport = null;
+    }
+
+    async confirmCategoryImport() {
+        if (!this.pendingCategoryImport || this._importingCategories) return;
+        this._importingCategories = true;
+        const confirmBtn = document.getElementById('category-import-confirm-btn');
+        if (confirmBtn) confirmBtn.disabled = true;
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/categories/import'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
+                body: JSON.stringify({ content: this.pendingCategoryImport })
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || t('budget', 'Failed to import categories'));
+            }
+            this.closeCategoryImportModal();
+            showSuccess(n('budget', 'Imported %n category', 'Imported %n categories', data.created || 0));
+            await this.loadCategories();
+            await this.app.loadInitialData();
+        } catch (error) {
+            console.error('Failed to import categories:', error);
+            showError(error.message || t('budget', 'Failed to import categories'));
+            if (confirmBtn) confirmBtn.disabled = false;
+        } finally {
+            this._importingCategories = false;
         }
     }
 

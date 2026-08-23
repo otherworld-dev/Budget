@@ -99,6 +99,10 @@ return [
         ['name' => 'category#transactionCounts', 'url' => '/api/categories/transaction-counts', 'verb' => 'GET'],
         ['name' => 'category#recurringBudgets', 'url' => '/api/categories/recurring-budgets', 'verb' => 'GET'],
         ['name' => 'category#reportMutes', 'url' => '/api/categories/report-mutes', 'verb' => 'GET'],
+        // Category tree as a file (#354) - also before the {id} wildcard
+        ['name' => 'categoryTransfer#export', 'url' => '/api/categories/export', 'verb' => 'GET'],
+        ['name' => 'categoryTransfer#preview', 'url' => '/api/categories/import/preview', 'verb' => 'POST'],
+        ['name' => 'categoryTransfer#import', 'url' => '/api/categories/import', 'verb' => 'POST'],
         ['name' => 'category#setReportMute', 'url' => '/api/categories/{id}/report-mute', 'verb' => 'PUT'],
         ['name' => 'category#create', 'url' => '/api/categories', 'verb' => 'POST'],
         ['name' => 'category#reorder', 'url' => '/api/categories/{id}/reorder', 'verb' => 'POST'],

@@ -1801,6 +1801,15 @@ style('budget', 'budget-app');
                             <span class="icon-add" aria-hidden="true"></span>
                             <?php p($l->t('Add Category')); ?>
                         </button>
+                        <button id="categories-export-btn" class="secondary" aria-label="<?php p($l->t('Export the category tree as a JSON file')); ?>">
+                            <span class="icon-download" aria-hidden="true"></span>
+                            <?php p($l->t('Export')); ?>
+                        </button>
+                        <button id="categories-import-btn" class="secondary" aria-label="<?php p($l->t('Import categories from a JSON or CSV file')); ?>">
+                            <span class="icon-upload" aria-hidden="true"></span>
+                            <?php p($l->t('Import')); ?>
+                        </button>
+                        <input type="file" id="categories-import-input" accept=".json,.csv,application/json,text/csv" style="display: none;" aria-hidden="true">
                     </div>
                 </div>
             </div>
@@ -6448,6 +6457,23 @@ style('budget', 'budget-app');
 </div>
 
 <!-- Category Modal -->
+<!-- Category import preview (#354) -->
+<div id="category-import-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="category-import-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <h3 id="category-import-modal-title"><?php p($l->t('Import Categories')); ?></h3>
+        <div class="modal-scroll">
+            <p id="category-import-summary" class="category-import-summary"></p>
+            <ul id="category-import-warnings" class="category-import-warnings" style="display: none;"></ul>
+            <div id="category-import-tree" class="category-import-tree"></div>
+            <p class="hint"><?php p($l->t('Categories that already exist are left unchanged; anything missing is created underneath them.')); ?></p>
+        </div>
+        <div class="modal-buttons">
+            <button type="button" id="category-import-confirm-btn" class="primary"><?php p($l->t('Import')); ?></button>
+            <button type="button" id="category-import-cancel-btn" class="secondary cancel-btn" aria-label="<?php p($l->t('Cancel and close dialog')); ?>"><?php p($l->t('Cancel')); ?></button>
+        </div>
+    </div>
+</div>
+
 <div id="category-modal" class="modal modal-columns modal-columns-2" style="display: none;" role="dialog" aria-labelledby="category-modal-title" aria-hidden="true">
     <div class="modal-content">
         <h3 id="category-modal-title"><?php p($l->t('Add/Edit Category')); ?></h3>

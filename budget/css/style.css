@@ -5641,6 +5641,62 @@ button.danger:hover {
     align-items: center;
 }
 
+/* Category tree import preview (#354) */
+.category-import-summary {
+    margin: 0 0 12px;
+}
+
+.category-import-warnings {
+    margin: 0 0 12px;
+    padding: 8px 12px 8px 28px;
+    border-radius: 4px;
+    background: var(--color-warning-hover, rgba(234, 179, 8, 0.15));
+    color: var(--color-main-text);
+    font-size: 13px;
+}
+
+.category-import-tree {
+    max-height: 50vh;
+    overflow: auto;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 6px 0;
+    margin-bottom: 12px;
+}
+
+.category-import-node {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 12px 4px calc(12px + var(--depth, 0) * 20px);
+}
+
+.category-import-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.category-import-type {
+    color: var(--color-text-maxcontrast);
+    font-size: 12px;
+}
+
+.category-import-badge {
+    font-size: 11px;
+    padding: 1px 8px;
+    border-radius: 10px;
+    background: var(--color-background-dark);
+    color: var(--color-text-maxcontrast);
+    white-space: nowrap;
+}
+
+.category-import-badge.new {
+    background: var(--color-primary-element-light);
+    color: var(--color-primary-element-light-text);
+}
+
 #category-settings-btn {
     background: var(--color-background-dark) !important;
     border: 1px solid var(--color-border) !important;

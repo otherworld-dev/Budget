@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Several CSV columns can feed one text field.** Banks often split what belongs together — a merchant column and a details column, say, or a reference spread over two. On the import mapping step, Description, Notes, Vendor and Reference are now checklists: tick every column that belongs in the field and the values are joined with a comma, in the order the columns appear in the file, with blank cells skipped. The same works for those four fields on OFX, QIF and camt files, and a saved import template keeps the whole selection. A single ticked column imports exactly as it always has, so re-importing an overlapping statement still recognises its transactions. Thanks to @Saviq for the feature ([#355](https://github.com/otherworld-dev/Budget/pull/355))
+- **Category trees can be exported and imported.** The Categories page has Export and Import buttons next to Add Category. Export downloads your whole tree as a readable JSON file; Import takes that file back, or a CSV of `Parent > Child` paths, shows exactly what would be created before anything is written, and leaves categories that already exist untouched while adding whatever is missing underneath them. Handy for backing up a carefully built structure, sharing it, or having a spreadsheet or an AI assistant draft one and loading it in a single step ([#354](https://github.com/otherworld-dev/Budget/issues/354))
 
 ## [2.42.0] - 2026-08-21
 
