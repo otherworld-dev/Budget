@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.43.0] - 2026-08-24
 
 ### Added
 - **Liability accounts now ask what a positive balance means instead of guessing.** Editing a credit card, loan, mortgage or line of credit shows an **Amount owed** field that takes a plain positive number — the app adds the minus sign — with a separate **This account is in credit** tick for the case where you have overpaid and the lender owes you. Switching an account between a debt type and a savings type converts the figure for you and shows the resulting current balance before you save. Creating a liability works the same way. The choice is recorded with the account, so an export and restore keeps it ([#353](https://github.com/otherworld-dev/Budget/issues/353))
