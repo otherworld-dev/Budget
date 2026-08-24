@@ -85,6 +85,7 @@ class CategoryServiceTest extends TestCase {
         $category->setBudgetAmount($data['budgetAmount']);
         $category->setSortOrder($data['sortOrder']);
         $category->setExcludedFromBudget($data['excludedFromBudget'] ?? false);
+        $category->setExcludedFromReports($data['excludedFromReports'] ?? false);
         $category->setCreatedAt('2026-01-01 00:00:00');
         $category->setUpdatedAt('2026-01-01 00:00:00');
         return $category;
@@ -715,5 +716,187 @@ class CategoryServiceTest extends TestCase {
         $created = $this->service->createDefaultCategories('user1');
 
         $this->assertCount(0, $created, 'a fully-seeded account must create nothing');
+    }
+
+    // ===== Category Details scope (#359) =====
+
+    /**
+     * A tree of Food(1) > Groceries(2) > Fruit(3), plus Household(4) under
+     * Food and an unrelated top-level Transport(9).
+     *
+     * @return Category[]
+     */
+    private function detailTree(array $overrides = []): array {
+        return [
+            $this->makeCategory(['id' => 1, 'name' => 'Food', 'parentId' => null]),
+            $this->makeCategory(array_merge(['id' => 2, 'name' => 'Groceries', 'parentId' => 1], $overrides[2] ?? [])),
+            $this->makeCategory(array_merge(['id' => 3, 'name' => 'Fruit', 'parentId' => 2], $overrides[3] ?? [])),
+            $this->makeCategory(array_merge(['id' => 4, 'name' => 'Household', 'parentId' => 1], $overrides[4] ?? [])),
+            $this->makeCategory(['id' => 9, 'name' => 'Transport', 'parentId' => null]),
+        ];
+    }
+
+    /**
+     * @return int[] the category ids getCategorySummary was asked about
+     */
+    private function captureDetailScope(array $tree, int $selectedId = 1): array {
+        $this->categoryMapper->method('findAll')->willReturn($tree);
+        $this->categoryMapper->method('find')->willReturnCallback(
+            function (int $id) use ($tree) {
+                foreach ($tree as $category) {
+                    if ($category->getId() === $id) {
+                        return $category;
+                    }
+                }
+                throw new DoesNotExistException('missing');
+            }
+        );
+
+        $captured = [];
+        $this->transactionMapper->method('getCategorySummary')
+            ->willReturnCallback(function (string $userId, int $categoryId, ?array $ids) use (&$captured) {
+                $captured = $ids ?? [];
+                return ['count' => 0, 'total' => 0.0];
+            });
+        $this->transactionMapper->method('getCategoryMonthlySpending')->willReturn([]);
+
+        $this->service->getCategoryDetails($selectedId, 'user1');
+
+        return $captured;
+    }
+
+    /**
+     * The count used to roll up direct children only, so a grandchild's
+     * spending was in neither the figures nor the list (#359).
+     */
+    public function testDetailScopeCoversTheWholeSubtree(): void {
+        $ids = $this->captureDetailScope($this->detailTree());
+
+        sort($ids);
+        $this->assertSame([1, 2, 3, 4], $ids);
+    }
+
+    public function testDetailScopeExcludesDescendantsFlaggedOutOfReports(): void {
+        $ids = $this->captureDetailScope($this->detailTree([4 => ['excludedFromReports' => true]]));
+
+        sort($ids);
+        $this->assertSame([1, 2, 3], $ids);
+        $this->assertNotContains(9, $ids, 'an unrelated top-level category is never in scope');
+    }
+
+    public function testDetailScopeKeepsTheSelectedCategoryEvenWhenItIsFlagged(): void {
+        // The user asked for this one; hiding it would show an empty panel with
+        // no explanation.
+        $tree = $this->detailTree();
+        $tree[0]->setExcludedFromReports(true);
+
+        $ids = $this->captureDetailScope($tree);
+
+        $this->assertContains(1, $ids);
+    }
+
+    public function testDetailScopeStopsAtAnExcludedBranch(): void {
+        // Groceries is out, so Fruit under it goes with it.
+        $ids = $this->captureDetailScope($this->detailTree([2 => ['excludedFromReports' => true]]));
+
+        sort($ids);
+        $this->assertSame([1, 4], $ids);
+    }
+
+    public function testDetailsReportsTheScopeItUsed(): void {
+        $tree = $this->detailTree();
+        $this->categoryMapper->method('findAll')->willReturn($tree);
+        $this->categoryMapper->method('find')->willReturn($tree[0]);
+        $this->transactionMapper->method('getCategorySummary')->willReturn(['count' => 3, 'total' => 30.0]);
+        $this->transactionMapper->method('getCategoryMonthlySpending')->willReturn([
+            ['month' => '2026-01', 'total' => 30.0, 'count' => 3, 'splitCount' => 2],
+        ]);
+
+        $details = $this->service->getCategoryDetails(1, 'user1');
+
+        $this->assertTrue($details['scope']['includesSubcategories']);
+        $this->assertSame('expense', $details['scope']['type']);
+        $this->assertSame(2, $details['scope']['splitCount']);
+        $this->assertContains(2, $details['scope']['categoryIds']);
+    }
+
+    /**
+     * The panel's figures and its transaction list have to cover the same
+     * categories, or it reports more transactions than it can show — which is
+     * what #359 was reported as.
+     */
+    public function testTransactionsUseTheSameScopeAsTheFigures(): void {
+        $tree = $this->detailTree();
+        $this->categoryMapper->method('findAll')->willReturn($tree);
+        $this->categoryMapper->method('find')->willReturn($tree[0]);
+
+        $summaryIds = [];
+        $this->transactionMapper->method('getCategorySummary')
+            ->willReturnCallback(function (string $userId, int $categoryId, ?array $ids) use (&$summaryIds) {
+                $summaryIds = $ids ?? [];
+                return ['count' => 0, 'total' => 0.0];
+            });
+        $this->transactionMapper->method('getCategoryMonthlySpending')->willReturn([]);
+
+        $listIds = [];
+        $this->transactionMapper->method('findCategoryTransactionRows')
+            ->willReturnCallback(function (string $userId, array $ids, int $limit) use (&$listIds) {
+                $listIds = $ids;
+                return [];
+            });
+
+        $this->service->getCategoryDetails(1, 'user1');
+        $this->service->getCategoryTransactions(1, 'user1', 5);
+
+        sort($summaryIds);
+        sort($listIds);
+        $this->assertSame($summaryIds, $listIds);
+    }
+
+    public function testCategoryTransactionsMarkTheInScopePartsOfASplit(): void {
+        $tree = $this->detailTree();
+        $this->categoryMapper->method('findAll')->willReturn($tree);
+        $this->categoryMapper->method('find')->willReturn($tree[0]);
+        $this->transactionMapper->method('findCategoryTransactionRows')->willReturn([
+            ['id' => 7, 'isSplit' => true, 'amount' => 12.40, 'transactionAmount' => 82.40],
+            ['id' => 8, 'isSplit' => false, 'amount' => 5.00, 'transactionAmount' => 5.00],
+        ]);
+
+        $splitMapper = $this->createMock(\OCA\Budget\Db\TransactionSplitMapper::class);
+        $splitMapper->method('findByTransactionIds')->willReturn([
+            7 => [
+                ['categoryId' => 2, 'categoryName' => 'Groceries', 'amount' => 12.40],
+                ['categoryId' => 9, 'categoryName' => 'Transport', 'amount' => 70.00],
+            ],
+        ]);
+        $service = $this->serviceWithSplitMapper($splitMapper);
+
+        $rows = $service->getCategoryTransactions(1, 'user1', 5);
+
+        $this->assertTrue($rows[0]['splitCategories'][0]['inCategory']);
+        $this->assertFalse($rows[0]['splitCategories'][1]['inCategory']);
+        $this->assertArrayNotHasKey('splitCategories', $rows[1]);
+    }
+
+    private function serviceWithSplitMapper($splitMapper): CategoryService {
+        $l = $this->createMock(IL10N::class);
+        $l->method('t')->willReturnCallback(fn(string $text, array $params = []) => $text);
+        $carryoverService = $this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class);
+        $recurringBudgetService = $this->createMock(\OCA\Budget\Service\RecurringBudgetService::class);
+
+        return new CategoryService(
+            $this->categoryMapper,
+            $this->transactionMapper,
+            $this->createMock(BudgetSnapshotMapper::class),
+            $this->tagSetMapper,
+            $this->tagMapper,
+            $this->transactionTagMapper,
+            $l,
+            $carryoverService,
+            $recurringBudgetService,
+            null,
+            null,
+            $splitMapper
+        );
     }
 }

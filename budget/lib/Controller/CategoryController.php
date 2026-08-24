@@ -510,7 +510,9 @@ class CategoryController extends Controller {
             if ($owner === null) {
                 return new DataResponse(['error' => $this->l->t('%1$s not found', [$this->l->t('Category')])], Http::STATUS_NOT_FOUND);
             }
-            $transactions = $this->service->getCategoryTransactions($id, $owner, $limit);
+            // Two queries per call now that split shares are listed alongside
+            // direct rows, so cap what a caller can ask for (#359).
+            $transactions = $this->service->getCategoryTransactions($id, $owner, max(1, min($limit, 100)));
             return new DataResponse($transactions);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Category'), ['categoryId' => $id]);

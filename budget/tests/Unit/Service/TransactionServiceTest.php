@@ -29,6 +29,8 @@ class TransactionServiceTest extends TestCase {
     private $splitMapper;
     /** @var array<int, Account> per-test accounts served by the findById stub */
     private array $accountById = [];
+    /** @var array<int, array<int, array<string, mixed>>> per-test split parts served by findByTransactionIds */
+    private array $splitsByTransactionId = [];
 
     protected function setUp(): void {
         $this->mapper = $this->createMock(TransactionMapper::class);
@@ -40,8 +42,13 @@ class TransactionServiceTest extends TestCase {
             fn(int $id) => $this->accountById[$id] ?? $this->makeAccount()
         );
         $this->transactionTagMapper = $this->createMock(TransactionTagMapper::class);
+        $this->splitsByTransactionId = [];
         $splitMapper = $this->createMock(\OCA\Budget\Db\TransactionSplitMapper::class);
-        $splitMapper->method('findByTransactionIds')->willReturn([]);
+        // Seeded map rather than a fixed return: a stub set here cannot be
+        // replaced from a test, so tests fill $this->splitsByTransactionId.
+        $splitMapper->method('findByTransactionIds')->willReturnCallback(
+            fn(array $ids) => array_intersect_key($this->splitsByTransactionId, array_flip($ids))
+        );
         $this->splitMapper = $splitMapper;
         $this->expenseShareMapper = $this->createMock(ExpenseShareMapper::class);
         $dismissedImportMapper = $this->createMock(DismissedImportMapper::class);
@@ -1558,5 +1565,228 @@ class TransactionServiceTest extends TestCase {
         $this->mapper->expects($this->once())->method('delete')->with($stray);
 
         $this->service->clearScheduledBillTransaction('user1', 7, '2026-08-15');
+    }
+
+    // ===== split shares under a category filter (#359) =====
+
+    /**
+     * @param array<string, mixed> $filters
+     * @return array<string, mixed> the single returned row
+     */
+    private function findOneWithFilters(array $filters, array $row): array {
+        $this->mapper->method('findWithFilters')->willReturn([
+            'transactions' => [$row],
+            'total' => 1,
+        ]);
+
+        $result = $this->service->findWithFilters('user1', $filters, 25, 0);
+
+        return $result['transactions'][0];
+    }
+
+    private function splitRow(): array {
+        return ['id' => 7, 'accountId' => 10, 'isSplit' => true, 'amount' => 82.40, 'type' => 'debit'];
+    }
+
+    public function testCategoryFilterAttachesTheShareBelongingToThatCategory(): void {
+        $this->splitsByTransactionId[7] = [
+            ['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 12.40],
+            ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 70.00],
+        ];
+
+        $row = $this->findOneWithFilters(['category' => '3'], $this->splitRow());
+
+        $this->assertSame(12.40, $row['matchedSplitAmount']);
+        $this->assertSame('Groceries', $row['matchedSplitCategoryName']);
+        $this->assertSame(82.40, $row['amount'], 'the row is still the whole transaction');
+        $this->assertTrue($row['splitCategories'][0]['matched']);
+        $this->assertFalse($row['splitCategories'][1]['matched']);
+    }
+
+    public function testTwoPartsInTheFilteredCategoryAreSummedOnce(): void {
+        // A receipt with two grocery lines is one row, at one figure — the
+        // predicate is an EXISTS precisely so it cannot become two.
+        $this->splitsByTransactionId[7] = [
+            ['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 12.40],
+            ['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 5.60],
+            ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 64.40],
+        ];
+
+        $row = $this->findOneWithFilters(['category' => '3'], $this->splitRow());
+
+        $this->assertSame(18.0, $row['matchedSplitAmount']);
+        $this->assertSame('Groceries', $row['matchedSplitCategoryName']);
+    }
+
+    public function testCommaIdListMatchesAPartInAnyListedCategory(): void {
+        // A pie-chart drill-down from an aggregated slice passes the parent plus
+        // its subcategories (#317).
+        $this->splitsByTransactionId[7] = [
+            ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 70.00],
+            ['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 12.40],
+        ];
+
+        $row = $this->findOneWithFilters(['category' => '3,4,5'], $this->splitRow());
+
+        $this->assertSame(12.40, $row['matchedSplitAmount']);
+    }
+
+    public function testNegativeSplitPartKeepsItsSign(): void {
+        // A receipt's discount line is a negative part of an expense.
+        $this->splitsByTransactionId[7] = [
+            ['categoryId' => 3, 'categoryName' => 'Savings', 'amount' => -3.50],
+            ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 85.90],
+        ];
+
+        $row = $this->findOneWithFilters(['category' => '3'], $this->splitRow());
+
+        $this->assertSame(-3.50, $row['matchedSplitAmount']);
+    }
+
+    public function testZeroShareIsReportedRatherThanTreatedAsNoMatch(): void {
+        $this->splitsByTransactionId[7] = [
+            ['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 0.0],
+            ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 82.40],
+        ];
+
+        $row = $this->findOneWithFilters(['category' => '3'], $this->splitRow());
+
+        $this->assertArrayHasKey('matchedSplitAmount', $row);
+        $this->assertSame(0.0, $row['matchedSplitAmount']);
+    }
+
+    public function testNoShareWhenNoPartIsInTheFilteredCategory(): void {
+        $this->splitsByTransactionId[7] = [
+            ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 82.40],
+        ];
+
+        $row = $this->findOneWithFilters(['category' => '3'], $this->splitRow());
+
+        $this->assertArrayNotHasKey('matchedSplitAmount', $row);
+        $this->assertFalse($row['splitCategories'][0]['matched']);
+    }
+
+    public function testUnfilteredListCarriesTheSplitPartsButNoShare(): void {
+        $this->splitsByTransactionId[7] = [
+            ['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 12.40],
+            ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 70.00],
+        ];
+
+        $row = $this->findOneWithFilters([], $this->splitRow());
+
+        $this->assertArrayNotHasKey('matchedSplitAmount', $row);
+        $this->assertCount(2, $row['splitCategories']);
+        $this->assertArrayNotHasKey('matched', $row['splitCategories'][0]);
+    }
+
+    public function testUncategorizedFilterAttachesNoShare(): void {
+        $this->splitsByTransactionId[7] = [
+            ['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 12.40],
+        ];
+
+        $row = $this->findOneWithFilters(['category' => 'uncategorized'], $this->splitRow());
+
+        $this->assertArrayNotHasKey('matchedSplitAmount', $row);
+    }
+
+    public function testUnsplitRowIsUntouchedByACategoryFilter(): void {
+        $row = $this->findOneWithFilters(
+            ['category' => '3'],
+            ['id' => 8, 'accountId' => 10, 'isSplit' => false, 'amount' => 20.0, 'type' => 'debit']
+        );
+
+        $this->assertArrayNotHasKey('matchedSplitAmount', $row);
+        $this->assertArrayNotHasKey('splitCategories', $row);
+    }
+
+    public function testPartWithNoCategoryNeverMatches(): void {
+        $this->splitsByTransactionId[7] = [
+            ['categoryId' => null, 'categoryName' => null, 'amount' => 12.40],
+            ['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 70.00],
+        ];
+
+        $row = $this->findOneWithFilters(['category' => '3'], $this->splitRow());
+
+        $this->assertSame(70.00, $row['matchedSplitAmount']);
+        $this->assertFalse($row['splitCategories'][0]['matched']);
+    }
+
+    // ===== delete cascades to splits (#359) =====
+
+    /**
+     * None of these tables has a foreign key, and every cleanup query — factory
+     * reset included — finds its rows by joining back through
+     * budget_transactions. A row left behind has no transaction to join to, so
+     * it survives everything and is unreachable forever. The cascade is the
+     * only thing standing between a delete and a permanent leak.
+     */
+    public function testDeleteRemovesTheTransactionsSplitRows(): void {
+        $tx = $this->makeTransaction(['id' => 7]);
+        $this->mapper->method('find')->willReturn($tx);
+        $this->mapper->method('getNetChangeAll')->willReturn(0.0);
+        $this->accountMapper->method('find')->willReturn($this->makeAccount());
+
+        $this->splitMapper->expects($this->once())
+            ->method('deleteByTransaction')
+            ->with(7);
+
+        $this->service->delete(7, 'user1');
+    }
+
+    public function testDeleteRemovesSplitRowsBeforeTheTransactionItself(): void {
+        // Reversed, the lookup would have nothing left to find.
+        $tx = $this->makeTransaction(['id' => 7]);
+        $this->mapper->method('find')->willReturn($tx);
+        $this->mapper->method('getNetChangeAll')->willReturn(0.0);
+        $this->accountMapper->method('find')->willReturn($this->makeAccount());
+
+        $order = [];
+        $this->splitMapper->method('deleteByTransaction')
+            ->willReturnCallback(function () use (&$order) {
+                $order[] = 'splits';
+            });
+        $this->mapper->method('delete')->willReturnCallback(function ($arg) use (&$order) {
+            $order[] = 'transaction';
+            return $arg;
+        });
+
+        $this->service->delete(7, 'user1');
+
+        $this->assertSame(['splits', 'transaction'], $order);
+    }
+
+    /**
+     * A bill with a split template puts real split rows on every placeholder it
+     * generates, and this path went straight to the mapper and cascaded
+     * nothing at all.
+     */
+    public function testDeletingABillsScheduledTransactionsTakesTheirSplits(): void {
+        $first = $this->makeTransaction(['id' => 11, 'status' => 'scheduled']);
+        $second = $this->makeTransaction(['id' => 12, 'status' => 'scheduled']);
+        $this->mapper->method('findAllScheduledByBillId')->willReturn([$first, $second]);
+
+        $deleted = [];
+        $this->splitMapper->method('deleteByTransaction')
+            ->willReturnCallback(function (int $id) use (&$deleted) {
+                $deleted[] = $id;
+            });
+
+        $this->service->deleteScheduledBillTransactions(44);
+
+        $this->assertSame([11, 12], $deleted);
+    }
+
+    public function testDeletingABillsScheduledTransactionsTakesTheirTagsAndAttachments(): void {
+        $tx = $this->makeTransaction(['id' => 11, 'status' => 'scheduled']);
+        $this->mapper->method('findAllScheduledByBillId')->willReturn([$tx]);
+
+        $this->transactionTagMapper->expects($this->once())
+            ->method('deleteByTransaction')
+            ->with(11);
+        $this->attachmentMapper->expects($this->once())
+            ->method('deleteByTransaction')
+            ->with(11, 'user1');
+
+        $this->service->deleteScheduledBillTransactions(44);
     }
 }

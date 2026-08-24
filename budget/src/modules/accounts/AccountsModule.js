@@ -5,7 +5,7 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
-import { downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES } from '../../utils/helpers.js';
+import { downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES, hasSplitPortion, transactionDisplayAmount } from '../../utils/helpers.js';
 import { translate as t } from '@nextcloud/l10n';
 
 // Which account attributes are rendered in the accounts view (tiles + list).
@@ -1446,11 +1446,20 @@ export default class AccountsModule {
                 ? `<span class="linked-indicator" data-transaction-id="${transaction.id}" data-linked-id="${transaction.linkedTransactionId}" data-linked-account-id="${transaction.linkedAccountId || ''}" title="${linkedTitle}">&#x1F517; ${linkedLabel}</span>`
                 : '';
 
-            // Split badge
+            // Split badge. Filtering the register by a category also matches a
+            // split through its parts, and the row then stands for the part
+            // that matched rather than the whole transaction (#359).
             const isSplit = transaction.isSplit || transaction.is_split;
+            const isSplitPortion = hasSplitPortion(transaction);
             const splitBadge = isSplit
-                ? `<span class="split-indicator" title="${t('budget', 'Split transaction')}">${t('budget', 'Split')}</span>`
+                ? `<span class="split-indicator" title="${isSplitPortion
+                    ? t('budget', 'Part of a split transaction. The amount shown is the part in this category.')
+                    : t('budget', 'Split transaction')}">${isSplitPortion ? t('budget', 'Split part') : t('budget', 'Split')}</span>`
                 : '';
+            const portionAmount = transactionDisplayAmount(transaction);
+            const signedPortion = transaction.type === 'credit' ? portionAmount : -portionAmount;
+            const showsWholeToo = isSplitPortion
+                && Math.abs(Math.abs(portionAmount) - Math.abs(amount)) > 0.005;
 
             return `
                 <tr class="transaction-row${isScheduled ? ' scheduled-transaction' : ''}${isLinked ? ' is-linked' : ''}${transaction.reconciled ? ' is-reconciled' : ''}" data-transaction-id="${transaction.id}">
@@ -1465,15 +1474,20 @@ export default class AccountsModule {
                     </td>
                     <td class="vendor-column">${dom.escapeHtml(transaction.vendor || '')}</td>
                     <td class="category-column">
-                        <span class="category-name ${category ? '' : 'uncategorized'}">
+                        ${isSplit && transaction.splitCategories
+                            ? `<span class="category-name split-category" title="${transaction.splitCategories.map(sp => dom.escapeHtml((sp.categoryName || t('budget', 'Uncategorized')) + ': ' + this.formatCurrency(sp.amount, currency))).join('&#10;')}">${transaction.splitCategories.map(sp => '<span class="split-cat-item' + (sp.matched ? ' is-match' : '') + '">' + dom.escapeHtml(sp.categoryName || t('budget', 'Uncategorized')) + '</span>').join(' / ')}</span>`
+                            : isSplit
+                            ? `<span class="category-name split-category">${t('budget', 'Split')}</span>`
+                            : `<span class="category-name ${category ? '' : 'uncategorized'}">
                             ${category ? dom.escapeHtml(category.name) : t('budget', 'Uncategorized')}
-                        </span>
+                        </span>`}
                         <div class="transaction-tags-display" data-transaction-id="${transaction.id}" style="margin-top: 4px;"></div>
                     </td>
                     <td class="amount-column">
-                        <span class="transaction-amount ${transaction.type}">
-                            ${transaction.type === 'credit' ? '+' : '-'}${this.formatCurrency(Math.abs(amount), currency)}
+                        <span class="transaction-amount ${isSplitPortion ? (signedPortion >= 0 ? 'credit' : 'debit') : transaction.type}">
+                            ${(isSplitPortion ? signedPortion >= 0 : transaction.type === 'credit') ? '+' : '-'}${this.formatCurrency(Math.abs(portionAmount), currency)}
                         </span>
+                        ${showsWholeToo ? `<span class="amount-whole">${t('budget', 'of {total}', { total: this.formatCurrency(Math.abs(amount), currency) })}</span>` : ''}
                     </td>
                     <td class="balance-column">
                         ${balanceMap !== null && balanceMap[transaction.id] !== undefined

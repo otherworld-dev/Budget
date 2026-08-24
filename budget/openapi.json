@@ -213,7 +213,7 @@
             "schema": {
               "type": "integer"
             },
-            "description": "Restrict to one category."
+            "description": "Restrict to one category. Also matches a split transaction with a part in this category; such a row carries split_amount, which is the part that matched, while amount stays the whole transaction."
           },
           {
             "name": "dateFrom",
@@ -1358,7 +1358,7 @@
           },
           "is_split": {
             "type": "boolean",
-            "description": "True when the transaction is split across categories in the web UI. Splits are not exposed in v1."
+            "description": "True when the transaction is split across categories. Its own category_id is null; the categories live on its parts, which POST /transactions/{id}/splits sets."
           },
           "created_at": {
             "type": "string",
@@ -1379,6 +1379,11 @@
           "category_name": {
             "type": "string",
             "description": "List responses only, and absent on uncategorised rows."
+          },
+          "split_amount": {
+            "type": "string",
+            "description": "Present only when categoryId was used and this split transaction matched through one of its parts: the sum of its parts in that category. Total this instead of amount when adding up a category, or every category the transaction touches gets the full amount.",
+            "example": "12.40"
           },
           "splits": {
             "type": "array",

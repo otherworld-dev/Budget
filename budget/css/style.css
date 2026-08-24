@@ -4242,6 +4242,47 @@ button.danger:hover {
     white-space: nowrap;
 }
 
+/* Under a category filter, which part of the split put this row in the list
+   (#359) — the rest of the parts recede rather than disappear. */
+.split-cat-item.is-match {
+    color: var(--color-main-text);
+    font-weight: 600;
+}
+
+.category-badge.split-category:has(.split-cat-item.is-match) .split-cat-item:not(.is-match) {
+    color: var(--color-text-maxcontrast);
+}
+
+/* A row showing its share of a split states the whole transaction underneath,
+   in the same secondary treatment the description column uses (#359). Applies
+   to the transactions table and the account register alike. */
+.amount-column .amount-whole {
+    display: block;
+    font-size: 11px;
+    font-weight: normal;
+    color: var(--color-text-maxcontrast);
+}
+
+/* The account register lists a split's parts where an ordinary row names its
+   category. */
+.category-name.split-category {
+    font-size: 11px;
+    line-height: 1.4;
+    white-space: normal;
+}
+
+/* Category Details names the whole transaction under a listed split share. */
+.transaction-split-whole {
+    display: block;
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+}
+
+/* The share is set by the split, not by this cell, so it isn't editable. */
+.transactions-table.enhanced .amount-column.split-portion {
+    cursor: default;
+}
+
 .transactions-table.enhanced .transaction-description {
     display: flex;
     flex-direction: column;
@@ -12266,17 +12307,6 @@ button.danger:hover {
 .linked-indicator .icon-link {
     width: 12px;
     height: 12px;
-}
-
-.split-indicator {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 6px;
-    background: rgba(245, 127, 23, 0.12);
-    border-radius: 4px;
-    font-size: 11px;
-    color: #f57f17;
-    font-weight: 500;
 }
 
 /* Match button in actions column */

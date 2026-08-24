@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Db;
 
 use OCA\Budget\Db\QueryFilterBuilder;
+use OCP\DB\QueryBuilder\ICompositeExpression;
 use OCP\DB\QueryBuilder\IExpressionBuilder;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use PHPUnit\Framework\TestCase;
@@ -22,6 +23,10 @@ class QueryFilterBuilderTest extends TestCase {
     private QueryFilterBuilder $builder;
     private QueryBuilderWithExtras $qb;
     private IExpressionBuilder $expr;
+    /** @var string[] Tables named via getTableName(), i.e. subquery targets */
+    private array $tablesNamed = [];
+    /** @var array{eq: string[], in: string[], andX: array[]} recorded by recordCategoryExpression() */
+    private array $exprCalls = ['eq' => [], 'in' => [], 'andX' => []];
 
     protected function setUp(): void {
         $this->builder = new QueryFilterBuilder();
@@ -32,6 +37,11 @@ class QueryFilterBuilderTest extends TestCase {
         $this->qb->method('expr')->willReturn($this->expr);
         $this->qb->method('createNamedParameter')->willReturn(':param');
         $this->qb->method('escapeLikeParameter')->willReturnCallback(fn($v) => $v);
+        $this->tablesNamed = [];
+        $this->qb->method('getTableName')->willReturnCallback(function ($table) {
+            $this->tablesNamed[] = $table;
+            return '`*PREFIX*' . $table . '`';
+        });
 
         // Fluent methods
         $this->qb->method('andWhere')->willReturnSelf();
@@ -94,12 +104,39 @@ class QueryFilterBuilderTest extends TestCase {
         $this->builder->applyTransactionFilters($this->qb, ['accountId' => 5], 't');
     }
 
+    /**
+     * The category filter builds `own category OR (split part AND is a split)`,
+     * so several columns pass through eq(). These record which, rather than
+     * counting calls, which says nothing once the expression has branches.
+     *
+     * Results land in $this->exprCalls.
+     */
+    private function recordCategoryExpression(): void {
+        $this->exprCalls = ['eq' => [], 'in' => [], 'andX' => []];
+        $composite = $this->createMock(ICompositeExpression::class);
+
+        $this->expr->method('eq')->willReturnCallback(function (...$args) {
+            $this->exprCalls['eq'][] = (string)$args[0];
+            return $args[0] . ' = ' . $args[1];
+        });
+        $this->expr->method('in')->willReturnCallback(function (...$args) {
+            $this->exprCalls['in'][] = (string)$args[0];
+            return $args[0] . ' IN (' . $args[1] . ')';
+        });
+        $this->expr->method('isNull')->willReturnCallback(fn(string $c) => $c . ' IS NULL');
+        $this->expr->method('andX')->willReturnCallback(function (...$args) use ($composite) {
+            $this->exprCalls['andX'][] = $args;
+            return $composite;
+        });
+        $this->expr->method('orX')->willReturn($composite);
+    }
+
     public function testCategoryFilterAppliesEq(): void {
-        $this->expr->expects($this->once())
-            ->method('eq')
-            ->with('t.category_id', ':param');
+        $this->recordCategoryExpression();
 
         $this->builder->applyTransactionFilters($this->qb, ['category' => 10], 't');
+
+        $this->assertContains('t.category_id', $this->exprCalls['eq']);
     }
 
     public function testCategoryFilterCommaListAppliesIn(): void {
@@ -113,24 +150,22 @@ class QueryFilterBuilderTest extends TestCase {
                 }
                 return ':param';
             });
-
-        $this->expr->expects($this->once())
-            ->method('in')
-            ->with('t.category_id', ':param');
-        $this->expr->expects($this->never())->method('eq');
+        $this->recordCategoryExpression();
 
         $this->builder->applyTransactionFilters($this->qb, ['category' => '10,12,15'], 't');
 
+        $this->assertContains('t.category_id', $this->exprCalls['in']);
+        $this->assertNotContains('t.category_id', $this->exprCalls['eq'], 'a list is matched with IN, not eq');
         $this->assertSame([10, 12, 15], $capturedIds);
     }
 
     public function testCategoryFilterSingleIdStringAppliesEq(): void {
-        $this->expr->expects($this->once())
-            ->method('eq')
-            ->with('t.category_id', ':param');
-        $this->expr->expects($this->never())->method('in');
+        $this->recordCategoryExpression();
 
         $this->builder->applyTransactionFilters($this->qb, ['category' => '10'], 't');
+
+        $this->assertContains('t.category_id', $this->exprCalls['eq']);
+        $this->assertNotContains('t.category_id', $this->exprCalls['in'], 'a single id is matched with eq, not IN');
     }
 
     public function testUncategorizedFilterUsesIsNull(): void {
@@ -174,6 +209,119 @@ class QueryFilterBuilderTest extends TestCase {
 
         $this->assertContains('t.category_id', $nulled);
         $this->assertContains('t.is_split', $nulled);
+    }
+
+    /**
+     * The mirror image of #356: a split parent's category_id is NULL, so a
+     * filter on a real category id could never match one and every split that
+     * spent in that category was hidden from the list — while the spending
+     * charts, which read the split rows, counted the same money (#359).
+     */
+    public function testCategoryFilterAlsoMatchesSplitParts(): void {
+        $this->recordCategoryExpression();
+
+        $this->builder->applyTransactionFilters($this->qb, ['category' => 10], 't');
+
+        $this->assertCount(1, $this->exprCalls['andX'], 'the split leg is an AND of the EXISTS and the split flag');
+        $split = (string)$this->exprCalls['andX'][0][0];
+        $this->assertStringContainsString('EXISTS', $split);
+        $this->assertStringContainsString('budget_tx_splits', $split);
+        $this->assertStringContainsString('bsx.transaction_id = t.id', $split);
+        $this->assertStringContainsString('bsx.category_id IN (', $split);
+    }
+
+    /**
+     * The splits table alone must not put a transaction in a category: a row
+     * explicitly marked unsplit is not a split, whatever rows happen to
+     * reference it. Deleting a transaction used to leave its split rows behind,
+     * so stale references are a real thing (#359).
+     */
+    public function testTheSplitLegIsGuardedByTheSplitFlag(): void {
+        $this->recordCategoryExpression();
+
+        $this->builder->applyTransactionFilters($this->qb, ['category' => 10], 't');
+
+        $this->assertCount(1, $this->exprCalls['andX']);
+        $this->assertCount(2, $this->exprCalls['andX'][0], 'EXISTS is ANDed with the split-flag test');
+        $this->assertContains('t.is_split', $this->exprCalls['eq'], 'is_split = true is one leg');
+    }
+
+    /**
+     * findWithFilters counts with COUNT(t.id) and pages the same predicate, so
+     * a receipt with two parts in the filtered category has to stay one row.
+     * A join to budget_tx_splits would duplicate it and inflate the total.
+     */
+    public function testCategoryFilterMatchesSplitsWithoutJoining(): void {
+        $this->qb->expects($this->never())->method('innerJoin');
+
+        $this->builder->applyTransactionFilters($this->qb, ['category' => 10], 't');
+    }
+
+    public function testCategoryFilterCommaListFeedsTheSplitMatchTheSameIds(): void {
+        $captured = [];
+        $this->qb->method('createNamedParameter')
+            ->willReturnCallback(function ($value) use (&$captured) {
+                if (is_array($value)) {
+                    $captured[] = $value;
+                }
+                return ':param';
+            });
+
+        $this->builder->applyTransactionFilters($this->qb, ['category' => '10,12,15'], 't');
+
+        $this->assertCount(2, $captured, 'own-category and split legs each bind the id list');
+        $this->assertSame([10, 12, 15], $captured[0]);
+        $this->assertSame([10, 12, 15], $captured[1]);
+    }
+
+    public function testUncategorizedFilterAddsNoSplitMatch(): void {
+        // #356 excludes split parents from Uncategorized; matching them through
+        // their parts here would put every one of them straight back.
+        $this->expr->method('isNull')->willReturnCallback(fn(string $c) => $c . ' IS NULL');
+        $this->expr->method('orX')->willReturn($this->createMock(ICompositeExpression::class));
+
+        $this->builder->applyTransactionFilters($this->qb, ['category' => 'uncategorized'], 't');
+
+        $this->assertNotContains('budget_tx_splits', $this->tablesNamed);
+    }
+
+    public function testUnparseableCategoryFilterAddsNoSplitMatch(): void {
+        $this->recordCategoryExpression();
+
+        $this->builder->applyTransactionFilters($this->qb, ['category' => 'abc'], 't');
+
+        $this->assertNotContains('budget_tx_splits', $this->tablesNamed);
+    }
+
+    public function testCategoryFilterNamesTheSplitTable(): void {
+        $this->recordCategoryExpression();
+
+        $this->builder->applyTransactionFilters($this->qb, ['category' => 10], 't');
+
+        $this->assertContains('budget_tx_splits', $this->tablesNamed);
+    }
+
+    // ===== parseCategoryIds =====
+
+    /**
+     * @dataProvider categoryFilterValues
+     */
+    public function testParseCategoryIds(mixed $input, array $expected): void {
+        $this->assertSame($expected, QueryFilterBuilder::parseCategoryIds($input));
+    }
+
+    public static function categoryFilterValues(): array {
+        return [
+            'single int' => [10, [10]],
+            'single string' => ['10', [10]],
+            'comma list' => ['10,12,15', [10, 12, 15]],
+            'comma list with spaces' => ['10, 12', [10, 12]],
+            'uncategorized' => ['uncategorized', []],
+            'empty string' => ['', []],
+            'null' => [null, []],
+            'non-numeric' => ['abc', []],
+            'zero is not an id' => ['0', []],
+        ];
     }
 
     public function testTypeFilterAppliesEq(): void {

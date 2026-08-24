@@ -66,14 +66,17 @@ class TransactionSplitMapper extends QBMapper {
     /**
      * Find splits for multiple transactions at once (batch).
      *
+     * categoryId is part of the shape because a consumer filtering by category
+     * has to be able to tell which part it matched (#359).
+     *
      * @param int[] $transactionIds
-     * @return array<int, array> Map of transactionId => [{categoryName, amount}, ...]
+     * @return array<int, array> Map of transactionId => [{categoryId, categoryName, amount}, ...]
      */
     public function findByTransactionIds(array $transactionIds): array {
         if (empty($transactionIds)) return [];
 
         $qb = $this->db->getQueryBuilder();
-        $qb->select('s.transaction_id', 's.amount', 'c.name as category_name')
+        $qb->select('s.transaction_id', 's.category_id', 's.amount', 'c.name as category_name')
             ->from($this->getTableName(), 's')
             ->leftJoin('s', 'budget_categories', 'c', 'c.id = s.category_id')
             ->where($qb->expr()->in('s.transaction_id', $qb->createNamedParameter($transactionIds, IQueryBuilder::PARAM_INT_ARRAY)))
@@ -86,6 +89,7 @@ class TransactionSplitMapper extends QBMapper {
             $txId = (int)$row['transaction_id'];
             if (!isset($grouped[$txId])) $grouped[$txId] = [];
             $grouped[$txId][] = [
+                'categoryId' => isset($row['category_id']) ? (int)$row['category_id'] : null,
                 'categoryName' => $row['category_name'] ?? null,
                 'amount' => (float)$row['amount'],
             ];

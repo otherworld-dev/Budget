@@ -90,6 +90,15 @@ final class ApiSerializer {
             }
         }
 
+        // Filtering by category also matches a split transaction through its
+        // parts, and such a row's `amount` is the whole transaction, not the
+        // part that matched. split_amount is that part, so a client totalling a
+        // category sums this where it is present rather than over-counting
+        // every category the transaction touches (#359).
+        if (($t['matchedSplitAmount'] ?? null) !== null) {
+            $out['split_amount'] = self::money($t['matchedSplitAmount']);
+        }
+
         return $out;
     }
 

@@ -122,7 +122,69 @@ class TransactionCsvExporterTest extends TestCase {
         $this->assertSame('', $row[1]);
         $this->assertSame('', $row[3]);
         $this->assertSame('-5.00', $row[6]);
-        $this->assertCount(11, $row);
+        $this->assertSame('', $row[11]);
+        $this->assertCount(12, $row);
+    }
+
+    // ===== split shares (#359) =====
+
+    public function testSplitShareIsExportedInsteadOfTheWholeTransaction(): void {
+        // Filtering by category matches a split through its parts, so the row
+        // has to report the part that matched or the column no longer totals
+        // the category.
+        $row = $this->exporter->dataRow($this->transaction([
+            'type' => 'debit',
+            'amount' => 82.40,
+            'categoryName' => null,
+            'matchedSplitAmount' => 12.40,
+            'matchedSplitCategoryName' => 'Groceries',
+        ]));
+
+        $this->assertSame('Groceries', $row[3]);
+        $this->assertSame('-12.40', $row[6]);
+        $this->assertSame('-82.40', $row[11]);
+    }
+
+    public function testNegativeSplitPartKeepsItsSign(): void {
+        // A receipt's discount line is a negative part of an expense; abs() would
+        // book the saving as spending.
+        $row = $this->exporter->dataRow($this->transaction([
+            'type' => 'debit',
+            'amount' => 82.40,
+            'matchedSplitAmount' => -3.50,
+            'matchedSplitCategoryName' => 'Savings',
+        ]));
+
+        $this->assertSame('3.50', $row[6]);
+    }
+
+    public function testZeroSplitShareIsExportedRatherThanTreatedAsAbsent(): void {
+        $row = $this->exporter->dataRow($this->transaction([
+            'type' => 'debit',
+            'amount' => 82.40,
+            'matchedSplitAmount' => 0.0,
+            'matchedSplitCategoryName' => 'Groceries',
+        ]));
+
+        $this->assertSame('Groceries', $row[3]);
+        $this->assertSame('0.00', $row[6]);
+        $this->assertSame('-82.40', $row[11]);
+    }
+
+    public function testRowsWithoutASplitShareAreUnchanged(): void {
+        $row = $this->exporter->dataRow($this->transaction(['type' => 'debit', 'amount' => 57.68]));
+
+        $this->assertSame('Subscriptions', $row[3]);
+        $this->assertSame('-57.68', $row[6]);
+        $this->assertSame('', $row[11]);
+    }
+
+    public function testHeaderCarriesTheSplitColumnLast(): void {
+        // Trailing, so an existing spreadsheet template keeps its offsets.
+        $header = $this->exporter->headerRow();
+
+        $this->assertCount(12, $header);
+        $this->assertSame('Split of', $header[11]);
     }
 
     public function testWriteConsumesEveryBatch(): void {

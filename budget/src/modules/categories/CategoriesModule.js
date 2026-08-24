@@ -194,6 +194,11 @@ export default class CategoriesModule {
             deleteBtn.addEventListener('click', () => this.deleteSelectedCategory());
         }
 
+        const viewAllBtn = document.getElementById('view-all-transactions-btn');
+        if (viewAllBtn) {
+            viewAllBtn.addEventListener('click', () => this.viewAllCategoryTransactions());
+        }
+
         // Bulk action buttons
         const selectAllBtn = document.getElementById('category-select-all-btn');
         const clearSelectionBtn = document.getElementById('category-clear-selection-btn');
@@ -580,6 +585,9 @@ export default class CategoriesModule {
 
         // Store current category for refresh
         this._currentCategory = category;
+        // Dropped before the fetch, so a failure leaves View All falling back
+        // to this category rather than reusing the last one's subtree (#359).
+        this._detailScope = null;
 
         // Read-shared categories show tag sets read-only; write-shared and own
         // categories can edit them (#328).
@@ -595,6 +603,9 @@ export default class CategoriesModule {
         ]);
 
         if (detailsRes) {
+            // Kept for the View All button, so it opens the same categories the
+            // figures above it were drawn from (#359).
+            this._detailScope = detailsRes.scope || null;
             this.updateAnalyticsFromServer(detailsRes);
             this.renderCategorySpendingChartFromServer(detailsRes.monthlySpending, category.color, detailsRes.budget, detailsRes.budgetPeriod);
         }
@@ -725,15 +736,58 @@ export default class CategoriesModule {
             return;
         }
 
-        container.innerHTML = transactions.map(transaction => `
-            <div class="transaction-item">
-                <div class="transaction-description">${this.escapeHtml(transaction.description || '')}</div>
+        container.innerHTML = transactions.map(transaction => {
+            // A split transaction has no category of its own, so it is listed at
+            // the share that belongs to this category — the same figure the
+            // total above counted — with the whole transaction named underneath
+            // (#359).
+            const isSplit = !!transaction.isSplit;
+            const whole = transaction.transactionAmount ?? transaction.amount;
+            const showsWholeToo = isSplit
+                && Math.abs(Math.abs(transaction.amount) - Math.abs(whole)) > 0.005;
+            // A part may be negative — a receipt's discount line — which flips
+            // the row's direction, so take the sign from the share rather than
+            // from the transaction's own type.
+            const signed = transaction.type === 'credit' ? transaction.amount : -transaction.amount;
+            const isInbound = signed >= 0;
+            const partsTitle = isSplit && transaction.splitCategories
+                ? transaction.splitCategories
+                    .map(part => this.escapeHtml((part.categoryName || t('budget', 'Uncategorized'))
+                        + ': ' + this.formatCurrency(part.amount)))
+                    .join('&#10;')
+                : '';
+
+            return `
+            <div class="transaction-item"${partsTitle ? ` title="${partsTitle}"` : ''}>
+                <div class="transaction-description">
+                    ${this.escapeHtml(transaction.description || '')}
+                    ${isSplit ? `<span class="split-indicator" title="${t('budget', 'Part of a split transaction. The amount shown is the part in this category.')}">${t('budget', 'Split part')}</span>` : ''}
+                    ${showsWholeToo ? `<span class="transaction-split-whole">${t('budget', 'Split part of {total}', { total: this.formatCurrency(Math.abs(whole)) })}</span>` : ''}
+                </div>
                 <div class="transaction-date">${this.formatDate(transaction.date)}</div>
-                <div class="transaction-amount ${transaction.type}">
-                    ${transaction.type === 'credit' ? '+' : '-'}${this.formatCurrency(Math.abs(transaction.amount))}
+                <div class="transaction-amount ${isInbound ? 'credit' : 'debit'}">
+                    ${isInbound ? '+' : '-'}${this.formatCurrency(Math.abs(transaction.amount))}
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
+    }
+
+    /**
+     * Open the Transactions view filtered to this category — the panel lists
+     * only the five most recent, and until now this button did nothing at all
+     * (#359).
+     */
+    viewAllCategoryTransactions() {
+        const category = this._currentCategory || this.selectedCategory;
+        if (!category) return;
+
+        const ids = this._detailScope?.categoryIds?.length
+            ? this._detailScope.categoryIds
+            : [category.id];
+        const type = (this._detailScope?.type || category.type) === 'income' ? 'credit' : 'debit';
+
+        this.app.openTransactionsForCategory(ids, { type });
     }
 
     renderCategorySpendingChartFromServer(monthlySpending, categoryColor, budget = 0, budgetPeriod = 'monthly') {

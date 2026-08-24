@@ -36,6 +36,9 @@ class TransactionCsvExporter {
             $this->l->t('Reference'),
             $this->l->t('Notes'),
             $this->l->t('Status'),
+            // Trailing so an existing spreadsheet template keeps its column
+            // offsets; blank on every row that isn't a split share (#359).
+            $this->l->t('Split of'),
         ];
     }
 
@@ -46,11 +49,19 @@ class TransactionCsvExporter {
      * @return string[]
      */
     public function dataRow(array $transaction): array {
+        // A split transaction has no category of its own, so under a category
+        // filter the row reports the share that put it in the list, and the
+        // whole transaction goes in the trailing column (#359).
+        $isShare = ($transaction['matchedSplitAmount'] ?? null) !== null;
+        $category = $isShare
+            ? (string)($transaction['matchedSplitCategoryName'] ?? '')
+            : (string)($transaction['categoryName'] ?? '');
+
         return [
             (string)($transaction['date'] ?? ''),
             (string)($transaction['description'] ?? ''),
             (string)($transaction['vendor'] ?? ''),
-            (string)($transaction['categoryName'] ?? ''),
+            $category,
             (string)($transaction['accountName'] ?? ''),
             $this->typeLabel((string)($transaction['type'] ?? '')),
             $this->signedAmount($transaction),
@@ -58,6 +69,7 @@ class TransactionCsvExporter {
             (string)($transaction['reference'] ?? ''),
             (string)($transaction['notes'] ?? ''),
             (string)($transaction['status'] ?? ''),
+            $isShare ? $this->formatAmount(abs((float)($transaction['amount'] ?? 0)), $transaction) : '',
         ];
     }
 
@@ -85,7 +97,19 @@ class TransactionCsvExporter {
      * @param array<string, mixed> $transaction
      */
     private function signedAmount(array $transaction): string {
-        $amount = abs((float)($transaction['amount'] ?? 0));
+        $share = $transaction['matchedSplitAmount'] ?? null;
+
+        // A split share keeps its own sign: a receipt's discount line is a
+        // negative part of a debit, and abs() would silently book it as spending.
+        $amount = $share !== null ? (float)$share : abs((float)($transaction['amount'] ?? 0));
+
+        return $this->formatAmount($amount, $transaction);
+    }
+
+    /**
+     * @param array<string, mixed> $transaction
+     */
+    private function formatAmount(float $amount, array $transaction): string {
         $type = TransactionType::tryFrom((string)($transaction['type'] ?? ''));
 
         // An unrecognised type would silently flip a sign, so leave it unsigned

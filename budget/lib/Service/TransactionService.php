@@ -9,6 +9,7 @@ use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionTag;
 use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Db\TransactionSplitMapper;
+use OCA\Budget\Db\QueryFilterBuilder;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Enum\Currency;
 use OCA\Budget\Db\DismissedImportMapper;
@@ -454,8 +455,10 @@ class TransactionService {
                     $partnerId = $scheduled->getLinkedTransactionId();
                 }
             } else {
-                // Delete any duplicate scheduled transactions
-                $this->mapper->delete($scheduled);
+                // Delete any duplicate scheduled transactions. A bill's
+                // placeholder can carry splits (applySplitTemplate) and tags,
+                // so it goes through the cascade like any other delete.
+                $this->deleteWithChildren($scheduled, $this->ownerOf($scheduled));
             }
         }
 
@@ -468,8 +471,48 @@ class TransactionService {
     public function deleteScheduledBillTransactions(int $billId): void {
         $scheduled = $this->mapper->findAllScheduledByBillId($billId);
         foreach ($scheduled as $transaction) {
-            $this->mapper->delete($transaction);
+            // A bill with a split template puts real split rows on every
+            // placeholder it generates, so deleting the bill has to take them
+            // with it.
+            $this->deleteWithChildren($transaction, $this->ownerOf($transaction));
         }
+    }
+
+    /**
+     * Delete a transaction together with everything that hangs off it.
+     *
+     * There are no foreign keys on any of these tables, so a row deleted
+     * without this leaves its children behind forever: nothing can surface
+     * them, and nothing can reclaim them either, because every cleanup query
+     * (deleteAll included, which factory reset uses) finds its rows by joining
+     * back through budget_transactions. An orphan has no transaction to join
+     * to, so it survives even a factory reset. That is how ~58% of the split
+     * rows on a long-lived test instance came to be dead weight.
+     *
+     * Every path that removes a transaction must come through here rather than
+     * calling the mapper directly.
+     *
+     * Attachment FILES in the user's Nextcloud Files are never touched — only
+     * the rows referencing them.
+     */
+    private function deleteWithChildren(Transaction $transaction, string $userId): void {
+        $id = $transaction->getId();
+
+        $this->transactionTagMapper->deleteByTransaction($id);
+        $this->expenseShareMapper->deleteByTransaction($id, $userId);
+        $this->attachmentMapper->deleteByTransaction($id, $userId);
+        $this->splitMapper->deleteByTransaction($id);
+
+        $this->mapper->delete($transaction);
+    }
+
+    /**
+     * The owner of a transaction's account, which is who its child rows are
+     * scoped to — not necessarily the user doing the deleting, when the
+     * account is shared (#334).
+     */
+    private function ownerOf(Transaction $transaction): string {
+        return $this->accountMapper->findById($transaction->getAccountId())->getUserId();
     }
 
     /**
@@ -653,13 +696,7 @@ class TransactionService {
             }
         }
 
-        // Cascade delete: tags, expense shares and attachment references
-        // (attachment files in the user's Files are never touched)
-        $this->transactionTagMapper->deleteByTransaction($id);
-        $this->expenseShareMapper->deleteByTransaction($id, $userId);
-        $this->attachmentMapper->deleteByTransaction($id, $userId);
-
-        $this->mapper->delete($transaction);
+        $this->deleteWithChildren($transaction, $userId);
 
         // Recompute from the ledger now that the row is gone
         if ($recalculate) {
@@ -749,32 +786,88 @@ class TransactionService {
             $result['runningBalances'] = $runningBalances;
         }
 
-        // Attach split category details for split transactions
-        $splitTxIds = array_filter(
-            array_map(fn($tx) => ($tx['isSplit'] ?? false) ? ($tx['id'] ?? null) : null, $result['transactions']),
-            fn($id) => $id !== null
-        );
-        if (!empty($splitTxIds)) {
-            $splitDetails = $this->splitMapper->findByTransactionIds(array_values($splitTxIds));
-            foreach ($result['transactions'] as &$tx) {
-                if (($tx['isSplit'] ?? false) && isset($splitDetails[$tx['id']])) {
-                    $tx['splitCategories'] = $splitDetails[$tx['id']];
-                }
-            }
-            unset($tx);
-        }
+        $result['transactions'] = $this->attachSplitDetails($result['transactions'], $filters);
 
         return $result;
+    }
+
+    /**
+     * Attach each split transaction's parts to it for display, and — when the
+     * caller filtered by category — the share of it that belongs to that
+     * category (#359).
+     *
+     * A split transaction carries no category of its own, so a category filter
+     * matches it through its parts (see QueryFilterBuilder). The row still IS
+     * the whole transaction; matchedSplitAmount is the part of it the filter
+     * asked about, so a list and its total can agree with the spending charts
+     * instead of showing the full amount under every category it touches.
+     *
+     * Parts in the same filtered category are summed, so a receipt with two
+     * grocery lines reports one figure and still occupies one row. The absent
+     * case is null rather than 0.0 — a 0.00 share is a real value.
+     *
+     * @param array<int, array<string, mixed>> $transactions
+     * @return array<int, array<string, mixed>>
+     */
+    private function attachSplitDetails(array $transactions, array $filters): array {
+        $splitTxIds = [];
+        foreach ($transactions as $tx) {
+            if (($tx['isSplit'] ?? false) && isset($tx['id'])) {
+                $splitTxIds[] = (int)$tx['id'];
+            }
+        }
+
+        if (empty($splitTxIds)) {
+            return $transactions;
+        }
+
+        $splitDetails = $this->splitMapper->findByTransactionIds($splitTxIds);
+        $filterIds = QueryFilterBuilder::parseCategoryIds($filters['category'] ?? null);
+
+        foreach ($transactions as &$tx) {
+            if (!($tx['isSplit'] ?? false) || !isset($splitDetails[$tx['id']])) {
+                continue;
+            }
+
+            $parts = $splitDetails[$tx['id']];
+
+            if ($filterIds !== []) {
+                $matchedTotal = null;
+                $matchedNames = [];
+                foreach ($parts as $i => $part) {
+                    $matched = $part['categoryId'] !== null
+                        && in_array((int)$part['categoryId'], $filterIds, true);
+                    $parts[$i]['matched'] = $matched;
+                    if ($matched) {
+                        $matchedTotal = ($matchedTotal ?? 0.0) + (float)$part['amount'];
+                        if (!empty($part['categoryName'])) {
+                            $matchedNames[] = (string)$part['categoryName'];
+                        }
+                    }
+                }
+                if ($matchedTotal !== null) {
+                    $tx['matchedSplitAmount'] = $matchedTotal;
+                    $tx['matchedSplitCategoryName'] = implode(' / ', array_unique($matchedNames));
+                }
+            }
+
+            $tx['splitCategories'] = $parts;
+        }
+        unset($tx);
+
+        return $transactions;
     }
 
     /**
      * Every transaction matching the filters, yielded a batch at a time for CSV
      * export (#344).
      *
-     * Deliberately not findWithFilters(): that computes a running balance and
-     * attaches split details for the page being displayed, which an export
-     * neither shows nor needs, and which would be redone for every batch. Paging
-     * is safe here because the sort always carries a secondary sort by id.
+     * Deliberately not findWithFilters(): that computes a running balance for
+     * the page being displayed, which an export neither shows nor needs. Split
+     * detail is attached only when a category filter is in play, because then
+     * the export has to report the same per-category share the screen does
+     * (#359) — unfiltered, it is a cost with nothing to show for it. Paging is
+     * safe here because the sort always carries a secondary sort by id.
      *
      * @param int[]|null $visibleAccountIds If provided, scope by account IDs instead of userId
      * @return \Generator<int, array<int, array<string, mixed>>>
@@ -793,6 +886,10 @@ class TransactionService {
 
             if (empty($batch)) {
                 return;
+            }
+
+            if (!empty($filters['category'])) {
+                $batch = $this->attachSplitDetails($batch, $filters);
             }
 
             yield $batch;

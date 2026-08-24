@@ -12,6 +12,25 @@ use OCP\DB\QueryBuilder\IQueryBuilder;
  */
 class QueryFilterBuilder {
     /**
+     * The ids a category filter names: a single id, or the comma-separated list
+     * a chart drill-down from an aggregated top-level slice passes (#317).
+     *
+     * 'uncategorized', an empty value and anything non-numeric all yield an
+     * empty list. Shared with TransactionService so the SQL and the split
+     * portion it attaches to each row can never disagree about what was asked
+     * for (#359).
+     *
+     * @return int[]
+     */
+    public static function parseCategoryIds(mixed $category): array {
+        if ($category === null || $category === '' || $category === 'uncategorized') {
+            return [];
+        }
+
+        return array_values(array_filter(array_map('intval', explode(',', (string) $category))));
+    }
+
+    /**
      * Apply transaction filters to a query builder.
      *
      * @param IQueryBuilder $qb The query builder to modify
@@ -44,16 +63,54 @@ class QueryFilterBuilder {
                     $qb->expr()->isNull("{$alias}.is_split")
                 ));
             } else {
-                $ids = array_values(array_filter(array_map('intval', explode(',', (string) $filters['category']))));
+                $ids = self::parseCategoryIds($filters['category']);
                 if (count($ids) > 1) {
-                    $qb->andWhere($qb->expr()->in(
+                    $ownCategory = $qb->expr()->in(
                         "{$alias}.category_id",
                         $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)
-                    ));
+                    );
                 } else {
-                    $qb->andWhere($qb->expr()->eq(
+                    $ownCategory = $qb->expr()->eq(
                         "{$alias}.category_id",
                         $qb->createNamedParameter($ids[0] ?? 0, IQueryBuilder::PARAM_INT)
+                    );
+                }
+
+                if ($ids === []) {
+                    $qb->andWhere($ownCategory);
+                } else {
+                    // A split transaction's own category_id is deliberately NULL —
+                    // its categories moved to its budget_tx_splits rows — so the
+                    // test above can never match one. Filtering by a category
+                    // therefore hid every split that spent in it, while the
+                    // spending charts, which do read the split rows, counted the
+                    // same money: the slice and the list it opens disagreed (#359).
+                    //
+                    // Correlated EXISTS, deliberately not a join: findWithFilters()
+                    // counts with COUNT(t.id) and pages this same predicate, so a
+                    // receipt with two parts in the filtered category has to stay
+                    // exactly one row. Identifiers inside stay unquoted — none are
+                    // reserved, and unquoted folds to the lowercase the table was
+                    // created with on PostgreSQL.
+                    $splitIds = $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY);
+                    $splitMatch = 'EXISTS (SELECT 1 FROM ' . $qb->getTableName('budget_tx_splits') . ' bsx'
+                        . ' WHERE bsx.transaction_id = ' . $alias . '.id'
+                        . ' AND bsx.category_id IN (' . $splitIds . '))';
+
+                    // Guarded by is_split so the splits table alone can never
+                    // put a transaction in a category: a row explicitly marked
+                    // unsplit is not a split, whatever rows happen to reference
+                    // it. NULL is kept because is_split post-dates its own
+                    // default and old rows hold it (#356).
+                    $qb->andWhere($qb->expr()->orX(
+                        $ownCategory,
+                        $qb->expr()->andX(
+                            $splitMatch,
+                            $qb->expr()->orX(
+                                $qb->expr()->eq("{$alias}.is_split", $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)),
+                                $qb->expr()->isNull("{$alias}.is_split")
+                            )
+                        )
                     ));
                 }
             }

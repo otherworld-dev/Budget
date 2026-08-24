@@ -13,6 +13,7 @@ use OCA\Budget\Db\TagSetMapper;
 use OCA\Budget\Db\TagMapper;
 use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Exception\CategoryInUseException;
 use OCP\AppFramework\Db\Entity;
@@ -40,7 +41,8 @@ class CategoryService extends AbstractCrudService {
         private BudgetCarryoverService $carryoverService,
         private RecurringBudgetService $recurringBudgetService,
         private ?AutoShareService $autoShareService = null,
-        private ?CategoryMuteMapper $categoryMuteMapper = null
+        private ?CategoryMuteMapper $categoryMuteMapper = null,
+        private ?TransactionSplitMapper $splitMapper = null
     ) {
         $this->mapper = $mapper;
         $this->transactionMapper = $transactionMapper;
@@ -310,6 +312,48 @@ class CategoryService extends AbstractCrudService {
         return $ids;
     }
 
+    /**
+     * The categories the Category Details panel reports on, resolved once so
+     * its figures and its transaction list cannot disagree about what they
+     * cover (#359).
+     *
+     * The whole subtree, not just the direct children the count used to roll up
+     * while the list rolled up none — that mismatch made the panel report more
+     * transactions than it could show, and left grandchildren out of both.
+     * Descendants flagged excluded_from_reports drop out, matching the
+     * row-level exclusion every report aggregate applies; the selected category
+     * itself always stays, because the user asked for it.
+     *
+     * @return array{ids: int[], includesSubcategories: bool, type: string}
+     */
+    private function resolveDetailScope(Category $category, string $userId): array {
+        // One fetch and an in-memory walk: the recursive mapper version costs a
+        // query per level, and this needs each descendant's flag anyway.
+        $childrenMap = [];
+        foreach ($this->findAll($userId) as $candidate) {
+            $childrenMap[$candidate->getParentId()][] = $candidate;
+        }
+
+        $ids = [$category->getId()];
+        $queue = [$category->getId()];
+        while ($queue !== []) {
+            $parentId = array_shift($queue);
+            foreach ($childrenMap[$parentId] ?? [] as $child) {
+                if ($child->getExcludedFromReports()) {
+                    continue;
+                }
+                $ids[] = $child->getId();
+                $queue[] = $child->getId();
+            }
+        }
+
+        return [
+            'ids' => array_values(array_unique($ids)),
+            'includesSubcategories' => count($ids) > 1,
+            'type' => (string)($category->getType() ?? 'expense'),
+        ];
+    }
+
     public function getCategoryTree(string $userId): array {
         $categories = $this->findAll($userId);
 
@@ -342,12 +386,8 @@ class CategoryService extends AbstractCrudService {
     public function getCategoryDetails(int $categoryId, string $userId, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null): array {
         $category = $this->find($categoryId, $userId); // Verify ownership
 
-        // Collect this category + all child category IDs for aggregation
-        $categoryIds = [$categoryId];
-        $children = $this->getCategoryMapper()->findChildren($userId, $categoryId);
-        foreach ($children as $child) {
-            $categoryIds[] = $child->getId();
-        }
+        $scope = $this->resolveDetailScope($category, $userId);
+        $categoryIds = $scope['ids'];
 
         $summary = $this->transactionMapper->getCategorySummary($userId, $categoryId, $categoryIds);
         $monthlySpending = $this->transactionMapper->getCategoryMonthlySpending($userId, $categoryId, 12, $categoryIds, $startDate, $endDate, $accountId, $category->getType());
@@ -359,6 +399,13 @@ class CategoryService extends AbstractCrudService {
         $count = $summary['count'];
         $total = $summary['total'];
         $average = $count > 0 ? $total / $count : 0.0;
+
+        // How much of the count arrived as split allocations, so the panel can
+        // say so rather than leave the user to wonder (#359).
+        $splitCount = 0;
+        foreach ($monthlySpending as $entry) {
+            $splitCount += (int)($entry['splitCount'] ?? 0);
+        }
 
         // This month's total from monthly data
         $currentMonth = date('Y-m');
@@ -403,16 +450,59 @@ class CategoryService extends AbstractCrudService {
             'monthlySpending' => $monthlySpending,
             'budget' => $budget,
             'budgetPeriod' => $budgetPeriod,
+            'scope' => [
+                'categoryIds' => $categoryIds,
+                'includesSubcategories' => $scope['includesSubcategories'],
+                'type' => $scope['type'],
+                'splitCount' => $splitCount,
+            ],
         ];
     }
 
     /**
-     * Get recent transactions for a category (user-scoped)
-     * @return Transaction[]
+     * Get recent transactions for a category (user-scoped).
+     *
+     * Covers the same categories as getCategoryDetails and counts split
+     * allocations the same way, so the panel lists the transactions behind the
+     * figures above it rather than a different set (#359). Each split row
+     * carries the share belonging to this category, the whole transaction it
+     * came from, and its parts.
+     *
+     * @return array<array<string, mixed>>
      */
     public function getCategoryTransactions(int $categoryId, string $userId, int $limit = 5): array {
-        $this->find($categoryId, $userId); // Verify ownership
-        return $this->transactionMapper->findByCategory($categoryId, $userId, $limit);
+        $category = $this->find($categoryId, $userId); // Verify ownership
+        $scope = $this->resolveDetailScope($category, $userId);
+
+        $rows = $this->transactionMapper->findCategoryTransactionRows($userId, $scope['ids'], $limit);
+
+        $splitIds = [];
+        foreach ($rows as $row) {
+            if (!empty($row['isSplit'])) {
+                $splitIds[] = (int)$row['id'];
+            }
+        }
+
+        if (empty($splitIds) || $this->splitMapper === null) {
+            return $rows;
+        }
+
+        $parts = $this->splitMapper->findByTransactionIds($splitIds);
+        $inScope = array_flip($scope['ids']);
+
+        foreach ($rows as &$row) {
+            if (empty($row['isSplit']) || !isset($parts[$row['id']])) {
+                continue;
+            }
+            $row['splitCategories'] = array_map(static function (array $part) use ($inScope): array {
+                $part['inCategory'] = $part['categoryId'] !== null
+                    && isset($inScope[(int)$part['categoryId']]);
+                return $part;
+            }, $parts[$row['id']]);
+        }
+        unset($row);
+
+        return $rows;
     }
 
     /**

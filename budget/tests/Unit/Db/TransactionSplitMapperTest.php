@@ -41,7 +41,7 @@ class TransactionSplitMapperTest extends TestCase {
         $this->qb->method('createFunction')->willReturn($sumFunc);
 
         foreach (['select', 'addSelect', 'selectAlias', 'from', 'where', 'andWhere',
-                   'orderBy', 'leftJoin', 'innerJoin', 'delete', 'groupBy', 'addGroupBy'] as $method) {
+                   'orderBy', 'addOrderBy', 'leftJoin', 'innerJoin', 'delete', 'groupBy', 'addGroupBy'] as $method) {
             $this->qb->method($method)->willReturnSelf();
         }
 
@@ -215,5 +215,64 @@ class TransactionSplitMapperTest extends TestCase {
         $out = $this->mapper->getCategoryNetByMonthBatch('user1', '2026-01-01', '2026-01-31');
 
         $this->assertSame(-30.0, $out[5]['2026-01']);
+    }
+
+    // ===== findByTransactionIds =====
+
+    public function testFindByTransactionIdsGroupsPartsByTransaction(): void {
+        $rows = [
+            $this->makeSplitRow(['transaction_id' => 100, 'category_id' => 5, 'amount' => '50.00', 'category_name' => 'Food']),
+            $this->makeSplitRow(['transaction_id' => 100, 'category_id' => 9, 'amount' => '20.00', 'category_name' => 'Household']),
+            $this->makeSplitRow(['transaction_id' => 101, 'category_id' => 5, 'amount' => '5.00', 'category_name' => 'Food']),
+        ];
+        $rows[] = false;
+        $this->result->method('fetch')->willReturnOnConsecutiveCalls(...$rows);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $grouped = $this->mapper->findByTransactionIds([100, 101]);
+
+        $this->assertCount(2, $grouped[100]);
+        $this->assertCount(1, $grouped[101]);
+    }
+
+    /**
+     * Without the part's own category id, a caller filtering by category cannot
+     * tell which part it matched, so it cannot show the share belonging to that
+     * category (#359).
+     */
+    public function testFindByTransactionIdsReportsEachPartsCategoryId(): void {
+        $this->result->method('fetch')->willReturnOnConsecutiveCalls(
+            $this->makeSplitRow(['transaction_id' => 100, 'category_id' => 5, 'amount' => '50.00', 'category_name' => 'Food']),
+            false
+        );
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $grouped = $this->mapper->findByTransactionIds([100]);
+
+        $this->assertSame(5, $grouped[100][0]['categoryId']);
+        $this->assertSame('Food', $grouped[100][0]['categoryName']);
+        $this->assertSame(50.0, $grouped[100][0]['amount']);
+    }
+
+    public function testFindByTransactionIdsReportsAnUncategorisedPartAsNull(): void {
+        $this->result->method('fetch')->willReturnOnConsecutiveCalls(
+            $this->makeSplitRow(['transaction_id' => 100, 'category_id' => null, 'category_name' => null]),
+            false
+        );
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $grouped = $this->mapper->findByTransactionIds([100]);
+
+        $this->assertNull($grouped[100][0]['categoryId']);
+        $this->assertNull($grouped[100][0]['categoryName']);
+    }
+
+    public function testFindByTransactionIdsShortCircuitsOnAnEmptyList(): void {
+        $this->qb->expects($this->never())->method('executeQuery');
+
+        $this->assertSame([], $this->mapper->findByTransactionIds([]));
     }
 }

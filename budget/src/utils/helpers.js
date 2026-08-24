@@ -66,3 +66,30 @@ export const LIABILITY_ACCOUNT_TYPES = ['credit_card', 'loan', 'mortgage', 'line
 export function isLiabilityType(type) {
     return LIABILITY_ACCOUNT_TYPES.includes(type);
 }
+
+/**
+ * Whether a listed transaction is standing in for a share of itself.
+ *
+ * Filtering the list by a category also matches split transactions through
+ * their parts, and the server marks such a row with the part that matched
+ * (#359). A share of 0.00 is a real value, so this is a presence check, never
+ * a truthiness one.
+ *
+ * @param {Object} tx - Transaction row as the API returns it
+ * @returns {boolean}
+ */
+export function hasSplitPortion(tx) {
+    return tx?.matchedSplitAmount !== undefined && tx?.matchedSplitAmount !== null;
+}
+
+/**
+ * The magnitude a row should display and be totalled at: the share belonging
+ * to the filtered category where there is one, otherwise the transaction's own
+ * amount.
+ *
+ * @param {Object} tx - Transaction row as the API returns it
+ * @returns {number}
+ */
+export function transactionDisplayAmount(tx) {
+    return hasSplitPortion(tx) ? tx.matchedSplitAmount : (tx?.amount ?? 0);
+}

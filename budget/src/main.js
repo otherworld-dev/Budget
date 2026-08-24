@@ -71,6 +71,7 @@ import * as formatters from './utils/formatters.js';
 import * as dom from './utils/dom.js';
 import { showSuccess, showError, showWarning } from './utils/notifications.js';
 import { initDatePickers } from './utils/datepicker.js';
+import { hasSplitPortion, transactionDisplayAmount } from './utils/helpers.js';
 
 // Configuration
 // Core
@@ -1161,6 +1162,21 @@ class BudgetApp {
             const typeClass = transaction.type === 'credit' ? 'positive' : 'negative';
             const formattedAmount = this.formatCurrency(transaction.amount, currency);
 
+            // Filtering by a category also matches a split transaction through
+            // its parts, and the row then stands for the part that matched
+            // rather than the whole transaction (#359). A part can be negative
+            // — a receipt's discount line — which flips the row's direction, so
+            // colour it from the signed share and not from the parent's type.
+            const isSplitPortion = hasSplitPortion(transaction);
+            const portionAmount = transactionDisplayAmount(transaction);
+            const signedPortion = transaction.type === 'credit' ? portionAmount : -portionAmount;
+            const amountClass = isSplitPortion ? (signedPortion >= 0 ? 'positive' : 'negative') : typeClass;
+            const displayAmount = isSplitPortion
+                ? this.formatCurrency(Math.abs(portionAmount), currency)
+                : formattedAmount;
+            const showsWholeToo = isSplitPortion
+                && Math.abs(Math.abs(portionAmount) - Math.abs(transaction.amount)) > 0.005;
+
             const isLinked = transaction.linkedTransactionId != null;
             const linkedAccountName = transaction.linkedAccountName || this.accounts?.find(a => a.id === transaction.linkedAccountId)?.name || '';
             const linkedDirection = transaction.type === 'debit' ? '→' : '←';
@@ -1171,7 +1187,9 @@ class BudgetApp {
                 : '';
             const isSplit = transaction.isSplit || transaction.is_split;
             const splitBadge = isSplit
-                ? `<span class="split-indicator" title="${t('budget', 'Split transaction')}">${t('budget', 'Split')}</span>`
+                ? `<span class="split-indicator" title="${isSplitPortion
+                    ? t('budget', 'Part of a split transaction. The amount shown is the part in this category.')
+                    : t('budget', 'Split transaction')}">${isSplitPortion ? t('budget', 'Split part') : t('budget', 'Split')}</span>`
                 : '';
             const sharedStatus = this.sharedTransactionStatuses?.[transaction.id];
             const sharedBadge = sharedStatus === 'shared'
@@ -1228,11 +1246,12 @@ class BudgetApp {
                         data-field="categoryId"
                         data-value="${transaction.categoryId || ''}"
                         data-transaction-id="${transaction.id}"
-                        ${isSplit && transaction.splitCategories ? 'title="' + transaction.splitCategories.map(s => (s.categoryName || t('budget', 'Uncategorized')) + ': ' + this.formatCurrency(s.amount, currency)).join('&#10;') + '"' : ''}>
+                        ${isSplit && transaction.splitCategories ? 'title="' + transaction.splitCategories.map(s => this.escapeHtml((s.categoryName || t('budget', 'Uncategorized')) + ': ' + this.formatCurrency(s.amount, currency))).join('&#10;') + '"' : ''}>
                         ${isSplit && transaction.splitCategories
                             ? (() => {
                                 const splitLabel = transaction.splitCategories.map(s =>
-                                    '<span class="split-cat-item">' + this.escapeHtml(s.categoryName || t('budget', 'Uncategorized')) + '</span>'
+                                    '<span class="split-cat-item' + (s.matched ? ' is-match' : '') + '">'
+                                    + this.escapeHtml(s.categoryName || t('budget', 'Uncategorized')) + '</span>'
                                 ).join(' / ');
                                 return '<span class="category-badge cell-display split-category">' + splitLabel + '</span>';
                             })()
@@ -1252,12 +1271,14 @@ class BudgetApp {
                             ${this.renderTransactionTags(transaction.id)}
                         </span>
                     </td>
-                    <td class="amount-column editable-cell"
+                    <td class="amount-column ${isSplitPortion ? 'split-portion' : 'editable-cell'}"
                         data-field="amount"
                         data-value="${transaction.amount}"
                         data-type="${transaction.type}"
-                        data-transaction-id="${transaction.id}">
-                        <span class="amount cell-display ${typeClass}">${formattedAmount}</span>
+                        data-transaction-id="${transaction.id}"
+                        ${isSplitPortion ? `title="${t('budget', 'This amount is set by the transaction split. Open the split to change it.')}"` : ''}>
+                        <span class="amount cell-display ${amountClass}">${displayAmount}</span>
+                        ${showsWholeToo ? `<span class="amount-whole">${t('budget', 'of {total}', { total: formattedAmount })}</span>` : ''}
                     </td>
                     <td class="balance-column">
                         ${balanceMap !== null && balanceMap[transaction.id] !== undefined
@@ -1599,7 +1620,11 @@ class BudgetApp {
                 // occurrence) — no money has moved yet, so keep them out of
                 // the displayed total (#311).
                 if (tx.status === 'scheduled') return sum;
-                return sum + (tx.type === 'credit' ? tx.amount : -tx.amount);
+                // Under a category filter a split row counts for its share of
+                // the transaction, so this total matches the spending chart it
+                // was opened from instead of the whole receipt (#359).
+                const amount = transactionDisplayAmount(tx);
+                return sum + (tx.type === 'credit' ? amount : -amount);
             }, 0);
 
             // Determine most common currency from displayed transactions
@@ -3600,13 +3625,15 @@ class BudgetApp {
      * for uncategorized spending. The date range mirrors the chart's period
      * so the listed transactions match the clicked slice.
      */
-    openTransactionsForCategory(categoryId, { dateFrom = '', dateTo = '', accountId = '' } = {}) {
+    openTransactionsForCategory(categoryId, { dateFrom = '', dateTo = '', accountId = '', type = 'debit' } = {}) {
         const category = Array.isArray(categoryId)
             ? categoryId.join(',')
             : (categoryId ? String(categoryId) : 'uncategorized');
         this.transactionFilters = {
             category,
-            type: 'debit',
+            // Income categories hold credits, so a caller opening one has to be
+            // able to say so or it lands on an empty list.
+            type,
             dateFrom: dateFrom || '',
             dateTo: dateTo || '',
             account: accountId ? String(accountId) : '',

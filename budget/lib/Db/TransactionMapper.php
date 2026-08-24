@@ -6,6 +6,7 @@ namespace OCA\Budget\Db;
 
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\QBMapper;
+use OCP\DB\QueryBuilder\ICompositeExpression;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 
@@ -51,6 +52,22 @@ class TransactionMapper extends QBMapper {
         if (!$includeReportExcluded) {
             $this->excludeReportExcludedAccounts($qb);
         }
+    }
+
+    /**
+     * Match the parent transactions that own split rows.
+     *
+     * is_split post-dates its own default, so rows written before it hold NULL
+     * rather than 0/1 and an eq(true) test alone hides them — the same reason
+     * QueryFilterBuilder's uncategorised branch spells this out (#356). false
+     * stays excluded: a transaction explicitly marked unsplit must not have its
+     * leftover split rows counted on top of its own category.
+     */
+    private function splitParentPredicate(IQueryBuilder $qb, string $alias = 't'): ICompositeExpression {
+        return $qb->expr()->orX(
+            $qb->expr()->eq("{$alias}.is_split", $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)),
+            $qb->expr()->isNull("{$alias}.is_split")
+        );
     }
 
     /**
@@ -603,10 +620,36 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
-     * Get aggregate summary (count + total) for a single category
+     * Get aggregate summary (count + total) for a single category.
+     *
+     * Split allocations count too. A split transaction carries no category of
+     * its own — its categories live on its budget_tx_splits rows — so without
+     * the second branch a category funded entirely by splits read as zero here
+     * while the budget and the reports showed the real figure (#359). The two
+     * branches are disjoint (a split parent's category_id is NULL), so nothing
+     * is counted twice, and each counts a transaction once however many of its
+     * parts land in the category.
+     *
      * @return array{count: int, total: float}
      */
     public function getCategorySummary(string $userId, int $categoryId, ?array $categoryIds = null): array {
+        // Use array of IDs (parent + children) if provided, otherwise single ID
+        $ids = $categoryIds ?? [$categoryId];
+
+        $direct = $this->getCategoryDirectSummary($userId, $ids);
+        $split = $this->getCategorySplitSummary($userId, $ids);
+
+        return [
+            'count' => $direct['count'] + $split['count'],
+            'total' => $direct['total'] + $split['total'],
+        ];
+    }
+
+    /**
+     * @param int[] $ids
+     * @return array{count: int, total: float}
+     */
+    private function getCategoryDirectSummary(string $userId, array $ids): array {
         $qb = $this->db->getQueryBuilder();
         $qb->selectAlias($qb->func()->count('t.id'), 'count')
             ->selectAlias($qb->createFunction(
@@ -615,8 +658,6 @@ class TransactionMapper extends QBMapper {
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
 
-        // Use array of IDs (parent + children) if provided, otherwise single ID
-        $ids = $categoryIds ?? [$categoryId];
         $qb->andWhere($qb->expr()->in('t.category_id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
             ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
 
@@ -634,8 +675,47 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
-     * Get monthly spending breakdown for a single category
-     * @return array<array{month: string, total: float, count: int}>
+     * The same summary drawn from split allocations. Companion to
+     * getCategoryDirectSummary — see getCategorySummary (#359).
+     *
+     * @param int[] $ids
+     * @return array{count: int, total: float}
+     */
+    private function getCategorySplitSummary(string $userId, array $ids): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
+            ->selectAlias($qb->createFunction(
+                "SUM(CASE WHEN t.type = 'debit' THEN s.amount ELSE -s.amount END)"
+            ), 'total')
+            ->from('budget_tx_splits', 's')
+            ->innerJoin('s', $this->getTableName(), 't', $qb->expr()->eq('s.transaction_id', 't.id'))
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
+
+        $qb->andWhere($qb->expr()->in('s.category_id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
+            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($this->splitParentPredicate($qb));
+
+        $this->excludeScheduledFuture($qb);
+        $this->excludeReportExcludedAccounts($qb);
+
+        $result = $qb->executeQuery();
+        $row = $result->fetch();
+        $result->closeCursor();
+
+        return [
+            'count' => (int)($row['count'] ?? 0),
+            'total' => (float)($row['total'] ?? 0),
+        ];
+    }
+
+    /**
+     * Get monthly spending breakdown for a single category.
+     *
+     * Split allocations are added month by month, for the reason spelled out on
+     * getCategorySummary: the categories of a split live on its parts, so a
+     * chart drawn from category_id alone leaves them out (#359).
+     *
+     * @return array<array{month: string, total: float, count: int, splitCount: int}>
      */
     public function getCategoryMonthlySpending(string $userId, int $categoryId, int $months = 6, ?array $categoryIds = null, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null, string $categoryType = 'expense'): array {
         if (!$startDate) {
@@ -679,10 +759,220 @@ class TransactionMapper extends QBMapper {
         $data = $result->fetchAll();
         $result->closeCursor();
 
+        $direct = array_map(fn($row) => [
+            'month' => $row['month'],
+            'total' => (float)($row['total'] ?? 0),
+            'count' => (int)($row['count'] ?? 0),
+            'splitCount' => 0,
+        ], $data);
+
+        $split = $this->getCategorySplitMonthlySpending(
+            $userId, $ids, $startDate, $endDate, $accountId, $primaryType
+        );
+
+        return $this->mergeCategoryMonthlySeries($direct, $split);
+    }
+
+    /**
+     * The monthly series drawn from split allocations. Companion to
+     * getCategoryMonthlySpending (#359).
+     *
+     * @param int[] $ids
+     * @return array<array{month: string, total: float, count: int, splitCount: int}>
+     */
+    private function getCategorySplitMonthlySpending(
+        string $userId,
+        array $ids,
+        string $startDate,
+        string $endDate,
+        ?int $accountId,
+        string $primaryType
+    ): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select($qb->createFunction($this->monthExpr() . ' as month'))
+            ->selectAlias($qb->createFunction(
+                "SUM(CASE WHEN t.type = '{$primaryType}' THEN s.amount ELSE -s.amount END)"
+            ), 'total')
+            ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
+            ->from('budget_tx_splits', 's')
+            ->innerJoin('s', $this->getTableName(), 't', $qb->expr()->eq('s.transaction_id', 't.id'))
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->in('s.category_id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
+            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
+            ->andWhere($this->splitParentPredicate($qb));
+
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
+
+        $this->excludeScheduledFuture($qb);
+        $this->excludeReportExcludedAccounts($qb);
+
+        $qb->groupBy($qb->createFunction($this->monthExpr()));
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
         return array_map(fn($row) => [
             'month' => $row['month'],
             'total' => (float)($row['total'] ?? 0),
             'count' => (int)($row['count'] ?? 0),
+            'splitCount' => (int)($row['count'] ?? 0),
+        ], $data);
+    }
+
+    /**
+     * Merge the direct and split monthly series by month, summing totals and
+     * counts and keeping the months in ascending order.
+     *
+     * @param array<array{month: string, total: float, count: int, splitCount: int}> $direct
+     * @param array<array{month: string, total: float, count: int, splitCount: int}> $split
+     * @return array<array{month: string, total: float, count: int, splitCount: int}>
+     */
+    private function mergeCategoryMonthlySeries(array $direct, array $split): array {
+        if (empty($split)) {
+            return $direct;
+        }
+
+        $byMonth = [];
+        foreach ([$direct, $split] as $series) {
+            foreach ($series as $row) {
+                $month = (string)$row['month'];
+                if (!isset($byMonth[$month])) {
+                    $byMonth[$month] = ['month' => $month, 'total' => 0.0, 'count' => 0, 'splitCount' => 0];
+                }
+                $byMonth[$month]['total'] += (float)$row['total'];
+                $byMonth[$month]['count'] += (int)$row['count'];
+                $byMonth[$month]['splitCount'] += (int)$row['splitCount'];
+            }
+        }
+
+        ksort($byMonth);
+
+        return array_values($byMonth);
+    }
+
+    /**
+     * The rows behind a category's figures, for the Category Details panel.
+     *
+     * Deliberately NOT findByCategory(): that one is also the category-delete
+     * guard, and teaching it about splits would make a category referenced by a
+     * split row impossible to delete — deleteWithReassign() clears
+     * budget_transactions.category_id and never touches budget_tx_splits, so the
+     * guard would keep refusing forever. Leave it alone.
+     *
+     * A split transaction appears once, carrying the share of it that belongs to
+     * the category ('amount') alongside the whole transaction
+     * ('transactionAmount'), so the panel can list what it counted (#359).
+     *
+     * @param int[] $categoryIds
+     * @return array<array<string, mixed>>
+     */
+    public function findCategoryTransactionRows(string $userId, array $categoryIds, int $limit = 5): array {
+        if (empty($categoryIds) || $limit < 1) {
+            return [];
+        }
+
+        $rows = array_merge(
+            $this->findCategoryDirectRows($userId, $categoryIds, $limit),
+            $this->findCategorySplitRows($userId, $categoryIds, $limit)
+        );
+
+        // Each branch is already its own top-$limit, so the global top-$limit is
+        // inside their union. Sort on the same keys both branches ordered by.
+        usort($rows, fn(array $a, array $b) => [$b['date'], $b['id']] <=> [$a['date'], $a['id']]);
+
+        return array_slice($rows, 0, $limit);
+    }
+
+    /**
+     * @param int[] $categoryIds
+     * @return array<array<string, mixed>>
+     */
+    private function findCategoryDirectRows(string $userId, array $categoryIds, int $limit): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('t.id', 't.date', 't.description', 't.vendor', 't.type', 't.amount', 't.account_id', 't.status', 't.category_id')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->in('t.category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)))
+            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+
+        $this->excludeScheduledFuture($qb);
+        $this->excludeReportExcludedAccounts($qb);
+
+        // The id tiebreaker matters: without it, which of several same-day rows
+        // the panel showed was arbitrary and could change between renders.
+        $qb->orderBy('t.date', 'DESC')
+            ->addOrderBy('t.id', 'DESC')
+            ->setMaxResults($limit);
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        return array_map(fn($row) => [
+            'id' => (int)$row['id'],
+            'date' => (string)$row['date'],
+            'description' => $row['description'] ?? '',
+            'vendor' => $row['vendor'] ?? null,
+            'type' => (string)$row['type'],
+            'amount' => (float)$row['amount'],
+            'transactionAmount' => (float)$row['amount'],
+            'accountId' => (int)$row['account_id'],
+            'status' => $row['status'] ?? null,
+            'categoryId' => isset($row['category_id']) ? (int)$row['category_id'] : null,
+            'isSplit' => false,
+            'splitPartCount' => 0,
+        ], $data);
+    }
+
+    /**
+     * @param int[] $categoryIds
+     * @return array<array<string, mixed>>
+     */
+    private function findCategorySplitRows(string $userId, array $categoryIds, int $limit): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('t.id', 't.date', 't.description', 't.vendor', 't.type', 't.amount', 't.account_id', 't.status')
+            ->selectAlias($qb->func()->sum('s.amount'), 'portion')
+            ->selectAlias($qb->func()->count('s.id'), 'part_count')
+            ->from('budget_tx_splits', 's')
+            ->innerJoin('s', $this->getTableName(), 't', $qb->expr()->eq('s.transaction_id', 't.id'))
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->in('s.category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)))
+            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($this->splitParentPredicate($qb));
+
+        $this->excludeScheduledFuture($qb);
+        $this->excludeReportExcludedAccounts($qb);
+
+        // Every selected column is grouped explicitly rather than leaning on the
+        // primary key's functional dependency, which PostgreSQL and MySQL's
+        // ONLY_FULL_GROUP_BY disagree about.
+        $qb->groupBy('t.id', 't.date', 't.description', 't.vendor', 't.type', 't.amount', 't.account_id', 't.status')
+            ->orderBy('t.date', 'DESC')
+            ->addOrderBy('t.id', 'DESC')
+            ->setMaxResults($limit);
+
+        $result = $qb->executeQuery();
+        $data = $result->fetchAll();
+        $result->closeCursor();
+
+        return array_map(fn($row) => [
+            'id' => (int)$row['id'],
+            'date' => (string)$row['date'],
+            'description' => $row['description'] ?? '',
+            'vendor' => $row['vendor'] ?? null,
+            'type' => (string)$row['type'],
+            'amount' => (float)($row['portion'] ?? 0),
+            'transactionAmount' => (float)$row['amount'],
+            'accountId' => (int)$row['account_id'],
+            'status' => $row['status'] ?? null,
+            'categoryId' => null,
+            'isSplit' => true,
+            'splitPartCount' => (int)($row['part_count'] ?? 0),
         ], $data);
     }
 
@@ -1079,7 +1369,7 @@ class TransactionMapper extends QBMapper {
         $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)))
-            ->andWhere($qb->expr()->eq('t.is_split', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)));
+            ->andWhere($this->splitParentPredicate($qb));
 
         $this->excludeScheduledFuture($qb);
         $this->excludeReportExcludedCategories($qb, 'c', $userId);
@@ -2701,7 +2991,7 @@ class TransactionMapper extends QBMapper {
             ->where($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            ->andWhere($qb->expr()->eq('t.is_split', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)));
+            ->andWhere($this->splitParentPredicate($qb));
 
         // Same visible-account scope as the rest of a budget surface, so a
         // split booked in a shared account is not silently dropped (#341).

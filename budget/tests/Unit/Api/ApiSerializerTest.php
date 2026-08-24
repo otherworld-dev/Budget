@@ -189,6 +189,40 @@ class ApiSerializerTest extends TestCase {
 		$this->assertArrayNotHasKey('category_name', $uncategorised);
 	}
 
+	public function testTransactionCarriesTheSplitShareOnlyWhenThereIsOne(): void {
+		// Filtering by category also matches a split transaction through its
+		// parts, and `amount` is then the whole transaction, not the part that
+		// matched — split_amount is the part, so a client totalling a category
+		// does not credit it the whole receipt (#359).
+		$share = ApiSerializer::transaction([
+			'id' => 1,
+			'accountId' => 2,
+			'amount' => 82.40,
+			'isSplit' => true,
+			'matchedSplitAmount' => 12.4,
+		]);
+
+		$this->assertSame('12.40', $share['split_amount']);
+		$this->assertSame('82.40', $share['amount'], 'amount stays the whole transaction');
+
+		$plain = ApiSerializer::transaction(['id' => 1, 'accountId' => 2, 'amount' => 82.40]);
+		$this->assertArrayNotHasKey('split_amount', $plain);
+	}
+
+	public function testTransactionReportsAZeroSplitShare(): void {
+		// 0.00 is a real share, not an absent one.
+		$result = ApiSerializer::transaction(['id' => 1, 'matchedSplitAmount' => 0.0]);
+
+		$this->assertSame('0.00', $result['split_amount']);
+	}
+
+	public function testTransactionKeepsASplitShareNegative(): void {
+		// A receipt's discount line is a negative part of an expense.
+		$result = ApiSerializer::transaction(['id' => 1, 'matchedSplitAmount' => -3.5]);
+
+		$this->assertSame('-3.50', $result['split_amount']);
+	}
+
 	public function testTransactionDefaultsStatusToCleared(): void {
 		$this->assertSame('cleared', ApiSerializer::transaction(['id' => 1])['status']);
 		$this->assertSame('scheduled', ApiSerializer::transaction(['id' => 1, 'status' => 'scheduled'])['status']);
