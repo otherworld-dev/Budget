@@ -5697,9 +5697,18 @@ style('budget', 'budget-app');
                     </div>
 
                     <div class="form-group" id="opening-balance-group" style="display: none;">
-                        <label for="account-opening-balance"><?php p($l->t('Opening Balance')); ?></label>
+                        <label for="account-opening-balance" id="account-opening-balance-label"><?php p($l->t('Opening Balance')); ?></label>
                         <input type="number" id="account-opening-balance" step="0.01" aria-describedby="account-opening-balance-help">
                         <small id="account-opening-balance-help" class="form-text"><?php p($l->t('The starting balance when this account was created')); ?></small>
+                    </div>
+
+                    <div class="form-group" id="liability-in-credit-group" style="display: none;">
+                        <label class="form-check">
+                            <input type="checkbox" id="account-liability-in-credit">
+                            <span><?php p($l->t('This account is in credit — you have overpaid it')); ?></span>
+                        </label>
+                        <small class="form-text"><?php p($l->t('Tick this only if the lender owes you money. For a normal debt, leave it unticked and the app adds the minus sign for you.')); ?></small>
+                        <small id="liability-in-credit-notice" class="form-text liability-credit-notice" style="display: none;"></small>
                     </div>
 
                     <div class="form-group">

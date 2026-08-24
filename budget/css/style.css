@@ -20039,3 +20039,38 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     font-size: 12px;
     padding: 0 1px;
 }
+
+/* Explains why a liability's opening balance is being read as a credit (#353).
+   Only rendered when the stored value is positive and its meaning was never
+   declared, so it is invisible to everyone whose data is correct. */
+.wide-form .form-text.liability-credit-notice {
+    color: var(--color-warning-text, var(--color-main-text));
+    background: var(--color-warning-hover, var(--color-background-hover));
+    border-left: 3px solid var(--color-warning, var(--color-error));
+    padding: 6px 8px;
+    border-radius: var(--border-radius);
+    margin-top: 6px;
+    display: block;
+}
+
+/* Per-account opt-out inside a repair category (#353). A genuine overpayment is
+   indistinguishable from a mis-typed statement balance to everyone except the
+   person who entered it, so that call stays with them. */
+.repair-item-select {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    margin: 0;
+}
+
+.repair-item-select input[type="checkbox"] {
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.repair-category-help {
+    margin: 0 0 8px;
+    opacity: 0.8;
+    font-size: 0.9em;
+}

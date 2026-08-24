@@ -12,7 +12,6 @@ use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\InterestService;
 use OCA\Budget\Service\InvestmentService;
 use OCA\Budget\Service\ValidationService;
-use OCA\Budget\Enum\AccountType;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
 use OCA\Budget\Traits\SharedAccessTrait;
@@ -168,10 +167,11 @@ class AccountController extends Controller {
                 $balance = (float) $data['balance'];
             }
 
-            // Liability accounts store balance as negative (amount owed)
-            if ($balance > 0 && AccountType::from($typeValidation['formatted'])->isLiability()) {
-                $balance = -$balance;
-            }
+            // Liability sign is applied once, in AccountService, from an
+            // explicit intent flag rather than inferred from what was typed (#353).
+            $liabilityInCredit = array_key_exists('liabilityInCredit', $data)
+                ? filter_var($data['liabilityInCredit'], FILTER_VALIDATE_BOOLEAN)
+                : null;
 
             $interestRate = null;
             if (isset($data['interestRate']) && $data['interestRate'] !== '' && $data['interestRate'] !== null) {
@@ -266,7 +266,8 @@ class AccountController extends Controller {
                 $minimumPayment,
                 $walletAddress,
                 $excludedFromReports,
-                $statementDay
+                $statementDay,
+                $liabilityInCredit
             );
 
             // Audit log the account creation
@@ -441,9 +442,14 @@ class AccountController extends Controller {
                 $updates['statementDay'] = $statementDay;
             }
             if (isset($data['openingBalance']) && $data['openingBalance'] !== '') {
+                // A MAGNITUDE for liability types; AccountService applies the
+                // sign from liabilityInCredit (#353). Assets pass through.
                 $updates['openingBalance'] = (float) $data['openingBalance'];
-                // No auto-negation on edit — user may need to set a positive
-                // balance for liability accounts with a credit/overpayment
+            }
+            // array_key_exists, not ??: collapsing absent into false would make
+            // the service's stale-client guard unreachable.
+            if (array_key_exists('liabilityInCredit', $data)) {
+                $updates['liabilityInCredit'] = filter_var($data['liabilityInCredit'], FILTER_VALIDATE_BOOLEAN);
             }
             if (isset($data['compoundingFrequency'])) {
                 $validFreqs = ['simple', 'daily', 'monthly', 'yearly'];

@@ -1217,7 +1217,7 @@
             "type": "string",
             "pattern": "^-?\\d+\\.\\d{2}$",
             "example": "-1246.50",
-            "description": "Decimal string, two places. As of today; future-dated transactions are excluded. Parse into an exact decimal type, never a float."
+            "description": "Decimal string, two places. As of today; future-dated transactions are excluded. Liability accounts (credit_card, loan, mortgage, line_of_credit) carry a NEGATIVE balance for the amount owed; a positive value means the account is in credit. Parse into an exact decimal type, never a float."
           },
           "balance_in_base_currency": {
             "type": "string",

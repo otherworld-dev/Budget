@@ -506,4 +506,137 @@ class AccountServiceTest extends TestCase {
 
         $this->service->create('user1', 'Visa', 'credit_card', 0.0, 'USD', statementDay: 15);
     }
+
+    // ---------------------------------------------------------------
+    // Liability balance sign (#353)
+    //
+    // A liability stores what is owed as a NEGATIVE number. The caller supplies
+    // a magnitude plus an explicit intent flag; AccountService is the single
+    // place the sign is applied. Before #353 the rule lived in one controller
+    // branch, so the edit path stored whatever the user typed and a statement
+    // balance entered without a minus turned a debt into an asset.
+    // ---------------------------------------------------------------
+
+    private function captureInsert(&$captured): void {
+        $this->accountMapper->method('insert')->willReturnCallback(function (Account $account) use (&$captured) {
+            $captured = $account;
+            $account->setId(1);
+            return $account;
+        });
+    }
+
+    public function testCreateStoresLiabilityBalanceAsNegative(): void {
+        $this->captureInsert($captured);
+
+        $this->service->create('user1', 'Visa', 'credit_card', 500.0, 'USD');
+
+        $this->assertSame(-500.0, $captured->getBalance());
+        $this->assertSame(-500.0, $captured->getOpeningBalance());
+        $this->assertFalse($captured->getLiabilityInCredit());
+    }
+
+    public function testCreateKeepsAssetBalancePositive(): void {
+        $this->captureInsert($captured);
+
+        $this->service->create('user1', 'Current', 'checking', 500.0, 'USD');
+
+        $this->assertSame(500.0, $captured->getBalance());
+        $this->assertNull($captured->getLiabilityInCredit());
+    }
+
+    public function testCreateKeepsNegativeAssetBalanceForAnOverdraft(): void {
+        $this->captureInsert($captured);
+
+        $this->service->create('user1', 'Overdrawn', 'checking', -200.0, 'USD');
+
+        $this->assertSame(-200.0, $captured->getBalance());
+    }
+
+    public function testCreateSigningIsIdempotentForAnAlreadyNegativeLiability(): void {
+        $this->captureInsert($captured);
+
+        $this->service->create('user1', 'Visa', 'credit_card', -500.0, 'USD');
+
+        $this->assertSame(-500.0, $captured->getBalance());
+    }
+
+    public function testCreateStoresLiabilityInCreditAsPositive(): void {
+        $this->captureInsert($captured);
+
+        $this->service->create('user1', 'Overpaid card', 'credit_card', 500.0, 'USD', liabilityInCredit: true);
+
+        $this->assertSame(500.0, $captured->getBalance());
+        $this->assertTrue($captured->getLiabilityInCredit());
+    }
+
+    public function testUpdateSignsLiabilityOpeningBalanceFromTheIntentFlag(): void {
+        $account = $this->makeAccount(['type' => 'loan']);
+        $this->accountMapper->method('find')->willReturn($account);
+        $this->accountMapper->method('update')->willReturnArgument(0);
+        $this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
+
+        $captured = null;
+        $this->accountMapper->method('update')->willReturnCallback(function (Account $a) use (&$captured) {
+            $captured = $a;
+            return $a;
+        });
+
+        $this->service->update(1, 'user1', [
+            'type' => 'loan',
+            'openingBalance' => 90904.56,
+            'liabilityInCredit' => false,
+        ]);
+
+        $this->assertSame(-90904.56, $captured->getOpeningBalance());
+    }
+
+    public function testUpdateRejectsLiabilityOpeningBalanceWithoutAnIntentFlag(): void {
+        $account = $this->makeAccount(['type' => 'loan']);
+        $this->accountMapper->method('find')->willReturn($account);
+        // Guessing the sign rewrites real money either way, so a client that
+        // cannot say what it means is refused rather than interpreted.
+        $this->accountMapper->expects($this->never())->method('update');
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->service->update(1, 'user1', ['type' => 'loan', 'openingBalance' => 90904.56]);
+    }
+
+    public function testUpdateSignsForTheTargetTypeWhenAnAssetIsFlippedToALiability(): void {
+        $account = $this->makeAccount(['type' => 'savings']);
+        $this->accountMapper->method('find')->willReturn($account);
+        $this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
+
+        $captured = null;
+        $this->accountMapper->method('update')->willReturnCallback(function (Account $a) use (&$captured) {
+            $captured = $a;
+            return $a;
+        });
+
+        $this->service->update(1, 'user1', [
+            'type' => 'mortgage',
+            'openingBalance' => 1000.0,
+            'liabilityInCredit' => false,
+        ]);
+
+        // The TARGET type decides the sign, applied once. A second transition
+        // handler on top of this would negate it again.
+        $this->assertSame(-1000.0, $captured->getOpeningBalance());
+    }
+
+    public function testUpdateClearsTheInCreditFlagWhenALiabilityBecomesAnAsset(): void {
+        $account = $this->makeAccount(['type' => 'credit_card']);
+        $this->accountMapper->method('find')->willReturn($account);
+        $this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
+
+        $captured = null;
+        $this->accountMapper->method('update')->willReturnCallback(function (Account $a) use (&$captured) {
+            $captured = $a;
+            return $a;
+        });
+
+        $this->service->update(1, 'user1', ['type' => 'savings', 'openingBalance' => 100.0]);
+
+        $this->assertNull($captured->getLiabilityInCredit());
+    }
 }

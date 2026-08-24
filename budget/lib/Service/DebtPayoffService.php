@@ -69,10 +69,12 @@ class DebtPayoffService {
             // Calculate balance as of today (stored balance minus future transactions)
             $storedBalance = (float) $debt->getBalance();
             $futureChange = $futureChanges[$debt->getId()] ?? 0;
-            $balance = abs($storedBalance - $futureChange);
-            if ($balance <= 0) {
+            $signedBalance = $storedBalance - $futureChange;
+            if ($signedBalance >= 0) {
+                // Paid off, or in credit — not a debt to plan a payoff for (#353)
                 continue;
             }
+            $balance = abs($signedBalance);
 
             // Use MoneyCalculator for precise accumulation
             $totalBalance = MoneyCalculator::add($totalBalance, (string) $balance);
@@ -161,7 +163,12 @@ class DebtPayoffService {
             // Calculate balance as of today
             $storedBalance = (float) $debt->getBalance();
             $futureChange = $futureChanges[$debt->getId()] ?? 0;
-            $balance = abs($storedBalance - $futureChange);
+            $signedBalance = $storedBalance - $futureChange;
+            if ($signedBalance >= 0) {
+                // Paid off, or in credit — not a debt to plan a payoff for (#353)
+                continue;
+            }
+            $balance = abs($signedBalance);
             $minimumPayment = (float) ($debt->getMinimumPayment() ?? 25); // Default $25 minimum
             $interestRate = (float) ($debt->getInterestRate() ?? 0) / 100; // Convert percentage to decimal
 

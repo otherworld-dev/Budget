@@ -65,6 +65,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setLastReconciled(?string $lastReconciled)
  * @method bool|null getExcludedFromReports()
  * @method void setExcludedFromReports(?bool $excludedFromReports)
+ * @method bool|null getLiabilityInCredit()
+ * @method void setLiabilityInCredit(?bool $liabilityInCredit)
  */
 class Account extends Entity implements JsonSerializable {
     protected $userId;
@@ -111,6 +113,10 @@ class Account extends Entity implements JsonSerializable {
     // The account itself stays fully usable (accounts list, detail page, its
     // own transaction list).
     protected $excludedFromReports;
+    // For liability accounts only: true when a POSITIVE balance means the
+    // account is in credit / overpaid rather than a mis-signed debt (#353).
+    // NULL = never declared; the Repair Data tool resolves legacy rows.
+    protected $liabilityInCredit;
 
     public function __construct() {
         $this->addType('id', 'integer');
@@ -124,6 +130,7 @@ class Account extends Entity implements JsonSerializable {
         $this->addType('interestEnabled', 'boolean');
         $this->addType('accruedInterest', 'float');
         $this->addType('excludedFromReports', 'boolean');
+        $this->addType('liabilityInCredit', 'boolean');
     }
 
     /**
@@ -186,6 +193,7 @@ class Account extends Entity implements JsonSerializable {
             'updatedAt' => $this->getUpdatedAt(),
             'lastReconciled' => $this->getLastReconciled(),
             'excludedFromReports' => $this->getExcludedFromReports() ?? false,
+            'liabilityInCredit' => $this->getLiabilityInCredit(),
             'hasSensitiveData' => $this->hasSensitiveData(),
         ];
     }
@@ -224,6 +232,7 @@ class Account extends Entity implements JsonSerializable {
             'updatedAt' => $this->getUpdatedAt(),
             'lastReconciled' => $this->getLastReconciled(),
             'excludedFromReports' => $this->getExcludedFromReports() ?? false,
+            'liabilityInCredit' => $this->getLiabilityInCredit(),
         ];
     }
 

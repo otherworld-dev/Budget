@@ -591,4 +591,49 @@ class ReportAggregatorTest extends TestCase {
 		// Grand total excludes Housing's -200: 3000 + (-1000) = 2000
 		$this->assertEqualsWithDelta(2000.0, $r['totals']['total'], 0.001);
 	}
+
+	// ===== Liability balance sign (#353) =====
+	//
+	// Uses the exact figures from the issue report, so the arithmetic that was
+	// argued about is pinned to a number rather than a description. Before this,
+	// the file had no liability account at all and the split at
+	// ReportAggregator::generateSummary was dead in the suite.
+
+	private function summaryFor(array $accounts): array {
+		$this->accountMapper->method('findAll')->willReturn($accounts);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([]);
+		$this->transactionMapper->method('getTransferTotals')->willReturn(['income' => 0, 'expenses' => 0]);
+		$this->setupDefaultMocks();
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->conversionService->method('needsConversion')->willReturn(false);
+
+		return $this->aggregator->generateSummary('user1', null, '2026-01-01', '2026-01-31');
+	}
+
+	public function testCorrectlySignedLiabilityIsSubtractedFromNetWorth(): void {
+		$result = $this->summaryFor([
+			$this->makeAccount(1, 'Checking', 'checking', 14340.88, 'GBP'),
+			$this->makeAccount(2, 'Loan', 'loan', -90904.56, 'GBP'),
+		]);
+
+		// currentBalance is the Dashboard's Net Worth tile.
+		$this->assertEquals(-76563.68, round($result['totals']['currentBalance'], 2));
+		$this->assertEquals(14340.88, $result['totals']['totalAssets']);
+		$this->assertEquals(90904.56, $result['totals']['totalLiabilities']);
+	}
+
+	public function testLiabilityInCreditCountsAsAnAssetNotAPhantomDebt(): void {
+		// An overpaid card is money owed TO you. Routing it into totalLiabilities
+		// would make abs() report a debt that does not exist, and the Accounts
+		// page (totalAssets - totalLiabilities) would understate net worth by
+		// twice the credit.
+		$result = $this->summaryFor([
+			$this->makeAccount(1, 'Checking', 'checking', 1000.00, 'GBP'),
+			$this->makeAccount(2, 'Overpaid card', 'credit_card', 500.00, 'GBP'),
+		]);
+
+		$this->assertEquals(1500.00, $result['totals']['currentBalance']);
+		$this->assertEquals(1500.00, $result['totals']['totalAssets']);
+		$this->assertEquals(0.0, $result['totals']['totalLiabilities']);
+	}
 }

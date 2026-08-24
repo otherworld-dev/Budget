@@ -102,11 +102,12 @@ class NetWorthService {
                 }
             }
 
-            if ($this->isLiabilityType($type)) {
+            if ($this->isLiabilityType($type) && MoneyCalculator::compare($balance, '0') < 0) {
                 // Liability balances are already negative; add directly
                 $totalLiabilities = MoneyCalculator::add($totalLiabilities, $balance);
             } else {
-                // Assets: add balance directly
+                // Assets, and liabilities in credit — a positive liability
+                // balance is money owed TO you, not a debt (#353)
                 $totalAssets = MoneyCalculator::add($totalAssets, $balance);
             }
         }

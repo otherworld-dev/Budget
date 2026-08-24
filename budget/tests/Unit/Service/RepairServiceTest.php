@@ -48,6 +48,8 @@ class RepairServiceTest extends TestCase {
             'balance' => '1000.00',
             'openingBalance' => '0.00',
             'userId' => self::USER_ID,
+            'type' => 'checking',
+            'liabilityInCredit' => null,
         ];
         $data = array_merge($defaults, $overrides);
 
@@ -57,6 +59,8 @@ class RepairServiceTest extends TestCase {
         $account->setBalance((float) $data['balance']);
         $account->setOpeningBalance((float) $data['openingBalance']);
         $account->setUserId($data['userId']);
+        $account->setType($data['type']);
+        $account->setLiabilityInCredit($data['liabilityInCredit']);
 
         return $account;
     }
@@ -147,19 +151,21 @@ class RepairServiceTest extends TestCase {
     // 1. diagnose returns all 6 categories
     // ---------------------------------------------------------------
 
-    public function testDiagnoseReturnsAllSixCategories(): void {
+    public function testDiagnoseReturnsEveryDeclaredCategory(): void {
         $this->withAccounts([]);
         $this->withActiveBills([]);
 
         $result = $this->service->diagnose(self::USER_ID);
 
-        $this->assertArrayHasKey('duplicateTransactions', $result);
-        $this->assertArrayHasKey('stuckBills', $result);
-        $this->assertArrayHasKey('paidOneTimeBills', $result);
-        $this->assertArrayHasKey('futureClearedTransactions', $result);
-        $this->assertArrayHasKey('transferCreditCategories', $result);
-        $this->assertArrayHasKey('balanceDrift', $result);
-        $this->assertCount(6, $result);
+        // Asserted against the registry rather than a hand-kept literal, so
+        // adding a category cannot leave diagnose() and the controller's
+        // whitelist silently out of step.
+        $this->assertSame(RepairService::CATEGORIES, array_keys($result));
+    }
+
+    public function testBalanceDriftIsReportedLastSoItRecalculatesAfterEveryOtherFix(): void {
+        $categories = RepairService::CATEGORIES;
+        $this->assertSame('balanceDrift', end($categories));
     }
 
     // ---------------------------------------------------------------
@@ -752,5 +758,118 @@ class RepairServiceTest extends TestCase {
         $result = $this->service->repair(self::USER_ID, ['stuckBills']);
 
         $this->assertEquals(1, $result['stuckBills']['fixed']);
+    }
+
+    // ---------------------------------------------------------------
+    // liabilitySignFlipped (#353)
+    //
+    // A liability holding a POSITIVE opening balance is being counted as money
+    // you have rather than money you owe. It is only ambiguous because a real
+    // overpayment looks identical, so the user decides per account and the
+    // decision is persisted -- otherwise the scan reports it forever.
+    // ---------------------------------------------------------------
+
+    public function testFindLiabilitySignFlippedDetectsAPositiveDebt(): void {
+        $this->withAccounts([
+            $this->makeAccount(['id' => 1, 'name' => 'Loan', 'type' => 'loan', 'openingBalance' => '90904.56', 'balance' => '90904.56']),
+        ]);
+        $this->withActiveBills([]);
+        $this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
+
+        $found = $this->service->diagnose(self::USER_ID)['liabilitySignFlipped'];
+
+        $this->assertCount(1, $found);
+        $this->assertSame('Loan', $found[0]['accountName']);
+        // The figures the user recognises, not raw opening balances.
+        $this->assertEqualsWithDelta(90904.56, $found[0]['currentBalance'], 0.005);
+        $this->assertEqualsWithDelta(-90904.56, $found[0]['repairedBalance'], 0.005);
+    }
+
+    public function testFindLiabilitySignFlippedIgnoresACorrectlySignedDebt(): void {
+        $this->withAccounts([
+            $this->makeAccount(['id' => 1, 'type' => 'loan', 'openingBalance' => '-5000.00', 'balance' => '-5000.00']),
+        ]);
+        $this->withActiveBills([]);
+
+        $this->assertSame([], $this->service->diagnose(self::USER_ID)['liabilitySignFlipped']);
+    }
+
+    public function testFindLiabilitySignFlippedIgnoresAssets(): void {
+        $this->withAccounts([
+            $this->makeAccount(['id' => 1, 'type' => 'savings', 'openingBalance' => '5000.00', 'balance' => '5000.00']),
+        ]);
+        $this->withActiveBills([]);
+
+        $this->assertSame([], $this->service->diagnose(self::USER_ID)['liabilitySignFlipped']);
+    }
+
+    public function testFindLiabilitySignFlippedIgnoresADeclaredOverpayment(): void {
+        // This is what stops the category nagging forever once the user has
+        // said yes, I really did overpay this one.
+        $this->withAccounts([
+            $this->makeAccount(['id' => 1, 'type' => 'credit_card', 'openingBalance' => '50.00', 'balance' => '50.00', 'liabilityInCredit' => true]),
+        ]);
+        $this->withActiveBills([]);
+
+        $this->assertSame([], $this->service->diagnose(self::USER_ID)['liabilitySignFlipped']);
+    }
+
+    public function testFindLiabilitySignFlippedReportsLargestFirst(): void {
+        $this->withAccounts([
+            $this->makeAccount(['id' => 1, 'name' => 'Card', 'type' => 'credit_card', 'openingBalance' => '1200.00', 'balance' => '1200.00']),
+            $this->makeAccount(['id' => 2, 'name' => 'Mortgage', 'type' => 'mortgage', 'openingBalance' => '250000.00', 'balance' => '250000.00']),
+        ]);
+        $this->withActiveBills([]);
+        $this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
+
+        $found = $this->service->diagnose(self::USER_ID)['liabilitySignFlipped'];
+
+        $this->assertSame('Mortgage', $found[0]['accountName']);
+    }
+
+    public function testRepairLiabilitySignFlippedNegatesOpeningBalanceThenRecalculates(): void {
+        $account = $this->makeAccount(['id' => 1, 'type' => 'loan', 'openingBalance' => '90904.56', 'balance' => '90904.56']);
+        $this->withAccounts([$account]);
+        $this->withActiveBills([]);
+        $this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
+        $this->accountMapper->method('findById')->willReturn($account);
+
+        $captured = null;
+        $this->accountMapper->method('update')->willReturnCallback(function (Account $a) use (&$captured) {
+            $captured = $a;
+            return $a;
+        });
+        // balance is always re-derived FROM opening_balance, so repairing only
+        // the balance would look right and silently regress on the next edit.
+        $this->accountService->expects($this->once())->method('recalculateAllBalances');
+
+        $result = $this->service->repair(self::USER_ID, ['liabilitySignFlipped']);
+
+        $this->assertSame(1, $result['liabilitySignFlipped']['fixed']);
+        $this->assertEqualsWithDelta(-90904.56, $captured->getOpeningBalance(), 0.005);
+        $this->assertFalse($captured->getLiabilityInCredit());
+    }
+
+    public function testRepairLiabilitySignFlippedMarksDeselectedAccountsAsGenuineCredits(): void {
+        $account = $this->makeAccount(['id' => 7, 'type' => 'credit_card', 'openingBalance' => '50.00', 'balance' => '50.00']);
+        $this->withAccounts([$account]);
+        $this->withActiveBills([]);
+        $this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
+        $this->accountMapper->method('findById')->willReturn($account);
+
+        $captured = null;
+        $this->accountMapper->method('update')->willReturnCallback(function (Account $a) use (&$captured) {
+            $captured = $a;
+            return $a;
+        });
+        $this->accountService->expects($this->never())->method('recalculateAllBalances');
+
+        // Account 7 was unticked in the preview: this one really is overpaid.
+        $result = $this->service->repair(self::USER_ID, ['liabilitySignFlipped'], ['accountIds' => []]);
+
+        $this->assertSame(0, $result['liabilitySignFlipped']['fixed']);
+        $this->assertSame(1, $result['liabilitySignFlipped']['confirmed']);
+        $this->assertEqualsWithDelta(50.00, $captured->getOpeningBalance(), 0.005);
+        $this->assertTrue($captured->getLiabilityInCredit());
     }
 }

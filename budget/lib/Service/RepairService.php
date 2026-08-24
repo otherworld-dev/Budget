@@ -8,12 +8,28 @@ use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
+use OCA\Budget\Enum\AccountType;
 use OCA\Budget\Service\MoneyCalculator;
 
 /**
  * Diagnoses and repairs data integrity issues.
  */
 class RepairService {
+    /**
+     * Every repair category id, in the order diagnose() reports them.
+     * SetupController validates the request against this rather than keeping its
+     * own literal copy — a category added here is immediately accepted.
+     */
+    public const CATEGORIES = [
+        'duplicateTransactions',
+        'stuckBills',
+        'paidOneTimeBills',
+        'futureClearedTransactions',
+        'transferCreditCategories',
+        'liabilitySignFlipped',
+        'balanceDrift',
+    ];
+
     private TransactionMapper $transactionMapper;
     private BillMapper $billMapper;
     private AccountMapper $accountMapper;
@@ -47,6 +63,7 @@ class RepairService {
             'futureClearedTransactions' => $this->findFutureClearedTransactions($userId),
             // Transfer credits now correctly preserve categories (since v2.26.3)
             'transferCreditCategories' => [],
+            'liabilitySignFlipped' => $this->findLiabilitySignFlipped($userId),
             'balanceDrift' => $this->findBalanceDrift($userId),
         ];
     }
@@ -57,7 +74,7 @@ class RepairService {
      * @param string[] $categories Which categories to fix: 'duplicateTransactions', 'stuckBills', 'balanceDrift'
      * @return array Results per category
      */
-    public function repair(string $userId, array $categories): array {
+    public function repair(string $userId, array $categories, array $options = []): array {
         $results = [];
 
         if (in_array('duplicateTransactions', $categories)) {
@@ -77,6 +94,15 @@ class RepairService {
         }
 
         // transferCreditCategories repair removed — credits now correctly keep categories
+
+        if (in_array('liabilitySignFlipped', $categories)) {
+            $results['liabilitySignFlipped'] = $this->repairLiabilitySignFlipped(
+                $userId,
+                isset($options['accountIds']) && is_array($options['accountIds'])
+                    ? array_map('intval', $options['accountIds'])
+                    : null
+            );
+        }
 
         // Balance recalculation should always run last (after tx cleanup)
         if (in_array('balanceDrift', $categories)) {
@@ -441,6 +467,123 @@ class RepairService {
         }
 
         return ['fixed' => $fixed, 'found' => count($found)];
+    }
+
+    /**
+     * Find liability accounts holding a POSITIVE opening balance that has never
+     * been declared as a genuine credit (#353).
+     *
+     * A liability stores what is owed as a negative number. A positive value is
+     * legal — it means the account is overpaid — but until #353 the edit form
+     * accepted a positive figure with no way to say which was meant, so a user
+     * who typed their statement balance without the minus sign silently doubled
+     * the account into their net worth.
+     *
+     * liability_in_credit === true means the user has explicitly declared this
+     * one a real overpayment, so it is never reported again and this category
+     * drains to empty instead of firing forever.
+     */
+    private function findLiabilitySignFlipped(string $userId): array {
+        $accounts = $this->accountMapper->findAll($userId);
+        $flipped = [];
+
+        foreach ($accounts as $account) {
+            $type = AccountType::tryFrom((string) $account->getType());
+            if ($type === null || !$type->isLiability()) {
+                continue;
+            }
+            if ($account->getLiabilityInCredit() === true) {
+                // Declared a genuine overpayment — leave it alone.
+                continue;
+            }
+
+            $opening = (float) ($account->getOpeningBalance() ?? 0);
+            if ($opening <= 0.005) {
+                continue;
+            }
+
+            $accountId = $account->getId();
+            $net = $this->transactionMapper->getNetChangeAll($accountId);
+
+            $flipped[] = [
+                'accountId' => $accountId,
+                'accountName' => $account->getName(),
+                'accountType' => $account->getType(),
+                'currency' => $account->getCurrency(),
+                'openingBalance' => round($opening, 2),
+                'repairedOpeningBalance' => round(-$opening, 2),
+                // The figures the user recognises: what the account reads now,
+                // and what it will read afterwards. opening_balance is not a
+                // number most people have ever looked at.
+                'currentBalance' => round($opening + $net, 2),
+                'repairedBalance' => round(-$opening + $net, 2),
+            ];
+        }
+
+        // Biggest first: a 12,000 "credit" on a mortgage is obviously a typo,
+        // a 43 credit on a card plausibly is not.
+        usort($flipped, fn($a, $b) => $b['openingBalance'] <=> $a['openingBalance']);
+
+        return $flipped;
+    }
+
+    /**
+     * Re-sign liability opening balances that were entered without the minus,
+     * and record the user's decision so neither outcome is asked about again (#353).
+     *
+     * $accountIds names the accounts to FIX. Every other detected account was
+     * deselected in the preview, which means "this one is a genuine
+     * overpayment" — so it is marked liability_in_credit = true and drops out
+     * of the detector permanently. Passing null fixes everything found, which
+     * is what a caller sending only a category list means.
+     *
+     * ORDER MATTERS: opening_balance is rewritten FIRST and the balance is then
+     * re-derived by recalculateAllBalances (balance = opening_balance + net).
+     * Do NOT "fix" this to preserve the displayed balance — the corruption lives
+     * in opening_balance itself. That is also why these rows were never caught:
+     * they already satisfy the ledger invariant, so findBalanceDrift passes them.
+     */
+    private function repairLiabilitySignFlipped(string $userId, ?array $accountIds = null): array {
+        $found = $this->findLiabilitySignFlipped($userId);
+        $fixed = 0;
+        $confirmed = 0;
+
+        foreach ($found as $item) {
+            $shouldFix = $accountIds === null || in_array($item['accountId'], $accountIds, true);
+
+            try {
+                $account = $this->accountMapper->findById($item['accountId']);
+                if (!$account) {
+                    continue;
+                }
+                $opening = (float) ($account->getOpeningBalance() ?? 0);
+                if ($opening <= 0.005) {
+                    // Changed under us since the scan
+                    continue;
+                }
+
+                if ($shouldFix) {
+                    $account->setOpeningBalance(-$opening);
+                    $account->setLiabilityInCredit(false);
+                    $fixed++;
+                } else {
+                    // Deselected: the user says this really is an overpayment.
+                    $account->setLiabilityInCredit(true);
+                    $confirmed++;
+                }
+                $account->setUpdatedAt(date('Y-m-d H:i:s'));
+                $this->accountMapper->update($account);
+            } catch (\Exception $e) {
+                // Skip on error
+            }
+        }
+
+        // Re-derive balance from the corrected opening_balance.
+        if ($fixed > 0) {
+            $this->accountService->recalculateAllBalances($userId);
+        }
+
+        return ['fixed' => $fixed, 'confirmed' => $confirmed, 'found' => count($found)];
     }
 
     /**

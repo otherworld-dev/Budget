@@ -220,8 +220,10 @@ class SetupController extends Controller {
                 ], Http::STATUS_BAD_REQUEST);
             }
 
-            $validCategories = ['duplicateTransactions', 'stuckBills', 'paidOneTimeBills', 'futureClearedTransactions', 'balanceDrift'];
-            $categories = array_intersect($categories, $validCategories);
+            // Validated against the service's own registry, so a new category is
+            // accepted the moment it is declared there rather than needing a
+            // second literal list kept in step by hand.
+            $categories = array_intersect($categories, RepairService::CATEGORIES);
 
             if (empty($categories)) {
                 return new DataResponse([
@@ -229,14 +231,25 @@ class SetupController extends Controller {
                 ], Http::STATUS_BAD_REQUEST);
             }
 
-            $results = $this->repairService->repair($this->userId, $categories);
+            // Per-account opt-out for categories that support it (#353). Ids are
+            // re-matched server-side against this user's own accounts, so an id
+            // belonging to someone else simply never matches.
+            $options = [];
+            if (isset($params['accountIds']) && is_array($params['accountIds'])) {
+                $options['accountIds'] = array_values(array_filter(
+                    array_map('intval', $params['accountIds']),
+                    fn(int $id) => $id > 0
+                ));
+            }
+
+            $results = $this->repairService->repair($this->userId, $categories, $options);
 
             $this->auditService->log(
                 $this->userId,
                 'repair_data',
                 'setup',
                 0,
-                ['categories' => $categories, 'results' => $results]
+                ['categories' => $categories, 'options' => $options, 'results' => $results]
             );
 
             return new DataResponse($results);

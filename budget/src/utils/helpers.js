@@ -58,3 +58,11 @@ export async function downloadTransactionsCsv(params, filename) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
+
+/** Account types whose balance is stored negative (amount owed). */
+export const LIABILITY_ACCOUNT_TYPES = ['credit_card', 'loan', 'mortgage', 'line_of_credit'];
+
+/** Mirrors AccountType::isLiability() on the PHP side. */
+export function isLiabilityType(type) {
+    return LIABILITY_ACCOUNT_TYPES.includes(type);
+}

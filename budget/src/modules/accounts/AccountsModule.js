@@ -5,7 +5,7 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
-import { downloadTransactionsCsv } from '../../utils/helpers.js';
+import { downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES } from '../../utils/helpers.js';
 import { translate as t } from '@nextcloud/l10n';
 
 // Which account attributes are rendered in the accounts view (tiles + list).
@@ -201,7 +201,7 @@ export default class AccountsModule {
 
         // Categorize accounts into assets and liabilities
         const assetTypes = ['checking', 'savings', 'investment', 'cash', 'cryptocurrency', 'money_market'];
-        const liabilityTypes = ['credit_card', 'loan', 'mortgage', 'line_of_credit'];
+        const liabilityTypes = LIABILITY_ACCOUNT_TYPES;
 
         const assets = accounts.filter(acc => assetTypes.includes(getField(acc, 'type')));
         const liabilities = accounts.filter(acc => liabilityTypes.includes(getField(acc, 'type')));
@@ -2395,15 +2395,37 @@ export default class AccountsModule {
                 excludedFromReports: document.getElementById('account-excluded-from-reports')?.checked || false
             };
 
-            // Only include balance on create — on edit, balance is managed by transactions
-            if (!isEdit) {
-                formData.balance = getFormValue('account-balance', 0, true);
+            // The sign of a liability balance is decided by intent, not by what was
+            // typed, so the amount travels as a magnitude and this flag says what it
+            // means. Sent whenever the TARGET type is a liability — including a type
+            // flip — because the server refuses to guess (#353).
+            const targetIsLiability = isLiabilityType(formData.type);
+            const inCredit = document.getElementById('account-liability-in-credit')?.checked || false;
+            if (targetIsLiability) {
+                formData.liabilityInCredit = inCredit;
             }
 
-            // Include opening balance on edit if changed
+            // Only include balance on create — on edit, balance is managed by transactions
+            if (!isEdit) {
+                const startingBalance = getFormValue('account-balance', 0, true) || 0;
+                if (targetIsLiability && startingBalance < 0) {
+                    showError(t('budget', 'Enter the amount owed as a positive number. Tick "This account is in credit" if the lender owes you instead.'));
+                    return;
+                }
+                formData.balance = startingBalance;
+            }
+
+            // On edit, send the opening balance ONLY when it was actually changed.
+            // Resubmitting it on every save is what allowed an unrelated edit — a
+            // rename, a ticked box — to rewrite the stored balance (#353).
             if (isEdit) {
+                const field = document.getElementById('account-opening-balance');
                 const openingBalance = getFormValue('account-opening-balance', null, true);
-                if (openingBalance !== null) {
+                if (field?.dataset.dirty === 'true' && openingBalance !== null) {
+                    if (targetIsLiability && openingBalance < 0) {
+                        showError(t('budget', 'Enter the amount owed as a positive number. Tick "This account is in credit" if the lender owes you instead.'));
+                        return;
+                    }
                     formData.openingBalance = openingBalance;
                 }
             }
@@ -2608,28 +2630,39 @@ export default class AccountsModule {
             if (openingBalanceGroup && openingBalanceField) {
                 openingBalanceGroup.style.display = '';
 
-                // Update help text for liability accounts. The else branch matters:
-                // the dialog is reused, so without it an account opened after a
-                // credit card kept the liability wording.
-                const helpText = document.getElementById('account-opening-balance-help');
-                const isLiability = ['credit_card', 'loan', 'mortgage', 'line_of_credit'].includes(account.type);
-                if (helpText) {
-                    helpText.textContent = isLiability
-                        ? t('budget', 'Enter as negative for amount owed (e.g. -5000). Enter as positive for a credit/overpayment.')
-                        : t('budget', 'The starting balance when this account was created');
-                }
-
+                const isLiability = isLiabilityType(account.type);
                 const originalOpening = parseFloat(account.openingBalance) || 0;
                 const originalBalance = parseFloat(account.balance) || 0;
                 const netChange = originalBalance - originalOpening;
-                openingBalanceField.value = originalOpening;
 
-                openingBalanceField.addEventListener('input', () => {
-                    const newOpening = parseFloat(openingBalanceField.value) || 0;
-                    if (balanceField) {
-                        balanceField.value = (newOpening + netChange).toFixed(2);
-                    }
-                });
+                // Liabilities show a MAGNITUDE with the meaning carried by the
+                // in-credit tick, so a signed number can no longer say two
+                // different things (#353). Assets keep the signed value — a
+                // negative opening balance there is a legitimate overdraft.
+                openingBalanceField.value = isLiability ? Math.abs(originalOpening) : originalOpening;
+                openingBalanceField.dataset.signMode = isLiability ? 'magnitude' : 'signed';
+                openingBalanceField.dataset.netChange = String(netChange);
+                // Only send the field when the user actually changes it. Resubmitting
+                // it on every save is what let an unrelated edit rewrite the balance.
+                delete openingBalanceField.dataset.dirty;
+
+                const inCreditBox = document.getElementById('account-liability-in-credit');
+                if (inCreditBox) {
+                    // Ticked from the stored SIGN, so a mis-signed debt shows up as
+                    // an obviously wrong "you have overpaid this" the user can correct.
+                    inCreditBox.checked = isLiability && originalOpening > 0;
+                    // null = never declared, so the explainer only fires on legacy rows.
+                    inCreditBox.dataset.storedInCredit = account.liabilityInCredit === true ? 'true'
+                        : (account.liabilityInCredit === false ? 'false' : 'null');
+                }
+
+                // Replace rather than add: loadAccountData runs on every dialog
+                // open and the modal is a shared singleton, so addEventListener
+                // stacked a new handler each time and the preview went stale.
+                openingBalanceField.oninput = () => {
+                    openingBalanceField.dataset.dirty = 'true';
+                    this.updateOpeningBalancePreview();
+                };
             }
 
             document.getElementById('account-currency').value = account.currency;
@@ -2681,6 +2714,105 @@ export default class AccountsModule {
         }
     }
 
+    /**
+     * Sign the opening-balance field the way the server will, so the Current
+     * Balance readout below it previews the real outcome before Save (#353).
+     */
+    openingBalanceSignedValue() {
+        const field = document.getElementById('account-opening-balance');
+        if (!field) {
+            return 0;
+        }
+        const typed = parseFloat(field.value) || 0;
+        if (field.dataset.signMode !== 'magnitude') {
+            return typed;
+        }
+        const inCredit = document.getElementById('account-liability-in-credit')?.checked || false;
+        return inCredit ? Math.abs(typed) : -Math.abs(typed);
+    }
+
+    /** Refresh the read-only Current Balance field from the typed opening balance. */
+    updateOpeningBalancePreview() {
+        const field = document.getElementById('account-opening-balance');
+        const balanceField = document.getElementById('account-balance');
+        if (!field || !balanceField) {
+            return;
+        }
+        const netChange = parseFloat(field.dataset.netChange) || 0;
+        balanceField.value = (this.openingBalanceSignedValue() + netChange).toFixed(2);
+    }
+
+    /**
+     * Keep the balance controls in step with the selected account type (#353).
+     *
+     * Runs on every dialog open as well as on a type change, so the magnitude
+     * conversion is gated on signMode ACTUALLY changing — converting on a plain
+     * open would flip the prefilled value a second time.
+     */
+    renderLiabilityBalanceControl() {
+        const typeEl = document.getElementById('account-type');
+        const field = document.getElementById('account-opening-balance');
+        const group = document.getElementById('liability-in-credit-group');
+        const inCreditBox = document.getElementById('account-liability-in-credit');
+        if (!typeEl || !field) {
+            return;
+        }
+
+        const isLiability = isLiabilityType(typeEl.value);
+        const wasLiability = field.dataset.signMode === 'magnitude';
+
+        if (field.dataset.signMode && wasLiability !== isLiability) {
+            // A real type flip. Reinterpret what is on screen for the new
+            // convention and mark it dirty, so the flip always carries an
+            // explicit value and the server never has to guess.
+            const typed = parseFloat(field.value) || 0;
+            field.value = isLiability ? Math.abs(typed) : -Math.abs(typed);
+            field.dataset.dirty = 'true';
+            if (inCreditBox) {
+                inCreditBox.checked = false;
+            }
+        }
+        field.dataset.signMode = isLiability ? 'magnitude' : 'signed';
+
+        if (group) {
+            group.style.display = isLiability ? '' : 'none';
+        }
+
+        const label = document.getElementById('account-opening-balance-label');
+        if (label) {
+            label.textContent = isLiability
+                ? t('budget', 'Amount owed')
+                : t('budget', 'Opening Balance');
+        }
+        const helpText = document.getElementById('account-opening-balance-help');
+        if (helpText) {
+            helpText.textContent = isLiability
+                ? t('budget', 'Enter what you owe as a plain positive number — the app records it as a debt for you.')
+                : t('budget', 'The starting balance when this account was created');
+        }
+        const balanceLabelEl = document.getElementById('account-balance-label');
+        if (balanceLabelEl && !document.getElementById('account-id')?.value) {
+            balanceLabelEl.textContent = isLiability
+                ? t('budget', 'Amount owed')
+                : t('budget', 'Starting Balance');
+        }
+
+        // Only for a row whose sign was never declared: say plainly how the app is
+        // currently reading it, which is how a user finds out their debt became an asset.
+        const notice = document.getElementById('liability-in-credit-notice');
+        if (notice) {
+            const undeclared = inCreditBox?.dataset.storedInCredit === 'null';
+            if (isLiability && inCreditBox?.checked && undeclared) {
+                notice.textContent = t('budget', 'This account is currently recorded as being in credit — as if the lender owes you this money, which adds it to your net worth. If you actually owe it, untick the box above and save.');
+                notice.style.display = '';
+            } else {
+                notice.style.display = 'none';
+            }
+        }
+
+        this.updateOpeningBalancePreview();
+    }
+
     resetAccountForm() {
         const form = document.getElementById('account-form');
         if (!form) {
@@ -2727,6 +2859,25 @@ export default class AccountsModule {
         const openingBalanceField = document.getElementById('account-opening-balance');
         if (openingBalanceField) {
             openingBalanceField.value = '0';
+            // The modal is a shared singleton — leaving these set would carry the
+            // previous account's sign convention into the next one (#353).
+            delete openingBalanceField.dataset.signMode;
+            delete openingBalanceField.dataset.dirty;
+            openingBalanceField.dataset.netChange = '0';
+            openingBalanceField.oninput = null;
+        }
+        const inCreditGroup = document.getElementById('liability-in-credit-group');
+        if (inCreditGroup) {
+            inCreditGroup.style.display = 'none';
+        }
+        const inCreditBox = document.getElementById('account-liability-in-credit');
+        if (inCreditBox) {
+            inCreditBox.checked = false;
+            inCreditBox.dataset.storedInCredit = 'null';
+        }
+        const inCreditNotice = document.getElementById('liability-in-credit-notice');
+        if (inCreditNotice) {
+            inCreditNotice.style.display = 'none';
         }
     }
 
@@ -2889,6 +3040,10 @@ export default class AccountsModule {
             const el = document.getElementById(id);
             if (el) el.step = step;
         });
+
+        // Balance controls follow the selected type: magnitude + in-credit tick
+        // for a debt, signed for an asset (#353).
+        this.renderLiabilityBalanceControl();
 
         // Field visibility just changed — a whole column block may now be empty
         this.refreshAccountSections();

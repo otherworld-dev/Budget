@@ -14,6 +14,7 @@ use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
+use OCA\Budget\Enum\AccountType;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCP\IDBConnection;
@@ -709,15 +710,17 @@ class MigrationService {
             $account->setUserId($userId);
             $account->setName($accData['name']);
             $account->setType($accData['type']);
-            $account->setBalance($accData['balance'] ?? 0.0);
-
-            // Legacy exports (pre-1.1.0) stored liability balances as positive
-            if (in_array($accData['type'] ?? '', ['credit_card', 'loan', 'mortgage', 'line_of_credit'], true)) {
-                $bal = (float) ($accData['balance'] ?? 0);
-                if ($bal > 0) {
-                    $account->setBalance(-$bal);
-                }
-            }
+            // Sign the balance through the single authority. Exports carrying an
+            // explicit in-credit declaration are honoured; legacy exports
+            // (pre-1.1.0 positive liability balances, and any export predating
+            // #353) fall back to "owed", which is what they meant.
+            $type = (string) ($accData['type'] ?? '');
+            $declared = array_key_exists('liabilityInCredit', $accData) ? $accData['liabilityInCredit'] : null;
+            $inCredit = $declared !== null ? (bool) $declared : false;
+            $account->setBalance(AccountType::signFor($type, (float) ($accData['balance'] ?? 0), $inCredit));
+            $account->setLiabilityInCredit(
+                AccountType::tryFrom($type)?->isLiability() ? $declared : null
+            );
 
             $account->setCurrency($accData['currency'] ?? 'USD');
             $account->setInstitution($accData['institution'] ?? null);

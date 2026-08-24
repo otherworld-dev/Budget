@@ -9,6 +9,7 @@ use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\InterestRateMapper;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Enum\AccountType;
 use OCA\Budget\Enum\Currency;
 use OCA\Budget\Exception\AccountInUseException;
 use OCA\Budget\Service\GranularShareService;
@@ -67,14 +68,22 @@ class AccountService extends AbstractCrudService {
         ?float $minimumPayment = null,
         ?string $walletAddress = null,
         bool $excludedFromReports = false,
-        ?int $statementDay = null
+        ?int $statementDay = null,
+        ?bool $liabilityInCredit = null
     ): Account {
         $account = new Account();
         $account->setUserId($userId);
         $account->setName($name);
         $account->setType($type);
-        $account->setBalance($balance);
-        $account->setOpeningBalance($balance);
+        // Single sign authority (#353). The caller supplies a magnitude plus an
+        // explicit intent; the type decides the sign.
+        $inCredit = $liabilityInCredit ?? false;
+        $signed = AccountType::signFor($type, $balance, $inCredit);
+        $account->setBalance($signed);
+        $account->setOpeningBalance($signed);
+        $account->setLiabilityInCredit(
+            AccountType::tryFrom($type)?->isLiability() ? $inCredit : null
+        );
         $account->setCurrency($currency);
         $account->setInstitution($institution);
         $account->setAccountNumber($accountNumber);
@@ -161,12 +170,47 @@ class AccountService extends AbstractCrudService {
     public function update(int $id, string $userId, array $updates): Entity {
         // Try owner lookup first; fall back to ID-only for shared accounts
         try {
-            $this->find($id, $userId);
+            $existing = $this->find($id, $userId);
         } catch (\OCP\AppFramework\Db\DoesNotExistException $e) {
             // Account not owned by this user — resolve the actual owner
-            $account = $this->mapper->findById($id);
-            $userId = $account->getUserId();
+            $existing = $this->mapper->findById($id);
+            $userId = $existing->getUserId();
         }
+
+        // ---- liability sign normalisation (#353) --------------------------
+        // The effective type is the one being saved, so a type flip is handled
+        // here and nowhere else. The client sends a MAGNITUDE plus an explicit
+        // liabilityInCredit flag; this is the only place the sign is applied.
+        $effectiveType = $updates['type'] ?? $existing->getType();
+        $isLiability = AccountType::tryFrom((string) $effectiveType)?->isLiability() ?? false;
+
+        if ($isLiability) {
+            if (array_key_exists('openingBalance', $updates) && !array_key_exists('liabilityInCredit', $updates)) {
+                // Only a client built before #353 can reach this. Refuse rather
+                // than guess: guessing rewrites real money either way.
+                throw new \InvalidArgumentException(
+                    $this->l->t('This page is out of date. Please reload it before editing this account.')
+                );
+            }
+            if (array_key_exists('liabilityInCredit', $updates)) {
+                $inCredit = (bool) $updates['liabilityInCredit'];
+                $updates['liabilityInCredit'] = $inCredit;
+                if (array_key_exists('openingBalance', $updates)) {
+                    $updates['openingBalance'] = AccountType::signFor(
+                        (string) $effectiveType,
+                        (float) $updates['openingBalance'],
+                        $inCredit
+                    );
+                }
+            }
+        } else {
+            // Asset types have no in-credit concept; never leave a stale flag on
+            // an account that was flipped away from being a liability.
+            if (array_key_exists('liabilityInCredit', $updates) || array_key_exists('type', $updates)) {
+                $updates['liabilityInCredit'] = null;
+            }
+        }
+        // -------------------------------------------------------------------
 
         $account = parent::update($id, $userId, $updates);
 

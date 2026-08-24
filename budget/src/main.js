@@ -337,6 +337,15 @@ class BudgetApp {
             });
         }
 
+        // Ticking "in credit" flips the meaning of the amount, so the Current
+        // Balance preview has to follow it as well as the typed value (#353).
+        const inCreditBox = document.getElementById('account-liability-in-credit');
+        if (inCreditBox) {
+            inCreditBox.addEventListener('change', () => {
+                this.accountsModule.renderLiabilityBalanceControl();
+            });
+        }
+
         // Institution autocomplete
         const institutionInput = document.getElementById('form-institution');
         if (institutionInput) {
@@ -1831,7 +1840,8 @@ class BudgetApp {
         const paidOneTimeCount = findings.paidOneTimeBills?.length || 0;
         const futureCount = findings.futureClearedTransactions?.length || 0;
         const driftCount = findings.balanceDrift?.length || 0;
-        const totalIssues = dupCount + stuckCount + paidOneTimeCount + futureCount + driftCount;
+        const signCount = findings.liabilitySignFlipped?.length || 0;
+        const totalIssues = dupCount + stuckCount + paidOneTimeCount + futureCount + driftCount + signCount;
 
         const modal = document.createElement('div');
         modal.id = 'repair-data-modal';
@@ -1848,7 +1858,7 @@ class BudgetApp {
         if (totalIssues === 0) {
             findingsHtml = `<div class="repair-summary"><p>${t('budget', 'No data integrity issues found. Everything looks good!')}</p></div>`;
         } else {
-            findingsHtml = `<div class="repair-summary"><p>${t('budget', 'Found {count} issue(s) across {categories} categories.', { count: totalIssues, categories: (dupCount > 0 ? 1 : 0) + (stuckCount > 0 ? 1 : 0) + (paidOneTimeCount > 0 ? 1 : 0) + (futureCount > 0 ? 1 : 0) + (driftCount > 0 ? 1 : 0) })}</p></div>`;
+            findingsHtml = `<div class="repair-summary"><p>${t('budget', 'Found {count} issue(s) across {categories} categories.', { count: totalIssues, categories: (dupCount > 0 ? 1 : 0) + (stuckCount > 0 ? 1 : 0) + (paidOneTimeCount > 0 ? 1 : 0) + (futureCount > 0 ? 1 : 0) + (driftCount > 0 ? 1 : 0) + (signCount > 0 ? 1 : 0) })}</p></div>`;
 
             // Duplicate transactions
             if (dupCount > 0) {
@@ -1932,6 +1942,34 @@ class BudgetApp {
                     </div>`;
             }
 
+            // Debts recorded as being in credit (#353). Per-account ticks, because
+            // a genuine overpayment is indistinguishable from a mis-typed statement
+            // balance to everyone except the person who entered it.
+            if (signCount > 0) {
+                const signItems = findings.liabilitySignFlipped.map(a =>
+                    `<div class="repair-item">
+                        <label class="repair-item-select">
+                            <input type="checkbox" class="repair-account-checkbox" data-account-id="${a.accountId}" checked>
+                            <span>${a.accountName}</span>
+                        </label>
+                        <span>${t('budget', 'Now: {amount} in credit', { amount: formatCurrency(Math.abs(a.currentBalance)) })}</span>
+                        <span>${t('budget', 'After repair: {amount} owed', { amount: formatCurrency(Math.abs(a.repairedBalance)) })}</span>
+                    </div>`
+                ).join('');
+
+                findingsHtml += `
+                    <div class="repair-category" data-category="liabilitySignFlipped">
+                        <div class="repair-category-header">
+                            <h4><input type="checkbox" class="repair-checkbox" checked> ${t('budget', 'Debts Recorded as Being in Credit')}</h4>
+                            <span class="repair-category-count">${signCount}</span>
+                        </div>
+                        <div class="repair-category-details">
+                            <p class="repair-category-help">${t('budget', 'These debts hold a positive balance, so the app is counting them as money you have rather than money you owe. Untick any you really have overpaid — those are recorded as genuine credits and left out of future scans.')}</p>
+                            ${signItems}
+                        </div>
+                    </div>`;
+            }
+
             // Balance drift
             if (driftCount > 0) {
                 const driftItems = findings.balanceDrift.map(a =>
@@ -2007,6 +2045,14 @@ class BudgetApp {
                     return;
                 }
 
+                // Accounts left ticked are the ones to re-sign; the rest are being
+                // declared genuine credits. Always sent as an array — omitting the
+                // key means "fix everything found", which would invert the
+                // overpayments the user just deselected.
+                const accountIds = Array.from(
+                    modal.querySelectorAll('.repair-account-checkbox:checked')
+                ).map(cb => parseInt(cb.dataset.accountId, 10)).filter(Number.isFinite);
+
                 repairBtn.disabled = true;
                 repairBtn.innerHTML = '<span class="icon-loading-small"></span> ' + t('budget', 'Repairing...');
 
@@ -2017,7 +2063,7 @@ class BudgetApp {
                             'Content-Type': 'application/json',
                             'requesttoken': OC.requestToken
                         },
-                        body: JSON.stringify({ categories: selectedCategories })
+                        body: JSON.stringify({ categories: selectedCategories, accountIds })
                     });
 
                     const result = await response.json();
@@ -2040,6 +2086,12 @@ class BudgetApp {
                     }
                     if (result.futureClearedTransactions) {
                         parts.push(t('budget', '{count} future transactions set to scheduled', { count: result.futureClearedTransactions.fixed }));
+                    }
+                    if (result.liabilitySignFlipped) {
+                        parts.push(t('budget', '{count} debts re-recorded as owed', { count: result.liabilitySignFlipped.fixed }));
+                        if (result.liabilitySignFlipped.confirmed > 0) {
+                            parts.push(t('budget', '{count} confirmed as genuine credits', { count: result.liabilitySignFlipped.confirmed }));
+                        }
                     }
                     if (result.balanceDrift) {
                         parts.push(t('budget', '{count} account balances corrected', { count: result.balanceDrift.updated }));

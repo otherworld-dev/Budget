@@ -27,6 +27,34 @@ enum AccountType: string {
         return !$this->isLiability();
     }
 
+    /**
+     * Apply this type's sign convention to an opening/starting balance (#353).
+     *
+     * Liability accounts store the amount owed as a NEGATIVE number. The form
+     * collects a magnitude plus an explicit "in credit" flag, so the sign is
+     * derived from intent, never inferred from what the user typed. Written in
+     * magnitude form (abs() then sign) so it is idempotent -- applying it twice
+     * gives the same answer as applying it once.
+     *
+     * Asset types pass through unchanged: a negative opening balance on a
+     * current account is a legitimate overdraft.
+     */
+    public function signedOpeningBalance(float $amount, bool $inCredit = false): float {
+        if (!$this->isLiability()) {
+            return $amount;
+        }
+        return $inCredit ? abs($amount) : -abs($amount);
+    }
+
+    /**
+     * As signedOpeningBalance(), for a raw type string. Unknown types are
+     * treated as assets (pass-through) rather than throwing.
+     */
+    public static function signFor(?string $type, float $amount, bool $inCredit = false): float {
+        $t = $type !== null ? self::tryFrom($type) : null;
+        return $t === null ? $amount : $t->signedOpeningBalance($amount, $inCredit);
+    }
+
     public function canEarnInterest(): bool {
         return match ($this) {
             self::SAVINGS, self::INVESTMENT, self::MONEY_MARKET => true,

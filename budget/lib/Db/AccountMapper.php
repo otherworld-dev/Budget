@@ -188,6 +188,9 @@ class AccountMapper extends QBMapper {
             ->set('wallet_address', $qb->createNamedParameter($this->getEncryptedValue($entity, 'walletAddress')))
             ->set('last_reconciled', $qb->createNamedParameter($entity->getLastReconciled()))
             ->set('excluded_from_reports', $qb->createNamedParameter($entity->getExcludedFromReports() ?? false, IQueryBuilder::PARAM_BOOL))
+            ->set('liability_in_credit', $entity->getLiabilityInCredit() === null
+                ? $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL)
+                : $qb->createNamedParameter($entity->getLiabilityInCredit(), IQueryBuilder::PARAM_BOOL))
             ->set('updated_at', $qb->createNamedParameter($entity->getUpdatedAt()))
             ->where($qb->expr()->eq('id', $qb->createNamedParameter($entity->getId(), IQueryBuilder::PARAM_INT)));
 

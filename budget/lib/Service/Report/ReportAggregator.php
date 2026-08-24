@@ -212,8 +212,11 @@ class ReportAggregator {
             $summary['accounts'][] = $accountEntry;
 
             $summary['totals']['currentBalance'] += $currentBalance;
-            if (in_array($account->getType(), $liabilityTypes, true)) {
-                $totalLiabilities += $currentBalance; // Liability balances are already negative
+            if (in_array($account->getType(), $liabilityTypes, true) && $currentBalance < 0) {
+                // Amount owed. A liability in credit (positive) is money you have,
+                // so it belongs in assets — otherwise abs() below turns a credit
+                // into a phantom debt and net worth moves the wrong way (#353).
+                $totalLiabilities += $currentBalance;
             } else {
                 $totalAssets += $currentBalance;
             }
