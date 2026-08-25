@@ -2834,6 +2834,88 @@ export default class DashboardModule {
         });
     }
 
+    /**
+     * Income against expenses, one pair of bars per year.
+     *
+     * Mirrors the Reports page's year-over-year chart, from the same payload,
+     * so the two surfaces cannot disagree. The service returns newest first;
+     * the chart reads left to right, so the years are reversed for display.
+     *
+     * @param {string} instanceId - Tile instance
+     */
+    updateYoyComparisonWidget(instanceId = 'yoyComparison') {
+        let canvas, emptyState;
+        if (this.isDuplicateInstance(instanceId)) {
+            const card = this.getWidgetCard(instanceId);
+            canvas = card ? card.querySelector('canvas') : null;
+            emptyState = card ? card.querySelector('.chart-empty-state') : null;
+        } else {
+            canvas = document.getElementById('yoy-comparison-chart');
+            emptyState = document.getElementById('yoy-comparison-empty');
+        }
+        if (!canvas) return;
+
+        if (this.charts[instanceId]) {
+            this.charts[instanceId].destroy();
+        }
+
+        const payload = this.widgetData?.[instanceId] || this.widgetData?.yoyComparison;
+        const years = Array.isArray(payload?.years) ? [...payload.years].reverse() : [];
+        const container = canvas.closest('.chart-container');
+
+        if (years.length === 0) {
+            if (container) container.style.display = 'none';
+            if (emptyState) emptyState.style.display = 'flex';
+            return;
+        }
+
+        if (container) container.style.display = '';
+        canvas.style.display = 'block';
+        if (emptyState) emptyState.style.display = 'none';
+
+        const currency = this.getPrimaryCurrency();
+
+        this.charts[instanceId] = new Chart(canvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: years.map((y) => String(y.year)),
+                datasets: [
+                    {
+                        label: t('budget', 'Income'),
+                        data: years.map((y) => y.income),
+                        backgroundColor: 'rgba(46, 125, 50, 0.7)',
+                        borderColor: 'rgba(46, 125, 50, 1)',
+                        borderWidth: 1,
+                    },
+                    {
+                        label: t('budget', 'Expenses'),
+                        data: years.map((y) => y.expenses),
+                        backgroundColor: 'rgba(198, 40, 40, 0.7)',
+                        borderColor: 'rgba(198, 40, 40, 1)',
+                        borderWidth: 1,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `${ctx.dataset.label}: ${this.formatCurrency(ctx.raw, currency)}`,
+                        },
+                    },
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: (v) => formatters.formatCurrencyCompact(v, currency, this.settings) },
+                    },
+                },
+            },
+        });
+    }
+
     updateNetWorthStatus(snapshots, statusEl) {
         if (!statusEl) return;
 
@@ -4029,8 +4111,9 @@ export default class DashboardModule {
                 }
 
                 case 'yoyComparison': {
+                    const yoyYears = this._tileNumberSetting(widgetKey, 'yearsToCompare', formatters.YEARS_TO_COMPARE, 2);
                     const yoyResp = await fetch(
-                        OC.generateUrl(`/apps/budget/api/yoy/years?years=2${this._tileScopeParams('yoyComparison')}`),
+                        OC.generateUrl(`/apps/budget/api/yoy/years?years=${yoyYears}${this._tileScopeParams(widgetKey)}`),
                         { headers: { 'requesttoken': OC.requestToken } }
                     );
                     this.widgetData.yoyComparison = await yoyResp.json();
@@ -4515,6 +4598,20 @@ export default class DashboardModule {
                 (n) => n === 3 ? t('budget', 'Next 3 months')
                     : n === 6 ? t('budget', 'Next 6 months')
                         : t('budget', 'Next 12 months'),
+            ));
+        }
+
+        // Years to compare (this tile counts years, not days)
+        if (schema.yearsToCompare) {
+            const current = this._tileNumberSetting(widgetId, 'yearsToCompare', formatters.YEARS_TO_COMPARE, 2);
+            fields.push(this._numberChoiceField(
+                'yearsToCompare',
+                t('budget', 'Years to compare'),
+                formatters.YEARS_TO_COMPARE,
+                current,
+                (n) => n === 2 ? t('budget', 'Last 2 years')
+                    : n === 3 ? t('budget', 'Last 3 years')
+                        : t('budget', 'Last 5 years'),
             ));
         }
 

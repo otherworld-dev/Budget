@@ -932,6 +932,9 @@ style('budget', 'budget-app');
                         <div class="chart-container chart-container-large">
                             <canvas id="yoy-comparison-chart"></canvas>
                         </div>
+                        <div id="yoy-comparison-empty" class="chart-empty-state" style="display: none;">
+                            <?php p($l->t('No yearly data to compare yet')); ?>
+                        </div>
                     </div>
 
                     <div id="income-tracking-card" class="dashboard-card dashboard-tile-m" data-widget-id="incomeTracking" data-widget-category="widget" style="display: none;">

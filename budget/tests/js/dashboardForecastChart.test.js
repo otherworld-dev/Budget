@@ -117,3 +117,63 @@ describe('updateCashFlowForecastWidget', () => {
         expect(chartInstances).toHaveLength(2);
     });
 });
+
+describe('updateYoyComparisonWidget', () => {
+    const payload = {
+        type: 'year',
+        years: [
+            { year: 2026, income: 50000, expenses: 42000, isCurrent: true },
+            { year: 2025, income: 47000, expenses: 44000, isCurrent: false },
+        ],
+    };
+
+    beforeEach(() => {
+        document.body.innerHTML += `
+            <div id="yoy-comparison-card" class="dashboard-card" data-widget-id="yoyComparison">
+                <div class="chart-container"><canvas id="yoy-comparison-chart"></canvas></div>
+                <div id="yoy-comparison-empty" class="chart-empty-state"></div>
+            </div>`;
+    });
+
+    it('plots income and expenses per year', () => {
+        const dash = makeDashboard({ yoyComparison: payload });
+
+        dash.updateYoyComparisonWidget();
+
+        const { data } = chartInstances[0].config;
+        expect(data.datasets).toHaveLength(2);
+        expect(data.datasets[0].data).toEqual([47000, 50000]);
+        expect(data.datasets[1].data).toEqual([44000, 42000]);
+    });
+
+    it('puts the oldest year first so the chart reads left to right', () => {
+        const dash = makeDashboard({ yoyComparison: payload });
+
+        dash.updateYoyComparisonWidget();
+
+        expect(chartInstances[0].config.data.labels).toEqual(['2025', '2026']);
+    });
+
+    it('draws a bar chart', () => {
+        const dash = makeDashboard({ yoyComparison: payload });
+
+        dash.updateYoyComparisonWidget();
+
+        expect(chartInstances[0].config.type).toBe('bar');
+    });
+
+    it('shows the empty state when there are no years', () => {
+        const dash = makeDashboard({ yoyComparison: { type: 'year', years: [] } });
+
+        dash.updateYoyComparisonWidget();
+
+        expect(chartInstances).toHaveLength(0);
+        expect(document.getElementById('yoy-comparison-empty').style.display).toBe('flex');
+    });
+
+    it('survives having no data at all', () => {
+        const dash = makeDashboard({});
+
+        expect(() => dash.updateYoyComparisonWidget()).not.toThrow();
+    });
+});
