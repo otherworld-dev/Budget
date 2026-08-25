@@ -3879,11 +3879,12 @@ export default class DashboardModule {
                 }
 
                 case 'largeTransactions': {
-                    const largeResp = await fetch(
-                        OC.generateUrl(`/apps/budget/api/transactions?limit=10&sort=amount${this._tileScopeParams('largeTransactions')}`),
+                    const ltRange = this._tileRangeParams(widgetKey);
+                    const ltResp = await fetch(
+                        OC.generateUrl(`/apps/budget/api/transactions?limit=10&sort=amount&dateFrom=${ltRange.startDate}&dateTo=${ltRange.endDate}${this._tileScopeParams(widgetKey)}`),
                         { headers: { 'requesttoken': OC.requestToken } }
                     );
-                    this.widgetData.largeTransactions = await largeResp.json();
+                    this.widgetData.largeTransactions = await ltResp.json();
                     break;
                 }
 
