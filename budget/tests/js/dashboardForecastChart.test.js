@@ -162,6 +162,22 @@ describe('updateYoyComparisonWidget', () => {
         expect(chartInstances[0].config.type).toBe('bar');
     });
 
+    it('shows the legend by default', () => {
+        const dash = makeDashboard({ yoyComparison: payload });
+
+        dash.updateYoyComparisonWidget();
+
+        expect(chartInstances[0].config.options.plugins.legend.display).toBe(true);
+    });
+
+    it('hides the legend when the tile setting turns it off', () => {
+        const dash = makeDashboard({ yoyComparison: payload }, { yoyComparison: { showLegend: false } });
+
+        dash.updateYoyComparisonWidget();
+
+        expect(chartInstances[0].config.options.plugins.legend.display).toBe(false);
+    });
+
     it('shows the empty state when there are no years', () => {
         const dash = makeDashboard({ yoyComparison: { type: 'year', years: [] } });
 

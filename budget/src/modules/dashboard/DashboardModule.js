@@ -2874,6 +2874,8 @@ export default class DashboardModule {
         if (emptyState) emptyState.style.display = 'none';
 
         const currency = this.getPrimaryCurrency();
+        const yoySettings = this.dashboardConfig?.widgets?.tileSettings?.[instanceId] || {};
+        const yoyShowLegend = yoySettings.showLegend !== false;
 
         this.charts[instanceId] = new Chart(canvas.getContext('2d'), {
             type: 'bar',
@@ -2900,6 +2902,7 @@ export default class DashboardModule {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
+                    legend: { display: yoyShowLegend },
                     tooltip: {
                         callbacks: {
                             label: (ctx) => `${ctx.dataset.label}: ${this.formatCurrency(ctx.raw, currency)}`,
