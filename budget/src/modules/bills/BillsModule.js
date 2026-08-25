@@ -128,7 +128,7 @@ export default class BillsModule {
             });
             if (!response.ok) {
                 const error = await response.json().catch(() => ({}));
-                throw new Error(error.error || `HTTP ${response.status}`);
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
             }
             showSuccess(t('budget', 'Transaction recorded'));
             await this.loadBillsView();

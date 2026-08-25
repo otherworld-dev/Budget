@@ -71,7 +71,7 @@ import * as formatters from './utils/formatters.js';
 import * as dom from './utils/dom.js';
 import { showSuccess, showError, showWarning } from './utils/notifications.js';
 import { initDatePickers } from './utils/datepicker.js';
-import { hasSplitPortion, transactionDisplayAmount } from './utils/helpers.js';
+import { serverErrorMessage, hasSplitPortion, transactionDisplayAmount } from './utils/helpers.js';
 
 // Configuration
 // Core
@@ -3406,7 +3406,7 @@ class BudgetApp {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || `HTTP ${response.status}`);
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
             }
             return await response.json();
         } catch (error) {
@@ -3429,7 +3429,7 @@ class BudgetApp {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || `HTTP ${response.status}`);
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
             }
             return await response.json();
         } catch (error) {
@@ -3552,7 +3552,7 @@ class BudgetApp {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || `HTTP ${response.status}`);
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
             }
             return await response.json();
         } catch (error) {
@@ -3948,7 +3948,7 @@ class BudgetApp {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || `HTTP ${response.status}`);
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
             }
 
             this.hideSplitModal();
@@ -3979,7 +3979,7 @@ class BudgetApp {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || `HTTP ${response.status}`);
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
             }
 
             this.hideSplitModal();

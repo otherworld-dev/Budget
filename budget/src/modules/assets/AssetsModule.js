@@ -7,6 +7,7 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import Chart from 'chart.js/auto';
+import { serverErrorMessage } from '../../utils/helpers.js';
 
 export default class AssetsModule {
     constructor(app) {
@@ -386,7 +387,7 @@ export default class AssetsModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || t('budget', 'Failed to save asset'));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to save asset')));
             }
 
             this.closeAssetModal();
@@ -411,7 +412,7 @@ export default class AssetsModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || t('budget', 'Failed to delete asset'));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to delete asset')));
             }
 
             await this.loadAssets();
@@ -707,7 +708,7 @@ export default class AssetsModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || t('budget', 'Failed to update value'));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to update value')));
             }
 
             this.closeValueModal();

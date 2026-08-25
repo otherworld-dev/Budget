@@ -5,7 +5,7 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
-import { downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES, hasSplitPortion, transactionDisplayAmount } from '../../utils/helpers.js';
+import { serverErrorMessage, downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES, hasSplitPortion, transactionDisplayAmount } from '../../utils/helpers.js';
 import { translate as t } from '@nextcloud/l10n';
 
 // Which account attributes are rendered in the accounts view (tiles + list).
@@ -1225,7 +1225,7 @@ export default class AccountsModule {
                         this.loadInterestDetails(acctId, this.currentAccount?.currency || 'USD');
                     } else {
                         const error = await response.json();
-                        showError(error.error || t('budget', 'Failed to delete rate change'));
+                        showError(serverErrorMessage(error, t('budget', 'Failed to delete rate change')));
                     }
                 } catch (error) {
                     showError(t('budget', 'Failed to delete rate change'));
@@ -1279,7 +1279,7 @@ export default class AccountsModule {
                 this.loadInterestDetails(accountId, this.currentAccount?.currency || 'USD');
             } else {
                 const error = await response.json();
-                showError(error.error || t('budget', 'Failed to add rate change'));
+                showError(serverErrorMessage(error, t('budget', 'Failed to add rate change')));
             }
         } catch (error) {
             showError(t('budget', 'Failed to add rate change'));
@@ -2939,7 +2939,7 @@ export default class AccountsModule {
 
             if (!response.ok) {
                 const error = await response.json().catch(() => ({}));
-                throw new Error(error.error || t('budget', 'Failed to delete account'));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to delete account')));
             }
 
             const result = await response.json().catch(() => ({}));

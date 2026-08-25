@@ -14,7 +14,7 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { setDateValue } from '../../utils/datepicker.js';
-import { downloadTransactionsCsv } from '../../utils/helpers.js';
+import { serverErrorMessage, downloadTransactionsCsv } from '../../utils/helpers.js';
 import flatpickr from 'flatpickr';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
@@ -2481,7 +2481,7 @@ export default class TransactionsModule {
 
                 if (!debitResponse.ok) {
                     const error = await debitResponse.json();
-                    throw new Error(error.error || 'Failed to create transfer debit transaction');
+                    throw new Error(serverErrorMessage(error, 'Failed to create transfer debit transaction'));
                 }
                 const debitData = await debitResponse.json();
                 const debitTransactionId = debitData.id;
@@ -2514,7 +2514,7 @@ export default class TransactionsModule {
 
                 if (!creditResponse.ok) {
                     const error = await creditResponse.json();
-                    throw new Error(error.error || 'Failed to create transfer credit transaction');
+                    throw new Error(serverErrorMessage(error, 'Failed to create transfer credit transaction'));
                 }
                 const creditData = await creditResponse.json();
                 const creditTransactionId = creditData.id;
@@ -2533,7 +2533,7 @@ export default class TransactionsModule {
 
                 if (!linkResponse.ok) {
                     const error = await linkResponse.json();
-                    throw new Error(error.error || 'Failed to link transfer transactions');
+                    throw new Error(serverErrorMessage(error, 'Failed to link transfer transactions'));
                 }
 
                 // Success
@@ -2659,7 +2659,7 @@ export default class TransactionsModule {
                 }
             } else {
                 const error = await response.json();
-                throw new Error(error.error || t('budget', 'Failed to save transaction'));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to save transaction')));
             }
         } catch (error) {
             console.error('Failed to save transaction:', error);
@@ -3076,7 +3076,7 @@ export default class TransactionsModule {
                 }
             } else {
                 const error = await response.json().catch(() => ({}));
-                showError(error.error || t('budget', 'Failed to delete transaction'));
+                showError(serverErrorMessage(error, t('budget', 'Failed to delete transaction')));
             }
         } catch (error) {
             console.error('Failed to delete transaction:', error);
@@ -3112,7 +3112,7 @@ export default class TransactionsModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || `HTTP ${response.status}`);
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
             }
             return await response.json();
         } catch (error) {
@@ -3132,7 +3132,7 @@ export default class TransactionsModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || `HTTP ${response.status}`);
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
             }
             return await response.json();
         } catch (error) {
@@ -3548,7 +3548,7 @@ export default class TransactionsModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || `HTTP ${response.status}`);
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
             }
 
             this.hideSplitModal();
@@ -3576,7 +3576,7 @@ export default class TransactionsModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || `HTTP ${response.status}`);
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
             }
 
             this.hideSplitModal();
@@ -3607,7 +3607,7 @@ export default class TransactionsModule {
         );
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || `HTTP ${response.status}`);
+            throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
         }
         return await response.json();
     }
@@ -3626,7 +3626,7 @@ export default class TransactionsModule {
         );
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || `HTTP ${response.status}`);
+            throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
         }
         return await response.json();
     }

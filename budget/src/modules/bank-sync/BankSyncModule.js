@@ -1,5 +1,6 @@
 import { translate as t } from '@nextcloud/l10n';
 import { showSuccess, showError } from '../../utils/notifications.js';
+import { serverErrorMessage } from '../../utils/helpers.js';
 
 /**
  * Bank Sync Module — manages bank connections, account mappings, and sync operations.
@@ -361,7 +362,7 @@ export default class BankSyncModule {
 
             if (!response.ok) {
                 const error = await response.json().catch(() => ({}));
-                throw new Error(error.error || `HTTP ${response.status}`);
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
             }
 
             document.getElementById('bank-sync-modal').style.display = 'none';
@@ -438,7 +439,7 @@ export default class BankSyncModule {
 
             if (!response.ok) {
                 const error = await response.json().catch(() => ({}));
-                throw new Error(error.error || `HTTP ${response.status}`);
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
             }
 
             this._institutions = await response.json();
@@ -526,7 +527,7 @@ export default class BankSyncModule {
 
                 if (!response.ok) {
                     const error = await response.json().catch(() => ({}));
-                    throw new Error(error.error || `HTTP ${response.status}`);
+                    throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
                 }
 
                 result = await response.json();
@@ -548,7 +549,7 @@ export default class BankSyncModule {
 
                 if (!response.ok) {
                     const error = await response.json().catch(() => ({}));
-                    throw new Error(error.error || `HTTP ${response.status}`);
+                    throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
                 }
 
                 result = await response.json();
@@ -603,7 +604,7 @@ export default class BankSyncModule {
 
             if (!response.ok) {
                 const error = await response.json().catch(() => ({}));
-                throw new Error(error.error || `HTTP ${response.status}`);
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
             }
 
             const mappings = await response.json();
@@ -673,7 +674,7 @@ export default class BankSyncModule {
 
             if (!response.ok) {
                 const error = await response.json().catch(() => ({}));
-                throw new Error(error.error || `HTTP ${response.status}`);
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
             }
 
             const result = await response.json();
@@ -893,7 +894,7 @@ export default class BankSyncModule {
 
             if (!response.ok) {
                 const error = await response.json().catch(() => ({}));
-                throw new Error(error.error || `HTTP ${response.status}`);
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
             }
 
             const mappings = await response.json();
