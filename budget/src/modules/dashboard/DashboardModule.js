@@ -666,6 +666,45 @@ export default class DashboardModule {
     }
 
     /**
+     * A numeric tile setting (forward horizon, forecast months, years to
+     * compare), resolved against the choices the tile offers.
+     *
+     * @param {string} instanceId - Tile instance
+     * @param {string} key - Setting name, e.g. 'forwardHorizon'
+     * @param {number[]} allowed - Choices this tile offers
+     * @param {number} fallback - Used when nothing valid is saved
+     * @returns {number}
+     */
+    _tileNumberSetting(instanceId, key, allowed, fallback) {
+        const settings = this.dashboardConfig?.widgets?.tileSettings?.[instanceId] || {};
+        return formatters.resolveTileNumberSetting(settings[key], allowed, fallback);
+    }
+
+    /**
+     * A settings-modal field offering a fixed set of numbers.
+     *
+     * @param {string} setting - data-setting name the modal saves under
+     * @param {string} label - Field label, already translated
+     * @param {number[]} choices - Values to offer
+     * @param {number} current - Currently selected value
+     * @param {Function} labelFor - (n) => translated option label
+     * @returns {string} Form-group markup
+     */
+    _numberChoiceField(setting, label, choices, current, labelFor) {
+        const markup = choices
+            .map((n) => `<option value="${n}" ${Number(current) === n ? 'selected' : ''}>${labelFor(n)}</option>`)
+            .join('\n                        ');
+        return `
+                <div class="form-group">
+                    <label>${label}</label>
+                    <select class="tile-setting-input" data-setting="${setting}">
+                        ${markup}
+                    </select>
+                </div>
+            `;
+    }
+
+    /**
      * Show a read-only indicator in each date-range tile's header reflecting the
      * period it is currently displaying. The period itself is changed via the
      * tile's gear settings (issue #250) — this is display-only.

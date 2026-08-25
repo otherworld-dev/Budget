@@ -532,6 +532,32 @@ export function resolveTileDateRange(dateRange, options = {}) {
     };
 }
 
+/** Forward horizons, in days, a bills tile can look ahead. */
+export const FORWARD_HORIZONS = [30, 60, 90];
+
+/** Horizons, in months, the cash-flow forecast can project. */
+export const FORECAST_MONTHS = [3, 6, 12];
+
+/** How many years the year-over-year tile can compare. */
+export const YEARS_TO_COMPARE = [2, 3, 5];
+
+/**
+ * Resolve a numeric tile setting against the choices that tile offers.
+ *
+ * A saved value can be a string (a select reports one), absent, or a choice the
+ * tile no longer offers, so anything unrecognised resolves to the fallback
+ * rather than reaching a fetch as NaN.
+ *
+ * @param {number|string|undefined} value - The saved setting
+ * @param {number[]} allowed - The choices this tile offers
+ * @param {number} fallback - Used when value is not one of them
+ * @returns {number}
+ */
+export function resolveTileNumberSetting(value, allowed, fallback) {
+    const n = parseInt(value, 10);
+    return allowed.includes(n) ? n : fallback;
+}
+
 /**
  * Pro-rate a budget amount from one period to another.
  *
