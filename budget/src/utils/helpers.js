@@ -93,3 +93,21 @@ export function hasSplitPortion(tx) {
 export function transactionDisplayAmount(tx) {
     return hasSplitPortion(tx) ? tx.matchedSplitAmount : (tx?.amount ?? 0);
 }
+
+/**
+ * Build the message to show for a failed API response.
+ *
+ * The server's error handler attaches a sanitised driver error as `detail` when
+ * the failure came from the database, so that a missing column or a constraint
+ * violation is diagnosable without reading nextcloud.log. Showing only `error`
+ * throws that away and leaves the user with a generic string (#362).
+ *
+ * @param {object|null|undefined} body - The parsed JSON error body
+ * @param {string} fallback - Used when the server sent no message of its own
+ * @returns {string}
+ */
+export function serverErrorMessage(body, fallback) {
+    const message = body?.error || fallback;
+    const detail = typeof body?.detail === 'string' ? body.detail.trim() : '';
+    return detail ? `${message} (${detail})` : message;
+}

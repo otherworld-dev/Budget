@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **A bill that fails to save now tells you why.** Adding or editing a bill showed the same "Failed to create bill" whatever had gone wrong, so there was no way to tell a validation problem from a database one. Two things caused that. The form threw away the explanation the server sends: where a failure comes from the database, the app already attaches a short, sanitised description of it -- a missing column, say -- precisely so the cause is visible without server log access, and nothing in the interface was reading it. And the bill endpoint replaced its own validation messages with the generic one, so the rules that only apply to statement-amount and minimum-payment bills ("this amount type requires a transfer with a destination account") never reached the screen. Both now show what actually happened, while genuinely unexpected failures still stay generic ([#362](https://github.com/otherworld-dev/Budget/issues/362))
+
 ## [2.43.1] - 2026-08-25
 
 ### Fixed
