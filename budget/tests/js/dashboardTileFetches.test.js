@@ -68,3 +68,30 @@ describe('Large Transactions', () => {
         expect(requested[0]).toContain('dateFrom=2026-02-24');
     });
 });
+
+describe('Weekly Spending', () => {
+    it('scopes the fetch to the tile date range', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(at(2026, 8, 24));
+        const dash = makeDashboard({ weeklyTrend: { dateRange: '30d' } });
+
+        await dash.loadWidgetData('weeklyTrend', true);
+
+        expect(requested[0]).toContain('startDate=2026-07-25');
+        expect(requested[0]).toContain('endDate=2026-08-24');
+    });
+
+    it('records the span so the daily average is not divided by 7', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(at(2026, 8, 24));
+        const dash = makeDashboard({ weeklyTrend: { dateRange: '30d' } });
+        global.fetch = vi.fn(async (url) => {
+            requested.push(url);
+            return { ok: true, json: async () => ({ totalExpenses: 300 }) };
+        });
+
+        await dash.loadWidgetData('weeklyTrend', true);
+
+        expect(dash.widgetData.weeklyTrend[0]).toMatchObject({ total: 300, days: 31 });
+    });
+});

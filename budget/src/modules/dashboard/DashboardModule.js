@@ -2030,12 +2030,17 @@ export default class DashboardModule {
         }
 
         const total = data.reduce((sum, d) => sum + Math.abs(parseFloat(d.total || 0)), 0);
-        const avgDaily = total / 7;
+        const days = Math.max(1, parseInt(data[0]?.days, 10) || 7);
+        const avgDaily = total / days;
+        const spanLabel = this._dateRangeLabel(
+            this.dashboardConfig?.widgets?.tileSettings?.weeklyTrend?.dateRange,
+            'weeklyTrend'
+        );
 
         container.innerHTML = `
             <div class="widget-stat">
                 <div class="widget-stat-value">${this.formatCurrency(total)}</div>
-                <div class="widget-stat-label">${t('budget', 'This week')}</div>
+                <div class="widget-stat-label">${this.escapeHtml(spanLabel)}</div>
             </div>
             <div class="widget-stat">
                 <div class="widget-stat-value">${this.formatCurrency(avgDaily)}</div>
@@ -3963,15 +3968,16 @@ export default class DashboardModule {
                 }
 
                 case 'weeklyTrend': {
-                    const weekEnd = new Date();
-                    const weekStart = new Date();
-                    weekStart.setDate(weekEnd.getDate() - 7);
+                    const wtRange = this._tileRangeParams(widgetKey);
                     const weekResp = await fetch(
-                        OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${formatters.formatDateForAPI(weekStart)}&endDate=${formatters.formatDateForAPI(weekEnd)}${this._tileScopeParams('weeklyTrend')}`),
+                        OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${wtRange.startDate}&endDate=${wtRange.endDate}${this._tileScopeParams(widgetKey)}`),
                         { headers: { 'requesttoken': OC.requestToken } }
                     );
                     const weekData = await weekResp.json();
-                    this.widgetData.weeklyTrend = [{ total: weekData.totalExpenses || 0 }];
+                    // Inclusive span, so the renderer's daily average matches the
+                    // window the user picked rather than assuming a week.
+                    const wtDays = formatters.daysBetweenDates(wtRange.startDate, wtRange.endDate) + 1;
+                    this.widgetData.weeklyTrend = [{ total: weekData.totalExpenses || 0, days: wtDays }];
                     break;
                 }
 
