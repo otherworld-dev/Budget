@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-08-24 22:49+0000\n"
+"POT-Creation-Date: 2026-08-25 00:20+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -78,7 +78,7 @@ msgstr ""
 #: /app/lib/Controller/AccountController.php:757
 #: /app/lib/Controller/AccountController.php:821
 #: /app/lib/Service/Export/TransactionCsvExporter.php:32
-#: /app/src/modules/dashboard/DashboardModule.js:4341
+#: /app/src/modules/dashboard/DashboardModule.js:4357
 #: /app/src/modules/rules/components/CriteriaBuilder.js:158
 #: /app/templates/index.php:985 /app/templates/index.php:1535
 #: /app/templates/index.php:1653 /app/templates/index.php:1717
@@ -885,7 +885,7 @@ msgstr ""
 #: /app/lib/Controller/CategoryController.php:511
 #: /app/lib/Controller/CategoryController.php:518
 #: /app/lib/Service/Export/TransactionCsvExporter.php:31 /app/src/main.js:3792
-#: /app/src/modules/dashboard/DashboardModule.js:1743
+#: /app/src/modules/dashboard/DashboardModule.js:1787
 #: /app/src/modules/reports/ReportsModule.js:1136
 #: /app/src/modules/reports/ReportsModule.js:1467
 #: /app/src/modules/transactions/TransactionsModule.js:2795
@@ -991,20 +991,20 @@ msgid "Invalid budget period"
 msgstr ""
 
 #: /app/lib/Controller/CategoryTransferController.php:64
-#: /app/src/modules/categories/CategoriesModule.js:1460
-#: /app/src/modules/categories/CategoriesModule.js:1473
+#: /app/src/modules/categories/CategoriesModule.js:1468
+#: /app/src/modules/categories/CategoriesModule.js:1481
 msgid "Failed to export categories"
 msgstr ""
 
 #: /app/lib/Controller/CategoryTransferController.php:89
-#: /app/src/modules/categories/CategoriesModule.js:1501
-#: /app/src/modules/categories/CategoriesModule.js:1507
+#: /app/src/modules/categories/CategoriesModule.js:1509
+#: /app/src/modules/categories/CategoriesModule.js:1515
 msgid "Failed to read the category file"
 msgstr ""
 
 #: /app/lib/Controller/CategoryTransferController.php:109
-#: /app/src/modules/categories/CategoriesModule.js:1579
 #: /app/src/modules/categories/CategoriesModule.js:1587
+#: /app/src/modules/categories/CategoriesModule.js:1595
 msgid "Failed to import categories"
 msgstr ""
 
@@ -1785,7 +1785,7 @@ msgstr ""
 
 #: /app/lib/Controller/SettingController.php:319
 #: /app/src/modules/bills/BillsModule.js:310
-#: /app/src/modules/categories/CategoriesModule.js:2229
+#: /app/src/modules/categories/CategoriesModule.js:2237
 #: /app/src/modules/income/IncomeModule.js:113
 #: /app/src/modules/transfers/TransfersModule.js:280
 #: /app/src/modules/transfers/TransfersModule.js:441
@@ -1798,7 +1798,7 @@ msgstr ""
 #: /app/lib/Controller/SettingController.php:320
 #: /app/src/modules/accounts/AccountsModule.js:1190
 #: /app/src/modules/bills/BillsModule.js:313
-#: /app/src/modules/categories/CategoriesModule.js:2228
+#: /app/src/modules/categories/CategoriesModule.js:2236
 #: /app/src/modules/income/IncomeModule.js:116
 #: /app/src/modules/pensions/PensionsModule.js:1072
 #: /app/src/modules/transfers/TransfersModule.js:283
@@ -1812,7 +1812,7 @@ msgstr ""
 
 #: /app/lib/Controller/SettingController.php:321
 #: /app/src/modules/bills/BillsModule.js:314
-#: /app/src/modules/categories/CategoriesModule.js:2230
+#: /app/src/modules/categories/CategoriesModule.js:2238
 #: /app/src/modules/income/IncomeModule.js:117
 #: /app/src/modules/pensions/PensionsModule.js:1073
 #: /app/src/modules/transfers/TransfersModule.js:284
@@ -1826,7 +1826,7 @@ msgstr ""
 #: /app/lib/Controller/SettingController.php:322
 #: /app/src/modules/accounts/AccountsModule.js:1191
 #: /app/src/modules/bills/BillsModule.js:316
-#: /app/src/modules/categories/CategoriesModule.js:2231
+#: /app/src/modules/categories/CategoriesModule.js:2239
 #: /app/src/modules/income/IncomeModule.js:119
 #: /app/src/modules/pensions/PensionsModule.js:1074
 #: /app/src/modules/transfers/TransfersModule.js:286
@@ -2161,7 +2161,7 @@ msgstr ""
 #: /app/lib/Controller/TransactionController.php:827
 #: /app/lib/Controller/TransactionController.php:844
 #: /app/lib/Controller/TransactionController.php:889
-#: /app/src/modules/dashboard/DashboardModule.js:1093
+#: /app/src/modules/dashboard/DashboardModule.js:1166
 #: /app/templates/index.php:5524
 msgid "Transaction"
 msgstr ""
@@ -2295,7 +2295,7 @@ msgid "Budget: Overview"
 msgstr ""
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:79
-#: /app/src/modules/dashboard/DashboardModule.js:865
+#: /app/src/modules/dashboard/DashboardModule.js:938
 msgid "No accounts yet"
 msgstr ""
 
@@ -2344,7 +2344,7 @@ msgid "Budget: Upcoming bills"
 msgstr ""
 
 #: /app/lib/Dashboard/UpcomingBillsWidget.php:78
-#: /app/src/modules/dashboard/DashboardModule.js:1357
+#: /app/src/modules/dashboard/DashboardModule.js:1430
 #: /app/templates/index.php:689
 msgid "No upcoming bills"
 msgstr ""
@@ -2371,9 +2371,9 @@ msgstr[1] ""
 #: /app/lib/Notification/Notifier.php:31 /app/lib/Service/DigestService.php:150
 #: /app/specialAppInfoFakeDummyForL10nScript.php:2
 #: /app/src/core/KeyboardShortcuts.js:337
-#: /app/src/modules/categories/CategoriesModule.js:841
-#: /app/src/modules/categories/CategoriesModule.js:2211
-#: /app/src/modules/dashboard/DashboardModule.js:1744
+#: /app/src/modules/categories/CategoriesModule.js:849
+#: /app/src/modules/categories/CategoriesModule.js:2219
+#: /app/src/modules/dashboard/DashboardModule.js:1788
 #: /app/src/modules/help/HelpModule.js:27 /app/templates/index.php:93
 #: /app/templates/index.php:2062 /app/templates/index.php:2133
 msgid "Budget"
@@ -2528,7 +2528,7 @@ msgstr ""
 
 #: /app/lib/Service/Bill/BillIcsService.php:54
 #: /app/src/core/KeyboardShortcuts.js:339
-#: /app/src/modules/dashboard/DashboardModule.js:4694
+#: /app/src/modules/dashboard/DashboardModule.js:4710
 #: /app/src/modules/help/HelpModule.js:29
 #: /app/src/modules/sharing/SharingModule.js:255 /app/templates/index.php:113
 #: /app/templates/index.php:2459 /app/templates/index.php:4570
@@ -2808,12 +2808,12 @@ msgstr ""
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:124
 #: /app/src/core/KeyboardShortcuts.js:338
-#: /app/src/modules/categories/CategoriesModule.js:692
-#: /app/src/modules/categories/CategoriesModule.js:820
-#: /app/src/modules/categories/CategoriesModule.js:1553
-#: /app/src/modules/dashboard/DashboardModule.js:1903
-#: /app/src/modules/dashboard/DashboardModule.js:2385
-#: /app/src/modules/dashboard/DashboardModule.js:4691
+#: /app/src/modules/categories/CategoriesModule.js:695
+#: /app/src/modules/categories/CategoriesModule.js:828
+#: /app/src/modules/categories/CategoriesModule.js:1561
+#: /app/src/modules/dashboard/DashboardModule.js:1947
+#: /app/src/modules/dashboard/DashboardModule.js:2429
+#: /app/src/modules/dashboard/DashboardModule.js:4707
 #: /app/src/modules/help/HelpModule.js:28
 #: /app/src/modules/reports/ReportsModule.js:746
 #: /app/src/modules/reports/ReportsModule.js:1166
@@ -2832,8 +2832,8 @@ msgid "Income"
 msgstr ""
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:125
-#: /app/src/modules/categories/CategoriesModule.js:692
-#: /app/src/modules/categories/CategoriesModule.js:1553
+#: /app/src/modules/categories/CategoriesModule.js:695
+#: /app/src/modules/categories/CategoriesModule.js:1561
 #: /app/src/modules/rules/components/ActionBuilder.js:297
 #: /app/src/modules/rules/components/CriteriaBuilder.js:180
 #: /app/templates/index.php:994 /app/templates/index.php:1397
@@ -3200,7 +3200,7 @@ msgid ""
 msgstr ""
 
 #: /app/src/config/dashboardWidgets.js:8
-#: /app/src/modules/dashboard/DashboardModule.js:2471
+#: /app/src/modules/dashboard/DashboardModule.js:2515
 #: /app/templates/index.php:329 /app/templates/index.php:1106
 msgid "Net Worth"
 msgstr ""
@@ -3218,8 +3218,8 @@ msgid "Net Savings"
 msgstr ""
 
 #: /app/src/config/dashboardWidgets.js:12
-#: /app/src/modules/dashboard/DashboardModule.js:1587
-#: /app/src/modules/dashboard/DashboardModule.js:1593
+#: /app/src/modules/dashboard/DashboardModule.js:1631
+#: /app/src/modules/dashboard/DashboardModule.js:1637
 #: /app/src/modules/pensions/PensionsModule.js:153
 #: /app/src/modules/pensions/PensionsModule.js:159 /app/templates/index.php:381
 msgid "Pension Worth"
@@ -3260,8 +3260,8 @@ msgstr ""
 #: /app/src/modules/accounts/AccountsModule.js:1478
 #: /app/src/modules/accounts/AccountsModule.js:1482
 #: /app/src/modules/accounts/AccountsModule.js:1746
-#: /app/src/modules/categories/CategoriesModule.js:747
-#: /app/src/modules/dashboard/DashboardModule.js:1079
+#: /app/src/modules/categories/CategoriesModule.js:755
+#: /app/src/modules/dashboard/DashboardModule.js:1152
 #: /app/src/modules/import/ImportModule.js:122
 #: /app/src/modules/import/ImportModule.js:1549
 #: /app/src/modules/rules/RulesModule.js:979
@@ -3469,7 +3469,7 @@ msgid "Dashboard"
 msgstr ""
 
 #: /app/src/core/KeyboardShortcuts.js:334
-#: /app/src/modules/dashboard/DashboardModule.js:4690
+#: /app/src/modules/dashboard/DashboardModule.js:4706
 #: /app/src/modules/help/HelpModule.js:24 /app/templates/index.php:63
 #: /app/templates/index.php:1346 /app/templates/index.php:1496
 #: /app/templates/index.php:1917 /app/templates/index.php:2444
@@ -3480,7 +3480,7 @@ msgid "Transactions"
 msgstr ""
 
 #: /app/src/core/KeyboardShortcuts.js:335
-#: /app/src/modules/dashboard/DashboardModule.js:4382
+#: /app/src/modules/dashboard/DashboardModule.js:4398
 #: /app/src/modules/help/HelpModule.js:25
 #: /app/src/modules/sharing/SharingModule.js:254 /app/templates/index.php:73
 #: /app/templates/index.php:1787 /app/templates/index.php:4558
@@ -3516,7 +3516,7 @@ msgid "Pensions"
 msgstr ""
 
 #: /app/src/core/KeyboardShortcuts.js:344
-#: /app/src/modules/dashboard/DashboardModule.js:2478
+#: /app/src/modules/dashboard/DashboardModule.js:2522
 #: /app/src/modules/help/HelpModule.js:34 /app/templates/index.php:163
 #: /app/templates/index.php:1118 /app/templates/index.php:3733
 #: /app/templates/index.php:3816
@@ -3731,7 +3731,7 @@ msgid "Linked transfer"
 msgstr ""
 
 #: /app/src/main.js:1191 /app/src/modules/accounts/AccountsModule.js:1456
-#: /app/src/modules/categories/CategoriesModule.js:756
+#: /app/src/modules/categories/CategoriesModule.js:764
 msgid ""
 "Part of a split transaction. The amount shown is the part in this category."
 msgstr ""
@@ -3741,7 +3741,7 @@ msgid "Split transaction"
 msgstr ""
 
 #: /app/src/main.js:1192 /app/src/modules/accounts/AccountsModule.js:1457
-#: /app/src/modules/categories/CategoriesModule.js:756
+#: /app/src/modules/categories/CategoriesModule.js:764
 msgid "Split part"
 msgstr ""
 
@@ -3844,7 +3844,7 @@ msgstr ""
 msgid "{displayed} of {total} transactions"
 msgstr ""
 
-#: /app/src/main.js:1614 /app/src/modules/dashboard/DashboardModule.js:2129
+#: /app/src/main.js:1614 /app/src/modules/dashboard/DashboardModule.js:2173
 #: /app/src/modules/import/ImportModule.js:1644
 msgid "%n transaction"
 msgid_plural "%n transactions"
@@ -4062,10 +4062,10 @@ msgstr ""
 
 #: /app/src/main.js:2411 /app/src/main.js:2414 /app/src/main.js:3508
 #: /app/src/modules/accounts/AccountsModule.js:3283
-#: /app/src/modules/dashboard/DashboardModule.js:1931
-#: /app/src/modules/dashboard/DashboardModule.js:2004
-#: /app/src/modules/dashboard/DashboardModule.js:2121
-#: /app/src/modules/dashboard/DashboardModule.js:2260
+#: /app/src/modules/dashboard/DashboardModule.js:1975
+#: /app/src/modules/dashboard/DashboardModule.js:2048
+#: /app/src/modules/dashboard/DashboardModule.js:2165
+#: /app/src/modules/dashboard/DashboardModule.js:2304
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:173
 #: /app/src/modules/transactions/TransactionsModule.js:3304
 #: /app/src/modules/transfers/TransfersModule.js:1035
@@ -4146,7 +4146,7 @@ msgstr ""
 msgid "Failed to calculate scenario"
 msgstr ""
 
-#: /app/src/main.js:2804 /app/src/modules/dashboard/DashboardModule.js:795
+#: /app/src/main.js:2804 /app/src/modules/dashboard/DashboardModule.js:868
 #: /app/src/modules/reports/ReportsModule.js:1475
 msgid "N/A"
 msgstr ""
@@ -4430,7 +4430,7 @@ msgstr ""
 #: /app/src/modules/accounts/AccountsModule.js:25
 #: /app/src/modules/accounts/AccountsModule.js:492
 #: /app/src/modules/accounts/AccountsModule.js:493
-#: /app/src/modules/dashboard/DashboardModule.js:2461
+#: /app/src/modules/dashboard/DashboardModule.js:2505
 #: /app/src/modules/forecast/ForecastModule.js:305
 #: /app/src/modules/pensions/PensionsModule.js:619
 #: /app/templates/index.php:1053 /app/templates/index.php:1467
@@ -4867,25 +4867,25 @@ msgid "Savings Account"
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:3256
-#: /app/src/modules/dashboard/DashboardModule.js:884
+#: /app/src/modules/dashboard/DashboardModule.js:957
 #: /app/src/utils/formatters.js:224 /app/templates/index.php:5689
 msgid "Credit Card"
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:3261
-#: /app/src/modules/dashboard/DashboardModule.js:885
+#: /app/src/modules/dashboard/DashboardModule.js:958
 #: /app/src/utils/formatters.js:225
 msgid "Investment"
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:3266
-#: /app/src/modules/dashboard/DashboardModule.js:887
+#: /app/src/modules/dashboard/DashboardModule.js:960
 #: /app/src/utils/formatters.js:227
 msgid "Loan"
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:3271
-#: /app/src/modules/dashboard/DashboardModule.js:886
+#: /app/src/modules/dashboard/DashboardModule.js:959
 #: /app/src/utils/formatters.js:226 /app/templates/index.php:5694
 msgid "Cash"
 msgstr ""
@@ -4940,8 +4940,8 @@ msgid "Collectibles"
 msgstr ""
 
 #: /app/src/modules/assets/AssetsModule.js:107
-#: /app/src/modules/dashboard/DashboardModule.js:1830
-#: /app/src/modules/dashboard/DashboardModule.js:4697
+#: /app/src/modules/dashboard/DashboardModule.js:1874
+#: /app/src/modules/dashboard/DashboardModule.js:4713
 #: /app/templates/index.php:5316
 msgid "Other"
 msgstr ""
@@ -4961,7 +4961,7 @@ msgid "View Details"
 msgstr ""
 
 #: /app/src/modules/assets/AssetsModule.js:211
-#: /app/src/modules/dashboard/DashboardModule.js:1630
+#: /app/src/modules/dashboard/DashboardModule.js:1674
 msgid "%n asset"
 msgid_plural "%n assets"
 msgstr[0] ""
@@ -5695,7 +5695,7 @@ msgid "Your account balance will NOT reflect this payment."
 msgstr ""
 
 #: /app/src/modules/bills/BillsModule.js:1313
-#: /app/src/modules/categories/CategoriesModule.js:1801
+#: /app/src/modules/categories/CategoriesModule.js:1809
 #: /app/src/modules/transfers/TransfersModule.js:147
 #: /app/src/modules/transfers/TransfersModule.js:542
 #: /app/templates/index.php:1637 /app/templates/index.php:1667
@@ -5722,7 +5722,7 @@ msgid "Cancel"
 msgstr ""
 
 #: /app/src/modules/bills/BillsModule.js:1314
-#: /app/src/modules/categories/CategoriesModule.js:1800
+#: /app/src/modules/categories/CategoriesModule.js:1808
 msgid "Confirm"
 msgstr ""
 
@@ -5747,7 +5747,7 @@ msgid "Payment skipped. Advanced to next due date."
 msgstr ""
 
 #: /app/src/modules/bills/BillsModule.js:1473
-#: /app/src/modules/categories/CategoriesModule.js:1852
+#: /app/src/modules/categories/CategoriesModule.js:1860
 #: /app/src/modules/income/IncomeModule.js:616
 #: /app/src/modules/transactions/TransactionsModule.js:3873
 #: /app/src/modules/transactions/TransactionsModule.js:4028
@@ -5843,8 +5843,8 @@ msgstr ""
 msgid "Category reordered successfully"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:619
-#: /app/src/modules/dashboard/DashboardModule.js:4333
+#: /app/src/modules/categories/CategoriesModule.js:622
+#: /app/src/modules/dashboard/DashboardModule.js:4349
 #: /app/src/modules/reports/ReportsModule.js:201
 #: /app/src/modules/reports/ReportsModule.js:204
 #: /app/src/modules/reports/ReportsModule.js:206
@@ -5857,92 +5857,92 @@ msgstr ""
 msgid "All Accounts"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:713
+#: /app/src/modules/categories/CategoriesModule.js:716
 msgid "Increasing"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:714
+#: /app/src/modules/categories/CategoriesModule.js:717
 msgid "Decreasing"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:715
+#: /app/src/modules/categories/CategoriesModule.js:718
 msgid "Stable"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:732
+#: /app/src/modules/categories/CategoriesModule.js:735
 #: /app/templates/index.php:1967
 msgid "No transactions in this category yet."
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:757
+#: /app/src/modules/categories/CategoriesModule.js:765
 msgid "Split part of {total}"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:821
+#: /app/src/modules/categories/CategoriesModule.js:829
 msgid "Spending"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:966
+#: /app/src/modules/categories/CategoriesModule.js:974
 msgid "Root"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:990
+#: /app/src/modules/categories/CategoriesModule.js:998
 #: /app/templates/index.php:1802 /app/templates/index.php:1863
 msgid "Add Category"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1043
+#: /app/src/modules/categories/CategoriesModule.js:1051
 msgid "Edit Shared Category"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1044
+#: /app/src/modules/categories/CategoriesModule.js:1052
 msgid "Edit Category"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1082
+#: /app/src/modules/categories/CategoriesModule.js:1090
 msgid ""
 "Are you sure you want to delete the category \"{name}\"? This action cannot "
 "be undone."
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1091
-#: /app/src/modules/categories/CategoriesModule.js:1120
+#: /app/src/modules/categories/CategoriesModule.js:1099
+#: /app/src/modules/categories/CategoriesModule.js:1128
 msgid "Category deleted; its transactions are now Uncategorized"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1092
-#: /app/src/modules/categories/CategoriesModule.js:1121
+#: /app/src/modules/categories/CategoriesModule.js:1100
+#: /app/src/modules/categories/CategoriesModule.js:1129
 msgid "Category deleted successfully"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1098
-#: /app/src/modules/categories/CategoriesModule.js:1130
-#: /app/src/modules/categories/CategoriesModule.js:1177
+#: /app/src/modules/categories/CategoriesModule.js:1106
+#: /app/src/modules/categories/CategoriesModule.js:1138
+#: /app/src/modules/categories/CategoriesModule.js:1185
 msgid "Failed to delete category"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1109
+#: /app/src/modules/categories/CategoriesModule.js:1117
 msgid "this category"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1111
+#: /app/src/modules/categories/CategoriesModule.js:1119
 msgid ""
 "Are you sure you want to delete \"{name}\"? This action cannot be undone."
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1155
+#: /app/src/modules/categories/CategoriesModule.js:1163
 msgid ""
 "This category still has transactions assigned to it. Move them to "
 "Uncategorized and delete \"{name}\"?"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1203
+#: /app/src/modules/categories/CategoriesModule.js:1211
 msgid "%n selected"
 msgid_plural "%n selected"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1211
+#: /app/src/modules/categories/CategoriesModule.js:1219
 msgid ""
 "Are you sure you want to delete %n category? This action cannot be undone."
 msgid_plural ""
@@ -5950,224 +5950,224 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1234
+#: /app/src/modules/categories/CategoriesModule.js:1242
 #: /app/src/modules/pensions/PensionsModule.js:858
 #: /app/src/modules/pensions/PensionsModule.js:1148
 msgid "Failed to delete"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1243
+#: /app/src/modules/categories/CategoriesModule.js:1251
 msgid "%n category deleted successfully"
 msgid_plural "%n categories deleted successfully"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1251
+#: /app/src/modules/categories/CategoriesModule.js:1259
 msgid "Failed to delete: {errors}"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1326
+#: /app/src/modules/categories/CategoriesModule.js:1334
 #: /app/templates/index.php:6514
 msgid "None (Top Level)"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1345
+#: /app/src/modules/categories/CategoriesModule.js:1353
 msgid "Category name is required"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1390
+#: /app/src/modules/categories/CategoriesModule.js:1398
 msgid "Category updated successfully"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1390
+#: /app/src/modules/categories/CategoriesModule.js:1398
 msgid "Category created successfully"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1402
-#: /app/src/modules/categories/CategoriesModule.js:1406
+#: /app/src/modules/categories/CategoriesModule.js:1410
+#: /app/src/modules/categories/CategoriesModule.js:1414
 msgid "Failed to save category"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1428
+#: /app/src/modules/categories/CategoriesModule.js:1436
 msgid "Default categories created successfully"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1432
-#: /app/src/modules/categories/CategoriesModule.js:1443
+#: /app/src/modules/categories/CategoriesModule.js:1440
+#: /app/src/modules/categories/CategoriesModule.js:1451
 msgid "Failed to create default categories"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1489
+#: /app/src/modules/categories/CategoriesModule.js:1497
 #: /app/src/modules/rules/RulesModule.js:1392
 msgid "Could not read that file: {error}"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1519
+#: /app/src/modules/categories/CategoriesModule.js:1527
 msgid ""
 "{create} new categories will be created. {exists} already exist and will be "
 "left unchanged."
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1520
+#: /app/src/modules/categories/CategoriesModule.js:1528
 msgid "%n new category will be created."
 msgid_plural "%n new categories will be created."
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1539
+#: /app/src/modules/categories/CategoriesModule.js:1547
 msgid "Import %n category"
 msgid_plural "Import %n categories"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1540
+#: /app/src/modules/categories/CategoriesModule.js:1548
 msgid "Nothing to import"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1550
+#: /app/src/modules/categories/CategoriesModule.js:1558
 msgid "Exists"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1551
+#: /app/src/modules/categories/CategoriesModule.js:1559
 #: /app/src/modules/import/ImportModule.js:1509
 msgid "New"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1582
+#: /app/src/modules/categories/CategoriesModule.js:1590
 msgid "Imported %n category"
 msgid_plural "Imported %n categories"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1769
+#: /app/src/modules/categories/CategoriesModule.js:1777
 msgid "Budgets adjusted from {month}"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1770
+#: /app/src/modules/categories/CategoriesModule.js:1778
 msgid "Remove adjustment"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1783
+#: /app/src/modules/categories/CategoriesModule.js:1791
 msgid "Adjust budgets from this month"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1796
+#: /app/src/modules/categories/CategoriesModule.js:1804
 msgid ""
 "This will save the current budget values as a new baseline from {month} "
 "onwards. Previous months will keep their existing values. You can edit the "
 "new values after confirming."
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1797
+#: /app/src/modules/categories/CategoriesModule.js:1805
 msgid "Adjust budgets from {month}?"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1832
+#: /app/src/modules/categories/CategoriesModule.js:1840
 msgid ""
 "Budget adjusted from {month}. You can now edit values for this month onwards."
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1838
-#: /app/src/modules/categories/CategoriesModule.js:1842
+#: /app/src/modules/categories/CategoriesModule.js:1846
+#: /app/src/modules/categories/CategoriesModule.js:1850
 msgid "Failed to create budget adjustment"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1851
+#: /app/src/modules/categories/CategoriesModule.js:1859
 msgid "Budget adjustment created."
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1890
+#: /app/src/modules/categories/CategoriesModule.js:1898
 msgid "Budget adjustment removed"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1892
-#: /app/src/modules/categories/CategoriesModule.js:1896
+#: /app/src/modules/categories/CategoriesModule.js:1900
+#: /app/src/modules/categories/CategoriesModule.js:1904
 msgid "Failed to remove budget adjustment"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2208
+#: /app/src/modules/categories/CategoriesModule.js:2216
 msgid ""
 "Envelope budgeting on: unspent budget carries to next month. Click to turn "
 "off."
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2208
+#: /app/src/modules/categories/CategoriesModule.js:2216
 msgid "Turn on envelope budgeting: unspent budget carries to next month"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2219
+#: /app/src/modules/categories/CategoriesModule.js:2227
 msgid "Auto-calculated from recurring bills/income. Enter a value to override."
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2219
+#: /app/src/modules/categories/CategoriesModule.js:2227
 #: /app/src/modules/pensions/PensionsModule.js:1080
 msgid "auto"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2221
+#: /app/src/modules/categories/CategoriesModule.js:2229
 msgid "{base} − {over} overspent = {available} available"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2222
+#: /app/src/modules/categories/CategoriesModule.js:2230
 msgid "{base} + {carried} carried = {available} available"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2223
+#: /app/src/modules/categories/CategoriesModule.js:2231
 msgid "(projected)"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2224
+#: /app/src/modules/categories/CategoriesModule.js:2232
 #: /app/src/modules/reports/ReportsModule.js:1777 /app/templates/index.php:6989
 msgid "Total"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2226
+#: /app/src/modules/categories/CategoriesModule.js:2234
 #: /app/templates/index.php:2134 /app/templates/index.php:3022
 msgid "Period"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2234
-#: /app/src/modules/dashboard/DashboardModule.js:1745
+#: /app/src/modules/categories/CategoriesModule.js:2242
+#: /app/src/modules/dashboard/DashboardModule.js:1789
 #: /app/templates/index.php:2135
 msgid "Spent"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2237
-#: /app/src/modules/dashboard/DashboardModule.js:1746
+#: /app/src/modules/categories/CategoriesModule.js:2245
+#: /app/src/modules/dashboard/DashboardModule.js:1790
 #: /app/templates/index.php:2103 /app/templates/index.php:2136
 msgid "Remaining"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2240
+#: /app/src/modules/categories/CategoriesModule.js:2248
 #: /app/templates/index.php:2137
 msgid "Progress"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2246
+#: /app/src/modules/categories/CategoriesModule.js:2254
 msgid "No budget set"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2324
+#: /app/src/modules/categories/CategoriesModule.js:2332
 msgid "Envelope budgeting enabled — unspent budget now carries to next month"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2325
+#: /app/src/modules/categories/CategoriesModule.js:2333
 msgid "Envelope budgeting disabled"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2328
+#: /app/src/modules/categories/CategoriesModule.js:2336
 msgid "Failed to update envelope setting"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2440
+#: /app/src/modules/categories/CategoriesModule.js:2448
 msgid "Budget updated"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2443
+#: /app/src/modules/categories/CategoriesModule.js:2451
 msgid "Failed to update budget"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2456
+#: /app/src/modules/categories/CategoriesModule.js:2464
 msgid "Failed to update budget: {message}"
 msgstr ""
 
@@ -6194,243 +6194,252 @@ msgstr ""
 msgid "Low"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:586
-#: /app/src/modules/dashboard/DashboardModule.js:4321
+#: /app/src/modules/dashboard/DashboardModule.js:585
+#: /app/src/modules/dashboard/DashboardModule.js:646
 msgid "Last 30 days"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:587
-#: /app/src/modules/dashboard/DashboardModule.js:4322
+#: /app/src/modules/dashboard/DashboardModule.js:586
+#: /app/src/modules/dashboard/DashboardModule.js:647
 msgid "Last 90 days"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:588
-#: /app/src/modules/dashboard/DashboardModule.js:4323
+#: /app/src/modules/dashboard/DashboardModule.js:587
+#: /app/src/modules/dashboard/DashboardModule.js:648
 msgid "Last 6 months"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:589
-#: /app/src/modules/dashboard/DashboardModule.js:4324
+#: /app/src/modules/dashboard/DashboardModule.js:588
+#: /app/src/modules/dashboard/DashboardModule.js:649
 msgid "Last year"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:634
-#: /app/src/modules/dashboard/DashboardModule.js:636
+#: /app/src/modules/dashboard/DashboardModule.js:589
+#: /app/src/modules/dashboard/DashboardModule.js:652
+msgid "Current budget period"
+msgstr ""
+
+#: /app/src/modules/dashboard/DashboardModule.js:660
+msgid "Date Range"
+msgstr ""
+
+#: /app/src/modules/dashboard/DashboardModule.js:707
+#: /app/src/modules/dashboard/DashboardModule.js:709
 msgid "All accounts"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:752
+#: /app/src/modules/dashboard/DashboardModule.js:825
 msgid "%n category under budget"
 msgid_plural "%n categories under budget"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:778
+#: /app/src/modules/dashboard/DashboardModule.js:851
 msgid "{onTrack}/{total} on track"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:809
+#: /app/src/modules/dashboard/DashboardModule.js:882
 msgid "Debt free by {date}"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:835
+#: /app/src/modules/dashboard/DashboardModule.js:908
 msgid "Rates unavailable for {currencies}"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:837
+#: /app/src/modules/dashboard/DashboardModule.js:910
 msgid "Converted to {currency} at current rates"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:882
-#: /app/src/modules/dashboard/DashboardModule.js:1825
+#: /app/src/modules/dashboard/DashboardModule.js:955
+#: /app/src/modules/dashboard/DashboardModule.js:1869
 #: /app/src/utils/formatters.js:222
 msgid "Checking"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:883
-#: /app/src/modules/dashboard/DashboardModule.js:1826
+#: /app/src/modules/dashboard/DashboardModule.js:956
+#: /app/src/modules/dashboard/DashboardModule.js:1870
 #: /app/src/modules/reports/ReportsModule.js:1379
 #: /app/src/utils/formatters.js:223
 msgid "Savings"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:912
+#: /app/src/modules/dashboard/DashboardModule.js:985
 msgid "All accounts hidden"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:958
+#: /app/src/modules/dashboard/DashboardModule.js:1031
 msgid "No accounts"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1069
+#: /app/src/modules/dashboard/DashboardModule.js:1142
 msgid "No recent transactions"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1136
+#: /app/src/modules/dashboard/DashboardModule.js:1209
 #, javascript-format
 msgid "{percent}% over"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1137
+#: /app/src/modules/dashboard/DashboardModule.js:1210
 msgid "{percent}% used"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1187
+#: /app/src/modules/dashboard/DashboardModule.js:1260
 msgid "Highest rate: {rate}% APR"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1227
+#: /app/src/modules/dashboard/DashboardModule.js:1300
 #: /app/templates/index.php:724 /app/templates/index.php:3941
 msgid "Total Debt"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1228
+#: /app/src/modules/dashboard/DashboardModule.js:1301
 msgid "Debt Free"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1305
+#: /app/src/modules/dashboard/DashboardModule.js:1378
 msgid "remaining"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1308
+#: /app/src/modules/dashboard/DashboardModule.js:1381
 msgid "paid off"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1338
+#: /app/src/modules/dashboard/DashboardModule.js:1411
 msgid "Ahead of schedule"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1339
+#: /app/src/modules/dashboard/DashboardModule.js:1412
 msgid "Behind schedule"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1340
+#: /app/src/modules/dashboard/DashboardModule.js:1413
 msgid "On track"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1372
-#: /app/src/modules/dashboard/DashboardModule.js:2062
+#: /app/src/modules/dashboard/DashboardModule.js:1445
+#: /app/src/modules/dashboard/DashboardModule.js:2106
 msgid "Overdue by %n day"
 msgid_plural "Overdue by %n days"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1375
-#: /app/src/modules/dashboard/DashboardModule.js:2065
+#: /app/src/modules/dashboard/DashboardModule.js:1448
+#: /app/src/modules/dashboard/DashboardModule.js:2109
 msgid "Due today"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1378
-#: /app/src/modules/dashboard/DashboardModule.js:2068
+#: /app/src/modules/dashboard/DashboardModule.js:1451
+#: /app/src/modules/dashboard/DashboardModule.js:2112
 msgid "Due in %n day"
 msgid_plural "Due in %n days"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1380
+#: /app/src/modules/dashboard/DashboardModule.js:1453
 msgid "Due {date}"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1400
-#: /app/src/modules/dashboard/DashboardModule.js:1415
+#: /app/src/modules/dashboard/DashboardModule.js:1473
+#: /app/src/modules/dashboard/DashboardModule.js:1488
 #: /app/templates/index.php:700
 msgid "No budgets configured"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1533
+#: /app/src/modules/dashboard/DashboardModule.js:1577
 #: /app/templates/index.php:711 /app/templates/index.php:2837
 msgid "No savings goals yet"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1548
+#: /app/src/modules/dashboard/DashboardModule.js:1592
 msgid "Target: {amount}"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1554
+#: /app/src/modules/dashboard/DashboardModule.js:1598
 msgid "{amount} saved"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1590
+#: /app/src/modules/dashboard/DashboardModule.js:1634
 #: /app/src/modules/pensions/PensionsModule.js:156
 msgid "Pension Income"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1597
+#: /app/src/modules/dashboard/DashboardModule.js:1641
 #: /app/src/modules/pensions/PensionsModule.js:163
 msgid "%n pension"
 msgid_plural "%n pensions"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1600
+#: /app/src/modules/dashboard/DashboardModule.js:1644
 #: /app/src/modules/pensions/PensionsModule.js:166
 msgid "{amount}/yr income"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1639
+#: /app/src/modules/dashboard/DashboardModule.js:1683
 msgid "{amount} ({percent}%) vs 30d ago"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1656
-#: /app/src/modules/dashboard/DashboardModule.js:1663
-#: /app/src/modules/dashboard/DashboardModule.js:1668
+#: /app/src/modules/dashboard/DashboardModule.js:1700
+#: /app/src/modules/dashboard/DashboardModule.js:1707
+#: /app/src/modules/dashboard/DashboardModule.js:1712
 #: /app/templates/index.php:802
 msgid "No spending data"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1702
-#: /app/src/modules/dashboard/DashboardModule.js:1809
+#: /app/src/modules/dashboard/DashboardModule.js:1746
+#: /app/src/modules/dashboard/DashboardModule.js:1853
 #: /app/templates/index.php:811 /app/templates/index.php:838
 msgid "No account data"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1735
+#: /app/src/modules/dashboard/DashboardModule.js:1779
 #: /app/templates/index.php:820
 msgid "No budget data"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1775
+#: /app/src/modules/dashboard/DashboardModule.js:1819
 #: /app/templates/index.php:829
 msgid "No savings goals"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1827
+#: /app/src/modules/dashboard/DashboardModule.js:1871
 msgid "Credit Cards"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1828
+#: /app/src/modules/dashboard/DashboardModule.js:1872
 msgid "Investments"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1829
+#: /app/src/modules/dashboard/DashboardModule.js:1873
 msgid "Loans"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1837
+#: /app/src/modules/dashboard/DashboardModule.js:1881
 msgid "%n account"
 msgid_plural "%n accounts"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1849
+#: /app/src/modules/dashboard/DashboardModule.js:1893
 #: /app/templates/index.php:847
 msgid "No accounts to reconcile"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1862
+#: /app/src/modules/dashboard/DashboardModule.js:1906
 msgid "All accounts reconciled"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1870
+#: /app/src/modules/dashboard/DashboardModule.js:1914
 msgid "Up to date"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1886
+#: /app/src/modules/dashboard/DashboardModule.js:1930
 msgid "No data available"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1908
-#: /app/src/modules/dashboard/DashboardModule.js:2393
+#: /app/src/modules/dashboard/DashboardModule.js:1952
+#: /app/src/modules/dashboard/DashboardModule.js:2437
 #: /app/src/modules/reports/ReportsModule.js:753
 #: /app/src/modules/reports/ReportsModule.js:1174
 #: /app/src/modules/reports/ReportsModule.js:1358
@@ -6441,306 +6450,302 @@ msgstr ""
 msgid "Expenses"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1921
+#: /app/src/modules/dashboard/DashboardModule.js:1965
 msgid "No large transactions"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1945
+#: /app/src/modules/dashboard/DashboardModule.js:1989
 msgid "No spending data this week"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1955
+#: /app/src/modules/dashboard/DashboardModule.js:1999
 msgid "This week"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1959
+#: /app/src/modules/dashboard/DashboardModule.js:2003
 msgid "Daily average"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1970
+#: /app/src/modules/dashboard/DashboardModule.js:2014
 msgid "No pensions to project"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1975
+#: /app/src/modules/dashboard/DashboardModule.js:2019
 msgid ""
 "Set your date of birth in your Nextcloud profile for an accurate horizon"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1981
+#: /app/src/modules/dashboard/DashboardModule.js:2025
 msgid "Projected at retirement"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1985
+#: /app/src/modules/dashboard/DashboardModule.js:2029
 msgid "Projected income / yr"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1997
+#: /app/src/modules/dashboard/DashboardModule.js:2041
 msgid "No unmatched transfers"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2017
+#: /app/src/modules/dashboard/DashboardModule.js:2061
 msgid "No category trends available"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2048
+#: /app/src/modules/dashboard/DashboardModule.js:2092
 msgid "No bills due soon"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2089
-#: /app/src/modules/dashboard/DashboardModule.js:2095
+#: /app/src/modules/dashboard/DashboardModule.js:2133
+#: /app/src/modules/dashboard/DashboardModule.js:2139
 msgid "No recurring income set up"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2116
+#: /app/src/modules/dashboard/DashboardModule.js:2160
 msgid "No recent imports"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2142
+#: /app/src/modules/dashboard/DashboardModule.js:2186
 msgid "No import rules configured"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2150
+#: /app/src/modules/dashboard/DashboardModule.js:2194
 msgid "Active rules"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2154
+#: /app/src/modules/dashboard/DashboardModule.js:2198
 msgid "Total rules"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2165
+#: /app/src/modules/dashboard/DashboardModule.js:2209
 msgid "No spending data available"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2175
+#: /app/src/modules/dashboard/DashboardModule.js:2219
 msgid "Per day"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2179
+#: /app/src/modules/dashboard/DashboardModule.js:2223
 msgid "Projected monthly"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2194
+#: /app/src/modules/dashboard/DashboardModule.js:2238
 msgid "Uncategorized transactions"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2308
+#: /app/src/modules/dashboard/DashboardModule.js:2352
 #: /app/src/modules/reports/ReportsModule.js:898
 msgid "Click to view transactions"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2334
+#: /app/src/modules/dashboard/DashboardModule.js:2378
 msgid "Total Spending"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2485
+#: /app/src/modules/dashboard/DashboardModule.js:2529
 #: /app/templates/index.php:1127
 msgid "Liabilities"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2578
+#: /app/src/modules/dashboard/DashboardModule.js:2622
 msgid "Asset Value"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2601
+#: /app/src/modules/dashboard/DashboardModule.js:2645
 msgid "Portfolio"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2656
+#: /app/src/modules/dashboard/DashboardModule.js:2700
 msgid "just now"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2658
+#: /app/src/modules/dashboard/DashboardModule.js:2702
 msgid "%n hour ago"
 msgid_plural "%n hours ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2661
+#: /app/src/modules/dashboard/DashboardModule.js:2705
 msgid "yesterday"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2663
+#: /app/src/modules/dashboard/DashboardModule.js:2707
 msgid "%n day ago"
 msgid_plural "%n days ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2666
-#: /app/src/modules/dashboard/DashboardModule.js:2668
+#: /app/src/modules/dashboard/DashboardModule.js:2710
+#: /app/src/modules/dashboard/DashboardModule.js:2712
 msgid "Snapshots recorded automatically daily"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2666
+#: /app/src/modules/dashboard/DashboardModule.js:2710
 msgid "Last: {time}"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2671
+#: /app/src/modules/dashboard/DashboardModule.js:2715
 msgid "Record now"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2992
+#: /app/src/modules/dashboard/DashboardModule.js:3018
 msgid "Net worth snapshot recorded"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3000
+#: /app/src/modules/dashboard/DashboardModule.js:3026
 msgid "Failed to record snapshot"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3227
+#: /app/src/modules/dashboard/DashboardModule.js:3253
 msgid "Failed to save dashboard layout"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3289
+#: /app/src/modules/dashboard/DashboardModule.js:3315
 #: /app/templates/index.php:612
 msgid "No net worth history yet"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3290
+#: /app/src/modules/dashboard/DashboardModule.js:3316
 msgid "Snapshots are recorded automatically every day."
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3304
+#: /app/src/modules/dashboard/DashboardModule.js:3330
 #: /app/templates/index.php:636
 msgid "No asset value history yet"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3305
+#: /app/src/modules/dashboard/DashboardModule.js:3331
 #: /app/templates/index.php:637
 msgid "Add snapshots to your assets to track their combined value over time."
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3313
+#: /app/src/modules/dashboard/DashboardModule.js:3339
 #: /app/templates/index.php:650 /app/templates/index.php:686
 msgid "View All"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4104
+#: /app/src/modules/dashboard/DashboardModule.js:4130
 msgid "Failed to save dashboard lock state"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4124
+#: /app/src/modules/dashboard/DashboardModule.js:4150
 #: /app/templates/index.php:315
 msgid "Unlock Dashboard"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4125
+#: /app/src/modules/dashboard/DashboardModule.js:4151
 #: /app/templates/index.php:292
 msgid "Dashboard is locked. Click unlock to reorder tiles."
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4139
+#: /app/src/modules/dashboard/DashboardModule.js:4165
 msgid "Lock Dashboard"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4140
+#: /app/src/modules/dashboard/DashboardModule.js:4166
 msgid "Drag tiles to reorder your dashboard"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4203
-#: /app/src/modules/dashboard/DashboardModule.js:4295
+#: /app/src/modules/dashboard/DashboardModule.js:4229
+#: /app/src/modules/dashboard/DashboardModule.js:4321
 #: /app/templates/index.php:7105
 msgid "Tile Settings"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4220
+#: /app/src/modules/dashboard/DashboardModule.js:4246
 msgid "Remove tile"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4220
+#: /app/src/modules/dashboard/DashboardModule.js:4246
 msgid "Hide tile"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4319
-msgid "Date Range"
-msgstr ""
-
-#: /app/src/modules/dashboard/DashboardModule.js:4357
+#: /app/src/modules/dashboard/DashboardModule.js:4373
 #: /app/templates/index.php:3049
 msgid "Exclude shared accounts"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4371
+#: /app/src/modules/dashboard/DashboardModule.js:4387
 msgid "Show legend"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4386
+#: /app/src/modules/dashboard/DashboardModule.js:4402
 msgid "Show top-level categories only"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4401
+#: /app/src/modules/dashboard/DashboardModule.js:4417
 msgid "Chart Type"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4412
+#: /app/src/modules/dashboard/DashboardModule.js:4428
 msgid "Rows to show"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4428
+#: /app/src/modules/dashboard/DashboardModule.js:4444
 msgid "Display Format"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4441
+#: /app/src/modules/dashboard/DashboardModule.js:4457
 msgid "Show change indicator"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4452
+#: /app/src/modules/dashboard/DashboardModule.js:4468
 msgid "No settings available for this tile."
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4459
+#: /app/src/modules/dashboard/DashboardModule.js:4475
 msgid "Drag to reorder. Toggle visibility for each item."
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4681
+#: /app/src/modules/dashboard/DashboardModule.js:4697
 msgid "All tiles are visible"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4687
+#: /app/src/modules/dashboard/DashboardModule.js:4703
 msgid "Insights & Analytics"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4688
+#: /app/src/modules/dashboard/DashboardModule.js:4704
 msgid "Budgeting"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4689
+#: /app/src/modules/dashboard/DashboardModule.js:4705
 msgid "Forecasting"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4692
+#: /app/src/modules/dashboard/DashboardModule.js:4708
 #: /app/templates/index.php:5457
 msgid "Debts"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4693
+#: /app/src/modules/dashboard/DashboardModule.js:4709
 msgid "Goals"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4695
+#: /app/src/modules/dashboard/DashboardModule.js:4711
 msgid "Alerts"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4696
+#: /app/src/modules/dashboard/DashboardModule.js:4712
 msgid "Interactive"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4718
+#: /app/src/modules/dashboard/DashboardModule.js:4734
 msgid "Hero"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4748
+#: /app/src/modules/dashboard/DashboardModule.js:4764
 msgid "Add Another"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4821
+#: /app/src/modules/dashboard/DashboardModule.js:4837
 msgid "Maximum of {max} instances reached"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4891
+#: /app/src/modules/dashboard/DashboardModule.js:4907
 msgid "Tile added"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4929
+#: /app/src/modules/dashboard/DashboardModule.js:4945
 msgid "Tile removed"
 msgstr ""
 

@@ -32,14 +32,14 @@ export const DASHBOARD_WIDGETS = {
     },
     widgets: {
         trendChart: { id: 'trend-chart-card', name: t('budget', 'Income vs Expenses'), defaultSize: 'l', allowedSizes: ['s', 'm', 'l'], defaultVisible: true, settingsSchema: { dateRange: true, accountSelector: true, excludeShared: true, showLegend: true, chartType: ['bar', 'line'] } },
-        spendingChart: { id: 'spending-chart-card', name: t('budget', 'Spending by Category'), defaultSize: 'm', allowedSizes: ['s', 'm', 'l'], defaultVisible: true, settingsSchema: { dateRange: true, accountSelector: true, excludeShared: true, showLegend: true, chartType: ['doughnut', 'bar'], topLevelOnly: true } },
+        spendingChart: { id: 'spending-chart-card', name: t('budget', 'Spending by Category'), defaultSize: 'm', allowedSizes: ['s', 'm', 'l'], defaultVisible: true, settingsSchema: { dateRange: true, budgetPeriodRange: true, accountSelector: true, excludeShared: true, showLegend: true, chartType: ['doughnut', 'bar'], topLevelOnly: true } },
         netWorthHistory: { id: 'net-worth-history-card', name: t('budget', 'Net Worth History'), defaultSize: 'm', allowedSizes: ['s', 'm', 'l'], defaultVisible: true, settingsSchema: { dateRange: true, accountSelector: true, showLegend: true } },
         assetValueHistory: { id: 'asset-value-history-card', name: t('budget', 'Asset Value History'), defaultSize: 'm', allowedSizes: ['s', 'm', 'l'], defaultVisible: true, settingsSchema: { dateRange: true, accountSelector: true, showLegend: true } },
         recentTransactions: { id: 'recent-transactions-card', name: t('budget', 'Recent Transactions'), defaultSize: 'm', allowedSizes: ['s', 'm', 'l'], defaultVisible: true, settingsSchema: { accountSelector: true, excludeShared: true, rowCount: { min: 3, max: 20, default: 5 } } },
         accounts: { id: 'accounts-card', name: t('budget', 'Accounts'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: true, settingsSchema: {} },
         budgetAlerts: { id: 'budget-alerts-card', name: t('budget', 'Budget Alerts'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: true, settingsSchema: {} },
         upcomingBills: { id: 'upcoming-bills-card', name: t('budget', 'Upcoming Bills'), defaultSize: 's', allowedSizes: ['s', 'm', 'l'], defaultVisible: true, settingsSchema: { dateRange: true, accountSelector: true, rowCount: { min: 3, max: 20, default: 5 } } },
-        budgetProgress: { id: 'budget-progress-card', name: t('budget', 'Budget Progress'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: true, settingsSchema: { dateRange: true, accountSelector: true, excludeShared: true, topLevelOnly: true } },
+        budgetProgress: { id: 'budget-progress-card', name: t('budget', 'Budget Progress'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: true, settingsSchema: { dateRange: true, budgetPeriodRange: true, accountSelector: true, excludeShared: true, topLevelOnly: true } },
         savingsGoals: { id: 'savings-goals-card', name: t('budget', 'Savings Goals'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: true, settingsSchema: {} },
         debtPayoff: { id: 'debt-payoff-card', name: t('budget', 'Debt Payoff'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: true, settingsSchema: {} },
         debtChart: {
@@ -62,7 +62,7 @@ export const DASHBOARD_WIDGETS = {
         },
 
         // Phase 1 - Quick Wins (use existing data)
-        topCategories: { id: 'top-categories-card', name: t('budget', 'Top Spending Categories'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: false, category: 'insights', settingsSchema: { dateRange: true, accountSelector: true, excludeShared: true, topLevelOnly: true } },
+        topCategories: { id: 'top-categories-card', name: t('budget', 'Top Spending Categories'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: false, category: 'insights', settingsSchema: { dateRange: true, budgetPeriodRange: true, accountSelector: true, excludeShared: true, topLevelOnly: true } },
         accountPerformance: { id: 'account-performance-card', name: t('budget', 'Account Performance'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: false, category: 'insights', settingsSchema: {} },
         budgetBreakdown: { id: 'budget-breakdown-card', name: t('budget', 'Budget Breakdown'), defaultSize: 'hero', defaultVisible: false, category: 'budgeting', settingsSchema: {} },
         goalsSummary: { id: 'goals-summary-card', name: t('budget', 'Savings Goals Summary'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: false, category: 'goals', settingsSchema: {} },

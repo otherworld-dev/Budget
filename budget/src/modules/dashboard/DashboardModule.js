@@ -540,8 +540,7 @@ export default class DashboardModule {
                 return this.refreshTrendChart(months, this._validAccountId(s.accountId));
             },
             spendingChart: (s) => {
-                const period = { '30d': 'month', '90d': '3months', '6m': '6months', '1y': 'year' }[s.dateRange] || '6months';
-                return this.refreshSpendingChart(period, this._validAccountId(s.accountId));
+                return this.refreshSpendingChart('spendingChart', this._validAccountId(s.accountId));
             },
             netWorthHistory: (s) => {
                 const days = { '30d': 30, '90d': 90, '6m': 180, '1y': 365 }[s.dateRange] || 30;
@@ -587,8 +586,83 @@ export default class DashboardModule {
             '90d': t('budget', 'Last 90 days'),
             '6m': t('budget', 'Last 6 months'),
             '1y': t('budget', 'Last year'),
+            'period': t('budget', 'Current budget period'),
         };
         return labels[dateRange] || labels[this._defaultDateRange(baseType)];
+    }
+
+    /**
+     * What a tile's period indicator says.
+     *
+     * A tile following the budget cycle names the days it covers ("Jul 25 –
+     * Aug 24") rather than repeating the setting back: which days are in the
+     * cycle is the whole question the setting exists to answer.
+     *
+     * @param {string} instanceId - Tile instance
+     * @param {string} baseType - Its widget type
+     * @returns {string} Indicator text
+     */
+    _tilePeriodLabel(instanceId, baseType) {
+        const dateRange = this.dashboardConfig?.widgets?.tileSettings?.[instanceId]?.dateRange;
+        if (dateRange === 'period') {
+            return this._tileRangeParams(instanceId).label || this._dateRangeLabel(dateRange, baseType);
+        }
+        return this._dateRangeLabel(dateRange, baseType);
+    }
+
+    /**
+     * The window a tile charts, from its saved date-range setting.
+     *
+     * Every tile that asks the server for a date span goes through here, so the
+     * ranges stay literal — "Last 30 days" is 30 days, not the month to date
+     * (#333) — and 'period' picks up the user's own budget cycle.
+     *
+     * @param {string} instanceId - Tile instance (duplicates resolve to their base type)
+     * @returns {object} {startDate, endDate, label} — label is the date span for 'period', else null
+     */
+    _tileRangeParams(instanceId) {
+        const baseType = this.getWidgetType(instanceId);
+        const settings = this.dashboardConfig?.widgets?.tileSettings?.[instanceId] || {};
+        const { start, end, label } = formatters.resolveTileDateRange(settings.dateRange, {
+            budgetStartDay: parseInt(this.settings?.budget_start_day || '1', 10),
+            fallback: this._defaultDateRange(baseType),
+        });
+        return { startDate: start, endDate: end, label };
+    }
+
+    /**
+     * The date-range field for a tile's settings modal.
+     *
+     * "Current budget period" is offered only to tiles that declare
+     * budgetPeriodRange — it is the answer to "how much have I spent this
+     * cycle", which a balance-history or multi-month series tile is not asking.
+     *
+     * @param {object} schema - The widget's settingsSchema
+     * @param {string} current - The tile's saved (or default) date range
+     * @returns {string} Form-group markup
+     */
+    _dateRangeField(schema, current) {
+        const options = [
+            ['30d', t('budget', 'Last 30 days')],
+            ['90d', t('budget', 'Last 90 days')],
+            ['6m', t('budget', 'Last 6 months')],
+            ['1y', t('budget', 'Last year')],
+        ];
+        if (schema.budgetPeriodRange) {
+            options.push(['period', t('budget', 'Current budget period')]);
+        }
+        const markup = options
+            .map(([value, label]) =>
+                `<option value="${value}" ${current === value ? 'selected' : ''}>${label}</option>`)
+            .join('\n                        ');
+        return `
+                <div class="form-group">
+                    <label>${t('budget', 'Date Range')}</label>
+                    <select class="tile-setting-input" data-setting="dateRange">
+                        ${markup}
+                    </select>
+                </div>
+            `;
     }
 
     /**
@@ -597,7 +671,6 @@ export default class DashboardModule {
      * tile's gear settings (issue #250) — this is display-only.
      */
     updateTilePeriodIndicators() {
-        const tileSettings = this.dashboardConfig?.widgets?.tileSettings || {};
         document.querySelectorAll('.dashboard-card[data-widget-id]').forEach(card => {
             const instanceId = card.getAttribute('data-widget-id');
             const baseType = this.getWidgetType(instanceId);
@@ -613,7 +686,7 @@ export default class DashboardModule {
                 return;
             }
 
-            const label = this._dateRangeLabel(tileSettings[instanceId]?.dateRange, baseType);
+            const label = this._tilePeriodLabel(instanceId, baseType);
             if (!indicator) {
                 indicator = document.createElement('span');
                 indicator.className = 'tile-period-indicator';
@@ -1451,7 +1524,7 @@ export default class DashboardModule {
     async refreshBudgetProgressWidget(instanceId = 'budgetProgress') {
         try {
             const settings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
-            const { startDate, endDate } = this._dateRangeToParams(settings.dateRange);
+            const { startDate, endDate } = this._tileRangeParams(instanceId);
 
             let url = `/apps/budget/api/reports/budget?startDate=${startDate}&endDate=${endDate}`;
             if (settings.accountId) {
@@ -1475,7 +1548,7 @@ export default class DashboardModule {
     async refreshTopCategoriesWidget(instanceId = 'topCategories') {
         try {
             const settings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
-            const { startDate, endDate } = this._dateRangeToParams(settings.dateRange);
+            const { startDate, endDate } = this._tileRangeParams(instanceId);
 
             let url = `/apps/budget/api/reports/spending?startDate=${startDate}&endDate=${endDate}`;
             if (settings.accountId) {
@@ -1494,35 +1567,6 @@ export default class DashboardModule {
         } catch (error) {
             console.error('Failed to refresh top categories:', error);
         }
-    }
-
-    /** Convert a dateRange setting to startDate/endDate params */
-    _dateRangeToParams(dateRange) {
-        const now = new Date();
-        let startDate, endDate = formatters.formatDateForAPI(now);
-
-        switch (dateRange) {
-            case '30d':
-                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-                break;
-            case '90d':
-                startDate = new Date(now);
-                startDate.setMonth(startDate.getMonth() - 3);
-                break;
-            case '1y':
-                startDate = new Date(now.getFullYear(), 0, 1);
-                break;
-            case '6m':
-            default:
-                startDate = new Date(now);
-                startDate.setMonth(startDate.getMonth() - 6);
-                break;
-        }
-
-        return {
-            startDate: formatters.formatDateForAPI(startDate),
-            endDate,
-        };
     }
 
     updateSavingsGoalsWidget(goals) {
@@ -2719,10 +2763,8 @@ export default class DashboardModule {
         if (spendingAccountSelect && !spendingAccountSelect.hasAttribute('data-initialized')) {
             spendingAccountSelect.setAttribute('data-initialized', 'true');
             spendingAccountSelect.addEventListener('change', async () => {
-                const periodSelect = document.getElementById('spending-period-select');
-                const period = periodSelect ? periodSelect.value : 'month';
                 const accountId = spendingAccountSelect.value || null;
-                await this.refreshSpendingChart(period, accountId);
+                await this.refreshSpendingChart('spendingChart', accountId);
                 await this.saveWidgetAccountSelection('spending-account-select', spendingAccountSelect.value);
             });
         }
@@ -2731,11 +2773,10 @@ export default class DashboardModule {
         const spendingPeriodSelect = document.getElementById('spending-period-select');
         if (spendingPeriodSelect && !spendingPeriodSelect.hasAttribute('data-initialized')) {
             spendingPeriodSelect.setAttribute('data-initialized', 'true');
-            spendingPeriodSelect.addEventListener('change', async (e) => {
-                const period = e.target.value;
+            spendingPeriodSelect.addEventListener('change', async () => {
                 const accountSelect = document.getElementById('spending-account-select');
                 const accountId = accountSelect ? (accountSelect.value || null) : null;
-                await this.refreshSpendingChart(period, accountId);
+                await this.refreshSpendingChart('spendingChart', accountId);
             });
         }
 
@@ -2848,28 +2889,14 @@ export default class DashboardModule {
         }
     }
 
-    async refreshSpendingChart(period, accountId = null, instanceId = 'spendingChart') {
+    /**
+     * @param {string} instanceId - Tile instance; its saved date range decides the window
+     * @param {number|null} accountId - Restrict to one account
+     */
+    async refreshSpendingChart(instanceId = 'spendingChart', accountId = null) {
         try {
-            let startDate = new Date();
-            const endDate = new Date();
+            const { startDate: startStr, endDate: endStr } = this._tileRangeParams(instanceId);
 
-            switch (period) {
-                case 'month':
-                    startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
-                    break;
-                case '3months':
-                    startDate.setMonth(startDate.getMonth() - 3);
-                    break;
-                case '6months':
-                    startDate.setMonth(startDate.getMonth() - 6);
-                    break;
-                case 'year':
-                    startDate = new Date(endDate.getFullYear(), 0, 1);
-                    break;
-            }
-
-            const startStr = formatters.formatDateForAPI(startDate);
-            const endStr = formatters.formatDateForAPI(endDate);
             let url = `/apps/budget/api/reports/spending?startDate=${startStr}&endDate=${endStr}`;
             if (accountId) {
                 url += `&accountId=${accountId}`;
@@ -2953,19 +2980,18 @@ export default class DashboardModule {
         const settings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
         const dateRange = settings.dateRange || this._defaultDateRange(baseType);
 
-        // Convert dateRange setting to parameters
+        // The balance-history tiles take a day count and the trend chart a month
+        // count; the spending chart resolves its own window from the setting.
         const dateRangeMap = { '30d': 30, '90d': 90, '6m': 180, '1y': 365 };
         const days = dateRangeMap[dateRange] || 180;
         const monthsMap = { '30d': 1, '90d': 3, '6m': 6, '1y': 12 };
         const months = monthsMap[dateRange] || 6;
-        const periodMap = { '30d': 'month', '90d': '3months', '6m': '6months', '1y': 'year' };
-        const period = periodMap[dateRange] || '6months';
 
         switch (baseType) {
             case 'trendChart':
                 return this.refreshTrendChart(months, this._validAccountId(settings.accountId), instanceId);
             case 'spendingChart':
-                return this.refreshSpendingChart(period, this._validAccountId(settings.accountId), instanceId);
+                return this.refreshSpendingChart(instanceId, this._validAccountId(settings.accountId));
             case 'netWorthHistory':
                 return this.refreshNetWorthChart(days, this._validAccountId(settings.accountId), instanceId);
             case 'assetValueHistory':
@@ -4314,17 +4340,7 @@ export default class DashboardModule {
         if (schema.dateRange) {
             // Default to the same value the tile actually displays / the indicator shows
             const current = currentSettings.dateRange || this._defaultDateRange(this.getWidgetType(widgetId));
-            fields.push(`
-                <div class="form-group">
-                    <label>${t('budget', 'Date Range')}</label>
-                    <select class="tile-setting-input" data-setting="dateRange">
-                        <option value="30d" ${current === '30d' ? 'selected' : ''}>${t('budget', 'Last 30 days')}</option>
-                        <option value="90d" ${current === '90d' ? 'selected' : ''}>${t('budget', 'Last 90 days')}</option>
-                        <option value="6m" ${current === '6m' ? 'selected' : ''}>${t('budget', 'Last 6 months')}</option>
-                        <option value="1y" ${current === '1y' ? 'selected' : ''}>${t('budget', 'Last year')}</option>
-                    </select>
-                </div>
-            `);
+            fields.push(this._dateRangeField(schema, current));
         }
 
         // Account selector

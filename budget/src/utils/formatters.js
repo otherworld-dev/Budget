@@ -463,6 +463,75 @@ export function getPeriodDateRange(period, startDay = 1, referenceDate = null) {
     }
 }
 
+/** The date-range values a dashboard tile's settings can hold. */
+export const TILE_DATE_RANGES = ['30d', '90d', '6m', '1y', 'period'];
+
+/**
+ * Shift a date by whole months, clamping to the target month's length.
+ *
+ * setMonth() alone overflows: six months back from 31 March is 31 September,
+ * which lands on 1 October and silently widens the window by a day.
+ *
+ * @param {Date} date - Mutated in place
+ * @param {number} months - Signed month offset
+ */
+function shiftMonthsClamped(date, months) {
+    const day = date.getDate();
+    date.setDate(1);
+    date.setMonth(date.getMonth() + months);
+    const daysInTargetMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    date.setDate(Math.min(day, daysInTargetMonth));
+}
+
+/**
+ * Resolve a dashboard tile's date-range setting into the window it charts.
+ *
+ * The rolling ranges are literal: "Last 30 days" is the last 30 days, not the
+ * month to date (#333). 'period' follows the user's own budget cycle, so a tile
+ * answering "how much have I spent this cycle" agrees with the budget surfaces
+ * instead of cutting the cycle in half at the month boundary.
+ *
+ * @param {string} dateRange - One of TILE_DATE_RANGES
+ * @param {object} [options]
+ * @param {number} [options.budgetStartDay=1] - Day of month the budget cycle starts ('period' only)
+ * @param {string} [options.fallback='6m'] - Range to use when dateRange is not recognised
+ * @param {Date|string} [options.referenceDate=null] - Stands in for "today"
+ * @returns {object} {start, end, label} — label is the date span for 'period', else null
+ */
+export function resolveTileDateRange(dateRange, options = {}) {
+    const { budgetStartDay = 1, fallback = '6m', referenceDate = null } = options;
+    const now = referenceDate ? new Date(referenceDate) : new Date();
+
+    // A tile can hold a range it no longer offers (its schema changed, or the
+    // setting predates this list), so an unrecognised value resolves to the
+    // caller's default rather than to an empty window. The second check keeps
+    // an unrecognised fallback from resolving to nothing in turn.
+    let key = dateRange;
+    if (!TILE_DATE_RANGES.includes(key)) {
+        key = TILE_DATE_RANGES.includes(fallback) ? fallback : '6m';
+    }
+
+    if (key === 'period') {
+        const period = getPeriodDateRange('monthly', budgetStartDay, now);
+        return { start: period.start, end: period.end, label: period.label };
+    }
+
+    const start = new Date(now);
+    switch (key) {
+        case '30d': start.setDate(start.getDate() - 30); break;
+        case '90d': start.setDate(start.getDate() - 90); break;
+        case '1y': shiftMonthsClamped(start, -12); break;
+        case '6m':
+        default: shiftMonthsClamped(start, -6); break;
+    }
+
+    return {
+        start: formatDateForAPI(start),
+        end: formatDateForAPI(now),
+        label: null,
+    };
+}
+
 /**
  * Pro-rate a budget amount from one period to another.
  *
