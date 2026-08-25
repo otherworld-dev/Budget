@@ -197,3 +197,43 @@ describe('Cash Flow Forecast settings schema', () => {
         expect(schemaFor('cashFlowForecast').excludeShared).toBe(true);
     });
 });
+
+describe('DashboardModule._dateRangeField gates "Last 7 days" behind shortRange', () => {
+    it('offers 7d when the schema declares shortRange', () => {
+        const dash = makeDashboard();
+        const html = dash._dateRangeField({ dateRange: true, shortRange: true }, '30d');
+        expect(html).toContain('value="7d"');
+    });
+
+    it('omits 7d when the schema does not declare shortRange', () => {
+        const dash = makeDashboard();
+        const html = dash._dateRangeField({ dateRange: true }, '30d');
+        expect(html).not.toContain('value="7d"');
+    });
+});
+
+describe('shortRange is only declared by tiles that resolve it through _tileRangeParams', () => {
+    it.each([
+        'spendingChart',
+        'budgetProgress',
+        'topCategories',
+        'largeTransactions',
+        'weeklyTrend',
+        'categoryTrends',
+    ])('%s declares shortRange', (id) => {
+        expect(schemaFor(id).shortRange).toBe(true);
+    });
+
+    // trendChart, netWorthHistory and assetValueHistory convert the saved
+    // dateRange through hardcoded day/month lookup maps (DashboardModule's
+    // refreshSavedWidgetSelections/refreshWidgetInstance), and those maps have
+    // no '7d' key — offering the option there would silently fall back to the
+    // map's default window (6 months / 30 days) while the tile's own header
+    // chip kept reading "Last 7 days" (#333).
+    it.each(['trendChart', 'netWorthHistory', 'assetValueHistory'])(
+        '%s does not declare shortRange',
+        (id) => {
+            expect(schemaFor(id).shortRange).toBeUndefined();
+        },
+    );
+});

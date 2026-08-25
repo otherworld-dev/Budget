@@ -642,18 +642,28 @@ export default class DashboardModule {
      * budgetPeriodRange — it is the answer to "how much have I spent this
      * cycle", which a balance-history or multi-month series tile is not asking.
      *
+     * "Last 7 days" is offered only to tiles that declare shortRange — those
+     * resolve their dateRange setting through _tileRangeParams (which handles
+     * '7d' correctly). trendChart, netWorthHistory and assetValueHistory
+     * instead convert dateRange through hardcoded day/month lookup maps with
+     * no '7d' key, so offering the option there would silently render some
+     * other window (#333).
+     *
      * @param {object} schema - The widget's settingsSchema
      * @param {string} current - The tile's saved (or default) date range
      * @returns {string} Form-group markup
      */
     _dateRangeField(schema, current) {
-        const options = [
-            ['7d', t('budget', 'Last 7 days')],
+        const options = [];
+        if (schema.shortRange) {
+            options.push(['7d', t('budget', 'Last 7 days')]);
+        }
+        options.push(
             ['30d', t('budget', 'Last 30 days')],
             ['90d', t('budget', 'Last 90 days')],
             ['6m', t('budget', 'Last 6 months')],
             ['1y', t('budget', 'Last year')],
-        ];
+        );
         if (schema.budgetPeriodRange) {
             options.push(['period', t('budget', 'Current budget period')]);
         }
