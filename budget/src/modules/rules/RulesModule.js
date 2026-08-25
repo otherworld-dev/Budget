@@ -7,6 +7,7 @@ import { CriteriaBuilder } from './components/CriteriaBuilder.js';
 import { ActionBuilder } from './components/ActionBuilder.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
+import { serverErrorMessage } from '../../utils/helpers.js';
 
 export default class RulesModule {
     constructor(app) {
@@ -919,7 +920,7 @@ export default class RulesModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || 'Failed to preview rule');
+                throw new Error(serverErrorMessage(error, 'Failed to preview rule'));
             }
 
             const result = await response.json();
@@ -1028,7 +1029,7 @@ export default class RulesModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || 'Failed to run rule');
+                throw new Error(serverErrorMessage(error, 'Failed to run rule'));
             }
 
             const result = await response.json();
@@ -1115,7 +1116,7 @@ export default class RulesModule {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || 'Failed to save rule');
+            throw new Error(serverErrorMessage(error, 'Failed to save rule'));
         }
 
         const savedRule = await response.json();
@@ -1223,7 +1224,7 @@ export default class RulesModule {
 
             if (!response.ok) {
                 const error = await response.json().catch(() => ({}));
-                throw new Error(error.error || 'Failed to save rule');
+                throw new Error(serverErrorMessage(error, 'Failed to save rule'));
             }
 
             showSuccess(isEdit ? t('budget', 'Rule updated successfully') : t('budget', 'Rule created successfully'));
@@ -1462,7 +1463,7 @@ export default class RulesModule {
         });
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            throw new Error(error.error || 'Failed to create rule');
+            throw new Error(serverErrorMessage(error, 'Failed to create rule'));
         }
 
         // The create endpoint always makes new rules active; restore a disabled
@@ -1683,7 +1684,7 @@ export default class RulesModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || 'Failed to update rule');
+                throw new Error(serverErrorMessage(error, 'Failed to update rule'));
             }
 
             // Update local state
@@ -1748,7 +1749,7 @@ export default class RulesModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || 'Failed to run rule');
+                throw new Error(serverErrorMessage(error, 'Failed to run rule'));
             }
 
             const result = await response.json();
@@ -1799,7 +1800,7 @@ export default class RulesModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || 'Failed to run group rules');
+                throw new Error(serverErrorMessage(error, 'Failed to run group rules'));
             }
 
             const result = await response.json();

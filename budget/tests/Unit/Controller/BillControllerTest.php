@@ -287,6 +287,53 @@ class BillControllerTest extends TestCase {
 		$this->assertStringContainsString('same account', $response->getData()['error']);
 	}
 
+	/**
+	 * The controller duplicates the common validations (auto-pay, transfer) and
+	 * returns their messages directly, but validation that lives only in the
+	 * service -- the dynamic amount-type rules -- reaches the generic catch and
+	 * loses its message, leaving the user with "Failed to create bill" and no
+	 * way to tell what was wrong (#362).
+	 */
+	public function testCreateSurfacesServiceValidationMessage(): void {
+		$this->service->method('create')->willThrowException(
+			new \InvalidArgumentException('This amount type requires a transfer with a destination account')
+		);
+		$this->mockInput(json_encode([
+			'name' => 'Card payment',
+			'amount' => 100.00,
+			'amountType' => 'statement',
+		]));
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('destination account', $response->getData()['error']);
+	}
+
+	public function testCreateStillHidesUnexpectedFailures(): void {
+		$this->service->method('create')->willThrowException(
+			new \RuntimeException('SQLSTATE[HY000]: near "budget_bills": syntax error')
+		);
+		$this->mockInput(json_encode(['name' => 'Netflix', 'amount' => 15.99]));
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Failed to create bill', $response->getData()['error']);
+	}
+
+	public function testUpdateSurfacesServiceValidationMessage(): void {
+		$this->service->method('update')->willThrowException(
+			new \InvalidArgumentException('This amount type is only available for transfers to a credit card')
+		);
+		$this->mockInput(json_encode(['amountType' => 'statement']));
+
+		$response = $this->controller->update(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('credit card', $response->getData()['error']);
+	}
+
 	public function testCreateInvalidName(): void {
 		$vs = $this->createMock(ValidationService::class);
 		$vs->method('validateName')->willReturn(['valid' => false, 'error' => 'Name required']);

@@ -317,6 +317,11 @@ class BillController extends Controller {
             );
 
             return new DataResponse($bill, Http::STATUS_CREATED);
+        } catch (\InvalidArgumentException $e) {
+            // Validation that lives only in the service (the dynamic amount-type
+            // rules) would otherwise reach the generic catch below and lose its
+            // message, leaving the user with no way to tell what was wrong (#362).
+            return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to create bill'));
         }
@@ -606,6 +611,9 @@ class BillController extends Controller {
 
             $bill = $this->service->update($id, $this->getEffectiveUserId(), $updates);
             return new DataResponse($bill);
+        } catch (\InvalidArgumentException $e) {
+            // Same as create(): service-only validation keeps its message (#362).
+            return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to update bill'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
         }

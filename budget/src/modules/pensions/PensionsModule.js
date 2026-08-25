@@ -7,6 +7,7 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import Chart from 'chart.js/auto';
+import { serverErrorMessage } from '../../utils/helpers.js';
 
 export default class PensionsModule {
     constructor(app) {
@@ -470,7 +471,7 @@ export default class PensionsModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || t('budget', 'Failed to save pension'));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to save pension')));
             }
 
             this.closePensionModal();
@@ -495,7 +496,7 @@ export default class PensionsModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || t('budget', 'Failed to delete pension'));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to delete pension')));
             }
 
             await this.loadPensions();
@@ -855,7 +856,7 @@ export default class PensionsModule {
             });
             if (!response.ok) {
                 const error = await response.json().catch(() => ({}));
-                throw new Error(error.error || t('budget', 'Failed to delete'));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to delete')));
             }
             await this.loadPensions();
             this.renderPensions();
@@ -908,7 +909,7 @@ export default class PensionsModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || t('budget', 'Failed to update balance'));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to update balance')));
             }
 
             this.closeBalanceModal();
@@ -975,7 +976,7 @@ export default class PensionsModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || t('budget', 'Failed to log contribution'));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to log contribution')));
             }
 
             this.closeContributionModal();
@@ -1026,7 +1027,7 @@ export default class PensionsModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || t('budget', 'Failed to record withdrawal'));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to record withdrawal')));
             }
 
             this.closeWithdrawalModal();
@@ -1128,7 +1129,7 @@ export default class PensionsModule {
             });
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || t('budget', 'Failed to save recurring contribution'));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to save recurring contribution')));
             }
             this.closeRecurringModal();
             await this.loadPensionRecurring(parseInt(pensionId));
@@ -1161,7 +1162,7 @@ export default class PensionsModule {
             });
             if (!response.ok) {
                 const error = await response.json().catch(() => ({}));
-                throw new Error(error.error || t('budget', 'Failed to post contribution'));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to post contribution')));
             }
             await this.loadPensions();
             this.renderPensions();

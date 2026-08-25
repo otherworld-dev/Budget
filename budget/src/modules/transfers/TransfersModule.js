@@ -6,6 +6,7 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { initSingleDatePicker } from '../../utils/datepicker.js';
+import { serverErrorMessage } from '../../utils/helpers.js';
 
 export default class TransfersModule {
     constructor(app) {
@@ -715,7 +716,7 @@ export default class TransfersModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || t('budget', 'Failed to save transfer'));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to save transfer')));
             }
 
             showSuccess(

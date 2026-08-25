@@ -6,6 +6,7 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import Chart from 'chart.js/auto';
+import { serverErrorMessage } from '../../utils/helpers.js';
 
 export default class CategoriesModule {
     constructor(app) {
@@ -549,7 +550,7 @@ export default class CategoriesModule {
                 showSuccess(t('budget', 'Category reordered successfully'));
             } else {
                 const error = await response.json().catch(() => ({}));
-                throw new Error(error.error || t('budget', 'Failed to reorder category'));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to reorder category')));
             }
 
         } catch (error) {
@@ -1182,7 +1183,7 @@ export default class CategoriesModule {
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            throw new Error(error.error || t('budget', 'Failed to delete category'));
+            throw new Error(serverErrorMessage(error, t('budget', 'Failed to delete category')));
         }
         return { deleted: true, reassigned: reassign };
     }
@@ -1239,7 +1240,7 @@ export default class CategoriesModule {
                 } else {
                     const error = await response.json();
                     const category = this.findCategoryById(categoryId);
-                    errors.push(`${category?.name || categoryId}: ${error.error || t('budget', 'Failed to delete')}`);
+                    errors.push(`${category?.name || categoryId}: ${serverErrorMessage(error, t('budget', 'Failed to delete'))}`);
                 }
             } catch (error) {
                 const category = this.findCategoryById(categoryId);
@@ -1407,7 +1408,7 @@ export default class CategoriesModule {
                 }
             } else {
                 const error = await response.json();
-                throw new Error(error.error || t('budget', 'Failed to save category'));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to save category')));
             }
         } catch (error) {
             console.error('Failed to save category:', error);
@@ -1440,7 +1441,7 @@ export default class CategoriesModule {
                 let message = t('budget', 'Failed to create default categories');
                 try {
                     const error = await response.json();
-                    message = error.error || message;
+                    message = serverErrorMessage(error, message);
                 } catch (e) {
                     // Response wasn't JSON (e.g. server error page)
                 }

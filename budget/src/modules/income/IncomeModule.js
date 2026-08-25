@@ -5,6 +5,7 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { serverErrorMessage } from '../../utils/helpers.js';
 
 export default class IncomeModule {
     constructor(app) {
@@ -475,7 +476,7 @@ export default class IncomeModule {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || `HTTP ${response.status}`);
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
             }
 
             this.hideIncomeModal();
