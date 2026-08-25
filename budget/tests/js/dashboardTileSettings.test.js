@@ -14,6 +14,7 @@ vi.mock('@nextcloud/l10n', () => ({
 
 import { resolveTileNumberSetting, FORWARD_HORIZONS, precedingWindow } from '../../src/utils/formatters.js';
 import DashboardModule from '../../src/modules/dashboard/DashboardModule.js';
+import { DASHBOARD_WIDGETS } from '../../src/config/dashboardWidgets.js';
 
 function makeDashboard(tileSettings = {}) {
     const mod = Object.create(DashboardModule.prototype);
@@ -105,5 +106,63 @@ describe('precedingWindow', () => {
             start: '2026-08-09',
             end: '2026-08-09',
         });
+    });
+});
+
+function schemaFor(id) {
+    for (const group of Object.values(DASHBOARD_WIDGETS)) {
+        if (group[id]) return group[id].settingsSchema || {};
+    }
+    throw new Error(`no widget definition for ${id}`);
+}
+
+describe('bills tiles look forward, not back', () => {
+    it.each(['upcomingBills', 'billsDueSoon'])('%s offers a forward horizon', (id) => {
+        expect(schemaFor(id).forwardHorizon).toBe(true);
+    });
+
+    it.each(['upcomingBills', 'billsDueSoon'])('%s no longer offers a past date range', (id) => {
+        expect(schemaFor(id).dateRange).toBeUndefined();
+    });
+});
+
+describe('DashboardModule.filterBillsByHorizon', () => {
+    const bill = (due) => ({ nextDueDate: due });
+
+    it('keeps a bill inside the horizon', () => {
+        const dash = makeDashboard();
+        const kept = dash.filterBillsByHorizon([bill('2026-09-10')], 30, '2026-08-24');
+        expect(kept).toHaveLength(1);
+    });
+
+    it('drops a bill beyond the horizon', () => {
+        const dash = makeDashboard();
+        const kept = dash.filterBillsByHorizon([bill('2026-11-01')], 30, '2026-08-24');
+        expect(kept).toHaveLength(0);
+    });
+
+    it('keeps a recently overdue bill so it is not silently lost', () => {
+        const dash = makeDashboard();
+        const kept = dash.filterBillsByHorizon([bill('2026-08-20')], 30, '2026-08-24');
+        expect(kept).toHaveLength(1);
+    });
+
+    it('drops a long-overdue bill', () => {
+        const dash = makeDashboard();
+        const kept = dash.filterBillsByHorizon([bill('2026-06-01')], 30, '2026-08-24');
+        expect(kept).toHaveLength(0);
+    });
+
+    it('sorts by due date', () => {
+        const dash = makeDashboard();
+        const kept = dash.filterBillsByHorizon(
+            [bill('2026-09-10'), bill('2026-08-28')], 30, '2026-08-24',
+        );
+        expect(kept.map((b) => b.nextDueDate)).toEqual(['2026-08-28', '2026-09-10']);
+    });
+
+    it('ignores a bill with no due date', () => {
+        const dash = makeDashboard();
+        expect(dash.filterBillsByHorizon([{}], 30, '2026-08-24')).toHaveLength(0);
     });
 });

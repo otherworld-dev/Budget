@@ -1470,6 +1470,13 @@ export default class DashboardModule {
             return;
         }
 
+        const horizon = this._tileNumberSetting('upcomingBills', 'forwardHorizon', formatters.FORWARD_HORIZONS, 30);
+        bills = this.filterBillsByHorizon(bills, horizon);
+        if (bills.length === 0) {
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No upcoming bills')}</div>`;
+            return;
+        }
+
         const todayStr = formatters.getTodayDateString();
 
         container.innerHTML = bills.slice(0, 5).map(bill => {
@@ -2166,6 +2173,31 @@ export default class DashboardModule {
                 </div>
             `;
         }).join('');
+    }
+
+    /**
+     * Bills falling due within a forward horizon.
+     *
+     * Bills already a little overdue are kept — dropping them would make an
+     * unpaid bill disappear from the tile that exists to chase it — but not
+     * indefinitely, or the list fills with history.
+     *
+     * @param {Array} bills - Bills as the API returns them
+     * @param {number} horizonDays - How far ahead to look
+     * @param {string} [todayStr] - YYYY-MM-DD, for testing
+     * @returns {Array} Matching bills, soonest first
+     */
+    filterBillsByHorizon(bills, horizonDays, todayStr = null) {
+        const today = todayStr || formatters.getTodayDateString();
+        const dueOf = (b) => b.nextDueDate || b.next_due_date;
+        return (Array.isArray(bills) ? bills : [])
+            .filter((b) => {
+                const due = dueOf(b);
+                if (!due) return false;
+                const days = formatters.daysBetweenDates(today, due);
+                return days >= -7 && days <= horizonDays;
+            })
+            .sort((a, b) => (dueOf(a) || '').localeCompare(dueOf(b) || ''));
     }
 
     updateIncomeTrackingWidget() {
@@ -3997,16 +4029,8 @@ export default class DashboardModule {
                         { headers: { 'requesttoken': OC.requestToken } }
                     );
                     const allBills = await billsResp.json();
-                    // Filter to upcoming bills (due within 14 days)
-                    const todayStr = formatters.getTodayDateString();
-                    this.widgetData.billsDueSoon = (Array.isArray(allBills) ? allBills : [])
-                        .filter(b => {
-                            const due = b.nextDueDate || b.next_due_date;
-                            if (!due) return false;
-                            const days = formatters.daysBetweenDates(todayStr, due);
-                            return days >= -7 && days <= 14;
-                        })
-                        .sort((a, b) => (a.nextDueDate || a.next_due_date || '').localeCompare(b.nextDueDate || b.next_due_date || ''));
+                    const bdsHorizon = this._tileNumberSetting(widgetKey, 'forwardHorizon', formatters.FORWARD_HORIZONS, 30);
+                    this.widgetData.billsDueSoon = this.filterBillsByHorizon(allBills, bdsHorizon);
                     break;
                 }
 
@@ -4380,6 +4404,20 @@ export default class DashboardModule {
             // Default to the same value the tile actually displays / the indicator shows
             const current = currentSettings.dateRange || this._defaultDateRange(this.getWidgetType(widgetId));
             fields.push(this._dateRangeField(schema, current));
+        }
+
+        // Forward horizon (bills tiles look ahead, so a past range never applied)
+        if (schema.forwardHorizon) {
+            const current = this._tileNumberSetting(widgetId, 'forwardHorizon', formatters.FORWARD_HORIZONS, 30);
+            fields.push(this._numberChoiceField(
+                'forwardHorizon',
+                t('budget', 'Look ahead'),
+                formatters.FORWARD_HORIZONS,
+                current,
+                (n) => n === 30 ? t('budget', 'Next 30 days')
+                    : n === 60 ? t('budget', 'Next 60 days')
+                        : t('budget', 'Next 90 days'),
+            ));
         }
 
         // Account selector
