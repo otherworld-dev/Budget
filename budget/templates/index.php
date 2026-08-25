@@ -573,11 +573,6 @@ style('budget', 'budget-app');
                                 <select id="spending-account-select" class="card-select">
                                     <option value=""><?php p($l->t('All Accounts')); ?></option>
                                 </select>
-                                <select id="spending-period-select" class="card-select">
-                                    <option value="month"><?php p($l->t('This Month')); ?></option>
-                                    <option value="3months"><?php p($l->t('Last 3 Months')); ?></option>
-                                    <option value="year"><?php p($l->t('This Year')); ?></option>
-                                </select>
                             </div>
                         </div>
                         <div class="spending-chart-wrapper">

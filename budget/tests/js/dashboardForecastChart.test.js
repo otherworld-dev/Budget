@@ -116,6 +116,24 @@ describe('updateCashFlowForecastWidget', () => {
         expect(chartInstances[0].destroyed).toBe(true);
         expect(chartInstances).toHaveLength(2);
     });
+
+    it('has no projection behind the "Now" anchor', () => {
+        const dash = makeDashboard({ cashFlowForecast: forecast });
+
+        dash.updateCashFlowForecastWidget();
+
+        const cb = chartInstances[0].config.options.plugins.tooltip.callbacks;
+        expect(cb.afterBody([{ dataIndex: 0 }])).toBe('');
+    });
+
+    it('shows income and expenses for the first projection', () => {
+        const dash = makeDashboard({ cashFlowForecast: forecast });
+
+        dash.updateCashFlowForecastWidget();
+
+        const cb = chartInstances[0].config.options.plugins.tooltip.callbacks;
+        expect(cb.afterBody([{ dataIndex: 1 }])).toHaveLength(2);
+    });
 });
 
 describe('updateYoyComparisonWidget', () => {
@@ -191,5 +209,13 @@ describe('updateYoyComparisonWidget', () => {
         const dash = makeDashboard({});
 
         expect(() => dash.updateYoyComparisonWidget()).not.toThrow();
+    });
+
+    it('does not mutate the source array when reversing it for display', () => {
+        const dash = makeDashboard({ yoyComparison: payload });
+
+        dash.updateYoyComparisonWidget();
+
+        expect(payload.years[0].year).toBe(2026);
     });
 });

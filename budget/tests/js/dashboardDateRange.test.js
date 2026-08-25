@@ -13,7 +13,7 @@
  * period instead.
  */
 
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 vi.mock('@nextcloud/l10n', () => ({
     translate: (_app, text, params = {}) =>
@@ -28,6 +28,12 @@ import { DASHBOARD_WIDGETS } from '../../src/config/dashboardWidgets.js';
 const at = (y, m, d) => new Date(y, m - 1, d);
 
 describe('resolveTileDateRange -- rolling windows', () => {
+    it('spans a real 7 days back from today', () => {
+        const range = resolveTileDateRange('7d', { referenceDate: at(2026, 8, 24) });
+
+        expect(range).toMatchObject({ start: '2026-08-17', end: '2026-08-24' });
+    });
+
     it('spans a real 30 days back from today', () => {
         const range = resolveTileDateRange('30d', { referenceDate: at(2026, 8, 24) });
 
@@ -293,5 +299,53 @@ describe('DashboardModule._tilePeriodLabel', () => {
         const dash = makeDashboard({ spendingChart: { dateRange: '30d' } });
 
         expect(dash._tilePeriodLabel('spendingChart', 'spendingChart')).toBe('Last 30 days');
+    });
+});
+
+describe('DashboardModule._defaultDateRange', () => {
+    it('defaults Weekly Spending to a real 7 days, not the 6-month fallback', () => {
+        const dash = makeDashboard();
+
+        expect(dash._defaultDateRange('weeklyTrend')).toBe('7d');
+    });
+});
+
+describe('DashboardModule.updateWeeklyTrendWidget', () => {
+    function makeWeeklyTrendDashboard(weeklyTrend, tileSettings = {}) {
+        const mod = Object.create(DashboardModule.prototype);
+        mod.app = {
+            settings: {},
+            dashboardConfig: { widgets: { tileSettings } },
+            widgetData: { weeklyTrend },
+        };
+        mod.formatCurrency = (v) => `GBP${Number(v).toFixed(2)}`;
+        return mod;
+    }
+
+    beforeEach(() => {
+        document.body.innerHTML = '<div id="weekly-trend-content"></div>';
+    });
+
+    afterEach(() => {
+        document.body.innerHTML = '';
+    });
+
+    it('labels an unconfigured tile "Last 7 days", not a six-month total', () => {
+        const dash = makeWeeklyTrendDashboard([{ total: 140, days: 7 }]);
+
+        dash.updateWeeklyTrendWidget();
+
+        expect(document.getElementById('weekly-trend-content').innerHTML).toContain('Last 7 days');
+    });
+
+    it('divides the daily average by the real span, not a hardcoded 7', () => {
+        const dash = makeWeeklyTrendDashboard(
+            [{ total: 310, days: 31 }],
+            { weeklyTrend: { dateRange: '30d' } },
+        );
+
+        dash.updateWeeklyTrendWidget();
+
+        expect(document.getElementById('weekly-trend-content').innerHTML).toContain('GBP10.00');
     });
 });

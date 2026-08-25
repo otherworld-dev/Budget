@@ -255,6 +255,7 @@ export default class DashboardModule {
             this.widgetDataLoaded.recentTransactions = true;
 
             // Update Upcoming Bills Widget
+            this.widgetData.upcomingBills = bills;
             this.updateUpcomingBillsWidget(bills);
             this.widgetDataLoaded.upcomingBills = true;
 
@@ -572,16 +573,20 @@ export default class DashboardModule {
 
     /**
      * The date range a tile shows when the user hasn't chosen one. Net worth and
-     * asset history default to 30 days (their initial render); the trend and
-     * spending charts default to 6 months.
+     * asset history default to 30 days (their initial render); Weekly Spending
+     * defaults to 7 days (its name); the trend and spending charts default to
+     * 6 months.
      */
     _defaultDateRange(baseType) {
-        return (baseType === 'netWorthHistory' || baseType === 'assetValueHistory') ? '30d' : '6m';
+        if (baseType === 'netWorthHistory' || baseType === 'assetValueHistory') return '30d';
+        if (baseType === 'weeklyTrend') return '7d';
+        return '6m';
     }
 
     /** Human-readable label for a tile's date-range setting (per-widget default). */
     _dateRangeLabel(dateRange, baseType) {
         const labels = {
+            '7d': t('budget', 'Last 7 days'),
             '30d': t('budget', 'Last 30 days'),
             '90d': t('budget', 'Last 90 days'),
             '6m': t('budget', 'Last 6 months'),
@@ -643,6 +648,7 @@ export default class DashboardModule {
      */
     _dateRangeField(schema, current) {
         const options = [
+            ['7d', t('budget', 'Last 7 days')],
             ['30d', t('budget', 'Last 30 days')],
             ['90d', t('budget', 'Last 90 days')],
             ['6m', t('budget', 'Last 6 months')],
@@ -1461,19 +1467,25 @@ export default class DashboardModule {
         }
     }
 
+    /** Empty-state markup shared by the bills widgets. */
+    _emptyBillsState(container, message) {
+        container.innerHTML = `<div class="empty-state-small">${message}</div>`;
+    }
+
     updateUpcomingBillsWidget(bills) {
         const container = document.getElementById('upcoming-bills');
         if (!container) return;
 
-        if (!Array.isArray(bills) || bills.length === 0) {
-            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No upcoming bills')}</div>`;
-            return;
+        // A refresh after a settings change calls this with no argument; fall
+        // back to the array cached at load time rather than going blank.
+        if (bills === undefined) {
+            bills = this.widgetData.upcomingBills;
         }
 
         const horizon = this._tileNumberSetting('upcomingBills', 'forwardHorizon', formatters.FORWARD_HORIZONS, 30);
         bills = this.filterBillsByHorizon(bills, horizon);
         if (bills.length === 0) {
-            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No upcoming bills')}</div>`;
+            this._emptyBillsState(container, t('budget', 'No upcoming bills'));
             return;
         }
 
@@ -2032,7 +2044,7 @@ export default class DashboardModule {
 
         const data = this.widgetData.weeklyTrend;
         if (!data || !Array.isArray(data) || data.length === 0) {
-            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No spending data this week')}</div>`;
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No spending data for this period')}</div>`;
             return;
         }
 
@@ -2138,9 +2150,10 @@ export default class DashboardModule {
         const container = document.getElementById('bills-due-soon-list');
         if (!container) return;
 
-        const bills = this.widgetData.billsDueSoon;
-        if (!Array.isArray(bills) || bills.length === 0) {
-            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No bills due soon')}</div>`;
+        const horizon = this._tileNumberSetting('billsDueSoon', 'forwardHorizon', formatters.FORWARD_HORIZONS, 30);
+        const bills = this.filterBillsByHorizon(this.widgetData.billsDueSoon, horizon);
+        if (bills.length === 0) {
+            this._emptyBillsState(container, t('budget', 'No bills due soon'));
             return;
         }
 
@@ -2817,7 +2830,7 @@ export default class DashboardModule {
                             label: (ctx) => `${t('budget', 'Balance')}: ${this.formatCurrency(ctx.raw, currency)}`,
                             afterBody: (items) => {
                                 // The anchor point is today, which has no projection behind it.
-                                const p = projections[items[0].dataIndex - 1];
+                                const p = projections[(items?.[0]?.dataIndex ?? 0) - 1];
                                 if (!p) return '';
                                 return [
                                     `${t('budget', 'Income')}: ${this.formatCurrency(p.income, currency)}`,
@@ -3008,17 +3021,6 @@ export default class DashboardModule {
                 const accountId = spendingAccountSelect.value || null;
                 await this.refreshSpendingChart('spendingChart', accountId);
                 await this.saveWidgetAccountSelection('spending-account-select', spendingAccountSelect.value);
-            });
-        }
-
-        // Spending period selector
-        const spendingPeriodSelect = document.getElementById('spending-period-select');
-        if (spendingPeriodSelect && !spendingPeriodSelect.hasAttribute('data-initialized')) {
-            spendingPeriodSelect.setAttribute('data-initialized', 'true');
-            spendingPeriodSelect.addEventListener('change', async () => {
-                const accountSelect = document.getElementById('spending-account-select');
-                const accountId = accountSelect ? (accountSelect.value || null) : null;
-                await this.refreshSpendingChart('spendingChart', accountId);
             });
         }
 
@@ -4198,9 +4200,10 @@ export default class DashboardModule {
                         OC.generateUrl('/apps/budget/api/bills?isTransfer=false'),
                         { headers: { 'requesttoken': OC.requestToken } }
                     );
-                    const allBills = await billsResp.json();
-                    const bdsHorizon = this._tileNumberSetting(widgetKey, 'forwardHorizon', formatters.FORWARD_HORIZONS, 30);
-                    this.widgetData.billsDueSoon = this.filterBillsByHorizon(allBills, bdsHorizon);
+                    // Cached unfiltered: the horizon is applied at render time in
+                    // updateBillsDueSoonWidget, so a settings change can re-render
+                    // from cache instead of forcing a refetch.
+                    this.widgetData.billsDueSoon = await billsResp.json();
                     break;
                 }
 

@@ -185,3 +185,15 @@ describe('tiles with no window to configure', () => {
         },
     );
 });
+
+describe('Cash Flow Forecast settings schema', () => {
+    it('does not offer an account selector the fetch cannot use', () => {
+        // ForecastController::live has no account parameter, so the flag would
+        // sit there doing nothing.
+        expect(schemaFor('cashFlowForecast').accountSelector).toBeUndefined();
+    });
+
+    it('still offers excludeShared, which the fetch does use', () => {
+        expect(schemaFor('cashFlowForecast').excludeShared).toBe(true);
+    });
+});

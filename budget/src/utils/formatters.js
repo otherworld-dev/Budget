@@ -464,7 +464,7 @@ export function getPeriodDateRange(period, startDay = 1, referenceDate = null) {
 }
 
 /** The date-range values a dashboard tile's settings can hold. */
-export const TILE_DATE_RANGES = ['30d', '90d', '6m', '1y', 'period'];
+export const TILE_DATE_RANGES = ['7d', '30d', '90d', '6m', '1y', 'period'];
 
 /**
  * Shift a date by whole months, clamping to the target month's length.
@@ -518,6 +518,7 @@ export function resolveTileDateRange(dateRange, options = {}) {
 
     const start = new Date(now);
     switch (key) {
+        case '7d': start.setDate(start.getDate() - 7); break;
         case '30d': start.setDate(start.getDate() - 30); break;
         case '90d': start.setDate(start.getDate() - 90); break;
         case '1y': shiftMonthsClamped(start, -12); break;

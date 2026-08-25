@@ -79,7 +79,7 @@ export const DASHBOARD_WIDGETS = {
         billsDueSoon: { id: 'bills-due-soon-card', name: t('budget', 'Bills Due Soon'), defaultSize: 's', allowedSizes: ['s', 'm', 'l'], defaultVisible: false, category: 'bills', settingsSchema: { forwardHorizon: true, accountSelector: true, rowCount: { min: 3, max: 20, default: 5 } } },
 
         // Phase 3 - Advanced Features (lazy loaded with charts)
-        cashFlowForecast: { id: 'cash-flow-forecast-card', name: t('budget', 'Cash Flow Forecast'), defaultSize: 'l', allowedSizes: ['s', 'm', 'l'], defaultVisible: false, category: 'forecasting', settingsSchema: { forecastMonths: true, accountSelector: true, excludeShared: true } },
+        cashFlowForecast: { id: 'cash-flow-forecast-card', name: t('budget', 'Cash Flow Forecast'), defaultSize: 'l', allowedSizes: ['s', 'm', 'l'], defaultVisible: false, category: 'forecasting', settingsSchema: { forecastMonths: true, excludeShared: true } },
         yoyComparison: { id: 'yoy-comparison-card', name: t('budget', 'Year-over-Year'), defaultSize: 'l', allowedSizes: ['s', 'm', 'l'], defaultVisible: false, category: 'insights', settingsSchema: { yearsToCompare: true, accountSelector: true, excludeShared: true, showLegend: true } },
         incomeTracking: { id: 'income-tracking-card', name: t('budget', 'Income Tracking'), defaultSize: 'hero', defaultVisible: false, category: 'income', settingsSchema: { accountSelector: true, showLegend: true } },
         recentImports: { id: 'recent-imports-card', name: t('budget', 'Recent Imports'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: false, category: 'transactions', settingsSchema: {} },
