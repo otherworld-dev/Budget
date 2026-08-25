@@ -166,3 +166,22 @@ describe('DashboardModule.filterBillsByHorizon', () => {
         expect(dash.filterBillsByHorizon([{}], 30, '2026-08-24')).toHaveLength(0);
     });
 });
+
+describe('tiles with no window to configure', () => {
+    it.each(['monthlyComparison', 'debtChart', 'incomeTracking'])(
+        '%s does not offer a Date Range it would ignore',
+        (id) => {
+            expect(schemaFor(id).dateRange).toBeUndefined();
+        },
+    );
+
+    it.each(['monthlyComparison', 'debtChart', 'incomeTracking'])(
+        '%s offers no other range setting either',
+        (id) => {
+            const schema = schemaFor(id);
+            expect(schema.forwardHorizon).toBeUndefined();
+            expect(schema.forecastMonths).toBeUndefined();
+            expect(schema.yearsToCompare).toBeUndefined();
+        },
+    );
+});

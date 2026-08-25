@@ -49,7 +49,7 @@ export const DASHBOARD_WIDGETS = {
             allowedSizes: ['s', 'm', 'l'],
             defaultVisible: false,
             category: 'debts',
-            settingsSchema: { dateRange: true, accountSelector: true, showLegend: true },
+            settingsSchema: { accountSelector: true, showLegend: true },
         },
         debtProgress: {
             id: 'debt-progress-card',
@@ -71,7 +71,7 @@ export const DASHBOARD_WIDGETS = {
         pensionProjection: { id: 'pension-projection-card', name: t('budget', 'Pension Projection'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: false, category: 'insights', settingsSchema: {} },
 
         // Phase 2 - Moderate Complexity (lazy loaded)
-        monthlyComparison: { id: 'monthly-comparison-card', name: t('budget', 'Monthly Comparison'), defaultSize: 'hero', defaultVisible: false, category: 'insights', settingsSchema: { dateRange: true, accountSelector: true, excludeShared: true, showLegend: true } },
+        monthlyComparison: { id: 'monthly-comparison-card', name: t('budget', 'Monthly Comparison'), defaultSize: 'hero', defaultVisible: false, category: 'insights', settingsSchema: { accountSelector: true, excludeShared: true, showLegend: true } },
         largeTransactions: { id: 'large-transactions-card', name: t('budget', 'Large Transactions'), defaultSize: 'hero', defaultVisible: false, category: 'transactions', settingsSchema: { dateRange: true, accountSelector: true, excludeShared: true, rowCount: { min: 3, max: 20, default: 5 } } },
         weeklyTrend: { id: 'weekly-trend-card', name: t('budget', 'Weekly Spending'), defaultSize: 's', allowedSizes: ['s', 'm', 'l'], defaultVisible: false, category: 'insights', settingsSchema: { dateRange: true, accountSelector: true, excludeShared: true, showLegend: true } },
         unmatchedTransfers: { id: 'unmatched-transfers-card', name: t('budget', 'Unmatched Transfers'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: false, category: 'transactions', settingsSchema: {} },
@@ -81,7 +81,7 @@ export const DASHBOARD_WIDGETS = {
         // Phase 3 - Advanced Features (lazy loaded with charts)
         cashFlowForecast: { id: 'cash-flow-forecast-card', name: t('budget', 'Cash Flow Forecast'), defaultSize: 'l', allowedSizes: ['s', 'm', 'l'], defaultVisible: false, category: 'forecasting', settingsSchema: { dateRange: true, accountSelector: true, excludeShared: true, showLegend: true } },
         yoyComparison: { id: 'yoy-comparison-card', name: t('budget', 'Year-over-Year'), defaultSize: 'l', allowedSizes: ['s', 'm', 'l'], defaultVisible: false, category: 'insights', settingsSchema: { dateRange: true, accountSelector: true, excludeShared: true, showLegend: true, topLevelOnly: true } },
-        incomeTracking: { id: 'income-tracking-card', name: t('budget', 'Income Tracking'), defaultSize: 'hero', defaultVisible: false, category: 'income', settingsSchema: { dateRange: true, accountSelector: true, showLegend: true } },
+        incomeTracking: { id: 'income-tracking-card', name: t('budget', 'Income Tracking'), defaultSize: 'hero', defaultVisible: false, category: 'income', settingsSchema: { accountSelector: true, showLegend: true } },
         recentImports: { id: 'recent-imports-card', name: t('budget', 'Recent Imports'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: false, category: 'transactions', settingsSchema: {} },
         ruleEffectiveness: { id: 'rule-effectiveness-card', name: t('budget', 'Rule Effectiveness'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: false, category: 'insights', settingsSchema: {} },
         spendingVelocity: { id: 'spending-velocity-card', name: t('budget', 'Spending Velocity'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: false, category: 'insights', settingsSchema: {} },
