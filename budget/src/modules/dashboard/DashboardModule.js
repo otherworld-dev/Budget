@@ -255,6 +255,7 @@ export default class DashboardModule {
             this.widgetDataLoaded.recentTransactions = true;
 
             // Update Upcoming Bills Widget
+            this.widgetData.upcomingBills = bills;
             this.updateUpcomingBillsWidget(bills);
             this.widgetDataLoaded.upcomingBills = true;
 
@@ -540,8 +541,7 @@ export default class DashboardModule {
                 return this.refreshTrendChart(months, this._validAccountId(s.accountId));
             },
             spendingChart: (s) => {
-                const period = { '30d': 'month', '90d': '3months', '6m': '6months', '1y': 'year' }[s.dateRange] || '6months';
-                return this.refreshSpendingChart(period, this._validAccountId(s.accountId));
+                return this.refreshSpendingChart('spendingChart', this._validAccountId(s.accountId));
             },
             netWorthHistory: (s) => {
                 const days = { '30d': 30, '90d': 90, '6m': 180, '1y': 365 }[s.dateRange] || 30;
@@ -573,22 +573,151 @@ export default class DashboardModule {
 
     /**
      * The date range a tile shows when the user hasn't chosen one. Net worth and
-     * asset history default to 30 days (their initial render); the trend and
-     * spending charts default to 6 months.
+     * asset history default to 30 days (their initial render); Weekly Spending
+     * defaults to 7 days (its name); the trend and spending charts default to
+     * 6 months.
      */
     _defaultDateRange(baseType) {
-        return (baseType === 'netWorthHistory' || baseType === 'assetValueHistory') ? '30d' : '6m';
+        if (baseType === 'netWorthHistory' || baseType === 'assetValueHistory') return '30d';
+        if (baseType === 'weeklyTrend') return '7d';
+        return '6m';
     }
 
     /** Human-readable label for a tile's date-range setting (per-widget default). */
     _dateRangeLabel(dateRange, baseType) {
         const labels = {
+            '7d': t('budget', 'Last 7 days'),
             '30d': t('budget', 'Last 30 days'),
             '90d': t('budget', 'Last 90 days'),
             '6m': t('budget', 'Last 6 months'),
             '1y': t('budget', 'Last year'),
+            'period': t('budget', 'Current budget period'),
         };
         return labels[dateRange] || labels[this._defaultDateRange(baseType)];
+    }
+
+    /**
+     * What a tile's period indicator says.
+     *
+     * A tile following the budget cycle names the days it covers ("Jul 25 –
+     * Aug 24") rather than repeating the setting back: which days are in the
+     * cycle is the whole question the setting exists to answer.
+     *
+     * @param {string} instanceId - Tile instance
+     * @param {string} baseType - Its widget type
+     * @returns {string} Indicator text
+     */
+    _tilePeriodLabel(instanceId, baseType) {
+        const dateRange = this.dashboardConfig?.widgets?.tileSettings?.[instanceId]?.dateRange;
+        if (dateRange === 'period') {
+            return this._tileRangeParams(instanceId).label || this._dateRangeLabel(dateRange, baseType);
+        }
+        return this._dateRangeLabel(dateRange, baseType);
+    }
+
+    /**
+     * The window a tile charts, from its saved date-range setting.
+     *
+     * Every tile that asks the server for a date span goes through here, so the
+     * ranges stay literal — "Last 30 days" is 30 days, not the month to date
+     * (#333) — and 'period' picks up the user's own budget cycle.
+     *
+     * @param {string} instanceId - Tile instance (duplicates resolve to their base type)
+     * @returns {object} {startDate, endDate, label} — label is the date span for 'period', else null
+     */
+    _tileRangeParams(instanceId) {
+        const baseType = this.getWidgetType(instanceId);
+        const settings = this.dashboardConfig?.widgets?.tileSettings?.[instanceId] || {};
+        const { start, end, label } = formatters.resolveTileDateRange(settings.dateRange, {
+            budgetStartDay: parseInt(this.settings?.budget_start_day || '1', 10),
+            fallback: this._defaultDateRange(baseType),
+        });
+        return { startDate: start, endDate: end, label };
+    }
+
+    /**
+     * The date-range field for a tile's settings modal.
+     *
+     * "Current budget period" is offered only to tiles that declare
+     * budgetPeriodRange — it is the answer to "how much have I spent this
+     * cycle", which a balance-history or multi-month series tile is not asking.
+     *
+     * "Last 7 days" is offered only to tiles that declare shortRange — those
+     * resolve their dateRange setting through _tileRangeParams (which handles
+     * '7d' correctly). trendChart, netWorthHistory and assetValueHistory
+     * instead convert dateRange through hardcoded day/month lookup maps with
+     * no '7d' key, so offering the option there would silently render some
+     * other window (#333).
+     *
+     * @param {object} schema - The widget's settingsSchema
+     * @param {string} current - The tile's saved (or default) date range
+     * @returns {string} Form-group markup
+     */
+    _dateRangeField(schema, current) {
+        const options = [];
+        if (schema.shortRange) {
+            options.push(['7d', t('budget', 'Last 7 days')]);
+        }
+        options.push(
+            ['30d', t('budget', 'Last 30 days')],
+            ['90d', t('budget', 'Last 90 days')],
+            ['6m', t('budget', 'Last 6 months')],
+            ['1y', t('budget', 'Last year')],
+        );
+        if (schema.budgetPeriodRange) {
+            options.push(['period', t('budget', 'Current budget period')]);
+        }
+        const markup = options
+            .map(([value, label]) =>
+                `<option value="${value}" ${current === value ? 'selected' : ''}>${label}</option>`)
+            .join('\n                        ');
+        return `
+                <div class="form-group">
+                    <label>${t('budget', 'Date Range')}</label>
+                    <select class="tile-setting-input" data-setting="dateRange">
+                        ${markup}
+                    </select>
+                </div>
+            `;
+    }
+
+    /**
+     * A numeric tile setting (forward horizon, forecast months, years to
+     * compare), resolved against the choices the tile offers.
+     *
+     * @param {string} instanceId - Tile instance
+     * @param {string} key - Setting name, e.g. 'forwardHorizon'
+     * @param {number[]} allowed - Choices this tile offers
+     * @param {number} fallback - Used when nothing valid is saved
+     * @returns {number}
+     */
+    _tileNumberSetting(instanceId, key, allowed, fallback) {
+        const settings = this.dashboardConfig?.widgets?.tileSettings?.[instanceId] || {};
+        return formatters.resolveTileNumberSetting(settings[key], allowed, fallback);
+    }
+
+    /**
+     * A settings-modal field offering a fixed set of numbers.
+     *
+     * @param {string} setting - data-setting name the modal saves under
+     * @param {string} label - Field label, already translated
+     * @param {number[]} choices - Values to offer
+     * @param {number} current - Currently selected value
+     * @param {Function} labelFor - (n) => translated option label
+     * @returns {string} Form-group markup
+     */
+    _numberChoiceField(setting, label, choices, current, labelFor) {
+        const markup = choices
+            .map((n) => `<option value="${n}" ${Number(current) === n ? 'selected' : ''}>${labelFor(n)}</option>`)
+            .join('\n                        ');
+        return `
+                <div class="form-group">
+                    <label>${label}</label>
+                    <select class="tile-setting-input" data-setting="${setting}">
+                        ${markup}
+                    </select>
+                </div>
+            `;
     }
 
     /**
@@ -597,7 +726,6 @@ export default class DashboardModule {
      * tile's gear settings (issue #250) — this is display-only.
      */
     updateTilePeriodIndicators() {
-        const tileSettings = this.dashboardConfig?.widgets?.tileSettings || {};
         document.querySelectorAll('.dashboard-card[data-widget-id]').forEach(card => {
             const instanceId = card.getAttribute('data-widget-id');
             const baseType = this.getWidgetType(instanceId);
@@ -613,7 +741,7 @@ export default class DashboardModule {
                 return;
             }
 
-            const label = this._dateRangeLabel(tileSettings[instanceId]?.dateRange, baseType);
+            const label = this._tilePeriodLabel(instanceId, baseType);
             if (!indicator) {
                 indicator = document.createElement('span');
                 indicator.className = 'tile-period-indicator';
@@ -1349,12 +1477,25 @@ export default class DashboardModule {
         }
     }
 
+    /** Empty-state markup shared by the bills widgets. */
+    _emptyBillsState(container, message) {
+        container.innerHTML = `<div class="empty-state-small">${message}</div>`;
+    }
+
     updateUpcomingBillsWidget(bills) {
         const container = document.getElementById('upcoming-bills');
         if (!container) return;
 
-        if (!Array.isArray(bills) || bills.length === 0) {
-            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No upcoming bills')}</div>`;
+        // A refresh after a settings change calls this with no argument; fall
+        // back to the array cached at load time rather than going blank.
+        if (bills === undefined) {
+            bills = this.widgetData.upcomingBills;
+        }
+
+        const horizon = this._tileNumberSetting('upcomingBills', 'forwardHorizon', formatters.FORWARD_HORIZONS, 30);
+        bills = this.filterBillsByHorizon(bills, horizon);
+        if (bills.length === 0) {
+            this._emptyBillsState(container, t('budget', 'No upcoming bills'));
             return;
         }
 
@@ -1451,7 +1592,7 @@ export default class DashboardModule {
     async refreshBudgetProgressWidget(instanceId = 'budgetProgress') {
         try {
             const settings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
-            const { startDate, endDate } = this._dateRangeToParams(settings.dateRange);
+            const { startDate, endDate } = this._tileRangeParams(instanceId);
 
             let url = `/apps/budget/api/reports/budget?startDate=${startDate}&endDate=${endDate}`;
             if (settings.accountId) {
@@ -1475,7 +1616,7 @@ export default class DashboardModule {
     async refreshTopCategoriesWidget(instanceId = 'topCategories') {
         try {
             const settings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
-            const { startDate, endDate } = this._dateRangeToParams(settings.dateRange);
+            const { startDate, endDate } = this._tileRangeParams(instanceId);
 
             let url = `/apps/budget/api/reports/spending?startDate=${startDate}&endDate=${endDate}`;
             if (settings.accountId) {
@@ -1494,35 +1635,6 @@ export default class DashboardModule {
         } catch (error) {
             console.error('Failed to refresh top categories:', error);
         }
-    }
-
-    /** Convert a dateRange setting to startDate/endDate params */
-    _dateRangeToParams(dateRange) {
-        const now = new Date();
-        let startDate, endDate = formatters.formatDateForAPI(now);
-
-        switch (dateRange) {
-            case '30d':
-                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-                break;
-            case '90d':
-                startDate = new Date(now);
-                startDate.setMonth(startDate.getMonth() - 3);
-                break;
-            case '1y':
-                startDate = new Date(now.getFullYear(), 0, 1);
-                break;
-            case '6m':
-            default:
-                startDate = new Date(now);
-                startDate.setMonth(startDate.getMonth() - 6);
-                break;
-        }
-
-        return {
-            startDate: formatters.formatDateForAPI(startDate),
-            endDate,
-        };
     }
 
     updateSavingsGoalsWidget(goals) {
@@ -1942,17 +2054,22 @@ export default class DashboardModule {
 
         const data = this.widgetData.weeklyTrend;
         if (!data || !Array.isArray(data) || data.length === 0) {
-            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No spending data this week')}</div>`;
+            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No spending data for this period')}</div>`;
             return;
         }
 
         const total = data.reduce((sum, d) => sum + Math.abs(parseFloat(d.total || 0)), 0);
-        const avgDaily = total / 7;
+        const days = Math.max(1, parseInt(data[0]?.days, 10) || 7);
+        const avgDaily = total / days;
+        const spanLabel = this._dateRangeLabel(
+            this.dashboardConfig?.widgets?.tileSettings?.weeklyTrend?.dateRange,
+            'weeklyTrend'
+        );
 
         container.innerHTML = `
             <div class="widget-stat">
                 <div class="widget-stat-value">${this.formatCurrency(total)}</div>
-                <div class="widget-stat-label">${t('budget', 'This week')}</div>
+                <div class="widget-stat-label">${this.escapeHtml(spanLabel)}</div>
             </div>
             <div class="widget-stat">
                 <div class="widget-stat-value">${this.formatCurrency(avgDaily)}</div>
@@ -2043,9 +2160,10 @@ export default class DashboardModule {
         const container = document.getElementById('bills-due-soon-list');
         if (!container) return;
 
-        const bills = this.widgetData.billsDueSoon;
-        if (!Array.isArray(bills) || bills.length === 0) {
-            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No bills due soon')}</div>`;
+        const horizon = this._tileNumberSetting('billsDueSoon', 'forwardHorizon', formatters.FORWARD_HORIZONS, 30);
+        const bills = this.filterBillsByHorizon(this.widgetData.billsDueSoon, horizon);
+        if (bills.length === 0) {
+            this._emptyBillsState(container, t('budget', 'No bills due soon'));
             return;
         }
 
@@ -2078,6 +2196,31 @@ export default class DashboardModule {
                 </div>
             `;
         }).join('');
+    }
+
+    /**
+     * Bills falling due within a forward horizon.
+     *
+     * Bills already a little overdue are kept — dropping them would make an
+     * unpaid bill disappear from the tile that exists to chase it — but not
+     * indefinitely, or the list fills with history.
+     *
+     * @param {Array} bills - Bills as the API returns them
+     * @param {number} horizonDays - How far ahead to look
+     * @param {string} [todayStr] - YYYY-MM-DD, for testing
+     * @returns {Array} Matching bills, soonest first
+     */
+    filterBillsByHorizon(bills, horizonDays, todayStr = null) {
+        const today = todayStr || formatters.getTodayDateString();
+        const dueOf = (b) => b.nextDueDate || b.next_due_date;
+        return (Array.isArray(bills) ? bills : [])
+            .filter((b) => {
+                const due = dueOf(b);
+                if (!due) return false;
+                const days = formatters.daysBetweenDates(today, due);
+                return days >= -7 && days <= horizonDays;
+            })
+            .sort((a, b) => (dueOf(a) || '').localeCompare(dueOf(b) || ''));
     }
 
     updateIncomeTrackingWidget() {
@@ -2633,6 +2776,172 @@ export default class DashboardModule {
         }
     }
 
+    /**
+     * Projected balance over the coming months.
+     *
+     * The line starts at today's balance so the first projection is read as a
+     * change rather than a standalone figure.
+     *
+     * @param {string} instanceId - Tile instance
+     */
+    updateCashFlowForecastWidget(instanceId = 'cashFlowForecast') {
+        let canvas, emptyState;
+        if (this.isDuplicateInstance(instanceId)) {
+            const card = this.getWidgetCard(instanceId);
+            canvas = card ? card.querySelector('canvas') : null;
+            emptyState = card ? card.querySelector('.chart-empty-state') : null;
+        } else {
+            canvas = document.getElementById('cash-flow-forecast-chart');
+            emptyState = document.getElementById('cash-flow-forecast-empty');
+        }
+        if (!canvas) return;
+
+        if (this.charts[instanceId]) {
+            this.charts[instanceId].destroy();
+        }
+
+        const forecast = this.widgetData?.[instanceId] || this.widgetData?.cashFlowForecast;
+        const projections = forecast?.monthlyProjections;
+        const container = canvas.closest('.chart-container');
+
+        if (!Array.isArray(projections) || projections.length === 0) {
+            if (container) container.style.display = 'none';
+            if (emptyState) emptyState.style.display = 'flex';
+            return;
+        }
+
+        if (container) container.style.display = '';
+        canvas.style.display = 'block';
+        if (emptyState) emptyState.style.display = 'none';
+
+        const currency = this.getPrimaryCurrency();
+        const labels = [t('budget', 'Now'), ...projections.map((p) => p.month)];
+        const balances = [forecast.currentBalance ?? 0, ...projections.map((p) => p.balance)];
+
+        this.charts[instanceId] = new Chart(canvas.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: t('budget', 'Projected balance'),
+                    data: balances,
+                    borderColor: '#0082c9',
+                    backgroundColor: 'rgba(0, 130, 201, 0.1)',
+                    fill: true, tension: 0.3, borderWidth: 2,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `${t('budget', 'Balance')}: ${this.formatCurrency(ctx.raw, currency)}`,
+                            afterBody: (items) => {
+                                // The anchor point is today, which has no projection behind it.
+                                const p = projections[(items?.[0]?.dataIndex ?? 0) - 1];
+                                if (!p) return '';
+                                return [
+                                    `${t('budget', 'Income')}: ${this.formatCurrency(p.income, currency)}`,
+                                    `${t('budget', 'Expenses')}: ${this.formatCurrency(p.expenses, currency)}`,
+                                ];
+                            },
+                        },
+                    },
+                },
+                scales: {
+                    y: { ticks: { callback: (v) => formatters.formatCurrencyCompact(v, currency, this.settings) } },
+                },
+            },
+        });
+    }
+
+    /**
+     * Income against expenses, one pair of bars per year.
+     *
+     * Mirrors the Reports page's year-over-year chart, from the same payload,
+     * so the two surfaces cannot disagree. The service returns newest first;
+     * the chart reads left to right, so the years are reversed for display.
+     *
+     * @param {string} instanceId - Tile instance
+     */
+    updateYoyComparisonWidget(instanceId = 'yoyComparison') {
+        let canvas, emptyState;
+        if (this.isDuplicateInstance(instanceId)) {
+            const card = this.getWidgetCard(instanceId);
+            canvas = card ? card.querySelector('canvas') : null;
+            emptyState = card ? card.querySelector('.chart-empty-state') : null;
+        } else {
+            canvas = document.getElementById('yoy-comparison-chart');
+            emptyState = document.getElementById('yoy-comparison-empty');
+        }
+        if (!canvas) return;
+
+        if (this.charts[instanceId]) {
+            this.charts[instanceId].destroy();
+        }
+
+        const payload = this.widgetData?.[instanceId] || this.widgetData?.yoyComparison;
+        const years = Array.isArray(payload?.years) ? [...payload.years].reverse() : [];
+        const container = canvas.closest('.chart-container');
+
+        if (years.length === 0) {
+            if (container) container.style.display = 'none';
+            if (emptyState) emptyState.style.display = 'flex';
+            return;
+        }
+
+        if (container) container.style.display = '';
+        canvas.style.display = 'block';
+        if (emptyState) emptyState.style.display = 'none';
+
+        const currency = this.getPrimaryCurrency();
+        const yoySettings = this.dashboardConfig?.widgets?.tileSettings?.[instanceId] || {};
+        const yoyShowLegend = yoySettings.showLegend !== false;
+
+        this.charts[instanceId] = new Chart(canvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: years.map((y) => String(y.year)),
+                datasets: [
+                    {
+                        label: t('budget', 'Income'),
+                        data: years.map((y) => y.income),
+                        backgroundColor: 'rgba(46, 125, 50, 0.7)',
+                        borderColor: 'rgba(46, 125, 50, 1)',
+                        borderWidth: 1,
+                    },
+                    {
+                        label: t('budget', 'Expenses'),
+                        data: years.map((y) => y.expenses),
+                        backgroundColor: 'rgba(198, 40, 40, 0.7)',
+                        borderColor: 'rgba(198, 40, 40, 1)',
+                        borderWidth: 1,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: yoyShowLegend },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `${ctx.dataset.label}: ${this.formatCurrency(ctx.raw, currency)}`,
+                        },
+                    },
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: (v) => formatters.formatCurrencyCompact(v, currency, this.settings) },
+                    },
+                },
+            },
+        });
+    }
+
     updateNetWorthStatus(snapshots, statusEl) {
         if (!statusEl) return;
 
@@ -2719,23 +3028,9 @@ export default class DashboardModule {
         if (spendingAccountSelect && !spendingAccountSelect.hasAttribute('data-initialized')) {
             spendingAccountSelect.setAttribute('data-initialized', 'true');
             spendingAccountSelect.addEventListener('change', async () => {
-                const periodSelect = document.getElementById('spending-period-select');
-                const period = periodSelect ? periodSelect.value : 'month';
                 const accountId = spendingAccountSelect.value || null;
-                await this.refreshSpendingChart(period, accountId);
+                await this.refreshSpendingChart('spendingChart', accountId);
                 await this.saveWidgetAccountSelection('spending-account-select', spendingAccountSelect.value);
-            });
-        }
-
-        // Spending period selector
-        const spendingPeriodSelect = document.getElementById('spending-period-select');
-        if (spendingPeriodSelect && !spendingPeriodSelect.hasAttribute('data-initialized')) {
-            spendingPeriodSelect.setAttribute('data-initialized', 'true');
-            spendingPeriodSelect.addEventListener('change', async (e) => {
-                const period = e.target.value;
-                const accountSelect = document.getElementById('spending-account-select');
-                const accountId = accountSelect ? (accountSelect.value || null) : null;
-                await this.refreshSpendingChart(period, accountId);
             });
         }
 
@@ -2848,28 +3143,14 @@ export default class DashboardModule {
         }
     }
 
-    async refreshSpendingChart(period, accountId = null, instanceId = 'spendingChart') {
+    /**
+     * @param {string} instanceId - Tile instance; its saved date range decides the window
+     * @param {number|null} accountId - Restrict to one account
+     */
+    async refreshSpendingChart(instanceId = 'spendingChart', accountId = null) {
         try {
-            let startDate = new Date();
-            const endDate = new Date();
+            const { startDate: startStr, endDate: endStr } = this._tileRangeParams(instanceId);
 
-            switch (period) {
-                case 'month':
-                    startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
-                    break;
-                case '3months':
-                    startDate.setMonth(startDate.getMonth() - 3);
-                    break;
-                case '6months':
-                    startDate.setMonth(startDate.getMonth() - 6);
-                    break;
-                case 'year':
-                    startDate = new Date(endDate.getFullYear(), 0, 1);
-                    break;
-            }
-
-            const startStr = formatters.formatDateForAPI(startDate);
-            const endStr = formatters.formatDateForAPI(endDate);
             let url = `/apps/budget/api/reports/spending?startDate=${startStr}&endDate=${endStr}`;
             if (accountId) {
                 url += `&accountId=${accountId}`;
@@ -2953,19 +3234,18 @@ export default class DashboardModule {
         const settings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
         const dateRange = settings.dateRange || this._defaultDateRange(baseType);
 
-        // Convert dateRange setting to parameters
+        // The balance-history tiles take a day count and the trend chart a month
+        // count; the spending chart resolves its own window from the setting.
         const dateRangeMap = { '30d': 30, '90d': 90, '6m': 180, '1y': 365 };
         const days = dateRangeMap[dateRange] || 180;
         const monthsMap = { '30d': 1, '90d': 3, '6m': 6, '1y': 12 };
         const months = monthsMap[dateRange] || 6;
-        const periodMap = { '30d': 'month', '90d': '3months', '6m': '6months', '1y': 'year' };
-        const period = periodMap[dateRange] || '6months';
 
         switch (baseType) {
             case 'trendChart':
                 return this.refreshTrendChart(months, this._validAccountId(settings.accountId), instanceId);
             case 'spendingChart':
-                return this.refreshSpendingChart(period, this._validAccountId(settings.accountId), instanceId);
+                return this.refreshSpendingChart(instanceId, this._validAccountId(settings.accountId));
             case 'netWorthHistory':
                 return this.refreshNetWorthChart(days, this._validAccountId(settings.accountId), instanceId);
             case 'assetValueHistory':
@@ -3814,11 +4094,12 @@ export default class DashboardModule {
                 }
 
                 case 'largeTransactions': {
-                    const largeResp = await fetch(
-                        OC.generateUrl(`/apps/budget/api/transactions?limit=10&sort=amount${this._tileScopeParams('largeTransactions')}`),
+                    const ltRange = this._tileRangeParams(widgetKey);
+                    const ltResp = await fetch(
+                        OC.generateUrl(`/apps/budget/api/transactions?limit=10&sort=amount&dateFrom=${ltRange.startDate}&dateTo=${ltRange.endDate}${this._tileScopeParams(widgetKey)}`),
                         { headers: { 'requesttoken': OC.requestToken } }
                     );
-                    this.widgetData.largeTransactions = await largeResp.json();
+                    this.widgetData.largeTransactions = await ltResp.json();
                     break;
                 }
 
@@ -3833,17 +4114,21 @@ export default class DashboardModule {
 
                 // Phase 3 cases
                 case 'cashFlowForecast': {
-                    const forecastResp = await fetch(
-                        OC.generateUrl(`/apps/budget/api/forecast/live?days=90${this._tileScopeParams('cashFlowForecast', { account: false })}`),
+                    // The endpoint takes forecastMonths; the old days=90 was not a
+                    // parameter it accepts and was silently ignored.
+                    const cfMonths = this._tileNumberSetting(widgetKey, 'forecastMonths', formatters.FORECAST_MONTHS, 6);
+                    const cfResp = await fetch(
+                        OC.generateUrl(`/apps/budget/api/forecast/live?forecastMonths=${cfMonths}${this._tileScopeParams(widgetKey, { account: false })}`),
                         { headers: { 'requesttoken': OC.requestToken } }
                     );
-                    this.widgetData.cashFlowForecast = await forecastResp.json();
+                    this.widgetData.cashFlowForecast = await cfResp.json();
                     break;
                 }
 
                 case 'yoyComparison': {
+                    const yoyYears = this._tileNumberSetting(widgetKey, 'yearsToCompare', formatters.YEARS_TO_COMPARE, 2);
                     const yoyResp = await fetch(
-                        OC.generateUrl(`/apps/budget/api/yoy/years?years=2${this._tileScopeParams('yoyComparison')}`),
+                        OC.generateUrl(`/apps/budget/api/yoy/years?years=${yoyYears}${this._tileScopeParams(widgetKey)}`),
                         { headers: { 'requesttoken': OC.requestToken } }
                     );
                     this.widgetData.yoyComparison = await yoyResp.json();
@@ -3897,15 +4182,16 @@ export default class DashboardModule {
                 }
 
                 case 'weeklyTrend': {
-                    const weekEnd = new Date();
-                    const weekStart = new Date();
-                    weekStart.setDate(weekEnd.getDate() - 7);
+                    const wtRange = this._tileRangeParams(widgetKey);
                     const weekResp = await fetch(
-                        OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${formatters.formatDateForAPI(weekStart)}&endDate=${formatters.formatDateForAPI(weekEnd)}${this._tileScopeParams('weeklyTrend')}`),
+                        OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${wtRange.startDate}&endDate=${wtRange.endDate}${this._tileScopeParams(widgetKey)}`),
                         { headers: { 'requesttoken': OC.requestToken } }
                     );
                     const weekData = await weekResp.json();
-                    this.widgetData.weeklyTrend = [{ total: weekData.totalExpenses || 0 }];
+                    // Inclusive span, so the renderer's daily average matches the
+                    // window the user picked rather than assuming a week.
+                    const wtDays = formatters.daysBetweenDates(wtRange.startDate, wtRange.endDate) + 1;
+                    this.widgetData.weeklyTrend = [{ total: weekData.totalExpenses || 0, days: wtDays }];
                     break;
                 }
 
@@ -3924,31 +4210,17 @@ export default class DashboardModule {
                         OC.generateUrl('/apps/budget/api/bills?isTransfer=false'),
                         { headers: { 'requesttoken': OC.requestToken } }
                     );
-                    const allBills = await billsResp.json();
-                    // Filter to upcoming bills (due within 14 days)
-                    const todayStr = formatters.getTodayDateString();
-                    this.widgetData.billsDueSoon = (Array.isArray(allBills) ? allBills : [])
-                        .filter(b => {
-                            const due = b.nextDueDate || b.next_due_date;
-                            if (!due) return false;
-                            const days = formatters.daysBetweenDates(todayStr, due);
-                            return days >= -7 && days <= 14;
-                        })
-                        .sort((a, b) => (a.nextDueDate || a.next_due_date || '').localeCompare(b.nextDueDate || b.next_due_date || ''));
+                    // Cached unfiltered: the horizon is applied at render time in
+                    // updateBillsDueSoonWidget, so a settings change can re-render
+                    // from cache instead of forcing a refetch.
+                    this.widgetData.billsDueSoon = await billsResp.json();
                     break;
                 }
 
                 case 'categoryTrends': {
-                    const ctNow = new Date();
-                    const ctThisMonth = {
-                        start: formatters.getMonthStart(ctNow.getFullYear(), ctNow.getMonth() + 1),
-                        end: formatters.getMonthEnd(ctNow.getFullYear(), ctNow.getMonth() + 1)
-                    };
-                    const ctLastDate = new Date(ctNow.getFullYear(), ctNow.getMonth() - 1, 1);
-                    const ctLastMonth = {
-                        start: formatters.getMonthStart(ctLastDate.getFullYear(), ctLastDate.getMonth() + 1),
-                        end: formatters.getMonthEnd(ctLastDate.getFullYear(), ctLastDate.getMonth() + 1)
-                    };
+                    const ctRange = this._tileRangeParams(widgetKey);
+                    const ctThisMonth = { start: ctRange.startDate, end: ctRange.endDate };
+                    const ctLastMonth = formatters.precedingWindow(ctRange.startDate, ctRange.endDate);
 
                     // categories/spending only supports excludeShared (no accountId param)
                     const ctScope = this._tileScopeParams('categoryTrends', { account: false });
@@ -4314,17 +4586,49 @@ export default class DashboardModule {
         if (schema.dateRange) {
             // Default to the same value the tile actually displays / the indicator shows
             const current = currentSettings.dateRange || this._defaultDateRange(this.getWidgetType(widgetId));
-            fields.push(`
-                <div class="form-group">
-                    <label>${t('budget', 'Date Range')}</label>
-                    <select class="tile-setting-input" data-setting="dateRange">
-                        <option value="30d" ${current === '30d' ? 'selected' : ''}>${t('budget', 'Last 30 days')}</option>
-                        <option value="90d" ${current === '90d' ? 'selected' : ''}>${t('budget', 'Last 90 days')}</option>
-                        <option value="6m" ${current === '6m' ? 'selected' : ''}>${t('budget', 'Last 6 months')}</option>
-                        <option value="1y" ${current === '1y' ? 'selected' : ''}>${t('budget', 'Last year')}</option>
-                    </select>
-                </div>
-            `);
+            fields.push(this._dateRangeField(schema, current));
+        }
+
+        // Forward horizon (bills tiles look ahead, so a past range never applied)
+        if (schema.forwardHorizon) {
+            const current = this._tileNumberSetting(widgetId, 'forwardHorizon', formatters.FORWARD_HORIZONS, 30);
+            fields.push(this._numberChoiceField(
+                'forwardHorizon',
+                t('budget', 'Look ahead'),
+                formatters.FORWARD_HORIZONS,
+                current,
+                (n) => n === 30 ? t('budget', 'Next 30 days')
+                    : n === 60 ? t('budget', 'Next 60 days')
+                        : t('budget', 'Next 90 days'),
+            ));
+        }
+
+        // Forecast horizon (this tile projects forward, so a past range never applied)
+        if (schema.forecastMonths) {
+            const current = this._tileNumberSetting(widgetId, 'forecastMonths', formatters.FORECAST_MONTHS, 6);
+            fields.push(this._numberChoiceField(
+                'forecastMonths',
+                t('budget', 'Forecast horizon'),
+                formatters.FORECAST_MONTHS,
+                current,
+                (n) => n === 3 ? t('budget', 'Next 3 months')
+                    : n === 6 ? t('budget', 'Next 6 months')
+                        : t('budget', 'Next 12 months'),
+            ));
+        }
+
+        // Years to compare (this tile counts years, not days)
+        if (schema.yearsToCompare) {
+            const current = this._tileNumberSetting(widgetId, 'yearsToCompare', formatters.YEARS_TO_COMPARE, 2);
+            fields.push(this._numberChoiceField(
+                'yearsToCompare',
+                t('budget', 'Years to compare'),
+                formatters.YEARS_TO_COMPARE,
+                current,
+                (n) => n === 2 ? t('budget', 'Last 2 years')
+                    : n === 3 ? t('budget', 'Last 3 years')
+                        : t('budget', 'Last 5 years'),
+            ));
         }
 
         // Account selector

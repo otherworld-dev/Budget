@@ -573,11 +573,6 @@ style('budget', 'budget-app');
                                 <select id="spending-account-select" class="card-select">
                                     <option value=""><?php p($l->t('All Accounts')); ?></option>
                                 </select>
-                                <select id="spending-period-select" class="card-select">
-                                    <option value="month"><?php p($l->t('This Month')); ?></option>
-                                    <option value="3months"><?php p($l->t('Last 3 Months')); ?></option>
-                                    <option value="year"><?php p($l->t('This Year')); ?></option>
-                                </select>
                             </div>
                         </div>
                         <div class="spending-chart-wrapper">
@@ -920,6 +915,9 @@ style('budget', 'budget-app');
                         <div class="chart-container chart-container-large">
                             <canvas id="cash-flow-forecast-chart"></canvas>
                         </div>
+                        <div id="cash-flow-forecast-empty" class="chart-empty-state" style="display: none;">
+                            <?php p($l->t('Not enough history yet to forecast')); ?>
+                        </div>
                     </div>
 
                     <div id="yoy-comparison-card" class="dashboard-card dashboard-card-large dashboard-tile-l" data-widget-id="yoyComparison" data-widget-category="widget" style="display: none;">
@@ -928,6 +926,9 @@ style('budget', 'budget-app');
                         </div>
                         <div class="chart-container chart-container-large">
                             <canvas id="yoy-comparison-chart"></canvas>
+                        </div>
+                        <div id="yoy-comparison-empty" class="chart-empty-state" style="display: none;">
+                            <?php p($l->t('No yearly data to compare yet')); ?>
                         </div>
                     </div>
 

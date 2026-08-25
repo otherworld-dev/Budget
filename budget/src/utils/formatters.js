@@ -463,6 +463,125 @@ export function getPeriodDateRange(period, startDay = 1, referenceDate = null) {
     }
 }
 
+/** The date-range values a dashboard tile's settings can hold. */
+export const TILE_DATE_RANGES = ['7d', '30d', '90d', '6m', '1y', 'period'];
+
+/**
+ * Shift a date by whole months, clamping to the target month's length.
+ *
+ * setMonth() alone overflows: six months back from 31 March is 31 September,
+ * which lands on 1 October and silently widens the window by a day.
+ *
+ * @param {Date} date - Mutated in place
+ * @param {number} months - Signed month offset
+ */
+function shiftMonthsClamped(date, months) {
+    const day = date.getDate();
+    date.setDate(1);
+    date.setMonth(date.getMonth() + months);
+    const daysInTargetMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    date.setDate(Math.min(day, daysInTargetMonth));
+}
+
+/**
+ * Resolve a dashboard tile's date-range setting into the window it charts.
+ *
+ * The rolling ranges are literal: "Last 30 days" is the last 30 days, not the
+ * month to date (#333). 'period' follows the user's own budget cycle, so a tile
+ * answering "how much have I spent this cycle" agrees with the budget surfaces
+ * instead of cutting the cycle in half at the month boundary.
+ *
+ * @param {string} dateRange - One of TILE_DATE_RANGES
+ * @param {object} [options]
+ * @param {number} [options.budgetStartDay=1] - Day of month the budget cycle starts ('period' only)
+ * @param {string} [options.fallback='6m'] - Range to use when dateRange is not recognised
+ * @param {Date|string} [options.referenceDate=null] - Stands in for "today"
+ * @returns {object} {start, end, label} — label is the date span for 'period', else null
+ */
+export function resolveTileDateRange(dateRange, options = {}) {
+    const { budgetStartDay = 1, fallback = '6m', referenceDate = null } = options;
+    const now = referenceDate ? new Date(referenceDate) : new Date();
+
+    // A tile can hold a range it no longer offers (its schema changed, or the
+    // setting predates this list), so an unrecognised value resolves to the
+    // caller's default rather than to an empty window. The second check keeps
+    // an unrecognised fallback from resolving to nothing in turn.
+    let key = dateRange;
+    if (!TILE_DATE_RANGES.includes(key)) {
+        key = TILE_DATE_RANGES.includes(fallback) ? fallback : '6m';
+    }
+
+    if (key === 'period') {
+        const period = getPeriodDateRange('monthly', budgetStartDay, now);
+        return { start: period.start, end: period.end, label: period.label };
+    }
+
+    const start = new Date(now);
+    switch (key) {
+        case '7d': start.setDate(start.getDate() - 7); break;
+        case '30d': start.setDate(start.getDate() - 30); break;
+        case '90d': start.setDate(start.getDate() - 90); break;
+        case '1y': shiftMonthsClamped(start, -12); break;
+        case '6m':
+        default: shiftMonthsClamped(start, -6); break;
+    }
+
+    return {
+        start: formatDateForAPI(start),
+        end: formatDateForAPI(now),
+        label: null,
+    };
+}
+
+/** Forward horizons, in days, a bills tile can look ahead. */
+export const FORWARD_HORIZONS = [30, 60, 90];
+
+/** Horizons, in months, the cash-flow forecast can project. */
+export const FORECAST_MONTHS = [3, 6, 12];
+
+/** How many years the year-over-year tile can compare. */
+export const YEARS_TO_COMPARE = [2, 3, 5];
+
+/**
+ * Resolve a numeric tile setting against the choices that tile offers.
+ *
+ * A saved value can be a string (a select reports one), absent, or a choice the
+ * tile no longer offers, so anything unrecognised resolves to the fallback
+ * rather than reaching a fetch as NaN.
+ *
+ * @param {number|string|undefined} value - The saved setting
+ * @param {number[]} allowed - The choices this tile offers
+ * @param {number} fallback - Used when value is not one of them
+ * @returns {number}
+ */
+export function resolveTileNumberSetting(value, allowed, fallback) {
+    const n = parseInt(value, 10);
+    return allowed.includes(n) ? n : fallback;
+}
+
+/**
+ * The equal-length window immediately before the given one.
+ *
+ * A comparison tile needs "the same length of time, just before" so the two
+ * figures are like for like whatever range the user picked.
+ *
+ * @param {string} startDate - YYYY-MM-DD, inclusive
+ * @param {string} endDate - YYYY-MM-DD, inclusive
+ * @returns {object} {start, end} as YYYY-MM-DD
+ */
+export function precedingWindow(startDate, endDate) {
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T00:00:00');
+    const lengthDays = Math.round((end - start) / 86400000) + 1;
+
+    const prevEnd = new Date(start);
+    prevEnd.setDate(prevEnd.getDate() - 1);
+    const prevStart = new Date(prevEnd);
+    prevStart.setDate(prevStart.getDate() - (lengthDays - 1));
+
+    return { start: formatDateForAPI(prevStart), end: formatDateForAPI(prevEnd) };
+}
+
 /**
  * Pro-rate a budget amount from one period to another.
  *
