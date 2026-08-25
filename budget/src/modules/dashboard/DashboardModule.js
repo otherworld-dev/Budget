@@ -2753,6 +2753,87 @@ export default class DashboardModule {
         }
     }
 
+    /**
+     * Projected balance over the coming months.
+     *
+     * The line starts at today's balance so the first projection is read as a
+     * change rather than a standalone figure.
+     *
+     * @param {string} instanceId - Tile instance
+     */
+    updateCashFlowForecastWidget(instanceId = 'cashFlowForecast') {
+        let canvas, emptyState;
+        if (this.isDuplicateInstance(instanceId)) {
+            const card = this.getWidgetCard(instanceId);
+            canvas = card ? card.querySelector('canvas') : null;
+            emptyState = card ? card.querySelector('.chart-empty-state') : null;
+        } else {
+            canvas = document.getElementById('cash-flow-forecast-chart');
+            emptyState = document.getElementById('cash-flow-forecast-empty');
+        }
+        if (!canvas) return;
+
+        if (this.charts[instanceId]) {
+            this.charts[instanceId].destroy();
+        }
+
+        const forecast = this.widgetData?.[instanceId] || this.widgetData?.cashFlowForecast;
+        const projections = forecast?.monthlyProjections;
+        const container = canvas.closest('.chart-container');
+
+        if (!Array.isArray(projections) || projections.length === 0) {
+            if (container) container.style.display = 'none';
+            if (emptyState) emptyState.style.display = 'flex';
+            return;
+        }
+
+        if (container) container.style.display = '';
+        canvas.style.display = 'block';
+        if (emptyState) emptyState.style.display = 'none';
+
+        const currency = this.getPrimaryCurrency();
+        const labels = [t('budget', 'Now'), ...projections.map((p) => p.month)];
+        const balances = [forecast.currentBalance ?? 0, ...projections.map((p) => p.balance)];
+
+        this.charts[instanceId] = new Chart(canvas.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: t('budget', 'Projected balance'),
+                    data: balances,
+                    borderColor: '#0082c9',
+                    backgroundColor: 'rgba(0, 130, 201, 0.1)',
+                    fill: true, tension: 0.3, borderWidth: 2,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `${t('budget', 'Balance')}: ${this.formatCurrency(ctx.raw, currency)}`,
+                            afterBody: (items) => {
+                                // The anchor point is today, which has no projection behind it.
+                                const p = projections[items[0].dataIndex - 1];
+                                if (!p) return '';
+                                return [
+                                    `${t('budget', 'Income')}: ${this.formatCurrency(p.income, currency)}`,
+                                    `${t('budget', 'Expenses')}: ${this.formatCurrency(p.expenses, currency)}`,
+                                ];
+                            },
+                        },
+                    },
+                },
+                scales: {
+                    y: { ticks: { callback: (v) => formatters.formatCurrencyCompact(v, currency, this.settings) } },
+                },
+            },
+        });
+    }
+
     updateNetWorthStatus(snapshots, statusEl) {
         if (!statusEl) return;
 
@@ -3936,11 +4017,14 @@ export default class DashboardModule {
 
                 // Phase 3 cases
                 case 'cashFlowForecast': {
-                    const forecastResp = await fetch(
-                        OC.generateUrl(`/apps/budget/api/forecast/live?days=90${this._tileScopeParams('cashFlowForecast', { account: false })}`),
+                    // The endpoint takes forecastMonths; the old days=90 was not a
+                    // parameter it accepts and was silently ignored.
+                    const cfMonths = this._tileNumberSetting(widgetKey, 'forecastMonths', formatters.FORECAST_MONTHS, 6);
+                    const cfResp = await fetch(
+                        OC.generateUrl(`/apps/budget/api/forecast/live?forecastMonths=${cfMonths}${this._tileScopeParams(widgetKey, { account: false })}`),
                         { headers: { 'requesttoken': OC.requestToken } }
                     );
-                    this.widgetData.cashFlowForecast = await forecastResp.json();
+                    this.widgetData.cashFlowForecast = await cfResp.json();
                     break;
                 }
 
@@ -4417,6 +4501,20 @@ export default class DashboardModule {
                 (n) => n === 30 ? t('budget', 'Next 30 days')
                     : n === 60 ? t('budget', 'Next 60 days')
                         : t('budget', 'Next 90 days'),
+            ));
+        }
+
+        // Forecast horizon (this tile projects forward, so a past range never applied)
+        if (schema.forecastMonths) {
+            const current = this._tileNumberSetting(widgetId, 'forecastMonths', formatters.FORECAST_MONTHS, 6);
+            fields.push(this._numberChoiceField(
+                'forecastMonths',
+                t('budget', 'Forecast horizon'),
+                formatters.FORECAST_MONTHS,
+                current,
+                (n) => n === 3 ? t('budget', 'Next 3 months')
+                    : n === 6 ? t('budget', 'Next 6 months')
+                        : t('budget', 'Next 12 months'),
             ));
         }
 

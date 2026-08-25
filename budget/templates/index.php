@@ -920,6 +920,9 @@ style('budget', 'budget-app');
                         <div class="chart-container chart-container-large">
                             <canvas id="cash-flow-forecast-chart"></canvas>
                         </div>
+                        <div id="cash-flow-forecast-empty" class="chart-empty-state" style="display: none;">
+                            <?php p($l->t('Not enough history yet to forecast')); ?>
+                        </div>
                     </div>
 
                     <div id="yoy-comparison-card" class="dashboard-card dashboard-card-large dashboard-tile-l" data-widget-id="yoyComparison" data-widget-category="widget" style="display: none;">
