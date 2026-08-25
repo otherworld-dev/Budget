@@ -559,6 +559,29 @@ export function resolveTileNumberSetting(value, allowed, fallback) {
 }
 
 /**
+ * The equal-length window immediately before the given one.
+ *
+ * A comparison tile needs "the same length of time, just before" so the two
+ * figures are like for like whatever range the user picked.
+ *
+ * @param {string} startDate - YYYY-MM-DD, inclusive
+ * @param {string} endDate - YYYY-MM-DD, inclusive
+ * @returns {object} {start, end} as YYYY-MM-DD
+ */
+export function precedingWindow(startDate, endDate) {
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T00:00:00');
+    const lengthDays = Math.round((end - start) / 86400000) + 1;
+
+    const prevEnd = new Date(start);
+    prevEnd.setDate(prevEnd.getDate() - 1);
+    const prevStart = new Date(prevEnd);
+    prevStart.setDate(prevStart.getDate() - (lengthDays - 1));
+
+    return { start: formatDateForAPI(prevStart), end: formatDateForAPI(prevEnd) };
+}
+
+/**
  * Pro-rate a budget amount from one period to another.
  *
  * @param {number} amount - Budget amount in the source period

@@ -4011,16 +4011,9 @@ export default class DashboardModule {
                 }
 
                 case 'categoryTrends': {
-                    const ctNow = new Date();
-                    const ctThisMonth = {
-                        start: formatters.getMonthStart(ctNow.getFullYear(), ctNow.getMonth() + 1),
-                        end: formatters.getMonthEnd(ctNow.getFullYear(), ctNow.getMonth() + 1)
-                    };
-                    const ctLastDate = new Date(ctNow.getFullYear(), ctNow.getMonth() - 1, 1);
-                    const ctLastMonth = {
-                        start: formatters.getMonthStart(ctLastDate.getFullYear(), ctLastDate.getMonth() + 1),
-                        end: formatters.getMonthEnd(ctLastDate.getFullYear(), ctLastDate.getMonth() + 1)
-                    };
+                    const ctRange = this._tileRangeParams(widgetKey);
+                    const ctThisMonth = { start: ctRange.startDate, end: ctRange.endDate };
+                    const ctLastMonth = formatters.precedingWindow(ctRange.startDate, ctRange.endDate);
 
                     // categories/spending only supports excludeShared (no accountId param)
                     const ctScope = this._tileScopeParams('categoryTrends', { account: false });

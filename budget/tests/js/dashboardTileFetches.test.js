@@ -95,3 +95,18 @@ describe('Weekly Spending', () => {
         expect(dash.widgetData.weeklyTrend[0]).toMatchObject({ total: 300, days: 31 });
     });
 });
+
+describe('Category Trends', () => {
+    it('asks for the chosen window and the one before it', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(at(2026, 8, 24));
+        const dash = makeDashboard({ categoryTrends: { dateRange: '30d' } });
+
+        await dash.loadWidgetData('categoryTrends', true);
+
+        expect(requested[0]).toContain('startDate=2026-07-25');
+        expect(requested[0]).toContain('endDate=2026-08-24');
+        expect(requested[1]).toContain('startDate=2026-06-24');
+        expect(requested[1]).toContain('endDate=2026-07-24');
+    });
+});
