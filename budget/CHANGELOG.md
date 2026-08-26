@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.44.0] - 2026-08-26
 
 ### Added
 - **Dashboard tiles can follow your budget period.** Spending by Category, Top Spending Categories and Budget Progress gain a **Current budget period** date range in their gear settings, which tracks the **Budget start day** you set in Settings. If your money arrives on the 25th, the tile now covers the 25th to the 24th like the rest of the budget surfaces do, instead of cutting your cycle in half at the month boundary. Spending by Category's header chip names the days it is actually showing — "25 Aug – 24 Sept" — rather than repeating the setting back at you. The other tiles are unchanged: a balance-history chart and the income-vs-expenses series cover a span rather than one cycle, so the option is not offered there ([#333](https://github.com/otherworld-dev/Budget/issues/333))
