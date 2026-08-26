@@ -429,6 +429,8 @@ class ReportAggregator {
         // the category in the report even when its base is 0 — a depleted
         // envelope must show as over budget, not vanish.
         $categoryIds = [];
+        $expenseCategoryIds = [];
+        $incomeCategoryIds = [];
         $resolvedBudgets = [];
         $resolvedBases = [];
         $notBudgeted = BudgetScope::excludedCategoryIds($categories);
@@ -449,13 +451,26 @@ class ReportAggregator {
             $carried = (float) ($carryovers[$catId] ?? 0);
             if ($budgeted > 0 || abs($carried) >= 0.005) {
                 $categoryIds[] = $catId;
+                if ($category->getType() === 'income') {
+                    $incomeCategoryIds[] = $catId;
+                } else {
+                    $expenseCategoryIds[] = $catId;
+                }
                 $resolvedBases[$catId] = $budgeted;
                 $resolvedBudgets[$catId] = round($budgeted + $carried, 2);
             }
         }
 
-        // Single batch query for all category spending (replaces N+1 pattern)
-        $categorySpending = $this->transactionMapper->getCategorySpendingBatch($categoryIds, $startDate, $endDate, 'debit', $accountId);
+        // One batch query per direction, replacing an N+1 pattern. An income
+        // category is measured by what came IN, so asking for debits reported
+        // nothing against its budget; now that the figure is net (#361) it
+        // would have reported a negative one. The Budget page has always split
+        // the two this way — see CategoryService::getBudgetAnalysis.
+        $categorySpending = $this->transactionMapper->getCategorySpendingBatch(
+            $expenseCategoryIds, $startDate, $endDate, 'debit', $accountId
+        ) + $this->transactionMapper->getCategorySpendingBatch(
+            $incomeCategoryIds, $startDate, $endDate, 'credit', $accountId
+        );
 
         foreach ($categories as $category) {
             $categoryId = $category->getId();

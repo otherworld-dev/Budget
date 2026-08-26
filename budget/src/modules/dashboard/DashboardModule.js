@@ -29,6 +29,9 @@ const GRIDSTACK_SIZE_MAP = {
 const DUPLICABLE_WIDGETS = ['trendChart', 'spendingChart', 'netWorthHistory', 'assetValueHistory', 'recentTransactions'];
 const MAX_INSTANCES = 5;
 
+/** Category dots a Recent Transactions row shows for a split before the line stops being a label. */
+const MAX_SPLIT_CATEGORY_DOTS = 3;
+
 /**
  * Time-series chart tiles that display a date range and get a read-only period
  * indicator. These all default to a 6-month view and are driven by the unified
@@ -1183,6 +1186,66 @@ export default class DashboardModule {
         });
     }
 
+    /**
+     * The category cell of one Recent Transactions row.
+     *
+     * A split transaction holds no category of its own -- splitting moves them
+     * onto its parts (#359) -- so resolving one from categoryId alone labelled
+     * every split "Uncategorized" however carefully it had been sorted, which
+     * is what #360 was reported as. The rows this tile renders come from
+     * /api/transactions, which has attached the parts since #359, so they only
+     * had to be read.
+     *
+     * This is one line of a narrow tile rather than a table cell, so the names
+     * are joined and left to an ellipsis, with the part-by-part breakdown in
+     * the tooltip the way the account register does it. A category funding two
+     * parts of the same receipt is named once, and still itemised twice in the
+     * tooltip. Only the first few parts get a dot -- past that the line is all
+     * dot and no name.
+     */
+    _recentTransactionCategoryCell(tx) {
+        const uncategorized = t('budget', 'Uncategorized');
+        const colorFor = (id) => this.categories?.find(c => c.id === id)?.color || '#999';
+        const dot = (color) => `<span class="recent-transaction-category-dot" style="background: ${color}"></span>`;
+        const cell = (dots, label, title) =>
+            `<span class="recent-transaction-category"${title ? ` title="${title}"` : ''}>`
+            + `${dots}<span class="recent-transaction-category-name">${label}</span></span>`;
+
+        const isSplit = !!(tx.isSplit || tx.is_split);
+        const parts = isSplit && Array.isArray(tx.splitCategories) ? tx.splitCategories : null;
+
+        if (parts && parts.length > 0) {
+            const seen = new Set();
+            const distinct = parts.filter(part => {
+                const key = part.categoryId ?? 'none';
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+
+            return cell(
+                distinct.slice(0, MAX_SPLIT_CATEGORY_DOTS).map(part => dot(colorFor(part.categoryId))).join(''),
+                distinct.map(part => this.escapeHtml(part.categoryName || uncategorized)).join(' / '),
+                parts.map(part => this.escapeHtml(
+                    (part.categoryName || uncategorized) + ': ' + this.formatCurrency(part.amount)
+                )).join('&#10;')
+            );
+        }
+
+        if (isSplit) {
+            // Split, but this payload did not carry the parts. Naming it a
+            // split is at least true, where "Uncategorized" is not.
+            return cell(dot('#999'), this.escapeHtml(t('budget', 'Split')), this.escapeHtml(t('budget', 'Split transaction')));
+        }
+
+        const category = this.categories?.find(c => c.id === tx.categoryId || c.id === tx.category_id);
+        return cell(
+            dot(category ? category.color : '#999'),
+            this.escapeHtml(category ? category.name : uncategorized),
+            ''
+        );
+    }
+
     updateRecentTransactions(transactions, instanceId = 'recentTransactions') {
         let container;
         if (this.isDuplicateInstance(instanceId)) {
@@ -1203,9 +1266,6 @@ export default class DashboardModule {
         container.innerHTML = transactions.slice(0, rowCount).map(tx => {
             const isCredit = tx.type === 'credit';
             const amount = parseFloat(tx.amount) || 0;
-            const category = this.categories.find(c => c.id === tx.categoryId || c.id === tx.category_id);
-            const categoryName = category ? category.name : t('budget', 'Uncategorized');
-            const categoryColor = category ? category.color : '#999';
             const date = tx.date ? this.formatDate(tx.date) : '';
 
             return `
@@ -1220,11 +1280,8 @@ export default class DashboardModule {
                         <div class="recent-transaction-details">
                             <div class="recent-transaction-description">${this.escapeHtml(tx.description || tx.vendor || t('budget', 'Transaction'))}</div>
                             <div class="recent-transaction-meta">
-                                <span>${date}</span>
-                                <span class="recent-transaction-category">
-                                    <span class="recent-transaction-category-dot" style="background: ${categoryColor}"></span>
-                                    ${this.escapeHtml(categoryName)}
-                                </span>
+                                <span class="recent-transaction-date">${date}</span>
+                                ${this._recentTransactionCategoryCell(tx)}
                             </div>
                         </div>
                     </div>

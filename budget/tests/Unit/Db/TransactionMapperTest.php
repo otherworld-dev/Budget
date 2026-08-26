@@ -64,6 +64,14 @@ class TransactionMapperTest extends TestCase {
         $this->mapper = new TransactionMapper($this->db, $this->filterBuilder);
     }
 
+    /** One IResult mock yielding the given rows -- for methods that run more than one query. */
+    private function resultOf(array $rows): IResult {
+        $result = $this->createMock(IResult::class);
+        $result->method('fetchAll')->willReturn($rows);
+        $result->method('closeCursor');
+        return $result;
+    }
+
     private function makeTransactionRow(array $overrides = []): array {
         return array_merge([
             'id' => 1,
@@ -600,12 +608,15 @@ class TransactionMapperTest extends TestCase {
     }
 
     public function testGetCategorySpendingBatchReturnsIndexedByCategoryId(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['category_id' => '5', 'total' => '450.00'],
-            ['category_id' => '10', 'total' => '200.00'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+        // First query = spending held directly on the transaction; second =
+        // spending held on its split parts. Nothing is split here.
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([
+                ['category_id' => '5', 'total' => '450.00'],
+                ['category_id' => '10', 'total' => '200.00'],
+            ]),
+            $this->resultOf([])
+        );
 
         $spending = $this->mapper->getCategorySpendingBatch([5, 10], '2026-01-01', '2026-01-31');
 
@@ -613,6 +624,53 @@ class TransactionMapperTest extends TestCase {
         $this->assertArrayHasKey(10, $spending);
         $this->assertEquals(450.00, $spending[5]);
         $this->assertEquals(200.00, $spending[10]);
+    }
+
+    /**
+     * Splitting a transaction nulls its category_id and moves the categories
+     * onto budget_tx_splits, so `WHERE t.category_id IN (...)` can never match
+     * one. Budget spending that went through a split was therefore invisible to
+     * every budget surface -- the progress bars, the budget report and its
+     * exports, and the spending-anomaly digest -- while the spending charts had
+     * counted it since v2.33.0, so the two contradicted each other on the same
+     * screen (#360). The companion query mirrors getSpendingSummary's (#297).
+     */
+    public function testGetCategorySpendingBatchAddsSplitAllocations(): void {
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([['category_id' => '5', 'total' => '100.00']]),
+            $this->resultOf([
+                ['category_id' => '5', 'total' => '50.00'],
+                ['category_id' => '9', 'total' => '850.00'],
+            ])
+        );
+
+        $spending = $this->mapper->getCategorySpendingBatch([5, 9], '2026-01-01', '2026-01-31');
+
+        // 100 spent directly plus 50 through a split part.
+        $this->assertEqualsWithDelta(150.0, $spending[5], 0.001);
+        // A category funded only by splits still has to appear, or a budget
+        // filled entirely from split receipts reads as untouched.
+        $this->assertArrayHasKey(9, $spending);
+        $this->assertEqualsWithDelta(850.0, $spending[9], 0.001);
+    }
+
+    public function testGetCategorySpendingBatchKeepsNegativeSplitParts(): void {
+        // A receipt's discount line is a negative part, and must reduce the
+        // category rather than be dropped or counted as spending.
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([['category_id' => '5', 'total' => '100.00']]),
+            $this->resultOf([['category_id' => '5', 'total' => '-12.50']])
+        );
+
+        $spending = $this->mapper->getCategorySpendingBatch([5], '2026-01-01', '2026-01-31');
+
+        $this->assertEqualsWithDelta(87.5, $spending[5], 0.001);
+    }
+
+    public function testGetCategorySpendingBatchRunsNoSplitQueryForNoCategories(): void {
+        $this->qb->expects($this->never())->method('executeQuery');
+
+        $this->assertEmpty($this->mapper->getCategorySpendingBatch([], '2026-01-01', '2026-01-31'));
     }
 
     // ===== getCategoryTotalsByAccount =====

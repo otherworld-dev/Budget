@@ -976,8 +976,7 @@ export default class RulesModule {
 
         // Render matches
         result.matches.forEach(match => {
-            const category = match.categoryId ? this.categories.find(c => c.id === match.categoryId) : null;
-            const categoryName = category ? category.name : `<em>${t('budget', 'Uncategorized')}</em>`;
+            const categoryName = this._ruleCategoryLabel(match);
 
             const row = document.createElement('tr');
             row.innerHTML = `
@@ -990,6 +989,23 @@ export default class RulesModule {
         });
 
         previewSection.style.display = 'block';
+    }
+
+    /**
+     * The Category cell for a row in the rule preview and run-result tables.
+     *
+     * A split transaction's categories live on its parts, so its own is NULL
+     * and a rule leaves it that way (#360) — calling it "Uncategorized" both
+     * misreads the row and implies a change that is not coming.
+     */
+    _ruleCategoryLabel(row) {
+        if (row.isSplit || row.is_split) {
+            return `<span class="split-category">${this.escapeHtml(t('budget', 'Split'))}</span>`;
+        }
+        const category = row.categoryId ? this.categories.find(c => c.id === row.categoryId) : null;
+        return category
+            ? this.escapeHtml(category.name)
+            : `<em>${this.escapeHtml(t('budget', 'Uncategorized'))}</em>`;
     }
 
     async runRuleNow() {
@@ -1178,8 +1194,7 @@ export default class RulesModule {
         // Display all updated transactions with their new values
         result.applied.forEach(item => {
             // Use the updated categoryId from the backend
-            const category = item.categoryId ? this.categories.find(c => c.id === item.categoryId) : null;
-            const categoryName = category ? category.name : `<em>${t('budget', 'Uncategorized')}</em>`;
+            const categoryName = this._ruleCategoryLabel(item);
 
             const row = document.createElement('tr');
             row.innerHTML = `

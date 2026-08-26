@@ -1866,7 +1866,8 @@ class BudgetApp {
         const futureCount = findings.futureClearedTransactions?.length || 0;
         const driftCount = findings.balanceDrift?.length || 0;
         const signCount = findings.liabilitySignFlipped?.length || 0;
-        const totalIssues = dupCount + stuckCount + paidOneTimeCount + futureCount + driftCount + signCount;
+        const splitCatCount = findings.splitParentCategories?.length || 0;
+        const totalIssues = dupCount + stuckCount + paidOneTimeCount + futureCount + driftCount + signCount + splitCatCount;
 
         const modal = document.createElement('div');
         modal.id = 'repair-data-modal';
@@ -1995,6 +1996,30 @@ class BudgetApp {
                     </div>`;
             }
 
+            // Split transactions left carrying a category of their own (#360).
+            if (splitCatCount > 0) {
+                const splitCatItems = findings.splitParentCategories.slice(0, 20).map(tx => {
+                    const category = this.categories?.find(c => c.id === tx.categoryId);
+                    return `<div class="repair-item">
+                        <span>${this.escapeHtml(tx.description || tx.vendor || t('budget', 'Transaction'))}</span>
+                        <span>${this.escapeHtml(this.formatDate(tx.date))}</span>
+                        <span>${t('budget', 'Listed under {category}', { category: this.escapeHtml(category ? category.name : t('budget', 'Uncategorized')) })}</span>
+                    </div>`;
+                }).join('');
+
+                findingsHtml += `
+                    <div class="repair-category" data-category="splitParentCategories">
+                        <div class="repair-category-header">
+                            <h4><input type="checkbox" class="repair-checkbox" checked> ${t('budget', 'Split Transactions Carrying a Category')}</h4>
+                            <span class="repair-category-count">${splitCatCount}</span>
+                        </div>
+                        <div class="repair-category-details">
+                            <p class="repair-category-help">${t('budget', 'A split transaction keeps its categories on its individual parts, so it should not carry one of its own. These picked one up from an older version of bulk edit, or from a rule, and it has been sitting on them since. Repairing removes just that stray category — the split itself, and every part of it, is left exactly as it is.')}</p>
+                            ${splitCatItems}${splitCatCount > 20 ? `<p>... ${t('budget', 'and {more} more', { more: splitCatCount - 20 })}</p>` : ''}
+                        </div>
+                    </div>`;
+            }
+
             // Balance drift
             if (driftCount > 0) {
                 const driftItems = findings.balanceDrift.map(a =>
@@ -2111,6 +2136,9 @@ class BudgetApp {
                     }
                     if (result.futureClearedTransactions) {
                         parts.push(t('budget', '{count} future transactions set to scheduled', { count: result.futureClearedTransactions.fixed }));
+                    }
+                    if (result.splitParentCategories) {
+                        parts.push(t('budget', '{count} split transactions had a stray category removed', { count: result.splitParentCategories.fixed }));
                     }
                     if (result.liabilitySignFlipped) {
                         parts.push(t('budget', '{count} debts re-recorded as owed', { count: result.liabilitySignFlipped.fixed }));

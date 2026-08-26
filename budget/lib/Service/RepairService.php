@@ -27,6 +27,7 @@ class RepairService {
         'futureClearedTransactions',
         'transferCreditCategories',
         'liabilitySignFlipped',
+        'splitParentCategories',
         'balanceDrift',
     ];
 
@@ -64,6 +65,7 @@ class RepairService {
             // Transfer credits now correctly preserve categories (since v2.26.3)
             'transferCreditCategories' => [],
             'liabilitySignFlipped' => $this->findLiabilitySignFlipped($userId),
+            'splitParentCategories' => $this->findCategorisedSplitParents($userId),
             'balanceDrift' => $this->findBalanceDrift($userId),
         ];
     }
@@ -102,6 +104,10 @@ class RepairService {
                     ? array_map('intval', $options['accountIds'])
                     : null
             );
+        }
+
+        if (in_array('splitParentCategories', $categories)) {
+            $results['splitParentCategories'] = $this->repairCategorisedSplitParents($userId);
         }
 
         // Balance recalculation should always run last (after tx cleanup)
@@ -450,6 +456,57 @@ class RepairService {
      */
     private function repairTransferCreditCategories(string $userId): array {
         $found = $this->findTransferCreditsWithCategory($userId);
+        $fixed = 0;
+
+        foreach ($found as $item) {
+            try {
+                $tx = $this->transactionMapper->findById($item['transactionId']);
+                if ($tx && $tx->getCategoryId() !== null) {
+                    $tx->setCategoryId(null);
+                    $tx->setUpdatedAt(date('Y-m-d H:i:s'));
+                    $this->transactionMapper->update($tx);
+                    $fixed++;
+                }
+            } catch (\Exception $e) {
+                // Skip on error
+            }
+        }
+
+        return ['fixed' => $fixed, 'found' => count($found)];
+    }
+
+    /**
+     * Find split transactions that also carry a category of their own (#360).
+     *
+     * A split's categories live on its parts and its own must be empty. The old
+     * bulk edit wrote one anyway, and so did every rule run until #360, leaving
+     * rows that claim a category while still carrying their own breakdown. The
+     * aggregates no longer double-count them, but the stale category is still
+     * there, and anything reading category_id directly still reads it.
+     */
+    private function findCategorisedSplitParents(string $userId): array {
+        $found = [];
+
+        foreach ($this->transactionMapper->findCategorisedSplitParents($userId) as $tx) {
+            $found[] = [
+                'transactionId' => $tx->getId(),
+                'date' => $tx->getDate(),
+                'amount' => (float) $tx->getAmount(),
+                'categoryId' => $tx->getCategoryId(),
+                'description' => $tx->getDescription() ?: '',
+                'vendor' => $tx->getVendor() ?: '',
+            ];
+        }
+
+        return $found;
+    }
+
+    /**
+     * Clear the stale category off a split transaction, leaving its parts alone
+     * — they hold the real categories and are what every total now reads.
+     */
+    private function repairCategorisedSplitParents(string $userId): array {
+        $found = $this->findCategorisedSplitParents($userId);
         $fixed = 0;
 
         foreach ($found as $item) {

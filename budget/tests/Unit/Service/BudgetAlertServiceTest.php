@@ -100,13 +100,45 @@ class BudgetAlertServiceTest extends TestCase {
         return $cat;
     }
 
+    /**
+     * Money that came back is not money spent (#361). A phone bill of 216.90
+     * with 158.61 credited back is 58.29 against the budget -- and the budget
+     * page, the budget report and the dashboard tiles all report that figure,
+     * so an alert firing on the gross 216.90 would contradict the bar sitting
+     * next to it.
+     */
+    public function testSpendingIsNetOfMoneyThatCameBack(): void {
+        $category = $this->makeCategory(['id' => 1, 'name' => 'Phone', 'budgetAmount' => 120.00]);
+
+        $this->categoryMapper->method('findAll')
+            ->with(self::USER_ID)
+            ->willReturn([$category]);
+
+        $this->transactionMapper->method('getCategorySpending')
+            ->willReturnCallback(
+                static fn(...$args): float => ($args[6] ?? 'debit') === 'debit' ? 216.90 : 158.61
+            );
+        $this->transactionMapper->method('getSplitTransactionIds')
+            ->willReturn([]);
+
+        $statuses = $this->service->getBudgetStatus(self::USER_ID);
+
+        $this->assertCount(1, $statuses);
+        $this->assertEqualsWithDelta(58.29, $statuses[0]['spent'], 0.005);
+        // 58.29 of 120 is comfortably under, so nothing should be raised.
+        $this->assertSame('ok', $statuses[0]['status']);
+        $this->assertEmpty($this->service->getAlerts(self::USER_ID));
+    }
+
     private function setupMocksForBudgetStatus(array $categories, float $spending = 0.0): void {
         $this->categoryMapper->method('findAll')
             ->with(self::USER_ID)
             ->willReturn($categories);
 
         $this->transactionMapper->method('getCategorySpending')
-            ->willReturn($spending);
+            ->willReturnCallback(
+                static fn(...$args): float => ($args[6] ?? 'debit') === 'debit' ? $spending : 0.0
+            );
 
         $this->transactionMapper->method('getSplitTransactionIds')
             ->willReturn([]);
@@ -472,9 +504,13 @@ class BudgetAlertServiceTest extends TestCase {
             ->with(self::USER_ID)
             ->willReturn([$category]);
 
-        // Spending is 90 out of 100 = 90% (warning threshold)
+        // Spending is 90 out of 100 = 90% (warning threshold). Money out only:
+        // the figure is net, so answering 90 to the credit direction too would
+        // cancel it to zero (#361).
         $this->transactionMapper->method('getCategorySpending')
-            ->willReturn(90.0);
+            ->willReturnCallback(
+                static fn(...$args): float => ($args[6] ?? 'debit') === 'debit' ? 90.0 : 0.0
+            );
 
         $this->transactionMapper->method('getSplitTransactionIds')
             ->willReturn([]);

@@ -222,6 +222,18 @@ class RuleActionApplicator {
 
 		switch ($type) {
 			case 'set_category':
+				// A split transaction's categories live on its parts, and its own
+				// category_id is deliberately NULL. Writing one here leaves a row
+				// claiming a category while still carrying its own breakdown, and
+				// every per-category total then counts it twice -- at its full
+				// amount and again part by part. TransactionService::update has
+				// refused this since #356, but a rule run writes through the mapper
+				// and went around that guard, so "Run rule now" kept producing the
+				// damaged rows (#360). Every other action still applies -- only the
+				// category is off limits.
+				if ($transaction->getIsSplit()) {
+					break;
+				}
 				if ($this->shouldApply($type, $behavior, $transaction->getCategoryId(), $appliedActions)) {
 					// Category must be accessible to the acting user (own or shared)
 					if ($this->canUseCategory((int)$value, $userId)) {

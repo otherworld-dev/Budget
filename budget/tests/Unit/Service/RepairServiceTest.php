@@ -669,6 +669,67 @@ class RepairServiceTest extends TestCase {
     }
 
     // ---------------------------------------------------------------
+    // splitParentCategories: split transactions left carrying a category (#360)
+
+    private function makeSplitParentWithCategory(int $id, int $categoryId): Transaction {
+        $tx = new Transaction();
+        $tx->setId($id);
+        $tx->setDate('2026-08-10');
+        $tx->setAmount('60.00');
+        $tx->setCategoryId($categoryId);
+        $tx->setDescription('Tesco');
+        $tx->setVendor('Tesco');
+        $tx->setIsSplit(true);
+        return $tx;
+    }
+
+    public function testDiagnoseReportsSplitTransactionsCarryingACategory(): void {
+        $this->transactionMapper->method('findCategorisedSplitParents')
+            ->with(self::USER_ID)
+            ->willReturn([$this->makeSplitParentWithCategory(7, 3)]);
+
+        $result = $this->service->diagnose(self::USER_ID);
+
+        $this->assertCount(1, $result['splitParentCategories']);
+        $this->assertSame(7, $result['splitParentCategories'][0]['transactionId']);
+        $this->assertSame(3, $result['splitParentCategories'][0]['categoryId']);
+    }
+
+    public function testRepairClearsTheStrayCategoryOffASplit(): void {
+        $tx = $this->makeSplitParentWithCategory(7, 3);
+        $this->transactionMapper->method('findCategorisedSplitParents')->willReturn([$tx]);
+        $this->transactionMapper->method('findById')->with(7)->willReturn($tx);
+
+        $updated = null;
+        $this->transactionMapper->method('update')->willReturnCallback(
+            function (Transaction $t) use (&$updated) {
+                $updated = $t;
+                return $t;
+            }
+        );
+
+        $result = $this->service->repair(self::USER_ID, ['splitParentCategories']);
+
+        $this->assertSame(1, $result['splitParentCategories']['fixed']);
+        $this->assertNotNull($updated);
+        $this->assertNull($updated->getCategoryId());
+        // The row stays a split -- only the category it should never have had goes.
+        $this->assertTrue($updated->getIsSplit());
+    }
+
+    public function testRepairReportsNothingWhenThereIsNothingToFix(): void {
+        $this->transactionMapper->method('findCategorisedSplitParents')->willReturn([]);
+        $this->transactionMapper->expects($this->never())->method('update');
+
+        $result = $this->service->repair(self::USER_ID, ['splitParentCategories']);
+
+        $this->assertSame(['fixed' => 0, 'found' => 0], $result['splitParentCategories']);
+    }
+
+    public function testSplitParentCategoriesIsARecognisedRepairCategory(): void {
+        $this->assertContains('splitParentCategories', RepairService::CATEGORIES);
+    }
+
     // 18. transferCreditCategories repair removed (categories now preserved)
     // ---------------------------------------------------------------
 

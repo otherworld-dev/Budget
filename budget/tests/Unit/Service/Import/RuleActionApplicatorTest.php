@@ -119,6 +119,77 @@ class RuleActionApplicatorTest extends TestCase {
 		$this->assertEquals(5, $transaction->getCategoryId());
 	}
 
+	/**
+	 * A split transaction's category lives on its parts, and its own category_id
+	 * is deliberately NULL. Writing one onto the parent leaves a row that claims a
+	 * category AND carries its own breakdown, which every per-category aggregate
+	 * then counts twice. TransactionService::update has refused this since #356,
+	 * but a rule run goes straight to the mapper and went around that guard, so
+	 * "Run rule now" was still producing the damaged rows (#360).
+	 */
+	public function testSetCategorySkipsASplitTransaction(): void {
+		$transaction = $this->createTransaction(['categoryId' => null]);
+		$transaction->setIsSplit(true);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				['type' => 'set_category', 'value' => 5, 'behavior' => 'always', 'priority' => 100],
+			],
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayNotHasKey('category', $changes);
+		$this->assertNull($transaction->getCategoryId());
+	}
+
+	/**
+	 * Only the category is off limits. A rule that also tidies the vendor or the
+	 * notes still does so, and still reports the change, or splits would quietly
+	 * stop being covered by rules altogether.
+	 */
+	public function testASplitStillTakesEveryOtherAction(): void {
+		$transaction = $this->createTransaction(['categoryId' => null, 'vendor' => null]);
+		$transaction->setIsSplit(true);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				['type' => 'set_category', 'value' => 5, 'behavior' => 'always', 'priority' => 100],
+				['type' => 'set_vendor', 'value' => 'Tesco', 'behavior' => 'always', 'priority' => 90],
+				['type' => 'set_notes', 'value' => 'weekly shop', 'behavior' => 'always', 'priority' => 80],
+			],
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayNotHasKey('category', $changes);
+		$this->assertNull($transaction->getCategoryId());
+		$this->assertSame('Tesco', $transaction->getVendor());
+		$this->assertSame('weekly shop', $transaction->getNotes());
+	}
+
+	/** An ordinary transaction is unaffected -- is_split false is not a split. */
+	public function testSetCategoryStillAppliesToAnExplicitlyUnsplitTransaction(): void {
+		$transaction = $this->createTransaction(['categoryId' => null]);
+		$transaction->setIsSplit(false);
+
+		$this->categoryMapper->method('find')->willReturn($this->makeCategory(5));
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				['type' => 'set_category', 'value' => 5, 'behavior' => 'always', 'priority' => 100],
+			],
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayHasKey('category', $changes);
+		$this->assertEquals(5, $transaction->getCategoryId());
+	}
+
 	public function testSetCategoryFromSharedRuleAppliesWhenCoShared(): void {
 		// A rule shared with the user references the owner's category. The user
 		// doesn't own it (find throws) but it is co-shared (canAccess true), so

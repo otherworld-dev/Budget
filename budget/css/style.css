@@ -1547,18 +1547,34 @@
     color: var(--color-text-maxcontrast);
     display: flex;
     gap: 8px;
+    min-width: 0;
+}
+
+.recent-transaction-date {
+    flex-shrink: 0;
 }
 
 .recent-transaction-category {
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    min-width: 0;
 }
 
 .recent-transaction-category-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* A split names every category its parts went to (#360), which is more than a
+   tile this narrow can show -- so the names run to an ellipsis and the tooltip
+   carries the breakdown. */
+.recent-transaction-category-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .recent-transaction-amount {

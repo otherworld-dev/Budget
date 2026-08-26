@@ -640,6 +640,7 @@ class ImportRuleService extends AbstractCrudService {
                         'description' => $updatedTransaction->getDescription(),
                         'amount' => $updatedTransaction->getAmount(),
                         'categoryId' => $updatedTransaction->getCategoryId(),
+                        'isSplit' => (bool)$updatedTransaction->getIsSplit(),
                         'rules' => array_map(fn($r) => ['id' => $r->getId(), 'name' => $r->getName()], $matchingRules),
                         'changes' => $changes
                     ];
@@ -764,6 +765,10 @@ class ImportRuleService extends AbstractCrudService {
                     'amount' => $transaction->getAmount(),
                     'categoryId' => $transaction->getCategoryId(),
                     'accountId' => $transaction->getAccountId(),
+                    // A split holds its categories on its parts, so a rule will
+                    // not set one on it (#360). Say so, rather than leaving the
+                    // preview to show "Uncategorized" and imply a change coming.
+                    'isSplit' => (bool)$transaction->getIsSplit(),
                 ];
                 $count++;
             }

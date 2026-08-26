@@ -468,38 +468,50 @@ class BudgetAlertService {
     }
 
     /**
-     * Get total spending for a category within a date range.
-     * Includes both direct transactions and split allocations.
+     * Get NET spending for a category within a date range.
+     *
+     * Direct transactions and split allocations, with money that came back
+     * subtracted: a refunded purchase has not been spent. The budget surfaces
+     * report the same net figure (#361), and an alert that disagreed with the
+     * bar next to it would be worse than no alert — a category would be shouted
+     * at for 216.90 while the bar showed 58.29 of a 120 budget.
      */
     private function getCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate, ?array $visibleAccountIds = null): float {
-        // Get direct spending (non-split transactions)
-        $directSpending = $this->transactionMapper->getCategorySpending(
-            $userId,
-            $categoryId,
-            $startDate,
-            $endDate,
-            null,
-            $visibleAccountIds
-        );
+        $spend = 0.0;
 
-        // Get spending from splits
-        $splitSpending = $this->getSplitCategorySpending(
-            $userId,
-            $categoryId,
-            $startDate,
-            $endDate,
-            $visibleAccountIds
-        );
+        // 'debit' is money out and counts toward the budget; 'credit' is money
+        // back and comes off it. Splits are fetched separately either way,
+        // because the mapper's direct query deliberately excludes them.
+        foreach (['debit' => 1.0, 'credit' => -1.0] as $type => $sign) {
+            $spend += $sign * $this->transactionMapper->getCategorySpending(
+                $userId,
+                $categoryId,
+                $startDate,
+                $endDate,
+                null,
+                $visibleAccountIds,
+                $type
+            );
+            $spend += $sign * $this->getSplitCategorySpending(
+                $userId,
+                $categoryId,
+                $startDate,
+                $endDate,
+                $visibleAccountIds,
+                $type
+            );
+        }
 
-        return $directSpending + $splitSpending;
+        return $spend;
     }
 
     /**
-     * Get spending from transaction splits for a category.
+     * Get spending from transaction splits for a category, one direction at a
+     * time — the caller nets them.
      */
-    private function getSplitCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate, ?array $visibleAccountIds = null): float {
+    private function getSplitCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate, ?array $visibleAccountIds = null, string $transactionType = 'debit'): float {
         // Get split transactions in date range
-        $splitTransactionIds = $this->transactionMapper->getSplitTransactionIds($userId, $startDate, $endDate, $visibleAccountIds);
+        $splitTransactionIds = $this->transactionMapper->getSplitTransactionIds($userId, $startDate, $endDate, $visibleAccountIds, $transactionType);
 
         if (empty($splitTransactionIds)) {
             return 0.0;

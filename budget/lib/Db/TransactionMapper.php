@@ -198,6 +198,36 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
+     * Split transactions that also carry a category of their own (#360).
+     *
+     * A split's categories belong on its parts and its own category_id must be
+     * NULL. The pre-#356 bulk edit, and every rule run until #360, wrote one
+     * anyway and left the parts in place — leaving a row that both claims a
+     * category and carries its own breakdown. Aggregates now count such a row
+     * once, through its parts, but the stale category is still there to be
+     * cleaned up, which is what RepairService uses this for.
+     *
+     * "Is a split" follows the same rule as everywhere else: the flag set, or
+     * unset on a row old enough to predate it — never a row explicitly marked
+     * unsplit, whose stray parts are not its own (#356).
+     *
+     * @return Transaction[]
+     */
+    public function findCategorisedSplitParents(string $userId): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('t.*')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->isNotNull('t.category_id'))
+            ->andWhere($this->splitParentPredicate($qb))
+            ->andWhere($this->hasSplitPartsExpr($qb, 't'))
+            ->orderBy('t.date', 'DESC');
+
+        return $this->findEntities($qb);
+    }
+
+    /**
      * Bulk set reconciled flag for transactions in a specific account.
      */
     public function bulkSetReconciled(int $accountId, array $transactionIds, bool $reconciled): int {
@@ -661,6 +691,17 @@ class TransactionMapper extends QBMapper {
         $qb->andWhere($qb->expr()->in('t.category_id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
             ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
 
+        // Leave a transaction whose parts speak for it to the companion query,
+        // so the two partition the transactions rather than overlapping. A
+        // properly split parent has category_id NULL and falls out here on its
+        // own, but one the pre-#356 bulk edit stamped a category onto kept its
+        // split rows, and nothing has ever repaired those — it was counted at
+        // its full amount AND part by part (#360).
+        $qb->andWhere($qb->expr()->orX(
+            $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
+            'NOT ' . $this->hasSplitPartsExpr($qb, 't')
+        ));
+
         $this->excludeScheduledFuture($qb);
         $this->excludeReportExcludedAccounts($qb);
 
@@ -748,6 +789,17 @@ class TransactionMapper extends QBMapper {
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
         }
+
+        // Leave a transaction whose parts speak for it to the companion query,
+        // so the two partition the transactions rather than overlapping. A
+        // properly split parent has category_id NULL and falls out here on its
+        // own, but one the pre-#356 bulk edit stamped a category onto kept its
+        // split rows, and nothing has ever repaired those — it was counted at
+        // its full amount AND part by part (#360).
+        $qb->andWhere($qb->expr()->orX(
+            $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
+            'NOT ' . $this->hasSplitPartsExpr($qb, 't')
+        ));
 
         $this->excludeScheduledFuture($qb);
         $this->excludeReportExcludedAccounts($qb);
@@ -1320,6 +1372,20 @@ class TransactionMapper extends QBMapper {
         // Apply tag filtering if requested
         $this->applyTagFilter($qb, $tagIds, $includeUntagged);
 
+        // Leave the transactions the split query below speaks for to it, so the
+        // two partition the transactions rather than overlapping. The join to
+        // budget_categories already drops a properly split parent, whose own
+        // category_id is NULL — but not one the pre-#356 bulk edit stamped a
+        // category onto while leaving its split rows intact, and nothing has
+        // ever repaired those. Such a row was reported at its full amount AND
+        // part by part, and counted twice in the transaction count with it
+        // (#360). A row explicitly marked unsplit keeps its own amount whatever
+        // split rows happen to reference it, matching QueryFilterBuilder (#356).
+        $qb->andWhere($qb->expr()->orX(
+            $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
+            'NOT ' . $this->hasSplitPartsExpr($qb, 't')
+        ));
+
         $qb->groupBy('c.id', 'c.name', 'c.color', 'c.icon')
             ->orderBy('total', 'DESC');
 
@@ -1799,7 +1865,37 @@ class TransactionMapper extends QBMapper {
      * @return array<int, float> categoryId => total spending
      */
     /**
-     * Get spending totals per category for a set of category IDs.
+     * Get NET spending per category for a set of category IDs.
+     *
+     * Net in the direction of $transactionType: money moving the other way is
+     * subtracted, so a refund reduces what a category has spent. A £216.90
+     * phone bill with £158.61 of credits back reports £58.29, which is what
+     * getCategorySummary() has always reported for the same category — the
+     * budget surfaces were the odd ones out, counting the gross figure and
+     * showing a category as over budget on money that had come back (#361).
+     *
+     * Counts money held directly on a transaction and money held on a split's
+     * parts, the same way getSpendingSummary() has since #297. Splitting a
+     * transaction nulls its own category_id and moves the categories onto
+     * budget_tx_splits, so the direct query below cannot match a split parent
+     * however it is written — the second query is the only way that money is
+     * seen. Without it every budget surface fed from here (the progress bars,
+     * the budget report and its exports, the spending-anomaly digest) read low
+     * while the spending charts, split-aware since v2.33.0, read the truth
+     * (#360).
+     *
+     * The two queries partition the transactions between them: the direct one
+     * takes those with no parts to speak for them, the companion takes those
+     * with parts. Relying on a split parent's category_id being NULL is not
+     * enough — the pre-#356 bulk edit ("filter by Uncategorized, select all,
+     * set a category") stamped a category onto split parents and left their
+     * split rows intact, and nothing has ever repaired those rows, so they are
+     * still in users' databases. Such a row satisfies both queries and would
+     * otherwise be counted at its full amount AND part by part.
+     *
+     * Callers must not add split allocations again on top of this. Note
+     * getCategorySpending() — the single-category method — is deliberately
+     * still direct-only, because BudgetAlertService adds splits to it itself.
      *
      * When $excludeDeductedTransfers is true, excludes ALL linked transfers
      * (which getTransferTotals() also fully deducts), since a transfer is never
@@ -1812,14 +1908,17 @@ class TransactionMapper extends QBMapper {
 
         $qb = $this->db->getQueryBuilder();
 
+        $primaryType = $qb->createNamedParameter($transactionType);
+
         $qb->select('t.category_id')
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
+            ->selectAlias($qb->createFunction(
+                "SUM(CASE WHEN t.type = {$primaryType} THEN t.amount ELSE -t.amount END)"
+            ), 'total')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->where($qb->expr()->in('t.category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)));
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
 
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
@@ -1836,6 +1935,17 @@ class TransactionMapper extends QBMapper {
 
         $this->excludeScheduledFuture($qb);
 
+        // Leave the transactions the companion query speaks for to it — see the
+        // docblock. This is the exact complement of that query's predicate, so
+        // no transaction falls in both and none falls in neither: a row
+        // explicitly marked unsplit keeps its own amount whatever split rows
+        // happen to reference it, which is the policy QueryFilterBuilder states
+        // for the same situation (#356).
+        $qb->andWhere($qb->expr()->orX(
+            $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
+            'NOT ' . $this->hasSplitPartsExpr($qb, 't')
+        ));
+
         $qb->groupBy('t.category_id');
 
         $result = $qb->executeQuery();
@@ -1844,6 +1954,84 @@ class TransactionMapper extends QBMapper {
 
         $spending = [];
         foreach ($data as $row) {
+            $spending[(int)$row['category_id']] = (float)$row['total'];
+        }
+
+        foreach ($this->getSplitCategorySpendingBatch(
+            $categoryIds, $startDate, $endDate, $transactionType, $accountId, $excludeDeductedTransfers
+        ) as $categoryId => $total) {
+            $spending[$categoryId] = ($spending[$categoryId] ?? 0.0) + $total;
+        }
+
+        return $spending;
+    }
+
+    /**
+     * Correlated EXISTS testing whether a transaction has any split rows.
+     *
+     * Deliberately not a join: this guards an aggregate that sums t.amount, and
+     * a join would repeat the row once per part. Identifiers stay unquoted, as
+     * in QueryFilterBuilder — none are reserved, and unquoted folds to the
+     * lowercase the table was created with on PostgreSQL.
+     */
+    private function hasSplitPartsExpr(IQueryBuilder $qb, string $alias): string {
+        return 'EXISTS (SELECT 1 FROM ' . $qb->getTableName('budget_tx_splits') . ' bsx'
+            . ' WHERE bsx.transaction_id = ' . $alias . '.id)';
+    }
+
+    /**
+     * Per-category totals from transaction splits, honouring the same filters
+     * as getCategorySpendingBatch (applied to the split's parent transaction).
+     * Companion to it — see #360, and getSplitSpendingSummary for the same
+     * shape against getSpendingSummary.
+     *
+     * @param int[] $categoryIds
+     * @return array<int, float> categoryId => total
+     */
+    private function getSplitCategorySpendingBatch(
+        array $categoryIds,
+        string $startDate,
+        string $endDate,
+        string $transactionType,
+        ?int $accountId,
+        bool $excludeDeductedTransfers
+    ): array {
+        $qb = $this->db->getQueryBuilder();
+
+        $primaryType = $qb->createNamedParameter($transactionType);
+
+        $qb->select('s.category_id')
+            ->selectAlias($qb->createFunction(
+                "SUM(CASE WHEN t.type = {$primaryType} THEN s.amount ELSE -s.amount END)"
+            ), 'total')
+            ->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+            ->innerJoin('t', 'budget_tx_splits', 's', $qb->expr()->eq('s.transaction_id', 't.id'))
+            ->where($qb->expr()->in('s.category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)))
+            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
+            ->andWhere($this->splitParentPredicate($qb));
+
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        } else {
+            $this->excludeReportExcludedAccounts($qb);
+        }
+
+        if ($excludeDeductedTransfers) {
+            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
+        }
+
+        $this->excludeScheduledFuture($qb);
+
+        $qb->groupBy('s.category_id');
+
+        $result = $qb->executeQuery();
+        $rows = $result->fetchAll();
+        $result->closeCursor();
+
+        $spending = [];
+        foreach ($rows as $row) {
             $spending[(int)$row['category_id']] = (float)$row['total'];
         }
 
@@ -2846,9 +3034,13 @@ class TransactionMapper extends QBMapper {
 
     /**
      * Get spending for a single category within a date range for a user.
-     * Only counts non-split debit transactions.
+     * Only counts non-split transactions of the given direction.
+     *
+     * Gross, not net — the caller nets it, because BudgetAlertService has to
+     * combine this with the split allocations it fetches separately and can
+     * only subtract once it has both (#361).
      */
-    public function getCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null): float {
+    public function getCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null, string $transactionType = 'debit'): float {
         $qb = $this->db->getQueryBuilder();
 
         $qb->selectAlias($qb->func()->sum('t.amount'), 'total')
@@ -2857,7 +3049,7 @@ class TransactionMapper extends QBMapper {
             ->where($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)))
             ->andWhere($qb->expr()->orX(
                 $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
                 $qb->expr()->isNull('t.is_split')
@@ -2982,7 +3174,7 @@ class TransactionMapper extends QBMapper {
      *
      * @return int[]
      */
-    public function getSplitTransactionIds(string $userId, string $startDate, string $endDate, ?array $visibleAccountIds = null): array {
+    public function getSplitTransactionIds(string $userId, string $startDate, string $endDate, ?array $visibleAccountIds = null, string $transactionType = 'debit'): array {
         $qb = $this->db->getQueryBuilder();
 
         $qb->select('t.id')
@@ -2990,7 +3182,7 @@ class TransactionMapper extends QBMapper {
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->where($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)))
             ->andWhere($this->splitParentPredicate($qb));
 
         // Same visible-account scope as the rest of a budget surface, so a
