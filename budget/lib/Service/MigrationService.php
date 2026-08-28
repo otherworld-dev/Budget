@@ -602,6 +602,16 @@ class MigrationService {
             $this->importTable($userId, $key, $spec, $data[$key] ?? [], $idMaps);
         }
 
+        // 7b. tx_splits above imports through the same generic machinery as
+        // every other registry table, which has no notion that a parent's
+        // is_split flag exists — and the flag written by importTransactions()
+        // (step 3, before any of this ran) can't be trusted either: a
+        // pre-#351 backup carries no isSplit at all, and even a current one
+        // can carry false for what was really a NULL-flag original. Read back
+        // which transactions actually received parts and mark exactly those,
+        // or a restored split's parts stop counting anywhere (#360).
+        $this->markSplitParents($idMaps['transactions']);
+
         // 8. Point transactions at the new ids of their late-imported
         // references (bills come after transactions; reconciliation sessions
         // and pension contributions only exist after step 7)
@@ -841,6 +851,54 @@ class MigrationService {
                 ->set($column, $qb->createNamedParameter($idMap[$oldRefId], \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT))
                 ->where($qb->expr()->eq('id', $qb->createNamedParameter($newTxId, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)));
             $qb->executeStatement();
+        }
+    }
+
+    /**
+     * Read back which of the freshly imported transactions actually received
+     * split parts, and set is_split on exactly those (#360). See the call
+     * site (step 7b of importData()) for why the archived flag can't be
+     * trusted here.
+     *
+     * @param array<int,int> $transactionIdMap old id => new id, from importTransactions()
+     */
+    private function markSplitParents(array $transactionIdMap): void {
+        if ($transactionIdMap === []) {
+            return;
+        }
+
+        // Chunked at 500 like every other unbounded id list in this class —
+        // a restore is exactly where the biggest lists occur, and old SQLite
+        // builds cap bound variables at 999.
+        $splitParentIds = [];
+        foreach (array_chunk(array_values($transactionIdMap), 500) as $chunk) {
+            $qb = $this->db->getQueryBuilder();
+            $qb->selectDistinct('transaction_id')
+                ->from('budget_tx_splits')
+                ->where($qb->expr()->in(
+                    'transaction_id',
+                    $qb->createNamedParameter($chunk, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT_ARRAY)
+                ));
+            $result = $qb->executeQuery();
+            while ($row = $result->fetch()) {
+                $splitParentIds[] = (int) $row['transaction_id'];
+            }
+            $result->closeCursor();
+        }
+
+        if ($splitParentIds === []) {
+            return;
+        }
+
+        foreach (array_chunk($splitParentIds, 500) as $chunk) {
+            $update = $this->db->getQueryBuilder();
+            $update->update('budget_transactions')
+                ->set('is_split', $update->createNamedParameter(true, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_BOOL))
+                ->where($update->expr()->in(
+                    'id',
+                    $update->createNamedParameter($chunk, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT_ARRAY)
+                ));
+            $update->executeStatement();
         }
     }
 

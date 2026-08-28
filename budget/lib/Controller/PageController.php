@@ -8,6 +8,7 @@ use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Service\GranularShareService;
+use OCA\Budget\Service\SchemaVersionService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IRequest;
@@ -17,6 +18,7 @@ class PageController extends Controller {
     private AccountMapper $accountMapper;
     private CategoryMapper $categoryMapper;
     private GranularShareService $granularShareService;
+    private SchemaVersionService $schemaVersionService;
     private ?string $userId;
 
     public function __construct(
@@ -24,6 +26,7 @@ class PageController extends Controller {
         AccountMapper $accountMapper,
         CategoryMapper $categoryMapper,
         GranularShareService $granularShareService,
+        SchemaVersionService $schemaVersionService,
         // Nullable: the controller is constructed before the auth middleware
         // runs, so an unauthenticated request injects null here (the page
         // routes still require login, which the middleware enforces next).
@@ -33,6 +36,7 @@ class PageController extends Controller {
         $this->accountMapper = $accountMapper;
         $this->categoryMapper = $categoryMapper;
         $this->granularShareService = $granularShareService;
+        $this->schemaVersionService = $schemaVersionService;
         $this->userId = $userId;
     }
 
@@ -47,6 +51,10 @@ class PageController extends Controller {
 
         $params = [
             'appName' => Application::APP_ID,
+            // An upgrade Nextcloud never ran leaves the database behind the
+            // code, and nothing notices until a save fails on a column that
+            // was never added (#333). Say so before that happens.
+            'schemaWarning' => $this->schemaVersionService->getWarning(),
         ];
 
         return new TemplateResponse(Application::APP_ID, 'index', $params);

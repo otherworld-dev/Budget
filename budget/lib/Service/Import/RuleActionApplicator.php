@@ -231,7 +231,13 @@ class RuleActionApplicator {
 				// and went around that guard, so "Run rule now" kept producing the
 				// damaged rows (#360). Every other action still applies -- only the
 				// category is off limits.
-				if ($transaction->getIsSplit()) {
+				// is_split is tri-state: a NULL flag on a PERSISTED row may
+				// be a pre-#351 split whose parts this applicator cannot see,
+				// so the category stays off limits for those too (#360). An
+				// unsaved entity (no id) cannot have parts, so its NULL flag
+				// is just "not set yet" and rules apply as normal.
+				$isSplit = $transaction->getIsSplit();
+				if ($isSplit === true || ($isSplit === null && $transaction->getId() !== null)) {
 					break;
 				}
 				if ($this->shouldApply($type, $behavior, $transaction->getCategoryId(), $appliedActions)) {

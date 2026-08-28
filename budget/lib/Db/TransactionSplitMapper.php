@@ -69,34 +69,62 @@ class TransactionSplitMapper extends QBMapper {
      * categoryId is part of the shape because a consumer filtering by category
      * has to be able to tell which part it matched (#359).
      *
+     * $transactionIds is chunked at 500: YearOverYearService can pass a full
+     * year of split ids and PatternAnalyzer a whole forecast window, and old
+     * SQLite builds cap bound variables at 999 -- one unchunked IN() over a
+     * year's worth of ids would exceed that. Each chunk is a separate query;
+     * the per-transaction groups never span a chunk boundary, so accumulating
+     * into one $grouped array as chunks come back is a plain merge.
+     *
      * @param int[] $transactionIds
      * @return array<int, array> Map of transactionId => [{categoryId, categoryName, amount}, ...]
      */
     public function findByTransactionIds(array $transactionIds): array {
         if (empty($transactionIds)) return [];
 
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('s.transaction_id', 's.category_id', 's.amount', 'c.name as category_name')
-            ->from($this->getTableName(), 's')
-            ->leftJoin('s', 'budget_categories', 'c', 'c.id = s.category_id')
-            ->where($qb->expr()->in('s.transaction_id', $qb->createNamedParameter($transactionIds, IQueryBuilder::PARAM_INT_ARRAY)))
-            ->orderBy('s.transaction_id', 'ASC')
-            ->addOrderBy('s.amount', 'DESC');
-
-        $result = $qb->executeQuery();
         $grouped = [];
-        while ($row = $result->fetch()) {
-            $txId = (int)$row['transaction_id'];
-            if (!isset($grouped[$txId])) $grouped[$txId] = [];
-            $grouped[$txId][] = [
-                'categoryId' => isset($row['category_id']) ? (int)$row['category_id'] : null,
-                'categoryName' => $row['category_name'] ?? null,
-                'amount' => (float)$row['amount'],
-            ];
+        foreach (array_chunk($transactionIds, 500) as $chunk) {
+            $qb = $this->db->getQueryBuilder();
+            $qb->select('s.transaction_id', 's.category_id', 's.amount', 'c.name as category_name')
+                ->from($this->getTableName(), 's')
+                ->leftJoin('s', 'budget_categories', 'c', 'c.id = s.category_id')
+                ->where($qb->expr()->in('s.transaction_id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)))
+                ->orderBy('s.transaction_id', 'ASC')
+                ->addOrderBy('s.amount', 'DESC');
+
+            $result = $qb->executeQuery();
+            while ($row = $result->fetch()) {
+                $txId = (int)$row['transaction_id'];
+                if (!isset($grouped[$txId])) $grouped[$txId] = [];
+                $grouped[$txId][] = [
+                    'categoryId' => isset($row['category_id']) ? (int)$row['category_id'] : null,
+                    'categoryName' => $row['category_name'] ?? null,
+                    'amount' => (float)$row['amount'],
+                ];
+            }
+            $result->closeCursor();
         }
-        $result->closeCursor();
 
         return $grouped;
+    }
+
+    /**
+     * Null out category_id on every split part pointing at one of these
+     * category ids -- a part with no category degrades to uncategorized,
+     * the same fate as a direct transaction whose category is reassigned
+     * (CategoryService::deleteWithReassign() / beforeDelete(), #360).
+     */
+    public function clearCategory(array $categoryIds): int {
+        if (empty($categoryIds)) {
+            return 0;
+        }
+
+        $qb = $this->db->getQueryBuilder();
+        $qb->update($this->getTableName())
+            ->set('category_id', $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
+            ->where($qb->expr()->in('category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)));
+
+        return $qb->executeStatement();
     }
 
     /**
@@ -112,6 +140,13 @@ class TransactionSplitMapper extends QBMapper {
     /**
      * Get category totals from splits for reporting.
      *
+     * $transactionIds is chunked at 500 for the same reason as
+     * findByTransactionIds() above -- YearOverYearService can hand this a
+     * full year of split ids, which old SQLite builds' 999 bound-variable
+     * cap can't take in one IN(). Unlike that method, the same category can
+     * legitimately appear in more than one chunk, so per-chunk totals are
+     * summed rather than merged.
+     *
      * @return array Array of [categoryId => totalAmount]
      */
     public function getCategoryTotals(array $transactionIds): array {
@@ -119,20 +154,22 @@ class TransactionSplitMapper extends QBMapper {
             return [];
         }
 
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('s.category_id')
-            ->selectAlias($qb->func()->sum('s.amount'), 'total')
-            ->from($this->getTableName(), 's')
-            ->where($qb->expr()->in('s.transaction_id', $qb->createNamedParameter($transactionIds, IQueryBuilder::PARAM_INT_ARRAY)))
-            ->groupBy('s.category_id');
-
-        $result = $qb->executeQuery();
         $totals = [];
-        while ($row = $result->fetch()) {
-            $categoryId = $row['category_id'] ? (int) $row['category_id'] : null;
-            $totals[$categoryId] = (float) $row['total'];
+        foreach (array_chunk($transactionIds, 500) as $chunk) {
+            $qb = $this->db->getQueryBuilder();
+            $qb->select('s.category_id')
+                ->selectAlias($qb->func()->sum('s.amount'), 'total')
+                ->from($this->getTableName(), 's')
+                ->where($qb->expr()->in('s.transaction_id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)))
+                ->groupBy('s.category_id');
+
+            $result = $qb->executeQuery();
+            while ($row = $result->fetch()) {
+                $categoryId = $row['category_id'] ? (int) $row['category_id'] : null;
+                $totals[$categoryId] = ($totals[$categoryId] ?? 0.0) + (float) $row['total'];
+            }
+            $result->closeCursor();
         }
-        $result->closeCursor();
 
         return $totals;
     }
@@ -173,6 +210,16 @@ class TransactionSplitMapper extends QBMapper {
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+            // A part whose parent is explicitly marked unsplit (is_split =
+            // false) is stray -- the policy is that such a parent's own
+            // amount counts and any leftover split rows referencing it do
+            // not (see TransactionMapper::splitParentPredicate and #360).
+            // true-or-NULL is this table's only helper for that; there is no
+            // splitParentPredicate() on this mapper, so it is inlined here.
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->eq('t.is_split', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)),
+                $qb->expr()->isNull('t.is_split')
+            ))
             ->andWhere($qb->expr()->orX(
                 $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
                 $qb->expr()->isNull('t.status'),
@@ -230,6 +277,13 @@ class TransactionSplitMapper extends QBMapper {
             ->andWhere($qb->expr()->isNotNull('s.category_id'))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
+            // Same stray-part guard as getCategoryTotalsByBucket above: a part
+            // whose parent is explicitly unsplit (is_split = false) must not
+            // be counted (#360).
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->eq('t.is_split', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)),
+                $qb->expr()->isNull('t.is_split')
+            ))
             ->andWhere($qb->expr()->orX(
                 $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
                 $qb->expr()->isNull('t.status'),

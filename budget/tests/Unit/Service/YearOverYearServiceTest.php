@@ -8,6 +8,7 @@ use OCA\Budget\Db\Category;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Service\YearOverYearService;
 use PHPUnit\Framework\TestCase;
 
@@ -15,14 +16,21 @@ class YearOverYearServiceTest extends TestCase {
     private YearOverYearService $service;
     private TransactionMapper $transactionMapper;
     private CategoryMapper $categoryMapper;
+    private TransactionSplitMapper $splitMapper;
 
     protected function setUp(): void {
         $this->transactionMapper = $this->createMock(TransactionMapper::class);
         $this->categoryMapper = $this->createMock(CategoryMapper::class);
+        $this->splitMapper = $this->createMock(TransactionSplitMapper::class);
+
+        // No splits unless a test says otherwise.
+        $this->transactionMapper->method('getSplitTransactionIds')->willReturn([]);
+        $this->splitMapper->method('getCategoryTotals')->willReturn([]);
 
         $this->service = new YearOverYearService(
             $this->transactionMapper,
-            $this->categoryMapper
+            $this->categoryMapper,
+            $this->splitMapper
         );
     }
 
@@ -182,6 +190,76 @@ class YearOverYearServiceTest extends TestCase {
 
         // Change: (600-500)/500 * 100 = 20.0%
         $this->assertEquals(20.0, $result['categories'][0]['change']);
+    }
+
+    /**
+     * Year over Year read a category's own transactions only, so a year whose
+     * groceries came off split receipts compared as a collapse against a year
+     * that predated splitting. Everything else has counted split allocations
+     * since #359 (#360).
+     */
+    public function testCompareCategorySpendingCountsSplitAllocations(): void {
+        $expense = $this->makeCategory(1, 'Food', 'expense');
+        $this->categoryMapper->method('findAll')->willReturn([$expense]);
+        $this->transactionMapper->method('getCategorySpending')->willReturn(100.0);
+
+        $currentYear = (int) date('Y');
+        $splitMapper = $this->createMock(TransactionSplitMapper::class);
+        $transactionMapper = $this->createMock(TransactionMapper::class);
+        $transactionMapper->method('getCategorySpending')->willReturn(100.0);
+        $transactionMapper->method('getSplitTransactionIds')
+            ->willReturnCallback(static fn(string $u, string $start): array =>
+                (int)substr($start, 0, 4) === $currentYear ? [7, 8] : []);
+        $splitMapper->method('getCategoryTotals')->willReturn([1 => 40.0]);
+
+        $service = new YearOverYearService($transactionMapper, $this->categoryMapper, $splitMapper);
+        $result = $service->compareCategorySpending('user1', 2);
+
+        $years = $result['categories'][0]['years'];
+        // This year: 100 on the transactions themselves plus 40 through splits.
+        $this->assertEqualsWithDelta(140.0, $years[0]['spending'], 0.005);
+        // Last year had no splits, so it is untouched.
+        $this->assertEqualsWithDelta(100.0, $years[1]['spending'], 0.005);
+    }
+
+    /**
+     * A split parent whose is_split flag predates the column (NULL) must not
+     * have its own amount counted on top of its parts. getCategorySpending()
+     * now partitions on the same is_split=false OR NOT hasSplitPartsExpr rule
+     * as getCategorySpendingBatch(), so a NULL-flagged row with parts is left
+     * out of the direct total entirely and answered only by the split query
+     * below — before that partition existed, the direct query took every
+     * NULL-flagged row whether or not it had parts, double-counting it (#360).
+     */
+    public function testCompareCategorySpendingExcludesNullFlagSplitParentOwnAmount(): void {
+        $expense = $this->makeCategory(1, 'Food', 'expense');
+        $this->categoryMapper->method('findAll')->willReturn([$expense]);
+
+        $currentYear = (int) date('Y');
+
+        $transactionMapper = $this->createMock(TransactionMapper::class);
+        // The (now-partitioned) direct total: just the plain £60 transaction.
+        // A NULL-flagged split parent with parts is excluded here — it is
+        // left entirely to the split query below.
+        $transactionMapper->method('getCategorySpending')
+            ->willReturnCallback(static fn(string $u, int $catId, string $start): float =>
+                (int)substr($start, 0, 4) === $currentYear ? 60.0 : 0.0);
+        $transactionMapper->method('getSplitTransactionIds')
+            ->willReturnCallback(static fn(string $u, string $start): array =>
+                (int)substr($start, 0, 4) === $currentYear ? [7] : []);
+
+        $splitMapper = $this->createMock(TransactionSplitMapper::class);
+        $splitMapper->method('getCategoryTotals')->willReturn([1 => 25.0]);
+
+        $service = new YearOverYearService($transactionMapper, $this->categoryMapper, $splitMapper);
+        $result = $service->compareCategorySpending('user1', 2);
+
+        $years = $result['categories'][0]['years'];
+        // 60 direct + 25 of the split parent's parts. If the direct query
+        // still counted the NULL-flagged parent's own amount (its bug
+        // pre-fix), this would read 60 + 40 + 25 = 125 instead.
+        $this->assertEqualsWithDelta(85.0, $years[0]['spending'], 0.005);
+        $this->assertEqualsWithDelta(0.0, $years[1]['spending'], 0.005);
     }
 
     // ===== getMonthlyTrends =====

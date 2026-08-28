@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Service\Forecast;
 
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\TransactionSplitMapper;
 
 /**
  * Analyzes transaction patterns for forecasting.
@@ -12,13 +13,16 @@ use OCA\Budget\Db\CategoryMapper;
 class PatternAnalyzer {
     private TrendCalculator $trendCalculator;
     private CategoryMapper $categoryMapper;
+    private TransactionSplitMapper $splitMapper;
 
     public function __construct(
         TrendCalculator $trendCalculator,
-        CategoryMapper $categoryMapper
+        CategoryMapper $categoryMapper,
+        TransactionSplitMapper $splitMapper
     ) {
         $this->trendCalculator = $trendCalculator;
         $this->categoryMapper = $categoryMapper;
+        $this->splitMapper = $splitMapper;
     }
 
     /**
@@ -165,21 +169,52 @@ class PatternAnalyzer {
     public function getCategoryBreakdown(string $userId, array $transactions): array {
         $categoryTotals = [];
 
+        // A split has no category of its own — its categories live on its
+        // parts — so reading the transaction's own category dropped every
+        // split receipt into "Uncategorized" and showed nothing against the
+        // categories it was actually divided between (#360). One query for
+        // the parts of every split on the page, then each part counts under
+        // its own category.
+        // !== false rather than truthy: a NULL flag predates the is_split
+        // column (#360) and must still be treated as a candidate, or a
+        // pre-#351 import silently skips the parts lookup and books the
+        // whole receipt under its own (usually empty) category again.
+        $splitIds = [];
         foreach ($transactions as $transaction) {
-            if ($transaction->getType() !== 'debit') {
-                continue;
+            if ($transaction->getIsSplit() !== false && $transaction->getId() !== null) {
+                $splitIds[] = (int)$transaction->getId();
             }
+        }
+        $partsByTransaction = $splitIds === []
+            ? []
+            : $this->splitMapper->findByTransactionIds($splitIds);
 
-            $categoryId = $transaction->getCategoryId() ?? 0;
-            $month = date('Y-m', strtotime($transaction->getDate()));
-
+        $add = static function (int $categoryId, string $month, float $amount) use (&$categoryTotals): void {
             if (!isset($categoryTotals[$categoryId])) {
                 $categoryTotals[$categoryId] = [];
             }
             if (!isset($categoryTotals[$categoryId][$month])) {
                 $categoryTotals[$categoryId][$month] = 0;
             }
-            $categoryTotals[$categoryId][$month] += $transaction->getAmount();
+            $categoryTotals[$categoryId][$month] += $amount;
+        };
+
+        foreach ($transactions as $transaction) {
+            if ($transaction->getType() !== 'debit') {
+                continue;
+            }
+
+            $month = date('Y-m', strtotime($transaction->getDate()));
+            $parts = $partsByTransaction[(int)$transaction->getId()] ?? null;
+
+            if ($parts !== null && $parts !== []) {
+                foreach ($parts as $part) {
+                    $add((int)($part['categoryId'] ?? 0), $month, (float)($part['amount'] ?? 0));
+                }
+                continue;
+            }
+
+            $add((int)($transaction->getCategoryId() ?? 0), $month, (float)$transaction->getAmount());
         }
 
         // Batch load all categories at once (replaces N+1 pattern)

@@ -170,6 +170,53 @@ class RuleActionApplicatorTest extends TestCase {
 		$this->assertSame('weekly shop', $transaction->getNotes());
 	}
 
+	/**
+	 * is_split is tri-state, and a NULL flag predates the column -- such a row
+	 * may be a split whose parts the applicator cannot see, so the category
+	 * stays off limits. Truthiness would have waved it through (#360).
+	 */
+	public function testSetCategorySkipsANullFlagTransaction(): void {
+		$transaction = $this->createTransaction(['categoryId' => null]);
+		// Persisted (has an id): the NULL flag could be hiding parts.
+		$transaction->setId(42);
+		$transaction->setIsSplit(null);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				['type' => 'set_category', 'value' => 5, 'behavior' => 'always', 'priority' => 100],
+			],
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayNotHasKey('category', $changes);
+		$this->assertNull($transaction->getCategoryId());
+	}
+
+	/**
+	 * An entity that has never been saved cannot have split parts, so its
+	 * unset flag must not block categorization -- rules run against fresh
+	 * rows too.
+	 */
+	public function testSetCategoryStillAppliesToAnUnsavedTransaction(): void {
+		$transaction = $this->createTransaction(['categoryId' => null]); // no id, no flag
+
+		$this->categoryMapper->method('find')->willReturn($this->makeCategory(5));
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				['type' => 'set_category', 'value' => 5, 'behavior' => 'always', 'priority' => 100],
+			],
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayHasKey('category', $changes);
+		$this->assertEquals(5, $transaction->getCategoryId());
+	}
+
 	/** An ordinary transaction is unaffected -- is_split false is not a split. */
 	public function testSetCategoryStillAppliesToAnExplicitlyUnsplitTransaction(): void {
 		$transaction = $this->createTransaction(['categoryId' => null]);

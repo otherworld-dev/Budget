@@ -284,6 +284,18 @@ style('budget', 'budget-app');
 
 <div id="app-content" class="app-content">
     <div id="app-content-wrapper">
+<?php if (!empty($_['schemaWarning'])) { ?>
+<div class="budget-schema-warning" role="alert">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2L1 21h22L12 2zm0 3.83L19.53 19H4.47L12 5.83zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>
+    <div class="budget-schema-warning-text">
+        <strong><?php p($l->t("This app's update was never finished")); ?></strong>
+        <p><?php p($_['schemaWarning']['message']); ?></p>
+        <p><?php p($l->t('An administrator can finish it by running:')); ?></p>
+        <code><?php p($_['schemaWarning']['command']); ?></code>
+    </div>
+</div>
+<?php } ?>
+
         <!-- Dashboard View -->
         <div id="dashboard-view" class="view active">
             <div class="dashboard-header">

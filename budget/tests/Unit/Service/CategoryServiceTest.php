@@ -12,6 +12,7 @@ use OCA\Budget\Db\TagMapper;
 use OCA\Budget\Db\TagSet;
 use OCA\Budget\Db\TagSetMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Service\CategoryService;
 use OCP\AppFramework\Db\DoesNotExistException;
@@ -25,6 +26,7 @@ class CategoryServiceTest extends TestCase {
     private TagSetMapper $tagSetMapper;
     private TagMapper $tagMapper;
     private TransactionTagMapper $transactionTagMapper;
+    private TransactionSplitMapper $splitMapper;
 
     protected function setUp(): void {
         $this->categoryMapper = $this->createMock(CategoryMapper::class);
@@ -32,6 +34,7 @@ class CategoryServiceTest extends TestCase {
         $this->tagSetMapper = $this->createMock(TagSetMapper::class);
         $this->tagMapper = $this->createMock(TagMapper::class);
         $this->transactionTagMapper = $this->createMock(TransactionTagMapper::class);
+        $this->splitMapper = $this->createMock(TransactionSplitMapper::class);
 
         $l = $this->createMock(IL10N::class);
         $l->method('t')->willReturnCallback(function (string $text, array $params = []) {
@@ -56,7 +59,10 @@ class CategoryServiceTest extends TestCase {
             $this->transactionTagMapper,
             $l,
             $carryoverService,
-            $recurringBudgetService
+            $recurringBudgetService,
+            null,
+            null,
+            $this->splitMapper
         );
     }
 
@@ -290,6 +296,63 @@ class CategoryServiceTest extends TestCase {
         $this->categoryMapper->method('delete')->willReturnArgument(0);
 
         $this->service->deleteWithReassign(1, 'user1');
+    }
+
+    /**
+     * findByCategory() is deliberately split-blind, so a category referenced
+     * only by split parts sails through the guard silently -- but the split
+     * rows must still degrade to uncategorized, not dangle on a deleted
+     * category id (#360).
+     */
+    public function testDeleteClearsSplitCategoryReferencesWhenOnlySplitsUseIt(): void {
+        $category = $this->makeCategory(['id' => 1]);
+        $this->categoryMapper->method('find')->willReturn($category);
+        $this->categoryMapper->method('findChildren')->willReturn([]);
+        $this->transactionMapper->method('findByCategory')->willReturn([]);
+        $this->tagSetMapper->method('findByCategory')->willReturn([]);
+
+        $this->splitMapper->expects($this->once())
+            ->method('clearCategory')
+            ->with([1]);
+
+        $this->service->delete(1, 'user1');
+    }
+
+    public function testDeleteWithReassignClearsSplitCategoryReferences(): void {
+        $category = $this->makeCategory(['id' => 1]);
+        $this->categoryMapper->method('find')->willReturn($category);
+        $this->categoryMapper->method('findChildren')->willReturn([]);
+        $this->transactionMapper->method('findByCategory')->willReturn([]);
+        $this->tagSetMapper->method('findByCategory')->willReturn([]);
+
+        $this->splitMapper->expects($this->once())
+            ->method('clearCategory')
+            ->with([1]);
+
+        $this->service->deleteWithReassign(1, 'user1');
+    }
+
+    public function testDeleteWithReassignClearsSplitCategoryReferencesForDescendantsToo(): void {
+        $parent = $this->makeCategory(['id' => 1]);
+        $child = $this->makeCategory(['id' => 2, 'parentId' => 1]);
+        $this->categoryMapper->method('find')
+            ->willReturnCallback(fn (int $id) => $id === 1 ? $parent : $child);
+        $this->categoryMapper->method('findChildren')
+            ->willReturnCallback(fn (string $u, int $pid) => $pid === 1 ? [$child] : []);
+        $this->transactionMapper->method('findByCategory')->willReturn([]);
+        $this->tagSetMapper->method('findByCategory')->willReturn([]);
+
+        $cleared = [];
+        $this->splitMapper->method('clearCategory')
+            ->willReturnCallback(function (array $ids) use (&$cleared) {
+                $cleared = array_merge($cleared, $ids);
+                return 0;
+            });
+
+        $this->service->deleteWithReassign(1, 'user1');
+
+        sort($cleared);
+        $this->assertSame([1, 2], $cleared);
     }
 
     public function testDeleteCascadesTagSetsAndTags(): void {

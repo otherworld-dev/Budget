@@ -401,14 +401,27 @@ class ImportRuleServiceTest extends TestCase {
      * "Only uncategorised transactions" must not offer up split parents: their
      * category is deliberately null because the categories live on the split
      * rows, so a rule run would re-categorise the parent and double-count it
-     * against its own splits (#356).
+     * against its own splits (#356). The guard is the partition complement —
+     * explicitly-unsplit rows, or rows with no parts at all — so a NULL-flag
+     * parent from before the column existed is excluded too (#360).
      */
     public function testFindTransactionsForRulesUncategorizedOnlyExcludesSplitParents(): void {
         $nulled = [];
+        $orParts = [];
+        $eqCalls = [];
         $expr = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
         $expr->method('isNull')->willReturnCallback(function (string $column) use (&$nulled) {
             $nulled[] = $column;
             return $column . ' IS NULL';
+        });
+        $expr->method('eq')->willReturnCallback(function (string $a, $b) use (&$eqCalls) {
+            $eqCalls[] = $a;
+            return $a . ' = ' . (string)$b;
+        });
+        $composite = $this->createMock(\OCP\DB\QueryBuilder\ICompositeExpression::class);
+        $expr->method('orX')->willReturnCallback(function (...$parts) use (&$orParts, $composite) {
+            $orParts[] = array_map('strval', $parts);
+            return $composite;
         });
 
         $result = $this->createMock(\OCP\DB\IResult::class);
@@ -418,6 +431,7 @@ class ImportRuleServiceTest extends TestCase {
         $qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
         $qb->method('expr')->willReturn($expr);
         $qb->method('createNamedParameter')->willReturn(':param');
+        $qb->method('getTableName')->willReturnCallback(fn (string $t) => '*PREFIX*' . $t);
         $qb->method('executeQuery')->willReturn($result);
         foreach (['select', 'from', 'where', 'andWhere', 'innerJoin', 'orderBy'] as $fluent) {
             $qb->method($fluent)->willReturnSelf();
@@ -428,6 +442,20 @@ class ImportRuleServiceTest extends TestCase {
         $this->service->findTransactionsForRules('user1', ['uncategorizedOnly' => true]);
 
         $this->assertContains('t.category_id', $nulled);
-        $this->assertContains('t.is_split', $nulled);
+        $this->assertContains('t.is_split', $eqCalls);
+
+        $splitGuard = null;
+        foreach ($orParts as $parts) {
+            foreach ($parts as $part) {
+                if (str_contains($part, 't.is_split')) {
+                    $splitGuard = $parts;
+                }
+            }
+        }
+        $this->assertNotNull($splitGuard, 'no orX() guard mentioning t.is_split was built');
+        $this->assertTrue(
+            (bool)array_filter($splitGuard, fn (string $p) => str_contains($p, 'NOT EXISTS') && str_contains($p, 'budget_tx_splits')),
+            'the split guard must exclude rows that have parts, not rows whose flag is NULL'
+        );
     }
 }

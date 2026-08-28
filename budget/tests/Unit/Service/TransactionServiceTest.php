@@ -1699,6 +1699,37 @@ class TransactionServiceTest extends TestCase {
         $this->assertArrayNotHasKey('splitCategories', $row);
     }
 
+    // ===== tri-state isSplit resolved to a real boolean (#360) =====
+
+    public function testNullFlagRowWithPartsResolvesToSplitWithCategoriesAttached(): void {
+        // A pre-#351 import carries NULL rather than false/true; it must
+        // still surface as a split once its parts actually come back.
+        $this->splitsByTransactionId[7] = [
+            ['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 12.40],
+            ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 70.00],
+        ];
+
+        $row = $this->findOneWithFilters(
+            [],
+            ['id' => 7, 'accountId' => 10, 'isSplit' => null, 'amount' => 82.40, 'type' => 'debit']
+        );
+
+        $this->assertTrue($row['isSplit']);
+        $this->assertCount(2, $row['splitCategories']);
+    }
+
+    public function testNullFlagRowWithNoPartsResolvesToNotSplit(): void {
+        // No parts come back for this id — a NULL flag is not, on its own,
+        // enough to call the row a split.
+        $row = $this->findOneWithFilters(
+            [],
+            ['id' => 9, 'accountId' => 10, 'isSplit' => null, 'amount' => 20.0, 'type' => 'debit']
+        );
+
+        $this->assertFalse($row['isSplit']);
+        $this->assertArrayNotHasKey('splitCategories', $row);
+    }
+
     public function testPartWithNoCategoryNeverMatches(): void {
         $this->splitsByTransactionId[7] = [
             ['categoryId' => null, 'categoryName' => null, 'amount' => 12.40],

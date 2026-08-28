@@ -202,6 +202,14 @@ class CategoryService extends AbstractCrudService {
             throw new CategoryInUseException($this->l->t('Cannot delete this category because it has transactions assigned to it. Please reassign or delete them first.'));
         }
 
+        // findByCategory() above is deliberately split-blind (a category used
+        // only by split parts must stay deletable, never guarded), so a
+        // category can reach here with budget_tx_splits rows still pointing at
+        // it -- degrade those to uncategorized rather than leave them dangling
+        // on a deleted category id (#360). This also covers deleteWithReassign()
+        // below, which calls delete() per category through the cascade above.
+        $this->splitMapper?->clearCategory([$entity->getId()]);
+
         // Cascade delete: Delete budget snapshots for this category
         $this->budgetSnapshotMapper->deleteByCategory($entity->getId(), $userId);
 
@@ -225,8 +233,8 @@ class CategoryService extends AbstractCrudService {
      * Delete a category after moving its transactions — and those of its
      * descendant categories — to No Category, so a category that still has
      * transactions can be removed without hand-recategorizing first (#332).
-     * Owner-only, like delete(). Split-line category references degrade to
-     * uncategorized via the report leftJoins, matching the reassignment.
+     * Owner-only, like delete(). Split-line category references are cleared
+     * too, by beforeDelete() as the cascade deletes each category (#360).
      */
     public function deleteWithReassign(int $id, string $userId): void {
         // Ownership check (throws if not found / not the user's).

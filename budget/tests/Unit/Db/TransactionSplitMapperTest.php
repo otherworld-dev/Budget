@@ -8,6 +8,7 @@ use OCA\Budget\Db\TransactionSplit;
 use OCA\Budget\Db\TransactionSplitMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\DB\IResult;
+use OCP\DB\QueryBuilder\ICompositeExpression;
 use OCP\DB\QueryBuilder\IExpressionBuilder;
 use OCP\DB\QueryBuilder\IFunctionBuilder;
 use OCP\DB\QueryBuilder\IQueryBuilder;
@@ -41,7 +42,8 @@ class TransactionSplitMapperTest extends TestCase {
         $this->qb->method('createFunction')->willReturn($sumFunc);
 
         foreach (['select', 'addSelect', 'selectAlias', 'from', 'where', 'andWhere',
-                   'orderBy', 'addOrderBy', 'leftJoin', 'innerJoin', 'delete', 'groupBy', 'addGroupBy'] as $method) {
+                   'orderBy', 'addOrderBy', 'leftJoin', 'innerJoin', 'delete', 'groupBy', 'addGroupBy',
+                   'update', 'set'] as $method) {
             $this->qb->method($method)->willReturnSelf();
         }
 
@@ -143,6 +145,27 @@ class TransactionSplitMapperTest extends TestCase {
         $this->mapper->deleteByTransaction(100);
     }
 
+    // ===== clearCategory (#360) =====
+
+    public function testClearCategoryReturnsZeroForEmptyInput(): void {
+        $this->qb->expects($this->never())->method('executeStatement');
+
+        $result = $this->mapper->clearCategory([]);
+
+        $this->assertSame(0, $result);
+    }
+
+    public function testClearCategoryUpdatesMatchingSplitParts(): void {
+        $this->qb->expects($this->once())->method('update')->with('budget_tx_splits')->willReturnSelf();
+        $this->qb->expects($this->once())->method('set')
+            ->with('category_id', ':param')->willReturnSelf();
+        $this->qb->expects($this->once())->method('executeStatement')->willReturn(3);
+
+        $result = $this->mapper->clearCategory([5, 6]);
+
+        $this->assertSame(3, $result);
+    }
+
     // ===== getCategoryTotals =====
 
     public function testGetCategoryTotalsReturnsEmptyForEmptyInput(): void {
@@ -186,6 +209,42 @@ class TransactionSplitMapperTest extends TestCase {
         $this->assertEquals(50.00, $totals[null]);
     }
 
+    /**
+     * A full year of split ids (YearOverYearService) or a whole forecast
+     * window (PatternAnalyzer) can exceed 500 ids, and old SQLite builds cap
+     * bound variables at 999 -- one unchunked IN() would risk blowing that
+     * cap. 700 ids forces two chunks (500 + 200); a category present in both
+     * chunks (5) must have its per-chunk totals summed, not overwritten.
+     */
+    public function testGetCategoryTotalsChunksIdsAtFiveHundredAndSumsAcrossChunks(): void {
+        $ids = range(1, 700);
+
+        $chunk1 = $this->createMock(IResult::class);
+        $chunk1->method('fetch')->willReturnOnConsecutiveCalls(
+            ['category_id' => '5', 'total' => '100.00'],
+            ['category_id' => '10', 'total' => '50.00'],
+            false
+        );
+        $chunk1->method('closeCursor');
+
+        $chunk2 = $this->createMock(IResult::class);
+        $chunk2->method('fetch')->willReturnOnConsecutiveCalls(
+            ['category_id' => '5', 'total' => '25.00'],
+            ['category_id' => '20', 'total' => '10.00'],
+            false
+        );
+        $chunk2->method('closeCursor');
+
+        $this->qb->expects($this->exactly(2))->method('executeQuery')
+            ->willReturnOnConsecutiveCalls($chunk1, $chunk2);
+
+        $totals = $this->mapper->getCategoryTotals($ids);
+
+        $this->assertEquals(125.00, $totals[5]);
+        $this->assertEquals(50.00, $totals[10]);
+        $this->assertEquals(10.00, $totals[20]);
+    }
+
     // ===== deleteAll =====
 
     public function testDeleteAllReturnsAffectedRows(): void {
@@ -202,6 +261,65 @@ class TransactionSplitMapperTest extends TestCase {
         $this->assertEquals(5, $count);
     }
 
+    // ===== getCategoryTotalsByBucket (#360) =====
+
+    public function testGetCategoryTotalsByBucketReturnsIndexedByCategoryAndBucket(): void {
+        $this->result->method('fetch')->willReturnOnConsecutiveCalls(
+            ['category_id' => 5, 'bucket' => '2026-01', 'total' => '50.00'],
+            false
+        );
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $totals = $this->mapper->getCategoryTotalsByBucket('user1', '2026-01-01', '2026-01-31');
+
+        $this->assertSame(50.0, $totals[5]['2026-01']);
+    }
+
+    /**
+     * This mapper has no splitParentPredicate() helper (that lives on
+     * TransactionMapper), so the true-or-NULL is_split guard is inlined here.
+     * Without it, a part whose parent is explicitly marked unsplit
+     * (is_split = false) was counted anyway -- the policy is that such a
+     * parent's own amount counts and any leftover split rows referencing it
+     * are stray and must be ignored (#360; see
+     * TransactionMapper::splitParentPredicate for the same policy stated on
+     * the direct side).
+     */
+    public function testGetCategoryTotalsByBucketGuardsAgainstStrayPartsOnUnsplitParents(): void {
+        $eqCalls = [];
+        $this->expr->method('eq')->willReturnCallback(function (string $col, $val) use (&$eqCalls) {
+            $eqCalls[] = $col;
+            return "eq($col)";
+        });
+        $isNullCalls = [];
+        $this->expr->method('isNull')->willReturnCallback(function (string $col) use (&$isNullCalls) {
+            $isNullCalls[] = $col;
+            return "isNull($col)";
+        });
+        $orXCalls = [];
+        $orXResult = $this->createMock(ICompositeExpression::class);
+        $this->expr->method('orX')->willReturnCallback(function (...$parts) use (&$orXCalls, $orXResult) {
+            $orXCalls[] = $parts;
+            return $orXResult;
+        });
+
+        $this->result->method('fetch')->willReturn(false);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $this->mapper->getCategoryTotalsByBucket('user1', '2026-01-01', '2026-01-31');
+
+        $guardFound = false;
+        foreach ($orXCalls as $parts) {
+            if (in_array('eq(t.is_split)', $parts, true) && in_array('isNull(t.is_split)', $parts, true)) {
+                $guardFound = true;
+                break;
+            }
+        }
+        $this->assertTrue($guardFound, 'getCategoryTotalsByBucket must OR eq(is_split, true) with isNull(is_split)');
+    }
+
     // ===== getCategoryNetByMonthBatch (#288) =====
 
     public function testGetCategoryNetByMonthBatchMapsSignedNet(): void {
@@ -215,6 +333,43 @@ class TransactionSplitMapperTest extends TestCase {
         $out = $this->mapper->getCategoryNetByMonthBatch('user1', '2026-01-01', '2026-01-31');
 
         $this->assertSame(-30.0, $out[5]['2026-01']);
+    }
+
+    /**
+     * Same inlined stray-part guard as getCategoryTotalsByBucket above (#360).
+     */
+    public function testGetCategoryNetByMonthBatchGuardsAgainstStrayPartsOnUnsplitParents(): void {
+        $eqCalls = [];
+        $this->expr->method('eq')->willReturnCallback(function (string $col, $val) use (&$eqCalls) {
+            $eqCalls[] = $col;
+            return "eq($col)";
+        });
+        $isNullCalls = [];
+        $this->expr->method('isNull')->willReturnCallback(function (string $col) use (&$isNullCalls) {
+            $isNullCalls[] = $col;
+            return "isNull($col)";
+        });
+        $orXCalls = [];
+        $orXResult = $this->createMock(ICompositeExpression::class);
+        $this->expr->method('orX')->willReturnCallback(function (...$parts) use (&$orXCalls, $orXResult) {
+            $orXCalls[] = $parts;
+            return $orXResult;
+        });
+
+        $this->result->method('fetch')->willReturn(false);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $this->mapper->getCategoryNetByMonthBatch('user1', '2026-01-01', '2026-01-31');
+
+        $guardFound = false;
+        foreach ($orXCalls as $parts) {
+            if (in_array('eq(t.is_split)', $parts, true) && in_array('isNull(t.is_split)', $parts, true)) {
+                $guardFound = true;
+                break;
+            }
+        }
+        $this->assertTrue($guardFound, 'getCategoryNetByMonthBatch must OR eq(is_split, true) with isNull(is_split)');
     }
 
     // ===== findByTransactionIds =====
@@ -274,5 +429,39 @@ class TransactionSplitMapperTest extends TestCase {
         $this->qb->expects($this->never())->method('executeQuery');
 
         $this->assertSame([], $this->mapper->findByTransactionIds([]));
+    }
+
+    /**
+     * Same 500-id chunking as getCategoryTotals, for the same reason. Here
+     * each transaction id can only fall in one chunk, so the per-chunk
+     * groups never collide -- merging is just accumulating into one map as
+     * chunks come back.
+     */
+    public function testFindByTransactionIdsChunksIdsAtFiveHundredAndMergesGroups(): void {
+        $ids = range(1, 600);
+
+        $chunk1 = $this->createMock(IResult::class);
+        $chunk1->method('fetch')->willReturnOnConsecutiveCalls(
+            $this->makeSplitRow(['transaction_id' => 100, 'category_id' => 5, 'amount' => '50.00', 'category_name' => 'Food']),
+            false
+        );
+        $chunk1->method('closeCursor');
+
+        $chunk2 = $this->createMock(IResult::class);
+        $chunk2->method('fetch')->willReturnOnConsecutiveCalls(
+            $this->makeSplitRow(['transaction_id' => 550, 'category_id' => 9, 'amount' => '20.00', 'category_name' => 'Household']),
+            false
+        );
+        $chunk2->method('closeCursor');
+
+        $this->qb->expects($this->exactly(2))->method('executeQuery')
+            ->willReturnOnConsecutiveCalls($chunk1, $chunk2);
+
+        $grouped = $this->mapper->findByTransactionIds($ids);
+
+        $this->assertCount(1, $grouped[100]);
+        $this->assertSame(5, $grouped[100][0]['categoryId']);
+        $this->assertCount(1, $grouped[550]);
+        $this->assertSame(9, $grouped[550][0]['categoryId']);
     }
 }

@@ -20120,3 +20120,58 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     opacity: 0.8;
     font-size: 0.9em;
 }
+
+/* Shown when Nextcloud has newer app files than the version it last upgraded
+   to, which means the migrations that came with them never ran (#333). Spans
+   the whole app because every screen is affected, and it is not dismissible:
+   the next save may fail, and hiding that helps nobody. */
+/* Nextcloud core makes #app-content-wrapper a nowrap flex ROW (server.css),
+   which is invisible day to day because only one .view is displayed at a
+   time — but a second child gets squeezed into a column beside it. Let the
+   wrapper wrap so the banner can take the full first row and the active view
+   the next. With a single child (every normal page load) this changes
+   nothing. */
+#app-content #app-content-wrapper {
+    flex-wrap: wrap;
+}
+
+.budget-schema-warning {
+    flex: 0 0 100%;
+    box-sizing: border-box;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    margin: 12px;
+    padding: 14px 16px;
+    border: 2px solid var(--color-warning, #c98b00);
+    border-radius: var(--border-radius-large, 12px);
+    /* A tint of the warning color, matching the app's other warning fills —
+       --color-warning-hover itself is an opaque theme color, so using it as a
+       background buries the text (near-white on light orange in dark mode). */
+    background: rgba(var(--color-warning-rgb, 201, 139, 0), 0.1);
+    color: var(--color-main-text);
+}
+
+.budget-schema-warning svg {
+    flex-shrink: 0;
+    color: var(--color-warning, #c98b00);
+}
+
+.budget-schema-warning-text {
+    min-width: 0;
+}
+
+.budget-schema-warning-text p {
+    margin: 4px 0 0;
+}
+
+.budget-schema-warning code {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 4px 8px;
+    border-radius: var(--border-radius, 6px);
+    background: var(--color-background-dark, rgba(0, 0, 0, 0.2));
+    font-family: monospace;
+    user-select: all;
+    word-break: break-all;
+}

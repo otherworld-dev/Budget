@@ -6,6 +6,7 @@ namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\TransactionSplitMapper;
 
 /**
  * Service for year-over-year comparison calculations.
@@ -13,13 +14,16 @@ use OCA\Budget\Db\CategoryMapper;
 class YearOverYearService {
     private TransactionMapper $transactionMapper;
     private CategoryMapper $categoryMapper;
+    private TransactionSplitMapper $splitMapper;
 
     public function __construct(
         TransactionMapper $transactionMapper,
-        CategoryMapper $categoryMapper
+        CategoryMapper $categoryMapper,
+        TransactionSplitMapper $splitMapper
     ) {
         $this->transactionMapper = $transactionMapper;
         $this->categoryMapper = $categoryMapper;
+        $this->splitMapper = $splitMapper;
     }
 
     /**
@@ -112,6 +116,19 @@ class YearOverYearService {
     }
 
     /**
+     * The date range for one comparison year, ending today for the year in
+     * progress so a part-year is not compared against a whole one.
+     *
+     * @return array{start: string, end: string}
+     */
+    private function yearRange(int $year, int $currentYear): array {
+        return [
+            'start' => sprintf('%04d-01-01', $year),
+            'end' => $year === $currentYear ? date('Y-m-d') : sprintf('%04d-12-31', $year),
+        ];
+    }
+
+    /**
      * Compare spending by category across years.
      *
      * @param string $userId User ID
@@ -123,6 +140,23 @@ class YearOverYearService {
         $currentYear = (int) date('Y');
         $categories = $this->categoryMapper->findAll($userId);
         $categoryData = [];
+
+        // Split allocations per category, once per year rather than once per
+        // category per year. A split carries no category of its own, so
+        // reading only the transaction's own category compared a year of split
+        // receipts against a year that predated splitting and called it a
+        // collapse (#360).
+        $splitTotalsByYear = [];
+        for ($i = 0; $i < $years; $i++) {
+            $year = $currentYear - $i;
+            $range = $this->yearRange($year, $currentYear);
+            $splitIds = $this->transactionMapper->getSplitTransactionIds(
+                $userId, $range['start'], $range['end'], $visibleAccountIds, 'debit', $accountId
+            );
+            $splitTotalsByYear[$year] = $splitIds === []
+                ? []
+                : $this->splitMapper->getCategoryTotals($splitIds);
+        }
 
         // Get spending for each category per year
         foreach ($categories as $category) {
@@ -148,6 +182,7 @@ class YearOverYearService {
                     $accountId,
                     $visibleAccountIds
                 );
+                $spending += (float)($splitTotalsByYear[$year][$category->getId()] ?? 0);
 
                 $categoryYears[] = [
                     'year' => $year,

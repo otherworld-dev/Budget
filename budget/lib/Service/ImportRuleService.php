@@ -465,9 +465,15 @@ class ImportRuleService extends AbstractCrudService {
             // Never hand a split parent to a rule run: its null category is
             // deliberate (the splits hold the categories), and categorising
             // the parent double-counts it against its own splits (#356).
+            // The partition complement, same as the aggregates (#360): a
+            // NULL-flag row that HAS parts is a split parent from before the
+            // column existed, and offering it for categorization is exactly
+            // how damaged rows carrying both a category and parts get made.
+            // Identifiers unquoted as in QueryFilterBuilder — none reserved.
             $qb->andWhere($qb->expr()->orX(
                 $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
-                $qb->expr()->isNull('t.is_split')
+                'NOT EXISTS (SELECT 1 FROM ' . $qb->getTableName('budget_tx_splits') . ' bsx'
+                    . ' WHERE bsx.transaction_id = t.id)'
             ));
         }
 

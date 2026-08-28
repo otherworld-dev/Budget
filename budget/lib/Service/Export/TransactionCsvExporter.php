@@ -57,6 +57,25 @@ class TransactionCsvExporter {
             ? (string)($transaction['matchedSplitCategoryName'] ?? '')
             : (string)($transaction['categoryName'] ?? '');
 
+        // With no category filter there is no matched share, and a split has
+        // no category of its own — so the one column saying what the money was
+        // for came out blank on exactly the transactions someone had bothered
+        // to itemise. Name the categories its parts went to instead, each once
+        // however many parts it has (#360). Guarded to the unfiltered case:
+        // under a category filter a share can legitimately resolve to '' when
+        // matchedSplitCategoryName's category was since deleted, and falling
+        // through here would mislabel that share with every part's category.
+        if (!$isShare && $category === '' && !empty($transaction['splitCategories'])) {
+            $names = [];
+            foreach ($transaction['splitCategories'] as $part) {
+                $name = (string)($part['categoryName'] ?? '');
+                if ($name !== '' && !in_array($name, $names, true)) {
+                    $names[] = $name;
+                }
+            }
+            $category = implode(' / ', $names);
+        }
+
         return [
             (string)($transaction['date'] ?? ''),
             (string)($transaction['description'] ?? ''),

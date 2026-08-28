@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Service\Forecast;
 
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\Transaction;
+use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Service\Forecast\PatternAnalyzer;
 use OCA\Budget\Service\Forecast\TrendCalculator;
 use PHPUnit\Framework\TestCase;
@@ -13,12 +14,15 @@ use PHPUnit\Framework\TestCase;
 class PatternAnalyzerTest extends TestCase {
 	private TrendCalculator $trendCalculator;
 	private CategoryMapper $categoryMapper;
+	private TransactionSplitMapper $splitMapper;
 	private PatternAnalyzer $analyzer;
 
 	protected function setUp(): void {
 		$this->trendCalculator = $this->createMock(TrendCalculator::class);
 		$this->categoryMapper = $this->createMock(CategoryMapper::class);
-		$this->analyzer = new PatternAnalyzer($this->trendCalculator, $this->categoryMapper);
+		$this->splitMapper = $this->createMock(TransactionSplitMapper::class);
+		$this->splitMapper->method('findByTransactionIds')->willReturn([]);
+		$this->analyzer = new PatternAnalyzer($this->trendCalculator, $this->categoryMapper, $this->splitMapper);
 	}
 
 	private function makeTransaction(string $date, float $amount, string $type, ?int $categoryId = null, string $description = 'Test'): Transaction {
@@ -29,6 +33,90 @@ class PatternAnalyzerTest extends TestCase {
 		$t->setCategoryId($categoryId);
 		$t->setDescription($description);
 		return $t;
+	}
+
+	/**
+	 * A split has no category of its own, so bucketing by the transaction's
+	 * own category dropped every split receipt into "Uncategorized" and left
+	 * the categories it was actually divided between showing nothing. The
+	 * Forecast's category trends were the last surface still doing this (#360).
+	 */
+	public function testCategoryBreakdownUsesTheSplitPartsRatherThanTheParent(): void {
+		$split = $this->makeTransaction('2025-01-10', 82.40, 'debit', null);
+		$split->setId(7);
+		$split->setIsSplit(true);
+
+		$splitMapper = $this->createMock(TransactionSplitMapper::class);
+		$splitMapper->method('findByTransactionIds')->with([7])->willReturn([
+			7 => [
+				['categoryId' => 2, 'categoryName' => 'Groceries', 'amount' => 12.40],
+				['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 70.00],
+			],
+		]);
+
+		$groceries = new \OCA\Budget\Db\Category();
+		$groceries->setId(2);
+		$groceries->setName('Groceries');
+		$household = new \OCA\Budget\Db\Category();
+		$household->setId(9);
+		$household->setName('Household');
+		$this->categoryMapper->method('findByIds')->willReturn([2 => $groceries, 9 => $household]);
+		$this->trendCalculator->method('getTrendDirection')->willReturn('stable');
+
+		$analyzer = new PatternAnalyzer($this->trendCalculator, $this->categoryMapper, $splitMapper);
+		$breakdown = $analyzer->getCategoryBreakdown('user1', [$split]);
+
+		$byId = [];
+		foreach ($breakdown as $row) {
+			$byId[$row['categoryId']] = $row['avgMonthly'];
+		}
+
+		$this->assertEqualsWithDelta(12.40, $byId[2] ?? -1, 0.005);
+		$this->assertEqualsWithDelta(70.00, $byId[9] ?? -1, 0.005);
+		// Nothing should have landed under "Uncategorized".
+		$this->assertArrayNotHasKey(0, $byId);
+	}
+
+	/**
+	 * A pre-#351 import restores is_split as NULL rather than true/false
+	 * (#360) — the truthiness-only check used to skip the parts lookup
+	 * entirely for a NULL-flag parent and book the whole receipt under its
+	 * own (usually empty) category.
+	 */
+	public function testCategoryBreakdownCountsANullFlagParentThroughItsParts(): void {
+		$split = $this->makeTransaction('2025-01-10', 82.40, 'debit', null);
+		$split->setId(7);
+		$split->setIsSplit(null);
+		$this->assertNull($split->getIsSplit(), 'setIsSplit(null) must round-trip via the magic setter');
+
+		$splitMapper = $this->createMock(TransactionSplitMapper::class);
+		$splitMapper->method('findByTransactionIds')->with([7])->willReturn([
+			7 => [
+				['categoryId' => 2, 'categoryName' => 'Groceries', 'amount' => 12.40],
+				['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 70.00],
+			],
+		]);
+
+		$groceries = new \OCA\Budget\Db\Category();
+		$groceries->setId(2);
+		$groceries->setName('Groceries');
+		$household = new \OCA\Budget\Db\Category();
+		$household->setId(9);
+		$household->setName('Household');
+		$this->categoryMapper->method('findByIds')->willReturn([2 => $groceries, 9 => $household]);
+		$this->trendCalculator->method('getTrendDirection')->willReturn('stable');
+
+		$analyzer = new PatternAnalyzer($this->trendCalculator, $this->categoryMapper, $splitMapper);
+		$breakdown = $analyzer->getCategoryBreakdown('user1', [$split]);
+
+		$byId = [];
+		foreach ($breakdown as $row) {
+			$byId[$row['categoryId']] = $row['avgMonthly'];
+		}
+
+		$this->assertEqualsWithDelta(12.40, $byId[2] ?? -1, 0.005);
+		$this->assertEqualsWithDelta(70.00, $byId[9] ?? -1, 0.005);
+		$this->assertArrayNotHasKey(0, $byId);
 	}
 
 	// ── aggregateMonthlyData ────────────────────────────────────────

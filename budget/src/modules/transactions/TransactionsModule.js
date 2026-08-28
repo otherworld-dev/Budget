@@ -4926,7 +4926,7 @@ export default class TransactionsModule {
                         <span class="duplicate-item-details">
                             <span class="duplicate-date">${this.escapeHtml(tx.date)}</span>
                             <span class="duplicate-vendor">${this.escapeHtml(tx.vendor) || '-'}</span>
-                            <span class="duplicate-category">${this.escapeHtml(tx.categoryName) || '-'}</span>
+                            <span class="duplicate-category">${(tx.isSplit || tx.is_split) ? this.escapeHtml(t('budget', 'Split')) : (this.escapeHtml(tx.categoryName) || '-')}</span>
                             <span class="duplicate-amount">${formatters.formatCurrency(tx.amount, tx.currency, this.settings)}</span>
                             ${keepLabel}${billLabel}${statusLabel}
                         </span>

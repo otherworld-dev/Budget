@@ -9,6 +9,7 @@ use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\DB\IResult;
+use OCP\DB\QueryBuilder\ICompositeExpression;
 use OCP\DB\QueryBuilder\IExpressionBuilder;
 use OCP\DB\QueryBuilder\IFunctionBuilder;
 use OCP\DB\QueryBuilder\IQueryBuilder;
@@ -293,7 +294,54 @@ class TransactionMapperTest extends TestCase {
         $this->mapper->findUncategorized('user1');
 
         $this->assertContains('t.category_id', $nulled);
-        $this->assertContains('t.is_split', $nulled);
+    }
+
+    /**
+     * The original guard was true-or-NULL on is_split, which still let a
+     * NULL-flag row (predates the column) that actually HAS split parts
+     * through as "uncategorised" -- offering a split parent up for
+     * categorisation is exactly how damaged rows (category + parts both set)
+     * get created. The guard is now the partition complement used by
+     * getCategorySpendingBatch et al: eq(is_split, false) OR NOT EXISTS(parts),
+     * so a NULL-flag row is only listed when it genuinely has no parts (#360).
+     */
+    public function testFindUncategorizedGuardIsThePartitionComplementForSplitParents(): void {
+        $eqCalls = [];
+        $this->expr->method('eq')->willReturnCallback(function (string $col, $val) use (&$eqCalls) {
+            $eqCalls[] = $col;
+            return "eq($col)";
+        });
+        $orXCalls = [];
+        $orXResult = $this->createMock(ICompositeExpression::class);
+        $this->expr->method('orX')->willReturnCallback(function (...$parts) use (&$orXCalls, $orXResult) {
+            $orXCalls[] = $parts;
+            return $orXResult;
+        });
+
+        $this->result->method('fetch')->willReturn(false);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $this->mapper->findUncategorized('user1');
+
+        $guardFound = false;
+        foreach ($orXCalls as $parts) {
+            $hasIsSplitFalse = false;
+            $hasNotExists = false;
+            foreach ($parts as $part) {
+                if ($part === 'eq(t.is_split)') {
+                    $hasIsSplitFalse = true;
+                }
+                if (is_string($part) && str_contains($part, 'NOT EXISTS')) {
+                    $hasNotExists = true;
+                }
+            }
+            if ($hasIsSplitFalse && $hasNotExists) {
+                $guardFound = true;
+                break;
+            }
+        }
+        $this->assertTrue($guardFound, 'findUncategorized must OR eq(is_split, false) with NOT EXISTS(split parts)');
     }
 
     // ===== search =====
@@ -673,6 +721,41 @@ class TransactionMapperTest extends TestCase {
         $this->assertEmpty($this->mapper->getCategorySpendingBatch([], '2026-01-01', '2026-01-31'));
     }
 
+    // ===== getCategoryTransactionCounts =====
+
+    /**
+     * The count badge on the Categories tree disagreed with the panel it
+     * opens: Category Details has counted split allocations since #359, while
+     * this query filtered on t.category_id, which a split never has. A
+     * category funded entirely by split receipts showed 0 next to a panel
+     * listing its transactions (#360).
+     */
+    public function testCategoryTransactionCountsIncludeSplits(): void {
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([['category_id' => '5', 'count' => '3']]),
+            $this->resultOf([
+                ['category_id' => '5', 'count' => '2'],
+                ['category_id' => '9', 'count' => '4'],
+            ])
+        );
+
+        $counts = $this->mapper->getCategoryTransactionCounts('user1');
+
+        // 3 counted on the transaction itself plus 2 reached through splits.
+        $this->assertSame(5, $counts[5]);
+        // A category only ever funded by splits still appears.
+        $this->assertSame(4, $counts[9]);
+    }
+
+    public function testCategoryTransactionCountsWithoutSplitsAreUnchanged(): void {
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([['category_id' => '5', 'count' => '3']]),
+            $this->resultOf([])
+        );
+
+        $this->assertSame([5 => 3], $this->mapper->getCategoryTransactionCounts('user1'));
+    }
+
     // ===== getCategoryTotalsByAccount =====
 
     public function testGetCategoryTotalsByAccountReturnsEmptyForEmptyInput(): void {
@@ -684,17 +767,63 @@ class TransactionMapperTest extends TestCase {
     }
 
     public function testGetCategoryTotalsByAccountReturnsIndexedByAccountId(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['account_id' => '10', 'income' => '50.00', 'expenses' => '450.00'],
-            ['account_id' => '20', 'income' => null, 'expenses' => '200.00'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+        // First query = totals held directly on the transaction; second = totals
+        // held on its split parts. Nothing is split here.
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([
+                ['account_id' => '10', 'income' => '50.00', 'expenses' => '450.00'],
+                ['account_id' => '20', 'income' => null, 'expenses' => '200.00'],
+            ]),
+            $this->resultOf([])
+        );
 
         $totals = $this->mapper->getCategoryTotalsByAccount([5, 10], '2026-01-01', '2026-01-31');
 
         $this->assertEquals(['income' => 50.00, 'expenses' => 450.00], $totals[10]);
         $this->assertEquals(['income' => 0.0, 'expenses' => 200.00], $totals[20]);
+    }
+
+    /**
+     * Splitting a transaction nulls its category_id and moves the categories
+     * onto budget_tx_splits, so `WHERE t.category_id IN (...)` can never match
+     * one -- money in an excluded category spent through a split was never
+     * deducted from the report totals it feeds (#326, #360). This is the
+     * split-only case: the account has no direct spending in the excluded
+     * category, only split parts, and must still be reported.
+     */
+    public function testGetCategoryTotalsByAccountIncludesSplitOnlyAccount(): void {
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([]),
+            $this->resultOf([
+                ['account_id' => '30', 'income' => '20.00', 'expenses' => '80.00'],
+            ])
+        );
+
+        $totals = $this->mapper->getCategoryTotalsByAccount([5], '2026-01-01', '2026-01-31');
+
+        $this->assertArrayHasKey(30, $totals);
+        $this->assertEquals(['income' => 20.00, 'expenses' => 80.00], $totals[30]);
+    }
+
+    /**
+     * An account with both direct spending and split spending in the excluded
+     * category must get both deducted, merged rather than one overwriting the
+     * other.
+     */
+    public function testGetCategoryTotalsByAccountMergesDirectAndSplitTotals(): void {
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([
+                ['account_id' => '10', 'income' => '50.00', 'expenses' => '450.00'],
+            ]),
+            $this->resultOf([
+                ['account_id' => '10', 'income' => '10.00', 'expenses' => '25.00'],
+            ])
+        );
+
+        $totals = $this->mapper->getCategoryTotalsByAccount([5], '2026-01-01', '2026-01-31');
+
+        $this->assertEqualsWithDelta(60.00, $totals[10]['income'], 0.001);
+        $this->assertEqualsWithDelta(475.00, $totals[10]['expenses'], 0.001);
     }
 
     // ===== findPotentialMatches =====
@@ -1233,6 +1362,70 @@ class TransactionMapperTest extends TestCase {
         $this->assertEquals(2, $result['data'][0]['count']);
     }
 
+    // ===== getCategorySpendingByBucketBatch (#360) =====
+
+    public function testGetCategorySpendingByBucketBatchReturnsIndexedByCategoryAndBucket(): void {
+        $this->result->method('fetch')->willReturnOnConsecutiveCalls(
+            ['category_id' => 5, 'bucket' => '2026-01', 'total' => '120.00'],
+            ['category_id' => 9, 'bucket' => '2026-02', 'total' => '40.00'],
+            false
+        );
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $totals = $this->mapper->getCategorySpendingByBucketBatch('user1', '2026-01-01', '2026-02-28');
+
+        $this->assertSame(120.0, $totals[5]['2026-01']);
+        $this->assertSame(40.0, $totals[9]['2026-02']);
+    }
+
+    /**
+     * Companion to TransactionSplitMapper::getCategoryTotalsByBucket via
+     * BudgetCarryoverService::loadSpending. Both sides used to guard on plain
+     * true-or-NULL, so a pre-#351 NULL-flag row that actually HAS parts was
+     * summed at its own amount here AND part-by-part by the split query.
+     * The guard is now the partition complement: eq(is_split, false) OR
+     * NOT EXISTS(parts), matching getCategorySpendingBatch (#360).
+     */
+    public function testGetCategorySpendingByBucketBatchGuardIsThePartitionComplement(): void {
+        $eqCalls = [];
+        $this->expr->method('eq')->willReturnCallback(function (string $col, $val) use (&$eqCalls) {
+            $eqCalls[] = $col;
+            return "eq($col)";
+        });
+        $orXCalls = [];
+        $orXResult = $this->createMock(ICompositeExpression::class);
+        $this->expr->method('orX')->willReturnCallback(function (...$parts) use (&$orXCalls, $orXResult) {
+            $orXCalls[] = $parts;
+            return $orXResult;
+        });
+
+        $this->result->method('fetch')->willReturn(false);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $this->mapper->getCategorySpendingByBucketBatch('user1', '2026-01-01', '2026-01-31');
+
+        $guardFound = false;
+        foreach ($orXCalls as $parts) {
+            $hasIsSplitFalse = false;
+            $hasNotExists = false;
+            foreach ($parts as $part) {
+                if ($part === 'eq(t.is_split)') {
+                    $hasIsSplitFalse = true;
+                }
+                if (is_string($part) && str_contains($part, 'NOT EXISTS')) {
+                    $hasNotExists = true;
+                }
+            }
+            if ($hasIsSplitFalse && $hasNotExists) {
+                $guardFound = true;
+                break;
+            }
+        }
+        $this->assertTrue($guardFound, 'getCategorySpendingByBucketBatch must OR eq(is_split, false) with NOT EXISTS(split parts)');
+    }
+
     // ===== getCategoryNetByMonthBatch (#288) =====
 
     public function testGetCategoryNetByMonthBatchMapsSignedNet(): void {
@@ -1248,6 +1441,49 @@ class TransactionMapperTest extends TestCase {
 
         $this->assertSame(-80.0, $out[5]['2026-01']);
         $this->assertSame(3000.0, $out[1]['2026-02']);
+    }
+
+    /**
+     * Same partition-complement guard as getCategorySpendingByBucketBatch
+     * above, for the Category-by-Month report's direct side (#360).
+     */
+    public function testGetCategoryNetByMonthBatchGuardIsThePartitionComplement(): void {
+        $eqCalls = [];
+        $this->expr->method('eq')->willReturnCallback(function (string $col, $val) use (&$eqCalls) {
+            $eqCalls[] = $col;
+            return "eq($col)";
+        });
+        $orXCalls = [];
+        $orXResult = $this->createMock(ICompositeExpression::class);
+        $this->expr->method('orX')->willReturnCallback(function (...$parts) use (&$orXCalls, $orXResult) {
+            $orXCalls[] = $parts;
+            return $orXResult;
+        });
+
+        $this->result->method('fetch')->willReturn(false);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $this->mapper->getCategoryNetByMonthBatch('user1', '2026-01-01', '2026-01-31');
+
+        $guardFound = false;
+        foreach ($orXCalls as $parts) {
+            $hasIsSplitFalse = false;
+            $hasNotExists = false;
+            foreach ($parts as $part) {
+                if ($part === 'eq(t.is_split)') {
+                    $hasIsSplitFalse = true;
+                }
+                if (is_string($part) && str_contains($part, 'NOT EXISTS')) {
+                    $hasNotExists = true;
+                }
+            }
+            if ($hasIsSplitFalse && $hasNotExists) {
+                $guardFound = true;
+                break;
+            }
+        }
+        $this->assertTrue($guardFound, 'getCategoryNetByMonthBatch must OR eq(is_split, false) with NOT EXISTS(split parts)');
     }
 
     // ===== report aggregates drop linked transfers in the all-accounts view (#349) =====
@@ -1323,5 +1559,75 @@ class TransactionMapperTest extends TestCase {
             $call();
             $this->assertNotContains('t.linked_transaction_id', $this->isNullColumns, $method);
         }
+    }
+
+    // ===== findDuplicates (#333) =====
+
+    /**
+     * findDuplicates() used to compare each candidate to the LAST row added
+     * to the group rather than the FIRST, so a run of legitimate same-amount
+     * purchases a few days apart chained end-to-end into one "duplicate"
+     * group spanning far more than the window (#333). Five rows two days
+     * apart (1st, 3rd, 5th, 7th, 9th) with a 3-day window: anchored to the
+     * first row of each group, the 5th is 4 days from the 1st and starts a
+     * new group, and the 9th is 4 days from the 5th and joins neither --
+     * two groups of two, not one group of five.
+     */
+    public function testFindDuplicatesOnlyChainsRowsWithinWindowOfTheFirstRow(): void {
+        $row = fn (int $id, string $date) => array_merge($this->makeTransactionRow([
+            'id' => $id,
+            'account_id' => 10,
+            'amount' => 4.50,
+            'type' => 'debit',
+            'description' => 'Coffee Shop',
+            'date' => $date,
+        ]), [
+            'account_name' => 'Checking',
+            'account_currency' => 'USD',
+            'category_name' => 'Food',
+        ]);
+
+        $this->result->method('fetchAll')->willReturn([
+            $row(1, '2026-01-01'),
+            $row(2, '2026-01-03'),
+            $row(3, '2026-01-05'),
+            $row(4, '2026-01-07'),
+            $row(5, '2026-01-09'),
+        ]);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $groups = $this->mapper->findDuplicates('user1', 3);
+
+        $this->assertCount(2, $groups);
+        $this->assertSame([1, 2], array_column($groups[0], 'id'));
+        $this->assertSame([3, 4], array_column($groups[1], 'id'));
+    }
+
+    public function testFindDuplicatesStillReportsAGenuineSameDayPair(): void {
+        $row = fn (int $id, string $date) => array_merge($this->makeTransactionRow([
+            'id' => $id,
+            'account_id' => 20,
+            'amount' => 9.99,
+            'type' => 'debit',
+            'description' => 'Same Day Purchase',
+            'date' => $date,
+        ]), [
+            'account_name' => 'Checking',
+            'account_currency' => 'USD',
+            'category_name' => 'Shopping',
+        ]);
+
+        $this->result->method('fetchAll')->willReturn([
+            $row(10, '2026-02-01'),
+            $row(11, '2026-02-01'),
+        ]);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $groups = $this->mapper->findDuplicates('user1', 3);
+
+        $this->assertCount(1, $groups);
+        $this->assertSame([10, 11], array_column($groups[0], 'id'));
     }
 }

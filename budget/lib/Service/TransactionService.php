@@ -806,26 +806,47 @@ class TransactionService {
      * grocery lines reports one figure and still occupies one row. The absent
      * case is null rather than 0.0 — a 0.00 share is a real value.
      *
+     * isSplit is tri-state coming in (#360): true, false, or NULL for a
+     * pre-#351 import that predates the column. A NULL-flag row is a
+     * candidate here — it only resolves to true once its parts actually come
+     * back, so every row leaves this method with a real boolean, never NULL.
+     *
      * @param array<int, array<string, mixed>> $transactions
      * @return array<int, array<string, mixed>>
      */
     private function attachSplitDetails(array $transactions, array $filters): array {
         $splitTxIds = [];
         foreach ($transactions as $tx) {
-            if (($tx['isSplit'] ?? false) && isset($tx['id'])) {
+            if (($tx['isSplit'] ?? null) !== false && isset($tx['id'])) {
                 $splitTxIds[] = (int)$tx['id'];
             }
         }
 
         if (empty($splitTxIds)) {
+            foreach ($transactions as &$tx) {
+                $tx['isSplit'] = (bool)($tx['isSplit'] ?? false);
+            }
+            unset($tx);
             return $transactions;
         }
 
         $splitDetails = $this->splitMapper->findByTransactionIds($splitTxIds);
+
+        // A candidate that came back with no parts (false-negative NULL flag,
+        // or a stray true with the split since deleted) is definitively not
+        // a split — resolve it now so the API never emits NULL.
+        foreach ($transactions as &$tx) {
+            if (($tx['isSplit'] ?? null) === false) {
+                continue;
+            }
+            $tx['isSplit'] = isset($splitDetails[$tx['id']]);
+        }
+        unset($tx);
+
         $filterIds = QueryFilterBuilder::parseCategoryIds($filters['category'] ?? null);
 
         foreach ($transactions as &$tx) {
-            if (!($tx['isSplit'] ?? false) || !isset($splitDetails[$tx['id']])) {
+            if (!$tx['isSplit'] || !isset($splitDetails[$tx['id']])) {
                 continue;
             }
 
@@ -888,9 +909,11 @@ class TransactionService {
                 return;
             }
 
-            if (!empty($filters['category'])) {
-                $batch = $this->attachSplitDetails($batch, $filters);
-            }
+            // Always attach, not just under a category filter as this did
+            // when #359 added it: without a filter there is no matched share,
+            // so a split exported with an empty Category cell. One extra
+            // query per batch of 1000 rows buys the column back (#360).
+            $batch = $this->attachSplitDetails($batch, $filters);
 
             yield $batch;
             $offset += $batchSize;

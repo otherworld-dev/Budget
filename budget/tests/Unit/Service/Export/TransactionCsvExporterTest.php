@@ -47,6 +47,85 @@ class TransactionCsvExporterTest extends TestCase {
         return $csv;
     }
 
+    // ===== split transactions =====
+
+    /**
+     * A split carries no category of its own, so an export with no category
+     * filter wrote an empty Category cell for it -- the one column that says
+     * what the money was for, blank on exactly the transactions someone took
+     * the trouble to itemise (#360).
+     */
+    public function testASplitNamesItsCategoriesRatherThanLeavingTheCellEmpty(): void {
+        $row = $this->exporter->dataRow($this->transaction([
+            'categoryName' => null,
+            'isSplit' => true,
+            'splitCategories' => [
+                ['categoryId' => 2, 'categoryName' => 'Groceries', 'amount' => 12.40],
+                ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 70.00],
+            ],
+        ]));
+
+        $this->assertSame('Groceries / Household', $row[3]);
+    }
+
+    public function testASplitNamesACategoryOnceWhenTwoPartsShareIt(): void {
+        $row = $this->exporter->dataRow($this->transaction([
+            'categoryName' => null,
+            'isSplit' => true,
+            'splitCategories' => [
+                ['categoryId' => 2, 'categoryName' => 'Groceries', 'amount' => 12.40],
+                ['categoryId' => 2, 'categoryName' => 'Groceries', 'amount' => 5.00],
+                ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 65.00],
+            ],
+        ]));
+
+        $this->assertSame('Groceries / Household', $row[3]);
+    }
+
+    /** Under a category filter the row still reports the matched share (#359). */
+    public function testAFilteredShareStillReportsTheMatchedCategory(): void {
+        $row = $this->exporter->dataRow($this->transaction([
+            'categoryName' => null,
+            'isSplit' => true,
+            'matchedSplitAmount' => 12.40,
+            'matchedSplitCategoryName' => 'Groceries',
+            'splitCategories' => [
+                ['categoryId' => 2, 'categoryName' => 'Groceries', 'amount' => 12.40],
+                ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 70.00],
+            ],
+        ]));
+
+        $this->assertSame('Groceries', $row[3]);
+    }
+
+    /**
+     * matchedSplitCategoryName resolves to '' when the matched category was
+     * since deleted. The row is still a share (matchedSplitAmount is set), so
+     * it must not fall through to the "list every part" fallback -- that
+     * would mislabel the share with categories it never actually matched
+     * (#360).
+     */
+    public function testAShareWithADeletedCategoryStaysBlankRatherThanListingAllParts(): void {
+        $row = $this->exporter->dataRow($this->transaction([
+            'categoryName' => null,
+            'isSplit' => true,
+            'matchedSplitAmount' => 12.40,
+            'matchedSplitCategoryName' => '',
+            'splitCategories' => [
+                ['categoryId' => 2, 'categoryName' => 'Groceries', 'amount' => 12.40],
+                ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 70.00],
+            ],
+        ]));
+
+        $this->assertSame('', $row[3]);
+    }
+
+    public function testAnOrdinaryRowKeepsItsOwnCategory(): void {
+        $row = $this->exporter->dataRow($this->transaction(['categoryName' => 'Fuel']));
+
+        $this->assertSame('Fuel', $row[3]);
+    }
+
     // ===== signing =====
 
     public function testExpensesAreNegativeAndIncomeIsPositive(): void {
