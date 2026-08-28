@@ -1397,6 +1397,18 @@ class TransactionMapper extends QBMapper {
      */
     /**
      * @param int[]|null $visibleAccountIds If provided, scope by account IDs instead of userId
+     * @param bool $netOpposite When true, the opposite direction is netted off
+     *                          (the signed CASE getCategorySpendingBatch uses)
+     *                          instead of filtered out. The Budget page's Spent
+     *                          reads this query, and filtering by type meant a
+     *                          refund credit in an expense category never
+     *                          reduced the bar while Category Details on the
+     *                          same screen netted it (#361). The spending
+     *                          report/pie consumers stay gross by default.
+     *                          Netting widens membership: a category whose only
+     *                          activity is opposite-direction appears with a
+     *                          negative total, and 'count' counts BOTH
+     *                          directions, not just the primary one.
      */
     public function getSpendingSummary(
         string $userId,
@@ -1407,12 +1419,19 @@ class TransactionMapper extends QBMapper {
         bool $includeUntagged = true,
         bool $excludeTransfers = false,
         ?array $visibleAccountIds = null,
-        string $transactionType = 'debit'
+        string $transactionType = 'debit',
+        bool $netOpposite = false
     ): array {
         $qb = $this->db->getQueryBuilder();
-        $qb->select('c.id', 'c.name', 'c.color', 'c.icon')
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
+        $qb->select('c.id', 'c.name', 'c.color', 'c.icon');
+        if ($netOpposite) {
+            $qb->selectAlias($qb->createFunction(
+                $this->signedAmountSum($qb, $transactionType, 't.amount')
+            ), 'total');
+        } else {
+            $qb->selectAlias($qb->func()->sum('t.amount'), 'total');
+        }
+        $qb->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->innerJoin('t', 'budget_categories', 'c', $qb->expr()->eq('t.category_id', 'c.id'));
@@ -1420,8 +1439,11 @@ class TransactionMapper extends QBMapper {
         $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
 
         $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)));
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+
+        if (!$netOpposite) {
+            $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)));
+        }
 
         $this->excludeScheduledFuture($qb);
         $this->excludeReportExcludedCategories($qb, 'c', $userId);
@@ -1464,7 +1486,8 @@ class TransactionMapper extends QBMapper {
         // toward category spending/budgets like ordinary transactions (#297).
         $splitSummary = $this->getSplitSpendingSummary(
             $userId, $startDate, $endDate, $accountId, $tagIds,
-            $includeUntagged, $excludeTransfers, $visibleAccountIds, $transactionType
+            $includeUntagged, $excludeTransfers, $visibleAccountIds, $transactionType,
+            $netOpposite
         );
 
         return $this->mergeSpendingSummaries($summary, $splitSummary);
@@ -1484,12 +1507,20 @@ class TransactionMapper extends QBMapper {
         bool $includeUntagged,
         bool $excludeTransfers,
         ?array $visibleAccountIds,
-        string $transactionType
+        string $transactionType,
+        bool $netOpposite = false
     ): array {
         $qb = $this->db->getQueryBuilder();
-        $qb->select('c.id', 'c.name', 'c.color', 'c.icon')
-            ->selectAlias($qb->func()->sum('s.amount'), 'total')
-            ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
+        $qb->select('c.id', 'c.name', 'c.color', 'c.icon');
+        if ($netOpposite) {
+            // The split's amount is signed by its parent's direction (#361)
+            $qb->selectAlias($qb->createFunction(
+                $this->signedAmountSum($qb, $transactionType, 's.amount')
+            ), 'total');
+        } else {
+            $qb->selectAlias($qb->func()->sum('s.amount'), 'total');
+        }
+        $qb->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->innerJoin('t', 'budget_tx_splits', 's', $qb->expr()->eq('s.transaction_id', 't.id'))
@@ -1499,8 +1530,11 @@ class TransactionMapper extends QBMapper {
 
         $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)))
             ->andWhere($this->splitParentPredicate($qb));
+
+        if (!$netOpposite) {
+            $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)));
+        }
 
         $this->excludeScheduledFuture($qb);
         $this->excludeReportExcludedCategories($qb, 'c', $userId);
@@ -1973,11 +2007,9 @@ class TransactionMapper extends QBMapper {
 
         $qb = $this->db->getQueryBuilder();
 
-        $primaryType = $qb->createNamedParameter($transactionType);
-
         $qb->select('t.category_id')
             ->selectAlias($qb->createFunction(
-                "SUM(CASE WHEN t.type = {$primaryType} THEN t.amount ELSE -t.amount END)"
+                $this->signedAmountSum($qb, $transactionType, 't.amount')
             ), 'total')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
@@ -2032,6 +2064,18 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
+     * Signed sum netting the opposite direction: rows of $transactionType
+     * count positive, everything else negative. The single authority for the
+     * netting CASE — the Budget page, Category Details and the budget report
+     * must all agree on what "net spent" means (#360, #361). A COUNT beside
+     * it counts BOTH directions, since no type filter accompanies this.
+     */
+    private function signedAmountSum(IQueryBuilder $qb, string $transactionType, string $amountColumn): string {
+        $primaryType = $qb->createNamedParameter($transactionType);
+        return "SUM(CASE WHEN t.type = {$primaryType} THEN {$amountColumn} ELSE -{$amountColumn} END)";
+    }
+
+    /**
      * Correlated EXISTS testing whether a transaction has any split rows.
      *
      * Deliberately not a join: this guards an aggregate that sums t.amount, and
@@ -2063,11 +2107,9 @@ class TransactionMapper extends QBMapper {
     ): array {
         $qb = $this->db->getQueryBuilder();
 
-        $primaryType = $qb->createNamedParameter($transactionType);
-
         $qb->select('s.category_id')
             ->selectAlias($qb->createFunction(
-                "SUM(CASE WHEN t.type = {$primaryType} THEN s.amount ELSE -s.amount END)"
+                $this->signedAmountSum($qb, $transactionType, 's.amount')
             ), 'total')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))

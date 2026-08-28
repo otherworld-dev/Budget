@@ -645,16 +645,27 @@ export default class CategoriesModule {
         if (deleteBtn) deleteBtn.style.display = (isReadShared || isWriteShared) ? 'none' : '';
     }
 
+    /**
+     * The date window and account the Category Details panel is currently
+     * showing, from its period/account selectors. Shared by the details
+     * fetch and the View All drill-down so the opened list covers exactly
+     * the window the panel's figures were computed over (#361).
+     */
+    _detailWindow(months = null) {
+        const periodSelect = document.getElementById('category-chart-period');
+        const accountSelect = document.getElementById('category-chart-account');
+        const m = months || (periodSelect ? parseInt(periodSelect.value) : 12);
+        const accountId = accountSelect ? accountSelect.value : '';
+        const now = new Date();
+        const startDate = new Date(now.getFullYear(), now.getMonth() - m, 1);
+        const startStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-01`;
+        const endStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        return { startStr, endStr, accountId };
+    }
+
     async fetchCategoryDetails(categoryId, months = null) {
         try {
-            const periodSelect = document.getElementById('category-chart-period');
-            const accountSelect = document.getElementById('category-chart-account');
-            const m = months || (periodSelect ? parseInt(periodSelect.value) : 12);
-            const accountId = accountSelect ? accountSelect.value : '';
-            const now = new Date();
-            const startDate = new Date(now.getFullYear(), now.getMonth() - m, 1);
-            const startStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-01`;
-            const endStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const { startStr, endStr, accountId } = this._detailWindow(months);
 
             let url = `/apps/budget/api/categories/${categoryId}/details?startDate=${startStr}&endDate=${endStr}`;
             if (accountId) {
@@ -786,9 +797,16 @@ export default class CategoriesModule {
         const ids = this._detailScope?.categoryIds?.length
             ? this._detailScope.categoryIds
             : [category.id];
-        const type = (this._detailScope?.type || category.type) === 'income' ? 'credit' : 'debit';
 
-        this.app.openTransactionsForCategory(ids, { type });
+        // No direction filter: the netted figures and the Recent Transactions
+        // list this button sits under are direction-blind, so the drill-down
+        // must show refund credits too, not just the debits. And it covers
+        // the same window and account the panel's figures do — an all-time
+        // all-accounts list could never reconcile with them (#361).
+        const { startStr, endStr, accountId } = this._detailWindow();
+        this.app.openTransactionsForCategory(ids, {
+            type: '', dateFrom: startStr, dateTo: endStr, accountId,
+        });
     }
 
     renderCategorySpendingChartFromServer(monthlySpending, categoryColor, budget = 0, budgetPeriod = 'monthly') {
@@ -2182,8 +2200,11 @@ export default class CategoriesModule {
                 : effectiveBudgetAmount;
 
             const remaining = budget - spent;
+            // Spent is netted and can be negative (refunds exceeded spending,
+            // #361). A negative width is invalid CSS — the declaration would
+            // be dropped and the fill would paint FULL — so clamp at zero.
             const percentage = budget > 0
-                ? Math.min((spent / budget) * 100, 100)
+                ? Math.min(Math.max((spent / budget) * 100, 0), 100)
                 : (spent > 0 && rolloverEnabled && carried !== 0 ? 100 : 0);
             const isIncome = category.type === 'income';
 
@@ -2343,13 +2364,23 @@ export default class CategoriesModule {
 
     async recalculateCategorySpending(categoryId, period) {
         try {
-            // Get date range for the period
+            // Get date range for the period — same reference month as the
+            // bulk load (calculateCategorySpending), or the refreshed figure
+            // covers a different window than every other row on the page
             const startDay = period === 'monthly' ? parseInt(this.app.settings?.budget_start_day || '1', 10) : 1;
-            const dateRange = formatters.getPeriodDateRange(period, startDay);
+            const referenceDate = this.budgetMonth ? `${this.budgetMonth}-15` : null;
+            const dateRange = formatters.getPeriodDateRange(period, startDay, referenceDate);
+
+            // Same direction as the bulk load: income categories are measured
+            // by credits. Omitting the type made the netted response answer
+            // debit-primary, flipping an income category's Spent to a large
+            // negative until the next full reload (#361).
+            const category = (this.app.categories || []).find(c => c.id === categoryId);
+            const txType = category?.type === 'income' ? 'credit' : 'debit';
 
             // Fetch spending for this category in the period
             const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${dateRange.start}&endDate=${dateRange.end}`),
+                OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${dateRange.start}&endDate=${dateRange.end}&transactionType=${txType}`),
                 {
                     headers: { 'requesttoken': OC.requestToken }
                 }

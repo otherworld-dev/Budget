@@ -1617,7 +1617,10 @@ export default class DashboardModule {
         container.innerHTML = budgetedCategories.slice(0, 5).map(cat => {
             const budgeted = cat.budgeted || cat.budget || 0;
             const spent = cat.spent || 0;
-            const percentage = budgeted > 0 ? Math.min((spent / budgeted) * 100, 100) : 0;
+            // spent is netted and can be negative (refunds exceeded spending,
+            // #361); a negative width is invalid CSS and the fill would paint
+            // FULL, so clamp at zero like the Budget page does
+            const percentage = budgeted > 0 ? Math.min(Math.max((spent / budgeted) * 100, 0), 100) : 0;
             const actualPercentage = budgeted > 0 ? (spent / budgeted) * 100 : 0;
 
             let statusClass = 'good';
@@ -1706,7 +1709,8 @@ export default class DashboardModule {
         container.innerHTML = goals.slice(0, 3).map(goal => {
             const target = goal.targetAmount || goal.target_amount || 0;
             const current = goal.currentAmount || goal.current_amount || 0;
-            const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+            // clamp: a negative width is invalid CSS and the fill paints full
+            const percentage = target > 0 ? Math.min(Math.max((current / target) * 100, 0), 100) : 0;
             const safeColor = goal.color && /^#[0-9a-fA-F]{3,6}$/.test(goal.color) ? goal.color : '';
             const fillStyle = safeColor ? `background: ${safeColor};` : '';
 
@@ -1948,7 +1952,8 @@ export default class DashboardModule {
         container.innerHTML = goals.map(goal => {
             const target = goal.targetAmount || goal.target_amount || 0;
             const current = goal.currentAmount || goal.current_amount || 0;
-            const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+            // clamp: a negative width is invalid CSS and the fill paints full
+            const percentage = target > 0 ? Math.min(Math.max((current / target) * 100, 0), 100) : 0;
             const safeColor = goal.color && /^#[0-9a-fA-F]{3,6}$/.test(goal.color) ? goal.color : '';
             const fillStyle = safeColor ? `background: ${safeColor};` : '';
 

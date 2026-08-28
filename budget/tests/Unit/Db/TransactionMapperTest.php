@@ -33,6 +33,8 @@ class TransactionMapperTest extends TestCase {
     private IFunctionBuilder $func;
     private IResult $result;
     private QueryFilterBuilder $filterBuilder;
+    /** Every SQL fragment passed to createFunction(), in call order. */
+    private array $capturedFunctions = [];
 
     protected function setUp(): void {
         $this->db = $this->createMock(IDBConnection::class);
@@ -50,7 +52,14 @@ class TransactionMapperTest extends TestCase {
         $this->qb->method('escapeLikeParameter')->willReturnCallback(fn($v) => $v);
 
         $mockFunction = $this->createMock(IQueryFunction::class);
-        $this->qb->method('createFunction')->willReturn($mockFunction);
+        // Record the raw SQL fragments so tests can assert on expression shape
+        // (a per-test re-stub would lose to this one — PHPUnit keeps the first
+        // configuration — so the recording has to live here in setUp).
+        $this->capturedFunctions = [];
+        $this->qb->method('createFunction')->willReturnCallback(function (string $sql) use ($mockFunction) {
+            $this->capturedFunctions[] = $sql;
+            return $mockFunction;
+        });
         $this->func->method('sum')->willReturn($mockFunction);
         $this->func->method('count')->willReturn($mockFunction);
 
@@ -1156,6 +1165,65 @@ class TransactionMapperTest extends TestCase {
         $this->assertEqualsWithDelta(850.0, (float)$byId[9]['total'], 0.001);
         // Re-sorted by total descending — Rent (850) comes first
         $this->assertSame(9, (int)$summary[0]['id']);
+    }
+
+    /**
+     * The Budget page's Spent figure is served by this query, and it used to
+     * sum one direction only — so refund credits sitting in an expense
+     * category never reduced it, and the bar contradicted Category Details on
+     * the same screen (#361). When asked to net, both queries must switch to
+     * the same signed CASE the batch method uses and stop filtering by type.
+     */
+    public function testGetSpendingSummaryNetsOppositeTypeWhenAsked(): void {
+        $eqCalls = [];
+        $this->expr->method('eq')->willReturnCallback(function (string $col, $val) use (&$eqCalls) {
+            $eqCalls[] = $col;
+            return "eq($col)";
+        });
+
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([]),
+            $this->resultOf([])
+        );
+
+        $this->mapper->getSpendingSummary(
+            'user1', '2026-08-01', '2026-08-31', null, [], true, false, null, 'debit', true
+        );
+
+        $directNet = false;
+        $splitNet = false;
+        foreach ($this->capturedFunctions as $sql) {
+            if (str_contains($sql, 'CASE WHEN t.type =') && str_contains($sql, 'ELSE -t.amount')) {
+                $directNet = true;
+            }
+            if (str_contains($sql, 'CASE WHEN t.type =') && str_contains($sql, 'ELSE -s.amount')) {
+                $splitNet = true;
+            }
+        }
+        $this->assertTrue($directNet, 'direct query must sum with the signed CASE when netting');
+        $this->assertTrue($splitNet, 'split companion must sum with the signed CASE when netting');
+        $this->assertNotContains('t.type', $eqCalls, 'netting must include both directions, not filter t.type');
+    }
+
+    public function testGetSpendingSummaryStaysGrossByDefault(): void {
+        $eqCalls = [];
+        $this->expr->method('eq')->willReturnCallback(function (string $col, $val) use (&$eqCalls) {
+            $eqCalls[] = $col;
+            return "eq($col)";
+        });
+
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([]),
+            $this->resultOf([])
+        );
+
+        $this->mapper->getSpendingSummary('user1', '2026-08-01', '2026-08-31');
+
+        foreach ($this->capturedFunctions as $sql) {
+            $this->assertStringNotContainsString('CASE WHEN t.type =', $sql,
+                'the spending report path keeps its one-direction gross sum');
+        }
+        $this->assertContains('t.type', $eqCalls, 'gross mode still filters to the requested direction');
     }
 
     // ===== getMonthlyTrendData =====

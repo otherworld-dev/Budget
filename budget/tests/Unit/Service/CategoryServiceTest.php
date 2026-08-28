@@ -495,17 +495,42 @@ class CategoryServiceTest extends TestCase {
     public function testGetAllCategorySpendingTransformsData(): void {
         $this->transactionMapper->method('getSpendingSummary')
             ->willReturn([
-                ['id' => 1, 'total' => -150.50, 'name' => 'Food', 'color' => '#ff0000', 'count' => 10],
-                ['id' => 2, 'total' => -80.00, 'name' => 'Transport', 'color' => '#00ff00', 'count' => 5],
+                ['id' => 1, 'total' => 150.50, 'name' => 'Food', 'color' => '#ff0000', 'count' => 10],
+                ['id' => 2, 'total' => 80.00, 'name' => 'Transport', 'color' => '#00ff00', 'count' => 5],
             ]);
 
         $result = $this->service->getAllCategorySpending('user1', '2026-01-01', '2026-01-31');
 
         $this->assertCount(2, $result);
         $this->assertEquals(1, $result[0]['categoryId']);
-        $this->assertEquals(150.50, $result[0]['spent']);  // abs value
+        $this->assertEquals(150.50, $result[0]['spent']);
         $this->assertEquals('Food', $result[0]['name']);
         $this->assertEquals(10, $result[0]['count']);
+    }
+
+    public function testGetAllCategorySpendingKeepsNetNegativeSpending(): void {
+        // A month where refunds exceed the spending must come through
+        // negative, not flipped to look like money spent (#361).
+        $this->transactionMapper->method('getSpendingSummary')
+            ->willReturn([
+                ['id' => 5, 'total' => -79.32, 'name' => 'Phone', 'color' => null, 'count' => 4],
+            ]);
+
+        $result = $this->service->getAllCategorySpending('user1', '2026-08-01', '2026-08-31');
+
+        $this->assertEqualsWithDelta(-79.32, $result[0]['spent'], 0.001);
+    }
+
+    public function testGetAllCategorySpendingRequestsNettedTotals(): void {
+        // The Budget page's Spent figure must net refund credits against the
+        // debits — the same netting every other budget surface got in #361 —
+        // so the mapper is asked for netted totals, not a one-direction sum.
+        $this->transactionMapper->expects($this->once())
+            ->method('getSpendingSummary')
+            ->with('user1', '2026-08-01', '2026-08-31', null, [], true, false, null, 'debit', true)
+            ->willReturn([]);
+
+        $this->service->getAllCategorySpending('user1', '2026-08-01', '2026-08-31');
     }
 
     // ===== getBudgetAnalysis() =====

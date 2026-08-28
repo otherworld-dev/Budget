@@ -201,7 +201,12 @@ describe('viewAllCategoryTransactions', () => {
         return mod;
     }
 
-    it('opens the same categories the panel reported on', () => {
+    // No direction filter on the drill-down: the netted figures and the
+    // direction-blind Recent Transactions list this button sits under would
+    // contradict a debit-only (or credit-only) listing — an expense
+    // category's refund credits belong in it too (#361).
+
+    it('opens the same categories the panel reported on, with no type filter', () => {
         const mod = moduleWithApp(
             { categoryIds: [1, 2, 3], type: 'expense' },
             { id: 1, type: 'expense' }
@@ -209,10 +214,11 @@ describe('viewAllCategoryTransactions', () => {
 
         mod.viewAllCategoryTransactions();
 
-        expect(mod.app.openTransactionsForCategory).toHaveBeenCalledWith([1, 2, 3], { type: 'debit' });
+        expect(mod.app.openTransactionsForCategory).toHaveBeenCalledWith(
+            [1, 2, 3], expect.objectContaining({ type: '' }));
     });
 
-    it('filters an income category to credits, or it would land on an empty list', () => {
+    it('opens an income category with no type filter either', () => {
         const mod = moduleWithApp(
             { categoryIds: [4], type: 'income' },
             { id: 4, type: 'income' }
@@ -220,7 +226,8 @@ describe('viewAllCategoryTransactions', () => {
 
         mod.viewAllCategoryTransactions();
 
-        expect(mod.app.openTransactionsForCategory).toHaveBeenCalledWith([4], { type: 'credit' });
+        expect(mod.app.openTransactionsForCategory).toHaveBeenCalledWith(
+            [4], expect.objectContaining({ type: '' }));
     });
 
     it('falls back to the selected category when no scope was reported', () => {
@@ -228,7 +235,29 @@ describe('viewAllCategoryTransactions', () => {
 
         mod.viewAllCategoryTransactions();
 
-        expect(mod.app.openTransactionsForCategory).toHaveBeenCalledWith([6], { type: 'debit' });
+        expect(mod.app.openTransactionsForCategory).toHaveBeenCalledWith(
+            [6], expect.objectContaining({ type: '' }));
+    });
+
+    it('carries the panel period and account so the list matches the figures', () => {
+        // The Category Details figures cover the chart's period and account
+        // selection; a drill-down over all time on all accounts could never
+        // reconcile with them (#361).
+        document.body.innerHTML += `
+            <select id="category-chart-period"><option value="3" selected>3</option></select>
+            <select id="category-chart-account"><option value="9" selected>9</option></select>`;
+        const mod = moduleWithApp(null, { id: 6, type: 'expense' });
+
+        mod.viewAllCategoryTransactions();
+
+        // Same window arithmetic as fetchCategoryDetails
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+        const startStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-01`;
+        const endStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        expect(mod.app.openTransactionsForCategory).toHaveBeenCalledWith([6], {
+            type: '', dateFrom: startStr, dateTo: endStr, accountId: '9',
+        });
     });
 
     it('does nothing when no category is selected', () => {

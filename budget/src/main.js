@@ -1496,6 +1496,11 @@ class BudgetApp {
 
     async loadTransactions(accountId = null) {
         try {
+            // Keep the open filter panel showing the filters actually applied
+            // — programmatic navigations (category/chart drill-downs, linked-
+            // transaction jumps) replace them without touching the panel, and
+            // a stale control would feed back into updateFilters() (#361).
+            this.transactionsModule.syncFilterControlsFromState();
             // Refresh tag filter if panel is open
             this.transactionsModule.refreshFilterTags();
 

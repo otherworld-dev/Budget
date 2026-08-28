@@ -353,17 +353,74 @@ export default class TransactionsModule {
         }
     }
 
+    /**
+     * Write the applied filters (app.transactionFilters) into the panel's
+     * controls. Every control is cleared-or-set, never set-if-truthy:
+     * updateFilters() reads the whole panel back from the DOM on any change,
+     * so a stale control left showing an old value would both mislead and
+     * silently re-enter the applied filters the moment any other control is
+     * touched. Runs on the panel toggle and on every loadTransactions(), so
+     * programmatic navigations that replace the filters (category/chart
+     * drill-downs, linked-transaction jumps) are all covered (#361).
+     */
+    syncFilterControlsFromState() {
+        const filters = this.app.transactionFilters || {};
+
+        // Tag state lives on the module, not in a control — keep it in step
+        // even while the panel is hidden, or updateFilters() would re-post
+        // the previous navigation's tags. The dropdown itself re-renders via
+        // the async tag loader (refreshFilterTags / populateFilterDropdowns'
+        // tail), never here: a render here would draw from stale tag data
+        // and stack up another document-level click listener per call.
+        this.selectedFilterTags = new Set(filters.tagIds || []);
+
+        // Hidden controls re-sync on the next panel open (toggleFiltersPanel
+        // -> populateFilterDropdowns); touching them now is wasted work and,
+        // before the first open, the selects have no options to accept it.
+        const panel = document.getElementById('transactions-filters');
+        if (!panel || panel.style.display === 'none') return;
+
+        // Not utils/datepicker's setDateValue: that fires flatpickr's change
+        // event, and the date filters' change listeners run updateFilters(),
+        // which would read a half-synced panel back into the applied filters
+        // mid-write. Both branches here suppress the event.
+        const setValue = (id, value) => {
+            const input = document.getElementById(id);
+            if (!input) return;
+            if (input._flatpickr) {
+                if (value) {
+                    input._flatpickr.setDate(value, false);
+                } else {
+                    input._flatpickr.clear(false);
+                }
+            } else {
+                input.value = value || '';
+            }
+        };
+
+        setValue('filter-account', filters.account);
+        // A comma id-list (chart drill-down from an aggregated slice, #317)
+        // shows its first id — the parent category
+        setValue('filter-category', filters.category ? String(filters.category).split(',')[0] : '');
+        setValue('filter-type', filters.type);
+        setValue('filter-status', filters.status);
+        setValue('filter-reconciled', filters.reconciled);
+        setValue('filter-date-from', filters.dateFrom);
+        setValue('filter-date-to', filters.dateTo);
+        setValue('filter-created-from', filters.createdAtFrom);
+        setValue('filter-created-to', filters.createdAtTo);
+        setValue('filter-amount-min', filters.amountMin);
+        setValue('filter-amount-max', filters.amountMax);
+        setValue('filter-search', filters.search);
+    }
+
     populateFilterDropdowns() {
-        // Populate account filter
+        // Populate account filter (one innerHTML write — += re-parses the
+        // whole growing select per account)
         const accountFilter = document.getElementById('filter-account');
         if (accountFilter && this.accounts) {
-            accountFilter.innerHTML = `<option value="">${t('budget', 'All Accounts')}</option>`;
-            this.accounts.forEach(account => {
-                accountFilter.innerHTML += `<option value="${account.id}">${account.name}</option>`;
-            });
-            if (this.app.transactionFilters?.account) {
-                accountFilter.value = this.app.transactionFilters.account;
-            }
+            accountFilter.innerHTML = `<option value="">${t('budget', 'All Accounts')}</option>`
+                + this.accounts.map(account => `<option value="${account.id}">${account.name}</option>`).join('');
         }
 
         // Populate category filter
@@ -371,31 +428,10 @@ export default class TransactionsModule {
         if (categoryFilter && this.categories) {
             categoryFilter.innerHTML = `<option value="">${t('budget', 'All Categories')}</option><option value="uncategorized">${t('budget', 'Uncategorized')}</option>`;
             dom.populateCategorySelect(categoryFilter, this.categoryTree || this.categories);
-            if (this.app.transactionFilters?.category) {
-                // A comma id-list (chart drill-down from an aggregated slice,
-                // #317) shows its first id — the parent category
-                categoryFilter.value = String(this.app.transactionFilters.category).split(',')[0];
-            }
         }
 
-        // Restore other pre-set filters (e.g. arriving from a spending-chart
-        // drill-down, #317) so the panel reflects what is actually applied
-        const presetFilters = this.app.transactionFilters || {};
-        const typeFilter = document.getElementById('filter-type');
-        if (typeFilter && presetFilters.type) {
-            typeFilter.value = presetFilters.type;
-        }
-        const restoreDate = (id, value) => {
-            const input = document.getElementById(id);
-            if (!input || !value) return;
-            if (input._flatpickr) {
-                input._flatpickr.setDate(value, false);
-            } else {
-                input.value = value;
-            }
-        };
-        restoreDate('filter-date-from', presetFilters.dateFrom);
-        restoreDate('filter-date-to', presetFilters.dateTo);
+        // Make the panel show what is actually applied (#317, #361)
+        this.syncFilterControlsFromState();
 
         // Populate reconcile account select
         const reconcileAccount = document.getElementById('reconcile-account');
@@ -617,9 +653,19 @@ export default class TransactionsModule {
 
     updateFilters() {
         this.resetAllMatchingSelectionOnFilterChange();
+        // A multi-id drill-down ('7,8,9' — a parent plus its subcategories,
+        // #317) can only display its first id in the single-value select.
+        // While the select still shows that id the user has not changed it,
+        // so the full applied list survives; picking anything else narrows
+        // to the choice as usual (#361).
+        const selectedCategory = document.getElementById('filter-category')?.value || '';
+        const appliedCategory = String(this.app.transactionFilters?.category || '');
+        const category = (selectedCategory && appliedCategory.split(',')[0] === selectedCategory)
+            ? appliedCategory
+            : selectedCategory;
         this.app.transactionFilters = {
             account: document.getElementById('filter-account')?.value || '',
-            category: document.getElementById('filter-category')?.value || '',
+            category,
             type: document.getElementById('filter-type')?.value || '',
             status: document.getElementById('filter-status')?.value || '',
             reconciled: document.getElementById('filter-reconciled')?.value || '',
@@ -643,28 +689,11 @@ export default class TransactionsModule {
 
     clearFilters() {
         this.resetAllMatchingSelectionOnFilterChange();
-        const filterInputs = [
-            'filter-account', 'filter-category', 'filter-type', 'filter-status', 'filter-reconciled',
-            'filter-date-from', 'filter-date-to',
-            'filter-created-from', 'filter-created-to',
-            'filter-amount-min', 'filter-amount-max', 'filter-search'
-        ];
-
-        filterInputs.forEach(inputId => {
-            const input = document.getElementById(inputId);
-            if (input) {
-                if (input._flatpickr) {
-                    input._flatpickr.clear();
-                } else {
-                    input.value = '';
-                }
-            }
-        });
-
-        this.selectedFilterTags.clear();
-        this.populateFilterTagsDropdown();
-
+        // Clearing is just syncing to an empty filter set — one enumeration
+        // of the controls, and the flatpickr clears no longer fire a change
+        // (and with it a fetch) per date field.
         this.app.transactionFilters = {};
+        this.syncFilterControlsFromState();
         this.app.currentPage = 1;
         this.app.loadTransactions();
     }

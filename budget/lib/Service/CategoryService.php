@@ -527,14 +527,25 @@ class CategoryService extends AbstractCrudService {
     }
 
     /**
+     * The Budget page's Spent figures. Totals are netted — a refund credit in
+     * an expense category reduces its spent, matching Category Details and
+     * every other budget surface (#361) — and the sign is preserved: a month
+     * whose refunds exceed its spending is genuinely negative, and an abs()
+     * here would flip it back into looking like money spent.
+     *
      * @param int[]|null $visibleAccountIds If provided, scope by account IDs for cross-user aggregation
      */
     public function getAllCategorySpending(string $userId, string $startDate, string $endDate, ?array $visibleAccountIds = null, string $transactionType = 'debit'): array {
-        $summary = $this->transactionMapper->getSpendingSummary($userId, $startDate, $endDate, null, [], true, false, $visibleAccountIds, $transactionType);
+        $summary = $this->transactionMapper->getSpendingSummary(
+            $userId, $startDate, $endDate,
+            visibleAccountIds: $visibleAccountIds,
+            transactionType: $transactionType,
+            netOpposite: true
+        );
 
         return array_map(fn($item) => [
             'categoryId' => (int)$item['id'],
-            'spent' => abs((float)($item['total'] ?? 0)),
+            'spent' => (float)($item['total'] ?? 0),
             'name' => $item['name'] ?? '',
             'color' => $item['color'] ?? null,
             'count' => (int)($item['count'] ?? 0)
