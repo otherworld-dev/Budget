@@ -726,6 +726,17 @@ class BillService {
             }
         }
 
+        // Persist the undo payload so "mark as unpaid" survives page reloads
+        // and covers auto-pay / import-match payments too (#365). Overwrites
+        // any previous snapshot: only the latest payment is revertible.
+        $bill->setPaidUndoState(json_encode([
+            'previousState' => $previousState,
+            'createdTransactionIds' => $createdTransactionIds,
+            'hadScheduledTransaction' => $hadScheduledTransaction,
+            'paidDate' => $paidDate,
+        ]));
+        $bill = $this->mapper->update($bill);
+
         return [
             'bill' => $bill,
             'previousState' => $previousState,
@@ -783,6 +794,9 @@ class BillService {
             $bill->setAmount((float) $previousState['amount']);
         }
 
+        // The payment was reverted — its persisted undo snapshot is spent (#365)
+        $bill->setPaidUndoState(null);
+
         $bill = $this->mapper->update($bill);
 
         // Only recreate scheduled transaction if one existed before markPaid
@@ -796,6 +810,38 @@ class BillService {
         }
 
         return $bill;
+    }
+
+    /**
+     * Durable "mark as unpaid": revert the last markPaid from the snapshot
+     * persisted on the bill, so the revert works long after the undo toast is
+     * gone — across reloads, and for auto-paid or import-matched bills that
+     * never showed a toast at all (#365).
+     *
+     * @param int $id Bill ID
+     * @param string $userId User ID
+     * @return Bill Restored bill
+     * @throws \InvalidArgumentException when no payment snapshot is stored
+     */
+    public function markUnpaid(int $id, string $userId): Bill {
+        $bill = $this->find($id, $userId);
+
+        $raw = $bill->getPaidUndoState();
+        $decoded = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
+        if (!is_array($decoded) || !is_array($decoded['previousState'] ?? null)) {
+            throw new \InvalidArgumentException($this->l->t('This bill has no recorded payment to undo'));
+        }
+
+        // undoPaid deletes the created transactions tolerantly, restores the
+        // snapshot fields (including a statement amount that cannot be
+        // re-derived, #347) and clears the spent snapshot.
+        return $this->undoPaid(
+            $id,
+            $userId,
+            $decoded['previousState'],
+            array_map('intval', $decoded['createdTransactionIds'] ?? []),
+            (bool) ($decoded['hadScheduledTransaction'] ?? false)
+        );
     }
 
     /**
