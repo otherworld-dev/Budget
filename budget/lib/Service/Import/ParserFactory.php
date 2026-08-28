@@ -71,9 +71,9 @@ class ParserFactory {
      * @param string $delimiter CSV delimiter (comma, semicolon, or tab)
      * @return array Parsed data
      */
-    public function parse(string $content, string $format, ?int $limit = null, string $delimiter = ','): array {
+    public function parse(string $content, string $format, ?int $limit = null, string $delimiter = ',', bool $skipFirstRow = true): array {
         return match ($format) {
-            'csv' => $this->parseCsv($content, $limit, $delimiter),
+            'csv' => $this->parseCsv($content, $limit, $delimiter, $skipFirstRow),
             'ofx' => $this->getOfxParser()->parseToTransactionList($content, $limit),
             'qif' => $this->getQifParser()->parseToTransactionList($content, $limit),
             'camt' => $this->getCamtParser()->parseToTransactionList($content, $limit),
@@ -102,9 +102,10 @@ class ParserFactory {
      * @param string $content CSV file content
      * @param int|null $limit Maximum number of records to parse
      * @param string $delimiter CSV delimiter character
-     * @return array Parsed data
+     * @param bool $skipFirstRow Whether the first matching-width line is a header to discard
+     * @return array Parsed data, rows always keyed by plain 0-based column index
      */
-    private function parseCsv(string $content, ?int $limit = null, string $delimiter = ','): array {
+    private function parseCsv(string $content, ?int $limit = null, string $delimiter = ',', bool $skipFirstRow = true): array {
         $content = $this->stripBom($content);
         $lines = explode("\n", $content);
         $dataWidth = $this->detectDataWidth($lines, $delimiter);
@@ -114,7 +115,7 @@ class ParserFactory {
         }
 
         $data = [];
-        $headers = null;
+        $droppedHeader = false;
         $count = 0;
 
         foreach ($lines as $line) {
@@ -129,8 +130,8 @@ class ParserFactory {
                 continue;
             }
 
-            if ($headers === null) {
-                $headers = $this->sanitizeHeaders(array_map('trim', $row));
+            if ($skipFirstRow && !$droppedHeader) {
+                $droppedHeader = true; // this line held the header text — discard it
                 continue;
             }
 
@@ -138,46 +139,11 @@ class ParserFactory {
                 break;
             }
 
-            $data[] = array_combine($headers, array_pad($row, count($headers), ''));
+            $data[] = array_values(array_pad($row, $dataWidth, ''));
             $count++;
         }
 
         return $data;
-    }
-
-    /**
-     * Sanitize raw header strings by assigning synthetic column names ('Column 1', 'Column 2', etc.)
-     * to empty, blank, or duplicate header cells.
-     *
-     * The names are deliberately NOT translated: they end up as the array keys of every parsed
-     * row and are stored verbatim in saved import templates, so a translated name would stop
-     * matching its template as soon as the user changes the interface language.
-     *
-     * @param string[] $rawHeaders
-     * @return string[] Unique, non-empty header names
-     */
-    public function sanitizeHeaders(array $rawHeaders): array {
-        $headers = [];
-        $seen = [];
-
-        foreach ($rawHeaders as $i => $rawHeader) {
-            $candidate = trim((string) $rawHeader);
-
-            if ($candidate === '' || isset($seen[$candidate])) {
-                // A real header may already be called 'Column 2', so keep suffixing until the
-                // name is free - duplicate keys would make array_combine() drop a column.
-                $base = 'Column ' . ($i + 1);
-                $candidate = $base;
-                for ($n = 2; isset($seen[$candidate]); $n++) {
-                    $candidate = $base . ' (' . $n . ')';
-                }
-            }
-
-            $seen[$candidate] = true;
-            $headers[] = $candidate;
-        }
-
-        return $headers;
     }
 
     /**
@@ -234,7 +200,7 @@ class ParserFactory {
     /**
      * Count rows in content.
      */
-    public function countRows(string $content, string $format, string $delimiter = ','): int {
+    public function countRows(string $content, string $format, string $delimiter = ',', bool $skipFirstRow = true): int {
         if ($format === 'csv') {
             $content = $this->stripBom($content);
             $lines = explode("\n", $content);
@@ -244,7 +210,7 @@ class ParserFactory {
                 return 0;
             }
 
-            // Count non-empty lines matching the data width, minus 1 for the header
+            // Count non-empty lines matching the data width, minus 1 for the header (if any)
             $count = 0;
             foreach ($lines as $line) {
                 if (empty(trim($line))) {
@@ -254,7 +220,7 @@ class ParserFactory {
                     $count++;
                 }
             }
-            return max(0, $count - 1);
+            return $skipFirstRow ? max(0, $count - 1) : $count;
         }
 
         // For other formats, use parsed array count

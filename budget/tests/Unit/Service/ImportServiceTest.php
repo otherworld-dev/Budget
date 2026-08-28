@@ -217,6 +217,36 @@ class ImportServiceTest extends TestCase {
         $this->assertSame(0, $result['categorizedCount']);
     }
 
+    // Regression: skipFirstRow must actually reach the parser now, and a
+    // mapping field at column index 0 must resolve (the empty() bug fix).
+    public function testPreviewSingleAccountImportForwardsSkipFirstRowAndAcceptsColumnZero(): void {
+        $this->mockImportFile('file.csv', "2025-01-01,100,Test\n");
+        $this->parserFactory->method('detectFormat')->willReturn('csv');
+        $this->parserFactory->expects($this->once())
+            ->method('parse')
+            ->with($this->anything(), 'csv', null, ',', false)
+            ->willReturn([
+                ['2025-01-01', '100', 'Test'],
+            ]);
+
+        $this->accountMapper->method('find')->willReturn($this->makeAccount(1, 'Checking'));
+        $this->normalizer->method('mapRowToTransaction')->willReturn([
+            'date' => '2025-01-01', 'amount' => 100.0, 'description' => 'Test', 'type' => 'credit',
+        ]);
+        $this->normalizer->method('generateImportId')->willReturn('imp_001');
+        $this->duplicateDetector->method('isDuplicate')->willReturn(false);
+        $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+
+        $result = $this->service->previewImport(
+            'user1',
+            'file.csv',
+            ['date' => 0, 'amount' => 1, 'description' => 2, 'skipFirstRow' => false],
+            1
+        );
+
+        $this->assertEquals(1, $result['validTransactions']);
+    }
+
     public function testPreviewSingleAccountSkipsDuplicates(): void {
         $this->mockImportFile('file.csv', 'data');
         $this->parserFactory->method('detectFormat')->willReturn('csv');
@@ -872,7 +902,10 @@ class ImportServiceTest extends TestCase {
 
     // ===== buildUploadResponse with untitled headers =====
 
-    public function testBuildUploadResponseSanitizesUntitledHeaders(): void {
+    public function testBuildUploadResponseSendsRawUntitledHeaders(): void {
+        // Blank/duplicate-header fallback labelling moved to the frontend
+        // (ImportModule.js's ported sanitizeHeaders) — the backend now sends
+        // the raw, trimmed header cells as-is, blanks included.
         $realParserFactory = new ParserFactory();
         $refParser = new \ReflectionProperty(ImportService::class, 'parserFactory');
         $refParser->setAccessible(true);
@@ -894,9 +927,9 @@ class ImportServiceTest extends TestCase {
             ','
         );
 
-        $this->assertEquals(['Date', 'Column 2', 'Amount', 'Column 4', 'Notes'], $result['columns']);
+        $this->assertEquals(['Date', '', 'Amount', '', 'Notes'], $result['columns']);
         $this->assertEquals('Date', $result['preview'][0][0]);
-        $this->assertEquals('Column 2', $result['preview'][0][1]);
-        $this->assertEquals('Column 4', $result['preview'][0][3]);
+        $this->assertEquals('', $result['preview'][0][1]);
+        $this->assertEquals('', $result['preview'][0][3]);
     }
 }

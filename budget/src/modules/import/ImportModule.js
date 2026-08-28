@@ -28,6 +28,36 @@ const MAPPABLE_FIELDS = {
 };
 
 /**
+ * Port of (removed) `ParserFactory::sanitizeHeaders()` — same untranslated
+ * "Column N" / "Column N (2)" fallback for blank or duplicate header cells.
+ * @param {string[]} rawHeaders
+ * @returns {string[]}
+ */
+function sanitizeHeaders(rawHeaders) {
+    const headers = [];
+    const seen = new Set();
+
+    rawHeaders.forEach((rawHeader, i) => {
+        let candidate = String(rawHeader ?? '').trim();
+
+        if (candidate === '' || seen.has(candidate)) {
+            const base = t('budget', 'Column: {number}', { number: i + 1 });
+            candidate = base;
+            let n = 2;
+            while (seen.has(candidate)) {
+                candidate = `${base} (${n})`;
+                n++;
+            }
+        }
+
+        seen.add(candidate);
+        headers.push(candidate);
+    });
+
+    return headers;
+}
+
+/**
  * Mapping target -> the select that holds it. One list, so the mapping the UI
  * reads (getCurrentMapping) and the one it writes back from a saved template
  * cannot drift apart.
@@ -366,11 +396,70 @@ export default class ImportModule {
 
     applyColumnMappingToForm(mapping, fields) {
         if (!mapping || !Object.keys(mapping).length) return;
+        const isCsv = this.importFormat === 'csv';
 
         fields.forEach(field => {
             const el = document.getElementById(MAPPING_SELECT_IDS[field]);
-            if (el) this.setSelectValue(el, mapping[field]);
+            if (!el) return;
+            let value = mapping[field];
+            if (isCsv && value !== undefined && value !== null && value !== '') {
+                value = Array.isArray(value)
+                    ? value.map(v => this.resolveTemplateColumn(v)).filter(v => v !== null)
+                    : this.resolveTemplateColumn(value);
+            }
+            this.setSelectValue(el, value);
         });
+    }
+
+    /**
+     * Resolve one stored template value back to the live column index this
+     * format's selects use: a string is tried as a verbatim header match
+     * first, falling back to reading a `Column N` shaped string as index N-1.
+     * And a bare number resolves to a 0-indexed column number.
+     */
+    resolveTemplateColumn(value) {
+        if (typeof value === 'number') return String(value);
+        if (typeof value !== 'string' || value === '') return null;
+
+        const labels = this.columnLabels || [];
+        const index = labels.indexOf(value);
+        if (index !== -1) return String(index);
+
+        const legacyMatch = value.match(/^Column (\d+)$/);
+        if (legacyMatch) return String(Number(legacyMatch[1]) - 1);
+
+        return null;
+    }
+
+    /**
+     * Convert the live, always-index CSV mapping into what a template should
+     * actually store: the real header name when it exists. Otherwise there is
+     * no real header to store — so store the index.
+     */
+    toTemplateMapping(mapping) {
+        if (this.importFormat !== 'csv') return mapping;
+
+        const rawColumns = this.rawColumns || [];
+        const labels = this.columnLabels || [];
+        const hasHeaderRow = !!mapping.skipFirstRow;
+
+        const columnValue = (value) => {
+            const index = Number(value);
+            const hasRealHeader = hasHeaderRow && (rawColumns[index] ?? '').trim() !== '';
+            return hasRealHeader ? labels[index] : index;
+        };
+
+        const result = {};
+        Object.entries(mapping).forEach(([field, value]) => {
+            if (value === null || value === undefined || value === '' || typeof value === 'boolean') {
+                result[field] = value;
+            } else if (Array.isArray(value)) {
+                result[field] = value.map(columnValue);
+            } else {
+                result[field] = columnValue(value);
+            }
+        });
+        return result;
     }
 
     /**
@@ -430,7 +519,7 @@ export default class ImportModule {
         const requestBody = { name, format, skipDuplicates };
 
         if (format === 'csv') {
-            const mapping = this.getCurrentMapping();
+            const mapping = this.toTemplateMapping(this.getCurrentMapping());
             requestBody.mapping = mapping;
             requestBody.delimiter = document.getElementById('csv-delimiter')?.value || ',';
             requestBody.skipFirstRow = !!mapping.skipFirstRow;
@@ -887,9 +976,18 @@ export default class ImportModule {
     }
 
     populateColumnMappings(columns) {
-        // Kept for highlightMappedColumns, which has to turn a select's column
-        // name back into its position in the preview table.
-        this.previewColumns = Array.isArray(columns) ? columns.slice() : [];
+        const isCsv = this.importFormat === 'csv';
+
+        // CSV columns are always mapped by index now, whether or not the file
+        // has real headers — the label shown is the sanitized header text (or
+        // a synthesized "Column N" placeholder), but the value the selects and
+        // the live import request carry is the position, never the label.
+        this.rawColumns = (columns || []).map(c => String(c));
+        this.columnLabels = isCsv ? sanitizeHeaders(this.rawColumns) : this.rawColumns.slice();
+        // Kept for highlightMappedColumns, which has to turn a select's value
+        // back into its position in the preview table.
+        this.previewColumns = isCsv ? this.columnLabels.map((_, i) => String(i)) : this.columnLabels.slice();
+
         this.initMultiSelects();
         this.resetImportMultiSelects();
 
@@ -908,31 +1006,43 @@ export default class ImportModule {
             'map-currency': document.getElementById('map-currency')
         };
 
+        // Options: for CSV, value is the column index and label is the
+        // sanitized header text; for other formats, value and label are both
+        // the format's own fixed field name, as before.
+        const options = isCsv
+            ? this.columnLabels.map((label, i) => ({ value: String(i), label }))
+            : this.columnLabels;
+
         // Clear existing options and add columns
         Object.entries(mappingSelects).forEach(([id, select]) => {
             if (!select) return;
             const multiSelect = this.multiSelects[SELECT_ID_TO_FIELD[id]];
             if (multiSelect) {
-                multiSelect.setOptions(columns);
+                multiSelect.setOptions(options);
             } else {
                 const firstOption = select.firstElementChild;
                 select.innerHTML = '';
                 if (firstOption) select.appendChild(firstOption);
 
-                columns.forEach((column, _index) => {
+                options.forEach(opt => {
                     const option = document.createElement('option');
-                    option.value = column;
-                    option.textContent = column;
+                    if (isCsv) {
+                        option.value = opt.value;
+                        option.textContent = opt.label;
+                    } else {
+                        option.value = opt;
+                        option.textContent = opt;
+                    }
                     select.appendChild(option);
                 });
             }
         });
 
         // Auto-detect common column mappings
-        this.autoDetectMappings(columns, mappingSelects);
+        this.autoDetectMappings(this.columnLabels, mappingSelects, isCsv);
     }
 
-    autoDetectMappings(columns, mappingSelects) {
+    autoDetectMappings(columns, mappingSelects, isCsv = this.importFormat === 'csv') {
         const patterns = {
             'map-date': ['date', 'transaction date', 'trans date', 'posting date'],
             'map-amount': ['amount', 'transaction amount', 'trans amount', 'value'],
@@ -954,15 +1064,14 @@ export default class ImportModule {
             const select = mappingSelects[fieldId];
             if (!select) return;
 
-            const matchingColumn = columns.find(col =>
+            const matchIndex = columns.findIndex(col =>
                 patternList.some(pattern =>
                     col.toLowerCase().includes(pattern.toLowerCase())
                 )
             );
+            if (matchIndex === -1) return;
 
-            if (matchingColumn) {
-                this.setSelectValue(select, matchingColumn);
-            }
+            this.setSelectValue(select, isCsv ? String(matchIndex) : columns[matchIndex]);
         });
     }
 
@@ -1038,12 +1147,20 @@ export default class ImportModule {
         thead.innerHTML = '';
         tbody.innerHTML = '';
 
+        // CSV header labels come from populateColumnMappings' sanitized list
+        // (blank/duplicate cells already resolved); other formats still take
+        // their fixed column names straight from the preview's own header row.
+        const isCsv = this.importFormat === 'csv';
+        const headerLabels = isCsv ? (this.columnLabels || previewData[0].map(h => String(h)))
+            : previewData[0].map(header => String(header));
+        if (!isCsv) {
         // The rendered header row is what highlightMappedColumns indexes into,
         // so take the column order from it rather than from the upload response.
-        this.previewColumns = previewData[0].map(header => String(header));
+            this.previewColumns = headerLabels;
+        }
 
         const headerRow = document.createElement('tr');
-        previewData[0].forEach((header, index) => {
+        headerLabels.forEach((header, index) => {
             const th = document.createElement('th');
             th.textContent = `${index + 1}. ${header}`;
             headerRow.appendChild(th);
@@ -1885,6 +2002,10 @@ export default class ImportModule {
         // Importing duplicates is a per-import opt-in — never carry it over
         const importDuplicates = document.getElementById('import-duplicates');
         if (importDuplicates) importDuplicates.checked = false;
+
+        // A header row is the default assumption for a fresh, template-less upload
+        const skipFirstRow = document.getElementById('skip-first-row');
+        if (skipFirstRow) skipFirstRow.checked = true;
 
         // Reset account selection UI
         const singleAccountSection = document.getElementById('single-account-selection');

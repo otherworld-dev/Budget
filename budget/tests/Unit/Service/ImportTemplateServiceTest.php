@@ -51,6 +51,39 @@ class ImportTemplateServiceTest extends TestCase {
         $this->assertEquals(',', $template->getDelimiter());
     }
 
+    public function testCreateDefaultsSkipFirstRowToTrue(): void {
+        $this->mapper->method('nameExists')->willReturn(false);
+        $this->mapper->method('insert')->willReturnCallback(fn (ImportTemplate $t) => $t);
+
+        $template = $this->service->create('user1', 'Bank', 'csv', $this->validMapping());
+
+        $this->assertTrue($template->getSkipFirstRow());
+    }
+
+    // Regression: a mapping field pointed at column index 0 (the file's first
+    // column, the common case for a header-less file) used to be rejected by
+    // assertMappingValid()'s empty() checks, which treat "0" as unmapped.
+    public function testCreateCsvAcceptsColumnIndexZero(): void {
+        $this->mapper->method('nameExists')->willReturn(false);
+        $this->mapper->method('insert')->willReturnCallback(fn (ImportTemplate $t) => $t);
+
+        $mapping = ['date' => '0', 'amount' => '1', 'description' => '2'];
+        $template = $this->service->create('user1', 'Headerless', 'csv', $mapping, [], ',', false);
+
+        $this->assertEquals($mapping, $template->getParsedMapping());
+        $this->assertFalse($template->getSkipFirstRow());
+    }
+
+    public function testCreateCsvKeepsIntegerColumnIndexesAsIntegers(): void {
+        $this->mapper->method('nameExists')->willReturn(false);
+        $this->mapper->method('insert')->willReturnCallback(fn (ImportTemplate $t) => $t);
+
+        $mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+        $template = $this->service->create('user1', 'Headerless Ints', 'csv', $mapping, [], ',', false);
+
+        $this->assertSame($mapping, $template->getParsedMapping());
+    }
+
     public function testCreateRejectsUnsupportedFormat(): void {
         $this->expectException(\InvalidArgumentException::class);
         $this->service->create('user1', 'Bank', 'xml', $this->validMapping());
@@ -166,6 +199,22 @@ class ImportTemplateServiceTest extends TestCase {
         $template = $this->service->create('user1', 'Untrimmed array mapping', 'csv', $mapping);
 
         $this->assertSame(['date' => 'Date', 'amount' => 'Amount', 'description' => ['Memo', 'Payee']], $template->getParsedMapping());
+    }
+
+    public function testCreateCsvKeepsIntegerArrayMappingsAsArrays(): void {
+        $this->mapper->method('nameExists')->willReturn(false);
+        $this->mapper->method('insert')->willReturnCallback(fn (ImportTemplate $t) => $t);
+
+        $mapping = [
+            'date' => 'Date',
+            'amount' => 'Amount',
+            'description' => [0, 1, 2],
+            'notes' => ['  Notes  ', 3],
+        ];
+
+        $template = $this->service->create('user1', 'Integer array mapping', 'csv', $mapping);
+
+        $this->assertSame(['date' => 'Date', 'amount' => 'Amount', 'description' => [0, 1, 2], 'notes' => ['Notes', 3]], $template->getParsedMapping());
     }
 
     public function testCreateCsvDropsArrayMappingOnNonTextFieldInsteadOfStoringIt(): void {

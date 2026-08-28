@@ -329,7 +329,7 @@ class ImportService {
                     continue;
                 }
                 if (empty($headers)) {
-                    $headers = $this->parserFactory->sanitizeHeaders(array_map('trim', $row));
+                    $headers = array_map('trim', $row);
                     $columns = $headers;
                     $rawPreview[] = $headers;
                 } else {
@@ -616,7 +616,7 @@ class ImportService {
     private function previewSingleAccountImport(string $userId, string $content, string $format, array $mapping, ?int $accountId, bool $skipDuplicates, string $delimiter = ',', ?string $presetId = null): array {
         // Load preset if specified
         $preset = $presetId ? $this->presetRegistry->get($presetId) : null;
-        $hasAccountColumn = ($preset && !empty($preset->getOptions()['accountColumn'])) || !empty($mapping['account']);
+        $hasAccountColumn = ($preset && !empty($preset->getOptions()['accountColumn'])) || TransactionNormalizer::mapsColumn($mapping, 'account');
 
         if (!$accountId && !$hasAccountColumn) {
             throw new \Exception($this->l->t('Account ID is required for single-account imports'));
@@ -630,7 +630,7 @@ class ImportService {
             }
         }
 
-        $data = $this->parserFactory->parse($content, $format, null, $delimiter);
+        $data = $this->parserFactory->parse($content, $format, null, $delimiter, $preset || ($mapping['skipFirstRow'] ?? true));
 
         // Remap CSV headers by position when preset provides canonical headers
         // (makes import language-independent — e.g., Toshl exports in German)
@@ -1149,7 +1149,7 @@ class ImportService {
     private function executeSingleAccountImport(string $userId, string $fileId, string $content, string $format, array $mapping, ?int $accountId, bool $skipDuplicates, bool $applyRules, string $delimiter = ',', ?string $presetId = null): array {
         // Load preset if specified
         $preset = $presetId ? $this->presetRegistry->get($presetId) : null;
-        $hasAccountColumn = ($preset && !empty($preset->getOptions()['accountColumn'])) || !empty($mapping['account']);
+        $hasAccountColumn = ($preset && !empty($preset->getOptions()['accountColumn'])) || TransactionNormalizer::mapsColumn($mapping, 'account');
 
         if (!$accountId && !$hasAccountColumn) {
             throw new \Exception($this->l->t('Account ID is required for single-account imports'));
@@ -1163,7 +1163,7 @@ class ImportService {
             }
         }
 
-        $data = $this->parserFactory->parse($content, $format, null, $delimiter);
+        $data = $this->parserFactory->parse($content, $format, null, $delimiter, $preset || ($mapping['skipFirstRow'] ?? true));
 
         // Remap CSV headers by position when preset provides canonical headers
         if ($preset) {
@@ -1442,7 +1442,7 @@ class ImportService {
         $accountColumn = $preset
             ? ($preset->getOptions()['accountColumn'] ?? null)
             : ($mapping['account'] ?? null);
-        if (!$accountColumn) {
+        if ($accountColumn === null || $accountColumn === '') {
             return ['resolved' => [], 'created' => []];
         }
 
@@ -1465,7 +1465,7 @@ class ImportService {
             }
 
             if (!isset($accountInfo[$name])) {
-                $currency = $currencyColumn && !empty($row[$currencyColumn])
+                $currency = ($currencyColumn !== null && $currencyColumn !== '') && !empty($row[$currencyColumn])
                     ? strtoupper(trim($row[$currencyColumn]))
                     : 'USD';
                 $accountInfo[$name] = [

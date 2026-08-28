@@ -116,11 +116,15 @@ class TransactionNormalizer {
                 if (is_bool($col) || !is_scalar($col)) {
                     continue;
                 }
-                $col = trim((string) $col);
-                if ($col === '' || in_array($col, $cols, true)) {
+                if (is_int($col)) {
+                    $clean = $col;
+                } else {
+                    $clean = trim((string) $col);
+                }
+                if ($clean === '' || in_array($clean, $cols, true)) {
                     continue;
                 }
-                $cols[] = $col;
+                $cols[] = $clean;
             }
             if ($cols === []) {
                 unset($mapping[$field]);
@@ -176,7 +180,7 @@ class TransactionNormalizer {
 
         // Check for dual-column approach (income + expense)
         // Parse amount first, then check numeric zero to handle all locale formats (0, 0.00, 0,00, etc.)
-        if (!empty($mapping['incomeColumn']) && isset($row[$mapping['incomeColumn']])) {
+        if (self::mapsColumn($mapping, 'incomeColumn') && isset($row[$mapping['incomeColumn']])) {
             $incomeValue = trim($row[$mapping['incomeColumn']]);
             if ($incomeValue !== '') {
                 $parsed = $this->parseAmount($incomeValue);
@@ -187,7 +191,7 @@ class TransactionNormalizer {
             }
         }
 
-        if (!empty($mapping['expenseColumn']) && isset($row[$mapping['expenseColumn']])) {
+        if (self::mapsColumn($mapping, 'expenseColumn') && isset($row[$mapping['expenseColumn']])) {
             $expenseValue = trim($row[$mapping['expenseColumn']]);
             if ($expenseValue !== '') {
                 $parsed = $this->parseAmount($expenseValue);
@@ -211,7 +215,7 @@ class TransactionNormalizer {
             $mappedType = $this->parseTypeValue($transaction['type'] ?? null);
             if ($mappedType !== null) {
                 $type = $mappedType;
-            } elseif ($this->mapsColumn($mapping, 'type')) {
+            } elseif (self::mapsColumn($mapping, 'type')) {
                 // A type column was mapped but this row's value was blank or
                 // unrecognized, so the row falls back to the sign. Mark it so
                 // the preview can say how many rows are guessing.
@@ -228,17 +232,17 @@ class TransactionNormalizer {
         $transaction['type'] = $type;
 
         // Attach category name metadata if mapped
-        if (!empty($mapping['category']) && !empty($row[$mapping['category']])) {
+        if (self::mapsColumn($mapping, 'category') && !empty($row[$mapping['category']])) {
             $transaction['_categoryName'] = trim($row[$mapping['category']]);
         }
 
         // Attach account name metadata if mapped
-        if (!empty($mapping['account']) && !empty($row[$mapping['account']])) {
+        if (self::mapsColumn($mapping, 'account') && !empty($row[$mapping['account']])) {
             $transaction['_accountName'] = trim($row[$mapping['account']]);
         }
 
         // Attach currency metadata if mapped
-        if (!empty($mapping['currency']) && !empty($row[$mapping['currency']])) {
+        if (self::mapsColumn($mapping, 'currency') && !empty($row[$mapping['currency']])) {
             $transaction['_currency'] = strtoupper(trim($row[$mapping['currency']]));
         }
 
@@ -661,7 +665,7 @@ class TransactionNormalizer {
      * as mapRowToTransaction's mapping loop (column 0 is valid; false/null/''
      * are config flags or "not mapped").
      */
-    private function mapsColumn(array $mapping, string $field): bool {
+    public static function mapsColumn(array $mapping, string $field): bool {
         $column = $mapping[$field] ?? null;
         return !is_bool($column) && $column !== null && $column !== '';
     }

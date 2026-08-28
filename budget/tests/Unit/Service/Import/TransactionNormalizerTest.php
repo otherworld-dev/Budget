@@ -1381,6 +1381,28 @@ class TransactionNormalizerTest extends TestCase {
 		$this->assertArrayNotHasKey('_currency', $result);
 	}
 
+	// Regression for the "column 0 looks empty" bug: incomeColumn, expenseColumn,
+	// category, account and currency all used to test the mapping with empty(),
+	// which treats 0/"0" as unmapped — breaking the single most common index.
+	public function testMapRowResolvesFieldsMappedToColumnIndexZero(): void {
+		$row = ['100.00', '2026-08-11', 'Food', 'Main', 'USD'];
+		$mapping = [
+			'incomeColumn' => 0,
+			'date' => 1,
+			'category' => 2,
+			'account' => 3,
+			'currency' => 4,
+		];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+
+		$this->assertEqualsWithDelta(100.00, $result['amount'], 0.001);
+		$this->assertSame('credit', $result['type']);
+		$this->assertSame('Food', $result['_categoryName']);
+		$this->assertSame('Main', $result['_accountName']);
+		$this->assertSame('USD', $result['_currency']);
+	}
+
 	// The checklist sends every selection as a list, one column included. A
 	// one-column list has to map through the scalar path so the #340 hash
 	// freeze still sees the raw cell and the import id does not change.

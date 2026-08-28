@@ -74,7 +74,7 @@ class ImportTemplateController extends Controller {
         array $mapping = [],
         array $accountMapping = [],
         string $delimiter = ',',
-        bool $skipFirstRow = false,
+        bool $skipFirstRow = true,
         bool $skipDuplicates = true,
         bool $applyRules = false,
         ?int $accountId = null
