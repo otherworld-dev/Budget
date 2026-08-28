@@ -2322,7 +2322,7 @@ style('budget', 'budget-app');
 
                         <div class="mapping-options">
                             <label data-map-field="skipFirstRow">
-                                <input type="checkbox" id="skip-first-row">
+                                <input type="checkbox" id="skip-first-row" checked>
                                 <?php p($l->t('Skip first row (headers)')); ?>
                             </label>
                             <label>

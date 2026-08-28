@@ -70,7 +70,7 @@ class ImportTemplateService extends AbstractCrudService {
         array $mapping = [],
         array $accountMapping = [],
         string $delimiter = ',',
-        bool $skipFirstRow = false,
+        bool $skipFirstRow = true,
         bool $skipDuplicates = true,
         bool $applyRules = false,
         ?int $accountId = null
@@ -204,6 +204,15 @@ class ImportTemplateService extends AbstractCrudService {
      */
     private function sanitizeMapping(array $mapping, ?array $columnFields = null): array {
         $clean = [];
+        $cleanScalar = static function (mixed $value): mixed {
+            if (is_int($value)) {
+                return $value;
+            }
+
+            $value = trim((string) $value);
+            return $value === '' ? null : $value;
+        };
+
         // Lists (several columns joined into one text field) are only kept on
         // the text targets, trimmed and deduplicated, and a one-column list is
         // stored as the plain column it is — so a template saved through the
@@ -215,12 +224,15 @@ class ImportTemplateService extends AbstractCrudService {
             }
 
             if (is_array($mapping[$field])) {
-                $clean[$field] = $mapping[$field];
+                $clean[$field] = array_values(array_filter(
+                    array_map($cleanScalar, $mapping[$field]),
+                    static fn (mixed $value): bool => $value !== null
+                ));
                 continue;
             }
 
-            $val = trim((string) $mapping[$field]);
-            if ($val !== '') {
+            $val = $cleanScalar($mapping[$field]);
+            if ($val !== null) {
                 $clean[$field] = $val;
             }
         }
@@ -267,10 +279,10 @@ class ImportTemplateService extends AbstractCrudService {
      * @param array<string, mixed> $mapping
      */
     private function assertMappingValid(array $mapping): void {
-        $hasDate = !empty($mapping['date']);
-        $hasDescription = !empty($mapping['description']);
-        $hasAmount = !empty($mapping['amount']);
-        $hasDualColumns = !empty($mapping['incomeColumn']) || !empty($mapping['expenseColumn']);
+        $hasDate = TransactionNormalizer::mapsColumn($mapping, 'date');
+        $hasDescription = TransactionNormalizer::mapsColumn($mapping, 'description');
+        $hasAmount = TransactionNormalizer::mapsColumn($mapping, 'amount');
+        $hasDualColumns = TransactionNormalizer::mapsColumn($mapping, 'incomeColumn') || TransactionNormalizer::mapsColumn($mapping, 'expenseColumn');
 
         if (!$hasDate) {
             throw new \InvalidArgumentException('A date column mapping is required');

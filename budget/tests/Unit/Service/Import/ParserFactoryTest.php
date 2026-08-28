@@ -68,9 +68,9 @@ class ParserFactoryTest extends TestCase {
         $result = $this->factory->parse($csv, 'csv');
 
         $this->assertCount(2, $result);
-        $this->assertEquals('2026-01-01', $result[0]['Date']);
-        $this->assertEquals('100.00', $result[0]['Amount']);
-        $this->assertEquals('Groceries', $result[0]['Description']);
+        $this->assertEquals('2026-01-01', $result[0][0]);
+        $this->assertEquals('100.00', $result[0][1]);
+        $this->assertEquals('Groceries', $result[0][2]);
     }
 
     public function testParseCsvWithLimit(): void {
@@ -87,7 +87,7 @@ class ParserFactoryTest extends TestCase {
         $result = $this->factory->parse($csv, 'csv', null, ';');
 
         $this->assertCount(1, $result);
-        $this->assertEquals('100.00', $result[0]['Amount']);
+        $this->assertEquals('100.00', $result[0][1]);
     }
 
     public function testParseCsvStripsUtf8Bom(): void {
@@ -96,7 +96,7 @@ class ParserFactoryTest extends TestCase {
         $result = $this->factory->parse($csv, 'csv');
 
         $this->assertCount(1, $result);
-        $this->assertArrayHasKey('Date', $result[0]);
+        $this->assertArrayHasKey(0, $result[0]);
     }
 
     public function testParseCsvSkipsMetadataPreamble(): void {
@@ -106,7 +106,7 @@ class ParserFactoryTest extends TestCase {
         $result = $this->factory->parse($csv, 'csv');
 
         $this->assertCount(2, $result);
-        $this->assertEquals('Groceries', $result[0]['Description']);
+        $this->assertEquals('Groceries', $result[0][2]);
     }
 
     public function testParseCsvEmptyContentReturnsEmpty(): void {
@@ -150,26 +150,21 @@ class ParserFactoryTest extends TestCase {
         $result = $this->factory->parse($csv, 'csv', null, ';');
 
         $this->assertCount(2, $result);
-        // Headers should be clean (no BOM, no quotes)
-        $this->assertArrayHasKey('Buchungsdatum', $result[0]);
-        $this->assertArrayHasKey('Betrag (€)', $result[0]);
-        $this->assertArrayHasKey('Zahlungsempfänger*in', $result[0]);
-        // Values should be clean
-        $this->assertEquals('25.03.26', $result[0]['Buchungsdatum']);
-        $this->assertEquals('-57,68', $result[0]['Betrag (€)']);
-        $this->assertEquals('Lidl', $result[0]['Zahlungsempfänger*in']);
+        // Headers are no longer used as row keys — rows are always index-keyed
+        $this->assertEquals('25.03.26', $result[0][0]);
+        $this->assertEquals('-57,68', $result[0][7]);
+        $this->assertEquals('Lidl', $result[0][4]);
     }
 
     public function testParseCsvBomWithQuotedValuesHeadersMatchColumnNames(): void {
-        // Verify that headers from parse() match what buildUploadResponse would produce
-        // after BOM stripping (the actual bug was a mismatch between these two)
+        // Verify BOM/quote stripping no longer depends on the header row at all,
+        // since rows are parsed by position (the original bug predates that)
         $csv = "\xEF\xBB\xBF\"Date\";\"Amount\";\"Description\"\n\"2026-01-01\";\"100.00\";\"Groceries\"\n";
 
         $result = $this->factory->parse($csv, 'csv', null, ';');
 
         $this->assertCount(1, $result);
-        $this->assertArrayHasKey('Date', $result[0]);
-        $this->assertEquals('100.00', $result[0]['Amount']);
+        $this->assertEquals('100.00', $result[0][1]);
     }
 
     // ===== detectDataWidth =====
@@ -203,12 +198,10 @@ class ParserFactoryTest extends TestCase {
         $result = $this->factory->parse($csv, 'csv', null, ';');
 
         $this->assertCount(1, $result);
-        // Should use actual data headers, not preamble
-        $this->assertArrayHasKey('Buchungsdatum', $result[0]);
-        $this->assertArrayHasKey('Betrag (€)', $result[0]);
-        $this->assertEquals('25.03.26', $result[0]['Buchungsdatum']);
-        $this->assertEquals('Lidl', $result[0]['Zahlungsempfänger*in']);
-        $this->assertEquals('-57,68', $result[0]['Betrag (€)']);
+        // Should use actual data rows, not preamble, keyed by position
+        $this->assertEquals('25.03.26', $result[0][0]);
+        $this->assertEquals('Lidl', $result[0][4]);
+        $this->assertEquals('-57,68', $result[0][8]);
     }
 
     // ===== parse unsupported format =====
@@ -244,6 +237,37 @@ class ParserFactoryTest extends TestCase {
         $this->assertEquals(0, $count);
     }
 
+    // ===== skipFirstRow (header-less CSV) =====
+
+    public function testParseCsvSkipFirstRowFalseTreatsEveryLineAsData(): void {
+        $csv = "2026-01-01,100.00,Groceries\n2026-01-02,50.00,Gas\n";
+
+        $result = $this->factory->parse($csv, 'csv', null, ',', false);
+
+        $this->assertCount(2, $result);
+        $this->assertEquals('2026-01-01', $result[0][0]);
+        $this->assertEquals('100.00', $result[0][1]);
+        $this->assertEquals('Groceries', $result[0][2]);
+        $this->assertEquals('2026-01-02', $result[1][0]);
+    }
+
+    public function testParseCsvSkipFirstRowDefaultsTrue(): void {
+        $csv = "Date,Amount,Description\n2026-01-01,100.00,Groceries\n";
+
+        $result = $this->factory->parse($csv, 'csv');
+
+        $this->assertCount(1, $result);
+        $this->assertEquals('2026-01-01', $result[0][0]);
+    }
+
+    public function testCountRowsSkipFirstRowFalseCountsEveryLine(): void {
+        $csv = "2026-01-01,100.00\n2026-01-02,50.00\n2026-01-03,30.00\n";
+
+        $count = $this->factory->countRows($csv, 'csv', ',', false);
+
+        $this->assertEquals(3, $count);
+    }
+
     // ===== getSupportedFormats =====
 
     public function testGetSupportedFormats(): void {
@@ -263,65 +287,6 @@ class ParserFactoryTest extends TestCase {
         $this->assertArrayHasKey('transactions', $result);
         $this->assertEmpty($result['accounts']);
         $this->assertCount(1, $result['transactions']);
-    }
-
-    // ===== sanitizeHeaders & untitled columns =====
-
-    public function testSanitizeHeadersWithUntitledColumns(): void {
-        $raw = ['Date', '', 'Amount', '  ', 'Notes'];
-        $sanitized = $this->factory->sanitizeHeaders($raw);
-
-        $this->assertEquals(['Date', 'Column 2', 'Amount', 'Column 4', 'Notes'], $sanitized);
-    }
-
-    public function testSanitizeHeadersAvoidsClashWithARealColumnName(): void {
-        $raw = ['Column 2', '', 'Amount'];
-        $sanitized = $this->factory->sanitizeHeaders($raw);
-
-        $this->assertEquals(['Column 2', 'Column 2 (2)', 'Amount'], $sanitized);
-        $this->assertCount(3, array_unique($sanitized));
-    }
-
-    public function testParseCsvKeepsEveryColumnWhenAHeaderClashes(): void {
-        $csv = "Column 2,,Amount\n2026-01-01,Extra,100.00\n";
-
-        $result = $this->factory->parse($csv, 'csv');
-
-        $this->assertCount(3, $result[0]);
-        $this->assertEquals('2026-01-01', $result[0]['Column 2']);
-        $this->assertEquals('Extra', $result[0]['Column 2 (2)']);
-        $this->assertEquals('100.00', $result[0]['Amount']);
-    }
-
-    public function testSanitizeHeadersWithDuplicateHeaders(): void {
-        $raw = ['Date', 'Amount', 'Date', 'Amount'];
-        $sanitized = $this->factory->sanitizeHeaders($raw);
-
-        $this->assertEquals(['Date', 'Amount', 'Column 3', 'Column 4'], $sanitized);
-    }
-
-    public function testParseCsvWithUntitledColumns(): void {
-        $csv = "Date,,Amount,,Notes\n2026-01-01,Extra,100.00,Foo,Groceries\n";
-
-        $result = $this->factory->parse($csv, 'csv');
-
-        $this->assertCount(1, $result);
-        $this->assertEquals('2026-01-01', $result[0]['Date']);
-        $this->assertEquals('Extra', $result[0]['Column 2']);
-        $this->assertEquals('100.00', $result[0]['Amount']);
-        $this->assertEquals('Foo', $result[0]['Column 4']);
-        $this->assertEquals('Groceries', $result[0]['Notes']);
-    }
-
-    public function testParseCsvWithAllUntitledColumns(): void {
-        $csv = ",,\n2026-01-01,100.00,Groceries\n";
-
-        $result = $this->factory->parse($csv, 'csv');
-
-        $this->assertCount(1, $result);
-        $this->assertEquals('2026-01-01', $result[0]['Column 1']);
-        $this->assertEquals('100.00', $result[0]['Column 2']);
-        $this->assertEquals('Groceries', $result[0]['Column 3']);
     }
 
     // ===== camt.053 (#350) =====

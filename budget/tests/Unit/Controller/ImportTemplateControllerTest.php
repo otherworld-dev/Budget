@@ -82,7 +82,7 @@ class ImportTemplateControllerTest extends TestCase {
     public function testCreateOfxRoutingReturnsCreated(): void {
         $this->service->expects($this->once())
             ->method('create')
-            ->with('user1', 'OFX Bank', 'ofx', [], ['1234' => 5], ',', false, true, false, null)
+            ->with('user1', 'OFX Bank', 'ofx', [], ['1234' => 5], ',', true, true, false, null)
             ->willReturn($this->makeTemplate());
 
         $response = $this->controller->create('OFX Bank', 'ofx', [], ['1234' => 5]);
