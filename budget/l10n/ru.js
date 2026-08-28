@@ -1264,7 +1264,6 @@ OC.L10N.register(
     "To Account" : "На счёт",
     "Day of Month (1-31)" : "День месяца (1-31)",
     "e.g., 15" : "напр., 15",
-    "Leave empty for weekly transfers" : "Оставьте пустым для еженедельних переводов",
     "Details" : "Детали",
     "Transaction Description Pattern (Optional)" : "Шаблон описания транзакции (опционально)",
     "e.g., Savings Transfer" : "напр., Перевод на сберегательный счёт",

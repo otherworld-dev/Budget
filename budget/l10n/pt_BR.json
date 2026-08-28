@@ -121,7 +121,6 @@
     "Failed to update bill" : "Falha ao alterar a conta",
     "Failed to find matching transactions" : "Falha ao localizar transações correspondentes",
     "Failed to mark bill as paid" : "Falha ao marcar a conta como paga",
-    "Missing previous state" : "Estado anterior não encontrado",
     "Failed to skip bill payment" : "Falha ao adiar o pagamento da conta",
     "Failed to retrieve upcoming bills" : "Falha ao buscar as contas a vencer",
     "Failed to retrieve bills due this month" : "Falha ao buscar as contas com vencimento neste mês",
