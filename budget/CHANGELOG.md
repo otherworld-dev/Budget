@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.44.2] - 2026-08-28
 
 ### Fixed
 - **The Budget page's *Spent* really does net refunds now.** v2.44.0 said a refund comes off what you have spent, and it did — on the budget report, the dashboard tiles, the alerts and the digest. The Budget page itself reads a different query, which kept the old one-direction sum, so the very page the issue was reported against still showed $216.90 where Category Details showed $58.29. That query now nets the same way as everywhere else. A month whose refunds exceed its spending shows the true negative figure instead of being flipped into looking like money spent, and its progress bar sits empty rather than painting full — on the dashboard's Budget Progress tile and the savings-goal tiles too, where a negative used to render as a completely full bar. Changing a category's budget period also refreshes its row with the right direction and the selected month, instead of flipping an income category's Spent to a large negative until the next reload ([#361](https://github.com/otherworld-dev/Budget/issues/361))
