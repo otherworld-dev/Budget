@@ -1110,4 +1110,190 @@ class BillServiceTest extends TestCase {
 
 		$this->assertEqualsWithDelta(300.0, $restored->getAmount(), 0.001);
 	}
+
+	// ── durable mark-as-unpaid (#365) ───────────────────────────────
+
+	private function makePaidUndoSnapshot(array $overrides = []): string {
+		return json_encode(array_merge([
+			'previousState' => [
+				'lastPaidDate' => null,
+				'nextDueDate' => '2099-06-15',
+				'remainingPayments' => null,
+				'isActive' => true,
+				'autoPayFailed' => false,
+				'amount' => 15.99,
+			],
+			'createdTransactionIds' => [55, 56],
+			'hadScheduledTransaction' => false,
+			'paidDate' => '2099-06-15',
+		], $overrides));
+	}
+
+	public function testMarkPaidPersistsUndoSnapshot(): void {
+		$bill = $this->makeBill(['nextDueDate' => '2099-06-15', 'remainingPayments' => 3]);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-15');
+
+		$payment = new \OCA\Budget\Db\Transaction();
+		$payment->setId(55);
+		$placeholder = new \OCA\Budget\Db\Transaction();
+		$placeholder->setId(56);
+		$this->transactionService->method('createFromBill')
+			->willReturnOnConsecutiveCalls($payment, $placeholder);
+
+		$result = $this->service->markPaid(1, 'user1');
+
+		$raw = $result['bill']->getPaidUndoState();
+		$this->assertNotNull($raw, 'markPaid must persist the undo snapshot on the bill');
+		$decoded = json_decode($raw, true);
+		$this->assertSame('2099-06-15', $decoded['previousState']['nextDueDate']);
+		$this->assertSame(3, $decoded['previousState']['remainingPayments']);
+		$this->assertSame([55, 56], $decoded['createdTransactionIds']);
+		$this->assertFalse($decoded['hadScheduledTransaction']);
+		$this->assertSame(date('Y-m-d'), $decoded['paidDate']);
+	}
+
+	public function testMarkUnpaidRestoresRecurringBill(): void {
+		$bill = $this->makeBill([
+			'nextDueDate' => '2099-07-15', 'remainingPayments' => 2,
+			'lastPaidDate' => '2099-06-15',
+		]);
+		$bill->setPaidUndoState($this->makePaidUndoSnapshot([
+			'previousState' => [
+				'lastPaidDate' => null, 'nextDueDate' => '2099-06-15',
+				'remainingPayments' => 3, 'isActive' => true,
+				'autoPayFailed' => false, 'amount' => 15.99,
+			],
+		]));
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$deleted = [];
+		$this->transactionService->method('delete')
+			->willReturnCallback(function (int $id) use (&$deleted) {
+				$deleted[] = $id;
+				return 1;
+			});
+
+		$restored = $this->service->markUnpaid(1, 'user1');
+
+		$this->assertSame('2099-06-15', $restored->getNextDueDate());
+		$this->assertSame(3, $restored->getRemainingPayments());
+		$this->assertNull($restored->getLastPaidDate());
+		$this->assertSame([55, 56], $deleted);
+		$this->assertNull($restored->getPaidUndoState(), 'snapshot must be cleared after use');
+	}
+
+	public function testMarkUnpaidReactivatesOneTimeBill(): void {
+		$bill = $this->makeBill([
+			'frequency' => 'one-time', 'isActive' => false,
+			'lastPaidDate' => '2099-06-15',
+		]);
+		$bill->setNextDueDate(null);
+		$bill->setPaidUndoState($this->makePaidUndoSnapshot());
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$restored = $this->service->markUnpaid(1, 'user1');
+
+		$this->assertTrue($restored->getIsActive(), 'one-time bill must be reactivated');
+		$this->assertSame('2099-06-15', $restored->getNextDueDate());
+		$this->assertNull($restored->getLastPaidDate());
+		$this->assertNull($restored->getPaidUndoState());
+	}
+
+	public function testMarkUnpaidRestoresStatementAmountFromSnapshot(): void {
+		// Statement amounts resolve from the card ledger at payment time and
+		// cannot be re-derived later (#347) — only the snapshot can restore it.
+		$bill = $this->makeBill([
+			'isTransfer' => true, 'destinationAccountId' => 20, 'amount' => 440.0,
+		]);
+		$bill->setAmountType('statement');
+		$bill->setPaidUndoState($this->makePaidUndoSnapshot([
+			'previousState' => [
+				'lastPaidDate' => null, 'nextDueDate' => '2099-06-15',
+				'remainingPayments' => null, 'isActive' => true,
+				'autoPayFailed' => false, 'amount' => 300.0,
+			],
+		]));
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$restored = $this->service->markUnpaid(1, 'user1');
+
+		$this->assertEqualsWithDelta(300.0, $restored->getAmount(), 0.001);
+	}
+
+	public function testMarkUnpaidToleratesAlreadyDeletedTransactions(): void {
+		$bill = $this->makeBill(['nextDueDate' => '2099-07-15', 'lastPaidDate' => '2099-06-15']);
+		$bill->setPaidUndoState($this->makePaidUndoSnapshot());
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$this->transactionService->method('delete')
+			->willThrowException(new \Exception('already gone'));
+
+		$restored = $this->service->markUnpaid(1, 'user1');
+
+		$this->assertSame('2099-06-15', $restored->getNextDueDate());
+		$this->assertNull($restored->getPaidUndoState());
+	}
+
+	public function testMarkUnpaidRecreatesScheduledPlaceholderFromSnapshot(): void {
+		$bill = $this->makeBill(['nextDueDate' => '2099-07-15', 'lastPaidDate' => '2099-06-15']);
+		$bill->setPaidUndoState($this->makePaidUndoSnapshot(['hadScheduledTransaction' => true]));
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$this->transactionService->expects($this->once())->method('createFromBill');
+
+		$this->service->markUnpaid(1, 'user1');
+	}
+
+	public function testMarkUnpaidWithoutSnapshotThrows(): void {
+		$bill = $this->makeBill();
+		$this->mapper->method('find')->willReturn($bill);
+		$this->transactionService->expects($this->never())->method('delete');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('This bill has no recorded payment to undo');
+
+		$this->service->markUnpaid(1, 'user1');
+	}
+
+	public function testMarkUnpaidWithCorruptSnapshotThrows(): void {
+		$bill = $this->makeBill();
+		$bill->setPaidUndoState('not json');
+		$this->mapper->method('find')->willReturn($bill);
+
+		$this->expectException(\InvalidArgumentException::class);
+
+		$this->service->markUnpaid(1, 'user1');
+	}
+
+	public function testUndoPaidClearsPersistedSnapshot(): void {
+		// The toast path and the durable path share the revert — either one
+		// consumes the stored snapshot.
+		$bill = $this->makeBill();
+		$bill->setPaidUndoState($this->makePaidUndoSnapshot());
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$restored = $this->service->undoPaid(1, 'user1', [
+			'lastPaidDate' => null, 'nextDueDate' => '2099-06-15', 'isActive' => true,
+		], []);
+
+		$this->assertNull($restored->getPaidUndoState());
+	}
+
+	public function testBillSerializesCanMarkUnpaidHintNotRawSnapshot(): void {
+		$bill = $this->makeBill();
+		$this->assertFalse($bill->jsonSerialize()['canMarkUnpaid']);
+
+		$bill->setPaidUndoState($this->makePaidUndoSnapshot());
+		$json = $bill->jsonSerialize();
+		$this->assertTrue($json['canMarkUnpaid']);
+		$this->assertArrayNotHasKey('paidUndoState', $json, 'internal blob must not reach the frontend');
+	}
 }

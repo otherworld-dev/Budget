@@ -1127,6 +1127,90 @@ class BillControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	// ── markUnpaid (#365) ───────────────────────────────────────────
+
+	public function testMarkUnpaidReturnsRestoredBill(): void {
+		$bill = $this->createMock(Bill::class);
+		$this->service->expects($this->once())
+			->method('markUnpaid')
+			->with(1, 'user1')
+			->willReturn($bill);
+
+		$response = $this->controller->markUnpaid(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testMarkUnpaidSurfacesMissingSnapshotMessage(): void {
+		$this->service->method('markUnpaid')->willThrowException(
+			new \InvalidArgumentException('This bill has no recorded payment to undo')
+		);
+
+		$response = $this->controller->markUnpaid(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('This bill has no recorded payment to undo', $response->getData()['error']);
+	}
+
+	public function testMarkUnpaidHidesUnexpectedFailures(): void {
+		$this->service->method('markUnpaid')->willThrowException(
+			new \RuntimeException('SQLSTATE[HY000]: disk I/O error')
+		);
+
+		$response = $this->controller->markUnpaid(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Failed to mark bill as unpaid', $response->getData()['error']);
+	}
+
+	// ── undoPaid (#365: falls back to the stored snapshot) ──────────
+
+	public function testUndoPaidUsesClientPayloadWhenPresent(): void {
+		$this->mockInput(json_encode([
+			'previousState' => ['nextDueDate' => '2026-08-15', 'isActive' => true],
+			'createdTransactionIds' => [55],
+			'hadScheduledTransaction' => true,
+		]));
+		$bill = $this->createMock(Bill::class);
+		$this->service->expects($this->once())
+			->method('undoPaid')
+			->with(1, 'user1', ['nextDueDate' => '2026-08-15', 'isActive' => true], [55], true)
+			->willReturn($bill);
+		$this->service->expects($this->never())->method('markUnpaid');
+
+		$response = $this->controller->undoPaid(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testUndoPaidFallsBackToStoredSnapshot(): void {
+		// A reload lost the in-memory undo data — the persisted snapshot
+		// takes over instead of a "Missing previous state" dead end.
+		$this->mockInput(json_encode([]));
+		$bill = $this->createMock(Bill::class);
+		$this->service->expects($this->once())
+			->method('markUnpaid')
+			->with(1, 'user1')
+			->willReturn($bill);
+		$this->service->expects($this->never())->method('undoPaid');
+
+		$response = $this->controller->undoPaid(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testUndoPaidWithoutPayloadOrSnapshotSurfacesMessage(): void {
+		$this->mockInput(json_encode([]));
+		$this->service->method('markUnpaid')->willThrowException(
+			new \InvalidArgumentException('This bill has no recorded payment to undo')
+		);
+
+		$response = $this->controller->undoPaid(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('This bill has no recorded payment to undo', $response->getData()['error']);
+	}
+
 	// ── upcoming ────────────────────────────────────────────────────
 
 	public function testUpcomingReturnsBills(): void {

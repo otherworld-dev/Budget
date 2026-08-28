@@ -31,13 +31,18 @@ export default class BillsModule {
             await this.loadBillsSummary();
 
             // Load all bills (excluding transfers)
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills?isTransfer=false&activeOnly=true'), {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/bills?isTransfer=false'), {
                 headers: { 'requesttoken': OC.requestToken }
             });
 
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-            this.bills = await response.json();
+            // Keep active bills, plus inactive ones that still hold a stored
+            // payment snapshot: a paid one-time bill leaves the active list
+            // (#333), but must stay visible to be marked unpaid (#365).
+            const allBills = await response.json();
+            this.bills = allBills.filter(bill =>
+                (bill.isActive ?? bill.is_active ?? true) || bill.canMarkUnpaid);
             this.renderBills(this.bills);
 
             // Setup event listeners (only once)
@@ -361,6 +366,12 @@ export default class BillsModule {
                                 ${t('budget', 'Skip')}
                             </button>
                         ` : ''}
+                        ${bill.canMarkUnpaid ? `
+                            <button class="bill-action-btn bill-unpaid-btn" data-bill-id="${bill.id}" title="${t('budget', 'Revert the last payment')}">
+                                <span class="icon-history" aria-hidden="true"></span>
+                                ${t('budget', 'Mark Unpaid')}
+                            </button>
+                        ` : ''}
                         <button class="bill-action-btn bill-edit-btn" data-bill-id="${bill.id}" title="${t('budget', 'Edit bill')}">
                             <span class="icon-rename" aria-hidden="true"></span>
                         </button>
@@ -602,6 +613,10 @@ export default class BillsModule {
                 const button = e.target.classList.contains('bill-skip-btn') ? e.target : e.target.closest('.bill-skip-btn');
                 const billId = parseInt(button.dataset.billId);
                 this.skipBillPayment(billId);
+            } else if (e.target.classList.contains('bill-unpaid-btn') || e.target.closest('.bill-unpaid-btn')) {
+                const button = e.target.classList.contains('bill-unpaid-btn') ? e.target : e.target.closest('.bill-unpaid-btn');
+                const billId = parseInt(button.dataset.billId);
+                this.markBillUnpaid(billId);
             }
         });
     }
@@ -1386,6 +1401,39 @@ export default class BillsModule {
         } catch (error) {
             console.error('Failed to undo mark paid:', error);
             showError(t('budget', 'Failed to undo action: {message}', { message: error.message }));
+        }
+    }
+
+    /**
+     * Durable "mark as unpaid" (#365): reverts the last payment from the
+     * snapshot the server persisted on markPaid. Unlike the undo toast, this
+     * works after a reload — and for auto-paid or import-matched bills that
+     * never showed a toast at all.
+     */
+    async markBillUnpaid(billId) {
+        if (!confirm(t('budget', 'Mark this bill as unpaid? The recorded payment transaction will be deleted and the bill schedule rolled back.'))) {
+            return;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/unpaid`), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to mark bill as unpaid')));
+            }
+
+            await this.loadBillsView();
+            showSuccess(t('budget', 'Payment reverted — the bill is marked as unpaid.'));
+        } catch (error) {
+            console.error('Failed to mark bill as unpaid:', error);
+            showError(error.message || t('budget', 'Failed to mark bill as unpaid'));
         }
     }
 

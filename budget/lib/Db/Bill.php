@@ -72,6 +72,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setExcludedFromForecast(bool $excludedFromForecast)
  * @method bool|null getCreateTransaction()
  * @method void setCreateTransaction(bool $createTransaction)
+ * @method string|null getPaidUndoState()
+ * @method void setPaidUndoState(?string $paidUndoState)
  */
 class Bill extends Entity implements JsonSerializable {
     protected $userId;
@@ -105,6 +107,7 @@ class Bill extends Entity implements JsonSerializable {
     protected $splitTemplate;              // JSON array of split definitions for auto-splitting transactions
     protected $excludedFromForecast;       // Extraordinary recurring item: keep its transactions out of the forecast
     protected $createTransaction;          // Pre-create a scheduled transaction for the next occurrence (null = legacy rows, treated as true)
+    protected $paidUndoState;              // JSON snapshot of the last markPaid, so "mark as unpaid" survives reloads (#365); internal — never serialized raw
 
     // Non-persisted: set by BillService when enriching API responses
     protected ?string $currency = null;
@@ -211,6 +214,8 @@ class Bill extends Entity implements JsonSerializable {
             'splitTemplate' => $this->getSplitTemplateArray(),
             'excludedFromForecast' => $this->getExcludedFromForecast() ?? false,
             'createTransaction' => $this->getCreateTransaction() ?? true,
+            // Derived hint only — the raw undo blob stays server-side (#365)
+            'canMarkUnpaid' => $this->getPaidUndoState() !== null && $this->getPaidUndoState() !== '',
             'currency' => $this->getCurrency(),
         ];
     }

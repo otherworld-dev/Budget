@@ -205,6 +205,7 @@ return [
         ['name' => 'bill#skipPayment', 'url' => '/api/bills/{id}/skip', 'verb' => 'POST'],
         ['name' => 'bill#undoSkip', 'url' => '/api/bills/{id}/undo-skip', 'verb' => 'POST'],
         ['name' => 'bill#undoPaid', 'url' => '/api/bills/{id}/undo-paid', 'verb' => 'POST'],
+        ['name' => 'bill#markUnpaid', 'url' => '/api/bills/{id}/unpaid', 'verb' => 'POST'],
 
         // Savings Goals routes
         ['name' => 'goals#index', 'url' => '/api/savings-goals', 'verb' => 'GET'],

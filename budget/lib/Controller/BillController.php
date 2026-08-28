@@ -709,7 +709,10 @@ class BillController extends Controller {
             $createdTransactionIds = $params['createdTransactionIds'] ?? [];
 
             if ($previousState === null || !is_array($previousState)) {
-                return new DataResponse(['error' => $this->l->t('Missing previous state')], Http::STATUS_BAD_REQUEST);
+                // No in-memory undo data (a reload lost the toast) — fall back
+                // to the snapshot persisted by markPaid (#365)
+                $bill = $this->service->markUnpaid($id, $this->getEffectiveUserId());
+                return new DataResponse($bill);
             }
 
             $hadScheduledTransaction = (bool) ($params['hadScheduledTransaction'] ?? false);
@@ -722,8 +725,30 @@ class BillController extends Controller {
                 $hadScheduledTransaction
             );
             return new DataResponse($bill);
+        } catch (\InvalidArgumentException $e) {
+            // Service-only validation keeps its message (#362)
+            return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to undo mark as paid'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
+        }
+    }
+
+    /**
+     * Durable "mark as unpaid": revert the last payment from the snapshot
+     * persisted on the bill (#365)
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function markUnpaid(int $id): DataResponse {
+        try {
+            $this->requireWriteAccess('bill', $id);
+            $bill = $this->service->markUnpaid($id, $this->getEffectiveUserId());
+            return new DataResponse($bill);
+        } catch (\InvalidArgumentException $e) {
+            // Service-only validation keeps its message (#362)
+            return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to mark bill as unpaid'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
         }
     }
 
