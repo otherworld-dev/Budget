@@ -5,6 +5,7 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { serverErrorMessage } from '../../utils/helpers.js';
 
 export default class IncomeModule {
@@ -345,6 +346,7 @@ export default class IncomeModule {
             document.getElementById('income-account').value = income.accountId || income.account_id || '';
             document.getElementById('income-auto-pattern').value = income.autoDetectPattern || income.auto_detect_pattern || '';
             document.getElementById('income-notes').value = income.notes || '';
+            setDateValue('income-start-date', income.startDate || income.start_date || '');
 
             // Set auto-create checkbox
             const autoCreateEnabled = income.autoCreateEnabled ?? income.auto_create_enabled ?? false;
@@ -356,6 +358,7 @@ export default class IncomeModule {
             document.getElementById('income-auto-create').checked = false;
             const incomeExcludeNewEl = document.getElementById('income-excluded-from-forecast');
             if (incomeExcludeNewEl) incomeExcludeNewEl.checked = false;
+            clearDateValue('income-start-date');
         }
 
         this.updateIncomeFormFields();
@@ -385,6 +388,14 @@ export default class IncomeModule {
             } else {
                 autoCreateCheckbox.disabled = false;
             }
+        }
+
+        // First payment date anchors weekly/biweekly schedules: occurrences
+        // repeat from it, fixing the weekday and the week parity (#363)
+        const startDateGroup = document.getElementById('income-start-date-group');
+        if (startDateGroup) {
+            startDateGroup.style.display =
+                (frequency === 'weekly' || frequency === 'biweekly') ? 'block' : 'none';
         }
 
         // Hide day/month fields for one-time income
@@ -445,12 +456,15 @@ export default class IncomeModule {
             const id = document.getElementById('income-id').value;
             const isNew = !id;
 
+            const frequency = document.getElementById('income-frequency').value;
+            const isAnchored = frequency === 'weekly' || frequency === 'biweekly';
+
             const data = {
                 name: document.getElementById('income-name').value.trim(),
                 description: document.getElementById('income-description')?.value.trim() || null,
                 amount: parseFloat(document.getElementById('income-amount').value) || 0,
                 source: document.getElementById('income-source').value.trim() || null,
-                frequency: document.getElementById('income-frequency').value,
+                frequency: frequency,
                 expectedDay: parseInt(document.getElementById('income-expected-day').value) || null,
                 expectedMonth: parseInt(document.getElementById('income-expected-month').value) || null,
                 categoryId: parseInt(document.getElementById('income-category').value) || null,
@@ -458,7 +472,10 @@ export default class IncomeModule {
                 autoDetectPattern: document.getElementById('income-auto-pattern').value.trim() || null,
                 notes: document.getElementById('income-notes').value.trim() || null,
                 autoCreateEnabled: document.getElementById('income-auto-create')?.checked || false,
-                excludedFromForecast: document.getElementById('income-excluded-from-forecast')?.checked || false
+                excludedFromForecast: document.getElementById('income-excluded-from-forecast')?.checked || false,
+                // The anchor only means something for weekly/biweekly; null
+                // clears any stale value when the frequency changed (#363)
+                startDate: isAnchored ? (document.getElementById('income-start-date')?.value || null) : null
             };
 
             const url = isNew

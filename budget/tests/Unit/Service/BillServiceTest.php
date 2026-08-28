@@ -333,6 +333,106 @@ class BillServiceTest extends TestCase {
 		$this->service->update(1, 'user1', ['createTransaction' => true]);
 	}
 
+	// ── biweekly anchoring to startDate (#364) ──────────────────────
+
+	public function testCreateBiweeklyAnchorsToStartDate(): void {
+		// Back the mock with the real calculator so the anchor maths runs.
+		$this->frequencyCalculator->method('calculateNextDueDate')
+			->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+		$this->mapper->method('insert')->willReturnCallback(fn(Bill $b) => $b);
+
+		// Anchor 21 days ago: occurrences at -21, -7 and +7 days. Without the
+		// anchor, creation week would win and next due would land at +14.
+		$anchor = (new \DateTime('-21 days'))->format('Y-m-d');
+		$dueDay = (int) (new \DateTime())->format('N'); // same weekday as anchor
+
+		$bill = $this->service->create('user1', 'Pay', 100.0, 'biweekly', $dueDay, startDate: $anchor);
+
+		$this->assertSame((new \DateTime('+7 days'))->format('Y-m-d'), $bill->getNextDueDate());
+	}
+
+	public function testUpdateUnrelatedFieldKeepsBiweeklyParityWithStartDate(): void {
+		// Live bug: the update consistency check recomputed "from today", so
+		// editing ANY field of a biweekly bill in the off-parity week silently
+		// flipped its parity. With a startDate anchor the stored due date is
+		// consistent and must be left alone.
+		$this->frequencyCalculator->method('calculateNextDueDate')
+			->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+
+		$anchor = (new \DateTime('-21 days'))->format('Y-m-d');
+		$bill = $this->makeBill([
+			'frequency' => 'biweekly',
+			'dueDay' => (int) (new \DateTime())->format('N'),
+			'nextDueDate' => (new \DateTime('+7 days'))->format('Y-m-d'),
+		]);
+		$bill->setStartDate($anchor);
+		$this->mapper->method('find')->willReturn($bill);
+
+		$captured = null;
+		$this->mapper->expects($this->once())->method('updateFields')
+			->willReturnCallback(function ($id, $userId, $updates) use (&$captured) {
+				$captured = $updates;
+			});
+
+		$this->service->update(1, 'user1', ['name' => 'Renamed']);
+
+		$this->assertNotNull($captured);
+		$this->assertArrayNotHasKey('next_due_date', $captured, 'an unrelated edit must not move an anchored biweekly bill');
+	}
+
+	public function testUpdateScheduleChangeRecomputesFromStartDateAnchor(): void {
+		$this->frequencyCalculator->method('calculateNextDueDate')
+			->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+
+		// Weekly bill due today, anchored 21 days back; switching it to
+		// biweekly must land on the anchor's fortnight (+7 days), not on
+		// today's week parity (+14 days).
+		$anchor = (new \DateTime('-21 days'))->format('Y-m-d');
+		$bill = $this->makeBill([
+			'frequency' => 'weekly',
+			'dueDay' => (int) (new \DateTime())->format('N'),
+			'nextDueDate' => (new \DateTime())->format('Y-m-d'),
+		]);
+		$bill->setStartDate($anchor);
+		$this->mapper->method('find')->willReturn($bill);
+
+		$captured = null;
+		$this->mapper->method('updateFields')
+			->willReturnCallback(function ($id, $userId, $updates) use (&$captured) {
+				$captured = $updates;
+			});
+
+		$this->service->update(1, 'user1', ['frequency' => 'biweekly']);
+
+		$this->assertSame((new \DateTime('+7 days'))->format('Y-m-d'), $captured['next_due_date'] ?? null);
+	}
+
+	public function testUpdateSettingStartDateReanchorsNextDue(): void {
+		$this->frequencyCalculator->method('calculateNextDueDate')
+			->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+
+		// Un-anchored biweekly bill stuck on creation-week parity (+14 days);
+		// giving it a startDate must snap next due onto the anchor's
+		// fortnight (+7 days).
+		$anchor = (new \DateTime('-21 days'))->format('Y-m-d');
+		$bill = $this->makeBill([
+			'frequency' => 'biweekly',
+			'dueDay' => (int) (new \DateTime())->format('N'),
+			'nextDueDate' => (new \DateTime('+14 days'))->format('Y-m-d'),
+		]);
+		$this->mapper->method('find')->willReturn($bill);
+
+		$captured = null;
+		$this->mapper->method('updateFields')
+			->willReturnCallback(function ($id, $userId, $updates) use (&$captured) {
+				$captured = $updates;
+			});
+
+		$this->service->update(1, 'user1', ['startDate' => $anchor]);
+
+		$this->assertSame((new \DateTime('+7 days'))->format('Y-m-d'), $captured['next_due_date'] ?? null);
+	}
+
 	public function testCreatePersistsPreBookOptOut(): void {
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-01');
 		$this->mapper->method('insert')->willReturnCallback(fn(Bill $b) => $b);

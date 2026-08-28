@@ -20,6 +20,10 @@ class FrequencyCalculator {
      * @param string|null $fromDate Base date to calculate from
      * @param string|null $customPattern JSON pattern for custom frequency
      * @param bool $forceAdvance Always advance past fromDate (used after payment)
+     * @param string|null $anchorDate Recurrence anchor (start date) for weekly/
+     *        biweekly: occurrences fall on anchor + n*interval days, so the
+     *        anchor fixes both the weekday and the week parity and dueDay is
+     *        ignored (#363, #364). Other frequencies ignore the anchor.
      * @return string Next due date in Y-m-d format
      */
     public function calculateNextDueDate(
@@ -28,7 +32,8 @@ class FrequencyCalculator {
         ?int $dueMonth,
         ?string $fromDate = null,
         ?string $customPattern = null,
-        bool $forceAdvance = false
+        bool $forceAdvance = false,
+        ?string $anchorDate = null
     ): string {
         $today = new \DateTime();
 
@@ -71,8 +76,11 @@ class FrequencyCalculator {
 
             case 'weekly':
             case 'biweekly':
-                $dayOfWeek = $dueDay ?? 1; // Default to Monday
                 $interval = $frequency === 'biweekly' ? 14 : 7;
+                if ($anchorDate !== null && $anchorDate !== '') {
+                    return $this->nextFromAnchor($anchorDate, $interval, $fromDate, $today);
+                }
+                $dayOfWeek = $dueDay ?? 1; // Default to Monday
                 $next = clone $baseDate;
                 $currentDayOfWeek = (int)$next->format('N');
                 $daysToAdd = ($dayOfWeek - $currentDayOfWeek + 7) % 7;
@@ -186,6 +194,56 @@ class FrequencyCalculator {
             default:
                 return $baseDate->format('Y-m-d');
         }
+    }
+
+    /**
+     * Next weekly/biweekly occurrence from an anchor date (#363, #364).
+     *
+     * Occurrences fall on anchor + n*interval days (n >= 0), so the anchor —
+     * a bill's/income's start date — fixes the weekday and the week parity
+     * for good, independent of when the entry was created or edited.
+     *
+     * Without a reference date the first occurrence on/after today is
+     * returned (a future anchor IS the first occurrence; an anchor of today
+     * is due today). With a reference date (advancing past a payment or a
+     * received income) the first occurrence strictly after it is returned,
+     * never earlier than today.
+     *
+     * @param string $anchorDate Anchor date (Y-m-d)
+     * @param int $interval Days between occurrences (7 or 14)
+     * @param string|null $fromDate Reference date to advance strictly past
+     * @param \DateTime $today Today's date
+     * @return string Next occurrence in Y-m-d format
+     */
+    private function nextFromAnchor(string $anchorDate, int $interval, ?string $fromDate, \DateTime $today): string {
+        $next = new \DateTime($anchorDate);
+        $next->setTime(0, 0, 0);
+
+        $threshold = clone $today;
+        $threshold->setTime(0, 0, 0);
+        $strict = false;
+        if ($fromDate !== null && $fromDate !== '') {
+            $from = new \DateTime($fromDate);
+            $from->setTime(0, 0, 0);
+            if ($from > $threshold) {
+                $threshold = $from;
+            }
+            $strict = true;
+        }
+
+        if ($next < $threshold) {
+            // Jump whole intervals at once so a years-old anchor stays cheap
+            $daysBehind = (int) $next->diff($threshold)->format('%a');
+            $steps = intdiv($daysBehind, $interval);
+            if ($steps > 0) {
+                $next->modify('+' . ($steps * $interval) . ' days');
+            }
+        }
+        while ($next < $threshold || ($strict && $next == $threshold)) {
+            $next->modify("+{$interval} days");
+        }
+
+        return $next->format('Y-m-d');
     }
 
     /**

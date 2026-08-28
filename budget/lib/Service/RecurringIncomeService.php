@@ -72,7 +72,8 @@ class RecurringIncomeService extends AbstractCrudService {
         ?string $notes = null,
         bool $autoCreateEnabled = false,
         ?string $description = null,
-        bool $excludedFromForecast = false
+        bool $excludedFromForecast = false,
+        ?string $startDate = null
     ): RecurringIncome {
         $income = new RecurringIncome();
         $income->setUserId($userId);
@@ -90,9 +91,13 @@ class RecurringIncomeService extends AbstractCrudService {
         $income->setAutoCreateEnabled($autoCreateEnabled);
         $income->setNotes($notes);
         $income->setExcludedFromForecast($excludedFromForecast);
+        $income->setStartDate($startDate);
         $income->setCreatedAt(date('Y-m-d H:i:s'));
 
-        $nextExpected = $this->frequencyCalculator->calculateNextDueDate($frequency, $expectedDay, $expectedMonth);
+        // startDate anchors weekly/biweekly schedules: occurrences fall on
+        // startDate + n*interval, so week parity comes from the user's first
+        // payment date, not from the week the entry was created in (#363)
+        $nextExpected = $this->frequencyCalculator->calculateNextDueDate($frequency, $expectedDay, $expectedMonth, null, null, false, $startDate);
         $income->setNextExpectedDate($nextExpected);
 
         $income = $this->mapper->insert($income);
@@ -109,7 +114,7 @@ class RecurringIncomeService extends AbstractCrudService {
 
         foreach ($updates as $key => $value) {
             // Track if we need to recalculate next expected date
-            if (in_array($key, ['frequency', 'expectedDay', 'expectedMonth', 'lastReceivedDate'])) {
+            if (in_array($key, ['frequency', 'expectedDay', 'expectedMonth', 'lastReceivedDate', 'startDate'])) {
                 $needsRecalculation = true;
             }
 
@@ -136,7 +141,8 @@ class RecurringIncomeService extends AbstractCrudService {
             $this->mapper->updateFields($id, $userId, $directDbUpdates);
         }
 
-        // Recalculate next expected date if needed
+        // Recalculate next expected date if needed. The startDate anchors
+        // weekly/biweekly parity (#363).
         if ($needsRecalculation) {
             $referenceDate = $income->getLastReceivedDate();
 
@@ -144,7 +150,10 @@ class RecurringIncomeService extends AbstractCrudService {
                 $income->getFrequency(),
                 $income->getExpectedDay(),
                 $income->getExpectedMonth(),
-                $referenceDate
+                $referenceDate,
+                null,
+                false,
+                $income->getStartDate()
             );
             $income->setNextExpectedDate($nextExpected);
         }
@@ -181,12 +190,15 @@ class RecurringIncomeService extends AbstractCrudService {
 
             $this->transactionService->createFromIncome($userId, $income, $transactionDate, 'cleared');
 
-            // Advance next expected date
+            // Advance next expected date (startDate anchors parity, #363)
             $nextDate = $this->frequencyCalculator->calculateNextDueDate(
                 $income->getFrequency(),
                 $income->getExpectedDay(),
                 $income->getExpectedMonth(),
-                $transactionDate
+                $transactionDate,
+                null,
+                false,
+                $income->getStartDate()
             );
             $income->setNextExpectedDate($nextDate);
             $income->setLastReceivedDate($transactionDate);
@@ -211,11 +223,18 @@ class RecurringIncomeService extends AbstractCrudService {
         $received = $receivedDate ?? date('Y-m-d');
         $income->setLastReceivedDate($received);
 
+        // With a startDate anchor the calculator recomputes from the anchor
+        // (first occurrence after the received date), so an early or late
+        // receipt cannot shift the week parity (#363); without one the
+        // received date remains the base as before.
         $nextExpected = $this->frequencyCalculator->calculateNextDueDate(
             $income->getFrequency(),
             $income->getExpectedDay(),
             $income->getExpectedMonth(),
-            $received
+            $received,
+            null,
+            false,
+            $income->getStartDate()
         );
         $income->setNextExpectedDate($nextExpected);
 

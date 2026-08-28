@@ -38,6 +38,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setLastReceivedDate(?string $lastReceivedDate)
  * @method string|null getNextExpectedDate()
  * @method void setNextExpectedDate(?string $nextExpectedDate)
+ * @method string|null getStartDate()
+ * @method void setStartDate(?string $startDate)
  * @method string|null getNotes()
  * @method void setNotes(?string $notes)
  * @method bool getAutoCreateEnabled()
@@ -63,6 +65,7 @@ class RecurringIncome extends Entity implements JsonSerializable {
     protected $autoCreateEnabled;
     protected $lastReceivedDate;
     protected $nextExpectedDate;
+    protected $startDate;        // Recurrence anchor: weekly/biweekly occurrences fall on startDate + n*interval (#363)
     protected $notes;
     protected $createdAt;
     protected $excludedFromForecast;   // Extraordinary recurring item: keep its transactions out of the forecast
@@ -97,6 +100,7 @@ class RecurringIncome extends Entity implements JsonSerializable {
             'autoCreateEnabled' => $this->getAutoCreateEnabled(),
             'lastReceivedDate' => $this->getLastReceivedDate(),
             'nextExpectedDate' => $this->getNextExpectedDate(),
+            'startDate' => $this->getStartDate(),
             'notes' => $this->getNotes(),
             'createdAt' => $this->getCreatedAt(),
             'excludedFromForecast' => $this->getExcludedFromForecast() ?? false,

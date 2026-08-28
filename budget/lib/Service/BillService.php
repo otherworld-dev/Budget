@@ -406,7 +406,11 @@ class BillService {
         }
         $bill->setCreatedAt(date('Y-m-d H:i:s'));
 
-        $nextDue = $this->frequencyCalculator->calculateNextDueDate($frequency, $dueDay, $dueMonth, null, $customRecurrencePattern);
+        // startDate doubles as the recurrence anchor for weekly/biweekly:
+        // occurrences fall on startDate + n*interval, so the week parity is
+        // fixed by the user's chosen first payment date, not by when the
+        // bill happened to be created (#364)
+        $nextDue = $this->frequencyCalculator->calculateNextDueDate($frequency, $dueDay, $dueMonth, null, $customRecurrencePattern, false, $startDate);
         $nextDue = $this->applyStartDateFloor($nextDue, $startDate, $frequency, $dueDay, $dueMonth, $customRecurrencePattern);
         $bill->setNextDueDate($nextDue);
 
@@ -486,12 +490,22 @@ class BillService {
         // nextDueDate is inconsistent with the current schedule (catches
         // stale dates from edits on older versions)
         if (!$needsRecalculation && $bill->getIsActive() && $bill->getNextDueDate()) {
+            // With a startDate anchor the expectation is computed FROM THE
+            // ANCHOR — recomputing "from today" made every unrelated edit in
+            // an off-parity week flip a biweekly bill's fortnight (#364).
+            // An incoming startDate (set OR cleared) participates, so
+            // re-anchoring a bill snaps next due onto the new fortnight.
+            $effectiveAnchor = array_key_exists('startDate', $updates)
+                ? $updates['startDate']
+                : $bill->getStartDate();
             $expectedDue = $this->frequencyCalculator->calculateNextDueDate(
                 $updates['frequency'] ?? $bill->getFrequency(),
                 $updates['dueDay'] ?? $bill->getDueDay(),
                 $updates['dueMonth'] ?? $bill->getDueMonth(),
                 null,
-                $updates['customRecurrencePattern'] ?? $bill->getCustomRecurrencePattern()
+                $updates['customRecurrencePattern'] ?? $bill->getCustomRecurrencePattern(),
+                false,
+                $effectiveAnchor
             );
             if ($expectedDue !== $bill->getNextDueDate()) {
                 $needsRecalculation = true;
@@ -508,13 +522,16 @@ class BillService {
             }
 
             // Recalculate from today (not from the old nextDueDate) since
-            // the schedule parameters changed
+            // the schedule parameters changed; a startDate anchors the
+            // weekly/biweekly parity (#364)
             $nextDue = $this->frequencyCalculator->calculateNextDueDate(
                 $bill->getFrequency(),
                 $bill->getDueDay(),
                 $bill->getDueMonth(),
                 null, // recalculate from today
-                $bill->getCustomRecurrencePattern()
+                $bill->getCustomRecurrencePattern(),
+                false,
+                $bill->getStartDate()
             );
             $nextDue = $this->applyStartDateFloor(
                 $nextDue,
@@ -1371,6 +1388,10 @@ class BillService {
      * Ensure the next due date is no earlier than the bill's start date. When a
      * bill starts in the future, its first occurrence should fall on/after the
      * start date rather than the next calendar occurrence from today (#268).
+     *
+     * Weekly/biweekly bills with a startDate never reach the recursive call:
+     * their nextDue already came out of the calculator's anchor path, which by
+     * construction never returns a date before the anchor (#364).
      */
     private function applyStartDateFloor(string $nextDue, ?string $startDate, string $frequency, ?int $dueDay, ?int $dueMonth, ?string $customPattern): string {
         if ($startDate === null || $startDate === '' || $startDate <= $nextDue) {

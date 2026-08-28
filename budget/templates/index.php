@@ -6406,6 +6406,12 @@ style('budget', 'budget-app');
                 <small id="income-expected-day-help" class="form-text"><?php p($l->t('Day of the month when income is expected')); ?></small>
             </div>
 
+            <div class="form-group" id="income-start-date-group" style="display: none;">
+                <label for="income-start-date"><?php p($l->t('First payment date')); ?></label>
+                <input type="date" id="income-start-date" aria-describedby="income-start-date-help">
+                <small id="income-start-date-help" class="form-text"><?php p($l->t('Payments repeat from this date (optional)')); ?></small>
+            </div>
+
             <div class="form-group" id="expected-month-group" style="display: none;">
                 <label for="income-expected-month"><?php p($l->t('Expected Month')); ?></label>
                 <select id="income-expected-month" aria-describedby="income-expected-month-help">

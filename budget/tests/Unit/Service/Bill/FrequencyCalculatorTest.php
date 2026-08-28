@@ -121,6 +121,98 @@ class FrequencyCalculatorTest extends TestCase {
 		$this->assertSame('2099-06-15', $result);
 	}
 
+	// ── calculateNextDueDate with an anchor date (#363, #364) ───────
+	// Weekly/biweekly occurrences fall on anchor + n*interval; the anchor
+	// carries both the weekday and (for biweekly) the week parity, so dueDay
+	// is ignored. Anchors are exercised relative to the real "today" because
+	// the calculator compares against it internally.
+
+	public function testBiweeklyPastAnchorPreservesWeekParity(): void {
+		// Anchor 21 days ago: occurrences at -21, -7 and +7 days. The same
+		// weekday also falls today, but that is the wrong fortnight — the
+		// next occurrence must be in 7 days, not today or in 14.
+		$anchor = (new \DateTime('-21 days'))->format('Y-m-d');
+		$expected = (new \DateTime('+7 days'))->format('Y-m-d');
+
+		$result = $this->calculator->calculateNextDueDate('biweekly', null, null, null, null, false, $anchor);
+
+		$this->assertSame($expected, $result);
+	}
+
+	public function testWeeklyPastAnchorImpliesWeekday(): void {
+		// Anchor 10 days ago: occurrences at -10, -3 and +4 days.
+		$anchor = (new \DateTime('-10 days'))->format('Y-m-d');
+		$expected = (new \DateTime('+4 days'))->format('Y-m-d');
+
+		$result = $this->calculator->calculateNextDueDate('weekly', null, null, null, null, false, $anchor);
+
+		$this->assertSame($expected, $result);
+	}
+
+	public function testBiweeklyFutureAnchorIsTheFirstOccurrence(): void {
+		// 2099-03-04 is a Wednesday; dueDay 1 (Monday) must be ignored —
+		// the anchor itself is the first occurrence.
+		$result = $this->calculator->calculateNextDueDate('biweekly', 1, null, null, null, false, '2099-03-04');
+
+		$this->assertSame('2099-03-04', $result);
+	}
+
+	public function testBiweeklyAnchorIgnoresOutOfRangeDueDay(): void {
+		// An out-of-range dueDay (15) used to wrap mod 7; with an anchor it
+		// is simply irrelevant.
+		$result = $this->calculator->calculateNextDueDate('biweekly', 15, null, null, null, false, '2099-03-04');
+
+		$this->assertSame('2099-03-04', $result);
+	}
+
+	public function testBiweeklyAnchorTodayIsDueToday(): void {
+		$today = (new \DateTime())->format('Y-m-d');
+
+		$result = $this->calculator->calculateNextDueDate('biweekly', null, null, null, null, false, $today);
+
+		$this->assertSame($today, $result);
+	}
+
+	public function testBiweeklyAnchorAdvancesStrictlyPastFromDate(): void {
+		// 2099-01-05 is a Monday. Receiving/paying ON an occurrence advances
+		// to the next one, never returns the same date back.
+		$result = $this->calculator->calculateNextDueDate('biweekly', null, null, '2099-01-19', null, false, '2099-01-05');
+
+		$this->assertSame('2099-02-02', $result);
+	}
+
+	public function testBiweeklyAnchorFromDateBetweenOccurrences(): void {
+		$result = $this->calculator->calculateNextDueDate('biweekly', null, null, '2099-01-12', null, false, '2099-01-05');
+
+		$this->assertSame('2099-01-19', $result);
+	}
+
+	public function testBiweeklyAnchorPastFromDateNeverReturnsPastDate(): void {
+		// A stale reference date (last received weeks ago) must not produce
+		// an occurrence in the past — the result stays after today.
+		$anchor = (new \DateTime('-21 days'))->format('Y-m-d');
+		$fromDate = (new \DateTime('-10 days'))->format('Y-m-d');
+		$expected = (new \DateTime('+7 days'))->format('Y-m-d');
+
+		$result = $this->calculator->calculateNextDueDate('biweekly', null, null, $fromDate, null, false, $anchor);
+
+		$this->assertSame($expected, $result);
+	}
+
+	public function testForceAdvancePathUnchangedByAnchor(): void {
+		// After a payment the due date advances exactly one interval from the
+		// old due date — the anchor plays no part (parity already encoded).
+		$result = $this->calculator->calculateNextDueDate('biweekly', null, null, '2099-01-05', null, true, '2098-12-08');
+
+		$this->assertSame('2099-01-19', $result);
+	}
+
+	public function testMonthlyIgnoresAnchor(): void {
+		$result = $this->calculator->calculateNextDueDate('monthly', 15, null, '2099-06-01', null, false, '2099-06-20');
+
+		$this->assertSame('2099-06-15', $result);
+	}
+
 	// ── getMonthlyEquivalentFromValues ──────────────────────────────
 
 	public function testMonthlyEquivalentDaily(): void {
