@@ -107,7 +107,8 @@ class RecurringIncomeController extends Controller {
         ?string $notes = null,
         bool $autoCreateEnabled = false,
         ?string $description = null,
-        bool $excludedFromForecast = false
+        bool $excludedFromForecast = false,
+        ?string $startDate = null
     ): DataResponse {
         try {
             // Validate name (required)
@@ -163,6 +164,16 @@ class RecurringIncomeController extends Controller {
                 $autoDetectPattern = $patternValidation['sanitized'];
             }
 
+            // Validate startDate if provided (#363)
+            if ($startDate !== null && $startDate !== '') {
+                $startDateValidation = $this->validationService->validateDate($startDate, $this->l->t('Start date'), false);
+                if (!$startDateValidation['valid']) {
+                    return new DataResponse(['error' => $startDateValidation['error']], Http::STATUS_BAD_REQUEST);
+                }
+            } else {
+                $startDate = null;
+            }
+
             $income = $this->service->create(
                 $this->getEffectiveUserId(),
                 $name,
@@ -177,7 +188,8 @@ class RecurringIncomeController extends Controller {
                 $notes,
                 $autoCreateEnabled,
                 $description,
-                $excludedFromForecast
+                $excludedFromForecast,
+                $startDate
             );
 
             return new DataResponse($income, Http::STATUS_CREATED);
@@ -205,7 +217,7 @@ class RecurringIncomeController extends Controller {
                 'name', 'description', 'amount', 'frequency', 'expectedDay',
                 'expectedMonth', 'categoryId', 'accountId', 'source',
                 'autoDetectPattern', 'notes', 'autoCreateEnabled', 'isActive',
-                'lastReceivedDate', 'excludedFromForecast',
+                'lastReceivedDate', 'excludedFromForecast', 'startDate',
             ];
             $data = array_intersect_key($data, array_flip($allowed));
 
@@ -251,6 +263,18 @@ class RecurringIncomeController extends Controller {
             if (isset($data['expectedMonth']) && $data['expectedMonth'] !== null) {
                 if ($data['expectedMonth'] < 1 || $data['expectedMonth'] > 12) {
                     return new DataResponse(['error' => $this->l->t('Expected month must be between 1 and 12')], Http::STATUS_BAD_REQUEST);
+                }
+            }
+
+            // Validate startDate if provided; empty string clears it (#363)
+            if (array_key_exists('startDate', $data)) {
+                if ($data['startDate'] !== null && $data['startDate'] !== '') {
+                    $startDateValidation = $this->validationService->validateDate($data['startDate'], $this->l->t('Start date'), false);
+                    if (!$startDateValidation['valid']) {
+                        return new DataResponse(['error' => $startDateValidation['error']], Http::STATUS_BAD_REQUEST);
+                    }
+                } else {
+                    $data['startDate'] = null;
                 }
             }
 

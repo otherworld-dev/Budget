@@ -472,12 +472,19 @@ export default class TransfersModule {
                                 </select>
                                 </div>
 
-                                <div class="form-group">
-                                <label for="transfer-due-day">${t('budget', 'Day of Month (1-31)')}</label>
+                                <div class="form-group" id="transfer-due-day-group">
+                                <label for="transfer-due-day" id="transfer-due-day-label">${t('budget', 'Day of Month (1-31)')}</label>
                                 <input type="number" id="transfer-due-day"
                                 min="1" max="31" placeholder="${t('budget', 'e.g., 15')}"
                                 value="${isEdit && transfer.dueDay ? transfer.dueDay : ''}">
-                                <small class="form-text">${t('budget', 'Leave empty for weekly transfers')}</small>
+                                <small class="form-text" id="transfer-due-day-help"></small>
+                                </div>
+
+                                <div class="form-group" id="transfer-start-date-group" style="display: none;">
+                                <label for="transfer-start-date">${t('budget', 'Start Date')}</label>
+                                <input type="date" id="transfer-start-date"
+                                value="${isEdit && transfer.startDate ? transfer.startDate : ''}">
+                                <small class="form-text" id="transfer-start-date-help"></small>
                                 </div>
                               </div>
                             </div>
@@ -562,6 +569,19 @@ export default class TransfersModule {
             initSingleDatePicker(transferDateInput, this.app.settings);
         }
 
+        // Start date (anchors weekly/biweekly schedules server-side, #364)
+        const transferStartDateInput = document.getElementById('transfer-start-date');
+        if (transferStartDateInput) {
+            initSingleDatePicker(transferStartDateInput, this.app.settings);
+        }
+
+        // Frequency-aware due day / start date fields (mirrors the bills form)
+        const transferFrequencySelect = document.getElementById('transfer-frequency');
+        if (transferFrequencySelect) {
+            transferFrequencySelect.addEventListener('change', () => this.updateTransferScheduleFields());
+        }
+        this.updateTransferScheduleFields();
+
         // Category change listener - load tag sets for selected category
         const categorySelect = document.getElementById('transfer-category');
         if (categorySelect) {
@@ -645,6 +665,42 @@ export default class TransfersModule {
         });
     }
 
+    /**
+     * Make the schedule fields follow the frequency, exactly like the bills
+     * form: weekly/biweekly take a weekday (1-7), everything else a day of
+     * month (1-31). The start date shows for every recurring frequency —
+     * for weekly/biweekly it anchors the schedule (weekday + fortnight,
+     * #364), for the rest it floors the first occurrence (#268).
+     */
+    updateTransferScheduleFields() {
+        const frequency = document.getElementById('transfer-frequency')?.value;
+        const dueDayLabel = document.getElementById('transfer-due-day-label');
+        const dueDayInput = document.getElementById('transfer-due-day');
+        const dueDayHelp = document.getElementById('transfer-due-day-help');
+        const startDateGroup = document.getElementById('transfer-start-date-group');
+        const startDateHelp = document.getElementById('transfer-start-date-help');
+        if (!frequency || !dueDayLabel || !dueDayInput) return;
+
+        if (frequency === 'weekly' || frequency === 'biweekly') {
+            dueDayLabel.textContent = t('budget', 'Due Day (1-7)');
+            if (dueDayHelp) dueDayHelp.textContent = t('budget', 'Day of the week (1=Monday, 7=Sunday)');
+            dueDayInput.max = 7;
+        } else {
+            dueDayLabel.textContent = t('budget', 'Day of Month (1-31)');
+            if (dueDayHelp) dueDayHelp.textContent = t('budget', 'Day of the month when the transfer is due');
+            dueDayInput.max = 31;
+        }
+
+        if (startDateGroup) {
+            startDateGroup.style.display = frequency === 'one-time' ? 'none' : 'block';
+        }
+        if (startDateHelp) {
+            startDateHelp.textContent = (frequency === 'weekly' || frequency === 'biweekly')
+                ? t('budget', 'The transfer repeats from this date (optional)')
+                : t('budget', 'Transfer only occurs on or after this date (optional)');
+        }
+    }
+
     async saveTransfer(existingTransfer = null) {
         const name = document.getElementById('transfer-name').value;
         const amountType = document.getElementById('transfer-amount-type')?.value || 'fixed';
@@ -656,6 +712,7 @@ export default class TransfersModule {
         const toAccountId = parseInt(document.getElementById('recurring-transfer-to-account').value);
         const dueDay = document.getElementById('transfer-due-day').value ?
                        parseInt(document.getElementById('transfer-due-day').value) : null;
+        const startDate = document.getElementById('transfer-start-date')?.value || null;
         const transferDescriptionPattern = document.getElementById('transfer-description-pattern').value || null;
         const categoryId = document.getElementById('transfer-category')?.value ? parseInt(document.getElementById('transfer-category').value) : null;
         const tagIds = this.getSelectedTagIds();
@@ -688,6 +745,7 @@ export default class TransfersModule {
             accountId: fromAccountId,
             destinationAccountId: toAccountId,
             dueDay,
+            startDate,
             transferDescriptionPattern,
             categoryId,
             tagIds,

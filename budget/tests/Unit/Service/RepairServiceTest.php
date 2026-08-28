@@ -574,6 +574,40 @@ class RepairServiceTest extends TestCase {
         $this->assertEquals(1, $result['stuckBills']['found']);
     }
 
+    public function testRepairStuckBillsFarFutureRecalcPassesStartDateAnchor(): void {
+        // The far-future path recalculates from scratch; for an anchored
+        // biweekly bill that recalc must run from the startDate anchor or the
+        // repaired date lands in the wrong fortnight (#364).
+        $this->withAccounts([]);
+
+        $bill = $this->makeBill([
+            'id' => 2,
+            'name' => 'Pay cycle',
+            'frequency' => 'biweekly',
+            'lastPaidDate' => '2026-01-16',
+            'nextDueDate' => '2040-01-01', // >10 years out: far_future_due_date
+            'dueDay' => 5,
+        ]);
+        $bill->setStartDate('2026-01-02');
+        $this->withActiveBills([$bill]);
+
+        $this->billMapper->method('find')
+            ->with(2, self::USER_ID)
+            ->willReturn($bill);
+
+        $captured = null;
+        $this->frequencyCalculator->method('calculateNextDueDate')
+            ->willReturnCallback(function (...$args) use (&$captured) {
+                $captured = $args;
+                return '2026-09-04';
+            });
+
+        $result = $this->service->repair(self::USER_ID, ['stuckBills']);
+
+        $this->assertEquals(1, $result['stuckBills']['fixed']);
+        $this->assertSame('2026-01-02', $captured[6] ?? null, 'far-future recalc must anchor to the start date');
+    }
+
     // ---------------------------------------------------------------
     // 16. repair paidOneTimeBills - deactivates them
     // ---------------------------------------------------------------

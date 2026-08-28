@@ -338,6 +338,61 @@ class RecurringIncomeServiceTest extends TestCase {
         $this->assertEquals('Freelance', $result[1]->getName());
     }
 
+    // ===== startDate anchor (#363) =====
+
+    public function testCreateWithStartDatePassesAnchorToCalculator(): void {
+        $this->frequencyCalculator->expects($this->once())->method('calculateNextDueDate')
+            ->with('biweekly', 5, null, null, null, false, '2026-08-14')
+            ->willReturn('2026-09-11');
+
+        $this->mapper->expects($this->once())->method('insert')
+            ->willReturnCallback(function (RecurringIncome $i) {
+                $this->assertSame('2026-08-14', $i->getStartDate());
+                $this->assertSame('2026-09-11', $i->getNextExpectedDate());
+                $this->assertSame('2026-08-14', $i->jsonSerialize()['startDate']);
+                $i->setId(1);
+                return $i;
+            });
+
+        $this->service->create('user1', 'Wages', 900.0, 'biweekly', 5, startDate: '2026-08-14');
+    }
+
+    public function testUpdateStartDateTriggersRecalcWithAnchor(): void {
+        $income = $this->makeIncome(['frequency' => 'biweekly', 'expectedDay' => 5]);
+        $this->mapper->method('find')->willReturn($income);
+        $this->mapper->method('update')->willReturnArgument(0);
+
+        $this->frequencyCalculator->expects($this->once())->method('calculateNextDueDate')
+            ->with('biweekly', 5, null, null, null, false, '2026-08-14')
+            ->willReturn('2026-09-11');
+
+        $result = $this->service->update(1, 'user1', ['startDate' => '2026-08-14']);
+
+        $this->assertSame('2026-08-14', $result->getStartDate());
+        $this->assertSame('2026-09-11', $result->getNextExpectedDate());
+    }
+
+    public function testMarkReceivedPassesAnchorForParity(): void {
+        // With an anchor the calculator recomputes from it (first occurrence
+        // after the received date) — parity survives an early/late receipt.
+        $income = $this->makeIncome([
+            'frequency' => 'biweekly',
+            'expectedDay' => 5,
+            'nextExpectedDate' => '2026-03-27',
+        ]);
+        $income->setStartDate('2026-01-02');
+        $this->mapper->method('find')->willReturn($income);
+        $this->mapper->method('update')->willReturnArgument(0);
+
+        $this->frequencyCalculator->expects($this->once())->method('calculateNextDueDate')
+            ->with('biweekly', 5, null, '2026-03-25', null, false, '2026-01-02')
+            ->willReturn('2026-04-10');
+
+        $result = $this->service->markReceived(1, 'user1', '2026-03-25');
+
+        $this->assertSame('2026-04-10', $result->getNextExpectedDate());
+    }
+
     public function testUpdatePersistsNonNullChangesWhenRequestAlsoContainsNullFields(): void {
         $income = $this->makeIncome([
             'expectedDay' => 25,

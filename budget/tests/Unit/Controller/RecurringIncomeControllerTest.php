@@ -39,6 +39,8 @@ class RecurringIncomeControllerTest extends TestCase {
 			->willReturn(['valid' => true, 'formatted' => 'monthly']);
 		$this->validationService->method('validatePattern')
 			->willReturn(['valid' => true, 'sanitized' => 'SALARY']);
+		$this->validationService->method('validateDate')
+			->willReturn(['valid' => true, 'error' => null, 'formatted' => null]);
 
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn(true);
@@ -188,6 +190,105 @@ class RecurringIncomeControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertSame('Updated note', $captured['description']);
+	}
+
+	// ── startDate (#363) ────────────────────────────────────────────
+
+	public function testCreatePassesStartDateToService(): void {
+		$income = $this->createMock(RecurringIncome::class);
+		$captured = null;
+		$this->service->method('create')->willReturnCallback(function (...$args) use (&$captured, $income) {
+			$captured = $args;
+			return $income;
+		});
+
+		$response = $this->controller->create(
+			'Wages', 900.0, 'biweekly', 5, null, null, null, null, null, null, false, null, false, '2026-08-14'
+		);
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		// startDate is the 15th positional arg (index 14), after excludedFromForecast.
+		$this->assertSame('2026-08-14', $captured[14] ?? null, 'startDate must be passed to service::create');
+	}
+
+	public function testCreateRejectsMalformedStartDate(): void {
+		$validationService = $this->createMock(ValidationService::class);
+		$validationService->method('validateName')
+			->willReturn(['valid' => true, 'sanitized' => 'Wages']);
+		$validationService->method('validateFrequency')
+			->willReturn(['valid' => true, 'formatted' => 'biweekly']);
+		$validationService->method('validateDate')
+			->willReturn(['valid' => false, 'error' => 'Start date must be in YYYY-MM-DD format', 'formatted' => null]);
+
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$controller = new RecurringIncomeController(
+			$this->request,
+			$this->service,
+			$validationService,
+			$granularShareService,
+			$this->l,
+			'user1',
+			$this->logger
+		);
+
+		$response = $controller->create('Wages', 900.0, 'biweekly', null, null, null, null, null, null, null, false, null, false, 'not-a-date');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('Start date', $response->getData()['error']);
+	}
+
+	public function testUpdateAcceptsStartDate(): void {
+		$this->request->method('getParams')->willReturn(['startDate' => '2026-08-14']);
+		$income = $this->createMock(RecurringIncome::class);
+		$captured = null;
+		$this->service->method('update')->willReturnCallback(function ($id, $userId, $data) use (&$captured, $income) {
+			$captured = $data;
+			return $income;
+		});
+
+		$response = $this->controller->update(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame('2026-08-14', $captured['startDate'] ?? null);
+	}
+
+	public function testUpdateClearsStartDateWithEmptyString(): void {
+		$this->request->method('getParams')->willReturn(['startDate' => '']);
+		$income = $this->createMock(RecurringIncome::class);
+		$captured = null;
+		$this->service->method('update')->willReturnCallback(function ($id, $userId, $data) use (&$captured, $income) {
+			$captured = $data;
+			return $income;
+		});
+
+		$response = $this->controller->update(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertArrayHasKey('startDate', $captured);
+		$this->assertNull($captured['startDate']);
+	}
+
+	public function testUpdateRejectsMalformedStartDate(): void {
+		$validationService = $this->createMock(ValidationService::class);
+		$validationService->method('validateDate')
+			->willReturn(['valid' => false, 'error' => 'Start date must be in YYYY-MM-DD format', 'formatted' => null]);
+
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$controller = new RecurringIncomeController(
+			$this->request,
+			$this->service,
+			$validationService,
+			$granularShareService,
+			$this->l,
+			'user1',
+			$this->logger
+		);
+		$this->request->method('getParams')->willReturn(['startDate' => 'not-a-date']);
+
+		$response = $controller->update(5);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
 	public function testCreateRejectsInvalidExpectedDay(): void {

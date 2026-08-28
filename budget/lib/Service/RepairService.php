@@ -719,7 +719,9 @@ class RepairService {
                 $bill = $this->billMapper->find($item['billId'], $userId);
 
                 // For far-future dates, recalculate from scratch (today) rather
-                // than force-advancing from the broken date
+                // than force-advancing from the broken date. The bill's
+                // startDate anchors weekly/biweekly parity in that recalc
+                // (#364); the forceAdvance path ignores it by design.
                 $isFarFuture = $item['reason'] === 'far_future_due_date';
                 $nextDue = $this->frequencyCalculator->calculateNextDueDate(
                     $bill->getFrequency(),
@@ -727,7 +729,8 @@ class RepairService {
                     $bill->getDueMonth(),
                     $isFarFuture ? null : $bill->getNextDueDate(),
                     $bill->getCustomRecurrencePattern(),
-                    !$isFarFuture // forceAdvance only for non-far-future
+                    !$isFarFuture, // forceAdvance only for non-far-future
+                    $bill->getStartDate()
                 );
 
                 // Only update if it actually advanced
