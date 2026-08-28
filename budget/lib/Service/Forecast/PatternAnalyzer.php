@@ -6,6 +6,7 @@ namespace OCA\Budget\Service\Forecast;
 
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\TransactionSplitMapper;
+use OCA\Budget\Service\MoneyCalculator;
 
 /**
  * Analyzes transaction patterns for forecasting.
@@ -189,14 +190,16 @@ class PatternAnalyzer {
             ? []
             : $this->splitMapper->findByTransactionIds($splitIds);
 
+        // Money accumulates through MoneyCalculator, never `+=` on floats
+        // (#274): the month totals are exact decimal strings until the edge.
         $add = static function (int $categoryId, string $month, float $amount) use (&$categoryTotals): void {
             if (!isset($categoryTotals[$categoryId])) {
                 $categoryTotals[$categoryId] = [];
             }
             if (!isset($categoryTotals[$categoryId][$month])) {
-                $categoryTotals[$categoryId][$month] = 0;
+                $categoryTotals[$categoryId][$month] = '0';
             }
-            $categoryTotals[$categoryId][$month] += $amount;
+            $categoryTotals[$categoryId][$month] = MoneyCalculator::add($categoryTotals[$categoryId][$month], $amount);
         };
 
         foreach ($transactions as $transaction) {
@@ -225,7 +228,7 @@ class PatternAnalyzer {
 
         $breakdown = [];
         foreach ($categoryTotals as $categoryId => $monthlyAmounts) {
-            $values = array_values($monthlyAmounts);
+            $values = array_map([MoneyCalculator::class, 'toFloat'], array_values($monthlyAmounts));
             $avgMonthly = count($values) > 0 ? array_sum($values) / count($values) : 0;
             $trend = $this->trendCalculator->calculateTrend($values);
 

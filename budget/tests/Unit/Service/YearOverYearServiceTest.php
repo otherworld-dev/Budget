@@ -262,6 +262,46 @@ class YearOverYearServiceTest extends TestCase {
         $this->assertEqualsWithDelta(0.0, $years[1]['spending'], 0.005);
     }
 
+    /**
+     * yearRange() is the single authority for a comparison year's window.
+     * The split-totals pass and the per-category direct pass must cover the
+     * same dates — the current year capped at today, past years whole — or
+     * a category's split allocations are counted over a different window
+     * than its direct spending.
+     */
+    public function testCompareCategorySpendingUsesOneWindowForDirectAndSplitPasses(): void {
+        $expense = $this->makeCategory(1, 'Food', 'expense');
+        $this->categoryMapper->method('findAll')->willReturn([$expense]);
+
+        $splitWindows = [];
+        $directWindows = [];
+
+        $transactionMapper = $this->createMock(TransactionMapper::class);
+        $transactionMapper->method('getSplitTransactionIds')
+            ->willReturnCallback(static function (string $u, string $start, string $end, ...$rest) use (&$splitWindows): array {
+                $splitWindows[] = [$start, $end];
+                return [];
+            });
+        $transactionMapper->method('getCategorySpending')
+            ->willReturnCallback(static function (string $u, int $catId, string $start, string $end, ...$rest) use (&$directWindows): float {
+                $directWindows[] = [$start, $end];
+                return 0.0;
+            });
+
+        $splitMapper = $this->createMock(TransactionSplitMapper::class);
+        $splitMapper->method('getCategoryTotals')->willReturn([]);
+
+        $service = new YearOverYearService($transactionMapper, $this->categoryMapper, $splitMapper);
+        $service->compareCategorySpending('user1', 2);
+
+        $this->assertSame($splitWindows, $directWindows);
+        // The year in progress ends today, not on Dec 31 …
+        $this->assertSame([date('Y') . '-01-01', date('Y-m-d')], $splitWindows[0]);
+        // … and the completed year is whole.
+        $lastYear = (int) date('Y') - 1;
+        $this->assertSame(["$lastYear-01-01", "$lastYear-12-31"], $splitWindows[1]);
+    }
+
     // ===== getMonthlyTrends =====
 
     public function testGetMonthlyTrendsReturnsTrendData(): void {

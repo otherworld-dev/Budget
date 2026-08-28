@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Db;
 
+use OCA\Budget\Service\MoneyCalculator;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\QBMapper;
 use OCP\DB\QueryBuilder\IQueryBuilder;
@@ -201,12 +202,15 @@ class TransactionSplitMapper extends QBMapper {
             $result = $qb->executeQuery();
             while ($row = $result->fetch()) {
                 $categoryId = $row['category_id'] ? (int) $row['category_id'] : null;
-                $totals[$categoryId] = ($totals[$categoryId] ?? 0.0) + (float) $row['total'];
+                // Cross-chunk money accumulates through MoneyCalculator,
+                // never `+` on floats (#274) — these totals leave here
+                // unrounded, so any drift went straight to the callers.
+                $totals[$categoryId] = MoneyCalculator::add($totals[$categoryId] ?? '0', (string) $row['total']);
             }
             $result->closeCursor();
         }
 
-        return $totals;
+        return array_map([MoneyCalculator::class, 'toFloat'], $totals);
     }
 
     /**

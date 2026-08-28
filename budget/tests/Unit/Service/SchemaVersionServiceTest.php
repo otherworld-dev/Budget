@@ -49,14 +49,16 @@ class SchemaVersionServiceTest extends TestCase {
     }
 
     protected function tearDown(): void {
-        foreach (glob($this->migrationDir . '/*') ?: [] as $f) {
-            @unlink($f);
+        foreach ([$this->migrationDir, $this->migrationDir . '-late'] as $dir) {
+            foreach (glob($dir . '/*') ?: [] as $f) {
+                @unlink($f);
+            }
+            @rmdir($dir);
         }
-        @rmdir($this->migrationDir);
     }
 
     /** @param string[] $applied */
-    private function service(array $applied, string $verifiedFor = '', string $appVersion = '2.44.1'): SchemaVersionService {
+    private function service(array $applied, string $verifiedFor = '', string $appVersion = '2.44.1', ?string $migrationDir = null): SchemaVersionService {
         $result = $this->createMock(IResult::class);
         $rows = array_map(static fn(string $v): array => ['version' => $v], $applied);
         $rows[] = false; // fetch() returns false when exhausted
@@ -80,7 +82,7 @@ class SchemaVersionServiceTest extends TestCase {
             ->with('budget', 'schema_verified_for', '')
             ->willReturn($verifiedFor);
 
-        return new SchemaVersionService($this->config, $this->db, $this->l, $appVersion, $this->migrationDir);
+        return new SchemaVersionService($this->config, $this->db, $this->l, $appVersion, $migrationDir ?? $this->migrationDir);
     }
 
     public function testShippedMigrationsAreReadFromDiskAndNonMigrationsIgnored(): void {
@@ -160,6 +162,58 @@ class SchemaVersionServiceTest extends TestCase {
 
     public function testACleanReadableInstanceIsRecordedAsVerified(): void {
         $service = $this->service(['001000096Date20260824', '001000097Date20260825']);
+
+        $this->config->expects($this->once())
+            ->method('setAppValue')
+            ->with('budget', 'schema_verified_for', '2.44.1');
+
+        $this->assertFalse($service->isBehind());
+    }
+
+    /**
+     * The race the verified marker must survive: a scandir that fails and
+     * then succeeds within the same request (a file-swap deploy finishing
+     * mid-request). getPendingMigrations() computed pending = [] from the
+     * FAILED scan; isBehind() then re-scanned, saw files, and recorded the
+     * version as verified while a migration was genuinely pending —
+     * permanently silencing the warning banner on exactly the broken
+     * instance it exists for. The marker may only ever come from the same
+     * coherent successful scan that pending was computed from.
+     */
+    public function testAScanFailureIsNotRepairedIntoAVerifiedMarkerLaterInTheRequest(): void {
+        $lateDir = $this->migrationDir . '-late';
+        // Nothing applied, so once the directory exists its migration is
+        // genuinely pending.
+        $service = $this->service([], '', '2.44.1', $lateDir);
+
+        $this->config->expects($this->never())->method('setAppValue');
+
+        // First scan fails: the directory does not exist yet.
+        $this->assertSame([], $service->getPendingMigrations());
+
+        // The directory appears mid-request; a fresh scan would now succeed.
+        mkdir($lateDir, 0777, true);
+        file_put_contents($lateDir . '/Version001000097Date20260825.php', '<?php');
+
+        $this->assertFalse($service->isBehind());
+        $this->assertNull($service->getWarning());
+    }
+
+    /**
+     * The clean path reads the migration directory once per request: pending
+     * and the verified marker share one memoized scan. Deleting the
+     * directory after the first read proves it — a second scan would fail
+     * and (correctly) refuse to record the marker.
+     */
+    public function testTheCleanPathScansTheMigrationDirectoryOnce(): void {
+        $service = $this->service(['001000096Date20260824', '001000097Date20260825']);
+
+        $this->assertSame([], $service->getPendingMigrations());
+
+        foreach (glob($this->migrationDir . '/*') ?: [] as $f) {
+            unlink($f);
+        }
+        rmdir($this->migrationDir);
 
         $this->config->expects($this->once())
             ->method('setAppValue')

@@ -44,6 +44,17 @@ class SchemaVersionService {
     /** Computed at most once per request: isBehind() and getWarning() share it. */
     private ?array $pending = null;
 
+    /**
+     * The directory scan, memoized: null = not scanned yet, false = the scan
+     * failed. One scan per request, shared by every consumer — pending and
+     * the verified marker MUST come from the same scan. When they did not, a
+     * scandir failure (pending computed as "none" from the failed scan)
+     * "repaired" by a later successful scan recorded the version as verified
+     * while migrations were genuinely pending, permanently silencing the
+     * warning on exactly the broken instance it exists for.
+     */
+    private array|false|null $shipped = null;
+
     public function __construct(
         private IConfig $config,
         private IDBConnection $db,
@@ -59,9 +70,18 @@ class SchemaVersionService {
      * @return string[]
      */
     public function getShippedMigrations(): array {
+        if ($this->shipped === null) {
+            $this->shipped = $this->scanShippedMigrations();
+        }
+
+        return $this->shipped === false ? [] : $this->shipped;
+    }
+
+    /** @return string[]|false false when the directory could not be read */
+    private function scanShippedMigrations(): array|false {
         $files = @scandir($this->migrationDir);
         if ($files === false) {
-            return [];
+            return false;
         }
 
         $versions = [];
@@ -111,9 +131,12 @@ class SchemaVersionService {
 
         $shipped = $this->getShippedMigrations();
         if ($shipped === []) {
-            // Cannot read the directory: report nothing rather than warn on a
-            // guess, since this renders on every page load.
-            return $this->pending = [];
+            // Cannot read the directory (or it ships nothing): report nothing
+            // rather than warn on a guess, since this renders on every page
+            // load. Deliberately not cached as $pending — this is not a
+            // computed answer, and isBehind() must see the same failed-scan
+            // state (via the memoized $shipped) rather than a cached [].
+            return [];
         }
 
         $pending = array_values(array_diff($shipped, $this->getAppliedMigrations()));
@@ -137,7 +160,9 @@ class SchemaVersionService {
         // reports nothing pending, and recording THAT as verified would
         // suppress the warning for the rest of this version's life on
         // exactly the broken instances this exists for — one scandir
-        // hiccup during a file-swap deploy would be enough.
+        // hiccup during a file-swap deploy would be enough. The memoized
+        // scan makes this the SAME scan pending was computed from, never
+        // a lucky retry.
         if ($this->getShippedMigrations() !== []) {
             $this->config->setAppValue(Application::APP_ID, self::CHECKED_KEY, $this->appVersion);
         }

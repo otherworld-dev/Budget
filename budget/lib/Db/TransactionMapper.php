@@ -4056,7 +4056,32 @@ class TransactionMapper extends QBMapper {
             if (count($currentGroup) > 1) {
                 $groups[] = $currentGroup;
             }
-            $currentGroup = [$tx];
+
+            // Re-anchor at the window boundary: tail rows of the flushed
+            // group that are within the window of THIS row still belong with
+            // it. Without the carry, same-amount rows on the 1st, 4th and 5th
+            // (3-day window) split as [1st, 4th] plus a lone 5th — a next-day
+            // duplicate reported nowhere. Carrying the tail keeps every
+            // within-window pair reported together (a boundary row can appear
+            // in two adjacent groups), while the first-row anchor above still
+            // caps every group's span at the window, so far-apart purchases
+            // cannot chain (#333). The carried rows are by construction all
+            // within the window of the new group's first row.
+            $carried = [];
+            if ($sameKey) {
+                // Rows within a key are date-sorted, so the carryable rows
+                // form a contiguous tail; the group's first row never
+                // qualifies (its distance to $tx is why we are flushing).
+                for ($i = count($currentGroup) - 1; $i >= 0; $i--) {
+                    $tailDiff = abs((strtotime($tx['date']) - strtotime($currentGroup[$i]['date'])) / 86400);
+                    if ($tailDiff > $dateWindowDays) {
+                        break;
+                    }
+                    array_unshift($carried, $currentGroup[$i]);
+                }
+            }
+            $carried[] = $tx;
+            $currentGroup = $carried;
         }
 
         // Don't forget the last group

@@ -269,6 +269,37 @@ class TransactionSplitMapperTest extends TestCase {
         $this->assertEquals(10.00, $totals[20]);
     }
 
+    /**
+     * Cross-chunk accumulation is money math and must go through
+     * MoneyCalculator (#274): 0.10 + 0.20 in doubles is 0.30000000000000004,
+     * and this method's totals are returned unrounded, so the drift was
+     * handed straight to every caller.
+     */
+    public function testGetCategoryTotalsAccumulatesAcrossChunksWithoutFloatDrift(): void {
+        $ids = range(1, 501); // two chunks: 500 + 1
+
+        $chunk1 = $this->createMock(IResult::class);
+        $chunk1->method('fetch')->willReturnOnConsecutiveCalls(
+            ['category_id' => '5', 'total' => '0.10'],
+            false
+        );
+        $chunk1->method('closeCursor');
+
+        $chunk2 = $this->createMock(IResult::class);
+        $chunk2->method('fetch')->willReturnOnConsecutiveCalls(
+            ['category_id' => '5', 'total' => '0.20'],
+            false
+        );
+        $chunk2->method('closeCursor');
+
+        $this->qb->expects($this->exactly(2))->method('executeQuery')
+            ->willReturnOnConsecutiveCalls($chunk1, $chunk2);
+
+        $totals = $this->mapper->getCategoryTotals($ids);
+
+        $this->assertSame(0.3, $totals[5]);
+    }
+
     // ===== deleteAll =====
 
     public function testDeleteAllReturnsAffectedRows(): void {

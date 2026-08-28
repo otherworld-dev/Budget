@@ -658,8 +658,8 @@ export default class CategoriesModule {
         const accountId = accountSelect ? accountSelect.value : '';
         const now = new Date();
         const startDate = new Date(now.getFullYear(), now.getMonth() - m, 1);
-        const startStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-01`;
-        const endStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const startStr = formatters.getMonthStart(startDate.getFullYear(), startDate.getMonth() + 1);
+        const endStr = formatters.formatDateForAPI(now);
         return { startStr, endStr, accountId };
     }
 

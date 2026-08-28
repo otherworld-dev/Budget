@@ -76,7 +76,10 @@ export default class SavingsModule {
         goalsList.innerHTML = goals.map(goal => {
             const current = parseFloat(goal.currentAmount || goal.current_amount) || 0;
             const target = parseFloat(goal.targetAmount || goal.target_amount) || 0;
-            const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+            // current can go negative (withdrawals exceeding deposits on a
+            // tag-linked goal); a negative width is invalid CSS and the fill
+            // paints full, so clamp at zero like the dashboard tiles do
+            const percentage = target > 0 ? Math.min(Math.max((current / target) * 100, 0), 100) : 0;
             const isCompleted = current >= target;
             const isTagLinked = goal.tagId != null;
             const color = goal.color || '#0082c9';

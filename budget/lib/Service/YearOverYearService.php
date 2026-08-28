@@ -167,22 +167,23 @@ class YearOverYearService {
             $categoryYears = [];
             for ($i = 0; $i < $years; $i++) {
                 $year = $currentYear - $i;
-                $startDate = sprintf('%04d-01-01', $year);
-                $endDate = sprintf('%04d-12-31', $year);
-
-                if ($year === $currentYear) {
-                    $endDate = date('Y-m-d');
-                }
+                // The same window the split-totals pass above used — the two
+                // must stay in lockstep, so both go through yearRange().
+                $range = $this->yearRange($year, $currentYear);
 
                 $spending = $this->transactionMapper->getCategorySpending(
                     $userId,
                     $category->getId(),
-                    $startDate,
-                    $endDate,
+                    $range['start'],
+                    $range['end'],
                     $accountId,
                     $visibleAccountIds
                 );
-                $spending += (float)($splitTotalsByYear[$year][$category->getId()] ?? 0);
+                // Money adds through MoneyCalculator, never `+=` on floats (#274).
+                $spending = MoneyCalculator::toFloat(MoneyCalculator::add(
+                    $spending,
+                    (float)($splitTotalsByYear[$year][$category->getId()] ?? 0)
+                ));
 
                 $categoryYears[] = [
                     'year' => $year,

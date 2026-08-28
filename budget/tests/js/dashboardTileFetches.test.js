@@ -109,4 +109,71 @@ describe('Category Trends', () => {
         expect(requested[1]).toContain('startDate=2026-06-24');
         expect(requested[1]).toContain('endDate=2026-07-24');
     });
+
+    /**
+     * categories/spending has returned netted, signed totals for ALL
+     * categories since v2.44.2 — income categories included. Their netted
+     * total is usually negative and fell to the >0 filter only by accident:
+     * a month where an income category's debits exceed its credits netted
+     * positive and rendered as "spending". The tile must scope itself to
+     * expense-type categories explicitly.
+     */
+    it('excludes income categories even when their netted total is positive', async () => {
+        const dash = makeDashboard({});
+        dash.app.categories = [
+            { id: 1, name: 'Food', type: 'expense' },
+            { id: 2, name: 'Salary', type: 'income' },
+        ];
+        global.fetch = vi.fn(async (url) => ({
+            ok: true,
+            json: async () => [
+                { categoryId: 1, name: 'Food', color: '#111111', spent: '120' },
+                // Refund-heavy month: the income category netted positive.
+                { categoryId: 2, name: 'Salary', color: '#222222', spent: '75' },
+            ],
+        }));
+
+        await dash.loadWidgetData('categoryTrends', true);
+
+        expect(dash.widgetData.categoryTrends.map(c => c.name)).toEqual(['Food']);
+    });
+
+    it('keeps netted values and drops expense categories netting to zero or below', async () => {
+        const dash = makeDashboard({});
+        dash.app.categories = [
+            { id: 1, name: 'Food', type: 'expense' },
+            { id: 3, name: 'Refunds', type: 'expense' },
+        ];
+        global.fetch = vi.fn(async (url) => ({
+            ok: true,
+            json: async () => [
+                { categoryId: 1, name: 'Food', color: '#111111', spent: '120' },
+                // A refund-heavy expense category netting <= 0 drops out —
+                // accepted behaviour, the netting is intended.
+                { categoryId: 3, name: 'Refunds', color: '#333333', spent: '-40' },
+            ],
+        }));
+
+        await dash.loadWidgetData('categoryTrends', true);
+
+        expect(dash.widgetData.categoryTrends.map(c => c.name)).toEqual(['Food']);
+        expect(dash.widgetData.categoryTrends[0].currentTotal).toBe(120);
+    });
+
+    it('treats a category missing from the client list as expense', async () => {
+        // Same resolution as the Budget page (CategoriesModule): anything
+        // not known to be income counts as expense.
+        const dash = makeDashboard({});
+        dash.app.categories = [];
+        global.fetch = vi.fn(async (url) => ({
+            ok: true,
+            json: async () => [
+                { categoryId: 99, name: 'Orphan', color: '#999999', spent: '10' },
+            ],
+        }));
+
+        await dash.loadWidgetData('categoryTrends', true);
+
+        expect(dash.widgetData.categoryTrends.map(c => c.name)).toEqual(['Orphan']);
+    });
 });

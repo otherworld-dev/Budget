@@ -1657,12 +1657,19 @@ class TransactionMapperTest extends TestCase {
      * to the group rather than the FIRST, so a run of legitimate same-amount
      * purchases a few days apart chained end-to-end into one "duplicate"
      * group spanning far more than the window (#333). Five rows two days
-     * apart (1st, 3rd, 5th, 7th, 9th) with a 3-day window: anchored to the
-     * first row of each group, the 5th is 4 days from the 1st and starts a
-     * new group, and the 9th is 4 days from the 5th and joins neither --
-     * two groups of two, not one group of five.
+     * apart (1st, 3rd, 5th, 7th, 9th) with a 3-day window must never merge
+     * into one group of five -- but hard-anchoring on each group's first row
+     * silently DROPPED boundary rows (the 9th appeared nowhere, and the 3rd
+     * and 5th -- two days apart -- were reported in different groups). The
+     * grouping now re-anchors at the boundary: when a row falls outside the
+     * window, tail rows of the flushed group still within the window of the
+     * new row carry into its group. Every pair of rows within the window of
+     * each other is reported together, at the cost of a boundary row
+     * appearing in two adjacent groups; no group ever spans more than the
+     * window. (Expectation deliberately changed from two groups of two when
+     * the boundary false negatives were fixed.)
      */
-    public function testFindDuplicatesOnlyChainsRowsWithinWindowOfTheFirstRow(): void {
+    public function testFindDuplicatesReAnchorsAtWindowBoundariesWithoutChaining(): void {
         $row = fn (int $id, string $date) => array_merge($this->makeTransactionRow([
             'id' => $id,
             'account_id' => 10,
@@ -1688,9 +1695,108 @@ class TransactionMapperTest extends TestCase {
 
         $groups = $this->mapper->findDuplicates('user1', 3);
 
-        $this->assertCount(2, $groups);
-        $this->assertSame([1, 2], array_column($groups[0], 'id'));
-        $this->assertSame([3, 4], array_column($groups[1], 'id'));
+        $this->assertSame([
+            [1, 2],
+            [2, 3],
+            [3, 4],
+            [4, 5],
+        ], array_map(fn (array $g) => array_column($g, 'id'), $groups));
+    }
+
+    /**
+     * The false negative the re-anchoring exists for: same-amount rows on
+     * the 1st, 4th and 5th with a 3-day window used to split as [1st, 4th]
+     * plus a lone 5th -- a next-day duplicate reported nowhere, because the
+     * 5th is 4 days from the group's first-row anchor.
+     */
+    public function testFindDuplicatesReportsANextDayPairAcrossAWindowBoundary(): void {
+        $row = fn (int $id, string $date) => array_merge($this->makeTransactionRow([
+            'id' => $id,
+            'account_id' => 10,
+            'amount' => 4.50,
+            'type' => 'debit',
+            'description' => 'Coffee Shop',
+            'date' => $date,
+        ]), [
+            'account_name' => 'Checking',
+            'account_currency' => 'USD',
+            'category_name' => 'Food',
+        ]);
+
+        $this->result->method('fetchAll')->willReturn([
+            $row(1, '2026-01-01'),
+            $row(2, '2026-01-04'),
+            $row(3, '2026-01-05'),
+        ]);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $groups = $this->mapper->findDuplicates('user1', 3);
+
+        $this->assertSame([
+            [1, 2],
+            [2, 3],
+        ], array_map(fn (array $g) => array_column($g, 'id'), $groups));
+    }
+
+    /** The #333 anti-chaining property: far-apart purchases are not duplicates. */
+    public function testFindDuplicatesNeverChainsRowsWeeksApart(): void {
+        $row = fn (int $id, string $date) => array_merge($this->makeTransactionRow([
+            'id' => $id,
+            'account_id' => 10,
+            'amount' => 4.50,
+            'type' => 'debit',
+            'description' => 'Coffee Shop',
+            'date' => $date,
+        ]), [
+            'account_name' => 'Checking',
+            'account_currency' => 'USD',
+            'category_name' => 'Food',
+        ]);
+
+        $this->result->method('fetchAll')->willReturn([
+            $row(1, '2026-01-01'),
+            $row(2, '2026-01-15'),
+            $row(3, '2026-02-01'),
+            $row(4, '2026-02-15'),
+            $row(5, '2026-03-01'),
+        ]);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $this->assertSame([], $this->mapper->findDuplicates('user1', 3));
+    }
+
+    /** Tail rows only carry across a window boundary within the same key. */
+    public function testFindDuplicatesDoesNotCarryTailRowsIntoADifferentDescription(): void {
+        $row = fn (int $id, string $desc, string $date) => array_merge($this->makeTransactionRow([
+            'id' => $id,
+            'account_id' => 10,
+            'amount' => 4.50,
+            'type' => 'debit',
+            'description' => $desc,
+            'date' => $date,
+        ]), [
+            'account_name' => 'Checking',
+            'account_currency' => 'USD',
+            'category_name' => 'Food',
+        ]);
+
+        $this->result->method('fetchAll')->willReturn([
+            $row(1, 'Coffee Shop', '2026-01-01'),
+            $row(2, 'Coffee Shop', '2026-01-01'),
+            $row(3, 'Tea House', '2026-01-01'),
+            $row(4, 'Tea House', '2026-01-01'),
+        ]);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $groups = $this->mapper->findDuplicates('user1', 3);
+
+        $this->assertSame([
+            [1, 2],
+            [3, 4],
+        ], array_map(fn (array $g) => array_column($g, 'id'), $groups));
     }
 
     /**

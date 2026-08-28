@@ -4300,7 +4300,20 @@ export default class DashboardModule {
                         ctPrev.forEach(c => { prevMap[c.categoryId] = parseFloat(c.spent || 0); });
                     }
 
+                    // categories/spending returns netted, signed totals for
+                    // ALL categories (income included) since v2.44.2. An
+                    // income category usually nets negative and falls to the
+                    // >0 filter below only by accident — a month where its
+                    // debits exceed its credits would render as "spending".
+                    // Scope the tile to expense-type categories explicitly,
+                    // with the Budget page's resolution: anything not known
+                    // to be income counts as expense.
+                    const ctIncomeIds = new Set((this.app.categories || [])
+                        .filter(cat => cat.type === 'income')
+                        .map(cat => Number(cat.id)));
+
                     this.widgetData.categoryTrends = (Array.isArray(ctCurrent) ? ctCurrent : [])
+                        .filter(c => !ctIncomeIds.has(Number(c.categoryId)))
                         .map(c => ({
                             name: c.name,
                             color: c.color,

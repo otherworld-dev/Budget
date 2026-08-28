@@ -119,6 +119,41 @@ class PatternAnalyzerTest extends TestCase {
 		$this->assertArrayNotHasKey(0, $byId);
 	}
 
+	/**
+	 * Month totals are money and must accumulate through MoneyCalculator,
+	 * not floats (#274). The magnitudes are chosen to make one pass of
+	 * double rounding visible: at 2^49 neighbouring doubles are 0.125
+	 * apart, so adding 0.05 to it changes nothing and the cancellation
+	 * that follows leaves 0 instead of 0.05. Exact decimal accumulation
+	 * keeps the 0.05 through to avgMonthly.
+	 */
+	public function testCategoryBreakdownAccumulatesSplitPartsWithoutFloatDrift(): void {
+		$big = 562949953421312.0; // 2^49
+		$split = $this->makeTransaction('2025-01-10', 0.05, 'debit', null);
+		$split->setId(7);
+		$split->setIsSplit(true);
+
+		$splitMapper = $this->createMock(TransactionSplitMapper::class);
+		$splitMapper->method('findByTransactionIds')->with([7])->willReturn([
+			7 => [
+				['categoryId' => 2, 'categoryName' => 'Groceries', 'amount' => $big],
+				['categoryId' => 2, 'categoryName' => 'Groceries', 'amount' => 0.05],
+				['categoryId' => 2, 'categoryName' => 'Groceries', 'amount' => -$big],
+			],
+		]);
+
+		$groceries = new \OCA\Budget\Db\Category();
+		$groceries->setId(2);
+		$groceries->setName('Groceries');
+		$this->categoryMapper->method('findByIds')->willReturn([2 => $groceries]);
+		$this->trendCalculator->method('getTrendDirection')->willReturn('stable');
+
+		$analyzer = new PatternAnalyzer($this->trendCalculator, $this->categoryMapper, $splitMapper);
+		$breakdown = $analyzer->getCategoryBreakdown('user1', [$split]);
+
+		$this->assertSame(0.05, $breakdown[0]['avgMonthly']);
+	}
+
 	// ── aggregateMonthlyData ────────────────────────────────────────
 
 	public function testAggregateMonthlyDataGroupsByMonth(): void {
