@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-08-28 18:23+0000\n"
+"POT-Creation-Date: 2026-08-28 23:08+0000\n"
 "PO-Revision-Date: 2026-08-24 01:09+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -79,7 +79,7 @@ msgstr "Konto nicht gefunden"
 #: /app/lib/Controller/AccountController.php:757
 #: /app/lib/Controller/AccountController.php:821
 #: /app/lib/Service/Export/TransactionCsvExporter.php:32
-#: /app/src/modules/dashboard/DashboardModule.js:4707
+#: /app/src/modules/dashboard/DashboardModule.js:4720
 #: /app/src/modules/rules/components/CriteriaBuilder.js:158
 #: /app/templates/index.php:998 /app/templates/index.php:1548
 #: /app/templates/index.php:1666 /app/templates/index.php:1730
@@ -1349,7 +1349,7 @@ msgid "Goal deleted successfully"
 msgstr "Ziel erfolgreich gelöscht"
 
 #: /app/lib/Controller/GoalsController.php:332
-#: /app/src/modules/savings/SavingsModule.js:434
+#: /app/src/modules/savings/SavingsModule.js:437
 msgid "Failed to delete goal"
 msgstr "Fehler beim Löschen des Ziels"
 
@@ -2804,7 +2804,7 @@ msgstr "Synchronisierung abgeschlossen, %1$s Fehler"
 
 #: /app/lib/Service/Bill/BillIcsService.php:54
 #: /app/src/core/KeyboardShortcuts.js:339
-#: /app/src/modules/dashboard/DashboardModule.js:5060
+#: /app/src/modules/dashboard/DashboardModule.js:5073
 #: /app/src/modules/help/HelpModule.js:29
 #: /app/src/modules/sharing/SharingModule.js:255 /app/templates/index.php:113
 #: /app/templates/index.php:2472 /app/templates/index.php:4583
@@ -3136,7 +3136,7 @@ msgstr "Aufteilung"
 #: /app/src/modules/dashboard/DashboardModule.js:2590
 #: /app/src/modules/dashboard/DashboardModule.js:2908
 #: /app/src/modules/dashboard/DashboardModule.js:2971
-#: /app/src/modules/dashboard/DashboardModule.js:5057
+#: /app/src/modules/dashboard/DashboardModule.js:5070
 #: /app/src/modules/help/HelpModule.js:28
 #: /app/src/modules/reports/ReportsModule.js:746
 #: /app/src/modules/reports/ReportsModule.js:1166
@@ -3363,7 +3363,7 @@ msgstr "Eine Kategorie mit diesem Namen existiert bereits in dieser Ebene"
 msgid "The report configuration is invalid or too large"
 msgstr "Die Berichtskonfiguration ist ungültig oder zu groß"
 
-#: /app/lib/Service/SchemaVersionService.php:162
+#: /app/lib/Service/SchemaVersionService.php:187
 msgid ""
 "A database update that came with this version of Budget was never applied "
 "(%n change is missing). Saving may fail until it is finished."
@@ -3955,7 +3955,7 @@ msgid "Dashboard"
 msgstr "Dashboard"
 
 #: /app/src/core/KeyboardShortcuts.js:334
-#: /app/src/modules/dashboard/DashboardModule.js:5056
+#: /app/src/modules/dashboard/DashboardModule.js:5069
 #: /app/src/modules/help/HelpModule.js:24 /app/templates/index.php:63
 #: /app/templates/index.php:1359 /app/templates/index.php:1509
 #: /app/templates/index.php:1930 /app/templates/index.php:2457
@@ -3966,7 +3966,7 @@ msgid "Transactions"
 msgstr "Buchungen"
 
 #: /app/src/core/KeyboardShortcuts.js:335
-#: /app/src/modules/dashboard/DashboardModule.js:4748
+#: /app/src/modules/dashboard/DashboardModule.js:4761
 #: /app/src/modules/help/HelpModule.js:25
 #: /app/src/modules/sharing/SharingModule.js:254 /app/templates/index.php:73
 #: /app/templates/index.php:1800 /app/templates/index.php:4571
@@ -3979,7 +3979,7 @@ msgstr "Kategorien"
 #: /app/src/modules/help/HelpModule.js:26
 #: /app/src/modules/reports/ReportsModule.js:437
 #: /app/src/modules/rules/RulesModule.js:829
-#: /app/src/modules/savings/SavingsModule.js:283
+#: /app/src/modules/savings/SavingsModule.js:286
 #: /app/src/modules/tagsets/TagSetsModule.js:653
 #: /app/src/modules/transactions/TransactionsModule.js:468
 #: /app/src/modules/transactions/TransactionsModule.js:4518
@@ -4248,7 +4248,7 @@ msgstr "Geteilte Ausgabe – nicht beglichen"
 
 #: /app/src/main.js:1196 /app/src/modules/categories/CategoriesModule.js:317
 #: /app/src/modules/rules/RulesModule.js:137
-#: /app/src/modules/savings/SavingsModule.js:120
+#: /app/src/modules/savings/SavingsModule.js:123
 msgid "Shared"
 msgstr "Geteilt"
 
@@ -4771,7 +4771,7 @@ msgstr "Saldo"
 #: /app/src/main.js:3055 /app/src/modules/accounts/AccountsModule.js:588
 #: /app/src/modules/assets/AssetsModule.js:165
 #: /app/src/modules/pensions/PensionsModule.js:118
-#: /app/src/modules/savings/SavingsModule.js:132
+#: /app/src/modules/savings/SavingsModule.js:135
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:197
 #: /app/src/modules/tagsets/TagSetsModule.js:83 /app/templates/index.php:1161
 #: /app/templates/index.php:1895 /app/templates/index.php:3841
@@ -4786,7 +4786,7 @@ msgstr "Bearbeiten"
 #: /app/src/modules/pensions/PensionsModule.js:818
 #: /app/src/modules/pensions/PensionsModule.js:819
 #: /app/src/modules/pensions/PensionsModule.js:1090
-#: /app/src/modules/savings/SavingsModule.js:135
+#: /app/src/modules/savings/SavingsModule.js:138
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:200
 #: /app/src/modules/tagsets/TagSetsModule.js:84 /app/templates/index.php:1649
 #: /app/templates/index.php:1899 /app/templates/index.php:3017
@@ -5307,7 +5307,7 @@ msgstr "Bitte wähle einen Buchungstyp"
 
 #: /app/src/modules/accounts/AccountsModule.js:2119
 #: /app/src/modules/accounts/AccountsModule.js:2240
-#: /app/src/modules/savings/SavingsModule.js:461
+#: /app/src/modules/savings/SavingsModule.js:464
 msgid "Please enter a valid amount"
 msgstr "Bitte gib eine gültige Summe ein"
 
@@ -5601,7 +5601,7 @@ msgstr "Sammlerstücke"
 
 #: /app/src/modules/assets/AssetsModule.js:108
 #: /app/src/modules/dashboard/DashboardModule.js:2004
-#: /app/src/modules/dashboard/DashboardModule.js:5063
+#: /app/src/modules/dashboard/DashboardModule.js:5076
 #: /app/templates/index.php:5329
 msgid "Other"
 msgstr "Sonstiges"
@@ -6627,7 +6627,7 @@ msgstr "Geteilt mit mir"
 
 #: /app/src/modules/categories/CategoriesModule.js:317
 #: /app/src/modules/rules/RulesModule.js:137
-#: /app/src/modules/savings/SavingsModule.js:120
+#: /app/src/modules/savings/SavingsModule.js:123
 msgid "Shared by {owner}"
 msgstr "Von {owner} geteilt"
 
@@ -6673,7 +6673,7 @@ msgid "Category reordered successfully"
 msgstr "Kategorie erfolgreich neu sortiert"
 
 #: /app/src/modules/categories/CategoriesModule.js:623
-#: /app/src/modules/dashboard/DashboardModule.js:4699
+#: /app/src/modules/dashboard/DashboardModule.js:4712
 #: /app/src/modules/reports/ReportsModule.js:201
 #: /app/src/modules/reports/ReportsModule.js:204
 #: /app/src/modules/reports/ReportsModule.js:206
@@ -7583,222 +7583,222 @@ msgstr ""
 msgid "View All"
 msgstr "Alle anzeigen"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4438
+#: /app/src/modules/dashboard/DashboardModule.js:4451
 msgid "Failed to save dashboard lock state"
 msgstr "Fehler beim Speichern des Übersicht-Sperrstatus"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4458
+#: /app/src/modules/dashboard/DashboardModule.js:4471
 #: /app/templates/index.php:327
 msgid "Unlock Dashboard"
 msgstr "Entsperre Dashboard"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4459
+#: /app/src/modules/dashboard/DashboardModule.js:4472
 #: /app/templates/index.php:304
 msgid "Dashboard is locked. Click unlock to reorder tiles."
 msgstr ""
 "Dashboard ist gesperrt. Klicken Sie auf Entsperren, um die Kacheln neu zu "
 "ordnen."
 
-#: /app/src/modules/dashboard/DashboardModule.js:4473
+#: /app/src/modules/dashboard/DashboardModule.js:4486
 msgid "Lock Dashboard"
 msgstr "Übersicht sperren"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4474
+#: /app/src/modules/dashboard/DashboardModule.js:4487
 msgid "Drag tiles to reorder your dashboard"
 msgstr "Ziehe die Kacheln, um dein Dashboard neu anzuordnen"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4537
-#: /app/src/modules/dashboard/DashboardModule.js:4629
+#: /app/src/modules/dashboard/DashboardModule.js:4550
+#: /app/src/modules/dashboard/DashboardModule.js:4642
 #: /app/templates/index.php:7124
 #, fuzzy
 #| msgid "Settings"
 msgid "Tile Settings"
 msgstr "Einstellungen"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4554
+#: /app/src/modules/dashboard/DashboardModule.js:4567
 msgid "Remove tile"
 msgstr "Kachel entfernen"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4554
+#: /app/src/modules/dashboard/DashboardModule.js:4567
 #, fuzzy
 #| msgid "Add tiles"
 msgid "Hide tile"
 msgstr "Kacheln hinzufügen"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4659
+#: /app/src/modules/dashboard/DashboardModule.js:4672
 msgid "Look ahead"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4662
+#: /app/src/modules/dashboard/DashboardModule.js:4675
 #, fuzzy
 #| msgid "Last 30 days"
 msgid "Next 30 days"
 msgstr "Letzte 30 Tage"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4663
+#: /app/src/modules/dashboard/DashboardModule.js:4676
 #, fuzzy
 #| msgid "Last 30 days"
 msgid "Next 60 days"
 msgstr "Letzte 30 Tage"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4664
+#: /app/src/modules/dashboard/DashboardModule.js:4677
 #, fuzzy
 #| msgid "Last 30 days"
 msgid "Next 90 days"
 msgstr "Letzte 30 Tage"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4673
+#: /app/src/modules/dashboard/DashboardModule.js:4686
 #, fuzzy
 #| msgid "Forecast Period:"
 msgid "Forecast horizon"
 msgstr "Prognosezeitraum:"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4676
+#: /app/src/modules/dashboard/DashboardModule.js:4689
 #, fuzzy
 #| msgid "%n month"
 #| msgid_plural "%n months"
 msgid "Next 3 months"
 msgstr "%n Monat"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4677
+#: /app/src/modules/dashboard/DashboardModule.js:4690
 #, fuzzy
 #| msgid "%n month"
 #| msgid_plural "%n months"
 msgid "Next 6 months"
 msgstr "%n Monat"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4678
+#: /app/src/modules/dashboard/DashboardModule.js:4691
 #, fuzzy
 #| msgid "%n month"
 #| msgid_plural "%n months"
 msgid "Next 12 months"
 msgstr "%n Monat"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4687
+#: /app/src/modules/dashboard/DashboardModule.js:4700
 #, fuzzy
 #| msgid "Years to Compare"
 msgid "Years to compare"
 msgstr "Zu vergleichende Jahre"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4690
+#: /app/src/modules/dashboard/DashboardModule.js:4703
 #, fuzzy
 #| msgid "Last Year"
 msgid "Last 2 years"
 msgstr "Letztes Jahr"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4691
+#: /app/src/modules/dashboard/DashboardModule.js:4704
 #, fuzzy
 #| msgid "Last Year"
 msgid "Last 3 years"
 msgstr "Letztes Jahr"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4692
+#: /app/src/modules/dashboard/DashboardModule.js:4705
 #, fuzzy
 #| msgid "Last Year"
 msgid "Last 5 years"
 msgstr "Letztes Jahr"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4723
+#: /app/src/modules/dashboard/DashboardModule.js:4736
 #: /app/templates/index.php:3062
 #, fuzzy
 #| msgid "Failed to save account"
 msgid "Exclude shared accounts"
 msgstr "Konto konnte nicht gespeichert werden"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4737
+#: /app/src/modules/dashboard/DashboardModule.js:4750
 #, fuzzy
 #| msgid "Show uncategorized"
 msgid "Show legend"
 msgstr "Ohne Kategorie anzeigen"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4752
+#: /app/src/modules/dashboard/DashboardModule.js:4765
 #, fuzzy
 #| msgid "No categories found"
 msgid "Show top-level categories only"
 msgstr "Keine Kategorien gefunden"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4767
+#: /app/src/modules/dashboard/DashboardModule.js:4780
 #, fuzzy
 #| msgid "Match Type"
 msgid "Chart Type"
 msgstr "Art der Übereinstimmung"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4778
+#: /app/src/modules/dashboard/DashboardModule.js:4791
 msgid "Rows to show"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4794
+#: /app/src/modules/dashboard/DashboardModule.js:4807
 #, fuzzy
 #| msgid "Date Format"
 msgid "Display Format"
 msgstr "Datumsformat"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4807
+#: /app/src/modules/dashboard/DashboardModule.js:4820
 msgid "Show change indicator"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4818
+#: /app/src/modules/dashboard/DashboardModule.js:4831
 msgid "No settings available for this tile."
 msgstr "Für diese Kachel sind keine Einstellungen verfügbar."
 
-#: /app/src/modules/dashboard/DashboardModule.js:4825
+#: /app/src/modules/dashboard/DashboardModule.js:4838
 msgid "Drag to reorder. Toggle visibility for each item."
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5047
+#: /app/src/modules/dashboard/DashboardModule.js:5060
 msgid "All tiles are visible"
 msgstr "Alle Kacheln sind sichtbar"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5053
+#: /app/src/modules/dashboard/DashboardModule.js:5066
 msgid "Insights & Analytics"
 msgstr "Einblicke & Analysen"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5054
+#: /app/src/modules/dashboard/DashboardModule.js:5067
 msgid "Budgeting"
 msgstr "Budgetplanung"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5055
+#: /app/src/modules/dashboard/DashboardModule.js:5068
 msgid "Forecasting"
 msgstr "Prognostik"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5058
+#: /app/src/modules/dashboard/DashboardModule.js:5071
 #: /app/templates/index.php:5470
 msgid "Debts"
 msgstr "Schulden"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5059
+#: /app/src/modules/dashboard/DashboardModule.js:5072
 msgid "Goals"
 msgstr "Ziele"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5061
+#: /app/src/modules/dashboard/DashboardModule.js:5074
 msgid "Alerts"
 msgstr "Warnungen"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5062
+#: /app/src/modules/dashboard/DashboardModule.js:5075
 msgid "Interactive"
 msgstr "Interaktiv"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5084
+#: /app/src/modules/dashboard/DashboardModule.js:5097
 msgid "Hero"
 msgstr "Hauptübersicht"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5114
+#: /app/src/modules/dashboard/DashboardModule.js:5127
 #, fuzzy
 #| msgid "Add Income"
 msgid "Add Another"
 msgstr "Einnahme hinzufügen"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5187
+#: /app/src/modules/dashboard/DashboardModule.js:5200
 msgid "Maximum of {max} instances reached"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5257
+#: /app/src/modules/dashboard/DashboardModule.js:5270
 #, fuzzy
 #| msgid "Asset added"
 msgid "Tile added"
 msgstr "Vermögenswert hinzugefügt"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5295
+#: /app/src/modules/dashboard/DashboardModule.js:5308
 msgid "Tile removed"
 msgstr ""
 
@@ -10079,91 +10079,91 @@ msgstr ""
 msgid "Failed to load savings goals"
 msgstr "Sparziele konnten nicht geladen werden"
 
-#: /app/src/modules/savings/SavingsModule.js:98
+#: /app/src/modules/savings/SavingsModule.js:101
 msgid "Target date passed"
 msgstr "Zieldatum überschritten"
 
-#: /app/src/modules/savings/SavingsModule.js:100
+#: /app/src/modules/savings/SavingsModule.js:103
 msgid "Target date: Today"
 msgstr "Zieldatum: Heute"
 
-#: /app/src/modules/savings/SavingsModule.js:102
+#: /app/src/modules/savings/SavingsModule.js:105
 msgid "%n day left"
 msgid_plural "%n days left"
 msgstr[0] "Ein Tag verbleibend"
 msgstr[1] "%n Tage verbleibend"
 
-#: /app/src/modules/savings/SavingsModule.js:104
+#: /app/src/modules/savings/SavingsModule.js:107
 msgid "Target: {date}"
 msgstr "Stichtag: {date}"
 
-#: /app/src/modules/savings/SavingsModule.js:110
+#: /app/src/modules/savings/SavingsModule.js:113
 msgid "Goal reached!"
 msgstr "Ziel erreicht!"
 
-#: /app/src/modules/savings/SavingsModule.js:112
+#: /app/src/modules/savings/SavingsModule.js:115
 msgid "Auto-tracked"
 msgstr "Automatisch verfolgt"
 
-#: /app/src/modules/savings/SavingsModule.js:114
+#: /app/src/modules/savings/SavingsModule.js:117
 msgid "+ Add money"
 msgstr "+ Geld hinzufügen"
 
-#: /app/src/modules/savings/SavingsModule.js:148
+#: /app/src/modules/savings/SavingsModule.js:151
 msgid "of {amount}"
 msgstr "von {amount}"
 
-#: /app/src/modules/savings/SavingsModule.js:244
+#: /app/src/modules/savings/SavingsModule.js:247
 msgid "Auto-calculated from tag"
 msgstr "Automatisch berechnet aus Schlagwort"
 
-#: /app/src/modules/savings/SavingsModule.js:258 /app/templates/index.php:4971
+#: /app/src/modules/savings/SavingsModule.js:261 /app/templates/index.php:4971
 msgid "No linked account"
 msgstr "Kein verknüpftes Konto"
 
-#: /app/src/modules/savings/SavingsModule.js:277 /app/templates/index.php:4979
+#: /app/src/modules/savings/SavingsModule.js:280 /app/templates/index.php:4979
 msgid "No linked tag"
 msgstr "Kein verknüpftes Schlagwort"
 
-#: /app/src/modules/savings/SavingsModule.js:314
+#: /app/src/modules/savings/SavingsModule.js:317
 msgid "Edit Savings Goal"
 msgstr "Sparziel bearbeiten"
 
-#: /app/src/modules/savings/SavingsModule.js:314 /app/templates/index.php:4936
+#: /app/src/modules/savings/SavingsModule.js:317 /app/templates/index.php:4936
 msgid "Add Savings Goal"
 msgstr "Sparziel hinzufügen"
 
-#: /app/src/modules/savings/SavingsModule.js:397
-#: /app/src/modules/savings/SavingsModule.js:406
+#: /app/src/modules/savings/SavingsModule.js:400
+#: /app/src/modules/savings/SavingsModule.js:409
 msgid "Failed to save goal"
 msgstr "Fehler beim Speichern des Sparziels"
 
-#: /app/src/modules/savings/SavingsModule.js:402
+#: /app/src/modules/savings/SavingsModule.js:405
 msgid "Goal updated"
 msgstr "Sparziel aktualisiert"
 
-#: /app/src/modules/savings/SavingsModule.js:402
+#: /app/src/modules/savings/SavingsModule.js:405
 msgid "Goal created"
 msgstr "Sparziel erstellt"
 
-#: /app/src/modules/savings/SavingsModule.js:418
+#: /app/src/modules/savings/SavingsModule.js:421
 msgid "Are you sure you want to delete this savings goal?"
 msgstr "Möchtest du dieses Sparziel wirklich löschen?"
 
-#: /app/src/modules/savings/SavingsModule.js:430
+#: /app/src/modules/savings/SavingsModule.js:433
 msgid "Goal deleted"
 msgstr "Sparziel gelöscht"
 
-#: /app/src/modules/savings/SavingsModule.js:444
-#: /app/src/modules/savings/SavingsModule.js:470
+#: /app/src/modules/savings/SavingsModule.js:447
+#: /app/src/modules/savings/SavingsModule.js:473
 msgid "This goal is auto-tracked via a tag"
 msgstr "Dieses Ziel wird automatisch über ein Schlagwort verfolgt"
 
-#: /app/src/modules/savings/SavingsModule.js:490
+#: /app/src/modules/savings/SavingsModule.js:493
 msgid "Added {amount} to goal"
 msgstr "{amount} zum Ziel hinzugefügt"
 
-#: /app/src/modules/savings/SavingsModule.js:494
+#: /app/src/modules/savings/SavingsModule.js:497
 msgid "Failed to add money to goal"
 msgstr "Geld konnte nicht zum Ziel hinzugefügt werden"
 
