@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-08-26 00:03+0000\n"
+"POT-Creation-Date: 2026-08-28 00:18+0000\n"
 "PO-Revision-Date: 2026-06-06 22:44+0000\n"
 "Last-Translator: Pavel Borecki <pavel.borecki@gmail.com>\n"
 "Language-Team: Czech <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -994,7 +994,7 @@ msgstr ""
 #: /app/lib/Controller/GoalsController.php:344
 #: /app/lib/Controller/GoalsController.php:363
 #: /app/lib/Controller/ImportRuleController.php:90
-#: /app/lib/Traits/ApiErrorHandlerTrait.php:131
+#: /app/lib/Traits/ApiErrorHandlerTrait.php:188
 #, php-format
 msgid "%1$s not found"
 msgstr ""
@@ -3292,6 +3292,13 @@ msgstr ""
 
 #: /app/lib/Traits/ApiErrorHandlerTrait.php:55
 msgid "This shared item is read-only"
+msgstr ""
+
+#: /app/lib/Traits/ApiErrorHandlerTrait.php:174
+msgid ""
+"The database is missing something this version of Budget needs, which means "
+"the update did not finish. An administrator can complete it by running: occ "
+"app:disable budget && occ app:enable budget"
 msgstr ""
 
 #: /app/specialAppInfoFakeDummyForL10nScript.php:3
