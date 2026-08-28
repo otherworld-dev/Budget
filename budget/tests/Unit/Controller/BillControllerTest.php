@@ -161,6 +161,34 @@ class BillControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	/**
+	 * BillsModule/TransfersModule used to fetch every bill of a type and
+	 * discard the unwanted ones client-side (active bills plus revertible
+	 * inactive ones, #365) — the payload grows forever with dead bills on old
+	 * installs. revertibleToo pushes that filter to the mapper instead.
+	 */
+	public function testIndexRevertibleTooFiltersServerSide(): void {
+		$this->service->expects($this->once())
+			->method('findByType')
+			->with('user1', false, null, true)
+			->willReturn([]);
+
+		$response = $this->controller->index(false, false, true);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testIndexRevertibleTooDefaultsFalse(): void {
+		$this->service->expects($this->once())
+			->method('findByType')
+			->with('user1', false, null, false)
+			->willReturn([]);
+
+		$response = $this->controller->index(false, false);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
 	// ── show ────────────────────────────────────────────────────────
 
 	public function testShowReturnsBill(): void {

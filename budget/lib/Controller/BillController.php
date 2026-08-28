@@ -55,19 +55,26 @@ class BillController extends Controller {
      * @NoAdminRequired
      * @param string|bool|null $activeOnly Filter by active status (null = all)
      * @param string|bool|null $isTransfer Filter by type (null = all, true = only transfers, false = only bills)
+     * @param string|bool|null $revertibleToo When $activeOnly is not set, additionally
+     *   restrict to active bills PLUS inactive ones that still hold a stored payment
+     *   snapshot (canMarkUnpaid) — so the bills/transfers lists no longer have to fetch
+     *   every dead bill and filter client-side just to keep the Mark Unpaid ones (#365 follow-up).
      */
-    public function index($activeOnly = false, $isTransfer = null): DataResponse {
+    public function index($activeOnly = false, $isTransfer = null, $revertibleToo = false): DataResponse {
         try {
             // Convert string parameters to boolean
             $activeOnlyBool = $this->toBool($activeOnly);
             $isTransferBool = $isTransfer === null ? null : $this->toBool($isTransfer);
+            $revertibleTooBool = $this->toBool($revertibleToo);
 
             // Use mapper's findByType if filtering by transfer status
             if ($isTransferBool !== null) {
                 $isActive = $activeOnlyBool ? true : null;
-                $bills = $this->service->findByType($this->userId, $isTransferBool, $isActive);
+                $bills = $this->service->findByType($this->userId, $isTransferBool, $isActive, $revertibleTooBool);
             } elseif ($activeOnlyBool) {
                 $bills = $this->service->findActive($this->userId);
+            } elseif ($revertibleTooBool) {
+                $bills = $this->service->findByType($this->userId, null, null, true);
             } else {
                 $bills = $this->service->findAll($this->userId);
             }

@@ -132,9 +132,14 @@ class BillMapper extends QBMapper {
      * @param string $userId
      * @param bool|null $isTransfer null = all, true = only transfers, false = only bills
      * @param bool|null $isActive null = all, true = only active, false = only inactive
+     * @param bool $activeOrRevertible When $isActive is null, additionally restrict to
+     *   active bills PLUS inactive ones that still hold a stored payment
+     *   snapshot (paid_undo_state), so the client no longer has to fetch every
+     *   dead bill just to keep the handful offering "Mark Unpaid" (#365 follow-up).
+     *   Ignored when $isActive is explicit — that filter always wins.
      * @return Bill[]
      */
-    public function findByType(string $userId, ?bool $isTransfer = null, ?bool $isActive = null): array {
+    public function findByType(string $userId, ?bool $isTransfer = null, ?bool $isActive = null, bool $activeOrRevertible = false): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
             ->from($this->getTableName())
@@ -146,6 +151,11 @@ class BillMapper extends QBMapper {
 
         if ($isActive !== null) {
             $qb->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter($isActive, IQueryBuilder::PARAM_BOOL)));
+        } elseif ($activeOrRevertible) {
+            $qb->andWhere($qb->expr()->orX(
+                $qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)),
+                $qb->expr()->isNotNull('paid_undo_state')
+            ));
         }
 
         $qb->orderBy('next_due_date', 'ASC')

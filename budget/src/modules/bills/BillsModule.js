@@ -30,19 +30,19 @@ export default class BillsModule {
             // Load summary first
             await this.loadBillsSummary();
 
-            // Load all bills (excluding transfers)
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills?isTransfer=false'), {
+            // Load all bills (excluding transfers). revertibleToo asks the
+            // server to keep active bills plus inactive ones that still hold
+            // a stored payment snapshot: a paid one-time bill leaves the
+            // active list (#333), but must stay visible to be marked unpaid
+            // (#365) — filtered server-side so the payload doesn't grow
+            // forever with dead bills on old installs.
+            const response = await fetch(OC.generateUrl('/apps/budget/api/bills?isTransfer=false&revertibleToo=true'), {
                 headers: { 'requesttoken': OC.requestToken }
             });
 
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-            // Keep active bills, plus inactive ones that still hold a stored
-            // payment snapshot: a paid one-time bill leaves the active list
-            // (#333), but must stay visible to be marked unpaid (#365).
-            const allBills = await response.json();
-            this.bills = allBills.filter(bill =>
-                (bill.isActive ?? bill.is_active ?? true) || bill.canMarkUnpaid);
+            this.bills = await response.json();
             this.renderBills(this.bills);
 
             // Setup event listeners (only once)

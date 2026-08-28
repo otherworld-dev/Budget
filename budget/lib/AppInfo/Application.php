@@ -9,6 +9,7 @@ use OCA\Budget\Dashboard\UpcomingBillsWidget;
 use OCA\Budget\Notification\Notifier;
 use OCA\Budget\Search\TransactionSearchProvider;
 use OCA\Budget\Service\SchemaVersionService;
+use OCA\Budget\SetupChecks\BudgetSchemaCheck;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
@@ -38,6 +39,7 @@ class Application extends App implements IBootstrap {
         $context->registerSearchProvider(TransactionSearchProvider::class);
         $context->registerDashboardWidget(UpcomingBillsWidget::class);
         $context->registerDashboardWidget(BudgetOverviewWidget::class);
+        $context->registerSetupCheck(BudgetSchemaCheck::class);
 
         // IAppData cannot be autowired — it requires the app ID via factory
         $context->registerService(IAppData::class, function ($c) {

@@ -966,6 +966,13 @@ class TransactionMapper extends QBMapper {
             ->where($qb->expr()->in('t.category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)))
             ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
 
+        // Same partition complement the badge (getCategoryTransactionCounts)
+        // applies: a row the pre-#360 bulk edit stamped with BOTH a category_id
+        // AND split parts is a split parent, not a direct row, so it must not
+        // be double-listed here on top of its entry in findCategorySplitRows()
+        // below — the direct/split partition directRowPredicate() explains (#360).
+        $qb->andWhere($this->directRowPredicate($qb));
+
         $this->excludeScheduledFuture($qb);
         $this->excludeReportExcludedAccounts($qb);
 

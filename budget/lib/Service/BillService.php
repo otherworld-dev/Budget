@@ -276,8 +276,8 @@ class BillService {
         return $bills;
     }
 
-    public function findByType(string $userId, ?bool $isTransfer = null, ?bool $isActive = null): array {
-        return $this->mapper->findByType($userId, $isTransfer, $isActive);
+    public function findByType(string $userId, ?bool $isTransfer = null, ?bool $isActive = null, bool $activeOrRevertible = false): array {
+        return $this->mapper->findByType($userId, $isTransfer, $isActive, $activeOrRevertible);
     }
 
     public function findOverdue(string $userId): array {

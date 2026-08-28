@@ -106,7 +106,11 @@ describe('Mark Unpaid action', () => {
 });
 
 describe('loadBillsView keeps revertible inactive bills', () => {
-    it('keeps active bills plus inactive ones with a snapshot, drops the rest', async () => {
+    it('asks the server for active-or-revertible bills instead of filtering client-side', async () => {
+        // The payload used to grow forever with dead bills on old installs
+        // because the module fetched everything and discarded unwanted rows
+        // itself. The server now does the filtering (revertibleToo), so the
+        // module just renders whatever it gets back.
         const mod = makeModule();
         mod.loadBillsSummary = vi.fn();
         mod.populateBillModalDropdowns = vi.fn();
@@ -119,16 +123,18 @@ describe('loadBillsView keeps revertible inactive bills', () => {
             json: async () => [
                 bill({ id: 1, name: 'Rent' }),
                 bill({ id: 2, name: 'Old deposit', frequency: 'one-time', isActive: false, nextDueDate: null, canMarkUnpaid: true }),
-                bill({ id: 3, name: 'Cancelled gym', isActive: false }),
             ],
         }));
 
         await mod.loadBillsView();
 
+        expect(global.fetch).toHaveBeenCalledWith(
+            expect.stringContaining('revertibleToo=true'),
+            expect.anything(),
+        );
         expect(mod.bills.map((b) => b.id)).toEqual([1, 2]);
         const html = document.getElementById('bills-list').innerHTML;
         expect(html).toContain('Old deposit');
-        expect(html).not.toContain('Cancelled gym');
     });
 });
 

@@ -765,6 +765,52 @@ class TransactionMapperTest extends TestCase {
         $this->assertSame([5 => 3], $this->mapper->getCategoryTransactionCounts('user1'));
     }
 
+    // ===== findCategoryTransactionRows (Category Details panel) =====
+
+    /**
+     * The Category Details panel's direct-rows query used to list a row that
+     * carries BOTH its own category_id and split parts under its stamped
+     * category, while the badge above it (getCategoryTransactionCounts) has
+     * excluded such rows via directRowPredicate() since #360. Badge and panel
+     * must agree, so the direct-rows query needs the same partition-complement
+     * guard: eq(is_split, false) OR NOT EXISTS(split parts).
+     */
+    public function testFindCategoryTransactionRowsDirectQueryAppliesPartitionComplement(): void {
+        $orXCalls = [];
+        $orXResult = $this->createMock(ICompositeExpression::class);
+        $this->expr->method('eq')->willReturnCallback(fn(string $col, $val) => "eq($col)");
+        $this->expr->method('orX')->willReturnCallback(function (...$parts) use (&$orXCalls, $orXResult) {
+            $orXCalls[] = $parts;
+            return $orXResult;
+        });
+
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([]),
+            $this->resultOf([])
+        );
+
+        $this->mapper->findCategoryTransactionRows('user1', [5], 5);
+
+        $guardFound = false;
+        foreach ($orXCalls as $parts) {
+            $hasIsSplitFalse = false;
+            $hasNotExists = false;
+            foreach ($parts as $part) {
+                if ($part === 'eq(t.is_split)') {
+                    $hasIsSplitFalse = true;
+                }
+                if (is_string($part) && str_contains($part, 'NOT EXISTS')) {
+                    $hasNotExists = true;
+                }
+            }
+            if ($hasIsSplitFalse && $hasNotExists) {
+                $guardFound = true;
+                break;
+            }
+        }
+        $this->assertTrue($guardFound, 'the direct-rows query behind findCategoryTransactionRows must OR eq(is_split, false) with NOT EXISTS(split parts), matching getCategoryTransactionCounts (#360 follow-up)');
+    }
+
     // ===== getCategoryTotalsByAccount =====
 
     public function testGetCategoryTotalsByAccountReturnsEmptyForEmptyInput(): void {

@@ -8,6 +8,7 @@ use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\DB\IResult;
+use OCP\DB\QueryBuilder\ICompositeExpression;
 use OCP\DB\QueryBuilder\IExpressionBuilder;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
@@ -241,6 +242,52 @@ class BillMapperTest extends TestCase {
         $bills = $this->mapper->findByType('user1', null, null);
 
         $this->assertCount(2, $bills);
+    }
+
+    /**
+     * The bills/transfers lists used to fetch every row and discard the
+     * unwanted ones client-side to keep active bills plus revertible inactive
+     * ones (#365's canMarkUnpaid), which meant the payload grew forever on
+     * old installs. The filter now runs server-side: is_active = true OR
+     * paid_undo_state IS NOT NULL.
+     */
+    public function testFindByTypeAppliesActiveOrRevertibleGuardWhenRequested(): void {
+        $this->expr->method('eq')->willReturnCallback(fn($col, $val) => "eq($col)");
+        $this->expr->method('isNotNull')->willReturnCallback(fn($col) => "isNotNull($col)");
+        $orXCalls = [];
+        $orXResult = $this->createMock(ICompositeExpression::class);
+        $this->expr->method('orX')->willReturnCallback(function (...$parts) use (&$orXCalls, $orXResult) {
+            $orXCalls[] = $parts;
+            return $orXResult;
+        });
+
+        $this->result->method('fetch')->willReturn(false);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $this->mapper->findByType('user1', null, null, true);
+
+        $guardFound = false;
+        foreach ($orXCalls as $parts) {
+            if (in_array('eq(is_active)', $parts, true) && in_array('isNotNull(paid_undo_state)', $parts, true)) {
+                $guardFound = true;
+            }
+        }
+        $this->assertTrue($guardFound, 'findByType(activeOrRevertible: true) must OR is_active = true with paid_undo_state IS NOT NULL');
+    }
+
+    /**
+     * An explicit isActive filter always wins — activeOrRevertible only fills
+     * in when the caller did not ask for a specific active state.
+     */
+    public function testFindByTypeIgnoresActiveOrRevertibleWhenIsActiveIsExplicit(): void {
+        $this->expr->expects($this->never())->method('orX');
+
+        $this->result->method('fetch')->willReturn(false);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $this->mapper->findByType('user1', null, true, true);
     }
 
     // ===== findOverdue =====
