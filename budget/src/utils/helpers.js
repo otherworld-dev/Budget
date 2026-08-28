@@ -109,5 +109,10 @@ export function transactionDisplayAmount(tx) {
 export function serverErrorMessage(body, fallback) {
     const message = body?.error || fallback;
     const detail = typeof body?.detail === 'string' ? body.detail.trim() : '';
-    return detail ? `${message} (${detail})` : message;
+    // A missing column or table means the app's update never finished, and the
+    // server sends the command that finishes it. That is the only part of this
+    // the reader can act on, so it goes last and unbracketed (#333).
+    const hint = typeof body?.hint === 'string' ? body.hint.trim() : '';
+    const withDetail = detail ? `${message} (${detail})` : message;
+    return hint ? `${withDetail} — ${hint}` : withDetail;
 }

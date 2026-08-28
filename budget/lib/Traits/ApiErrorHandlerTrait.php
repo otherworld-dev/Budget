@@ -70,6 +70,11 @@ trait ApiErrorHandlerTrait {
         $dbDetail = $this->extractDbErrorDetail($e);
         if ($dbDetail !== null) {
             $body['detail'] = $dbDetail;
+
+            $hint = $this->schemaBehindHint($dbDetail);
+            if ($hint !== null) {
+                $body['hint'] = $hint;
+            }
         }
 
         return new DataResponse($body, $statusCode);
@@ -116,6 +121,58 @@ trait ApiErrorHandlerTrait {
         }
 
         return $message;
+    }
+
+    /**
+     * Turn a missing column or table into the instruction that fixes it.
+     *
+     * A missing column means the app's files were updated but Nextcloud never
+     * ran the app upgrade, so the migrations that add it never applied — the
+     * recorded version stays behind while the code moves on. Reads do not
+     * notice (the mapper selects *), so the first sign is an INSERT failing
+     * with "Unknown column", which is accurate and no use to the person
+     * reading it.
+     *
+     * Reproduced on MariaDB while chasing #333: `occ upgrade` does not fix it,
+     * because that upgrades the SERVER; `occ app:update` does not either,
+     * because that looks for a newer release in the app store. Disabling and
+     * re-enabling the app is what makes Nextcloud run the pending migrations.
+     *
+     * Deliberately narrow: a constraint violation or a bad value is the data
+     * being wrong, not the schema being behind, and telling someone to
+     * reinstall the app over a null column would be worse than saying nothing.
+     */
+    private function schemaBehindHint(string $detail): ?string {
+        $schemaErrors = [
+            'SQLSTATE[42S22]',  // MySQL/MariaDB: column not found
+            'SQLSTATE[42S02]',  // MySQL/MariaDB: table not found
+            'SQLSTATE[42703]',  // PostgreSQL: undefined column
+            'SQLSTATE[42P01]',  // PostgreSQL: undefined table
+        ];
+        $isSchemaError = false;
+        foreach ($schemaErrors as $sqlState) {
+            if (str_contains($detail, $sqlState)) {
+                $isSchemaError = true;
+                break;
+            }
+        }
+        // SQLite reports both as a generic HY000, so match on its wording.
+        if (!$isSchemaError
+            && (stripos($detail, 'no such column') !== false
+                || stripos($detail, 'no such table') !== false)) {
+            $isSchemaError = true;
+        }
+        if (!$isSchemaError) {
+            return null;
+        }
+
+        // The literal is repeated rather than built in a variable: xgettext can
+        // only extract a string literal passed straight to t(), and a variable
+        // here silently left the hint out of the translation template.
+        $l = $this->getL10N();
+        return $l !== null
+            ? $l->t('The database is missing something this version of Budget needs, which means the update did not finish. An administrator can complete it by running: occ app:disable budget && occ app:enable budget')
+            : 'The database is missing something this version of Budget needs, which means the update did not finish. An administrator can complete it by running: occ app:disable budget && occ app:enable budget';
     }
 
     /**

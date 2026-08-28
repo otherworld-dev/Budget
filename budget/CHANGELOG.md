@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **When the app's update has not finished, the app now says so and how to finish it.** If Nextcloud updates the files but never runs the app upgrade, the migrations that add new columns never run -- the app carries on reading fine, because reads do not notice a missing column, and then the first thing you save fails. Until now that surfaced as the database's own words, "Unknown column 'amount_type'", which is accurate and no use to anyone. Any missing column or table now comes with the command that fixes it: `occ app:disable budget && occ app:enable budget`. Reproduced against MariaDB, where neither `occ upgrade` (which upgrades the server) nor `occ app:update` (which looks for a newer release in the app store) does anything about it ([#333](https://github.com/otherworld-dev/Budget/issues/333))
+
 ## [2.44.0] - 2026-08-26
 
 ### Added

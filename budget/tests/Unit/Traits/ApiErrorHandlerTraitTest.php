@@ -48,6 +48,74 @@ class ApiErrorHandlerTraitTest extends TestCase {
 		$this->assertSame(Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus());
 	}
 
+	// ── a schema that is behind gets an actionable hint ────────────
+
+	/**
+	 * A missing column means the app's files were updated but Nextcloud never
+	 * ran the app upgrade, so its migrations never applied. The driver detail
+	 * says "Unknown column", which is true and useless to the person reading it.
+	 * Reproduced on MariaDB: `occ upgrade` does not fix it (that upgrades the
+	 * server) and `occ app:update` does not either (that checks the app store) --
+	 * disabling and re-enabling the app is what runs the pending migrations
+	 * (#333).
+	 */
+	public function testMissingColumnAddsAHintNamingTheFix(): void {
+		$response = $this->subject->callHandleError(
+			new DbException("An exception occurred while executing a query: "
+				. "SQLSTATE[42S22]: Column not found: 1054 Unknown column 'amount_type' in 'INSERT INTO'"),
+			'Failed to create bill'
+		);
+
+		$data = $response->getData();
+		$this->assertArrayHasKey('hint', $data);
+		$this->assertStringContainsString('occ app:disable budget', $data['hint']);
+		$this->assertStringContainsString('occ app:enable budget', $data['hint']);
+		// The raw driver detail is still there for whoever wants it.
+		$this->assertStringContainsString("Unknown column 'amount_type'", $data['detail']);
+	}
+
+	public function testMissingTableAlsoGetsTheHint(): void {
+		$response = $this->subject->callHandleError(
+			new DbException("SQLSTATE[42S02]: Base table or view not found: 1146 "
+				. "Table 'nextcloud.oc_budget_idem_keys' doesn't exist"),
+			'Failed to save'
+		);
+
+		$this->assertArrayHasKey('hint', $response->getData());
+	}
+
+	public function testSqliteAndPostgresPhrasingsAreRecognised(): void {
+		foreach ([
+			'SQLSTATE[HY000]: General error: 1 no such column: amount_type',
+			'SQLSTATE[42703]: Undefined column: 7 ERROR:  column "amount_type" does not exist',
+			'SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "oc_budget_bills" does not exist',
+		] as $message) {
+			$data = $this->subject->callHandleError(new DbException($message), 'Failed')->getData();
+			$this->assertArrayHasKey('hint', $data, 'no hint for: ' . $message);
+		}
+	}
+
+	/**
+	 * A constraint violation is the user's data being wrong, not the schema
+	 * being behind. Telling them to reinstall the app would be wrong.
+	 */
+	public function testAnOrdinaryDatabaseErrorGetsNoHint(): void {
+		$response = $this->subject->callHandleError(
+			new DbException("SQLSTATE[23000]: Integrity constraint violation: 1048 "
+				. "Column 'status' cannot be null"),
+			'Failed to create transaction'
+		);
+
+		$data = $response->getData();
+		$this->assertArrayHasKey('detail', $data);
+		$this->assertArrayNotHasKey('hint', $data);
+	}
+
+	public function testANonDatabaseErrorGetsNoHint(): void {
+		$data = $this->subject->callHandleError(new \RuntimeException('boom'), 'Failed')->getData();
+		$this->assertArrayNotHasKey('hint', $data);
+	}
+
 	// ── database errors surface a sanitised detail ─────────────────
 
 	public function testDatabaseErrorAddsDetail(): void {

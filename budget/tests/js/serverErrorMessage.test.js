@@ -11,6 +11,28 @@ import { describe, it, expect } from 'vitest';
 import { serverErrorMessage } from '../../src/utils/helpers.js';
 
 describe('serverErrorMessage', () => {
+    it('adds the hint that says how to fix a database left behind by an update', () => {
+        const msg = serverErrorMessage({
+            error: 'Failed to create bill',
+            detail: "SQLSTATE[42S22]: Column not found: 1054 Unknown column 'amount_type'",
+            hint: 'An administrator can complete it by running: occ app:disable budget && occ app:enable budget',
+        }, 'Failed');
+
+        expect(msg).toContain('Failed to create bill');
+        expect(msg).toContain("Unknown column 'amount_type'");
+        expect(msg).toContain('occ app:disable budget');
+    });
+
+    it('is unchanged when the server sent no hint', () => {
+        expect(serverErrorMessage({ error: 'Nope', detail: 'SQLSTATE[23000]: constraint' }, 'Failed'))
+            .toBe('Nope (SQLSTATE[23000]: constraint)');
+    });
+
+    it('shows a hint even when there is no detail', () => {
+        expect(serverErrorMessage({ error: 'Nope', hint: 'do the thing' }, 'Failed'))
+            .toContain('do the thing');
+    });
+
     it('uses the server message when there is one', () => {
         expect(serverErrorMessage({ error: 'Auto-pay requires an account' }, 'Failed'))
             .toBe('Auto-pay requires an account');
