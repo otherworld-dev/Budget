@@ -545,6 +545,78 @@ class TransactionServiceTest extends TestCase {
         $this->assertTrue($deleteHappenedBeforeRecalc);
     }
 
+    // ===== deleteAsAccountOwner() / unlinkBillAsAccountOwner() (#334, #365 review) =====
+
+    public function testDeleteAsAccountOwnerScopesTheDeleteToTheAccountOwner(): void {
+        // markPaid creates a shared-account bill's transactions under the
+        // ACCOUNT owner (#334); the revert must delete under that same owner,
+        // not the acting user, or the owner-scoped find never sees the row.
+        $tx = $this->makeTransaction(['id' => 55, 'accountId' => 10]);
+        $this->accountById[10] = $this->makeAccount(['id' => 10, 'userId' => 'account-owner']);
+        $this->mapper->method('findById')->with(55)->willReturn($tx);
+        $this->mapper->expects($this->once())->method('find')->with(55, 'account-owner')->willReturn($tx);
+        $this->mapper->method('getNetChangeAll')->willReturn(0.0);
+        $this->accountMapper->method('find')->willReturn($this->makeAccount(['id' => 10, 'userId' => 'account-owner']));
+        $this->mapper->expects($this->once())->method('delete');
+
+        $this->assertTrue($this->service->deleteAsAccountOwner(55));
+    }
+
+    public function testDeleteAsAccountOwnerLeavesMaterialisedPlaceholderAlone(): void {
+        // A scheduled placeholder tracked in a payment snapshot may have
+        // become a real (possibly reconciled) ledger row months later — with
+        // $onlyIfScheduled it must be left untouched.
+        $tx = $this->makeTransaction(['id' => 56, 'accountId' => 10]);
+        $tx->setStatus('cleared');
+        $this->mapper->method('findById')->with(56)->willReturn($tx);
+        $this->mapper->expects($this->never())->method('delete');
+
+        $this->assertFalse($this->service->deleteAsAccountOwner(56, true));
+    }
+
+    public function testDeleteAsAccountOwnerDeletesAStillScheduledPlaceholder(): void {
+        $tx = $this->makeTransaction(['id' => 56, 'accountId' => 10]);
+        $tx->setStatus('scheduled');
+        $this->mapper->method('findById')->with(56)->willReturn($tx);
+        $this->mapper->method('find')->willReturn($tx);
+        $this->mapper->method('getNetChangeAll')->willReturn(0.0);
+        $this->accountMapper->method('find')->willReturn($this->makeAccount());
+        $this->mapper->expects($this->once())->method('delete');
+
+        $this->assertTrue($this->service->deleteAsAccountOwner(56, true));
+    }
+
+    public function testDeleteAsAccountOwnerThrowsWhenRowIsGone(): void {
+        $this->mapper->method('findById')->willReturn(null);
+
+        $this->expectException(DoesNotExistException::class);
+
+        $this->service->deleteAsAccountOwner(999);
+    }
+
+    public function testUnlinkBillAsAccountOwnerClearsTheBillLink(): void {
+        // Reverting a payment that LINKED an imported transaction must not
+        // delete the row — it predates the payment. Only the linkage goes.
+        $tx = $this->makeTransaction(['id' => 77, 'accountId' => 10, 'billId' => 9]);
+        $this->accountById[10] = $this->makeAccount(['id' => 10, 'userId' => 'account-owner']);
+        $this->mapper->method('findById')->with(77)->willReturn($tx);
+        $this->mapper->expects($this->once())->method('find')->with(77, 'account-owner')->willReturn($tx);
+        $this->mapper->expects($this->once())->method('update')
+            ->willReturnCallback(function (Transaction $updated) {
+                $this->assertNull($updated->getBillId());
+                return $updated;
+            });
+
+        $this->service->unlinkBillAsAccountOwner(77);
+    }
+
+    public function testUnlinkBillAsAccountOwnerIgnoresAMissingRow(): void {
+        $this->mapper->method('findById')->willReturn(null);
+        $this->mapper->expects($this->never())->method('update');
+
+        $this->service->unlinkBillAsAccountOwner(999);
+    }
+
     // ===== createFromBill() =====
 
     public function testCreateFromBillCreatesDebitForRegularBill(): void {

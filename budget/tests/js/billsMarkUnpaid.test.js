@@ -86,6 +86,23 @@ describe('Mark Unpaid action', () => {
         // Rendered as paid — the Mark Paid button is not offered alongside
         expect(document.querySelectorAll('.bill-paid-btn')).toHaveLength(0);
     });
+
+    it('never renders actionable Mark Paid or Skip on an inactive bill', () => {
+        // An inactive recurring bill (remaining payments exhausted months ago)
+        // stays in the list only to be reverted — markPaid would still execute
+        // on it, so the buttons must not be offered.
+        const mod = makeModule();
+
+        mod.renderBills([
+            bill({ id: 4, name: 'Old loan', isActive: false, nextDueDate: null, lastPaidDate: '2001-01-15', canMarkUnpaid: true }),
+        ]);
+
+        expect(document.querySelectorAll('.bill-paid-btn')).toHaveLength(0);
+        expect(document.querySelectorAll('.bill-skip-btn')).toHaveLength(0);
+        expect(document.querySelectorAll('.bill-unpaid-btn')).toHaveLength(1);
+        // Classified as paid: kept off the Due Soon / Overdue tabs
+        expect(document.querySelector('.bill-card').dataset.status).toBe('paid');
+    });
 });
 
 describe('loadBillsView keeps revertible inactive bills', () => {
@@ -129,6 +146,39 @@ describe('markBillUnpaid', () => {
         );
         expect(mod.loadBillsView).toHaveBeenCalled();
         expect(showSuccess).toHaveBeenCalled();
+    });
+
+    it('tells the truth about linked transactions in the confirmation', async () => {
+        // Link-existing payments delete nothing — the linked imported
+        // transaction is unlinked, and the confirm copy must say so.
+        const mod = makeModule([bill({ id: 5, canMarkUnpaid: true })]);
+        mod.loadBillsView = vi.fn();
+        global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({}) }));
+
+        await mod.markBillUnpaid(5);
+
+        expect(global.confirm).toHaveBeenCalledWith(expect.stringContaining('unlinked'));
+        expect(global.confirm).toHaveBeenCalledWith(expect.stringContaining('deleted'));
+    });
+
+    it('warns that auto-pay may pay the bill again', async () => {
+        const mod = makeModule([bill({ id: 5, canMarkUnpaid: true, autoPayEnabled: true })]);
+        mod.loadBillsView = vi.fn();
+        global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({}) }));
+
+        await mod.markBillUnpaid(5);
+
+        expect(global.confirm).toHaveBeenCalledWith(expect.stringContaining('Auto-pay is on for this bill'));
+    });
+
+    it('does not warn about auto-pay when it is off', async () => {
+        const mod = makeModule([bill({ id: 5, canMarkUnpaid: true, autoPayEnabled: false })]);
+        mod.loadBillsView = vi.fn();
+        global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({}) }));
+
+        await mod.markBillUnpaid(5);
+
+        expect(global.confirm).not.toHaveBeenCalledWith(expect.stringContaining('Auto-pay is on for this bill'));
     });
 
     it('does nothing when the confirmation is declined', async () => {

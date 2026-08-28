@@ -100,6 +100,51 @@ describe('income first payment date field', () => {
     });
 });
 
+describe('weekday follows the anchor (#363 review)', () => {
+    // With a first payment date set, the server derives the weekday from the
+    // anchor and ignores the weekday input — mirror that in the form.
+    it('derives and locks the weekday from the start date', () => {
+        const mod = makeModule();
+        const expectedDay = document.getElementById('income-expected-day');
+        expectedDay.value = '2';
+
+        setFrequency('biweekly');
+        document.getElementById('income-start-date').value = '2026-08-14'; // a Friday
+        mod.updateIncomeFormFields();
+
+        expect(expectedDay.value).toBe('5');
+        expect(expectedDay.disabled).toBe(true);
+        expect(document.getElementById('income-expected-day-help').textContent).toBe('Follows the start date');
+    });
+
+    it('re-enables the weekday when the date is cleared', () => {
+        const mod = makeModule();
+        const expectedDay = document.getElementById('income-expected-day');
+
+        setFrequency('weekly');
+        document.getElementById('income-start-date').value = '2026-08-14';
+        mod.updateIncomeFormFields();
+        expect(expectedDay.disabled).toBe(true);
+
+        document.getElementById('income-start-date').value = '';
+        mod.updateIncomeFormFields();
+        expect(expectedDay.disabled).toBe(false);
+    });
+
+    it('leaves the day editable for non-anchored frequencies', () => {
+        const mod = makeModule();
+        const expectedDay = document.getElementById('income-expected-day');
+        expectedDay.value = '5';
+
+        setFrequency('monthly');
+        document.getElementById('income-start-date').value = '2026-08-14';
+        mod.updateIncomeFormFields();
+
+        expect(expectedDay.disabled).toBe(false);
+        expect(expectedDay.value).toBe('5');
+    });
+});
+
 describe('saveIncome startDate payload', () => {
     it('sends the chosen date for biweekly income', async () => {
         const mod = makeModule();

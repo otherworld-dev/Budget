@@ -393,6 +393,47 @@ class RecurringIncomeServiceTest extends TestCase {
         $this->assertSame('2026-04-10', $result->getNextExpectedDate());
     }
 
+    public function testUpdateAnchorSetOnPaydayIsDueToday(): void {
+        // Setting First payment date = today on an income last received weeks
+        // ago must yield TODAY, not today+interval: a receipt in the past
+        // cannot mean "advance strictly past today" (#363 review).
+        $this->frequencyCalculator->method('calculateNextDueDate')
+            ->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+
+        $today = date('Y-m-d');
+        $income = $this->makeIncome([
+            'frequency' => 'biweekly',
+            'expectedDay' => null,
+            'lastReceivedDate' => (new \DateTime('-21 days'))->format('Y-m-d'),
+        ]);
+        $this->mapper->method('find')->willReturn($income);
+        $this->mapper->method('update')->willReturnArgument(0);
+
+        $result = $this->service->update(1, 'user1', ['startDate' => $today]);
+
+        $this->assertSame($today, $result->getNextExpectedDate());
+    }
+
+    public function testUpdateAnchorAfterTodaysReceiptAdvancesPastIt(): void {
+        // Received TODAY: the anchor set to today is already covered by that
+        // receipt, so the next expectation is one interval later.
+        $this->frequencyCalculator->method('calculateNextDueDate')
+            ->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+
+        $today = date('Y-m-d');
+        $income = $this->makeIncome([
+            'frequency' => 'biweekly',
+            'expectedDay' => null,
+            'lastReceivedDate' => $today,
+        ]);
+        $this->mapper->method('find')->willReturn($income);
+        $this->mapper->method('update')->willReturnArgument(0);
+
+        $result = $this->service->update(1, 'user1', ['startDate' => $today]);
+
+        $this->assertSame((new \DateTime('+14 days'))->format('Y-m-d'), $result->getNextExpectedDate());
+    }
+
     public function testUpdatePersistsNonNullChangesWhenRequestAlsoContainsNullFields(): void {
         $income = $this->makeIncome([
             'expectedDay' => 25,

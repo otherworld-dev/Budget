@@ -6,7 +6,7 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { initSingleDatePicker } from '../../utils/datepicker.js';
-import { serverErrorMessage } from '../../utils/helpers.js';
+import { serverErrorMessage, isoWeekday } from '../../utils/helpers.js';
 
 export default class TransfersModule {
     constructor(app) {
@@ -198,6 +198,16 @@ export default class TransfersModule {
             }
         });
 
+        // Mark transfer as unpaid (revert the last payment, #365)
+        document.addEventListener('click', (e) => {
+            const unpaidBtn = e.target.closest('.transfer-unpaid-btn');
+            if (unpaidBtn) {
+                e.preventDefault();
+                const transferId = parseInt(unpaidBtn.dataset.transferId);
+                this.markTransferUnpaid(transferId);
+            }
+        });
+
         // Edit transfer
         document.addEventListener('click', (e) => {
             const editBtn = e.target.closest('.transfer-edit-btn');
@@ -255,7 +265,10 @@ export default class TransfersModule {
 
         transfersList.innerHTML = this.transfers.map(transfer => {
             const dueDate = transfer.nextDueDate || transfer.next_due_date;
-            const isPaid = this.isTransferPaidThisMonth(transfer);
+            // An inactive transfer has no next occurrence: never offer an
+            // actionable Mark Paid on it — markPaid would still execute (#365)
+            const isActive = transfer.isActive ?? transfer.is_active ?? true;
+            const isPaid = !isActive || this.isTransferPaidThisMonth(transfer);
             const isOverdue = !isPaid && dueDate && dueDate < formatters.getTodayDateString();
             const isDueSoon = !isPaid && !isOverdue && dueDate && this.isDueSoon(dueDate);
 
@@ -316,6 +329,12 @@ export default class TransfersModule {
                             <button class="bill-action-btn transfer-paid-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Mark as paid')}">
                                 <span class="icon-checkmark" aria-hidden="true"></span>
                                 ${t('budget', 'Mark Paid')}
+                            </button>
+                        ` : ''}
+                        ${transfer.canMarkUnpaid ? `
+                            <button class="bill-action-btn transfer-unpaid-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Revert the last payment')}">
+                                <span class="icon-history" aria-hidden="true"></span>
+                                ${t('budget', 'Mark Unpaid')}
                             </button>
                         ` : ''}
                         <button class="bill-action-btn transfer-edit-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Edit transfer')}">
@@ -569,10 +588,12 @@ export default class TransfersModule {
             initSingleDatePicker(transferDateInput, this.app.settings);
         }
 
-        // Start date (anchors weekly/biweekly schedules server-side, #364)
+        // Start date (anchors weekly/biweekly schedules server-side, #364).
+        // Choosing one derives and locks the weekday field.
         const transferStartDateInput = document.getElementById('transfer-start-date');
         if (transferStartDateInput) {
             initSingleDatePicker(transferStartDateInput, this.app.settings);
+            transferStartDateInput.addEventListener('change', () => this.updateTransferScheduleFields());
         }
 
         // Frequency-aware due day / start date fields (mirrors the bills form)
@@ -677,11 +698,13 @@ export default class TransfersModule {
         const dueDayLabel = document.getElementById('transfer-due-day-label');
         const dueDayInput = document.getElementById('transfer-due-day');
         const dueDayHelp = document.getElementById('transfer-due-day-help');
+        const startDateInput = document.getElementById('transfer-start-date');
         const startDateGroup = document.getElementById('transfer-start-date-group');
         const startDateHelp = document.getElementById('transfer-start-date-help');
         if (!frequency || !dueDayLabel || !dueDayInput) return;
 
-        if (frequency === 'weekly' || frequency === 'biweekly') {
+        const isAnchored = frequency === 'weekly' || frequency === 'biweekly';
+        if (isAnchored) {
             dueDayLabel.textContent = t('budget', 'Due Day (1-7)');
             if (dueDayHelp) dueDayHelp.textContent = t('budget', 'Day of the week (1=Monday, 7=Sunday)');
             dueDayInput.max = 7;
@@ -691,11 +714,23 @@ export default class TransfersModule {
             dueDayInput.max = 31;
         }
 
+        // With a start date set, the server anchors the schedule to it and
+        // ignores the weekday input entirely — mirror that here instead of
+        // letting two contradicting inputs sit side by side (#364 review)
+        const anchorValue = isAnchored ? (startDateInput?.value || '') : '';
+        if (anchorValue) {
+            dueDayInput.value = String(isoWeekday(anchorValue));
+            dueDayInput.disabled = true;
+            if (dueDayHelp) dueDayHelp.textContent = t('budget', 'Follows the start date');
+        } else {
+            dueDayInput.disabled = false;
+        }
+
         if (startDateGroup) {
             startDateGroup.style.display = frequency === 'one-time' ? 'none' : 'block';
         }
         if (startDateHelp) {
-            startDateHelp.textContent = (frequency === 'weekly' || frequency === 'biweekly')
+            startDateHelp.textContent = isAnchored
                 ? t('budget', 'The transfer repeats from this date (optional)')
                 : t('budget', 'Transfer only occurs on or after this date (optional)');
         }
@@ -712,7 +747,11 @@ export default class TransfersModule {
         const toAccountId = parseInt(document.getElementById('recurring-transfer-to-account').value);
         const dueDay = document.getElementById('transfer-due-day').value ?
                        parseInt(document.getElementById('transfer-due-day').value) : null;
-        const startDate = document.getElementById('transfer-start-date')?.value || null;
+        // The field is hidden for one-time — a stale value left over from a
+        // previous frequency choice must not be submitted (mirrors IncomeModule)
+        const startDate = frequency === 'one-time'
+            ? null
+            : (document.getElementById('transfer-start-date')?.value || null);
         const transferDescriptionPattern = document.getElementById('transfer-description-pattern').value || null;
         const categoryId = document.getElementById('transfer-category')?.value ? parseInt(document.getElementById('transfer-category').value) : null;
         const tagIds = this.getSelectedTagIds();
@@ -879,6 +918,46 @@ export default class TransfersModule {
         } catch (error) {
             console.error('Failed to mark transfer as paid:', error);
             showError(t('budget', 'Failed to mark transfer as paid'));
+        }
+    }
+
+    /**
+     * Durable "mark as unpaid" for transfer bills (#365): the same snapshot
+     * revert as the bills list — including the #347 statement-amount card
+     * payments the snapshot restore exists for — with the same confirm copy.
+     */
+    async markTransferUnpaid(transferId) {
+        const transfer = this.transfers.find(tx => tx.id === transferId);
+        let message = t('budget', 'Mark this bill as unpaid? Transactions created for the payment will be deleted, a linked imported transaction will be unlinked, and the bill schedule rolled back.');
+        const autoPayEnabled = transfer ? (transfer.autoPayEnabled ?? transfer.auto_pay_enabled ?? false) : false;
+        if (autoPayEnabled) {
+            message += '\n\n' + t('budget', 'Auto-pay is on for this bill — it may pay it again on the next run. Disable auto-pay first if the payment should not recur.');
+        }
+        if (!confirm(message)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${transferId}/unpaid`), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to mark transfer as unpaid')));
+            }
+
+            await this.loadTransfers();
+            this.renderTransfers();
+            this.updateSummary();
+            showSuccess(t('budget', 'Payment reverted — the transfer is marked as unpaid.'));
+        } catch (error) {
+            console.error('Failed to mark transfer as unpaid:', error);
+            showError(error.message || t('budget', 'Failed to mark transfer as unpaid'));
         }
     }
 

@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Service;
 
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\ImportRuleMapper;
@@ -611,5 +612,37 @@ class GranularShareServiceTest extends TestCase {
         $this->shareMapper->method('findByRecipient')->with('alice')->willReturn([]);
 
         $this->assertNull($this->service->resolveOwner('alice', ShareItem::TYPE_SAVINGS_GOAL, 999));
+    }
+
+    // =============================================
+    // getSharedBills
+    // =============================================
+
+    public function testGetSharedBillsNeverOffersMarkUnpaid(): void {
+        // markUnpaid's owner-scoped find can never succeed for a share
+        // recipient, so serializing the owner's canMarkUnpaid hint would give
+        // recipients a button that always 400s (#365 review).
+        $share = $this->makeShare(100, 'bob', 'alice', Share::STATUS_ACCEPTED);
+        $this->shareMapper->method('findByRecipient')->with('alice')->willReturn([$share]);
+        $this->shareItemMapper->method('findSharedEntityIds')
+            ->with(100, ShareItem::TYPE_BILL)
+            ->willReturn([7]);
+
+        $bill = new Bill();
+        $bill->setId(7);
+        $bill->setUserId('bob');
+        $bill->setName('Rent');
+        $bill->setAmount(100.0);
+        $bill->setFrequency('monthly');
+        $bill->setIsActive(true);
+        $bill->setPaidUndoState('{"previousState":{"isActive":true}}');
+        $this->billMapper->method('findByIds')->with([7])->willReturn([$bill]);
+
+        $result = $this->service->getSharedBills('alice');
+
+        $this->assertCount(1, $result);
+        $this->assertTrue($result[0]['_shared']);
+        $this->assertTrue($bill->jsonSerialize()['canMarkUnpaid'], 'the owner-side hint stays on');
+        $this->assertFalse($result[0]['canMarkUnpaid'], 'recipients must never be offered the action');
     }
 }

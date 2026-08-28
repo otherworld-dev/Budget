@@ -59,6 +59,20 @@ export async function downloadTransactionsCsv(params, filename) {
     URL.revokeObjectURL(url);
 }
 
+/**
+ * ISO weekday (1=Monday … 7=Sunday) of a Y-m-d date string, parsed as a plain
+ * calendar date so no timezone can shift it. Mirrors PHP's format('N'), which
+ * is what the server-side anchor maths uses (#363, #364).
+ *
+ * @param {string} dateStr - Date in Y-m-d form
+ * @returns {number} 1-7, Monday first
+ */
+export function isoWeekday(dateStr) {
+    const [y, m, d] = String(dateStr).split('-').map(Number);
+    const day = new Date(y, m - 1, d).getDay(); // 0 = Sunday
+    return day === 0 ? 7 : day;
+}
+
 /** Account types whose balance is stored negative (amount owed). */
 export const LIABILITY_ACCOUNT_TYPES = ['credit_card', 'loan', 'mortgage', 'line_of_credit'];
 

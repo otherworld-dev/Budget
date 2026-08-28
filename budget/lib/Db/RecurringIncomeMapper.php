@@ -179,7 +179,7 @@ class RecurringIncomeMapper extends QBMapper {
         'name', 'description', 'amount', 'frequency', 'expected_day',
         'expected_month', 'category_id', 'account_id', 'source',
         'auto_detect_pattern', 'is_active', 'auto_create_enabled',
-        'last_received_date', 'next_expected_date', 'notes',
+        'last_received_date', 'next_expected_date', 'start_date', 'notes',
         'excluded_from_forecast',
     ];
 

@@ -144,7 +144,16 @@ class RecurringIncomeService extends AbstractCrudService {
         // Recalculate next expected date if needed. The startDate anchors
         // weekly/biweekly parity (#363).
         if ($needsRecalculation) {
+            // The last received date only means "advance strictly past this"
+            // while it is today or later: a receipt weeks ago must not push
+            // the expectation past an anchor that falls due today — setting
+            // First payment date = today has to yield today, not
+            // today + interval (#363 review). markReceived keeps its own
+            // strictly-after semantics for the date it just recorded.
             $referenceDate = $income->getLastReceivedDate();
+            if ($referenceDate !== null && $referenceDate < date('Y-m-d')) {
+                $referenceDate = null;
+            }
 
             $nextExpected = $this->frequencyCalculator->calculateNextDueDate(
                 $income->getFrequency(),

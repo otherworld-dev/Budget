@@ -1149,7 +1149,12 @@ class BillServiceTest extends TestCase {
 		$decoded = json_decode($raw, true);
 		$this->assertSame('2099-06-15', $decoded['previousState']['nextDueDate']);
 		$this->assertSame(3, $decoded['previousState']['remainingPayments']);
-		$this->assertSame([55, 56], $decoded['createdTransactionIds']);
+		// The payment leg and the next-occurrence placeholder are tracked
+		// separately: the placeholder may materialise into a real ledger row
+		// before the snapshot is used, and must then survive the revert.
+		$this->assertSame([55], $decoded['createdTransactionIds']);
+		$this->assertSame([56], $decoded['scheduledTransactionIds']);
+		$this->assertNull($decoded['linkedTransactionId']);
 		$this->assertFalse($decoded['hadScheduledTransaction']);
 		$this->assertSame(date('Y-m-d'), $decoded['paidDate']);
 	}
@@ -1170,10 +1175,10 @@ class BillServiceTest extends TestCase {
 		$this->mapper->method('update')->willReturnArgument(0);
 
 		$deleted = [];
-		$this->transactionService->method('delete')
+		$this->transactionService->method('deleteAsAccountOwner')
 			->willReturnCallback(function (int $id) use (&$deleted) {
 				$deleted[] = $id;
-				return 1;
+				return true;
 			});
 
 		$restored = $this->service->markUnpaid(1, 'user1');
@@ -1231,7 +1236,7 @@ class BillServiceTest extends TestCase {
 		$this->mapper->method('find')->willReturn($bill);
 		$this->mapper->method('update')->willReturnArgument(0);
 
-		$this->transactionService->method('delete')
+		$this->transactionService->method('deleteAsAccountOwner')
 			->willThrowException(new \Exception('already gone'));
 
 		$restored = $this->service->markUnpaid(1, 'user1');
@@ -1254,7 +1259,7 @@ class BillServiceTest extends TestCase {
 	public function testMarkUnpaidWithoutSnapshotThrows(): void {
 		$bill = $this->makeBill();
 		$this->mapper->method('find')->willReturn($bill);
-		$this->transactionService->expects($this->never())->method('delete');
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
 
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessage('This bill has no recorded payment to undo');
@@ -1295,5 +1300,247 @@ class BillServiceTest extends TestCase {
 		$json = $bill->jsonSerialize();
 		$this->assertTrue($json['canMarkUnpaid']);
 		$this->assertArrayNotHasKey('paidUndoState', $json, 'internal blob must not reach the frontend');
+	}
+
+	// ── mark-unpaid review round (#363, #364, #365) ─────────────────
+
+	public function testUndoPaidDeletesTransactionsUnderTheAccountOwner(): void {
+		// markPaid created the payment rows under the ACCOUNT owner (#334) —
+		// for a bill on a shared account that is not the acting user, so the
+		// revert must route every deletion through the owner-resolving path.
+		$bill = $this->makeBill();
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$this->transactionService->expects($this->never())->method('delete');
+		$deleted = [];
+		$this->transactionService->method('deleteAsAccountOwner')
+			->willReturnCallback(function (int $id, bool $onlyIfScheduled = false) use (&$deleted) {
+				$deleted[] = $id;
+				return true;
+			});
+
+		$this->service->undoPaid(1, 'user1', [
+			'lastPaidDate' => null, 'nextDueDate' => '2099-06-15', 'isActive' => true,
+		], [55, 56]);
+
+		$this->assertSame([55, 56], $deleted);
+	}
+
+	public function testUpdateEditOnThePaidDayKeepsTheAdvancedDueDate(): void {
+		// A biweekly bill anchored on today's grid was paid TODAY: next due
+		// advanced to D+14. The consistency check used to recompute "on or
+		// after today", which is today itself — snapping the bill back onto
+		// the just-paid occurrence, which auto-pay then paid again.
+		$this->frequencyCalculator->method('calculateNextDueDate')
+			->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+
+		$today = new \DateTime();
+		$bill = $this->makeBill([
+			'frequency' => 'biweekly',
+			'dueDay' => (int) $today->format('N'),
+			'nextDueDate' => (clone $today)->modify('+14 days')->format('Y-m-d'),
+			'lastPaidDate' => $today->format('Y-m-d'),
+		]);
+		$bill->setStartDate((clone $today)->modify('-28 days')->format('Y-m-d'));
+		$this->mapper->method('find')->willReturn($bill);
+
+		$captured = null;
+		$this->mapper->method('updateFields')
+			->willReturnCallback(function ($id, $userId, $updates) use (&$captured) {
+				$captured = $updates;
+			});
+
+		$this->service->update(1, 'user1', ['name' => 'Renamed']);
+
+		$this->assertNotNull($captured);
+		$this->assertArrayNotHasKey('next_due_date', $captured, 'an edit on the paid day must not snap next due back to the paid occurrence');
+	}
+
+	public function testUpdateKeepsAnOverdueDueDate(): void {
+		// Overdue anchored bill: stored due 3 days ago, previous occurrence
+		// paid one period earlier. The overdue date is real, unpaid state —
+		// an unrelated edit must not silently snap it into the future.
+		$this->frequencyCalculator->method('calculateNextDueDate')
+			->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+
+		$today = new \DateTime();
+		$overdue = (clone $today)->modify('-3 days')->format('Y-m-d');
+		$bill = $this->makeBill([
+			'frequency' => 'biweekly',
+			'dueDay' => (int) (new \DateTime($overdue))->format('N'),
+			'nextDueDate' => $overdue,
+			'lastPaidDate' => (clone $today)->modify('-17 days')->format('Y-m-d'),
+		]);
+		$bill->setStartDate((clone $today)->modify('-31 days')->format('Y-m-d'));
+		$this->mapper->method('find')->willReturn($bill);
+
+		$captured = null;
+		$this->mapper->method('updateFields')
+			->willReturnCallback(function ($id, $userId, $updates) use (&$captured) {
+				$captured = $updates;
+			});
+
+		$this->service->update(1, 'user1', ['name' => 'Renamed']);
+
+		$this->assertNotNull($captured);
+		$this->assertArrayNotHasKey('next_due_date', $captured, 'an unrelated edit must not un-overdue the bill');
+	}
+
+	public function testUpdateMaterialEditSpendsTheUndoSnapshot(): void {
+		// The snapshot would restore the OLD amount/schedule over a deliberate
+		// edit — a material change spends it.
+		$bill = $this->makeBill();
+		$bill->setPaidUndoState($this->makePaidUndoSnapshot());
+		$this->mapper->method('find')->willReturn($bill);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-06-15');
+
+		$captured = null;
+		$this->mapper->method('updateFields')
+			->willReturnCallback(function ($id, $userId, $updates) use (&$captured) {
+				$captured = $updates;
+			});
+
+		$this->service->update(1, 'user1', ['amount' => 20.0]);
+
+		$this->assertNotNull($captured);
+		$this->assertArrayHasKey('paid_undo_state', $captured);
+		$this->assertNull($captured['paid_undo_state']);
+	}
+
+	public function testUpdateRenameKeepsTheUndoSnapshot(): void {
+		$bill = $this->makeBill();
+		$bill->setPaidUndoState($this->makePaidUndoSnapshot());
+		$this->mapper->method('find')->willReturn($bill);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-06-15');
+
+		$captured = null;
+		$this->mapper->method('updateFields')
+			->willReturnCallback(function ($id, $userId, $updates) use (&$captured) {
+				$captured = $updates;
+			});
+
+		// A rename plus an unchanged material value: neither spends the snapshot
+		$this->service->update(1, 'user1', ['name' => 'Renamed', 'amount' => 15.99]);
+
+		$this->assertNotNull($captured);
+		$this->assertArrayNotHasKey('paid_undo_state', $captured);
+	}
+
+	public function testSkipPaymentSpendsTheUndoSnapshot(): void {
+		// Skip moves next_due_date; a snapshot restored afterwards would bring
+		// back a pre-skip date.
+		$bill = $this->makeBill();
+		$bill->setPaidUndoState($this->makePaidUndoSnapshot());
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-15');
+
+		$result = $this->service->skipPayment(1, 'user1');
+
+		$this->assertNull($result['bill']->getPaidUndoState());
+	}
+
+	public function testMarkUnpaidDeletesThePlaceholderOnlyWhileStillScheduled(): void {
+		// The snapshot's placeholder may have materialised into a real ledger
+		// row since the payment — the revert asks for the scheduled-only
+		// delete and completes either way.
+		$bill = $this->makeBill(['nextDueDate' => '2099-07-15', 'lastPaidDate' => '2099-06-15']);
+		$bill->setPaidUndoState($this->makePaidUndoSnapshot([
+			'createdTransactionIds' => [55],
+			'scheduledTransactionIds' => [56],
+		]));
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$calls = [];
+		$this->transactionService->method('deleteAsAccountOwner')
+			->willReturnCallback(function (int $id, bool $onlyIfScheduled = false) use (&$calls) {
+				$calls[] = [$id, $onlyIfScheduled];
+				// The placeholder became 'cleared' — left alone
+				return !$onlyIfScheduled;
+			});
+
+		$restored = $this->service->markUnpaid(1, 'user1');
+
+		$this->assertSame([[55, false], [56, true]], $calls);
+		$this->assertSame('2099-06-15', $restored->getNextDueDate(), 'the revert still completes');
+		$this->assertNull($restored->getPaidUndoState());
+	}
+
+	public function testMarkPaidWithLinkedTransactionSnapshotsTheLink(): void {
+		// Link-existing / import-match payments create nothing — the snapshot
+		// records the LINKED id so the revert can unlink it (never delete it).
+		$bill = $this->makeBill();
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-15');
+
+		$this->transactionService->expects($this->once())
+			->method('update')
+			->with(77, 'user1', ['billId' => 1]);
+
+		$result = $this->service->markPaid(1, 'user1', null, false, 77);
+
+		$decoded = json_decode($result['bill']->getPaidUndoState(), true);
+		$this->assertSame(77, $decoded['linkedTransactionId']);
+		$this->assertSame([], $decoded['createdTransactionIds']);
+	}
+
+	public function testMarkUnpaidUnlinksALinkedTransactionInsteadOfDeletingIt(): void {
+		$bill = $this->makeBill(['nextDueDate' => '2099-07-15', 'lastPaidDate' => '2099-06-15']);
+		$bill->setPaidUndoState($this->makePaidUndoSnapshot([
+			'createdTransactionIds' => [],
+			'linkedTransactionId' => 77,
+		]));
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+		$this->transactionService->expects($this->once())
+			->method('unlinkBillAsAccountOwner')
+			->with(77);
+
+		$restored = $this->service->markUnpaid(1, 'user1');
+
+		$this->assertSame('2099-06-15', $restored->getNextDueDate());
+	}
+
+	public function testMarkUnpaidWithNonArrayTransactionIdsThrows(): void {
+		// A corrupt blob must fail like a missing snapshot, not TypeError past
+		// the controller's catches.
+		$bill = $this->makeBill();
+		$bill->setPaidUndoState(json_encode([
+			'previousState' => ['nextDueDate' => '2099-06-15', 'isActive' => true],
+			'createdTransactionIds' => 'bogus',
+		]));
+		$this->mapper->method('find')->willReturn($bill);
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('This bill has no recorded payment to undo');
+
+		$this->service->markUnpaid(1, 'user1');
+	}
+
+	public function testMarkPaidStillSucceedsWhenSnapshotPersistFails(): void {
+		// The payment is committed by the first mapper update; a DB error on
+		// the snapshot write may only cost the durable undo, never the payment.
+		$bill = $this->makeBill();
+		$this->mapper->method('find')->willReturn($bill);
+		$calls = 0;
+		$this->mapper->method('update')->willReturnCallback(function (Bill $b) use (&$calls) {
+			if (++$calls === 2) {
+				throw new \Exception('server has gone away');
+			}
+			return $b;
+		});
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-15');
+
+		$result = $this->service->markPaid(1, 'user1');
+
+		$this->assertSame('2099-07-15', $result['bill']->getNextDueDate());
+		$this->assertSame(date('Y-m-d'), $result['bill']->getLastPaidDate());
+		$this->assertNull($result['bill']->getPaidUndoState(), 'a snapshot that failed to persist must not be advertised');
 	}
 }

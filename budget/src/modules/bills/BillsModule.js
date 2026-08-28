@@ -291,7 +291,12 @@ export default class BillsModule {
 
         billsList.innerHTML = bills.map(bill => {
             const dueDate = bill.nextDueDate || bill.next_due_date;
-            const isPaid = this.isBillPaidThisMonth(bill);
+            // An inactive bill only stays in this list to be reverted (#365):
+            // it has no next occurrence, so it renders as paid — never as
+            // due/overdue, and never with actionable Mark Paid / Skip buttons
+            // (markPaid would happily execute on it).
+            const isActive = bill.isActive ?? bill.is_active ?? true;
+            const isPaid = !isActive || this.isBillPaidThisMonth(bill);
             const isOverdue = !isPaid && dueDate && dueDate < formatters.getTodayDateString();
             const isDueSoon = !isPaid && !isOverdue && dueDate && this.isDueSoon(dueDate);
 
@@ -1411,7 +1416,18 @@ export default class BillsModule {
      * never showed a toast at all.
      */
     async markBillUnpaid(billId) {
-        if (!confirm(t('budget', 'Mark this bill as unpaid? The recorded payment transaction will be deleted and the bill schedule rolled back.'))) {
+        const bill = (this.bills || []).find(b => b.id === billId);
+        // Created transactions are deleted; a payment recorded by linking an
+        // imported transaction is only unlinked — the copy must not claim a
+        // deletion that will not happen.
+        let message = t('budget', 'Mark this bill as unpaid? Transactions created for the payment will be deleted, a linked imported transaction will be unlinked, and the bill schedule rolled back.');
+        const autoPayEnabled = bill ? (bill.autoPayEnabled ?? bill.auto_pay_enabled ?? false) : false;
+        if (autoPayEnabled) {
+            // Reverting does not touch auto-pay — warn instead of silently
+            // changing a setting the user chose.
+            message += '\n\n' + t('budget', 'Auto-pay is on for this bill — it may pay it again on the next run. Disable auto-pay first if the payment should not recur.');
+        }
+        if (!confirm(message)) {
             return;
         }
 

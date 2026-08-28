@@ -91,6 +91,52 @@ describe('updateTransferScheduleFields', () => {
     });
 });
 
+describe('weekday follows the anchor (#364 review)', () => {
+    // With a start date set, the server derives the weekday from the anchor
+    // and ignores the weekday input entirely — the form must mirror that
+    // instead of letting the two contradict each other.
+    it('derives and locks the weekday from the start date for anchored frequencies', () => {
+        const mod = Object.create(TransfersModule.prototype);
+        const dueDay = document.getElementById('transfer-due-day');
+        dueDay.value = '2';
+
+        setFrequency('biweekly');
+        document.getElementById('transfer-start-date').value = '2026-08-14'; // a Friday
+        mod.updateTransferScheduleFields();
+
+        expect(dueDay.value).toBe('5');
+        expect(dueDay.disabled).toBe(true);
+        expect(document.getElementById('transfer-due-day-help').textContent).toBe('Follows the start date');
+    });
+
+    it('re-enables the weekday when the start date is cleared', () => {
+        const mod = Object.create(TransfersModule.prototype);
+        const dueDay = document.getElementById('transfer-due-day');
+
+        setFrequency('weekly');
+        document.getElementById('transfer-start-date').value = '2026-08-14';
+        mod.updateTransferScheduleFields();
+        expect(dueDay.disabled).toBe(true);
+
+        document.getElementById('transfer-start-date').value = '';
+        mod.updateTransferScheduleFields();
+        expect(dueDay.disabled).toBe(false);
+    });
+
+    it('leaves the day-of-month editable for non-anchored frequencies with a start date', () => {
+        const mod = Object.create(TransfersModule.prototype);
+        const dueDay = document.getElementById('transfer-due-day');
+        dueDay.value = '15';
+
+        setFrequency('monthly');
+        document.getElementById('transfer-start-date').value = '2026-08-14';
+        mod.updateTransferScheduleFields();
+
+        expect(dueDay.disabled).toBe(false);
+        expect(dueDay.value).toBe('15');
+    });
+});
+
 describe('saveTransfer startDate payload', () => {
     function mountSaveForm() {
         document.body.innerHTML += `
@@ -140,6 +186,26 @@ describe('saveTransfer startDate payload', () => {
     it('sends null when no start date was chosen', async () => {
         mountSaveForm();
         setFrequency('monthly');
+        global.OC = { generateUrl: (p) => p, requestToken: 'token' };
+
+        let body = null;
+        global.fetch = vi.fn(async (url, options) => {
+            body = JSON.parse(options.body);
+            return { ok: true, json: async () => ({}) };
+        });
+
+        await makeModule().saveTransfer();
+
+        expect(body.startDate).toBeNull();
+    });
+
+    it('sends null for one-time even if the hidden field holds a stale value', async () => {
+        // The field is hidden for one-time, but a value left over from a
+        // previous frequency choice used to be submitted anyway and reach
+        // the server's start-date floor.
+        mountSaveForm();
+        setFrequency('one-time');
+        document.getElementById('transfer-start-date').value = '2026-08-14';
         global.OC = { generateUrl: (p) => p, requestToken: 'token' };
 
         let body = null;

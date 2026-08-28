@@ -364,7 +364,12 @@ class GranularShareService {
         $ids = $this->getSharedIds($userId, ShareItem::TYPE_BILL);
         if (empty($ids)) return [];
         $bills = $this->billMapper->findByIds($ids);
-        return array_map(fn($b) => array_merge($b->jsonSerialize(), ['_shared' => true]), $bills);
+        return array_map(fn($b) => array_merge($b->jsonSerialize(), [
+            '_shared' => true,
+            // markUnpaid is scoped to the bill's owner — a recipient's call
+            // can never succeed, so never offer them the action (#365 review)
+            'canMarkUnpaid' => false,
+        ]), $bills);
     }
 
     /**

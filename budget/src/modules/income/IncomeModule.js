@@ -6,7 +6,7 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
-import { serverErrorMessage } from '../../utils/helpers.js';
+import { serverErrorMessage, isoWeekday } from '../../utils/helpers.js';
 
 export default class IncomeModule {
     constructor(app) {
@@ -287,6 +287,12 @@ export default class IncomeModule {
             frequencySelect.addEventListener('change', () => this.updateIncomeFormFields());
         }
 
+        // Choosing a first payment date derives and locks the weekday (#363)
+        const incomeStartDate = document.getElementById('income-start-date');
+        if (incomeStartDate) {
+            incomeStartDate.addEventListener('change', () => this.updateIncomeFormFields());
+        }
+
         // Filter tabs
         const incomeTabs = document.querySelectorAll('.income-tabs .tab-button');
         incomeTabs.forEach(tab => {
@@ -417,15 +423,30 @@ export default class IncomeModule {
         // Update expected day label based on frequency
         const expectedDayLabel = expectedDayGroup.querySelector('label');
         const expectedDayHelp = document.getElementById('income-expected-day-help');
+        const expectedDayInput = document.getElementById('income-expected-day');
 
         if (frequency === 'weekly' || frequency === 'biweekly') {
             expectedDayLabel.textContent = t('budget', 'Expected Day (1-7)');
             expectedDayHelp.textContent = t('budget', 'Day of the week (1=Monday, 7=Sunday)');
-            document.getElementById('income-expected-day').max = 7;
+            expectedDayInput.max = 7;
         } else {
             expectedDayLabel.textContent = t('budget', 'Expected Day');
             expectedDayHelp.textContent = t('budget', 'Day of the month when income is expected');
-            document.getElementById('income-expected-day').max = 31;
+            expectedDayInput.max = 31;
+        }
+
+        // With a first payment date set, the server anchors the schedule to
+        // it and ignores the weekday input entirely — mirror that here
+        // instead of letting the two contradict each other (#363 review)
+        const anchorValue = (frequency === 'weekly' || frequency === 'biweekly')
+            ? (document.getElementById('income-start-date')?.value || '')
+            : '';
+        if (anchorValue) {
+            expectedDayInput.value = String(isoWeekday(anchorValue));
+            expectedDayInput.disabled = true;
+            expectedDayHelp.textContent = t('budget', 'Follows the start date');
+        } else {
+            expectedDayInput.disabled = false;
         }
     }
 

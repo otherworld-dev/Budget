@@ -516,6 +516,50 @@ class TransactionService {
     }
 
     /**
+     * Delete a transaction under its account owner's identity (#334). Rows a
+     * bill payment creates in a shared account belong to the ACCOUNT owner —
+     * a revert issued by the bill's owner (the sharee) must delete them as
+     * that owner, because the acting-user-scoped find() can never see them.
+     *
+     * With $onlyIfScheduled, a row that is no longer a scheduled placeholder
+     * (it materialised into a real, possibly reconciled ledger row) is left
+     * alone and false is returned.
+     *
+     * Goes through delete() and thus deleteWithChildren() — never the mapper
+     * directly (#359).
+     *
+     * @return bool true when the row was deleted, false when it was
+     *              deliberately left alone
+     * @throws DoesNotExistException when the transaction no longer exists
+     */
+    public function deleteAsAccountOwner(int $id, bool $onlyIfScheduled = false): bool {
+        $transaction = $this->mapper->findById($id);
+        if ($transaction === null) {
+            throw new DoesNotExistException("Transaction {$id} does not exist");
+        }
+        if ($onlyIfScheduled && ($transaction->getStatus() ?? 'cleared') !== 'scheduled') {
+            return false;
+        }
+        $this->delete($id, $this->ownerOf($transaction));
+        return true;
+    }
+
+    /**
+     * Detach a transaction from its bill under the account owner's identity
+     * (#334). Used when reverting a payment that LINKED a pre-existing
+     * (imported) transaction: the row predates the payment and must survive
+     * the revert — only the bill linkage is undone. A row that no longer
+     * exists is ignored.
+     */
+    public function unlinkBillAsAccountOwner(int $id): void {
+        $transaction = $this->mapper->findById($id);
+        if ($transaction === null) {
+            return;
+        }
+        $this->update($id, $this->ownerOf($transaction), ['billId' => null]);
+    }
+
+    /**
      * Apply tag IDs to a transaction (used when creating transactions from bills).
      * @param int $transactionId
      * @param int[] $tagIds

@@ -473,10 +473,15 @@ class BillService {
         }
 
         foreach ($updates as $key => $value) {
-            // Track if schedule-related fields actually changed (not just present)
+            // Track if schedule-related fields actually changed (not just
+            // present). is_callable, not method_exists: the Bill entity's
+            // getters are magic (__call), which method_exists cannot see —
+            // schedule changes then only fired the recalculation through the
+            // date-consistency fallback below, which now deliberately
+            // tolerates paid-ahead/overdue dates (#364 review).
             if (in_array($key, ['frequency', 'dueDay', 'dueMonth', 'customRecurrencePattern', 'startDate'])) {
                 $getter = 'get' . ucfirst($key);
-                if (method_exists($bill, $getter) && $bill->$getter() != $value) {
+                if (is_callable([$bill, $getter]) && $bill->$getter() != $value) {
                     $needsRecalculation = true;
                 }
             }
@@ -484,6 +489,34 @@ class BillService {
             // Convert camelCase to snake_case for database column names
             $columnName = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $key));
             $dbUpdates[$columnName] = $value;
+        }
+
+        // A stored mark-unpaid snapshot captures the bill's amount and
+        // schedule state; restoring it after a deliberate change to any of
+        // those would silently revert the edit (or restore a next-due-date
+        // computed under the old schedule). A material edit therefore spends
+        // the snapshot; name/notes/reminder-style edits keep it (#365 review).
+        if ($bill->getPaidUndoState() !== null && $bill->getPaidUndoState() !== '') {
+            $materialKeys = ['amount', 'amountType', 'frequency', 'dueDay', 'dueMonth',
+                'customRecurrencePattern', 'startDate', 'accountId', 'destinationAccountId', 'isTransfer'];
+            foreach ($materialKeys as $key) {
+                if (!array_key_exists($key, $updates)) {
+                    continue;
+                }
+                $getter = 'get' . ucfirst($key);
+                $current = $bill->$getter();
+                // Legacy rows hold NULL where the form sends the default
+                if ($key === 'amountType') {
+                    $current = $current ?? 'fixed';
+                } elseif ($key === 'isTransfer') {
+                    $current = $current ?? false;
+                }
+                if ($current != $updates[$key]) {
+                    $dbUpdates['paid_undo_state'] = null;
+                    $bill->setPaidUndoState(null);
+                    break;
+                }
+            }
         }
 
         // Recalculate next due date if schedule fields changed, OR if
@@ -498,16 +531,46 @@ class BillService {
             $effectiveAnchor = array_key_exists('startDate', $updates)
                 ? $updates['startDate']
                 : $bill->getStartDate();
-            $expectedDue = $this->frequencyCalculator->calculateNextDueDate(
+            $expect = fn(?string $fromDate): string => $this->frequencyCalculator->calculateNextDueDate(
                 $updates['frequency'] ?? $bill->getFrequency(),
                 $updates['dueDay'] ?? $bill->getDueDay(),
                 $updates['dueMonth'] ?? $bill->getDueMonth(),
-                null,
+                $fromDate,
                 $updates['customRecurrencePattern'] ?? $bill->getCustomRecurrencePattern(),
                 false,
                 $effectiveAnchor
             );
-            if ($expectedDue !== $bill->getNextDueDate()) {
+
+            $storedDue = $bill->getNextDueDate();
+            $lastPaid = $bill->getLastPaidDate();
+            $today = date('Y-m-d');
+
+            // The stored date is CONSISTENT when it matches the schedule
+            // given the bill's payment state — not just "first occurrence
+            // from today", which cannot represent a bill legitimately paid
+            // ahead or overdue (#364/#365 review):
+            //  1. the plain expectation — first occurrence on/after today;
+            //  2. the advanced-past-payment expectation — a bill paid on its
+            //     due day stores due + one interval, which the calculator's
+            //     strictly-after-fromDate semantics reproduce;
+            //  3. a due/overdue occurrence not yet paid — snapping it forward
+            //     on an unrelated edit would silently un-overdue the bill;
+            //  4. a paid bill's future date that sits on the schedule (the
+            //     first occurrence strictly after the day before it) —
+            //     paid-ahead and skipped-ahead dates are deliberate.
+            // Anything else is a stale date and gets recalculated.
+            $isConsistent = $storedDue === $expect(null);
+            if (!$isConsistent && $lastPaid !== null) {
+                $isConsistent = $storedDue === $expect($lastPaid);
+            }
+            if (!$isConsistent && $storedDue <= $today && ($lastPaid === null || $storedDue > $lastPaid)) {
+                $isConsistent = true;
+            }
+            if (!$isConsistent && $lastPaid !== null && $storedDue > $today) {
+                $dayBefore = (new \DateTime($storedDue))->modify('-1 day')->format('Y-m-d');
+                $isConsistent = $storedDue === $expect($dayBefore);
+            }
+            if (!$isConsistent) {
                 $needsRecalculation = true;
             }
         }
@@ -621,6 +684,14 @@ class BillService {
             'amount' => $bill->getAmount(),
         ];
         $createdTransactionIds = [];
+        // The next-occurrence placeholder is tracked separately from the
+        // payment legs: by the time the snapshot is used it may have
+        // materialised into a real (possibly reconciled) ledger row, and the
+        // revert must then leave it alone (#365 review).
+        $scheduledTransactionIds = [];
+        // A pre-existing transaction LINKED to record the payment (dialog
+        // choice or import auto-match) is unlinked on revert, never deleted.
+        $linkedTransactionId = null;
         $hadScheduledTransaction = false;
         $linkedExistingTransaction = false;
         $paymentTransactionRecorded = false;
@@ -664,6 +735,7 @@ class BillService {
                     'billId' => $bill->getId(),
                 ]);
                 $linkedExistingTransaction = true;
+                $linkedTransactionId = $existingTransactionId;
             } catch (\Exception $e) {
                 $this->logger->warning("Failed to link existing transaction {$existingTransactionId} to bill {$id}: {$e->getMessage()}");
             }
@@ -732,10 +804,10 @@ class BillService {
         if ($createNextTransaction && ($bill->getCreateTransaction() ?? true) && $bill->getIsActive() && $bill->getAccountId() !== null) {
             try {
                 $nextTransaction = $this->transactionService->createFromBill($userId, $bill, null);
-                $createdTransactionIds[] = $nextTransaction->getId();
+                $scheduledTransactionIds[] = $nextTransaction->getId();
                 // For transfers, also track the linked deposit transaction
                 if ($nextTransaction->getLinkedTransactionId()) {
-                    $createdTransactionIds[] = $nextTransaction->getLinkedTransactionId();
+                    $scheduledTransactionIds[] = $nextTransaction->getLinkedTransactionId();
                 }
                 $this->applySplitTemplate($bill, $nextTransaction, $userId);
             } catch (\Exception $e) {
@@ -746,18 +818,31 @@ class BillService {
         // Persist the undo payload so "mark as unpaid" survives page reloads
         // and covers auto-pay / import-match payments too (#365). Overwrites
         // any previous snapshot: only the latest payment is revertible.
+        // The payment itself is already committed — a DB error here may only
+        // cost the durable undo, never fail the payment.
         $bill->setPaidUndoState(json_encode([
             'previousState' => $previousState,
             'createdTransactionIds' => $createdTransactionIds,
+            'scheduledTransactionIds' => $scheduledTransactionIds,
+            'linkedTransactionId' => $linkedTransactionId,
             'hadScheduledTransaction' => $hadScheduledTransaction,
             'paidDate' => $paidDate,
         ]));
-        $bill = $this->mapper->update($bill);
+        try {
+            $bill = $this->mapper->update($bill);
+        } catch (\Exception $e) {
+            // A snapshot that failed to persist must not be advertised as a
+            // working Mark Unpaid; the toast-based undo still has the ids below.
+            $bill->setPaidUndoState(null);
+            $this->logger->warning("Failed to persist the undo snapshot for bill {$id}: {$e->getMessage()}");
+        }
 
         return [
             'bill' => $bill,
             'previousState' => $previousState,
-            'createdTransactionIds' => $createdTransactionIds,
+            // The toast-based undo path deletes everything it is given right
+            // away, so it keeps receiving payment legs and placeholder alike.
+            'createdTransactionIds' => array_merge($createdTransactionIds, $scheduledTransactionIds),
             'hadScheduledTransaction' => $hadScheduledTransaction,
             'linkedExistingTransaction' => $linkedExistingTransaction,
             // False = the bill was marked paid but NO money movement was
@@ -781,17 +866,45 @@ class BillService {
      * @param array $previousState Previous bill field values to restore
      * @param int[] $createdTransactionIds Transaction IDs created by markPaid to delete
      * @param bool $hadScheduledTransaction Whether a scheduled transaction existed before markPaid
+     * @param int[] $scheduledTransactionIds Next-occurrence placeholder IDs — deleted only while still 'scheduled'
+     * @param int|null $linkedTransactionId Pre-existing transaction linked by markPaid — unlinked, never deleted
      * @return Bill Restored bill
      */
-    public function undoPaid(int $id, string $userId, array $previousState, array $createdTransactionIds, bool $hadScheduledTransaction = false): Bill {
+    public function undoPaid(int $id, string $userId, array $previousState, array $createdTransactionIds, bool $hadScheduledTransaction = false, array $scheduledTransactionIds = [], ?int $linkedTransactionId = null): Bill {
         $bill = $this->find($id, $userId);
 
-        // Delete transactions that were created by markPaid
+        // Delete the transactions markPaid recorded. They were created under
+        // the ACCOUNT owner (#334) — for a bill on a shared account that is
+        // not the acting user, and deleting under the acting user missed
+        // every row: the revert left the payment in the ledger while the
+        // bill claimed unpaid.
         foreach ($createdTransactionIds as $transactionId) {
             try {
-                $this->transactionService->delete((int) $transactionId, $userId);
+                $this->transactionService->deleteAsAccountOwner((int) $transactionId);
             } catch (\Exception $e) {
                 $this->logger->warning("Failed to delete transaction {$transactionId} during undo-paid for bill {$id}: {$e->getMessage()}");
+            }
+        }
+
+        // The next-occurrence placeholder may have materialised into a real
+        // (possibly reconciled) ledger row since the payment — remove it only
+        // while it is still a scheduled placeholder (#365 review).
+        foreach ($scheduledTransactionIds as $transactionId) {
+            try {
+                $this->transactionService->deleteAsAccountOwner((int) $transactionId, true);
+            } catch (\Exception $e) {
+                $this->logger->warning("Failed to delete scheduled transaction {$transactionId} during undo-paid for bill {$id}: {$e->getMessage()}");
+            }
+        }
+
+        // A linked pre-existing transaction was never created by markPaid:
+        // it predates the payment and survives the revert — only the bill
+        // linkage is undone.
+        if ($linkedTransactionId !== null) {
+            try {
+                $this->transactionService->unlinkBillAsAccountOwner($linkedTransactionId);
+            } catch (\Exception $e) {
+                $this->logger->warning("Failed to unlink transaction {$linkedTransactionId} during undo-paid for bill {$id}: {$e->getMessage()}");
             }
         }
 
@@ -849,6 +962,20 @@ class BillService {
             throw new \InvalidArgumentException($this->l->t('This bill has no recorded payment to undo'));
         }
 
+        // A corrupt blob must fail exactly like a missing snapshot — the
+        // controller's catches do not cover a TypeError from array_map (#365
+        // review). Older snapshots carry the placeholder inside
+        // createdTransactionIds and no linked id; both stay valid.
+        $createdIds = $decoded['createdTransactionIds'] ?? [];
+        $scheduledIds = $decoded['scheduledTransactionIds'] ?? [];
+        $linkedId = $decoded['linkedTransactionId'] ?? null;
+        $allNumeric = static fn(array $ids): bool => array_filter($ids, static fn($v) => !is_numeric($v)) === [];
+        if (!is_array($createdIds) || !is_array($scheduledIds)
+            || !$allNumeric($createdIds) || !$allNumeric($scheduledIds)
+            || ($linkedId !== null && !is_numeric($linkedId))) {
+            throw new \InvalidArgumentException($this->l->t('This bill has no recorded payment to undo'));
+        }
+
         // undoPaid deletes the created transactions tolerantly, restores the
         // snapshot fields (including a statement amount that cannot be
         // re-derived, #347) and clears the spent snapshot.
@@ -856,8 +983,10 @@ class BillService {
             $id,
             $userId,
             $decoded['previousState'],
-            array_map('intval', $decoded['createdTransactionIds'] ?? []),
-            (bool) ($decoded['hadScheduledTransaction'] ?? false)
+            array_map('intval', $createdIds),
+            (bool) ($decoded['hadScheduledTransaction'] ?? false),
+            array_map('intval', $scheduledIds),
+            $linkedId !== null ? (int) $linkedId : null
         );
     }
 
@@ -900,6 +1029,10 @@ class BillService {
             $bill->setIsActive(false);
             $bill->setNextDueDate(null);
         }
+
+        // The skip moved next_due_date — a mark-unpaid snapshot restored
+        // after it would bring back a pre-skip date, so it is spent (#365 review)
+        $bill->setPaidUndoState(null);
 
         $bill = $this->mapper->update($bill);
 

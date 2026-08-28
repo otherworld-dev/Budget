@@ -218,6 +218,43 @@ class RecurringIncomeMapperTest extends TestCase {
         $this->mapper->updateFields(1, 'user1', ['name' => 'Updated']);
     }
 
+    /**
+     * Regression (#363 review): start_date was added as a persisted column but
+     * never whitelisted here. IncomeModule sends startDate (often null) on
+     * EVERY save, and null values route through updateFields, so editing most
+     * recurring income threw "Column 'start_date' is not updatable".
+     */
+    public function testUpdateFieldsAllowsNullStartDate(): void {
+        $this->qb->expects($this->once())->method('executeStatement');
+
+        $this->mapper->updateFields(1, 'user1', ['start_date' => null]);
+    }
+
+    /**
+     * Guards the whole class of bug (mirrors BillMapperTest): every column the
+     * entity persists must be accepted by updateFields — a column added to the
+     * entity/migrations but not whitelisted breaks every edit carrying it.
+     */
+    public function testUpdateFieldsAcceptsEveryPersistedColumn(): void {
+        $skip = ['id', 'userId', 'createdAt'];
+        $reflection = new \ReflectionClass(RecurringIncome::class);
+        foreach ($reflection->getProperties(\ReflectionProperty::IS_PROTECTED) as $property) {
+            if ($property->getDeclaringClass()->getName() !== RecurringIncome::class) {
+                continue;
+            }
+            if (in_array($property->getName(), $skip, true)) {
+                continue;
+            }
+            $column = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $property->getName()));
+            try {
+                $this->mapper->updateFields(1, 'user1', [$column => 'x']);
+            } catch (\InvalidArgumentException $e) {
+                $this->fail("Persisted column '$column' is not in UPDATABLE_COLUMNS: " . $e->getMessage());
+            }
+        }
+        $this->addToAssertionCount(1);
+    }
+
     // ===== deleteAll =====
 
     public function testDeleteAllReturnsAffectedRows(): void {
