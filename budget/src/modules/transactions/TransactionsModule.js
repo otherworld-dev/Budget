@@ -399,9 +399,11 @@ export default class TransactionsModule {
         };
 
         setValue('filter-account', filters.account);
-        // A comma id-list (chart drill-down from an aggregated slice, #317)
-        // shows its first id — the parent category
-        setValue('filter-category', filters.category ? String(filters.category).split(',')[0] : '');
+        // A comma id-list (a parent-category drill-down — chart slice,
+        // Category Details "View All Transactions", #317, #361) shows a
+        // synthetic combined option, so the panel honestly represents the
+        // full applied scope instead of silently narrowing to the parent.
+        this.syncCategoryFilterControl(filters.category);
         setValue('filter-type', filters.type);
         setValue('filter-status', filters.status);
         setValue('filter-reconciled', filters.reconciled);
@@ -412,6 +414,60 @@ export default class TransactionsModule {
         setValue('filter-amount-min', filters.amountMin);
         setValue('filter-amount-max', filters.amountMax);
         setValue('filter-search', filters.search);
+    }
+
+    /**
+     * The applied category filter can be a single id, 'uncategorized', empty,
+     * or a comma id-list from a parent-category drill-down (parent id first,
+     * then its subcategories — chart slice, Category Details "View All
+     * Transactions", #317). The single-value #filter-category select cannot
+     * display a list, so a multi-list gets a synthetic <option> inserted
+     * whose value IS the full list and whose label names the parent and the
+     * subcategory count; the select's displayed value becomes that option,
+     * so the panel shows what is actually applied instead of quietly
+     * narrowing it to the parent (#361). Any leftover synthetic option from a
+     * previous drill-down is removed first so they never stack up, and a
+     * plain single value gets no synthetic option at all.
+     */
+    syncCategoryFilterControl(categoryFilter) {
+        const select = document.getElementById('filter-category');
+        if (!select) return;
+
+        const stale = select.querySelector('option[data-synthetic-category]');
+        if (stale) stale.remove();
+
+        const ids = categoryFilter ? String(categoryFilter).split(',') : [];
+        if (ids.length <= 1) {
+            select.value = categoryFilter || '';
+            return;
+        }
+
+        const [parentId, ...childIds] = ids;
+        const categories = this.app.categories || [];
+        const parent = categories.find(c => String(c.id) === String(parentId));
+        const parentName = parent ? parent.name : parentId;
+
+        const option = document.createElement('option');
+        option.value = String(categoryFilter);
+        option.dataset.syntheticCategory = 'true';
+        option.textContent = n(
+            'budget',
+            '{category} + {count} subcategory',
+            '{category} + {count} subcategories',
+            childIds.length,
+            { category: parentName, count: childIds.length }
+        );
+
+        // Keep it next to the real parent option for a coherent list; fall
+        // back to the top if that option isn't present in the select.
+        const parentOption = Array.from(select.options).find(opt => opt.value === String(parentId));
+        if (parentOption) {
+            parentOption.after(option);
+        } else {
+            select.insertBefore(option, select.firstChild);
+        }
+
+        select.value = String(categoryFilter);
     }
 
     populateFilterDropdowns() {
@@ -654,18 +710,12 @@ export default class TransactionsModule {
     updateFilters() {
         this.resetAllMatchingSelectionOnFilterChange();
         // A multi-id drill-down ('7,8,9' — a parent plus its subcategories,
-        // #317) can only display its first id in the single-value select.
-        // While the select still shows that id the user has not changed it,
-        // so the full applied list survives; picking anything else narrows
-        // to the choice as usual (#361).
-        const selectedCategory = document.getElementById('filter-category')?.value || '';
-        const appliedCategory = String(this.app.transactionFilters?.category || '');
-        const category = (selectedCategory && appliedCategory.split(',')[0] === selectedCategory)
-            ? appliedCategory
-            : selectedCategory;
+        // #317) is now displayed honestly: syncFilterControlsFromState()
+        // selects a synthetic option whose value IS the full list (#361), so
+        // reading the select back is enough — no first-id special-casing.
         this.app.transactionFilters = {
             account: document.getElementById('filter-account')?.value || '',
-            category,
+            category: document.getElementById('filter-category')?.value || '',
             type: document.getElementById('filter-type')?.value || '',
             status: document.getElementById('filter-status')?.value || '',
             reconciled: document.getElementById('filter-reconciled')?.value || '',

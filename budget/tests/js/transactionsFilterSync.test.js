@@ -18,7 +18,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 vi.mock('@nextcloud/l10n', () => ({
     translate: (_app, text, params = {}) =>
         String(text).replace(/\{(\w+)\}/g, (m, k) => (k in params ? params[k] : m)),
-    translatePlural: (_app, singular, plural, count) => (count === 1 ? singular : plural),
+    // Mirrors @nextcloud/l10n's real translatePlural: picks singular/plural
+    // by count, then substitutes {vars} exactly like translate() does.
+    translatePlural: (_app, singular, plural, count, params = {}) =>
+        String(count === 1 ? singular : plural).replace(/\{(\w+)\}/g, (m, k) => (k in params ? params[k] : m)),
 }));
 
 import TransactionsModule from '../../src/modules/transactions/TransactionsModule.js';
@@ -87,12 +90,76 @@ describe('syncFilterControlsFromState', () => {
         expect(mod.selectedFilterTags.size).toBe(0);
     });
 
-    it('shows the first id of a comma id-list category filter', () => {
+    it('shows a synthetic combined option for a comma id-list category filter, honestly representing the drill-down scope', () => {
+        // A parent-category drill-down (chart slice, Category Details "View
+        // All Transactions", #317) applies 'parentId,childId,childId' — the
+        // single-value select cannot display a list, so a synthetic option
+        // stands in for it instead of silently narrowing to the parent.
         const mod = makeModule({ category: '1,2,7', type: '' });
+        mod.app.categories = [
+            { id: 1, name: 'Groceries' },
+            { id: 2, name: 'Petrol' },
+            { id: 7, name: 'Phone' },
+        ];
 
         mod.syncFilterControlsFromState();
 
-        expect(el('filter-category').value).toBe('1');
+        const select = el('filter-category');
+        expect(select.value).toBe('1,2,7');
+        const synthetic = select.querySelector('option[data-synthetic-category]');
+        expect(synthetic).not.toBeNull();
+        expect(synthetic.value).toBe('1,2,7');
+        expect(synthetic.textContent).toBe('Groceries + 2 subcategories');
+        expect(synthetic.selected).toBe(true);
+    });
+
+    it('uses the singular label for exactly one subcategory', () => {
+        const mod = makeModule({ category: '1,2' });
+        mod.app.categories = [{ id: 1, name: 'Groceries' }];
+
+        mod.syncFilterControlsFromState();
+
+        const synthetic = el('filter-category').querySelector('option[data-synthetic-category]');
+        expect(synthetic.textContent).toBe('Groceries + 1 subcategory');
+    });
+
+    it('does not add a synthetic option for a plain single-value category filter', () => {
+        const mod = makeModule({ category: '7', type: '' });
+        mod.app.categories = [{ id: 7, name: 'Phone' }];
+
+        mod.syncFilterControlsFromState();
+
+        const select = el('filter-category');
+        expect(select.value).toBe('7');
+        expect(select.querySelector('option[data-synthetic-category]')).toBeNull();
+    });
+
+    it('does not add a synthetic option when there is no category filter applied', () => {
+        const mod = makeModule({ category: '' });
+
+        mod.syncFilterControlsFromState();
+
+        const select = el('filter-category');
+        expect(select.value).toBe('');
+        expect(select.querySelector('option[data-synthetic-category]')).toBeNull();
+    });
+
+    it('replaces a stale synthetic option rather than stacking a second one', () => {
+        const first = makeModule({ category: '1,2,7' });
+        first.app.categories = [{ id: 1, name: 'Groceries' }];
+        first.syncFilterControlsFromState();
+
+        // A later navigation applies a different drill-down against the same
+        // (still-mounted) panel.
+        const second = makeModule({ category: '2,7' });
+        second.app.categories = [{ id: 1, name: 'Groceries' }, { id: 2, name: 'Petrol' }];
+        second.syncFilterControlsFromState();
+
+        const select = el('filter-category');
+        const syntheticOptions = select.querySelectorAll('option[data-synthetic-category]');
+        expect(syntheticOptions.length).toBe(1);
+        expect(select.value).toBe('2,7');
+        expect(syntheticOptions[0].textContent).toBe('Petrol + 1 subcategory');
     });
 
     it('suppresses flatpickr change events so updateFilters cannot re-enter mid-sync', () => {
@@ -155,24 +222,67 @@ describe('populateFilterDropdowns', () => {
 
         expect(el('filter-type').value).toBe('');
     });
+
+    it('keeps the synthetic combined option after an options rebuild while a multi-id drill-down is still applied', () => {
+        // populateFilterDropdowns rebuilds the select's innerHTML from
+        // scratch (e.g. on every filter-panel open) — the synthetic option
+        // must survive that rebuild for as long as the multi-list is applied.
+        const mod = makeModule({ category: '1,2,7', type: '' });
+        mod.app.accounts = [{ id: 1, name: 'Current' }];
+        mod.app.categories = [
+            { id: 1, name: 'Groceries' },
+            { id: 2, name: 'Petrol' },
+            { id: 7, name: 'Phone' },
+        ];
+        mod.app.categoryTree = [{
+            id: 1, name: 'Groceries', children: [
+                { id: 2, name: 'Petrol', children: [] },
+                { id: 7, name: 'Phone', children: [] },
+            ],
+        }];
+
+        mod.populateFilterDropdowns();
+
+        const select = el('filter-category');
+        expect(select.value).toBe('1,2,7');
+        const synthetic = select.querySelector('option[data-synthetic-category]');
+        expect(synthetic).not.toBeNull();
+        expect(synthetic.textContent).toBe('Groceries + 2 subcategories');
+    });
 });
 
 describe('updateFilters', () => {
     beforeEach(() => mountFilterPanel());
 
-    it('keeps a multi-id category drill-down intact while its first id is still selected', () => {
-        // The single-value select can only display the first id of '1,2,7'
-        // (a parent plus its subcategories, #317); as long as the user has
-        // not picked a different category, the full applied list survives.
+    it('keeps a multi-id category drill-down intact while the synthetic combined option is still selected', () => {
+        // syncFilterControlsFromState() made the select's displayed value the
+        // synthetic option carrying the full list — updateFilters() just
+        // reads the select back; no first-id special-casing needed anymore.
         const mod = makeModule({ category: '1,2,7' });
-        el('filter-category').value = '1';
+        mod.app.categories = [{ id: 1, name: 'Groceries' }];
+        mod.syncFilterControlsFromState();
 
         mod.updateFilters();
 
         expect(mod.app.transactionFilters.category).toBe('1,2,7');
     });
 
-    it('narrows to the category the user actually picked', () => {
+    it('narrows to the parent category once the user actually (re-)picks it', () => {
+        // Previously the select showed the parent's plain id, so re-picking
+        // the already-displayed parent fired no change event and the full
+        // list silently survived. Now the displayed value is the synthetic
+        // option, so choosing the real parent option is a genuine change.
+        const mod = makeModule({ category: '1,2,7' });
+        mod.app.categories = [{ id: 1, name: 'Groceries' }];
+        mod.syncFilterControlsFromState();
+
+        el('filter-category').value = '1';
+        mod.updateFilters();
+
+        expect(mod.app.transactionFilters.category).toBe('1');
+    });
+
+    it('narrows to whatever category the user picks directly', () => {
         const mod = makeModule({ category: '1,2,7' });
         el('filter-category').value = '2';
 
