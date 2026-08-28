@@ -43,7 +43,7 @@ class TransactionSplitMapperTest extends TestCase {
 
         foreach (['select', 'addSelect', 'selectAlias', 'from', 'where', 'andWhere',
                    'orderBy', 'addOrderBy', 'leftJoin', 'innerJoin', 'delete', 'groupBy', 'addGroupBy',
-                   'update', 'set'] as $method) {
+                   'update', 'set', 'setMaxResults'] as $method) {
             $this->qb->method($method)->willReturnSelf();
         }
 
@@ -135,6 +135,30 @@ class TransactionSplitMapperTest extends TestCase {
         $splits = $this->mapper->findByTransaction(100);
 
         $this->assertEmpty($splits);
+    }
+
+    // ===== hasParts (#360) =====
+
+    /**
+     * One-row probe for write paths that must not trust is_split alone:
+     * restores from archives that predate this table joining the backup
+     * registry (#351) can leave the flag claiming split with no parts
+     * behind it (#360).
+     */
+    public function testHasPartsIsTrueWhenARowComesBack(): void {
+        $this->result->method('fetchOne')->willReturn(1);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $this->assertTrue($this->mapper->hasParts(100));
+    }
+
+    public function testHasPartsIsFalseWhenNoRowComesBack(): void {
+        $this->result->method('fetchOne')->willReturn(false);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $this->assertFalse($this->mapper->hasParts(100));
     }
 
     // ===== deleteByTransaction =====

@@ -886,14 +886,34 @@ class MigrationService {
             $result->closeCursor();
         }
 
-        if ($splitParentIds === []) {
-            return;
-        }
+        // Resolve the flag BOTH ways. The flag written by importTransactions()
+        // came from the archive, and a post-#351 restore of a pre-#351 archive
+        // claims is_split for parts that never made it into the backup —
+        // leaving stray-true rows the read side lists as uncategorized while
+        // the write side silently discards their category (#360). Parts are
+        // the truth: true where parts arrived, false where none did.
+        $withParts = array_flip($splitParentIds);
+        $withoutParts = array_values(array_filter(
+            array_values($transactionIdMap),
+            static fn (int $id): bool => !isset($withParts[$id])
+        ));
 
-        foreach (array_chunk($splitParentIds, 500) as $chunk) {
+        if ($splitParentIds !== []) {
+            $this->setIsSplitFlag($splitParentIds, true);
+        }
+        if ($withoutParts !== []) {
+            $this->setIsSplitFlag($withoutParts, false);
+        }
+    }
+
+    /**
+     * @param int[] $ids
+     */
+    private function setIsSplitFlag(array $ids, bool $isSplit): void {
+        foreach (array_chunk($ids, 500) as $chunk) {
             $update = $this->db->getQueryBuilder();
             $update->update('budget_transactions')
-                ->set('is_split', $update->createNamedParameter(true, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_BOOL))
+                ->set('is_split', $update->createNamedParameter($isSplit, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_BOOL))
                 ->where($update->expr()->in(
                     'id',
                     $update->createNamedParameter($chunk, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT_ARRAY)

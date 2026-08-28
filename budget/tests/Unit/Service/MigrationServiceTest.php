@@ -597,55 +597,51 @@ class MigrationServiceTest extends TestCase {
 		$this->assertSame([40 => 200], $map);
 	}
 
-	// ===== markSplitParents() — restore sets is_split on restored splits' parents (#360) =====
+	// ===== markSplitParents() — restore resolves is_split from the imported parts (#360) =====
 
-	public function testMarkSplitParentsSetsIsSplitOnlyOnTransactionsThatActuallyReceivedParts(): void {
-		// tx_splits imports through the generic table machinery with no idea
-		// that a parent's is_split flag exists, and the flag written earlier
-		// by importTransactions() can't be trusted (a pre-#351 backup carries
-		// none at all). This reads back which of the freshly imported
-		// transactions actually got split rows and marks exactly those.
-		$db = $this->createMock(IDBConnection::class);
-
-		$selectExpr = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
-		$selectExpr->method('in')->willReturn('in-expr');
-		$selectQb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
-		$selectQb->method('selectDistinct')->willReturnSelf();
-		$selectQb->method('from')->willReturnSelf();
-		$selectQb->method('where')->willReturnSelf();
-		$selectQb->method('expr')->willReturn($selectExpr);
-		$selectNamedParams = [];
-		$selectQb->method('createNamedParameter')->willReturnCallback(function ($value, $type = null) use (&$selectNamedParams) {
-			$selectNamedParams[] = [$value, $type];
+	/** A select QB whose fetch yields the given rows, recording bound params. */
+	private function makeSelectQb(array $rows, array &$namedParams): \OCP\DB\QueryBuilder\IQueryBuilder {
+		$expr = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
+		$expr->method('in')->willReturn('in-expr');
+		$qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
+		$qb->method('selectDistinct')->willReturnSelf();
+		$qb->method('from')->willReturnSelf();
+		$qb->method('where')->willReturnSelf();
+		$qb->method('expr')->willReturn($expr);
+		$qb->method('createNamedParameter')->willReturnCallback(function ($value, $type = null) use (&$namedParams) {
+			$namedParams[] = [$value, $type];
 			return ':p';
 		});
-		// Of the three freshly imported transactions, only 101 and 103
-		// actually received a split row.
-		$selectResult = $this->createMock(\OCP\DB\IResult::class);
-		$selectResult->method('fetch')->willReturnOnConsecutiveCalls(
-			['transaction_id' => 101],
-			['transaction_id' => 103],
-			false
-		);
-		$selectQb->method('executeQuery')->willReturn($selectResult);
+		$result = $this->createMock(\OCP\DB\IResult::class);
+		$rows[] = false;
+		$result->method('fetch')->willReturnOnConsecutiveCalls(...$rows);
+		$qb->method('executeQuery')->willReturn($result);
+		return $qb;
+	}
 
-		$updateExpr = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
-		$updateExpr->method('in')->willReturn('in-expr');
-		$updateQb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
-		$updateQb->method('set')->willReturnSelf();
-		$updateQb->method('where')->willReturnSelf();
-		$updateQb->method('expr')->willReturn($updateExpr);
-		$updateNamedParams = [];
-		$updateQb->method('createNamedParameter')->willReturnCallback(function ($value, $type = null) use (&$updateNamedParams) {
-			$updateNamedParams[] = [$value, $type];
+	/** An update QB recording bound params; asserts UPDATE targets budget_transactions. */
+	private function makeUpdateQb(array &$namedParams): \OCP\DB\QueryBuilder\IQueryBuilder {
+		$expr = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
+		$expr->method('in')->willReturn('in-expr');
+		$expr->method('eq')->willReturn('eq-expr');
+		$expr->method('isNull')->willReturn('isnull-expr');
+		$expr->method('orX')->willReturn($this->createMock(\OCP\DB\QueryBuilder\ICompositeExpression::class));
+		$qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
+		$qb->method('set')->willReturnSelf();
+		$qb->method('where')->willReturnSelf();
+		$qb->method('andWhere')->willReturnSelf();
+		$qb->method('expr')->willReturn($expr);
+		$qb->method('createNamedParameter')->willReturnCallback(function ($value, $type = null) use (&$namedParams) {
+			$namedParams[] = [$value, $type];
 			return ':p';
 		});
-		$updateQb->expects($this->once())->method('update')->with('budget_transactions')->willReturnSelf();
-		$updateQb->expects($this->once())->method('executeStatement');
+		$qb->expects($this->once())->method('update')->with('budget_transactions')->willReturnSelf();
+		$qb->expects($this->once())->method('executeStatement');
+		return $qb;
+	}
 
-		$db->method('getQueryBuilder')->willReturnOnConsecutiveCalls($selectQb, $updateQb);
-
-		$service = new MigrationService(
+	private function makeServiceWith(IDBConnection $db): MigrationService {
+		return new MigrationService(
 			$this->accountMapper,
 			$this->transactionMapper,
 			$this->categoryMapper,
@@ -654,6 +650,35 @@ class MigrationServiceTest extends TestCase {
 			$this->settingMapper,
 			$db
 		);
+	}
+
+	public function testMarkSplitParentsResolvesTheFlagFromTheImportedParts(): void {
+		// tx_splits imports through the generic table machinery with no idea
+		// that a parent's is_split flag exists, and the flag written earlier
+		// by importTransactions() can't be trusted (a pre-#351 backup carries
+		// none at all, and a post-#351 restore of a pre-#351 archive claims
+		// true for parts that never made it into the backup). This reads back
+		// which of the freshly imported transactions actually got split rows,
+		// marks exactly those true — and clears the claim on the ones that
+		// got none, or a restore keeps manufacturing stray-true rows (#360).
+		$db = $this->createMock(IDBConnection::class);
+
+		$selectNamedParams = [];
+		// Of the four freshly imported transactions, only 101 and 103
+		// actually received a split row.
+		$selectQb = $this->makeSelectQb([
+			['transaction_id' => 101],
+			['transaction_id' => 103],
+		], $selectNamedParams);
+
+		$trueNamedParams = [];
+		$trueQb = $this->makeUpdateQb($trueNamedParams);
+		$falseNamedParams = [];
+		$falseQb = $this->makeUpdateQb($falseNamedParams);
+
+		$db->method('getQueryBuilder')->willReturnOnConsecutiveCalls($selectQb, $trueQb, $falseQb);
+
+		$service = $this->makeServiceWith($db);
 
 		$method = new \ReflectionMethod($service, 'markSplitParents');
 		$method->setAccessible(true);
@@ -661,43 +686,39 @@ class MigrationServiceTest extends TestCase {
 
 		// The SELECT looked across every freshly imported transaction id...
 		$this->assertSame([[100, 101, 102, 103], \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT_ARRAY], $selectNamedParams[0]);
-		// ...and the UPDATE set is_split = true on only the ones that came back.
-		$this->assertSame([true, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_BOOL], $updateNamedParams[0]);
-		$this->assertSame([[101, 103], \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT_ARRAY], $updateNamedParams[1]);
+		// ...one UPDATE set is_split = true on only the ones that came back...
+		$this->assertSame([true, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_BOOL], $trueNamedParams[0]);
+		$this->assertSame([[101, 103], \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT_ARRAY], $trueNamedParams[1]);
+		// ...and the other cleared is_split on the ones that got no parts.
+		$this->assertSame([false, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_BOOL], $falseNamedParams[0]);
+		$this->assertSame([[100, 102], \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT_ARRAY], $falseNamedParams[1]);
 	}
 
-	public function testMarkSplitParentsIsANoOpWhenNothingCameBack(): void {
+	public function testMarkSplitParentsClearsTheFlagWhenNoPartsCameBackAtAll(): void {
 		// None of the freshly imported transactions had a split row (the
-		// ordinary case) -- no UPDATE should run at all.
+		// ordinary case, but also a restore of an archive made while the
+		// splits table was missing from the backup registry, #351, whose
+		// transactions still CLAIM is_split) — no true-update runs, and the
+		// claims are cleared so the restore stops manufacturing stray-true
+		// rows (#360).
 		$db = $this->createMock(IDBConnection::class);
 
-		$selectExpr = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
-		$selectExpr->method('in')->willReturn('in-expr');
-		$selectQb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
-		$selectQb->method('selectDistinct')->willReturnSelf();
-		$selectQb->method('from')->willReturnSelf();
-		$selectQb->method('where')->willReturnSelf();
-		$selectQb->method('expr')->willReturn($selectExpr);
-		$selectQb->method('createNamedParameter')->willReturn(':p');
-		$selectResult = $this->createMock(\OCP\DB\IResult::class);
-		$selectResult->method('fetch')->willReturn(false);
-		$selectQb->method('executeQuery')->willReturn($selectResult);
+		$selectNamedParams = [];
+		$selectQb = $this->makeSelectQb([], $selectNamedParams);
 
-		$db->expects($this->once())->method('getQueryBuilder')->willReturn($selectQb);
+		$falseNamedParams = [];
+		$falseQb = $this->makeUpdateQb($falseNamedParams);
 
-		$service = new MigrationService(
-			$this->accountMapper,
-			$this->transactionMapper,
-			$this->categoryMapper,
-			$this->billMapper,
-			$this->importRuleMapper,
-			$this->settingMapper,
-			$db
-		);
+		$db->method('getQueryBuilder')->willReturnOnConsecutiveCalls($selectQb, $falseQb);
+
+		$service = $this->makeServiceWith($db);
 
 		$method = new \ReflectionMethod($service, 'markSplitParents');
 		$method->setAccessible(true);
 		$method->invoke($service, [11 => 100]);
+
+		$this->assertSame([false, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_BOOL], $falseNamedParams[0]);
+		$this->assertSame([[100], \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT_ARRAY], $falseNamedParams[1]);
 	}
 
 	public function testFilterRowColumnsRejectsHostileNames(): void {

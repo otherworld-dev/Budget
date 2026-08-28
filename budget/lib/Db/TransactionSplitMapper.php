@@ -18,6 +18,41 @@ class TransactionSplitMapper extends QBMapper {
     }
 
     /**
+     * One-row probe: does this transaction have any split parts? For write
+     * paths that must not trust is_split alone — restores from archives that
+     * predate this table joining the backup registry (#351) left flags
+     * claiming split with no parts behind them (#360).
+     */
+    public function hasParts(int $transactionId): bool {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('id')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('transaction_id', $qb->createNamedParameter($transactionId, IQueryBuilder::PARAM_INT)))
+            ->setMaxResults(1);
+
+        $result = $qb->executeQuery();
+        $row = $result->fetchOne();
+        $result->closeCursor();
+
+        return $row !== false;
+    }
+
+    /**
+     * The split side of the direct/split partition: a parent counts through
+     * its parts when its flag says split OR was never written (is_split
+     * predates its own default). A part whose parent is explicitly unsplit
+     * (is_split = false) is stray — the parent's own amount counts and the
+     * leftover parts do not (the policy TransactionMapper::splitParentPredicate
+     * and its directRowPredicate complement state, #356/#360).
+     */
+    private function splitParentPredicate(IQueryBuilder $qb, string $alias = 't'): \OCP\DB\QueryBuilder\ICompositeExpression {
+        return $qb->expr()->orX(
+            $qb->expr()->eq("{$alias}.is_split", $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)),
+            $qb->expr()->isNull("{$alias}.is_split")
+        );
+    }
+
+    /**
      * Find a split by ID.
      *
      * @throws DoesNotExistException
@@ -210,16 +245,7 @@ class TransactionSplitMapper extends QBMapper {
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            // A part whose parent is explicitly marked unsplit (is_split =
-            // false) is stray -- the policy is that such a parent's own
-            // amount counts and any leftover split rows referencing it do
-            // not (see TransactionMapper::splitParentPredicate and #360).
-            // true-or-NULL is this table's only helper for that; there is no
-            // splitParentPredicate() on this mapper, so it is inlined here.
-            ->andWhere($qb->expr()->orX(
-                $qb->expr()->eq('t.is_split', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)),
-                $qb->expr()->isNull('t.is_split')
-            ))
+            ->andWhere($this->splitParentPredicate($qb))
             ->andWhere($qb->expr()->orX(
                 $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
                 $qb->expr()->isNull('t.status'),
@@ -277,13 +303,7 @@ class TransactionSplitMapper extends QBMapper {
             ->andWhere($qb->expr()->isNotNull('s.category_id'))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            // Same stray-part guard as getCategoryTotalsByBucket above: a part
-            // whose parent is explicitly unsplit (is_split = false) must not
-            // be counted (#360).
-            ->andWhere($qb->expr()->orX(
-                $qb->expr()->eq('t.is_split', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)),
-                $qb->expr()->isNull('t.is_split')
-            ))
+            ->andWhere($this->splitParentPredicate($qb))
             ->andWhere($qb->expr()->orX(
                 $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
                 $qb->expr()->isNull('t.status'),

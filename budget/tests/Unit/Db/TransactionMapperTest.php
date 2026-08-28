@@ -835,6 +835,27 @@ class TransactionMapperTest extends TestCase {
         $this->assertEqualsWithDelta(475.00, $totals[10]['expenses'], 0.001);
     }
 
+    /**
+     * The direct/split merge is money arithmetic and goes through
+     * MoneyCalculator, never incremented floats (#274): 0.1 + 0.2 must come
+     * out as exactly 0.3, not 0.30000000000000004.
+     */
+    public function testGetCategoryTotalsByAccountMergesWithMoneyPrecision(): void {
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([
+                ['account_id' => '10', 'income' => '0.1', 'expenses' => '0.7'],
+            ]),
+            $this->resultOf([
+                ['account_id' => '10', 'income' => '0.2', 'expenses' => '0.1'],
+            ])
+        );
+
+        $totals = $this->mapper->getCategoryTotalsByAccount([5], '2026-01-01', '2026-01-31');
+
+        $this->assertSame(0.3, $totals[10]['income']);
+        $this->assertSame(0.8, $totals[10]['expenses']);
+    }
+
     // ===== findPotentialMatches =====
 
     public function testFindPotentialMatchesIsStrictByDefault(): void {
@@ -1670,6 +1691,43 @@ class TransactionMapperTest extends TestCase {
         $this->assertCount(2, $groups);
         $this->assertSame([1, 2], array_column($groups[0], 'id'));
         $this->assertSame([3, 4], array_column($groups[1], 'id'));
+    }
+
+    /**
+     * The dialog shows "Split" instead of a dash in the category column for a
+     * split parent (#360). The mapping trusts the raw flag — the one-time
+     * backfill (Version001000100) resolves NULL and stray-true flags from the
+     * parts table, so post-backfill the flag IS the truth and no per-row
+     * parts probe is spent here.
+     */
+    public function testFindDuplicatesReportsAFlagTrueRowAsSplit(): void {
+        $row = fn (int $id, $isSplit) => array_merge($this->makeTransactionRow([
+            'id' => $id,
+            'account_id' => 10,
+            'amount' => 25.00,
+            'type' => 'debit',
+            'description' => 'Supermarket',
+            'date' => '2026-03-01',
+            'is_split' => $isSplit,
+            'category_id' => null,
+            'category_name' => null,
+        ]), [
+            'account_name' => 'Checking',
+            'account_currency' => 'USD',
+        ]);
+
+        $this->result->method('fetchAll')->willReturn([
+            $row(21, 1),
+            $row(22, 0),
+        ]);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $groups = $this->mapper->findDuplicates('user1', 3);
+
+        $this->assertCount(1, $groups);
+        $this->assertTrue($groups[0][0]['isSplit']);
+        $this->assertFalse($groups[0][1]['isSplit']);
     }
 
     public function testFindDuplicatesStillReportsAGenuineSameDayPair(): void {

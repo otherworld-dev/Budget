@@ -231,13 +231,15 @@ class RuleActionApplicator {
 				// and went around that guard, so "Run rule now" kept producing the
 				// damaged rows (#360). Every other action still applies -- only the
 				// category is off limits.
-				// is_split is tri-state: a NULL flag on a PERSISTED row may
-				// be a pre-#351 split whose parts this applicator cannot see,
-				// so the category stays off limits for those too (#360). An
-				// unsaved entity (no id) cannot have parts, so its NULL flag
-				// is just "not set yet" and rules apply as normal.
-				$isSplit = $transaction->getIsSplit();
-				if ($isSplit === true || ($isSplit === null && $transaction->getId() !== null)) {
+				// is_split is tri-state, but a persisted NULL flag is treated
+				// as NOT split here: the rule-run SQL
+				// (ImportRuleService::findTransactionsForRules) only hands
+				// over rows it has already proven have no parts, and refusing
+				// every persisted NULL made rule runs categorize nothing at
+				// all on legacy data — a regression against v2.44.1. The
+				// one-time backfill resolves NULL flags from the parts table
+				// anyway, so the state is rare going forward (#360).
+				if ($transaction->getIsSplit() === true) {
 					break;
 				}
 				if ($this->shouldApply($type, $behavior, $transaction->getCategoryId(), $appliedActions)) {

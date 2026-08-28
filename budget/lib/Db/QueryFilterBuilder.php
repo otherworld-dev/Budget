@@ -31,6 +31,22 @@ class QueryFilterBuilder {
     }
 
     /**
+     * Correlated EXISTS testing whether a transaction has any rows in
+     * budget_tx_splits. The one shared "does this row have parts?" expression:
+     * TransactionMapper and ImportRuleService build their split-partition
+     * predicates from it, so every surface asks the question with the same SQL.
+     *
+     * Deliberately not a join: callers guard aggregates that sum t.amount and
+     * pageable row queries that count COUNT(t.id), and a join would repeat the
+     * row once per part. Identifiers stay unquoted — none are reserved, and
+     * unquoted folds to the lowercase the table was created with on PostgreSQL.
+     */
+    public static function hasSplitPartsExpr(IQueryBuilder $qb, string $alias): string {
+        return 'EXISTS (SELECT 1 FROM ' . $qb->getTableName('budget_tx_splits') . ' bsx'
+            . ' WHERE bsx.transaction_id = ' . $alias . '.id)';
+    }
+
+    /**
      * Apply transaction filters to a query builder.
      *
      * @param IQueryBuilder $qb The query builder to modify
@@ -56,11 +72,15 @@ class QueryFilterBuilder {
                 // the transaction is split (the categories move to the split
                 // rows), so "category_id IS NULL" alone matches every split
                 // transaction and listed them all as uncategorised (#356).
-                // is_split predates a default, so legacy rows hold NULL and
-                // the eq() leg alone would hide them.
+                // The guard is the same partition complement findUncategorized
+                // uses — explicitly-unsplit rows, or rows with no parts at
+                // all. Plain true-or-NULL still passed a NULL-flag row
+                // (is_split predates its own default) that HAS parts, and
+                // inline categorisation from this very list is how rows
+                // carrying both a category and parts get minted (#360).
                 $qb->andWhere($qb->expr()->orX(
                     $qb->expr()->eq("{$alias}.is_split", $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
-                    $qb->expr()->isNull("{$alias}.is_split")
+                    'NOT ' . self::hasSplitPartsExpr($qb, $alias)
                 ));
             } else {
                 $ids = self::parseCategoryIds($filters['category']);

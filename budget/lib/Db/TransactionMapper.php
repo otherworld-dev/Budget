@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Db;
 
+use OCA\Budget\Service\MoneyCalculator;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\QBMapper;
 use OCP\DB\QueryBuilder\ICompositeExpression;
@@ -67,6 +68,33 @@ class TransactionMapper extends QBMapper {
         return $qb->expr()->orX(
             $qb->expr()->eq("{$alias}.is_split", $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)),
             $qb->expr()->isNull("{$alias}.is_split")
+        );
+    }
+
+    /**
+     * Match the transactions whose own row speaks for itself: explicitly
+     * marked unsplit, or carrying no rows in budget_tx_splits. This is the
+     * exact complement of the split side of every per-category aggregate, so
+     * the direct and split queries partition the transactions — no row lands
+     * in both, none in neither (#360).
+     *
+     * A properly split parent has category_id NULL and usually falls out of a
+     * category-scoped query on its own, but one the pre-#356 bulk edit (or
+     * any rule run until #360) stamped a category onto kept its split rows,
+     * and nothing ever repaired those — such a row was counted at its full
+     * amount AND part by part. A NULL-flag row (is_split predates its own
+     * default) that HAS parts is a split parent regardless of the flag; a row
+     * explicitly marked unsplit keeps its own amount whatever split rows
+     * still reference it, the policy QueryFilterBuilder states for the same
+     * situation (#356).
+     *
+     * NOT splitParentPredicate()'s negation via the flag alone — the whole
+     * point is that the parts table, not the flag, settles the grey states.
+     */
+    private function directRowPredicate(IQueryBuilder $qb, string $alias = 't'): ICompositeExpression {
+        return $qb->expr()->orX(
+            $qb->expr()->eq("{$alias}.is_split", $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
+            'NOT ' . $this->hasSplitPartsExpr($qb, $alias)
         );
     }
 
@@ -691,16 +719,9 @@ class TransactionMapper extends QBMapper {
         $qb->andWhere($qb->expr()->in('t.category_id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
             ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
 
-        // Leave a transaction whose parts speak for it to the companion query,
-        // so the two partition the transactions rather than overlapping. A
-        // properly split parent has category_id NULL and falls out here on its
-        // own, but one the pre-#356 bulk edit stamped a category onto kept its
-        // split rows, and nothing has ever repaired those — it was counted at
-        // its full amount AND part by part (#360).
-        $qb->andWhere($qb->expr()->orX(
-            $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
-            'NOT ' . $this->hasSplitPartsExpr($qb, 't')
-        ));
+        // Leave a transaction whose parts speak for it to the companion query
+        // below — the direct/split partition directRowPredicate() explains (#360).
+        $qb->andWhere($this->directRowPredicate($qb));
 
         $this->excludeScheduledFuture($qb);
         $this->excludeReportExcludedAccounts($qb);
@@ -790,16 +811,9 @@ class TransactionMapper extends QBMapper {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
         }
 
-        // Leave a transaction whose parts speak for it to the companion query,
-        // so the two partition the transactions rather than overlapping. A
-        // properly split parent has category_id NULL and falls out here on its
-        // own, but one the pre-#356 bulk edit stamped a category onto kept its
-        // split rows, and nothing has ever repaired those — it was counted at
-        // its full amount AND part by part (#360).
-        $qb->andWhere($qb->expr()->orX(
-            $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
-            'NOT ' . $this->hasSplitPartsExpr($qb, 't')
-        ));
+        // Leave a transaction whose parts speak for it to the companion query
+        // below — the direct/split partition directRowPredicate() explains (#360).
+        $qb->andWhere($this->directRowPredicate($qb));
 
         $this->excludeScheduledFuture($qb);
         $this->excludeReportExcludedAccounts($qb);
@@ -1044,11 +1058,9 @@ class TransactionMapper extends QBMapper {
 
         // A transaction whose parts speak for it is counted by the companion
         // query below, never here — the same partition the spending queries
-        // use, so a row carrying both a category and parts is counted once.
-        $qb->andWhere($qb->expr()->orX(
-            $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
-            'NOT ' . $this->hasSplitPartsExpr($qb, 't')
-        ));
+        // use (see directRowPredicate), so a row carrying both a category and
+        // parts is counted once.
+        $qb->andWhere($this->directRowPredicate($qb));
 
         $this->excludeScheduledFuture($qb);
 
@@ -1210,15 +1222,10 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->isNull('t.category_id'))
             // A split parent has no category of its own by design, so it is
             // not "uncategorised" — its splits carry the categories (#356).
-            // A NULL-flag row (predating is_split) is a split parent too if it
-            // actually HAS parts; only a NULL-flag row without any parts is
-            // genuinely uncategorised, which is what the EXISTS check tells
-            // apart — listing the former for categorisation is how damaged
-            // rows (category + parts both set) get created (#360).
-            ->andWhere($qb->expr()->orX(
-                $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
-                'NOT ' . $this->hasSplitPartsExpr($qb, 't')
-            ))
+            // A NULL-flag row that actually HAS parts is a split parent too;
+            // listing it for categorisation is how damaged rows (category +
+            // parts both set) get created (#360). See directRowPredicate.
+            ->andWhere($this->directRowPredicate($qb))
             ->orderBy('t.date', 'DESC')
             ->setMaxResults($limit);
 
@@ -1459,19 +1466,11 @@ class TransactionMapper extends QBMapper {
         // Apply tag filtering if requested
         $this->applyTagFilter($qb, $tagIds, $includeUntagged);
 
-        // Leave the transactions the split query below speaks for to it, so the
-        // two partition the transactions rather than overlapping. The join to
-        // budget_categories already drops a properly split parent, whose own
-        // category_id is NULL — but not one the pre-#356 bulk edit stamped a
-        // category onto while leaving its split rows intact, and nothing has
-        // ever repaired those. Such a row was reported at its full amount AND
-        // part by part, and counted twice in the transaction count with it
-        // (#360). A row explicitly marked unsplit keeps its own amount whatever
-        // split rows happen to reference it, matching QueryFilterBuilder (#356).
-        $qb->andWhere($qb->expr()->orX(
-            $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
-            'NOT ' . $this->hasSplitPartsExpr($qb, 't')
-        ));
+        // Leave the transactions the split query below speaks for to it — the
+        // direct/split partition directRowPredicate() explains (#360). The
+        // join to budget_categories already drops a properly split parent
+        // (category_id NULL), but not a damaged row that kept both.
+        $qb->andWhere($this->directRowPredicate($qb));
 
         $qb->groupBy('c.id', 'c.name', 'c.color', 'c.icon')
             ->orderBy('total', 'DESC');
@@ -2032,16 +2031,9 @@ class TransactionMapper extends QBMapper {
 
         $this->excludeScheduledFuture($qb);
 
-        // Leave the transactions the companion query speaks for to it — see the
-        // docblock. This is the exact complement of that query's predicate, so
-        // no transaction falls in both and none falls in neither: a row
-        // explicitly marked unsplit keeps its own amount whatever split rows
-        // happen to reference it, which is the policy QueryFilterBuilder states
-        // for the same situation (#356).
-        $qb->andWhere($qb->expr()->orX(
-            $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
-            'NOT ' . $this->hasSplitPartsExpr($qb, 't')
-        ));
+        // Leave the transactions the companion query speaks for to it — the
+        // direct/split partition directRowPredicate() explains (#360).
+        $qb->andWhere($this->directRowPredicate($qb));
 
         $qb->groupBy('t.category_id');
 
@@ -2077,15 +2069,11 @@ class TransactionMapper extends QBMapper {
 
     /**
      * Correlated EXISTS testing whether a transaction has any split rows.
-     *
-     * Deliberately not a join: this guards an aggregate that sums t.amount, and
-     * a join would repeat the row once per part. Identifiers stay unquoted, as
-     * in QueryFilterBuilder — none are reserved, and unquoted folds to the
-     * lowercase the table was created with on PostgreSQL.
+     * Thin delegation to the one shared expression on QueryFilterBuilder,
+     * which carries the not-a-join rationale (#360).
      */
     private function hasSplitPartsExpr(IQueryBuilder $qb, string $alias): string {
-        return 'EXISTS (SELECT 1 FROM ' . $qb->getTableName('budget_tx_splits') . ' bsx'
-            . ' WHERE bsx.transaction_id = ' . $alias . '.id)';
+        return QueryFilterBuilder::hasSplitPartsExpr($qb, $alias);
     }
 
     /**
@@ -2197,12 +2185,9 @@ class TransactionMapper extends QBMapper {
 
         $this->excludeScheduledFuture($qb);
 
-        // Leave the transactions the companion query speaks for to it -- see
-        // getCategorySpendingBatch's docblock for the same partition (#360).
-        $qb->andWhere($qb->expr()->orX(
-            $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
-            'NOT ' . $this->hasSplitPartsExpr($qb, 't')
-        ));
+        // Leave the transactions the companion query speaks for to it -- the
+        // direct/split partition directRowPredicate() explains (#360).
+        $qb->andWhere($this->directRowPredicate($qb));
 
         $qb->groupBy('t.account_id');
 
@@ -2224,8 +2209,13 @@ class TransactionMapper extends QBMapper {
             if (!isset($totals[$splitAccountId])) {
                 $totals[$splitAccountId] = ['income' => 0.0, 'expenses' => 0.0];
             }
-            $totals[$splitAccountId]['income'] += $splitTotals['income'];
-            $totals[$splitAccountId]['expenses'] += $splitTotals['expenses'];
+            // Money accumulates through MoneyCalculator, never float += (#274)
+            $totals[$splitAccountId]['income'] = MoneyCalculator::toFloat(
+                MoneyCalculator::add($totals[$splitAccountId]['income'], $splitTotals['income'])
+            );
+            $totals[$splitAccountId]['expenses'] = MoneyCalculator::toFloat(
+                MoneyCalculator::add($totals[$splitAccountId]['expenses'], $splitTotals['expenses'])
+            );
         }
 
         return $totals;
@@ -3252,10 +3242,7 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)))
-            ->andWhere($qb->expr()->orX(
-                $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
-                'NOT ' . $this->hasSplitPartsExpr($qb, 't')
-            ));
+            ->andWhere($this->directRowPredicate($qb));
 
         // The account list REPLACES the owner predicate rather than narrowing
         // it. Added as an extra AND (#299), it could only ever shrink the
@@ -3297,15 +3284,9 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            // Leave rows with split parts to the companion query (see the
-            // docblock on getCategorySpendingBatch) -- a NULL-flag row that
-            // HAS parts is a split parent regardless of the flag predating
-            // it, and counting it here too double-counts it against its own
-            // splits (#360).
-            ->andWhere($qb->expr()->orX(
-                $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
-                'NOT ' . $this->hasSplitPartsExpr($qb, 't')
-            ))
+            // Leave rows with split parts to the companion query — the
+            // direct/split partition directRowPredicate() explains (#360).
+            ->andWhere($this->directRowPredicate($qb))
             ->groupBy('t.category_id')
             ->addGroupBy($qb->createFunction($bucketExpr));
 
@@ -3358,10 +3339,7 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             // Same partition as getCategorySpendingByBucketBatch: a NULL-flag
             // row with split parts belongs to the companion query only (#360).
-            ->andWhere($qb->expr()->orX(
-                $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
-                'NOT ' . $this->hasSplitPartsExpr($qb, 't')
-            ))
+            ->andWhere($this->directRowPredicate($qb))
             ->groupBy('t.category_id')
             ->addGroupBy($qb->createFunction($bucketExpr));
 

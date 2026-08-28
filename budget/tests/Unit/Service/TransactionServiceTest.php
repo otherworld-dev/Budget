@@ -344,6 +344,7 @@ class TransactionServiceTest extends TestCase {
         $tx->setIsSplit(true);
         $this->mapper->method('find')->willReturn($tx);
         $this->mapper->method('update')->willReturnArgument(0);
+        $this->splitMapper->method('hasParts')->with(1)->willReturn(true);
 
         $result = $this->service->update(1, 'user1', ['categoryId' => 7]);
 
@@ -359,6 +360,7 @@ class TransactionServiceTest extends TestCase {
         $tx->setIsSplit(true);
         $this->mapper->method('find')->willReturn($tx);
         $this->mapper->method('update')->willReturnArgument(0);
+        $this->splitMapper->method('hasParts')->with(1)->willReturn(true);
 
         $result = $this->service->update(1, 'user1', [
             'categoryId' => 7,
@@ -367,6 +369,29 @@ class TransactionServiceTest extends TestCase {
 
         $this->assertNull($result->getCategoryId());
         $this->assertEquals('Weekly shop', $result->getDescription());
+    }
+
+    /**
+     * The flag alone is not proof of a split. Restores from archives made
+     * while the splits table was missing from the backup registry (#351)
+     * manufactured rows whose flag says split but which have no rows in
+     * budget_tx_splits — the read side lists such a row as uncategorized,
+     * so discarding the category here meant the user assigned one, the save
+     * "succeeded", and the category silently vanished, forever (#360).
+     * Parts are the truth: no parts, keep the category, and correct the
+     * lying flag on the same write.
+     */
+    public function testUpdateKeepsCategoryOnAFlagTrueRowWithNoParts(): void {
+        $tx = $this->makeTransaction(['categoryId' => null]);
+        $tx->setIsSplit(true);
+        $this->mapper->method('find')->willReturn($tx);
+        $this->mapper->method('update')->willReturnArgument(0);
+        $this->splitMapper->method('hasParts')->with(1)->willReturn(false);
+
+        $result = $this->service->update(1, 'user1', ['categoryId' => 7]);
+
+        $this->assertEquals(7, $result->getCategoryId());
+        $this->assertFalse($result->getIsSplit(), 'the stray-true flag is corrected on the same update');
     }
 
     public function testUpdateRecalculatesBalanceFromLedger(): void {

@@ -621,9 +621,19 @@ class TransactionService {
         // category") wrote a category onto every split parent, which then
         // double-counts against its own splits (#356). Unsplitting sets the
         // category legitimately, so only protect a row that stays split.
+        // The flag alone is not proof of a split, though: restores from
+        // #351-era archives left rows whose flag claims split with no parts
+        // behind it, and unsetting the category here made an assignment on
+        // such a row silently vanish while the list kept offering it as
+        // uncategorized. Parts are the truth — no parts, keep the category
+        // and correct the lying flag on this same write (#360).
         $staysSplit = $transaction->getIsSplit() && ($updates['isSplit'] ?? true);
         if ($staysSplit && array_key_exists('categoryId', $updates)) {
-            unset($updates['categoryId']);
+            if ($this->splitMapper->hasParts($id)) {
+                unset($updates['categoryId']);
+            } else {
+                $transaction->setIsSplit(false);
+            }
         }
 
         // Apply updates
@@ -876,25 +886,21 @@ class TransactionService {
 
         $splitDetails = $this->splitMapper->findByTransactionIds($splitTxIds);
 
-        // A candidate that came back with no parts (false-negative NULL flag,
-        // or a stray true with the split since deleted) is definitively not
-        // a split — resolve it now so the API never emits NULL.
+        $filterIds = QueryFilterBuilder::parseCategoryIds($filters['category'] ?? null);
+
+        // One pass: resolve the tri-state flag from what actually came back —
+        // a candidate with no parts (false-negative NULL flag, or a stray
+        // true with the split since deleted) is definitively not a split, so
+        // the API never emits NULL — and attach the parts where they exist.
         foreach ($transactions as &$tx) {
             if (($tx['isSplit'] ?? null) === false) {
                 continue;
             }
-            $tx['isSplit'] = isset($splitDetails[$tx['id']]);
-        }
-        unset($tx);
-
-        $filterIds = QueryFilterBuilder::parseCategoryIds($filters['category'] ?? null);
-
-        foreach ($transactions as &$tx) {
-            if (!$tx['isSplit'] || !isset($splitDetails[$tx['id']])) {
+            $parts = $splitDetails[$tx['id']] ?? null;
+            $tx['isSplit'] = $parts !== null;
+            if ($parts === null) {
                 continue;
             }
-
-            $parts = $splitDetails[$tx['id']];
 
             if ($filterIds !== []) {
                 $matchedTotal = null;
@@ -929,9 +935,9 @@ class TransactionService {
      *
      * Deliberately not findWithFilters(): that computes a running balance for
      * the page being displayed, which an export neither shows nor needs. Split
-     * detail is attached only when a category filter is in play, because then
-     * the export has to report the same per-category share the screen does
-     * (#359) — unfiltered, it is a cost with nothing to show for it. Paging is
+     * detail is always attached — an unfiltered export names each split's
+     * categories in the Category cell (#360), and a category-filtered one
+     * reports the same per-category share the screen does (#359). Paging is
      * safe here because the sort always carries a secondary sort by id.
      *
      * @param int[]|null $visibleAccountIds If provided, scope by account IDs instead of userId

@@ -171,15 +171,21 @@ class RuleActionApplicatorTest extends TestCase {
 	}
 
 	/**
-	 * is_split is tri-state, and a NULL flag predates the column -- such a row
-	 * may be a split whose parts the applicator cannot see, so the category
-	 * stays off limits. Truthiness would have waved it through (#360).
+	 * is_split is tri-state, and a NULL flag predates the column -- but a
+	 * persisted NULL-flag row is treated as NOT split here. The rule-run SQL
+	 * (ImportRuleService::findTransactionsForRules) only hands over rows it
+	 * has already proven have no parts, and refusing every persisted NULL
+	 * made rule runs categorize nothing at all on legacy data -- a
+	 * regression against v2.44.1. The one-time backfill resolves the NULL
+	 * flags from the parts table anyway, so the state is rare going forward
+	 * (#360).
 	 */
-	public function testSetCategorySkipsANullFlagTransaction(): void {
+	public function testSetCategoryAppliesToAPersistedNullFlagTransaction(): void {
 		$transaction = $this->createTransaction(['categoryId' => null]);
-		// Persisted (has an id): the NULL flag could be hiding parts.
 		$transaction->setId(42);
 		$transaction->setIsSplit(null);
+
+		$this->categoryMapper->method('find')->willReturn($this->makeCategory(5));
 
 		$rule = $this->createRule([
 			'version' => 2,
@@ -190,8 +196,8 @@ class RuleActionApplicatorTest extends TestCase {
 
 		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
 
-		$this->assertArrayNotHasKey('category', $changes);
-		$this->assertNull($transaction->getCategoryId());
+		$this->assertArrayHasKey('category', $changes);
+		$this->assertEquals(5, $transaction->getCategoryId());
 	}
 
 	/**

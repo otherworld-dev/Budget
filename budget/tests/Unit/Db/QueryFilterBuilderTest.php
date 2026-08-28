@@ -186,8 +186,11 @@ class QueryFilterBuilderTest extends TestCase {
      * (TransactionSplitService::splitTransaction) because the categories now
      * live on the split rows. A bare "category_id IS NULL" therefore matches
      * every split parent, which is how split transactions ended up listed
-     * under the Uncategorized filter (#356). The parent must be excluded by
-     * is_split as well.
+     * under the Uncategorized filter (#356). The guard is the partition
+     * complement findUncategorized uses — eq(is_split, false) OR NOT
+     * EXISTS(parts) — because plain true-or-NULL still let a NULL-flag row
+     * that HAS parts through, and inline categorisation from this list is
+     * exactly how rows carrying both a category and parts get minted (#360).
      */
     public function testUncategorizedFilterExcludesSplitParents(): void {
         $nulled = [];
@@ -196,19 +199,28 @@ class QueryFilterBuilderTest extends TestCase {
                 $nulled[] = $column;
                 return $column . ' IS NULL';
             });
-
         $this->expr->expects($this->once())
             ->method('eq')
-            ->with('t.is_split', ':param');
+            ->with('t.is_split', ':param')
+            ->willReturn('t.is_split = :param');
 
-        // Legacy rows predate the column and hold NULL, so the false check
-        // alone would drop them from the results entirely.
-        $this->expr->expects($this->once())->method('orX');
+        $orParts = [];
+        $this->expr->method('orX')->willReturnCallback(function (...$parts) use (&$orParts) {
+            $orParts[] = array_map('strval', $parts);
+            return $this->createMock(ICompositeExpression::class);
+        });
 
         $this->builder->applyTransactionFilters($this->qb, ['category' => 'uncategorized'], 't');
 
         $this->assertContains('t.category_id', $nulled);
-        $this->assertContains('t.is_split', $nulled);
+        $this->assertNotContains('t.is_split', $nulled,
+            'a NULL flag alone must not pass the filter — a NULL-flag row with parts is a split parent (#360)');
+
+        $this->assertCount(1, $orParts);
+        $this->assertSame('t.is_split = :param', $orParts[0][0]);
+        $this->assertStringContainsString('NOT EXISTS', $orParts[0][1]);
+        $this->assertStringContainsString('budget_tx_splits', $orParts[0][1]);
+        $this->assertStringContainsString('bsx.transaction_id = t.id', $orParts[0][1]);
     }
 
     /**
@@ -276,13 +288,26 @@ class QueryFilterBuilderTest extends TestCase {
 
     public function testUncategorizedFilterAddsNoSplitMatch(): void {
         // #356 excludes split parents from Uncategorized; matching them through
-        // their parts here would put every one of them straight back.
+        // their parts here would put every one of them straight back. The
+        // filter names budget_tx_splits only to EXCLUDE rows that have parts
+        // (#360) — never to match a part's category the way a real category
+        // filter does.
+        $orParts = [];
         $this->expr->method('isNull')->willReturnCallback(fn(string $c) => $c . ' IS NULL');
-        $this->expr->method('orX')->willReturn($this->createMock(ICompositeExpression::class));
+        $this->expr->method('eq')->willReturnCallback(fn(...$args) => $args[0] . ' = ' . $args[1]);
+        $this->expr->method('orX')->willReturnCallback(function (...$parts) use (&$orParts) {
+            $orParts[] = array_map('strval', $parts);
+            return $this->createMock(ICompositeExpression::class);
+        });
 
         $this->builder->applyTransactionFilters($this->qb, ['category' => 'uncategorized'], 't');
 
-        $this->assertNotContains('budget_tx_splits', $this->tablesNamed);
+        foreach ($orParts as $parts) {
+            foreach ($parts as $part) {
+                $this->assertStringNotContainsString('bsx.category_id', $part,
+                    'the uncategorized filter must never match a transaction through a part\'s category');
+            }
+        }
     }
 
     public function testUnparseableCategoryFilterAddsNoSplitMatch(): void {
@@ -299,6 +324,22 @@ class QueryFilterBuilderTest extends TestCase {
         $this->builder->applyTransactionFilters($this->qb, ['category' => 10], 't');
 
         $this->assertContains('budget_tx_splits', $this->tablesNamed);
+    }
+
+    // ===== hasSplitPartsExpr =====
+
+    /**
+     * The one shared "does this row have parts?" expression — TransactionMapper
+     * and ImportRuleService build their partition predicates from it, so its
+     * shape is pinned here: a correlated EXISTS on the given alias (never a
+     * join — callers count and sum the outer row), identifiers unquoted.
+     */
+    public function testHasSplitPartsExprIsACorrelatedExistsOnTheAlias(): void {
+        $sql = QueryFilterBuilder::hasSplitPartsExpr($this->qb, 't');
+
+        $this->assertStringStartsWith('EXISTS (SELECT 1 FROM ', $sql);
+        $this->assertStringContainsString('budget_tx_splits', $sql);
+        $this->assertStringContainsString('bsx.transaction_id = t.id', $sql);
     }
 
     // ===== parseCategoryIds =====
