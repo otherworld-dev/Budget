@@ -2236,6 +2236,16 @@ style('budget', 'budget-app');
                             </div>
                         </div>
 
+                        <div class="csv-options" id="import-encoding-options" style="display: none;">
+                            <div class="mapping-field">
+                                <label for="import-encoding"><?php p($l->t('Character Encoding')); ?></label>
+                                <select id="import-encoding">
+                                    <option value=""><?php p($l->t('Detect automatically')); ?></option>
+                                </select>
+                                <p class="hint" id="import-encoding-hint"><?php p($l->t('Change this if accented or non-Latin characters look wrong in the preview below')); ?></p>
+                            </div>
+                        </div>
+
                         <div class="csv-options" id="csv-options" style="display: none;">
                             <div class="mapping-field">
                                 <label><?php p($l->t('CSV Delimiter')); ?></label>

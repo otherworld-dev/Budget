@@ -5,6 +5,7 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
+import { serverErrorMessage } from '../../utils/helpers.js';
 import MultiSelect from '../../utils/multiselect.js';
 
 /**
@@ -907,6 +908,8 @@ export default class ImportModule {
             `;
         }
 
+        this.renderEncodingPicker(uploadResult);
+
         // Show/hide CSV options based on format
         const csvOptions = document.getElementById('csv-options');
         if (csvOptions) {
@@ -965,6 +968,93 @@ export default class ImportModule {
 
         // Move to step 2
         this.setImportStep(2);
+    }
+
+    /**
+     * Character-encoding picker for the mapping screen (#371).
+     *
+     * Auto-detection can only get so far: every single-byte encoding accepts
+     * every byte, so an undeclared Windows-1251 statement is indistinguishable
+     * from a Windows-1252 one and the file has to be asked about. The preview
+     * sits right below this, which is what makes the choice checkable — pick
+     * wrong and the mojibake is on screen.
+     */
+    renderEncodingPicker(uploadResult) {
+        const group = document.getElementById('import-encoding-options');
+        const select = document.getElementById('import-encoding');
+        if (!group || !select) return;
+
+        const available = uploadResult.availableEncodings || {};
+        const names = Object.keys(available);
+        if (names.length === 0) {
+            group.style.display = 'none';
+            return;
+        }
+
+        select.innerHTML = `<option value="">${dom.escapeHtml(t('budget', 'Detect automatically'))}</option>`;
+        names.forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = available[name];
+            select.appendChild(option);
+        });
+        select.value = uploadResult.encoding || '';
+
+        const hint = document.getElementById('import-encoding-hint');
+        if (hint) {
+            hint.textContent = uploadResult.encoding
+                ? t('budget', 'Reading this file as {encoding}.', { encoding: available[uploadResult.encoding] || uploadResult.encoding })
+                : t('budget', 'Detected {encoding}. Change this if accented or non-Latin characters look wrong in the preview below.', {
+                    encoding: available[uploadResult.detectedEncoding] || uploadResult.detectedEncoding || t('budget', 'Unicode (UTF-8)'),
+                });
+        }
+
+        select.removeEventListener('change', this.handleEncodingChange);
+        this.handleEncodingChange = () => this.reloadWithEncoding();
+        select.addEventListener('change', this.handleEncodingChange);
+
+        group.style.display = 'block';
+    }
+
+    /**
+     * Re-read the stored file under the chosen encoding and redraw the
+     * mapping screen from it. The upload keeps the original bytes, so this
+     * decodes those afresh rather than re-decoding an earlier guess.
+     */
+    async reloadWithEncoding() {
+        const select = document.getElementById('import-encoding');
+        if (!select || !this.currentImportData?.fileId) return;
+
+        const encoding = select.value;
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/import/reencode'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken,
+                },
+                body: JSON.stringify({
+                    fileId: this.currentImportData.fileId,
+                    fileName: this.currentImportData.filename || '',
+                    encoding: encoding,
+                }),
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
+            }
+
+            const result = await response.json();
+            this.currentImportData = result;
+            await this.showImportMapping(result);
+        } catch (error) {
+            console.error('Failed to re-read file with encoding:', error);
+            showError(error.message || t('budget', 'Failed to re-read the file with that encoding'));
+            // Put the control back where the data actually is
+            select.value = this.currentImportData?.encoding || '';
+        }
     }
 
     reloadColumnsWithDelimiter() {
@@ -1383,7 +1473,10 @@ export default class ImportModule {
             fileId: this.currentImportData.fileId,
             mapping: mapping,
             skipDuplicates: false,
-            delimiter: document.getElementById('csv-delimiter')?.value || ','
+            delimiter: document.getElementById('csv-delimiter')?.value || ',',
+            // Whatever the mapping screen was decoded with must be what gets
+            // parsed and imported, or the preview lies about the result (#371)
+            encoding: this.currentImportData.encoding || null
         };
 
         // Include preset ID if selected
@@ -1833,7 +1926,10 @@ export default class ImportModule {
             mapping: mapping,
             skipDuplicates: !(document.getElementById('import-duplicates')?.checked ?? false),
             applyRules: true,
-            delimiter: document.getElementById('csv-delimiter')?.value || ','
+            delimiter: document.getElementById('csv-delimiter')?.value || ',',
+            // Whatever the mapping screen was decoded with must be what gets
+            // parsed and imported, or the preview lies about the result (#371)
+            encoding: this.currentImportData.encoding || null
         };
 
         // Include preset ID if selected
@@ -1986,6 +2082,13 @@ export default class ImportModule {
         if (presetSelect) presetSelect.value = '';
         const presetDesc = document.getElementById('preset-description');
         if (presetDesc) presetDesc.style.display = 'none';
+
+        // The encoding picker belongs to one file — hide it and drop its
+        // options, or the next upload starts out claiming the last one's
+        const encodingGroup = document.getElementById('import-encoding-options');
+        if (encodingGroup) encodingGroup.style.display = 'none';
+        const encodingSelect = document.getElementById('import-encoding');
+        if (encodingSelect) encodingSelect.value = '';
         const categoriesContainer = document.getElementById('categories-to-create');
         if (categoriesContainer) categoriesContainer.innerHTML = '';
 

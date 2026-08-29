@@ -146,7 +146,8 @@ class ImportController extends Controller {
         bool $skipDuplicates = true,
         string $delimiter = ',',
         ?string $presetId = null,
-        ?int $templateId = null
+        ?int $templateId = null,
+        ?string $encoding = null
     ): DataResponse {
         try {
             if ($templateId !== null) {
@@ -168,7 +169,8 @@ class ImportController extends Controller {
                 $accountMapping,
                 $skipDuplicates,
                 $delimiter,
-                $presetId
+                $presetId,
+                $encoding
             );
             return new DataResponse($preview);
         } catch (\Exception $e) {
@@ -189,7 +191,8 @@ class ImportController extends Controller {
         bool $applyRules = true,
         string $delimiter = ',',
         ?string $presetId = null,
-        ?int $templateId = null
+        ?int $templateId = null,
+        ?string $encoding = null
     ): DataResponse {
         try {
             if ($templateId !== null) {
@@ -212,7 +215,8 @@ class ImportController extends Controller {
                 $skipDuplicates,
                 $applyRules,
                 $delimiter,
-                $presetId
+                $presetId,
+                $encoding
             );
 
             // Log completed imports for each account
@@ -233,6 +237,35 @@ class ImportController extends Controller {
         } catch (\Exception $e) {
             $this->auditService->logImportFailed($this->userId, $fileId, $e->getMessage());
             return $this->handleError($e, $this->l->t('Failed to process import'));
+        }
+    }
+
+    /**
+     * Redraw the mapping screen from the stored file under a different
+     * character encoding (#371). Import files are kept exactly as uploaded,
+     * so this re-decodes the original bytes rather than the last guess.
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function reencode(string $fileId, string $fileName = '', ?string $encoding = null): DataResponse {
+        try {
+            if ($encoding !== null && $encoding !== '' && !$this->service->isSupportedEncoding($encoding)) {
+                return new DataResponse(
+                    ['error' => $this->l->t('Unsupported character encoding')],
+                    Http::STATUS_BAD_REQUEST
+                );
+            }
+
+            $result = $this->service->reencodeUpload(
+                $this->userId,
+                $fileId,
+                $fileName,
+                ($encoding === null || $encoding === '') ? null : $encoding
+            );
+            return new DataResponse($result);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to re-read the file with that encoding'));
         }
     }
 
@@ -263,9 +296,9 @@ class ImportController extends Controller {
     /**
      * @NoAdminRequired
      */
-    public function validateFile(string $fileId): DataResponse {
+    public function validateFile(string $fileId, ?string $encoding = null): DataResponse {
         try {
-            $validation = $this->service->validateFile($this->userId, $fileId);
+            $validation = $this->service->validateFile($this->userId, $fileId, $encoding);
             return new DataResponse($validation);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to validate file'));

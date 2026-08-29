@@ -141,6 +141,7 @@ return [
         // Import routes
         ['name' => 'import#upload', 'url' => '/api/import/upload', 'verb' => 'POST'],
         ['name' => 'import#preview', 'url' => '/api/import/preview', 'verb' => 'POST'],
+        ['name' => 'import#reencode', 'url' => '/api/import/reencode', 'verb' => 'POST'],
         ['name' => 'import#process', 'url' => '/api/import/process', 'verb' => 'POST'],
         ['name' => 'import#execute', 'url' => '/api/import/execute', 'verb' => 'POST'],
         ['name' => 'import#rollback', 'url' => '/api/import/rollback/{importId}', 'verb' => 'POST'],

@@ -7,6 +7,7 @@ namespace OCA\Budget\Service;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\Import\DuplicateDetector;
+use OCA\Budget\Service\Import\EncodingNormalizer;
 use OCA\Budget\Service\Import\FileValidator;
 use OCA\Budget\Service\Import\ImportRuleApplicator;
 use OCA\Budget\Service\Import\ParserFactory;
@@ -117,28 +118,81 @@ class ImportService {
         $fileId = 'import_' . $userId . '_' . bin2hex(random_bytes(16)) . '.' . $extension;
 
         try {
-            // Store file
+            // Store the file as uploaded. It used to be stored already
+            // converted, which made the encoding a one-shot guess: getting it
+            // wrong was unrecoverable because the original bytes were gone.
+            // Keeping them lets the user re-declare the encoding afterwards,
+            // when the preview is there to show whether it is right (#371).
             $importsFolder = $this->getOrCreateImportsFolder();
             $file = $importsFolder->newFile($fileId);
-            $content = file_get_contents($tmpPath);
-            $content = $this->ensureUtf8($content);
-            $file->putContent($content);
+            $raw = file_get_contents($tmpPath);
+            $file->putContent($raw);
 
-            // Detect CSV delimiter if applicable
-            $delimiter = ',';
-            if ($format === 'csv') {
-                $delimiter = $this->fileValidator->detectDelimiter($content);
-            }
-
-            // Parse preview
-            $preview = $this->parserFactory->parse($content, $format, 5, $delimiter);
-
-            // Build response based on format
-            return $this->buildUploadResponse($userId, $fileId, $fileName, $format, $content, $preview, $fileSize, $delimiter);
+            return $this->buildEncodedUploadResponse($userId, $fileId, $fileName, $format, $raw, $fileSize, null);
 
         } catch (\Exception $e) {
             throw new \Exception($this->l->t('Failed to process upload: %1$s', [$e->getMessage()]));
         }
+    }
+
+    /**
+     * Whether an encoding name may be chosen in the import screen's picker.
+     */
+    public function isSupportedEncoding(string $encoding): bool {
+        return (new EncodingNormalizer())->isSupported($encoding);
+    }
+
+    /**
+     * Rebuild the upload response from the stored file under a different
+     * encoding, so the import screen's picker can redraw the preview and the
+     * column headers the user is choosing between (#371).
+     */
+    public function reencodeUpload(string $userId, string $fileId, string $fileName, ?string $encoding): array {
+        $file = $this->getImportFile($fileId);
+        $format = $this->parserFactory->detectFormat($fileId);
+
+        return $this->buildEncodedUploadResponse(
+            $userId,
+            $fileId,
+            $fileName,
+            $format,
+            $file->getContent(),
+            (int) $file->getSize(),
+            $encoding
+        );
+    }
+
+    /**
+     * Decode raw stored bytes and build the mapping-screen payload from them.
+     */
+    private function buildEncodedUploadResponse(
+        string $userId,
+        string $fileId,
+        string $fileName,
+        string $format,
+        string $raw,
+        int $fileSize,
+        ?string $encoding
+    ): array {
+        $normalizer = new EncodingNormalizer();
+        $content = $normalizer->toUtf8($raw, $encoding);
+
+        // Detect CSV delimiter if applicable
+        $delimiter = ',';
+        if ($format === 'csv') {
+            $delimiter = $this->fileValidator->detectDelimiter($content);
+        }
+
+        // Parse preview
+        $preview = $this->parserFactory->parse($content, $format, 5, $delimiter);
+
+        $response = $this->buildUploadResponse($userId, $fileId, $fileName, $format, $content, $preview, $fileSize, $delimiter);
+
+        $response['encoding'] = $encoding;
+        $response['detectedEncoding'] = $encoding ?? $normalizer->detectedEncoding($raw);
+        $response['availableEncodings'] = $normalizer->supportedEncodings();
+
+        return $response;
     }
 
     /**
@@ -152,11 +206,12 @@ class ImportService {
         ?array $accountMapping = null,
         bool $skipDuplicates = true,
         string $delimiter = ',',
-        ?string $presetId = null
+        ?string $presetId = null,
+        ?string $encoding = null
     ): array {
         $file = $this->getImportFile($fileId);
         $format = $this->parserFactory->detectFormat($fileId);
-        $content = $file->getContent();
+        $content = $this->ensureUtf8($file->getContent(), $encoding);
 
         if ($this->isMultiAccountFormat($format) && !empty($accountMapping)) {
             return $this->previewMultiAccountImport($userId, $content, $format, $accountMapping, $skipDuplicates, $mapping);
@@ -177,11 +232,12 @@ class ImportService {
         bool $skipDuplicates = true,
         bool $applyRules = true,
         string $delimiter = ',',
-        ?string $presetId = null
+        ?string $presetId = null,
+        ?string $encoding = null
     ): array {
         $file = $this->getImportFile($fileId);
         $format = $this->parserFactory->detectFormat($fileId);
-        $content = $file->getContent();
+        $content = $this->ensureUtf8($file->getContent(), $encoding);
 
         if ($this->isMultiAccountFormat($format) && !empty($accountMapping)) {
             $result = $this->executeMultiAccountImport($userId, $fileId, $content, $format, $accountMapping, $skipDuplicates, $applyRules, $mapping);
@@ -247,12 +303,12 @@ class ImportService {
         return $this->transactionMapper->getRecentImports($userId, $limit);
     }
 
-    public function validateFile(string $userId, string $fileId): array {
+    public function validateFile(string $userId, string $fileId, ?string $encoding = null): array {
         $file = $this->getImportFile($fileId);
         $format = $this->parserFactory->detectFormat($fileId);
 
         try {
-            $preview = $this->parserFactory->parse($file->getContent(), $format, 10);
+            $preview = $this->parserFactory->parse($this->ensureUtf8($file->getContent(), $encoding), $format, 10);
 
             return [
                 'valid' => true,
@@ -1776,23 +1832,11 @@ class ImportService {
     }
 
     /**
-     * Detect file encoding and convert to UTF-8 if needed.
-     * Handles common bank export encodings (ISO-8859-1, Windows-1252, etc.).
+     * Decode stored bytes to UTF-8. Import files are stored exactly as
+     * uploaded, so every read goes through here; `$encoding` carries the
+     * user's override from the import screen when they have set one (#371).
      */
-    private function ensureUtf8(string $content): string {
-        if (mb_check_encoding($content, 'UTF-8')) {
-            return $content;
-        }
-
-        // Try common bank export encodings
-        $encodings = ['ISO-8859-1', 'Windows-1252', 'ISO-8859-15'];
-        foreach ($encodings as $encoding) {
-            if (mb_check_encoding($content, $encoding)) {
-                return mb_convert_encoding($content, 'UTF-8', $encoding);
-            }
-        }
-
-        // Last resort: force UTF-8 with substitution
-        return mb_convert_encoding($content, 'UTF-8', 'UTF-8');
+    private function ensureUtf8(string $content, ?string $encoding = null): string {
+        return (new EncodingNormalizer())->toUtf8($content, $encoding);
     }
 }

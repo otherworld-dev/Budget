@@ -48,6 +48,46 @@ class ImportControllerTest extends TestCase {
 		);
 	}
 
+	// ── reencode (#371) ─────────────────────────────────────────────
+
+	public function testReencodeRejectsAnUnsupportedEncoding(): void {
+		// mbstring has no Windows-1253, so converting from it would silently
+		// mangle the file rather than fail
+		$this->service->method('isSupportedEncoding')->with('Windows-1253')->willReturn(false);
+		$this->service->expects($this->never())->method('reencodeUpload');
+
+		$response = $this->controller->reencode('file1', 'statement.csv', 'Windows-1253');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Unsupported character encoding', $response->getData()['error']);
+	}
+
+	public function testReencodePassesASupportedEncodingThrough(): void {
+		$this->service->method('isSupportedEncoding')->willReturn(true);
+		$this->service->expects($this->once())
+			->method('reencodeUpload')
+			->with('user1', 'file1', 'statement.csv', 'Windows-1251')
+			->willReturn(['fileId' => 'file1', 'encoding' => 'Windows-1251']);
+
+		$response = $this->controller->reencode('file1', 'statement.csv', 'Windows-1251');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame('Windows-1251', $response->getData()['encoding']);
+	}
+
+	public function testReencodeTreatsAnEmptyEncodingAsAutoDetect(): void {
+		// The picker's "Detect automatically" option submits an empty value
+		$this->service->expects($this->never())->method('isSupportedEncoding');
+		$this->service->expects($this->once())
+			->method('reencodeUpload')
+			->with('user1', 'file1', 'statement.csv', null)
+			->willReturn(['fileId' => 'file1', 'encoding' => null]);
+
+		$response = $this->controller->reencode('file1', 'statement.csv', '');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
 	// ── upload ──────────────────────────────────────────────────────
 
 	public function testUploadReturnsErrorWhenNoFile(): void {
