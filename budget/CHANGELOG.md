@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.46.0] - 2026-08-29
 
 ### Added
 - **A Money Flow diagram shows where the money went.** Reports gains a **Money Flow** type that draws the period's cash as a flow diagram: income categories stream into a central Cash Flow node, which fans out into your expense categories and their subcategories, with what's left shown as a Surplus band — or a Deficit feeding in when spending exceeded income. Amounts label every node, category colors carry through, and the usual period and shared-account filters apply ([#366](https://github.com/otherworld-dev/Budget/issues/366))
