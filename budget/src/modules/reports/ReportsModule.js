@@ -4,10 +4,14 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import Chart from 'chart.js/auto';
+import { SankeyController, Flow } from 'chartjs-chart-sankey';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import MultiSelect from '../../utils/multiselect.js';
+import { buildMoneyFlows, CENTER_KEY } from './moneyFlow.js';
+
+Chart.register(SankeyController, Flow);
 
 export default class ReportsModule {
     constructor(app) {
@@ -650,6 +654,9 @@ export default class ReportsModule {
                 case 'cashflow':
                     await this.generateCashFlowReport(params);
                     break;
+                case 'moneyflow':
+                    await this.generateMoneyFlowReport(params);
+                    break;
                 case 'yoy':
                     this.showYoYReport();
                     // Re-run the comparison so control changes (date range,
@@ -1236,6 +1243,121 @@ export default class ReportsModule {
                 </tr>
             `;
         }).join('');
+    }
+
+    /**
+     * Money Flow (Sankey) report (#366): income categories on the left flow
+     * into a central "Cash Flow" node, which fans out on the right into
+     * expense parent categories and their subcategories, with the gap
+     * becoming a Surplus or Deficit node. Two calls to the existing
+     * categories/spending endpoint (credit + debit) feed the pure transform
+     * in moneyFlow.js -- no new backend.
+     *
+     * That endpoint has no accountIds parameter (unlike the report#* family
+     * used elsewhere on this page), so -- like the Bills Calendar report --
+     * the account multiselect at the top of the page doesn't scope this one;
+     * only the date range and "Exclude shared accounts" apply.
+     */
+    async generateMoneyFlowReport(params) {
+        const startDate = encodeURIComponent(params.get('startDate') || '');
+        const endDate = encodeURIComponent(params.get('endDate') || '');
+        const excludeSharedQuery = this.excludeShared ? '&excludeShared=1' : '';
+
+        const [incomeResponse, expenseResponse] = await Promise.all([
+            fetch(OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${startDate}&endDate=${endDate}&transactionType=credit${excludeSharedQuery}`), {
+                headers: { 'requesttoken': OC.requestToken }
+            }),
+            fetch(OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${startDate}&endDate=${endDate}&transactionType=debit${excludeSharedQuery}`), {
+                headers: { 'requesttoken': OC.requestToken }
+            })
+        ]);
+
+        if (!incomeResponse.ok || !expenseResponse.ok) throw new Error('Failed to fetch money flow data');
+
+        const incomeRows = await incomeResponse.json();
+        const expenseRows = await expenseResponse.json();
+
+        const section = document.getElementById('report-moneyflow');
+        if (section) section.style.display = 'block';
+
+        const result = buildMoneyFlows(incomeRows, expenseRows, this.categories || []);
+        this.renderMoneyFlowChart(result);
+    }
+
+    renderMoneyFlowChart(result) {
+        const canvas = document.getElementById('report-moneyflow-chart');
+        const chartContainer = document.getElementById('report-moneyflow-chart-container');
+        const emptyEl = document.getElementById('report-moneyflow-empty');
+        if (!canvas) return;
+
+        if (this.reportCharts.moneyflow) {
+            this.reportCharts.moneyflow.destroy();
+            this.reportCharts.moneyflow = null;
+        }
+
+        const flows = Array.isArray(result?.flows) ? result.flows : [];
+        const hasFlows = flows.length > 0;
+        if (emptyEl) emptyEl.style.display = hasFlows ? 'none' : '';
+        if (chartContainer) chartContainer.style.display = hasFlows ? '' : 'none';
+        if (!hasFlows) return;
+
+        const { labels, colors } = result;
+        const currency = this.getPrimaryCurrency();
+
+        // Each node's own amount is its total inflow, or -- for a pure source
+        // node like an income category or the deficit node, which has no
+        // inflow -- its total outflow.
+        const nodeAmount = (key) => {
+            const inflow = flows.filter(f => f.to === key).reduce((sum, f) => sum + f.flow, 0);
+            if (inflow > 0) return inflow;
+            return flows.filter(f => f.from === key).reduce((sum, f) => sum + f.flow, 0);
+        };
+
+        const displayLabels = {};
+        Object.keys(labels || {}).forEach(key => {
+            const name = labels[key];
+            displayLabels[key] = key === CENTER_KEY
+                ? name
+                : `${name} — ${this.formatCurrency(nodeAmount(key), currency)}`;
+        });
+
+        const textColor = getComputedStyle(document.documentElement).getPropertyValue('--color-main-text').trim() || '#222';
+        const borderColor = getComputedStyle(document.documentElement).getPropertyValue('--color-border').trim() || '#999';
+
+        const ctx = canvas.getContext('2d');
+        this.reportCharts.moneyflow = new Chart(ctx, {
+            type: 'sankey',
+            data: {
+                datasets: [{
+                    label: t('budget', 'Money Flow'),
+                    data: flows,
+                    colorFrom: (c) => colors[c.dataset.data[c.dataIndex].from] || '#888',
+                    colorTo: (c) => colors[c.dataset.data[c.dataIndex].to] || '#888',
+                    colorMode: 'gradient',
+                    labels: displayLabels,
+                    nodeLabels: { color: textColor },
+                    borderColor,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const raw = context.raw;
+                                const fromLabel = labels?.[raw.from] || raw.from;
+                                const toLabel = labels?.[raw.to] || raw.to;
+                                return `${fromLabel} → ${toLabel}: ${this.formatCurrency(raw.flow, currency)}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
     }
 
     formatReportMonthLabel(yearMonth) {

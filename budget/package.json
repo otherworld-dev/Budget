@@ -42,6 +42,7 @@
   "dependencies": {
     "@nextcloud/l10n": "^3.4.1",
     "chart.js": "^4.4.0",
+    "chartjs-chart-sankey": "^0.15.0",
     "flatpickr": "^4.6.13",
     "gridstack": "^12.6.0"
   }
