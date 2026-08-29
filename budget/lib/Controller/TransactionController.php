@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Exception\ReadOnlyShareException;
 use OCA\Budget\Service\Export\TransactionCsvExporter;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\TransactionService;
@@ -15,6 +16,7 @@ use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
 use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataDownloadResponse;
@@ -583,8 +585,26 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function link(int $id, int $targetId): DataResponse {
         try {
-            $result = $this->service->linkTransactions($id, $targetId, $this->getEffectiveUserId());
+            // Either leg can sit in an account owned by someone else — the two
+            // legs of a transfer into a shared account belong to that account's
+            // owner, not to whoever is clicking. Authorize against what this
+            // user can see and write to, then scope the service the same way
+            // instead of to the acting user, whose own-scoped lookup would find
+            // neither row (#368).
+            $visibleAccountIds = $this->getVisibleAccountIds();
+            foreach ([$id, $targetId] as $legId) {
+                $leg = $this->service->findForAccounts($legId, $visibleAccountIds);
+                $this->requireWriteAccess('account', $leg->getAccountId());
+            }
+
+            $result = $this->service->linkTransactions($id, $targetId, $this->userId, $visibleAccountIds);
             return new DataResponse($result);
+        } catch (ReadOnlyShareException $e) {
+            return $this->handleError($e);
+        } catch (DoesNotExistException $e) {
+            // Not handleValidationError: its "message" is the failing SQL, which
+            // this endpoint put in front of the user verbatim (#368)
+            return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['transactionId' => $id]);
         } catch (\Exception $e) {
             // Use validation error handler to show actual message (e.g., "already linked")
             return $this->handleValidationError($e);
@@ -600,8 +620,19 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function convertToTransfer(int $id, int $targetAccountId): DataResponse {
         try {
-            $result = $this->service->convertToTransfer($id, $targetAccountId, $this->getEffectiveUserId());
+            // Same shared-account scoping as link() — the counterpart is
+            // created in the target account, so both must be writable (#368)
+            $visibleAccountIds = $this->getVisibleAccountIds();
+            $source = $this->service->findForAccounts($id, $visibleAccountIds);
+            $this->requireWriteAccess('account', $source->getAccountId());
+            $this->requireWriteAccess('account', $targetAccountId);
+
+            $result = $this->service->convertToTransfer($id, $targetAccountId, $this->userId, $visibleAccountIds);
             return new DataResponse($result);
+        } catch (ReadOnlyShareException $e) {
+            return $this->handleError($e);
+        } catch (DoesNotExistException $e) {
+            return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['transactionId' => $id]);
         } catch (\Exception $e) {
             // Use validation error handler to show actual message (e.g., "already linked")
             return $this->handleValidationError($e);
@@ -616,7 +647,11 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function unlink(int $id): DataResponse {
         try {
-            $result = $this->service->unlinkTransaction($id, $this->getEffectiveUserId());
+            $visibleAccountIds = $this->getVisibleAccountIds();
+            $transaction = $this->service->findForAccounts($id, $visibleAccountIds);
+            $this->requireWriteAccess('account', $transaction->getAccountId());
+
+            $result = $this->service->unlinkTransaction($id, $this->userId, $visibleAccountIds);
             return new DataResponse($result);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to unlink transaction'), Http::STATUS_BAD_REQUEST);

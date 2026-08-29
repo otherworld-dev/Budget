@@ -12,6 +12,7 @@ use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
 use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataDownloadResponse;
@@ -111,12 +112,45 @@ class BillController extends Controller {
      */
     public function show(int $id): DataResponse {
         try {
-            $bill = $this->service->find($id, $this->getEffectiveUserId());
-            $this->service->enrichBillsWithCurrency([$bill], $this->getEffectiveUserId());
-            return new DataResponse($bill);
+            $owner = $this->granularShareService->resolveOwner($this->userId, 'bill', $id);
+            if ($owner === null) {
+                return new DataResponse(
+                    ['error' => $this->l->t('%1$s not found', [$this->l->t('Bill')])],
+                    Http::STATUS_NOT_FOUND
+                );
+            }
+
+            $bill = $this->service->find($id, $owner);
+            $this->service->enrichBillsWithCurrency([$bill], $owner);
+            if ($owner === $this->userId) {
+                return new DataResponse($bill);
+            }
+            return new DataResponse(array_merge($bill->jsonSerialize(), [
+                '_shared' => true,
+                '_canWrite' => $this->granularShareService->canWrite($this->userId, 'bill', $id),
+            ]));
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Bill'), ['billId' => $id]);
         }
+    }
+
+    /**
+     * The user id every lookup for bill $id must be scoped to.
+     *
+     * Granular sharing swaps visibility, not identity: getEffectiveUserId()
+     * returns the acting user, while every bill query is scoped to the bill's
+     * own user_id. Acting as themselves, a share recipient therefore got a
+     * DoesNotExistException from a bill requireWriteAccess() had just approved
+     * — "Failed to load bill", and the same for every payment action (#368).
+     *
+     * @throws DoesNotExistException when the bill is not visible to the user
+     */
+    private function billOwner(int $id): string {
+        $owner = $this->granularShareService->resolveOwner($this->userId, 'bill', $id);
+        if ($owner === null) {
+            throw new DoesNotExistException('Bill ' . $id . ' is not accessible to ' . $this->userId);
+        }
+        return $owner;
     }
 
     /**
@@ -342,6 +376,7 @@ class BillController extends Controller {
     public function update(int $id): DataResponse {
         try {
             $this->requireWriteAccess('bill', $id);
+            $ownerId = $this->billOwner($id);
 
             $data = $this->request->getParams();
 
@@ -514,7 +549,7 @@ class BillController extends Controller {
                     $billAmount = $updates['amount'] ?? null;
                     if ($billAmount === null) {
                         // Get existing bill amount for validation
-                        $existingBill = $this->service->find($id, $this->getEffectiveUserId());
+                        $existingBill = $this->service->find($id, $ownerId);
                         $billAmount = $existingBill->getAmount();
                     }
                     $splitValidation = $this->validateSplitTemplate($data['splitTemplate'], $billAmount);
@@ -533,7 +568,7 @@ class BillController extends Controller {
                 // template whose sum no longer matches would silently fail at
                 // payment time (the transaction imports unsplit and
                 // uncategorized), so validate it against the new amount.
-                $existingBill = $this->service->find($id, $this->getEffectiveUserId());
+                $existingBill = $this->service->find($id, $ownerId);
                 $storedSplits = $existingBill->getSplitTemplateArray();
                 if (!empty($storedSplits)) {
                     $splitValidation = $this->validateSplitTemplate($storedSplits, $updates['amount']);
@@ -570,7 +605,7 @@ class BillController extends Controller {
                 if ($destinationId === null) {
                     // Check existing bill for destination account if not in updates
                     try {
-                        $existingBill = $this->service->find($id, $this->getEffectiveUserId());
+                        $existingBill = $this->service->find($id, $ownerId);
                         $destinationId = $existingBill->getDestinationAccountId();
                     } catch (\Exception $e) {
                         // Will be caught by outer try-catch
@@ -592,7 +627,7 @@ class BillController extends Controller {
                 // If only one is being updated, get the other from existing bill
                 if ($accountId === null || $destinationId === null) {
                     try {
-                        $existingBill = $this->service->find($id, $this->getEffectiveUserId());
+                        $existingBill = $this->service->find($id, $ownerId);
                         if ($accountId === null) {
                             $accountId = $existingBill->getAccountId();
                         }
@@ -616,7 +651,7 @@ class BillController extends Controller {
                 return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
-            $bill = $this->service->update($id, $this->getEffectiveUserId(), $updates);
+            $bill = $this->service->update($id, $ownerId, $updates);
             return new DataResponse($bill);
         } catch (\InvalidArgumentException $e) {
             // Same as create(): service-only validation keeps its message (#362).
@@ -634,7 +669,7 @@ class BillController extends Controller {
     public function destroy(int $id): DataResponse {
         try {
             $this->requireWriteAccess('bill', $id);
-            $this->service->delete($id, $this->getEffectiveUserId());
+            $this->service->delete($id, $this->billOwner($id));
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Bill'), ['billId' => $id]);
@@ -647,7 +682,7 @@ class BillController extends Controller {
      */
     public function findMatchingTransactions(int $id): DataResponse {
         try {
-            $candidates = $this->service->findMatchingTransactions($id, $this->getEffectiveUserId());
+            $candidates = $this->service->findMatchingTransactions($id, $this->billOwner($id));
             return new DataResponse($candidates);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to find matching transactions'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
@@ -675,7 +710,7 @@ class BillController extends Controller {
     public function recordMissedPayment(int $id): DataResponse {
         try {
             $this->requireWriteAccess('bill', $id);
-            $result = $this->service->recordMissedPayment($id, $this->getEffectiveUserId());
+            $result = $this->service->recordMissedPayment($id, $this->billOwner($id));
             return new DataResponse($result);
         } catch (\InvalidArgumentException $e) {
             return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
@@ -696,7 +731,7 @@ class BillController extends Controller {
             $createNextTransaction = (bool) ($params['createNextTransaction'] ?? false);
             $existingTransactionId = isset($params['existingTransactionId']) ? (int) $params['existingTransactionId'] : null;
 
-            $result = $this->service->markPaid($id, $this->getEffectiveUserId(), $paidDate, $createNextTransaction, $existingTransactionId);
+            $result = $this->service->markPaid($id, $this->billOwner($id), $paidDate, $createNextTransaction, $existingTransactionId);
             return new DataResponse($result);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to mark bill as paid'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
@@ -718,7 +753,7 @@ class BillController extends Controller {
             if ($previousState === null || !is_array($previousState)) {
                 // No in-memory undo data (a reload lost the toast) — fall back
                 // to the snapshot persisted by markPaid (#365)
-                $bill = $this->service->markUnpaid($id, $this->getEffectiveUserId());
+                $bill = $this->service->markUnpaid($id, $this->billOwner($id));
                 return new DataResponse($bill);
             }
 
@@ -726,7 +761,7 @@ class BillController extends Controller {
 
             $bill = $this->service->undoPaid(
                 $id,
-                $this->getEffectiveUserId(),
+                $this->billOwner($id),
                 $previousState,
                 array_map('intval', $createdTransactionIds),
                 $hadScheduledTransaction
@@ -749,7 +784,7 @@ class BillController extends Controller {
     public function markUnpaid(int $id): DataResponse {
         try {
             $this->requireWriteAccess('bill', $id);
-            $bill = $this->service->markUnpaid($id, $this->getEffectiveUserId());
+            $bill = $this->service->markUnpaid($id, $this->billOwner($id));
             return new DataResponse($bill);
         } catch (\InvalidArgumentException $e) {
             // Service-only validation keeps its message (#362)
@@ -767,7 +802,7 @@ class BillController extends Controller {
     public function skipPayment(int $id): DataResponse {
         try {
             $this->requireWriteAccess('bill', $id);
-            $result = $this->service->skipPayment($id, $this->getEffectiveUserId());
+            $result = $this->service->skipPayment($id, $this->billOwner($id));
             return new DataResponse($result);
         } catch (\InvalidArgumentException $e) {
             return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
@@ -791,7 +826,7 @@ class BillController extends Controller {
                 return new DataResponse(['error' => $this->l->t('Missing previous due date')], Http::STATUS_BAD_REQUEST);
             }
 
-            $bill = $this->service->undoSkip($id, $this->getEffectiveUserId(), $previousNextDueDate);
+            $bill = $this->service->undoSkip($id, $this->billOwner($id), $previousNextDueDate);
             return new DataResponse($bill);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to undo skip'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);

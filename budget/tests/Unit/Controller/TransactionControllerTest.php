@@ -402,6 +402,7 @@ class TransactionControllerTest extends TestCase {
 
 	public function testLinkReturnsResult(): void {
 		$result = ['linked' => true];
+		$this->service->method('findForAccounts')->willReturn($this->transactionInAccount(1));
 		$this->service->method('linkTransactions')->willReturn($result);
 
 		$response = $this->controller->link(1, 2);
@@ -410,6 +411,7 @@ class TransactionControllerTest extends TestCase {
 	}
 
 	public function testLinkHandlesValidationError(): void {
+		$this->service->method('findForAccounts')->willReturn($this->transactionInAccount(1));
 		$this->service->method('linkTransactions')
 			->willThrowException(new \RuntimeException('already linked'));
 
@@ -423,6 +425,7 @@ class TransactionControllerTest extends TestCase {
 
 	public function testConvertToTransferReturnsResult(): void {
 		$result = ['transaction' => [], 'linkedTransaction' => []];
+		$this->service->method('findForAccounts')->willReturn($this->transactionInAccount(1));
 		$this->service->method('convertToTransfer')->willReturn($result);
 
 		$response = $this->controller->convertToTransfer(1, 20);
@@ -431,6 +434,7 @@ class TransactionControllerTest extends TestCase {
 	}
 
 	public function testConvertToTransferHandlesValidationError(): void {
+		$this->service->method('findForAccounts')->willReturn($this->transactionInAccount(1));
 		$this->service->method('convertToTransfer')
 			->willThrowException(new \RuntimeException('Counterpart account must use the same currency'));
 
@@ -444,6 +448,7 @@ class TransactionControllerTest extends TestCase {
 
 	public function testUnlinkReturnsResult(): void {
 		$result = ['unlinked' => true];
+		$this->service->method('findForAccounts')->willReturn($this->transactionInAccount(1));
 		$this->service->method('unlinkTransaction')->willReturn($result);
 
 		$response = $this->controller->unlink(1);
@@ -611,5 +616,110 @@ class TransactionControllerTest extends TestCase {
 		$this->splitService->expects($this->never())->method('splitTransaction');
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->split(5)->getStatus());
+	}
+
+	/**
+	 * A controller that can see $visibleAccountIds. Built fresh rather than
+	 * re-stubbing setUp()'s share mock, which PHPUnit will not let a later
+	 * willReturn() override.
+	 */
+	private function controllerSeeing(array $visibleAccountIds, bool $canWrite = true): TransactionController {
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$granularShareService->method('getOwnAccountIds')->willReturn([]);
+		$granularShareService->method('getVisibleAccountIds')->willReturn($visibleAccountIds);
+		$granularShareService->method('canWrite')->willReturn($canWrite);
+		if (!$canWrite) {
+			$granularShareService->method('requireWriteAccess')
+				->willThrowException(new \OCA\Budget\Exception\ReadOnlyShareException());
+		}
+		return new TransactionController(
+			$this->request,
+			$this->service,
+			$this->splitService,
+			$this->tagService,
+			$this->validationService,
+			$granularShareService,
+			new TransactionCsvExporter($this->l),
+			$this->l,
+			'user1',
+			$this->logger
+		);
+	}
+
+	private function transactionInAccount(int $accountId): Transaction {
+		$transaction = new Transaction();
+		$transaction->setAccountId($accountId);
+		return $transaction;
+	}
+
+	// ── transfers across shared accounts (#368) ─────────────────────
+
+	public function testLinkScopesBothLegsToTheVisibleAccounts(): void {
+		$this->service->method('findForAccounts')
+			->willReturn($this->transactionInAccount(9));
+		$this->service->expects($this->once())->method('linkTransactions')
+			->with(5, 6, 'user1', [9, 10])
+			->willReturn(['transaction' => null, 'linkedTransaction' => null]);
+
+		$response = $this->controllerSeeing([9, 10])->link(5, 6);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testLinkRefusesALegOutsideTheVisibleAccounts(): void {
+		$this->service->method('findForAccounts')
+			->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException('nope'));
+		$this->service->expects($this->never())->method('linkTransactions');
+
+		$response = $this->controllerSeeing([9, 10])->link(5, 6);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	public function testLinkDoesNotLeakTheLookupQueryToTheClient(): void {
+		$this->service->method('findForAccounts')->willThrowException(
+			new \OCP\AppFramework\Db\DoesNotExistException(
+				'Did expect one result but found none when executing: query "SELECT `t`.* FROM `oc_budget_transactions`"'
+			)
+		);
+
+		$response = $this->controllerSeeing([9, 10])->link(5, 6);
+
+		$this->assertStringNotContainsString('SELECT', $response->getData()['error']);
+	}
+
+	public function testLinkRefusesAReadOnlySharedAccount(): void {
+		$this->service->method('findForAccounts')
+			->willReturn($this->transactionInAccount(9));
+		$this->service->expects($this->never())->method('linkTransactions');
+
+		$response = $this->controllerSeeing([9, 10], false)->link(5, 6);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testConvertToTransferScopesToTheVisibleAccounts(): void {
+		$this->service->method('findForAccounts')
+			->willReturn($this->transactionInAccount(9));
+		$this->service->expects($this->once())->method('convertToTransfer')
+			->with(5, 10, 'user1', [9, 10])
+			->willReturn(['transaction' => null, 'linkedTransaction' => null]);
+
+		$response = $this->controllerSeeing([9, 10])->convertToTransfer(5, 10);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testUnlinkScopesToTheVisibleAccounts(): void {
+		$this->service->method('findForAccounts')
+			->willReturn($this->transactionInAccount(9));
+		$this->service->expects($this->once())->method('unlinkTransaction')
+			->with(5, 'user1', [9, 10])
+			->willReturn(['transaction' => null, 'unlinkedTransactionId' => 6]);
+
+		$response = $this->controllerSeeing([9, 10])->unlink(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 }

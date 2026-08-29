@@ -364,12 +364,20 @@ class GranularShareService {
         $ids = $this->getSharedIds($userId, ShareItem::TYPE_BILL);
         if (empty($ids)) return [];
         $bills = $this->billMapper->findByIds($ids);
-        return array_map(fn($b) => array_merge($b->jsonSerialize(), [
-            '_shared' => true,
-            // markUnpaid is scoped to the bill's owner — a recipient's call
-            // can never succeed, so never offer them the action (#365 review)
-            'canMarkUnpaid' => false,
-        ]), $bills);
+        return array_map(function ($b) use ($userId) {
+            $canWrite = $this->canWrite($userId, ShareItem::TYPE_BILL, $b->getId());
+            $serialized = $b->jsonSerialize();
+            return array_merge($serialized, [
+                '_shared' => true,
+                '_sharedBy' => $b->getUserId(),
+                '_sharedByName' => $this->displayNameFor($b->getUserId()),
+                '_canWrite' => $canWrite,
+                // Bill actions run under the bill's OWNER since #368, so a
+                // recipient's markUnpaid succeeds now — offer it whenever they
+                // may write. Read-only recipients still never see the action.
+                'canMarkUnpaid' => $canWrite && ($serialized['canMarkUnpaid'] ?? false),
+            ]);
+        }, $bills);
     }
 
     /**

@@ -12,6 +12,7 @@ use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
 use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
@@ -82,11 +83,40 @@ class RecurringIncomeController extends Controller {
      */
     public function show(int $id): DataResponse {
         try {
-            $income = $this->service->find($id, $this->getEffectiveUserId());
-            return new DataResponse($income);
+            $owner = $this->granularShareService->resolveOwner($this->userId, 'recurring_income', $id);
+            if ($owner === null) {
+                return new DataResponse(
+                    ['error' => $this->l->t('%1$s not found', [$this->l->t('Recurring income')])],
+                    Http::STATUS_NOT_FOUND
+                );
+            }
+
+            $income = $this->service->find($id, $owner);
+            if ($owner === $this->userId) {
+                return new DataResponse($income);
+            }
+            return new DataResponse(array_merge($income->jsonSerialize(), [
+                '_shared' => true,
+                '_canWrite' => $this->granularShareService->canWrite($this->userId, 'recurring_income', $id),
+            ]));
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);
         }
+    }
+
+    /**
+     * The user id every lookup for recurring income $id must be scoped to.
+     * Same trap as bills: sharing swaps visibility, not identity, so an entry
+     * shared to this user has to be read and written under its OWNER (#368).
+     *
+     * @throws DoesNotExistException when the entry is not visible to the user
+     */
+    private function incomeOwner(int $id): string {
+        $owner = $this->granularShareService->resolveOwner($this->userId, 'recurring_income', $id);
+        if ($owner === null) {
+            throw new DoesNotExistException('Recurring income ' . $id . ' is not accessible to ' . $this->userId);
+        }
+        return $owner;
     }
 
     /**
@@ -283,7 +313,7 @@ class RecurringIncomeController extends Controller {
                 $data['excludedFromForecast'] = filter_var($data['excludedFromForecast'], FILTER_VALIDATE_BOOLEAN);
             }
 
-            $income = $this->service->update($id, $this->getEffectiveUserId(), $data);
+            $income = $this->service->update($id, $this->incomeOwner($id), $data);
             return new DataResponse($income);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);
@@ -298,7 +328,7 @@ class RecurringIncomeController extends Controller {
     public function destroy(int $id): DataResponse {
         try {
             $this->requireWriteAccess('recurring_income', $id);
-            $this->service->delete($id, $this->getEffectiveUserId());
+            $this->service->delete($id, $this->incomeOwner($id));
             return new DataResponse(['message' => $this->l->t('Recurring income deleted')]);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);
@@ -351,10 +381,11 @@ class RecurringIncomeController extends Controller {
     #[UserRateLimit(limit: 30, period: 60)]
     public function markReceived(int $id, ?string $receivedDate = null): DataResponse {
         try {
+            $this->requireWriteAccess('recurring_income', $id);
             $params = $this->request->getParams();
             $createTransaction = (bool) ($params['createTransaction'] ?? false);
 
-            $income = $this->service->markReceived($id, $this->getEffectiveUserId(), $receivedDate, $createTransaction);
+            $income = $this->service->markReceived($id, $this->incomeOwner($id), $receivedDate, $createTransaction);
             return new DataResponse($income);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);

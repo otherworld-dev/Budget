@@ -55,6 +55,7 @@ class BillControllerTest extends TestCase {
 
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn(true);
+		$granularShareService->method('resolveOwner')->willReturn('user1');
 
 		$this->controller = new BillController(
 			$this->request,
@@ -80,6 +81,7 @@ class BillControllerTest extends TestCase {
 	private function controllerWithValidation(ValidationService $vs): BillController {
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn(true);
+		$granularShareService->method('resolveOwner')->willReturn('user1');
 		return new BillController(
 			$this->request,
 			$this->service,
@@ -1628,5 +1630,133 @@ class BillControllerTest extends TestCase {
 		$response = $this->controller->update(1);
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	/**
+	 * A controller whose share service reports $owner as the bill's owner.
+	 * Built fresh rather than re-stubbing setUp()'s mock, which PHPUnit will
+	 * not let a later willReturn() override.
+	 */
+	private function controllerOwnedBy(?string $owner, bool $canWrite = true): BillController {
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn($owner !== null);
+		$granularShareService->method('resolveOwner')->willReturn($owner);
+		$granularShareService->method('canWrite')->willReturn($canWrite);
+		if (!$canWrite) {
+			$granularShareService->method('requireWriteAccess')
+				->willThrowException(new \OCA\Budget\Exception\ReadOnlyShareException());
+		}
+		return new BillController(
+			$this->request,
+			$this->service,
+			$this->validationService,
+			$granularShareService,
+			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
+			$this->l,
+			'user1',
+			$this->logger
+		);
+	}
+
+	// ── shared bills (#368) ─────────────────────────────────────────
+
+	public function testShowLoadsASharedBillUnderItsOwner(): void {
+		$bill = new Bill();
+		$bill->setId(7);
+		$this->service->expects($this->once())->method('find')
+			->with(7, 'owner1')->willReturn($bill);
+		$this->service->method('enrichBillsWithCurrency')->willReturnArgument(0);
+
+		$response = $this->controllerOwnedBy('owner1')->show(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertTrue($response->getData()['_shared']);
+		$this->assertTrue($response->getData()['_canWrite']);
+	}
+
+	public function testShowDoesNotFlagAnOwnBillAsShared(): void {
+		$bill = new Bill();
+		$bill->setId(7);
+		$this->service->method('find')->with(7, 'user1')->willReturn($bill);
+		$this->service->method('enrichBillsWithCurrency')->willReturnArgument(0);
+
+		$data = $this->controllerOwnedBy('user1')->show(7)->getData();
+
+		$this->assertInstanceOf(Bill::class, $data);
+		$this->assertArrayNotHasKey('_shared', $data->jsonSerialize());
+	}
+
+	public function testShowReturnsNotFoundWhenTheBillIsNotVisible(): void {
+		$this->service->expects($this->never())->method('find');
+
+		$response = $this->controllerOwnedBy(null)->show(7);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	public function testUpdateAppliesToASharedBillUnderItsOwner(): void {
+		$this->mockInput(json_encode(['amountType' => 'statement']));
+		$this->service->expects($this->once())->method('update')
+			->with(7, 'owner1', ['amountType' => 'statement'])
+			->willReturn(new Bill());
+
+		$response = $this->controllerOwnedBy('owner1')->update(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testDestroyDeletesASharedBillUnderItsOwner(): void {
+		$this->service->expects($this->once())->method('delete')->with(7, 'owner1');
+
+		$response = $this->controllerOwnedBy('owner1')->destroy(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testMarkPaidRecordsASharedBillUnderItsOwner(): void {
+		$this->request->method('getParams')->willReturn([]);
+		$this->service->expects($this->once())->method('markPaid')
+			->with(7, 'owner1', null, false, null)
+			->willReturn(['bill' => new Bill()]);
+
+		$response = $this->controllerOwnedBy('owner1')->markPaid(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testMarkUnpaidRevertsASharedBillUnderItsOwner(): void {
+		$this->service->expects($this->once())->method('markUnpaid')
+			->with(7, 'owner1')->willReturn(new Bill());
+
+		$response = $this->controllerOwnedBy('owner1')->markUnpaid(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testSkipPaymentSkipsASharedBillUnderItsOwner(): void {
+		$this->service->expects($this->once())->method('skipPayment')
+			->with(7, 'owner1')->willReturn(['bill' => new Bill()]);
+
+		$response = $this->controllerOwnedBy('owner1')->skipPayment(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testRecordMissedPaymentRunsAsTheBillOwner(): void {
+		$this->service->expects($this->once())->method('recordMissedPayment')
+			->with(7, 'owner1')->willReturn(['transaction' => null]);
+
+		$response = $this->controllerOwnedBy('owner1')->recordMissedPayment(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testAReadOnlySharedBillCannotBeUpdated(): void {
+		$this->mockInput(json_encode(['amountType' => 'statement']));
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerOwnedBy('owner1', false)->update(7);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
 	}
 }

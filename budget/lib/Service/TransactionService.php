@@ -10,6 +10,7 @@ use OCA\Budget\Db\TransactionTag;
 use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Db\QueryFilterBuilder;
+use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Enum\Currency;
 use OCA\Budget\Db\DismissedImportMapper;
@@ -513,6 +514,41 @@ class TransactionService {
      */
     private function ownerOf(Transaction $transaction): string {
         return $this->accountMapper->findById($transaction->getAccountId())->getUserId();
+    }
+
+    /**
+     * Fetch a transaction the way its caller is entitled to see it.
+     *
+     * A null $visibleAccountIds keeps the owner-scoped lookup every internal
+     * caller (import, bank sync, seeding) wants. A controller passes the
+     * acting user's visible accounts instead, because a transfer leg can sit
+     * in a SHARED account: that row belongs to the account's OWNER, so the
+     * owner-scoped find could never see it and linking the two legs failed
+     * with a raw DoesNotExistException the UI showed verbatim (#368).
+     *
+     * @param int[]|null $visibleAccountIds
+     * @throws DoesNotExistException
+     */
+    private function findScoped(int $id, string $userId, ?array $visibleAccountIds): Transaction {
+        return $visibleAccountIds === null
+            ? $this->mapper->find($id, $userId)
+            : $this->mapper->findForAccounts($id, $visibleAccountIds);
+    }
+
+    /**
+     * findScoped()'s counterpart for the account a leg sits in.
+     *
+     * @param int[]|null $visibleAccountIds
+     * @throws DoesNotExistException
+     */
+    private function accountFor(int $accountId, string $userId, ?array $visibleAccountIds): Account {
+        if ($visibleAccountIds === null) {
+            return $this->accountMapper->find($accountId, $userId);
+        }
+        if (!in_array($accountId, $visibleAccountIds, true)) {
+            throw new DoesNotExistException('Account ' . $accountId . ' is not visible to ' . $userId);
+        }
+        return $this->accountMapper->findById($accountId);
     }
 
     /**
@@ -1145,9 +1181,9 @@ class TransactionService {
      *
      * @throws \Exception if transactions cannot be linked
      */
-    public function linkTransactions(int $transactionId, int $targetId, string $userId): array {
-        $transaction = $this->find($transactionId, $userId);
-        $target = $this->find($targetId, $userId);
+    public function linkTransactions(int $transactionId, int $targetId, string $userId, ?array $visibleAccountIds = null): array {
+        $transaction = $this->findScoped($transactionId, $userId, $visibleAccountIds);
+        $target = $this->findScoped($targetId, $userId, $visibleAccountIds);
 
         // Validation: must be different accounts
         if ($transaction->getAccountId() === $target->getAccountId()) {
@@ -1155,8 +1191,8 @@ class TransactionService {
         }
 
         // Validation: must be same amount (unless cross-currency transfer)
-        $sourceAccount = $this->accountMapper->find($transaction->getAccountId(), $userId);
-        $targetAccount = $this->accountMapper->find($target->getAccountId(), $userId);
+        $sourceAccount = $this->accountFor($transaction->getAccountId(), $userId, $visibleAccountIds);
+        $targetAccount = $this->accountFor($target->getAccountId(), $userId, $visibleAccountIds);
         if ($sourceAccount->getCurrency() === $targetAccount->getCurrency()
             && $transaction->getAmount() !== $target->getAmount()) {
             throw new \Exception('Cannot link same-currency transactions with different amounts');
@@ -1179,8 +1215,8 @@ class TransactionService {
 
         // Return updated transactions
         return [
-            'transaction' => $this->find($transactionId, $userId),
-            'linkedTransaction' => $this->find($targetId, $userId)
+            'transaction' => $this->findScoped($transactionId, $userId, $visibleAccountIds),
+            'linkedTransaction' => $this->findScoped($targetId, $userId, $visibleAccountIds)
         ];
     }
 
@@ -1192,8 +1228,8 @@ class TransactionService {
      *
      * @throws \Exception if the transaction cannot be converted
      */
-    public function convertToTransfer(int $transactionId, int $targetAccountId, string $userId): array {
-        $transaction = $this->find($transactionId, $userId);
+    public function convertToTransfer(int $transactionId, int $targetAccountId, string $userId, ?array $visibleAccountIds = null): array {
+        $transaction = $this->findScoped($transactionId, $userId, $visibleAccountIds);
 
         // Validate before creating the counterpart so a failed conversion
         // never leaves an orphaned transaction behind
@@ -1204,15 +1240,17 @@ class TransactionService {
             throw new \Exception('Cannot transfer within the same account');
         }
 
-        // Also verifies both accounts belong to the user
-        $sourceAccount = $this->accountMapper->find($transaction->getAccountId(), $userId);
-        $targetAccount = $this->accountMapper->find($targetAccountId, $userId);
+        // Also verifies both accounts are ones the caller may use
+        $sourceAccount = $this->accountFor($transaction->getAccountId(), $userId, $visibleAccountIds);
+        $targetAccount = $this->accountFor($targetAccountId, $userId, $visibleAccountIds);
         if ($sourceAccount->getCurrency() !== $targetAccount->getCurrency()) {
             throw new \Exception('Counterpart account must use the same currency');
         }
 
         $counterpart = $this->create(
-            userId: $userId,
+            // The counterpart lands in the target account, so it belongs to
+            // that account's owner — create() is owner-scoped (#368)
+            userId: $targetAccount->getUserId(),
             accountId: $targetAccountId,
             date: $transaction->getDate(),
             description: $transaction->getDescription() ?? '',
@@ -1223,14 +1261,14 @@ class TransactionService {
             status: $transaction->getStatus()
         );
 
-        return $this->linkTransactions($transactionId, $counterpart->getId(), $userId);
+        return $this->linkTransactions($transactionId, $counterpart->getId(), $userId, $visibleAccountIds);
     }
 
     /**
      * Unlink a transaction from its transfer partner
      */
-    public function unlinkTransaction(int $transactionId, string $userId): array {
-        $transaction = $this->find($transactionId, $userId);
+    public function unlinkTransaction(int $transactionId, string $userId, ?array $visibleAccountIds = null): array {
+        $transaction = $this->findScoped($transactionId, $userId, $visibleAccountIds);
 
         if ($transaction->getLinkedTransactionId() === null) {
             throw new \Exception('Transaction is not linked');
@@ -1239,7 +1277,7 @@ class TransactionService {
         $linkedId = $this->mapper->unlinkTransaction($transactionId);
 
         return [
-            'transaction' => $this->find($transactionId, $userId),
+            'transaction' => $this->findScoped($transactionId, $userId, $visibleAccountIds),
             'unlinkedTransactionId' => $linkedId
         ];
     }

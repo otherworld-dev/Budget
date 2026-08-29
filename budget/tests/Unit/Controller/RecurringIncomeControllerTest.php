@@ -44,6 +44,7 @@ class RecurringIncomeControllerTest extends TestCase {
 
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn(true);
+		$granularShareService->method('resolveOwner')->willReturn('user1');
 
 		$this->controller = new RecurringIncomeController(
 			$this->request,
@@ -525,5 +526,80 @@ class RecurringIncomeControllerTest extends TestCase {
 		$response = $this->controller->detect();
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	/**
+	 * A controller whose share service reports $owner as the entry's owner.
+	 * Built fresh rather than re-stubbing setUp()'s mock, which PHPUnit will
+	 * not let a later willReturn() override.
+	 */
+	private function controllerOwnedBy(?string $owner, bool $canWrite = true): RecurringIncomeController {
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn($owner !== null);
+		$granularShareService->method('resolveOwner')->willReturn($owner);
+		$granularShareService->method('canWrite')->willReturn($canWrite);
+		if (!$canWrite) {
+			$granularShareService->method('requireWriteAccess')
+				->willThrowException(new \OCA\Budget\Exception\ReadOnlyShareException());
+		}
+		return new RecurringIncomeController(
+			$this->request,
+			$this->service,
+			$this->validationService,
+			$granularShareService,
+			$this->l,
+			'user1',
+			$this->logger
+		);
+	}
+
+	// ── shared recurring income (#368) ──────────────────────────────
+
+	public function testShowLoadsSharedIncomeUnderItsOwner(): void {
+		$income = new RecurringIncome();
+		$income->setId(7);
+		$this->service->expects($this->once())->method('find')
+			->with(7, 'owner1')->willReturn($income);
+
+		$response = $this->controllerOwnedBy('owner1')->show(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertTrue($response->getData()['_shared']);
+	}
+
+	public function testShowReturnsNotFoundWhenIncomeIsNotVisible(): void {
+		$this->service->expects($this->never())->method('find');
+
+		$response = $this->controllerOwnedBy(null)->show(7);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	public function testDestroyDeletesSharedIncomeUnderItsOwner(): void {
+		$this->service->expects($this->once())->method('delete')->with(7, 'owner1');
+
+		$response = $this->controllerOwnedBy('owner1')->destroy(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testMarkReceivedRunsAsTheIncomeOwner(): void {
+		$this->request->method('getParams')->willReturn([]);
+		$this->service->expects($this->once())->method('markReceived')
+			->with(7, 'owner1', null, false)
+			->willReturn(new RecurringIncome());
+
+		$response = $this->controllerOwnedBy('owner1')->markReceived(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testMarkReceivedIsRefusedOnAReadOnlyShare(): void {
+		$this->request->method('getParams')->willReturn([]);
+		$this->service->expects($this->never())->method('markReceived');
+
+		$response = $this->controllerOwnedBy('owner1', false)->markReceived(7);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
 	}
 }
