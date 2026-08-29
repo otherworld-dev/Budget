@@ -70,7 +70,16 @@ class ImportController extends Controller {
         $format = $template->getFormat() ?? 'csv';
 
         if ($format === 'csv') {
-            $params['mapping'] = $template->getParsedMapping();
+            // Since #367 parsed CSV rows are keyed by column index, and the
+            // CLIENT resolves a template's stored header names to the file's
+            // live indices when it applies one — a mapping in the request is
+            // already the template, resolved. Overwriting it with the stored
+            // names would look up $row['Buchungstag'] in integer-keyed rows
+            // and map nothing. Fill from the template only when the request
+            // brought no mapping at all.
+            if (empty($params['mapping'])) {
+                $params['mapping'] = $template->getParsedMapping();
+            }
             $params['delimiter'] = $template->getDelimiter() ?: $params['delimiter'];
         } else {
             // Union (+) not array_merge: numeric account-number keys must be preserved.

@@ -144,6 +144,40 @@ class ImportControllerTest extends TestCase {
 		$this->controller->preview('file123', ['notes' => 'memo'], null, null, true, ',', null, 4);
 	}
 
+	// Since #367 parsed CSV rows are keyed by column index and the CLIENT
+	// resolves a template's stored header names to live indices before
+	// sending — so a mapping in the request is already the template, resolved.
+	// Overwriting it with the stored names would look up $row['Buchungstag']
+	// in integer-keyed rows and map nothing, for every template-driven CSV
+	// import.
+	public function testPreviewKeepsRequestMappingForCsvTemplate(): void {
+		$this->templateService->method('find')->willReturn(
+			$this->makeTemplate('csv', ['date' => 'Buchungstag', 'amount' => 'Betrag'], [])
+		);
+
+		$this->service->expects($this->once())
+			->method('previewImport')
+			->with('user1', 'file123', ['date' => 0, 'amount' => 3], null, [], true, ',')
+			->willReturn([]);
+
+		$this->controller->preview('file123', ['date' => 0, 'amount' => 3], null, null, true, ',', null, 4);
+	}
+
+	// A request that brought no mapping at all still gets the template's
+	// stored one — the pre-#367 server-side fallback.
+	public function testPreviewFallsBackToStoredMappingForCsvTemplate(): void {
+		$this->templateService->method('find')->willReturn(
+			$this->makeTemplate('csv', ['date' => 'Buchungstag'], [])
+		);
+
+		$this->service->expects($this->once())
+			->method('previewImport')
+			->with('user1', 'file123', ['date' => 'Buchungstag'], null, [], true, ',')
+			->willReturn([]);
+
+		$this->controller->preview('file123', [], null, null, true, ',', null, 4);
+	}
+
 	private function makeTemplate(string $format, array $mapping, array $accountMapping): \OCA\Budget\Db\ImportTemplate {
 		$template = new \OCA\Budget\Db\ImportTemplate();
 		$template->setFormat($format);
