@@ -512,19 +512,12 @@ export default class BillsModule {
         const autoPayCheckbox = document.getElementById('bill-auto-pay');
         if (billAccount && autoPayCheckbox) {
             billAccount.addEventListener('change', () => {
-                if (!billAccount.value || billAccount.value === '') {
-                    autoPayCheckbox.checked = false;
-                    autoPayCheckbox.disabled = true;
-                } else {
-                    autoPayCheckbox.disabled = false;
-                }
+                this.syncAutoPayAvailability();
                 this.updateBillAmountCurrency();
             });
 
             // Set initial state
-            if (!billAccount.value || billAccount.value === '') {
-                autoPayCheckbox.disabled = true;
-            }
+            this.syncAutoPayAvailability();
         }
 
         // Bills filter tabs
@@ -633,6 +626,7 @@ export default class BillsModule {
 
         form.reset();
         document.getElementById('bill-id').value = '';
+        this.clearUnavailableOptions();
 
         if (bill) {
             title.textContent = t('budget', 'Edit Bill');
@@ -643,8 +637,18 @@ export default class BillsModule {
             document.getElementById('bill-frequency').value = bill.frequency || 'monthly';
             document.getElementById('bill-due-day').value = bill.dueDay || bill.due_day || '';
             document.getElementById('bill-due-month').value = bill.dueMonth || bill.due_month || '';
-            document.getElementById('bill-category').value = bill.categoryId || bill.category_id || '';
-            document.getElementById('bill-account').value = bill.accountId || bill.account_id || '';
+            // Both dropdowns only list what this user can see, so a bill shared
+            // without its category or pay-from account used to fall back to ""
+            // and saveBill sent null — stripping them off the owner's bill
+            // (#370). Keep the real id selected instead.
+            this.selectPossiblyUnavailable(
+                document.getElementById('bill-category'),
+                bill.categoryId ?? bill.category_id ?? null
+            );
+            this.selectPossiblyUnavailable(
+                document.getElementById('bill-account'),
+                bill.accountId ?? bill.account_id ?? null
+            );
             document.getElementById('bill-auto-pattern').value = bill.autoDetectPattern || bill.auto_detect_pattern || '';
             document.getElementById('bill-notes').value = bill.notes || '';
             const reminderDays = bill.reminderDays ?? bill.reminder_days;
@@ -746,8 +750,62 @@ export default class BillsModule {
 
         this.updateBillFormFields();
         this.updateBillAmountCurrency();
+        this.syncAutoPayAvailability();
         modal.style.display = 'flex';
         modal.setAttribute('aria-hidden', 'false');
+    }
+
+    /**
+     * Drop the placeholder options a previous bill left behind, so a stale
+     * "Unavailable" entry never lingers in the next bill's dropdowns.
+     */
+    clearUnavailableOptions() {
+        ['bill-category', 'bill-account'].forEach(id => {
+            const select = document.getElementById(id);
+            if (!select) return;
+            select.querySelectorAll('option[data-unavailable="1"]').forEach(opt => opt.remove());
+        });
+    }
+
+    /**
+     * Select `value` even when the dropdown holds no option for it — a shared
+     * bill whose category or account was not shared alongside it. Assigning a
+     * missing value silently yields "", which saveBill would then submit as
+     * null, so add a disabled placeholder carrying the real id (#370).
+     */
+    selectPossiblyUnavailable(select, value) {
+        if (!select) return;
+        if (value === null || value === undefined || value === '') {
+            select.value = '';
+            return;
+        }
+
+        const wanted = String(value);
+        select.value = wanted;
+        if (select.value === wanted) return;
+
+        const option = document.createElement('option');
+        option.value = wanted;
+        option.textContent = t('budget', 'Unavailable (not shared with you)');
+        option.disabled = true;
+        option.dataset.unavailable = '1';
+        select.appendChild(option);
+        select.value = wanted;
+    }
+
+    /**
+     * Auto-pay needs a pay-from account. The account dropdown's change handler
+     * was the only thing that worked that out, and setting a select's value in
+     * code fires no change event — so opening an existing bill left the
+     * checkbox greyed out even when the bill already had an account (#370).
+     */
+    syncAutoPayAvailability() {
+        const accountSelect = document.getElementById('bill-account');
+        const autoPayCheckbox = document.getElementById('bill-auto-pay');
+        if (!accountSelect || !autoPayCheckbox) return;
+
+        autoPayCheckbox.disabled = !accountSelect.value;
+        if (autoPayCheckbox.disabled) autoPayCheckbox.checked = false;
     }
 
     hideBillModal() {

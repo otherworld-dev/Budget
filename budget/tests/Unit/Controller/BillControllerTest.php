@@ -952,6 +952,69 @@ class BillControllerTest extends TestCase {
 
 	public function testUpdateAutoPayEnabled(): void {
 		$this->mockInput(json_encode(['autoPayEnabled' => true]));
+
+		// Auto-pay needs somewhere to pay from, so the stored account is what
+		// makes this legal (#370)
+		$existingBill = new Bill();
+		$existingBill->setAccountId(5);
+		$this->service->method('find')->willReturn($existingBill);
+
+		$bill = $this->createMock(Bill::class);
+		$this->service->method('update')->willReturn($bill);
+
+		$response = $this->controller->update(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testUpdateAutoPayWithoutAccountIsRejected(): void {
+		$this->mockInput(json_encode(['autoPayEnabled' => true]));
+
+		$existingBill = new Bill();
+		$existingBill->setAccountId(null);
+		$this->service->method('find')->willReturn($existingBill);
+
+		$response = $this->controller->update(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('Auto-pay requires an account', $response->getData()['error']);
+	}
+
+	public function testUpdateClearingAccountWithAutoPayOnIsRejected(): void {
+		// The shared-bill form used to submit accountId as null whenever it
+		// could not render the account, silently leaving auto-pay dangling
+		$this->mockInput(json_encode(['accountId' => null]));
+
+		$existingBill = new Bill();
+		$existingBill->setAccountId(5);
+		$existingBill->setAutoPayEnabled(true);
+		$this->service->method('find')->willReturn($existingBill);
+
+		$response = $this->controller->update(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('Auto-pay requires an account', $response->getData()['error']);
+	}
+
+	public function testUpdateAutoPayWithAccountInSamePayloadSucceeds(): void {
+		$this->mockInput(json_encode(['autoPayEnabled' => true, 'accountId' => 7]));
+
+		$bill = $this->createMock(Bill::class);
+		$this->service->method('update')->willReturn($bill);
+
+		$response = $this->controller->update(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testUpdateClearingAccountWithAutoPayOffSucceeds(): void {
+		$this->mockInput(json_encode(['accountId' => null]));
+
+		$existingBill = new Bill();
+		$existingBill->setAccountId(5);
+		$existingBill->setAutoPayEnabled(false);
+		$this->service->method('find')->willReturn($existingBill);
+
 		$bill = $this->createMock(Bill::class);
 		$this->service->method('update')->willReturn($bill);
 

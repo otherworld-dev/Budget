@@ -647,6 +647,44 @@ class BillController extends Controller {
                 }
             }
 
+            // Auto-pay has nothing to pay from without an account. create()
+            // has always refused that pairing; update() did not, so a client
+            // that dropped the account while leaving auto-pay on left the bill
+            // in a state the create path calls invalid (#370). Only whichever
+            // side the payload omits is read back off the stored bill.
+            $autoPayInUpdates = array_key_exists('autoPayEnabled', $updates);
+            $accountInUpdates = array_key_exists('accountId', $updates);
+            if ($autoPayInUpdates || $accountInUpdates) {
+                $autoPayOn = $autoPayInUpdates ? (bool) $updates['autoPayEnabled'] : null;
+                $effectiveAccountId = $accountInUpdates ? $updates['accountId'] : null;
+                $accountKnown = $accountInUpdates;
+
+                if ($autoPayOn === null || !$accountKnown) {
+                    try {
+                        $existingBill = $this->service->find($id, $ownerId);
+                    } catch (\Exception $e) {
+                        // A missing bill is reported by the update call below
+                        $existingBill = null;
+                    }
+                    if ($existingBill !== null) {
+                        if ($autoPayOn === null) {
+                            $autoPayOn = (bool) $existingBill->getAutoPayEnabled();
+                        }
+                        if (!$accountKnown) {
+                            $effectiveAccountId = $existingBill->getAccountId();
+                            $accountKnown = true;
+                        }
+                    }
+                }
+
+                if ($autoPayOn === true && $accountKnown && $effectiveAccountId === null) {
+                    return new DataResponse(
+                        ['error' => $this->l->t('Auto-pay requires an account to be set')],
+                        Http::STATUS_BAD_REQUEST
+                    );
+                }
+            }
+
             if (empty($updates)) {
                 return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
