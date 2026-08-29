@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.47.0] - 2026-08-29
 
 ### Added
 - **The import screen can be told which character encoding a statement uses.** Some files simply cannot be identified from their contents: every single-byte encoding accepts every possible byte, so an undeclared Cyrillic export is indistinguishable from a Western European one and any automatic answer is a guess. The mapping step now carries a **Character Encoding** picker, listing Western European, Central European, Cyrillic, Greek, Turkish, Hebrew, Japanese, Chinese and Korean options alongside Unicode, with the detected encoding named in the hint beneath it. It sits directly above the preview, so a wrong guess is visible as mojibake and correcting it redraws the columns and preview immediately. Uploads are now kept exactly as they arrived rather than converted on the way in, which is what makes the choice reversible — previously the original bytes were discarded at upload and a bad guess could not be undone ([#371](https://github.com/otherworld-dev/Budget/issues/371))
