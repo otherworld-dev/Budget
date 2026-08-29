@@ -1272,11 +1272,18 @@ export default class ReportsModule {
         const endDate = encodeURIComponent(params.get('endDate') || '');
         const excludeSharedQuery = this.excludeShared ? '&excludeShared=1' : '';
 
-        const [incomeResponse, expenseResponse] = await Promise.all([
+        const [incomeResponse, expenseResponse, categoriesResponse] = await Promise.all([
             fetch(OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${startDate}&endDate=${endDate}&transactionType=credit${excludeSharedQuery}`), {
                 headers: { 'requesttoken': OC.requestToken }
             }),
             fetch(OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${startDate}&endDate=${endDate}&transactionType=debit${excludeSharedQuery}`), {
+                headers: { 'requesttoken': OC.requestToken }
+            }),
+            // The transform filters every spending row by its category's
+            // type, so a category the app-level list doesn't know yet (made
+            // after page load, or by another client) would silently drop its
+            // flows. Fetch the list fresh; fall back to app state on failure.
+            fetch(OC.generateUrl('/apps/budget/api/categories'), {
                 headers: { 'requesttoken': OC.requestToken }
             })
         ]);
@@ -1285,11 +1292,12 @@ export default class ReportsModule {
 
         const incomeRows = await incomeResponse.json();
         const expenseRows = await expenseResponse.json();
+        const categories = categoriesResponse.ok ? await categoriesResponse.json() : (this.categories || []);
 
         const section = document.getElementById('report-moneyflow');
         if (section) section.style.display = 'block';
 
-        const result = buildMoneyFlows(incomeRows, expenseRows, this.categories || []);
+        const result = buildMoneyFlows(incomeRows, expenseRows, categories);
         this.renderMoneyFlowChart(result);
     }
 
@@ -1346,12 +1354,21 @@ export default class ReportsModule {
                     labels: displayLabels,
                     nodeLabels: { color: textColor },
                     borderColor,
-                    borderWidth: 1
+                    borderWidth: 1,
+                    // Breathing room: thicker node bars and a clear vertical
+                    // gap between the nodes in a column, so adjacent
+                    // categories and their labels don't run together.
+                    nodeWidth: 14,
+                    nodePadding: 28
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                // Keep edge labels off the container walls
+                layout: {
+                    padding: { left: 12, right: 12, top: 16, bottom: 16 }
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {

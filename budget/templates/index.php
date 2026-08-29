@@ -3346,7 +3346,7 @@ style('budget', 'budget-app');
                         <div id="report-moneyflow-empty" class="empty-state" style="display: none;">
                             <p><?php p($l->t('No income or expenses in this period.')); ?></p>
                         </div>
-                        <div id="report-moneyflow-chart-container" class="chart-container chart-container-large">
+                        <div id="report-moneyflow-chart-container" class="chart-container chart-container-large" style="height: 480px;">
                             <canvas id="report-moneyflow-chart"></canvas>
                         </div>
                     </div>
