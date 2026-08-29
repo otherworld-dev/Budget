@@ -599,6 +599,15 @@ export default class ReportsModule {
     async generateReport() {
         const reportType = document.getElementById('report-type')?.value || 'summary';
 
+        // The Money Flow diagram has no server-side export — the export
+        // endpoint's type switch doesn't know it, so the buttons would fail
+        // with an opaque error. Hide them for this type (#366).
+        const exportable = reportType !== 'moneyflow';
+        const csvBtn = document.getElementById('export-csv-btn');
+        const pdfBtn = document.getElementById('export-pdf-btn');
+        if (csvBtn) csvBtn.style.display = exportable ? '' : 'none';
+        if (pdfBtn) pdfBtn.style.display = exportable ? '' : 'none';
+
         // Keep the date range in step with the period selector so the report
         // always matches the shown period (the selector persists the user's last
         // choice on reopen); a custom range keeps its own dates (#300).
