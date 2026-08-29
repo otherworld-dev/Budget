@@ -1,16 +1,6 @@
 OC.L10N.register(
     "budget",
     {
-    "hero" : "bandeau",
-    "widget" : "widget",
-    "transaction-account" : "compte courant",
-    "transfer-to-account" : "compte de transfert",
-    "type" : "type",
-    "institution" : "établissement",
-    "name" : "nom",
-    "balance" : "balance",
-    "currency" : "devise",
-    "id" : "id",
     "Failed to retrieve accounts" : "La récupération des comptes a échoué",
     "Account not found" : "Compte non-trouvé",
     "Account" : "Compte",

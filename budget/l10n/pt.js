@@ -1,15 +1,6 @@
 OC.L10N.register(
     "budget",
     {
-    "widget" : "widget",
-    "transaction-account" : "conta-de-transações",
-    "transfer-to-account" : "transferir-para-conta",
-    "type" : "tipo",
-    "institution" : "Instituição",
-    "name" : "nome",
-    "balance" : "saldo",
-    "currency" : "moeda",
-    "id" : "id",
     "Failed to retrieve accounts" : "Falha ao buscar as contas financeiras",
     "Account not found" : "Conta não encontrada",
     "Account" : "Conta",

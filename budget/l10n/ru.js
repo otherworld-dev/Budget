@@ -1,8 +1,6 @@
 OC.L10N.register(
     "budget",
     {
-    "type" : "тип",
-    "id" : "ID",
     "Failed to retrieve accounts" : "Не удалось получить счета",
     "Account" : "Счёт",
     "Invalid JSON data or empty request" : "Недопустимые данные JSON или пустой запрос",

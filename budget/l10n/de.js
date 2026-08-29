@@ -1,16 +1,6 @@
 OC.L10N.register(
     "budget",
     {
-    "hero" : "Hauptbereich",
-    "widget" : "Kachel",
-    "transaction-account" : "Transaktionskonto",
-    "transfer-to-account" : "Überweisen auf",
-    "type" : "typ",
-    "institution" : "Bank",
-    "name" : "name",
-    "balance" : "saldo",
-    "currency" : "währung",
-    "id" : "ID",
     "Failed to retrieve accounts" : "Konten konnten nicht abgerufen werden",
     "Account not found" : "Konto nicht gefunden",
     "Account" : "Konto",
