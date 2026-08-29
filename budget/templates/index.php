@@ -3025,6 +3025,7 @@ style('budget', 'budget-app');
                         <option value="spending"><?php p($l->t('Spending by Category')); ?></option>
                         <option value="income-expense"><?php p($l->t('Income & Expenses')); ?></option>
                         <option value="cashflow"><?php p($l->t('Cash Flow')); ?></option>
+                        <option value="moneyflow"><?php p($l->t('Money Flow')); ?></option>
                         <option value="yoy"><?php p($l->t('Year over Year')); ?></option>
                         <option value="bills-calendar"><?php p($l->t('Bills Calendar')); ?></option>
                         <option value="category-monthly"><?php p($l->t('Category by Month')); ?></option>
@@ -3332,6 +3333,21 @@ style('budget', 'budget-app');
                                 </thead>
                                 <tbody></tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Money Flow (Sankey) Report -->
+                <div id="report-moneyflow" class="report-section" style="display: none;">
+                    <div class="dashboard-card dashboard-card-large">
+                        <div class="card-header">
+                            <h3><?php p($l->t('Money Flow')); ?></h3>
+                        </div>
+                        <div id="report-moneyflow-empty" class="empty-state" style="display: none;">
+                            <p><?php p($l->t('No income or expenses in this period.')); ?></p>
+                        </div>
+                        <div id="report-moneyflow-chart-container" class="chart-container chart-container-large">
+                            <canvas id="report-moneyflow-chart"></canvas>
                         </div>
                     </div>
                 </div>
