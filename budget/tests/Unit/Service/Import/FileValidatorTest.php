@@ -117,9 +117,48 @@ class FileValidatorTest extends TestCase {
 	}
 
 	public function testContainsBinaryDataFalseForLowNonPrintableRatio(): void {
-		// One non-printable in 100 chars = 1% (under 10% threshold)
+		// One non-printable in 100 chars = 1% (under the threshold)
 		$content = str_repeat('A', 99) . "\x01";
 		$this->assertFalse($this->validator->containsBinaryData($content));
+	}
+
+	/**
+	 * UTF-8 text is not binary, whatever script it is written in (#369). The
+	 * old check allowed UTF-8 lead bytes but not continuation bytes, so half
+	 * the bytes of a Cyrillic statement scored as non-printable and the import
+	 * was refused. Accented Latin is in here because it tipped over the old
+	 * 0.1 threshold too — this was never only a non-Latin problem.
+	 *
+	 * @dataProvider utf8TextProvider
+	 */
+	public function testContainsBinaryDataFalseForUtf8Text(string $sample): void {
+		$this->assertFalse($this->validator->containsBinaryData(str_repeat($sample, 50)));
+	}
+
+	public static function utf8TextProvider(): array {
+		return [
+			'cyrillic' => ["Пятёрочка;Супермаркеты;Между своими счетами\n"],
+			'greek' => ["Λογαριασμός;Ημερομηνία;Ποσό\n"],
+			'hebrew' => ["חשבון;תאריך;סכום\n"],
+			'arabic' => ["الحساب;التاريخ;المبلغ\n"],
+			'cjk' => ["口座;日付;金額;説明\n"],
+			'accented latin' => ["Café;Épicerie;Achats à Paris;Coût\n"],
+		];
+	}
+
+	public function testContainsBinaryDataTrueForNonUtf8HighByteBinary(): void {
+		// High bytes alone must not condemn a file, but control characters
+		// still must — a NUL-free binary stays rejected on the ratio
+		$binary = str_repeat("\xC3\x01\x02\x03\x04", 200);
+		$this->assertTrue($this->validator->containsBinaryData($binary));
+	}
+
+	public function testContainsBinaryDataFalseForLegacyEightBitText(): void {
+		// Windows-1251 Cyrillic: high bytes, no control characters. Banks
+		// still export these, so the gate must not call them binary — nothing
+		// transcodes them downstream yet, but that is a separate concern
+		$latin1 = str_repeat("\xCF\xFF\xE5\xF0\xEE\xF7\xEA\xE0;100,00\n", 50);
+		$this->assertFalse($this->validator->containsBinaryData($latin1));
 	}
 
 	// ── detectDelimiter ─────────────────────────────────────────────
