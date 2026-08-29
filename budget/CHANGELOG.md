@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.45.0] - 2026-08-29
 
 ### Added
 - **Bi-weekly schedules can be anchored to a date.** Bi-weekly income, bills and transfers used to lock onto whichever week you happened to create them in — pick "every other Friday" and the app silently decided *which* Friday from the creation date, with no way to say "no, the other week" ([#363](https://github.com/otherworld-dev/Budget/issues/363)). Transfers were worse off still: the form only offered a day-of-month field, which means nothing to a bi-weekly schedule ([#364](https://github.com/otherworld-dev/Budget/issues/364)). Income now takes a **First payment date** for weekly and bi-weekly frequencies, and the transfer form gains the same start-date field bills have had — the date pins both the weekday and the week, and every occurrence lands a clean 14 (or 7) days from it, whether the date you give is in the past or the future. While a start date is set the weekday field follows it and locks, so the form cannot claim a different day than the schedule runs on. Note for existing bills and transfers: a start date you set before this release only delayed the first occurrence; from now on it anchors the schedule, so a weekly or bi-weekly bill with a start date will settle onto that date's weekday and week
