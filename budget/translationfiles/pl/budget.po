@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-08-29 01:24+0000\n"
-"PO-Revision-Date: 2026-06-06 22:43+0000\n"
-"Last-Translator: Leonid Zaliubovskyi <la399fox@gmail.com>\n"
+"PO-Revision-Date: 2026-08-29 21:34+0000\n"
+"Last-Translator: Bartłomiej Zieliński <bzielinskib@gmail.com>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/pl/>\n"
 "Language: pl\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
 "|| n%100>=20) ? 1 : 2);\n"
-"X-Generator: Weblate 2026.6\n"
+"X-Generator: Weblate 2026.9.dev0\n"
 
 #: /app/lib/Controller/AccountController.php:82
 #: /app/lib/Controller/ApiV1AccountController.php:56
@@ -1649,7 +1649,7 @@ msgstr ""
 #: /app/lib/Controller/RecurringIncomeController.php:304
 #: /app/lib/Controller/RecurringIncomeController.php:360
 msgid "Recurring income"
-msgstr ""
+msgstr "Przychody cykliczne"
 
 #: /app/lib/Controller/RecurringIncomeController.php:141
 #: /app/lib/Controller/RecurringIncomeController.php:258
@@ -2458,7 +2458,7 @@ msgstr[2] ""
 #: /app/src/modules/help/HelpModule.js:27 /app/templates/index.php:93
 #: /app/templates/index.php:2075 /app/templates/index.php:2146
 msgid "Budget"
-msgstr ""
+msgstr "Budżet"
 
 #: /app/lib/Notification/Notifier.php:46
 msgid "Bill reminder: {bill}"
@@ -2614,7 +2614,7 @@ msgstr ""
 #: /app/src/modules/sharing/SharingModule.js:255 /app/templates/index.php:113
 #: /app/templates/index.php:2472 /app/templates/index.php:4599
 msgid "Bills"
-msgstr ""
+msgstr "Rachunki"
 
 #: /app/lib/Service/Bill/BillIcsService.php:141
 #, php-format
@@ -2789,7 +2789,7 @@ msgstr ""
 
 #: /app/lib/Service/DigestService.php:173
 msgid "Savings goals"
-msgstr ""
+msgstr "Cele oszczędnościowe"
 
 #: /app/lib/Service/DigestService.php:179
 msgid "Budget found %n possible recurring bill you are not tracking yet."
@@ -2919,7 +2919,7 @@ msgstr ""
 #: /app/templates/index.php:3328 /app/templates/index.php:5569
 #: /app/templates/index.php:6542 /app/templates/quick-add.php:40
 msgid "Income"
-msgstr ""
+msgstr "Dochód"
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:144
 #: /app/src/modules/categories/CategoriesModule.js:707
@@ -3428,7 +3428,7 @@ msgstr ""
 #: /app/src/config/dashboardWidgets.js:38 /app/templates/index.php:652
 #: /app/templates/index.php:1977
 msgid "Recent Transactions"
-msgstr ""
+msgstr "Ostatnie transakcje"
 
 #: /app/src/config/dashboardWidgets.js:39
 #: /app/src/core/KeyboardShortcuts.js:333
@@ -3438,7 +3438,7 @@ msgstr ""
 #: /app/templates/index.php:1041 /app/templates/index.php:1153
 #: /app/templates/index.php:4591
 msgid "Accounts"
-msgstr ""
+msgstr "Konta"
 
 #: /app/src/config/dashboardWidgets.js:40 /app/templates/index.php:681
 #: /app/templates/index.php:4386
@@ -3459,14 +3459,14 @@ msgstr ""
 #: /app/src/modules/sharing/SharingModule.js:257 /app/templates/index.php:133
 #: /app/templates/index.php:714 /app/templates/index.php:2794
 msgid "Savings Goals"
-msgstr ""
+msgstr "Cele oszczędnościowe"
 
 #: /app/src/config/dashboardWidgets.js:44
 #: /app/src/core/KeyboardShortcuts.js:342
 #: /app/src/modules/help/HelpModule.js:32 /app/templates/index.php:143
 #: /app/templates/index.php:725
 msgid "Debt Payoff"
-msgstr ""
+msgstr "Spłata zadłużenia"
 
 #: /app/src/config/dashboardWidgets.js:47 /app/templates/index.php:750
 msgid "Debt Payoff Chart"
@@ -3510,7 +3510,7 @@ msgstr ""
 
 #: /app/src/config/dashboardWidgets.js:75 /app/templates/index.php:879
 msgid "Large Transactions"
-msgstr ""
+msgstr "Znaczące transakcje"
 
 #: /app/src/config/dashboardWidgets.js:76 /app/templates/index.php:888
 msgid "Weekly Spending"
@@ -3585,7 +3585,7 @@ msgstr ""
 #: /app/src/core/KeyboardShortcuts.js:332
 #: /app/src/modules/help/HelpModule.js:22 /app/templates/index.php:43
 msgid "Dashboard"
-msgstr ""
+msgstr "Pulpit"
 
 #: /app/src/core/KeyboardShortcuts.js:334
 #: /app/src/modules/dashboard/DashboardModule.js:5069
@@ -3596,7 +3596,7 @@ msgstr ""
 #: /app/templates/index.php:3255 /app/templates/index.php:3275
 #: /app/templates/index.php:4595
 msgid "Transactions"
-msgstr ""
+msgstr "Transakcje"
 
 #: /app/src/core/KeyboardShortcuts.js:335
 #: /app/src/modules/dashboard/DashboardModule.js:4761
@@ -3621,18 +3621,18 @@ msgstr ""
 #: /app/templates/index.php:1627 /app/templates/index.php:1718
 #: /app/templates/index.php:1772 /app/templates/index.php:2019
 msgid "Tags"
-msgstr ""
+msgstr "Tagi"
 
 #: /app/src/core/KeyboardShortcuts.js:340
 #: /app/src/modules/help/HelpModule.js:30 /app/templates/index.php:123
 msgid "Transfers"
-msgstr ""
+msgstr "Przelewy"
 
 #: /app/src/core/KeyboardShortcuts.js:343
 #: /app/src/modules/help/HelpModule.js:33 /app/templates/index.php:153
 #: /app/templates/index.php:3549
 msgid "Pensions"
-msgstr ""
+msgstr "Emerytura"
 
 #: /app/src/core/KeyboardShortcuts.js:344
 #: /app/src/modules/dashboard/DashboardModule.js:2683
@@ -3640,23 +3640,23 @@ msgstr ""
 #: /app/templates/index.php:1131 /app/templates/index.php:3762
 #: /app/templates/index.php:3845
 msgid "Assets"
-msgstr ""
+msgstr "Aktywa"
 
 #: /app/src/core/KeyboardShortcuts.js:345
 #: /app/src/modules/help/HelpModule.js:35 /app/templates/index.php:173
 #: /app/templates/index.php:4039 /app/templates/index.php:7068
 msgid "Shared Expenses"
-msgstr ""
+msgstr "Wspólne wydatki"
 
 #: /app/src/core/KeyboardShortcuts.js:346
 #: /app/src/modules/help/HelpModule.js:36 /app/templates/index.php:183
 msgid "Forecast"
-msgstr ""
+msgstr "Prognoza"
 
 #: /app/src/core/KeyboardShortcuts.js:347
 #: /app/src/modules/help/HelpModule.js:37 /app/templates/index.php:193
 msgid "Reports"
-msgstr ""
+msgstr "Raporty"
 
 #: /app/src/core/KeyboardShortcuts.js:348
 #: /app/src/modules/help/HelpModule.js:38
@@ -3664,24 +3664,24 @@ msgstr ""
 #: /app/templates/index.php:1379 /app/templates/index.php:1823
 #: /app/templates/index.php:2613 /app/templates/index.php:6515
 msgid "Import"
-msgstr ""
+msgstr "Importuj"
 
 #: /app/src/core/KeyboardShortcuts.js:349
 #: /app/src/modules/help/HelpModule.js:39 /app/templates/index.php:226
 #: /app/templates/index.php:2601
 msgid "Rules"
-msgstr ""
+msgstr "Reguły"
 
 #: /app/src/core/KeyboardShortcuts.js:350
 #: /app/src/modules/help/HelpModule.js:40 /app/templates/index.php:236
 #: /app/templates/index.php:4089
 msgid "Exchange Rates"
-msgstr ""
+msgstr "Kursy walut"
 
 #: /app/src/core/KeyboardShortcuts.js:351
 #: /app/src/modules/help/HelpModule.js:41 /app/templates/index.php:246
 msgid "Sharing"
-msgstr ""
+msgstr "Udostępnianie"
 
 #: /app/src/core/KeyboardShortcuts.js:352
 #: /app/src/modules/help/HelpModule.js:42 /app/templates/index.php:256
@@ -3693,7 +3693,7 @@ msgstr ""
 #: /app/src/modules/help/HelpModule.js:45 /app/templates/index.php:266
 #: /app/templates/index.php:4234 /app/templates/index.php:4607
 msgid "Settings"
-msgstr ""
+msgstr "Ustawienia"
 
 #: /app/src/core/KeyboardShortcuts.js:357
 msgid "Transactions list"
@@ -4255,11 +4255,11 @@ msgstr ""
 
 #: /app/src/main.js:2530
 msgid "accounts"
-msgstr ""
+msgstr "konta"
 
 #: /app/src/main.js:2531
 msgid "transactions"
-msgstr ""
+msgstr "transakcje"
 
 #: /app/src/main.js:2532
 msgid "bills"
@@ -4271,7 +4271,7 @@ msgstr ""
 
 #: /app/src/main.js:2534
 msgid "settings"
-msgstr ""
+msgstr "ustawienia"
 
 #: /app/src/main.js:2545
 msgid "Import completed successfully"
@@ -6062,7 +6062,7 @@ msgstr ""
 #: /app/templates/index.php:1550 /app/templates/index.php:1960
 #: /app/templates/index.php:3458 /app/templates/index.php:6299
 msgid "All Accounts"
-msgstr ""
+msgstr "Wszystkie konta"
 
 #: /app/src/modules/categories/CategoriesModule.js:728
 msgid "Increasing"
@@ -6447,10 +6447,8 @@ msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:765
 #: /app/src/modules/dashboard/DashboardModule.js:767
-#, fuzzy
-#| msgid "Account"
 msgid "All accounts"
-msgstr "Konto"
+msgstr "Wszystkie konta"
 
 #: /app/src/modules/dashboard/DashboardModule.js:883
 msgid "%n category under budget"
@@ -6489,16 +6487,12 @@ msgid "Savings"
 msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:1043
-#, fuzzy
-#| msgid "Account holder name"
 msgid "All accounts hidden"
-msgstr "Nazwa właściciela konta"
+msgstr "Wszystkie ukryte konta"
 
 #: /app/src/modules/dashboard/DashboardModule.js:1089
-#, fuzzy
-#| msgid "Account"
 msgid "No accounts"
-msgstr "Konto"
+msgstr "Brak kont"
 
 #: /app/src/modules/dashboard/DashboardModule.js:1260
 msgid "No recent transactions"
@@ -7305,7 +7299,7 @@ msgstr ""
 #: /app/src/modules/help/HelpModule.js:46 /app/templates/index.php:276
 #: /app/templates/index.php:4794 /app/templates/index.php:7265
 msgid "Help & Docs"
-msgstr ""
+msgstr "Pomoc & Dokumentacja"
 
 #: /app/src/modules/help/HelpModule.js:46
 msgid ""
@@ -8492,7 +8486,7 @@ msgstr ""
 #: /app/src/modules/rules/RulesModule.js:415
 #: /app/src/modules/rules/RulesModule.js:434
 msgid "rules"
-msgstr ""
+msgstr "reguły"
 
 #: /app/src/modules/rules/RulesModule.js:415
 msgid "active"
@@ -8950,7 +8944,7 @@ msgstr ""
 
 #: /app/src/modules/rules/components/ActionBuilder.js:330
 msgid "Forecast:"
-msgstr ""
+msgstr "Prognoza:"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:332
 msgid "Exclude from forecast"
@@ -9550,7 +9544,7 @@ msgstr ""
 
 #: /app/src/modules/sharing/SharingModule.js:256 /app/templates/index.php:2693
 msgid "Recurring Income"
-msgstr ""
+msgstr "Przychody cykliczne"
 
 #: /app/src/modules/sharing/SharingModule.js:258 /app/templates/index.php:4603
 msgid "Import Rules"
@@ -10487,7 +10481,7 @@ msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:4193
 msgid "Transactions linked"
-msgstr ""
+msgstr "Powiązane transakcje"
 
 #: /app/src/modules/transactions/TransactionsModule.js:4318
 msgid "Enter description..."
@@ -10594,7 +10588,7 @@ msgstr ""
 
 #: /app/src/modules/transfers/TransfersModule.js:59
 msgid "Recurring Transfers"
-msgstr ""
+msgstr "Przelewy cykliczne"
 
 #: /app/src/modules/transfers/TransfersModule.js:61
 msgid "Detect recurring transfers"
@@ -10994,7 +10988,7 @@ msgstr ""
 
 #: /app/templates/index.php:20
 msgid "Search here ..."
-msgstr ""
+msgstr "Szukaj tutaj ..."
 
 #: /app/templates/index.php:21
 msgid "Search navigation"
@@ -11006,7 +11000,7 @@ msgstr ""
 
 #: /app/templates/index.php:205
 msgid "Tools & Settings"
-msgstr ""
+msgstr "Narzędzia & Ustawienia"
 
 #: /app/templates/index.php:291
 msgid "This app's update was never finished"
@@ -11238,7 +11232,7 @@ msgstr ""
 
 #: /app/templates/index.php:1256
 msgid "Total Transactions"
-msgstr ""
+msgstr "Łączna liczba transakcji"
 
 #: /app/templates/index.php:1265
 msgid "This Month Income"
@@ -11336,7 +11330,7 @@ msgstr ""
 #: /app/templates/index.php:1395 /app/templates/index.php:1545
 #: /app/templates/index.php:6293
 msgid "Filter Transactions"
-msgstr ""
+msgstr "Filtruj transakcje"
 
 #: /app/templates/index.php:1408 /app/templates/index.php:1565
 msgid "All Types"
@@ -11640,7 +11634,7 @@ msgstr ""
 
 #: /app/templates/index.php:2171 /app/templates/index.php:2436
 msgid "Import Transactions"
-msgstr ""
+msgstr "Importuj Transakcje"
 
 #: /app/templates/index.php:2175
 msgid "Import Wizard"
@@ -11802,11 +11796,11 @@ msgstr ""
 
 #: /app/templates/index.php:2358
 msgid "Total Transactions:"
-msgstr ""
+msgstr "Wszystkie transakcje:"
 
 #: /app/templates/index.php:2362
 msgid "New Transactions:"
-msgstr ""
+msgstr "Nowe transakcje:"
 
 #: /app/templates/index.php:2366
 msgid "Duplicates Found:"
@@ -12150,7 +12144,7 @@ msgstr ""
 
 #: /app/templates/index.php:2995
 msgid "Financial Reports"
-msgstr ""
+msgstr "Raporty finansowe"
 
 #: /app/templates/index.php:2997
 msgid "Export as CSV"
@@ -12588,7 +12582,7 @@ msgstr ""
 
 #: /app/templates/index.php:3960
 msgid "Debt Payoff Planner"
-msgstr ""
+msgstr "Planer spłaty zadłużenia"
 
 #: /app/templates/index.php:3974
 msgid "Monthly Payment"
@@ -12700,7 +12694,7 @@ msgstr ""
 
 #: /app/templates/index.php:4171
 msgid "Budget Sharing"
-msgstr ""
+msgstr "Współdzielenie budżetu"
 
 #: /app/templates/index.php:4187
 msgid "Bank Sync is disabled"
