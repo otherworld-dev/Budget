@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-08-29 21:30+0000\n"
-"PO-Revision-Date: 2026-08-29 21:34+0000\n"
+"PO-Revision-Date: 2026-09-01 10:56+0000\n"
 "Last-Translator: Bartłomiej Zieliński <bzielinskib@gmail.com>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/pl/>\n"
@@ -185,10 +185,8 @@ msgid "Failed to add interest rate"
 msgstr ""
 
 #: /app/lib/Controller/AccountController.php:805
-#, fuzzy
-#| msgid "Failed to retrieve accounts"
 msgid "Failed to delete interest rate"
-msgstr "Nie udało się pobrać kont"
+msgstr "Nie udało się usunąć stopy procentowej"
 
 #: /app/lib/Controller/AdminSettingController.php:45
 msgid "Receipt scanning is not using the Otherworld relay."
@@ -274,22 +272,16 @@ msgid "Failed to retrieve transactions"
 msgstr ""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:180
-#, fuzzy
-#| msgid "Failed to retrieve accounts"
 msgid "Failed to retrieve transaction"
-msgstr "Nie udało się pobrać kont"
+msgstr "Nie udało się pobrać transakcji"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:228
-#, fuzzy
-#| msgid "Account holder name"
 msgid "Amount must be a number"
-msgstr "Nazwa właściciela konta"
+msgstr "Wartość musi być liczbą"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:233
-#, fuzzy
-#| msgid "Account holder name"
 msgid "An account is required"
-msgstr "Nazwa właściciela konta"
+msgstr "Konto jest wymagane"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:238
 #: /app/lib/Controller/AssetController.php:326
@@ -2745,10 +2737,9 @@ msgid "\"%1$s\" is listed more than once; the entries were merged"
 msgstr ""
 
 #: /app/lib/Service/CategoryTransferService.php:321
-#, fuzzy, php-format
-#| msgid "Failed to retrieve accounts"
+#, php-format
 msgid "The file holds more than %1$d categories"
-msgstr "Nie udało się pobrać kont"
+msgstr "Plik zawiera ponad %1$d kategorii"
 
 #: /app/lib/Service/CategoryTransferService.php:333
 #, php-format
@@ -3043,22 +3034,19 @@ msgid "Missing account name"
 msgstr ""
 
 #: /app/lib/Service/ImportService.php:1057
-#, fuzzy, php-format
-#| msgid "Account not found"
+#, php-format
 msgid "Destination account %1$s not found"
-msgstr "Nie znaleziono konta"
+msgstr "Nie znaleziono konta docelowego %1$s"
 
 #: /app/lib/Service/ImportService.php:1156
-#, fuzzy, php-format
-#| msgid "Failed to retrieve accounts"
+#, php-format
 msgid "Failed to recalculate balance for account %1$s"
-msgstr "Nie udało się pobrać kont"
+msgstr "Nie udało się ponownie obliczyć salda dla konta %1$s"
 
 #: /app/lib/Service/ImportService.php:1291
-#, fuzzy, php-format
-#| msgid "Failed to retrieve accounts"
+#, php-format
 msgid "Could not resolve account: %1$s"
-msgstr "Nie udało się pobrać kont"
+msgstr "Nie udało się zidentyfikować konta: %1$s"
 
 #: /app/lib/Service/ManualExchangeRateService.php:62
 #, php-format
@@ -3335,24 +3323,78 @@ msgid ""
 "* PHP 8.1 or higher\n"
 "* PHP BCMath extension (`php-bcmath`)"
 msgstr ""
+"**⚠️ Wersja beta: Ta aplikacja jest obecnie w fazie testów. Możliwa jest "
+"utrata danych. Prosimy o regularne tworzenie kopii zapasowych danych i "
+"zgłaszanie wszelkich problemów.**\n"
+"\n"
+"# Budżet – Zarządzanie finansami w Nextcloud\n"
+"\n"
+"Śledź swoje nawyki związane z wydatkami, zarządzaj oszczędnościami i "
+"prognozuj przyszłe salda kont dzięki inteligentnej analizie historii "
+"finansowej.\n"
+"\n"
+"## Funkcje\n"
+"\n"
+"* **Import wyciągów bankowych**: Obsługa formatów CSV, OFX, QIF oraz XML ISO "
+"20022 camt.053\n"
+"* **Inteligentna kategoryzacja**: Automatyczne dopasowywanie dostawców i "
+"kategoryzacja transakcji\n"
+"* **Reguły automatycznej kategoryzacji**: Stosowanie reguł do istniejących "
+"transakcji w dowolnym momencie z podglądem\n"
+"* **Podział transakcji**: Przypisywanie pojedynczych transakcji do wielu "
+"kategorii\n"
+"* **Wykrywanie przelewów**: Automatyczne dopasowywanie przelewów między "
+"kontami\n"
+"* **Śledzenie budżetu**: Ustalanie limitów wydatków z alertami w przypadku "
+"zbliżania się do budżetu lub jego przekroczenia\n"
+"* **Prognozowanie salda**: Prognozowanie przyszłych sald na podstawie danych "
+"historycznych\n"
+"* **Rachunki cykliczne**: Śledzenie rachunków z monitorowaniem terminów "
+"płatności i powiadomieniami w Nextcloud\n"
+"* **Powtarzające się dochody**: Śledź przewidywane źródła dochodów dzięki "
+"funkcji śledzenia paragonów\n"
+"* **Podział wydatków**: Dziel się wydatkami z kontaktami i śledź, kto jest "
+"komu winien\n"
+"* **Plan spłaty zadłużenia**: Planuj spłatę, korzystając ze strategii "
+"lawinowej lub kuli śnieżnej\n"
+"* **Cele oszczędnościowe**: Wyznaczaj cele wraz ze śledzeniem postępów i "
+"prognozowaniem osiągnięć\n"
+"* **Monitorowanie emerytury**: Śledź konta emerytalne wraz z prognozami "
+"wzrostu\n"
+"* **Historia wartości netto**: Śledź aktywa i pasywa w czasie\n"
+"* **Raporty rok do roku**: Porównuj wydatki w różnych latach\n"
+"* **Obsługa wielu kont**: Zarządzaj wieloma kontami bankowymi i walutami\n"
+"* **Kategorie niestandardowe**: Twórz własną hierarchię kategorii\n"
+"* **Raporty i wykresy**: Wizualizuj swoje dane finansowe za pomocą "
+"interaktywnych wykresów\n"
+"\n"
+"## Dokumentacja\n"
+"\n"
+"Pełna dokumentacja dla użytkowników: https://budget.otherworld.dev/docs/\n"
+"\n"
+"## Wymagania\n"
+"\n"
+"* Nextcloud 30 lub nowszy\n"
+"* PHP 8.1 lub nowszy\n"
+"* Rozszerzenie PHP BCMath (`php-bcmath`)"
 
 #: /app/src/config/dashboardWidgets.js:8
 #: /app/src/modules/dashboard/DashboardModule.js:2676
 #: /app/templates/index.php:341 /app/templates/index.php:1119
 msgid "Net Worth"
-msgstr ""
+msgstr "Wartość netto"
 
 #: /app/src/config/dashboardWidgets.js:9 /app/templates/index.php:354
 msgid "Income This Month"
-msgstr ""
+msgstr "Przychody w tym miesiącu"
 
 #: /app/src/config/dashboardWidgets.js:10 /app/templates/index.php:367
 msgid "Expenses This Month"
-msgstr ""
+msgstr "Wydatki w tym miesiącu"
 
 #: /app/src/config/dashboardWidgets.js:11 /app/templates/index.php:380
 msgid "Net Savings"
-msgstr ""
+msgstr "Oszczędności netto"
 
 #: /app/src/config/dashboardWidgets.js:12
 #: /app/src/modules/dashboard/DashboardModule.js:1760
@@ -3360,11 +3402,11 @@ msgstr ""
 #: /app/src/modules/pensions/PensionsModule.js:154
 #: /app/src/modules/pensions/PensionsModule.js:160 /app/templates/index.php:393
 msgid "Pension Worth"
-msgstr ""
+msgstr "Wartość emerytury"
 
 #: /app/src/config/dashboardWidgets.js:13 /app/templates/index.php:406
 msgid "Assets Worth"
-msgstr ""
+msgstr "Wartość aktywów"
 
 #: /app/src/config/dashboardWidgets.js:16 /app/templates/index.php:423
 #: /app/templates/index.php:2971 /app/templates/index.php:3149
@@ -3427,17 +3469,17 @@ msgstr ""
 
 #: /app/src/config/dashboardWidgets.js:34 /app/templates/index.php:561
 msgid "Income vs Expenses"
-msgstr ""
+msgstr "Przychody i Wydatki"
 
 #: /app/src/config/dashboardWidgets.js:35 /app/templates/index.php:583
 #: /app/templates/index.php:2988 /app/templates/index.php:3035
 #: /app/templates/index.php:3244
 msgid "Spending by Category"
-msgstr ""
+msgstr "Wydatki według kategorii"
 
 #: /app/src/config/dashboardWidgets.js:36 /app/templates/index.php:601
 msgid "Net Worth History"
-msgstr ""
+msgstr "Historia wartości netto"
 
 #: /app/src/config/dashboardWidgets.js:37 /app/templates/index.php:629
 msgid "Asset Value History"
@@ -4652,7 +4694,7 @@ msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:512
 msgid "Excluded from reports, dashboard & forecast"
-msgstr ""
+msgstr "Wyłączone z raportów, pulpitu nawigacyjnego i prognoz"
 
 #: /app/src/modules/accounts/AccountsModule.js:512
 msgid "Excluded"
@@ -4780,10 +4822,8 @@ msgid "{date} (minimum payment)"
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:1668
-#, fuzzy
-#| msgid "Account"
 msgid "{account} payment"
-msgstr "Konto"
+msgstr "Płatność {account}"
 
 #: /app/src/modules/accounts/AccountsModule.js:1746
 #: /app/src/modules/transactions/TransactionsModule.js:485
@@ -5230,7 +5270,7 @@ msgstr ""
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:161
 msgid "Last sync: {date}"
-msgstr ""
+msgstr "Ostatnia synchronizacja: {date}"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:162
 msgid "Never synced"
@@ -5435,10 +5475,8 @@ msgid "Accounts refreshed"
 msgstr ""
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:904
-#, fuzzy
-#| msgid "Failed to retrieve accounts"
 msgid "Failed to refresh accounts: {error}"
-msgstr "Nie udało się pobrać kont"
+msgstr "Nie udało się odświeżyć kont: {error}"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:920
 msgid "Import rules will be applied during sync"
@@ -5635,10 +5673,8 @@ msgstr ""
 
 #: /app/src/modules/bills/BillsModule.js:375
 #: /app/src/modules/transfers/TransfersModule.js:335
-#, fuzzy
-#| msgid "Failed to retrieve accounts"
 msgid "Revert the last payment"
-msgstr "Nie udało się pobrać kont"
+msgstr "Cofnij ostatnią płatność"
 
 #: /app/src/modules/bills/BillsModule.js:377
 #: /app/src/modules/transfers/TransfersModule.js:337
@@ -6414,7 +6450,7 @@ msgstr ""
 #: /app/src/modules/dashboard/DashboardModule.js:430
 #: /app/src/modules/dashboard/DashboardModule.js:493
 msgid "{percent}% vs last month"
-msgstr ""
+msgstr "{percent}% w porównaniu z poprzednim miesiącem"
 
 #: /app/src/modules/dashboard/DashboardModule.js:447
 #, javascript-format
@@ -6436,27 +6472,27 @@ msgstr ""
 #: /app/src/modules/dashboard/DashboardModule.js:592
 #: /app/src/modules/dashboard/DashboardModule.js:662
 msgid "Last 7 days"
-msgstr ""
+msgstr "Ostatnie 7 dni"
 
 #: /app/src/modules/dashboard/DashboardModule.js:593
 #: /app/src/modules/dashboard/DashboardModule.js:665
 msgid "Last 30 days"
-msgstr ""
+msgstr "Ostatnie 30 dni"
 
 #: /app/src/modules/dashboard/DashboardModule.js:594
 #: /app/src/modules/dashboard/DashboardModule.js:666
 msgid "Last 90 days"
-msgstr ""
+msgstr "Ostatnie 90 dni"
 
 #: /app/src/modules/dashboard/DashboardModule.js:595
 #: /app/src/modules/dashboard/DashboardModule.js:667
 msgid "Last 6 months"
-msgstr ""
+msgstr "Ostatnie 6 miesięcy"
 
 #: /app/src/modules/dashboard/DashboardModule.js:596
 #: /app/src/modules/dashboard/DashboardModule.js:668
 msgid "Last year"
-msgstr ""
+msgstr "Ostatni rok"
 
 #: /app/src/modules/dashboard/DashboardModule.js:597
 #: /app/src/modules/dashboard/DashboardModule.js:671
@@ -6782,11 +6818,11 @@ msgstr ""
 #: /app/src/modules/dashboard/DashboardModule.js:2513
 #: /app/src/modules/reports/ReportsModule.js:914
 msgid "Click to view transactions"
-msgstr ""
+msgstr "Kliknij, aby wyświetlić transakcje"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2539
 msgid "Total Spending"
-msgstr ""
+msgstr "Całkowite wydatki"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2690
 #: /app/templates/index.php:1140
@@ -6839,7 +6875,7 @@ msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:3037
 msgid "Last: {time}"
-msgstr ""
+msgstr "Ostatni: {time}"
 
 #: /app/src/modules/dashboard/DashboardModule.js:3042
 msgid "Record now"
@@ -6894,6 +6930,7 @@ msgstr ""
 #: /app/templates/index.php:304
 msgid "Dashboard is locked. Click unlock to reorder tiles."
 msgstr ""
+"Pulpit jest zablokowany. Kliknij „Odblokuj”, aby zmienić kolejność kafli."
 
 #: /app/src/modules/dashboard/DashboardModule.js:4486
 msgid "Lock Dashboard"
@@ -6902,6 +6939,7 @@ msgstr ""
 #: /app/src/modules/dashboard/DashboardModule.js:4487
 msgid "Drag tiles to reorder your dashboard"
 msgstr ""
+"Przeciągnij kafelki, aby zmienić kolejność elementów na pulpicie nawigacyjnym"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4550
 #: /app/src/modules/dashboard/DashboardModule.js:4642
@@ -6955,15 +6993,15 @@ msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:4703
 msgid "Last 2 years"
-msgstr ""
+msgstr "Ostatnie 2 lata"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4704
 msgid "Last 3 years"
-msgstr ""
+msgstr "Ostatnie 3 lata"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4705
 msgid "Last 5 years"
-msgstr ""
+msgstr "Ostatnie 5 lat"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4736
 #: /app/templates/index.php:3073
@@ -7368,10 +7406,8 @@ msgid "Failed to load system info"
 msgstr ""
 
 #: /app/src/modules/import/ImportModule.js:45
-#, fuzzy
-#| msgid "Account holder name"
 msgid "Column: {number}"
-msgstr "Nazwa właściciela konta"
+msgstr "Kolumna: {number}"
 
 #: /app/src/modules/import/ImportModule.js:151
 msgid "Rule: {name}"
@@ -7554,10 +7590,8 @@ msgid "Failed to process import data: {message}"
 msgstr ""
 
 #: /app/src/modules/import/ImportModule.js:1587
-#, fuzzy
-#| msgid "Account holder name"
 msgid "Accounts to create:"
-msgstr "Nazwa właściciela konta"
+msgstr "Konta do utworzenia:"
 
 #: /app/src/modules/import/ImportModule.js:1591
 msgid "Existing accounts matched:"
@@ -8239,25 +8273,25 @@ msgstr ""
 #: /app/src/utils/formatters.js:202 /app/templates/index.php:3501
 #: /app/templates/index.php:5943
 msgid "Jan"
-msgstr ""
+msgstr "sty"
 
 #: /app/src/modules/reports/ReportsModule.js:1900
 #: /app/src/utils/formatters.js:202 /app/templates/index.php:3502
 #: /app/templates/index.php:5944
 msgid "Feb"
-msgstr ""
+msgstr "lut"
 
 #: /app/src/modules/reports/ReportsModule.js:1900
 #: /app/src/utils/formatters.js:202 /app/templates/index.php:3503
 #: /app/templates/index.php:5945
 msgid "Mar"
-msgstr ""
+msgstr "mar"
 
 #: /app/src/modules/reports/ReportsModule.js:1900
 #: /app/src/utils/formatters.js:202 /app/templates/index.php:3504
 #: /app/templates/index.php:5946
 msgid "Apr"
-msgstr ""
+msgstr "Kwi"
 
 #: /app/src/modules/reports/ReportsModule.js:1900
 #: /app/src/modules/reports/ReportsModule.js:2000
@@ -8265,49 +8299,49 @@ msgstr ""
 #: /app/templates/index.php:3505 /app/templates/index.php:5947
 #: /app/templates/index.php:5973 /app/templates/index.php:6449
 msgid "May"
-msgstr ""
+msgstr "Maj"
 
 #: /app/src/modules/reports/ReportsModule.js:1900
 #: /app/src/utils/formatters.js:202 /app/templates/index.php:3506
 #: /app/templates/index.php:5948
 msgid "Jun"
-msgstr ""
+msgstr "cze"
 
 #: /app/src/modules/reports/ReportsModule.js:1900
 #: /app/src/utils/formatters.js:202 /app/templates/index.php:3507
 #: /app/templates/index.php:5949
 msgid "Jul"
-msgstr ""
+msgstr "lip"
 
 #: /app/src/modules/reports/ReportsModule.js:1900
 #: /app/src/utils/formatters.js:202 /app/templates/index.php:3508
 #: /app/templates/index.php:5950
 msgid "Aug"
-msgstr ""
+msgstr "sie"
 
 #: /app/src/modules/reports/ReportsModule.js:1900
 #: /app/src/utils/formatters.js:202 /app/templates/index.php:3509
 #: /app/templates/index.php:5951
 msgid "Sep"
-msgstr ""
+msgstr "wrz"
 
 #: /app/src/modules/reports/ReportsModule.js:1900
 #: /app/src/utils/formatters.js:202 /app/templates/index.php:3510
 #: /app/templates/index.php:5952
 msgid "Oct"
-msgstr ""
+msgstr "paź"
 
 #: /app/src/modules/reports/ReportsModule.js:1900
 #: /app/src/utils/formatters.js:202 /app/templates/index.php:3511
 #: /app/templates/index.php:5953
 msgid "Nov"
-msgstr ""
+msgstr "lis"
 
 #: /app/src/modules/reports/ReportsModule.js:1900
 #: /app/src/utils/formatters.js:202 /app/templates/index.php:3512
 #: /app/templates/index.php:5954
 msgid "Dec"
-msgstr ""
+msgstr "gru"
 
 #: /app/src/modules/reports/ReportsModule.js:1911
 msgid "Total Bills"
@@ -8320,57 +8354,57 @@ msgstr ""
 #: /app/src/modules/reports/ReportsModule.js:2000 /app/templates/index.php:3388
 #: /app/templates/index.php:5969 /app/templates/index.php:6445
 msgid "January"
-msgstr ""
+msgstr "Styczeń"
 
 #: /app/src/modules/reports/ReportsModule.js:2000 /app/templates/index.php:3389
 #: /app/templates/index.php:5970 /app/templates/index.php:6446
 msgid "February"
-msgstr ""
+msgstr "Luty"
 
 #: /app/src/modules/reports/ReportsModule.js:2000 /app/templates/index.php:3390
 #: /app/templates/index.php:5971 /app/templates/index.php:6447
 msgid "March"
-msgstr ""
+msgstr "Marzec"
 
 #: /app/src/modules/reports/ReportsModule.js:2000 /app/templates/index.php:3391
 #: /app/templates/index.php:5972 /app/templates/index.php:6448
 msgid "April"
-msgstr ""
+msgstr "Kwiecień"
 
 #: /app/src/modules/reports/ReportsModule.js:2000 /app/templates/index.php:3393
 #: /app/templates/index.php:5974 /app/templates/index.php:6450
 msgid "June"
-msgstr ""
+msgstr "Czerwiec"
 
 #: /app/src/modules/reports/ReportsModule.js:2000 /app/templates/index.php:3394
 #: /app/templates/index.php:5975 /app/templates/index.php:6451
 msgid "July"
-msgstr ""
+msgstr "Lipiec"
 
 #: /app/src/modules/reports/ReportsModule.js:2000 /app/templates/index.php:3395
 #: /app/templates/index.php:5976 /app/templates/index.php:6452
 msgid "August"
-msgstr ""
+msgstr "Sierpień"
 
 #: /app/src/modules/reports/ReportsModule.js:2000 /app/templates/index.php:3396
 #: /app/templates/index.php:5977 /app/templates/index.php:6453
 msgid "September"
-msgstr ""
+msgstr "Wrzesień"
 
 #: /app/src/modules/reports/ReportsModule.js:2000 /app/templates/index.php:3397
 #: /app/templates/index.php:5978 /app/templates/index.php:6454
 msgid "October"
-msgstr ""
+msgstr "Październik"
 
 #: /app/src/modules/reports/ReportsModule.js:2000 /app/templates/index.php:3398
 #: /app/templates/index.php:5979 /app/templates/index.php:6455
 msgid "November"
-msgstr ""
+msgstr "Listopad"
 
 #: /app/src/modules/reports/ReportsModule.js:2000 /app/templates/index.php:3399
 #: /app/templates/index.php:5980 /app/templates/index.php:6456
 msgid "December"
-msgstr ""
+msgstr "Grudzień"
 
 #: /app/src/modules/reports/ReportsModule.js:2018
 #: /app/src/modules/reports/ReportsModule.js:2020
@@ -9144,6 +9178,8 @@ msgstr ""
 msgid ""
 "Cannot remove the last condition from a group. Remove the group instead."
 msgstr ""
+"Nie można usunąć ostatniego warunku z grupy. Zamiast tego należy usunąć całą "
+"grupę."
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:483
 msgid "root"
@@ -11072,16 +11108,16 @@ msgstr ""
 
 #: /app/templates/index.php:568 /app/templates/index.php:1963
 msgid "Last 6 Months"
-msgstr ""
+msgstr "Ostatnie 6 miesięcy"
 
 #: /app/templates/index.php:569 /app/templates/index.php:1965
 msgid "Last 12 Months"
-msgstr ""
+msgstr "Ostatnie 12 miesięcy"
 
 #: /app/templates/index.php:570 /app/templates/index.php:1964
 #: /app/templates/index.php:3049
 msgid "Last 3 Months"
-msgstr ""
+msgstr "Ostatnie 3 miesiące"
 
 #: /app/templates/index.php:620
 msgid ""
@@ -11099,7 +11135,7 @@ msgstr ""
 
 #: /app/templates/index.php:671 /app/templates/index.php:715
 msgid "Manage"
-msgstr ""
+msgstr "Zarządzaj"
 
 #: /app/templates/index.php:726 /app/templates/index.php:752
 #: /app/templates/index.php:772
@@ -11276,11 +11312,11 @@ msgstr "Łączna liczba transakcji"
 
 #: /app/templates/index.php:1265
 msgid "This Month Income"
-msgstr ""
+msgstr "Przychody w tym miesiącu"
 
 #: /app/templates/index.php:1274
 msgid "This Month Expenses"
-msgstr ""
+msgstr "Wydatki w tym miesiącu"
 
 #: /app/templates/index.php:1283
 msgid "Avg. Transaction"
@@ -11605,7 +11641,7 @@ msgstr ""
 
 #: /app/templates/index.php:1966
 msgid "Last 2 Years"
-msgstr ""
+msgstr "Ostatnie 2 lata"
 
 #: /app/templates/index.php:1984
 msgid "View All Transactions"
@@ -12255,7 +12291,7 @@ msgstr ""
 
 #: /app/templates/index.php:3051
 msgid "Last Year"
-msgstr ""
+msgstr "Ostatni rok"
 
 #: /app/templates/index.php:3052 /app/templates/index.php:3057
 msgid "Custom Range"
@@ -12287,7 +12323,7 @@ msgstr ""
 
 #: /app/templates/index.php:3158
 msgid "Income vs Expenses Trend"
-msgstr ""
+msgstr "Tendencje w zakresie przychodów i wydatków"
 
 #: /app/templates/index.php:3168
 msgid "Account Breakdown"
@@ -12455,7 +12491,7 @@ msgstr ""
 
 #: /app/templates/index.php:3586
 msgid "Total Pension Worth"
-msgstr ""
+msgstr "Łączna wartość emerytury"
 
 #: /app/templates/index.php:3597
 msgid "Projected at Retirement"
