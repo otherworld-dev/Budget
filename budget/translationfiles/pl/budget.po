@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-08-29 21:30+0000\n"
-"PO-Revision-Date: 2026-09-01 10:56+0000\n"
+"PO-Revision-Date: 2026-09-02 11:51+0000\n"
 "Last-Translator: Bartłomiej Zieliński <bzielinskib@gmail.com>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/pl/>\n"
@@ -3664,7 +3664,7 @@ msgstr "Transakcje"
 #: /app/src/modules/sharing/SharingModule.js:254 /app/templates/index.php:73
 #: /app/templates/index.php:1800 /app/templates/index.php:4597
 msgid "Categories"
-msgstr ""
+msgstr "Kategorie"
 
 #: /app/src/core/KeyboardShortcuts.js:336
 #: /app/src/modules/accounts/AccountsModule.js:1784
@@ -4079,7 +4079,7 @@ msgstr ""
 
 #: /app/src/main.js:1898 /app/src/main.js:1959
 msgid "(unnamed)"
-msgstr ""
+msgstr "(bez nazwy)"
 
 #: /app/src/main.js:1901
 msgid "duplicate of"
@@ -4311,7 +4311,7 @@ msgstr ""
 
 #: /app/src/main.js:2529
 msgid "categories"
-msgstr ""
+msgstr "kategorie"
 
 #: /app/src/main.js:2530
 msgid "accounts"
@@ -4622,7 +4622,7 @@ msgstr ""
 #: /app/templates/index.php:1065 /app/templates/index.php:2674
 #: /app/templates/index.php:5343 /app/templates/index.php:6944
 msgid "Name"
-msgstr ""
+msgstr "Nazwa"
 
 #: /app/src/modules/accounts/AccountsModule.js:21 /app/templates/index.php:1067
 #, fuzzy
@@ -4651,19 +4651,19 @@ msgstr ""
 #: /app/templates/index.php:1726 /app/templates/index.php:1778
 #: /app/templates/index.php:3178
 msgid "Balance"
-msgstr ""
+msgstr "Saldo"
 
 #: /app/src/modules/accounts/AccountsModule.js:26
 msgid "Converted balance"
-msgstr ""
+msgstr "Saldo po przeliczeniu"
 
 #: /app/src/modules/accounts/AccountsModule.js:27
 msgid "Balance trend (tiles only)"
-msgstr ""
+msgstr "Trend salda (tylko kafelki)"
 
 #: /app/src/modules/accounts/AccountsModule.js:28
 msgid "Status (tiles only)"
-msgstr ""
+msgstr "Status (tylko kafelki)"
 
 #: /app/src/modules/accounts/AccountsModule.js:267
 msgid ""
@@ -4682,7 +4682,7 @@ msgstr ""
 #: /app/src/modules/accounts/AccountsModule.js:475
 #: /app/src/modules/accounts/AccountsModule.js:555
 msgid "Unnamed Account"
-msgstr ""
+msgstr "Konto bez nazwy"
 
 #: /app/src/modules/accounts/AccountsModule.js:492
 msgid "Owed"
@@ -4829,7 +4829,7 @@ msgstr "Płatność {account}"
 #: /app/src/modules/transactions/TransactionsModule.js:485
 #: /app/templates/index.php:1400 /app/templates/index.php:1557
 msgid "All Categories"
-msgstr ""
+msgstr "Wszystkie kategorie"
 
 #: /app/src/modules/accounts/AccountsModule.js:1801
 #: /app/src/modules/reports/ReportsModule.js:466
@@ -4988,7 +4988,7 @@ msgstr ""
 #: /app/templates/index.php:3676 /app/templates/index.php:5116
 #: /app/templates/index.php:5186
 msgid "Current Balance"
-msgstr ""
+msgstr "Obecne saldo"
 
 #: /app/src/modules/accounts/AccountsModule.js:2638
 msgid "Calculated from transactions"
@@ -5029,7 +5029,7 @@ msgstr ""
 #: /app/src/modules/accounts/AccountsModule.js:2852
 #: /app/templates/index.php:5754
 msgid "Starting Balance"
-msgstr ""
+msgstr "Saldo początkowe"
 
 #: /app/src/modules/accounts/AccountsModule.js:2820
 msgid ""
@@ -5079,7 +5079,7 @@ msgstr ""
 #: /app/src/modules/accounts/AccountsModule.js:3246
 #: /app/templates/index.php:5726
 msgid "Checking Account"
-msgstr ""
+msgstr "Konto bieżące"
 
 #: /app/src/modules/accounts/AccountsModule.js:3251
 #: /app/templates/index.php:5727
@@ -5125,7 +5125,7 @@ msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:3314
 msgid "Negative balance"
-msgstr ""
+msgstr "Saldo ujemne"
 
 #: /app/src/modules/accounts/AccountsModule.js:3323
 msgid "Exceeds overdraft limit"
@@ -7176,7 +7176,7 @@ msgstr ""
 #: /app/src/modules/forecast/ForecastModule.js:265
 #: /app/templates/index.php:1205 /app/templates/index.php:2925
 msgid "Projected Balance"
-msgstr ""
+msgstr "Prognozowane saldo"
 
 #: /app/src/modules/forecast/ForecastModule.js:274
 msgid "Projected Income"
@@ -7491,7 +7491,7 @@ msgstr[2] ""
 
 #: /app/src/modules/import/ImportModule.js:612
 msgid "Rename"
-msgstr ""
+msgstr "Zmień nazwę"
 
 #: /app/src/modules/import/ImportModule.js:622
 msgid "New template name"
@@ -7666,7 +7666,7 @@ msgstr ""
 
 #: /app/src/modules/import/ImportModule.js:1856
 msgid "Balance: {balance}"
-msgstr ""
+msgstr "Saldo: {balance}"
 
 #: /app/src/modules/import/ImportModule.js:1861
 msgid "Skip this account"
@@ -8067,7 +8067,7 @@ msgstr ""
 
 #: /app/src/modules/pensions/PensionsModule.js:799
 msgid "Balance Update"
-msgstr ""
+msgstr "Zaktualizuj saldo"
 
 #: /app/src/modules/pensions/PensionsModule.js:804
 msgid "Contribution"
@@ -8102,7 +8102,7 @@ msgstr ""
 
 #: /app/src/modules/pensions/PensionsModule.js:919
 msgid "Balance updated"
-msgstr ""
+msgstr "Saldo zaktualizowane"
 
 #: /app/src/modules/pensions/PensionsModule.js:946
 #: /app/src/modules/pensions/PensionsModule.js:1102
@@ -9101,7 +9101,7 @@ msgstr ""
 #: /app/src/modules/rules/components/CriteriaBuilder.js:159
 #: /app/templates/index.php:1185 /app/templates/index.php:5723
 msgid "Account Type"
-msgstr ""
+msgstr "Typ konta"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:160
 msgid "Import Source"
@@ -11206,11 +11206,11 @@ msgstr ""
 
 #: /app/templates/index.php:1057
 msgid "Show attributes"
-msgstr ""
+msgstr "Wyświetl atrybuty"
 
 #: /app/templates/index.php:1058
 msgid "Drag to reorder the columns of the list view."
-msgstr ""
+msgstr "Przeciągnij, aby zmienić kolejność kolumn w widoku listy."
 
 #: /app/templates/index.php:1063
 #, fuzzy
@@ -11240,11 +11240,11 @@ msgstr ""
 
 #: /app/templates/index.php:1097 /app/templates/index.php:3819
 msgid "Total Assets"
-msgstr ""
+msgstr "Wartość aktywów"
 
 #: /app/templates/index.php:1108
 msgid "Total Liabilities"
-msgstr ""
+msgstr "Łączne zobowiązania"
 
 #: /app/templates/index.php:1156
 msgid "Account Details"
@@ -11276,7 +11276,7 @@ msgstr ""
 
 #: /app/templates/index.php:1201
 msgid "Available Balance"
-msgstr ""
+msgstr "Dostępne saldo"
 
 #: /app/templates/index.php:1209 /app/templates/index.php:5842
 msgid "Credit Limit"
@@ -11328,7 +11328,7 @@ msgstr ""
 
 #: /app/templates/index.php:1294 /app/templates/index.php:5784
 msgid "Account Number"
-msgstr ""
+msgstr "Numer konta"
 
 #: /app/templates/index.php:1298 /app/templates/index.php:5794
 msgid "Routing Number"
@@ -11352,7 +11352,7 @@ msgstr ""
 
 #: /app/templates/index.php:1322
 msgid "Last Reconciled"
-msgstr ""
+msgstr "Ostatnia synchronizacja"
 
 #: /app/templates/index.php:1331
 msgid "Interest Rate History"
@@ -12222,7 +12222,7 @@ msgstr ""
 
 #: /app/templates/index.php:2980
 msgid "Balance Projection"
-msgstr ""
+msgstr "Prognoza salda"
 
 #: /app/templates/index.php:2995
 msgid "Forecast Confidence:"
@@ -12547,7 +12547,7 @@ msgstr ""
 
 #: /app/templates/index.php:3696 /app/templates/index.php:5181
 msgid "Update Balance"
-msgstr ""
+msgstr "Zaktualizuj saldo"
 
 #: /app/templates/index.php:3700 /app/templates/index.php:5206
 msgid "Log Contribution"
@@ -12559,7 +12559,7 @@ msgstr ""
 
 #: /app/templates/index.php:3710
 msgid "Balance History"
-msgstr ""
+msgstr "Historia salda"
 
 #: /app/templates/index.php:3720
 msgid "Projected Growth"
@@ -12593,7 +12593,7 @@ msgstr ""
 
 #: /app/templates/index.php:3797
 msgid "Total Asset Worth"
-msgstr ""
+msgstr "Łączna wartość aktywów"
 
 #: /app/templates/index.php:3808
 msgid "Projected Value (10yr)"
@@ -14879,7 +14879,7 @@ msgstr ""
 
 #: /app/templates/index.php:7067
 msgid "Balance:"
-msgstr ""
+msgstr "Saldo:"
 
 #: /app/templates/index.php:7073
 msgid "Settle All"
