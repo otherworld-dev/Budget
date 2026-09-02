@@ -449,6 +449,35 @@ class TransactionMapper extends QBMapper {
      * Unreconciled, unticked, non-scheduled transactions dated on or before
      * the statement date — surfaced as a heads-up when completing.
      */
+    /**
+     * Tick every transaction of an account dated on or before the statement
+     * date into a session, in one statement.
+     *
+     * Same predicate as {@see countUntickedBefore()} - already ticked, already
+     * reconciled and scheduled rows are all left alone - because the count the
+     * button offers has to be the number it then ticks. Ticking these one page
+     * at a time is what made a first reconciliation of a real ledger 35 pages
+     * of clicking (#374).
+     */
+    public function tickAllUpTo(int $accountId, string $statementDate, int $sessionId): int {
+        $qb = $this->db->getQueryBuilder();
+        $qb->update($this->getTableName())
+            ->set('recon_session_id', $qb->createNamedParameter($sessionId, IQueryBuilder::PARAM_INT))
+            ->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->lte('date', $qb->createNamedParameter($statementDate)))
+            ->andWhere($qb->expr()->isNull('recon_session_id'))
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->eq('reconciled', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
+                $qb->expr()->isNull('reconciled')
+            ))
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->neq('status', $qb->createNamedParameter('scheduled')),
+                $qb->expr()->isNull('status')
+            ));
+
+        return $qb->executeStatement();
+    }
+
     public function countUntickedBefore(int $accountId, string $statementDate): int {
         $qb = $this->db->getQueryBuilder();
         $qb->selectAlias($qb->createFunction('COUNT(*)'), 'cnt')

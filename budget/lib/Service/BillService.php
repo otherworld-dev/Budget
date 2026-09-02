@@ -667,11 +667,18 @@ class BillService {
      * @param int $id Bill ID
      * @param string $userId User ID
      * @param string|null $paidDate Date bill was paid (defaults to the bill's current due date)
-     * @param bool $createNextTransaction Whether to create transaction for next occurrence
+     * @param bool $recordPayment Whether to record the payment itself as a transaction.
+     *        This decides the payment leg ONLY. Whether the ledger carries a
+     *        pre-created row for the NEXT occurrence is the bill's own
+     *        create_transaction setting, exactly as skipPayment() and update()
+     *        read it. One flag used to answer both, so declining to record a
+     *        payment (or linking one that already existed) also left the bill
+     *        with no upcoming row - while the placeholder for the occurrence
+     *        just paid stayed behind, still scheduled, still looking due (#376).
      * @param int|null $existingTransactionId Link an existing transaction instead of creating a new one
      * @return array Updated bill with undo data
      */
-    public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $createNextTransaction = true, ?int $existingTransactionId = null): array {
+    public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $recordPayment = true, ?int $existingTransactionId = null): array {
         $bill = $this->find($id, $userId);
 
         // Capture previous state for undo support
@@ -739,7 +746,7 @@ class BillService {
             } catch (\Exception $e) {
                 $this->logger->warning("Failed to link existing transaction {$existingTransactionId} to bill {$id}: {$e->getMessage()}");
             }
-        } elseif ($createNextTransaction && $bill->getAccountId() !== null) {
+        } elseif ($recordPayment && $bill->getAccountId() !== null) {
             try {
                 // Clear pre-existing scheduled transaction(s), or create new cleared one
                 $transaction = $this->transactionService->clearScheduledBillTransaction($userId, $bill->getId(), $paidDate, $statementAmount);
@@ -760,6 +767,13 @@ class BillService {
             } catch (\Exception $e) {
                 $this->logger->warning("Failed to create transaction for bill {$id}: {$e->getMessage()}");
             }
+        } else {
+            // Nothing recorded this occurrence, so the placeholder standing in
+            // for it has to go: the payment happened, and a scheduled row for
+            // a paid occurrence goes on showing the bill as still due. The
+            // other two branches already clear it, one by clearing it into the
+            // payment and one by deleting it outright (#376).
+            $this->transactionService->deleteScheduledBillTransactions($bill->getId());
         }
 
         // Auto-deactivate one-time bills after payment
@@ -801,7 +815,7 @@ class BillService {
         // Auto-create transaction for next occurrence if bill has account
         // Skip for deactivated bills (one-time, end date reached, remaining payments exhausted)
         // and bills that opted out of pre-created transactions (null = legacy rows, treated as opted in)
-        if ($createNextTransaction && ($bill->getCreateTransaction() ?? true) && $bill->getIsActive() && $bill->getAccountId() !== null) {
+        if (($bill->getCreateTransaction() ?? true) && $bill->getIsActive() && $bill->getAccountId() !== null) {
             try {
                 $nextTransaction = $this->transactionService->createFromBill($userId, $bill, null);
                 $scheduledTransactionIds[] = $nextTransaction->getId();

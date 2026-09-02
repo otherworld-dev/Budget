@@ -106,6 +106,21 @@ class ReconciliationController extends Controller {
     }
 
     /**
+     * Tick everything dated on or before the statement date.
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 20, period: 60)]
+    public function tickAll(int $id): DataResponse {
+        try {
+            $this->requireWriteAccess('account', $id);
+            $state = $this->service->tickAllUpToStatementDate($id, $this->getEffectiveUserId());
+            return new DataResponse($state);
+        } catch (\Exception $e) {
+            return $this->handleValidationError($e);
+        }
+    }
+
+    /**
      * @NoAdminRequired
      */
     #[UserRateLimit(limit: 20, period: 60)]

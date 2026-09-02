@@ -26,6 +26,7 @@ return [
         ['name' => 'reconciliation#update', 'url' => '/api/accounts/{id}/reconciliation/session', 'verb' => 'PUT'],
         ['name' => 'reconciliation#cancel', 'url' => '/api/accounts/{id}/reconciliation/session', 'verb' => 'DELETE'],
         ['name' => 'reconciliation#tick', 'url' => '/api/accounts/{id}/reconciliation/tick', 'verb' => 'POST'],
+        ['name' => 'reconciliation#tickAll', 'url' => '/api/accounts/{id}/reconciliation/tick-all', 'verb' => 'POST'],
         ['name' => 'reconciliation#complete', 'url' => '/api/accounts/{id}/reconciliation/complete', 'verb' => 'POST'],
         ['name' => 'reconciliation#history', 'url' => '/api/accounts/{id}/reconciliation/history', 'verb' => 'GET'],
         ['name' => 'account#reveal', 'url' => '/api/accounts/{id}/reveal', 'verb' => 'GET'],

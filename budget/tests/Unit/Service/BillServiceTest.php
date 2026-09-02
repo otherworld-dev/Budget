@@ -311,6 +311,77 @@ class BillServiceTest extends TestCase {
 		$this->assertSame('2099-07-15', $result['bill']->getNextDueDate());
 	}
 
+	// ── recording the payment vs. the ledger's placeholders (#376) ──
+
+	// "Don't create any transaction (just mark as paid)" left the placeholder
+	// for the occurrence just paid sitting in the ledger, still scheduled, so
+	// the bill went on looking upcoming. skipPayment() has always cleared it.
+	public function testMarkPaidWithoutRecordingClearsThePaidOccurrencesPlaceholder(): void {
+		$bill = $this->makeBill();
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-15');
+
+		$this->transactionService->expects($this->once())
+			->method('deleteScheduledBillTransactions')
+			->with(1);
+
+		$result = $this->service->markPaid(1, 'user1', null, false);
+
+		$this->assertSame('2099-07-15', $result['bill']->getNextDueDate());
+		$this->assertFalse($result['paymentTransactionRecorded']);
+	}
+
+	// The bill's own "create future transaction" setting decides whether the
+	// next occurrence is pre-created - not whether the user happened to record
+	// this payment. Both other paths that advance a bill already read it that
+	// way (skipPayment, update).
+	public function testMarkPaidWithoutRecordingStillCreatesTheNextPlaceholder(): void {
+		$bill = $this->makeBill();
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-15');
+
+		// Only the next occurrence - no payment leg, that is what was declined
+		$this->transactionService->expects($this->once())
+			->method('createFromBill')
+			->with('user1', $bill, null);
+
+		$this->service->markPaid(1, 'user1', null, false);
+	}
+
+	// Linking an existing transaction also arrives with recordPayment false,
+	// and used to leave the bill with no upcoming row at all.
+	public function testMarkPaidLinkingAnExistingTransactionCreatesTheNextPlaceholder(): void {
+		$bill = $this->makeBill();
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-15');
+
+		$this->transactionService->expects($this->once())
+			->method('update')
+			->with(42, 'user1', ['billId' => 1]);
+		$this->transactionService->expects($this->once())
+			->method('createFromBill')
+			->with('user1', $bill, null);
+
+		$result = $this->service->markPaid(1, 'user1', null, false, 42);
+
+		$this->assertTrue($result['linkedExistingTransaction']);
+	}
+
+	// The opt-out still wins over all of it.
+	public function testMarkPaidWithoutRecordingHonoursThePlaceholderOptOut(): void {
+		$bill = $this->makeBill(['createTransaction' => false]);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-15');
+
+		$this->transactionService->expects($this->never())->method('createFromBill');
+
+		$this->service->markPaid(1, 'user1', null, false);
+	}
+
 	public function testUpdateTogglingOffRemovesPlaceholders(): void {
 		$bill = $this->makeBill(); // no flag = enabled
 		$this->mapper->method('find')->willReturn($bill);

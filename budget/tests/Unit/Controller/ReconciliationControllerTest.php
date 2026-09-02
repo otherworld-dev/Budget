@@ -82,6 +82,25 @@ class ReconciliationControllerTest extends TestCase {
         $this->assertSame($existing, $response->getData()['existing']);
     }
 
+    public function testTickAllReturnsTheUpdatedSessionState(): void {
+        $state = ['tickedCount' => 860, 'untickedCount' => 0, 'isBalanced' => true];
+        $this->service->method('tickAllUpToStatementDate')->with(7, self::USER)->willReturn($state);
+
+        $response = $this->controller->tickAll(7);
+
+        $this->assertSame(Http::STATUS_OK, $response->getStatus());
+        $this->assertSame($state, $response->getData());
+    }
+
+    public function testTickAllWithoutASessionIsAValidationError(): void {
+        $this->service->method('tickAllUpToStatementDate')
+            ->willThrowException(new \InvalidArgumentException('No reconciliation in progress for this account'));
+
+        $response = $this->controller->tickAll(7);
+
+        $this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+    }
+
     public function testCompleteReturnsServiceResult(): void {
         $result = ['reconciledCount' => 4, 'untickedBeforeStatementDate' => 1];
         $this->service->method('complete')->with(7, self::USER)->willReturn($result);

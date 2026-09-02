@@ -1245,13 +1245,17 @@ export default class BillsModule {
     async _executeMarkPaid(billId, bill, choice) {
         const body = {};
 
+        // recordPayment covers this payment only. Whether the ledger carries a
+        // row for the next occurrence is the bill's own setting, on the server
+        // side - it used to ride on this flag, so linking or skipping left the
+        // bill with nothing upcoming at all (#376).
         if (choice.action === 'link') {
             body.existingTransactionId = choice.transactionId;
-            body.createNextTransaction = false;
+            body.recordPayment = false;
         } else if (choice.action === 'skip') {
-            body.createNextTransaction = false;
+            body.recordPayment = false;
         } else {
-            body.createNextTransaction = true;
+            body.recordPayment = true;
         }
 
         const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/paid`), {
@@ -1376,6 +1380,7 @@ export default class BillsModule {
                     </div>
                     <div class="budget-modal-body">
                         <p class="matching-tx-intro">${t('budget', 'We found existing transactions that may already represent this bill payment ({billName}, {amount}). Would you like to link one instead of creating a new transaction?', { billName: dom.escapeHtml(bill.name), amount: formatAmount(bill.amount) })}</p>
+                        <p class="matching-tx-intro">${t('budget', 'Whichever you choose, the bill is marked as paid and moves on to its next due date.')}</p>
                         <div class="matching-tx-list">
                             ${candidateRows}
                         </div>

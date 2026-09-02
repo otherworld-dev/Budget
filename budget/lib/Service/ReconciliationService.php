@@ -128,6 +128,23 @@ class ReconciliationService {
     }
 
     /**
+     * Tick everything dated on or before the statement date.
+     *
+     * A first reconciliation anchors on the account's opening balance, so
+     * reaching a zero difference means ticking the whole ledger - 860 rows,
+     * 25 to a page, on the account in #374. Ticking is reversible and nothing
+     * is written to the transactions beyond the session link until Finish, so
+     * this is a starting point to correct from, not a commitment.
+     */
+    public function tickAllUpToStatementDate(int $accountId, string $userId): array {
+        $session = $this->requireActiveSession($accountId, $userId);
+
+        $this->transactionMapper->tickAllUpTo($accountId, $session->getStatementDate(), $session->getId());
+
+        return $this->sessionState($session);
+    }
+
+    /**
      * Complete the session: requires the difference to be zero (±tolerance);
      * marks ticked transactions reconciled and stamps the account.
      */
@@ -205,6 +222,13 @@ class ReconciliationService {
             'session' => $session->jsonSerialize(),
             'tickedIds' => $tickedIds,
             'tickedCount' => count($tickedIds),
+            // What is left to tick on or before the statement date. The bar
+            // offers "tick everything up to <date>" only while this is > 0,
+            // and names the number so it is never a blind bulk action (#374).
+            'untickedCount' => $this->transactionMapper->countUntickedBefore(
+                $session->getAccountId(),
+                $session->getStatementDate()
+            ),
             'tickedSum' => MoneyCalculator::toFloat(MoneyCalculator::add('0', (string) $tickedSum)),
             'clearedBalance' => MoneyCalculator::toFloat($cleared),
             'difference' => MoneyCalculator::toFloat($difference),

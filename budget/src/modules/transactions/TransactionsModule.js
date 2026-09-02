@@ -1336,10 +1336,21 @@ export default class TransactionsModule {
         // Ticked transactions drive the select checkboxes (survives re-render)
         this.selectedTransactions = new Set(state.tickedIds || []);
 
-        // Filter the table to the session's account
+        // Scope the table to what the statement actually covers: this
+        // account, nothing dated after the statement, and nothing already
+        // reconciled - those are inside the starting balance already, so
+        // ticking one would count it twice. Without this the list is the
+        // whole ledger, scheduled rows years out included (#374).
         const filterAccount = document.getElementById('filter-account');
         if (filterAccount) {
             filterAccount.value = String(state.session.accountId);
+            // Through the helper: these inputs are flatpickr-managed, and a
+            // bare .value assignment leaves the picker's own state behind.
+            setDateValue('filter-date-to', state.session.statementDate || '');
+            const filterReconciled = document.getElementById('filter-reconciled');
+            if (filterReconciled) {
+                filterReconciled.value = 'no';
+            }
             this.updateFilters();
         }
 
@@ -1365,6 +1376,10 @@ export default class TransactionsModule {
         const diff = state.difference || 0;
         const balanced = state.isBalanced;
         const adjustmentType = diff > 0 ? 'credit' : 'debit';
+        // Before anything is ticked the "difference" is the whole account
+        // history, so an adjustment for it would be nonsense - the button is
+        // only offered once the ticking has started (#374).
+        const untickedCount = state.untickedCount || 0;
 
         bar.innerHTML = `
             <div class="reconcile-bar-stats">
@@ -1374,7 +1389,7 @@ export default class TransactionsModule {
                 </div>
                 <div class="stat">
                     <label>${t('budget', 'Starting balance')}</label>
-                    <span title="${t('budget', 'Last reconciled balance — verify this matches your statement\u2019s opening balance')}">${this.formatCurrency(state.session.startingBalance)}</span>
+                    <span title="${t('budget', 'Where the account stood before this statement: the balance at your last reconciliation, or — the first time — the account\u2019s opening balance plus anything already marked reconciled. Check it against your statement\u2019s opening balance.')}">${this.formatCurrency(state.session.startingBalance)}</span>
                 </div>
                 <div class="stat">
                     <label>${t('budget', 'Ticked ({count})', { count: state.tickedCount || 0 })}</label>
@@ -1387,7 +1402,8 @@ export default class TransactionsModule {
             </div>
             <div class="reconcile-bar-actions">
                 <button id="finish-reconcile-btn" class="primary" ${!balanced ? 'disabled' : ''}>${t('budget', 'Finish')}</button>
-                ${!balanced ? `<button id="adjust-reconcile-btn" class="secondary">${t('budget', 'Create {amount} adjustment', { amount: this.formatCurrency(Math.abs(diff)) })}</button>` : ''}
+                ${untickedCount > 0 ? `<button id="tick-all-reconcile-btn" class="secondary">${n('budget', 'Tick %n transaction up to {date}', 'Tick all %n transactions up to {date}', untickedCount, { date: this.formatDate(state.session.statementDate) })}</button>` : ''}
+                ${!balanced && (state.tickedCount || 0) > 0 ? `<button id="adjust-reconcile-btn" class="secondary">${t('budget', 'Create {amount} adjustment', { amount: this.formatCurrency(Math.abs(diff)) })}</button>` : ''}
                 <button id="leave-reconcile-btn" class="secondary" title="${t('budget', 'Keep the session and come back later')}">${t('budget', 'Leave')}</button>
                 <button id="cancel-reconcile-session-btn" class="secondary">${t('budget', 'Cancel session')}</button>
             </div>
@@ -1397,8 +1413,44 @@ export default class TransactionsModule {
         document.getElementById('finish-reconcile-btn').addEventListener('click', () => this.finishReconciliation());
         document.getElementById('adjust-reconcile-btn')?.addEventListener('click', () =>
             this.createReconciliationAdjustment(adjustmentType, Math.abs(diff)));
+        document.getElementById('tick-all-reconcile-btn')?.addEventListener('click', () => this.tickAllUpToStatementDate());
         document.getElementById('leave-reconcile-btn').addEventListener('click', () => this.exitReconcileMode());
         document.getElementById('cancel-reconcile-session-btn').addEventListener('click', () => this.cancelReconcileSession());
+    }
+
+    /**
+     * Tick every transaction up to the statement date in one go.
+     *
+     * A first reconciliation anchors on the account's opening balance, which
+     * makes "everything so far" the honest starting point - and doing it by
+     * hand was 35 pages of clicking on the ledger that prompted this (#374).
+     * Ticking is reversible: nothing is written to the transactions until
+     * Finish, so this is a starting point to correct from.
+     */
+    async tickAllUpToStatementDate() {
+        if (!this.reconcileSession) return;
+        const accountId = this.reconcileSession.session.accountId;
+
+        try {
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/tick-all`),
+                { method: 'POST', headers: { 'requesttoken': OC.requestToken } }
+            );
+            if (!response.ok) {
+                throw new Error(await this.reconcileErrorMessage(response, t('budget', 'Failed to tick transactions')));
+            }
+
+            const state = await response.json();
+            this.reconcileSession = state;
+            this.selectedTransactions = new Set(state.tickedIds || []);
+            this._reconTickQueue.clear();
+            this._reconUntickQueue.clear();
+            this.renderReconcileBar();
+            await this.app.loadTransactions();
+        } catch (error) {
+            console.error('Tick all failed:', error);
+            showError(t('budget', 'Failed to tick transactions: {message}', { message: error.message }));
+        }
     }
 
     /**
@@ -1546,6 +1598,20 @@ export default class TransactionsModule {
         document.getElementById('reconcile-session-bar')?.remove();
         document.getElementById('reconcile-panel').style.display = 'none';
         document.getElementById('reconcile-mode-btn')?.classList.remove('active');
+
+        // Hand the list back the way it was found: entering the session
+        // narrows it to the statement (#374), and leaving those filters
+        // applied afterwards looks like transactions have gone missing.
+        const filterDateTo = document.getElementById('filter-date-to');
+        const filterReconciled = document.getElementById('filter-reconciled');
+        if (filterDateTo || filterReconciled) {
+            setDateValue('filter-date-to', '');
+            if (filterReconciled) {
+                filterReconciled.value = '';
+            }
+            this.updateFilters();
+            return;
+        }
 
         this.app.loadTransactions();
     }

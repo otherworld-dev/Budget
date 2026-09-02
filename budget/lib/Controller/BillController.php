@@ -766,10 +766,14 @@ class BillController extends Controller {
         try {
             $this->requireWriteAccess('bill', $id);
             $params = $this->request->getParams();
-            $createNextTransaction = (bool) ($params['createNextTransaction'] ?? false);
+            // Whether to record the payment itself. It used to be called
+            // createNextTransaction, which is what it also did until #376
+            // separated the two; the old name still works so a bundle cached
+            // from before the rename does not silently record nothing.
+            $recordPayment = (bool) ($params['recordPayment'] ?? $params['createNextTransaction'] ?? false);
             $existingTransactionId = isset($params['existingTransactionId']) ? (int) $params['existingTransactionId'] : null;
 
-            $result = $this->service->markPaid($id, $this->billOwner($id), $paidDate, $createNextTransaction, $existingTransactionId);
+            $result = $this->service->markPaid($id, $this->billOwner($id), $paidDate, $recordPayment, $existingTransactionId);
             return new DataResponse($result);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to mark bill as paid'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);

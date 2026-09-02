@@ -67,6 +67,53 @@ class ReconciliationServiceTest extends TestCase {
         return $session;
     }
 
+    // ── ticking a whole statement at once (#374) ────────────────────
+
+    // A first reconciliation anchors on the opening balance, so everything in
+    // the ledger has to be ticked to reach a zero difference. On a real
+    // account that was 860 rows at 25 to a page.
+    public function testTickAllUpToStatementDateTicksEverythingOnOrBeforeIt(): void {
+        $session = $this->makeSession();
+        $this->sessionMapper->method('findInProgress')->willReturn($session);
+        $this->transactionMapper->method('getSessionTickedSum')->willReturn(500.0);
+        $this->transactionMapper->method('getSessionTransactionIds')->willReturn([1, 2, 3]);
+
+        $this->transactionMapper->expects($this->once())
+            ->method('tickAllUpTo')
+            ->with(self::ACCOUNT, '2026-06-30', 11)
+            ->willReturn(3);
+
+        $state = $this->service->tickAllUpToStatementDate(self::ACCOUNT, self::USER);
+
+        $this->assertSame(3, $state['tickedCount']);
+        $this->assertSame(1500.0, $state['clearedBalance']);
+        $this->assertTrue($state['isBalanced']);
+    }
+
+    public function testTickAllUpToStatementDateNeedsASession(): void {
+        $this->sessionMapper->method('findInProgress')->willReturn(null);
+        $this->transactionMapper->expects($this->never())->method('tickAllUpTo');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->service->tickAllUpToStatementDate(self::ACCOUNT, self::USER);
+    }
+
+    // The bar offers the button only when there is something left to tick, so
+    // the count has to travel with the session state.
+    public function testSessionStateCarriesTheUntickedCountUpToTheStatementDate(): void {
+        $session = $this->makeSession();
+        $this->sessionMapper->method('findInProgress')->willReturn($session);
+        $this->transactionMapper->method('getSessionTickedSum')->willReturn(0.0);
+        $this->transactionMapper->method('getSessionTransactionIds')->willReturn([]);
+        $this->transactionMapper->method('countUntickedBefore')
+            ->with(self::ACCOUNT, '2026-06-30')
+            ->willReturn(860);
+
+        $state = $this->service->getActiveSession(self::ACCOUNT, self::USER);
+
+        $this->assertSame(860, $state['untickedCount']);
+    }
+
     public function testFirstSessionAnchorIsOpeningPlusReconciledNet(): void {
         $this->sessionMapper->method('findInProgress')->willReturn(null);
         $this->sessionMapper->method('findLastCompleted')->willReturn(null);
