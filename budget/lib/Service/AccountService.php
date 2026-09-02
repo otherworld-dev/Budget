@@ -27,6 +27,7 @@ class AccountService extends AbstractCrudService {
     private TransactionService $transactionService;
     private IL10N $l;
     private ?AutoShareService $autoShareService;
+    private ?AccountClosureService $closureService;
 
     public function __construct(
         AccountMapper $mapper,
@@ -36,7 +37,8 @@ class AccountService extends AbstractCrudService {
         GranularShareService $granularShareService,
         TransactionService $transactionService,
         IL10N $l,
-        ?AutoShareService $autoShareService = null
+        ?AutoShareService $autoShareService = null,
+        ?AccountClosureService $closureService = null
     ) {
         $this->mapper = $mapper;
         $this->transactionMapper = $transactionMapper;
@@ -46,6 +48,7 @@ class AccountService extends AbstractCrudService {
         $this->transactionService = $transactionService;
         $this->l = $l;
         $this->autoShareService = $autoShareService;
+        $this->closureService = $closureService;
     }
 
     public function create(
@@ -176,6 +179,18 @@ class AccountService extends AbstractCrudService {
             $existing = $this->mapper->findById($id);
             $userId = $existing->getUserId();
         }
+
+        // ---- closing (#372) ------------------------------------------------
+        // Gated on the STORED state before anything is written, so a refusal
+        // leaves the account untouched. Reopening, and re-sending the flag for
+        // an account that is already closed, need no check.
+        if (array_key_exists('closed', $updates)) {
+            $updates['closed'] = filter_var($updates['closed'], FILTER_VALIDATE_BOOLEAN);
+            if ($updates['closed'] && !($existing->getClosed() ?? false) && $this->closureService !== null) {
+                $this->closureService->assertClosable($existing);
+            }
+        }
+        // -------------------------------------------------------------------
 
         // ---- liability sign normalisation (#353) --------------------------
         // The effective type is the one being saved, so a type flip is handled

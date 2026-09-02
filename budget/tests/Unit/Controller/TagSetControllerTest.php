@@ -741,4 +741,66 @@ class TagSetControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
 	}
+
+	// ── hidden flag (#373) ──────────────────────────────────────────
+
+	public function testUpdateTagPassesHiddenToService(): void {
+		$this->mockInput(json_encode(['hidden' => true]));
+
+		$tag = new Tag();
+		$tag->setId(5);
+		$this->service->expects($this->once())
+			->method('updateTag')
+			->with(5, 'user1', ['hidden' => true])
+			->willReturn($tag);
+
+		$response = $this->controller->updateTag(10, 5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testUpdateTagHiddenFalseIsAnUpdate(): void {
+		$this->mockInput(json_encode(['hidden' => false]));
+
+		$tag = new Tag();
+		$tag->setId(5);
+		$this->service->expects($this->once())
+			->method('updateTag')
+			->with(5, 'user1', ['hidden' => false])
+			->willReturn($tag);
+
+		$response = $this->controller->updateTag(10, 5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testUpdateGlobalTagPassesHiddenToService(): void {
+		$this->mockInput(json_encode(['hidden' => true]));
+
+		$tag = new Tag();
+		$tag->setId(5);
+		$this->service->expects($this->once())
+			->method('updateGlobalTag')
+			->with(5, 'user1', ['hidden' => true])
+			->willReturn($tag);
+
+		$response = $this->controller->updateGlobalTag(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testUpdateGlobalTagHiddenFalseIsAnUpdate(): void {
+		$this->mockInput(json_encode(['hidden' => false]));
+
+		$tag = new Tag();
+		$tag->setId(5);
+		$this->service->expects($this->once())
+			->method('updateGlobalTag')
+			->with(5, 'user1', ['hidden' => false])
+			->willReturn($tag);
+
+		$response = $this->controller->updateGlobalTag(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
 }

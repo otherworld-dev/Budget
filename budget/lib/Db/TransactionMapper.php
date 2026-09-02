@@ -2573,6 +2573,31 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
+     * Whether the account holds any real transaction dated after $afterDate.
+     * Scheduled placeholders are not counted, matching getNetChangeAfterDate():
+     * they belong to their bill, which the closure guard checks on its own (#372).
+     */
+    public function hasRowsAfterDate(int $accountId, string $afterDate): bool {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select($qb->func()->count('t.id'))
+            ->from($this->getTableName(), 't')
+            ->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->gt('t.date', $qb->createNamedParameter($afterDate)))
+            ->andWhere(
+                $qb->expr()->orX(
+                    $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
+                    $qb->expr()->isNull('t.status')
+                )
+            );
+
+        $result = $qb->executeQuery();
+        $count = (int) $result->fetchOne();
+        $result->closeCursor();
+
+        return $count > 0;
+    }
+
+    /**
      * Calculate the net change of all transactions chronologically before a given (date, id) boundary.
      * Used for computing running balance: balanceBeforePage = openingBalance + getNetChangeBeforePage().
      *

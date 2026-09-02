@@ -7,6 +7,8 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { initSingleDatePicker } from '../../utils/datepicker.js';
 import { serverErrorMessage, isoWeekday } from '../../utils/helpers.js';
+import { offerableTags, offerableTagSets } from '../../utils/tags.js';
+import { openAccounts, pickableAccounts, accountOptionLabel } from '../../utils/accounts.js';
 
 export default class TransfersModule {
     constructor(app) {
@@ -471,9 +473,9 @@ export default class TransfersModule {
                                 <label for="recurring-transfer-from-account">${t('budget', 'From Account')} <span class="required">*</span></label>
                                 <select id="recurring-transfer-from-account" required>
                                 <option value="">${t('budget', 'Select account...')}</option>
-                                ${this.accounts.map(account => `
+                                ${pickableAccounts(this.accounts, isEdit ? [transfer.accountId, transfer.destinationAccountId] : []).map(account => `
                                 <option value="${account.id}" ${isEdit && transfer.accountId === account.id ? 'selected' : ''}>
-                                ${dom.escapeHtml(account.name)}
+                                ${dom.escapeHtml(accountOptionLabel(account))}
                                 </option>
                                 `).join('')}
                                 </select>
@@ -483,9 +485,9 @@ export default class TransfersModule {
                                 <label for="recurring-transfer-to-account">${t('budget', 'To Account')} <span class="required">*</span></label>
                                 <select id="recurring-transfer-to-account" required>
                                 <option value="">${t('budget', 'Select account...')}</option>
-                                ${this.accounts.map(account => `
+                                ${pickableAccounts(this.accounts, isEdit ? [transfer.accountId, transfer.destinationAccountId] : []).map(account => `
                                 <option value="${account.id}" ${isEdit && transfer.destinationAccountId === account.id ? 'selected' : ''}>
-                                ${dom.escapeHtml(account.name)}
+                                ${dom.escapeHtml(accountOptionLabel(account))}
                                 </option>
                                 `).join('')}
                                 </select>
@@ -1012,16 +1014,19 @@ export default class TransfersModule {
                 categoryId ? fetch(OC.generateUrl(`/apps/budget/api/tag-sets?categoryId=${categoryId}`), { headers: { 'requesttoken': OC.requestToken } }).then(r => r.ok ? r.json() : []).catch(() => []) : Promise.resolve([])
             ]);
 
-            const globalTags = globalTagsResponse || [];
-            const tagSets = categoryTagSets || [];
+            // Get existing tag IDs if editing
+            const existingTagIds = existingTransfer?.tagIds || [];
+
+            // Hidden tags are not offered, except ones already on this
+            // transfer (#373) — saving reads every checked box, so an
+            // unlisted tag would be stripped on the next edit.
+            const globalTags = offerableTags(globalTagsResponse || [], existingTagIds);
+            const tagSets = offerableTagSets(categoryTagSets || [], existingTagIds);
 
             if (globalTags.length === 0 && tagSets.length === 0) {
                 container.innerHTML = '';
                 return;
             }
-
-            // Get existing tag IDs if editing
-            const existingTagIds = existingTransfer?.tagIds || [];
 
             let html = '';
 
@@ -1161,7 +1166,7 @@ export default class TransfersModule {
         const list = document.getElementById('detected-transfers-list');
         if (!list) return;
 
-        const accounts = this.accounts || [];
+        const accounts = openAccounts(this.accounts);
         const accountOptions = accounts.map(a =>
             `<option value="${a.id}">${dom.escapeHtml(a.name)} (${a.currency || 'USD'})</option>`
         ).join('');

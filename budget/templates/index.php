@@ -1142,6 +1142,14 @@ style('budget', 'budget-app');
                 </div>
                 <div id="accounts-liabilities-grid" class="accounts-grid"></div>
             </div>
+
+            <!-- Closed accounts (#372): history kept, out of every picker for new activity -->
+            <details id="accounts-closed-section" class="accounts-section accounts-closed" style="display: none;">
+                <summary class="section-header-row">
+                    <h3 class="section-title"><span id="accounts-closed-title"><?php p($l->t('Closed accounts')); ?></span></h3>
+                </summary>
+                <div id="accounts-closed-grid" class="accounts-grid"></div>
+            </details>
         </div>
 
         <!-- Account Details View -->
@@ -1182,6 +1190,7 @@ style('budget', 'budget-app');
                             <div class="account-info">
                                 <h3 id="account-display-name"><?php p($l->t('Account Name')); ?></h3>
                                 <div class="account-meta">
+                                    <span id="account-closed-badge" class="account-closed-badge" style="display: none;"><?php p($l->t('Closed')); ?></span>
                                     <span id="account-type-label" class="account-type"><?php p($l->t('Account Type')); ?></span>
                                     <span id="account-institution" class="account-institution"></span>
                                 </div>
@@ -4911,6 +4920,13 @@ style('budget', 'budget-app');
                     <input type="text" id="global-tag-color-hex" maxlength="7" placeholder="#4CAF50" value="#4CAF50">
                 </div>
             </div>
+            <div class="form-group tag-hidden-group" id="global-tag-hidden-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="global-tag-hidden" name="hidden">
+                    <?php p($l->t('Hidden')); ?>
+                </label>
+                <small class="form-help"><?php p($l->t('Stop offering this tag when tagging new transactions. Transactions that already have it keep it.')); ?></small>
+            </div>
             <div class="modal-actions">
                 <button type="button" class="cancel-btn"><?php p($l->t('Cancel')); ?></button>
                 <button type="submit" class="primary" id="global-tag-save-btn"><?php p($l->t('Save')); ?></button>
@@ -5877,6 +5893,14 @@ style('budget', 'budget-app');
                         </label>
                         <small class="form-text"><?php p($l->t('Keep tracking this account, but leave its transactions and balance out of every "all accounts" total — reports, the dashboard, forecast, net worth and budgets. The account still appears in your accounts list and on its own page.')); ?></small>
                     </div>
+                    <div class="form-group" id="account-closed-group">
+                        <label class="form-check">
+                            <input type="checkbox" id="account-closed">
+                            <span><?php p($l->t('This account is closed')); ?></span>
+                        </label>
+                        <small class="form-text"><?php p($l->t('Keeps its history and its figures in reports, but the account no longer appears where you pick an account for new transactions, transfers, bills, income or imports. The balance must be zero, with nothing scheduled to pay into or out of it.')); ?></small>
+                        <small id="account-closed-hint" class="form-text form-hint-warning" style="display: none;"></small>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -6685,6 +6709,13 @@ style('budget', 'budget-app');
                     <div class="form-group">
                         <label for="edit-tag-color"><?php p($l->t('Color')); ?></label>
                         <input type="color" id="edit-tag-color" name="color" value="#4A90E2">
+                    </div>
+                    <div class="form-group tag-hidden-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="edit-tag-hidden" name="hidden">
+                            <?php p($l->t('Hidden')); ?>
+                        </label>
+                        <small class="form-help"><?php p($l->t('Stop offering this tag when tagging new transactions. Transactions that already have it keep it.')); ?></small>
                     </div>
                   </div>
                 </div>

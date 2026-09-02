@@ -8,6 +8,7 @@ import { showSuccess, showError } from '../../utils/notifications.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import Chart from 'chart.js/auto';
 import { serverErrorMessage } from '../../utils/helpers.js';
+import { openAccounts } from '../../utils/accounts.js';
 
 export default class PensionsModule {
     constructor(app) {
@@ -929,7 +930,7 @@ export default class PensionsModule {
     _populateAccountSelect(selectId, blankLabel) {
         const select = document.getElementById(selectId);
         if (!select) return;
-        const accounts = this.app.accounts || [];
+        const accounts = openAccounts(this.app.accounts); // closed ones take nothing new (#372)
         const opts = [`<option value="">${dom.escapeHtml(blankLabel)}</option>`];
         accounts.forEach(a => {
             opts.push(`<option value="${a.id}">${dom.escapeHtml(a.name)}</option>`);

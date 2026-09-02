@@ -15,6 +15,7 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import { serverErrorMessage, downloadTransactionsCsv } from '../../utils/helpers.js';
+import { openAccounts, pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
 import flatpickr from 'flatpickr';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
@@ -493,7 +494,7 @@ export default class TransactionsModule {
         const reconcileAccount = document.getElementById('reconcile-account');
         if (reconcileAccount && this.accounts) {
             reconcileAccount.innerHTML = `<option value="">${t('budget', 'Select account to reconcile')}</option>`;
-            this.accounts.forEach(account => {
+            openAccounts(this.accounts).forEach(account => {
                 reconcileAccount.innerHTML += `<option value="${account.id}">${account.name}</option>`;
             });
         }
@@ -1673,12 +1674,13 @@ export default class TransactionsModule {
             // Save current value
             const currentValue = accountSelect.value;
 
-            // Clear and rebuild options
+            // Clear and rebuild options. Closed accounts take no new activity,
+            // but the one a transaction being edited sits in must stay (#372).
             accountSelect.innerHTML = `<option value="">${t('budget', 'Choose an account')}</option>`;
-            this.accounts.forEach(account => {
+            pickableAccounts(this.accounts, currentValue).forEach(account => {
                 const option = document.createElement('option');
                 option.value = account.id;
-                option.textContent = account.name;
+                option.textContent = accountOptionLabel(account);
                 accountSelect.appendChild(option);
             });
 
@@ -1696,10 +1698,10 @@ export default class TransactionsModule {
 
             // Clear and rebuild options
             toAccountSelect.innerHTML = `<option value="">${t('budget', 'Select account...')}</option>`;
-            this.accounts.forEach(account => {
+            pickableAccounts(this.accounts, currentValue).forEach(account => {
                 const option = document.createElement('option');
                 option.value = account.id;
-                option.textContent = account.name;
+                option.textContent = accountOptionLabel(account);
                 toAccountSelect.appendChild(option);
             });
 
@@ -1747,7 +1749,8 @@ export default class TransactionsModule {
                 // Populate form with transaction data (editing or duplicating mode)
                 document.getElementById('transaction-id').value = transaction.id || '';
                 setDateValue('transaction-date', transaction.date);
-                document.getElementById('transaction-account').value = transaction.accountId;
+                // Editing history in a closed account keeps that account selected (#372)
+                selectAccountValue(document.getElementById('transaction-account'), this.accounts, transaction.accountId);
                 document.getElementById('transaction-type').value = transaction.type;
                 document.getElementById('transaction-amount').value = transaction.amount;
                 document.getElementById('transaction-description').value = transaction.description;
@@ -4484,10 +4487,11 @@ export default class TransactionsModule {
         const select = document.createElement('select');
         select.className = 'inline-edit-select';
 
-        this.accounts?.forEach(account => {
+        // Open accounts, plus the row's own account if that one is closed (#372)
+        pickableAccounts(this.accounts, currentAccountId).forEach(account => {
             const option = document.createElement('option');
             option.value = account.id;
-            option.textContent = account.name;
+            option.textContent = accountOptionLabel(account);
             option.selected = account.id === parseInt(currentAccountId);
             select.appendChild(option);
         });

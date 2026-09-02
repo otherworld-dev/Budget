@@ -5,7 +5,8 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
-import { serverErrorMessage } from '../../utils/helpers.js';
+import { serverErrorMessage, groupImportErrors } from '../../utils/helpers.js';
+import { openAccounts } from '../../utils/accounts.js';
 import MultiSelect from '../../utils/multiselect.js';
 
 /**
@@ -1819,7 +1820,7 @@ export default class ImportModule {
                 const select = document.getElementById('import-account');
                 if (select) {
                     select.innerHTML = `<option value="">${t('budget', 'Select account…')}</option>`;
-                    accounts.forEach(account => {
+                    openAccounts(accounts).forEach(account => {
                         const option = document.createElement('option');
                         option.value = account.id;
                         const accountNum = account.accountNumber ? ` - ${account.accountNumber}` : '';
@@ -1859,7 +1860,7 @@ export default class ImportModule {
             // Build account options HTML with auto-match selection
             const suggestedMatch = sourceAccount.suggestedMatch;
             let optionsHtml = `<option value="">${t('budget', 'Skip this account')}</option>`;
-            accounts.forEach(account => {
+            openAccounts(accounts).forEach(account => {
                 const accountNum = account.accountNumber ? ` - ${account.accountNumber}` : '';
                 const selected = suggestedMatch === account.id ? ' selected' : '';
                 optionsHtml += `<option value="${account.id}"${selected}>${account.name} (${account.type}${accountNum})</option>`;
@@ -1907,6 +1908,65 @@ export default class ImportModule {
             }
         });
         return mapping;
+    }
+
+    /**
+     * Show why rows did not import, grouped by reason.
+     *
+     * One file usually fails one way, so fourteen identical messages are one
+     * line with the row numbers behind it rather than fourteen lines.
+     *
+     * @param {Array<{row: number|string, error: string}>} errors - From the import API
+     */
+    showImportErrors(errors) {
+        document.getElementById('import-errors-modal')?.remove();
+
+        const total = errors.length;
+        const groups = groupImportErrors(errors);
+        const rowsLabel = (rows) => {
+            if (rows.length === 0) {
+                return '';
+            }
+            const shown = rows.slice(0, 12).join(', ');
+            return rows.length > 12
+                ? t('budget', 'Rows {rows} and {count} more', { rows: shown, count: rows.length - 12 })
+                : t('budget', 'Rows {rows}', { rows: shown });
+        };
+
+        const modal = document.createElement('div');
+        modal.id = 'import-errors-modal';
+        modal.className = 'budget-modal-overlay';
+        modal.innerHTML = `
+            <div class="budget-modal" style="max-width: 640px;">
+                <div class="budget-modal-header">
+                    <h2>${n('budget', '%n row was not imported', '%n rows were not imported', total)}</h2>
+                    <button class="close-btn" title="${t('budget', 'Close')}">&times;</button>
+                </div>
+                <div class="budget-modal-body">
+                    <ul style="margin: 0; padding-left: 1.2em;">
+                        ${groups.map(group => `
+                            <li style="margin-bottom: 0.6em;">
+                                <div>${dom.escapeHtml(group.message)}</div>
+                                <div style="opacity: 0.7; font-size: 0.9em;">${dom.escapeHtml(rowsLabel(group.rows))}</div>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+                <div class="budget-modal-footer">
+                    <button class="confirm-btn primary">${t('budget', 'Close')}</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        const close = () => modal.remove();
+        modal.querySelector('.close-btn').addEventListener('click', close);
+        modal.querySelector('.confirm-btn').addEventListener('click', close);
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                close();
+            }
+        });
     }
 
     async executeImport() {
@@ -2004,13 +2064,12 @@ export default class ImportModule {
                 }
                 if (result.errors && result.errors.length > 0) {
                     // Partial failure (e.g. a mapped destination account was
-                    // deleted) — must not masquerade as a full success
-                    showWarning(n(
-                        'budget',
-                        '%n row could not be imported — check the server log for details.',
-                        '%n rows could not be imported — check the server log for details.',
-                        result.errors.length
-                    ));
+                    // deleted) — must not masquerade as a full success. The
+                    // server sends a reason per row and this used to throw
+                    // them away and point at nextcloud.log, which in #333 was
+                    // a log the reporter could not read: 14 of 27 rows dropped
+                    // and no way to find out why.
+                    this.showImportErrors(result.errors);
                     console.warn('Import errors:', result.errors);
                 }
                 if (result.categoriesCreated && result.categoriesCreated > 0) {

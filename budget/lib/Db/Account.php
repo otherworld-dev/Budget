@@ -67,6 +67,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setExcludedFromReports(?bool $excludedFromReports)
  * @method bool|null getLiabilityInCredit()
  * @method void setLiabilityInCredit(?bool $liabilityInCredit)
+ * @method bool|null getClosed()
+ * @method void setClosed(?bool $closed)
  */
 class Account extends Entity implements JsonSerializable {
     protected $userId;
@@ -117,6 +119,11 @@ class Account extends Entity implements JsonSerializable {
     // account is in credit / overpaid rather than a mis-signed debt (#353).
     // NULL = never declared; the Repair Data tool resolves legacy rows.
     protected $liabilityInCredit;
+    // A closed account keeps its history and still counts in every total,
+    // but no picker offers it for new activity (#372). Closing is gated by
+    // AccountClosureService: zero balance, nothing after today, nothing
+    // scheduled to post into it. NULL = open (the column post-dates most rows).
+    protected $closed;
 
     public function __construct() {
         $this->addType('id', 'integer');
@@ -131,6 +138,7 @@ class Account extends Entity implements JsonSerializable {
         $this->addType('accruedInterest', 'float');
         $this->addType('excludedFromReports', 'boolean');
         $this->addType('liabilityInCredit', 'boolean');
+        $this->addType('closed', 'boolean');
     }
 
     /**
@@ -194,6 +202,7 @@ class Account extends Entity implements JsonSerializable {
             'lastReconciled' => $this->getLastReconciled(),
             'excludedFromReports' => $this->getExcludedFromReports() ?? false,
             'liabilityInCredit' => $this->getLiabilityInCredit(),
+            'closed' => $this->getClosed() ?? false,
             'hasSensitiveData' => $this->hasSensitiveData(),
         ];
     }
@@ -233,6 +242,7 @@ class Account extends Entity implements JsonSerializable {
             'lastReconciled' => $this->getLastReconciled(),
             'excludedFromReports' => $this->getExcludedFromReports() ?? false,
             'liabilityInCredit' => $this->getLiabilityInCredit(),
+            'closed' => $this->getClosed() ?? false,
         ];
     }
 

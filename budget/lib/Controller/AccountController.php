@@ -471,6 +471,13 @@ class AccountController extends Controller {
                 $updates['excludedFromReports'] = filter_var($data['excludedFromReports'], FILTER_VALIDATE_BOOLEAN);
             }
 
+            // Closed flag (#372). The service gates a close on the stored state
+            // and refuses with a reason the form shows verbatim. A new account is
+            // never born closed, so create() ignores the key.
+            if (array_key_exists('closed', $data)) {
+                $updates['closed'] = filter_var($data['closed'], FILTER_VALIDATE_BOOLEAN);
+            }
+
             if (empty($updates)) {
                 return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
@@ -498,6 +505,11 @@ class AccountController extends Controller {
             $this->auditService->logAccountUpdated($this->getEffectiveUserId(), $id, $updates);
 
             return new DataResponse($account);
+        } catch (\InvalidArgumentException $e) {
+            // The service's own refusals carry the reason the user needs — a
+            // close blocked by a balance or a bill (#372), a stale client
+            // (#353) — so they reach the form verbatim.
+            return $this->handleValidationError($e, ['accountId' => $id]);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to update account'), Http::STATUS_BAD_REQUEST, ['accountId' => $id]);
         }

@@ -38,6 +38,7 @@ class ImportService {
     private TagSetService $tagSetService;
     private TransactionTagService $transactionTagService;
     private ImportAccountLinkService $accountLinkService;
+    private SettingService $settingService;
     private IL10N $l;
     private LoggerInterface $logger;
 
@@ -61,6 +62,7 @@ class ImportService {
         TransactionTagService $transactionTagService,
         ImportAccountLinkService $accountLinkService,
         private \OCA\Budget\Service\BillService $billService,
+        SettingService $settingService,
         IL10N $l,
         LoggerInterface $logger
     ) {
@@ -79,6 +81,7 @@ class ImportService {
         $this->tagSetService = $tagSetService;
         $this->transactionTagService = $transactionTagService;
         $this->accountLinkService = $accountLinkService;
+        $this->settingService = $settingService;
         $this->l = $l;
         $this->logger = $logger;
     }
@@ -753,12 +756,17 @@ class ImportService {
                 if ($hasAccountColumn) {
                     $txAccountName = $transaction['_accountName'] ?? '';
                     if ($txAccountName === '') {
-                        $errors[] = ['row' => $index, 'error' => $this->l->t('Missing account name'), 'data' => $row];
-                        continue;
+                        // Blank cell: same fallback the import itself makes,
+                        // or the preview promises rows execute will drop.
+                        if ($accountId === null) {
+                            $errors[] = ['row' => $index, 'error' => $this->l->t('This row has no account, and no account was chosen for the import'), 'data' => $row];
+                            continue;
+                        }
+                    } else {
+                        // Find existing account ID for duplicate detection in preview
+                        $existingAccount = $this->accountMapper->findByName($userId, $txAccountName);
+                        $txAccountId = $existingAccount ? $existingAccount->getId() : null;
                     }
-                    // Find existing account ID for duplicate detection in preview
-                    $existingAccount = $this->accountMapper->findByName($userId, $txAccountName);
-                    $txAccountId = $existingAccount ? $existingAccount->getId() : null;
                 }
 
                 if ($txAccountId) {
@@ -1277,21 +1285,32 @@ class ImportService {
                     }
                 }
 
-                // Determine which account this transaction goes to
+                // Determine which account this transaction goes to. A blank
+                // account cell falls back to the account chosen in the wizard
+                // rather than dropping the row: in #333 half a statement was
+                // discarded because those cells were empty in the source.
                 $txAccountId = $accountId;
                 if ($hasAccountColumn) {
                     $txAccountName = $transaction['_accountName'] ?? '';
-                    if ($txAccountName === '' || !isset($resolvedAccounts[$txAccountName])) {
+                    $rowAccountId = $txAccountName !== ''
+                        ? ($resolvedAccounts[$txAccountName] ?? null)
+                        : $accountId;
+                    if ($rowAccountId === null) {
                         $this->logger->warning('Budget import: could not resolve account for row', [
                             'app' => 'budget',
                             'row' => $index + 1,
                             'accountName' => $txAccountName,
                             'fileId' => $fileId,
                         ]);
-                        $errors[] = ['row' => $index + 1, 'error' => $this->l->t('Could not resolve account: %1$s', [$txAccountName])];
+                        $errors[] = [
+                            'row' => $index + 1,
+                            'error' => $txAccountName === ''
+                                ? $this->l->t('This row has no account, and no account was chosen for the import')
+                                : $this->l->t('Could not resolve account: %1$s', [$txAccountName]),
+                        ];
                         continue;
                     }
-                    $txAccountId = $resolvedAccounts[$txAccountName];
+                    $txAccountId = $rowAccountId;
                 }
 
                 $importId = $this->occurrenceAwareImportId(
@@ -1389,7 +1408,11 @@ class ImportService {
 
                 // Track per-account stats
                 if ($hasAccountColumn) {
-                    $txAccountName = $transaction['_accountName'] ?? 'Unknown';
+                    $txAccountName = $transaction['_accountName'] ?? '';
+                    if ($txAccountName === '') {
+                        // Fell back to the chosen account above - tally it there
+                        $txAccountName = $account ? $account->getName() : 'Unknown';
+                    }
                     if (!isset($perAccountResults[$txAccountName])) {
                         $perAccountResults[$txAccountName] = [
                             'destinationAccountId' => $txAccountId,
@@ -1478,6 +1501,37 @@ class ImportService {
     }
 
     /**
+     * Whether a parsed row would import as a transaction under this mapping.
+     *
+     * Deliberately asks the normalizer rather than testing the columns
+     * itself - "valid" has to mean exactly what the import loop means by it,
+     * or the two drift.
+     *
+     * @param array<int|string, mixed> $row
+     * @param array<string, mixed> $mapping
+     */
+    private function rowIsTransaction(array $row, array $mapping): bool {
+        try {
+            $this->normalizer->mapRowToTransaction($row, $mapping);
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Currency for an account the importer creates when the file names none.
+     *
+     * This was hardcoded 'USD', so a CHF user importing a file with an
+     * account column silently got dollar accounts (#333).
+     */
+    private function defaultCurrency(string $userId): string {
+        $currency = strtoupper(trim((string) ($this->settingService->get($userId, 'default_currency') ?? '')));
+
+        return preg_match('/^[A-Z]{3}$/', $currency) === 1 ? $currency : 'USD';
+    }
+
+    /**
      * Resolve accounts from preset metadata or manual account column mapping.
      * Creates missing accounts on execute (dryRun=false).
      *
@@ -1503,6 +1557,7 @@ class ImportService {
         }
 
         $currencyColumn = $mapping['currency'] ?? ($preset ? 'Currency' : null);
+        $defaultCurrency = $this->defaultCurrency($userId);
 
         // Collect unique accounts with their currencies
         $accountInfo = [];
@@ -1518,12 +1573,21 @@ class ImportService {
                 if ($processed === null) {
                     continue;
                 }
+            } elseif (!$this->rowIsTransaction($row, $mapping)) {
+                // Only a row that would import as a transaction may name an
+                // account. With a manual mapping the header row survives the
+                // parse whenever "first row is a header" is off, and its own
+                // text then became an account: #333 ended up with a USD
+                // account literally called "Account:", the column's title.
+                // Presets are exempt - they always drop the header row and
+                // filter with postProcessRow above.
+                continue;
             }
 
             if (!isset($accountInfo[$name])) {
                 $currency = ($currencyColumn !== null && $currencyColumn !== '') && !empty($row[$currencyColumn])
                     ? strtoupper(trim($row[$currencyColumn]))
-                    : 'USD';
+                    : $defaultCurrency;
                 $accountInfo[$name] = [
                     'name' => $name,
                     'currency' => $currency,
@@ -1734,9 +1798,10 @@ class ImportService {
             return $sourceAccounts;
         }
 
-        // Only suggest accounts that still exist for the user.
+        // Only suggest accounts that still exist for the user — and are open:
+        // an old statement must not preselect a closed account (#372).
         $validIds = [];
-        foreach ($this->accountMapper->findAll($userId) as $account) {
+        foreach ($this->accountMapper->findOpen($userId) as $account) {
             $validIds[$account->getId()] = true;
         }
 
@@ -1756,7 +1821,9 @@ class ImportService {
     }
 
     private function matchSourceAccounts(string $userId, array $sourceAccounts): array {
-        $userAccounts = $this->accountMapper->findAll($userId);
+        // Closed accounts are hidden from the mapping picker, so matching one
+        // by account number would select something the user cannot see (#372).
+        $userAccounts = $this->accountMapper->findOpen($userId);
         $matches = [];
 
         foreach ($sourceAccounts as $source) {

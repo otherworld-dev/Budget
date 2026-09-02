@@ -71,11 +71,15 @@ class PageController extends Controller {
         Util::addStyle(Application::APP_ID, 'style');
 
         // Fetch minimal data needed for the form
-        $accounts = $this->accountMapper->findAll($this->userId);
+        // Quick-add creates a transaction, so closed accounts are not offered (#372)
+        $accounts = $this->accountMapper->findOpen($this->userId);
         $sharedAccounts = $this->granularShareService->getSharedAccounts($this->userId);
 
         $accountList = array_map(fn($a) => ['id' => $a->getId(), 'name' => $a->getName()], $accounts);
         foreach ($sharedAccounts as $sa) {
+            if (!empty($sa['closed'])) {
+                continue;
+            }
             $accountList[] = ['id' => $sa['id'], 'name' => $sa['name']];
         }
 

@@ -1,5 +1,7 @@
 import './ActionBuilder.css';
 import { buildCategoryOptionsHtml } from '../../../utils/dom.js';
+import { offerableTagSets } from '../../../utils/tags.js';
+import { pickableAccounts, accountOptionLabel } from '../../../utils/accounts.js';
 import { translate as t } from '@nextcloud/l10n';
 
 /**
@@ -236,8 +238,9 @@ export class ActionBuilder {
 	}
 
 	renderTagsAction(action, index) {
-		const tagSets = this.options.tagSets || [];
 		const selectedTagIds = Array.isArray(action.value) ? action.value : [];
+		// Hidden tags are not offered, except ones this action already adds (#373)
+		const tagSets = offerableTagSets(this.options.tagSets || [], selectedTagIds);
 
 		return `
 			<div class="form-row">
@@ -269,14 +272,15 @@ export class ActionBuilder {
 	}
 
 	renderAccountAction(action, index) {
-		const accounts = this.options.accounts || [];
+		// A rule routes NEW transactions, so closed accounts are not offered (#372)
+		const accounts = pickableAccounts(this.options.accounts, action.value);
 		return `
 			<div class="form-row">
 				<label>${t('budget', 'Account:')}</label>
 				<select class="action-value" data-index="${index}" data-field="value">
 					<option value="">${t('budget', '-- Select Account --')}</option>
 					${accounts.map(account => `
-						<option value="${account.id}" ${action.value == account.id ? 'selected' : ''}>${this.escapeHtml(account.name)}</option>
+						<option value="${account.id}" ${action.value == account.id ? 'selected' : ''}>${this.escapeHtml(accountOptionLabel(account))}</option>
 					`).join('')}
 				</select>
 			</div>

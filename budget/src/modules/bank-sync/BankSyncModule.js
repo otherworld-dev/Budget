@@ -1,6 +1,7 @@
 import { translate as t } from '@nextcloud/l10n';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { serverErrorMessage } from '../../utils/helpers.js';
+import { pickableAccounts, accountOptionLabel } from '../../utils/accounts.js';
 
 /**
  * Bank Sync Module — manages bank connections, account mappings, and sync operations.
@@ -801,9 +802,11 @@ export default class BankSyncModule {
         const container = document.getElementById('bank-mappings-list');
         if (!container) return;
 
-        const accounts = this.app.accounts || [];
+        // A mapping syncs NEW transactions in, so closed accounts are not offered
+        // — except one a mapping already targets (#372).
+        const accounts = pickableAccounts(this.app.accounts, mappings.map(m => m.budgetAccountId));
         const accountOptions = accounts.map(a =>
-            `<option value="${a.id}">${this.escapeHtml(a.name)} (${a.currency})</option>`
+            `<option value="${a.id}">${this.escapeHtml(accountOptionLabel(a))} (${a.currency})</option>`
         ).join('');
 
         container.innerHTML = mappings.map(mapping => {

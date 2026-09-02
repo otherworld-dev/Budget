@@ -746,6 +746,10 @@ class MigrationService {
             $account->setOverdraftLimit($accData['overdraftLimit'] ?? null);
             $account->setMinimumPayment($accData['minimumPayment'] ?? null);
             $account->setStatementDay(isset($accData['statementDay']) ? (int) $accData['statementDay'] : null);
+            // Both flags were dropped by every restore before #372 — the
+            // exclude-from-reports one had been lost since #286.
+            $account->setExcludedFromReports((bool) ($accData['excludedFromReports'] ?? false));
+            $account->setClosed((bool) ($accData['closed'] ?? false));
             $account->setCreatedAt($accData['createdAt'] ?? date('Y-m-d H:i:s'));
             $account->setUpdatedAt($accData['updatedAt'] ?? date('Y-m-d H:i:s'));
 

@@ -6,6 +6,8 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
+import { offerableTags } from '../../utils/tags.js';
+import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
 
 export default class SavingsModule {
     constructor(app) {
@@ -258,10 +260,12 @@ export default class SavingsModule {
         const dropdown = document.getElementById('goal-account');
         if (!dropdown) return;
 
+        // A goal tracks a balance rather than posting into the account, so a
+        // closed one is not offered anew but stays if already linked (#372).
         dropdown.innerHTML = `<option value="">${t('budget', 'No linked account')}</option>` +
-            (Array.isArray(this.accounts) ? this.accounts.map(a =>
-                `<option value="${a.id}">${dom.escapeHtml(a.name)}</option>`
-            ).join('') : '');
+            pickableAccounts(this.accounts, dropdown.value).map(a =>
+                `<option value="${a.id}">${dom.escapeHtml(accountOptionLabel(a))}</option>`
+            ).join('');
     }
 
     async populateGoalTagDropdown() {
@@ -277,14 +281,20 @@ export default class SavingsModule {
             if (!tagSetsResponse.ok) throw new Error(`HTTP ${tagSetsResponse.status}`);
             this._allTagSets = await tagSetsResponse.json();
 
+            // Every tag by id, hidden ones included, so ensureGoalTagOption()
+            // can put back the one a goal is already linked to (#373).
+            this._goalTagsById = new Map();
+
             let html = `<option value="">${t('budget', 'No linked tag')}</option>`;
 
-            // Global tags first
+            // Global tags first — hidden ones are not offered for a new link
             if (globalTagsResponse.ok) {
                 const globalTags = await globalTagsResponse.json();
-                if (globalTags.length > 0) {
+                globalTags.forEach(tag => this._goalTagsById.set(tag.id, tag));
+                const offered = offerableTags(globalTags);
+                if (offered.length > 0) {
                     html += `<optgroup label="${t('budget', 'Tags')}">`;
-                    for (const tag of globalTags) {
+                    for (const tag of offered) {
                         html += `<option value="${tag.id}">${dom.escapeHtml(tag.name)}</option>`;
                     }
                     html += '</optgroup>';
@@ -293,9 +303,11 @@ export default class SavingsModule {
 
             // Category tag sets
             for (const tagSet of this._allTagSets) {
-                if (tagSet.tags && tagSet.tags.length > 0) {
+                (tagSet.tags || []).forEach(tag => this._goalTagsById.set(tag.id, tag));
+                const offered = offerableTags(tagSet.tags);
+                if (offered.length > 0) {
                     html += `<optgroup label="${dom.escapeHtml(tagSet.name)}">`;
-                    for (const tag of tagSet.tags) {
+                    for (const tag of offered) {
                         html += `<option value="${tag.id}">${dom.escapeHtml(tag.name)}</option>`;
                     }
                     html += '</optgroup>';
@@ -305,6 +317,25 @@ export default class SavingsModule {
         } catch (error) {
             console.error('Failed to load tags for goal dropdown:', error);
         }
+    }
+
+    /**
+     * Make sure the tag a goal is linked to can be selected, even when it
+     * is hidden and so was left out of the dropdown (#373). Without this
+     * the select silently falls back to "" and saving unlinks the goal.
+     */
+    ensureGoalTagOption(tagId) {
+        const dropdown = document.getElementById('goal-tag');
+        if (!dropdown || !tagId) return;
+        if (dropdown.querySelector(`option[value="${tagId}"]`)) return;
+
+        const tag = this._goalTagsById?.get(tagId);
+        if (!tag) return;
+
+        const option = document.createElement('option');
+        option.value = String(tag.id);
+        option.textContent = tag.name;
+        dropdown.appendChild(option);
     }
 
     showGoalModal(goal = null) {
@@ -338,8 +369,9 @@ export default class SavingsModule {
             setDateValue('goal-target-date', goal.targetDate || goal.target_date || '');
             document.getElementById('goal-notes').value = goal.description || '';
 
-            // Set tag dropdown
+            // Set tag dropdown (a hidden linked tag is put back first, #373)
             if (tagDropdown && goal.tagId) {
+                this.ensureGoalTagOption(goal.tagId);
                 tagDropdown.value = goal.tagId;
                 this.updateCurrentAmountFieldState(true);
             }
@@ -347,7 +379,7 @@ export default class SavingsModule {
             // Set account dropdown
             const accountDropdown = document.getElementById('goal-account');
             if (accountDropdown && goal.accountId) {
-                accountDropdown.value = goal.accountId;
+                selectAccountValue(accountDropdown, this.accounts, goal.accountId);
             }
 
             // Set color

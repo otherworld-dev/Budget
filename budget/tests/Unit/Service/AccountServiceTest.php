@@ -8,6 +8,7 @@ use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\InterestRateMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Service\AccountClosureService;
 use OCA\Budget\Service\AccountService;
 use OCA\Budget\Service\CurrencyConversionService;
 use OCA\Budget\Service\GranularShareService;
@@ -638,5 +639,100 @@ class AccountServiceTest extends TestCase {
         $this->service->update(1, 'user1', ['type' => 'savings', 'openingBalance' => 100.0]);
 
         $this->assertNull($captured->getLiabilityInCredit());
+    }
+
+    // ===== closing an account (#372) =====
+
+    /** The service wired with a closure guard, which setUp() leaves out. */
+    private function serviceWithGuard(AccountClosureService $guard): AccountService {
+        $l = $this->createMock(IL10N::class);
+        $l->method('t')->willReturnArgument(0);
+
+        return new AccountService(
+            $this->accountMapper,
+            $this->transactionMapper,
+            $this->createMock(InterestRateMapper::class),
+            $this->conversionService,
+            $this->granularShareService,
+            $this->transactionService,
+            $l,
+            null,
+            $guard
+        );
+    }
+
+    /**
+     * The guard runs against the stored state BEFORE anything is written, so a
+     * refused close leaves the account exactly as it was: no half-saved edit.
+     */
+    public function testClosingRunsTheGuardBeforeAnythingIsSaved(): void {
+        $account = $this->makeAccount(['balance' => 12.34]);
+        $this->accountMapper->method('find')->willReturn($account);
+
+        $guard = $this->createMock(AccountClosureService::class);
+        $guard->expects($this->once())
+            ->method('assertClosable')
+            ->with($account)
+            ->willThrowException(new \InvalidArgumentException('still has a balance'));
+        $this->accountMapper->expects($this->never())->method('update');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('still has a balance');
+
+        $this->serviceWithGuard($guard)->update(1, 'user1', ['closed' => true, 'name' => 'Renamed']);
+    }
+
+    public function testClosingPersistsTheFlagWhenTheGuardPasses(): void {
+        $account = $this->makeAccount(['balance' => 0.0]);
+        $this->accountMapper->method('find')->willReturn($account);
+
+        $guard = $this->createMock(AccountClosureService::class);
+        $guard->expects($this->once())->method('assertClosable')->with($account);
+        $this->accountMapper->expects($this->once())
+            ->method('update')
+            ->with($this->callback(fn(Account $a) => $a->getClosed() === true))
+            ->willReturnArgument(0);
+
+        $this->serviceWithGuard($guard)->update(1, 'user1', ['closed' => true]);
+    }
+
+    public function testReopeningSkipsTheGuard(): void {
+        $account = $this->makeAccount();
+        $account->setClosed(true);
+        $this->accountMapper->method('find')->willReturn($account);
+
+        $guard = $this->createMock(AccountClosureService::class);
+        $guard->expects($this->never())->method('assertClosable');
+        $this->accountMapper->expects($this->once())
+            ->method('update')
+            ->with($this->callback(fn(Account $a) => $a->getClosed() === false))
+            ->willReturnArgument(0);
+
+        $this->serviceWithGuard($guard)->update(1, 'user1', ['closed' => false]);
+    }
+
+    public function testEditingAClosedAccountWithoutTheFlagSkipsTheGuard(): void {
+        $account = $this->makeAccount();
+        $account->setClosed(true);
+        $this->accountMapper->method('find')->willReturn($account);
+        $this->accountMapper->method('update')->willReturnArgument(0);
+
+        $guard = $this->createMock(AccountClosureService::class);
+        $guard->expects($this->never())->method('assertClosable');
+
+        $this->serviceWithGuard($guard)->update(1, 'user1', ['name' => 'Renamed']);
+    }
+
+    /** Re-sending closed=true for an already-closed account is a no-op, not a re-check. */
+    public function testReClosingAClosedAccountSkipsTheGuard(): void {
+        $account = $this->makeAccount(['balance' => 50.0]);
+        $account->setClosed(true);
+        $this->accountMapper->method('find')->willReturn($account);
+        $this->accountMapper->method('update')->willReturnArgument(0);
+
+        $guard = $this->createMock(AccountClosureService::class);
+        $guard->expects($this->never())->method('assertClosable');
+
+        $this->serviceWithGuard($guard)->update(1, 'user1', ['closed' => true]);
     }
 }

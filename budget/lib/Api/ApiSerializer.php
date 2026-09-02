@@ -42,6 +42,9 @@ final class ApiSerializer {
             'base_currency' => $a['baseCurrency'] ?? null,
             'institution' => $a['institution'] ?? null,
             'shared' => (bool)($a['_shared'] ?? false),
+            // Closed accounts keep their history but take no new activity (#372);
+            // a capture client should leave them out of its own picker.
+            'closed' => (bool)($a['closed'] ?? false),
             'updated_at' => $a['updatedAt'] ?? null,
         ];
     }

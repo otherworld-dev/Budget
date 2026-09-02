@@ -333,4 +333,61 @@ class AccountMapperTest extends TestCase {
 
         $this->assertEquals(0, $count);
     }
+
+    // ===== closed accounts (#372) =====
+
+    /**
+     * Same trap as #286: update() lists every column by hand, so a flag left
+     * off that list is set on the entity, survives insert, and silently never
+     * lands on update — closing an account would appear to work and then
+     * revert on the next reload.
+     */
+    public function testUpdatePersistsClosed(): void {
+        $this->qb->method('executeStatement')->willReturn(1);
+        $this->result->method('fetch')
+            ->willReturnOnConsecutiveCalls(
+                $this->makeAccountRow(['closed' => 1]),
+                false
+            );
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $account = new Account();
+        $account->setId(1);
+        $account->setUserId('user1');
+        $account->setName('Old current account');
+        $account->setType('checking');
+        $account->setBalance(0.0);
+        $account->setCurrency('GBP');
+        $account->setClosed(true);
+
+        $this->mapper->update($account);
+
+        $this->assertContains('closed', $this->setColumns,
+            'update() must persist the closed column');
+    }
+
+    /**
+     * findOpen() feeds every server-side "pick an account for new activity"
+     * list — the standalone quick-add page and import auto-matching. NULL
+     * counts as open so rows from before the column existed keep appearing.
+     */
+    public function testFindOpenLeavesClosedAccountsOut(): void {
+        $this->expr->expects($this->once())->method('isNull')->with('closed');
+        $this->result->method('fetch')->willReturn(false);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $this->mapper->findOpen('user1');
+    }
+
+    /** The accrual job has no business posting interest into a closed account. */
+    public function testFindWithInterestEnabledLeavesClosedAccountsOut(): void {
+        $this->expr->expects($this->once())->method('isNull')->with('closed');
+        $this->result->method('fetch')->willReturn(false);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $this->mapper->findWithInterestEnabled('user1');
+    }
 }

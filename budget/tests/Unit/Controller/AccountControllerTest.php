@@ -933,4 +933,47 @@ class AccountControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
+
+	// ===== closed accounts (#372) =====
+
+	public function testUpdatePassesClosed(): void {
+		$this->mockInput(json_encode(['closed' => true]));
+
+		$this->service->expects($this->once())
+			->method('update')
+			->with(1, 'user1', $this->callback(fn($updates) => ($updates['closed'] ?? null) === true))
+			->willReturn($this->makeAccount());
+
+		$response = $this->controller->update(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	/** The guard's reason must reach the form verbatim, not a generic failure. */
+	public function testUpdateReportsARefusedClosure(): void {
+		$this->mockInput(json_encode(['closed' => true]));
+		$this->service->method('update')
+			->willThrowException(new \InvalidArgumentException('This account still has a balance of 12.34.'));
+
+		$response = $this->controller->update(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('This account still has a balance of 12.34.', $response->getData()['error']);
+	}
+
+	/** A brand-new account is never born closed, whatever the payload says. */
+	public function testCreateIgnoresClosed(): void {
+		$captured = null;
+		$account = $this->makeAccount();
+		$this->service->method('create')->willReturnCallback(function (...$args) use (&$captured, $account) {
+			$captured = $args;
+			return $account;
+		});
+		$this->mockInput(json_encode(['name' => 'New', 'type' => 'checking', 'closed' => true]));
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertNotContains('closed', array_keys($captured), 'create() takes no closed argument');
+	}
 }

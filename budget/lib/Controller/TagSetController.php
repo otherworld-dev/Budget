@@ -300,6 +300,9 @@ class TagSetController extends Controller {
             if (isset($data['sortOrder'])) {
                 $updates['sortOrder'] = (int)$data['sortOrder'];
             }
+            if (array_key_exists('hidden', $data)) {
+                $updates['hidden'] = filter_var($data['hidden'], FILTER_VALIDATE_BOOLEAN);
+            }
 
             if (empty($updates)) {
                 return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
@@ -399,6 +402,10 @@ class TagSetController extends Controller {
                     return new DataResponse(['error' => $colorValidation['error']], Http::STATUS_BAD_REQUEST);
                 }
                 $updates['color'] = $colorValidation['sanitized'];
+            }
+
+            if (array_key_exists('hidden', $data)) {
+                $updates['hidden'] = filter_var($data['hidden'], FILTER_VALIDATE_BOOLEAN);
             }
 
             if (empty($updates)) {

@@ -798,4 +798,44 @@ class MigrationServiceTest extends TestCase {
 
 		return $content;
 	}
+
+	/**
+	 * Two flags the restore path used to drop on the floor (#372). The
+	 * exclude-from-reports flag had been lost on every restore since #286:
+	 * importAccounts() rebuilds the entity field by field and never copied it.
+	 */
+	public function testImportAllRestoresTheClosedAndExcludedFlags(): void {
+		$zipContent = $this->createTestZip([
+			'manifest.json' => json_encode(['version' => '1.0.0', 'appId' => 'budget']),
+			'categories.json' => json_encode([]),
+			'accounts.json' => json_encode([
+				['id' => 200, 'name' => 'Old current', 'type' => 'checking', 'closed' => true, 'excludedFromReports' => true],
+			]),
+			'transactions.json' => json_encode([]),
+			'bills.json' => json_encode([]),
+			'import_rules.json' => json_encode([]),
+			'settings.json' => json_encode([]),
+		]);
+
+		$this->transactionMapper->method('findAll')->willReturn([]);
+		$this->billMapper->method('findAll')->willReturn([]);
+		$this->importRuleMapper->method('findAll')->willReturn([]);
+		$this->accountMapper->method('findAll')->willReturn([]);
+		$this->categoryMapper->method('findAll')->willReturn([]);
+
+		$captured = null;
+		$this->accountMapper->expects($this->once())
+			->method('insert')
+			->willReturnCallback(function (Account $a) use (&$captured) {
+				$captured = $a;
+				$a->setId(2);
+				return $a;
+			});
+
+		$result = $this->service->importAll('user1', $zipContent);
+
+		$this->assertTrue($result['success']);
+		$this->assertTrue($captured->getClosed(), 'closed must survive a restore');
+		$this->assertTrue($captured->getExcludedFromReports(), 'excludedFromReports must survive a restore');
+	}
 }

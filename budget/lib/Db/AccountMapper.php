@@ -10,6 +10,7 @@ use OCA\Budget\Service\EncryptionService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\Entity;
 use OCP\AppFramework\Db\QBMapper;
+use OCP\DB\QueryBuilder\ICompositeExpression;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 
@@ -66,6 +67,36 @@ class AccountMapper extends QBMapper {
 
         $accounts = $this->findEntities($qb);
         return $this->decryptEntities($accounts);
+    }
+
+    /**
+     * The user's accounts that are not closed (#372). This is what every
+     * server-side "pick an account for new activity" list reads — the
+     * standalone quick-add page, import auto-matching — while findAll()
+     * stays the listing for history, totals and the accounts page.
+     *
+     * @return Account[]
+     */
+    public function findOpen(string $userId): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($this->openPredicate($qb))
+            ->orderBy('name', 'ASC');
+
+        return $this->decryptEntities($this->findEntities($qb));
+    }
+
+    /**
+     * Rows not flagged closed. NULL counts as open: the column post-dates
+     * most rows, exactly like excluded_from_reports.
+     */
+    private function openPredicate(IQueryBuilder $qb): ICompositeExpression {
+        return $qb->expr()->orX(
+            $qb->expr()->isNull('closed'),
+            $qb->expr()->eq('closed', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL))
+        );
     }
 
     /**
@@ -188,6 +219,7 @@ class AccountMapper extends QBMapper {
             ->set('wallet_address', $qb->createNamedParameter($this->getEncryptedValue($entity, 'walletAddress')))
             ->set('last_reconciled', $qb->createNamedParameter($entity->getLastReconciled()))
             ->set('excluded_from_reports', $qb->createNamedParameter($entity->getExcludedFromReports() ?? false, IQueryBuilder::PARAM_BOOL))
+            ->set('closed', $qb->createNamedParameter($entity->getClosed() ?? false, IQueryBuilder::PARAM_BOOL))
             ->set('liability_in_credit', $entity->getLiabilityInCredit() === null
                 ? $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL)
                 : $qb->createNamedParameter($entity->getLiabilityInCredit(), IQueryBuilder::PARAM_BOOL))
@@ -210,7 +242,9 @@ class AccountMapper extends QBMapper {
         $qb->select('*')
             ->from($this->getTableName())
             ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('interest_enabled', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)));
+            ->andWhere($qb->expr()->eq('interest_enabled', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+            // A closed account accrues nothing (#372)
+            ->andWhere($this->openPredicate($qb));
 
         return $this->findEntities($qb);
     }

@@ -4,6 +4,7 @@
 import { translate as t } from '@nextcloud/l10n';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showInfo } from '../../utils/notifications.js';
+import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 
 export default class TagSetsModule {
     constructor(app) {
@@ -77,9 +78,10 @@ export default class TagSetsModule {
         let html = '<div class="global-tags-grid">';
         this.globalTags.forEach(tag => {
             html += `
-                <div class="global-tag-chip" data-tag-id="${tag.id}">
+                <div class="global-tag-chip${tag.hidden ? ' is-hidden' : ''}" data-tag-id="${tag.id}"${tag.hidden ? ` title="${t('budget', 'Hidden: not offered when tagging new transactions')}"` : ''}>
                     <span class="global-tag-chip-color" style="background-color: ${tag.color || '#666'};"></span>
                     <span class="global-tag-chip-name">${dom.escapeHtml(tag.name)}</span>
+                    ${tag.hidden ? `<span class="tag-hidden-label">${t('budget', 'Hidden')}</span>` : ''}
                     <button class="global-tag-chip-action edit-global-tag-btn" data-tag-id="${tag.id}" title="${t('budget', 'Edit')}">✎</button>
                     <button class="global-tag-chip-action delete-global-tag-btn" data-tag-id="${tag.id}" title="${t('budget', 'Delete')}">&times;</button>
                 </div>`;
@@ -182,9 +184,13 @@ export default class TagSetsModule {
             document.getElementById('global-tag-name').value = tag.name;
             document.getElementById('global-tag-color').value = tag.color || '#4CAF50';
             document.getElementById('global-tag-color-hex').value = tag.color || '#4CAF50';
+            const hiddenEl = document.getElementById('global-tag-hidden');
+            if (hiddenEl) hiddenEl.checked = !!tag.hidden;
         } else {
             title.textContent = t('budget', 'Add Tag');
             document.getElementById('global-tag-id').value = '';
+            const hiddenEl = document.getElementById('global-tag-hidden');
+            if (hiddenEl) hiddenEl.checked = false;
             // Random default color
             const hue = Math.floor(Math.random() * 360);
             const colorEl = document.getElementById('global-tag-color');
@@ -219,6 +225,7 @@ export default class TagSetsModule {
         const tagId = document.getElementById('global-tag-id').value;
         const name = document.getElementById('global-tag-name').value.trim();
         const color = document.getElementById('global-tag-color').value;
+        const hidden = !!document.getElementById('global-tag-hidden')?.checked;
 
         if (!name) {
             showError(t('budget', 'Tag name is required'));
@@ -230,10 +237,12 @@ export default class TagSetsModule {
                 ? OC.generateUrl(`/apps/budget/api/tags/global/${tagId}`)
                 : OC.generateUrl('/apps/budget/api/tags/global');
 
+            // Hidden is an edit-time choice (#373): a tag is created visible.
+            const payload = tagId ? { name, color, hidden } : { name, color };
             const response = await fetch(url, {
                 method: tagId ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ name, color })
+                body: JSON.stringify(payload)
             });
 
             if (!response.ok) {
@@ -410,9 +419,10 @@ export default class TagSetsModule {
                         ${tagSet.description ? `<p class="tag-set-description">${dom.escapeHtml(tagSet.description)}</p>` : ''}
                         <div class="tags-list">
                             ${tagSet.tags && tagSet.tags.length > 0 ? tagSet.tags.map(tag => `
-                                <span class="tag-badge" style="background-color: ${tag.color || '#666'}">
+                                <span class="tag-badge${tag.hidden ? ' is-hidden' : ''}" style="background-color: ${tag.color || '#666'}"${tag.hidden ? ` title="${t('budget', 'Hidden: not offered when tagging new transactions')}"` : ''}>
                                     ${dom.escapeHtml(tag.name)}
-                                    <button type="button" class="edit-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" data-tag-name="${dom.escapeHtml(tag.name)}" data-tag-color="${tag.color || '#666666'}" title="${t('budget', 'Edit tag')}">✎</button>
+                                    ${tag.hidden ? `<span class="tag-hidden-label">${t('budget', 'Hidden')}</span>` : ''}
+                                    <button type="button" class="edit-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" data-tag-name="${dom.escapeHtml(tag.name)}" data-tag-color="${tag.color || '#666666'}" data-tag-hidden="${tag.hidden ? '1' : '0'}" title="${t('budget', 'Edit tag')}">✎</button>
                                     <button type="button" class="delete-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}">×</button>
                                 </span>
                             `).join('') : `<span style="color: #999; font-size: 12px;">${t('budget', 'No tags yet')}</span>`}
@@ -514,7 +524,7 @@ export default class TagSetsModule {
             btn.addEventListener('click', () => {
                 const tagId = parseInt(btn.dataset.tagId);
                 const tagSetId = parseInt(btn.dataset.tagSetId);
-                this.showEditTagModal(tagId, tagSetId, btn.dataset.tagName, btn.dataset.tagColor, categoryId);
+                this.showEditTagModal(tagId, tagSetId, btn.dataset.tagName, btn.dataset.tagColor, categoryId, btn.dataset.tagHidden === '1');
             });
         });
 
@@ -636,8 +646,14 @@ export default class TagSetsModule {
         const currentTags = await this.loadTransactionTags(transactionId);
         const currentTagIds = currentTags.map(tg => tg.id);
 
-        const hasGlobalTags = this.globalTags.length > 0;
-        const hasCategoryTags = tagSets.length > 0;
+        // Hidden tags are not offered, except ones already on this
+        // transaction (#373) — the change handler below saves every checked
+        // box, so an unlisted tag would be stripped on the next change.
+        const globalTags = offerableTags(this.globalTags, currentTagIds);
+        const offeredTagSets = offerableTagSets(tagSets, currentTagIds);
+
+        const hasGlobalTags = globalTags.length > 0;
+        const hasCategoryTags = offeredTagSets.length > 0;
 
         if (!hasGlobalTags && !hasCategoryTags) {
             container.innerHTML = `<p style="color: #999; font-size: 12px;">${t('budget', 'No tags available')}</p>`;
@@ -652,7 +668,7 @@ export default class TagSetsModule {
                 <div class="tag-set-selector">
                     <label class="tag-set-label">${t('budget', 'Tags')}</label>
                     <div class="tag-options">
-                        ${this.globalTags.map(tag => `
+                        ${globalTags.map(tag => `
                             <label class="tag-option">
                                 <input type="checkbox"
                                        value="${tag.id}"
@@ -669,7 +685,7 @@ export default class TagSetsModule {
         }
 
         // Category tag sets section
-        tagSets.forEach(tagSet => {
+        offeredTagSets.forEach(tagSet => {
             html += `
                 <div class="tag-set-selector">
                     <label class="tag-set-label">${dom.escapeHtml(tagSet.name)}</label>
@@ -764,9 +780,10 @@ export default class TagSetsModule {
                         <td class="tag-set-tags-cell" style="padding: 12px 8px; vertical-align: top;">
                             <div class="tags-container" style="display: flex; flex-wrap: wrap; gap: 6px;">
                                 ${tagSet.tags && tagSet.tags.length > 0 ? tagSet.tags.map(tag => `
-                                    <span class="tag-badge" style="background-color: ${tag.color || '#666'}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                                    <span class="tag-badge${tag.hidden ? ' is-hidden' : ''}" style="background-color: ${tag.color || '#666'}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;"${tag.hidden ? ` title="${t('budget', 'Hidden: not offered when tagging new transactions')}"` : ''}>
                                         ${dom.escapeHtml(tag.name)}
-                                        ${readOnly ? '' : `<button class="edit-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" data-tag-name="${dom.escapeHtml(tag.name)}" data-tag-color="${tag.color || '#666666'}" title="${t('budget', 'Edit tag')}" style="background: none; border: none; color: white; cursor: pointer; padding: 0; font-size: 12px; line-height: 1; opacity: 0.7;">✎</button>
+                                        ${tag.hidden ? `<span class="tag-hidden-label">${t('budget', 'Hidden')}</span>` : ''}
+                                        ${readOnly ? '' : `<button class="edit-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" data-tag-name="${dom.escapeHtml(tag.name)}" data-tag-color="${tag.color || '#666666'}" data-tag-hidden="${tag.hidden ? '1' : '0'}" title="${t('budget', 'Edit tag')}" style="background: none; border: none; color: white; cursor: pointer; padding: 0; font-size: 12px; line-height: 1; opacity: 0.7;">✎</button>
                                         <button class="delete-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete tag')}" style="background: none; border: none; color: white; cursor: pointer; padding: 0; margin-left: 2px; font-size: 16px; line-height: 1; opacity: 0.7;">×</button>`}
                                     </span>
                                 `).join('') : `<span class="no-tags-text" style="color: var(--color-text-maxcontrast); font-size: 12px; font-style: italic;">${t('budget', 'No tags yet')}</span>`}
@@ -868,7 +885,7 @@ export default class TagSetsModule {
                 e.stopPropagation();
                 const tagId = parseInt(btn.dataset.tagId);
                 const tagSetId = parseInt(btn.dataset.tagSetId);
-                this.showEditTagModal(tagId, tagSetId, btn.dataset.tagName, btn.dataset.tagColor, categoryId);
+                this.showEditTagModal(tagId, tagSetId, btn.dataset.tagName, btn.dataset.tagColor, categoryId, btn.dataset.tagHidden === '1');
             });
         });
 
@@ -1169,7 +1186,7 @@ export default class TagSetsModule {
     /**
      * Show modal for editing a tag
      */
-    showEditTagModal(tagId, tagSetId, tagName, tagColor, categoryId) {
+    showEditTagModal(tagId, tagSetId, tagName, tagColor, categoryId, tagHidden = false) {
         const modal = document.getElementById('edit-tag-modal');
         if (!modal) {
             console.error('Edit tag modal not found');
@@ -1181,6 +1198,8 @@ export default class TagSetsModule {
         document.getElementById('edit-tag-category-id').value = categoryId;
         document.getElementById('edit-tag-name').value = tagName;
         document.getElementById('edit-tag-color').value = tagColor;
+        const hiddenEl = document.getElementById('edit-tag-hidden');
+        if (hiddenEl) hiddenEl.checked = !!tagHidden;
 
         modal.style.display = 'flex';
 
@@ -1204,6 +1223,7 @@ export default class TagSetsModule {
         const categoryId = parseInt(document.getElementById('edit-tag-category-id').value);
         const name = document.getElementById('edit-tag-name').value.trim();
         const color = document.getElementById('edit-tag-color').value;
+        const hidden = !!document.getElementById('edit-tag-hidden')?.checked;
 
         // Check for duplicate tag name within the tag set (exclude self)
         const tagSet = this.selectedCategoryTagSets.find(ts => ts.id === tagSetId);
@@ -1218,7 +1238,7 @@ export default class TagSetsModule {
         }
 
         try {
-            await this.updateTag(tagSetId, tagId, { name, color });
+            await this.updateTag(tagSetId, tagId, { name, color, hidden });
             this.hideModals();
             await this.renderCategoryTagSetsList(categoryId);
             this.showNotification(t('budget', 'Tag updated successfully'), 'success');

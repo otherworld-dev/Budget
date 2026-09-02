@@ -295,7 +295,7 @@ class TagSetService extends AbstractCrudService {
         }
 
         // Whitelist allowed fields
-        $updates = array_intersect_key($updates, array_flip(['name', 'color', 'sortOrder']));
+        $updates = array_intersect_key($updates, array_flip(['name', 'color', 'sortOrder', 'hidden']));
 
         if (isset($updates['name'])) {
             if ($this->tagMapper->globalNameExists($userId, $updates['name'], $tag->getId())) {

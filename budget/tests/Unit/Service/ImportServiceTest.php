@@ -38,6 +38,8 @@ class ImportServiceTest extends TestCase {
     private TransactionNormalizer $normalizer;
     private DuplicateDetector $duplicateDetector;
     private ImportRuleApplicator $ruleApplicator;
+    private AccountService $accountService;
+    private \OCA\Budget\Service\SettingService $settingService;
 
     protected function setUp(): void {
         $this->appData = $this->createMock(IAppData::class);
@@ -65,15 +67,16 @@ class ImportServiceTest extends TestCase {
         $categoryService = $this->createMock(CategoryService::class);
         $tagSetService = $this->createMock(TagSetService::class);
         $transactionTagService = $this->createMock(TransactionTagService::class);
-        $accountService = $this->createMock(AccountService::class);
+        $this->accountService = $this->createMock(AccountService::class);
         $accountLinkService = $this->createMock(ImportAccountLinkService::class);
+        $this->settingService = $this->createMock(\OCA\Budget\Service\SettingService::class);
 
         $this->service = new ImportService(
             $this->appData,
             $this->transactionService,
             $transactionMapper,
             $this->accountMapper,
-            $accountService,
+            $this->accountService,
             $this->fileValidator,
             $this->parserFactory,
             $this->normalizer,
@@ -85,6 +88,7 @@ class ImportServiceTest extends TestCase {
             $transactionTagService,
             $accountLinkService,
             $this->createMock(\OCA\Budget\Service\BillService::class),
+            $this->settingService,
             $l,
             $this->createMock(LoggerInterface::class)
         );
@@ -347,6 +351,195 @@ class ImportServiceTest extends TestCase {
         );
 
         $this->assertEquals(1, $result['imported']);
+    }
+
+    // ===== #333: rows with an empty account cell, and junk account names =====
+
+    // His source table left the account blank on half the rows, and every one
+    // of them was dropped with "Could not resolve account:" - 14 of 27 in that
+    // report. The wizard already knows where the file is going.
+    public function testProcessImportFallsBackToChosenAccountWhenRowHasNoAccount(): void {
+        $this->mockImportFile('file.csv', 'csv data');
+        $this->parserFactory->method('detectFormat')->willReturn('csv');
+        $this->parserFactory->method('parse')->willReturn([
+            ['2026-08-25', '', '18.40', 'Zigaretten'],
+        ]);
+
+        $this->accountMapper->method('find')->willReturn($this->makeAccount(1, 'Lohnkonto'));
+        $this->normalizer->method('mapRowToTransaction')->willReturn([
+            'date' => '2026-08-25',
+            'amount' => 18.40,
+            'description' => 'Zigaretten',
+            'type' => 'debit',
+            '_accountName' => '',
+        ]);
+        $this->normalizer->method('generateImportId')->willReturn('imp_blank');
+        $this->duplicateDetector->method('isDuplicateByImportId')->willReturn(false);
+        $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+
+        $this->transactionService->expects($this->once())
+            ->method('create')
+            ->with('user1', 1, '2026-08-25', 'Zigaretten', 18.40, 'debit');
+
+        $result = $this->service->processImport(
+            'user1',
+            'file.csv',
+            ['date' => 0, 'account' => 1, 'amount' => 2, 'description' => 3],
+            1
+        );
+
+        $this->assertEquals(1, $result['imported']);
+        $this->assertSame([], $result['errors']);
+        $this->assertEquals('Lohnkonto', $result['accountResults'][0]['destinationAccountName']);
+    }
+
+    // With no destination chosen either, there is nothing to fall back to and
+    // the row must still be reported rather than imported into nowhere.
+    public function testProcessImportReportsBlankAccountWhenNoAccountWasChosen(): void {
+        $this->mockImportFile('file.csv', 'csv data');
+        $this->parserFactory->method('detectFormat')->willReturn('csv');
+        $this->parserFactory->method('parse')->willReturn([
+            ['2026-08-25', '', '18.40', 'Zigaretten'],
+        ]);
+
+        $this->normalizer->method('mapRowToTransaction')->willReturn([
+            'date' => '2026-08-25',
+            'amount' => 18.40,
+            'description' => 'Zigaretten',
+            'type' => 'debit',
+            '_accountName' => '',
+        ]);
+        $this->normalizer->method('generateImportId')->willReturn('imp_noacct');
+        $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+
+        $this->transactionService->expects($this->never())->method('create');
+
+        $result = $this->service->processImport(
+            'user1',
+            'file.csv',
+            ['date' => 0, 'account' => 1, 'amount' => 2, 'description' => 3],
+            null
+        );
+
+        $this->assertEquals(0, $result['imported']);
+        $this->assertCount(1, $result['errors']);
+        $this->assertStringContainsString('no account', $result['errors'][0]['error']);
+    }
+
+    // A name that is present but unresolved is still an error - the fallback is
+    // for an empty cell, not for a name that would otherwise misfile the row.
+    // (The normalizer is mocked to name an account the resolver never saw,
+    // which is the only way to reach the branch with the resolver stubbed.)
+    public function testProcessImportStillReportsAnUnresolvableAccountName(): void {
+        $this->mockImportFile('file.csv', 'csv data');
+        $this->parserFactory->method('detectFormat')->willReturn('csv');
+        $this->parserFactory->method('parse')->willReturn([
+            ['2026-08-25', '', '18.40', 'Zigaretten'],
+        ]);
+
+        $this->normalizer->method('mapRowToTransaction')->willReturn([
+            'date' => '2026-08-25',
+            'amount' => 18.40,
+            'description' => 'Zigaretten',
+            'type' => 'debit',
+            '_accountName' => 'Sparkonto',
+        ]);
+        $this->normalizer->method('generateImportId')->willReturn('imp_named');
+        $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+
+        $this->transactionService->expects($this->never())->method('create');
+
+        $result = $this->service->processImport(
+            'user1',
+            'file.csv',
+            ['date' => 0, 'account' => 1, 'amount' => 2, 'description' => 3],
+            null
+        );
+
+        $this->assertEquals(0, $result['imported']);
+        $this->assertCount(1, $result['errors']);
+        $this->assertStringContainsString('Sparkonto', $result['errors'][0]['error']);
+    }
+
+    // The header row survives the parse whenever "first row is a header" is
+    // off, and its own text became an account: #333 grew a USD account called
+    // "Account:" out of the column title.
+    public function testProcessImportDoesNotCreateAnAccountFromANonTransactionRow(): void {
+        $this->mockImportFile('file.csv', 'csv data');
+        $this->parserFactory->method('detectFormat')->willReturn('csv');
+        $this->parserFactory->method('parse')->willReturn([
+            ['Date:', 'Account:', 'Amount:', 'Description:'],
+            ['2026-08-25', 'Lohnkonto', '18.40', 'Zigaretten'],
+        ]);
+
+        $this->accountMapper->method('find')->willReturn($this->makeAccount(1, 'Lohnkonto'));
+        $this->accountMapper->method('findByName')->willReturnCallback(
+            fn(string $userId, string $name) => $name === 'Lohnkonto' ? $this->makeAccount(1, 'Lohnkonto') : null
+        );
+        $this->normalizer->method('mapRowToTransaction')->willReturnCallback(function (array $row) {
+            if (($row[0] ?? '') === 'Date:') {
+                throw new \Exception('Invalid date format: Date:');
+            }
+            return [
+                'date' => '2026-08-25',
+                'amount' => 18.40,
+                'description' => 'Zigaretten',
+                'type' => 'debit',
+                '_accountName' => 'Lohnkonto',
+            ];
+        });
+        $this->normalizer->method('generateImportId')->willReturn('imp_header');
+        $this->duplicateDetector->method('isDuplicateByImportId')->willReturn(false);
+        $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+
+        $this->accountService->expects($this->never())->method('create');
+
+        $result = $this->service->processImport(
+            'user1',
+            'file.csv',
+            ['date' => 0, 'account' => 1, 'amount' => 2, 'description' => 3],
+            1
+        );
+
+        $this->assertEquals(1, $result['imported']);
+        $this->assertCount(1, $result['errors']);
+    }
+
+    // Every account he owns is CHF; the importer made the new one USD.
+    public function testProcessImportCreatesAccountsInTheUsersDefaultCurrency(): void {
+        $this->mockImportFile('file.csv', 'csv data');
+        $this->parserFactory->method('detectFormat')->willReturn('csv');
+        $this->parserFactory->method('parse')->willReturn([
+            ['2026-08-25', 'Sparkonto', '18.40', 'Zigaretten'],
+        ]);
+
+        $this->settingService->method('get')->willReturnCallback(
+            fn(string $userId, string $key) => $key === 'default_currency' ? 'CHF' : null
+        );
+        $this->accountMapper->method('find')->willReturn($this->makeAccount(1, 'Lohnkonto'));
+        $this->accountMapper->method('findByName')->willReturn(null);
+        $this->normalizer->method('mapRowToTransaction')->willReturn([
+            'date' => '2026-08-25',
+            'amount' => 18.40,
+            'description' => 'Zigaretten',
+            'type' => 'debit',
+            '_accountName' => 'Sparkonto',
+        ]);
+        $this->normalizer->method('generateImportId')->willReturn('imp_currency');
+        $this->duplicateDetector->method('isDuplicateByImportId')->willReturn(false);
+        $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+
+        $this->accountService->expects($this->once())
+            ->method('create')
+            ->with('user1', 'Sparkonto', $this->anything(), 0.0, 'CHF')
+            ->willReturn($this->makeAccount(8, 'Sparkonto'));
+
+        $this->service->processImport(
+            'user1',
+            'file.csv',
+            ['date' => 0, 'account' => 1, 'amount' => 2, 'description' => 3],
+            1
+        );
     }
 
     public function testProcessSingleAccountSkipsDuplicates(): void {

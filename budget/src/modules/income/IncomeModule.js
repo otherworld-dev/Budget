@@ -7,6 +7,7 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { serverErrorMessage, isoWeekday } from '../../utils/helpers.js';
+import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
 
 export default class IncomeModule {
     constructor(app) {
@@ -349,7 +350,7 @@ export default class IncomeModule {
             document.getElementById('income-expected-day').value = income.expectedDay || income.expected_day || '';
             document.getElementById('income-expected-month').value = income.expectedMonth || income.expected_month || '';
             document.getElementById('income-category').value = income.categoryId || income.category_id || '';
-            document.getElementById('income-account').value = income.accountId || income.account_id || '';
+            selectAccountValue(document.getElementById('income-account'), this.accounts, income.accountId || income.account_id || null);
             document.getElementById('income-auto-pattern').value = income.autoDetectPattern || income.auto_detect_pattern || '';
             document.getElementById('income-notes').value = income.notes || '';
             setDateValue('income-start-date', income.startDate || income.start_date || '');
@@ -465,8 +466,9 @@ export default class IncomeModule {
         if (accountSelect && this.accounts) {
             const currentValue = accountSelect.value;
             accountSelect.innerHTML = `<option value="">${t('budget', 'No specific account')}</option>`;
-            this.accounts.forEach(account => {
-                accountSelect.innerHTML += `<option value="${account.id}">${dom.escapeHtml(account.name)}</option>`;
+            // Closed accounts take no new income; one already selected stays (#372)
+            pickableAccounts(this.accounts, currentValue).forEach(account => {
+                accountSelect.innerHTML += `<option value="${account.id}">${dom.escapeHtml(accountOptionLabel(account))}</option>`;
             });
             if (currentValue) accountSelect.value = currentValue;
         }

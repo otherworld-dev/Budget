@@ -3114,6 +3114,52 @@ button.danger:hover {
     cursor: help;
 }
 
+/* Closed accounts (#372): muted, kept for their history */
+.account-closed-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--color-background-dark);
+    color: var(--color-text-maxcontrast);
+    border: 1px solid var(--color-border);
+    cursor: help;
+}
+
+.account-card.is-closed,
+.account-row.is-closed {
+    opacity: 0.7;
+}
+
+.accounts-closed > summary {
+    cursor: pointer;
+    list-style: none;
+}
+
+.accounts-closed > summary::-webkit-details-marker {
+    display: none;
+}
+
+.accounts-closed > summary .section-title {
+    color: var(--color-text-maxcontrast);
+}
+
+.accounts-closed > summary .section-title::before {
+    content: '\25B8';
+    display: inline-block;
+    width: 1.1em;
+}
+
+.accounts-closed[open] > summary .section-title::before {
+    content: '\25BE';
+}
+
+.form-hint-warning {
+    color: var(--color-warning-text, var(--color-warning, #e9a335));
+}
+
 .account-type {
     font-size: 12px;
     color: var(--color-text-maxcontrast);
@@ -4795,6 +4841,46 @@ button.danger:hover {
 .global-tag-chip-action:hover {
     opacity: 1 !important;
     color: var(--color-main-text);
+}
+
+/* Hidden tags (#373): still listed for management, but visibly parked */
+.global-tag-chip.is-hidden {
+    opacity: 0.6;
+    border-style: dashed;
+}
+
+.tag-badge.is-hidden {
+    opacity: 0.55;
+}
+
+.tag-hidden-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 1px 5px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.25);
+    color: inherit;
+}
+
+.global-tag-chip .tag-hidden-label {
+    background: var(--color-background-dark);
+    color: var(--color-text-maxcontrast);
+}
+
+.tag-hidden-group .checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.tag-hidden-group .form-help {
+    display: block;
+    margin-top: 4px;
+    color: var(--color-text-maxcontrast);
+    font-size: 12px;
 }
 
 /* Global Tag Modal */

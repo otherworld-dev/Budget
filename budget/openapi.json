@@ -1193,7 +1193,8 @@
           "type",
           "currency",
           "balance",
-          "shared"
+          "shared",
+          "closed"
         ],
         "properties": {
           "id": {
@@ -1238,6 +1239,10 @@
           "shared": {
             "type": "boolean",
             "description": "True for an account another user shared. It may be read-only — handle 403 on create."
+          },
+          "closed": {
+            "type": "boolean",
+            "description": "True once the user has closed the account. It keeps its history and its balance is zero; leave it out of any picker for new transactions."
           },
           "updated_at": {
             "type": "string",

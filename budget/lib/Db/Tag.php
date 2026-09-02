@@ -20,6 +20,7 @@ use OCP\AppFramework\Db\Entity;
  * @method void setColor(?string $color)
  * @method int getSortOrder()
  * @method void setSortOrder(int $sortOrder)
+ * @method void setHidden(?bool $hidden)
  * @method string getCreatedAt()
  * @method void setCreatedAt(string $createdAt)
  */
@@ -29,6 +30,7 @@ class Tag extends Entity implements JsonSerializable {
     protected $name;
     protected $color;
     protected $sortOrder;
+    protected $hidden;
     protected $createdAt;
 
     public function __construct() {
@@ -38,6 +40,7 @@ class Tag extends Entity implements JsonSerializable {
         $this->addType('name', 'string');
         $this->addType('color', 'string');
         $this->addType('sortOrder', 'integer');
+        $this->addType('hidden', 'boolean');
         $this->addType('createdAt', 'string');
     }
 
@@ -46,6 +49,14 @@ class Tag extends Entity implements JsonSerializable {
             return null;
         }
         return (int)$this->tagSetId;
+    }
+
+    /**
+     * Hidden tags are kept off the pickers for new entries (#373). The column
+     * post-dates the table, so NULL reads as not hidden.
+     */
+    public function getHidden(): bool {
+        return (bool)$this->hidden;
     }
 
     public function jsonSerialize(): array {
@@ -57,6 +68,7 @@ class Tag extends Entity implements JsonSerializable {
             'name' => $this->getName(),
             'color' => $this->getColor(),
             'sortOrder' => $this->getSortOrder(),
+            'hidden' => $this->getHidden(),
             'createdAt' => $this->getCreatedAt(),
         ];
     }

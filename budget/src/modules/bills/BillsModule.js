@@ -7,6 +7,8 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { serverErrorMessage } from '../../utils/helpers.js';
+import { offerableTags, offerableTagSets } from '../../utils/tags.js';
+import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
 
 export default class BillsModule {
     constructor(app) {
@@ -645,10 +647,12 @@ export default class BillsModule {
                 document.getElementById('bill-category'),
                 bill.categoryId ?? bill.category_id ?? null
             );
-            this.selectPossiblyUnavailable(
-                document.getElementById('bill-account'),
-                bill.accountId ?? bill.account_id ?? null
-            );
+            // A closed account is offered as "(closed)", not as unavailable (#372)
+            const billAccountSelect = document.getElementById('bill-account');
+            const billAccountId = bill.accountId ?? bill.account_id ?? null;
+            if (!selectAccountValue(billAccountSelect, this.accounts, billAccountId)) {
+                this.selectPossiblyUnavailable(billAccountSelect, billAccountId);
+            }
             document.getElementById('bill-auto-pattern').value = bill.autoDetectPattern || bill.auto_detect_pattern || '';
             document.getElementById('bill-notes').value = bill.notes || '';
             const reminderDays = bill.reminderDays ?? bill.reminder_days;
@@ -763,7 +767,7 @@ export default class BillsModule {
         ['bill-category', 'bill-account'].forEach(id => {
             const select = document.getElementById(id);
             if (!select) return;
-            select.querySelectorAll('option[data-unavailable="1"]').forEach(opt => opt.remove());
+            select.querySelectorAll('option[data-unavailable="1"], option[data-closed-account="1"]').forEach(opt => opt.remove());
         });
     }
 
@@ -878,9 +882,10 @@ export default class BillsModule {
         if (accountSelect && this.accounts) {
             const currentValue = accountSelect.value;
             accountSelect.innerHTML = `<option value="">${t('budget', 'No specific account')}</option>`;
-            this.accounts.forEach(acc => {
+            // Closed accounts take no new bills; one already selected stays (#372)
+            pickableAccounts(this.accounts, currentValue).forEach(acc => {
                 const currencyLabel = acc.currency ? ` (${acc.currency})` : '';
-                accountSelect.innerHTML += `<option value="${acc.id}">${dom.escapeHtml(acc.name)}${currencyLabel}</option>`;
+                accountSelect.innerHTML += `<option value="${acc.id}">${dom.escapeHtml(accountOptionLabel(acc))}${currencyLabel}</option>`;
             });
             if (currentValue) accountSelect.value = currentValue;
         }
@@ -1773,16 +1778,19 @@ export default class BillsModule {
                 categoryId ? fetch(OC.generateUrl(`/apps/budget/api/tag-sets?categoryId=${categoryId}`), { headers: { 'requesttoken': OC.requestToken } }).then(r => r.ok ? r.json() : []).catch(() => []) : Promise.resolve([])
             ]);
 
-            const globalTags = globalTagsResponse || [];
-            const tagSets = categoryTagSets || [];
+            // Get existing tag IDs if editing
+            const existingTagIds = existingBill?.tagIds || [];
+
+            // Hidden tags are not offered, except ones already on this bill
+            // (#373) — saving reads every checked box, so an unlisted tag
+            // would be stripped on the next edit.
+            const globalTags = offerableTags(globalTagsResponse || [], existingTagIds);
+            const tagSets = offerableTagSets(categoryTagSets || [], existingTagIds);
 
             if (globalTags.length === 0 && tagSets.length === 0) {
                 container.innerHTML = '';
                 return;
             }
-
-            // Get existing tag IDs if editing
-            const existingTagIds = existingBill?.tagIds || [];
 
             let html = '';
 

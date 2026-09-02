@@ -130,3 +130,33 @@ export function serverErrorMessage(body, fallback) {
     const withDetail = detail ? `${message} (${detail})` : message;
     return hint ? `${withDetail} — ${hint}` : withDetail;
 }
+
+/**
+ * Collapse the per-row failures an import returns into one entry per reason.
+ *
+ * The server has always returned `errors` as {row, error} and the UI dropped
+ * them into console.warn, telling the user to "check the server log" instead —
+ * which on the instance in #333 meant a log the admin could not read at all.
+ * A file where the same thing is wrong with fourteen rows is one problem, not
+ * fourteen, so the rows are gathered under their message.
+ *
+ * @param {Array<{row: number|string, error: string}>} errors - As the import API returns them
+ * @returns {Array<{message: string, rows: Array<number|string>, count: number}>} Most frequent first
+ */
+export function groupImportErrors(errors) {
+    const groups = new Map();
+
+    for (const entry of errors || []) {
+        const message = (entry?.error ?? '').toString().trim() || 'Unknown error';
+        if (!groups.has(message)) {
+            groups.set(message, { message, rows: [], count: 0 });
+        }
+        const group = groups.get(message);
+        group.count++;
+        if (entry?.row !== undefined && entry?.row !== null) {
+            group.rows.push(entry.row);
+        }
+    }
+
+    return [...groups.values()].sort((a, b) => b.count - a.count);
+}

@@ -7,6 +7,7 @@ import { showSuccess, showError, showWarning } from '../../utils/notifications.j
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { serverErrorMessage, downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES, hasSplitPortion, transactionDisplayAmount } from '../../utils/helpers.js';
 import { translate as t } from '@nextcloud/l10n';
+import { openAccounts } from '../../utils/accounts.js';
 
 // Which account attributes are rendered in the accounts view (tiles + list).
 // User-configurable through the gear menu in the accounts header, stored in
@@ -205,6 +206,11 @@ export default class AccountsModule {
 
         const assets = accounts.filter(acc => assetTypes.includes(getField(acc, 'type')));
         const liabilities = accounts.filter(acc => liabilityTypes.includes(getField(acc, 'type')));
+        // Closed accounts still count in the totals (their balance is zero by
+        // rule) but are listed in their own collapsed section (#372).
+        const closed = accounts.filter(acc => acc.closed);
+        const openAssets = assets.filter(acc => !acc.closed);
+        const openLiabilities = liabilities.filter(acc => !acc.closed);
 
         // Use currency-converted totals from summary if available, otherwise fall back to raw sums
         const primaryCurrency = summary?.baseCurrency || this.getPrimaryCurrency();
@@ -278,17 +284,20 @@ export default class AccountsModule {
             ? (account) => this.renderAccountRow(account, getField, attributes, order)
             : (account) => this.renderAccountCard(account, getField, attributes, order);
 
-        const sortedAssets = this.sortAccountsForDisplay(assets, getField, sort);
-        const sortedLiabilities = this.sortAccountsForDisplay(liabilities, getField, sort);
+        const sortedAssets = this.sortAccountsForDisplay(openAssets, getField, sort);
+        const sortedLiabilities = this.sortAccountsForDisplay(openLiabilities, getField, sort);
+        const sortedClosed = this.sortAccountsForDisplay(closed, getField, sort);
 
         const assetsGrid = document.getElementById('accounts-assets-grid');
         const liabilitiesGrid = document.getElementById('accounts-liabilities-grid');
         const assetsSection = document.getElementById('accounts-assets-section');
         const liabilitiesSection = document.getElementById('accounts-liabilities-section');
+        const closedGrid = document.getElementById('accounts-closed-grid');
+        const closedSection = document.getElementById('accounts-closed-section');
 
         // Toggle grid/list CSS class + publish the list column template
         const rowColumns = this.buildAccountRowColumns(attributes, order);
-        [assetsGrid, liabilitiesGrid].forEach(el => {
+        [assetsGrid, liabilitiesGrid, closedGrid].forEach(el => {
             if (el) {
                 el.classList.toggle('accounts-grid', viewMode === 'grid');
                 el.classList.toggle('accounts-list', viewMode === 'list');
@@ -312,6 +321,20 @@ export default class AccountsModule {
                 liabilitiesSection.style.display = 'block';
             } else {
                 liabilitiesSection.style.display = 'none';
+            }
+        }
+
+        if (closedGrid && closedSection) {
+            if (sortedClosed.length > 0) {
+                closedGrid.innerHTML = sortedClosed.map(renderFn).join('');
+                const closedTitle = document.getElementById('accounts-closed-title');
+                if (closedTitle) {
+                    closedTitle.textContent = t('budget', 'Closed accounts ({count})', { count: sortedClosed.length });
+                }
+                closedSection.style.display = 'block';
+            } else {
+                closedGrid.innerHTML = '';
+                closedSection.style.display = 'none';
             }
         }
 
@@ -501,7 +524,7 @@ export default class AccountsModule {
         };
 
         return `
-            <div class="account-card" data-type="${accountType}" data-account-id="${accountId}">
+            <div class="account-card${account.closed ? ' is-closed' : ''}" data-type="${accountType}" data-account-id="${accountId}">
                 <div class="account-card-header">
                     <div class="account-icon" style="background-color: ${typeInfo.color};">
                         <span class="${typeInfo.icon}" aria-hidden="true"></span>
@@ -509,6 +532,7 @@ export default class AccountsModule {
                     <div class="account-details">
                         <h3 class="account-name">${accountName}</h3>
                         <div class="account-meta">
+                            ${account.closed ? `<span class="account-closed-badge" title="${t('budget', 'Closed: history kept, no new activity')}">${t('budget', 'Closed')}</span>` : ''}
                             ${account.excludedFromReports ? `<span class="account-excluded-badge" title="${t('budget', 'Excluded from reports, dashboard & forecast')}">${t('budget', 'Excluded')}</span>` : ''}
                             ${order.filter(key => ACCOUNT_META_KEYS.includes(key) && attributes[key]).map(key => metaItems[key]()).join('')}
                         </div>
@@ -567,7 +591,7 @@ export default class AccountsModule {
             : (accountBalance >= 0 ? 'positive' : 'negative');
 
         const cells = {
-            name: () => `<div class="account-row-name">${accountName}</div>`,
+            name: () => `<div class="account-row-name">${accountName}${account.closed ? ` <span class="account-closed-badge">${t('budget', 'Closed')}</span>` : ''}</div>`,
             type: () => `<div class="account-row-type">${typeInfo.label}</div>`,
             institution: () => `<div class="account-row-institution">${institution || '—'}</div>`,
             accountNumber: () => `<div class="account-row-number">${accountNumber || '—'}</div>`,
@@ -579,7 +603,7 @@ export default class AccountsModule {
         };
 
         return `
-            <div class="account-row" data-type="${accountType}" data-account-id="${accountId}">
+            <div class="account-row${account.closed ? ' is-closed' : ''}" data-type="${accountType}" data-account-id="${accountId}">
                 <div class="account-row-icon" style="background-color: ${typeInfo.color};">
                     <span class="${typeInfo.icon}" aria-hidden="true"></span>
                 </div>
@@ -989,6 +1013,13 @@ export default class AccountsModule {
 
         document.getElementById('account-display-name').textContent = account.name;
         document.getElementById('account-type-label').textContent = typeInfo.label;
+
+        // A closed account keeps its history but takes nothing new, so the
+        // badge goes on and the actions that would add to it go away (#372).
+        const closedBadge = document.getElementById('account-closed-badge');
+        if (closedBadge) closedBadge.style.display = account.closed ? 'inline-flex' : 'none';
+        const reconcileBtn = document.getElementById('reconcile-account-btn');
+        if (reconcileBtn) reconcileBtn.style.display = account.closed ? 'none' : '';
 
         const institutionEl = document.getElementById('account-institution');
         if (account.institution) {
@@ -1605,6 +1636,8 @@ export default class AccountsModule {
         setupBtn.style.display = 'none';
         infoTile.style.display = 'none';
         if (!['credit_card', 'line_of_credit'].includes(account.type)) return;
+        // A closed card takes no payment bill: that would post into it (#372)
+        if (account.closed) return;
 
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/bills?isTransfer=true'), {
@@ -2017,7 +2050,7 @@ export default class AccountsModule {
             // Populate the dropdown if empty (populateFilterDropdowns only runs on filter toggle)
             if (reconcileAccountSelect.options.length <= 1 && this.accounts) {
                 reconcileAccountSelect.innerHTML = '<option value="">' + t('budget', 'Select account to reconcile') + '</option>';
-                this.accounts.forEach(account => {
+                openAccounts(this.accounts).forEach(account => {
                     reconcileAccountSelect.innerHTML += `<option value="${account.id}">${account.name}</option>`;
                 });
             }
@@ -2333,7 +2366,7 @@ export default class AccountsModule {
         const accountSelect = document.getElementById('quick-add-account');
         if (accountSelect && this.accounts) {
             accountSelect.innerHTML = '<option value="">' + t('budget', 'Select account') + '</option>';
-            this.accounts.forEach(account => {
+            openAccounts(this.accounts).forEach(account => {
                 const option = document.createElement('option');
                 option.value = account.id;
                 option.textContent = account.name;
@@ -2442,6 +2475,12 @@ export default class AccountsModule {
                     }
                     formData.openingBalance = openingBalance;
                 }
+            }
+
+            // Only an existing account can be closed; the server ignores the key
+            // on create anyway (#372).
+            if (isEdit) {
+                formData.closed = document.getElementById('account-closed')?.checked || false;
             }
 
             // Sensitive fields: only include if user entered a value
@@ -2568,6 +2607,39 @@ export default class AccountsModule {
             showError(t('budget', 'Failed to save account: {error}', { error: errorMsg }));
 
             // Don't hide modal on error so user can fix and retry
+        }
+    }
+
+    /**
+     * The "closed" control (#372). Hidden on a new account — nothing is born
+     * closed — and on an open account whose balance is not zero it carries the
+     * same warning the server will give, so the rule is visible before submit.
+     */
+    syncClosedControl(account) {
+        const group = document.getElementById('account-closed-group');
+        const box = document.getElementById('account-closed');
+        const hint = document.getElementById('account-closed-hint');
+        if (!group || !box) return;
+
+        if (!account) {
+            group.style.display = 'none';
+            box.checked = false;
+            if (hint) hint.style.display = 'none';
+            return;
+        }
+
+        group.style.display = '';
+        box.checked = !!account.closed;
+        if (!hint) return;
+
+        const balance = parseFloat(account.balance) || 0;
+        if (!account.closed && Math.abs(balance) > 0) {
+            hint.textContent = t('budget', 'This account has a balance of {balance}. It must be zero before it can be closed.', {
+                balance: this.formatCurrency(balance, account.currency)
+            });
+            hint.style.display = 'block';
+        } else {
+            hint.style.display = 'none';
         }
     }
 
@@ -2722,6 +2794,7 @@ export default class AccountsModule {
             if (compoundingEl) compoundingEl.value = account.compoundingFrequency || 'daily';
             const excludedEl = document.getElementById('account-excluded-from-reports');
             if (excludedEl) excludedEl.checked = account.excludedFromReports || false;
+            this.syncClosedControl(account);
         } catch (error) {
             console.error('Failed to load account data:', error);
             showError(t('budget', 'Failed to load account data'));
@@ -2835,6 +2908,7 @@ export default class AccountsModule {
         }
         form.reset();
         clearDateValue('account-opening-date');
+        this.syncClosedControl(null);
 
         const accountId = document.getElementById('account-id');
         const currency = document.getElementById('account-currency');

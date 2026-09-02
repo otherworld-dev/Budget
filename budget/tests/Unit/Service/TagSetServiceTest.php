@@ -384,4 +384,39 @@ class TagSetServiceTest extends TestCase {
 
         $this->service->delete(1, 'user1');
     }
+
+    // ===== hidden flag (#373) =====
+
+    public function testUpdateTagAppliesHidden(): void {
+        $tag = $this->makeTag();
+        $this->tagMapper->method('find')->with(1, 'user1')->willReturn($tag);
+        $this->tagMapper->expects($this->once())->method('update')->willReturnArgument(0);
+
+        $result = $this->service->updateTag(1, 'user1', ['hidden' => true]);
+
+        $this->assertTrue($result->getHidden());
+    }
+
+    public function testUpdateGlobalTagAppliesHidden(): void {
+        $tag = $this->makeTag(['tagSetId' => null]);
+        $tag->setUserId('user1');
+        $this->tagMapper->method('find')->with(1, 'user1')->willReturn($tag);
+        $this->tagMapper->expects($this->once())->method('update')->willReturnArgument(0);
+
+        $result = $this->service->updateGlobalTag(1, 'user1', ['hidden' => true]);
+
+        $this->assertTrue($result->getHidden());
+    }
+
+    public function testUpdateGlobalTagCanUnhide(): void {
+        $tag = $this->makeTag(['tagSetId' => null]);
+        $tag->setUserId('user1');
+        $tag->setHidden(true);
+        $this->tagMapper->method('find')->with(1, 'user1')->willReturn($tag);
+        $this->tagMapper->method('update')->willReturnArgument(0);
+
+        $result = $this->service->updateGlobalTag(1, 'user1', ['hidden' => false]);
+
+        $this->assertFalse($result->getHidden());
+    }
 }

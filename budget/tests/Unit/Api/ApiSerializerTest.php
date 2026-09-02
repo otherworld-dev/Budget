@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Api;
 
 use OCA\Budget\Api\ApiSerializer;
+use OCA\Budget\Db\Account;
 use OCA\Budget\Db\Attachment;
 use OCA\Budget\Db\Category;
 use OCA\Budget\Db\Transaction;
@@ -26,7 +27,7 @@ class ApiSerializerTest extends TestCase {
 
 		$this->assertSame([
 			'id', 'name', 'type', 'currency', 'balance', 'balance_in_base_currency',
-			'base_currency', 'institution', 'shared', 'updated_at',
+			'base_currency', 'institution', 'shared', 'closed', 'updated_at',
 		], array_keys($result));
 	}
 
@@ -354,5 +355,28 @@ class ApiSerializerTest extends TestCase {
 
 	public function testMapOnEmptyArray(): void {
 		$this->assertSame([], ApiSerializer::map([], [ApiSerializer::class, 'account']));
+	}
+
+	// ── closed accounts (#372) ─────────────────────────────────────
+
+	/**
+	 * Additive v1 field: a capture client can leave closed accounts out of
+	 * its own picker. Always present and always a bool, never null.
+	 */
+	public function testAccountClosedIsABoolThatDefaultsToFalse(): void {
+		$this->assertFalse(ApiSerializer::account(['id' => 1])['closed']);
+		$this->assertTrue(ApiSerializer::account(['id' => 1, 'closed' => 1])['closed']);
+		$this->assertFalse(ApiSerializer::account(['id' => 1, 'closed' => null])['closed']);
+	}
+
+	public function testAccountClosedComesFromTheEntity(): void {
+		$account = new Account();
+		$account->setId(3);
+		$account->setName('Old current');
+		$account->setType('checking');
+		$account->setCurrency('GBP');
+		$account->setClosed(true);
+
+		$this->assertTrue(ApiSerializer::account($account)['closed']);
 	}
 }
