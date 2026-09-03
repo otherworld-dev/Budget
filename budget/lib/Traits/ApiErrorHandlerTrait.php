@@ -156,9 +156,14 @@ trait ApiErrorHandlerTrait {
                 break;
             }
         }
-        // SQLite reports both as a generic HY000, so match on its wording.
+        // SQLite reports both as a generic HY000, so match on its wording -
+        // and it has two: SELECT/UPDATE say "no such column", INSERT says
+        // "table X has no column named Y". The INSERT one is exactly the
+        // failed save this hint exists for, and it slipped through until a
+        // browser run against a dropped column showed the bare SQL (#333).
         if (!$isSchemaError
             && (stripos($detail, 'no such column') !== false
+                || stripos($detail, 'has no column named') !== false
                 || stripos($detail, 'no such table') !== false)) {
             $isSchemaError = true;
         }

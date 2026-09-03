@@ -1508,6 +1508,11 @@ export default class ImportModule {
                 return;
             }
             requestBody.accountId = parseInt(accountId);
+        } else {
+            // Account column mapped: the chosen account is the fallback for
+            // rows whose cell is blank, and optional (#333)
+            const fallbackId = document.getElementById('import-account')?.value;
+            if (fallbackId) requestBody.accountId = parseInt(fallbackId);
         }
 
         try {
@@ -1783,6 +1788,37 @@ export default class ImportModule {
             t('budget', 'Showing {shown} of {total}', { shown: visibleCount, total: totalCount });
     }
 
+    /**
+     * Fill the destination-account select and label it for its role: the
+     * account everything goes to, or — when the file carries its own account
+     * column — only the account for rows whose account cell is blank (#333).
+     *
+     * @param {Array} accounts - As the accounts API returns them
+     * @param {boolean} asFallback - True when an account column is mapped
+     */
+    populateImportAccountSelect(accounts, asFallback) {
+        const select = document.getElementById('import-account');
+        if (!select) return;
+        const current = select.value;
+        select.innerHTML = `<option value="">${asFallback ? t('budget', 'Skip rows without an account') : t('budget', 'Select account…')}</option>`;
+        openAccounts(accounts).forEach(account => {
+            const option = document.createElement('option');
+            option.value = account.id;
+            const accountNum = account.accountNumber ? ` - ${account.accountNumber}` : '';
+            option.textContent = `${account.name} (${account.type}${accountNum})`;
+            select.appendChild(option);
+        });
+        if ([...select.options].some(o => o.value === current)) {
+            select.value = current;
+        }
+        const label = document.querySelector('label[for="import-account"]');
+        if (label) {
+            label.textContent = asFallback
+                ? t('budget', 'Account for rows without one:')
+                : t('budget', 'Import to Account:');
+        }
+    }
+
     async loadAccountsForImport() {
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/accounts'), {
@@ -1801,10 +1837,15 @@ export default class ImportModule {
             const mappingHasAccountColumn = !!(mapping.account);
 
             if (presetHasAccountColumn || mappingHasAccountColumn) {
-                // Hide account selection — accounts come from CSV
-                if (singleAccountSection) singleAccountSection.style.display = 'none';
+                // Accounts come from the file, but a row whose account cell is
+                // blank still needs somewhere to go: the server files it under
+                // the account chosen here, and drops it with a reason when
+                // none is. This select used to be hidden outright in this
+                // case, so that fallback could never be reached (#333).
                 if (multiAccountSection) multiAccountSection.style.display = 'none';
-                // Auto-trigger preview since no account selection needed
+                if (singleAccountSection) singleAccountSection.style.display = 'flex';
+                this.populateImportAccountSelect(accounts, true);
+                // Preview straight away; choosing a fallback re-runs it
                 this.processImportData();
             } else if (this.sourceAccounts && this.sourceAccounts.length > 0) {
                 // Show multi-account mapping UI
@@ -1816,18 +1857,7 @@ export default class ImportModule {
                 // Show single account selection (for CSV)
                 if (singleAccountSection) singleAccountSection.style.display = 'flex';
                 if (multiAccountSection) multiAccountSection.style.display = 'none';
-
-                const select = document.getElementById('import-account');
-                if (select) {
-                    select.innerHTML = `<option value="">${t('budget', 'Select account…')}</option>`;
-                    openAccounts(accounts).forEach(account => {
-                        const option = document.createElement('option');
-                        option.value = account.id;
-                        const accountNum = account.accountNumber ? ` - ${account.accountNumber}` : '';
-                        option.textContent = `${account.name} (${account.type}${accountNum})`;
-                        select.appendChild(option);
-                    });
-                }
+                this.populateImportAccountSelect(accounts, false);
             }
         } catch (error) {
             console.error('Failed to load accounts:', error);
@@ -2025,6 +2055,10 @@ export default class ImportModule {
                 return;
             }
             requestBody.accountId = parseInt(accountId);
+        } else {
+            // Account column mapped: optional fallback for blank cells (#333)
+            const fallbackId = document.getElementById('import-account')?.value;
+            if (fallbackId) requestBody.accountId = parseInt(fallbackId);
         }
 
         // Show loading state on import button

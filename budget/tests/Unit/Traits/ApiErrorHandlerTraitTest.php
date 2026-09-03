@@ -99,6 +99,21 @@ class ApiErrorHandlerTraitTest extends TestCase {
 	 * A constraint violation is the user's data being wrong, not the schema
 	 * being behind. Telling them to reinstall the app would be wrong.
 	 */
+	/**
+	 * SQLite's INSERT wording differs from its SELECT wording, and INSERT is the
+	 * failed save this hint exists for. Seen live against a dropped column.
+	 */
+	public function testSqliteInsertPhrasingIsRecognised(): void {
+		$response = $this->subject->callHandleError(
+			new DbException('SQLSTATE[HY000]: General error: 1 table oc_budget_bills has no column named amount_type'),
+			'Failed to create bill'
+		);
+		$data = $response->getData();
+
+		$this->assertArrayHasKey('hint', $data);
+		$this->assertStringContainsString('occ', $data['hint']);
+	}
+
 	public function testAnOrdinaryDatabaseErrorGetsNoHint(): void {
 		$response = $this->subject->callHandleError(
 			new DbException("SQLSTATE[23000]: Integrity constraint violation: 1048 "
