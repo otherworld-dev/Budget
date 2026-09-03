@@ -161,6 +161,24 @@ class BillServiceTest extends TestCase {
 		$this->assertSame('2020-08-26', $bill->getNextDueDate());
 	}
 
+	/**
+	 * Found live: a one-time bill dated in the past got a CLEARED row on
+	 * creation - money booked as spent for an invoice nobody had paid -
+	 * because createFromBill() reads an explicit past date as a payment.
+	 * Creating a bill never records a payment, so the row is a placeholder.
+	 */
+	public function testCreatePreCreatesAScheduledPlaceholderEvenForAPastDate(): void {
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2020-08-26');
+		$this->mapper->method('insert')->willReturnCallback(fn(Bill $b) => $b);
+
+		$this->transactionService->expects($this->once())
+			->method('createFromBill')
+			->with('user1', $this->isInstanceOf(Bill::class), '2020-08-26', 'scheduled')
+			->willReturn(new Transaction());
+
+		$this->service->create('user1', 'Garage', 321.60, 'one-time', 26, 8, null, 1, startDate: '2020-08-26', createTransaction: true, transactionDate: '2020-08-26');
+	}
+
 	// ── the Bills Calendar is drawn from payments (#375) ─────────────
 
 	private function attribute(array $occurrences, array $payments, array $billOverrides = []): array {

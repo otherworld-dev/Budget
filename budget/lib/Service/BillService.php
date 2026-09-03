@@ -425,13 +425,19 @@ class BillService {
 
         $bill = $this->mapper->insert($bill);
 
-        // Create future transaction if requested and bill has account
+        // Pre-create the next occurrence if requested and the bill has an
+        // account. Always a scheduled placeholder: creating a bill records no
+        // payment, whatever date the row carries. Found live with #375 - a
+        // one-time bill dated in the past got a CLEARED row on creation,
+        // GBP 321.60 booked as spent for an invoice nobody had paid, because
+        // createFromBill() reads an explicit date in the past as a payment.
         if ($createTransaction && $accountId !== null) {
             try {
                 $transaction = $this->transactionService->createFromBill(
                     $userId,
                     $bill,
-                    $transactionDate
+                    $transactionDate,
+                    'scheduled'
                 );
                 $this->applySplitTemplate($bill, $transaction, $userId);
             } catch (\Exception $e) {
