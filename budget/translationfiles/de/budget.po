@@ -17140,6 +17140,16 @@ msgstr ""
 msgid "Extracts topics from a text and outputs them separated by commas."
 msgstr ""
 
+#: /app/src/modules/import/ImportModule.js:1803
+#, fuzzy
+#| msgid "Skip this account"
+msgid "Skip rows without an account"
+msgstr "Konto überspringen"
+
+#: /app/src/modules/import/ImportModule.js:1817
+msgid "Account for rows without one:"
+msgstr ""
+
 #, fuzzy
 #~| msgid "Please enter an account name"
 #~ msgid "Missing account name"

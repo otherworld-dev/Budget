@@ -15358,3 +15358,11 @@ msgstr ""
 #: /app/vendor/nextcloud/ocp/OCP/TextProcessing/TopicsTaskType.php:49
 msgid "Extracts topics from a text and outputs them separated by commas."
 msgstr ""
+
+#: /app/src/modules/import/ImportModule.js:1803
+msgid "Skip rows without an account"
+msgstr ""
+
+#: /app/src/modules/import/ImportModule.js:1817
+msgid "Account for rows without one:"
+msgstr ""

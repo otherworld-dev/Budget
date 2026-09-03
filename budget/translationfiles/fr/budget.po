@@ -16331,6 +16331,16 @@ msgstr ""
 msgid "Extracts topics from a text and outputs them separated by commas."
 msgstr "Extrait les sujets d'un texte et les affiche séparés par des virgules."
 
+#: /app/src/modules/import/ImportModule.js:1803
+#, fuzzy
+#| msgid "Skip this account"
+msgid "Skip rows without an account"
+msgstr "Ignorer ce compte"
+
+#: /app/src/modules/import/ImportModule.js:1817
+msgid "Account for rows without one:"
+msgstr ""
+
 #~ msgid ""
 #~ "Last reconciled balance — verify this matches your statement’s opening "
 #~ "balance"
