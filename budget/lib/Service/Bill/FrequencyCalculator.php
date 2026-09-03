@@ -37,6 +37,16 @@ class FrequencyCalculator {
     ): string {
         $today = new \DateTime();
 
+        // A one-time bill with an explicit date IS that date. The form offers
+        // the date field for exactly this case, and it may lie in the past: an
+        // invoice from August entered in September is due in August, overdue,
+        // not rolled forward to next August. Every other branch below moves a
+        // date past today, which is right for a schedule and wrong for a
+        // single dated occurrence (#375).
+        if ($frequency === 'one-time' && $anchorDate !== null && $anchorDate !== '') {
+            return (new \DateTime($anchorDate))->format('Y-m-d');
+        }
+
         // For fixed-interval frequencies with forceAdvance, simply add one interval
         // to the original date. The baseDate/today manipulation only works for
         // calendar-anchored frequencies that use setDate().

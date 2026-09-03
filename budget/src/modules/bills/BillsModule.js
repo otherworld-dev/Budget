@@ -842,9 +842,25 @@ export default class BillsModule {
             dueMonthGroup.style.display = 'none';
         }
 
-        // Hide start/end date/remaining payments for one-time (a single dated occurrence)
+        // A one-time bill is a single dated occurrence, so end date and
+        // remaining payments mean nothing for it - but the start date field
+        // becomes its actual due date, past allowed. Without a real date the
+        // day+month pair always rolled forward, so an invoice from last month
+        // could not be entered at all (#375).
         const isOneTime = frequency === 'one-time';
-        if (startDateGroup) startDateGroup.style.display = isOneTime ? 'none' : 'block';
+        if (startDateGroup) {
+            startDateGroup.style.display = 'block';
+            const startLabel = startDateGroup.querySelector('label');
+            const startHelp = document.getElementById('bill-start-date-help');
+            if (startLabel) {
+                startLabel.textContent = isOneTime ? t('budget', 'Due Date') : t('budget', 'Start Date');
+            }
+            if (startHelp) {
+                startHelp.textContent = isOneTime
+                    ? t('budget', 'The date this bill is due. It can be in the past - an invoice you are entering late stays due on its own date.')
+                    : t('budget', 'Bill only occurs on or after this date (optional)');
+            }
+        }
         if (endDateGroup) endDateGroup.style.display = isOneTime ? 'none' : 'block';
         if (remainingPaymentsGroup) remainingPaymentsGroup.style.display = isOneTime ? 'none' : 'block';
 

@@ -397,6 +397,15 @@ class BillService {
         $bill->setStartDate($startDate);
         $bill->setEndDate($endDate);
         $bill->setRemainingPayments($remainingPayments);
+        // A one-time bill's date is the whole schedule: its day and month
+        // follow the date so the Bills Calendar puts it in the right month
+        // (#375). The calculator returns this date verbatim, past or not.
+        if ($frequency === 'one-time' && $startDate !== null && $startDate !== '') {
+            $dueDay = (int) (new \DateTime($startDate))->format('j');
+            $dueMonth = (int) (new \DateTime($startDate))->format('n');
+            $bill->setDueDay($dueDay);
+            $bill->setDueMonth($dueMonth);
+        }
         $bill->setExcludedFromForecast($excludedFromForecast);
         $bill->setCreateTransaction($createTransaction);
         if ($splitTemplate !== null) {
@@ -582,6 +591,15 @@ class BillService {
                     $setter = 'set' . ucfirst($key);
                     $bill->$setter($value);
                 }
+            }
+
+            // A one-time bill's date is its schedule (#375): keep day and
+            // month in step with it, in the entity and in what is written.
+            if ($bill->getFrequency() === 'one-time' && $bill->getStartDate()) {
+                $bill->setDueDay((int) (new \DateTime($bill->getStartDate()))->format('j'));
+                $bill->setDueMonth((int) (new \DateTime($bill->getStartDate()))->format('n'));
+                $dbUpdates['due_day'] = $bill->getDueDay();
+                $dbUpdates['due_month'] = $bill->getDueMonth();
             }
 
             // Recalculate from today (not from the old nextDueDate) since
@@ -1512,11 +1530,15 @@ class BillService {
             $isActive = null; // All bills
         }
 
-        // Fetch bills with type filter
+        // Fetch bills with type filter. "Active" fetches everything and is
+        // narrowed below, because a bill that is inactive now but was paid
+        // this year - a one-time bill deactivates itself on payment - still
+        // belongs in the year's picture (#375).
+        $fetchActive = $billStatus === 'active' ? null : $isActive;
         if ($includeTransfers) {
-            $bills = $this->mapper->findByType($userId, null, $isActive);
+            $bills = $this->mapper->findByType($userId, null, $fetchActive);
         } else {
-            $bills = $this->mapper->findByType($userId, false, $isActive);
+            $bills = $this->mapper->findByType($userId, false, $fetchActive);
         }
 
         // Filter by account if specified (match source or destination account)
@@ -1525,6 +1547,28 @@ class BillService {
                 return $bill->getAccountId() === $accountId
                     || $bill->getDestinationAccountId() === $accountId;
             });
+        }
+
+        // What was actually paid this year, per bill. The cells used to be
+        // guessed from last_paid_date - every month up to it counted as paid,
+        // so a bill first paid in September showed January to August paid
+        // too - and a one-time bill fell out of the calendar the moment it
+        // was paid (#375). Only the debit leg counts: a transfer bill's
+        // credit leg is the same payment arriving, not a second one.
+        $paymentsByBill = [];
+        $billIds = array_map(fn(Bill $bill) => $bill->getId(), $bills);
+        foreach ($this->transactionService->findBillPaymentsInYear($billIds, $year) as $payment) {
+            if (($payment->getType() ?? 'debit') !== 'debit') {
+                continue;
+            }
+            $paymentsByBill[$payment->getBillId()][] = [
+                'date' => $payment->getDate(),
+                'amount' => (float) $payment->getAmount(),
+            ];
+        }
+
+        if ($billStatus === 'active') {
+            $bills = array_filter($bills, fn(Bill $bill) => $bill->getIsActive() || isset($paymentsByBill[$bill->getId()]));
         }
 
         // Build currency map for conversion
@@ -1537,6 +1581,12 @@ class BillService {
 
         foreach ($bills as $bill) {
             $occurrences = $this->calculateMonthlyOccurrences($bill, $year);
+            [$occurrences, $paidMonths, $paidAmounts] = $this->attributePayments(
+                $occurrences,
+                $bill,
+                $paymentsByBill[$bill->getId()] ?? [],
+                $year
+            );
 
             $billCurrency = ($bill->getAccountId() !== null && isset($currencyMap[$bill->getAccountId()]))
                 ? $currencyMap[$bill->getAccountId()]
@@ -1556,14 +1606,23 @@ class BillService {
                 'lastPaidDate' => $bill->getLastPaidDate(),
                 'nextDueDate' => $bill->getNextDueDate(),
                 'occurrences' => $occurrences, // Array with month numbers as keys
+                // Months whose occurrence has a recorded payment, and what was
+                // actually paid in each - the expected amount stands in for
+                // the months still to come (#375)
+                'paidMonths' => $paidMonths,
+                'paidAmounts' => $paidAmounts,
             ];
 
-            // Add converted amounts to monthly totals
+            // Monthly totals: what was paid where a payment exists, the
+            // expected amount otherwise
             $convertedAmount = $this->convertToBase($bill->getAmount(), $billCurrency, $baseCurrency, $userId);
             foreach ($occurrences as $month => $occurs) {
-                if ($occurs) {
-                    $monthlyTotals[$month] += $convertedAmount;
+                if (!$occurs) {
+                    continue;
                 }
+                $monthlyTotals[$month] += isset($paidAmounts[$month])
+                    ? $this->convertToBase($paidAmounts[$month], $billCurrency, $baseCurrency, $userId)
+                    : $convertedAmount;
             }
 
             $billsData[] = $billData;
@@ -1592,6 +1651,92 @@ class BillService {
         }
         $fromStart = $this->frequencyCalculator->calculateNextDueDate($frequency, $dueDay, $dueMonth, $startDate, $customPattern);
         return max($fromStart, $startDate);
+    }
+
+    /** How far a payment may sit from an occurrence's due date and still be that occurrence's. */
+    private const PAYMENT_MATCH_WINDOW_DAYS = 45;
+
+    /**
+     * Match a year's payments to the schedule's occurrences, by date.
+     *
+     * Each occurrence has a due date (its month plus the bill's due day); a
+     * payment belongs to the nearest unpaid one within the window. Dates, not
+     * months: a bill due on the 28th and paid on the 2nd is five days from
+     * one due date and twenty-six from the next, so it is the earlier month's
+     * payment however the calendar happens to fall - and a payment on the
+     * 14th for a bill due the 15th is that month's, a day early. A bill with a
+     * single occurrence takes any payment, whenever it was made. A payment
+     * with no occurrence within reach is real money that left, so its month
+     * becomes an extra, paid occurrence rather than being dropped (#375).
+     *
+     * @param array<int, bool> $occurrences month => occurs, 1..12
+     * @param array<int, array{date: string, amount: float}> $payments in date order
+     * @return array{0: array<int, bool>, 1: int[], 2: array<int, float>}
+     *         occurrences (with extras), paid months, paid amount per month
+     */
+    private function attributePayments(array $occurrences, Bill $bill, array $payments, int $year): array {
+        $paidAmounts = [];
+        $slots = array_keys(array_filter($occurrences));
+        $slotDates = [];
+        foreach ($slots as $slot) {
+            $slotDates[$slot] = new \DateTimeImmutable($this->occurrenceDate($bill, $year, $slot));
+        }
+
+        foreach ($payments as $payment) {
+            $paidOn = new \DateTimeImmutable($payment['date']);
+            $target = null;
+
+            if (count($slots) === 1) {
+                $target = $slots[0];
+            } else {
+                $best = null;
+                foreach ($slots as $slot) {
+                    if (isset($paidAmounts[$slot])) {
+                        continue;
+                    }
+                    $days = $paidOn->diff($slotDates[$slot])->days;
+                    if ($days > self::PAYMENT_MATCH_WINDOW_DAYS) {
+                        continue;
+                    }
+                    // Nearest wins; on a tie the earlier month (a late payment)
+                    if ($best === null || $days < $best[0] || ($days === $best[0] && $slot < $best[1])) {
+                        $best = [$days, $slot];
+                    }
+                }
+                $target = $best[1] ?? null;
+            }
+
+            if ($target === null) {
+                $target = (int) $paidOn->format('n');
+                $occurrences[$target] = true;
+            }
+            $paidAmounts[$target] = ($paidAmounts[$target] ?? 0.0) + $payment['amount'];
+        }
+
+        ksort($paidAmounts);
+
+        return [$occurrences, array_keys($paidAmounts), $paidAmounts];
+    }
+
+    /**
+     * The date an occurrence in a given month falls due. A one-time bill's
+     * explicit date is used as is; frequencies with several occurrences a
+     * month (daily, weekly, biweekly) are pinned to mid-month, since the
+     * calendar only knows them by month anyway.
+     */
+    private function occurrenceDate(Bill $bill, int $year, int $month): string {
+        $frequency = $bill->getFrequency();
+        $startDate = $bill->getStartDate();
+        if ($frequency === 'one-time' && $startDate !== null && $startDate !== '') {
+            return $startDate;
+        }
+
+        $daysInMonth = (int) date('t', mktime(0, 0, 0, $month, 1, $year));
+        $day = in_array($frequency, ['daily', 'weekly', 'biweekly'], true)
+            ? 15
+            : min(max((int) ($bill->getDueDay() ?? 1), 1), $daysInMonth);
+
+        return sprintf('%04d-%02d-%02d', $year, $month, $day);
     }
 
     /**

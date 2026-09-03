@@ -7,6 +7,7 @@ namespace OCA\Budget\Tests\Unit\Service;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
+use OCA\Budget\Db\Transaction;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Bill\RecurringBillDetector;
 use OCA\Budget\Service\BillService;
@@ -137,6 +138,174 @@ class BillServiceTest extends TestCase {
 		for ($m = 6; $m <= 12; $m++) {
 			$this->assertTrue($occ[$m], "month $m should occur (on/after start date)");
 		}
+	}
+
+	// ── one-time bills dated explicitly (#375) ──────────────────────
+
+	/**
+	 * The date is the whole schedule for a one-time bill: day and month follow
+	 * it so the Bills Calendar lands it in the right month, and the stored due
+	 * date is the date itself - here one that has already passed.
+	 */
+	public function testCreateOneTimeBillTakesItsDayAndMonthFromTheDate(): void {
+		$this->frequencyCalculator->method('calculateNextDueDate')
+			->with('one-time', 26, 8, null, null, false, '2020-08-26')
+			->willReturn('2020-08-26');
+		$this->mapper->method('insert')->willReturnCallback(fn(Bill $b) => $b);
+
+		// dueDay/dueMonth deliberately wrong in the request (1 January): the date wins
+		$bill = $this->service->create('user1', 'Garage', 321.60, 'one-time', 1, 1, startDate: '2020-08-26');
+
+		$this->assertSame(26, $bill->getDueDay());
+		$this->assertSame(8, $bill->getDueMonth());
+		$this->assertSame('2020-08-26', $bill->getNextDueDate());
+	}
+
+	// ── the Bills Calendar is drawn from payments (#375) ─────────────
+
+	private function attribute(array $occurrences, array $payments, array $billOverrides = []): array {
+		$bill = $this->makeBill($billOverrides); // due day 15 unless overridden
+		$method = new \ReflectionMethod($this->service, 'attributePayments');
+		$method->setAccessible(true);
+		return $method->invoke($this->service, $occurrences, $bill, $payments, 2026);
+	}
+
+	private function monthly(array $months = null): array {
+		$occ = array_fill(1, 12, false);
+		foreach ($months ?? range(1, 12) as $m) {
+			$occ[$m] = true;
+		}
+		return $occ;
+	}
+
+	/** The old heuristic marked every month up to last_paid_date paid. Only months with a payment are. */
+	public function testOnlyMonthsWithAPaymentArePaid(): void {
+		[, $paid, $amounts] = $this->attribute($this->monthly(), [
+			['date' => '2026-09-14', 'amount' => 15.99],
+		]);
+
+		$this->assertSame([9], $paid);
+		$this->assertSame([9 => 15.99], $amounts);
+	}
+
+	/** Due on the 28th, paid on the 2nd: five days from October's due date, twenty-six from November's. */
+	public function testALatePaymentBelongsToTheOccurrenceItIsNearest(): void {
+		[, $paid] = $this->attribute($this->monthly(), [
+			['date' => '2026-08-28', 'amount' => 50.0],
+			['date' => '2026-09-28', 'amount' => 50.0],
+			['date' => '2026-11-02', 'amount' => 50.0], // October's, paid late
+		], ['dueDay' => 28]);
+
+		$this->assertSame([8, 9, 10], $paid);
+	}
+
+	/** Paid the day before it is due is that month's payment, not last month's. */
+	public function testAnEarlyPaymentBelongsToTheMonthItIsDue(): void {
+		[, $paid] = $this->attribute($this->monthly(), [
+			['date' => '2026-11-14', 'amount' => 50.0],
+		], ['dueDay' => 15]);
+
+		$this->assertSame([11], $paid);
+	}
+
+	/** Two payments in one month: the second fills the nearest unpaid neighbour, earlier on a tie. */
+	public function testASecondPaymentInAMonthFillsTheNearestUnpaidSlot(): void {
+		[, $paid] = $this->attribute($this->monthly(), [
+			['date' => '2026-03-15', 'amount' => 10.0],
+			['date' => '2026-03-15', 'amount' => 10.0],
+		], ['dueDay' => 15]);
+
+		// February's due date is 28 days away, April's is 31: February
+		$this->assertSame([2, 3], $paid);
+	}
+
+	/** A one-time bill has one occurrence; whenever it was paid, that is the one. */
+	public function testASingleOccurrenceTakesAnyPayment(): void {
+		[$occ, $paid, $amounts] = $this->attribute($this->monthly([8]), [
+			['date' => '2026-11-20', 'amount' => 321.60],
+		], ['frequency' => 'one-time', 'dueMonth' => 8]);
+
+		$this->assertSame([8], $paid);
+		$this->assertSame([8 => 321.60], $amounts);
+		$this->assertFalse($occ[11], 'no extra occurrence is invented for a single-slot bill');
+	}
+
+	/** A payment with no occurrence within reach is real money: it becomes an extra paid month. */
+	public function testAPaymentFarFromAnyOccurrenceBecomesAnExtraPaidMonth(): void {
+		[$occ, $paid] = $this->attribute($this->monthly([1, 7]), [
+			['date' => '2026-04-10', 'amount' => 99.0],
+		], ['dueDay' => 1]);
+
+		$this->assertTrue($occ[4]);
+		$this->assertSame([4], $paid);
+		$this->assertFalse($occ[2]);
+	}
+
+	public function testNoPaymentsLeavesTheScheduleUntouched(): void {
+		$occ = $this->monthly([2, 5]);
+
+		[$after, $paid, $amounts] = $this->attribute($occ, []);
+
+		$this->assertSame($occ, $after);
+		$this->assertSame([], $paid);
+		$this->assertSame([], $amounts);
+	}
+
+	/**
+	 * End to end: a paid one-time bill has deactivated itself, and under the
+	 * default "active" filter it used to vanish from the year it was paid in.
+	 * Cells and totals come from the recorded debit legs; a transfer's credit
+	 * leg is the same money arriving, not a second payment.
+	 */
+	public function testAnnualOverviewDrawsCellsFromPaymentsAndKeepsPaidInactiveBills(): void {
+		$monthly = $this->makeBill(['id' => 1, 'name' => 'Netflix', 'amount' => 15.99]);
+		$garage = $this->makeBill(['id' => 2, 'name' => 'Garage', 'amount' => 321.60, 'frequency' => 'one-time', 'dueMonth' => 8, 'isActive' => false]);
+		$never = $this->makeBill(['id' => 3, 'name' => 'Old gym', 'amount' => 30.0, 'isActive' => false]);
+
+		// "active" fetches everything and narrows afterwards
+		$this->mapper->expects($this->once())->method('findByType')->with('user1', false, null)->willReturn([$monthly, $garage, $never]);
+
+		$payment = function (int $billId, string $date, float $amount, string $type = 'debit'): Transaction {
+			$tx = new Transaction();
+			$tx->setBillId($billId);
+			$tx->setDate($date);
+			$tx->setAmount($amount);
+			$tx->setType($type);
+			$tx->setStatus('cleared');
+			return $tx;
+		};
+		$this->transactionService->method('findBillPaymentsInYear')
+			->with([1, 2, 3], 2026)
+			->willReturn([
+				$payment(1, '2026-01-14', 15.99),
+				$payment(1, '2026-02-14', 17.99),      // price rise: the cell shows what was paid
+				$payment(1, '2026-02-14', 17.99, 'credit'), // a credit leg must not count
+				$payment(2, '2026-09-03', 321.60),     // August's invoice, paid in September
+			]);
+
+		$result = $this->service->getAnnualOverview('user1', 2026, false, 'active');
+
+		$byName = [];
+		foreach ($result['bills'] as $row) {
+			$byName[$row['name']] = $row;
+		}
+		$this->assertArrayHasKey('Netflix', $byName, 'active bill is listed');
+		$this->assertArrayHasKey('Garage', $byName, 'inactive bill paid this year stays in the year');
+		$this->assertArrayNotHasKey('Old gym', $byName, 'inactive bill with no payment this year is filtered out');
+
+		$this->assertSame([1, 2], $byName['Netflix']['paidMonths']);
+		$this->assertSame([1 => 15.99, 2 => 17.99], $byName['Netflix']['paidAmounts']);
+		$this->assertTrue($byName['Netflix']['occurrences'][3], 'unpaid months still occur');
+
+		// The single August slot takes September's payment; no extra September cell
+		$this->assertSame([8], $byName['Garage']['paidMonths']);
+		$this->assertFalse($byName['Garage']['occurrences'][9]);
+
+		// Totals: paid amount where paid, expected amount otherwise
+		$this->assertEqualsWithDelta(15.99, $result['monthlyTotals'][1], 0.001);
+		$this->assertEqualsWithDelta(17.99, $result['monthlyTotals'][2], 0.001);
+		$this->assertEqualsWithDelta(15.99, $result['monthlyTotals'][3], 0.001);
+		$this->assertEqualsWithDelta(15.99 + 321.60, $result['monthlyTotals'][8], 0.001);
 	}
 
 	public function testCreateAutoPayRequiresAccount(): void {

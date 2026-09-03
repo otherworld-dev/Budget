@@ -80,6 +80,34 @@ class FrequencyCalculatorTest extends TestCase {
 		$this->assertSame('2099-06-15', $result);
 	}
 
+	// ── one-time bills with an explicit date (#375) ──────────────────
+
+	/**
+	 * The date field IS the due date for a one-time bill, past or not. Every
+	 * other branch rolls forward past today, which is right for a schedule
+	 * and made an invoice from last month impossible to enter.
+	 */
+	public function testOneTimeWithAnExplicitDateReturnsItEvenInThePast(): void {
+		$result = $this->calculator->calculateNextDueDate('one-time', 26, 8, null, null, false, '2020-08-26');
+
+		$this->assertSame('2020-08-26', $result);
+	}
+
+	public function testOneTimeExplicitDateWinsOverDayAndMonth(): void {
+		// day/month disagree with the date on purpose: the date is the truth
+		$result = $this->calculator->calculateNextDueDate('one-time', 1, 1, null, null, false, '2099-06-15');
+
+		$this->assertSame('2099-06-15', $result);
+	}
+
+	/** Without a date the old behaviour stands: a past day/month rolls to next year on creation. */
+	public function testOneTimeWithoutADateStillRollsAPastMonthForward(): void {
+		$lastMonth = (new \DateTime('first day of last month'));
+		$result = $this->calculator->calculateNextDueDate('one-time', 1, (int) $lastMonth->format('n'), null);
+
+		$this->assertGreaterThan(date('Y-m-d'), $result);
+	}
+
 	public function testCalculateNextDueDateUnknownFrequency(): void {
 		$result = $this->calculator->calculateNextDueDate('unknown', null, null, '2099-06-15');
 		$this->assertSame('2099-06-15', $result);

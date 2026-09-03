@@ -324,6 +324,17 @@ class TransactionService {
     }
 
     /**
+     * Recorded payments of the given bills within one calendar year, for the
+     * Bills Calendar (#375). Placeholders are excluded by the mapper.
+     *
+     * @param int[] $billIds
+     * @return Transaction[]
+     */
+    public function findBillPaymentsInYear(array $billIds, int $year): array {
+        return $this->mapper->findRecordedByBillIdsInYear($billIds, $year);
+    }
+
+    /**
      * Find candidate transactions that might match a bill payment.
      * Scores each candidate based on amount, vendor, description, and date proximity.
      *

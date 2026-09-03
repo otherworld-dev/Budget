@@ -2405,6 +2405,40 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
+     * The recorded payments of the given bills that fall in one calendar year.
+     *
+     * Same shape as {@see findRecordedByBillIds()} with a date window, for the
+     * Bills Calendar: it draws its cells from what was actually paid, so it
+     * needs one year of payments for every bill at once rather than every
+     * payment a bill has ever had (#375). Scheduled placeholders are not
+     * payments and are left out.
+     *
+     * @param int[] $billIds
+     * @return Transaction[]
+     */
+    public function findRecordedByBillIdsInYear(array $billIds, int $year): array {
+        if (empty($billIds)) {
+            return [];
+        }
+
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->in('bill_id', $qb->createNamedParameter($billIds, IQueryBuilder::PARAM_INT_ARRAY)))
+            ->andWhere($qb->expr()->gte('date', $qb->createNamedParameter(sprintf('%04d-01-01', $year))))
+            ->andWhere($qb->expr()->lte('date', $qb->createNamedParameter(sprintf('%04d-12-31', $year))))
+            ->andWhere(
+                $qb->expr()->orX(
+                    $qb->expr()->neq('status', $qb->createNamedParameter('scheduled')),
+                    $qb->expr()->isNull('status')
+                )
+            )
+            ->orderBy('date', 'ASC');
+
+        return $this->findEntities($qb);
+    }
+
+    /**
      * Find all NON-scheduled transactions linked to any of the given bills.
      * Used to detect payments that were marked paid without a recorded
      * transaction (#274) — scheduled placeholders don't count as payments.

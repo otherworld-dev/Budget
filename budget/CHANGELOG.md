@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **A one-time bill can be dated in the past.** A bill only ever stored a day and a month, and every date it worked out from them was rolled forward past today - right for a schedule, useless for an invoice from last month, which became due next year the moment you saved it, and jumped again if you tried to edit it back. For one-time bills the schedule fields now give way to a single **Due Date**, taken literally: an August invoice entered in September is due in August, shows as overdue until you mark it paid, and lands in August on the Bills Calendar ([#375](https://github.com/otherworld-dev/Budget/issues/375))
+
+### Fixed
+- **The Bills Calendar shows what was actually paid.** Paid months were guessed in the browser from the bill's last payment date - every month up to it counted as paid - so a bill you started paying in September showed January to August paid too, and a one-time bill fell out of the calendar the moment paying it deactivated it. The cells now come from the payments recorded against each bill: a month with a payment is paid and shows the amount that actually went out, months still to come show the expected amount, and the monthly totals follow suit. A payment made a few days late counts for the month it was due, a payment with no scheduled month near it appears as an extra paid month rather than vanishing, and a bill that is inactive now but was paid this year stays in the year's picture ([#375](https://github.com/otherworld-dev/Budget/issues/375))
+
 ## [2.48.0] - 2026-09-03
 
 ### Added

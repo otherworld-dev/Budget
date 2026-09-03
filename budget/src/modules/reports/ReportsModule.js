@@ -1945,27 +1945,26 @@ export default class ReportsModule {
 
         const currency = this.getPrimaryCurrency();
 
-        const calendarYear = parseInt(document.getElementById('bills-calendar-year')?.value) || new Date().getFullYear();
-
         // Render bills rows
         tbody.innerHTML = bills.map(bill => {
-            // Determine which months are "paid" based on lastPaidDate
-            const lastPaid = bill.lastPaidDate;
-            const lastPaidYear = lastPaid ? parseInt(lastPaid.substring(0, 4)) : null;
-            const lastPaidMonth = lastPaid ? parseInt(lastPaid.substring(5, 7)) : null;
+            // Paid months come from the server, from the payments actually
+            // recorded against the bill. They used to be guessed here from
+            // lastPaidDate - every month up to it counted as paid - so a bill
+            // first paid in September showed January to August paid too (#375).
+            const paidMonths = new Set(bill.paidMonths || []);
+            const paidAmounts = bill.paidAmounts || {};
 
             const months = [];
             for (let month = 1; month <= 12; month++) {
                 const occurs = bill.occurrences[month];
-                const amount = occurs ? this.formatCurrency(bill.amount, bill.currency || currency) : '';
-
-                // A month is "paid" if it occurs and lastPaidDate is in or after that month
-                const isPaid = occurs && lastPaidYear !== null && (
-                    calendarYear < lastPaidYear ||
-                    (calendarYear === lastPaidYear && month <= lastPaidMonth)
-                );
+                const isPaid = occurs && paidMonths.has(month);
+                // What was actually paid where there is a payment; the
+                // expected amount for the months still to come
+                const cellAmount = isPaid && paidAmounts[month] !== undefined ? paidAmounts[month] : bill.amount;
+                const amount = occurs ? this.formatCurrency(cellAmount, bill.currency || currency) : '';
                 const cellClass = occurs ? (isPaid ? 'has-bill paid' : 'has-bill') : 'no-bill';
-                months.push(`<td class="month-cell ${cellClass}">${amount}</td>`);
+                const title = isPaid ? t('budget', 'Paid') : (occurs ? t('budget', 'Due') : '');
+                months.push(`<td class="month-cell ${cellClass}" title="${title}">${amount}</td>`);
             }
 
             const transferBadge = bill.isTransfer ? ` <span class="transfer-badge" style="background: #0082c9; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px;">${t('budget', 'Transfer')}</span>` : '';
