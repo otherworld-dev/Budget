@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.49.0] - 2026-09-04
 
 ### Added
 - **A one-time bill can be dated in the past.** A bill only ever stored a day and a month, and every date it worked out from them was rolled forward past today - right for a schedule, useless for an invoice from last month, which became due next year the moment you saved it, and jumped again if you tried to edit it back. For one-time bills the schedule fields now give way to a single **Due Date**, taken literally: an August invoice entered in September is due in August, shows as overdue until you mark it paid, and lands in August on the Bills Calendar. The placeholder transaction a new bill pre-creates is always a scheduled one, whatever its date: with a past date it was being written as a cleared payment, booking the money as spent for a bill nobody had paid ([#375](https://github.com/otherworld-dev/Budget/issues/375))
