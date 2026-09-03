@@ -52,6 +52,7 @@ class Application extends App implements IBootstrap {
             return new SchemaVersionService(
                 $c->get(IConfig::class),
                 $c->get(IDBConnection::class),
+                $c->get(\OCA\Budget\Service\SchemaProbe::class),
                 $c->get(IL10N::class),
                 $c->get(IAppManager::class)->getAppVersion(self::APP_ID),
                 __DIR__ . '/../Migration'

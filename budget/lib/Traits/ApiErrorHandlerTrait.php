@@ -166,10 +166,28 @@ trait ApiErrorHandlerTrait {
             return null;
         }
 
+        $l = $this->getL10N();
+
+        // Ask the schema check what is actually missing and which migration
+        // to re-run: the generic disable/enable line below was followed to the
+        // letter on the #333 instance and fixed nothing, because its migration
+        // was already recorded as applied. recheck() ignores the "verified"
+        // marker — a save just failed on the schema, so it is stale.
+        try {
+            $warning = \OCP\Server::get(\OCA\Budget\Service\SchemaVersionService::class)->recheck();
+        } catch (\Throwable $e) {
+            $warning = null;
+        }
+        if ($warning !== null && ($warning['command'] ?? '') !== '') {
+            $fix = $l !== null
+                ? $l->t('An administrator can finish it by running: %1$s', [$warning['command']])
+                : 'An administrator can finish it by running: ' . $warning['command'];
+            return trim($warning['message'] . ' ' . implode(' ', $warning['details'] ?? []) . ' ' . $fix);
+        }
+
         // The literal is repeated rather than built in a variable: xgettext can
         // only extract a string literal passed straight to t(), and a variable
         // here silently left the hint out of the translation template.
-        $l = $this->getL10N();
         return $l !== null
             ? $l->t('The database is missing something this version of Budget needs, which means the update did not finish. An administrator can complete it by running: occ app:disable budget && occ app:enable budget')
             : 'The database is missing something this version of Budget needs, which means the update did not finish. An administrator can complete it by running: occ app:disable budget && occ app:enable budget';

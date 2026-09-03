@@ -41,6 +41,17 @@ class BudgetSchemaCheck implements ISetupCheck {
             return SetupResult::success($this->l->t('Budget\'s database schema is up to date.'));
         }
 
-        return SetupResult::error($warning['message']);
+        // The overview is the one place the administrator who can run occ
+        // actually looks, so it carries what is missing and the fix, not
+        // just the headline (#333).
+        $lines = [$warning['message']];
+        foreach ($warning['details'] ?? [] as $detail) {
+            $lines[] = '- ' . $detail;
+        }
+        if (($warning['command'] ?? '') !== '') {
+            $lines[] = $this->l->t('An administrator can finish it by running: %1$s', [$warning['command']]);
+        }
+
+        return SetupResult::error(implode("\n", $lines));
     }
 }

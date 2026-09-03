@@ -63,10 +63,26 @@ class BudgetSchemaCheckTest extends TestCase {
         $result = $this->check->run();
 
         $this->assertNotSame(SetupResult::SUCCESS, $result->getSeverity());
-        $this->assertSame(
+        $this->assertStringContainsString(
             'A database update that came with this version of Budget was never applied (1 change is missing). Saving may fail until it is finished.',
             $result->getDescription()
         );
+        // The overview is where the person who can run occ looks, so the
+        // command travels with the headline (#333).
+        $this->assertStringContainsString('occ app:disable budget && occ app:enable budget', $result->getDescription());
+    }
+
+    public function testRunListsWhatIsMissing(): void {
+        $this->schemaVersionService->method('getWarning')->willReturn([
+            'message' => 'The database is missing 1 column this version of Budget writes to. Saving will fail until it is added.',
+            'command' => 'occ migrations:execute budget 001000094Date20260819',
+            'details' => ['budget_bills.amount_type'],
+        ]);
+
+        $description = $this->check->run()->getDescription();
+
+        $this->assertStringContainsString('budget_bills.amount_type', $description);
+        $this->assertStringContainsString('migrations:execute budget 001000094Date20260819', $description);
     }
 
     /**

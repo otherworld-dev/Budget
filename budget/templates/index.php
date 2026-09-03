@@ -290,8 +290,17 @@ style('budget', 'budget-app');
     <div class="budget-schema-warning-text">
         <strong><?php p($l->t("This app's update was never finished")); ?></strong>
         <p><?php p($_['schemaWarning']['message']); ?></p>
+<?php if (!empty($_['schemaWarning']['details'])) { ?>
+        <ul>
+<?php foreach ($_['schemaWarning']['details'] as $detail) { ?>
+            <li><?php p($detail); ?></li>
+<?php } ?>
+        </ul>
+<?php } ?>
+<?php if (!empty($_['schemaWarning']['command'])) { ?>
         <p><?php p($l->t('An administrator can finish it by running:')); ?></p>
         <code><?php p($_['schemaWarning']['command']); ?></code>
+<?php } ?>
     </div>
 </div>
 <?php } ?>
