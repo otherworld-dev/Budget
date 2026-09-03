@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.48.0] - 2026-09-03
 
 ### Added
 - **Tags can be hidden once they have served their purpose.** A tag for a trip you have taken or a project that has finished keeps its history, but has no business in the picker for every new transaction — and deleting it would strip it from everything it is on. Editing a tag, on the **Tags** page for a global tag or in the category view for a tag-set tag, now offers a **Hidden** checkbox. A hidden tag is no longer offered when tagging a new transaction, bill, transfer or rule action, or when linking a savings goal, and it shows dimmed with a *Hidden* label where tags are managed so it can be found and unhidden. Everything that already carries the tag keeps it: the transactions stay tagged, the transaction filter and reports still list it, and a hidden tag already on the item being edited stays in its form, checked, so editing something else does not strip it ([#373](https://github.com/otherworld-dev/Budget/issues/373))
