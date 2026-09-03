@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-03 00:23+0000\n"
-"PO-Revision-Date: 2026-06-10 10:01+0000\n"
-"Last-Translator: Matyu9 <mathieu.degueurce@icloud.com>\n"
+"PO-Revision-Date: 2026-09-03 19:01+0000\n"
+"Last-Translator: Zpiboo <zpiboo@outlook.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
 "Language: fr\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 2026.6\n"
+"X-Generator: Weblate 2026.9\n"
 
 #: /app/lib/Controller/AccountController.php:82
 #: /app/lib/Controller/ApiV1AccountController.php:56
@@ -189,22 +189,24 @@ msgstr "Échec de la suppression du taux d'intérêt"
 
 #: /app/lib/Controller/AdminSettingController.php:45
 msgid "Receipt scanning is not using the Otherworld relay."
-msgstr ""
+msgstr "Le scan de reçu n'utilise pas le relais Otherworld."
 
 #: /app/lib/Controller/AdminSettingController.php:49
 msgid "No license key is saved yet."
-msgstr ""
+msgstr "Aucune clé de licence n'est encore enregistrée."
 
 #: /app/lib/Controller/AdminSettingController.php:53
 msgid ""
 "This license has no subscription behind it — it was issued directly, so "
 "there is nothing to manage."
 msgstr ""
+"Cette licence ne correspond pas à un abonnement — elle a été délivrée "
+"directement, il n'y a donc rien à gérer."
 
 #: /app/lib/Controller/AdminSettingController.php:57
 #: /app/src/modules/settings/SettingsModule.js:153
 msgid "The billing portal could not be opened. Try again shortly."
-msgstr ""
+msgstr "Le portail de paiement n'a pas pu être ouvert. Réessayez plus tard."
 
 #: /app/lib/Controller/AlertController.php:51
 msgid "Failed to retrieve budget alerts"
@@ -243,21 +245,24 @@ msgstr "Aucun fichier téléchargé"
 msgid ""
 "No total could be read from this receipt. Enter the transaction manually"
 msgstr ""
+"Aucun total n'a pu être lu sur ce reçu. Entrez la transaction manuellement"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:92
 #: /app/lib/Controller/ReceiptScanController.php:99
 msgid "Receipt scanning is not set up on this server"
-msgstr ""
+msgstr "Le scan de reçu n'a pas été configuré sur ce serveur"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:97
 msgid "The OCR provider's quota is used up. Try again later"
-msgstr ""
+msgstr "Le quota du fournisseur OCR est épuisé. Réessayez plus tard"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:102
 msgid ""
 "The receipt could not be read — the OCR provider failed. Try again, or enter "
 "the transaction manually"
 msgstr ""
+"Le reçu n'a pas pu être lu — le fournisseur OCR a échoué. Réessayez, ou "
+"entrez la transaction manuellement"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:98
 msgid "Invalid date. Use the YYYY-MM-DD format"
@@ -316,12 +321,13 @@ msgstr "Type d'opération invalide. Doit être \"crédit\" ou \"débit\""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:270
 msgid "Idempotency key too long (64 characters maximum)"
-msgstr ""
+msgstr "Clé d'idempotence trop longue (64 caractères maximum)"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:343
 #: /app/lib/Controller/ApiV1TransactionController.php:491
 msgid "The transaction was recorded, but the photo could not be attached"
 msgstr ""
+"La transaction a été enregistrée, mais la photo n'a pas pu être attachée"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:369
 msgid "The transaction was recorded, but it could not be split"
