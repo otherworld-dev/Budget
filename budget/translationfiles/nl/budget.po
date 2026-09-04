@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-04 11:02+0000\n"
-"PO-Revision-Date: 2026-09-03 22:39+0000\n"
+"PO-Revision-Date: 2026-09-04 16:02+0000\n"
 "Last-Translator: Arjow <arjow@protonmail.com>\n"
 "Language-Team: Dutch <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/nl/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2026.9\n"
+"X-Generator: Weblate 2026.9.1.dev0\n"
 
 #: /app/lib/Controller/AccountController.php:82
 #: /app/lib/Controller/ApiV1AccountController.php:56
@@ -53,11 +53,11 @@ msgstr "Rekening"
 
 #: /app/lib/Controller/AccountController.php:117
 msgid "Invalid JSON data or empty request"
-msgstr ""
+msgstr "Ongeldige JSON data of lege aanvraag"
 
 #: /app/lib/Controller/AccountController.php:129
 msgid "Account type is required and cannot be empty"
-msgstr ""
+msgstr "Rekening type is vereist en mag niet leeg zijn"
 
 #: /app/lib/Controller/AccountController.php:135
 #: /app/lib/Controller/AccountController.php:313
@@ -90,36 +90,36 @@ msgstr "Afschriftdatum moet tussen 1 en 31 zijn"
 #: /app/lib/Controller/AccountController.php:351
 #, php-format
 msgid "Invalid routing number: %1$s"
-msgstr ""
+msgstr "Ongeldige routingnummer: %1$s"
 
 #: /app/lib/Controller/AccountController.php:225
 #: /app/lib/Controller/AccountController.php:364
 #, php-format
 msgid "Invalid sort code: %1$s"
-msgstr ""
+msgstr "Ongeldige bank identificatienummer: %1$s"
 
 #: /app/lib/Controller/AccountController.php:233
 #: /app/lib/Controller/AccountController.php:377
 #, php-format
 msgid "Invalid IBAN: %1$s"
-msgstr ""
+msgstr "Ongeldige IBAN: %1$s"
 
 #: /app/lib/Controller/AccountController.php:241
 #: /app/lib/Controller/AccountController.php:390
 #, php-format
 msgid "Invalid SWIFT/BIC: %1$s"
-msgstr ""
+msgstr "Ongeldige SWIFT/BIC: %1$s"
 
 #: /app/lib/Controller/AccountController.php:279
 msgid "Failed to create account"
-msgstr ""
+msgstr "Kon rekening niet aanmaken"
 
 #: /app/lib/Controller/AccountController.php:295
 #: /app/lib/Controller/BillController.php:981
 #: /app/lib/Controller/BillController.php:999
 #: /app/lib/Controller/RecurringIncomeController.php:418
 msgid "Invalid request data"
-msgstr ""
+msgstr "Ongeldige data aanvraag"
 
 #: /app/lib/Controller/AccountController.php:482
 #: /app/lib/Controller/BillController.php:689
@@ -130,18 +130,19 @@ msgstr ""
 #: /app/lib/Controller/TagSetController.php:308
 #: /app/lib/Controller/TagSetController.php:412
 #: /app/lib/Controller/TransactionController.php:476
+#, fuzzy
 msgid "No valid fields to update"
-msgstr ""
+msgstr "Geen geldige waarden om velden bij te werken"
 
 #: /app/lib/Controller/AccountController.php:514
 msgid "Failed to update account"
-msgstr ""
+msgstr "Kan account niet updaten"
 
 #: /app/lib/Controller/AccountController.php:576
 #: /app/src/modules/accounts/AccountsModule.js:3002
 #: /app/src/modules/accounts/AccountsModule.js:3016
 msgid "Failed to delete account"
-msgstr ""
+msgstr "Kon account niet verwijderen"
 
 #: /app/lib/Controller/AccountController.php:600
 msgid "This account has no sensitive banking data to reveal"
