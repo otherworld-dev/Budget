@@ -9,12 +9,15 @@ use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\YearOverYearService;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataDownloadResponse;
+use OCA\Budget\Tests\Unit\Support\ReadsPdfText;
 use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 class YearOverYearControllerTest extends TestCase {
+	use ReadsPdfText;
+
 	private YearOverYearController $controller;
 	private YearOverYearService $service;
 	private IRequest $request;
@@ -444,6 +447,64 @@ class YearOverYearControllerTest extends TestCase {
 		$response = $this->controller->export('years', 'csv', 3, 0, 42);
 
 		$this->assertInstanceOf(DataDownloadResponse::class, $response);
+	}
+
+	/**
+	 * The controller again, with a translator that knows $dictionary and
+	 * passes everything else through vsprintf.
+	 *
+	 * @param array<string, string> $dictionary
+	 */
+	private function controllerTranslating(array $dictionary): YearOverYearController {
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(
+			fn(string $text, array $params = []) => vsprintf($dictionary[$text] ?? $text, $params)
+		);
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+
+		return new YearOverYearController($this->request, $this->service, $granularShareService, $l, 'user1', $this->logger);
+	}
+
+	public function testExportCsvIsWrittenInTheUsersLanguage(): void {
+		$controller = $this->controllerTranslating(['Year' => 'Jahr', 'Income' => 'Einnahmen', 'Year Comparison' => 'Jahresvergleich']);
+		$this->service->method('compareYears')->willReturn(['years' => [
+			['year' => 2026, 'income' => 5000, 'expenses' => 3000, 'savings' => 2000, 'transactionCount' => 50],
+		]]);
+
+		$csv = $controller->export('years', 'csv')->render();
+
+		$this->assertStringContainsString('Jahresvergleich', $csv);
+		$this->assertStringContainsString('Jahr,Einnahmen', $csv);
+		$this->assertStringNotContainsString('Year', $csv);
+	}
+
+	public function testExportMonthComparisonNamesTheMonthInTheUsersLanguage(): void {
+		$controller = $this->controllerTranslating(['March' => 'Maerz', '%s Comparison' => 'Vergleich %s']);
+		$this->service->method('compareMonth')->willReturn(['type' => 'month', 'month' => 3, 'monthName' => 'March', 'years' => [
+			['year' => 2026, 'month' => 3, 'monthName' => 'March', 'income' => 100, 'expenses' => 50, 'savings' => 50, 'transactionCount' => 3],
+		]]);
+
+		$csv = $controller->export('month', 'csv', 3, 3)->render();
+
+		$this->assertStringContainsString('Vergleich Maerz', $csv);
+		$this->assertStringNotContainsString('March', $csv);
+	}
+
+	public function testExportPdfIsWrittenInTheUsersLanguage(): void {
+		$this->requireTcpdf();
+		$controller = $this->controllerTranslating([
+			'Year-over-Year Report' => 'Jahresbericht',
+			'Category Spending Comparison' => 'Kategorienvergleich',
+		]);
+		$this->service->method('compareCategorySpending')->willReturn(['categories' => [
+			['name' => 'Food', 'years' => [['year' => 2025, 'spending' => 100], ['year' => 2026, 'spending' => 120]], 'change' => 20.0],
+		]]);
+
+		$text = $this->pdfText($controller->export('categories', 'pdf')->render());
+
+		$this->assertStringContainsString('Jahresbericht', $text);
+		$this->assertStringContainsString('Kategorienvergleich', $text);
 	}
 
 	public function testExportPdfFallsToCsvWhenTcpdfUnavailable(): void {

@@ -196,6 +196,17 @@ class ReportServiceTest extends TestCase {
         $this->assertEquals('text/csv', $result['contentType']);
     }
 
+    public function testExportReportPassesTheLanguageToTheExporter(): void {
+        $summaryData = ['totals' => ['totalIncome' => 5000.0]];
+        $this->aggregator->method('generateSummaryWithComparison')->willReturn($summaryData);
+
+        $this->exporter->expects($this->once())->method('export')
+            ->with($summaryData, 'summary', 'pdf', 'de')
+            ->willReturn(['stream' => '%PDF', 'contentType' => 'application/pdf', 'filename' => 'summary_report.pdf']);
+
+        $this->service->exportReport('user1', 'summary', 'pdf', '2025-01-01', '2025-12-31', lang: 'de');
+    }
+
     public function testExportReportUnknownTypeThrows(): void {
         $this->expectException(\InvalidArgumentException::class);
         $this->service->exportReport('user1', 'invalid', 'csv', '2025-01-01', '2025-12-31');

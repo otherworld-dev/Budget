@@ -49,7 +49,12 @@ class ScheduledReportService {
         $endDate = date('Y-m-t', strtotime($startDate));
         $filename = "Budget-Report-{$month}.pdf";
 
-        $export = $this->reportService->exportReport($userId, 'summary', 'pdf', $startDate, $endDate);
+        // No session here, so the recipient's language has to be named: the
+        // DI translator would speak the server's default (#377).
+        $lang = $this->mailService->getUserLanguage($userId);
+        $l = $this->l10nFactory->get(Application::APP_ID, $lang);
+
+        $export = $this->reportService->exportReport($userId, 'summary', 'pdf', $startDate, $endDate, lang: $lang);
         $pdfContent = $export['stream'];
 
         $anySuccess = false;
@@ -65,8 +70,7 @@ class ScheduledReportService {
         }
 
         if ($toEmail) {
-            $l = $this->l10nFactory->get(Application::APP_ID, $this->mailService->getUserLanguage($userId));
-            $monthLabel = date('F Y', strtotime($startDate));
+            $monthLabel = MonthNames::long($l, (int) substr($month, 5, 2)) . ' ' . substr($month, 0, 4);
             $sent = $this->mailService->send(
                 $userId,
                 $l->t('Your Budget report for %1$s', [$monthLabel]),

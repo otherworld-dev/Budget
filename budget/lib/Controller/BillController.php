@@ -7,6 +7,7 @@ namespace OCA\Budget\Controller;
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\GranularShareService;
+use OCA\Budget\Service\Report\MonthNames;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
@@ -1083,14 +1084,13 @@ class BillController extends Controller {
     private function exportCalendarToCsv(array $data): array {
         $csv = fopen('php://memory', 'w');
         $year = $data['year'] ?? date('Y');
-        $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
         // Header
-        $header = ['Bill', 'Amount', 'Frequency'];
-        foreach ($months as $m) {
-            $header[] = $m;
+        $header = [$this->l->t('Bill'), $this->l->t('Amount'), $this->l->t('Frequency')];
+        for ($m = 1; $m <= 12; $m++) {
+            $header[] = MonthNames::short($this->l, $m);
         }
-        $header[] = 'Annual Total';
+        $header[] = $this->l->t('Annual Total');
         fputcsv($csv, $header);
 
         // Bill rows
@@ -1114,7 +1114,7 @@ class BillController extends Controller {
         }
 
         // Monthly totals row
-        $totalsRow = ['Total', '', ''];
+        $totalsRow = [$this->l->t('Total'), '', ''];
         $grandTotal = 0;
         for ($m = 1; $m <= 12; $m++) {
             $total = $data['monthlyTotals'][$m] ?? 0;
@@ -1141,11 +1141,11 @@ class BillController extends Controller {
         }
 
         $year = $data['year'] ?? date('Y');
-        $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        $title = $this->l->t('Bills Calendar %s', [$year]);
 
         $pdf = new \TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
         $pdf->SetCreator('Nextcloud Budget');
-        $pdf->SetTitle("Bills Calendar {$year}");
+        $pdf->SetTitle($title);
         $pdf->setPrintHeader(false);
         $pdf->setPrintFooter(true);
         $pdf->SetMargins(10, 10, 10);
@@ -1153,7 +1153,7 @@ class BillController extends Controller {
         $pdf->AddPage();
 
         $pdf->SetFont('dejavusans', 'B', 14);
-        $pdf->Cell(0, 8, "Bills Calendar {$year}", 0, 1, 'C');
+        $pdf->Cell(0, 8, $title, 0, 1, 'C');
         $pdf->Ln(3);
 
         // Column widths for landscape A4 (277mm usable)
@@ -1164,12 +1164,12 @@ class BillController extends Controller {
 
         // Header
         $pdf->SetFont('dejavusans', 'B', 7);
-        $pdf->Cell($nameW, 5, 'Bill', 1, 0, 'L');
-        $pdf->Cell($amtW, 5, 'Amount', 1, 0, 'R');
-        foreach ($months as $m) {
-            $pdf->Cell($monthW, 5, $m, 1, 0, 'C');
+        $pdf->Cell($nameW, 5, $this->l->t('Bill'), 1, 0, 'L');
+        $pdf->Cell($amtW, 5, $this->l->t('Amount'), 1, 0, 'R');
+        for ($m = 1; $m <= 12; $m++) {
+            $pdf->Cell($monthW, 5, MonthNames::short($this->l, $m), 1, 0, 'C');
         }
-        $pdf->Cell($totalW, 5, 'Annual', 1, 1, 'R');
+        $pdf->Cell($totalW, 5, $this->l->t('Annual'), 1, 1, 'R');
 
         // Data rows
         $pdf->SetFont('dejavusans', '', 7);
@@ -1190,7 +1190,7 @@ class BillController extends Controller {
 
         // Totals row
         $pdf->SetFont('dejavusans', 'B', 7);
-        $pdf->Cell($nameW, 5, 'Total', 1, 0, 'L');
+        $pdf->Cell($nameW, 5, $this->l->t('Total'), 1, 0, 'L');
         $pdf->Cell($amtW, 5, '', 1, 0, 'R');
         $grandTotal = 0;
         for ($m = 1; $m <= 12; $m++) {

@@ -425,6 +425,9 @@ class ReportService {
      * @param int|null $accountId Optional account filter
      * @param string $startDate Start date
      * @param string $endDate End date
+     * @param string|null $lang Language for the labels; null resolves to the
+     *                          session user's. A background job has no session
+     *                          and names the recipient's instead (#377).
      * @return array{stream: string, contentType: string, filename: string}
      */
     public function exportReport(
@@ -434,7 +437,8 @@ class ReportService {
         string $startDate,
         string $endDate,
         ?int $accountId = null,
-        ?array $visibleAccountIds = null
+        ?array $visibleAccountIds = null,
+        ?string $lang = null
     ): array {
         // Generate the report data
         $data = match ($type) {
@@ -448,6 +452,6 @@ class ReportService {
             default => throw new \InvalidArgumentException('Unknown report type: ' . $type),
         };
 
-        return $this->exporter->export($data, $type, $format);
+        return $this->exporter->export($data, $type, $format, $lang);
     }
 }

@@ -6,6 +6,7 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\GranularShareService;
+use OCA\Budget\Service\Report\MonthNames;
 use OCA\Budget\Service\YearOverYearService;
 use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
@@ -223,13 +224,38 @@ class YearOverYearController extends Controller {
         ];
     }
 
-    private function writeYoYComparisonCsv($handle, array $data, string $comparisonType): void {
-        $label = $comparisonType === 'month'
-            ? ($data['monthName'] ?? 'Month') . ' Comparison'
-            : 'Year Comparison';
+    /**
+     * "Year Comparison", or "<Month> Comparison" with the month in the user's language.
+     */
+    private function comparisonHeading(array $data, string $comparisonType): string {
+        if ($comparisonType !== 'month') {
+            return $this->l->t('Year Comparison');
+        }
+        $month = (int) ($data['month'] ?? 0);
+        $name = ($month >= 1 && $month <= 12)
+            ? MonthNames::long($this->l, $month)
+            : (string) ($data['monthName'] ?? $this->l->t('Month'));
+        return $this->l->t('%s Comparison', [$name]);
+    }
 
-        fputcsv($handle, [$label]);
-        fputcsv($handle, ['Year', 'Income', 'Expenses', 'Savings', 'Transactions', 'Income Change %', 'Expense Change %']);
+    /**
+     * @return string[]
+     */
+    private function comparisonColumns(): array {
+        return [
+            $this->l->t('Year'),
+            $this->l->t('Income'),
+            $this->l->t('Expenses'),
+            $this->l->t('Savings'),
+            $this->l->t('Transactions'),
+            $this->l->t('Income Change %%'),
+            $this->l->t('Expense Change %%'),
+        ];
+    }
+
+    private function writeYoYComparisonCsv($handle, array $data, string $comparisonType): void {
+        fputcsv($handle, [$this->comparisonHeading($data, $comparisonType)]);
+        fputcsv($handle, $this->comparisonColumns());
 
         foreach ($data['years'] ?? [] as $year) {
             fputcsv($handle, [
@@ -257,15 +283,15 @@ class YearOverYearController extends Controller {
         }
         sort($years);
 
-        $header = ['Category'];
+        $header = [$this->l->t('Category')];
         foreach ($years as $y) {
             $header[] = (string) $y;
         }
-        $header[] = 'Change %';
+        $header[] = $this->l->t('Change %%');
         fputcsv($handle, $header);
 
         foreach ($data['categories'] ?? [] as $cat) {
-            $row = [$cat['name'] ?? 'Unknown'];
+            $row = [$cat['name'] ?? $this->l->t('Unknown')];
             // Build year lookup for this category
             $yearLookup = [];
             foreach ($cat['years'] ?? [] as $y) {
@@ -287,7 +313,8 @@ class YearOverYearController extends Controller {
 
         $pdf = new \TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
         $pdf->SetCreator('Nextcloud Budget');
-        $pdf->SetTitle('Year-over-Year Report');
+        $title = $this->l->t('Year-over-Year Report');
+        $pdf->SetTitle($title);
         $pdf->setPrintHeader(false);
         $pdf->setPrintFooter(true);
         $pdf->SetMargins(15, 15, 15);
@@ -295,7 +322,7 @@ class YearOverYearController extends Controller {
         $pdf->AddPage();
 
         $pdf->SetFont('dejavusans', 'B', 16);
-        $pdf->Cell(0, 10, 'Year-over-Year Report', 0, 1, 'C');
+        $pdf->Cell(0, 10, $title, 0, 1, 'C');
         $pdf->Ln(5);
 
         if ($comparisonType === 'categories') {
@@ -312,16 +339,12 @@ class YearOverYearController extends Controller {
     }
 
     private function renderYoYComparisonPdf($pdf, array $data, string $comparisonType): void {
-        $label = $comparisonType === 'month'
-            ? ($data['monthName'] ?? 'Month') . ' Comparison'
-            : 'Year Comparison';
-
         $pdf->SetFont('dejavusans', 'B', 12);
-        $pdf->Cell(0, 8, $label, 0, 1);
+        $pdf->Cell(0, 8, $this->comparisonHeading($data, $comparisonType), 0, 1);
 
         $pdf->SetFont('dejavusans', 'B', 9);
-        $colWidths = [25, 35, 35, 35, 30, 35, 35];
-        $headers = ['Year', 'Income', 'Expenses', 'Savings', 'Txns', 'Income Chg', 'Expense Chg'];
+        $colWidths = [25, 35, 35, 35, 30, 40, 40];
+        $headers = $this->comparisonColumns();
         foreach ($headers as $i => $h) {
             $pdf->Cell($colWidths[$i], 6, $h, 1, 0, $i === 0 ? 'L' : 'R');
         }
@@ -342,7 +365,7 @@ class YearOverYearController extends Controller {
 
     private function renderYoYCategoriesPdf($pdf, array $data): void {
         $pdf->SetFont('dejavusans', 'B', 12);
-        $pdf->Cell(0, 8, 'Category Spending Comparison', 0, 1);
+        $pdf->Cell(0, 8, $this->l->t('Category Spending Comparison'), 0, 1);
 
         // Determine year columns
         $years = [];
@@ -362,11 +385,11 @@ class YearOverYearController extends Controller {
         $yearWidth = count($years) > 0 ? min(40, (210 - $catWidth - 30) / count($years)) : 40;
         $changeWidth = 30;
 
-        $pdf->Cell($catWidth, 6, 'Category', 1, 0, 'L');
+        $pdf->Cell($catWidth, 6, $this->l->t('Category'), 1, 0, 'L');
         foreach ($years as $y) {
             $pdf->Cell($yearWidth, 6, (string) $y, 1, 0, 'R');
         }
-        $pdf->Cell($changeWidth, 6, 'Change %', 1, 1, 'R');
+        $pdf->Cell($changeWidth, 6, $this->l->t('Change %%'), 1, 1, 'R');
 
         // Data rows
         $pdf->SetFont('dejavusans', '', 9);
@@ -376,7 +399,7 @@ class YearOverYearController extends Controller {
                 $yearLookup[$y['year']] = $y['spending'] ?? 0;
             }
 
-            $pdf->Cell($catWidth, 6, $cat['name'] ?? 'Unknown', 1, 0, 'L');
+            $pdf->Cell($catWidth, 6, $cat['name'] ?? $this->l->t('Unknown'), 1, 0, 'L');
             foreach ($years as $y) {
                 $pdf->Cell($yearWidth, 6, number_format($yearLookup[$y] ?? 0, 2), 1, 0, 'R');
             }

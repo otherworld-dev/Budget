@@ -11,12 +11,15 @@ use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataDownloadResponse;
+use OCA\Budget\Tests\Unit\Support\ReadsPdfText;
 use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 class BillControllerTest extends TestCase {
+	use ReadsPdfText;
+
 	private BillController $controller;
 	private BillService $service;
 	private ValidationService $validationService;
@@ -1607,6 +1610,65 @@ class BillControllerTest extends TestCase {
 		$response = $this->controller->exportCalendar();
 
 		$this->assertInstanceOf(DataDownloadResponse::class, $response);
+	}
+
+	/**
+	 * The controller again, with a translator that knows $dictionary and
+	 * passes everything else through vsprintf.
+	 *
+	 * @param array<string, string> $dictionary
+	 */
+	private function controllerTranslating(array $dictionary): BillController {
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(
+			fn(string $text, array $params = []) => vsprintf($dictionary[$text] ?? $text, $params)
+		);
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$granularShareService->method('resolveOwner')->willReturn('user1');
+
+		return new BillController(
+			$this->request,
+			$this->service,
+			$this->validationService,
+			$granularShareService,
+			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
+			$l,
+			'user1',
+			$this->logger
+		);
+	}
+
+	private function calendarData(): array {
+		return [
+			'year' => 2026,
+			'bills' => [
+				['name' => 'Rent', 'amount' => 1200, 'frequency' => 'monthly', 'occurrences' => array_fill(1, 12, true)],
+			],
+			'monthlyTotals' => array_fill(1, 12, 1200),
+		];
+	}
+
+	public function testExportCalendarCsvIsWrittenInTheUsersLanguage(): void {
+		$controller = $this->controllerTranslating(['Bill' => 'Rechnung', 'Jan' => 'Jaen', 'Annual Total' => 'Jahressumme']);
+		$this->service->method('getAnnualOverview')->willReturn($this->calendarData());
+
+		$csv = $controller->exportCalendar('csv', 2026)->render();
+
+		$this->assertStringContainsString('Rechnung,Amount,Frequency,Jaen,Feb', $csv);
+		$this->assertStringContainsString('Jahressumme', $csv);
+	}
+
+	public function testExportCalendarPdfIsWrittenInTheUsersLanguage(): void {
+		$this->requireTcpdf();
+		$controller = $this->controllerTranslating(['Bills Calendar %s' => 'Rechnungskalender %s', 'Bill' => 'Rechnung', 'Jan' => 'Jaen']);
+		$this->service->method('getAnnualOverview')->willReturn($this->calendarData());
+
+		$text = $this->pdfText($controller->exportCalendar('pdf', 2026)->render());
+
+		$this->assertStringContainsString('Rechnungskalender 2026', $text);
+		$this->assertStringContainsString('Rechnung', $text);
+		$this->assertStringContainsString('Jaen', $text);
 	}
 
 	public function testExportCalendarPdfFallbackToCsv(): void {

@@ -538,6 +538,9 @@ class TransactionMapperTest extends TestCase {
         $this->assertEquals(10, $data[0]['count']);
         // Empty vendor mapped to 'Unknown'
         $this->assertEquals('Unknown', $data[1]['name']);
+        // ... and flagged, so a consumer can label it in the user's language (#377)
+        $this->assertTrue($data[1]['unknown']);
+        $this->assertFalse($data[0]['unknown']);
     }
 
     // ===== getIncomeBySource =====
@@ -557,6 +560,9 @@ class TransactionMapperTest extends TestCase {
         $this->assertEquals(5000.00, $data[0]['total']);
         // Empty vendor mapped to 'Unknown Source'
         $this->assertEquals('Unknown Source', $data[1]['name']);
+        // ... and flagged, so a consumer can label it in the user's language (#377)
+        $this->assertTrue($data[1]['unknown']);
+        $this->assertFalse($data[0]['unknown']);
     }
 
     // ===== getCashFlowByMonth =====

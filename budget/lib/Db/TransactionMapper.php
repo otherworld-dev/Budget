@@ -1691,6 +1691,7 @@ class TransactionMapper extends QBMapper {
 
         return array_map(fn($row) => [
             'name' => $row['vendor'] ?: 'Unknown',
+            'unknown' => !$row['vendor'],
             'total' => (float)$row['total'],
             'count' => (int)$row['count']
         ], $data);
@@ -1762,6 +1763,7 @@ class TransactionMapper extends QBMapper {
 
         return array_map(fn($row) => [
             'name' => $row['vendor'] ?: 'Unknown Source',
+            'unknown' => !$row['vendor'],
             'total' => (float)$row['total'],
             'count' => (int)$row['count']
         ], $data);
