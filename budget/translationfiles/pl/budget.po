@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-04 11:02+0000\n"
+"POT-Creation-Date: 2026-09-04 13:52+0000\n"
 "PO-Revision-Date: 2026-09-02 11:51+0000\n"
 "Last-Translator: Bartłomiej Zieliński <bzielinskib@gmail.com>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -40,6 +40,8 @@ msgstr "Nie znaleziono konta"
 #: /app/lib/Controller/AccountController.php:769
 #: /app/lib/Controller/AccountController.php:833
 #: /app/lib/Service/Export/TransactionCsvExporter.php:32
+#: /app/lib/Service/Report/ReportExporter.php:239
+#: /app/lib/Service/Report/ReportExporter.php:452
 #: /app/src/modules/dashboard/DashboardModule.js:4720
 #: /app/src/modules/rules/components/CriteriaBuilder.js:158
 #: /app/templates/index.php:1007 /app/templates/index.php:1566
@@ -116,14 +118,14 @@ msgid "Failed to create account"
 msgstr ""
 
 #: /app/lib/Controller/AccountController.php:295
-#: /app/lib/Controller/BillController.php:981
-#: /app/lib/Controller/BillController.php:999
+#: /app/lib/Controller/BillController.php:982
+#: /app/lib/Controller/BillController.php:1000
 #: /app/lib/Controller/RecurringIncomeController.php:418
 msgid "Invalid request data"
 msgstr ""
 
 #: /app/lib/Controller/AccountController.php:482
-#: /app/lib/Controller/BillController.php:689
+#: /app/lib/Controller/BillController.php:690
 #: /app/lib/Controller/CategoryController.php:319
 #: /app/lib/Controller/ImportRuleController.php:332
 #: /app/lib/Controller/ImportTemplateController.php:146
@@ -611,18 +613,20 @@ msgstr ""
 msgid "Failed to re-authorize"
 msgstr "Nie udało się pobrać kont"
 
-#: /app/lib/Controller/BillController.php:95
+#: /app/lib/Controller/BillController.php:96
 msgid "Failed to retrieve bills"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:118
-#: /app/lib/Controller/BillController.php:133
-#: /app/lib/Controller/BillController.php:713 /app/templates/index.php:3518
+#: /app/lib/Controller/BillController.php:119
+#: /app/lib/Controller/BillController.php:134
+#: /app/lib/Controller/BillController.php:714
+#: /app/lib/Controller/BillController.php:1089
+#: /app/lib/Controller/BillController.php:1167 /app/templates/index.php:3518
 #: /app/templates/index.php:5938
 msgid "Bill"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:118
+#: /app/lib/Controller/BillController.php:119
 #: /app/lib/Controller/CategoryController.php:381
 #: /app/lib/Controller/CategoryController.php:475
 #: /app/lib/Controller/CategoryController.php:493
@@ -638,120 +642,120 @@ msgstr ""
 msgid "%1$s not found"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:168
-#: /app/lib/Controller/BillController.php:597
+#: /app/lib/Controller/BillController.php:169
+#: /app/lib/Controller/BillController.php:598
 #: /app/lib/Service/BillService.php:75
 #, fuzzy
 #| msgid "Invalid account type: %1$s"
 msgid "Invalid amount type"
 msgstr "Nieprawidłowy typ konta: %1$s"
 
-#: /app/lib/Controller/BillController.php:173
+#: /app/lib/Controller/BillController.php:174
 msgid "Name and amount are required"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:217
-#: /app/lib/Controller/BillController.php:682
+#: /app/lib/Controller/BillController.php:218
+#: /app/lib/Controller/BillController.php:683
 #: /app/lib/Service/BillService.php:355 /app/lib/Service/BillService.php:465
 msgid "Auto-pay requires an account to be set"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:225
-#: /app/lib/Controller/BillController.php:616
+#: /app/lib/Controller/BillController.php:226
+#: /app/lib/Controller/BillController.php:617
 #: /app/lib/Service/BillService.php:360
 msgid "Transfer requires a destination account"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:233
-#: /app/lib/Controller/BillController.php:644
+#: /app/lib/Controller/BillController.php:234
+#: /app/lib/Controller/BillController.php:645
 #: /app/lib/Service/BillService.php:365
 #: /app/src/modules/transfers/TransfersModule.js:777
 msgid "Cannot transfer to the same account"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:254
-#: /app/lib/Controller/BillController.php:407
+#: /app/lib/Controller/BillController.php:255
+#: /app/lib/Controller/BillController.php:408
 msgid "Due day must be between 1 and 31"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:259
-#: /app/lib/Controller/BillController.php:419
+#: /app/lib/Controller/BillController.php:260
+#: /app/lib/Controller/BillController.php:420
 msgid "Due month must be between 1 and 12"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:282
-#: /app/lib/Controller/BillController.php:472
+#: /app/lib/Controller/BillController.php:283
+#: /app/lib/Controller/BillController.php:473
 msgid "Reminder days must be between 0 and 30"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:295
+#: /app/lib/Controller/BillController.php:296
 msgid "Transaction date"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:303
-#: /app/lib/Controller/BillController.php:514
+#: /app/lib/Controller/BillController.php:304
+#: /app/lib/Controller/BillController.php:515
 #: /app/lib/Controller/RecurringIncomeController.php:199
 #: /app/lib/Controller/RecurringIncomeController.php:302
 #: /app/templates/index.php:3077
 msgid "Start date"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:313
-#: /app/lib/Controller/BillController.php:525 /app/templates/index.php:3079
+#: /app/lib/Controller/BillController.php:314
+#: /app/lib/Controller/BillController.php:526 /app/templates/index.php:3079
 msgid "End date"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:323
+#: /app/lib/Controller/BillController.php:324
 msgid "Start date must be before the end date"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:328
-#: /app/lib/Controller/BillController.php:538
+#: /app/lib/Controller/BillController.php:329
+#: /app/lib/Controller/BillController.php:539
 msgid "Remaining payments must be at least 1"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:367
+#: /app/lib/Controller/BillController.php:368
 #: /app/src/modules/bills/BillsModule.js:221
 msgid "Failed to create bill"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:577
+#: /app/lib/Controller/BillController.php:578
 msgid ""
 "The new amount does not match the bill's split template. Update the splits "
 "together with the amount."
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:698
+#: /app/lib/Controller/BillController.php:699
 msgid "Failed to update bill"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:726
+#: /app/lib/Controller/BillController.php:727
 msgid "Failed to find matching transactions"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:739
+#: /app/lib/Controller/BillController.php:740
 #, fuzzy
 #| msgid "Failed to retrieve accounts"
 msgid "Failed to check for unrecorded payments"
 msgstr "Nie udało się pobrać kont"
 
-#: /app/lib/Controller/BillController.php:756
+#: /app/lib/Controller/BillController.php:757
 #: /app/src/modules/bills/BillsModule.js:144
 #, fuzzy
 #| msgid "Failed to retrieve accounts"
 msgid "Failed to record the payment"
 msgstr "Nie udało się pobrać kont"
 
-#: /app/lib/Controller/BillController.php:779
+#: /app/lib/Controller/BillController.php:780
 #: /app/src/modules/bills/BillsModule.js:1251
 msgid "Failed to mark bill as paid"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:816
+#: /app/lib/Controller/BillController.php:817
 msgid "Failed to undo mark as paid"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:835
+#: /app/lib/Controller/BillController.php:836
 #: /app/src/modules/bills/BillsModule.js:1529
 #: /app/src/modules/bills/BillsModule.js:1536
 #, fuzzy
@@ -759,68 +763,133 @@ msgstr ""
 msgid "Failed to mark bill as unpaid"
 msgstr "Nie udało się pobrać kont"
 
-#: /app/lib/Controller/BillController.php:852
+#: /app/lib/Controller/BillController.php:853
 #: /app/src/modules/bills/BillsModule.js:1580
 msgid "Failed to skip bill payment"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:868
+#: /app/lib/Controller/BillController.php:869
 msgid "Missing previous due date"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:874
+#: /app/lib/Controller/BillController.php:875
 msgid "Failed to undo skip"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:888
+#: /app/lib/Controller/BillController.php:889
 msgid "Failed to retrieve upcoming bills"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:902
+#: /app/lib/Controller/BillController.php:903
 msgid "Failed to retrieve bills due this month"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:916
+#: /app/lib/Controller/BillController.php:917
 msgid "Failed to retrieve overdue bills"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:929
+#: /app/lib/Controller/BillController.php:930
 msgid "Failed to retrieve bill summary"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:942
+#: /app/lib/Controller/BillController.php:943
 msgid "Failed to retrieve bill status"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:955
+#: /app/lib/Controller/BillController.php:956
 #: /app/src/modules/bills/BillsModule.js:1701
 msgid "Failed to detect recurring bills"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:969
+#: /app/lib/Controller/BillController.php:970
 msgid "Failed to load bill suggestions"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:986
+#: /app/lib/Controller/BillController.php:987
 #: /app/src/modules/bills/BillsModule.js:241
 msgid "Failed to dismiss suggestion"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1008
+#: /app/lib/Controller/BillController.php:1009
 msgid "Failed to create bills from detected patterns"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1023
-#: /app/lib/Controller/BillController.php:1056
+#: /app/lib/Controller/BillController.php:1024
+#: /app/lib/Controller/BillController.php:1057
 msgid "Invalid year"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1038
+#: /app/lib/Controller/BillController.php:1039
 msgid "Failed to generate annual overview"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1079
+#: /app/lib/Controller/BillController.php:1080
 msgid "Failed to export bills calendar"
+msgstr ""
+
+#: /app/lib/Controller/BillController.php:1089
+#: /app/lib/Controller/BillController.php:1168
+#: /app/lib/Service/Export/TransactionCsvExporter.php:34
+#: /app/lib/Service/Report/ReportExporter.php:263
+#: /app/lib/Service/Report/ReportExporter.php:321
+#: /app/lib/Service/Report/ReportExporter.php:362
+#: /app/lib/Service/Report/ReportExporter.php:479
+#: /app/lib/Service/Report/ReportExporter.php:556
+#: /app/lib/Service/Report/ReportExporter.php:599 /app/src/main.js:3820
+#: /app/src/modules/bills/BillsModule.js:945
+#: /app/src/modules/rules/RulesModule.js:954
+#: /app/src/modules/rules/RulesModule.js:1176
+#: /app/src/modules/rules/components/CriteriaBuilder.js:153
+#: /app/src/modules/transactions/TransactionsModule.js:1859
+#: /app/src/modules/transactions/TransactionsModule.js:2938
+#: /app/src/modules/transactions/TransactionsModule.js:3023
+#: /app/src/modules/transactions/TransactionsModule.js:3349
+#: /app/src/modules/transactions/TransactionsModule.js:3587
+#: /app/src/modules/transfers/TransfersModule.js:442
+#: /app/templates/index.php:1021 /app/templates/index.php:1496
+#: /app/templates/index.php:1740 /app/templates/index.php:1793
+#: /app/templates/index.php:2288 /app/templates/index.php:2449
+#: /app/templates/index.php:3218 /app/templates/index.php:3236
+#: /app/templates/index.php:3281 /app/templates/index.php:3302
+#: /app/templates/index.php:5236 /app/templates/index.php:5272
+#: /app/templates/index.php:5308 /app/templates/index.php:5615
+#: /app/templates/index.php:5952 /app/templates/index.php:6211
+#: /app/templates/index.php:6292 /app/templates/index.php:6891
+#: /app/templates/quick-add.php:45
+msgid "Amount"
+msgstr ""
+
+#: /app/lib/Controller/BillController.php:1089
+#: /app/src/modules/transfers/TransfersModule.js:460
+#: /app/templates/index.php:5312 /app/templates/index.php:5958
+#: /app/templates/index.php:6448
+msgid "Frequency"
+msgstr ""
+
+#: /app/lib/Controller/BillController.php:1093
+msgid "Annual Total"
+msgstr ""
+
+#: /app/lib/Controller/BillController.php:1117
+#: /app/lib/Controller/BillController.php:1193
+#: /app/lib/Service/Report/ReportExporter.php:282
+#: /app/lib/Service/Report/ReportExporter.php:332
+#: /app/lib/Service/Report/ReportExporter.php:405
+#: /app/lib/Service/Report/ReportExporter.php:497
+#: /app/lib/Service/Report/ReportExporter.php:568
+#: /app/lib/Service/Report/ReportExporter.php:643
+#: /app/src/modules/categories/CategoriesModule.js:2254
+#: /app/src/modules/reports/ReportsModule.js:1925 /app/templates/index.php:7074
+msgid "Total"
+msgstr ""
+
+#: /app/lib/Controller/BillController.php:1144
+#, php-format
+msgid "Bills Calendar %s"
+msgstr ""
+
+#: /app/lib/Controller/BillController.php:1172
+msgid "Annual"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:1221
@@ -904,7 +973,17 @@ msgstr ""
 #: /app/lib/Controller/CategoryController.php:498
 #: /app/lib/Controller/CategoryController.php:511
 #: /app/lib/Controller/CategoryController.php:518
-#: /app/lib/Service/Export/TransactionCsvExporter.php:31 /app/src/main.js:3825
+#: /app/lib/Controller/YearOverYearController.php:286
+#: /app/lib/Controller/YearOverYearController.php:388
+#: /app/lib/Service/Export/TransactionCsvExporter.php:31
+#: /app/lib/Service/Report/ReportExporter.php:262
+#: /app/lib/Service/Report/ReportExporter.php:362
+#: /app/lib/Service/Report/ReportExporter.php:384
+#: /app/lib/Service/Report/ReportExporter.php:478
+#: /app/lib/Service/Report/ReportExporter.php:598
+#: /app/lib/Service/Report/ReportExporter.php:623
+#: /app/lib/Service/Report/ReportExporter.php:660
+#: /app/lib/Service/Report/ReportExporter.php:706 /app/src/main.js:3825
 #: /app/src/modules/dashboard/DashboardModule.js:1916
 #: /app/src/modules/reports/ReportsModule.js:1152
 #: /app/src/modules/reports/ReportsModule.js:1615
@@ -2357,24 +2436,172 @@ msgstr ""
 msgid "Failed to find duplicates"
 msgstr ""
 
-#: /app/lib/Controller/YearOverYearController.php:69
+#: /app/lib/Controller/YearOverYearController.php:70
 msgid "Failed to compare month data"
 msgstr ""
 
-#: /app/lib/Controller/YearOverYearController.php:95
+#: /app/lib/Controller/YearOverYearController.php:96
 msgid "Failed to compare year data"
 msgstr ""
 
-#: /app/lib/Controller/YearOverYearController.php:121
+#: /app/lib/Controller/YearOverYearController.php:122
 msgid "Failed to compare category data"
 msgstr ""
 
-#: /app/lib/Controller/YearOverYearController.php:147
+#: /app/lib/Controller/YearOverYearController.php:148
 msgid "Failed to get monthly trends"
 msgstr ""
 
-#: /app/lib/Controller/YearOverYearController.php:200
+#: /app/lib/Controller/YearOverYearController.php:201
 msgid "Failed to export YoY data"
+msgstr ""
+
+#: /app/lib/Controller/YearOverYearController.php:232
+msgid "Year Comparison"
+msgstr ""
+
+#: /app/lib/Controller/YearOverYearController.php:237
+#: /app/lib/Service/Report/ReportExporter.php:290
+#: /app/lib/Service/Report/ReportExporter.php:527 /app/src/main.js:2875
+#: /app/templates/index.php:3355 /app/templates/index.php:3404
+msgid "Month"
+msgstr ""
+
+#: /app/lib/Controller/YearOverYearController.php:238
+#, php-format
+msgid "%s Comparison"
+msgstr ""
+
+#: /app/lib/Controller/YearOverYearController.php:246
+#: /app/templates/index.php:3464
+msgid "Year"
+msgstr ""
+
+#: /app/lib/Controller/YearOverYearController.php:247
+#: /app/lib/Service/Export/TransactionCsvExporter.php:143
+#: /app/lib/Service/Report/ReportExporter.php:186
+#: /app/lib/Service/Report/ReportExporter.php:241
+#: /app/lib/Service/Report/ReportExporter.php:291
+#: /app/lib/Service/Report/ReportExporter.php:344
+#: /app/lib/Service/Report/ReportExporter.php:453
+#: /app/lib/Service/Report/ReportExporter.php:528
+#: /app/lib/Service/Report/ReportExporter.php:578
+#: /app/src/core/KeyboardShortcuts.js:338
+#: /app/src/modules/categories/CategoriesModule.js:707
+#: /app/src/modules/categories/CategoriesModule.js:847
+#: /app/src/modules/categories/CategoriesModule.js:1580
+#: /app/src/modules/dashboard/DashboardModule.js:2077
+#: /app/src/modules/dashboard/DashboardModule.js:2590
+#: /app/src/modules/dashboard/DashboardModule.js:2908
+#: /app/src/modules/dashboard/DashboardModule.js:2971
+#: /app/src/modules/dashboard/DashboardModule.js:5070
+#: /app/src/modules/help/HelpModule.js:28
+#: /app/src/modules/reports/ReportsModule.js:762
+#: /app/src/modules/reports/ReportsModule.js:1182
+#: /app/src/modules/reports/ReportsModule.js:1503
+#: /app/src/modules/reports/ReportsModule.js:1519
+#: /app/src/modules/reports/ReportsModule.js:1564
+#: /app/src/modules/rules/components/ActionBuilder.js:306
+#: /app/src/modules/rules/components/CriteriaBuilder.js:181
+#: /app/templates/index.php:103 /app/templates/index.php:1017
+#: /app/templates/index.php:1427 /app/templates/index.php:1584
+#: /app/templates/index.php:1827 /app/templates/index.php:2156
+#: /app/templates/index.php:3193 /app/templates/index.php:3211
+#: /app/templates/index.php:3356 /app/templates/index.php:5604
+#: /app/templates/index.php:6585 /app/templates/quick-add.php:40
+msgid "Income"
+msgstr "Dochód"
+
+#: /app/lib/Controller/YearOverYearController.php:248
+#: /app/lib/Service/Report/ReportExporter.php:187
+#: /app/lib/Service/Report/ReportExporter.php:242
+#: /app/lib/Service/Report/ReportExporter.php:292
+#: /app/lib/Service/Report/ReportExporter.php:346
+#: /app/lib/Service/Report/ReportExporter.php:454
+#: /app/lib/Service/Report/ReportExporter.php:529
+#: /app/lib/Service/Report/ReportExporter.php:580
+#: /app/src/modules/dashboard/DashboardModule.js:2082
+#: /app/src/modules/dashboard/DashboardModule.js:2598
+#: /app/src/modules/dashboard/DashboardModule.js:2909
+#: /app/src/modules/dashboard/DashboardModule.js:2978
+#: /app/src/modules/reports/ReportsModule.js:769
+#: /app/src/modules/reports/ReportsModule.js:1190
+#: /app/src/modules/reports/ReportsModule.js:1506
+#: /app/src/modules/reports/ReportsModule.js:1523
+#: /app/src/modules/reports/ReportsModule.js:1571 /app/templates/index.php:1823
+#: /app/templates/index.php:2152 /app/templates/index.php:3194
+#: /app/templates/index.php:3229 /app/templates/index.php:3357
+msgid "Expenses"
+msgstr ""
+
+#: /app/lib/Controller/YearOverYearController.php:249
+#: /app/src/modules/dashboard/DashboardModule.js:1014
+#: /app/src/modules/dashboard/DashboardModule.js:2000
+#: /app/src/modules/reports/ReportsModule.js:1527
+#: /app/src/utils/formatters.js:223
+msgid "Savings"
+msgstr ""
+
+#: /app/lib/Controller/YearOverYearController.php:250
+#: /app/lib/Service/Report/ReportExporter.php:264
+#: /app/lib/Service/Report/ReportExporter.php:321
+#: /app/lib/Service/Report/ReportExporter.php:362
+#: /app/lib/Service/Report/ReportExporter.php:480
+#: /app/lib/Service/Report/ReportExporter.php:557
+#: /app/lib/Service/Report/ReportExporter.php:600
+#: /app/src/core/KeyboardShortcuts.js:334
+#: /app/src/modules/dashboard/DashboardModule.js:5069
+#: /app/src/modules/help/HelpModule.js:24 /app/templates/index.php:63
+#: /app/templates/index.php:1377 /app/templates/index.php:1527
+#: /app/templates/index.php:1948 /app/templates/index.php:2485
+#: /app/templates/index.php:3219 /app/templates/index.php:3237
+#: /app/templates/index.php:3283 /app/templates/index.php:3303
+#: /app/templates/index.php:4623
+msgid "Transactions"
+msgstr "Transakcje"
+
+#: /app/lib/Controller/YearOverYearController.php:251
+#, php-format
+msgid "Income Change %%"
+msgstr ""
+
+#: /app/lib/Controller/YearOverYearController.php:252
+#, php-format
+msgid "Expense Change %%"
+msgstr ""
+
+#: /app/lib/Controller/YearOverYearController.php:290
+#: /app/lib/Controller/YearOverYearController.php:392
+#, php-format
+msgid "Change %%"
+msgstr ""
+
+#: /app/lib/Controller/YearOverYearController.php:294
+#: /app/lib/Controller/YearOverYearController.php:402
+#: /app/lib/Service/Report/ReportExporter.php:274
+#: /app/lib/Service/Report/ReportExporter.php:325
+#: /app/lib/Service/Report/ReportExporter.php:366
+#: /app/lib/Service/Report/ReportExporter.php:489
+#: /app/lib/Service/Report/ReportExporter.php:561
+#: /app/lib/Service/Report/ReportExporter.php:604 /app/src/main.js:2444
+#: /app/src/main.js:2447 /app/src/main.js:3541
+#: /app/src/modules/accounts/AccountsModule.js:3357
+#: /app/src/modules/dashboard/DashboardModule.js:2105
+#: /app/src/modules/dashboard/DashboardModule.js:2183
+#: /app/src/modules/dashboard/DashboardModule.js:2326
+#: /app/src/modules/dashboard/DashboardModule.js:2465
+#: /app/src/modules/exchange-rates/ExchangeRatesModule.js:173
+#: /app/src/modules/transactions/TransactionsModule.js:3452
+#: /app/src/modules/transfers/TransfersModule.js:1178
+msgid "Unknown"
+msgstr ""
+
+#: /app/lib/Controller/YearOverYearController.php:316
+msgid "Year-over-Year Report"
+msgstr ""
+
+#: /app/lib/Controller/YearOverYearController.php:368
+msgid "Category Spending Comparison"
 msgstr ""
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:43
@@ -2921,35 +3148,12 @@ msgid "Vendor"
 msgstr ""
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:33
-#: /app/templates/index.php:1013 /app/templates/index.php:1424
-#: /app/templates/index.php:1581 /app/templates/index.php:3682
-#: /app/templates/index.php:5374 /app/templates/index.php:5600
-#: /app/templates/index.php:6582 /app/templates/quick-add.php:37
+#: /app/lib/Service/Report/ReportExporter.php:220 /app/templates/index.php:1013
+#: /app/templates/index.php:1424 /app/templates/index.php:1581
+#: /app/templates/index.php:3682 /app/templates/index.php:5374
+#: /app/templates/index.php:5600 /app/templates/index.php:6582
+#: /app/templates/quick-add.php:37
 msgid "Type"
-msgstr ""
-
-#: /app/lib/Service/Export/TransactionCsvExporter.php:34 /app/src/main.js:3820
-#: /app/src/modules/bills/BillsModule.js:945
-#: /app/src/modules/rules/RulesModule.js:954
-#: /app/src/modules/rules/RulesModule.js:1176
-#: /app/src/modules/rules/components/CriteriaBuilder.js:153
-#: /app/src/modules/transactions/TransactionsModule.js:1859
-#: /app/src/modules/transactions/TransactionsModule.js:2938
-#: /app/src/modules/transactions/TransactionsModule.js:3023
-#: /app/src/modules/transactions/TransactionsModule.js:3349
-#: /app/src/modules/transactions/TransactionsModule.js:3587
-#: /app/src/modules/transfers/TransfersModule.js:442
-#: /app/templates/index.php:1021 /app/templates/index.php:1496
-#: /app/templates/index.php:1740 /app/templates/index.php:1793
-#: /app/templates/index.php:2288 /app/templates/index.php:2449
-#: /app/templates/index.php:3218 /app/templates/index.php:3236
-#: /app/templates/index.php:3281 /app/templates/index.php:3302
-#: /app/templates/index.php:5236 /app/templates/index.php:5272
-#: /app/templates/index.php:5308 /app/templates/index.php:5615
-#: /app/templates/index.php:5952 /app/templates/index.php:6211
-#: /app/templates/index.php:6292 /app/templates/index.php:6891
-#: /app/templates/quick-add.php:45
-msgid "Amount"
 msgstr ""
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:35
@@ -2979,42 +3183,17 @@ msgid "Notes"
 msgstr ""
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:38
-#: /app/templates/index.php:805 /app/templates/index.php:1434
-#: /app/templates/index.php:1591 /app/templates/index.php:2451
-#: /app/templates/index.php:2486 /app/templates/index.php:2693
+#: /app/lib/Service/Report/ReportExporter.php:389
+#: /app/lib/Service/Report/ReportExporter.php:628 /app/templates/index.php:805
+#: /app/templates/index.php:1434 /app/templates/index.php:1591
+#: /app/templates/index.php:2451 /app/templates/index.php:2486
+#: /app/templates/index.php:2693
 msgid "Status"
 msgstr ""
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:41
 msgid "Split of"
 msgstr ""
-
-#: /app/lib/Service/Export/TransactionCsvExporter.php:143
-#: /app/src/core/KeyboardShortcuts.js:338
-#: /app/src/modules/categories/CategoriesModule.js:707
-#: /app/src/modules/categories/CategoriesModule.js:847
-#: /app/src/modules/categories/CategoriesModule.js:1580
-#: /app/src/modules/dashboard/DashboardModule.js:2077
-#: /app/src/modules/dashboard/DashboardModule.js:2590
-#: /app/src/modules/dashboard/DashboardModule.js:2908
-#: /app/src/modules/dashboard/DashboardModule.js:2971
-#: /app/src/modules/dashboard/DashboardModule.js:5070
-#: /app/src/modules/help/HelpModule.js:28
-#: /app/src/modules/reports/ReportsModule.js:762
-#: /app/src/modules/reports/ReportsModule.js:1182
-#: /app/src/modules/reports/ReportsModule.js:1503
-#: /app/src/modules/reports/ReportsModule.js:1519
-#: /app/src/modules/reports/ReportsModule.js:1564
-#: /app/src/modules/rules/components/ActionBuilder.js:306
-#: /app/src/modules/rules/components/CriteriaBuilder.js:181
-#: /app/templates/index.php:103 /app/templates/index.php:1017
-#: /app/templates/index.php:1427 /app/templates/index.php:1584
-#: /app/templates/index.php:1827 /app/templates/index.php:2156
-#: /app/templates/index.php:3193 /app/templates/index.php:3211
-#: /app/templates/index.php:3356 /app/templates/index.php:5604
-#: /app/templates/index.php:6585 /app/templates/quick-add.php:40
-msgid "Income"
-msgstr "Dochód"
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:144
 #: /app/src/modules/categories/CategoriesModule.js:707
@@ -3176,13 +3355,414 @@ msgstr ""
 msgid "No reconciliation in progress for this account"
 msgstr ""
 
-#: /app/lib/Service/Report/ScheduledReportService.php:72
-#: /app/lib/Service/Report/ScheduledReportService.php:73
+#: /app/lib/Service/Report/MonthNames.php:21
+#: /app/src/modules/reports/ReportsModule.js:1900
+#: /app/src/utils/formatters.js:202 /app/templates/index.php:3519
+#: /app/templates/index.php:5976
+msgid "Jan"
+msgstr "sty"
+
+#: /app/lib/Service/Report/MonthNames.php:22
+#: /app/src/modules/reports/ReportsModule.js:1900
+#: /app/src/utils/formatters.js:202 /app/templates/index.php:3520
+#: /app/templates/index.php:5977
+msgid "Feb"
+msgstr "lut"
+
+#: /app/lib/Service/Report/MonthNames.php:23
+#: /app/src/modules/reports/ReportsModule.js:1900
+#: /app/src/utils/formatters.js:202 /app/templates/index.php:3521
+#: /app/templates/index.php:5978
+msgid "Mar"
+msgstr "mar"
+
+#: /app/lib/Service/Report/MonthNames.php:24
+#: /app/src/modules/reports/ReportsModule.js:1900
+#: /app/src/utils/formatters.js:202 /app/templates/index.php:3522
+#: /app/templates/index.php:5979
+msgid "Apr"
+msgstr "Kwi"
+
+#: /app/lib/Service/Report/MonthNames.php:25
+#: /app/lib/Service/Report/MonthNames.php:46
+#: /app/src/modules/reports/ReportsModule.js:1900
+#: /app/src/modules/reports/ReportsModule.js:1999
+#: /app/src/utils/formatters.js:202 /app/templates/index.php:3410
+#: /app/templates/index.php:3523 /app/templates/index.php:5980
+#: /app/templates/index.php:6006 /app/templates/index.php:6482
+msgid "May"
+msgstr "Maj"
+
+#: /app/lib/Service/Report/MonthNames.php:26
+#: /app/src/modules/reports/ReportsModule.js:1900
+#: /app/src/utils/formatters.js:202 /app/templates/index.php:3524
+#: /app/templates/index.php:5981
+msgid "Jun"
+msgstr "cze"
+
+#: /app/lib/Service/Report/MonthNames.php:27
+#: /app/src/modules/reports/ReportsModule.js:1900
+#: /app/src/utils/formatters.js:202 /app/templates/index.php:3525
+#: /app/templates/index.php:5982
+msgid "Jul"
+msgstr "lip"
+
+#: /app/lib/Service/Report/MonthNames.php:28
+#: /app/src/modules/reports/ReportsModule.js:1900
+#: /app/src/utils/formatters.js:202 /app/templates/index.php:3526
+#: /app/templates/index.php:5983
+msgid "Aug"
+msgstr "sie"
+
+#: /app/lib/Service/Report/MonthNames.php:29
+#: /app/src/modules/reports/ReportsModule.js:1900
+#: /app/src/utils/formatters.js:202 /app/templates/index.php:3527
+#: /app/templates/index.php:5984
+msgid "Sep"
+msgstr "wrz"
+
+#: /app/lib/Service/Report/MonthNames.php:30
+#: /app/src/modules/reports/ReportsModule.js:1900
+#: /app/src/utils/formatters.js:202 /app/templates/index.php:3528
+#: /app/templates/index.php:5985
+msgid "Oct"
+msgstr "paź"
+
+#: /app/lib/Service/Report/MonthNames.php:31
+#: /app/src/modules/reports/ReportsModule.js:1900
+#: /app/src/utils/formatters.js:202 /app/templates/index.php:3529
+#: /app/templates/index.php:5986
+msgid "Nov"
+msgstr "lis"
+
+#: /app/lib/Service/Report/MonthNames.php:32
+#: /app/src/modules/reports/ReportsModule.js:1900
+#: /app/src/utils/formatters.js:202 /app/templates/index.php:3530
+#: /app/templates/index.php:5987
+msgid "Dec"
+msgstr "gru"
+
+#: /app/lib/Service/Report/MonthNames.php:42
+#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3406
+#: /app/templates/index.php:6002 /app/templates/index.php:6478
+msgid "January"
+msgstr "Styczeń"
+
+#: /app/lib/Service/Report/MonthNames.php:43
+#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3407
+#: /app/templates/index.php:6003 /app/templates/index.php:6479
+msgid "February"
+msgstr "Luty"
+
+#: /app/lib/Service/Report/MonthNames.php:44
+#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3408
+#: /app/templates/index.php:6004 /app/templates/index.php:6480
+msgid "March"
+msgstr "Marzec"
+
+#: /app/lib/Service/Report/MonthNames.php:45
+#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3409
+#: /app/templates/index.php:6005 /app/templates/index.php:6481
+msgid "April"
+msgstr "Kwiecień"
+
+#: /app/lib/Service/Report/MonthNames.php:47
+#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3411
+#: /app/templates/index.php:6007 /app/templates/index.php:6483
+msgid "June"
+msgstr "Czerwiec"
+
+#: /app/lib/Service/Report/MonthNames.php:48
+#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3412
+#: /app/templates/index.php:6008 /app/templates/index.php:6484
+msgid "July"
+msgstr "Lipiec"
+
+#: /app/lib/Service/Report/MonthNames.php:49
+#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3413
+#: /app/templates/index.php:6009 /app/templates/index.php:6485
+msgid "August"
+msgstr "Sierpień"
+
+#: /app/lib/Service/Report/MonthNames.php:50
+#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3414
+#: /app/templates/index.php:6010 /app/templates/index.php:6486
+msgid "September"
+msgstr "Wrzesień"
+
+#: /app/lib/Service/Report/MonthNames.php:51
+#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3415
+#: /app/templates/index.php:6011 /app/templates/index.php:6487
+msgid "October"
+msgstr "Październik"
+
+#: /app/lib/Service/Report/MonthNames.php:52
+#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3416
+#: /app/templates/index.php:6012 /app/templates/index.php:6488
+msgid "November"
+msgstr "Listopad"
+
+#: /app/lib/Service/Report/MonthNames.php:53
+#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3417
+#: /app/templates/index.php:6013 /app/templates/index.php:6489
+msgid "December"
+msgstr "Grudzień"
+
+#: /app/lib/Service/Report/ReportExporter.php:138
+#, php-format
+msgid "Period: %1$s to %2$s"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:170
+msgid "Summary Report"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:171
+#, fuzzy
+#| msgid "Spending by Category"
+msgid "Spending Report"
+msgstr "Wydatki według kategorii"
+
+#: /app/lib/Service/Report/ReportExporter.php:172
+#: /app/lib/Service/Report/ReportExporter.php:552
+#, fuzzy
+#| msgid "Income"
+msgid "Income Report"
+msgstr "Dochód"
+
+#: /app/lib/Service/Report/ReportExporter.php:173
+msgid "Cash Flow Report"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:174
+#: /app/lib/Service/Report/ReportExporter.php:620
+#, fuzzy
+#| msgid "Budget"
+msgid "Budget Report"
+msgstr "Budżet"
+
+#: /app/lib/Service/Report/ReportExporter.php:175
+#, fuzzy
+#| msgid "Account not found"
+msgid "Category by Month Report"
+msgstr "Nie znaleziono konta"
+
+#: /app/lib/Service/Report/ReportExporter.php:176
+#, fuzzy
+#| msgid "Income vs Expenses"
+msgid "Income & Expenses Report"
+msgstr "Przychody i Wydatki"
+
+#: /app/lib/Service/Report/ReportExporter.php:188
+#: /app/lib/Service/Report/ReportExporter.php:224
+#: /app/lib/Service/Report/ReportExporter.php:422 /app/templates/index.php:3155
+msgid "Net Income"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:208
+#: /app/src/modules/dashboard/DashboardModule.js:1525
+msgid "On track"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:209
+msgid "Approaching limit"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:210
+msgid "Near limit"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:211
+msgid "Over budget"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:220
+#: /app/src/modules/assets/AssetsModule.js:567 /app/templates/index.php:5458
+msgid "Value"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:222
+#: /app/lib/Service/Report/ReportExporter.php:344
+#: /app/lib/Service/Report/ReportExporter.php:351
+#: /app/lib/Service/Report/ReportExporter.php:420
+#: /app/lib/Service/Report/ReportExporter.php:578
+#: /app/lib/Service/Report/ReportExporter.php:585
+#: /app/src/modules/reports/ReportsModule.js:998 /app/templates/index.php:3131
+msgid "Total Income"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:223
+#: /app/lib/Service/Report/ReportExporter.php:346
+#: /app/lib/Service/Report/ReportExporter.php:352
+#: /app/lib/Service/Report/ReportExporter.php:421
+#: /app/lib/Service/Report/ReportExporter.php:580
+#: /app/lib/Service/Report/ReportExporter.php:587
+#: /app/src/modules/reports/ReportsModule.js:1002 /app/templates/index.php:3143
+msgid "Total Expenses"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:225
+#: /app/lib/Service/Report/ReportExporter.php:423
+#: /app/src/modules/accounts/AccountsModule.js:2706
+#: /app/templates/index.php:1214 /app/templates/index.php:2939
+#: /app/templates/index.php:3694 /app/templates/index.php:5141
+#: /app/templates/index.php:5211
+msgid "Current Balance"
+msgstr "Obecne saldo"
+
+#: /app/lib/Service/Report/ReportExporter.php:230
+#: /app/lib/Service/Report/ReportExporter.php:435
+msgid "vs Previous Period"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:240
+#: /app/lib/Service/Report/ReportExporter.php:456
+#: /app/src/modules/accounts/AccountsModule.js:26
+#: /app/src/modules/accounts/AccountsModule.js:515
+#: /app/src/modules/accounts/AccountsModule.js:516
+#: /app/src/modules/dashboard/DashboardModule.js:2666
+#: /app/src/modules/dashboard/DashboardModule.js:2902
+#: /app/src/modules/forecast/ForecastModule.js:305
+#: /app/src/modules/pensions/PensionsModule.js:621
+#: /app/templates/index.php:1075 /app/templates/index.php:1498
+#: /app/templates/index.php:1744 /app/templates/index.php:1796
+#: /app/templates/index.php:3196
+msgid "Balance"
+msgstr "Saldo"
+
+#: /app/lib/Service/Report/ReportExporter.php:243
+#: /app/lib/Service/Report/ReportExporter.php:293
+#: /app/lib/Service/Report/ReportExporter.php:353
+#: /app/lib/Service/Report/ReportExporter.php:455
+#: /app/lib/Service/Report/ReportExporter.php:530
+#: /app/lib/Service/Report/ReportExporter.php:589
+#: /app/src/modules/reports/ReportsModule.js:1006 /app/templates/index.php:3195
+#: /app/templates/index.php:3358 /app/templates/index.php:4089
+msgid "Net"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:265
+#: /app/lib/Service/Report/ReportExporter.php:388
+msgid "Percentage"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:294
+#: /app/lib/Service/Report/ReportExporter.php:531 /app/templates/index.php:3359
+msgid "Cumulative"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:310
+#: /app/lib/Service/Report/ReportExporter.php:509
+msgid "Monthly Averages"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:312
+#: /app/lib/Service/Report/ReportExporter.php:513
+#, fuzzy
+#| msgid "This Month Income"
+msgid "Average Monthly Income"
+msgstr "Przychody w tym miesiącu"
+
+#: /app/lib/Service/Report/ReportExporter.php:313
+#: /app/lib/Service/Report/ReportExporter.php:515
+#, fuzzy
+#| msgid "This Month Expenses"
+msgid "Average Monthly Expenses"
+msgstr "Wydatki w tym miesiącu"
+
+#: /app/lib/Service/Report/ReportExporter.php:314
+#: /app/lib/Service/Report/ReportExporter.php:517
+msgid "Average Monthly Net"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:321
+#: /app/lib/Service/Report/ReportExporter.php:555 /app/templates/index.php:6442
+msgid "Source"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:341
+#: /app/src/modules/categories/CategoriesModule.js:2256
+#: /app/templates/index.php:2165 /app/templates/index.php:3064
+msgid "Period"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:350 /app/templates/index.php:3248
+#: /app/vendor/nextcloud/ocp/OCP/TaskProcessing/TaskTypes/TextToTextSummary.php:85
+msgid "Summary"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:385
+#: /app/lib/Service/Report/ReportExporter.php:624
+#, fuzzy
+#| msgid "Budget"
+msgid "Budgeted"
+msgstr "Budżet"
+
+#: /app/lib/Service/Report/ReportExporter.php:386
+#: /app/lib/Service/Report/ReportExporter.php:625
+#: /app/src/modules/categories/CategoriesModule.js:2264
+#: /app/src/modules/dashboard/DashboardModule.js:1918
+#: /app/templates/index.php:2166
+msgid "Spent"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:387
+#: /app/lib/Service/Report/ReportExporter.php:626
+#: /app/src/modules/categories/CategoriesModule.js:2267
+#: /app/src/modules/dashboard/DashboardModule.js:1919
+#: /app/templates/index.php:2134 /app/templates/index.php:2167
+msgid "Remaining"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:416
+#, fuzzy
+#| msgid "Financial Reports"
+msgid "Financial Summary"
+msgstr "Raporty finansowe"
+
+#: /app/lib/Service/Report/ReportExporter.php:448 /app/templates/index.php:3186
+msgid "Account Breakdown"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:474
+#: /app/src/config/dashboardWidgets.js:35 /app/templates/index.php:592
+#: /app/templates/index.php:3006 /app/templates/index.php:3053
+#: /app/templates/index.php:3262
+msgid "Spending by Category"
+msgstr "Wydatki według kategorii"
+
+#: /app/lib/Service/Report/ReportExporter.php:481 /app/templates/index.php:3282
+#, php-format
+msgid "%% of Total"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:524 /app/templates/index.php:3349
+msgid "Monthly Breakdown"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:664
+#: /app/lib/Service/Report/ReportExporter.php:710
+#: /app/src/modules/reports/ReportsModule.js:1154
+msgid "Overall"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:677
+#: /app/lib/Service/Report/ReportExporter.php:723
+#: /app/src/modules/reports/ReportsModule.js:1137
+msgid "Net total"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:694 /app/templates/index.php:3556
+msgid "Category Income & Expenses by Month"
+msgstr ""
+
+#: /app/lib/Service/Report/ScheduledReportService.php:76
+#: /app/lib/Service/Report/ScheduledReportService.php:77
 #, php-format
 msgid "Your Budget report for %1$s"
 msgstr ""
 
-#: /app/lib/Service/Report/ScheduledReportService.php:76
+#: /app/lib/Service/Report/ScheduledReportService.php:80
 #, php-format
 msgid "The attached PDF summarizes your finances for %1$s."
 msgstr ""
@@ -3582,12 +4162,6 @@ msgstr ""
 msgid "Income vs Expenses"
 msgstr "Przychody i Wydatki"
 
-#: /app/src/config/dashboardWidgets.js:35 /app/templates/index.php:592
-#: /app/templates/index.php:3006 /app/templates/index.php:3053
-#: /app/templates/index.php:3262
-msgid "Spending by Category"
-msgstr "Wydatki według kategorii"
-
 #: /app/src/config/dashboardWidgets.js:36 /app/templates/index.php:610
 msgid "Net Worth History"
 msgstr "Historia wartości netto"
@@ -3757,17 +4331,6 @@ msgstr ""
 #: /app/src/modules/help/HelpModule.js:22 /app/templates/index.php:43
 msgid "Dashboard"
 msgstr "Pulpit"
-
-#: /app/src/core/KeyboardShortcuts.js:334
-#: /app/src/modules/dashboard/DashboardModule.js:5069
-#: /app/src/modules/help/HelpModule.js:24 /app/templates/index.php:63
-#: /app/templates/index.php:1377 /app/templates/index.php:1527
-#: /app/templates/index.php:1948 /app/templates/index.php:2485
-#: /app/templates/index.php:3219 /app/templates/index.php:3237
-#: /app/templates/index.php:3283 /app/templates/index.php:3303
-#: /app/templates/index.php:4623
-msgid "Transactions"
-msgstr "Transakcje"
 
 #: /app/src/core/KeyboardShortcuts.js:335
 #: /app/src/modules/dashboard/DashboardModule.js:4761
@@ -4371,18 +4934,6 @@ msgstr ""
 msgid "Invalid export file"
 msgstr ""
 
-#: /app/src/main.js:2444 /app/src/main.js:2447 /app/src/main.js:3541
-#: /app/src/modules/accounts/AccountsModule.js:3357
-#: /app/src/modules/dashboard/DashboardModule.js:2105
-#: /app/src/modules/dashboard/DashboardModule.js:2183
-#: /app/src/modules/dashboard/DashboardModule.js:2326
-#: /app/src/modules/dashboard/DashboardModule.js:2465
-#: /app/src/modules/exchange-rates/ExchangeRatesModule.js:173
-#: /app/src/modules/transactions/TransactionsModule.js:3452
-#: /app/src/modules/transfers/TransfersModule.js:1178
-msgid "Unknown"
-msgstr ""
-
 #: /app/src/main.js:2471
 msgid "Failed to preview file: {error}"
 msgstr ""
@@ -4460,11 +5011,6 @@ msgstr ""
 #: /app/src/main.js:2837 /app/src/modules/dashboard/DashboardModule.js:926
 #: /app/src/modules/reports/ReportsModule.js:1623
 msgid "N/A"
-msgstr ""
-
-#: /app/src/main.js:2875 /app/templates/index.php:3355
-#: /app/templates/index.php:3404
-msgid "Month"
 msgstr ""
 
 #: /app/src/main.js:3013
@@ -4747,19 +5293,6 @@ msgstr "Nazwa właściciela konta"
 #: /app/src/modules/accounts/AccountsModule.js:25 /app/templates/index.php:1078
 msgid "Last reconciled"
 msgstr ""
-
-#: /app/src/modules/accounts/AccountsModule.js:26
-#: /app/src/modules/accounts/AccountsModule.js:515
-#: /app/src/modules/accounts/AccountsModule.js:516
-#: /app/src/modules/dashboard/DashboardModule.js:2666
-#: /app/src/modules/dashboard/DashboardModule.js:2902
-#: /app/src/modules/forecast/ForecastModule.js:305
-#: /app/src/modules/pensions/PensionsModule.js:621
-#: /app/templates/index.php:1075 /app/templates/index.php:1498
-#: /app/templates/index.php:1744 /app/templates/index.php:1796
-#: /app/templates/index.php:3196
-msgid "Balance"
-msgstr "Saldo"
 
 #: /app/src/modules/accounts/AccountsModule.js:27
 msgid "Converted balance"
@@ -5113,13 +5646,6 @@ msgstr ""
 msgid "Balance is calculated from transactions"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2706
-#: /app/templates/index.php:1214 /app/templates/index.php:2939
-#: /app/templates/index.php:3694 /app/templates/index.php:5141
-#: /app/templates/index.php:5211
-msgid "Current Balance"
-msgstr "Obecne saldo"
-
 #: /app/src/modules/accounts/AccountsModule.js:2710
 msgid "Calculated from transactions"
 msgstr ""
@@ -5352,10 +5878,6 @@ msgstr ""
 
 #: /app/src/modules/assets/AssetsModule.js:421
 msgid "Asset deleted"
-msgstr ""
-
-#: /app/src/modules/assets/AssetsModule.js:567 /app/templates/index.php:5458
-msgid "Value"
 msgstr ""
 
 #: /app/src/modules/assets/AssetsModule.js:640
@@ -6548,28 +7070,6 @@ msgstr ""
 msgid "(projected)"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2254
-#: /app/src/modules/reports/ReportsModule.js:1925 /app/templates/index.php:7074
-msgid "Total"
-msgstr ""
-
-#: /app/src/modules/categories/CategoriesModule.js:2256
-#: /app/templates/index.php:2165 /app/templates/index.php:3064
-msgid "Period"
-msgstr ""
-
-#: /app/src/modules/categories/CategoriesModule.js:2264
-#: /app/src/modules/dashboard/DashboardModule.js:1918
-#: /app/templates/index.php:2166
-msgid "Spent"
-msgstr ""
-
-#: /app/src/modules/categories/CategoriesModule.js:2267
-#: /app/src/modules/dashboard/DashboardModule.js:1919
-#: /app/templates/index.php:2134 /app/templates/index.php:2167
-msgid "Remaining"
-msgstr ""
-
 #: /app/src/modules/categories/CategoriesModule.js:2270
 #: /app/templates/index.php:2168
 msgid "Progress"
@@ -6694,13 +7194,6 @@ msgstr ""
 msgid "Checking"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1014
-#: /app/src/modules/dashboard/DashboardModule.js:2000
-#: /app/src/modules/reports/ReportsModule.js:1527
-#: /app/src/utils/formatters.js:223
-msgid "Savings"
-msgstr ""
-
 #: /app/src/modules/dashboard/DashboardModule.js:1043
 msgid "All accounts hidden"
 msgstr "Wszystkie ukryte konta"
@@ -6749,10 +7242,6 @@ msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:1524
 msgid "Behind schedule"
-msgstr ""
-
-#: /app/src/modules/dashboard/DashboardModule.js:1525
-msgid "On track"
 msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:1570
@@ -6878,20 +7367,6 @@ msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:2060
 msgid "No data available"
-msgstr ""
-
-#: /app/src/modules/dashboard/DashboardModule.js:2082
-#: /app/src/modules/dashboard/DashboardModule.js:2598
-#: /app/src/modules/dashboard/DashboardModule.js:2909
-#: /app/src/modules/dashboard/DashboardModule.js:2978
-#: /app/src/modules/reports/ReportsModule.js:769
-#: /app/src/modules/reports/ReportsModule.js:1190
-#: /app/src/modules/reports/ReportsModule.js:1506
-#: /app/src/modules/reports/ReportsModule.js:1523
-#: /app/src/modules/reports/ReportsModule.js:1571 /app/templates/index.php:1823
-#: /app/templates/index.php:2152 /app/templates/index.php:3194
-#: /app/templates/index.php:3229 /app/templates/index.php:3357
-msgid "Expenses"
 msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:2095
@@ -8373,19 +8848,6 @@ msgstr ""
 msgid "{percentage}% vs prior period"
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:998 /app/templates/index.php:3131
-msgid "Total Income"
-msgstr ""
-
-#: /app/src/modules/reports/ReportsModule.js:1002 /app/templates/index.php:3143
-msgid "Total Expenses"
-msgstr ""
-
-#: /app/src/modules/reports/ReportsModule.js:1006 /app/templates/index.php:3195
-#: /app/templates/index.php:3358 /app/templates/index.php:4089
-msgid "Net"
-msgstr ""
-
 #: /app/src/modules/reports/ReportsModule.js:1018
 msgid "Nothing in this period"
 msgstr ""
@@ -8394,18 +8856,10 @@ msgstr ""
 msgid "No data for the selected period."
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1137
-msgid "Net total"
-msgstr ""
-
 #: /app/src/modules/reports/ReportsModule.js:1143
 msgid ""
 "You have accounts in more than one currency. Amounts are summed in their "
 "original currency without conversion."
-msgstr ""
-
-#: /app/src/modules/reports/ReportsModule.js:1154
-msgid "Overall"
 msgstr ""
 
 #: /app/src/modules/reports/ReportsModule.js:1198
@@ -8445,80 +8899,6 @@ msgstr ""
 msgid "Failed to generate bills calendar"
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1900
-#: /app/src/utils/formatters.js:202 /app/templates/index.php:3519
-#: /app/templates/index.php:5976
-msgid "Jan"
-msgstr "sty"
-
-#: /app/src/modules/reports/ReportsModule.js:1900
-#: /app/src/utils/formatters.js:202 /app/templates/index.php:3520
-#: /app/templates/index.php:5977
-msgid "Feb"
-msgstr "lut"
-
-#: /app/src/modules/reports/ReportsModule.js:1900
-#: /app/src/utils/formatters.js:202 /app/templates/index.php:3521
-#: /app/templates/index.php:5978
-msgid "Mar"
-msgstr "mar"
-
-#: /app/src/modules/reports/ReportsModule.js:1900
-#: /app/src/utils/formatters.js:202 /app/templates/index.php:3522
-#: /app/templates/index.php:5979
-msgid "Apr"
-msgstr "Kwi"
-
-#: /app/src/modules/reports/ReportsModule.js:1900
-#: /app/src/modules/reports/ReportsModule.js:1999
-#: /app/src/utils/formatters.js:202 /app/templates/index.php:3410
-#: /app/templates/index.php:3523 /app/templates/index.php:5980
-#: /app/templates/index.php:6006 /app/templates/index.php:6482
-msgid "May"
-msgstr "Maj"
-
-#: /app/src/modules/reports/ReportsModule.js:1900
-#: /app/src/utils/formatters.js:202 /app/templates/index.php:3524
-#: /app/templates/index.php:5981
-msgid "Jun"
-msgstr "cze"
-
-#: /app/src/modules/reports/ReportsModule.js:1900
-#: /app/src/utils/formatters.js:202 /app/templates/index.php:3525
-#: /app/templates/index.php:5982
-msgid "Jul"
-msgstr "lip"
-
-#: /app/src/modules/reports/ReportsModule.js:1900
-#: /app/src/utils/formatters.js:202 /app/templates/index.php:3526
-#: /app/templates/index.php:5983
-msgid "Aug"
-msgstr "sie"
-
-#: /app/src/modules/reports/ReportsModule.js:1900
-#: /app/src/utils/formatters.js:202 /app/templates/index.php:3527
-#: /app/templates/index.php:5984
-msgid "Sep"
-msgstr "wrz"
-
-#: /app/src/modules/reports/ReportsModule.js:1900
-#: /app/src/utils/formatters.js:202 /app/templates/index.php:3528
-#: /app/templates/index.php:5985
-msgid "Oct"
-msgstr "paź"
-
-#: /app/src/modules/reports/ReportsModule.js:1900
-#: /app/src/utils/formatters.js:202 /app/templates/index.php:3529
-#: /app/templates/index.php:5986
-msgid "Nov"
-msgstr "lis"
-
-#: /app/src/modules/reports/ReportsModule.js:1900
-#: /app/src/utils/formatters.js:202 /app/templates/index.php:3530
-#: /app/templates/index.php:5987
-msgid "Dec"
-msgstr "gru"
-
 #: /app/src/modules/reports/ReportsModule.js:1911
 msgid "Total Bills"
 msgstr ""
@@ -8532,61 +8912,6 @@ msgstr "gru"
 #: /app/src/modules/reports/ReportsModule.js:1988
 msgid "Monthly Totals"
 msgstr ""
-
-#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3406
-#: /app/templates/index.php:6002 /app/templates/index.php:6478
-msgid "January"
-msgstr "Styczeń"
-
-#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3407
-#: /app/templates/index.php:6003 /app/templates/index.php:6479
-msgid "February"
-msgstr "Luty"
-
-#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3408
-#: /app/templates/index.php:6004 /app/templates/index.php:6480
-msgid "March"
-msgstr "Marzec"
-
-#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3409
-#: /app/templates/index.php:6005 /app/templates/index.php:6481
-msgid "April"
-msgstr "Kwiecień"
-
-#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3411
-#: /app/templates/index.php:6007 /app/templates/index.php:6483
-msgid "June"
-msgstr "Czerwiec"
-
-#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3412
-#: /app/templates/index.php:6008 /app/templates/index.php:6484
-msgid "July"
-msgstr "Lipiec"
-
-#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3413
-#: /app/templates/index.php:6009 /app/templates/index.php:6485
-msgid "August"
-msgstr "Sierpień"
-
-#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3414
-#: /app/templates/index.php:6010 /app/templates/index.php:6486
-msgid "September"
-msgstr "Wrzesień"
-
-#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3415
-#: /app/templates/index.php:6011 /app/templates/index.php:6487
-msgid "October"
-msgstr "Październik"
-
-#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3416
-#: /app/templates/index.php:6012 /app/templates/index.php:6488
-msgid "November"
-msgstr "Listopad"
-
-#: /app/src/modules/reports/ReportsModule.js:1999 /app/templates/index.php:3417
-#: /app/templates/index.php:6013 /app/templates/index.php:6489
-msgid "December"
-msgstr "Grudzień"
 
 #: /app/src/modules/reports/ReportsModule.js:2017
 #: /app/src/modules/reports/ReportsModule.js:2019
@@ -10987,12 +11312,6 @@ msgstr ""
 msgid "Minimum payment"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:460
-#: /app/templates/index.php:5312 /app/templates/index.php:5958
-#: /app/templates/index.php:6448
-msgid "Frequency"
-msgstr ""
-
 #: /app/src/modules/transfers/TransfersModule.js:473
 msgid "From Account"
 msgstr ""
@@ -12534,30 +12853,12 @@ msgstr ""
 msgid "Generating report..."
 msgstr ""
 
-#: /app/templates/index.php:3155
-msgid "Net Income"
-msgstr ""
-
 #: /app/templates/index.php:3176
 msgid "Income vs Expenses Trend"
 msgstr "Tendencje w zakresie przychodów i wydatków"
 
-#: /app/templates/index.php:3186
-msgid "Account Breakdown"
-msgstr ""
-
-#: /app/templates/index.php:3248
-#: /app/vendor/nextcloud/ocp/OCP/TaskProcessing/TaskTypes/TextToTextSummary.php:85
-msgid "Summary"
-msgstr ""
-
 #: /app/templates/index.php:3274
 msgid "Category Breakdown"
-msgstr ""
-
-#: /app/templates/index.php:3282
-#, php-format
-msgid "%% of Total"
 msgstr ""
 
 #: /app/templates/index.php:3295
@@ -12566,14 +12867,6 @@ msgstr ""
 
 #: /app/templates/index.php:3339
 msgid "Monthly Cash Flow"
-msgstr ""
-
-#: /app/templates/index.php:3349
-msgid "Monthly Breakdown"
-msgstr ""
-
-#: /app/templates/index.php:3359
-msgid "Cumulative"
 msgstr ""
 
 #: /app/templates/index.php:3375
@@ -12624,10 +12917,6 @@ msgstr ""
 msgid "Category Spending by Year"
 msgstr ""
 
-#: /app/templates/index.php:3464
-msgid "Year"
-msgstr ""
-
 #: /app/templates/index.php:3470
 msgid "Bill Status"
 msgstr ""
@@ -12670,10 +12959,6 @@ msgstr ""
 
 #: /app/templates/index.php:3544
 msgid "Bills Calendar Heatmap"
-msgstr ""
-
-#: /app/templates/index.php:3556
-msgid "Category Income & Expenses by Month"
 msgstr ""
 
 #: /app/templates/index.php:3558
@@ -14730,10 +15015,6 @@ msgstr ""
 
 #: /app/templates/index.php:6438
 msgid "Expected amount each period"
-msgstr ""
-
-#: /app/templates/index.php:6442
-msgid "Source"
 msgstr ""
 
 #: /app/templates/index.php:6443
