@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service;
 
+use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionSplitMapper;
+use OCP\Notification\IManager as INotificationManager;
 
 class BudgetAlertService {
     private CategoryMapper $categoryMapper;
@@ -23,6 +25,8 @@ class BudgetAlertService {
     // as over budget — spending that exactly meets the budget is "fully used",
     // not exceeded (issue #293).
     private const OVER_BUDGET_EPSILON = 0.005;
+    // categoryId => "<severity>:<periodStart>" of the last alert sent
+    private const NOTIFIED_KEY = 'budget_alert_notified';
 
     public function __construct(
         CategoryMapper $categoryMapper,
@@ -31,7 +35,9 @@ class BudgetAlertService {
         TransactionSplitMapper $splitMapper,
         SettingService $settingService,
         private RecurringBudgetService $recurringBudgetService,
-        private BudgetCarryoverService $carryoverService
+        private BudgetCarryoverService $carryoverService,
+        private INotificationManager $notificationManager,
+        private AmountFormatter $amountFormatter
     ) {
         $this->categoryMapper = $categoryMapper;
         $this->budgetSnapshotMapper = $budgetSnapshotMapper;
@@ -219,6 +225,100 @@ class BudgetAlertService {
         });
 
         return $alerts;
+    }
+
+    /**
+     * Notify about categories that have NEWLY crossed their warning or
+     * danger threshold, honouring the same alerts the dashboard shows.
+     *
+     * Suppression is a high-water mark per category per budget period: one
+     * notification at 'warning', a second only if the category goes on to
+     * exceed the budget, and nothing more until the period rolls over. A
+     * category that drops back under its threshold is forgotten, so it can
+     * alert afresh if it climbs again.
+     *
+     * The user's `notification_budget_alert` opt-out is checked by the
+     * caller (DigestJob), matching how anomaly alerts are gated.
+     *
+     * @return int notifications sent
+     */
+    public function notifyAlerts(string $userId): int {
+        $alerts = $this->getAlerts($userId);
+        $notified = $this->getNotifiedMap($userId);
+
+        $current = [];
+        $sent = 0;
+
+        foreach ($alerts as $alert) {
+            $categoryKey = (string) $alert['categoryId'];
+            $rank = $alert['severity'] === 'danger' ? 2 : 1;
+            $notifiedRank = $this->notifiedRank($notified[$categoryKey] ?? null, $alert['periodStart']);
+
+            if ($rank > $notifiedRank) {
+                $this->sendAlertNotification($userId, $alert);
+                $sent++;
+                $current[$categoryKey] = $alert['severity'] . ':' . $alert['periodStart'];
+            } else {
+                // Keep the stored high-water mark rather than lowering it
+                $current[$categoryKey] = $notified[$categoryKey];
+            }
+        }
+
+        if ($current !== $notified) {
+            $this->settingService->set($userId, self::NOTIFIED_KEY, json_encode($current));
+        }
+
+        return $sent;
+    }
+
+    /**
+     * Severity already notified for this category IN THIS PERIOD: 0 when
+     * nothing was, or when the stored entry belongs to an earlier period.
+     */
+    private function notifiedRank(?string $stored, string $periodStart): int {
+        if ($stored === null) {
+            return 0;
+        }
+
+        [$severity, $period] = array_pad(explode(':', $stored, 2), 2, '');
+        if ($period !== $periodStart) {
+            return 0;
+        }
+
+        return match ($severity) {
+            'danger' => 2,
+            'warning' => 1,
+            default => 0,
+        };
+    }
+
+    private function sendAlertNotification(string $userId, array $alert): void {
+        $notification = $this->notificationManager->createNotification();
+        $notification->setApp(Application::APP_ID)
+            ->setUser($userId)
+            ->setDateTime(new \DateTime())
+            ->setObject('budget_alert', (string) $alert['categoryId'])
+            ->setSubject('budget_alert', [
+                'categoryName' => $alert['categoryName'],
+                'severity' => $alert['severity'],
+                'percentage' => (string) $alert['percentage'],
+                'spent' => $this->amountFormatter->formatForUser($userId, (float) $alert['spent']),
+                'budget' => $this->amountFormatter->formatForUser($userId, (float) $alert['budgetAmount']),
+            ]);
+        $this->notificationManager->notify($notification);
+    }
+
+    /**
+     * @return array<string, string> categoryId => "<severity>:<periodStart>"
+     */
+    private function getNotifiedMap(string $userId): array {
+        try {
+            $raw = $this->settingService->get($userId, self::NOTIFIED_KEY);
+            $map = $raw !== null ? json_decode($raw, true) : null;
+            return is_array($map) ? $map : [];
+        } catch (\Exception $e) {
+            return [];
+        }
     }
 
     /**

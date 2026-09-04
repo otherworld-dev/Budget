@@ -9,8 +9,11 @@ use OCA\Budget\Db\Category;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionSplitMapper;
+use OCA\Budget\Service\AmountFormatter;
 use OCA\Budget\Service\BudgetAlertService;
 use OCA\Budget\Service\SettingService;
+use OCP\Notification\IManager as INotificationManager;
+use OCP\Notification\INotification;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -37,6 +40,12 @@ class BudgetAlertServiceTest extends TestCase {
     /** @var array<int, float> Recurring budgets returned by the mock */
     private array $recurringBudgets = [];
     private array $carryovers = [];
+    /** @var array<string, string> persisted budget_settings */
+    private array $settings = [];
+    /** @var array[] subject parameters of each notification sent */
+    private array $sent = [];
+    /** Spending answered by the mocked mapper; mutable so a run can escalate. */
+    private float $spend = 0.0;
 
     private const USER_ID = 'testuser';
 
@@ -72,7 +81,68 @@ class BudgetAlertServiceTest extends TestCase {
             $this->splitMapper,
             $this->settingService,
             $recurringBudgetService,
-            $carryoverService
+            $carryoverService,
+            $this->createMock(INotificationManager::class),
+            $this->createMock(AmountFormatter::class)
+        );
+    }
+
+    /**
+     * A service wired for the notification tests: one budgeted category, a
+     * mutable spend figure, and a SettingService backed by $this->settings so
+     * suppression state survives between runs.
+     */
+    private function makeNotifyingService(float $budget): TestableBudgetAlertService {
+        $categoryMapper = $this->createMock(CategoryMapper::class);
+        $categoryMapper->method('findAll')->willReturn([
+            $this->makeCategory(['id' => 1, 'name' => 'Groceries', 'budgetAmount' => $budget]),
+        ]);
+
+        $transactionMapper = $this->createMock(TransactionMapper::class);
+        $transactionMapper->method('getCategorySpending')
+            ->willReturnCallback(fn(...$args): float => ($args[6] ?? 'debit') === 'debit' ? $this->spend : 0.0);
+        $transactionMapper->method('getSplitTransactionIds')->willReturn([]);
+
+        $settingService = $this->createMock(SettingService::class);
+        $settingService->method('get')
+            ->willReturnCallback(fn(string $userId, string $key) => $this->settings[$key] ?? null);
+        $settingService->method('set')
+            ->willReturnCallback(function (string $userId, string $key, string $value) {
+                $this->settings[$key] = $value;
+                return new \OCA\Budget\Db\Setting();
+            });
+
+        $recurringBudgetService = $this->createMock(\OCA\Budget\Service\RecurringBudgetService::class);
+        $recurringBudgetService->method('getMonthlyBudgetsByCategory')->willReturn([]);
+        $recurringBudgetService->method('convertMonthlyToPeriod')
+            ->willReturnCallback(fn(float $monthly, string $period) => $monthly);
+
+        $carryoverService = $this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class);
+        $carryoverService->method('getCarryovers')->willReturn([]);
+
+        $notification = $this->createMock(INotification::class);
+        $notification->method('setSubject')
+            ->willReturnCallback(function (string $subject, array $params) use ($notification) {
+                $this->sent[] = $params;
+                return $notification;
+            });
+        $notification->method($this->anything())->willReturnSelf();
+        $notificationManager = $this->createMock(INotificationManager::class);
+        $notificationManager->method('createNotification')->willReturn($notification);
+
+        $amountFormatter = $this->createMock(AmountFormatter::class);
+        $amountFormatter->method('formatForUser')->willReturnCallback(fn($u, float $a) => '$' . number_format($a, 2));
+
+        return new TestableBudgetAlertService(
+            $categoryMapper,
+            $this->createMock(BudgetSnapshotMapper::class),
+            $transactionMapper,
+            $this->createMock(TransactionSplitMapper::class),
+            $settingService,
+            $recurringBudgetService,
+            $carryoverService,
+            $notificationManager,
+            $amountFormatter
         );
     }
 
@@ -522,5 +592,63 @@ class BudgetAlertServiceTest extends TestCase {
         $this->assertStringContainsString('Mar 24', $alerts[0]['periodLabel']);
         $this->assertEquals('2026-02-25', $alerts[0]['periodStart']);
         $this->assertEquals('2026-03-24', $alerts[0]['periodEnd']);
+    }
+
+    public function testNotifiesWhenACategoryCrossesTheWarningThreshold(): void {
+        $service = $this->makeNotifyingService(100.0);
+        $this->spend = 90.0; // 90% — warning
+
+        $sent = $service->notifyAlerts(self::USER_ID);
+
+        $this->assertSame(1, $sent);
+        $this->assertSame('Groceries', $this->sent[0]['categoryName']);
+        $this->assertSame('warning', $this->sent[0]['severity']);
+    }
+
+    public function testDoesNotNotifyForACategoryUnderTheThreshold(): void {
+        $service = $this->makeNotifyingService(100.0);
+        $this->spend = 50.0;
+
+        $this->assertSame(0, $service->notifyAlerts(self::USER_ID));
+        $this->assertSame([], $this->sent);
+    }
+
+    public function testDoesNotNotifyTwiceForTheSameCategoryAndPeriod(): void {
+        $service = $this->makeNotifyingService(100.0);
+        $this->spend = 90.0;
+
+        $service->notifyAlerts(self::USER_ID);
+        $second = $service->notifyAlerts(self::USER_ID);
+
+        $this->assertSame(0, $second);
+        $this->assertCount(1, $this->sent);
+    }
+
+    /**
+     * Crossing the budget outright is news even after a warning was already
+     * sent for the same category in the same period.
+     */
+    public function testNotifiesAgainWhenAWarningEscalatesToDanger(): void {
+        $service = $this->makeNotifyingService(100.0);
+        $this->spend = 90.0;
+        $service->notifyAlerts(self::USER_ID);
+
+        $this->spend = 130.0; // now over budget
+        $second = $service->notifyAlerts(self::USER_ID);
+
+        $this->assertSame(1, $second);
+        $this->assertCount(2, $this->sent);
+        $this->assertSame('danger', $this->sent[1]['severity']);
+    }
+
+    public function testSuppressionStateIsPersistedPerCategoryAndPeriod(): void {
+        $service = $this->makeNotifyingService(100.0);
+        $this->spend = 90.0;
+
+        $service->notifyAlerts(self::USER_ID);
+
+        $this->assertArrayHasKey('budget_alert_notified', $this->settings);
+        $stored = json_decode($this->settings['budget_alert_notified'], true);
+        $this->assertStringStartsWith('warning:', $stored['1']);
     }
 }

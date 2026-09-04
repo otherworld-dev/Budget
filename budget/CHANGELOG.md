@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Budget alerts and forecast warnings actually notify you now.** The two switches at the top of **Settings → Notifications** have been there since the first release and never did anything - nothing read them, and the app had no such notification to send, so the only place a budget alert ever appeared was a dashboard card you had to go and look at. **Budget Alerts** now sends a notification the first time a category reaches your alert threshold (80% by default) in a budget period, and a second one if that category goes on to exceed its budget. That is the most it will send per category per period, so the nightly check cannot turn into nightly noise; a category that drops back under its threshold is forgotten, so it can alert again if it climbs back. **Forecast Warnings** sends at most one notification a month when the six-month forecast projects your combined balance below zero, naming the month it happens and the figure it falls to. Both default to on and are switched off from those same two checkboxes
+
+### Fixed
+- **A monthly digest can report unusual spending.** Unusual-spending detection judges a month that is still in progress, so it stays quiet before the 10th - pro-rating the rent on the 2nd would flag it every time. The monthly digest is sent on the 1st, so its unusual-spending section was empty every single time it went out, and the weekly digest only filled it in on the weeks that happened to start after the 10th. The digest now asks about the period it is actually reporting on: a finished week or month, compared against the same six-month typical figure scaled to that period's length, with no early-month rule to apply because a finished period is not a partial one. That also settles a mismatch in what the digest was telling you - it reported *this* month's spending so far inside a summary of *last* week or month, and now reports the period it covers
+- **The digest notification says how many categories are spending unusually.** The count was being attached to the notification and then never shown, so a digest that had found something looked exactly like one that had not
+
 ## [2.49.0] - 2026-09-04
 
 ### Added

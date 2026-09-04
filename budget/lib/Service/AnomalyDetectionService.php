@@ -40,7 +40,9 @@ class AnomalyDetectionService {
     }
 
     /**
-     * Active anomalies for a user (no notification side effects).
+     * Active anomalies for a user, month-to-date (no notification side
+     * effects). Partial month, so the baseline is pro-rated by how far
+     * through the month we are and the early-month guard applies.
      *
      * @return array[] [{categoryId, categoryName, mtdSpend, baseline, percentAbove}]
      */
@@ -51,6 +53,56 @@ class AnomalyDetectionService {
             return [];
         }
 
+        return $this->compareAgainstBaseline(
+            $userId,
+            $now->format('Y-m-01'),
+            $now->format('Y-m-d'),
+            $now->modify('first day of this month'),
+            $dayOfMonth / (int) $now->format('t')
+        );
+    }
+
+    /**
+     * Anomalies for a COMPLETED period (a digest's week or month), compared
+     * against the same 6-month median baseline scaled to the period's
+     * length — 1.0 for a full calendar month, ~7/30 for a week.
+     *
+     * No early-month guard: that guard exists only because detect() judges a
+     * partial month, and a finished period is not partial. Without this the
+     * monthly digest — sent on the 1st — could never report an anomaly.
+     *
+     * @return array[] same shape as detect()
+     */
+    public function detectForPeriod(string $userId, string $periodStart, string $periodEnd): array {
+        $start = new \DateTimeImmutable($periodStart);
+        $end = new \DateTimeImmutable($periodEnd);
+        $periodDays = (int) $start->diff($end)->days + 1;
+
+        return $this->compareAgainstBaseline(
+            $userId,
+            $periodStart,
+            $periodEnd,
+            $start->modify('first day of this month'),
+            $periodDays / (int) $start->format('t')
+        );
+    }
+
+    /**
+     * Shared comparison: spend over [$spendStart, $spendEnd] against the
+     * median of the six full months preceding $baselineAnchor's month,
+     * scaled by $proRate.
+     *
+     * @param \DateTimeImmutable $baselineAnchor first day of the month the
+     *                                           baseline counts back from
+     * @return array[]
+     */
+    private function compareAgainstBaseline(
+        string $userId,
+        string $spendStart,
+        string $spendEnd,
+        \DateTimeImmutable $baselineAnchor,
+        float $proRate
+    ): array {
         $threshold = $this->getFloatSetting($userId, 'anomaly_threshold_percent', 30.0);
         $minAmount = $this->getFloatSetting($userId, 'anomaly_min_amount', 50.0);
 
@@ -65,26 +117,23 @@ class AnomalyDetectionService {
         }
         $categoryIds = array_keys($categories);
 
-        // Month-to-date spending
-        $monthStart = $now->format('Y-m-01');
-        $mtd = $this->transactionMapper->getCategorySpendingBatch($categoryIds, $monthStart, $now->format('Y-m-d'));
+        $periodSpend = $this->transactionMapper->getCategorySpendingBatch($categoryIds, $spendStart, $spendEnd);
 
-        // Prior 6 full months
+        // The six full months before the anchor month
         $history = [];
         for ($i = 1; $i <= self::BASELINE_MONTHS; $i++) {
-            $month = (clone $now)->modify('first day of this month')->modify("-{$i} months");
-            $start = $month->format('Y-m-01');
-            $end = $month->format('Y-m-t');
-            $history[] = $this->transactionMapper->getCategorySpendingBatch($categoryIds, $start, $end);
+            $month = $baselineAnchor->modify("-{$i} months");
+            $history[] = $this->transactionMapper->getCategorySpendingBatch(
+                $categoryIds,
+                $month->format('Y-m-01'),
+                $month->format('Y-m-t')
+            );
         }
-
-        $daysInMonth = (int) $now->format('t');
-        $proRate = $dayOfMonth / $daysInMonth;
 
         $anomalies = [];
         foreach ($categories as $catId => $category) {
-            $mtdSpend = (float) ($mtd[$catId] ?? 0);
-            if ($mtdSpend < $minAmount) {
+            $spend = (float) ($periodSpend[$catId] ?? 0);
+            if ($spend < $minAmount) {
                 continue;
             }
 
@@ -100,16 +149,16 @@ class AnomalyDetectionService {
             }
 
             $baseline = $this->median($nonZeroMonths);
-            $expectedSoFar = $baseline * $proRate;
-            $limit = $expectedSoFar * (1 + $threshold / 100);
+            $expected = $baseline * $proRate;
+            $limit = $expected * (1 + $threshold / 100);
 
-            if ($mtdSpend > $limit && $expectedSoFar > 0) {
+            if ($spend > $limit && $expected > 0) {
                 $anomalies[] = [
                     'categoryId' => $catId,
                     'categoryName' => $category->getName(),
-                    'mtdSpend' => round($mtdSpend, 2),
+                    'mtdSpend' => round($spend, 2),
                     'baseline' => round($baseline, 2),
-                    'percentAbove' => (int) round(($mtdSpend / $expectedSoFar - 1) * 100),
+                    'percentAbove' => (int) round(($spend / $expected - 1) * 100),
                 ];
             }
         }

@@ -365,16 +365,33 @@ class Notifier implements INotifier {
                         : $l->t('Your weekly budget digest')
                 );
 
-                // TRANSLATORS: {income}, {expenses}, {net}, {bills} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
-                $notification->setRichMessage(
-                    $l->t('Income {income}, spending {expenses} ({net} net). {bills} bills due soon.'),
-                    [
-                        'income' => ['type' => 'highlight', 'id' => 'income', 'name' => $parameters['income']],
-                        'expenses' => ['type' => 'highlight', 'id' => 'expenses', 'name' => $parameters['expenses']],
-                        'net' => ['type' => 'highlight', 'id' => 'net', 'name' => $parameters['net']],
-                        'bills' => ['type' => 'highlight', 'id' => 'bills', 'name' => $parameters['billCount']],
-                    ]
-                );
+                $messageParameters = [
+                    'income' => ['type' => 'highlight', 'id' => 'income', 'name' => $parameters['income']],
+                    'expenses' => ['type' => 'highlight', 'id' => 'expenses', 'name' => $parameters['expenses']],
+                    'net' => ['type' => 'highlight', 'id' => 'net', 'name' => $parameters['net']],
+                    'bills' => ['type' => 'highlight', 'id' => 'bills', 'name' => $parameters['billCount']],
+                ];
+
+                // Absent on notifications queued before the count was rendered
+                $anomalyCount = (int) ($parameters['anomalyCount'] ?? 0);
+
+                if ($anomalyCount > 0) {
+                    $messageParameters['anomalies'] = [
+                        'type' => 'highlight', 'id' => 'anomalies', 'name' => $parameters['anomalyCount'],
+                    ];
+
+                    // TRANSLATORS: {income}, {expenses}, {net}, {bills}, {anomalies} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
+                    $message = $l->n(
+                        'Income {income}, spending {expenses} ({net} net). {bills} bills due soon, and one category is spending unusually.',
+                        'Income {income}, spending {expenses} ({net} net). {bills} bills due soon, and {anomalies} categories are spending unusually.',
+                        $anomalyCount
+                    );
+                } else {
+                    // TRANSLATORS: {income}, {expenses}, {net}, {bills} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
+                    $message = $l->t('Income {income}, spending {expenses} ({net} net). {bills} bills due soon.');
+                }
+
+                $notification->setRichMessage($message, $messageParameters);
 
                 $notification->setIcon($this->urlGenerator->getAbsoluteURL(
                     $this->urlGenerator->imagePath(Application::APP_ID, 'app.svg')
@@ -443,6 +460,63 @@ class Notifier implements INotifier {
                 ));
 
                 $notification->setLink($this->urlGenerator->linkToRouteAbsolute('files.viewcontroller.showFile', ['fileid' => $parameters['fileId']]));
+
+                break;
+
+            case 'budget_alert':
+                // TRANSLATORS: {category} is replaced with the category name. Do NOT translate {category} — keep it exactly as-is.
+                $alertSubject = $l->t('Approaching your {category} budget');
+                if (($parameters['severity'] ?? '') === 'danger') {
+                    // TRANSLATORS: {category} is replaced with the category name. Do NOT translate {category} — keep it exactly as-is.
+                    $alertSubject = $l->t('{category} is over budget');
+                }
+
+                $notification->setRichSubject(
+                    $alertSubject,
+                    [
+                        'category' => ['type' => 'highlight', 'id' => 'category', 'name' => $parameters['categoryName']],
+                    ]
+                );
+
+                // TRANSLATORS: {spent}, {budget}, {percent} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
+                $notification->setRichMessage(
+                    $l->t('You have spent {spent} of your {budget} budget ({percent}%% of the limit).'),
+                    [
+                        'spent' => ['type' => 'highlight', 'id' => 'spent', 'name' => $parameters['spent']],
+                        'budget' => ['type' => 'highlight', 'id' => 'budget', 'name' => $parameters['budget']],
+                        'percent' => ['type' => 'highlight', 'id' => 'percent', 'name' => $parameters['percentage']],
+                    ]
+                );
+
+                $notification->setIcon($this->urlGenerator->getAbsoluteURL(
+                    $this->urlGenerator->imagePath(Application::APP_ID, 'app.svg')
+                ));
+
+                $notification->setLink($this->urlGenerator->linkToRouteAbsolute(
+                    Application::APP_ID . '.page.index'
+                ) . '#budget');
+
+                break;
+
+            case 'forecast_warning':
+                $notification->setRichSubject($l->t('Your balance is forecast to go negative'));
+
+                // TRANSLATORS: {balance}, {month} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
+                $notification->setRichMessage(
+                    $l->t('Your projected balance falls to {balance} in {month}.'),
+                    [
+                        'balance' => ['type' => 'highlight', 'id' => 'balance', 'name' => $parameters['balance']],
+                        'month' => ['type' => 'highlight', 'id' => 'month', 'name' => $parameters['month']],
+                    ]
+                );
+
+                $notification->setIcon($this->urlGenerator->getAbsoluteURL(
+                    $this->urlGenerator->imagePath(Application::APP_ID, 'app.svg')
+                ));
+
+                $notification->setLink($this->urlGenerator->linkToRouteAbsolute(
+                    Application::APP_ID . '.page.index'
+                ) . '#forecast');
 
                 break;
 

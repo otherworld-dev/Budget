@@ -80,7 +80,7 @@ class DigestService {
                 'dueDate' => $bill->getNextDueDate(),
             ], $bills),
             'goals' => $goals,
-            'anomalies' => $this->anomalyService->detect($userId),
+            'anomalies' => $this->anomalyService->detectForPeriod($userId, $start, $end),
             'suggestionCount' => $this->suggestionService->countSuggestions($userId),
         ];
     }

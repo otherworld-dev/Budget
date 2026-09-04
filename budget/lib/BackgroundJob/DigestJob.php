@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace OCA\Budget\BackgroundJob;
 
 use OCA\Budget\Service\AnomalyDetectionService;
+use OCA\Budget\Service\BudgetAlertService;
 use OCA\Budget\Service\DigestService;
+use OCA\Budget\Service\Forecast\ForecastWarningService;
 use OCA\Budget\Service\SettingService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\TimedJob;
@@ -14,7 +16,7 @@ use OCP\Server;
 use Psr\Log\LoggerInterface;
 
 /**
- * Daily job for digests and anomaly alerts.
+ * Daily job for digests and the per-user alert checks.
  *
  * Digest scheduling uses PERIOD KEYS, not timestamps: each run computes the
  * current ISO week (weekly) or month (monthly); when it differs from the
@@ -22,8 +24,12 @@ use Psr\Log\LoggerInterface;
  * sent and the key updated. Cron downtime self-heals on the next run and
  * a period is never sent twice.
  *
- * Anomaly alerts run for every user with `anomaly_alerts_enabled` (their
- * own per-category-per-month suppression lives in the service).
+ * The alert checks — unusual spending, budget thresholds and negative cash
+ * flow forecasts — run for every user of the app. Each DEFAULTS ON, so the
+ * opt-out is an explicit 'false' rather than a missing row, and each is
+ * guarded separately: one check failing must not cost the user the others.
+ * Their suppression (per category per month, per category per budget period,
+ * per month) lives in the services themselves.
  */
 class DigestJob extends TimedJob {
 
@@ -39,10 +45,12 @@ class DigestJob extends TimedJob {
         $settingService = Server::get(SettingService::class);
         $digestService = Server::get(DigestService::class);
         $anomalyService = Server::get(AnomalyDetectionService::class);
+        $budgetAlertService = Server::get(BudgetAlertService::class);
+        $forecastWarningService = Server::get(ForecastWarningService::class);
         $logger = Server::get(LoggerInterface::class);
 
         $digestsSent = 0;
-        $anomalyUsers = 0;
+        $alertUsers = 0;
 
         // Digests — only users who opted in are visited
         foreach ($this->getOptedInUserIds($db, 'digest_enabled') as $userId) {
@@ -62,20 +70,36 @@ class DigestJob extends TimedJob {
             }
         }
 
-        // Anomaly alerts (default on — enabled unless explicitly 'false')
-        foreach ($this->getAnomalyUserIds($db) as $userId) {
+        // Per-user alert checks (each default on — off only on explicit 'false')
+        foreach ($this->getAlertUserIds($db) as $userId) {
+            $alertUsers++;
+
             try {
-                if ($settingService->get($userId, 'anomaly_alerts_enabled') === 'false') {
-                    continue;
+                if ($settingService->get($userId, 'anomaly_alerts_enabled') !== 'false') {
+                    $anomalyService->detectAndNotify($userId);
                 }
-                $anomalyService->detectAndNotify($userId);
-                $anomalyUsers++;
             } catch (\Exception $e) {
                 $logger->warning("Anomaly detection failed for {$userId}: " . $e->getMessage(), ['app' => 'budget']);
             }
+
+            try {
+                if ($settingService->get($userId, 'notification_budget_alert') !== 'false') {
+                    $budgetAlertService->notifyAlerts($userId);
+                }
+            } catch (\Exception $e) {
+                $logger->warning("Budget alerts failed for {$userId}: " . $e->getMessage(), ['app' => 'budget']);
+            }
+
+            try {
+                if ($settingService->get($userId, 'notification_forecast_warning') !== 'false') {
+                    $forecastWarningService->checkAndNotify($userId);
+                }
+            } catch (\Exception $e) {
+                $logger->warning("Forecast warning failed for {$userId}: " . $e->getMessage(), ['app' => 'budget']);
+            }
         }
 
-        $logger->info("Digest job completed: {$digestsSent} digests sent, {$anomalyUsers} users checked for anomalies", ['app' => 'budget']);
+        $logger->info("Digest job completed: {$digestsSent} digests sent, {$alertUsers} users checked for alerts", ['app' => 'budget']);
     }
 
     /**
@@ -97,13 +121,13 @@ class DigestJob extends TimedJob {
     }
 
     /**
-     * Anomaly alerts default to ON, so enumerate everyone who uses the app
-     * (distinct owners of accounts); the explicit 'false' opt-out is checked
+     * The alert checks default to ON, so enumerate everyone who uses the app
+     * (distinct owners of accounts); each explicit 'false' opt-out is checked
      * per user in run().
      *
      * @return string[]
      */
-    private function getAnomalyUserIds(IDBConnection $db): array {
+    private function getAlertUserIds(IDBConnection $db): array {
         $qb = $db->getQueryBuilder();
         $qb->selectDistinct('user_id')->from('budget_accounts');
 

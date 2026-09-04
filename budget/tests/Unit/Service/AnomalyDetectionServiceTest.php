@@ -174,4 +174,68 @@ class AnomalyDetectionServiceTest extends TestCase {
 
         $this->assertCount(0, $service->detect('alice'));
     }
+
+    /**
+     * Seed a completed-period lookup: first call is the period's spend, then
+     * the six full months before the period's month.
+     */
+    private function seedPeriod(float $periodSpend, float $monthly = 400.0): void {
+        $this->spendingByCall = [[1 => $periodSpend]];
+        for ($i = 0; $i < 6; $i++) {
+            $this->spendingByCall[] = [1 => $monthly];
+        }
+    }
+
+    public function testDetectForPeriodFlagsFullMonthOverspend(): void {
+        // May in full: factor 31/31 = 1, so limit = 400 × 1.30 = 520
+        $this->seedPeriod(600.0);
+
+        $anomalies = $this->service->detectForPeriod('alice', '2026-05-01', '2026-05-31');
+
+        $this->assertCount(1, $anomalies);
+        $this->assertSame('Groceries', $anomalies[0]['categoryName']);
+        $this->assertSame(400.0, $anomalies[0]['baseline']);
+        $this->assertSame(50, $anomalies[0]['percentAbove']);
+    }
+
+    public function testDetectForPeriodFullMonthWithinThreshold(): void {
+        $this->seedPeriod(500.0); // under the 520 limit
+
+        $this->assertCount(0, $this->service->detectForPeriod('alice', '2026-05-01', '2026-05-31'));
+    }
+
+    /**
+     * The regression this method exists for: a monthly digest is sent on the
+     * 1st, and detect()'s day-10 guard silently emptied it. A completed
+     * period is never partial, so no guard applies.
+     */
+    public function testDetectForPeriodIgnoresDayOfMonthGuard(): void {
+        $this->service->now = '2026-06-01'; // day 1 — detect() would bail here
+        $this->seedPeriod(600.0);
+
+        $this->assertCount(1, $this->service->detectForPeriod('alice', '2026-05-01', '2026-05-31'));
+    }
+
+    public function testDetectForPeriodScalesBaselineToPeriodLength(): void {
+        // 7 days of May: factor 7/31, expected = 400 × 7/31 ≈ 90.32,
+        // limit ≈ 117.42
+        $this->seedPeriod(130.0);
+        $this->assertCount(1, $this->service->detectForPeriod('alice', '2026-05-18', '2026-05-24'));
+
+        $this->seedPeriod(100.0);
+        $this->assertCount(0, $this->service->detectForPeriod('alice', '2026-05-18', '2026-05-24'));
+    }
+
+    public function testDetectForPeriodKeepsMinAmountFloor(): void {
+        // +100% over a €10 typical week, but trivial money
+        $this->seedPeriod(12.0, 10.0);
+
+        $this->assertCount(0, $this->service->detectForPeriod('alice', '2026-05-18', '2026-05-24'));
+    }
+
+    public function testDetectForPeriodRequiresEnoughHistory(): void {
+        $this->spendingByCall = [[1 => 600.0], [1 => 400.0], [1 => 400.0], [], [], [], []];
+
+        $this->assertCount(0, $this->service->detectForPeriod('alice', '2026-05-01', '2026-05-31'));
+    }
 }
