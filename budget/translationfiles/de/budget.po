@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-03 22:38+0000\n"
+"POT-Creation-Date: 2026-09-04 11:02+0000\n"
 "PO-Revision-Date: 2026-08-24 01:09+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -637,7 +637,7 @@ msgstr "Rechnung"
 #: /app/lib/Controller/GoalsController.php:363
 #: /app/lib/Controller/ImportRuleController.php:90
 #: /app/lib/Controller/RecurringIncomeController.php:89
-#: /app/lib/Traits/ApiErrorHandlerTrait.php:206
+#: /app/lib/Traits/ApiErrorHandlerTrait.php:211
 #, php-format
 msgid "%1$s not found"
 msgstr "%1$s nicht gefunden"
@@ -656,7 +656,7 @@ msgstr "Name und Betrag sind erforderlich"
 
 #: /app/lib/Controller/BillController.php:217
 #: /app/lib/Controller/BillController.php:682
-#: /app/lib/Service/BillService.php:355 /app/lib/Service/BillService.php:459
+#: /app/lib/Service/BillService.php:355 /app/lib/Service/BillService.php:465
 msgid "Auto-pay requires an account to be set"
 msgstr "Automatische Zahlung erfordert ein Konto"
 
@@ -2713,18 +2713,36 @@ msgstr "Deine monatliche Budgetübersicht"
 msgid "Your weekly budget digest"
 msgstr "Deine wöchentliche Budgetübersicht"
 
-#: /app/lib/Notification/Notifier.php:370
+#: /app/lib/Notification/Notifier.php:385
+#, fuzzy
+#| msgid ""
+#| "Income {income}, spending {expenses} ({net} net). {bills} bills due soon."
+msgid ""
+"Income {income}, spending {expenses} ({net} net). {bills} bills due soon, "
+"and one category is spending unusually."
+msgid_plural ""
+"Income {income}, spending {expenses} ({net} net). {bills} bills due soon, "
+"and {anomalies} categories are spending unusually."
+msgstr[0] ""
+"Einnahmen: {income}, Ausgaben: {expenses} ({net} Saldo). {bills} Rechnungen "
+"sind bald fällig."
+msgstr[1] ""
+"Einnahmen: {income}, Ausgaben: {expenses} ({net} Saldo). {bills} Rechnungen "
+"sind bald fällig."
+
+#. TRANSLATORS: {income}, {expenses}, {net}, {bills} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
+#: /app/lib/Notification/Notifier.php:391
 msgid ""
 "Income {income}, spending {expenses} ({net} net). {bills} bills due soon."
 msgstr ""
 "Einnahmen: {income}, Ausgaben: {expenses} ({net} Saldo). {bills} Rechnungen "
 "sind bald fällig."
 
-#: /app/lib/Notification/Notifier.php:392
+#: /app/lib/Notification/Notifier.php:409
 msgid "Unusual spending in {category}"
 msgstr "Auffällige Ausgaben in {category}"
 
-#: /app/lib/Notification/Notifier.php:400
+#: /app/lib/Notification/Notifier.php:417
 #, php-format
 msgid ""
 "{category} spending is {percent}%% above your typical level — {amount} so "
@@ -2733,13 +2751,42 @@ msgstr ""
 "Die Ausgaben für „{category}“ liegen {percent} %% über deinem üblichen "
 "Niveau – bisher {amount} in diesem Monat."
 
-#: /app/lib/Notification/Notifier.php:421
+#: /app/lib/Notification/Notifier.php:438
 msgid "Your Budget report for {month} is ready"
 msgstr "Dein Budgetbericht für {month} ist verfügbar"
 
-#: /app/lib/Notification/Notifier.php:429
+#: /app/lib/Notification/Notifier.php:446
 msgid "{file} was saved to your Files."
 msgstr "{file} wurde in deinen Dateien gespeichert."
+
+#. TRANSLATORS: {category} is replaced with the category name. Do NOT translate {category} — keep it exactly as-is.
+#: /app/lib/Notification/Notifier.php:468
+msgid "Approaching your {category} budget"
+msgstr ""
+
+#. TRANSLATORS: {category} is replaced with the category name. Do NOT translate {category} — keep it exactly as-is.
+#: /app/lib/Notification/Notifier.php:471
+#, fuzzy
+#| msgid "%n category is over budget."
+#| msgid_plural "%n categories are over budget."
+msgid "{category} is over budget"
+msgstr "%n Kategorie ist über dem Budget."
+
+#: /app/lib/Notification/Notifier.php:483
+#, php-format
+msgid ""
+"You have spent {spent} of your {budget} budget ({percent}%% of the limit)."
+msgstr ""
+
+#: /app/lib/Notification/Notifier.php:502
+#, fuzzy
+#| msgid "Current balance cannot be negative"
+msgid "Your balance is forecast to go negative"
+msgstr "Aktueller Kontostand kann nicht negativ sein"
+
+#: /app/lib/Notification/Notifier.php:506
+msgid "Your projected balance falls to {balance} in {month}."
+msgstr ""
 
 #: /app/lib/Search/TransactionSearchProvider.php:39
 #, fuzzy
@@ -2886,29 +2933,29 @@ msgstr ""
 msgid "A transaction for this payment already exists"
 msgstr "Eine Kategorie mit diesem Namen existiert bereits in dieser Ebene"
 
-#: /app/lib/Service/BillService.php:994 /app/lib/Service/BillService.php:1008
+#: /app/lib/Service/BillService.php:1000 /app/lib/Service/BillService.php:1014
 #, fuzzy
 #| msgid "Transfer marked as paid"
 msgid "This bill has no recorded payment to undo"
 msgstr "Umbuchung wurde als bezahlt markiert"
 
-#: /app/lib/Service/BillService.php:1036
+#: /app/lib/Service/BillService.php:1042
 msgid "Cannot skip a one-time bill"
 msgstr "Einmalige Rechnung kann nicht übersprungen werden"
 
-#: /app/lib/Service/BillService.php:1040
+#: /app/lib/Service/BillService.php:1046
 msgid "Cannot skip an inactive bill"
 msgstr "Ruhende Rechnung kann nicht übersprungen werden"
 
-#: /app/lib/Service/BillService.php:1457
+#: /app/lib/Service/BillService.php:1463
 msgid "Auto-pay is not enabled for this bill"
 msgstr "Automatische Zahlung ist für diese Rechnung nicht eingeschaltet"
 
-#: /app/lib/Service/BillService.php:1470
+#: /app/lib/Service/BillService.php:1476
 msgid "Bill has no account associated"
 msgstr "Rechnung ist keinem Konto zugewiesen"
 
-#: /app/lib/Service/BillService.php:1480
+#: /app/lib/Service/BillService.php:1486
 msgid "Bill auto-paid successfully"
 msgstr "Rechnung wurde automatisch bezahlt"
 
@@ -3563,7 +3610,7 @@ msgid "Budget's database schema is up to date."
 msgstr ""
 
 #: /app/lib/SetupChecks/BudgetSchemaCheck.php:52
-#: /app/lib/Traits/ApiErrorHandlerTrait.php:183
+#: /app/lib/Traits/ApiErrorHandlerTrait.php:188
 #, php-format
 msgid "An administrator can finish it by running: %1$s"
 msgstr ""
@@ -3572,7 +3619,7 @@ msgstr ""
 msgid "This shared item is read-only"
 msgstr "Dieses geteilte Element ist nur lesbar"
 
-#: /app/lib/Traits/ApiErrorHandlerTrait.php:192
+#: /app/lib/Traits/ApiErrorHandlerTrait.php:197
 msgid ""
 "The database is missing something this version of Budget needs, which means "
 "the update did not finish. An administrator can complete it by running: occ "
@@ -3811,7 +3858,7 @@ msgstr "Kontoausgaben"
 #: /app/src/modules/categories/CategoriesModule.js:767
 #: /app/src/modules/dashboard/DashboardModule.js:1207
 #: /app/src/modules/import/ImportModule.js:154
-#: /app/src/modules/import/ImportModule.js:1760
+#: /app/src/modules/import/ImportModule.js:1765
 #: /app/src/modules/rules/RulesModule.js:1008
 #: /app/src/modules/transactions/TransactionsModule.js:486
 #: /app/src/modules/transactions/TransactionsModule.js:1174
@@ -4156,8 +4203,8 @@ msgstr "Tastenkürzel"
 #: /app/src/main.js:2061 /app/src/main.js:2065
 #: /app/src/modules/bills/BillsModule.js:1182
 #: /app/src/modules/bills/BillsModule.js:1395
-#: /app/src/modules/import/ImportModule.js:1943
-#: /app/src/modules/import/ImportModule.js:1956
+#: /app/src/modules/import/ImportModule.js:1973
+#: /app/src/modules/import/ImportModule.js:1986
 #: /app/src/modules/sharing/SharingModule.js:133
 #: /app/src/modules/transactions/TransactionsModule.js:4971
 #: /app/src/modules/transfers/TransfersModule.js:144
@@ -4416,7 +4463,7 @@ msgid "{displayed} of {total} transactions"
 msgstr "{displayed} von {total} Buchungen"
 
 #: /app/src/main.js:1619 /app/src/modules/dashboard/DashboardModule.js:2334
-#: /app/src/modules/import/ImportModule.js:1855
+#: /app/src/modules/import/ImportModule.js:1885
 msgid "%n transaction"
 msgid_plural "%n transactions"
 msgstr[0] "%n Buchung"
@@ -4730,7 +4777,7 @@ msgstr "Bist Du Dir absolut sicher, dass Du fortfahren möchtest?"
 msgid "Importing data... This may take a moment."
 msgstr "Daten werden importiert... Das kann einen Moment dauern."
 
-#: /app/src/main.js:2518 /app/src/modules/import/ImportModule.js:2085
+#: /app/src/main.js:2518 /app/src/modules/import/ImportModule.js:2119
 msgid "Import failed"
 msgstr "Import fehlgeschlagen"
 
@@ -5295,7 +5342,7 @@ msgstr ""
 "und-Verlust-Berechnung kann daher ungenau sein."
 
 #: /app/src/modules/accounts/AccountsModule.js:1444
-#: /app/src/modules/import/ImportModule.js:1706
+#: /app/src/modules/import/ImportModule.js:1711
 msgid "No transactions found"
 msgstr "Keine Buchungen gefunden"
 
@@ -5377,7 +5424,7 @@ msgstr "Kein Konto verfügbar. Bitte erstelle zuerst ein Konto."
 
 #: /app/src/modules/accounts/AccountsModule.js:2140
 #: /app/src/modules/accounts/AccountsModule.js:2261
-#: /app/src/modules/import/ImportModule.js:2024
+#: /app/src/modules/import/ImportModule.js:2054
 msgid "Please select an account"
 msgstr "Bitte wähle ein Konto"
 
@@ -7014,7 +7061,7 @@ msgid "Exists"
 msgstr ""
 
 #: /app/src/modules/categories/CategoriesModule.js:1578
-#: /app/src/modules/import/ImportModule.js:1720
+#: /app/src/modules/import/ImportModule.js:1725
 msgid "New"
 msgstr "Neu"
 
@@ -8508,7 +8555,7 @@ msgid "Processing file, please wait..."
 msgstr "Import wird durchgeführt..."
 
 #: /app/src/modules/import/ImportModule.js:1500
-#: /app/src/modules/import/ImportModule.js:2017
+#: /app/src/modules/import/ImportModule.js:2047
 msgid "Please map at least one account"
 msgstr "Bitte ordne mindestens ein Konto zu"
 
@@ -8516,52 +8563,52 @@ msgstr "Bitte ordne mindestens ein Konto zu"
 msgid "Please select an account first"
 msgstr "Bitte wähle zuerst ein Konto aus"
 
-#: /app/src/modules/import/ImportModule.js:1534
+#: /app/src/modules/import/ImportModule.js:1539
 msgid "Processing failed"
 msgstr "Verarbeitung fehlgeschlagen"
 
-#: /app/src/modules/import/ImportModule.js:1538
+#: /app/src/modules/import/ImportModule.js:1543
 msgid "Failed to process import data: {message}"
 msgstr "Fehler bei der Verarbeitung der Importdaten: {message}"
 
-#: /app/src/modules/import/ImportModule.js:1588
+#: /app/src/modules/import/ImportModule.js:1593
 msgid "Accounts to create:"
 msgstr "Zu erstellende Konten:"
 
-#: /app/src/modules/import/ImportModule.js:1592
+#: /app/src/modules/import/ImportModule.js:1597
 msgid "Existing accounts matched:"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1615
+#: /app/src/modules/import/ImportModule.js:1620
 msgid "Categories to create:"
 msgstr "Zu erstellende Kategorien:"
 
-#: /app/src/modules/import/ImportModule.js:1617
+#: /app/src/modules/import/ImportModule.js:1622
 msgid "{count} transfer rows will be skipped"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1648
+#: /app/src/modules/import/ImportModule.js:1653
 #, fuzzy
 #| msgid "Skip this account"
 msgid "this account"
 msgstr "Konto überspringen"
 
-#: /app/src/modules/import/ImportModule.js:1653
+#: /app/src/modules/import/ImportModule.js:1658
 msgid "{matching} of {total} rows have no usable transaction type"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1657
+#: /app/src/modules/import/ImportModule.js:1662
 msgid ""
 "The type column is empty or unrecognized on those rows, so they will be "
 "added based on whether the amount is negative. Fill the type in, or check "
 "the mapping, if that is not what you want."
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1659
+#: /app/src/modules/import/ImportModule.js:1664
 msgid "{matching} of {total} rows would be added as income"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1663
+#: /app/src/modules/import/ImportModule.js:1668
 #, javascript-format
 msgid ""
 "but {percent}% of what is already in {account} is an expense. If that looks "
@@ -8569,11 +8616,11 @@ msgid ""
 "importing."
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1668
+#: /app/src/modules/import/ImportModule.js:1673
 msgid "{matching} of {total} rows would be added as an expense"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1672
+#: /app/src/modules/import/ImportModule.js:1677
 #, javascript-format
 msgid ""
 "but {percent}% of what is already in {account} is income. If that looks "
@@ -8581,63 +8628,77 @@ msgid ""
 "importing."
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1704
+#: /app/src/modules/import/ImportModule.js:1709
 msgid "No transactions to import"
 msgstr "Keine Buchungen zum Importieren vorhanden"
 
-#: /app/src/modules/import/ImportModule.js:1719
-#: /app/src/modules/import/ImportModule.js:1759
+#: /app/src/modules/import/ImportModule.js:1724
+#: /app/src/modules/import/ImportModule.js:1764
 msgid "Duplicate"
 msgstr "Duplikat"
 
-#: /app/src/modules/import/ImportModule.js:1741
-#: /app/src/modules/import/ImportModule.js:1783
+#: /app/src/modules/import/ImportModule.js:1746
+#: /app/src/modules/import/ImportModule.js:1788
 msgid "Showing {shown} of {total}"
 msgstr "Zeige {shown} von {total}"
 
-#: /app/src/modules/import/ImportModule.js:1822
+#: /app/src/modules/import/ImportModule.js:1803
+#, fuzzy
+#| msgid "Skip this account"
+msgid "Skip rows without an account"
+msgstr "Konto überspringen"
+
+#: /app/src/modules/import/ImportModule.js:1803
 msgid "Select account…"
 msgstr "Konto auswählen…"
 
-#: /app/src/modules/import/ImportModule.js:1857
+#: /app/src/modules/import/ImportModule.js:1817
+msgid "Account for rows without one:"
+msgstr ""
+
+#: /app/src/modules/import/ImportModule.js:1818 /app/templates/index.php:2405
+msgid "Import to Account:"
+msgstr "Importieren in Konto:"
+
+#: /app/src/modules/import/ImportModule.js:1887
 msgid "Balance: {balance}"
 msgstr "Kontostand: {balance}"
 
-#: /app/src/modules/import/ImportModule.js:1862
+#: /app/src/modules/import/ImportModule.js:1892
 msgid "Skip this account"
 msgstr "Konto überspringen"
 
-#: /app/src/modules/import/ImportModule.js:1932
+#: /app/src/modules/import/ImportModule.js:1962
 msgid "Rows {rows} and {count} more"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1933
+#: /app/src/modules/import/ImportModule.js:1963
 msgid "Rows {rows}"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1942
+#: /app/src/modules/import/ImportModule.js:1972
 msgid "%n row was not imported"
 msgid_plural "%n rows were not imported"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/import/ImportModule.js:1974
+#: /app/src/modules/import/ImportModule.js:2004
 msgid "No file data available"
 msgstr "Keine Dateidaten verfügbar"
 
-#: /app/src/modules/import/ImportModule.js:2034
+#: /app/src/modules/import/ImportModule.js:2068
 msgid "Importing…"
 msgstr "Importiere…"
 
-#: /app/src/modules/import/ImportModule.js:2052
+#: /app/src/modules/import/ImportModule.js:2086
 msgid "Server error ({status}): Invalid response"
 msgstr "Serverfehler ({status}): Ungültige Antwort"
 
-#: /app/src/modules/import/ImportModule.js:2056
+#: /app/src/modules/import/ImportModule.js:2090
 msgid "Successfully imported {imported} transactions ({skipped} skipped)"
 msgstr "Erfolgreich importiert: {imported} Buchungen ({skipped} übersprungen)"
 
-#: /app/src/modules/import/ImportModule.js:2060
+#: /app/src/modules/import/ImportModule.js:2094
 msgid "%n bill was automatically marked as paid from matching transactions"
 msgid_plural ""
 "%n bills were automatically marked as paid from matching transactions"
@@ -8648,58 +8709,58 @@ msgstr[1] ""
 "%n Rechnungen wurden anhand passender Transaktionen automatisch als bezahlt "
 "markiert"
 
-#: /app/src/modules/import/ImportModule.js:2076
+#: /app/src/modules/import/ImportModule.js:2110
 msgid "Import complete. %n category created — it may take a moment to appear."
 msgid_plural ""
 "Import complete. %n categories created — they may take a moment to appear."
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/import/ImportModule.js:2089
+#: /app/src/modules/import/ImportModule.js:2123
 msgid "Failed to import transactions: {message}"
 msgstr "Fehler beim Importieren der Buchungen: {message}"
 
-#: /app/src/modules/import/ImportModule.js:2112
+#: /app/src/modules/import/ImportModule.js:2146
 msgid "Auto-linked {count} transfer pairs"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2221
+#: /app/src/modules/import/ImportModule.js:2255
 msgid "Download"
 msgstr "Download"
 
-#: /app/src/modules/import/ImportModule.js:2222
+#: /app/src/modules/import/ImportModule.js:2256
 msgid "Rollback"
 msgstr "Zurücksetzen"
 
-#: /app/src/modules/import/ImportModule.js:2245
+#: /app/src/modules/import/ImportModule.js:2279
 msgid "0 Bytes"
 msgstr "0 Bytes"
 
-#: /app/src/modules/import/ImportModule.js:2247
+#: /app/src/modules/import/ImportModule.js:2281
 msgid "Bytes"
 msgstr "Bytes"
 
-#: /app/src/modules/import/ImportModule.js:2247
+#: /app/src/modules/import/ImportModule.js:2281
 msgid "KB"
 msgstr "KB"
 
-#: /app/src/modules/import/ImportModule.js:2247
+#: /app/src/modules/import/ImportModule.js:2281
 msgid "MB"
 msgstr "MB"
 
-#: /app/src/modules/import/ImportModule.js:2247
+#: /app/src/modules/import/ImportModule.js:2281
 msgid "GB"
 msgstr "GB"
 
-#: /app/src/modules/import/ImportModule.js:2269
+#: /app/src/modules/import/ImportModule.js:2303
 msgid "Download failed"
 msgstr "Download fehlgeschlagen"
 
-#: /app/src/modules/import/ImportModule.js:2273
+#: /app/src/modules/import/ImportModule.js:2307
 msgid "Failed to download import file"
 msgstr "Importdatei konnte nicht heruntergeladen werden"
 
-#: /app/src/modules/import/ImportModule.js:2278
+#: /app/src/modules/import/ImportModule.js:2312
 msgid ""
 "Are you sure you want to rollback this import? All imported transactions "
 "will be deleted."
@@ -8707,17 +8768,17 @@ msgstr ""
 "Willst du diesen Import rückgängig machen? Alle importierten Buchungen "
 "werden dadurch gelöscht."
 
-#: /app/src/modules/import/ImportModule.js:2293
+#: /app/src/modules/import/ImportModule.js:2327
 msgid "Rolled back %n transaction"
 msgid_plural "Rolled back %n transactions"
 msgstr[0] "Eine Buchung wurde zurückgesetzt"
 msgstr[1] "%n Buchungen wurden zurückgesetzt"
 
-#: /app/src/modules/import/ImportModule.js:2298
+#: /app/src/modules/import/ImportModule.js:2332
 msgid "Rollback failed"
 msgstr "Zurücksetzen fehlgeschlagen"
 
-#: /app/src/modules/import/ImportModule.js:2302
+#: /app/src/modules/import/ImportModule.js:2336
 msgid "Failed to rollback import: {message}"
 msgstr "Zurücksetzen des Imports fehlgeschlagen: {message}"
 
@@ -13178,10 +13239,6 @@ msgstr "Gefundene Duplikate:"
 msgid "Auto-categorized:"
 msgstr "Automatisch kategorisiert:"
 
-#: /app/templates/index.php:2405
-msgid "Import to Account:"
-msgstr "Importieren in Konto:"
-
 #: /app/templates/index.php:2413
 msgid "Map Source Accounts to Destination Accounts"
 msgstr "Quellkonten den Zielkonten zuordnen"
@@ -17138,16 +17195,6 @@ msgstr ""
 
 #: /app/vendor/nextcloud/ocp/OCP/TextProcessing/TopicsTaskType.php:49
 msgid "Extracts topics from a text and outputs them separated by commas."
-msgstr ""
-
-#: /app/src/modules/import/ImportModule.js:1803
-#, fuzzy
-#| msgid "Skip this account"
-msgid "Skip rows without an account"
-msgstr "Konto überspringen"
-
-#: /app/src/modules/import/ImportModule.js:1817
-msgid "Account for rows without one:"
 msgstr ""
 
 #, fuzzy
