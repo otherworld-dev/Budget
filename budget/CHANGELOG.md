@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.50.0] - 2026-09-06
 
 ### Added
 - **Budget alerts and forecast warnings actually notify you now.** The two switches at the top of **Settings → Notifications** have been there since the first release and never did anything - nothing read them, and the app had no such notification to send, so the only place a budget alert ever appeared was a dashboard card you had to go and look at. **Budget Alerts** now sends a notification the first time a category reaches your alert threshold (80% by default) in a budget period, and a second one if that category goes on to exceed its budget. That is the most it will send per category per period, so the nightly check cannot turn into nightly noise; a category that drops back under its threshold is forgotten, so it can alert again if it climbs back. **Forecast Warnings** sends at most one notification a month when the six-month forecast projects your combined balance below zero, naming the month it happens and the figure it falls to. Both default to on and are switched off from those same two checkboxes
