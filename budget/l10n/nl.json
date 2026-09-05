@@ -2,10 +2,20 @@
     "Failed to retrieve accounts" : "Ophalen van rekeningen mislukt",
     "Account not found" : "Rekening niet gevonden",
     "Account" : "Rekening",
+    "Invalid JSON data or empty request" : "Ongeldige JSON data of lege aanvraag",
+    "Account type is required and cannot be empty" : "Rekening type is vereist en mag niet leeg zijn",
     "Invalid account type: %1$s" : "Ongeldig rekeningtype: %1$s",
     "Invalid currency: %1$s" : "Ongeldige valuta:%1$s",
     "Institution" : "Institutie",
     "Account holder name" : "Naam rekeninghouder",
-    "Statement day must be between 1 and 31" : "Afschriftdatum moet tussen 1 en 31 zijn"
+    "Statement day must be between 1 and 31" : "Afschriftdatum moet tussen 1 en 31 zijn",
+    "Invalid routing number: %1$s" : "Ongeldige routingnummer: %1$s",
+    "Invalid sort code: %1$s" : "Ongeldige bank identificatienummer: %1$s",
+    "Invalid IBAN: %1$s" : "Ongeldige IBAN: %1$s",
+    "Invalid SWIFT/BIC: %1$s" : "Ongeldige SWIFT/BIC: %1$s",
+    "Failed to create account" : "Kon rekening niet aanmaken",
+    "Invalid request data" : "Ongeldige data aanvraag",
+    "Failed to update account" : "Kan account niet updaten",
+    "Failed to delete account" : "Kon account niet verwijderen"
 },"pluralForm" :"nplurals=2; plural=n != 1;"
 }
