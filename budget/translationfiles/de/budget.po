@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-04 13:52+0000\n"
-"PO-Revision-Date: 2026-08-24 01:09+0000\n"
+"PO-Revision-Date: 2026-09-06 10:51+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2026.9.dev0\n"
+"X-Generator: Weblate 2026.9.1.dev0\n"
 
 #: /app/lib/Controller/AccountController.php:82
 #: /app/lib/Controller/ApiV1AccountController.php:56
@@ -85,10 +85,8 @@ msgstr "Kontoinhaber"
 
 #: /app/lib/Controller/AccountController.php:200
 #: /app/lib/Controller/AccountController.php:440
-#, fuzzy
-#| msgid "Due day must be between 1 and 31"
 msgid "Statement day must be between 1 and 31"
-msgstr "Das Fälligkeitsdatum muss zwischen dem 1. und dem 31. liegen"
+msgstr "Der Abrechnungstag muss zwischen 1 und 31 liegen"
 
 #: /app/lib/Controller/AccountController.php:217
 #: /app/lib/Controller/AccountController.php:351
@@ -196,7 +194,7 @@ msgstr "Die Belegerkennung verwendet nicht den Otherworld-Relay."
 
 #: /app/lib/Controller/AdminSettingController.php:49
 msgid "No license key is saved yet."
-msgstr ""
+msgstr "Es ist noch kein Lizenzschlüssel gespeichert."
 
 #: /app/lib/Controller/AdminSettingController.php:53
 msgid ""
@@ -899,10 +897,9 @@ msgid "Total"
 msgstr "Summe"
 
 #: /app/lib/Controller/BillController.php:1144
-#, fuzzy, php-format
-#| msgid "Bills Calendar"
+#, php-format
 msgid "Bills Calendar %s"
-msgstr "Rechnungskalender"
+msgstr "Rechnungskalender %s"
 
 #: /app/lib/Controller/BillController.php:1172
 #, fuzzy
@@ -2603,10 +2600,9 @@ msgid "Month"
 msgstr "Monat"
 
 #: /app/lib/Controller/YearOverYearController.php:238
-#, fuzzy, php-format
-#| msgid "Comparison Type"
+#, php-format
 msgid "%s Comparison"
-msgstr "Vergleichstyp"
+msgstr "%s-Vergleich"
 
 #: /app/lib/Controller/YearOverYearController.php:246
 #: /app/templates/index.php:3464
@@ -2956,9 +2952,6 @@ msgid "Your weekly budget digest"
 msgstr "Deine wöchentliche Budgetübersicht"
 
 #: /app/lib/Notification/Notifier.php:385
-#, fuzzy
-#| msgid ""
-#| "Income {income}, spending {expenses} ({net} net). {bills} bills due soon."
 msgid ""
 "Income {income}, spending {expenses} ({net} net). {bills} bills due soon, "
 "and one category is spending unusually."
@@ -2966,11 +2959,12 @@ msgid_plural ""
 "Income {income}, spending {expenses} ({net} net). {bills} bills due soon, "
 "and {anomalies} categories are spending unusually."
 msgstr[0] ""
-"Einnahmen: {income}, Ausgaben: {expenses} ({net} Saldo). {bills} Rechnungen "
-"sind bald fällig."
+"Einnahme {income}, Ausgabe {expenses} ({net} netto). {bills} Rechnung ist "
+"demnächst fällig und in einer Kategorie sind die Ausgaben ungewöhnlich hoch."
 msgstr[1] ""
-"Einnahmen: {income}, Ausgaben: {expenses} ({net} Saldo). {bills} Rechnungen "
-"sind bald fällig."
+"Einnahmen {income}, Ausgaben {expenses} ({net} netto). {bills} Rechnungen "
+"sind demnächst fällig und in einer Kategorie sind die Ausgaben ungewöhnlich "
+"hoch."
 
 #. TRANSLATORS: {income}, {expenses}, {net}, {bills} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
 #: /app/lib/Notification/Notifier.php:391
@@ -3008,11 +3002,8 @@ msgstr ""
 
 #. TRANSLATORS: {category} is replaced with the category name. Do NOT translate {category} — keep it exactly as-is.
 #: /app/lib/Notification/Notifier.php:471
-#, fuzzy
-#| msgid "%n category is over budget."
-#| msgid_plural "%n categories are over budget."
 msgid "{category} is over budget"
-msgstr "%n Kategorie ist über dem Budget."
+msgstr "{category} liegt über dem Budget"
 
 #: /app/lib/Notification/Notifier.php:483
 #, php-format
@@ -3097,10 +3088,9 @@ msgid ""
 msgstr ""
 
 #: /app/lib/Service/AccountClosureService.php:174
-#, fuzzy, php-format
-#| msgid "Pensions"
+#, php-format
 msgid "Pension #%1$s"
-msgstr "Renten"
+msgstr "Altersvorsorge #%1$s"
 
 #: /app/lib/Service/AccountService.php:124
 msgid ""
@@ -5028,10 +5018,8 @@ msgid ""
 msgstr ""
 
 #: /app/src/main.js:1281 /app/src/modules/accounts/AccountsModule.js:1521
-#, fuzzy
-#| msgid "Total"
 msgid "of {total}"
-msgstr "Summe"
+msgstr "von {total}"
 
 #: /app/src/main.js:1292 /app/src/main.js:3499
 #: /app/src/modules/transactions/TransactionsModule.js:3410
@@ -5183,16 +5171,12 @@ msgid ""
 msgstr ""
 
 #: /app/src/main.js:2011
-#, fuzzy
-#| msgid "Failed to delete category"
 msgid "Listed under {category}"
-msgstr "Das Löschen der Kategorie schlug fehl"
+msgstr "Aufgeführt unter {category}"
 
 #: /app/src/main.js:2018
-#, fuzzy
-#| msgid "No transactions in this category yet."
 msgid "Split Transactions Carrying a Category"
-msgstr "Noch keine Buchungen in dieser Kategorie."
+msgstr "Aufgeteilte Transaktionen mit einer Kategorie"
 
 #: /app/src/main.js:2022
 msgid ""
@@ -5760,10 +5744,8 @@ msgid "No asset accounts yet"
 msgstr "Noch keine Anlagekonten vorhanden"
 
 #: /app/src/modules/accounts/AccountsModule.js:332
-#, fuzzy
-#| msgid "Choose account type"
 msgid "Closed accounts ({count})"
-msgstr "Kontoart auswählen"
+msgstr "Geschlossene Konten ({count})"
 
 #: /app/src/modules/accounts/AccountsModule.js:493
 #, fuzzy
@@ -5927,28 +5909,20 @@ msgid "No due date"
 msgstr "Kein Fälligkeitsdatum"
 
 #: /app/src/modules/accounts/AccountsModule.js:1657
-#, fuzzy
-#| msgid "Statement Balance"
 msgid "{date} (statement balance)"
-msgstr "Saldo laut Kontoauszug"
+msgstr "{date} (Saldo laut Kontoauszug)"
 
 #: /app/src/modules/accounts/AccountsModule.js:1658
-#, fuzzy
-#| msgid "Statement Balance"
 msgid "{date} (current balance)"
-msgstr "Saldo laut Kontoauszug"
+msgstr "{date} (aktueller Kontostand)"
 
 #: /app/src/modules/accounts/AccountsModule.js:1659
-#, fuzzy
-#| msgid "Minimum Payment"
 msgid "{date} (minimum payment)"
-msgstr "Mindestzahlung"
+msgstr "{date} (Mindestzahlung)"
 
 #: /app/src/modules/accounts/AccountsModule.js:1701
-#, fuzzy
-#| msgid "{count} left"
 msgid "{account} payment"
-msgstr "{count} verbleiben"
+msgstr "Zahlung für {account}"
 
 #: /app/src/modules/accounts/AccountsModule.js:1779
 #: /app/src/modules/transactions/TransactionsModule.js:486
@@ -7437,10 +7411,8 @@ msgid "No transactions in this category yet."
 msgstr "Noch keine Buchungen in dieser Kategorie."
 
 #: /app/src/modules/categories/CategoriesModule.js:777
-#, fuzzy
-#| msgid "Syncing {current} of {total}..."
 msgid "Split part of {total}"
-msgstr "Synchronisiere {current} von {total}..."
+msgstr "Aufteilung von {total}"
 
 #: /app/src/modules/categories/CategoriesModule.js:848
 #, fuzzy
@@ -8334,10 +8306,8 @@ msgid "Next 90 days"
 msgstr "Letzte 30 Tage"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4686
-#, fuzzy
-#| msgid "Forecast Period:"
 msgid "Forecast horizon"
-msgstr "Prognosezeitraum:"
+msgstr "Prognosezeitraum"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4689
 #, fuzzy
@@ -8869,10 +8839,8 @@ msgid "Failed to load system info"
 msgstr "Fehler beim Laden der Einstellungen"
 
 #: /app/src/modules/import/ImportModule.js:46
-#, fuzzy
-#| msgid "Account Number"
 msgid "Column: {number}"
-msgstr "Kontonummer"
+msgstr "spalte: {number}"
 
 #: /app/src/modules/import/ImportModule.js:152
 msgid "Rule: {name}"
@@ -11583,12 +11551,10 @@ msgid "Finish"
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:1405
-#, fuzzy
-#| msgid "Transaction updated"
 msgid "Tick %n transaction up to {date}"
 msgid_plural "Tick all %n transactions up to {date}"
-msgstr[0] "Buchung aktualisiert"
-msgstr[1] "Buchung aktualisiert"
+msgstr[0] "%n Transaktion bis {date} auswählen"
+msgstr[1] "%n Transaktionen bis {date} auswählen"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1406
 msgid "Create {amount} adjustment"
@@ -14062,10 +14028,8 @@ msgid "Monthly Cash Flow"
 msgstr "Monatlicher Cash Flow"
 
 #: /app/templates/index.php:3375
-#, fuzzy
-#| msgid "Remove this group"
 msgid "No income or expenses in this period."
-msgstr "Diese Gruppe entfernen"
+msgstr "Keine Einnahmen oder Ausgaben in diesem Zeitraum."
 
 #: /app/templates/index.php:3388
 msgid "Comparison Type"
