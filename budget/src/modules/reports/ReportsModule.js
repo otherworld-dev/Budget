@@ -1953,6 +1953,9 @@ export default class ReportsModule {
             // first paid in September showed January to August paid too (#375).
             const paidMonths = new Set(bill.paidMonths || []);
             const paidAmounts = bill.paidAmounts || {};
+            // Per-month expected amounts: one-time bills sharing a name arrive
+            // as one row, each month carrying its own invoice's amount (#375)
+            const expectedAmounts = bill.expectedAmounts || {};
 
             const months = [];
             for (let month = 1; month <= 12; month++) {
@@ -1960,7 +1963,9 @@ export default class ReportsModule {
                 const isPaid = occurs && paidMonths.has(month);
                 // What was actually paid where there is a payment; the
                 // expected amount for the months still to come
-                const cellAmount = isPaid && paidAmounts[month] !== undefined ? paidAmounts[month] : bill.amount;
+                const cellAmount = isPaid && paidAmounts[month] !== undefined
+                    ? paidAmounts[month]
+                    : (expectedAmounts[month] !== undefined ? expectedAmounts[month] : bill.amount);
                 const amount = occurs ? this.formatCurrency(cellAmount, bill.currency || currency) : '';
                 const cellClass = occurs ? (isPaid ? 'has-bill paid' : 'has-bill') : 'no-bill';
                 const title = isPaid ? t('budget', 'Paid') : (occurs ? t('budget', 'Due') : '');

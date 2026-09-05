@@ -259,6 +259,88 @@ class BillServiceTest extends TestCase {
 		$this->assertFalse($occ[2]);
 	}
 
+	/**
+	 * Straight from the reporter's ledger: a bill due on the 31st, paid a day
+	 * or two early each month, and paid twice at the end of August. The old
+	 * nearest-date rule pushed the second August payment onto September,
+	 * while the Bills page - reading next_due_date - showed September as
+	 * upcoming. Nothing on or after next_due_date may ever be marked paid.
+	 */
+	public function testPaymentsNeverMarkAnOccurrenceTheBillStillCountsAsOwed(): void {
+		[$occ, $paid, $amounts] = $this->attribute($this->monthly(), [
+			['date' => '2026-02-28', 'amount' => 168.55],
+			['date' => '2026-03-29', 'amount' => 165.45],
+			['date' => '2026-04-29', 'amount' => 166.25],
+			['date' => '2026-05-31', 'amount' => 172.65],
+			['date' => '2026-06-28', 'amount' => 172.65],
+			['date' => '2026-07-25', 'amount' => 165.25],
+			['date' => '2026-08-29', 'amount' => 161.25],
+			['date' => '2026-08-30', 'amount' => 155.25],
+		], ['dueDay' => 31, 'nextDueDate' => '2026-09-30']);
+
+		$this->assertSame([2, 3, 4, 5, 6, 7, 8], $paid);
+		$this->assertFalse(in_array(9, $paid, true), 'September is still owed');
+		// The double payment shows as August's larger amount, not as a paid September
+		$this->assertEqualsWithDelta(161.25 + 155.25, $amounts[8], 0.001);
+		$this->assertTrue($occ[9], 'September still occurs, unpaid');
+	}
+
+	/** A bill paid ahead has advanced next_due_date, so those occurrences are closed and may be paid. */
+	public function testAPrepaidOccurrenceIsPaidBecauseTheBillHasMovedPastIt(): void {
+		[, $paid] = $this->attribute($this->monthly(), [
+			['date' => '2026-08-30', 'amount' => 50.0],
+			['date' => '2026-09-28', 'amount' => 50.0],
+			['date' => '2026-10-30', 'amount' => 50.0],
+		], ['dueDay' => 30, 'nextDueDate' => '2026-11-30']);
+
+		$this->assertSame([8, 9, 10], $paid);
+	}
+
+	/**
+	 * A payment for an occurrence the bill still counts as owed cannot mark
+	 * that occurrence: the bill's own state wins. It lands on the nearest
+	 * closed occurrence instead, so the money is still visible somewhere.
+	 */
+	public function testAPaymentBeforeAnOwedOccurrenceCannotMarkIt(): void {
+		[$occ, $paid, $amounts] = $this->attribute($this->monthly(), [
+			['date' => '2026-03-25', 'amount' => 40.0],
+			['date' => '2026-04-25', 'amount' => 40.0],
+			['date' => '2026-05-25', 'amount' => 40.0], // May is still owed on 28 May
+		], ['dueDay' => 28, 'nextDueDate' => '2026-05-28']);
+
+		$this->assertSame([3, 4], $paid);
+		$this->assertEqualsWithDelta(80.0, $amounts[4], 0.001, 'the payment for the owed month folds into the nearest closed one');
+		$this->assertTrue($occ[5], 'May still occurs, unpaid');
+	}
+
+	/** One-time bills sharing a name become one row, each month keeping its own invoice's amount. */
+	public function testOneTimeBillsWithTheSameNameShareOneCalendarRow(): void {
+		$method = new \ReflectionMethod($this->service, 'groupOneTimeBillsByName');
+		$method->setAccessible(true);
+		$row = fn(int $id, string $name, string $freq, int $month, float $amount, bool $paid, bool $active) => [
+			'id' => $id, 'name' => $name, 'frequency' => $freq, 'currency' => 'CHF', 'amount' => $amount, 'isActive' => $active,
+			'occurrences' => array_replace(array_fill(1, 12, false), [$month => true]),
+			'paidMonths' => $paid ? [$month] : [], 'paidAmounts' => $paid ? [$month => $amount] : [],
+			'expectedAmounts' => [$month => $amount],
+		];
+
+		$grouped = $method->invoke($this->service, [
+			$row(50, 'Garage Brönnimann-Zemp GmbH', 'one-time', 4, 600.60, true, false),
+			$row(79, 'Garage Brönnimann-Zemp GmbH', 'one-time', 7, 33.50, true, false),
+			$row(90, 'Garage Brönnimann-Zemp GmbH', 'one-time', 9, 1894.90, false, true),
+			$row(4, 'KPT', 'monthly', 8, 484.75, true, true),
+			$row(5, 'KPT', 'monthly', 9, 484.75, false, true),
+		]);
+
+		$this->assertCount(3, $grouped, 'three garage invoices fold into one row; recurring rows are untouched');
+		$garage = $grouped[0];
+		$this->assertSame([50, 79, 90], $garage['billIds']);
+		$this->assertSame([4, 7, 9], array_keys(array_filter($garage['occurrences'])));
+		$this->assertSame([4, 7], $garage['paidMonths']);
+		$this->assertSame([4 => 600.60, 7 => 33.50, 9 => 1894.90], $garage['expectedAmounts']);
+		$this->assertTrue($garage['isActive'], 'still active while one invoice is unpaid');
+	}
+
 	public function testNoPaymentsLeavesTheScheduleUntouched(): void {
 		$occ = $this->monthly([2, 5]);
 

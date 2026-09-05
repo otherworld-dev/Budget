@@ -1617,6 +1617,10 @@ class BillService {
                 // the months still to come (#375)
                 'paidMonths' => $paidMonths,
                 'paidAmounts' => $paidAmounts,
+                // What each occurring month is expected to cost. One per month
+                // so that one-time bills sharing a name can be shown as one
+                // row without losing each invoice's own amount (#375)
+                'expectedAmounts' => array_fill_keys(array_keys(array_filter($occurrences)), (float) $bill->getAmount()),
             ];
 
             // Monthly totals: what was paid where a payment exists, the
@@ -1636,10 +1640,60 @@ class BillService {
 
         return [
             'year' => $year,
-            'bills' => $billsData,
+            'bills' => $this->groupOneTimeBillsByName($billsData),
             'monthlyTotals' => $monthlyTotals,
             'baseCurrency' => $baseCurrency,
         ];
+    }
+
+    /**
+     * Fold one-time bills that share a name into a single calendar row.
+     *
+     * Every invoice from the same vendor is its own one-time bill, and once
+     * paid ones stay in the year's calendar (#375) a garage that sent three
+     * invoices showed as three rows with the same name, one cell each. One
+     * row with a cell per invoice reads the way the recurring rows do. Each
+     * month keeps its own expected and paid amount; two invoices in one
+     * month add up. Recurring bills are left alone.
+     *
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    private function groupOneTimeBillsByName(array $rows): array {
+        $grouped = [];
+        $byName = [];
+        foreach ($rows as $row) {
+            if (($row['frequency'] ?? '') !== 'one-time') {
+                $grouped[] = $row;
+                continue;
+            }
+            $key = mb_strtolower(trim((string) $row['name'])) . '|' . ($row['currency'] ?? '');
+            if (!isset($byName[$key])) {
+                $row['billIds'] = [$row['id']];
+                $byName[$key] = count($grouped);
+                $grouped[] = $row;
+                continue;
+            }
+            $index = $byName[$key];
+            $grouped[$index]['billIds'][] = $row['id'];
+            $grouped[$index]['isActive'] = $grouped[$index]['isActive'] || $row['isActive'];
+            foreach ($row['occurrences'] as $month => $occurs) {
+                if ($occurs) {
+                    $grouped[$index]['occurrences'][$month] = true;
+                }
+            }
+            foreach ($row['expectedAmounts'] as $month => $amount) {
+                $grouped[$index]['expectedAmounts'][$month] = ($grouped[$index]['expectedAmounts'][$month] ?? 0.0) + $amount;
+            }
+            foreach ($row['paidAmounts'] as $month => $amount) {
+                $grouped[$index]['paidAmounts'][$month] = ($grouped[$index]['paidAmounts'][$month] ?? 0.0) + $amount;
+            }
+            ksort($grouped[$index]['paidAmounts']);
+            ksort($grouped[$index]['expectedAmounts']);
+            $grouped[$index]['paidMonths'] = array_keys($grouped[$index]['paidAmounts']);
+        }
+
+        return $grouped;
     }
 
     /**
@@ -1663,17 +1717,25 @@ class BillService {
     private const PAYMENT_MATCH_WINDOW_DAYS = 45;
 
     /**
-     * Match a year's payments to the schedule's occurrences, by date.
+     * Match a year's payments to the schedule's occurrences, by date - and
+     * never ahead of the bill itself.
      *
-     * Each occurrence has a due date (its month plus the bill's due day); a
-     * payment belongs to the nearest unpaid one within the window. Dates, not
-     * months: a bill due on the 28th and paid on the 2nd is five days from
-     * one due date and twenty-six from the next, so it is the earlier month's
-     * payment however the calendar happens to fall - and a payment on the
-     * 14th for a bill due the 15th is that month's, a day early. A bill with a
-     * single occurrence takes any payment, whenever it was made. A payment
-     * with no occurrence within reach is real money that left, so its month
-     * becomes an extra, paid occurrence rather than being dropped (#375).
+     * The bill already knows which occurrences are done: marking one paid
+     * advances next_due_date by a cycle, so every occurrence due before that
+     * date is closed and everything from it on is still owed. Payments are
+     * only ever placed on closed occurrences. Without that boundary a user
+     * who pays each cycle a few days before the next one is due - or pays
+     * one twice - had the row shift a month forward, and the calendar showed
+     * September paid while the Bills page showed the same occurrence as
+     * upcoming (#375).
+     *
+     * Within the closed occurrences a payment belongs to the nearest unpaid
+     * one within the window; when all of those are taken it adds to the
+     * nearest closed one (a double payment shows as the larger amount rather
+     * than as a month that was never paid); a payment with no closed
+     * occurrence anywhere near it becomes an extra paid month, provided that
+     * month is itself before the next due date. A bill with a single
+     * occurrence takes any payment, whenever it was made.
      *
      * @param array<int, bool> $occurrences month => occurs, 1..12
      * @param array<int, array{date: string, amount: float}> $payments in date order
@@ -1688,6 +1750,33 @@ class BillService {
             $slotDates[$slot] = new \DateTimeImmutable($this->occurrenceDate($bill, $year, $slot));
         }
 
+        // Occurrences the bill itself still counts as owed are never paid
+        // targets. An inactive bill (ended, or a one-time bill after its
+        // payment) has nothing owed, so all of its occurrences are closed.
+        $nextDue = $bill->getNextDueDate();
+        $boundary = ($bill->getIsActive() && $nextDue !== null && $nextDue !== '' && $bill->getFrequency() !== 'one-time')
+            ? new \DateTimeImmutable($nextDue)
+            : null;
+        $closedSlots = array_values(array_filter(
+            $slots,
+            fn(int $slot): bool => $boundary === null || $slotDates[$slot] < $boundary
+        ));
+
+        $nearest = function (\DateTimeImmutable $paidOn, array $candidates, ?int $window) use (&$slotDates): ?int {
+            $best = null;
+            foreach ($candidates as $slot) {
+                $days = $paidOn->diff($slotDates[$slot])->days;
+                if ($window !== null && $days > $window) {
+                    continue;
+                }
+                // Nearest wins; on a tie the earlier month (a late payment)
+                if ($best === null || $days < $best[0] || ($days === $best[0] && $slot < $best[1])) {
+                    $best = [$days, $slot];
+                }
+            }
+            return $best[1] ?? null;
+        };
+
         foreach ($payments as $payment) {
             $paidOn = new \DateTimeImmutable($payment['date']);
             $target = null;
@@ -1695,26 +1784,27 @@ class BillService {
             if (count($slots) === 1) {
                 $target = $slots[0];
             } else {
-                $best = null;
-                foreach ($slots as $slot) {
-                    if (isset($paidAmounts[$slot])) {
-                        continue;
-                    }
-                    $days = $paidOn->diff($slotDates[$slot])->days;
-                    if ($days > self::PAYMENT_MATCH_WINDOW_DAYS) {
-                        continue;
-                    }
-                    // Nearest wins; on a tie the earlier month (a late payment)
-                    if ($best === null || $days < $best[0] || ($days === $best[0] && $slot < $best[1])) {
-                        $best = [$days, $slot];
+                $unpaid = array_values(array_filter($closedSlots, fn(int $s): bool => !isset($paidAmounts[$s])));
+                $target = $nearest($paidOn, $unpaid, self::PAYMENT_MATCH_WINDOW_DAYS)
+                    ?? $nearest($paidOn, $closedSlots, self::PAYMENT_MATCH_WINDOW_DAYS);
+
+                if ($target === null) {
+                    // Real money with no occurrence near it: its own month, as
+                    // long as the bill does not still count that month as owed
+                    $month = (int) $paidOn->format('n');
+                    $monthDate = new \DateTimeImmutable($this->occurrenceDate($bill, $year, $month));
+                    if ($boundary === null || $monthDate < $boundary) {
+                        $target = $month;
+                        $occurrences[$month] = true;
+                        $slotDates[$month] = $monthDate;
+                    } else {
+                        $target = $nearest($paidOn, $closedSlots, null);
                     }
                 }
-                $target = $best[1] ?? null;
             }
 
             if ($target === null) {
-                $target = (int) $paidOn->format('n');
-                $occurrences[$target] = true;
+                continue; // nothing the bill counts as paid to put it on
             }
             $paidAmounts[$target] = ($paidAmounts[$target] ?? 0.0) + $payment['amount'];
         }
