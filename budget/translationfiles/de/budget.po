@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-04 13:52+0000\n"
-"PO-Revision-Date: 2026-09-06 10:51+0000\n"
+"PO-Revision-Date: 2026-09-08 14:51+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2026.9.1.dev0\n"
+"X-Generator: Weblate 2026.9.1\n"
 
 #: /app/lib/Controller/AccountController.php:82
 #: /app/lib/Controller/ApiV1AccountController.php:56
@@ -201,6 +201,8 @@ msgid ""
 "This license has no subscription behind it — it was issued directly, so "
 "there is nothing to manage."
 msgstr ""
+"Für diese Lizenz besteht kein Abonnement – sie wurde direkt ausgestellt. "
+"Daher gibt es nichts zu verwalten."
 
 #: /app/lib/Controller/AdminSettingController.php:57
 #: /app/src/modules/settings/SettingsModule.js:153
@@ -352,6 +354,8 @@ msgid ""
 "splits must be an array of {\"amount\", \"category_id\", \"description\"} "
 "objects"
 msgstr ""
+"splits muss ein Array aus Objekten mit den Feldern {\"amount\", "
+"\"category_id\", \"description\"} sein"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:559
 msgid "Failed to split the transaction"
@@ -567,41 +571,29 @@ msgid "Failed to disconnect bank"
 msgstr "Die Verbindung zur Bank konnte nicht getrennt werden"
 
 #: /app/lib/Controller/BankSyncController.php:208
-#, fuzzy
-#| msgid "Failed to update contact"
 msgid "Failed to update connection"
-msgstr "Kontakt konnte nicht aktualisiert werden"
+msgstr "Verbindung konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/BankSyncController.php:224
-#, fuzzy
-#| msgid "Failed to load data"
 msgid "Failed to sync bank data"
-msgstr "Daten laden fehlgeschlagen"
+msgstr "Bankdaten konnten nicht synchronisiert werden"
 
 #: /app/lib/Controller/BankSyncController.php:249
-#, fuzzy
-#| msgid "Transaction not found"
 msgid "Connection not found"
-msgstr "Buchung nicht gefunden"
+msgstr "Verbindung nicht gefunden"
 
 #: /app/lib/Controller/BankSyncController.php:254
-#, fuzzy
-#| msgid "Failed to reset settings"
 msgid "Failed to fetch mappings"
-msgstr "Zurücksetzen der Einstellungen fehlgeschlagen"
+msgstr "Zuordnungen konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/BankSyncController.php:276
 #: /app/src/modules/bank-sync/BankSyncModule.js:880
-#, fuzzy
-#| msgid "Failed to update tag"
 msgid "Failed to update mapping"
-msgstr "Fehler beim Aktualisieren des Schlagworts"
+msgstr "Zuordnung konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/BankSyncController.php:292
-#, fuzzy
-#| msgid "Failed to retrieve accounts"
 msgid "Failed to refresh accounts"
-msgstr "Konten konnten nicht abgerufen werden"
+msgstr "Konten konnten nicht aktualisiert werden"
 
 #: /app/lib/Controller/BankSyncController.php:310
 #, fuzzy
@@ -3908,15 +3900,11 @@ msgstr "Kumulativ"
 
 #: /app/lib/Service/Report/ReportExporter.php:310
 #: /app/lib/Service/Report/ReportExporter.php:509
-#, fuzzy
-#| msgid "Monthly Trends"
 msgid "Monthly Averages"
-msgstr "Monatliche Trends"
+msgstr "Monatliche Durchschnittswerte"
 
 #: /app/lib/Service/Report/ReportExporter.php:312
 #: /app/lib/Service/Report/ReportExporter.php:513
-#, fuzzy
-#| msgid "Avg Monthly Income"
 msgid "Average Monthly Income"
 msgstr "Durchschnittliches Monatseinkommen"
 
@@ -4541,10 +4529,8 @@ msgid "Debt Payoff"
 msgstr "Schuldentilgung"
 
 #: /app/src/config/dashboardWidgets.js:47 /app/templates/index.php:759
-#, fuzzy
-#| msgid "Debt Payoff"
 msgid "Debt Payoff Chart"
-msgstr "Schuldentilgung"
+msgstr "Diagramm zur Schuldentilgung"
 
 #: /app/src/config/dashboardWidgets.js:56 /app/templates/index.php:779
 #, fuzzy
@@ -4584,7 +4570,7 @@ msgstr "Einsparungsprognose"
 
 #: /app/src/config/dashboardWidgets.js:74 /app/templates/index.php:879
 msgid "Monthly Comparison"
-msgstr "monatlicher Vergleich"
+msgstr "Monatsvergleich"
 
 #: /app/src/config/dashboardWidgets.js:75 /app/templates/index.php:888
 msgid "Large Transactions"
@@ -4596,7 +4582,7 @@ msgstr "Wöchentliche Ausgaben"
 
 #: /app/src/config/dashboardWidgets.js:77 /app/templates/index.php:906
 msgid "Unmatched Transfers"
-msgstr "nicht getroffene Transfers"
+msgstr "Nicht zugeordnete Umbuchungen"
 
 #: /app/src/config/dashboardWidgets.js:78 /app/templates/index.php:915
 msgid "Category Trends"
@@ -4865,7 +4851,7 @@ msgstr ""
 
 #: /app/src/main.js:935
 msgid "Show keyboard shortcuts"
-msgstr ""
+msgstr "Tastenkürzel anzeigen"
 
 #: /app/src/main.js:939
 msgid "Quick Links"
@@ -4888,10 +4874,8 @@ msgid "Auto-Categorisation Rules"
 msgstr "Automatische Kategorisierungsregeln"
 
 #: /app/src/main.js:949 /app/templates/index.php:4846
-#, fuzzy
-#| msgid "Share Your Budget"
 msgid "Support Budget"
-msgstr "Teile dein Budget"
+msgstr "Budget unterstützen"
 
 #: /app/src/main.js:950
 msgid "Free and open source. If Budget helps you, a donation keeps it going."
@@ -5413,10 +5397,8 @@ msgid "Min Payment"
 msgstr "Mindestzahlung"
 
 #: /app/src/main.js:3015
-#, fuzzy
-#| msgid "Debt Payoff"
 msgid "Payoff"
-msgstr "Schuldentilgung"
+msgstr "Tilgung"
 
 #: /app/src/main.js:3015
 #, fuzzy
@@ -6773,10 +6755,8 @@ msgstr "Alle zwei Wochen"
 #: /app/src/modules/transfers/TransfersModule.js:465
 #: /app/src/modules/transfers/TransfersModule.js:996
 #: /app/templates/index.php:5962 /app/templates/index.php:6452
-#, fuzzy
-#| msgid "Monthly"
 msgid "Semi-Monthly"
-msgstr "Monatlich"
+msgstr "Zweimal monatlich"
 
 #: /app/src/modules/bills/BillsModule.js:328
 #: /app/src/modules/income/IncomeModule.js:121
@@ -7757,10 +7737,8 @@ msgstr "Niedrig"
 
 #: /app/src/modules/dashboard/DashboardModule.js:592
 #: /app/src/modules/dashboard/DashboardModule.js:662
-#, fuzzy
-#| msgid "Last 30 days"
 msgid "Last 7 days"
-msgstr "Letzte 30 Tage"
+msgstr "Letzte 7 Tage"
 
 #: /app/src/modules/dashboard/DashboardModule.js:593
 #: /app/src/modules/dashboard/DashboardModule.js:665
@@ -7774,15 +7752,11 @@ msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:595
 #: /app/src/modules/dashboard/DashboardModule.js:667
-#, fuzzy
-#| msgid "Last 6 Months"
 msgid "Last 6 months"
 msgstr "Letzte 6 Monate"
 
 #: /app/src/modules/dashboard/DashboardModule.js:596
 #: /app/src/modules/dashboard/DashboardModule.js:668
-#, fuzzy
-#| msgid "Last Year"
 msgid "Last year"
 msgstr "Letztes Jahr"
 
@@ -7801,8 +7775,6 @@ msgstr "Individueller Bereich"
 
 #: /app/src/modules/dashboard/DashboardModule.js:765
 #: /app/src/modules/dashboard/DashboardModule.js:767
-#, fuzzy
-#| msgid "All Accounts"
 msgid "All accounts"
 msgstr "Alle Konten"
 
@@ -7817,10 +7789,8 @@ msgid "{onTrack}/{total} on track"
 msgstr "{onTrack}/{total} im Plan"
 
 #: /app/src/modules/dashboard/DashboardModule.js:940
-#, fuzzy
-#| msgid "Due {date}"
 msgid "Debt free by {date}"
-msgstr "Fällig am {date}"
+msgstr "Schuldenfrei bis {date}"
 
 #: /app/src/modules/dashboard/DashboardModule.js:966
 msgid "Rates unavailable for {currencies}"
@@ -8022,10 +7992,8 @@ msgid "No data available"
 msgstr "Keine Schlagwörter verfügbar"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2095
-#, fuzzy
-#| msgid "No recent transactions"
 msgid "No large transactions"
-msgstr "Keine letzten Buchungen"
+msgstr "Keine größeren Transaktionen"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2119
 #, fuzzy
@@ -8063,10 +8031,8 @@ msgid "Projected income / yr"
 msgstr "Voraussichtliches Einkommen"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2176
-#, fuzzy
-#| msgid "Unmatched Transfers"
 msgid "No unmatched transfers"
-msgstr "nicht getroffene Transfers"
+msgstr "Keine nicht zugeordneten Umbuchungen"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2196
 #, fuzzy
@@ -8082,10 +8048,8 @@ msgstr "Bald fällige Rechnungen"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2294
 #: /app/src/modules/dashboard/DashboardModule.js:2300
-#, fuzzy
-#| msgid "No recurring income yet"
 msgid "No recurring income set up"
-msgstr "Noch keine wiederkehrenden Einnahmen"
+msgstr "Keine wiederkehrenden Einnahmen eingerichtet"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2321
 #, fuzzy
@@ -8094,10 +8058,8 @@ msgid "No recent imports"
 msgstr "Zuletzt importierte Daten"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2347
-#, fuzzy
-#| msgid "No budgets configured"
 msgid "No import rules configured"
-msgstr "Keine Budgets eingerichtet"
+msgstr "Keine Importregeln eingerichtet"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2355
 #, fuzzy
@@ -8337,22 +8299,16 @@ msgid "Years to compare"
 msgstr "Zu vergleichende Jahre"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4703
-#, fuzzy
-#| msgid "Last Year"
 msgid "Last 2 years"
-msgstr "Letztes Jahr"
+msgstr "Letzte 2 Jahre"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4704
-#, fuzzy
-#| msgid "Last Year"
 msgid "Last 3 years"
-msgstr "Letztes Jahr"
+msgstr "Letzte 3 Jahre"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4705
-#, fuzzy
-#| msgid "Last Year"
 msgid "Last 5 years"
-msgstr "Letztes Jahr"
+msgstr "Letzte 5 Jahre"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4736
 #: /app/templates/index.php:3091
@@ -8748,10 +8704,8 @@ msgstr ""
 "derzeit in der Beta-Phase."
 
 #: /app/src/modules/help/HelpModule.js:43
-#, fuzzy
-#| msgid "Received"
 msgid "Receipt Scanning"
-msgstr "Empfangen"
+msgstr "Belegerkennung"
 
 #: /app/src/modules/help/HelpModule.js:43
 msgid ""
@@ -8759,10 +8713,14 @@ msgid ""
 "provider, or a hosted service. Off by default; the scan buttons themselves "
 "arrive in the next release."
 msgstr ""
+"Wähle aus, wer fotografierte Belege auslesen soll – ein lokales Modell, der "
+"KI-Anbieter dieses Servers oder ein gehosteter Dienst. Standardmäßig "
+"deaktiviert; die Schaltflächen zum Scannen werden mit der nächsten Version "
+"verfügbar sein."
 
 #: /app/src/modules/help/HelpModule.js:44
 msgid "REST API"
-msgstr ""
+msgstr "REST-API"
 
 #: /app/src/modules/help/HelpModule.js:44
 msgid ""
@@ -8770,6 +8728,10 @@ msgid ""
 "app, a script, or an automation workflow. Authenticates with a Nextcloud app "
 "password."
 msgstr ""
+"Lies deine Budgetdaten aus und erfasse Transaktionen außerhalb der "
+"Weboberfläche – über eine Smartphone-App, ein Skript oder einen "
+"Automatisierungsworkflow. Die Authentifizierung erfolgt mit einem Nextcloud-"
+"App-Passwort."
 
 #: /app/src/modules/help/HelpModule.js:45
 msgid ""
@@ -8789,6 +8751,8 @@ msgid ""
 "Every guide, the Quick Add page URL, and the system information to paste "
 "into a bug report."
 msgstr ""
+"Alle Anleitungen, die URL der Seite „Schnelle Buchung“ und die "
+"Systeminformationen zum Einfügen in einen Fehlerbericht."
 
 #: /app/src/modules/help/HelpModule.js:130
 #: /app/src/modules/help/HelpModule.js:134
@@ -10759,6 +10723,8 @@ msgid ""
 "Remove the stored key? Receipt scanning stops working until a new one is "
 "saved."
 msgstr ""
+"Gespeicherten Schlüssel entfernen? Die Belegerkennung funktioniert erst "
+"wieder, wenn ein neuer Schlüssel gespeichert wurde."
 
 #: /app/src/modules/settings/SettingsModule.js:185
 msgid "License key"
@@ -10801,7 +10767,7 @@ msgstr ""
 
 #: /app/src/modules/settings/SettingsModule.js:271
 msgid "Receipt scanning is on"
-msgstr ""
+msgstr "Belegerkennung ist aktiviert"
 
 #: /app/src/modules/settings/SettingsModule.js:272
 msgid "Receipt scanning settings saved"
@@ -11537,6 +11503,10 @@ msgid ""
 "anything already marked reconciled. Check it against your statement’s "
 "opening balance."
 msgstr ""
+"Der Kontostand vor diesem Kontoauszug: der Saldo deines letzten Abgleichs "
+"oder – beim ersten Mal – der Eröffnungssaldo des Kontos zuzüglich aller "
+"bereits als abgeglichen markierten Beträge. Vergleiche ihn mit dem "
+"Anfangssaldo deines Kontoauszugs."
 
 #: /app/src/modules/transactions/TransactionsModule.js:1395
 msgid "Ticked ({count})"
@@ -13280,10 +13250,8 @@ msgid "Monthly Spending"
 msgstr "Monatliche Ausgaben"
 
 #: /app/templates/index.php:1984
-#, fuzzy
-#| msgid "Last Year"
 msgid "Last 2 Years"
-msgstr "Letztes Jahr"
+msgstr "Letzte 2 Jahre"
 
 #: /app/templates/index.php:2002
 msgid "View All Transactions"
@@ -13390,10 +13358,9 @@ msgid "Step 1: Select File"
 msgstr "Schritt 1: Datei auswählen"
 
 #: /app/templates/index.php:2220
-#, fuzzy
-#| msgid "Choose your bank statement file (CSV, OFX, or QIF format)"
 msgid "Choose your bank statement file (CSV, OFX, QIF, or camt.053 XML format)"
-msgstr "Wähle deine Kontoauszug-Datei (CSV, OFX, oder QIF Format)"
+msgstr ""
+"Wähle deine Kontoauszugsdatei aus (CSV, OFX, QIF oder camt.053 XML-Format)"
 
 #: /app/templates/index.php:2225
 msgid "Drag and drop your bank statement here"
@@ -14739,6 +14706,9 @@ msgid ""
 "Where uploaded receipts are filed in your Files. Year and month subfolders "
 "are created underneath. Receipts already attached stay where they are."
 msgstr ""
+"Hier legst du fest, wo hochgeladene Belege in deinen Dateien gespeichert "
+"werden. Darunter werden Unterordner für Jahr und Monat erstellt. Bereits "
+"angehängte Belege bleiben an ihrem bisherigen Speicherort."
 
 #: /app/templates/index.php:4479
 #, fuzzy
@@ -14755,12 +14725,12 @@ msgid ""
 "A path inside your Files, for example Applications/Budget. Leave empty for "
 "the default, Budget/Receipts."
 msgstr ""
+"Ein Pfad innerhalb deiner Dateien, zum Beispiel Applications/Budget. Leer "
+"lassen, um den Standardpfad Budget/Receipts zu verwenden."
 
 #: /app/templates/index.php:4494
-#, fuzzy
-#| msgid "Scheduled"
 msgid "Scheduled Reports"
-msgstr "Geplant"
+msgstr "Geplante Berichte"
 
 #: /app/templates/index.php:4501
 msgid "Monthly Report to Files"
@@ -14780,6 +14750,8 @@ msgstr "Monatsbericht per E-Mail"
 #: /app/templates/index.php:4512
 msgid "Email the monthly PDF report (requires a working mail server)"
 msgstr ""
+"Den monatlichen PDF-Bericht per E-Mail senden (erfordert einen "
+"funktionierenden Mailserver)"
 
 #: /app/templates/index.php:4521
 msgid "Import & Export"
@@ -15180,14 +15152,18 @@ msgid ""
 "Budget is free and open source. If it helps you keep your finances straight, "
 "a donation helps keep it maintained — everything works fully without one."
 msgstr ""
+"Budget ist kostenlos und Open Source. Wenn dir die App hilft, den Überblick "
+"über deine Finanzen zu behalten, unterstützt du mit einer Spende ihre "
+"Weiterentwicklung und Pflege. Auch ohne Spende stehen dir alle Funktionen "
+"uneingeschränkt zur Verfügung."
 
 #: /app/templates/index.php:4868
 msgid "Keyboard Shortcuts"
-msgstr ""
+msgstr "Tastenkürzel"
 
 #: /app/templates/index.php:4872
 msgid "Drive Budget from the keyboard"
-msgstr ""
+msgstr "Budget über die Tastatur bedienen"
 
 #: /app/templates/index.php:4873
 msgid ""
@@ -15195,16 +15171,18 @@ msgid ""
 "with g followed by a letter, focus search with /, and edit or select rows in "
 "the transaction list without reaching for the mouse."
 msgstr ""
+"Drücke ? an einer beliebigen Stelle in der App, um die vollständige "
+"Übersicht der Tastenkürzel anzuzeigen. Wechsle mit g gefolgt von einem "
+"Buchstaben zwischen den Seiten, aktiviere die Suche mit / und bearbeite oder "
+"wähle Zeilen in der Transaktionsliste aus, ohne zur Maus greifen zu müssen."
 
 #: /app/templates/index.php:4877
 msgid "Show shortcuts"
-msgstr ""
+msgstr "Tastenkürzel anzeigen"
 
 #: /app/templates/index.php:4885
-#, fuzzy
-#| msgid "Quick Add Transaction"
 msgid "Quick Add Page"
-msgstr "Buchung schnell erfassen"
+msgstr "Schnelle Buchung"
 
 #: /app/templates/index.php:4886
 msgid ""
@@ -15940,6 +15918,11 @@ msgid ""
 "income or imports. The balance must be zero, with nothing scheduled to pay "
 "into or out of it."
 msgstr ""
+"Der Verlauf und die Werte des Kontos bleiben in den Berichten erhalten. Das "
+"Konto wird jedoch nicht mehr zur Auswahl angeboten, wenn du neue "
+"Transaktionen, Umbuchungen, Rechnungen, Einnahmen oder Importe erstellst. "
+"Der Kontostand muss null sein und es dürfen keine geplanten Ein- oder "
+"Auszahlungen mehr vorhanden sein."
 
 #: /app/templates/index.php:5919
 msgid "Save account"
