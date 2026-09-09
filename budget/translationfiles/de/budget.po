@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-04 13:52+0000\n"
-"PO-Revision-Date: 2026-09-08 14:51+0000\n"
+"PO-Revision-Date: 2026-09-09 19:51+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -596,16 +596,12 @@ msgid "Failed to refresh accounts"
 msgstr "Konten konnten nicht aktualisiert werden"
 
 #: /app/lib/Controller/BankSyncController.php:310
-#, fuzzy
-#| msgid "%1$s is required"
 msgid "Institution ID is required"
-msgstr "%1$s wird benötigt"
+msgstr "Die ID des Finanzinstituts ist erforderlich"
 
 #: /app/lib/Controller/BankSyncController.php:323
-#, fuzzy
-#| msgid "Failed to create share"
 msgid "Failed to re-authorize"
-msgstr "Erstellung Aktie fehlgeschlagen"
+msgstr "Erneute Autorisierung fehlgeschlagen"
 
 #: /app/lib/Controller/BillController.php:96
 msgid "Failed to retrieve bills"
@@ -639,10 +635,8 @@ msgstr "%1$s nicht gefunden"
 #: /app/lib/Controller/BillController.php:169
 #: /app/lib/Controller/BillController.php:598
 #: /app/lib/Service/BillService.php:75
-#, fuzzy
-#| msgid "Invalid account type"
 msgid "Invalid amount type"
-msgstr "Ungültige Kontoart"
+msgstr "Ungültiger Betragstyp"
 
 #: /app/lib/Controller/BillController.php:174
 msgid "Name and amount are required"
@@ -726,23 +720,17 @@ msgid "Failed to update bill"
 msgstr "Rechnung konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/BillController.php:727
-#, fuzzy
-#| msgid "Failed to bulk match transactions"
 msgid "Failed to find matching transactions"
-msgstr "Massenabgleich von Buchungen fehlgeschlagen"
+msgstr "Passende Transaktionen konnten nicht gefunden werden"
 
 #: /app/lib/Controller/BillController.php:740
-#, fuzzy
-#| msgid "Failed to record settlement"
 msgid "Failed to check for unrecorded payments"
-msgstr "Aufzeichnen der Abrechnung fehlgeschlagen"
+msgstr "Es konnte nicht nach nicht erfassten Zahlungen gesucht werden"
 
 #: /app/lib/Controller/BillController.php:757
 #: /app/src/modules/bills/BillsModule.js:144
-#, fuzzy
-#| msgid "Failed to record settlement"
 msgid "Failed to record the payment"
-msgstr "Aufzeichnen der Abrechnung fehlgeschlagen"
+msgstr "Die Zahlung konnte nicht erfasst werden"
 
 #: /app/lib/Controller/BillController.php:780
 #: /app/src/modules/bills/BillsModule.js:1251
@@ -756,10 +744,8 @@ msgstr "Die Kennzeichnung \"bezahlt\" konnte nicht entfernt werden"
 #: /app/lib/Controller/BillController.php:836
 #: /app/src/modules/bills/BillsModule.js:1529
 #: /app/src/modules/bills/BillsModule.js:1536
-#, fuzzy
-#| msgid "Failed to mark bill as paid"
 msgid "Failed to mark bill as unpaid"
-msgstr "Rechnung konnte nicht als bezahlt markiert werden"
+msgstr "Die Rechnung konnte nicht als unbezahlt markiert werden"
 
 #: /app/lib/Controller/BillController.php:853
 #: /app/src/modules/bills/BillsModule.js:1580
@@ -801,17 +787,13 @@ msgid "Failed to detect recurring bills"
 msgstr "Wiederkehrende Rechnungen konnten nicht ermittelt werden"
 
 #: /app/lib/Controller/BillController.php:970
-#, fuzzy
-#| msgid "Failed to load bills"
 msgid "Failed to load bill suggestions"
-msgstr "Rechnungen konnten nicht geladen werden"
+msgstr "Rechnungsvorschläge konnten nicht geladen werden"
 
 #: /app/lib/Controller/BillController.php:987
 #: /app/src/modules/bills/BillsModule.js:241
-#, fuzzy
-#| msgid "Failed to extend session"
 msgid "Failed to dismiss suggestion"
-msgstr "Stitzung konnte nicht verlägert werden"
+msgstr "Vorschlag konnte nicht verworfen werden"
 
 #: /app/lib/Controller/BillController.php:1009
 msgid "Failed to create bills from detected patterns"
