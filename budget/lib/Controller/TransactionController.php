@@ -565,13 +565,29 @@ class TransactionController extends Controller {
      */
     public function getMatches(int $id, int $dateWindow = 3): DataResponse {
         try {
+            // A transfer's counterpart legitimately sits in an account owned by
+            // someone else, so search every account this user may write to
+            // rather than their own rows — the own-scoped search is what hid
+            // cross-owner pairs (#378). Writable, not merely visible: link()
+            // writes BOTH legs, so a read-only candidate could never be linked.
+            $source = $this->service->findForAccounts($id, $this->getVisibleAccountIds());
+            $this->requireWriteAccess('account', $source->getAccountId());
+
             // Manual dialog: include cross-currency candidates — the user picks,
             // and linkTransactions() accepts different amounts across currencies
-            $matches = $this->service->findPotentialMatches($id, $this->getEffectiveUserId(), $dateWindow, true);
+            $matches = $this->service->findPotentialMatches(
+                $id,
+                $this->userId,
+                $dateWindow,
+                true,
+                $this->getWritableAccountIds()
+            );
             return new DataResponse([
                 'matches' => $matches,
                 'count' => count($matches)
             ]);
+        } catch (ReadOnlyShareException $e) {
+            return $this->handleError($e);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['transactionId' => $id]);
         }
@@ -668,7 +684,7 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 5, period: 60)]
     public function bulkMatch(int $dateWindow = 3): DataResponse {
         try {
-            $result = $this->service->bulkFindAndMatch($this->getEffectiveUserId(), $dateWindow);
+            $result = $this->service->bulkFindAndMatch($this->userId, $dateWindow, 100, $this->getWritableAccountIds());
             return new DataResponse($result);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to bulk match transactions'));
@@ -683,7 +699,7 @@ class TransactionController extends Controller {
     #[UserRateLimit(limit: 5, period: 60)]
     public function scanMatches(int $dateWindow = 3): DataResponse {
         try {
-            $result = $this->service->scanForMatches($this->getEffectiveUserId(), $dateWindow);
+            $result = $this->service->scanForMatches($this->userId, $dateWindow, 100, $this->getWritableAccountIds());
             return new DataResponse($result);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to scan for matches'));
@@ -705,7 +721,7 @@ class TransactionController extends Controller {
                 return new DataResponse(['error' => $this->l->t('No valid pairs provided')], Http::STATUS_BAD_REQUEST);
             }
 
-            $result = $this->service->bulkLinkTransactions($this->getEffectiveUserId(), $pairs);
+            $result = $this->service->bulkLinkTransactions($this->userId, $pairs, $this->getWritableAccountIds());
             return new DataResponse($result);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to bulk link transactions'));

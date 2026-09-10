@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Transfer matching finds the other half in a shared account.** A transfer between an account you own and one your partner has shared with you could not be matched: the search for the opposite leg only ever looked at rows you own, and a transaction in a shared account belongs to that account's owner, so the match dialog reported nothing to match and the bulk scan skipped the pair entirely. Linking the two was already allowed - it was only finding them that was not. The match dialog, the bulk scan and bulk linking now search every account you can write to, shared ones included. Accounts shared with you read-only are left out, because linking writes to both legs and a candidate you cannot write to could never have been linked anyway. Reported by @lexiconzero ([#378](https://github.com/otherworld-dev/Budget/issues/378))
+
 ## [2.50.0] - 2026-09-06
 
 ### Added

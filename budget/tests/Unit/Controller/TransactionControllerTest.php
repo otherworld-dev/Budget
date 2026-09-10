@@ -389,10 +389,13 @@ class TransactionControllerTest extends TestCase {
 
 	public function testGetMatchesReturnsMatches(): void {
 		$matches = [['id' => 2, 'amount' => -100.00]];
+		$this->service->method('findForAccounts')->willReturn($this->transactionInAccount(9));
 		// Manual match dialog opts into cross-currency candidates (#326)
-		$this->service->method('findPotentialMatches')->with(1, 'user1', 3, true)->willReturn($matches);
+		$this->service->method('findPotentialMatches')
+			->with(1, 'user1', 3, true, [9, 10])
+			->willReturn($matches);
 
-		$response = $this->controller->getMatches(1);
+		$response = $this->controllerSeeing([9, 10])->getMatches(1);
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertSame(1, $response->getData()['count']);
@@ -628,6 +631,7 @@ class TransactionControllerTest extends TestCase {
 		$granularShareService->method('canAccess')->willReturn(true);
 		$granularShareService->method('getOwnAccountIds')->willReturn([]);
 		$granularShareService->method('getVisibleAccountIds')->willReturn($visibleAccountIds);
+		$granularShareService->method('getWritableAccountIds')->willReturn($canWrite ? $visibleAccountIds : []);
 		$granularShareService->method('canWrite')->willReturn($canWrite);
 		if (!$canWrite) {
 			$granularShareService->method('requireWriteAccess')
@@ -719,6 +723,60 @@ class TransactionControllerTest extends TestCase {
 			->willReturn(['transaction' => null, 'unlinkedTransactionId' => 6]);
 
 		$response = $this->controllerSeeing([9, 10])->unlink(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	// ── transfer matching across shared accounts (#378) ─────────────
+
+	public function testGetMatchesSearchesEveryWritableAccount(): void {
+		$this->service->method('findForAccounts')->willReturn($this->transactionInAccount(9));
+		$this->service->expects($this->once())->method('findPotentialMatches')
+			->with(5, 'user1', 3, true, [9, 10])
+			->willReturn([]);
+
+		$response = $this->controllerSeeing([9, 10])->getMatches(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testGetMatchesRefusesATransactionOutsideTheVisibleAccounts(): void {
+		$this->service->method('findForAccounts')->willThrowException(
+			new \OCP\AppFramework\Db\DoesNotExistException('nope')
+		);
+		$this->service->expects($this->never())->method('findPotentialMatches');
+
+		$response = $this->controllerSeeing([9, 10])->getMatches(5);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	public function testGetMatchesRefusesAReadOnlySharedAccount(): void {
+		$this->service->method('findForAccounts')->willReturn($this->transactionInAccount(9));
+		$this->service->expects($this->never())->method('findPotentialMatches');
+
+		$response = $this->controllerSeeing([9, 10], false)->getMatches(5);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testScanMatchesSearchesEveryWritableAccount(): void {
+		$this->service->expects($this->once())->method('scanForMatches')
+			->with('user1', 3, 100, [9, 10])
+			->willReturn(['candidates' => [], 'stats' => []]);
+
+		$response = $this->controllerSeeing([9, 10])->scanMatches();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testBulkLinkScopesEachPairToTheWritableAccounts(): void {
+		$this->requestParams(['pairs' => [['sourceId' => 5, 'targetId' => 6]]]);
+		$this->service->expects($this->once())->method('bulkLinkTransactions')
+			->with('user1', [['sourceId' => 5, 'targetId' => 6]], [9, 10])
+			->willReturn(['linked' => [], 'failed' => [], 'stats' => []]);
+
+		$response = $this->controllerSeeing([9, 10])->bulkLink();
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}

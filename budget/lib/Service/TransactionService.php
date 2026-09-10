@@ -1161,10 +1161,16 @@ class TransactionService {
      * currency (any amount, since the exchanged amount never matches) for the
      * manual match dialog (#326). Auto-link flows must keep it off.
      *
+     * $visibleAccountIds is the caller's account scope. Both legs of a transfer
+     * into a shared account belong to that account's OWNER, so the own-scoped
+     * lookups find neither the source nor any candidate — pass the scope and
+     * matching spans shared accounts the way linking already does (#378).
+     *
+     * @param int[]|null $visibleAccountIds
      * @return Transaction[]
      */
-    public function findPotentialMatches(int $transactionId, string $userId, int $dateWindowDays = 3, bool $includeCrossCurrency = false): array {
-        $transaction = $this->find($transactionId, $userId);
+    public function findPotentialMatches(int $transactionId, string $userId, int $dateWindowDays = 3, bool $includeCrossCurrency = false, ?array $visibleAccountIds = null): array {
+        $transaction = $this->findScoped($transactionId, $userId, $visibleAccountIds);
 
         // Don't find matches if already linked
         if ($transaction->getLinkedTransactionId() !== null) {
@@ -1172,7 +1178,7 @@ class TransactionService {
         }
 
         // Get account currency for currency-matched filtering
-        $account = $this->accountMapper->find($transaction->getAccountId(), $userId);
+        $account = $this->accountFor($transaction->getAccountId(), $userId, $visibleAccountIds);
 
         return $this->mapper->findPotentialMatches(
             $userId,
@@ -1183,7 +1189,8 @@ class TransactionService {
             $transaction->getDate(),
             $account->getCurrency(),
             $dateWindowDays,
-            $includeCrossCurrency
+            $includeCrossCurrency,
+            $visibleAccountIds
         );
     }
 
@@ -1347,7 +1354,7 @@ class TransactionService {
      * @param int $batchSize
      * @return array Results with autoMatched, needsReview, and stats
      */
-    public function bulkFindAndMatch(string $userId, int $dateWindowDays = 3, int $batchSize = 100): array {
+    public function bulkFindAndMatch(string $userId, int $dateWindowDays = 3, int $batchSize = 100, ?array $visibleAccountIds = null): array {
         $autoMatched = [];
         $needsReview = [];
         $processedIds = []; // Track IDs we've already processed to avoid duplicates
@@ -1356,7 +1363,7 @@ class TransactionService {
         $hasMore = true;
 
         while ($hasMore) {
-            $result = $this->mapper->findUnlinkedWithMatches($userId, $dateWindowDays, $batchSize, $offset);
+            $result = $this->mapper->findUnlinkedWithMatches($userId, $dateWindowDays, $batchSize, $offset, $visibleAccountIds);
 
             if (empty($result['transactions'])) {
                 $hasMore = false;
@@ -1440,7 +1447,7 @@ class TransactionService {
      *
      * @return array{candidates: array, stats: array{singleMatchCount: int, multiMatchCount: int, totalCandidates: int}}
      */
-    public function scanForMatches(string $userId, int $dateWindowDays = 3, int $batchSize = 100): array {
+    public function scanForMatches(string $userId, int $dateWindowDays = 3, int $batchSize = 100, ?array $visibleAccountIds = null): array {
         $candidates = [];
         $processedIds = [];
 
@@ -1448,7 +1455,7 @@ class TransactionService {
         $hasMore = true;
 
         while ($hasMore) {
-            $result = $this->mapper->findUnlinkedWithMatches($userId, $dateWindowDays, $batchSize, $offset);
+            $result = $this->mapper->findUnlinkedWithMatches($userId, $dateWindowDays, $batchSize, $offset, $visibleAccountIds);
 
             if (empty($result['transactions'])) {
                 $hasMore = false;
@@ -1518,7 +1525,7 @@ class TransactionService {
      * @param array<array{sourceId: int, targetId: int}> $pairs
      * @return array{linked: array, failed: array, stats: array{linkedCount: int, failedCount: int}}
      */
-    public function bulkLinkTransactions(string $userId, array $pairs): array {
+    public function bulkLinkTransactions(string $userId, array $pairs, ?array $visibleAccountIds = null): array {
         $linked = [];
         $failed = [];
 
@@ -1536,7 +1543,7 @@ class TransactionService {
             }
 
             try {
-                $this->linkTransactions($sourceId, $targetId, $userId);
+                $this->linkTransactions($sourceId, $targetId, $userId, $visibleAccountIds);
                 $linked[] = [
                     'sourceId' => $sourceId,
                     'targetId' => $targetId

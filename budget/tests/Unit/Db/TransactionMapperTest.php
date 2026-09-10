@@ -1914,4 +1914,72 @@ class TransactionMapperTest extends TestCase {
         $this->assertCount(1, $groups);
         $this->assertSame([10, 11], array_column($groups[0], 'id'));
     }
+
+    // ===== match scoping across shared accounts (#378) =====
+
+    public function testFindPotentialMatchesScopesToTheGivenAccountsNotTheOwner(): void {
+        // Given account ids, the candidate set is those accounts — scoping to
+        // a.user_id would drop every leg sitting in a shared account (#378)
+        $ownerScoped = false;
+        $this->expr->method('eq')->willReturnCallback(function ($x) use (&$ownerScoped) {
+            if ($x === 'a.user_id') {
+                $ownerScoped = true;
+            }
+            return 'eq';
+        });
+        $scopedIn = [];
+        $this->expr->method('in')->willReturnCallback(function ($x) use (&$scopedIn) {
+            $scopedIn[] = $x;
+            return 'in';
+        });
+
+        $this->result->method('fetch')->willReturn(false);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $this->mapper->findPotentialMatches(
+            'user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR', 3, false, [10, 20]
+        );
+
+        $this->assertFalse($ownerScoped, 'candidates must not be scoped to the acting user');
+        $this->assertContains('a.id', $scopedIn);
+    }
+
+    public function testFindPotentialMatchesStillScopesToTheOwnerWithoutAccountIds(): void {
+        // No account ids: the import/sync callers keep their own-scoped search
+        $ownerScoped = false;
+        $this->expr->method('eq')->willReturnCallback(function ($x) use (&$ownerScoped) {
+            if ($x === 'a.user_id') {
+                $ownerScoped = true;
+            }
+            return 'eq';
+        });
+
+        $this->result->method('fetch')->willReturn(false);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $this->mapper->findPotentialMatches('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR');
+
+        $this->assertTrue($ownerScoped);
+    }
+
+    public function testFindPotentialMatchesRunsNoQueryForAnEmptyAccountScope(): void {
+        // "no accounts in scope" must mean no candidates, never an IN () whose
+        // SQL semantics we would be guessing at
+        $this->qb->expects($this->never())->method('executeQuery');
+
+        $this->assertSame([], $this->mapper->findPotentialMatches(
+            'user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR', 3, false, []
+        ));
+    }
+
+    public function testFindUnlinkedWithMatchesRunsNoQueryForAnEmptyAccountScope(): void {
+        $this->qb->expects($this->never())->method('executeQuery');
+
+        $this->assertSame(
+            ['transactions' => [], 'total' => 0],
+            $this->mapper->findUnlinkedWithMatches('user1', 3, 100, 0, [])
+        );
+    }
 }

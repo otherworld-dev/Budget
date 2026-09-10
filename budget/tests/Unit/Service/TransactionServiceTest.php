@@ -1917,4 +1917,75 @@ class TransactionServiceTest extends TestCase {
 
         $this->service->deleteScheduledBillTransactions(44);
     }
+
+    // ===== transfer matching across shared accounts (#378) =====
+
+    public function testFindPotentialMatchesResolvesASourceInASharedAccount(): void {
+        // The source leg belongs to the account's OWNER, so the own-scoped
+        // lookups would find neither the transaction nor its account.
+        $tx = $this->makeTransaction(['linkedTransactionId' => null]);
+        $account = $this->makeAccount(['id' => 10, 'currency' => 'USD']);
+        $this->mapper->expects($this->never())->method('find');
+        $this->accountMapper->expects($this->never())->method('find');
+        $this->mapper->expects($this->once())->method('findForAccounts')
+            ->with(1, [10, 20])->willReturn($tx);
+        $this->accountMapper->expects($this->once())->method('findById')
+            ->with(10)->willReturn($account);
+        $this->mapper->method('findPotentialMatches')->willReturn([]);
+
+        $this->service->findPotentialMatches(1, 'user1', 3, false, [10, 20]);
+    }
+
+    public function testFindPotentialMatchesSearchesEveryGivenAccount(): void {
+        $tx = $this->makeTransaction(['linkedTransactionId' => null]);
+        $account = $this->makeAccount(['id' => 10, 'currency' => 'USD']);
+        $this->mapper->method('findForAccounts')->willReturn($tx);
+        $this->accountMapper->method('findById')->willReturn($account);
+
+        $this->mapper->expects($this->once())
+            ->method('findPotentialMatches')
+            ->with('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'USD', 3, false, [10, 20])
+            ->willReturn([]);
+
+        $this->service->findPotentialMatches(1, 'user1', 3, false, [10, 20]);
+    }
+
+    public function testFindPotentialMatchesRefusesASourceOutsideTheGivenAccounts(): void {
+        $this->mapper->method('findForAccounts')->willThrowException(
+            new \OCP\AppFramework\Db\DoesNotExistException('nope')
+        );
+        $this->mapper->expects($this->never())->method('findPotentialMatches');
+
+        $this->expectException(\OCP\AppFramework\Db\DoesNotExistException::class);
+        $this->service->findPotentialMatches(1, 'user1', 3, false, [10, 20]);
+    }
+
+    public function testScanForMatchesSearchesEveryGivenAccount(): void {
+        $this->mapper->expects($this->once())
+            ->method('findUnlinkedWithMatches')
+            ->with('user1', 3, 100, 0, [10, 20])
+            ->willReturn(['transactions' => [], 'total' => 0]);
+
+        $this->service->scanForMatches('user1', 3, 100, [10, 20]);
+    }
+
+    public function testBulkLinkTransactionsScopesEachPairToTheGivenAccounts(): void {
+        $tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.0, 'type' => 'debit', 'linkedTransactionId' => null]);
+        $tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.0, 'type' => 'credit', 'linkedTransactionId' => null]);
+
+        $this->mapper->expects($this->never())->method('find');
+        $this->mapper->method('findForAccounts')->willReturnCallback(
+            fn(int $id, array $ids) => $id === 1 ? $tx1 : $tx2
+        );
+        $this->accountMapper->method('findById')->willReturnCallback(
+            fn(int $id) => $this->makeAccount(['id' => $id, 'currency' => 'USD'])
+        );
+        $this->mapper->expects($this->once())->method('linkTransactions')->with(1, 2);
+
+        $result = $this->service->bulkLinkTransactions('user1', [
+            ['sourceId' => 1, 'targetId' => 2],
+        ], [10, 20]);
+
+        $this->assertCount(1, $result['linked']);
+    }
 }

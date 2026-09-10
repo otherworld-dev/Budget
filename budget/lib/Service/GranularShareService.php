@@ -97,6 +97,23 @@ class GranularShareService {
     }
 
     /**
+     * Account IDs a user may post new activity to — own accounts plus shared
+     * ones carrying write permission.
+     *
+     * Transfer matching uses this rather than getVisibleAccountIds(): linking
+     * writes to BOTH legs, so a candidate in a read-only shared account can
+     * never be linked and offering it is a dead end (#378).
+     *
+     * @return int[]
+     */
+    public function getWritableAccountIds(string $userId): array {
+        return array_values(array_filter(
+            $this->getVisibleAccountIds($userId),
+            fn(int $accountId) => $this->canWrite($userId, ShareItem::TYPE_ACCOUNT, $accountId)
+        ));
+    }
+
+    /**
      * @return int[]
      */
     public function getVisibleCategoryIds(string $userId): array {

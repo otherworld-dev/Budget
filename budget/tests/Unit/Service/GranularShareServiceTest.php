@@ -645,4 +645,43 @@ class GranularShareServiceTest extends TestCase {
         $this->assertTrue($bill->jsonSerialize()['canMarkUnpaid'], 'the owner-side hint stays on');
         $this->assertFalse($result[0]['canMarkUnpaid'], 'recipients must never be offered the action');
     }
+
+    // =============================================
+    // getWritableAccountIds
+    // =============================================
+
+    public function testGetWritableAccountIdsDropsReadOnlyShares(): void {
+        $this->accountMapper->method('findAll')
+            ->with('alice')
+            ->willReturn([$this->makeEntity(1)]);
+
+        $share = $this->makeShare(100, 'bob', 'alice', Share::STATUS_ACCEPTED);
+        $this->shareMapper->method('findByRecipient')
+            ->with('alice')
+            ->willReturn([$share]);
+
+        $this->shareItemMapper->method('findSharedEntityIds')
+            ->with(100, ShareItem::TYPE_ACCOUNT)
+            ->willReturn([5, 6]);
+
+        // 5 shared read/write, 6 shared read-only
+        $this->shareItemMapper->method('getEntityPermission')->willReturnCallback(
+            fn(int $shareId, string $type, int $entityId) => $entityId === 5
+                ? ShareItem::PERMISSION_WRITE
+                : ShareItem::PERMISSION_READ
+        );
+
+        $this->assertEqualsCanonicalizing([1, 5], $this->service->getWritableAccountIds('alice'));
+    }
+
+    public function testGetWritableAccountIdsKeepsEveryOwnAccount(): void {
+        $this->accountMapper->method('findAll')
+            ->with('alice')
+            ->willReturn([$this->makeEntity(1), $this->makeEntity(2)]);
+        $this->shareMapper->method('findByRecipient')
+            ->with('alice')
+            ->willReturn([]);
+
+        $this->assertEqualsCanonicalizing([1, 2], $this->service->getWritableAccountIds('alice'));
+    }
 }

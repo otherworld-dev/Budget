@@ -38,6 +38,16 @@ trait SharedAccessTrait {
     }
 
     /**
+     * Account-id scope for anything that will WRITE to both ends of what it
+     * finds — own accounts plus shared ones granting write (#378).
+     *
+     * @return int[]
+     */
+    protected function getWritableAccountIds(): array {
+        return $this->granularShareService->getWritableAccountIds($this->userId);
+    }
+
+    /**
      * Account-id scope for reports/dashboard aggregates. When $excludeShared is
      * true, scope to the user's OWN accounts only (drop accounts shared to them);
      * otherwise own + shared. Lets a report/tile opt out of shared-account data

@@ -3054,6 +3054,27 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
+     * Account scope shared by the transfer-match queries.
+     *
+     * $accountIds is the caller's resolved scope (own + writable shared, #378);
+     * a transfer's counterpart legitimately sits in an account owned by someone
+     * else, so scoping to a.user_id would hide exactly the row being looked for.
+     * Null keeps the own-accounts-only behaviour for the import/sync callers,
+     * which have no share context to resolve.
+     *
+     * @param int[]|null $accountIds
+     */
+    private function matchScope(IQueryBuilder $qb, string $userId, ?array $accountIds) {
+        if ($accountIds === null) {
+            return $qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId));
+        }
+        return $qb->expr()->in('a.id', $qb->createNamedParameter(
+            array_map('intval', $accountIds),
+            IQueryBuilder::PARAM_INT_ARRAY
+        ));
+    }
+
+    /**
      * Find potential transfer matches for a transaction
      * Matches on: same amount, opposite type, different account, same currency, within date window
      *
@@ -3063,6 +3084,7 @@ class TransactionMapper extends QBMapper {
      * already accepts such pairs (#326). Auto-link flows must keep this off;
      * only the manual match dialog opts in.
      *
+     * @param int[]|null $accountIds Account scope (own + writable shared); null = own only
      * @return Transaction[]
      */
     public function findPotentialMatches(
@@ -3074,8 +3096,13 @@ class TransactionMapper extends QBMapper {
         string $date,
         string $currency,
         int $dateWindowDays = 3,
-        bool $includeCrossCurrency = false
+        bool $includeCrossCurrency = false,
+        ?array $accountIds = null
     ): array {
+        if ($accountIds === []) {
+            return [];
+        }
+
         $qb = $this->db->getQueryBuilder();
 
         // Calculate date window
@@ -3101,7 +3128,7 @@ class TransactionMapper extends QBMapper {
         $qb->select('t.*')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->where($this->matchScope($qb, $userId, $accountIds))
             // Different account
             ->andWhere($qb->expr()->neq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
             ->andWhere($amountCurrencyMatch)
@@ -3209,14 +3236,19 @@ class TransactionMapper extends QBMapper {
         string $userId,
         int $dateWindowDays = 3,
         int $limit = 100,
-        int $offset = 0
+        int $offset = 0,
+        ?array $accountIds = null
     ): array {
+        if ($accountIds === []) {
+            return ['transactions' => [], 'total' => 0];
+        }
+
         // First, get count of all unlinked transactions
         $countQb = $this->db->getQueryBuilder();
         $countQb->select($countQb->createFunction('COUNT(DISTINCT t.id)'))
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $countQb->expr()->eq('t.account_id', 'a.id'))
-            ->where($countQb->expr()->eq('a.user_id', $countQb->createNamedParameter($userId)))
+            ->where($this->matchScope($countQb, $userId, $accountIds))
             ->andWhere($countQb->expr()->isNull('t.linked_transaction_id'))
             ->andWhere($countQb->expr()->isNull('t.pension_contrib_id'));
 
@@ -3233,7 +3265,7 @@ class TransactionMapper extends QBMapper {
         $qb->select('t.*', 'a.name as account_name', 'a.currency as account_currency')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+            ->where($this->matchScope($qb, $userId, $accountIds))
             ->andWhere($qb->expr()->isNull('t.linked_transaction_id'))
             ->andWhere($qb->expr()->isNull('t.pension_contrib_id'))
             ->orderBy('t.date', 'DESC')
@@ -3257,7 +3289,9 @@ class TransactionMapper extends QBMapper {
                 $tx['type'],
                 $tx['date'],
                 $tx['account_currency'],
-                $dateWindowDays
+                $dateWindowDays,
+                false,
+                $accountIds
             );
 
             if (count($matches) > 0) {
