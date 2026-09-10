@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.50.1] - 2026-09-10
 
 ### Fixed
 - **Save stops working on the transaction form after the split editor has been used.** Turning **Split across categories** on and back off - or switching the type to Transfer with it on - hid the split rows but left them sitting inside the form. A hidden field is still checked by the browser, and an empty one it cannot put on screen is one it will not report either: the form simply refused to submit, with no message, no request and no error in the console, for every transaction from then on until the page was reloaded. Firefox and Chrome at least log something; Safari says nothing at all. Putting the split editor away now empties it, and a split amount is no longer a field the browser polices - an incomplete split was already caught on save, and says what is wrong in a way you can actually see. Reported by @SGiersch ([#380](https://github.com/otherworld-dev/Budget/issues/380))
