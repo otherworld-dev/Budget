@@ -2837,8 +2837,7 @@ export default class TransactionsModule {
 
         // Reset state
         toggle.checked = false;
-        splitsSection.style.display = 'none';
-        if (categoryGroup) categoryGroup.style.display = '';
+        this.hideInlineSplits();
 
         if (splitToggleGroup) {
             splitToggleGroup.style.display = isTransfer ? 'none' : '';
@@ -2873,8 +2872,7 @@ export default class TransactionsModule {
                 if (categoryGroup) categoryGroup.style.display = 'none';
                 this.initInlineSplitRows();
             } else {
-                splitsSection.style.display = 'none';
-                if (categoryGroup) categoryGroup.style.display = '';
+                this.hideInlineSplits();
             }
         };
 
@@ -2890,6 +2888,29 @@ export default class TransactionsModule {
         if (addBtn) {
             addBtn.onclick = () => this.addInlineSplitRow();
         }
+    }
+
+    /**
+     * Put the split editor away — and EMPTY it (#380).
+     *
+     * The rows live inside #transaction-form, so hiding the section is not
+     * enough: a display:none control is still validated, and the browser will
+     * not submit a form holding an invalid one. It cannot show a message
+     * either, because it cannot focus what it cannot render — Chrome logs
+     * "An invalid form control is not focusable" and Safari says nothing at
+     * all. The user just sees Save stop working, permanently, until a reload.
+     * Nothing in a hidden editor is ever read back, so clearing it costs
+     * nothing and takes the whole failure mode away.
+     */
+    hideInlineSplits() {
+        const splitsSection = document.getElementById('inline-splits-section');
+        const categoryGroup = document.getElementById('transaction-category-group');
+        const container = document.getElementById('inline-splits-container');
+
+        if (splitsSection) splitsSection.style.display = 'none';
+        if (categoryGroup) categoryGroup.style.display = '';
+        if (container) container.innerHTML = '';
+        this.updateInlineSplitRemaining();
     }
 
     initInlineSplitRows() {
@@ -2933,11 +2954,17 @@ export default class TransactionsModule {
         const storedAmount = existingSplit ? Number(existingSplit.amount) : null;
         const minAttr = (storedAmount !== null && storedAmount < 0) ? '' : 'min="0.01"';
 
+        // Deliberately NOT `required` (#380): these rows sit inside
+        // #transaction-form, so a browser constraint on one is a constraint on
+        // the whole form, enforced with a message the user cannot see whenever
+        // the row is off screen. validateInlineSplits() guards the save instead
+        // and says what is wrong in a way that reaches them.
+
         row.innerHTML = `
             <div class="split-field split-amount-field">
                 <label>${t('budget', 'Amount')}</label>
                 <input type="number" class="inline-split-amount" step="0.01" ${minAttr} placeholder="0.00"
-                       value="${existingSplit ? existingSplit.amount : ''}" required>
+                       value="${existingSplit ? existingSplit.amount : ''}">
             </div>
             <div class="split-field split-category-field">
                 <label>${t('budget', 'Category')}</label>

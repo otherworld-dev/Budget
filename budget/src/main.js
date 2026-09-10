@@ -265,11 +265,14 @@ class BudgetApp {
             });
         }
 
-        // Account add transaction button
+        // Account add transaction button. The account being viewed is tracked
+        // by AccountsModule, not here — reading it off `this` silently gave
+        // undefined and left the picker blank on the one screen where the
+        // account is never in doubt.
         const accountAddTransactionBtn = document.getElementById('account-add-transaction-btn');
         if (accountAddTransactionBtn) {
             accountAddTransactionBtn.addEventListener('click', () => {
-                this.showTransactionModal(null, this.currentAccount?.id);
+                this.showTransactionModal(null, this.accountsModule?.currentAccount?.id);
             });
         }
 
