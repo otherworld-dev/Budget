@@ -4960,7 +4960,30 @@ button.danger:hover {
 }
 
 .tag-option input[type="checkbox"] {
-    display: none;
+    /* Visually hidden, not display:none — the badge is the visible control,
+       but the checkbox must stay focusable and announced to screen readers. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.tag-option input[type="checkbox"]:focus-visible + .tag-badge {
+    outline: 2px solid var(--color-primary-element);
+    outline-offset: 2px;
+    opacity: 1;
+}
+
+/* Empty/loading text inside a tag picker. */
+.tag-picker-note {
+    color: var(--color-text-maxcontrast);
+    font-size: 12px;
 }
 
 .tag-option .tag-badge {

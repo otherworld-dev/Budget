@@ -63,6 +63,7 @@ return [
         ['name' => 'transaction#bulkDelete', 'url' => '/api/transactions/bulk-delete', 'verb' => 'POST'],
         ['name' => 'transaction#bulkReconcile', 'url' => '/api/transactions/bulk-reconcile', 'verb' => 'POST'],
         ['name' => 'transaction#bulkEdit', 'url' => '/api/transactions/bulk-edit', 'verb' => 'POST'],
+        ['name' => 'transaction#bulkTags', 'url' => '/api/transactions/bulk-tags', 'verb' => 'POST'],
         ['name' => 'transaction#duplicates', 'url' => '/api/transactions/duplicates', 'verb' => 'GET'],
         ['name' => 'transaction#show', 'url' => '/api/transactions/{id}', 'verb' => 'GET'],
         ['name' => 'transaction#update', 'url' => '/api/transactions/{id}', 'verb' => 'PUT'],

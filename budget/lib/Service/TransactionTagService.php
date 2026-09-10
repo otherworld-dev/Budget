@@ -70,6 +70,104 @@ class TransactionTagService {
     }
 
     /**
+     * Add and/or remove GLOBAL tags across many transactions at once (#379).
+     *
+     * Global-only is deliberate. A category tag is validated against the
+     * transaction's own category (see validateTagsForTransaction), so across a
+     * mixed selection it would legitimately apply to only some rows -- and
+     * half-applying that quietly is worse than refusing. Global tags carry no
+     * such constraint, so the operation is unambiguous for every selected row.
+     *
+     * Both directions are idempotent: adding a tag a row already carries is a
+     * no-op, and removing one it does not carry is too.
+     *
+     * @param int[] $transactionIds
+     * @param int[] $addTagIds
+     * @param int[] $removeTagIds
+     * @return array{success: int, failed: int, errors: array} Same shape as TransactionService::bulkEdit
+     * @throws \Exception If any tag is not a global tag owned by this user
+     */
+    public function bulkUpdateGlobalTags(string $userId, array $transactionIds, array $addTagIds, array $removeTagIds): array {
+        $transactionIds = array_values(array_unique(array_map('intval', $transactionIds)));
+        $addTagIds = array_values(array_unique(array_map('intval', $addTagIds)));
+        $removeTagIds = array_values(array_unique(array_map('intval', $removeTagIds)));
+
+        $contradictory = array_intersect($addTagIds, $removeTagIds);
+        if (!empty($contradictory)) {
+            throw new \Exception('A tag cannot be both added and removed');
+        }
+
+        $this->assertGlobalTags(array_merge($addTagIds, $removeTagIds), $userId);
+
+        // The id list comes from the browser, so scope it before writing.
+        $ownedIds = $this->transactionMapper->filterOwnedIds($transactionIds, $userId);
+        $ownedLookup = array_flip($ownedIds);
+
+        $results = ['success' => count($ownedIds), 'failed' => 0, 'errors' => []];
+        foreach ($transactionIds as $id) {
+            if (!isset($ownedLookup[$id])) {
+                $results['failed']++;
+                $results['errors'][] = ['id' => $id, 'message' => 'Transaction not found'];
+            }
+        }
+
+        if (empty($ownedIds)) {
+            return $results;
+        }
+
+        // Remove first. The two sets are disjoint (checked above), so this can
+        // never undo an add made in the same call.
+        if (!empty($removeTagIds)) {
+            $this->transactionTagMapper->deleteByTransactionsAndTags($ownedIds, $removeTagIds);
+        }
+
+        if (!empty($addTagIds)) {
+            $existing = $this->transactionTagMapper->findExistingTagIdsByTransaction($ownedIds, $addTagIds);
+            $now = date('Y-m-d H:i:s');
+
+            foreach ($ownedIds as $transactionId) {
+                $alreadyTagged = $existing[$transactionId] ?? [];
+                foreach ($addTagIds as $tagId) {
+                    if (in_array($tagId, $alreadyTagged, true)) {
+                        continue;
+                    }
+                    $transactionTag = new TransactionTag();
+                    $transactionTag->setTransactionId($transactionId);
+                    $transactionTag->setTagId($tagId);
+                    $transactionTag->setCreatedAt($now);
+                    $this->transactionTagMapper->insert($transactionTag);
+                }
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Assert every id is a global tag (no tag set) owned by this user.
+     *
+     * @param int[] $tagIds
+     * @throws \Exception
+     */
+    private function assertGlobalTags(array $tagIds, string $userId): void {
+        $tagIds = array_values(array_unique($tagIds));
+        if (empty($tagIds)) {
+            return;
+        }
+
+        $tags = $this->tagMapper->findByIds($tagIds);
+        if (count($tags) !== count($tagIds)) {
+            throw new \Exception('One or more tags do not exist');
+        }
+
+        foreach ($tags as $tag) {
+            if ($tag->getTagSetId() !== null || $tag->getUserId() !== $userId) {
+                throw new \Exception('Only global tags can be applied in bulk');
+            }
+        }
+    }
+
+    /**
      * Get tags for a transaction with full tag details
      *
      * @param int $transactionId

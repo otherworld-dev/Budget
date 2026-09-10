@@ -73,6 +73,67 @@ class TransactionTagMapper extends QBMapper {
     }
 
     /**
+     * Which of $tagIds each transaction already carries.
+     *
+     * Lets a bulk add skip the rows that are already tagged instead of
+     * inserting a duplicate join row. Chunked at 500 for the same reason as
+     * every other bulk query here -- a "select all matching" selection can
+     * hand us thousands of transaction ids and old SQLite builds cap bound
+     * variables at 999.
+     *
+     * @param int[] $transactionIds
+     * @param int[] $tagIds
+     * @return array<int, int[]> transactionId => tagIds already attached
+     */
+    public function findExistingTagIdsByTransaction(array $transactionIds, array $tagIds): array {
+        if (empty($transactionIds) || empty($tagIds)) {
+            return [];
+        }
+
+        $existing = [];
+        foreach (array_chunk($transactionIds, 500) as $chunk) {
+            $qb = $this->db->getQueryBuilder();
+            $qb->select('transaction_id', 'tag_id')
+                ->from($this->getTableName())
+                ->where($qb->expr()->in('transaction_id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)))
+                ->andWhere($qb->expr()->in('tag_id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)));
+
+            $result = $qb->executeQuery();
+            while ($row = $result->fetch()) {
+                $existing[(int)$row['transaction_id']][] = (int)$row['tag_id'];
+            }
+            $result->closeCursor();
+        }
+
+        return $existing;
+    }
+
+    /**
+     * Detach a set of tags from a set of transactions in one statement.
+     *
+     * @param int[] $transactionIds
+     * @param int[] $tagIds
+     * @return int Number of deleted rows
+     */
+    public function deleteByTransactionsAndTags(array $transactionIds, array $tagIds): int {
+        if (empty($transactionIds) || empty($tagIds)) {
+            return 0;
+        }
+
+        $deleted = 0;
+        foreach (array_chunk($transactionIds, 500) as $chunk) {
+            $qb = $this->db->getQueryBuilder();
+            $qb->delete($this->getTableName())
+                ->where($qb->expr()->in('transaction_id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)))
+                ->andWhere($qb->expr()->in('tag_id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)));
+
+            $deleted += $qb->executeStatement();
+        }
+
+        return $deleted;
+    }
+
+    /**
      * Delete all transaction tags for a specific tag
      *
      * @param int $tagId

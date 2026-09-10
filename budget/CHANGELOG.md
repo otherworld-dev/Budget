@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Bulk edit can add and remove tags.** Tagging a run of transactions meant opening each one in turn: the bulk editor only ever touched fields stored on the transaction row itself, and a tag is not one of them. **Tags...** in the bulk bar now adds and removes your global tags across the whole selection at once, a cross-page **select all matching** selection included. The two lists are deliberately separate rather than one set of checkboxes - a tag you leave unchecked is not touched either way, so adding one tag to a hundred transactions cannot quietly strip the tags those transactions already carry. Adding a tag a transaction already has does nothing, and neither does removing one it does not have, so the same change can be re-run over an overlapping selection without anything happening twice. Category-level tags are not offered: they belong to a transaction's category, so across a mixed selection they would legitimately apply to only some of the rows, and half-applying that quietly is worse than leaving it out. Requested by @joeftiger ([#379](https://github.com/otherworld-dev/Budget/issues/379))
+
+### Fixed
+- **Tag pickers can be reached with the keyboard.** Every tag checkbox in the app was hidden outright rather than just visually, which takes it out of the tab order and out of what a screen reader can announce - the coloured badge was the only way to set a tag, and only with a mouse. The checkboxes are now hidden visually but still focusable, and a badge shows a focus ring when you tab onto it. Nothing looks different with a mouse ([#379](https://github.com/otherworld-dev/Budget/issues/379))
+
 ## [2.50.1] - 2026-09-10
 
 ### Fixed

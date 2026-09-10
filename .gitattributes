@@ -1,2 +1,7 @@
 # Git hooks must keep LF line endings or they fail to execute (shebang).
 .githooks/** text eol=lf
+
+# The translation tool splits .l10nignore on newlines only, so a CRLF checkout
+# leaves a stray carriage return on every entry, none of them match, and
+# vendor/ silently gets scanned back into the .pot. Keep it LF.
+budget/.l10nignore text eol=lf

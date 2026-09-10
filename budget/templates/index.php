@@ -1664,6 +1664,7 @@ style('budget', 'budget-app');
                     <button id="bulk-reconcile-btn" class="secondary"><?php p($l->t('Reconciled')); ?></button>
                     <button id="bulk-unreconcile-btn" class="secondary"><?php p($l->t('Unreconciled')); ?></button>
                     <button id="bulk-edit-btn" class="secondary"><?php p($l->t('Edit Fields...')); ?></button>
+                    <button id="bulk-tags-btn" class="secondary"><?php p($l->t('Tags...')); ?></button>
                     <button id="bulk-delete-btn" class="error"><?php p($l->t('Delete')); ?></button>
                     <button id="cancel-bulk-btn" class="secondary"><?php p($l->t('Cancel')); ?></button>
                 </div>
@@ -6956,6 +6957,30 @@ style('budget', 'budget-app');
             <div class="modal-buttons">
                 <button type="button" class="primary" id="bulk-edit-submit-btn" aria-label="<?php p($l->t('Update selected transactions')); ?>"><?php p($l->t('Update Transactions')); ?></button>
                 <button type="button" class="secondary cancel-bulk-edit-btn" aria-label="<?php p($l->t('Cancel and close dialog')); ?>"><?php p($l->t('Cancel')); ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Bulk Tags Modal (#379) -->
+<div id="bulk-tags-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="bulk-tags-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <h3 id="bulk-tags-modal-title"><?php p($l->t('Bulk Edit Tags')); ?></h3>
+        <p class="modal-description" id="bulk-tags-description"></p>
+        <form id="bulk-tags-form" aria-label="<?php p($l->t('Bulk tag form')); ?>">
+            <div class="form-group">
+                <label id="bulk-tags-add-label"><?php p($l->t('Add these tags')); ?></label>
+                <div id="bulk-tags-add" class="tag-options" role="group" aria-labelledby="bulk-tags-add-label"></div>
+            </div>
+
+            <div class="form-group">
+                <label id="bulk-tags-remove-label"><?php p($l->t('Remove these tags')); ?></label>
+                <div id="bulk-tags-remove" class="tag-options" role="group" aria-labelledby="bulk-tags-remove-label"></div>
+            </div>
+
+            <div class="modal-buttons">
+                <button type="button" class="primary" id="bulk-tags-submit-btn" aria-label="<?php p($l->t('Apply tag changes to selected transactions')); ?>"><?php p($l->t('Apply Tags')); ?></button>
+                <button type="button" class="secondary cancel-bulk-tags-btn" aria-label="<?php p($l->t('Cancel and close dialog')); ?>"><?php p($l->t('Cancel')); ?></button>
             </div>
         </form>
     </div>

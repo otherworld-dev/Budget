@@ -824,6 +824,40 @@ class TransactionController extends Controller {
     }
 
     /**
+     * Bulk add and/or remove global tags across selected transactions (#379).
+     *
+     * Global tags only -- see TransactionTagService::bulkUpdateGlobalTags for
+     * why category-scoped tags are refused here. The service owns the domain
+     * rules (global-only, add/remove disjoint) and throws; this only checks the
+     * structural preconditions and maps a rejection onto a 400.
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 10, period: 60)]
+    public function bulkTags(array $ids, array $addTagIds = [], array $removeTagIds = []): DataResponse {
+        try {
+            if (empty($ids)) {
+                return new DataResponse(['error' => $this->l->t('No transaction IDs provided')], Http::STATUS_BAD_REQUEST);
+            }
+
+            if (empty($addTagIds) && empty($removeTagIds)) {
+                return new DataResponse(['error' => $this->l->t('No tags provided')], Http::STATUS_BAD_REQUEST);
+            }
+
+            $results = $this->tagService->bulkUpdateGlobalTags(
+                $this->getEffectiveUserId(),
+                array_map('intval', $ids),
+                array_map('intval', $addTagIds),
+                array_map('intval', $removeTagIds)
+            );
+
+            return new DataResponse($results);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to update transaction tags'), Http::STATUS_BAD_REQUEST);
+        }
+    }
+
+    /**
      * Get splits for a transaction
      *
      * @NoAdminRequired

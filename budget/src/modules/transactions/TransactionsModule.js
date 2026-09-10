@@ -16,6 +16,7 @@ import { showSuccess, showError, showWarning } from '../../utils/notifications.j
 import { setDateValue } from '../../utils/datepicker.js';
 import { serverErrorMessage, downloadTransactionsCsv } from '../../utils/helpers.js';
 import { openAccounts, pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
+import { offerableTags } from '../../utils/tags.js';
 import flatpickr from 'flatpickr';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
@@ -212,6 +213,27 @@ export default class TransactionsModule {
         cancelBulkEditBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 document.getElementById('bulk-edit-modal').style.display = 'none';
+            });
+        });
+
+        const bulkTagsBtn = document.getElementById('bulk-tags-btn');
+        if (bulkTagsBtn) {
+            bulkTagsBtn.addEventListener('click', () => {
+                this.showBulkTagsModal();
+            });
+        }
+
+        const bulkTagsSubmitBtn = document.getElementById('bulk-tags-submit-btn');
+        if (bulkTagsSubmitBtn) {
+            bulkTagsSubmitBtn.addEventListener('click', () => {
+                this.submitBulkTags();
+            });
+        }
+
+        const cancelBulkTagsBtns = document.querySelectorAll('.cancel-bulk-tags-btn');
+        cancelBulkTagsBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('bulk-tags-modal').style.display = 'none';
             });
         });
 
@@ -992,6 +1014,7 @@ export default class TransactionsModule {
         const bulkReconcileBtn = document.getElementById('bulk-reconcile-btn');
         const bulkUnreconcileBtn = document.getElementById('bulk-unreconcile-btn');
         const bulkEditBtn = document.getElementById('bulk-edit-btn');
+        const bulkTagsBtn = document.getElementById('bulk-tags-btn');
 
         if (selectedCountElement) {
             selectedCountElement.textContent = selectedCount;
@@ -1017,6 +1040,10 @@ export default class TransactionsModule {
 
         if (bulkEditBtn) {
             bulkEditBtn.disabled = disabled;
+        }
+
+        if (bulkTagsBtn) {
+            bulkTagsBtn.disabled = disabled;
         }
     }
 
@@ -1242,6 +1269,144 @@ export default class TransactionsModule {
         } catch (error) {
             console.error('Bulk edit failed:', error);
             showError(t('budget', 'Failed to update transactions'));
+        }
+    }
+
+    /**
+     * Bulk tag editor (#379).
+     *
+     * Global tags only — a category tag is validated against the transaction's
+     * own category, so across a mixed selection it would apply to only some of
+     * the selected rows, and the server refuses one for that reason.
+     *
+     * The two lists are add/remove deltas rather than a replace, so an
+     * unchecked tag means "leave alone" and a hidden tag can simply stay
+     * hidden — unlike the single-transaction picker, which saves the full set
+     * of checked boxes and so must keep showing a hidden tag already carried.
+     */
+    async showBulkTagsModal() {
+        if (this.selectedTransactions.size === 0) {
+            return;
+        }
+
+        const modal = document.getElementById('bulk-tags-modal');
+        const description = document.getElementById('bulk-tags-description');
+        const addContainer = document.getElementById('bulk-tags-add');
+        const removeContainer = document.getElementById('bulk-tags-remove');
+        if (!modal || !addContainer || !removeContainer) {
+            return;
+        }
+
+        if (description) {
+            description.textContent = n(
+                'budget',
+                'Add or remove tags on %n selected transaction. Tags you leave unchecked are not touched.',
+                'Add or remove tags on %n selected transactions. Tags you leave unchecked are not touched.',
+                this.selectedTransactions.size
+            );
+        }
+
+        const loading = `<span class="tag-picker-note">${t('budget', 'Loading...')}</span>`;
+        addContainer.innerHTML = loading;
+        removeContainer.innerHTML = loading;
+        modal.style.display = 'flex';
+
+        let globalTags = [];
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/tags/global'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (response.ok) {
+                globalTags = offerableTags(await response.json());
+            }
+        } catch (error) {
+            console.error('Failed to load global tags:', error);
+        }
+
+        if (globalTags.length === 0) {
+            const empty = `<span class="tag-picker-note">${t('budget', 'No tags available')}</span>`;
+            addContainer.innerHTML = empty;
+            removeContainer.innerHTML = empty;
+            return;
+        }
+
+        const renderOptions = (name) => globalTags.map(tag => `
+            <label class="tag-option">
+                <input type="checkbox" name="${name}" value="${tag.id}">
+                <span class="tag-badge" style="background-color: ${dom.escapeHtml(tag.color || '#666')}">
+                    ${dom.escapeHtml(tag.name)}
+                </span>
+            </label>
+        `).join('');
+
+        addContainer.innerHTML = renderOptions('bulk-tag-add');
+        removeContainer.innerHTML = renderOptions('bulk-tag-remove');
+
+        // Adding and removing the same tag in one pass is refused server-side,
+        // so checking one side clears the other rather than letting the user
+        // build a request that can only fail.
+        const clearOpposite = (source, target) => {
+            source.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    if (!checkbox.checked) return;
+                    const opposite = target.querySelector(`input[value="${checkbox.value}"]`);
+                    if (opposite) opposite.checked = false;
+                });
+            });
+        };
+        clearOpposite(addContainer, removeContainer);
+        clearOpposite(removeContainer, addContainer);
+    }
+
+    async submitBulkTags() {
+        const checkedValues = (containerId) => Array.from(
+            document.querySelectorAll(`#${containerId} input[type="checkbox"]:checked`)
+        ).map(cb => parseInt(cb.value));
+
+        const addTagIds = checkedValues('bulk-tags-add');
+        const removeTagIds = checkedValues('bulk-tags-remove');
+
+        if (addTagIds.length === 0 && removeTagIds.length === 0) {
+            showWarning(t('budget', 'Please select at least one tag to add or remove'));
+            return;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-tags'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({
+                    ids: Array.from(this.selectedTransactions),
+                    addTagIds,
+                    removeTagIds
+                })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                showError(serverErrorMessage(result, t('budget', 'Failed to update tags')));
+                return;
+            }
+
+            if (result.success > 0) {
+                showSuccess(n('budget', 'Updated tags on %n transaction', 'Updated tags on %n transactions', result.success));
+                this.selectedTransactions.clear();
+                this.allMatchingSelection = null;
+                this.app.currentPage = 1;
+                this.app.loadTransactions();
+                document.getElementById('bulk-tags-modal').style.display = 'none';
+            }
+
+            if (result.failed > 0) {
+                showError(n('budget', 'Failed to update tags on %n transaction', 'Failed to update tags on %n transactions', result.failed));
+            }
+        } catch (error) {
+            console.error('Bulk tag update failed:', error);
+            showError(t('budget', 'Failed to update tags'));
         }
     }
 

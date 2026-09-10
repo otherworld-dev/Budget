@@ -1,2 +1,5 @@
 js/budget-app.js
 js/budget-app.js.map
+# Composer dependencies are third-party code - their strings belong to those
+# projects, not to Budget, and Weblate should never be asked to translate them.
+vendor

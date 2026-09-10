@@ -537,6 +537,44 @@ class TransactionControllerTest extends TestCase {
 		$this->assertStringContainsString('Invalid fields', $response->getData()['error']);
 	}
 
+	// ── bulkTags (#379) ─────────────────────────────────────────────
+
+	public function testBulkTagsReturnsResults(): void {
+		$results = ['success' => 2, 'failed' => 0, 'errors' => []];
+		$this->tagService->expects($this->once())
+			->method('bulkUpdateGlobalTags')
+			->with('user1', [1, 2], [10], [20])
+			->willReturn($results);
+
+		$response = $this->controller->bulkTags([1, 2], [10], [20]);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame($results, $response->getData());
+	}
+
+	public function testBulkTagsRejectsEmptyIds(): void {
+		$response = $this->controller->bulkTags([], [10], []);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('No transaction IDs provided', $response->getData()['error']);
+	}
+
+	public function testBulkTagsRejectsWhenNoTagsGiven(): void {
+		$response = $this->controller->bulkTags([1], [], []);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('No tags provided', $response->getData()['error']);
+	}
+
+	public function testBulkTagsSurfacesServiceRejectionAsBadRequest(): void {
+		$this->tagService->method('bulkUpdateGlobalTags')
+			->willThrowException(new \Exception('Only global tags can be applied in bulk'));
+
+		$response = $this->controller->bulkTags([1], [10], []);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
 	// ── getSplits ───────────────────────────────────────────────────
 
 	public function testGetSplitsReturnsSplits(): void {
