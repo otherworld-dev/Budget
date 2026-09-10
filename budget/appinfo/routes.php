@@ -64,6 +64,7 @@ return [
         ['name' => 'transaction#bulkReconcile', 'url' => '/api/transactions/bulk-reconcile', 'verb' => 'POST'],
         ['name' => 'transaction#bulkEdit', 'url' => '/api/transactions/bulk-edit', 'verb' => 'POST'],
         ['name' => 'transaction#bulkTags', 'url' => '/api/transactions/bulk-tags', 'verb' => 'POST'],
+        ['name' => 'transaction#bulkTagOptions', 'url' => '/api/transactions/bulk-tag-options', 'verb' => 'POST'],
         ['name' => 'transaction#duplicates', 'url' => '/api/transactions/duplicates', 'verb' => 'GET'],
         ['name' => 'transaction#show', 'url' => '/api/transactions/{id}', 'verb' => 'GET'],
         ['name' => 'transaction#update', 'url' => '/api/transactions/{id}', 'verb' => 'PUT'],

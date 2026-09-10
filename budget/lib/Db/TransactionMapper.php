@@ -172,19 +172,24 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
-     * Narrow a caller-supplied set of transaction IDs to the ones the user
-     * actually owns, preserving the caller's order.
+     * Map a caller-supplied set of transaction IDs to the categories of the
+     * ones the user actually owns.
      *
-     * Bulk actions receive their IDs from the client, and "select all
-     * matching" materialises every matching ID browser-side -- so the list can
-     * run to thousands and must never be trusted. One scoped query beats
-     * find()-per-row; ids are chunked at 500 because old SQLite builds cap
-     * bound variables at 999.
+     * Bulk actions receive their IDs from the client, and "select all matching"
+     * materialises every matching ID browser-side -- so the list can run to
+     * thousands and must never be trusted. The keys of the result are the
+     * owned IDs (anything absent was not the user's), and the values gate
+     * category tags, which only apply to rows in the tag set's own category.
+     * A NULL value is a row with no category -- an uncategorised transaction,
+     * or a split parent, whose category is nulled when it is split.
+     *
+     * One scoped query beats find()-per-row; ids are chunked at 500 because
+     * old SQLite builds cap bound variables at 999.
      *
      * @param int[] $ids
-     * @return int[] The subset of $ids belonging to $userId
+     * @return array<int, int|null> transactionId => categoryId, owned rows only
      */
-    public function filterOwnedIds(array $ids, string $userId): array {
+    public function findOwnedCategoryIds(array $ids, string $userId): array {
         if (empty($ids)) {
             return [];
         }
@@ -192,20 +197,20 @@ class TransactionMapper extends QBMapper {
         $owned = [];
         foreach (array_chunk($ids, 500) as $chunk) {
             $qb = $this->db->getQueryBuilder();
-            $qb->select('t.id')
+            $qb->select('t.id', 't.category_id')
                 ->from($this->getTableName(), 't')
                 ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
                 ->where($qb->expr()->in('t.id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)))
                 ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
 
             $result = $qb->executeQuery();
-            foreach ($result->fetchAll(\PDO::FETCH_COLUMN) as $id) {
-                $owned[(int)$id] = true;
+            while ($row = $result->fetch()) {
+                $owned[(int)$row['id']] = isset($row['category_id']) ? (int)$row['category_id'] : null;
             }
             $result->closeCursor();
         }
 
-        return array_values(array_filter($ids, static fn(int $id): bool => isset($owned[$id])));
+        return $owned;
     }
 
     /**

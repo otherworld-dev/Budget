@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\TagMapper;
+use OCA\Budget\Db\TagSetMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionTag;
 use OCA\Budget\Db\TransactionTagMapper;
@@ -13,17 +14,20 @@ use OCP\IDBConnection;
 class TransactionTagService {
     private TransactionTagMapper $transactionTagMapper;
     private TagMapper $tagMapper;
+    private TagSetMapper $tagSetMapper;
     private TransactionMapper $transactionMapper;
     private IDBConnection $db;
 
     public function __construct(
         TransactionTagMapper $transactionTagMapper,
         TagMapper $tagMapper,
+        TagSetMapper $tagSetMapper,
         TransactionMapper $transactionMapper,
         IDBConnection $db
     ) {
         $this->transactionTagMapper = $transactionTagMapper;
         $this->tagMapper = $tagMapper;
+        $this->tagSetMapper = $tagSetMapper;
         $this->transactionMapper = $transactionMapper;
         $this->db = $db;
     }
@@ -70,13 +74,82 @@ class TransactionTagService {
     }
 
     /**
-     * Add and/or remove GLOBAL tags across many transactions at once (#379).
+     * What the bulk tag picker may offer for a given selection (#379).
      *
-     * Global-only is deliberate. A category tag is validated against the
-     * transaction's own category (see validateTagsForTransaction), so across a
-     * mixed selection it would legitimately apply to only some rows -- and
-     * half-applying that quietly is worse than refusing. Global tags carry no
-     * such constraint, so the operation is unambiguous for every selected row.
+     * Global tags always apply. A category tag only applies to rows in its tag
+     * set's own category, so only tag sets whose category actually appears in
+     * the selection are offered, each with the number of selected rows it
+     * covers -- the picker says "applies to 12 of 50" rather than leaving the
+     * user to guess. This has to be resolved server-side: a cross-page "select
+     * all matching" selection exists in the browser as ids and nothing else.
+     *
+     * @param int[] $transactionIds
+     * @return array{totalSelected: int, globalTags: array, tagSets: array, unaffectedCount: int}
+     */
+    public function getBulkTagOptions(string $userId, array $transactionIds): array {
+        $transactionIds = array_values(array_unique(array_map('intval', $transactionIds)));
+        $categoryByTransaction = $this->transactionMapper->findOwnedCategoryIds($transactionIds, $userId);
+
+        $countByCategory = [];
+        foreach ($categoryByTransaction as $categoryId) {
+            if ($categoryId !== null) {
+                $countByCategory[$categoryId] = ($countByCategory[$categoryId] ?? 0) + 1;
+            }
+        }
+
+        $globalTags = $this->tagMapper->findGlobal($userId);
+
+        $sets = empty($countByCategory)
+            ? []
+            : $this->tagSetMapper->findByCategoriesWithNames(array_keys($countByCategory), $userId);
+
+        $tagsBySet = empty($sets)
+            ? []
+            : $this->tagMapper->findByTagSets(array_map(static fn(array $s): int => $s['id'], $sets));
+
+        $tagSets = [];
+        $coveredCategories = [];
+        foreach ($sets as $set) {
+            $coveredCategories[$set['categoryId']] = true;
+            $tagSets[] = $set + [
+                'matchingCount' => $countByCategory[$set['categoryId']] ?? 0,
+                'tags' => array_values($tagsBySet[$set['id']] ?? []),
+            ];
+        }
+
+        // Rows no offered tag set covers: a category with no tag sets, or no
+        // category at all (uncategorised, or a split parent whose category is
+        // nulled when it is split).
+        $unaffected = 0;
+        foreach ($categoryByTransaction as $categoryId) {
+            if ($categoryId === null || !isset($coveredCategories[$categoryId])) {
+                $unaffected++;
+            }
+        }
+
+        return [
+            'totalSelected' => count($categoryByTransaction),
+            'globalTags' => array_values($globalTags),
+            'tagSets' => $tagSets,
+            'unaffectedCount' => $unaffected,
+        ];
+    }
+
+    /**
+     * Add and/or remove tags across many transactions at once (#379).
+     *
+     * Global tags apply to every selected row. A category tag applies only to
+     * the rows in its tag set's own category -- a tag set belongs to exactly
+     * one category, with no cascade to child categories -- so across a mixed
+     * selection it lands on a subset, and 'applied' reports how many rows each
+     * tag actually reached so the caller can say so rather than overclaim.
+     *
+     * A tag for a category NOT represented in the selection is refused
+     * outright: ticking it could only ever have been a mistake.
+     *
+     * Removal is deliberately NOT category-gated. Re-categorising a transaction
+     * leaves its old category tag on the row, and a gated removal would make
+     * that orphaned tag impossible to clear in bulk.
      *
      * Both directions are idempotent: adding a tag a row already carries is a
      * no-op, and removing one it does not carry is too.
@@ -84,32 +157,38 @@ class TransactionTagService {
      * @param int[] $transactionIds
      * @param int[] $addTagIds
      * @param int[] $removeTagIds
-     * @return array{success: int, failed: int, errors: array} Same shape as TransactionService::bulkEdit
-     * @throws \Exception If any tag is not a global tag owned by this user
+     * @return array{success: int, failed: int, errors: array, applied: array<int, int>}
+     * @throws \Exception If a tag is unknown, not the user's, or not available here
      */
-    public function bulkUpdateGlobalTags(string $userId, array $transactionIds, array $addTagIds, array $removeTagIds): array {
+    public function bulkUpdateTags(string $userId, array $transactionIds, array $addTagIds, array $removeTagIds): array {
         $transactionIds = array_values(array_unique(array_map('intval', $transactionIds)));
         $addTagIds = array_values(array_unique(array_map('intval', $addTagIds)));
         $removeTagIds = array_values(array_unique(array_map('intval', $removeTagIds)));
 
-        $contradictory = array_intersect($addTagIds, $removeTagIds);
-        if (!empty($contradictory)) {
+        if (!empty(array_intersect($addTagIds, $removeTagIds))) {
             throw new \Exception('A tag cannot be both added and removed');
         }
 
-        $this->assertGlobalTags(array_merge($addTagIds, $removeTagIds), $userId);
-
         // The id list comes from the browser, so scope it before writing.
-        $ownedIds = $this->transactionMapper->filterOwnedIds($transactionIds, $userId);
-        $ownedLookup = array_flip($ownedIds);
+        $categoryByTransaction = $this->transactionMapper->findOwnedCategoryIds($transactionIds, $userId);
+        $ownedIds = array_keys($categoryByTransaction);
 
-        $results = ['success' => count($ownedIds), 'failed' => 0, 'errors' => []];
+        $results = ['success' => count($ownedIds), 'failed' => 0, 'errors' => [], 'applied' => []];
         foreach ($transactionIds as $id) {
-            if (!isset($ownedLookup[$id])) {
+            if (!array_key_exists($id, $categoryByTransaction)) {
                 $results['failed']++;
                 $results['errors'][] = ['id' => $id, 'message' => 'Transaction not found'];
             }
         }
+
+        // Resolve each tag to the category it requires, or null for a global
+        // tag. Validation needs the selection's categories, so it runs even
+        // when nothing is owned -- a bad tag id is still a bad request.
+        $categoryByTag = $this->resolveTagCategories(
+            array_merge($addTagIds, $removeTagIds),
+            $userId,
+            array_values(array_unique(array_filter($categoryByTransaction, static fn($c) => $c !== null)))
+        );
 
         if (empty($ownedIds)) {
             return $results;
@@ -125,10 +204,17 @@ class TransactionTagService {
             $existing = $this->transactionTagMapper->findExistingTagIdsByTransaction($ownedIds, $addTagIds);
             $now = date('Y-m-d H:i:s');
 
-            foreach ($ownedIds as $transactionId) {
-                $alreadyTagged = $existing[$transactionId] ?? [];
-                foreach ($addTagIds as $tagId) {
-                    if (in_array($tagId, $alreadyTagged, true)) {
+            foreach ($addTagIds as $tagId) {
+                $results['applied'][$tagId] = 0;
+                $requiredCategory = $categoryByTag[$tagId];
+
+                foreach ($ownedIds as $transactionId) {
+                    if ($requiredCategory !== null && $categoryByTransaction[$transactionId] !== $requiredCategory) {
+                        continue;
+                    }
+                    $results['applied'][$tagId]++;
+
+                    if (in_array($tagId, $existing[$transactionId] ?? [], true)) {
                         continue;
                     }
                     $transactionTag = new TransactionTag();
@@ -144,15 +230,18 @@ class TransactionTagService {
     }
 
     /**
-     * Assert every id is a global tag (no tag set) owned by this user.
+     * Map each tag id to the category a row must be in for it to apply, or
+     * null when the tag is global and applies anywhere.
      *
      * @param int[] $tagIds
+     * @param int[] $selectionCategoryIds Categories present in the selection
+     * @return array<int, int|null>
      * @throws \Exception
      */
-    private function assertGlobalTags(array $tagIds, string $userId): void {
+    private function resolveTagCategories(array $tagIds, string $userId, array $selectionCategoryIds): array {
         $tagIds = array_values(array_unique($tagIds));
         if (empty($tagIds)) {
-            return;
+            return [];
         }
 
         $tags = $this->tagMapper->findByIds($tagIds);
@@ -160,11 +249,41 @@ class TransactionTagService {
             throw new \Exception('One or more tags do not exist');
         }
 
+        $tagSetIds = [];
         foreach ($tags as $tag) {
-            if ($tag->getTagSetId() !== null || $tag->getUserId() !== $userId) {
-                throw new \Exception('Only global tags can be applied in bulk');
+            if ($tag->getTagSetId() !== null) {
+                $tagSetIds[] = $tag->getTagSetId();
             }
         }
+
+        $categoryByTagSet = empty($tagSetIds)
+            ? []
+            : $this->tagSetMapper->findCategoryIdsForTagSets(array_values(array_unique($tagSetIds)), $userId);
+
+        $inSelection = array_flip($selectionCategoryIds);
+        $categoryByTag = [];
+
+        foreach ($tags as $tag) {
+            $tagSetId = $tag->getTagSetId();
+
+            if ($tagSetId === null) {
+                // Global tag: the user must own it, and it applies anywhere.
+                if ($tag->getUserId() !== $userId) {
+                    throw new \Exception('One or more tags are not available for this selection');
+                }
+                $categoryByTag[$tag->getId()] = null;
+                continue;
+            }
+
+            // Category tag: the set must be the user's, and its category must
+            // actually appear in the selection.
+            if (!isset($categoryByTagSet[$tagSetId]) || !isset($inSelection[$categoryByTagSet[$tagSetId]])) {
+                throw new \Exception('One or more tags are not available for this selection');
+            }
+            $categoryByTag[$tag->getId()] = $categoryByTagSet[$tagSetId];
+        }
+
+        return $categoryByTag;
     }
 
     /**

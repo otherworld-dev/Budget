@@ -844,7 +844,7 @@ class TransactionController extends Controller {
                 return new DataResponse(['error' => $this->l->t('No tags provided')], Http::STATUS_BAD_REQUEST);
             }
 
-            $results = $this->tagService->bulkUpdateGlobalTags(
+            $results = $this->tagService->bulkUpdateTags(
                 $this->getEffectiveUserId(),
                 array_map('intval', $ids),
                 array_map('intval', $addTagIds),
@@ -854,6 +854,33 @@ class TransactionController extends Controller {
             return new DataResponse($results);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to update transaction tags'), Http::STATUS_BAD_REQUEST);
+        }
+    }
+
+    /**
+     * What the bulk tag picker may offer for a selection (#379).
+     *
+     * A POST because the selection can be thousands of ids -- "select all
+     * matching" materialises every one browser-side -- which is far past what
+     * belongs in a query string. It reads rather than writes.
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function bulkTagOptions(array $ids): DataResponse {
+        try {
+            if (empty($ids)) {
+                return new DataResponse(['error' => $this->l->t('No transaction IDs provided')], Http::STATUS_BAD_REQUEST);
+            }
+
+            $options = $this->tagService->getBulkTagOptions(
+                $this->getEffectiveUserId(),
+                array_map('intval', $ids)
+            );
+
+            return new DataResponse($options);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to load tag options'), Http::STATUS_BAD_REQUEST);
         }
     }
 

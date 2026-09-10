@@ -4986,6 +4986,37 @@ button.danger:hover {
     font-size: 12px;
 }
 
+/* Bulk tag picker: one group per tag set, stacked. The groups carry their own
+   spacing, so the container is not itself a flex row of chips. */
+.bulk-tag-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.bulk-tag-groups .tag-set-selector:only-child .tag-set-label {
+    margin-bottom: 4px;
+}
+
+/* "applies to 12 of 50" next to a category tag set's name. */
+.tag-group-count {
+    color: var(--color-text-maxcontrast);
+    font-weight: normal;
+    text-transform: none;
+    letter-spacing: normal;
+    font-size: 11px;
+}
+
+.bulk-tags-unaffected:empty {
+    display: none;
+}
+
+.bulk-tags-unaffected {
+    color: var(--color-text-maxcontrast);
+    font-size: 12px;
+    margin-top: 4px;
+}
+
 .tag-option .tag-badge {
     color: white;
     padding: 4px 10px;

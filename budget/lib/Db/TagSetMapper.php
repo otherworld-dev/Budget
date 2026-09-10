@@ -67,6 +67,83 @@ class TagSetMapper extends QBMapper {
     }
 
     /**
+     * Tag sets for a set of categories, each carrying its category's name.
+     *
+     * The bulk tag picker groups by "Groceries -> Store", so it needs the
+     * category name alongside the set; findByCategory returns entities, which
+     * have no room for it. Categories are chunked at 500 for the same reason
+     * as every other bulk query -- a selection can span many of them and old
+     * SQLite builds cap bound variables at 999.
+     *
+     * @param int[] $categoryIds
+     * @return array<int, array{id: int, name: string, categoryId: int, categoryName: string}>
+     */
+    public function findByCategoriesWithNames(array $categoryIds, string $userId): array {
+        if (empty($categoryIds)) {
+            return [];
+        }
+
+        $sets = [];
+        foreach (array_chunk($categoryIds, 500) as $chunk) {
+            $qb = $this->db->getQueryBuilder();
+            $qb->select('ts.id', 'ts.name', 'ts.category_id')
+                ->selectAlias('c.name', 'category_name')
+                ->from($this->getTableName(), 'ts')
+                ->innerJoin('ts', 'budget_categories', 'c', 'ts.category_id = c.id')
+                ->where($qb->expr()->in('ts.category_id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)))
+                ->andWhere($qb->expr()->eq('c.user_id', $qb->createNamedParameter($userId)))
+                ->orderBy('c.name', 'ASC')
+                ->addOrderBy('ts.sort_order', 'ASC')
+                ->addOrderBy('ts.name', 'ASC');
+
+            $result = $qb->executeQuery();
+            while ($row = $result->fetch()) {
+                $sets[] = [
+                    'id' => (int)$row['id'],
+                    'name' => (string)$row['name'],
+                    'categoryId' => (int)$row['category_id'],
+                    'categoryName' => (string)$row['category_name'],
+                ];
+            }
+            $result->closeCursor();
+        }
+
+        return $sets;
+    }
+
+    /**
+     * Which category each of these tag sets belongs to.
+     *
+     * A tag set belongs to exactly one category -- there is no cascade to child
+     * categories -- so this is what decides whether a category tag may be
+     * applied to a given row.
+     *
+     * @param int[] $tagSetIds
+     * @return array<int, int> tagSetId => categoryId, for sets this user owns
+     */
+    public function findCategoryIdsForTagSets(array $tagSetIds, string $userId): array {
+        if (empty($tagSetIds)) {
+            return [];
+        }
+
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('ts.id', 'ts.category_id')
+            ->from($this->getTableName(), 'ts')
+            ->innerJoin('ts', 'budget_categories', 'c', 'ts.category_id = c.id')
+            ->where($qb->expr()->in('ts.id', $qb->createNamedParameter($tagSetIds, IQueryBuilder::PARAM_INT_ARRAY)))
+            ->andWhere($qb->expr()->eq('c.user_id', $qb->createNamedParameter($userId)));
+
+        $result = $qb->executeQuery();
+        $map = [];
+        while ($row = $result->fetch()) {
+            $map[(int)$row['id']] = (int)$row['category_id'];
+        }
+        $result->closeCursor();
+
+        return $map;
+    }
+
+    /**
      * Find all tag sets for a user (across all their categories)
      *
      * @return TagSet[]

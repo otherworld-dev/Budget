@@ -6970,13 +6970,15 @@ style('budget', 'budget-app');
         <form id="bulk-tags-form" aria-label="<?php p($l->t('Bulk tag form')); ?>">
             <div class="form-group">
                 <label id="bulk-tags-add-label"><?php p($l->t('Add these tags')); ?></label>
-                <div id="bulk-tags-add" class="tag-options" role="group" aria-labelledby="bulk-tags-add-label"></div>
+                <div id="bulk-tags-add" class="bulk-tag-groups" role="group" aria-labelledby="bulk-tags-add-label"></div>
             </div>
 
             <div class="form-group">
                 <label id="bulk-tags-remove-label"><?php p($l->t('Remove these tags')); ?></label>
-                <div id="bulk-tags-remove" class="tag-options" role="group" aria-labelledby="bulk-tags-remove-label"></div>
+                <div id="bulk-tags-remove" class="bulk-tag-groups" role="group" aria-labelledby="bulk-tags-remove-label"></div>
             </div>
+
+            <p id="bulk-tags-unaffected" class="form-text bulk-tags-unaffected"></p>
 
             <div class="modal-buttons">
                 <button type="button" class="primary" id="bulk-tags-submit-btn" aria-label="<?php p($l->t('Apply tag changes to selected transactions')); ?>"><?php p($l->t('Apply Tags')); ?></button>

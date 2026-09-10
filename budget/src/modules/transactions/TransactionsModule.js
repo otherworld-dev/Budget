@@ -1275,12 +1275,15 @@ export default class TransactionsModule {
     /**
      * Bulk tag editor (#379).
      *
-     * Global tags only — a category tag is validated against the transaction's
-     * own category, so across a mixed selection it would apply to only some of
-     * the selected rows, and the server refuses one for that reason.
+     * Global tags apply to every selected row. A category tag belongs to
+     * exactly one category, so it reaches only the rows in that category —
+     * which the picker states outright ("applies to 12 of 50") rather than
+     * leaving the user to discover afterwards. Which tag sets are even
+     * relevant can only be answered server-side: a cross-page "select all
+     * matching" selection exists here as a list of ids and nothing more.
      *
      * The two lists are add/remove deltas rather than a replace, so an
-     * unchecked tag means "leave alone" and a hidden tag can simply stay
+     * unchecked tag means "leave alone" and hidden tags can simply stay
      * hidden — unlike the single-transaction picker, which saves the full set
      * of checked boxes and so must keep showing a hidden tag already carried.
      */
@@ -1293,6 +1296,7 @@ export default class TransactionsModule {
         const description = document.getElementById('bulk-tags-description');
         const addContainer = document.getElementById('bulk-tags-add');
         const removeContainer = document.getElementById('bulk-tags-remove');
+        const unaffected = document.getElementById('bulk-tags-unaffected');
         if (!modal || !addContainer || !removeContainer) {
             return;
         }
@@ -1309,38 +1313,89 @@ export default class TransactionsModule {
         const loading = `<span class="tag-picker-note">${t('budget', 'Loading...')}</span>`;
         addContainer.innerHTML = loading;
         removeContainer.innerHTML = loading;
+        if (unaffected) unaffected.textContent = '';
         modal.style.display = 'flex';
 
-        let globalTags = [];
+        let options = { totalSelected: 0, globalTags: [], tagSets: [], unaffectedCount: 0 };
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/tags/global'), {
-                headers: { 'requesttoken': OC.requestToken }
+            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-tag-options'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({ ids: Array.from(this.selectedTransactions) })
             });
             if (response.ok) {
-                globalTags = offerableTags(await response.json());
+                options = await response.json();
             }
         } catch (error) {
-            console.error('Failed to load global tags:', error);
+            console.error('Failed to load bulk tag options:', error);
         }
 
-        if (globalTags.length === 0) {
+        const globalTags = offerableTags(options.globalTags || []);
+        const tagSets = (options.tagSets || [])
+            .map(set => ({ ...set, tags: offerableTags(set.tags || []) }))
+            .filter(set => set.tags.length > 0);
+
+        // Names for the "applied to 12 of 50" report after submitting.
+        this._bulkTagNames = new Map();
+        [globalTags, ...tagSets.map(s => s.tags)].forEach(tags => {
+            tags.forEach(tag => this._bulkTagNames.set(tag.id, tag.name));
+        });
+
+        if (globalTags.length === 0 && tagSets.length === 0) {
             const empty = `<span class="tag-picker-note">${t('budget', 'No tags available')}</span>`;
             addContainer.innerHTML = empty;
             removeContainer.innerHTML = empty;
             return;
         }
 
-        const renderOptions = (name) => globalTags.map(tag => `
-            <label class="tag-option">
-                <input type="checkbox" name="${name}" value="${tag.id}">
-                <span class="tag-badge" style="background-color: ${dom.escapeHtml(tag.color || '#666')}">
-                    ${dom.escapeHtml(tag.name)}
-                </span>
-            </label>
-        `).join('');
+        const group = (label, note, tags, name) => `
+            <div class="tag-set-selector">
+                <label class="tag-set-label">${dom.escapeHtml(label)}${note ? ` <span class="tag-group-count">${dom.escapeHtml(note)}</span>` : ''}</label>
+                <div class="tag-options">
+                    ${tags.map(tag => `
+                        <label class="tag-option">
+                            <input type="checkbox" name="${name}" value="${tag.id}">
+                            <span class="tag-badge" style="background-color: ${dom.escapeHtml(tag.color || '#666')}">
+                                ${dom.escapeHtml(tag.name)}
+                            </span>
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+        `;
 
-        addContainer.innerHTML = renderOptions('bulk-tag-add');
-        removeContainer.innerHTML = renderOptions('bulk-tag-remove');
+        const renderList = (name) => {
+            let html = '';
+            if (globalTags.length > 0) {
+                html += group(t('budget', 'Tags'), '', globalTags, name);
+            }
+            tagSets.forEach(set => {
+                const label = `${set.categoryName} → ${set.name}`;
+                const note = t('budget', 'applies to {count} of {total}', {
+                    count: set.matchingCount,
+                    total: options.totalSelected
+                });
+                html += group(label, note, set.tags, name);
+            });
+            return html;
+        };
+
+        addContainer.innerHTML = renderList('bulk-tag-add');
+        removeContainer.innerHTML = renderList('bulk-tag-remove');
+
+        if (unaffected) {
+            unaffected.textContent = options.unaffectedCount > 0
+                ? n(
+                    'budget',
+                    '%n selected transaction is in a category these tags do not cover.',
+                    '%n selected transactions are in categories these tags do not cover.',
+                    options.unaffectedCount
+                )
+                : '';
+        }
 
         // Adding and removing the same tag in one pass is refused server-side,
         // so checking one side clears the other rather than letting the user
@@ -1393,7 +1448,7 @@ export default class TransactionsModule {
             }
 
             if (result.success > 0) {
-                showSuccess(n('budget', 'Updated tags on %n transaction', 'Updated tags on %n transactions', result.success));
+                showSuccess(this.bulkTagSummary(result));
                 this.selectedTransactions.clear();
                 this.allMatchingSelection = null;
                 this.app.currentPage = 1;
@@ -1408,6 +1463,32 @@ export default class TransactionsModule {
             console.error('Bulk tag update failed:', error);
             showError(t('budget', 'Failed to update tags'));
         }
+    }
+
+    /**
+     * What to tell the user a bulk tag change actually did.
+     *
+     * A category tag only reaches the rows in its own category, so naming any
+     * tag that fell short keeps the message honest — saying "updated 50" when
+     * a tag reached 12 of them is a claim the user cannot check.
+     */
+    bulkTagSummary(result) {
+        const base = n(
+            'budget',
+            'Updated tags on %n transaction',
+            'Updated tags on %n transactions',
+            result.success
+        );
+
+        const names = this._bulkTagNames || new Map();
+        const partial = Object.entries(result.applied || {})
+            .filter(([tagId, count]) => count < result.success && names.has(parseInt(tagId)))
+            .map(([tagId, count]) => t('budget', '{tag} applied to {count} of them', {
+                tag: names.get(parseInt(tagId)),
+                count
+            }));
+
+        return partial.length > 0 ? `${base}. ${partial.join(' ')}` : base;
     }
 
     // Reconciliation

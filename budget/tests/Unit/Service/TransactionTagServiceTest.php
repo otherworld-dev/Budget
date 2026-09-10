@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Service;
 
 use OCA\Budget\Db\Tag;
 use OCA\Budget\Db\TagMapper;
+use OCA\Budget\Db\TagSetMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionTag;
@@ -21,18 +22,21 @@ class TransactionTagServiceTest extends TestCase {
     private TransactionTagService $service;
     private TransactionTagMapper $transactionTagMapper;
     private TagMapper $tagMapper;
+    private TagSetMapper $tagSetMapper;
     private TransactionMapper $transactionMapper;
     private IDBConnection $db;
 
     protected function setUp(): void {
         $this->transactionTagMapper = $this->createMock(TransactionTagMapper::class);
         $this->tagMapper = $this->createMock(TagMapper::class);
+        $this->tagSetMapper = $this->createMock(TagSetMapper::class);
         $this->transactionMapper = $this->createMock(TransactionMapper::class);
         $this->db = $this->createMock(IDBConnection::class);
 
         $this->service = new TransactionTagService(
             $this->transactionTagMapper,
             $this->tagMapper,
+            $this->tagSetMapper,
             $this->transactionMapper,
             $this->db
         );
@@ -161,7 +165,7 @@ class TransactionTagServiceTest extends TestCase {
         $this->assertEquals($expected, $result);
     }
 
-    // ===== bulkUpdateGlobalTags (#379) =====
+    // ===== bulkUpdateTags (#379) =====
 
     private function makeGlobalTag(int $id, string $userId = 'user1'): Tag {
         $tag = new Tag();
@@ -172,46 +176,64 @@ class TransactionTagServiceTest extends TestCase {
         return $tag;
     }
 
-    public function testBulkUpdateGlobalTagsRejectsCategoryScopedTag(): void {
-        $this->tagMapper->method('findByIds')->willReturn([10 => $this->makeTag(10, 3)]);
-
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('Only global tags can be applied in bulk');
-
-        $this->service->bulkUpdateGlobalTags('user1', [100], [10], []);
+    /** A tag belonging to $tagSetId, which the test binds to a category. */
+    private function makeSetTag(int $id, int $tagSetId): Tag {
+        $tag = new Tag();
+        $tag->setId($id);
+        $tag->setTagSetId($tagSetId);
+        $tag->setName("Set tag $id");
+        return $tag;
     }
 
-    public function testBulkUpdateGlobalTagsRejectsTagOwnedByAnotherUser(): void {
+    /** Stub the tag-set -> category binding that gates category tags. */
+    private function bindTagSets(array $tagSetIdToCategoryId, array $categoryNames = []): void {
+        $rows = [];
+        foreach ($tagSetIdToCategoryId as $tagSetId => $categoryId) {
+            $rows[] = [
+                'id' => $tagSetId,
+                'name' => "Set $tagSetId",
+                'categoryId' => $categoryId,
+                'categoryName' => $categoryNames[$categoryId] ?? "Category $categoryId",
+            ];
+        }
+        $this->tagSetMapper->method('findByCategoriesWithNames')->willReturn($rows);
+        $this->tagSetMapper->method('findCategoryIdsForTagSets')->willReturn($tagSetIdToCategoryId);
+    }
+
+    public function testBulkUpdateTagsRejectsTagOwnedByAnotherUser(): void {
         $this->tagMapper->method('findByIds')->willReturn([10 => $this->makeGlobalTag(10, 'someone-else')]);
+        $this->transactionMapper->method('findOwnedCategoryIds')->willReturn([100 => 5]);
 
         $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('Only global tags can be applied in bulk');
+        $this->expectExceptionMessage('One or more tags are not available for this selection');
 
-        $this->service->bulkUpdateGlobalTags('user1', [100], [10], []);
+        $this->service->bulkUpdateTags('user1', [100], [10], []);
     }
 
-    public function testBulkUpdateGlobalTagsRejectsUnknownTag(): void {
+    public function testBulkUpdateTagsRejectsUnknownTag(): void {
         $this->tagMapper->method('findByIds')->willReturn([10 => $this->makeGlobalTag(10)]);
+        $this->transactionMapper->method('findOwnedCategoryIds')->willReturn([100 => 5]);
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('One or more tags do not exist');
 
-        $this->service->bulkUpdateGlobalTags('user1', [100], [10, 20], []);
+        $this->service->bulkUpdateTags('user1', [100], [10, 20], []);
     }
 
-    public function testBulkUpdateGlobalTagsRejectsTagInBothAddAndRemove(): void {
+    public function testBulkUpdateTagsRejectsTagInBothAddAndRemove(): void {
         $this->tagMapper->method('findByIds')->willReturn([10 => $this->makeGlobalTag(10)]);
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('A tag cannot be both added and removed');
 
-        $this->service->bulkUpdateGlobalTags('user1', [100], [10], [10]);
+        $this->service->bulkUpdateTags('user1', [100], [10], [10]);
     }
 
-    public function testBulkUpdateGlobalTagsAddsOnlyWhereTagIsMissing(): void {
+    public function testBulkUpdateTagsAddsGlobalTagOnlyWhereMissing(): void {
         $this->tagMapper->method('findByIds')->willReturn([10 => $this->makeGlobalTag(10)]);
-        $this->transactionMapper->method('filterOwnedIds')->willReturn([100, 101, 102]);
-        // 101 already carries tag 10 — re-adding it must not duplicate the row.
+        $this->transactionMapper->method('findOwnedCategoryIds')
+            ->willReturn([100 => 5, 101 => 5, 102 => 9]);
+        // 101 already carries tag 10 - re-adding it must not duplicate the row.
         $this->transactionTagMapper->method('findExistingTagIdsByTransaction')->willReturn([101 => [10]]);
 
         $inserted = [];
@@ -222,52 +244,143 @@ class TransactionTagServiceTest extends TestCase {
             }
         );
 
-        $result = $this->service->bulkUpdateGlobalTags('user1', [100, 101, 102], [10], []);
+        $result = $this->service->bulkUpdateTags('user1', [100, 101, 102], [10], []);
 
         $this->assertSame([[100, 10], [102, 10]], $inserted);
         $this->assertSame(3, $result['success']);
-        $this->assertSame(0, $result['failed']);
+        // A global tag applies to every row, the one that already had it included.
+        $this->assertSame(3, $result['applied'][10]);
     }
 
-    public function testBulkUpdateGlobalTagsRemovesTagsFromOwnedTransactions(): void {
-        $this->tagMapper->method('findByIds')->willReturn([10 => $this->makeGlobalTag(10)]);
-        $this->transactionMapper->method('filterOwnedIds')->willReturn([100, 101]);
+    public function testBulkUpdateTagsAppliesCategoryTagOnlyToMatchingRows(): void {
+        $this->tagMapper->method('findByIds')->willReturn([30 => $this->makeSetTag(30, 7)]);
+        $this->bindTagSets([7 => 5]);
+        // Two rows in category 5, one in category 9.
+        $this->transactionMapper->method('findOwnedCategoryIds')
+            ->willReturn([100 => 5, 101 => 9, 102 => 5]);
+        $this->transactionTagMapper->method('findExistingTagIdsByTransaction')->willReturn([]);
 
+        $inserted = [];
+        $this->transactionTagMapper->method('insert')->willReturnCallback(
+            function (TransactionTag $tt) use (&$inserted) {
+                $inserted[] = $tt->getTransactionId();
+                return $tt;
+            }
+        );
+
+        $result = $this->service->bulkUpdateTags('user1', [100, 101, 102], [30], []);
+
+        $this->assertSame([100, 102], $inserted);
+        $this->assertSame(2, $result['applied'][30]);
+        $this->assertSame(3, $result['success']);
+    }
+
+    public function testBulkUpdateTagsSkipsUncategorisedRowsForCategoryTags(): void {
+        $this->tagMapper->method('findByIds')->willReturn([30 => $this->makeSetTag(30, 7)]);
+        $this->bindTagSets([7 => 5]);
+        // 101 is a split parent: splitting nulls the parent's category.
+        $this->transactionMapper->method('findOwnedCategoryIds')
+            ->willReturn([100 => 5, 101 => null]);
+        $this->transactionTagMapper->method('findExistingTagIdsByTransaction')->willReturn([]);
+
+        $inserted = [];
+        $this->transactionTagMapper->method('insert')->willReturnCallback(
+            function (TransactionTag $tt) use (&$inserted) {
+                $inserted[] = $tt->getTransactionId();
+                return $tt;
+            }
+        );
+
+        $result = $this->service->bulkUpdateTags('user1', [100, 101], [30], []);
+
+        $this->assertSame([100], $inserted);
+        $this->assertSame(1, $result['applied'][30]);
+    }
+
+    public function testBulkUpdateTagsRefusesCategoryTagForCategoryNotInSelection(): void {
+        $this->tagMapper->method('findByIds')->willReturn([30 => $this->makeSetTag(30, 7)]);
+        // Tag set 7 belongs to category 42, which nothing in the selection uses.
+        $this->bindTagSets([7 => 42]);
+        $this->transactionMapper->method('findOwnedCategoryIds')->willReturn([100 => 5, 101 => 9]);
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('One or more tags are not available for this selection');
+
+        $this->service->bulkUpdateTags('user1', [100, 101], [30], []);
+    }
+
+    public function testBulkUpdateTagsRemovesCategoryTagRegardlessOfRowCategory(): void {
+        $this->tagMapper->method('findByIds')->willReturn([30 => $this->makeSetTag(30, 7)]);
+        $this->bindTagSets([7 => 5]);
+        $this->transactionMapper->method('findOwnedCategoryIds')
+            ->willReturn([100 => 5, 101 => 9, 102 => null]);
+
+        // Removal is deliberately NOT category-gated: re-categorising a
+        // transaction leaves its old category tag on the row, and a gated
+        // removal would make that tag impossible to clear in bulk.
         $this->transactionTagMapper->expects($this->once())
             ->method('deleteByTransactionsAndTags')
-            ->with([100, 101], [10])
-            ->willReturn(2);
-        $this->transactionTagMapper->expects($this->never())->method('insert');
+            ->with([100, 101, 102], [30])
+            ->willReturn(1);
 
-        $result = $this->service->bulkUpdateGlobalTags('user1', [100, 101], [], [10]);
-
-        $this->assertSame(2, $result['success']);
+        $this->service->bulkUpdateTags('user1', [100, 101, 102], [], [30]);
     }
 
-    public function testBulkUpdateGlobalTagsCountsUnownedTransactionsAsFailed(): void {
+    public function testBulkUpdateTagsCountsUnownedTransactionsAsFailed(): void {
         $this->tagMapper->method('findByIds')->willReturn([10 => $this->makeGlobalTag(10)]);
         // 999 belongs to somebody else, so the scoping query drops it.
-        $this->transactionMapper->method('filterOwnedIds')->willReturn([100]);
+        $this->transactionMapper->method('findOwnedCategoryIds')->willReturn([100 => 5]);
         $this->transactionTagMapper->method('findExistingTagIdsByTransaction')->willReturn([]);
         $this->transactionTagMapper->method('insert')->willReturnArgument(0);
 
-        $result = $this->service->bulkUpdateGlobalTags('user1', [100, 999], [10], []);
+        $result = $this->service->bulkUpdateTags('user1', [100, 999], [10], []);
 
         $this->assertSame(1, $result['success']);
         $this->assertSame(1, $result['failed']);
         $this->assertSame(999, $result['errors'][0]['id']);
     }
 
-    public function testBulkUpdateGlobalTagsSkipsWorkWhenNothingIsOwned(): void {
+    public function testBulkUpdateTagsSkipsWorkWhenNothingIsOwned(): void {
         $this->tagMapper->method('findByIds')->willReturn([10 => $this->makeGlobalTag(10)]);
-        $this->transactionMapper->method('filterOwnedIds')->willReturn([]);
+        $this->transactionMapper->method('findOwnedCategoryIds')->willReturn([]);
 
         $this->transactionTagMapper->expects($this->never())->method('deleteByTransactionsAndTags');
         $this->transactionTagMapper->expects($this->never())->method('insert');
 
-        $result = $this->service->bulkUpdateGlobalTags('user1', [999], [], [10]);
+        $result = $this->service->bulkUpdateTags('user1', [999], [], [10]);
 
         $this->assertSame(0, $result['success']);
         $this->assertSame(1, $result['failed']);
+    }
+
+    // ===== getBulkTagOptions (#379) =====
+
+    public function testGetBulkTagOptionsOffersOnlyTagSetsInTheSelection(): void {
+        $this->transactionMapper->method('findOwnedCategoryIds')
+            ->willReturn([100 => 5, 101 => 5, 102 => 9, 103 => null]);
+        $this->tagMapper->method('findGlobal')->willReturn([$this->makeGlobalTag(10)]);
+        $this->bindTagSets([7 => 5], [5 => 'Groceries']);
+        $this->tagMapper->method('findByTagSets')->willReturn([7 => [$this->makeSetTag(30, 7)]]);
+
+        $options = $this->service->getBulkTagOptions('user1', [100, 101, 102, 103]);
+
+        $this->assertSame(4, $options['totalSelected']);
+        $this->assertCount(1, $options['globalTags']);
+        $this->assertCount(1, $options['tagSets']);
+        $this->assertSame('Groceries', $options['tagSets'][0]['categoryName']);
+        $this->assertSame(2, $options['tagSets'][0]['matchingCount']);
+    }
+
+    public function testGetBulkTagOptionsCountsRowsNoCategoryTagCovers(): void {
+        // 102 is in a category with no tag set; 103 is a split (no category).
+        $this->transactionMapper->method('findOwnedCategoryIds')
+            ->willReturn([100 => 5, 101 => 5, 102 => 9, 103 => null]);
+        $this->tagMapper->method('findGlobal')->willReturn([]);
+        $this->bindTagSets([7 => 5]);
+        $this->tagMapper->method('findByTagSets')->willReturn([7 => [$this->makeSetTag(30, 7)]]);
+
+        $options = $this->service->getBulkTagOptions('user1', [100, 101, 102, 103]);
+
+        $this->assertSame(2, $options['unaffectedCount']);
     }
 }
