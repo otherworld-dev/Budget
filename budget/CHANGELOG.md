@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.51.0] - 2026-09-11
 
 ### Added
 - **Accounts can be deleted in bulk.** Tick the accounts you want gone and delete them in one go, from either the tile or the list view. This existed for transactions and categories but never for accounts, and the gap only really bites in the one situation that produces dozens of them at once - an import with the wrong column mapped to Account, which creates one account per distinct value in that column. Deleting those one at a time also ran into the delete endpoint's rate limit of ten calls a minute, and an account that still holds transactions costs two of them, so the clean-up stalled about five accounts in. The whole selection now goes in a single request. The destructive half is kept a separate decision: the first confirmation removes only the accounts that are already empty, and anything still holding transactions is kept back and asked about in a second dialog that names those accounts and totals their transactions, so nothing with history in it is deleted by a click meant for an empty account. Closed accounts can be selected too ([#381](https://github.com/otherworld-dev/Budget/issues/381))
