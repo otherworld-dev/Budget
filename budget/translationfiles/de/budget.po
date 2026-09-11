@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-11 01:15+0000\n"
-"PO-Revision-Date: 2026-09-09 19:51+0000\n"
+"PO-Revision-Date: 2026-09-11 11:12+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2026.9.1\n"
+"X-Generator: Weblate 2026.10.dev0\n"
 
 #: /app/lib/Controller/AccountController.php:82
 #: /app/lib/Controller/ApiV1AccountController.php:56
@@ -140,17 +140,13 @@ msgid "Failed to update account"
 msgstr "Konto konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/AccountController.php:533
-#, fuzzy
-#| msgid "No transaction IDs provided"
 msgid "No account IDs provided"
-msgstr "Keine Buchungs-ID bereitgestellt"
+msgstr "Keine Konto-IDs angegeben"
 
 #: /app/lib/Controller/AccountController.php:586
 #: /app/src/modules/accounts/AccountsModule.js:788
-#, fuzzy
-#| msgid "Failed to delete account"
 msgid "Failed to delete accounts"
-msgstr "Fehler beim Löschen des Kontos"
+msgstr "Konten konnten nicht gelöscht werden"
 
 #: /app/lib/Controller/AccountController.php:648
 #: /app/src/modules/accounts/AccountsModule.js:3179
@@ -865,10 +861,8 @@ msgid "Frequency"
 msgstr "Häufigkeit"
 
 #: /app/lib/Controller/BillController.php:1093
-#, fuzzy
-#| msgid "Monthly Total"
 msgid "Annual Total"
-msgstr "Monatssumme"
+msgstr "Jahressumme"
 
 #: /app/lib/Controller/BillController.php:1117
 #: /app/lib/Controller/BillController.php:1193
@@ -889,10 +883,8 @@ msgid "Bills Calendar %s"
 msgstr "Rechnungskalender %s"
 
 #: /app/lib/Controller/BillController.php:1172
-#, fuzzy
-#| msgid "Manual"
 msgid "Annual"
-msgstr "Manuell"
+msgstr "Jährlich"
 
 #: /app/lib/Controller/BillController.php:1221
 msgid "Split template must have at least 2 splits"
@@ -1415,7 +1407,7 @@ msgstr "Fehler beim Verarbeiten des Imports"
 
 #: /app/lib/Controller/ImportController.php:255
 msgid "Unsupported character encoding"
-msgstr ""
+msgstr "Nicht unterstützte Zeichenkodierung"
 
 #: /app/lib/Controller/ImportController.php:268
 #: /app/src/modules/import/ImportModule.js:1056
@@ -3001,7 +2993,7 @@ msgstr "{file} wurde in deinen Dateien gespeichert."
 #. TRANSLATORS: {category} is replaced with the category name. Do NOT translate {category} — keep it exactly as-is.
 #: /app/lib/Notification/Notifier.php:468
 msgid "Approaching your {category} budget"
-msgstr ""
+msgstr "Dein Budget für {category} ist fast ausgeschöpft"
 
 #. TRANSLATORS: {category} is replaced with the category name. Do NOT translate {category} — keep it exactly as-is.
 #: /app/lib/Notification/Notifier.php:471
@@ -3013,6 +3005,8 @@ msgstr "{category} liegt über dem Budget"
 msgid ""
 "You have spent {spent} of your {budget} budget ({percent}%% of the limit)."
 msgstr ""
+"Du hast {spent} von deinem Budget von {budget} ausgegeben ({percent}%% des "
+"Limits)."
 
 #: /app/lib/Notification/Notifier.php:502
 #, fuzzy
@@ -3022,7 +3016,7 @@ msgstr "Aktueller Kontostand kann nicht negativ sein"
 
 #: /app/lib/Notification/Notifier.php:506
 msgid "Your projected balance falls to {balance} in {month}."
-msgstr ""
+msgstr "Dein prognostizierter Kontostand fällt im {month} auf {balance}."
 
 #: /app/lib/Search/TransactionSearchProvider.php:39
 #, fuzzy
@@ -3036,6 +3030,9 @@ msgid ""
 "This account still has a balance of %1$s. Record the closing withdrawal, or "
 "adjust the opening balance so it reads zero, then close it."
 msgstr ""
+"Dieses Konto hat noch einen Kontostand von %1$s. Erfasse die abschließende "
+"Auszahlung oder passe den Eröffnungssaldo so an, dass der Kontostand null "
+"beträgt. Anschließend kannst du das Konto schließen."
 
 #: /app/lib/Service/AccountClosureService.php:69
 #, fuzzy
@@ -5815,10 +5812,6 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: /app/src/modules/accounts/AccountsModule.js:743
-#, fuzzy
-#| msgid ""
-#| "Are you sure you want to delete this account? This action cannot be "
-#| "undone."
 msgid ""
 "%n account still has transactions: {names}. Delete it along with its {rows} "
 "transaction(s)? This cannot be undone."
@@ -5826,19 +5819,18 @@ msgid_plural ""
 "%n accounts still have transactions: {names}. Delete them along with their "
 "{rows} transaction(s)? This cannot be undone."
 msgstr[0] ""
-"Möchtest du dieses Konto wirklich löschen? Diese Aktion kann nicht "
-"rückgängig gemacht werden."
+"%n Konto enthält noch Transaktionen: {names}. Soll es zusammen mit {rows} "
+"Transaktion(en) gelöscht werden? Dies kann nicht rückgängig gemacht werden."
 msgstr[1] ""
-"Möchtest du dieses Konto wirklich löschen? Diese Aktion kann nicht "
-"rückgängig gemacht werden."
+"%n Konten enthalten noch Transaktionen: {names}. Sollen sie zusammen mit "
+"{rows} Transaktion(en) gelöscht werden? Dies kann nicht rückgängig gemacht "
+"werden."
 
 #: /app/src/modules/accounts/AccountsModule.js:761
-#, fuzzy
-#| msgid "{count} duplicate transactions removed"
 msgid "%n account and {count} transaction(s) deleted"
 msgid_plural "%n accounts and {count} transaction(s) deleted"
-msgstr[0] "{count} doppelte Transaktionen entfernt"
-msgstr[1] "{count} doppelte Transaktionen entfernt"
+msgstr[0] "%n Konto und {count} Transaktion(en) gelöscht"
+msgstr[1] "%n Konten und {count} Transaktion(en) gelöscht"
 
 #: /app/src/modules/accounts/AccountsModule.js:764
 #, fuzzy
@@ -9097,12 +9089,10 @@ msgid "{count} transfer rows will be skipped"
 msgstr ""
 
 #: /app/src/modules/import/ImportModule.js:1687
-#, fuzzy
-#| msgid "Please map at least one account"
 msgid "This import will create %n new account"
 msgid_plural "This import will create %n new accounts"
-msgstr[0] "Bitte ordne mindestens ein Konto zu"
-msgstr[1] "Bitte ordne mindestens ein Konto zu"
+msgstr[0] "Dieser Import erstellt %n neues Konto"
+msgstr[1] "Dieser Import erstellt %n neue Konten"
 
 #: /app/src/modules/import/ImportModule.js:1696
 msgid ""
@@ -11560,10 +11550,8 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:1378
-#, fuzzy
-#| msgid "Page {current} of {total}"
 msgid "applies to {count} of {total}"
-msgstr "Seite {current} von {total}"
+msgstr "gilt für {count} von {total}"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1394
 msgid "%n selected transaction is in a category these tags do not cover."
@@ -12711,10 +12699,8 @@ msgid "Please confirm"
 msgstr ""
 
 #: /app/src/utils/dialogs.js:253
-#, fuzzy
-#| msgid "Enter tag name:"
 msgid "Enter a value"
-msgstr "Schlagwortnamen eingeben:"
+msgstr "Wert eingeben"
 
 #: /app/src/utils/dialogs.js:255 /app/src/utils/dialogs.js:277
 msgid "OK"
@@ -13302,10 +13288,8 @@ msgid "Edit Fields..."
 msgstr "Felder bearbeiten..."
 
 #: /app/templates/index.php:1682
-#, fuzzy
-#| msgid "Tags"
 msgid "Tags..."
-msgstr "Schlagwörter"
+msgstr "Schlagwörter …"
 
 #: /app/templates/index.php:1697
 msgid "Account Reconciliation"
