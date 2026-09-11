@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-11 01:15+0000\n"
-"PO-Revision-Date: 2026-09-11 11:12+0000\n"
+"PO-Revision-Date: 2026-09-12 01:18+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -950,17 +950,13 @@ msgstr ""
 
 #: /app/lib/Controller/CalendarFeedController.php:94
 #: /app/src/modules/bills/BillsModule.js:1160
-#, fuzzy
-#| msgid "Failed to get balances"
 msgid "Failed to get calendar feed"
-msgstr "Salden konnten nicht abgerufen werden"
+msgstr "Kalender-Feed konnte nicht abgerufen werden"
 
 #: /app/lib/Controller/CalendarFeedController.php:108
 #: /app/src/modules/bills/BillsModule.js:1211
-#, fuzzy
-#| msgid "Failed to generate bills calendar"
 msgid "Failed to regenerate calendar feed token"
-msgstr "Fehler beim Erstellen des Rechnungskalenders"
+msgstr "Token für den Kalender-Feed konnte nicht neu erstellt werden"
 
 #: /app/lib/Controller/CategoryController.php:129
 msgid "Failed to retrieve category tree"
@@ -1014,23 +1010,16 @@ msgstr ""
 "vierteljährlich sein"
 
 #: /app/lib/Controller/CategoryController.php:326
-#, fuzzy
-#| msgid "Failed to delete category"
 msgid "Failed to update category"
-msgstr "Das Löschen der Kategorie schlug fehl"
+msgstr "Kategorie konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/CategoryController.php:352
-#, fuzzy
-#| msgid "Invalid year"
 msgid "Invalid position"
-msgstr "Ungültiges Jahr"
+msgstr "Ungültige Position"
 
 #: /app/lib/Controller/CategoryController.php:360
-#, fuzzy
-#| msgid "Shared categories cannot be moved or reordered"
 msgid "Shared categories cannot be nested"
-msgstr ""
-"Freigegebene Kategorien können nicht verschoben oder neu angeordnet werden"
+msgstr "Geteilte Kategorien können nicht verschachtelt werden"
 
 #: /app/lib/Controller/CategoryController.php:366
 #: /app/lib/Controller/CategoryController.php:368
@@ -1044,23 +1033,17 @@ msgid "Only the category owner can delete it"
 msgstr "Nur der Eigentümer der Kategorie kann das löschen"
 
 #: /app/lib/Controller/CategoryController.php:424
-#, fuzzy
-#| msgid "Failed to save column preferences"
 msgid "Failed to load report preferences"
-msgstr "Spalteneinstellungen konnten nicht gespeichert werden"
+msgstr "Berichtseinstellungen konnten nicht geladen werden"
 
 #: /app/lib/Controller/CategoryController.php:440
-#, fuzzy
-#| msgid "Share not found"
 msgid "Category not found"
-msgstr "Aktie nicht gefunden"
+msgstr "Kategorie nicht gefunden"
 
 #: /app/lib/Controller/CategoryController.php:445
 #: /app/src/modules/categories/CategoriesModule.js:429
-#, fuzzy
-#| msgid "Failed to update import rule"
 msgid "Failed to update report preference"
-msgstr "Fehler beim Aktualisieren der Importregel"
+msgstr "Berichtseinstellung konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/CategoryController.php:462
 #: /app/lib/Controller/CategoryController.php:480
@@ -1075,42 +1058,30 @@ msgid "Invalid month format. Use YYYY-MM"
 msgstr "Ungültiges Monatsformat. Verwende YYYY-MM"
 
 #: /app/lib/Controller/CategoryController.php:558
-#, fuzzy
-#| msgid "Failed to delete snapshot"
 msgid "Failed to delete budget snapshot"
-msgstr "Momentaufnahme konnte nicht gelöscht werden"
+msgstr "Budget-Momentaufnahme konnte nicht gelöscht werden"
 
 #: /app/lib/Controller/CategoryController.php:571
-#, fuzzy
-#| msgid "Failed to retrieve snapshots"
 msgid "Failed to retrieve snapshot months"
-msgstr "Schnappschüsse konnten nicht abgerufen werden"
+msgstr "Momentaufnahmen für den Monat konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/CategoryController.php:600
-#, fuzzy
-#| msgid "Failed to retrieve categories"
 msgid "Failed to retrieve effective budgets"
-msgstr "Kategorien konnten nicht abgefragt werden"
+msgstr "Gültige Budgets konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/CategoryController.php:615
-#, fuzzy
-#| msgid "Failed to retrieve recurring income"
 msgid "Failed to retrieve recurring budgets"
-msgstr "Laufende Einnahmen konnten nicht abgerufen werden"
+msgstr "Wiederkehrende Budgets konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/CategoryController.php:633
-#, fuzzy
-#| msgid "Invalid regex pattern"
 msgid "Invalid budget period"
-msgstr "Ungültiger regex Ausdruck"
+msgstr "Ungültiger Budgetzeitraum"
 
 #: /app/lib/Controller/CategoryTransferController.php:64
 #: /app/src/modules/categories/CategoriesModule.js:1488
 #: /app/src/modules/categories/CategoriesModule.js:1501
-#, fuzzy
-#| msgid "Failed to retrieve categories"
 msgid "Failed to export categories"
-msgstr "Kategorien konnten nicht abgefragt werden"
+msgstr "Kategorien konnten nicht exportiert werden"
 
 #: /app/lib/Controller/CategoryTransferController.php:89
 #: /app/src/modules/categories/CategoriesModule.js:1529
@@ -3086,6 +3057,8 @@ msgid ""
 "This account is still used by %1$s. Reassign or deactivate them, then close "
 "it."
 msgstr ""
+"Dieses Konto wird noch von %1$s verwendet. Weise diese einem anderen Konto "
+"zu oder deaktiviere sie und schließe anschließend das Konto."
 
 #: /app/lib/Service/AccountClosureService.php:174
 #, php-format
@@ -3103,6 +3076,8 @@ msgstr ""
 #: /app/lib/Service/AccountService.php:278
 msgid "This page is out of date. Please reload it before editing this account."
 msgstr ""
+"Diese Seite ist nicht mehr aktuell. Bitte lade sie neu, bevor du dieses "
+"Konto bearbeitest."
 
 #: /app/lib/Service/BankSync/BankSyncService.php:184
 msgid ""
@@ -3140,6 +3115,7 @@ msgstr "Umbuchung erfordert ein Zielkonto"
 #: /app/lib/Service/BillService.php:85
 msgid "This amount type is only available for transfers to a credit card"
 msgstr ""
+"Dieser Betragstyp ist nur für Umbuchungen auf eine Kreditkarte verfügbar"
 
 #: /app/lib/Service/BillService.php:202
 #, fuzzy
@@ -3244,12 +3220,12 @@ msgstr "Keine Kategorien gefunden"
 
 #: /app/lib/Service/CategoryTransferService.php:147
 msgid "The file is not valid JSON"
-msgstr ""
+msgstr "Die Datei enthält kein gültiges JSON"
 
 #: /app/lib/Service/CategoryTransferService.php:287
 #, php-format
 msgid "Categories are nested deeper than %1$d levels"
-msgstr ""
+msgstr "Kategorien sind tiefer als %1$d Ebenen verschachtelt"
 
 #: /app/lib/Service/CategoryTransferService.php:303
 #, fuzzy
