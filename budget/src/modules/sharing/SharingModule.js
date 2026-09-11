@@ -7,6 +7,7 @@
  */
 import { translate as t } from '@nextcloud/l10n';
 import { showSuccess, showError } from '../../utils/notifications.js';
+import { confirmDialog } from '../../utils/dialogs.js';
 
 export default class SharingModule {
     constructor(app) {
@@ -429,7 +430,7 @@ export default class SharingModule {
     }
 
     async handleRevoke(shareId) {
-        if (!confirm(t('budget', 'Are you sure? The user will lose access to your budget.'))) return;
+        if (!await confirmDialog(t('budget', 'Are you sure? The user will lose access to your budget.'), { destructive: true })) return;
         try {
             await this.fetchApi(`/apps/budget/api/shares/${shareId}`, { method: 'DELETE' });
             showSuccess(t('budget', 'Share revoked'));
@@ -439,7 +440,7 @@ export default class SharingModule {
     }
 
     async handleLeave(shareId) {
-        if (!confirm(t('budget', 'Are you sure you want to leave this shared budget?'))) return;
+        if (!await confirmDialog(t('budget', 'Are you sure you want to leave this shared budget?'), { destructive: true })) return;
         try {
             await this.fetchApi(`/apps/budget/api/shares/${shareId}/leave`, { method: 'POST' });
             showSuccess(t('budget', 'Left shared budget — reloading your data'));

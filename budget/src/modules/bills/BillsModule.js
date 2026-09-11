@@ -5,6 +5,7 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { serverErrorMessage } from '../../utils/helpers.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
@@ -244,7 +245,7 @@ export default class BillsModule {
 
     async dismissAllBillSuggestions() {
         if (!this._billSuggestions?.length) return;
-        if (!confirm(t('budget', 'Dismiss all suggestions? They will not be shown again.'))) return;
+        if (!await confirmDialog(t('budget', 'Dismiss all suggestions? They will not be shown again.'))) return;
         try {
             for (const item of this._billSuggestions) {
                 await fetch(OC.generateUrl('/apps/budget/api/bills/suggestions/dismiss'), {
@@ -1122,7 +1123,7 @@ export default class BillsModule {
     }
 
     async deleteBill(billId) {
-        if (!confirm(t('budget', 'Are you sure you want to delete this bill?'))) {
+        if (!await confirmDialog(t('budget', 'Are you sure you want to delete this bill?'), { destructive: true })) {
             return;
         }
 
@@ -1196,7 +1197,7 @@ export default class BillsModule {
         });
 
         modal.querySelector('#calendar-feed-regenerate').addEventListener('click', async () => {
-            if (!confirm(t('budget', 'Regenerate the link? Existing calendar subscriptions will stop updating.'))) return;
+            if (!await confirmDialog(t('budget', 'Regenerate the link? Existing calendar subscriptions will stop updating.'))) return;
             try {
                 const response = await fetch(OC.generateUrl('/apps/budget/api/calendar-feed/regenerate'), {
                     method: 'POST',
@@ -1511,7 +1512,7 @@ export default class BillsModule {
             // changing a setting the user chose.
             message += '\n\n' + t('budget', 'Auto-pay is on for this bill — it may pay it again on the next run. Disable auto-pay first if the payment should not recur.');
         }
-        if (!confirm(message)) {
+        if (!await confirmDialog(message, { destructive: true })) {
             return;
         }
 
@@ -1544,7 +1545,7 @@ export default class BillsModule {
                 throw new Error('Bill not found');
             }
 
-            if (!confirm(t('budget', 'Skip this payment and advance to the next due date?'))) {
+            if (!await confirmDialog(t('budget', 'Skip this payment and advance to the next due date?'))) {
                 return;
             }
 

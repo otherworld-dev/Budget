@@ -1,5 +1,6 @@
 import './CriteriaBuilder.css';
 import { translate as t } from '@nextcloud/l10n';
+import { alertDialog } from '../../../utils/dialogs.js';
 import { formatAccountType } from '../../../utils/formatters';
 
 /**
@@ -371,7 +372,7 @@ export class CriteriaBuilder {
 			parent.conditions.splice(index, 1);
 			this.render();
 		} else {
-			alert(t('budget', 'Cannot remove the last condition from a group. Remove the group instead.'));
+			alertDialog(t('budget', 'Cannot remove the last condition from a group. Remove the group instead.'));
 		}
 	}
 

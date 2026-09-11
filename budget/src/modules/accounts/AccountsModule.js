@@ -4,9 +4,10 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { serverErrorMessage, downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES, hasSplitPortion, transactionDisplayAmount } from '../../utils/helpers.js';
-import { translate as t } from '@nextcloud/l10n';
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { openAccounts } from '../../utils/accounts.js';
 
 // Which account attributes are rendered in the accounts view (tiles + list).
@@ -470,9 +471,10 @@ export default class AccountsModule {
      */
     buildAccountRowColumns(attributes, order) {
         const visible = this.visibleAccountColumns(attributes, order);
+        // Leading 28px track is the bulk-selection checkbox (#381).
         return {
-            full: ['36px', ...visible.map(attr => attr.width), '80px'].join(' '),
-            mobile: ['36px', ...visible.filter(attr => attr.mobileWidth).map(attr => attr.mobileWidth), '70px'].join(' ')
+            full: ['28px', '36px', ...visible.map(attr => attr.width), '80px'].join(' '),
+            mobile: ['28px', '36px', ...visible.filter(attr => attr.mobileWidth).map(attr => attr.mobileWidth), '70px'].join(' ')
         };
     }
 
@@ -525,6 +527,7 @@ export default class AccountsModule {
 
         return `
             <div class="account-card${account.closed ? ' is-closed' : ''}" data-type="${accountType}" data-account-id="${accountId}">
+                ${this.renderAccountSelectCheckbox(accountId)}
                 <div class="account-card-header">
                     <div class="account-icon" style="background-color: ${typeInfo.color};">
                         <span class="${typeInfo.icon}" aria-hidden="true"></span>
@@ -604,6 +607,7 @@ export default class AccountsModule {
 
         return `
             <div class="account-row${account.closed ? ' is-closed' : ''}" data-type="${accountType}" data-account-id="${accountId}">
+                <div class="account-row-select">${this.renderAccountSelectCheckbox(accountId)}</div>
                 <div class="account-row-icon" style="background-color: ${typeInfo.color};">
                     <span class="${typeInfo.icon}" aria-hidden="true"></span>
                 </div>
@@ -618,6 +622,177 @@ export default class AccountsModule {
                 </div>
             </div>
         `;
+    }
+
+    // ============================================
+    // Bulk account selection (#381)
+    // ============================================
+
+    /**
+     * The tick box that puts an account in the bulk selection.
+     *
+     * Rendered into the markup rather than restored afterwards because both
+     * grids are rebuilt wholesale on every load — a box wired up after the
+     * fact would lose its state on the next refresh.
+     */
+    renderAccountSelectCheckbox(accountId) {
+        const checked = this.selectedAccountIds?.has(accountId) ? ' checked' : '';
+        return `<input type="checkbox" class="account-select-checkbox" data-account-id="${accountId}"
+                    aria-label="${t('budget', 'Select account')}"${checked}>`;
+    }
+
+    /**
+     * Wire the selection once, by delegation: the boxes themselves come and go
+     * with every render.
+     */
+    setupAccountsBulkActions() {
+        if (!this.selectedAccountIds) this.selectedAccountIds = new Set();
+
+        const view = document.getElementById('accounts-view');
+        if (view && !view._bulkWired) {
+            view._bulkWired = true;
+            view.addEventListener('change', (e) => {
+                const box = e.target.closest?.('.account-select-checkbox');
+                if (!box) return;
+                const id = parseInt(box.dataset.accountId);
+                if (box.checked) this.selectedAccountIds.add(id);
+                else this.selectedAccountIds.delete(id);
+                this.updateBulkAccountActions();
+            });
+        }
+
+        const deleteBtn = document.getElementById('accounts-bulk-delete-btn');
+        if (deleteBtn && !deleteBtn._bulkWired) {
+            deleteBtn._bulkWired = true;
+            deleteBtn.addEventListener('click', () => this.bulkDeleteAccounts());
+        }
+
+        const clearBtn = document.getElementById('accounts-clear-selection-btn');
+        if (clearBtn && !clearBtn._bulkWired) {
+            clearBtn._bulkWired = true;
+            clearBtn.addEventListener('click', () => this.clearAccountSelection());
+        }
+
+        this.updateBulkAccountActions();
+    }
+
+    updateBulkAccountActions() {
+        const toolbar = document.getElementById('accounts-bulk-toolbar');
+        const countSpan = document.getElementById('accounts-bulk-count');
+        const count = this.selectedAccountIds ? this.selectedAccountIds.size : 0;
+
+        if (toolbar) toolbar.style.display = count > 0 ? 'flex' : 'none';
+        if (countSpan) countSpan.textContent = n('budget', '%n selected', '%n selected', count);
+    }
+
+    clearAccountSelection() {
+        this.selectedAccountIds?.clear();
+        document.querySelectorAll('.account-select-checkbox').forEach(box => {
+            box.checked = false;
+        });
+        this.updateBulkAccountActions();
+    }
+
+    /**
+     * POST the whole selection in one request. Deliberately not a loop over the
+     * single-account endpoint: that is rate limited to 10 calls a minute and an
+     * account holding rows costs two of them, so clearing twenty would stall
+     * partway through with no way to tell what had gone.
+     */
+    _sendBulkAccountDelete(ids, deleteTransactions) {
+        return fetch(OC.generateUrl('/apps/budget/api/accounts/bulk-delete'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'requesttoken': OC.requestToken
+            },
+            body: JSON.stringify({ ids, deleteTransactions })
+        });
+    }
+
+    async bulkDeleteAccounts() {
+        const ids = [...(this.selectedAccountIds || [])];
+        if (ids.length === 0) return;
+
+        if (!await confirmDialog(
+            n('budget',
+                'Delete %n account? Accounts that still have transactions are kept back and asked about separately.',
+                'Delete %n accounts? Accounts that still have transactions are kept back and asked about separately.',
+                ids.length),
+            { destructive: true }
+        )) {
+            return;
+        }
+
+        try {
+            // First pass clears what is already empty and reports the rest.
+            let result = await this._readBulkResult(await this._sendBulkAccountDelete(ids, false));
+            let deleted = result.deleted.length;
+            let deletedTransactions = result.deletedTransactions || 0;
+            const errors = [...result.errors];
+
+            result.deleted.forEach(id => this.selectedAccountIds.delete(id));
+
+            // Second pass, asked as its own question: these accounts have
+            // ledgers, and the dialog names them and totals the rows rather
+            // than saying "some" of anything.
+            if (result.blocked.length > 0) {
+                const names = result.blocked.map(a => a.name).join(', ');
+                const rows = result.blocked.reduce((sum, a) => sum + (a.transactionCount || 0), 0);
+                const question = n('budget',
+                    '%n account still has transactions: {names}. Delete it along with its {rows} transaction(s)? This cannot be undone.',
+                    '%n accounts still have transactions: {names}. Delete them along with their {rows} transaction(s)? This cannot be undone.',
+                    result.blocked.length,
+                    { names, rows });
+
+                if (await confirmDialog(question, { destructive: true })) {
+                    const blockedIds = result.blocked.map(a => a.id);
+                    const second = await this._readBulkResult(await this._sendBulkAccountDelete(blockedIds, true));
+                    deleted += second.deleted.length;
+                    deletedTransactions += second.deletedTransactions || 0;
+                    errors.push(...second.errors);
+                    second.deleted.forEach(id => this.selectedAccountIds.delete(id));
+                }
+            }
+
+            if (deleted > 0) {
+                showSuccess(deletedTransactions > 0
+                    ? n('budget',
+                        '%n account and {count} transaction(s) deleted',
+                        '%n accounts and {count} transaction(s) deleted',
+                        deleted, { count: deletedTransactions })
+                    : n('budget', '%n account deleted', '%n accounts deleted', deleted));
+            }
+            if (errors.length > 0) {
+                showError(t('budget', 'Failed to delete: {errors}', {
+                    errors: errors.map(e => e.error).join(', ')
+                }));
+            }
+
+            await this.loadAccounts();
+            await this.loadInitialData();
+            this.updateBulkAccountActions();
+
+            if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                await this.app.loadDashboard();
+            }
+        } catch (error) {
+            console.error('Failed to delete accounts:', error);
+            showError(t('budget', 'Failed to delete accounts: {error}', { error: error.message }));
+        }
+    }
+
+    async _readBulkResult(response) {
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(serverErrorMessage(body, t('budget', 'Failed to delete accounts')));
+        }
+        return {
+            deleted: body.deleted || [],
+            blocked: body.blocked || [],
+            errors: body.errors || [],
+            deletedTransactions: body.deletedTransactions || 0,
+        };
     }
 
     getAccountsViewMode() {
@@ -920,8 +1095,10 @@ export default class AccountsModule {
     setupAccountCardClickHandlers() {
         document.querySelectorAll('.account-card, .account-row').forEach(el => {
             el.addEventListener('click', (e) => {
-                // Don't trigger if clicking on action buttons
-                if (e.target.closest('.account-actions, .account-row-actions, button')) {
+                // Don't trigger if clicking on action buttons, or on the bulk
+                // selection tick box — opening the account would replace this
+                // view and lose the selection being built up (#381).
+                if (e.target.closest('.account-actions, .account-row-actions, button, .account-select-checkbox')) {
                     return;
                 }
                 const accountId = parseInt(el.dataset.accountId);
@@ -1272,8 +1449,8 @@ export default class AccountsModule {
         }
     }
 
-    showAddRateChangeModal(accountId) {
-        const rate = prompt(t('budget', 'Enter new annual interest rate (%)'));
+    async showAddRateChangeModal(accountId) {
+        const rate = await promptDialog(t('budget', 'Enter new annual interest rate (%)'));
         if (rate === null) return;
 
         const rateFloat = parseFloat(rate);
@@ -1282,10 +1459,10 @@ export default class AccountsModule {
             return;
         }
 
-        const effectiveDate = prompt(t('budget', 'Effective date (YYYY-MM-DD)'), new Date().toISOString().split('T')[0]);
+        const effectiveDate = await promptDialog(t('budget', 'Effective date (YYYY-MM-DD)'), { defaultValue: new Date().toISOString().split('T')[0] });
         if (!effectiveDate) return;
 
-        const compounding = prompt(t('budget', 'Compounding frequency (daily, monthly, yearly, simple)'), 'daily');
+        const compounding = await promptDialog(t('budget', 'Compounding frequency (daily, monthly, yearly, simple)'), { defaultValue: 'daily' });
         if (!compounding || !['daily', 'monthly', 'yearly', 'simple'].includes(compounding)) {
             showError(t('budget', 'Invalid compounding frequency'));
             return;
@@ -2987,7 +3164,7 @@ export default class AccountsModule {
     }
 
     async deleteAccount(id) {
-        if (!confirm(t('budget', 'Are you sure you want to delete this account? This action cannot be undone.'))) {
+        if (!await confirmDialog(t('budget', 'Are you sure you want to delete this account? This action cannot be undone.'), { destructive: true })) {
             return;
         }
 
@@ -3002,10 +3179,10 @@ export default class AccountsModule {
                     throw new Error(body.error || t('budget', 'Failed to delete account'));
                 }
                 const count = body.transactionCount || 0;
-                const prompt = count > 0
+                const question = count > 0
                     ? t('budget', 'This account still has {count} transaction(s). Delete them along with the account? This cannot be undone.', { count })
                     : t('budget', 'This account still has transactions. Delete them along with the account? This cannot be undone.');
-                if (!confirm(prompt)) {
+                if (!await confirmDialog(question, { destructive: true })) {
                     return;
                 }
                 response = await this._sendAccountDelete(id, true);

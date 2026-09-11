@@ -5,6 +5,7 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { serverErrorMessage, isoWeekday } from '../../utils/helpers.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
@@ -529,7 +530,7 @@ export default class IncomeModule {
     }
 
     async deleteIncome(incomeId) {
-        if (!confirm(t('budget', 'Are you sure you want to delete this recurring income?'))) {
+        if (!await confirmDialog(t('budget', 'Are you sure you want to delete this recurring income?'), { destructive: true })) {
             return;
         }
 

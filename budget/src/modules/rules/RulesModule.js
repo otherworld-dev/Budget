@@ -6,6 +6,7 @@ import * as dom from '../../utils/dom.js';
 import { CriteriaBuilder } from './components/CriteriaBuilder.js';
 import { ActionBuilder } from './components/ActionBuilder.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { confirmDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { serverErrorMessage } from '../../utils/helpers.js';
 
@@ -1661,7 +1662,7 @@ export default class RulesModule {
     }
 
     async deleteRule(ruleId) {
-        if (!confirm(t('budget', 'Are you sure you want to delete this rule?'))) return;
+        if (!await confirmDialog(t('budget', 'Are you sure you want to delete this rule?'), { destructive: true })) return;
 
         try {
             const response = await fetch(OC.generateUrl(`/apps/budget/api/import-rules/${ruleId}`), {
@@ -1795,7 +1796,7 @@ export default class RulesModule {
             return;
         }
 
-        if (!confirm(t('budget', 'Run {count} active rules in group "{name}"?', { count: groupRules.length, name: groupName }))) {
+        if (!await confirmDialog(t('budget', 'Run {count} active rules in group "{name}"?', { count: groupRules.length, name: groupName }))) {
             return;
         }
 
@@ -1892,7 +1893,7 @@ export default class RulesModule {
         const resultsDiv = document.getElementById('apply-rules-results');
         const executeBtn = document.getElementById('execute-apply-rules-btn');
 
-        if (!confirm(t('budget', 'Apply rules to matching transactions? This will modify the selected transactions.'))) {
+        if (!await confirmDialog(t('budget', 'Apply rules to matching transactions? This will modify the selected transactions.'))) {
             return;
         }
 

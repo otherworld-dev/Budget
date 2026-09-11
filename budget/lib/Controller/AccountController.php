@@ -516,6 +516,78 @@ class AccountController extends Controller {
     }
 
     /**
+     * Delete several accounts at once (#381).
+     *
+     * Rate limited like destroy(), but one call covers the whole selection —
+     * which is the reason this endpoint exists rather than the client looping
+     * over destroy(). Called twice by the UI: once to take out the accounts
+     * that are already empty, then, if any came back blocked, again with
+     * deleteTransactions=true for just those.
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 10, period: 60)]
+    public function bulkDelete(array $ids, bool $deleteTransactions = false): DataResponse {
+        try {
+            if (empty($ids)) {
+                return new DataResponse(['error' => $this->l->t('No account IDs provided')], Http::STATUS_BAD_REQUEST);
+            }
+
+            // Checked up front for the whole selection: a refusal partway
+            // through would leave the user with a half-done delete and no way
+            // to tell which half.
+            $ids = array_map('intval', $ids);
+            foreach ($ids as $id) {
+                $this->requireWriteAccess('account', $id);
+            }
+
+            // Accounts may be shared, so each is deleted as its owner — the
+            // same resolution destroy() makes (#333/#334).
+            $names = [];
+            $byOwner = [];
+            foreach ($ids as $id) {
+                try {
+                    $account = $this->service->find($id, $this->getEffectiveUserId());
+                } catch (DoesNotExistException $e) {
+                    $account = $this->service->findById($id);
+                }
+                $ownerId = $account->getUserId();
+                if ($ownerId === null) {
+                    continue;
+                }
+                $names[$id] = $account->getName();
+                $byOwner[$ownerId][] = $id;
+            }
+
+            $results = ['deleted' => [], 'blocked' => [], 'errors' => [], 'deletedTransactions' => 0];
+            foreach ($byOwner as $ownerId => $ownerIds) {
+                $part = $this->service->bulkDelete((string) $ownerId, $ownerIds, $deleteTransactions);
+                $results['deleted'] = array_merge($results['deleted'], $part['deleted']);
+                $results['blocked'] = array_merge($results['blocked'], $part['blocked']);
+                $results['errors'] = array_merge($results['errors'], $part['errors']);
+                $results['deletedTransactions'] += $part['deletedTransactions'];
+            }
+
+            foreach ($results['deleted'] as $id) {
+                $this->auditService->logAccountDeleted($this->getEffectiveUserId(), $id, $names[$id] ?? (string) $id);
+            }
+            if ($results['deletedTransactions'] > 0) {
+                $this->auditService->log(
+                    $this->getEffectiveUserId(),
+                    AuditService::ACTION_BULK_OPERATION,
+                    AuditService::ENTITY_ACCOUNT,
+                    0,
+                    ['operation' => 'account_transactions_deleted', 'count' => $results['deletedTransactions']]
+                );
+            }
+
+            return new DataResponse($results);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to delete accounts'), Http::STATUS_BAD_REQUEST);
+        }
+    }
+
+    /**
      * @NoAdminRequired
      */
     #[UserRateLimit(limit: 10, period: 60)]

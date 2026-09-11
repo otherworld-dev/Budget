@@ -160,3 +160,32 @@ export function groupImportErrors(errors) {
 
     return [...groups.values()].sort((a, b) => b.count - a.count);
 }
+
+/**
+ * Undo the HTML escaping that t()/n() apply to interpolated values, for text
+ * surfaces that are not HTML.
+ *
+ * @nextcloud/l10n's translate() defaults to `escape: true`, so every {name} it
+ * substitutes comes back HTML-escaped — right for the many messages that end up
+ * in innerHTML, wrong for the two that do not. A dialog sets textContent and a
+ * toast sets textContent, so a category called "Food & Dining" was reaching the
+ * user as "Food &amp; Dining". That predates the in-app dialogs — window.confirm
+ * rendered the same mangled text — but it is squarely visible in them now.
+ *
+ * Handled here rather than by passing `{ escape: false }` at each call site:
+ * there are dozens of them, they all look correct as written, and a new one
+ * would reintroduce the bug with nothing to catch it. The entity set is exactly
+ * what `escape-html` emits, and &amp; is decoded last so "&amp;lt;" comes back
+ * as "&lt;" rather than "<".
+ *
+ * @param {string} text - A translated string, possibly carrying escaped values
+ * @returns {string} The same text as the user should actually read it
+ */
+export function plainText(text) {
+    return String(text ?? '')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, '&');
+}

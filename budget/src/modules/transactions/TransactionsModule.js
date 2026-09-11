@@ -13,6 +13,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import { serverErrorMessage, downloadTransactionsCsv } from '../../utils/helpers.js';
 import { openAccounts, pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
@@ -1064,7 +1065,7 @@ export default class TransactionsModule {
             message += '\n\n' + n('budget', '%n of these was auto-generated from bill payments. Deleting real payments will cause your balance to diverge from your bank statement.', '%n of these were auto-generated from bill payments. Deleting real payments will cause your balance to diverge from your bank statement.', billCount);
         }
 
-        if (!confirm(message)) {
+        if (!await confirmDialog(message, { destructive: true })) {
             return;
         }
 
@@ -1104,7 +1105,7 @@ export default class TransactionsModule {
             return;
         }
 
-        if (!confirm(n('budget', 'Are you sure you want to mark %n transaction as reconciled?', 'Are you sure you want to mark %n transactions as reconciled?', this.selectedTransactions.size))) {
+        if (!await confirmDialog(n('budget', 'Are you sure you want to mark %n transaction as reconciled?', 'Are you sure you want to mark %n transactions as reconciled?', this.selectedTransactions.size))) {
             return;
         }
 
@@ -1145,7 +1146,7 @@ export default class TransactionsModule {
             return;
         }
 
-        if (!confirm(n('budget', 'Are you sure you want to mark %n transaction as unreconciled?', 'Are you sure you want to mark %n transactions as unreconciled?', this.selectedTransactions.size))) {
+        if (!await confirmDialog(n('budget', 'Are you sure you want to mark %n transaction as unreconciled?', 'Are you sure you want to mark %n transactions as unreconciled?', this.selectedTransactions.size))) {
             return;
         }
 
@@ -1233,7 +1234,7 @@ export default class TransactionsModule {
             return;
         }
 
-        if (!confirm(n('budget', 'Are you sure you want to update %n transaction?', 'Are you sure you want to update %n transactions?', this.selectedTransactions.size))) {
+        if (!await confirmDialog(n('budget', 'Are you sure you want to update %n transaction?', 'Are you sure you want to update %n transactions?', this.selectedTransactions.size))) {
             return;
         }
 
@@ -1548,7 +1549,7 @@ export default class TransactionsModule {
 
             if (response.status === 409) {
                 const data = await response.json();
-                if (confirm(t('budget', 'A reconciliation is already in progress for this account. Resume it?'))) {
+                if (await confirmDialog(t('budget', 'A reconciliation is already in progress for this account. Resume it?'))) {
                     await this.enterReconcileSession(data.existing);
                 }
                 return;
@@ -1864,7 +1865,7 @@ export default class TransactionsModule {
 
     async cancelReconcileSession() {
         if (!this.reconcileSession) return;
-        if (!confirm(t('budget', 'Cancel this reconciliation? Ticked transactions will be released (nothing is marked reconciled).'))) {
+        if (!await confirmDialog(t('budget', 'Cancel this reconciliation? Ticked transactions will be released (nothing is marked reconciled).'))) {
             return;
         }
         const accountId = this.reconcileSession.session.accountId;
@@ -2828,7 +2829,7 @@ export default class TransactionsModule {
                     || existing.type !== type
                     || existing.accountId !== accountId
                     || existing.date !== date;
-                if (balanceChanged && !confirm(t('budget', 'This transaction was reconciled against a bank statement. Changing its amount, type, account or date will make past reconciliations no longer match. Continue?'))) {
+                if (balanceChanged && !await confirmDialog(t('budget', 'This transaction was reconciled against a bank statement. Changing its amount, type, account or date will make past reconciliations no longer match. Continue?'))) {
                     return;
                 }
             }
@@ -3471,7 +3472,7 @@ export default class TransactionsModule {
             message += '\n\n' + t('budget', 'This transaction funds a pension contribution. Deleting it will unlink it from that contribution (the contribution itself is kept).');
         }
 
-        if (!confirm(message)) {
+        if (!await confirmDialog(message, { destructive: true })) {
             return;
         }
 
@@ -3751,7 +3752,7 @@ export default class TransactionsModule {
     }
 
     async handleUnlinkTransaction(transactionId) {
-        if (!confirm(t('budget', 'Are you sure you want to unlink this transaction from its transfer pair?'))) {
+        if (!await confirmDialog(t('budget', 'Are you sure you want to unlink this transaction from its transfer pair?'))) {
             return;
         }
 
@@ -3985,7 +3986,7 @@ export default class TransactionsModule {
         const modal = document.getElementById('split-modal');
         const transactionId = parseInt(modal?.dataset.transactionId);
 
-        if (!confirm(t('budget', 'Are you sure you want to remove the split and revert to a single transaction?'))) {
+        if (!await confirmDialog(t('budget', 'Are you sure you want to remove the split and revert to a single transaction?'))) {
             return;
         }
 
@@ -5099,7 +5100,13 @@ export default class TransactionsModule {
 
         input.addEventListener('blur', (_e) => {
             setTimeout(() => {
-                if (cell.classList.contains('editing')) {
+                // isConnected, not just the class: closing the reconciled-edit
+                // dialog hands focus back to this input and the table then
+                // re-renders, detaching it. The blur that teardown fires would
+                // otherwise re-enter saveInlineEdit against a cell from a
+                // render that no longer exists — and raise the same dialog a
+                // second time, after the user had already answered it (#381).
+                if (cell.isConnected && cell.classList.contains('editing')) {
                     if (field === 'amount') {
                         const raw = parseFloat(input.value) || 0;
                         const type = raw < 0 ? 'debit' : 'credit';
@@ -5112,7 +5119,27 @@ export default class TransactionsModule {
         });
     }
 
+    /**
+     * Guard against being entered twice for the same cell (#381).
+     *
+     * The reconciled-edit warning is an in-app dialog now, and opening one
+     * moves focus off the editor — which fires the editor's own blur handler,
+     * which calls straight back in here 100ms later while the first call is
+     * still awaiting an answer. The user would be asked the same question
+     * twice and the edit saved twice. window.confirm() blocked the whole task,
+     * so the ordering used to work out by accident.
+     */
     async saveInlineEdit(cell, field, value, extra = {}) {
+        if (cell.dataset.inlineSaving === 'true') return;
+        cell.dataset.inlineSaving = 'true';
+        try {
+            return await this._saveInlineEdit(cell, field, value, extra);
+        } finally {
+            delete cell.dataset.inlineSaving;
+        }
+    }
+
+    async _saveInlineEdit(cell, field, value, extra = {}) {
         const transactionId = parseInt(cell.dataset.transactionId);
         const transaction = this.transactions.find(tx => tx.id === transactionId);
 
@@ -5122,7 +5149,7 @@ export default class TransactionsModule {
         }
 
         if (transaction.reconciled && ['amount', 'date', 'accountId'].includes(field)) {
-            if (!confirm(t('budget', 'This transaction was reconciled against a bank statement. Changing its amount, type, account or date will make past reconciliations no longer match. Continue?'))) {
+            if (!await confirmDialog(t('budget', 'This transaction was reconciled against a bank statement. Changing its amount, type, account or date will make past reconciliations no longer match. Continue?'))) {
                 this.cancelInlineEdit(cell);
                 return;
             }
@@ -5405,7 +5432,7 @@ export default class TransactionsModule {
             message += '\n\n' + n('budget', '%n of these was generated from bill payments. Make sure they are truly duplicates before deleting.', '%n of these were generated from bill payments. Make sure they are truly duplicates before deleting.', billCount);
         }
 
-        if (!confirm(message)) return;
+        if (!await confirmDialog(message, { destructive: true })) return;
 
         const deleteBtn = document.getElementById('duplicates-delete-btn');
         deleteBtn.disabled = true;

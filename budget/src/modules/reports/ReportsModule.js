@@ -6,6 +6,7 @@ import * as dom from '../../utils/dom.js';
 import Chart from 'chart.js/auto';
 import { SankeyController, Flow } from 'chartjs-chart-sankey';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import MultiSelect from '../../utils/multiselect.js';
@@ -371,7 +372,7 @@ export default class ReportsModule {
     }
 
     async saveCurrentReport() {
-        const name = window.prompt(t('budget', 'Name this report:'));
+        const name = await promptDialog(t('budget', 'Name this report:'));
         if (name === null) return;
         if (!name.trim()) {
             showWarning(t('budget', 'Please enter a name for the report'));
@@ -407,7 +408,7 @@ export default class ReportsModule {
         const id = select?.value;
         if (!id) return;
         const report = (this.savedReports || []).find(r => String(r.id) === id);
-        if (!confirm(t('budget', 'Delete saved report "{name}"?', { name: report?.name || '' }))) return;
+        if (!await confirmDialog(t('budget', 'Delete saved report "{name}"?', { name: report?.name || '' }), { destructive: true })) return;
         try {
             const response = await fetch(OC.generateUrl(`/apps/budget/api/reports/saved/${id}`), {
                 method: 'DELETE',

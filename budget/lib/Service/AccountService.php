@@ -158,6 +158,77 @@ class AccountService extends AbstractCrudService {
     }
 
     /**
+     * Delete several accounts in one request (#381).
+     *
+     * Exists as a server-side operation rather than a loop in the client
+     * because AccountController::destroy() is rate limited to 10 calls a
+     * minute: an account that still holds rows costs two of them, so clearing
+     * up the twenty-odd accounts a mis-mapped import leaves behind would stall
+     * a third of the way in. One bulk call is one slot.
+     *
+     * Two passes, matching the two questions the UI asks. With
+     * $deleteTransactions false only accounts that are already empty are
+     * removed; anything still holding rows comes back in `blocked` with its
+     * name and row count so the follow-up dialog can name what it is about to
+     * destroy. Passing true then clears those ledgers for real, through
+     * deleteWithTransactions() and so through TransactionService::delete() —
+     * never the mapper, which would orphan splits and attachments (#359).
+     *
+     * One bad id never abandons the rest: the point of the action is clearing
+     * up many at once, so failures are collected and reported per account.
+     *
+     * @param int[] $ids
+     * @return array{deleted: int[], blocked: array<array{id: int, name: string, transactionCount: int}>, errors: array<array{id: int, error: string}>, deletedTransactions: int}
+     */
+    public function bulkDelete(string $userId, array $ids, bool $deleteTransactions = false): array {
+        $deleted = [];
+        $blocked = [];
+        $errors = [];
+        $deletedTransactions = 0;
+
+        foreach ($ids as $id) {
+            $id = (int) $id;
+            try {
+                if ($deleteTransactions) {
+                    $deletedTransactions += $this->deleteWithTransactions($id, $userId);
+                } else {
+                    $this->delete($id, $userId);
+                }
+                $deleted[] = $id;
+            } catch (AccountInUseException $e) {
+                // Not an error — the expected outcome of the first pass, and
+                // the whole input to the question the client asks next.
+                $blocked[] = [
+                    'id' => $id,
+                    'name' => $this->accountNameOf($id, $userId),
+                    'transactionCount' => $e->getTransactionCount(),
+                ];
+            } catch (\Exception $e) {
+                $errors[] = ['id' => $id, 'error' => $e->getMessage()];
+            }
+        }
+
+        return [
+            'deleted' => $deleted,
+            'blocked' => $blocked,
+            'errors' => $errors,
+            'deletedTransactions' => $deletedTransactions,
+        ];
+    }
+
+    /**
+     * Name for a blocked account, falling back to its id so the dialog always
+     * has something to show even if the row has gone in the meantime.
+     */
+    private function accountNameOf(int $id, string $userId): string {
+        try {
+            return (string) $this->find($id, $userId)->getName();
+        } catch (\Exception $e) {
+            return (string) $id;
+        }
+    }
+
+    /**
      * Find an account by ID without user scoping.
      * Used for shared account access after permission has been verified.
      */

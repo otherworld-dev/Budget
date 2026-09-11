@@ -5,6 +5,7 @@ import { translate as t } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
 
 export default class SharedExpensesModule {
@@ -373,7 +374,7 @@ export default class SharedExpensesModule {
     }
 
     async deleteContact(id) {
-        if (!confirm(t('budget', 'Are you sure you want to delete this contact? This will also remove all shared expense records with them.'))) {
+        if (!await confirmDialog(t('budget', 'Are you sure you want to delete this contact? This will also remove all shared expense records with them.'), { destructive: true })) {
             return;
         }
 
@@ -643,7 +644,7 @@ export default class SharedExpensesModule {
     }
 
     async settleAllWithContact(contactId) {
-        if (!confirm(t('budget', 'This will mark all shared expenses with this contact as settled. Continue?'))) {
+        if (!await confirmDialog(t('budget', 'This will mark all shared expenses with this contact as settled. Continue?'))) {
             return;
         }
 

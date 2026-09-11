@@ -1134,6 +1134,21 @@ style('budget', 'budget-app');
             <!-- Currency conversion warning -->
             <div id="accounts-conversion-warning" class="conversion-warning" style="display: none;"></div>
 
+            <!-- Bulk selection (#381): clearing up a mis-mapped import one account at a time
+                 ran into the delete endpoint's rate limit long before the list was empty -->
+            <div id="accounts-bulk-toolbar" class="accounts-bulk-toolbar" style="display: none;">
+                <span id="accounts-bulk-count">0 selected</span>
+                <div class="bulk-actions">
+                    <button id="accounts-clear-selection-btn" class="secondary small">
+                        <?php p($l->t('Clear')); ?>
+                    </button>
+                    <button id="accounts-bulk-delete-btn" class="error small">
+                        <span class="icon-delete" aria-hidden="true"></span>
+                        <?php p($l->t('Delete')); ?>
+                    </button>
+                </div>
+            </div>
+
             <!-- Assets Section -->
             <div id="accounts-assets-section" class="accounts-section">
                 <div class="section-header-row">

@@ -7,6 +7,7 @@
  */
 import { translate as t } from '@nextcloud/l10n';
 import { showSuccess, showError } from '../../utils/notifications.js';
+import { confirmDialog } from '../../utils/dialogs.js';
 import * as dom from '../../utils/dom.js';
 
 export default class ExchangeRatesModule {
@@ -323,8 +324,8 @@ export default class ExchangeRatesModule {
         }
     }
 
-    confirmRemoveManualRate(currency) {
-        if (confirm(t('budget', 'Remove manual rate for {currency}? It will revert to the automatic rate.', { currency }))) {
+    async confirmRemoveManualRate(currency) {
+        if (await confirmDialog(t('budget', 'Remove manual rate for {currency}? It will revert to the automatic rate.', { currency }), { destructive: true })) {
             this.removeManualRate(currency);
         }
     }

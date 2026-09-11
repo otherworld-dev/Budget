@@ -23,8 +23,15 @@ vi.mock('../../src/utils/notifications.js', () => ({
     showInfo: vi.fn(),
 }));
 
+vi.mock('../../src/utils/dialogs.js', () => ({
+    confirmDialog: vi.fn(() => Promise.resolve(true)),
+    promptDialog: vi.fn(() => Promise.resolve(null)),
+    alertDialog: vi.fn(() => Promise.resolve()),
+}));
+
 import TransfersModule from '../../src/modules/transfers/TransfersModule.js';
 import { showSuccess, showError } from '../../src/utils/notifications.js';
+import { confirmDialog } from '../../src/utils/dialogs.js';
 
 const transfer = (overrides = {}) => ({
     id: 1,
@@ -51,14 +58,13 @@ beforeEach(() => {
         <div id="empty-transfers"></div>
     `;
     global.OC = { generateUrl: (u) => u, requestToken: 'tok' };
-    global.confirm = vi.fn(() => true);
+    confirmDialog.mockResolvedValue(true);
 });
 
 afterEach(() => {
     document.body.innerHTML = '';
     delete global.OC;
     delete global.fetch;
-    delete global.confirm;
     vi.clearAllMocks();
 });
 
@@ -117,13 +123,13 @@ describe('markTransferUnpaid', () => {
 
         await mod.markTransferUnpaid(5);
 
-        expect(global.confirm).toHaveBeenCalledWith(expect.stringContaining('unlinked'));
-        expect(global.confirm).toHaveBeenCalledWith(expect.stringContaining('Auto-pay is on for this bill'));
+        expect(confirmDialog.mock.calls[0][0]).toContain('unlinked');
+        expect(confirmDialog.mock.calls[0][0]).toContain('Auto-pay is on for this bill');
     });
 
     it('does nothing when the confirmation is declined', async () => {
         const mod = makeModule([transfer({ id: 5, canMarkUnpaid: true })]);
-        global.confirm = vi.fn(() => false);
+        confirmDialog.mockResolvedValue(false);
         global.fetch = vi.fn();
 
         await mod.markTransferUnpaid(5);

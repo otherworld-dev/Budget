@@ -20315,3 +20315,178 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     user-select: all;
     word-break: break-all;
 }
+
+/* ── In-app confirm / prompt / alert dialogs (#381) ──
+   Replaces window.confirm()/prompt()/alert(), which browsers can suppress for
+   the whole page after a few dialogs in a row — silently turning every
+   destructive action into a no-op. Sits above app modals (z-index 10000) and
+   below toasts (11000), so a toast raised by the confirmed action stays
+   readable. */
+
+.budget-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 10500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.5);
+    animation: budget-dialog-fade 0.15s ease;
+}
+
+@keyframes budget-dialog-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.budget-dialog-panel {
+    width: 100%;
+    max-width: 460px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 24px;
+    box-sizing: border-box;
+    background: var(--color-main-background, #fff);
+    color: var(--color-main-text, #222);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: var(--border-radius-large, 10px);
+    box-shadow: 0 10px 50px rgba(0, 0, 0, 0.25);
+    animation: budget-dialog-rise 0.15s ease;
+}
+
+@keyframes budget-dialog-rise {
+    from { transform: translateY(-8px); }
+    to { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .budget-dialog,
+    .budget-dialog-panel {
+        animation: none;
+    }
+}
+
+.budget-dialog-title {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--color-main-text, #222);
+}
+
+.budget-dialog-message p {
+    margin: 0 0 8px 0;
+    line-height: 1.5;
+    /* Names typed by the user land here — never let one blow out the panel. */
+    overflow-wrap: anywhere;
+}
+
+.budget-dialog-message p:last-child {
+    margin-bottom: 0;
+}
+
+.budget-dialog-input {
+    width: 100%;
+    margin-top: 14px;
+    padding: 8px;
+    box-sizing: border-box;
+    min-height: 44px;
+    font-size: 15px;
+    background: var(--color-main-background, #fff);
+    color: var(--color-main-text, #222);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: 3px;
+}
+
+.budget-dialog-input:focus {
+    outline: none;
+    border-color: var(--color-primary, #0082c9);
+    box-shadow: 0 0 0 2px var(--color-primary-light, #d6eaf8);
+}
+
+.budget-dialog-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 22px;
+}
+
+.budget-dialog .budget-dialog-btn {
+    min-height: 44px;
+    padding: 0 18px;
+}
+
+/* A literal red rather than a theme variable, because neither error variable
+   means "a red you can fill a button with" in both themes: --color-error is a
+   pale surface tint (#FFE7E7 light), and --color-error-text is a text colour
+   that inverts (#8A0000 light, #FFCCCC dark) — filling with it gave white on
+   pink in dark mode. Both checked live on the NC 30 dev instance. #b32d2e
+   holds ~6:1 against white on either panel background. */
+.budget-dialog .budget-dialog-btn--destructive {
+    background: #b32d2e;
+    border-color: #b32d2e;
+    color: #fff;
+}
+
+.budget-dialog .budget-dialog-btn--destructive:hover,
+.budget-dialog .budget-dialog-btn--destructive:focus {
+    background: #8f2424;
+    border-color: #8f2424;
+    color: #fff;
+}
+
+@media (max-width: 480px) {
+    .budget-dialog-buttons {
+        flex-direction: column-reverse;
+    }
+
+    .budget-dialog .budget-dialog-btn {
+        width: 100%;
+    }
+}
+
+/* ── Bulk account selection (#381) ── */
+
+.accounts-bulk-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    background: var(--color-primary-element-light);
+    border-radius: 6px;
+}
+
+.accounts-bulk-toolbar .bulk-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* The card is itself clickable, so the box needs its own hit area above it. */
+.account-card > .account-select-checkbox {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
+    width: 18px;
+    height: 18px;
+    min-height: 18px;
+    margin: 0;
+    cursor: pointer;
+}
+
+.account-row-select {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.account-row-select .account-select-checkbox {
+    width: 18px;
+    height: 18px;
+    min-height: 18px;
+    margin: 0;
+    cursor: pointer;
+}
+

@@ -5,6 +5,7 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { confirmDialog } from '../../utils/dialogs.js';
 import { initSingleDatePicker } from '../../utils/datepicker.js';
 import { serverErrorMessage, isoWeekday } from '../../utils/helpers.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
@@ -834,7 +835,7 @@ export default class TransfersModule {
     }
 
     async deleteTransfer(transferId) {
-        if (!confirm(t('budget', 'Are you sure you want to delete this transfer?'))) {
+        if (!await confirmDialog(t('budget', 'Are you sure you want to delete this transfer?'), { destructive: true })) {
             return;
         }
 
@@ -935,7 +936,7 @@ export default class TransfersModule {
         if (autoPayEnabled) {
             message += '\n\n' + t('budget', 'Auto-pay is on for this bill — it may pay it again on the next run. Disable auto-pay first if the payment should not recur.');
         }
-        if (!confirm(message)) {
+        if (!await confirmDialog(message, { destructive: true })) {
             return;
         }
 

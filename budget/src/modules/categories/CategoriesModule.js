@@ -4,6 +4,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { confirmDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import Chart from 'chart.js/auto';
 import { serverErrorMessage } from '../../utils/helpers.js';
@@ -1106,7 +1107,7 @@ export default class CategoriesModule {
 
         const categoryId = this.selectedCategory.id;
         const categoryName = this.selectedCategory.name;
-        if (!confirm(t('budget', 'Are you sure you want to delete the category "{name}"? This action cannot be undone.', { name: categoryName }))) {
+        if (!await confirmDialog(t('budget', 'Are you sure you want to delete the category "{name}"? This action cannot be undone.', { name: categoryName }), { destructive: true })) {
             return;
         }
 
@@ -1135,7 +1136,7 @@ export default class CategoriesModule {
         }
         const categoryName = category ? category.name : t('budget', 'this category');
 
-        if (!confirm(t('budget', 'Are you sure you want to delete "{name}"? This action cannot be undone.', { name: categoryName }))) {
+        if (!await confirmDialog(t('budget', 'Are you sure you want to delete "{name}"? This action cannot be undone.', { name: categoryName }), { destructive: true })) {
             return;
         }
 
@@ -1182,7 +1183,7 @@ export default class CategoriesModule {
         const reassignPrompt = t('budget', 'This category still has transactions assigned to it. Move them to Uncategorized and delete "{name}"?', { name: categoryName });
 
         let reassign = this._categoryOrDescendantsHaveTransactions(categoryId);
-        if (reassign && !confirm(reassignPrompt)) {
+        if (reassign && !await confirmDialog(reassignPrompt, { destructive: true })) {
             return { deleted: false, reassigned: false };
         }
 
@@ -1191,7 +1192,7 @@ export default class CategoriesModule {
         if (!reassign && response.status === 409) {
             const body = await response.json().catch(() => ({}));
             if (body.code === 'has_transactions') {
-                if (!confirm(reassignPrompt)) {
+                if (!await confirmDialog(reassignPrompt, { destructive: true })) {
                     return { deleted: false, reassigned: false };
                 }
                 reassign = true;
@@ -1235,7 +1236,7 @@ export default class CategoriesModule {
         const count = this.selectedCategoryIds.size;
         if (count === 0) return;
 
-        if (!confirm(n('budget', 'Are you sure you want to delete %n category? This action cannot be undone.', 'Are you sure you want to delete %n categories? This action cannot be undone.', count))) {
+        if (!await confirmDialog(n('budget', 'Are you sure you want to delete %n category? This action cannot be undone.', 'Are you sure you want to delete %n categories? This action cannot be undone.', count), { destructive: true })) {
             return;
         }
 

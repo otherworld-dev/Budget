@@ -3,6 +3,8 @@
  * Replaces deprecated OC.Notification.showTemporary()
  */
 
+import { plainText } from './helpers.js';
+
 const TOAST_TIMEOUT = 7000;
 
 function getContainer() {
@@ -20,7 +22,7 @@ function showToast(message, type) {
 
     const toast = document.createElement('div');
     toast.className = `budget-toast budget-toast-${type}`;
-    toast.textContent = message;
+    toast.textContent = plainText(message);
     toast.addEventListener('click', () => dismiss(toast));
 
     container.appendChild(toast);

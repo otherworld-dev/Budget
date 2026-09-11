@@ -5,6 +5,7 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { offerableTags } from '../../utils/tags.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
@@ -450,7 +451,7 @@ export default class SavingsModule {
     }
 
     async deleteGoal(goalId) {
-        if (!confirm(t('budget', 'Are you sure you want to delete this savings goal?'))) {
+        if (!await confirmDialog(t('budget', 'Are you sure you want to delete this savings goal?'), { destructive: true })) {
             return;
         }
 

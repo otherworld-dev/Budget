@@ -4,6 +4,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { serverErrorMessage, groupImportErrors } from '../../utils/helpers.js';
 import { openAccounts } from '../../utils/accounts.js';
@@ -620,7 +621,7 @@ export default class ImportModule {
     async renameTemplate(id) {
         const template = this.userTemplates.find(tpl => tpl.id === id);
         if (!template) return;
-        const newName = window.prompt(t('budget', 'New template name'), template.name);
+        const newName = await promptDialog(t('budget', 'New template name'), { defaultValue: template.name });
         if (newName === null) return;
         const name = newName.trim();
         if (!name || name === template.name) return;
@@ -647,7 +648,7 @@ export default class ImportModule {
     }
 
     async deleteTemplate(id) {
-        if (!confirm(t('budget', 'Are you sure you want to delete this import template?'))) return;
+        if (!await confirmDialog(t('budget', 'Are you sure you want to delete this import template?'), { destructive: true })) return;
 
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/import-templates/' + id), {
@@ -1570,6 +1571,7 @@ export default class ImportModule {
         document.getElementById('categorized-transactions').textContent = categorized;
 
         this.renderDirectionWarnings(result.directionWarnings);
+        this.renderAccountCreationWarning(result.accountsToCreate);
 
         // Show accounts to create for multi-account preset imports
         const accountsContainer = document.getElementById('accounts-to-create');
@@ -1632,6 +1634,77 @@ export default class ImportModule {
      * everything already in the account — the usual cause is an unmapped or
      * ignored type column, which is invisible until the balances drift (#333).
      */
+    /**
+     * Names that are really dates, for the account-creation warning below.
+     *
+     * Explicit shapes rather than Date.parse(), which accepts far too much —
+     * it reads "May" and "Sat" as dates and would flag a perfectly ordinary
+     * set of account names.
+     */
+    static ACCOUNT_NAME_DATE_PATTERNS = [
+        /^\d{4}-\d{1,2}-\d{1,2}$/,          // 2026-01-07
+        /^\d{1,2}\/\d{1,2}\/\d{2,4}$/,      // 07/01/2026
+        /^\d{1,2}\.\d{1,2}\.\d{2,4}$/,      // 07.01.2026
+        /^\d{1,2}-\d{1,2}-\d{2,4}$/,        // 07-01-2026
+        /^\d{4}\/\d{1,2}\/\d{1,2}$/,        // 2026/01/07
+    ];
+
+    /**
+     * Warn when a column mapping is about to create a pile of accounts (#381).
+     *
+     * Mapping the wrong column to Account creates one account per distinct
+     * value with nothing said about it, and a date column gives one per day.
+     * The preview already listed them, but as prose among the stats — which
+     * reads as information, not as a reason to go back and fix the mapping.
+     *
+     * Rendered as a direction warning, and in the same place, because it
+     * carries the same weight: it decides whether to import at all.
+     */
+    renderAccountCreationWarning(accountsToCreate) {
+        const WARN_ABOVE = 5;
+        // Most, not all: one genuinely date-named account among real ones
+        // should not accuse the user of mapping the wrong column.
+        const DATE_SHARE = 0.6;
+
+        let container = document.getElementById('import-account-warning');
+        const creating = (accountsToCreate || []).filter(a => !a.exists);
+
+        if (creating.length <= WARN_ABOVE) {
+            if (container) container.innerHTML = '';
+            return;
+        }
+
+        if (!container) {
+            const summarySection = document.querySelector('.import-summary');
+            if (!summarySection) return;
+            container = document.createElement('div');
+            container.id = 'import-account-warning';
+            // Ahead of the stats, like the direction warnings.
+            summarySection.prepend(container);
+        }
+
+        const headline = n('budget',
+            'This import will create %n new account',
+            'This import will create %n new accounts',
+            creating.length);
+
+        const dateLike = creating.filter(a =>
+            ImportModule.ACCOUNT_NAME_DATE_PATTERNS.some(re => re.test(String(a.name || '').trim()))
+        ).length;
+
+        const context = dateLike / creating.length >= DATE_SHARE
+            ? t('budget', 'The names look like dates, so the date column has probably been mapped to Account. Go back and check the column mapping - importing now would leave you an account per date to clean up.')
+            : t('budget', 'One account is created for every distinct value in the column mapped to Account. If that is more than you expected, go back and check the column mapping before importing.');
+
+        container.innerHTML = `<div class="import-direction-warning">
+            <span class="icon-error" aria-hidden="true"></span>
+            <div>
+                <strong>${dom.escapeHtml(headline)}</strong>
+                <p>${dom.escapeHtml(context)}</p>
+            </div>
+        </div>`;
+    }
+
     renderDirectionWarnings(warnings) {
         let container = document.getElementById('import-direction-warnings');
 
@@ -2309,7 +2382,7 @@ export default class ImportModule {
     }
 
     async rollbackImport(importId) {
-        if (!confirm(t('budget', 'Are you sure you want to rollback this import? All imported transactions will be deleted.'))) {
+        if (!await confirmDialog(t('budget', 'Are you sure you want to rollback this import? All imported transactions will be deleted.'), { destructive: true })) {
             return;
         }
 

@@ -14,6 +14,7 @@ return [
         ['name' => 'account#create', 'url' => '/api/accounts', 'verb' => 'POST'],
         ['name' => 'account#update', 'url' => '/api/accounts/{id}', 'verb' => 'PUT'],
         ['name' => 'account#destroy', 'url' => '/api/accounts/{id}', 'verb' => 'DELETE'],
+        ['name' => 'account#bulkDelete', 'url' => '/api/accounts/bulk-delete', 'verb' => 'POST'],
         ['name' => 'account#summary', 'url' => '/api/accounts/summary', 'verb' => 'GET'],
         ['name' => 'account#getBalanceHistory', 'url' => '/api/accounts/{id}/balance-history', 'verb' => 'GET'],
         ['name' => 'account#getMetrics', 'url' => '/api/accounts/{id}/metrics', 'verb' => 'GET'],

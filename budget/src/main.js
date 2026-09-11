@@ -70,6 +70,7 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from './utils/formatters.js';
 import * as dom from './utils/dom.js';
 import { showSuccess, showError, showWarning } from './utils/notifications.js';
+import { confirmDialog } from './utils/dialogs.js';
 import { initDatePickers } from './utils/datepicker.js';
 import { serverErrorMessage, hasSplitPortion, transactionDisplayAmount } from './utils/helpers.js';
 
@@ -324,6 +325,7 @@ class BudgetApp {
 
         // Accounts display config (visible attributes + ordering)
         this.accountsModule?.setupAccountsDisplayConfigUI();
+        this.accountsModule?.setupAccountsBulkActions();
 
         // Set initial toggle state from saved preference
         const savedView = localStorage.getItem('budget-accounts-view') || 'grid';
@@ -2488,7 +2490,7 @@ class BudgetApp {
         }
 
         // Double confirmation
-        if (!confirm(t('budget', 'This will PERMANENTLY DELETE all your existing data and replace it with the imported data.') + '\n\n' + t('budget', 'Are you absolutely sure you want to continue?'))) {
+        if (!await confirmDialog(t('budget', 'This will PERMANENTLY DELETE all your existing data and replace it with the imported data.') + '\n\n' + t('budget', 'Are you absolutely sure you want to continue?'), { destructive: true })) {
             return;
         }
 
@@ -3194,7 +3196,7 @@ class BudgetApp {
     }
 
     async deleteScenario(id) {
-        if (!confirm(t('budget', 'Are you sure you want to delete this scenario?'))) return;
+        if (!await confirmDialog(t('budget', 'Are you sure you want to delete this scenario?'), { destructive: true })) return;
 
         try {
             const response = await fetch(OC.generateUrl(`/apps/budget/api/debt-scenarios/${id}`), {
@@ -3707,7 +3709,7 @@ class BudgetApp {
     }
 
     async handleUnlinkTransaction(transactionId) {
-        if (!confirm(t('budget', 'Are you sure you want to unlink this transaction from its transfer pair?'))) {
+        if (!await confirmDialog(t('budget', 'Are you sure you want to unlink this transaction from its transfer pair?'))) {
             return;
         }
 
@@ -4003,7 +4005,7 @@ class BudgetApp {
         const modal = document.getElementById('split-modal');
         const transactionId = parseInt(modal?.dataset.transactionId);
 
-        if (!confirm(t('budget', 'Are you sure you want to remove the split and revert to a single transaction?'))) {
+        if (!await confirmDialog(t('budget', 'Are you sure you want to remove the split and revert to a single transaction?'))) {
             return;
         }
 

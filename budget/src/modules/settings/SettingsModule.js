@@ -3,6 +3,7 @@
  */
 import { translate as t } from '@nextcloud/l10n';
 import { showSuccess, showError } from '../../utils/notifications.js';
+import { confirmDialog } from '../../utils/dialogs.js';
 import { initDatePickers } from '../../utils/datepicker.js';
 
 export default class SettingsModule {
@@ -127,7 +128,7 @@ export default class SettingsModule {
         provider.addEventListener('change', () => this.renderOcrFields());
 
         clearKey.addEventListener('click', async () => {
-            if (!confirm(t('budget', 'Remove the stored key? Receipt scanning stops working until a new one is saved.'))) return;
+            if (!await confirmDialog(t('budget', 'Remove the stored key? Receipt scanning stops working until a new one is saved.'), { destructive: true })) return;
             await this.saveOcrSettings({ apiKey: '' });
         });
 
@@ -378,7 +379,7 @@ export default class SettingsModule {
     }
 
     async resetSettings() {
-        if (!confirm(t('budget', 'Are you sure you want to reset all settings to defaults? This action cannot be undone.'))) {
+        if (!await confirmDialog(t('budget', 'Are you sure you want to reset all settings to defaults? This action cannot be undone.'), { destructive: true })) {
             return;
         }
 

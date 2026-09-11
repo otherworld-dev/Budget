@@ -5,6 +5,7 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError } from '../../utils/notifications.js';
+import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import Chart from 'chart.js/auto';
 import { serverErrorMessage } from '../../utils/helpers.js';
@@ -485,7 +486,7 @@ export default class PensionsModule {
     }
 
     async deletePension(pensionId) {
-        if (!confirm(t('budget', 'Are you sure you want to delete this pension? This action cannot be undone.'))) {
+        if (!await confirmDialog(t('budget', 'Are you sure you want to delete this pension? This action cannot be undone.'), { destructive: true })) {
             return;
         }
 
@@ -844,7 +845,7 @@ export default class PensionsModule {
         const message = isSnapshot
             ? t('budget', 'Delete this balance update?')
             : t('budget', 'Delete this entry? If it is linked to a bank transaction, that transaction will be removed too.');
-        if (!confirm(message)) return;
+        if (!await confirmDialog(message, { destructive: true })) return;
 
         const url = isSnapshot
             ? OC.generateUrl(`/apps/budget/api/pensions/snapshots/${id}`)
@@ -1141,7 +1142,7 @@ export default class PensionsModule {
     }
 
     async deleteRecurring(recurId) {
-        if (!confirm(t('budget', 'Delete this scheduled contribution?'))) return;
+        if (!await confirmDialog(t('budget', 'Delete this scheduled contribution?'), { destructive: true })) return;
         try {
             const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/recurring/${recurId}`), {
                 method: 'DELETE',

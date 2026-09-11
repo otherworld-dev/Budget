@@ -244,6 +244,98 @@ class AccountServiceTest extends TestCase {
         $this->assertSame(0, $this->service->deleteWithTransactions(1, 'user1'));
     }
 
+    // ===== bulkDelete() (#381) =====
+
+    /**
+     * Clearing up after a mis-mapped import means deleting a pile of accounts
+     * that all still hold rows. The first pass is deliberately non-destructive:
+     * it removes what is already empty and reports the rest, so the dialog that
+     * asks about the ledgers can name them and count them.
+     */
+    public function testBulkDeleteFirstPassRemovesEmptyAccountsAndReportsTheRest(): void {
+        $empty = $this->makeAccount(['id' => 1, 'name' => 'Empty']);
+        $full = $this->makeAccount(['id' => 2, 'name' => '2026-01-07']);
+
+        $this->accountMapper->method('find')->willReturnCallback(
+            fn (int $id) => $id === 1 ? $empty : $full
+        );
+        // findByAccount is beforeDelete()'s guard: non-empty blocks the delete.
+        $this->transactionMapper->method('findByAccount')->willReturnCallback(
+            fn (int $id) => $id === 1 ? [] : [['id' => 99]]
+        );
+        $this->transactionMapper->method('countByAccount')->willReturn(17);
+
+        $this->accountMapper->expects($this->once())->method('delete')->with($empty);
+        $this->transactionService->expects($this->never())->method('delete');
+
+        $result = $this->service->bulkDelete('user1', [1, 2], false);
+
+        $this->assertSame([1], $result['deleted']);
+        $this->assertSame(
+            [['id' => 2, 'name' => '2026-01-07', 'transactionCount' => 17]],
+            $result['blocked']
+        );
+        $this->assertSame([], $result['errors']);
+    }
+
+    public function testBulkDeleteSecondPassClearsLedgersAndReportsTheRowCount(): void {
+        $a = $this->makeAccount(['id' => 2, 'name' => 'A']);
+        $b = $this->makeAccount(['id' => 3, 'name' => 'B']);
+
+        $this->accountMapper->method('find')->willReturnCallback(
+            fn (int $id) => $id === 2 ? $a : $b
+        );
+        $this->transactionMapper->method('findIdsByAccount')->willReturnCallback(
+            fn (int $id) => $id === 2 ? [10, 11] : [12]
+        );
+        $this->transactionMapper->method('findByAccount')->willReturn([]);
+
+        // Every row goes through TransactionService::delete(), which cascades to
+        // splits, tags and attachments (#359) — never the mapper directly.
+        $this->transactionService->expects($this->exactly(3))->method('delete')->willReturn(1);
+        $this->accountMapper->expects($this->exactly(2))->method('delete');
+
+        $result = $this->service->bulkDelete('user1', [2, 3], true);
+
+        $this->assertSame([2, 3], $result['deleted']);
+        $this->assertSame([], $result['blocked']);
+        $this->assertSame(3, $result['deletedTransactions']);
+    }
+
+    /**
+     * One bad id must not abandon the rest of the selection — the whole point
+     * of the bulk action is clearing up many at once.
+     */
+    public function testBulkDeleteKeepsGoingAfterAFailureAndReportsIt(): void {
+        $ok = $this->makeAccount(['id' => 1, 'name' => 'Fine']);
+
+        $this->accountMapper->method('find')->willReturnCallback(function (int $id) use ($ok) {
+            if ($id === 2) {
+                throw new DoesNotExistException('gone');
+            }
+            return $ok;
+        });
+        $this->transactionMapper->method('findByAccount')->willReturn([]);
+
+        $this->accountMapper->expects($this->exactly(2))->method('delete');
+
+        $result = $this->service->bulkDelete('user1', [1, 2, 3], false);
+
+        $this->assertSame([1, 3], $result['deleted']);
+        $this->assertCount(1, $result['errors']);
+        $this->assertSame(2, $result['errors'][0]['id']);
+    }
+
+    public function testBulkDeleteWithNoIdsDoesNothing(): void {
+        $this->accountMapper->expects($this->never())->method('delete');
+
+        $result = $this->service->bulkDelete('user1', [], false);
+
+        $this->assertSame([], $result['deleted']);
+        $this->assertSame([], $result['blocked']);
+        $this->assertSame([], $result['errors']);
+    }
+
     public function testDeleteWithTransactionsRefusesAnotherUsersAccount(): void {
         // find() is the ownership gate — it must run before the ledger is touched.
         $this->accountMapper->method('find')

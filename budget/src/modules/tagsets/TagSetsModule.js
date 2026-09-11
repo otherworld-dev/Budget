@@ -4,6 +4,7 @@
 import { translate as t } from '@nextcloud/l10n';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showInfo } from '../../utils/notifications.js';
+import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 
 export default class TagSetsModule {
@@ -262,7 +263,7 @@ export default class TagSetsModule {
     }
 
     async deleteGlobalTag(tagId) {
-        if (!confirm(t('budget', 'Delete this tag? It will be removed from all transactions.'))) return;
+        if (!await confirmDialog(t('budget', 'Delete this tag? It will be removed from all transactions.'), { destructive: true })) return;
 
         try {
             const response = await fetch(OC.generateUrl(`/apps/budget/api/tags/global/${tagId}`), {
@@ -445,7 +446,7 @@ export default class TagSetsModule {
         // Add tag set button
         document.querySelectorAll('.add-tag-set-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
-                const name = prompt(t('budget', 'Enter tag set name (e.g., "Priority", "Status"):'));
+                const name = await promptDialog(t('budget', 'Enter tag set name (e.g., "Priority", "Status"):'));
                 if (!name) return;
 
                 // Check for duplicate name
@@ -457,7 +458,7 @@ export default class TagSetsModule {
                     return;
                 }
 
-                const description = prompt(t('budget', 'Enter description (optional):'));
+                const description = await promptDialog(t('budget', 'Enter description (optional):'));
 
                 try {
                     await this.createTagSet(categoryId, name, description);
@@ -474,7 +475,7 @@ export default class TagSetsModule {
         document.querySelectorAll('.delete-tag-set-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const tagSetId = parseInt(btn.dataset.tagSetId);
-                if (!confirm(t('budget', 'Delete this tag set? All associated tags will be removed from transactions.'))) return;
+                if (!await confirmDialog(t('budget', 'Delete this tag set? All associated tags will be removed from transactions.'), { destructive: true })) return;
 
                 try {
                     await this.deleteTagSet(tagSetId);
@@ -491,7 +492,7 @@ export default class TagSetsModule {
         document.querySelectorAll('.add-tag-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const tagSetId = parseInt(btn.dataset.tagSetId);
-                const name = prompt(t('budget', 'Enter tag name:'));
+                const name = await promptDialog(t('budget', 'Enter tag name:'));
                 if (!name) return;
 
                 // Check for duplicate tag name within the tag set
@@ -506,7 +507,7 @@ export default class TagSetsModule {
                     }
                 }
 
-                const color = prompt(t('budget', 'Enter color (e.g., #FF5733):')) || '#666666';
+                const color = await promptDialog(t('budget', 'Enter color (e.g., #FF5733):')) || '#666666';
 
                 try {
                     await this.createTag(tagSetId, name, color);
@@ -534,7 +535,7 @@ export default class TagSetsModule {
                 const tagId = parseInt(btn.dataset.tagId);
                 const tagSetId = parseInt(btn.dataset.tagSetId);
 
-                if (!confirm(t('budget', 'Delete this tag? It will be removed from all transactions.'))) return;
+                if (!await confirmDialog(t('budget', 'Delete this tag? It will be removed from all transactions.'), { destructive: true })) return;
 
                 try {
                     await this.deleteTag(tagId, tagSetId);
@@ -865,7 +866,7 @@ export default class TagSetsModule {
         document.querySelectorAll('.delete-tag-set-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const tagSetId = parseInt(btn.dataset.tagSetId);
-                if (confirm(t('budget', 'Delete this tag set? All tags in this set will be removed.'))) {
+                if (await confirmDialog(t('budget', 'Delete this tag set? All tags in this set will be removed.'), { destructive: true })) {
                     try {
                         await this.deleteTagSet(tagSetId);
                         await this.renderCategoryTagSetsList(categoryId);
@@ -898,7 +899,7 @@ export default class TagSetsModule {
                 const tagId = parseInt(btn.dataset.tagId);
                 const tagSetId = parseInt(btn.dataset.tagSetId);
 
-                if (confirm(t('budget', 'Delete this tag? It will be removed from all transactions.'))) {
+                if (await confirmDialog(t('budget', 'Delete this tag? It will be removed from all transactions.'), { destructive: true })) {
                     try {
                         await this.deleteTag(tagId, tagSetId);
                         await this.renderCategoryTagSetsList(categoryId);

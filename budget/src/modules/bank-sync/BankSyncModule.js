@@ -1,5 +1,6 @@
 import { translate as t } from '@nextcloud/l10n';
 import { showSuccess, showError } from '../../utils/notifications.js';
+import { confirmDialog } from '../../utils/dialogs.js';
 import { serverErrorMessage } from '../../utils/helpers.js';
 import { pickableAccounts, accountOptionLabel } from '../../utils/accounts.js';
 
@@ -750,7 +751,7 @@ export default class BankSyncModule {
     // ── Disconnect ──────────────────────────────────────────────
 
     async disconnect(connectionId) {
-        if (!confirm(t('budget', 'Are you sure you want to disconnect this bank? This will remove the connection and all account mappings.'))) {
+        if (!await confirmDialog(t('budget', 'Are you sure you want to disconnect this bank? This will remove the connection and all account mappings.'), { destructive: true })) {
             return;
         }
 
