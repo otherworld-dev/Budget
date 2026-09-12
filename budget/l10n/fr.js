@@ -1431,7 +1431,6 @@ OC.L10N.register(
     "Save routing as template…" : "Enregistrer le routage comme modèle…",
     "This template’s accounts don’t match the uploaded file" : "Les comptes de ce modèle ne correspondent pas au fichier importé",
     "_%n record_::_%n records_" : ["%n enregistrement","%n enregistrements"],
-    "Delimiter changed. File will be re-parsed in the next step." : "Le délimiteur a été modifié. Le fichier sera analysé à nouveau à l'étape suivante.",
     "Please select a file first" : "Veuillez d'abord sélectionner un fichier.",
     "Processing file, please wait..." : "Traitement du fichier en cours, veuillez patienter...",
     "Please map at least one account" : "Veuillez mapper au moins un compte",
