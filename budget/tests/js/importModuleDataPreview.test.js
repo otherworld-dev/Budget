@@ -395,6 +395,36 @@ describe('ImportModule CSV preview refresh', () => {
         expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
+    it('names the encoding the file is now read in under the picker', async () => {
+        document.getElementById('import-encoding-options')
+            .insertAdjacentHTML('beforeend', '<p id="import-encoding-hint">Detected Western European (Windows-1252).</p>');
+        const mod = new ImportModule(makeApp());
+        mod.importFormat = 'csv';
+        mod.currentImportData = { fileId: 'file-123', filename: 'bank.csv' };
+
+        global.fetch = vi.fn(async () => ({
+            ok: true,
+            json: async () => ({
+                format: 'csv',
+                columns: ['Date'],
+                preview: [['Date'], ['2024-01-03']],
+                skipFirstRow: true,
+                encoding: 'Windows-1251',
+                detectedEncoding: 'Windows-1251',
+                availableEncodings: {
+                    'Windows-1252': 'Western European (Windows-1252)',
+                    'Windows-1251': 'Cyrillic (Windows-1251)',
+                },
+            }),
+        }));
+
+        await mod.reloadDataPreview({ encoding: 'Windows-1251' });
+
+        expect(document.getElementById('import-encoding').value).toBe('Windows-1251');
+        expect(document.getElementById('import-encoding-hint').textContent)
+            .toBe('Reading this file as Cyrillic (Windows-1251).');
+    });
+
     it('still applies the template mapping when the refresh fails', async () => {
         const mod = new ImportModule(makeApp());
         mod.importFormat = 'csv';

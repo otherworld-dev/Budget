@@ -1156,6 +1156,9 @@ export default class ImportModule {
             ...options,
         };
         this.currentDelimiter = options.delimiter;
+        // Redraw the picker from the file as it is now read, or its hint keeps
+        // naming the encoding the upload was first detected as
+        this.renderEncodingPicker(this.currentImportData);
 
         const columns = result.columns || [];
         this.populateColumnMappings(columns);
