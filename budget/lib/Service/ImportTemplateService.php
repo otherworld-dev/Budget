@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Service;
 
 use OCA\Budget\Service\Import\TransactionNormalizer;
+use OCA\Budget\Service\Import\EncodingNormalizer;
 use OCA\Budget\Db\ImportTemplate;
 use OCA\Budget\Db\ImportTemplateMapper;
 use OCP\AppFramework\Db\Entity;
@@ -73,7 +74,8 @@ class ImportTemplateService extends AbstractCrudService {
         bool $skipFirstRow = true,
         bool $skipDuplicates = true,
         bool $applyRules = false,
-        ?int $accountId = null
+        ?int $accountId = null,
+        ?string $encoding = null
     ): ImportTemplate {
         $this->assertValidFormat($format);
         $name = $this->normalizeName($name);
@@ -101,6 +103,7 @@ class ImportTemplateService extends AbstractCrudService {
         }
 
         $template->setDelimiter($delimiter !== '' ? $delimiter : ',');
+        $template->setEncoding($this->normalizeEncoding($encoding));
         $template->setSkipFirstRow($skipFirstRow);
         $template->setSkipDuplicates($skipDuplicates);
         $template->setApplyRules($applyRules);
@@ -129,6 +132,9 @@ class ImportTemplateService extends AbstractCrudService {
 
         if (isset($updates['delimiter']) && $updates['delimiter'] === '') {
             $updates['delimiter'] = ',';
+        }
+        if (isset($updates['encoding'])) {
+            $updates['encoding'] = $this->normalizeEncoding((string) $updates['encoding']);
         }
 
         $hasMapping = array_key_exists('mapping', $updates);
@@ -174,6 +180,17 @@ class ImportTemplateService extends AbstractCrudService {
         if (!in_array($format, self::FORMATS, true)) {
             throw new \InvalidArgumentException('Unsupported import format: ' . $format);
         }
+    }
+
+    private function normalizeEncoding(?string $encoding): ?string {
+        if ($encoding === null || trim($encoding) === '') {
+            return null;
+        }
+        $encoding = trim($encoding);
+        if (!(new EncodingNormalizer())->isSupported($encoding)) {
+            throw new \InvalidArgumentException('Unsupported character encoding: ' . $encoding);
+        }
+        return $encoding;
     }
 
     private function normalizeName(string $name): string {
