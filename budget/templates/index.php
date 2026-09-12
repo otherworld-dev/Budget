@@ -2400,7 +2400,7 @@ style('budget', 'budget-app');
                             <div class="summary-stats">
                                 <div class="stat-item">
                                     <span class="stat-label"><?php p($l->t('Total Transactions:')); ?></span>
-                                    <span class="stat-value" id="total-transactions">0</span>
+                                    <span class="stat-value" id="import-total-transactions">0</span>
                                 </div>
                                 <div class="stat-item">
                                     <span class="stat-label"><?php p($l->t('New Transactions:')); ?></span>

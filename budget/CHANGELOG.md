@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Tab-separated CSV files can be imported.** The **Tab** delimiter option sent the two characters `\t` instead of a tab, which the CSV reader refuses, so choosing it made the import fail - and a tab-separated file that *was* detected correctly showed a blank delimiter and was then read with commas. The option now sends a real tab, and a template saved from the old option is read as a tab too ([#383](https://github.com/otherworld-dev/Budget/pull/383))
+- **The import review shows how many transactions the file holds.** **Total Transactions** on the review step always read 0, whatever the file contained. The account page has a transaction counter with the same element id, and it sits earlier in the page, so every update meant for the import summary went to that hidden counter instead
 
 ## [2.51.0] - 2026-09-11
 

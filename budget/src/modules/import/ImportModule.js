@@ -1672,7 +1672,9 @@ export default class ImportModule {
     }
 
     updateImportSummary(result) {
-        document.getElementById('total-transactions').textContent = result.totalRows || 0;
+        // Not "total-transactions": the account page has an element with that
+        // id earlier in the document, and it took every update meant for this one
+        document.getElementById('import-total-transactions').textContent = result.totalRows || 0;
         // The preview includes flagged duplicates in validTransactions, so
         // "new" is what remains once they are taken out
         document.getElementById('new-transactions').textContent =
