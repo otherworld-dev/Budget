@@ -159,6 +159,7 @@ class ImportController extends Controller {
                         'accountMapping' => $accountMapping ?? [],
                     ]);
             }
+            $delimiter = self::normalizeDelimiter($delimiter);
             $mapping = TransactionNormalizer::normalizeMapping($mapping);
 
             $preview = $this->service->previewImport(
@@ -242,14 +243,29 @@ class ImportController extends Controller {
 
     /**
      * Redraw the mapping screen from the stored file under a different
-     * character encoding (#371). Import files are kept exactly as uploaded,
-     * so this re-decodes the original bytes rather than the last guess.
+     * character encoding and/or delimiter/header assumption without
+     * re-uploading it.
      *
      * @NoAdminRequired
      */
     #[UserRateLimit(limit: 30, period: 60)]
-    public function reencode(string $fileId, string $fileName = '', ?string $encoding = null): DataResponse {
+    public function dataPreview(
+        string $fileId,
+        string $fileName = '',
+        ?string $delimiter = null,
+        bool $skipFirstRow = true,
+        ?string $encoding = null
+    ): DataResponse {
         try {
+            try {
+                $delimiter = self::normalizeDelimiter($delimiter);
+            } catch (\InvalidArgumentException $e) {
+                return new DataResponse(
+                    ['error' => $this->l->t('CSV delimiter must be a single character')],
+                    Http::STATUS_BAD_REQUEST
+                );
+            }
+
             if ($encoding !== null && $encoding !== '' && !$this->service->isSupportedEncoding($encoding)) {
                 return new DataResponse(
                     ['error' => $this->l->t('Unsupported character encoding')],
@@ -257,16 +273,30 @@ class ImportController extends Controller {
                 );
             }
 
-            $result = $this->service->reencodeUpload(
+            $result = $this->service->dataPreview(
                 $this->userId,
                 $fileId,
                 $fileName,
+                $delimiter,
+                $skipFirstRow,
                 ($encoding === null || $encoding === '') ? null : $encoding
             );
             return new DataResponse($result);
         } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to re-read the file with that encoding'));
+            return $this->handleError($e, $this->l->t('Failed to refresh the data preview'));
         }
+    }
+
+    private static function normalizeDelimiter(?string $delimiter): string {
+        if ($delimiter === null || $delimiter === '') {
+            return ',';
+        }
+
+        if (strlen($delimiter) !== 1) {
+            throw new \InvalidArgumentException('CSV delimiter must be a single character');
+        }
+
+        return $delimiter;
     }
 
     /**

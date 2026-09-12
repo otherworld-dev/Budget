@@ -2286,7 +2286,7 @@ style('budget', 'budget-app');
                                 <select id="csv-delimiter">
                                     <option value=","><?php p($l->t('Comma (,)')); ?></option>
                                     <option value=";"><?php p($l->t('Semicolon (;)')); ?></option>
-                                    <option value="\t"><?php p($l->t('Tab')); ?></option>
+                                    <option value="&#9;"><?php p($l->t('Tab')); ?></option>
                                 </select>
                                 <p class="hint"><?php p($l->t('Change if columns are not detected correctly')); ?></p>
                             </div>

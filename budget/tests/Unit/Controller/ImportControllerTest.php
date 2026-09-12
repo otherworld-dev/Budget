@@ -48,44 +48,73 @@ class ImportControllerTest extends TestCase {
 		);
 	}
 
-	// ── reencode (#371) ─────────────────────────────────────────────
+	// ── data preview (#371 / delimiter + header refresh) ─────────────
 
-	public function testReencodeRejectsAnUnsupportedEncoding(): void {
+	public function testPreviewNormalizesDelimiterBeforeCallingService(): void {
+		$this->service->expects($this->once())
+			->method('previewImport')
+			->with('user1', 'file1', [], null, null, true, ';', null, null)
+			->willReturn([]);
+
+		$response = $this->controller->preview('file1', [], null, null, true, ';');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testPreviewRejectsMultiCharacterDelimiter(): void {
+		$this->service->expects($this->never())->method('previewImport');
+
+		$response = $this->controller->preview('file1', [], null, null, true, '||');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testDataPreviewRejectsAnUnsupportedEncoding(): void {
 		// mbstring has no Windows-1253, so converting from it would silently
 		// mangle the file rather than fail
 		$this->service->method('isSupportedEncoding')->with('Windows-1253')->willReturn(false);
-		$this->service->expects($this->never())->method('reencodeUpload');
+		$this->service->expects($this->never())->method('dataPreview');
 
-		$response = $this->controller->reencode('file1', 'statement.csv', 'Windows-1253');
+		$response = $this->controller->dataPreview('file1', 'statement.csv', null, true, 'Windows-1253');
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 		$this->assertSame('Unsupported character encoding', $response->getData()['error']);
 	}
 
-	public function testReencodePassesASupportedEncodingThrough(): void {
+	public function testDataPreviewPassesASupportedEncodingAndDelimiterThrough(): void {
 		$this->service->method('isSupportedEncoding')->willReturn(true);
 		$this->service->expects($this->once())
-			->method('reencodeUpload')
-			->with('user1', 'file1', 'statement.csv', 'Windows-1251')
-			->willReturn(['fileId' => 'file1', 'encoding' => 'Windows-1251']);
+			->method('dataPreview')
+			->with('user1', 'file1', 'statement.csv', ';', false, 'Windows-1251')
+			->willReturn(['fileId' => 'file1', 'delimiter' => ';', 'skipFirstRow' => false, 'encoding' => 'Windows-1251']);
 
-		$response = $this->controller->reencode('file1', 'statement.csv', 'Windows-1251');
+		$response = $this->controller->dataPreview('file1', 'statement.csv', ';', false, 'Windows-1251');
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
-		$this->assertSame('Windows-1251', $response->getData()['encoding']);
+		$this->assertSame(';', $response->getData()['delimiter']);
+		$this->assertFalse($response->getData()['skipFirstRow']);
 	}
 
-	public function testReencodeTreatsAnEmptyEncodingAsAutoDetect(): void {
+	public function testDataPreviewTreatsAnEmptyEncodingAsAutoDetect(): void {
 		// The picker's "Detect automatically" option submits an empty value
 		$this->service->expects($this->never())->method('isSupportedEncoding');
 		$this->service->expects($this->once())
-			->method('reencodeUpload')
-			->with('user1', 'file1', 'statement.csv', null)
-			->willReturn(['fileId' => 'file1', 'encoding' => null]);
+			->method('dataPreview')
+			->with('user1', 'file1', 'statement.csv', ';', true, null)
+			->willReturn(['fileId' => 'file1', 'delimiter' => ';', 'skipFirstRow' => true, 'encoding' => null]);
 
-		$response = $this->controller->reencode('file1', 'statement.csv', '');
+		$response = $this->controller->dataPreview('file1', 'statement.csv', ';', true, '');
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testDataPreviewRejectsMultiCharacterDelimiter(): void {
+		$this->service->expects($this->never())->method('dataPreview');
+
+		$response = $this->controller->dataPreview('file1', 'statement.csv', '||', true, null);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('CSV delimiter must be a single character', $response->getData()['error']);
 	}
 
 	// ── upload ──────────────────────────────────────────────────────

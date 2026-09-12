@@ -146,13 +146,20 @@ class ImportService {
     }
 
     /**
-     * Rebuild the upload response from the stored file under a different
-     * encoding, so the import screen's picker can redraw the preview and the
-     * column headers the user is choosing between (#371).
+     * Rebuild the upload response from a previously stored file under a new
+     * delimiter/header assumption without re-uploading it.
      */
-    public function reencodeUpload(string $userId, string $fileId, string $fileName, ?string $encoding): array {
+    public function dataPreview(
+        string $userId,
+        string $fileId,
+        string $fileName,
+        ?string $delimiter,
+        bool $skipFirstRow = true,
+        ?string $encoding = null
+    ): array {
         $file = $this->getImportFile($fileId);
         $format = $this->parserFactory->detectFormat($fileId);
+        $delimiter ??= ',';
 
         return $this->buildEncodedUploadResponse(
             $userId,
@@ -161,7 +168,9 @@ class ImportService {
             $format,
             $file->getContent(),
             (int) $file->getSize(),
-            $encoding
+            $encoding,
+            $delimiter,
+            $skipFirstRow
         );
     }
 
@@ -175,21 +184,34 @@ class ImportService {
         string $format,
         string $raw,
         int $fileSize,
-        ?string $encoding
+        ?string $encoding,
+        ?string $delimiterOverride = null,
+        bool $skipFirstRow = true
     ): array {
         $normalizer = new EncodingNormalizer();
         $content = $normalizer->toUtf8($raw, $encoding);
 
-        // Detect CSV delimiter if applicable
+        // Detect CSV delimiter if applicable unless the caller explicitly
+        // overrides it to re-render the mapping screen under a different split.
         $delimiter = ',';
         if ($format === 'csv') {
-            $delimiter = $this->fileValidator->detectDelimiter($content);
+            $delimiter = $delimiterOverride ?? $this->fileValidator->detectDelimiter($content);
         }
 
         // Parse preview
-        $preview = $this->parserFactory->parse($content, $format, 5, $delimiter);
+        $preview = $this->parserFactory->parse($content, $format, 5, $delimiter, $skipFirstRow);
 
-        $response = $this->buildUploadResponse($userId, $fileId, $fileName, $format, $content, $preview, $fileSize, $delimiter);
+        $response = $this->buildUploadResponse(
+            $userId,
+            $fileId,
+            $fileName,
+            $format,
+            $content,
+            $preview,
+            $fileSize,
+            $delimiter,
+            $skipFirstRow
+        );
 
         $response['encoding'] = $encoding;
         $response['detectedEncoding'] = $encoding ?? $normalizer->detectedEncoding($raw);
@@ -370,7 +392,17 @@ class ImportService {
         }
     }
 
-    private function buildUploadResponse(string $userId, string $fileId, string $fileName, string $format, string $content, array $preview, int $fileSize, string $delimiter = ','): array {
+    private function buildUploadResponse(
+        string $userId,
+        string $fileId,
+        string $fileName,
+        string $format,
+        string $content,
+        array $preview,
+        int $fileSize,
+        string $delimiter = ',',
+        bool $skipFirstRow = true
+    ): array {
         $columns = [];
         $rawPreview = [];
         $sourceAccounts = [];
@@ -379,7 +411,8 @@ class ImportService {
             $content = $this->parserFactory->stripBom($content);
             $lines = explode("\n", $content);
             $dataWidth = $this->parserFactory->detectDataWidth($lines, $delimiter);
-            $headers = [];
+            $isFirstRow = true;
+
             foreach ($lines as $line) {
                 if (empty(trim($line))) continue;
                 $row = str_getcsv($line, $delimiter, '"', '');
@@ -387,14 +420,27 @@ class ImportService {
                 if ($dataWidth > 0 && count($row) !== $dataWidth) {
                     continue;
                 }
-                if (empty($headers)) {
-                    $headers = array_map('trim', $row);
-                    $columns = $headers;
-                    $rawPreview[] = $headers;
-                } else {
-                    $rawPreview[] = $row;
-                    if (count($rawPreview) > 6) break;
+
+                if ($isFirstRow) {
+                    if ($skipFirstRow) {
+                        $columns = array_map('trim', $row);
+                        $rawPreview[] = $columns;
+                        $isFirstRow = false;
+                        continue;
+                    }
+
+                    $columns = array_fill(0, $dataWidth, '');
                 }
+
+                $rawPreview[] = $row;
+                $isFirstRow = false;
+                if (count($rawPreview) > 6) {
+                    break;
+                }
+            }
+
+            if ($dataWidth > 0 && empty($columns)) {
+                $columns = array_fill(0, $dataWidth, '');
             }
         } elseif ($format === 'ofx') {
             $parsedOfx = $this->parserFactory->parseFull($content, 'ofx');
@@ -509,9 +555,10 @@ class ImportService {
             'preview' => $rawPreview,
             'columns' => $columns,
             'sourceAccounts' => $sourceAccounts,
-            'recordCount' => $this->parserFactory->countRows($content, $format, $delimiter),
+            'recordCount' => $this->parserFactory->countRows($content, $format, $delimiter, $skipFirstRow),
             'size' => $fileSize,
             'delimiter' => $format === 'csv' ? $delimiter : null,
+            'skipFirstRow' => $skipFirstRow,
         ];
     }
 

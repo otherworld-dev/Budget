@@ -251,6 +251,27 @@ class ImportServiceTest extends TestCase {
         $this->assertEquals(1, $result['validTransactions']);
     }
 
+    public function testDataPreviewUsesDelimiterAndHeaderSetting(): void {
+        $this->mockImportFile('file.csv', "date;amount\n2025-01-01;12.34\n2025-01-02;56.78\n");
+        $this->parserFactory->method('detectFormat')->willReturn('csv');
+        $this->parserFactory->method('stripBom')->willReturnArgument(0);
+        $this->parserFactory->method('detectDataWidth')->willReturn(2);
+        $this->parserFactory->expects($this->once())
+            ->method('parse')
+            ->with($this->anything(), 'csv', 5, ';', true)
+            ->willReturn([
+                ['2025-01-01', '12.34'],
+                ['2025-01-02', '56.78'],
+            ]);
+        $this->parserFactory->method('countRows')->with($this->anything(), 'csv', ';', true)->willReturn(2);
+
+        $result = $this->service->dataPreview('user1', 'file.csv', 'bank.csv', ';', true, null);
+
+        $this->assertSame(';', $result['delimiter']);
+        $this->assertTrue($result['skipFirstRow']);
+        $this->assertSame(['date', 'amount'], $result['columns']);
+    }
+
     public function testPreviewSingleAccountSkipsDuplicates(): void {
         $this->mockImportFile('file.csv', 'data');
         $this->parserFactory->method('detectFormat')->willReturn('csv');
