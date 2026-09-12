@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-12 13:22+0000\n"
-"PO-Revision-Date: 2026-09-12 01:19+0000\n"
+"PO-Revision-Date: 2026-09-12 15:13+0000\n"
 "Last-Translator: Leonid Zaliubovskyi <la399fox@gmail.com>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/pl/>\n"
@@ -1329,7 +1329,7 @@ msgstr "Nie udało się przetworzyć importu"
 
 #: /app/lib/Controller/ImportController.php:265
 msgid "CSV delimiter must be a single character"
-msgstr ""
+msgstr "Ogranicznik CSV musi składać się z jednego znaku"
 
 #: /app/lib/Controller/ImportController.php:272
 msgid "Unsupported character encoding"
@@ -1337,10 +1337,8 @@ msgstr "Nieobsługiwane kodowanie znaków"
 
 #: /app/lib/Controller/ImportController.php:287
 #: /app/src/modules/import/ImportModule.js:1142
-#, fuzzy
-#| msgid "Failed to refresh exchange rates"
 msgid "Failed to refresh the data preview"
-msgstr "Nie udało się odświeżyć kursów walut"
+msgstr "Nie udało się odświeżyć podglądu danych"
 
 #: /app/lib/Controller/ImportController.php:317
 #: /app/lib/Controller/ImportTemplateController.php:51
