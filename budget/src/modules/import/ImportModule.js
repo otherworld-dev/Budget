@@ -99,6 +99,8 @@ export default class ImportModule {
         this.importHistory = [];
         this.availableAccounts = [];
         this.handleDelimiterChange = null;
+        this.handleSkipFirstRowChange = null;
+        this.latestPreviewRequestId = null;
 
         // Preset state
         this.presets = [];
@@ -224,8 +226,8 @@ export default class ImportModule {
             presetGroup.id = 'import-preset-group';
             // Insert at the top of step 2
             step2.insertBefore(presetGroup, step2.firstChild);
-            presetGroup.addEventListener('change', (e) => {
-                if (e.target.id === 'import-preset') this.onImportFormatChange(e.target.value);
+            presetGroup.addEventListener('change', async (e) => {
+                if (e.target.id === 'import-preset') await this.onImportFormatChange(e.target.value);
             });
             presetGroup.addEventListener('click', (e) => {
                 if (e.target.closest('#save-template-btn')) this.openSaveTemplateModal();
@@ -275,7 +277,7 @@ export default class ImportModule {
      * Handle a change of the "Import Format" dropdown. Values are prefixed:
      * "preset:<id>" for built-in bank presets, "template:<id>" for user templates.
      */
-    onImportFormatChange(value) {
+    async onImportFormatChange(value) {
         this.selectedPreset = null;
         this.selectedTemplate = null;
 
@@ -301,7 +303,7 @@ export default class ImportModule {
             this.selectedTemplate = parseInt(value.slice('template:'.length), 10);
             const template = this.userTemplates.find(tpl => tpl.id === this.selectedTemplate);
             if (template) {
-                this.applyTemplateToForm(template);
+                await this.applyTemplateToForm(template);
                 if (desc) {
                     desc.textContent = t('budget', 'Using saved template. Adjust any column to switch back to a custom mapping.');
                     desc.style.display = 'block';
@@ -322,12 +324,12 @@ export default class ImportModule {
      * Setting values programmatically does not fire change events, so the
      * template stays "selected" until the user edits a control.
      */
-    applyTemplateToForm(template) {
+    async applyTemplateToForm(template) {
         const mapping = template.mapping || {};
-        this.applyColumnMappingToForm(mapping, Object.keys(MAPPING_SELECT_IDS));
 
         const skipFirstRow = document.getElementById('skip-first-row');
-        if (skipFirstRow) skipFirstRow.checked = !!mapping.skipFirstRow;
+        const skipFirstRowValue = mapping.skipFirstRow ?? true;
+        if (skipFirstRow) skipFirstRow.checked = !!skipFirstRowValue;
         const applyRules = document.getElementById('apply-rules');
         if (applyRules && mapping.applyRules !== undefined) applyRules.checked = !!mapping.applyRules;
 
@@ -335,6 +337,15 @@ export default class ImportModule {
         if (delimiterSelect && template.delimiter) delimiterSelect.value = template.delimiter;
 
         this.applyTemplateOptions(template);
+
+        if (this.importFormat === 'csv' && this.currentImportData?.fileId) {
+            await this.reloadDataPreview({
+                delimiter: delimiterSelect?.value,
+                skipFirstRow: skipFirstRowValue,
+            });
+        }
+
+        this.applyColumnMappingToForm(mapping, Object.keys(MAPPING_SELECT_IDS));
 
         this.highlightMappedColumns(this.getCurrentMapping());
         this.validateMappingStep();
@@ -895,6 +906,12 @@ export default class ImportModule {
         // Switch to wizard tab if not already active
         this.switchImportTab('wizard');
 
+        this.currentImportData = {
+            ...(this.currentImportData || {}),
+            ...(uploadResult || {}),
+            fileId: uploadResult?.fileId || this.currentImportData?.fileId,
+        };
+
         // Store source accounts for multi-account mapping
         this.sourceAccounts = uploadResult.sourceAccounts || [];
         this.importFormat = uploadResult.format;
@@ -922,8 +939,16 @@ export default class ImportModule {
                     delimiterSelect.value = this.currentDelimiter;
                     // Add change handler for delimiter to reload columns
                     delimiterSelect.removeEventListener('change', this.handleDelimiterChange);
-                    this.handleDelimiterChange = () => this.reloadColumnsWithDelimiter();
+                    this.handleDelimiterChange = () => this.reloadDataPreview();
                     delimiterSelect.addEventListener('change', this.handleDelimiterChange);
+                }
+
+                const skipFirstRow = document.getElementById('skip-first-row');
+                if (skipFirstRow) {
+                    skipFirstRow.checked = !!uploadResult.skipFirstRow;
+                    skipFirstRow.removeEventListener('change', this.handleSkipFirstRowChange);
+                    this.handleSkipFirstRowChange = () => this.reloadDataPreview();
+                    skipFirstRow.addEventListener('change', this.handleSkipFirstRowChange);
                 }
             } else {
                 csvOptions.style.display = 'none';
@@ -1012,34 +1037,67 @@ export default class ImportModule {
         }
 
         select.removeEventListener('change', this.handleEncodingChange);
-        this.handleEncodingChange = () => this.reloadWithEncoding();
+        this.handleEncodingChange = () => this.reloadDataPreview();
         select.addEventListener('change', this.handleEncodingChange);
 
         group.style.display = 'block';
     }
 
     /**
-     * Re-read the stored file under the chosen encoding and redraw the
-     * mapping screen from it. The upload keeps the original bytes, so this
-     * decodes those afresh rather than re-decoding an earlier guess.
+     * Re-read the stored file under a chosen encoding and/or CSV refresh
+     * settings and rebuild the mapping preview from the current state. The
+     * upload keeps the original bytes, so this decodes those afresh rather than
+     * re-decoding an earlier guess.
      */
-    async reloadWithEncoding() {
-        const select = document.getElementById('import-encoding');
-        if (!select || !this.currentImportData?.fileId) return;
+    async reloadDataPreview({
+        delimiter,
+        skipFirstRow,
+        encoding,
+        requestId = null,
+    } = {}) {
+        if (this.importFormat !== 'csv' || !this.currentImportData?.fileId) return null;
 
-        const encoding = select.value;
+        const selectedDelimiter = (
+            delimiter
+            ?? document.getElementById('csv-delimiter')?.value
+            ?? this.currentImportData?.delimiter
+            ?? this.currentDelimiter
+            ?? ','
+        );
+        const selectedSkipFirstRow = skipFirstRow ?? (
+            document.getElementById('skip-first-row') !== null
+                ? (document.getElementById('skip-first-row')?.checked ?? this.currentImportData?.skipFirstRow ?? true)
+                : (this.currentImportData?.skipFirstRow ?? true)
+        );
+        const encodingSelect = document.getElementById('import-encoding');
+        const selectedEncoding = encoding ?? (
+            encodingSelect !== null && encodingSelect.value !== null
+                ? encodingSelect.value
+                : (this.currentImportData?.encoding ?? null)
+        );
+
+        const fileId = this.currentImportData.fileId;
+        const resolvedRequestId = requestId ?? JSON.stringify({
+            fileId,
+            delimiter: selectedDelimiter,
+            skipFirstRow: selectedSkipFirstRow,
+            encoding: selectedEncoding || 'auto',
+        });
+        this.latestPreviewRequestId = resolvedRequestId;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import/reencode'), {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/import/data-preview'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'requesttoken': OC.requestToken,
                 },
                 body: JSON.stringify({
-                    fileId: this.currentImportData.fileId,
+                    fileId,
                     fileName: this.currentImportData.filename || '',
-                    encoding: encoding,
+                    delimiter: selectedDelimiter,
+                    skipFirstRow: selectedSkipFirstRow,
+                    encoding: selectedEncoding,
                 }),
             });
 
@@ -1049,32 +1107,79 @@ export default class ImportModule {
             }
 
             const result = await response.json();
-            this.currentImportData = result;
-            await this.showImportMapping(result);
+            if (this.latestPreviewRequestId !== resolvedRequestId) {
+                return null;
+            }
+
+            const currentMapping = this.getCurrentMapping();
+            this.applyDataPreviewResult(result, {
+                fileId,
+                delimiter: selectedDelimiter,
+                skipFirstRow: selectedSkipFirstRow,
+                encoding: selectedEncoding,
+            }, currentMapping);
+            return result;
         } catch (error) {
-            console.error('Failed to re-read file with encoding:', error);
-            showError(error.message || t('budget', 'Failed to re-read the file with that encoding'));
-            // Put the control back where the data actually is
-            select.value = this.currentImportData?.encoding || '';
+            if (this.latestPreviewRequestId !== resolvedRequestId) {
+                return null;
+            }
+
+            const select = document.getElementById('import-encoding');
+            console.error('Failed to refresh the data preview:', error);
+            showError(error.message || t('budget', 'Failed to refresh the data preview'));
+
+            if (select) {
+                // Put the control back where the data actually is
+                select.value = this.currentImportData?.encoding || '';
+            }
+            throw error;
         }
     }
 
-    reloadColumnsWithDelimiter() {
-        const delimiterSelect = document.getElementById('csv-delimiter');
-        if (!delimiterSelect) return;
+    applyDataPreviewResult(result, options, currentMapping) {
+        this.currentImportData = {
+            ...(this.currentImportData || {}),
+            ...result,
+            ...options,
+        };
+        this.currentDelimiter = options.delimiter;
 
-        this.currentDelimiter = delimiterSelect.value;
-        showInfo(t('budget', 'Delimiter changed. File will be re-parsed in the next step.'));
+        const columns = result.columns || [];
+        this.populateColumnMappings(columns);
+        this.applyFormatDefaults(this.importFormat, columns);
+
+        const validIndexValues = new Set(columns.map((_, index) => String(index)));
+        Object.entries(MAPPING_SELECT_IDS).forEach(([field, id]) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            const rawValue = currentMapping[field];
+            if (rawValue === undefined || rawValue === null || rawValue === '') return;
+
+            const values = Array.isArray(rawValue) ? rawValue : [rawValue];
+            const cleaned = values.filter(value => validIndexValues.has(String(value)));
+            if (cleaned.length === 0) return;
+            this.setSelectValue(el, Array.isArray(rawValue) ? cleaned : cleaned[0]);
+        });
+
+        this.showMappingPreview(result.preview || []);
+        this.highlightMappedColumns(this.getCurrentMapping());
+        this.validateMappingStep();
     }
 
     populateColumnMappings(columns) {
         const isCsv = this.importFormat === 'csv';
+        const forceSynthesizedCsvLabels = isCsv && this.currentImportData?.skipFirstRow === false;
 
         // CSV columns are always mapped by index now, whether or not the file
         // has real headers — the label shown is the sanitized header text (or
-        // a synthesized "Column N" placeholder), but the value the selects and
+        // a synthesized "Column: N" placeholder), but the value the selects and
         // the live import request carry is the position, never the label.
-        this.rawColumns = (columns || []).map(c => String(c));
+        const rawColumns = forceSynthesizedCsvLabels
+            ? (columns || []).map(() => '')
+            : (columns || []);
+
+        this.rawColumns = rawColumns.map(c => String(c));
         this.columnLabels = isCsv ? sanitizeHeaders(this.rawColumns) : this.rawColumns.slice();
         // Kept for highlightMappedColumns, which has to turn a select's value
         // back into its position in the preview table.
@@ -1243,6 +1348,7 @@ export default class ImportModule {
         // (blank/duplicate cells already resolved); other formats still take
         // their fixed column names straight from the preview's own header row.
         const isCsv = this.importFormat === 'csv';
+        const skipFirstRow = isCsv ? (this.currentImportData?.skipFirstRow ?? document.getElementById('skip-first-row')?.checked ?? true) : true;
         const headerLabels = isCsv ? (this.columnLabels || previewData[0].map(h => String(h)))
             : previewData[0].map(header => String(header));
         if (!isCsv) {
@@ -1259,8 +1365,12 @@ export default class ImportModule {
         });
         thead.appendChild(headerRow);
 
-        // Show first 5 rows of data
-        previewData.slice(1, 6).forEach(row => {
+        // With a header-less CSV, the first preview row is actual data and there
+        // is no extra header row in the payload; with a normal CSV import, the
+        // preview payload keeps the original header as row 0 and we display the
+        // following rows below it.
+        const startIndex = isCsv && !skipFirstRow ? 0 : 1;
+        previewData.slice(startIndex, startIndex + 5).forEach(row => {
             const tr = document.createElement('tr');
             row.forEach(cell => {
                 const td = document.createElement('td');
