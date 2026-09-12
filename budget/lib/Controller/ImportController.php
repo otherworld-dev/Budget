@@ -205,6 +205,7 @@ class ImportController extends Controller {
                         'accountMapping' => $accountMapping ?? [],
                     ]);
             }
+            $delimiter = self::normalizeDelimiter($delimiter);
             $mapping = TransactionNormalizer::normalizeMapping($mapping);
 
             $result = $this->service->processImport(
@@ -290,6 +291,12 @@ class ImportController extends Controller {
     private static function normalizeDelimiter(?string $delimiter): string {
         if ($delimiter === null || $delimiter === '') {
             return ',';
+        }
+
+        // The Tab option used to submit the two characters "\t" rather than a
+        // tab, and import templates saved from it still hold them (#383).
+        if ($delimiter === '\t') {
+            return "\t";
         }
 
         if (strlen($delimiter) !== 1) {

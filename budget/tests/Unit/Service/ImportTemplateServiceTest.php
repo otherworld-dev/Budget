@@ -62,6 +62,25 @@ class ImportTemplateServiceTest extends TestCase {
         $this->assertTrue($template->getSkipFirstRow());
     }
 
+    // #384: the encoding reaches the import screen's picker and the
+    // re-read, so a name the server cannot convert from is refused up front.
+    public function testCreateRejectsAnUnsupportedEncoding(): void {
+        $this->mapper->method('nameExists')->willReturn(false);
+        $this->mapper->expects($this->never())->method('insert');
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->service->create('user1', 'Bank', 'csv', $this->validMapping(), [], ',', true, true, false, null, 'Windows-1253');
+    }
+
+    public function testCreateStoresABlankEncodingAsDetect(): void {
+        $this->mapper->method('nameExists')->willReturn(false);
+        $this->mapper->method('insert')->willReturnCallback(fn (ImportTemplate $t) => $t);
+
+        $template = $this->service->create('user1', 'Bank', 'csv', $this->validMapping(), [], ',', true, true, false, null, '   ');
+
+        $this->assertNull($template->getEncoding());
+    }
+
     // Regression: a mapping field pointed at column index 0 (the file's first
     // column, the common case for a header-less file) used to be rejected by
     // assertMappingValid()'s empty() checks, which treat "0" as unmapped.
@@ -381,6 +400,25 @@ class ImportTemplateServiceTest extends TestCase {
 
         $this->assertEquals('csv', $updated->getFormat());
         $this->assertEquals('Renamed', $updated->getName());
+    }
+
+    public function testUpdateClearsTheEncodingWithABlankValue(): void {
+        $existing = $this->makeCsvEntity();
+        $existing->setEncoding('Windows-1251');
+        $this->mapper->method('find')->willReturn($existing);
+        $this->mapper->method('update')->willReturnCallback(fn (ImportTemplate $t) => $t);
+
+        $updated = $this->service->update(1, 'user1', ['encoding' => '']);
+
+        $this->assertNull($updated->getEncoding());
+    }
+
+    public function testUpdateRejectsAnUnsupportedEncoding(): void {
+        $this->mapper->method('find')->willReturn($this->makeCsvEntity());
+        $this->mapper->expects($this->never())->method('update');
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->service->update(1, 'user1', ['encoding' => 'Windows-1253']);
     }
 
     public function testUpdateRejectsDuplicateName(): void {

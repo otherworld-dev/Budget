@@ -340,4 +340,75 @@ describe('ImportModule CSV preview refresh', () => {
 
         await expect(firstPreview).resolves.toBeNull();
     });
+
+    it('re-reads the file in a template encoding, and leaves the picker alone for a template without one', async () => {
+        const mod = new ImportModule(makeApp());
+        mod.importFormat = 'csv';
+        mod.currentImportData = { fileId: 'file-123', filename: 'bank.csv' };
+
+        const bodies = [];
+        global.fetch = vi.fn(async (_url, options) => {
+            bodies.push(JSON.parse(options.body));
+            return {
+                ok: true,
+                json: async () => ({
+                    format: 'csv',
+                    columns: ['Date'],
+                    preview: [['Date'], ['2024-01-03']],
+                    skipFirstRow: true,
+                }),
+            };
+        });
+
+        const encodingSelect = document.getElementById('import-encoding');
+        encodingSelect.innerHTML = '<option value="">Detect automatically</option>'
+            + '<option value="Windows-1251">Windows-1251</option>'
+            + '<option value="ISO-8859-2">ISO-8859-2</option>';
+        encodingSelect.value = 'ISO-8859-2';
+
+        // Every template saved before #384 has no encoding
+        await mod.applyTemplateToForm({ delimiter: ',', mapping: { date: 0 } });
+        expect(encodingSelect.value).toBe('ISO-8859-2');
+        expect(bodies[0].encoding).toBe('ISO-8859-2');
+
+        await mod.applyTemplateToForm({ delimiter: ',', encoding: 'Windows-1251', mapping: { date: 0 } });
+        expect(encodingSelect.value).toBe('Windows-1251');
+        expect(bodies[1].encoding).toBe('Windows-1251');
+    });
+
+    it('reads the literal "\\t" of a template saved from the old Tab option as a tab', async () => {
+        const mod = new ImportModule(makeApp());
+        mod.importFormat = 'csv';
+        mod.currentImportData = { fileId: 'file-123', filename: 'bank.csv' };
+
+        global.fetch = vi.fn(async (_url, options) => {
+            expect(JSON.parse(options.body).delimiter).toBe('\t');
+            return {
+                ok: true,
+                json: async () => ({ format: 'csv', columns: ['Date'], preview: [['Date']], skipFirstRow: true }),
+            };
+        });
+
+        await mod.applyTemplateToForm({ delimiter: '\\t', mapping: { date: 0 } });
+
+        expect(document.getElementById('csv-delimiter').value).toBe('\t');
+        expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('still applies the template mapping when the refresh fails', async () => {
+        const mod = new ImportModule(makeApp());
+        mod.importFormat = 'csv';
+        mod.currentImportData = { fileId: 'file-123', filename: 'bank.csv' };
+
+        global.fetch = vi.fn(async () => ({
+            ok: false,
+            status: 500,
+            json: async () => ({ error: 'boom' }),
+        }));
+
+        const applyMapping = vi.spyOn(mod, 'applyColumnMappingToForm');
+        await expect(mod.applyTemplateToForm({ delimiter: ',', mapping: { date: 0 } })).resolves.toBeUndefined();
+
+        expect(applyMapping).toHaveBeenCalledWith({ date: 0 }, expect.any(Array));
+    });
 });

@@ -334,17 +334,24 @@ export default class ImportModule {
         if (applyRules && mapping.applyRules !== undefined) applyRules.checked = !!mapping.applyRules;
 
         const delimiterSelect = document.getElementById('csv-delimiter');
-        if (delimiterSelect && template.delimiter) delimiterSelect.value = template.delimiter;
+        // Templates saved from the old Tab option hold a literal "\t" (#383)
+        const delimiter = template.delimiter === '\\t' ? '\t' : template.delimiter;
+        if (delimiterSelect && delimiter) delimiterSelect.value = delimiter;
+        // Only a template that stored an encoding overrides the picker. Older
+        // templates have none, and resetting to automatic would undo an
+        // encoding picked by hand to fix this file's preview (#384).
         const encodingSelect = document.getElementById('import-encoding');
-        if (encodingSelect) encodingSelect.value = template.encoding || '';
+        if (encodingSelect && template.encoding) encodingSelect.value = template.encoding;
 
         this.applyTemplateOptions(template);
 
         if (this.importFormat === 'csv' && this.currentImportData?.fileId) {
+            // A failed refresh has already said so; the mapping still goes
+            // onto the columns that are on screen rather than being dropped.
             await this.reloadDataPreview({
                 delimiter: delimiterSelect?.value,
                 skipFirstRow: skipFirstRowValue,
-            });
+            }).catch(() => null);
         }
 
         this.applyColumnMappingToForm(mapping, Object.keys(MAPPING_SELECT_IDS));
@@ -940,9 +947,12 @@ export default class ImportModule {
                 const delimiterSelect = document.getElementById('csv-delimiter');
                 if (delimiterSelect) {
                     delimiterSelect.value = this.currentDelimiter;
-                    // Add change handler for delimiter to reload columns
+                    // Add change handler for delimiter to reload columns.
+                    // reloadDataPreview reports its own failures, so the
+                    // handlers only stop the rethrow becoming an unhandled
+                    // rejection.
                     delimiterSelect.removeEventListener('change', this.handleDelimiterChange);
-                    this.handleDelimiterChange = () => this.reloadDataPreview();
+                    this.handleDelimiterChange = () => this.reloadDataPreview().catch(() => null);
                     delimiterSelect.addEventListener('change', this.handleDelimiterChange);
                 }
 
@@ -950,7 +960,7 @@ export default class ImportModule {
                 if (skipFirstRow) {
                     skipFirstRow.checked = !!uploadResult.skipFirstRow;
                     skipFirstRow.removeEventListener('change', this.handleSkipFirstRowChange);
-                    this.handleSkipFirstRowChange = () => this.reloadDataPreview();
+                    this.handleSkipFirstRowChange = () => this.reloadDataPreview().catch(() => null);
                     skipFirstRow.addEventListener('change', this.handleSkipFirstRowChange);
                 }
             } else {
@@ -1040,7 +1050,7 @@ export default class ImportModule {
         }
 
         select.removeEventListener('change', this.handleEncodingChange);
-        this.handleEncodingChange = () => this.reloadDataPreview();
+        this.handleEncodingChange = () => this.reloadDataPreview().catch(() => null);
         select.addEventListener('change', this.handleEncodingChange);
 
         group.style.display = 'block';

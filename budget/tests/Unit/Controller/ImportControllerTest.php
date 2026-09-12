@@ -69,6 +69,30 @@ class ImportControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
+	// The old Tab option submitted a literal backslash-t, and import templates
+	// saved from it still hold that — it has to read as a tab, not be refused.
+	public function testPreviewReadsTheLegacyTabDelimiterAsATab(): void {
+		$this->service->expects($this->once())
+			->method('previewImport')
+			->with('user1', 'file1', [], null, null, true, "\t", null, null)
+			->willReturn([]);
+
+		$response = $this->controller->preview('file1', [], null, null, true, '\t');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testProcessNormalizesDelimiterBeforeCallingService(): void {
+		$this->service->expects($this->once())
+			->method('processImport')
+			->with('user1', 'file1', [], null, null, true, true, "\t", null, null)
+			->willReturn([]);
+
+		$response = $this->controller->process('file1', [], null, null, true, true, '\t');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
 	public function testDataPreviewRejectsAnUnsupportedEncoding(): void {
 		// mbstring has no Windows-1253, so converting from it would silently
 		// mangle the file rather than fail
