@@ -28,6 +28,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setAccountMapping(?string $accountMapping)
  * @method string getDelimiter()
  * @method void setDelimiter(string $delimiter)
+ * @method string|null getEncoding()
+ * @method void setEncoding(?string $encoding)
  * @method bool getSkipFirstRow()
  * @method void setSkipFirstRow(bool $skipFirstRow)
  * @method bool|null getSkipDuplicates()
@@ -48,6 +50,7 @@ class ImportTemplate extends Entity implements JsonSerializable {
     protected $mapping;
     protected $accountMapping;
     protected $delimiter;
+    protected $encoding;
     protected $skipFirstRow;
     protected $skipDuplicates;
     protected $applyRules;
@@ -75,6 +78,7 @@ class ImportTemplate extends Entity implements JsonSerializable {
             'mapping' => $this->getParsedMapping(),
             'accountMapping' => $this->getParsedAccountMapping(),
             'delimiter' => $this->getDelimiter() ?? ',',
+            'encoding' => $this->getEncoding(),
             'skipFirstRow' => $this->getSkipFirstRow() ?? false,
             'skipDuplicates' => $this->getSkipDuplicates() ?? true,
             'applyRules' => $this->getApplyRules() ?? false,

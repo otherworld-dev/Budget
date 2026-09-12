@@ -77,7 +77,8 @@ class ImportTemplateController extends Controller {
         bool $skipFirstRow = true,
         bool $skipDuplicates = true,
         bool $applyRules = false,
-        ?int $accountId = null
+        ?int $accountId = null,
+        ?string $encoding = null
     ): DataResponse {
         try {
             $template = $this->service->create(
@@ -90,7 +91,8 @@ class ImportTemplateController extends Controller {
                 $skipFirstRow,
                 $skipDuplicates,
                 $applyRules,
-                $accountId
+                $accountId,
+                $encoding
             );
             return new DataResponse($template, Http::STATUS_CREATED);
         } catch (\InvalidArgumentException $e) {
@@ -113,7 +115,8 @@ class ImportTemplateController extends Controller {
         ?bool $skipFirstRow = null,
         ?bool $skipDuplicates = null,
         ?bool $applyRules = null,
-        ?int $accountId = null
+        ?int $accountId = null,
+        ?string $encoding = null
     ): DataResponse {
         try {
             $updates = [];
@@ -140,6 +143,9 @@ class ImportTemplateController extends Controller {
             }
             if ($accountId !== null) {
                 $updates['accountId'] = $accountId;
+            }
+            if ($encoding !== null) {
+                $updates['encoding'] = $encoding;
             }
 
             if (empty($updates)) {

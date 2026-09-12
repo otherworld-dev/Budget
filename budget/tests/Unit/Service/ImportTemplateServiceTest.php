@@ -30,11 +30,12 @@ class ImportTemplateServiceTest extends TestCase {
             ->method('insert')
             ->willReturnCallback(fn (ImportTemplate $t) => $t);
 
-        $template = $this->service->create('user1', '  My Bank  ', 'csv', $this->validMapping(), [], ';', true, false, false, 7);
+        $template = $this->service->create('user1', '  My Bank  ', 'csv', $this->validMapping(), [], ';', true, false, false, 7, 'Windows-1252');
 
         $this->assertEquals('My Bank', $template->getName());
         $this->assertEquals('csv', $template->getFormat());
         $this->assertEquals(';', $template->getDelimiter());
+        $this->assertEquals('Windows-1252', $template->getEncoding());
         $this->assertTrue($template->getSkipFirstRow());
         $this->assertEquals(7, $template->getAccountId());
         $this->assertEquals($this->validMapping(), $template->getParsedMapping());
@@ -49,6 +50,7 @@ class ImportTemplateServiceTest extends TestCase {
 
         $this->assertEquals('csv', $template->getFormat());
         $this->assertEquals(',', $template->getDelimiter());
+        $this->assertNull($template->getEncoding());
     }
 
     public function testCreateDefaultsSkipFirstRowToTrue(): void {

@@ -335,6 +335,8 @@ export default class ImportModule {
 
         const delimiterSelect = document.getElementById('csv-delimiter');
         if (delimiterSelect && template.delimiter) delimiterSelect.value = template.delimiter;
+        const encodingSelect = document.getElementById('import-encoding');
+        if (encodingSelect) encodingSelect.value = template.encoding || '';
 
         this.applyTemplateOptions(template);
 
@@ -536,6 +538,7 @@ export default class ImportModule {
             const mapping = this.toTemplateMapping(this.getCurrentMapping());
             requestBody.mapping = mapping;
             requestBody.delimiter = document.getElementById('csv-delimiter')?.value || ',';
+            requestBody.encoding = document.getElementById('import-encoding')?.value || null;
             requestBody.skipFirstRow = !!mapping.skipFirstRow;
             requestBody.applyRules = !!mapping.applyRules;
             const accountId = parseInt(document.getElementById('import-account')?.value, 10);
