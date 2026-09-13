@@ -50,6 +50,7 @@ class RuleActionApplicatorTest extends TestCase {
 			'vendor' => null,
 			'notes' => null,
 			'reference' => null,
+			'description' => null,
 		];
 
 		$data = array_merge($defaults, $data);
@@ -67,6 +68,9 @@ class RuleActionApplicatorTest extends TestCase {
 		}
 		if ($data['reference'] !== null) {
 			$transaction->setReference($data['reference']);
+		}
+		if ($data['description'] !== null) {
+			$transaction->setDescription($data['description']);
 		}
 
 		return $transaction;
@@ -92,6 +96,27 @@ class RuleActionApplicatorTest extends TestCase {
 	}
 
 	// ===== Single Action Tests =====
+
+	public function testSetDescriptionAlways(): void {
+		$transaction = $this->createTransaction(['description' => 'Old description']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'set_description',
+					'value' => 'New description',
+					'behavior' => 'always',
+					'priority' => 100
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayHasKey('description', $changes);
+		$this->assertSame('New description', $transaction->getDescription());
+	}
 
 	public function testSetCategoryAlways(): void {
 		$transaction = $this->createTransaction(['categoryId' => null]);
