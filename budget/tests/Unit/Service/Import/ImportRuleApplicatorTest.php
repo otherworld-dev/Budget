@@ -102,6 +102,21 @@ class ImportRuleApplicatorTest extends TestCase {
 		$this->assertArrayNotHasKey('categoryId', $result);
 	}
 
+	public function testApplyRulesSetDescription(): void {
+		$rule = $this->makeRule([
+			'actions' => [
+				'version' => 2,
+				'actions' => [['type' => 'set_description', 'value' => 'Updated Description']],
+			],
+		]);
+		$this->ruleMapper->method('findActive')->willReturn([$rule]);
+		$this->evaluator->method('evaluate')->willReturn(true);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'Original']);
+
+		$this->assertSame('Updated Description', $result['description']);
+	}
+
 	public function testApplyRulesSetVendor(): void {
 		$rule = $this->makeRule([
 			'actions' => [

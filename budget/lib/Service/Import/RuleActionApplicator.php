@@ -266,6 +266,15 @@ class RuleActionApplicator {
 				}
 				break;
 
+			case 'set_description':
+				if ($this->shouldApply($type, $behavior, $transaction->getDescription(), $appliedActions)) {
+					$oldValue = $transaction->getDescription();
+					$transaction->setDescription((string)$value);
+					$appliedActions[$type] = ['priority' => $priority, 'value' => $value];
+					$changes['description'] = ['old' => $oldValue, 'new' => $value];
+				}
+				break;
+
 			case 'set_notes':
 				if ($behavior === 'append') {
 					// Append to existing notes
@@ -490,6 +499,7 @@ class RuleActionApplicator {
 					break;
 
 				case 'set_vendor':
+				case 'set_description':
 				case 'set_notes':
 				case 'set_reference':
 					// String values - no specific validation

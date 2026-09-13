@@ -232,6 +232,12 @@ class ImportRuleApplicator {
                     }
                     break;
 
+                case 'set_description':
+                    if ($this->shouldApply($behavior, $transaction['description'] ?? null)) {
+                        $transaction['description'] = (string)$value;
+                    }
+                    break;
+
                 case 'set_notes':
                     $existing = $transaction['notes'] ?? null;
                     if ($behavior === 'append' && $existing) {

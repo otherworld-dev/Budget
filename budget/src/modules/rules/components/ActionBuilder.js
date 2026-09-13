@@ -90,6 +90,7 @@ export class ActionBuilder {
 						<option value="">${t('budget', '+ Add Action')}</option>
 						<option value="set_category">${t('budget', 'Set Category')}</option>
 						<option value="set_vendor">${t('budget', 'Set Vendor')}</option>
+						<option value="set_description">${t('budget', 'Set Description')}</option>
 						<option value="set_notes">${t('budget', 'Set Notes')}</option>
 						<option value="add_tags">${t('budget', 'Add Tags')}</option>
 						<option value="set_account">${t('budget', 'Set Account')}</option>
@@ -122,6 +123,7 @@ export class ActionBuilder {
 		const actionTypeLabels = {
 			'set_category': t('budget', 'Set Category'),
 			'set_vendor': t('budget', 'Set Vendor'),
+			'set_description': t('budget', 'Set Description'),
 			'set_notes': t('budget', 'Set Notes'),
 			'add_tags': t('budget', 'Add Tags'),
 			'set_account': t('budget', 'Set Account'),
@@ -157,6 +159,8 @@ export class ActionBuilder {
 				return this.renderCategoryAction(action, index);
 			case 'set_vendor':
 				return this.renderVendorAction(action, index);
+			case 'set_description':
+				return this.renderDescriptionAction(action, index);
 			case 'set_notes':
 				return this.renderNotesAction(action, index);
 			case 'add_tags':
@@ -202,6 +206,23 @@ export class ActionBuilder {
 				<label>${t('budget', 'Vendor Name:')}</label>
 				<input type="text" class="action-value" data-index="${index}" data-field="value"
 					value="${this.escapeHtml(action.value || '')}" placeholder="${t('budget', 'e.g., Amazon, Starbucks')}">
+			</div>
+			<div class="form-row">
+				<label>${t('budget', 'Behavior:')}</label>
+				<select class="action-behavior" data-index="${index}" data-field="behavior">
+					<option value="always" ${action.behavior === 'always' ? 'selected' : ''}>${t('budget', 'Always set')}</option>
+					<option value="if_empty" ${action.behavior === 'if_empty' ? 'selected' : ''}>${t('budget', 'Only if empty')}</option>
+				</select>
+			</div>
+		`;
+	}
+
+	renderDescriptionAction(action, index) {
+		return `
+			<div class="form-row">
+				<label>${t('budget', 'Description:')}</label>
+				<input type="text" class="action-value" data-index="${index}" data-field="value"
+					value="${this.escapeHtml(action.value || '')}" placeholder="${t('budget', 'e.g., Grocery purchase, Salary')}">
 			</div>
 			<div class="form-row">
 				<label>${t('budget', 'Behavior:')}</label>
@@ -444,6 +465,7 @@ export class ActionBuilder {
 
 	getDefaultBehaviorForType(type) {
 		switch (type) {
+			case 'set_description':
 			case 'set_notes':
 				return 'replace';
 			case 'add_tags':
@@ -517,6 +539,11 @@ export class ActionBuilder {
 				case 'set_vendor':
 					if (!action.value || action.value.trim() === '') {
 						errors.push(t('budget', 'Action {number}: Vendor name is empty', { number: index + 1 }));
+					}
+					break;
+				case 'set_description':
+					if (!action.value || action.value.trim() === '') {
+						errors.push(t('budget', 'Action {number}: Description is empty', { number: index + 1 }));
 					}
 					break;
 				case 'set_notes':
