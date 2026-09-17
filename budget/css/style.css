@@ -1333,6 +1333,12 @@
     color: var(--color-text-maxcontrast);
 }
 
+/* The budget period a comparison covers when a budget start day is set */
+.comparison-period {
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+}
+
 .comparison-value {
     font-size: 14px;
     font-weight: 600;
@@ -5425,6 +5431,13 @@ button.danger:hover {
     color: var(--color-text-lighter);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+/* The budget period a "This Month" account tile covers when a start day is set */
+.metric-period {
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+    margin-top: 2px;
 }
 
 /* Account Details Information */

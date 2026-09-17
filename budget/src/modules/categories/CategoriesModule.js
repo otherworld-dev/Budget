@@ -663,7 +663,7 @@ export default class CategoriesModule {
         // window opens where the period m months before this one begins.
         const startDay = this._budgetStartDay();
         const firstMonth = formatters.shiftMonth(this._currentBudgetMonth(), -m);
-        const startStr = formatters.getPeriodDateRange('monthly', startDay, `${firstMonth}-15`).start;
+        const startStr = formatters.budgetMonthRange(firstMonth, startDay).start;
         const endStr = formatters.formatDateForAPI(new Date());
         return { startStr, endStr, accountId };
     }

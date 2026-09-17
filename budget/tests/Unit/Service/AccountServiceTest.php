@@ -10,6 +10,7 @@ use OCA\Budget\Db\InterestRateMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\AccountClosureService;
 use OCA\Budget\Service\AccountService;
+use OCA\Budget\Service\BudgetCarryoverService;
 use OCA\Budget\Service\CurrencyConversionService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\TransactionService;
@@ -549,6 +550,39 @@ class AccountServiceTest extends TestCase {
         $this->assertSame(300.0, $result['thisMonthIncome']);
         $this->assertSame(180.0, $result['thisMonthExpenses']);
         $this->assertSame(12.5, $result['avgTransaction']);
+    }
+
+    /**
+     * With a budget start day, "this month" on the account page is the budget
+     * period running today: with start day 28 on 29 September, October's.
+     */
+    public function testGetAccountMetricsCoversTheRunningBudgetPeriod(): void {
+        $carryoverService = $this->createMock(BudgetCarryoverService::class);
+        $carryoverService->method('currentBudgetMonth')->with('user1')->willReturn('2026-10');
+        $carryoverService->method('budgetMonthRange')->with('user1', '2026-10')->willReturn(['2026-09-28', '2026-10-27']);
+        $l = $this->createMock(IL10N::class);
+        $service = new AccountService(
+            $this->accountMapper,
+            $this->transactionMapper,
+            $this->createMock(InterestRateMapper::class),
+            $this->conversionService,
+            $this->granularShareService,
+            $this->transactionService,
+            $l,
+            null,
+            null,
+            $carryoverService
+        );
+        $this->accountMapper->method('find')->willReturn($this->makeAccount());
+        $this->transactionMapper->expects($this->once())
+            ->method('getAccountMetrics')
+            ->with(1, '2026-09-28', '2026-10-27')
+            ->willReturn(['count' => 3, 'average' => 10.0, 'monthIncome' => 50.0, 'monthExpenses' => 20.0]);
+
+        $result = $service->getAccountMetrics(1, 'user1');
+
+        $this->assertSame(50.0, $result['thisMonthIncome']);
+        $this->assertSame(20.0, $result['thisMonthExpenses']);
     }
 
     public function testGetAccountMetricsRequiresAccessibleAccount(): void {

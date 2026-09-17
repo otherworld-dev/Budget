@@ -2112,10 +2112,13 @@ export default class DashboardModule {
             return;
         }
 
-        const currentIncome = parseFloat(data.current.totalIncome || 0);
-        const currentExpenses = parseFloat(data.current.totalExpenses || 0);
-        const prevIncome = parseFloat(data.previous?.totalIncome || 0);
-        const prevExpenses = parseFloat(data.previous?.totalExpenses || 0);
+        // The summary endpoint nests its figures under totals
+        const current = data.current.totals || {};
+        const previous = data.previous?.totals || {};
+        const currentIncome = parseFloat(current.totalIncome || 0);
+        const currentExpenses = parseFloat(current.totalExpenses || 0);
+        const prevIncome = parseFloat(previous.totalIncome || 0);
+        const prevExpenses = parseFloat(previous.totalExpenses || 0);
 
         const incomeChange = prevIncome > 0 ? ((currentIncome - prevIncome) / prevIncome * 100).toFixed(1) : 0;
         const expenseChange = prevExpenses > 0 ? ((currentExpenses - prevExpenses) / prevExpenses * 100).toFixed(1) : 0;
@@ -2124,6 +2127,7 @@ export default class DashboardModule {
         const expenseArrow = expenseChange >= 0 ? '↑' : '↓';
 
         container.innerHTML = `
+            ${data.periodLabel ? `<div class="comparison-period">${this.escapeHtml(data.periodLabel)}</div>` : ''}
             <div class="comparison-row">
                 <span class="comparison-label">${t('budget', 'Income')}</span>
                 <span class="comparison-value">${this.formatCurrency(currentIncome)}</span>
@@ -4176,16 +4180,12 @@ export default class DashboardModule {
                 }
 
                 case 'monthlyComparison': {
-                    const now = new Date();
-                    const thisMonth = {
-                        start: formatters.getMonthStart(now.getFullYear(), now.getMonth() + 1),
-                        end: formatters.getMonthEnd(now.getFullYear(), now.getMonth() + 1)
-                    };
-                    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                    const lastMonth = {
-                        start: formatters.getMonthStart(lastMonthDate.getFullYear(), lastMonthDate.getMonth() + 1),
-                        end: formatters.getMonthEnd(lastMonthDate.getFullYear(), lastMonthDate.getMonth() + 1)
-                    };
+                    // This budget month against the one before, so a budget
+                    // start day compares whole periods, not calendar months
+                    const mcStartDay = parseInt(this.settings?.budget_start_day || '1', 10);
+                    const mcMonth = formatters.currentBudgetMonth(mcStartDay);
+                    const thisMonth = formatters.budgetMonthRange(mcMonth, mcStartDay);
+                    const lastMonth = formatters.budgetMonthRange(formatters.shiftMonth(mcMonth, -1), mcStartDay);
 
                     const mcScope = this._tileScopeParams('monthlyComparison');
                     const [currentResp, previousResp] = await Promise.all([
@@ -4201,7 +4201,8 @@ export default class DashboardModule {
 
                     this.widgetData.monthlyComparison = {
                         current: await currentResp.json(),
-                        previous: await previousResp.json()
+                        previous: await previousResp.json(),
+                        periodLabel: mcStartDay > 1 ? thisMonth.label : null,
                     };
                     break;
                 }
@@ -4304,7 +4305,7 @@ export default class DashboardModule {
                     // Inclusive span, so the renderer's daily average matches the
                     // window the user picked rather than assuming a week.
                     const wtDays = formatters.daysBetweenDates(wtRange.startDate, wtRange.endDate) + 1;
-                    this.widgetData.weeklyTrend = [{ total: weekData.totalExpenses || 0, days: wtDays }];
+                    this.widgetData.weeklyTrend = [{ total: weekData.totals?.totalExpenses || 0, days: wtDays }];
                     break;
                 }
 
