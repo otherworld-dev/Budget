@@ -51,13 +51,11 @@ update-production.sh
 budget/js/budget-app.js.map
 budget/js/budget-app.js.LICENSE.txt
 
-# Claude Code (kept off public GitHub; the pre-push hook enforces this, and the
-# /commit skill temporarily un-ignores these to back them up to self-hosted origin)
+# Claude
 .claude/
 CLAUDE.md
-.claudeignore
+.mcp.json
 
-# Marketing website (origin-only; force-added to origin, stripped from the GitHub
-# graft alongside .claude, and blocked by the pre-push hook). Deployed separately
-# to budget.otherworld.dev.
+# Old marketing website folder. The site now lives in its own repo; the path
+# stays ignored, and blocked by .githooks/pre-push, as a backstop.
 website/
