@@ -27,6 +27,14 @@ class BudgetAlertService {
     private const OVER_BUDGET_EPSILON = 0.005;
     // categoryId => "<severity>:<periodStart>" of the last alert sent
     private const NOTIFIED_KEY = 'budget_alert_notified';
+    // Which budgets may raise an alert (#389): everything, or only budgets the
+    // user set themselves — leaving out the ones derived from bills and
+    // recurring income.
+    private const SCOPE_ALL = 'all';
+    private const SCOPE_OWN_BUDGETS = 'manual';
+    private const SCOPE_KEY = 'budget_alert_scope';
+    // Category ids the user has silenced on the alerts tile, as a JSON list
+    private const MUTED_KEY = 'budget_alert_muted_categories';
 
     public function __construct(
         CategoryMapper $categoryMapper,
@@ -56,7 +64,11 @@ class BudgetAlertService {
      * negative (overspend pulled forward), so 'amount' can be <= 0 for a
      * depleted envelope — those must still alert, not vanish.
      *
-     * @return array{amount: float, period: string, base: float, carried: float}
+     * 'source' says where the base came from: 'snapshot' or 'manual' for a
+     * figure the user set, 'recurring' for the #269 fallback, 'none' for a
+     * carryover-only envelope. The alerts scope filters on it (#389).
+     *
+     * @return array{amount: float, period: string, base: float, carried: float, source: string}
      */
     private function resolveEffectiveBudget($category, array $snapshotOverrides, array $recurringBudgets, array $carryovers = []): array {
         $catId = $category->getId();
@@ -66,12 +78,18 @@ class BudgetAlertService {
         $amount = isset($snapshotOverrides[$catId])
             ? (float) ($snapshotOverrides[$catId]['amount'] ?? 0)
             : (float) ($category->getBudgetAmount() ?? 0);
+        $source = $amount > 0
+            ? (isset($snapshotOverrides[$catId]) ? 'snapshot' : 'manual')
+            : 'none';
 
         if ($amount <= 0 && isset($recurringBudgets[$catId])) {
             $amount = $this->recurringBudgetService->convertMonthlyToPeriod(
                 (float) $recurringBudgets[$catId],
                 $period
             );
+            if ($amount > 0) {
+                $source = 'recurring';
+            }
         }
 
         $carried = (float) ($carryovers[$catId] ?? 0);
@@ -81,6 +99,7 @@ class BudgetAlertService {
             'period' => $period,
             'base' => $amount,
             'carried' => $carried,
+            'source' => $source,
         ];
     }
 
@@ -132,6 +151,65 @@ class BudgetAlertService {
     }
 
     /**
+     * Which budgets the alerts tile covers: every budget in play (default), or
+     * only the ones the user set themselves — leaving out budgets derived from
+     * bills and recurring income (#269), which is what the tile showed before
+     * that fallback existed (#389).
+     */
+    private function getAlertScope(string $userId): string {
+        return $this->settingService->get($userId, self::SCOPE_KEY) === self::SCOPE_OWN_BUDGETS
+            ? self::SCOPE_OWN_BUDGETS
+            : self::SCOPE_ALL;
+    }
+
+    /**
+     * Category ids the user has silenced on the alerts tile (#389), as a
+     * lookup. The value is free-form JSON straight off the settings API, so
+     * anything that isn't a list of ids means "nothing is muted" rather than
+     * an error the dashboard can do nothing about.
+     *
+     * @return array<int, true>
+     */
+    private function getMutedCategoryIds(string $userId): array {
+        $raw = $this->settingService->get($userId, self::MUTED_KEY);
+        $decoded = is_string($raw) && $raw !== '' ? json_decode($raw, true) : null;
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $muted = [];
+        foreach ($decoded as $id) {
+            if (is_int($id) || (is_string($id) && ctype_digit($id))) {
+                $muted[(int) $id] = true;
+            }
+        }
+
+        return $muted;
+    }
+
+    /**
+     * Whether a category may raise an alert under the user's scope and muted
+     * list (#389).
+     *
+     * Only the alerts path asks: getBudgetStatus() and getSummary() are the
+     * budget totals the Budget view, the Nextcloud dashboard panel and the
+     * digest add up, and silencing a tile row must not move a total.
+     *
+     * A carryover-only envelope has no budget source of its own — it holds
+     * whatever a previous period left behind — so it keeps alerting either way.
+     *
+     * @param array{source: string} $resolved
+     * @param array<int, true> $muted
+     */
+    private function mayAlert(int $categoryId, array $resolved, string $scope, array $muted): bool {
+        if (isset($muted[$categoryId])) {
+            return false;
+        }
+
+        return $scope !== self::SCOPE_OWN_BUDGETS || $resolved['source'] !== 'recurring';
+    }
+
+    /**
      * Get all budget alerts for a user.
      *
      * @return array Array of alerts with category info, spent, budget, percentage, and severity
@@ -146,15 +224,21 @@ class BudgetAlertService {
         $recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId);
         $carryovers = $this->carryoverService->getCarryovers($userId, $currentMonth, $categories, $visibleAccountIds);
         $notBudgeted = BudgetScope::excludedCategoryIds($categories);
+        $alertScope = $this->getAlertScope($userId);
+        $mutedCategories = $this->getMutedCategoryIds($userId);
 
         // Categories with a budget in play: base > 0, or a non-zero envelope
-        // carryover (a fully depleted envelope must still alert)
+        // carryover (a fully depleted envelope must still alert), minus the
+        // ones the user's alert scope or muted list rules out (#389)
         $categoriesWithBudgets = [];
         foreach ($categories as $category) {
             if ($category->getExcludedFromReports() || isset($notBudgeted[$category->getId()])) {
                 continue;
             }
             $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);
+            if (!$this->mayAlert($category->getId(), $resolved, $alertScope, $mutedCategories)) {
+                continue;
+            }
             if ($resolved['base'] > 0 || abs($resolved['carried']) >= 0.005) {
                 $categoriesWithBudgets[] = $category;
             }
@@ -387,6 +471,9 @@ class BudgetAlertService {
                 'categoryColor' => $category->getColor(),
                 'budgetAmount' => $budget,
                 'budgetPeriod' => $period,
+                // Where the budget came from, so the alerts tile's category
+                // picker can say which rows are derived from bills (#389)
+                'budgetSource' => $resolved['source'],
                 'carried' => round($resolved['carried'], 2),
                 'spent' => round($spent, 2),
                 'remaining' => round($budget - $spent, 2),

@@ -1335,15 +1335,54 @@ export default class DashboardModule {
         }).join('');
     }
 
+    /**
+     * Which budgets the alerts tile covers, and which categories the user has
+     * silenced (#389). Both are plain user settings, and the server applies
+     * them inside getAlerts(), so the tile, the notifications and the digest
+     * show the same set. They are read here to draw the picker and to explain
+     * a tile the filter has emptied.
+     *
+     * @returns {{scope: string, muted: number[]}} scope is 'all' or 'manual'
+     */
+    getBudgetAlertFilter() {
+        const scope = this.settings?.budget_alert_scope === 'manual' ? 'manual' : 'all';
+
+        let muted = [];
+        try {
+            const parsed = JSON.parse(this.settings?.budget_alert_muted_categories || '[]');
+            if (Array.isArray(parsed)) {
+                muted = parsed.map(id => parseInt(id, 10)).filter(id => Number.isInteger(id));
+            }
+        } catch (e) {
+            // A malformed setting means nothing is muted, as it does server-side
+        }
+
+        return { scope, muted };
+    }
+
     updateBudgetAlertsWidget(alerts) {
         const card = document.getElementById('budget-alerts-card');
         const container = document.getElementById('budget-alerts');
 
         if (!card || !container) return;
 
-        // Hide the card if no alerts
         if (!Array.isArray(alerts) || alerts.length === 0) {
-            card.style.display = 'none';
+            const { scope, muted } = this.getBudgetAlertFilter();
+
+            // Nothing to say: hide the card, as the tile has always done
+            if (scope === 'all' && muted.length === 0) {
+                card.style.display = 'none';
+                return;
+            }
+
+            // A filter that leaves nothing would otherwise take the tile away
+            // and its gear with it, so there would be no way back (#389).
+            card.style.display = '';
+            container.innerHTML = `<div class="empty-state-small">${
+                muted.length > 0
+                    ? n('budget', 'No budget alerts. %n category is muted.', 'No budget alerts. %n categories are muted.', muted.length)
+                    : t('budget', 'No budget alerts from the budgets you set.')
+            }</div>`;
             return;
         }
 
@@ -1383,6 +1422,118 @@ export default class DashboardModule {
                 </div>
             `;
         }).join('');
+    }
+
+    /**
+     * The alerts tile's category picker: one row per category with a budget in
+     * play, ticked unless the user has muted it. Rows whose budget was worked
+     * out from a bill are marked, since those are the ones that started
+     * turning up on the tile when #269 added the fallback (#389).
+     */
+    _budgetAlertsTileConfigHtml(statuses) {
+        const muted = new Set(this.getBudgetAlertFilter().muted);
+        const currency = this.getPrimaryCurrency();
+
+        return statuses.map(status => {
+            const derived = status.budgetSource === 'recurring'
+                ? ` <span class="tile-config-source">${t('budget', '(from a bill)')}</span>`
+                : '';
+
+            return `
+                <div class="tile-config-item tile-config-item--static" data-category-id="${status.categoryId}">
+                    <span class="tile-config-name">${this.escapeHtml(status.categoryName)}${derived}</span>
+                    <span class="tile-config-meta">${this.formatCurrency(status.budgetAmount, currency)}</span>
+                    <label class="tile-config-toggle">
+                        <input type="checkbox" data-category-id="${status.categoryId}"
+                            ${muted.has(status.categoryId) ? '' : 'checked'}>
+                    </label>
+                </div>
+            `;
+        }).join('');
+    }
+
+    /**
+     * Fill the tile settings modal's list with the categories that can alert.
+     * The status endpoint already returns exactly those, with each budget's
+     * amount and where it came from.
+     */
+    async renderBudgetAlertsTileConfigList() {
+        const listEl = document.getElementById('tile-settings-modal-list');
+        if (!listEl) return;
+
+        let statuses = [];
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/alerts/status'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (response.ok) {
+                statuses = await response.json();
+            }
+        } catch (e) {
+            console.error('Failed to load the categories that can alert', e);
+        }
+
+        if (!Array.isArray(statuses) || statuses.length === 0) {
+            listEl.innerHTML = `<div class="empty-state-small">${t('budget', 'No category has a budget yet.')}</div>`;
+            return;
+        }
+
+        listEl.innerHTML = this._budgetAlertsTileConfigHtml(statuses);
+
+        listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const categoryId = parseInt(cb.dataset.categoryId, 10);
+                const { muted } = this.getBudgetAlertFilter();
+                this.saveBudgetAlertFilter({
+                    muted: cb.checked
+                        ? muted.filter(id => id !== categoryId)
+                        : [...muted, categoryId],
+                });
+            });
+        });
+    }
+
+    /**
+     * Save the alert filter and redraw the tile from the server. Storing it as
+     * a user setting rather than in the tile config is what lets the
+     * notifications and the digest honour the same choice (#389). The local
+     * copy is updated first so a quick second toggle builds on it rather than
+     * on a stale list, since the save itself is debounced.
+     */
+    async saveBudgetAlertFilter({ scope, muted } = {}) {
+        const current = this.getBudgetAlertFilter();
+        const toSave = {
+            budget_alert_scope: scope ?? current.scope,
+            budget_alert_muted_categories: JSON.stringify(muted ?? current.muted),
+        };
+
+        Object.assign(this.settings, toSave);
+
+        try {
+            await this._saveSettings(toSave);
+        } catch (e) {
+            console.error('Failed to save the budget alert filter', e);
+            showError(t('budget', 'Failed to save the budget alert filter'));
+            return;
+        }
+
+        await this.refreshBudgetAlertsWidget();
+    }
+
+    /**
+     * Refetch the alerts and repaint. The filter is applied server-side, so a
+     * change has to go back for a fresh set rather than repaint what is
+     * already on screen.
+     */
+    async refreshBudgetAlertsWidget() {
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/alerts'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            this.updateBudgetAlertsWidget(response.ok ? await response.json() : []);
+        } catch (e) {
+            console.error('Failed to refresh the budget alerts tile', e);
+        }
     }
 
     updateDebtPayoffWidget(summary) {
@@ -4875,11 +5026,14 @@ export default class DashboardModule {
             `);
         }
 
+        // Tiles that bring their own section below rather than a schema field
+        const hasOwnSection = ['accounts', 'budgetAlerts'].includes(widgetId);
+
         // Render fields
         if (commonSection) {
             if (fields.length > 0) {
                 commonSection.innerHTML = fields.join('');
-            } else {
+            } else if (!hasOwnSection) {
                 commonSection.innerHTML = `<p style="color: var(--color-text-maxcontrast); font-size: 13px;">${t('budget', 'No settings available for this tile.')}</p>`;
             }
         }
@@ -4890,6 +5044,36 @@ export default class DashboardModule {
                 specificSection.innerHTML = `<p class="tile-config-hint">${t('budget', 'Drag to reorder. Toggle visibility for each item.')}</p>`;
             }
             this.renderAccountsTileConfigList();
+        }
+
+        // Budget Alerts tile: which budgets may alert, and per-category muting
+        // (#389). These save as user settings rather than tile settings, so
+        // they are wired here instead of through the .tile-setting-input path.
+        if (widgetId === 'budgetAlerts') {
+            if (specificSection) {
+                const { scope } = this.getBudgetAlertFilter();
+                // One full-width group: .form-section lays its children out in
+                // two columns, which would put the hints beside the checkbox
+                specificSection.innerHTML = `
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                            <input type="checkbox" id="budget-alerts-own-budgets-only"
+                                style="width: auto; min-height: auto;" ${scope === 'manual' ? 'checked' : ''}>
+                            ${t('budget', 'Only categories with a budget I set')}
+                        </label>
+                        <p class="tile-config-hint">${t('budget', 'Leaves out the budgets worked out from your bills and recurring income.')}</p>
+                        <p class="tile-config-hint" style="margin-bottom: 0;">${t('budget', 'Untick a category to stop it alerting, here and in notifications.')}</p>
+                    </div>
+                `;
+
+                const scopeInput = document.getElementById('budget-alerts-own-budgets-only');
+                if (scopeInput) {
+                    scopeInput.onchange = () => {
+                        this.saveBudgetAlertFilter({ scope: scopeInput.checked ? 'manual' : 'all' });
+                    };
+                }
+            }
+            this.renderBudgetAlertsTileConfigList();
         }
 
         // Wire change handlers (save immediately on change)
@@ -4955,7 +5139,9 @@ export default class DashboardModule {
             'accounts': () => this.updateAccountsWidget(this._allDashboardAccounts),
             'budgetProgress': () => this.refreshBudgetProgressWidget(widgetId),
             'topCategories': () => this.refreshTopCategoriesWidget(widgetId),
-            'budgetAlerts': () => this.updateBudgetAlertsWidget?.(),
+            // Refetches: the alerts filter is applied server-side, and
+            // repainting with no argument would blank the tile (#389)
+            'budgetAlerts': () => this.refreshBudgetAlertsWidget(),
             'savingsGoals': () => this.updateSavingsGoalsWidget?.(),
             // Debt widgets
             'debtPayoff': () => this.updateDebtPayoffWidget?.(),

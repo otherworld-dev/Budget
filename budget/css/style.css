@@ -764,6 +764,22 @@
     white-space: nowrap;
 }
 
+/* A list that only toggles, with nothing to drag (Budget Alerts) */
+.tile-config-item--static {
+    cursor: default;
+}
+
+.tile-config-source {
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+}
+
+.tile-config-meta {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    white-space: nowrap;
+}
+
 .tile-config-toggle input[type="checkbox"] {
     cursor: pointer;
     width: 16px;
