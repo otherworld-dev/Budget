@@ -57,5 +57,5 @@ CLAUDE.md
 .mcp.json
 
 # Old marketing website folder. The site now lives in its own repo; the path
-# stays ignored, and blocked by .githooks/pre-push, as a backstop.
+# stays ignored as a backstop.
 website/
