@@ -60,6 +60,25 @@ class SettlementMapper extends QBMapper {
     }
 
     /**
+     * Settlements another user recorded against their contact for a Nextcloud
+     * user — the recipient's side of that user's settlement history (#390).
+     * Returned as the owner's entities; amounts are from the owner's side.
+     *
+     * @return Settlement[]
+     */
+    public function findSharedWithNextcloudUser(string $nextcloudUserId, string $ownerUserId): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('s.*')
+            ->from($this->getTableName(), 's')
+            ->innerJoin('s', 'budget_contacts', 'c', $qb->expr()->eq('s.contact_id', 'c.id'))
+            ->where($qb->expr()->eq('c.nextcloud_user_id', $qb->createNamedParameter($nextcloudUserId)))
+            ->andWhere($qb->expr()->eq('s.user_id', $qb->createNamedParameter($ownerUserId)))
+            ->orderBy('s.date', 'DESC');
+
+        return $this->findEntities($qb);
+    }
+
+    /**
      * Get total settled amount per contact (positive = they paid you).
      *
      * @return array<int, float>

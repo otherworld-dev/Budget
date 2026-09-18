@@ -54,6 +54,8 @@ class SettingController extends Controller {
         'budget_period' => 'monthly',
         'budget_start_day' => '1',
         'budget_alert_threshold' => '80',
+        'budget_alert_scope' => 'all', // or 'manual': only budgets the user set (#389)
+        'budget_alert_muted_categories' => '[]',
         'pension_target' => '500000',
         'pension_inflation_rate' => '0.025',
         'pension_projection_mode' => 'nominal',

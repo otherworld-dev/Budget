@@ -116,12 +116,15 @@ class ExpenseShareMapper extends QBMapper {
      * details, since these span the owner's transaction which the recipient
      * doesn't own.
      *
+     * Pass $ownerUserId to narrow it to what one user shared with them — the
+     * recipient's contact card for that user (#390).
+     *
      * @return array[] Rows with keys: id, owner_user_id, transaction_id, amount,
      *                 is_settled, notes, currency, created_at, contact_name,
      *                 transaction_description, transaction_date, transaction_amount,
      *                 transaction_type
      */
-    public function findSharedWithNextcloudUser(string $nextcloudUserId): array {
+    public function findSharedWithNextcloudUser(string $nextcloudUserId, ?string $ownerUserId = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('es.id', 'es.transaction_id', 'es.amount', 'es.is_settled', 'es.notes', 'es.currency', 'es.created_at')
             ->selectAlias('es.user_id', 'owner_user_id')
@@ -136,11 +139,46 @@ class ExpenseShareMapper extends QBMapper {
             ->where($qb->expr()->eq('c.nextcloud_user_id', $qb->createNamedParameter($nextcloudUserId)))
             ->orderBy('es.created_at', 'DESC');
 
+        if ($ownerUserId !== null) {
+            $qb->andWhere($qb->expr()->eq('es.user_id', $qb->createNamedParameter($ownerUserId)));
+        }
+
         $result = $qb->executeQuery();
         $rows = $result->fetchAll();
         $result->closeCursor();
 
         return $rows;
+    }
+
+    /**
+     * Unsettled totals of what other users have shared with a Nextcloud user,
+     * per sharer and currency (#390). Amounts are from the sharer's side:
+     * positive means the recipient owes the sharer.
+     *
+     * @return array<string, array<string, float>> Owner user ID => [currency => balance]
+     */
+    public function getIncomingBalancesByOwner(string $nextcloudUserId): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('es.currency')
+            ->selectAlias('es.user_id', 'owner_user_id')
+            ->selectAlias($qb->func()->sum('es.amount'), 'balance')
+            ->from($this->getTableName(), 'es')
+            ->innerJoin('es', 'budget_contacts', 'c', $qb->expr()->eq('es.contact_id', 'c.id'))
+            ->where($qb->expr()->eq('c.nextcloud_user_id', $qb->createNamedParameter($nextcloudUserId)))
+            ->andWhere($qb->expr()->eq('es.is_settled', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)))
+            ->groupBy('es.user_id', 'es.currency');
+
+        $result = $qb->executeQuery();
+        $balances = [];
+        while ($row = $result->fetch()) {
+            $owner = $row['owner_user_id'];
+            $currency = $row['currency'] ?? 'USD';
+            // += because a NULL currency folds into USD alongside a real USD group
+            $balances[$owner][$currency] = ($balances[$owner][$currency] ?? 0.0) + (float) $row['balance'];
+        }
+        $result->closeCursor();
+
+        return $balances;
     }
 
     /**

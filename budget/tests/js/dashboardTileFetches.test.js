@@ -154,7 +154,8 @@ describe('Weekly Spending', () => {
         const dash = makeDashboard({ weeklyTrend: { dateRange: '30d' } });
         global.fetch = vi.fn(async (url) => {
             requested.push(url);
-            return { ok: true, json: async () => ({ totalExpenses: 300 }) };
+            // /reports/summary nests its figures under totals
+            return { ok: true, json: async () => ({ totals: { totalExpenses: 300 } }) };
         });
 
         await dash.loadWidgetData('weeklyTrend', true);

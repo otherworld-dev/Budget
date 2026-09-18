@@ -28,6 +28,7 @@ class AccountService extends AbstractCrudService {
     private IL10N $l;
     private ?AutoShareService $autoShareService;
     private ?AccountClosureService $closureService;
+    private ?BudgetCarryoverService $carryoverService;
 
     public function __construct(
         AccountMapper $mapper,
@@ -38,7 +39,8 @@ class AccountService extends AbstractCrudService {
         TransactionService $transactionService,
         IL10N $l,
         ?AutoShareService $autoShareService = null,
-        ?AccountClosureService $closureService = null
+        ?AccountClosureService $closureService = null,
+        ?BudgetCarryoverService $carryoverService = null
     ) {
         $this->mapper = $mapper;
         $this->transactionMapper = $transactionMapper;
@@ -49,6 +51,7 @@ class AccountService extends AbstractCrudService {
         $this->l = $l;
         $this->autoShareService = $autoShareService;
         $this->closureService = $closureService;
+        $this->carryoverService = $carryoverService;
     }
 
     public function create(
@@ -531,6 +534,8 @@ class AccountService extends AbstractCrudService {
      * total transaction count, this month's income and expenses, and the
      * average transaction amount. Computed server-side over the whole account
      * so the values no longer reflect only the currently displayed page.
+     * "This month" is the budget month running today, which with a custom
+     * start day is a budget period rather than the calendar month.
      *
      * @return array{totalTransactions: int, thisMonthIncome: float, thisMonthExpenses: float, avgTransaction: float}
      */
@@ -538,8 +543,9 @@ class AccountService extends AbstractCrudService {
         // Access check (throws if the account is not owned by / shared with the user)
         $this->find($accountId, $userId);
 
-        $monthStart = date('Y-m-01');
-        $monthEnd = date('Y-m-t');
+        [$monthStart, $monthEnd] = $this->carryoverService !== null
+            ? $this->carryoverService->budgetMonthRange($userId, $this->carryoverService->currentBudgetMonth($userId))
+            : [date('Y-m-01'), date('Y-m-t')];
 
         $metrics = $this->transactionMapper->getAccountMetrics($accountId, $monthStart, $monthEnd);
 

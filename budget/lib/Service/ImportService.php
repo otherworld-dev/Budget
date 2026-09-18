@@ -701,7 +701,7 @@ class ImportService {
                         $accountSummaries[$sourceId]['transactionCount']++;
                     }
                 } catch (\Exception $e) {
-                    $errors[] = ['row' => $index, 'sourceAccountId' => $sourceId, 'error' => $e->getMessage()];
+                    $errors[] = ['row' => $index + 1, 'sourceAccountId' => $sourceId, 'error' => $e->getMessage()];
                 }
             }
         }
@@ -806,7 +806,16 @@ class ImportService {
                         // Blank cell: same fallback the import itself makes,
                         // or the preview promises rows execute will drop.
                         if ($accountId === null) {
-                            $errors[] = ['row' => $index, 'error' => $this->l->t('This row has no account, and no account was chosen for the import'), 'data' => $row];
+                            $errors[] = [
+                                // 1-based, like the import's own errors: the
+                                // review step renders these now, and two
+                                // screens numbering the same row differently
+                                // is worse than either numbering (#388).
+                                'row' => $index + 1,
+                                'error' => $this->l->t('This row has no account, and no account was chosen for the import'),
+                                'reason' => 'no-account',
+                                'data' => $row,
+                            ];
                             continue;
                         }
                     } else {
@@ -894,7 +903,7 @@ class ImportService {
                     }
                 }
             } catch (\Exception $e) {
-                $errors[] = ['row' => $index, 'error' => $e->getMessage(), 'data' => $row];
+                $errors[] = ['row' => $index + 1, 'error' => $e->getMessage(), 'data' => $row];
             }
         }
 
@@ -1354,6 +1363,10 @@ class ImportService {
                             'error' => $txAccountName === ''
                                 ? $this->l->t('This row has no account, and no account was chosen for the import')
                                 : $this->l->t('Could not resolve account: %1$s', [$txAccountName]),
+                            // A code, not the message: the UI points at the
+                            // fallback account select off the back of this and
+                            // must not depend on the user's language (#388).
+                            'reason' => $txAccountName === '' ? 'no-account' : 'unresolved-account',
                         ];
                         continue;
                     }

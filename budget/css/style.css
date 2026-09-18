@@ -764,6 +764,22 @@
     white-space: nowrap;
 }
 
+/* A list that only toggles, with nothing to drag (Budget Alerts) */
+.tile-config-item--static {
+    cursor: default;
+}
+
+.tile-config-source {
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+}
+
+.tile-config-meta {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    white-space: nowrap;
+}
+
 .tile-config-toggle input[type="checkbox"] {
     cursor: pointer;
     width: 16px;
@@ -1330,6 +1346,12 @@
 
 .comparison-label {
     font-size: 13px;
+    color: var(--color-text-maxcontrast);
+}
+
+/* The budget period a comparison covers when a budget start day is set */
+.comparison-period {
+    font-size: 11px;
     color: var(--color-text-maxcontrast);
 }
 
@@ -5427,6 +5449,13 @@ button.danger:hover {
     letter-spacing: 0.5px;
 }
 
+/* The budget period a "This Month" account tile covers when a start day is set */
+.metric-period {
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+    margin-top: 2px;
+}
+
 /* Account Details Information */
 .account-details-section {
     background: var(--color-main-background);
@@ -7143,7 +7172,8 @@ button.danger:hover {
 }
 
 /* Import preview: batch is going the opposite way to the account's history */
-.import-direction-warning {
+.import-direction-warning,
+.import-skipped-warning {
     display: flex;
     gap: 12px;
     padding: 16px;
@@ -7154,22 +7184,37 @@ button.danger:hover {
     color: var(--color-main-text);
 }
 
-.import-direction-warning .icon-error {
+.import-direction-warning .icon-error,
+.import-skipped-warning .icon-error {
     flex-shrink: 0;
     margin-top: 2px;
     opacity: 0.8;
 }
 
-.import-direction-warning strong {
+.import-direction-warning strong,
+.import-skipped-warning strong {
     display: block;
     margin-bottom: 4px;
     color: #f57c00;
 }
 
-.import-direction-warning p {
+.import-direction-warning p,
+.import-skipped-warning p {
     margin: 0;
     font-size: 0.9rem;
     line-height: 1.5;
+}
+
+.import-skipped-warning ul {
+    margin: 0 0 8px;
+    padding-left: 1.2em;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.import-skipped-warning .import-skipped-rows-list {
+    display: block;
+    opacity: 0.7;
 }
 
 .stat-item {
@@ -16210,6 +16255,17 @@ button.secondary.compact {
 .share-item.owing .share-status {
     background: #fff3cd;
     color: #856404;
+}
+
+.share-item .share-origin {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+
+.shares-note {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    margin-bottom: 8px;
 }
 
 .settlement-item {

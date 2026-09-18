@@ -40,6 +40,8 @@ class BudgetAlertServiceTest extends TestCase {
     /** @var array<int, float> Recurring budgets returned by the mock */
     private array $recurringBudgets = [];
     private array $carryovers = [];
+    /** @var array<int, array{amount: float, period?: string}> per-month budget overrides */
+    private array $snapshots = [];
     /** @var string[] months the snapshot and carryover lookups were asked for */
     private array $budgetMonthsAsked = [];
     /** @var array<string, string> persisted budget_settings */
@@ -61,7 +63,7 @@ class BudgetAlertServiceTest extends TestCase {
         $budgetSnapshotMapper->method('findEffectiveBatch')
             ->willReturnCallback(function (string $userId, string $month): array {
                 $this->budgetMonthsAsked[] = "snapshot $month";
-                return [];
+                return $this->snapshots;
             });
 
         // Per-test recurring budgets via $this->recurringBudgets; conversion
@@ -699,5 +701,126 @@ class BudgetAlertServiceTest extends TestCase {
         $this->assertArrayHasKey('budget_alert_notified', $this->settings);
         $stored = json_decode($this->settings['budget_alert_notified'], true);
         $this->assertStringStartsWith('warning:', $stored['1']);
+    }
+
+    // ===== Which categories may alert (#389) =====
+
+    /**
+     * Seed the settings the service reads; anything left out falls back to its
+     * default, the way an unset setting does in production.
+     */
+    private function seedSettings(array $map): void {
+        $this->settingService->method('get')
+            ->willReturnCallback(fn(string $userId, string $key) => $map[$key] ?? null);
+    }
+
+    /**
+     * Since #269 a category with no budget of its own falls back to the amount
+     * its bills and recurring income commit it to. That default stands: alerts
+     * cover derived budgets unless the user asks for something narrower.
+     */
+    public function testDerivedBudgetAlertsByDefault(): void {
+        $category = $this->makeCategory(['budgetAmount' => 0.0]);
+        $this->recurringBudgets = [1 => 56.03];
+        $this->setupMocksForBudgetStatus([$category], 190.0);
+
+        $alerts = $this->service->getAlerts(self::USER_ID);
+
+        $this->assertCount(1, $alerts);
+        $this->assertSame('danger', $alerts[0]['severity']);
+    }
+
+    public function testDerivedBudgetDoesNotAlertWhenOnlyOwnBudgetsWanted(): void {
+        $this->seedSettings(['budget_alert_scope' => 'manual']);
+        $category = $this->makeCategory(['budgetAmount' => 0.0]);
+        $this->recurringBudgets = [1 => 56.03];
+        $this->setupMocksForBudgetStatus([$category], 190.0);
+
+        $this->assertSame([], $this->service->getAlerts(self::USER_ID));
+    }
+
+    public function testOwnBudgetStillAlertsWhenOnlyOwnBudgetsWanted(): void {
+        $this->seedSettings(['budget_alert_scope' => 'manual']);
+        $category = $this->makeCategory(['budgetAmount' => 100.0]);
+        $this->setupMocksForBudgetStatus([$category], 120.0);
+
+        $alerts = $this->service->getAlerts(self::USER_ID);
+
+        $this->assertCount(1, $alerts);
+        $this->assertSame('danger', $alerts[0]['severity']);
+    }
+
+    /**
+     * A figure typed into the Budget view for this month lands in a snapshot
+     * rather than on the category, and is still a budget the user set.
+     */
+    public function testSnapshotBudgetCountsAsOneTheUserSet(): void {
+        $this->seedSettings(['budget_alert_scope' => 'manual']);
+        $category = $this->makeCategory(['budgetAmount' => 0.0]);
+        $this->snapshots = [1 => ['amount' => 100.0, 'period' => 'monthly']];
+        $this->setupMocksForBudgetStatus([$category], 120.0);
+
+        $this->assertCount(1, $this->service->getAlerts(self::USER_ID));
+    }
+
+    public function testMutedCategoryIsDroppedFromAlerts(): void {
+        $this->seedSettings(['budget_alert_muted_categories' => '[1]']);
+        $muted = $this->makeCategory(['id' => 1, 'name' => 'EKZ', 'budgetAmount' => 100.0]);
+        $other = $this->makeCategory(['id' => 2, 'name' => 'Groceries', 'budgetAmount' => 100.0]);
+        $this->setupMocksForBudgetStatus([$muted, $other], 120.0);
+
+        $alerts = $this->service->getAlerts(self::USER_ID);
+
+        $this->assertCount(1, $alerts);
+        $this->assertSame(2, $alerts[0]['categoryId']);
+    }
+
+    /**
+     * Muting governs the alerts tile and the notifications it drives. The
+     * budget figures the Budget view, the Nextcloud dashboard panel and the
+     * digest add up must not move because a row was silenced.
+     */
+    public function testMutingAndScopeLeaveBudgetStatusAlone(): void {
+        $this->seedSettings([
+            'budget_alert_scope' => 'manual',
+            'budget_alert_muted_categories' => '[1]',
+        ]);
+        $muted = $this->makeCategory(['id' => 1, 'name' => 'EKZ', 'budgetAmount' => 100.0]);
+        $derived = $this->makeCategory(['id' => 2, 'name' => 'Taxes', 'budgetAmount' => 0.0]);
+        $this->recurringBudgets = [2 => 345.17];
+        $this->setupMocksForBudgetStatus([$muted, $derived], 120.0);
+
+        $this->assertCount(2, $this->service->getBudgetStatus(self::USER_ID));
+    }
+
+    public function testBudgetStatusReportsWhereEachBudgetCameFrom(): void {
+        $own = $this->makeCategory(['id' => 1, 'name' => 'Groceries', 'budgetAmount' => 100.0]);
+        $derived = $this->makeCategory(['id' => 2, 'name' => 'EKZ', 'budgetAmount' => 0.0]);
+        $this->recurringBudgets = [2 => 56.03];
+        $this->setupMocksForBudgetStatus([$own, $derived], 10.0);
+
+        $sources = [];
+        foreach ($this->service->getBudgetStatus(self::USER_ID) as $status) {
+            $sources[$status['categoryId']] = $status['budgetSource'];
+        }
+
+        $this->assertSame(['manual', 'recurring'], [$sources[1], $sources[2]]);
+    }
+
+    public function testMalformedMutedCategorySettingIsIgnored(): void {
+        $this->seedSettings(['budget_alert_muted_categories' => 'not json']);
+        $category = $this->makeCategory(['budgetAmount' => 100.0]);
+        $this->setupMocksForBudgetStatus([$category], 120.0);
+
+        $this->assertCount(1, $this->service->getAlerts(self::USER_ID));
+    }
+
+    public function testMutedCategoryIsNotNotified(): void {
+        $this->settings['budget_alert_muted_categories'] = '[1]';
+        $service = $this->makeNotifyingService(100.0);
+        $this->spend = 130.0;
+
+        $this->assertSame(0, $service->notifyAlerts(self::USER_ID));
+        $this->assertSame([], $this->sent);
     }
 }

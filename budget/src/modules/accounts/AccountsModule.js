@@ -1753,6 +1753,30 @@ export default class AccountsModule {
         });
     }
 
+    /**
+     * The server counts "this month" as the budget month running today, so
+     * with a budget start day the two month tiles show which days that is.
+     */
+    _updateMetricPeriodHints() {
+        const startDay = parseInt(this.settings?.budget_start_day || '1', 10);
+        const label = startDay > 1 ? formatters.getPeriodDateRange('monthly', startDay).label : null;
+        for (const id of ['total-income', 'total-expenses']) {
+            const content = document.getElementById(id)?.parentElement;
+            if (!content) continue;
+            let hint = content.querySelector('.metric-period');
+            if (!label) {
+                hint?.remove();
+                continue;
+            }
+            if (!hint) {
+                hint = document.createElement('div');
+                hint.className = 'metric-period';
+                content.appendChild(hint);
+            }
+            hint.textContent = label;
+        }
+    }
+
     async loadAccountMetrics(accountId) {
         try {
             // Metrics are aggregated server-side over the WHOLE account, not the
@@ -1780,6 +1804,7 @@ export default class AccountsModule {
                 this.formatCurrency(metrics.thisMonthExpenses || 0, currency);
             document.getElementById('avg-transaction').textContent =
                 this.formatCurrency(metrics.avgTransaction || 0, currency);
+            this._updateMetricPeriodHints();
 
         } catch (error) {
             console.error('Failed to load account metrics:', error);

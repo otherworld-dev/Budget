@@ -504,6 +504,18 @@ export function currentBudgetMonth(startDay = 1, referenceDate = null) {
 }
 
 /**
+ * The dates a budget month covers: the calendar month, or with a budget start
+ * day the cycle holding the month's 15th.
+ *
+ * @param {string} month - YYYY-MM
+ * @param {number} [startDay=1] - Day of month the budget cycle starts
+ * @returns {object} {start, end, label}
+ */
+export function budgetMonthRange(month, startDay = 1) {
+    return getPeriodDateRange('monthly', startDay, `${month}-15`);
+}
+
+/**
  * Move a YYYY-MM month by whole months.
  *
  * @param {string} month - YYYY-MM

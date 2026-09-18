@@ -447,6 +447,55 @@ class ImportServiceTest extends TestCase {
         $this->assertStringContainsString('no account', $result['errors'][0]['error']);
     }
 
+    // The review step now shows these reasons, so preview has to number rows
+    // the way the import does. It counted from 0 and the import counted from
+    // 1, which nothing noticed while only the post-import modal rendered them
+    // (#388). The reason code is what lets the UI point at the fallback
+    // account select without matching a translated string.
+    public function testPreviewNumbersBlankAccountRowsTheSameWayTheImportDoes(): void {
+        $rows = [
+            ['2026-08-25', 'Lohnkonto', '18.40', 'Zigaretten'],
+            ['2026-08-26', '', '9.90', 'Wein'],
+            ['2026-08-27', '', '15.65', 'Lebensmittel'],
+        ];
+        $mapping = ['date' => 0, 'account' => 1, 'amount' => 2, 'description' => 3];
+
+        $this->mockImportFile('file.csv', 'csv data');
+        $this->parserFactory->method('detectFormat')->willReturn('csv');
+        $this->parserFactory->method('parse')->willReturn($rows);
+
+        $this->accountMapper->method('findByName')->willReturnCallback(
+            fn(string $userId, string $name) => $name === 'Lohnkonto' ? $this->makeAccount(1, 'Lohnkonto') : null
+        );
+        $this->normalizer->method('mapRowToTransaction')->willReturnCallback(fn(array $row) => [
+            'date' => $row[0],
+            'amount' => (float) $row[2],
+            'description' => $row[3],
+            'type' => 'debit',
+            '_accountName' => $row[1],
+        ]);
+        $this->normalizer->method('generateImportId')->willReturnCallback(
+            fn($fileId, $index) => 'imp_' . $index
+        );
+        $this->duplicateDetector->method('isDuplicate')->willReturn(false);
+        $this->duplicateDetector->method('isDuplicateByImportId')->willReturn(false);
+        $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+        $this->accountService->expects($this->never())->method('create');
+
+        $preview = $this->service->previewImport('user1', 'file.csv', $mapping, null);
+        $executed = $this->service->processImport('user1', 'file.csv', $mapping, null);
+
+        $this->assertSame(3, $preview['totalRows']);
+        $this->assertSame(1, $preview['validTransactions']);
+        $this->assertSame([2, 3], array_column($preview['errors'], 'row'));
+        $this->assertSame(
+            array_column($preview['errors'], 'row'),
+            array_column($executed['errors'], 'row')
+        );
+        $this->assertSame(['no-account', 'no-account'], array_column($preview['errors'], 'reason'));
+        $this->assertSame(['no-account', 'no-account'], array_column($executed['errors'], 'reason'));
+    }
+
     // A name that is present but unresolved is still an error - the fallback is
     // for an empty cell, not for a name that would otherwise misfile the row.
     // (The normalizer is mocked to name an account the resolver never saw,

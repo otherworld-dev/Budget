@@ -40,7 +40,7 @@ class ExpenseShareMapperTest extends TestCase {
         $this->func->method('sum')->willReturn($sumFunc);
 
         foreach (['select', 'selectAlias', 'from', 'where', 'andWhere',
-                   'orderBy', 'delete', 'groupBy'] as $method) {
+                   'orderBy', 'delete', 'groupBy', 'innerJoin', 'leftJoin'] as $method) {
             $this->qb->method($method)->willReturnSelf();
         }
 
@@ -221,6 +221,27 @@ class ExpenseShareMapperTest extends TestCase {
         $balances = $this->mapper->getBalancesByContact('user1');
 
         $this->assertEmpty($balances);
+    }
+
+    // ===== getIncomingBalancesByOwner =====
+
+    public function testGetIncomingBalancesByOwnerKeysByOwnerAndCurrency(): void {
+        $this->result->method('fetch')
+            ->willReturnOnConsecutiveCalls(
+                ['owner_user_id' => 'alice', 'currency' => 'GBP', 'balance' => '60.00'],
+                ['owner_user_id' => 'alice', 'currency' => null, 'balance' => '5.00'],
+                ['owner_user_id' => 'carol', 'currency' => 'EUR', 'balance' => '-12.50'],
+                false
+            );
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $balances = $this->mapper->getIncomingBalancesByOwner('bob');
+
+        $this->assertEquals([
+            'alice' => ['GBP' => 60.0, 'USD' => 5.0],
+            'carol' => ['EUR' => -12.5],
+        ], $balances);
     }
 
     // ===== deleteAll =====
