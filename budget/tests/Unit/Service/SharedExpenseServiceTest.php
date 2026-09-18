@@ -104,11 +104,12 @@ class SharedExpenseServiceTest extends TestCase {
         $this->assertTrue($result[0]['isSettled']);
     }
 
-    private function makeContact(int $id = 1, string $name = 'Alice'): Contact {
+    private function makeContact(int $id = 1, string $name = 'Alice', ?string $nextcloudUserId = null): Contact {
         $contact = new Contact();
         $contact->setId($id);
         $contact->setUserId('user1');
         $contact->setName($name);
+        $contact->setNextcloudUserId($nextcloudUserId);
         return $contact;
     }
 
@@ -303,6 +304,59 @@ class SharedExpenseServiceTest extends TestCase {
         $this->assertEquals('settled', $result['contacts'][0]['direction']);
     }
 
+    public function testGetBalanceSummaryCountsWhatALinkedUserSplitWithMe(): void {
+        // alice split £60 with user1, so user1's card for alice must say
+        // "you owe £60" — her +60 ("owes you") is user1's -60 (#390)
+        $alice = $this->makeContact(1, 'Alice', 'alice');
+        $this->contactMapper->method('findAll')->willReturn([$alice]);
+        $this->expenseShareMapper->method('getBalancesByContact')->willReturn([]);
+        $this->expenseShareMapper->method('getIncomingBalancesByOwner')
+            ->with('user1')
+            ->willReturn(['alice' => ['GBP' => 60.0]]);
+
+        $result = $this->service->getBalanceSummary('user1');
+
+        $card = $result['contacts'][0];
+        $this->assertSame('owing', $card['direction']);
+        $this->assertEquals([['currency' => 'GBP', 'amount' => -60.0, 'direction' => 'owing']], $card['balances']);
+        $this->assertEqualsWithDelta(-60.0, $card['balance'], 0.001);
+        $this->assertEqualsWithDelta(60.0, $result['totalsByCurrency']['GBP']['owing'], 0.001);
+        $this->assertEqualsWithDelta(60.0, $result['totalOwing'], 0.001);
+    }
+
+    public function testGetBalanceSummaryNetsBothDirectionsForALinkedUser(): void {
+        // user1 split £25 with alice, alice split £60 with user1 → user1 owes £35
+        $alice = $this->makeContact(1, 'Alice', 'alice');
+        $this->contactMapper->method('findAll')->willReturn([$alice]);
+        $this->expenseShareMapper->method('getBalancesByContact')->willReturn([1 => ['GBP' => 25.0]]);
+        $this->expenseShareMapper->method('getIncomingBalancesByOwner')
+            ->willReturn(['alice' => ['GBP' => 60.0]]);
+
+        $result = $this->service->getBalanceSummary('user1');
+
+        $this->assertSame('owing', $result['contacts'][0]['direction']);
+        $this->assertEqualsWithDelta(-35.0, $result['contacts'][0]['balances'][0]['amount'], 0.001);
+        $this->assertEqualsWithDelta(0.0, $result['totalOwed'], 0.001);
+        $this->assertEqualsWithDelta(35.0, $result['totalOwing'], 0.001);
+    }
+
+    public function testGetBalanceSummaryIgnoresIncomingForUnlinkedContacts(): void {
+        // A manual contact named like the sharer, and a contact linked to
+        // user1 itself, must not pick up alice's splits
+        $manual = $this->makeContact(1, 'Alice');
+        $self = $this->makeContact(2, 'Me', 'user1');
+        $this->contactMapper->method('findAll')->willReturn([$manual, $self]);
+        $this->expenseShareMapper->method('getBalancesByContact')->willReturn([]);
+        $this->expenseShareMapper->method('getIncomingBalancesByOwner')
+            ->willReturn(['alice' => ['GBP' => 60.0], 'user1' => ['GBP' => 5.0]]);
+
+        $result = $this->service->getBalanceSummary('user1');
+
+        $this->assertSame('settled', $result['contacts'][0]['direction']);
+        $this->assertSame('settled', $result['contacts'][1]['direction']);
+        $this->assertSame([], $result['totalsByCurrency']);
+    }
+
     // ===== getContactDetails =====
 
     public function testGetContactDetailsEnrichesShares(): void {
@@ -336,5 +390,97 @@ class SharedExpenseServiceTest extends TestCase {
         $result = $this->service->getContactDetails(1, 'user1');
 
         $this->assertEmpty($result['shares']);
+    }
+
+    private function makeIncomingRow(int $id, float $amount, bool $settled, int $txId, string $createdAt): array {
+        return [
+            'id' => $id,
+            'owner_user_id' => 'alice',
+            'transaction_id' => $txId,
+            'amount' => $amount,
+            'is_settled' => $settled ? 1 : 0,
+            'notes' => null,
+            'currency' => 'GBP',
+            'created_at' => $createdAt,
+            'contact_name' => 'User One',
+            'transaction_description' => 'Groceries',
+            'transaction_date' => '2026-09-10',
+            'transaction_amount' => 80.0,
+            'transaction_type' => 'debit',
+        ];
+    }
+
+    public function testGetContactDetailsIncludesWhatALinkedUserSplitWithMe(): void {
+        $contact = $this->makeContact(1, 'Alice', 'alice');
+        $this->contactMapper->method('find')->willReturn($contact);
+        $this->expenseShareMapper->method('findByContact')->willReturn([]);
+        $this->expenseShareMapper->method('findSharedWithNextcloudUser')
+            ->with('user1', 'alice')
+            ->willReturn([
+                $this->makeIncomingRow(7, 40.0, false, 1224, '2026-09-10 10:00:00'),
+                $this->makeIncomingRow(8, 20.0, true, 1225, '2026-09-09 10:00:00'),
+            ]);
+
+        $aliceSettlement = new Settlement();
+        $aliceSettlement->setId(3);
+        $aliceSettlement->setUserId('alice');
+        $aliceSettlement->setContactId(99);
+        $aliceSettlement->setAmount(20.0);
+        $aliceSettlement->setDate('2026-09-11');
+        $aliceSettlement->setCurrency('GBP');
+        $this->settlementMapper->method('findByContact')->willReturn([]);
+        $this->settlementMapper->method('findSharedWithNextcloudUser')
+            ->with('user1', 'alice')
+            ->willReturn([$aliceSettlement]);
+
+        $result = $this->service->getContactDetails(1, 'user1');
+
+        // Both of alice's splits are listed, from user1's side of the ledger
+        $this->assertCount(2, $result['shares']);
+        $first = $result['shares'][0];
+        $this->assertTrue($first['incoming']);
+        $this->assertSame(7, $first['share']['id']);
+        $this->assertEqualsWithDelta(-40.0, $first['share']['amount'], 0.001);
+        $this->assertFalse($first['share']['isSettled']);
+        $this->assertSame('Groceries', $first['transaction']['description']);
+        $this->assertTrue($result['shares'][1]['share']['isSettled']);
+
+        // Only the open one counts: user1 owes alice £40
+        $this->assertEquals(['GBP' => -40.0], $result['balances']);
+        $this->assertSame('owing', $result['direction']);
+
+        // alice's "received £20" is user1's "paid £20"
+        $this->assertCount(1, $result['settlements']);
+        $this->assertTrue($result['settlements'][0]['incoming']);
+        $this->assertEqualsWithDelta(-20.0, $result['settlements'][0]['amount'], 0.001);
+    }
+
+    public function testGetContactDetailsMarksOwnSharesAsNotIncoming(): void {
+        $contact = $this->makeContact(1, 'Alice', 'alice');
+        $share = $this->makeShare(1, 50.0, false, 1, 10);
+        $this->contactMapper->method('find')->willReturn($contact);
+        $this->expenseShareMapper->method('findByContact')->willReturn([$share]);
+        $this->expenseShareMapper->method('findSharedWithNextcloudUser')->willReturn([]);
+        $this->settlementMapper->method('findByContact')->willReturn([]);
+        $this->settlementMapper->method('findSharedWithNextcloudUser')->willReturn([]);
+        $this->transactionMapper->method('find')->willReturn($this->makeTransaction(10, -100.0));
+
+        $result = $this->service->getContactDetails(1, 'user1');
+
+        $this->assertFalse($result['shares'][0]['incoming']);
+        $this->assertEquals(['USD' => 50.0], $result['balances']);
+    }
+
+    public function testGetContactDetailsSkipsIncomingForUnlinkedContact(): void {
+        $contact = $this->makeContact(1, 'Alice');
+        $this->contactMapper->method('find')->willReturn($contact);
+        $this->expenseShareMapper->method('findByContact')->willReturn([]);
+        $this->settlementMapper->method('findByContact')->willReturn([]);
+        $this->expenseShareMapper->expects($this->never())->method('findSharedWithNextcloudUser');
+        $this->settlementMapper->expects($this->never())->method('findSharedWithNextcloudUser');
+
+        $result = $this->service->getContactDetails(1, 'user1');
+
+        $this->assertSame('settled', $result['direction']);
     }
 }

@@ -456,12 +456,21 @@ class SharedExpenseService {
     public function getBalanceSummary(string $userId): array {
         $contacts = $this->contactMapper->findAll($userId);
         $balances = $this->expenseShareMapper->getBalancesByContact($userId);
+        $incoming = $this->expenseShareMapper->getIncomingBalancesByOwner($userId);
 
         $contactBalances = [];
         $totalsByCurrency = []; // currency => {owed, owing}
 
         foreach ($contacts as $contact) {
             $currencyBalances = $balances[$contact->getId()] ?? [];
+
+            // What the linked user split with me is owed the other way round (#390)
+            $sharer = $this->linkedSharer($contact, $userId);
+            foreach ($sharer !== null ? ($incoming[$sharer] ?? []) : [] as $currency => $amount) {
+                $currencyBalances[$currency] = MoneyCalculator::toFloat(
+                    MoneyCalculator::subtract($currencyBalances[$currency] ?? 0.0, $amount)
+                );
+            }
 
             // Build per-currency balance lines
             $balanceLines = [];
@@ -527,6 +536,7 @@ class SharedExpenseService {
                         'description' => $transaction->getDescription(),
                         'amount' => $transaction->getAmount(),
                     ],
+                    'incoming' => false,
                 ];
             } catch (DoesNotExistException $e) {
                 // Transaction was deleted, skip this share
@@ -543,16 +553,80 @@ class SharedExpenseService {
             }
         }
 
+        $settlementRows = array_map(fn($s) => $s->jsonSerialize() + ['incoming' => false], $settlements);
+
+        // A contact linked to a Nextcloud user also carries what that user split
+        // with me, flipped to my side of the ledger. Read-only here: the user who
+        // split it settles it (#248, #390).
+        $sharer = $this->linkedSharer($contact, $userId);
+        if ($sharer !== null) {
+            foreach ($this->expenseShareMapper->findSharedWithNextcloudUser($userId, $sharer) as $row) {
+                $amount = -(float) $row['amount'];
+                $isSettled = (bool) $row['is_settled'];
+                if (!$isSettled) {
+                    $currency = $row['currency'] ?? 'USD';
+                    $balancesByCurrency[$currency] = MoneyCalculator::toFloat(
+                        MoneyCalculator::add($balancesByCurrency[$currency] ?? 0.0, $amount)
+                    );
+                }
+                if ($row['transaction_date'] === null) {
+                    // Transaction was deleted, skip this share
+                    continue;
+                }
+                $enrichedShares[] = [
+                    'share' => [
+                        'id' => (int) $row['id'],
+                        'userId' => $sharer,
+                        'transactionId' => (int) $row['transaction_id'],
+                        'contactId' => $contactId,
+                        'amount' => $amount,
+                        'isSettled' => $isSettled,
+                        'notes' => $row['notes'] ?? null,
+                        'createdAt' => $row['created_at'],
+                        'currency' => $row['currency'] ?? null,
+                    ],
+                    'transaction' => [
+                        'id' => (int) $row['transaction_id'],
+                        'date' => $row['transaction_date'],
+                        'description' => $row['transaction_description'],
+                        'amount' => (float) $row['transaction_amount'],
+                    ],
+                    'incoming' => true,
+                ];
+            }
+
+            foreach ($this->settlementMapper->findSharedWithNextcloudUser($userId, $sharer) as $settlement) {
+                $row = $settlement->jsonSerialize();
+                $row['contactId'] = $contactId;
+                $row['amount'] = -(float) $row['amount'];
+                $row['incoming'] = true;
+                $settlementRows[] = $row;
+            }
+
+            // Newest first across both sides, as each list is on its own
+            usort($enrichedShares, fn($a, $b) => strcmp((string) $b['share']['createdAt'], (string) $a['share']['createdAt']));
+            usort($settlementRows, fn($a, $b) => strcmp((string) $b['date'], (string) $a['date']));
+        }
+
         $totalBalance = array_sum($balancesByCurrency);
 
         return [
             'contact' => $contact->jsonSerialize(),
             'shares' => $enrichedShares,
-            'settlements' => array_map(fn($s) => $s->jsonSerialize(), $settlements),
+            'settlements' => $settlementRows,
             'balances' => $balancesByCurrency,
             // Legacy
             'balance' => $totalBalance,
             'direction' => abs($totalBalance) < 0.005 ? 'settled' : ($totalBalance > 0 ? 'owed' : 'owing'),
         ];
+    }
+
+    /**
+     * The Nextcloud user whose splits with $userId belong on this contact's
+     * card: the linked user, or null for a manual contact (#390).
+     */
+    private function linkedSharer(Contact $contact, string $userId): ?string {
+        $linked = $contact->getNextcloudUserId();
+        return ($linked !== null && $linked !== '' && $linked !== $userId) ? $linked : null;
     }
 }

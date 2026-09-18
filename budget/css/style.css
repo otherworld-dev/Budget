@@ -16257,6 +16257,17 @@ button.secondary.compact {
     color: #856404;
 }
 
+.share-item .share-origin {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+
+.shares-note {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    margin-bottom: 8px;
+}
+
 .settlement-item {
     display: flex;
     justify-content: space-between;

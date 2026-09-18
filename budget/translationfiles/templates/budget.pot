@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-17 23:37+0000\n"
+"POT-Creation-Date: 2026-09-18 00:50+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2090,8 +2090,8 @@ msgid "This transaction is already shared with this contact"
 msgstr ""
 
 #: /app/lib/Controller/SharedExpenseController.php:327
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:751
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:766
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:768
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:783
 msgid "Failed to share expense"
 msgstr ""
 
@@ -2116,13 +2116,13 @@ msgid "Failed to delete share"
 msgstr ""
 
 #: /app/lib/Controller/SharedExpenseController.php:460
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:614
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:631
 msgid "Please select at least one expense to settle"
 msgstr ""
 
 #: /app/lib/Controller/SharedExpenseController.php:475
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:642
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:670
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:659
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:687
 msgid "Failed to settle expenses"
 msgstr ""
 
@@ -4449,8 +4449,8 @@ msgstr ""
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:67
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:176
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:418
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:485
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:520
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:501
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:536
 msgid "Settled"
 msgstr ""
 
@@ -6065,7 +6065,7 @@ msgstr ""
 
 #: /app/src/modules/bills/BillsModule.js:313
 #: /app/src/modules/reports/ReportsModule.js:1981
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:502
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:518
 #: /app/src/modules/transfers/TransfersModule.js:282
 #: /app/templates/index.php:2596
 msgid "Paid"
@@ -8325,7 +8325,7 @@ msgid "Completed"
 msgstr ""
 
 #: /app/src/modules/income/IncomeModule.js:106
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:502
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:518
 #: /app/templates/index.php:2794
 msgid "Received"
 msgstr ""
@@ -8992,7 +8992,7 @@ msgid "Invalid criteria: {errors}"
 msgstr ""
 
 #: /app/src/modules/rules/RulesModule.js:903
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:534
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:550
 #: /app/src/modules/sharing/SharingModule.js:38
 #: /app/src/modules/transactions/TransactionsModule.js:1314
 #: /app/src/modules/transactions/TransactionsModule.js:4868
@@ -9821,13 +9821,13 @@ msgstr ""
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:179
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:423
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:524
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:540
 msgid "Owes you {amount}"
 msgstr ""
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:180
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:424
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:525
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:541
 msgid "You owe {amount}"
 msgstr ""
 
@@ -9867,67 +9867,75 @@ msgstr ""
 msgid "Contact deleted"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:462
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:468
 msgid "Failed to load contact details"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:469
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:475
 #: /app/templates/index.php:7166
 msgid "No shared expenses"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:485
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:483
+msgid "Only {name} can settle the expenses they split with you."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:491
+msgid "split by {name}"
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:501
 msgid "Open"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:494
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:510
 #: /app/templates/index.php:7172
 msgid "No settlements yet"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:547
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:564
 msgid "No unsettled expenses"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:587
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:604
 msgid "Failed to load expenses"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:619
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:636
 msgid "Date is required"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:636
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:653
 msgid "Expenses settled"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:647
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:664
 msgid ""
 "This will mark all shared expenses with this contact as settled. Continue?"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:665
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:682
 msgid "All expenses settled"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:687
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:704
 msgid "Please add contacts first in Shared Expenses"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:702
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:719
 #: /app/templates/index.php:7062
 msgid "Select a contact..."
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:720
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:737
 msgid "Please select a contact"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:733
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:750
 msgid "Amount is required for custom splits"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:757
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:774
 msgid "Expense shared"
 msgstr ""
 

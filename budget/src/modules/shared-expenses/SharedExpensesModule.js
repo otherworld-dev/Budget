@@ -428,17 +428,23 @@ export default class SharedExpensesModule {
             }
 
             // Render shares
-            this.renderContactShares(data.shares);
+            this.renderContactShares(data.shares, data.contact.name);
             this.renderContactSettlements(data.settlements);
+
+            // Settling only reaches your own splits; ones the contact split
+            // with you are theirs to settle (#390)
+            const hasOwnOpen = (data.shares || []).some(item => !item.incoming && !item.share.isSettled);
 
             // Setup actions
             const settleAllBtn = document.getElementById('settle-all-btn');
             if (settleAllBtn) {
+                settleAllBtn.disabled = !hasOwnOpen;
                 settleAllBtn.onclick = () => this.settleAllWithContact(contactId);
             }
 
             const recordSettlementBtn = document.getElementById('record-settlement-btn');
             if (recordSettlementBtn) {
+                recordSettlementBtn.disabled = !hasOwnOpen;
                 recordSettlementBtn.onclick = () => this.showSettlementModal(contactId, data.contact.name, data.balance);
             }
 
@@ -463,22 +469,32 @@ export default class SharedExpensesModule {
         }
     }
 
-    renderContactShares(shares) {
+    renderContactShares(shares, contactName = '') {
         const container = document.getElementById('contact-shares-list');
         if (!shares || shares.length === 0) {
             container.innerHTML = `<div class="empty-state-small">${t('budget', 'No shared expenses')}</div>`;
             return;
         }
 
-        container.innerHTML = shares.map(item => {
+        // Passed raw: t() HTML-escapes placeholder values itself
+        const name = contactName;
+        const hasIncomingOpen = shares.some(item => item.incoming && !item.share.isSettled);
+        const note = hasIncomingOpen
+            ? `<div class="shares-note">${t('budget', 'Only {name} can settle the expenses they split with you.', { name })}</div>`
+            : '';
+
+        container.innerHTML = note + shares.map(item => {
             const share = item.share;
             const txn = item.transaction;
             const statusClass = share.isSettled ? 'settled' : (share.amount > 0 ? 'owed' : 'owing');
+            const origin = item.incoming
+                ? ` <span class="share-origin">· ${t('budget', 'split by {name}', { name })}</span>`
+                : '';
 
             return `
                 <div class="share-item ${statusClass}">
                     <div class="share-date">${txn.date}</div>
-                    <div class="share-desc">${this.escapeHtml(txn.description)}</div>
+                    <div class="share-desc">${this.escapeHtml(txn.description)}${origin}</div>
                     <div class="share-amount ${share.amount >= 0 ? 'positive' : 'negative'}">
                         ${share.amount >= 0 ? '+' : ''}${this.formatCurrency(share.amount, share.currency)}
                     </div>
@@ -541,7 +557,8 @@ export default class SharedExpensesModule {
             if (!response.ok) throw new Error('Failed to load shares');
             const data = await response.json();
 
-            const unsettledShares = (data.shares || []).filter(item => !item.share.isSettled);
+            // Splits the contact made with you can only be settled by them (#390)
+            const unsettledShares = (data.shares || []).filter(item => !item.incoming && !item.share.isSettled);
 
             if (unsettledShares.length === 0) {
                 sharesList.innerHTML = `<div class="empty-state-small">${t('budget', 'No unsettled expenses')}</div>`;
