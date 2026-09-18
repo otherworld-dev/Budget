@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.52.0] - 2026-09-18
 
 ### Added
 - **Import templates remember the character encoding.** A statement in an encoding the importer cannot recognise on its own - an undeclared Cyrillic or Central European CSV reads as perfectly valid Western European text, just with the wrong letters - has to have its encoding picked by hand on the mapping screen, and that choice was lost on every import. A saved template now keeps it, and picking the template re-reads the file in that encoding straight away. Templates saved before this have no encoding stored and leave the picker as it is, so they cannot undo an encoding you have just chosen for the file in front of you. Contributed by @Saviq ([#384](https://github.com/otherworld-dev/Budget/pull/384))
@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **The mapping screen redraws as soon as you change the delimiter, the header toggle or the encoding.** Changing the delimiter used to leave the columns and preview split the old way, with a note that the file would be re-parsed in the next step, and toggling **Skip first row (headers)** did not touch the preview at all - so neither could be checked before moving on. All three now re-read the uploaded file on the spot and redraw the column choices and the preview, keeping every column you had already picked that still exists. Picking a saved template does the same with the template's own delimiter and header setting, so its mapping lands on columns split the way it expects. Contributed by @Saviq ([#383](https://github.com/otherworld-dev/Budget/pull/383))
+- **Translations.** Ukrainian is now included, the Polish and Russian translations asked for in [#382](https://github.com/otherworld-dev/Budget/issues/382) are in, and German and French have been updated from Weblate.
 
 ### Fixed
 - **Expenses another user splits with you count towards your balance with them.** When another Nextcloud user split an expense with you it showed under **Shared with me** as outstanding, however your contact for that person still read "Settled", opening it listed no expenses, and the totals at the top of Shared Expenses left it out. Each split is stored against the person who made it, and a contact card only ever read the splits you had made yourself. A contact linked to a Nextcloud user now also counts what that user has split with you, from your side, so their "owes you £40" is your "you owe £40", and where you have both split expenses with each other the card shows what is left once one is taken off the other. Their splits are listed in the contact's details marked *split by* with their name, and the payments they record show in the settlement history as payments from you. Only the person who split an expense can settle it, so **Settle All** and **Record Payment** still only reach your own splits, and are greyed out when none of yours are open. The contact has to be linked to their Nextcloud account, the same as for **Shared with me**. Reported by @Bow-Wow75 ([#390](https://github.com/otherworld-dev/Budget/issues/390))
