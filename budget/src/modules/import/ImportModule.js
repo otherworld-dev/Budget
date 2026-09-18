@@ -1699,6 +1699,10 @@ export default class ImportModule {
         document.getElementById('categorized-transactions').textContent = categorized;
 
         this.renderDirectionWarnings(result.directionWarnings);
+        // Last of the three, so it prepends above the direction warnings: a
+        // row that will not be imported at all outranks one that might go in
+        // the wrong direction.
+        this.renderSkippedRowsWarning(result.errors, result.totalRows);
         this.renderAccountCreationWarning(result.accountsToCreate);
 
         // Show accounts to create for multi-account preset imports
@@ -2142,6 +2146,82 @@ export default class ImportModule {
     }
 
     /**
+     * Name the rows behind one reason, capped so a file that fails wholesale
+     * does not print three hundred numbers.
+     *
+     * @param {Array<number|string>} rows - Row numbers, as the server numbers them
+     * @returns {string} Empty when the reason carries no rows
+     */
+    formatErrorRows(rows) {
+        if (!rows || rows.length === 0) {
+            return '';
+        }
+        const shown = rows.slice(0, 12).join(', ');
+        return rows.length > 12
+            ? t('budget', 'Rows {rows} and {count} more', { rows: shown, count: rows.length - 12 })
+            : t('budget', 'Rows {rows}', { rows: shown });
+    }
+
+    /**
+     * Say, before anything is written, which rows the import cannot take.
+     *
+     * The preview has always returned a reason per unusable row and only the
+     * post-import modal ever read it, so the review step could show
+     * "46 duplicates, 0 new" for a 75-row file and never mention the other 29
+     * (#388). Nothing on the screen added up to the missing rows either: the
+     * stats count what will import, not what won't.
+     *
+     * @param {Array<{row: number|string, error: string, reason?: string}>} errors - From the preview API
+     * @param {number} totalRows - Rows in the file, for "29 of 75"
+     */
+    renderSkippedRowsWarning(errors, totalRows) {
+        let container = document.getElementById('import-skipped-rows');
+
+        if (!errors || errors.length === 0) {
+            if (container) container.innerHTML = '';
+            return;
+        }
+
+        if (!container) {
+            const summarySection = document.querySelector('.import-summary');
+            if (!summarySection) return;
+            container = document.createElement('div');
+            container.id = 'import-skipped-rows';
+            // Above the stats, like the direction warnings: this decides
+            // whether the mapping is finished, not how the result looks.
+            summarySection.prepend(container);
+        }
+
+        const groups = groupImportErrors(errors);
+        const headline = totalRows
+            ? t('budget', '{skipped} of {total} rows will not be imported', {
+                skipped: errors.length,
+                total: totalRows,
+            })
+            : n('budget', '%n row will not be imported', '%n rows will not be imported', errors.length);
+
+        // Only offer the fallback when it is the thing that would help. A row
+        // dropped for an unreadable date is not fixed by choosing an account.
+        const hint = groups.some(group => group.reason === 'no-account')
+            ? t('budget', 'Those rows have no account of their own. Pick one under "Account for rows without one" below and they will be imported into it.')
+            : '';
+
+        container.innerHTML = `<div class="import-skipped-warning">
+            <span class="icon-error" aria-hidden="true"></span>
+            <div>
+                <strong>${dom.escapeHtml(headline)}</strong>
+                <ul>
+                    ${groups.map(group => `<li>
+                        <span>${dom.escapeHtml(group.message)}</span>
+                        <span class="import-skipped-rows-list">${dom.escapeHtml(this.formatErrorRows(group.rows))}</span>
+                    </li>`).join('')}
+                </ul>
+                ${hint ? `<p>${dom.escapeHtml(hint)}</p>` : ''}
+            </div>
+        </div>`;
+    }
+
+    /**
      * Show why rows did not import, grouped by reason.
      *
      * One file usually fails one way, so fourteen identical messages are one
@@ -2154,15 +2234,7 @@ export default class ImportModule {
 
         const total = errors.length;
         const groups = groupImportErrors(errors);
-        const rowsLabel = (rows) => {
-            if (rows.length === 0) {
-                return '';
-            }
-            const shown = rows.slice(0, 12).join(', ');
-            return rows.length > 12
-                ? t('budget', 'Rows {rows} and {count} more', { rows: shown, count: rows.length - 12 })
-                : t('budget', 'Rows {rows}', { rows: shown });
-        };
+        const rowsLabel = (rows) => this.formatErrorRows(rows);
 
         const modal = document.createElement('div');
         modal.id = 'import-errors-modal';

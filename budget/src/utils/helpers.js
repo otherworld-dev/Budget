@@ -149,7 +149,11 @@ export function groupImportErrors(errors) {
     for (const entry of errors || []) {
         const message = (entry?.error ?? '').toString().trim() || 'Unknown error';
         if (!groups.has(message)) {
-            groups.set(message, { message, rows: [], count: 0 });
+            // The reason is a stable code from the server, carried alongside
+            // the message so a caller can act on the cause — point at the
+            // fallback account select, say — without matching translated
+            // text (#388).
+            groups.set(message, { message, reason: entry?.reason ?? null, rows: [], count: 0 });
         }
         const group = groups.get(message);
         group.count++;

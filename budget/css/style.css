@@ -7172,7 +7172,8 @@ button.danger:hover {
 }
 
 /* Import preview: batch is going the opposite way to the account's history */
-.import-direction-warning {
+.import-direction-warning,
+.import-skipped-warning {
     display: flex;
     gap: 12px;
     padding: 16px;
@@ -7183,22 +7184,37 @@ button.danger:hover {
     color: var(--color-main-text);
 }
 
-.import-direction-warning .icon-error {
+.import-direction-warning .icon-error,
+.import-skipped-warning .icon-error {
     flex-shrink: 0;
     margin-top: 2px;
     opacity: 0.8;
 }
 
-.import-direction-warning strong {
+.import-direction-warning strong,
+.import-skipped-warning strong {
     display: block;
     margin-bottom: 4px;
     color: #f57c00;
 }
 
-.import-direction-warning p {
+.import-direction-warning p,
+.import-skipped-warning p {
     margin: 0;
     font-size: 0.9rem;
     line-height: 1.5;
+}
+
+.import-skipped-warning ul {
+    margin: 0 0 8px;
+    padding-left: 1.2em;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.import-skipped-warning .import-skipped-rows-list {
+    display: block;
+    opacity: 0.7;
 }
 
 .stat-item {

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-17 21:39+0000\n"
+"POT-Creation-Date: 2026-09-17 23:37+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3199,26 +3199,26 @@ msgid "Import file not found"
 msgstr ""
 
 #: /app/lib/Service/ImportService.php:728
-#: /app/lib/Service/ImportService.php:1266
+#: /app/lib/Service/ImportService.php:1275
 msgid "Account ID is required for single-account imports"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:809
-#: /app/lib/Service/ImportService.php:1355
+#: /app/lib/Service/ImportService.php:815
+#: /app/lib/Service/ImportService.php:1364
 msgid "This row has no account, and no account was chosen for the import"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:1112
+#: /app/lib/Service/ImportService.php:1121
 #, php-format
 msgid "Destination account %1$s not found"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:1211
+#: /app/lib/Service/ImportService.php:1220
 #, php-format
 msgid "Failed to recalculate balance for account %1$s"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:1356
+#: /app/lib/Service/ImportService.php:1365
 #, php-format
 msgid "Could not resolve account: %1$s"
 msgstr ""
@@ -3968,7 +3968,7 @@ msgstr ""
 #: /app/src/modules/categories/CategoriesModule.js:772
 #: /app/src/modules/dashboard/DashboardModule.js:1249
 #: /app/src/modules/import/ImportModule.js:157
-#: /app/src/modules/import/ImportModule.js:1966
+#: /app/src/modules/import/ImportModule.js:1970
 #: /app/src/modules/rules/RulesModule.js:1009
 #: /app/src/modules/transactions/TransactionsModule.js:509
 #: /app/src/modules/transactions/TransactionsModule.js:1202
@@ -4285,8 +4285,8 @@ msgstr ""
 #: /app/src/main.js:2066 /app/src/main.js:2070
 #: /app/src/modules/bills/BillsModule.js:1208
 #: /app/src/modules/bills/BillsModule.js:1421
-#: /app/src/modules/import/ImportModule.js:2174
-#: /app/src/modules/import/ImportModule.js:2187
+#: /app/src/modules/import/ImportModule.js:2246
+#: /app/src/modules/import/ImportModule.js:2259
 #: /app/src/modules/sharing/SharingModule.js:134
 #: /app/src/modules/transactions/TransactionsModule.js:5271
 #: /app/src/modules/transfers/TransfersModule.js:145
@@ -4531,7 +4531,7 @@ msgid "{displayed} of {total} transactions"
 msgstr ""
 
 #: /app/src/main.js:1624 /app/src/modules/dashboard/DashboardModule.js:2540
-#: /app/src/modules/import/ImportModule.js:2086
+#: /app/src/modules/import/ImportModule.js:2090
 msgid "%n transaction"
 msgid_plural "%n transactions"
 msgstr[0] ""
@@ -4789,7 +4789,7 @@ msgstr ""
 msgid "Importing data... This may take a moment."
 msgstr ""
 
-#: /app/src/main.js:2523 /app/src/modules/import/ImportModule.js:2320
+#: /app/src/main.js:2523 /app/src/modules/import/ImportModule.js:2392
 msgid "Import failed"
 msgstr ""
 
@@ -5320,7 +5320,7 @@ msgid ""
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:1621
-#: /app/src/modules/import/ImportModule.js:1912
+#: /app/src/modules/import/ImportModule.js:1916
 msgid "No transactions found"
 msgstr ""
 
@@ -5395,7 +5395,7 @@ msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:2342
 #: /app/src/modules/accounts/AccountsModule.js:2463
-#: /app/src/modules/import/ImportModule.js:2255
+#: /app/src/modules/import/ImportModule.js:2327
 msgid "Please select an account"
 msgstr ""
 
@@ -6821,7 +6821,7 @@ msgid "Exists"
 msgstr ""
 
 #: /app/src/modules/categories/CategoriesModule.js:1585
-#: /app/src/modules/import/ImportModule.js:1926
+#: /app/src/modules/import/ImportModule.js:1930
 msgid "New"
 msgstr ""
 
@@ -8061,7 +8061,7 @@ msgid "Processing file, please wait..."
 msgstr ""
 
 #: /app/src/modules/import/ImportModule.js:1627
-#: /app/src/modules/import/ImportModule.js:2248
+#: /app/src/modules/import/ImportModule.js:2320
 msgid "Please map at least one account"
 msgstr ""
 
@@ -8077,62 +8077,62 @@ msgstr ""
 msgid "Failed to process import data: {message}"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1723
+#: /app/src/modules/import/ImportModule.js:1727
 msgid "Accounts to create:"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1727
+#: /app/src/modules/import/ImportModule.js:1731
 msgid "Existing accounts matched:"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1750
+#: /app/src/modules/import/ImportModule.js:1754
 msgid "Categories to create:"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1752
+#: /app/src/modules/import/ImportModule.js:1756
 msgid "{count} transfer rows will be skipped"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1815
+#: /app/src/modules/import/ImportModule.js:1819
 msgid "This import will create %n new account"
 msgid_plural "This import will create %n new accounts"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/import/ImportModule.js:1824
+#: /app/src/modules/import/ImportModule.js:1828
 msgid ""
 "The names look like dates, so the date column has probably been mapped to "
 "Account. Go back and check the column mapping - importing now would leave "
 "you an account per date to clean up."
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1825
+#: /app/src/modules/import/ImportModule.js:1829
 msgid ""
 "One account is created for every distinct value in the column mapped to "
 "Account. If that is more than you expected, go back and check the column "
 "mapping before importing."
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1854
+#: /app/src/modules/import/ImportModule.js:1858
 msgid "this account"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1859
+#: /app/src/modules/import/ImportModule.js:1863
 msgid "{matching} of {total} rows have no usable transaction type"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1863
+#: /app/src/modules/import/ImportModule.js:1867
 msgid ""
 "The type column is empty or unrecognized on those rows, so they will be "
 "added based on whether the amount is negative. Fill the type in, or check "
 "the mapping, if that is not what you want."
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1865
+#: /app/src/modules/import/ImportModule.js:1869
 msgid "{matching} of {total} rows would be added as income"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1869
+#: /app/src/modules/import/ImportModule.js:1873
 #, javascript-format
 msgid ""
 "but {percent}% of what is already in {account} is an expense. If that looks "
@@ -8140,11 +8140,11 @@ msgid ""
 "importing."
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1874
+#: /app/src/modules/import/ImportModule.js:1878
 msgid "{matching} of {total} rows would be added as an expense"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1878
+#: /app/src/modules/import/ImportModule.js:1882
 #, javascript-format
 msgid ""
 "but {percent}% of what is already in {account} is income. If that looks "
@@ -8152,149 +8152,165 @@ msgid ""
 "importing."
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1910
+#: /app/src/modules/import/ImportModule.js:1914
 msgid "No transactions to import"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1925
-#: /app/src/modules/import/ImportModule.js:1965
+#: /app/src/modules/import/ImportModule.js:1929
+#: /app/src/modules/import/ImportModule.js:1969
 msgid "Duplicate"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:1947
-#: /app/src/modules/import/ImportModule.js:1989
+#: /app/src/modules/import/ImportModule.js:1951
+#: /app/src/modules/import/ImportModule.js:1993
 msgid "Showing {shown} of {total}"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2004
+#: /app/src/modules/import/ImportModule.js:2008
 msgid "Skip rows without an account"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2004
+#: /app/src/modules/import/ImportModule.js:2008
 msgid "Select account…"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2018
+#: /app/src/modules/import/ImportModule.js:2022
 msgid "Account for rows without one:"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2019 /app/templates/index.php:2421
+#: /app/src/modules/import/ImportModule.js:2023 /app/templates/index.php:2421
 msgid "Import to Account:"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2088
+#: /app/src/modules/import/ImportModule.js:2092
 msgid "Balance: {balance}"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2093
+#: /app/src/modules/import/ImportModule.js:2097
 msgid "Skip this account"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2163
+#: /app/src/modules/import/ImportModule.js:2161
 msgid "Rows {rows} and {count} more"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2164
+#: /app/src/modules/import/ImportModule.js:2162
 msgid "Rows {rows}"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2173
+#: /app/src/modules/import/ImportModule.js:2197
+msgid "{skipped} of {total} rows will not be imported"
+msgstr ""
+
+#: /app/src/modules/import/ImportModule.js:2201
+msgid "%n row will not be imported"
+msgid_plural "%n rows will not be imported"
+msgstr[0] ""
+msgstr[1] ""
+
+#: /app/src/modules/import/ImportModule.js:2206
+msgid ""
+"Those rows have no account of their own. Pick one under \"Account for rows "
+"without one\" below and they will be imported into it."
+msgstr ""
+
+#: /app/src/modules/import/ImportModule.js:2245
 msgid "%n row was not imported"
 msgid_plural "%n rows were not imported"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/import/ImportModule.js:2205
+#: /app/src/modules/import/ImportModule.js:2277
 msgid "No file data available"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2269
+#: /app/src/modules/import/ImportModule.js:2341
 msgid "Importing…"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2287
+#: /app/src/modules/import/ImportModule.js:2359
 msgid "Server error ({status}): Invalid response"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2291
+#: /app/src/modules/import/ImportModule.js:2363
 msgid "Successfully imported {imported} transactions ({skipped} skipped)"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2295
+#: /app/src/modules/import/ImportModule.js:2367
 msgid "%n bill was automatically marked as paid from matching transactions"
 msgid_plural ""
 "%n bills were automatically marked as paid from matching transactions"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/import/ImportModule.js:2311
+#: /app/src/modules/import/ImportModule.js:2383
 msgid "Import complete. %n category created — it may take a moment to appear."
 msgid_plural ""
 "Import complete. %n categories created — they may take a moment to appear."
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/import/ImportModule.js:2324
+#: /app/src/modules/import/ImportModule.js:2396
 msgid "Failed to import transactions: {message}"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2347
+#: /app/src/modules/import/ImportModule.js:2419
 msgid "Auto-linked {count} transfer pairs"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2456
+#: /app/src/modules/import/ImportModule.js:2528
 msgid "Download"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2457
+#: /app/src/modules/import/ImportModule.js:2529
 msgid "Rollback"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2480
+#: /app/src/modules/import/ImportModule.js:2552
 msgid "0 Bytes"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2482
+#: /app/src/modules/import/ImportModule.js:2554
 msgid "Bytes"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2482
+#: /app/src/modules/import/ImportModule.js:2554
 msgid "KB"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2482
+#: /app/src/modules/import/ImportModule.js:2554
 msgid "MB"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2482
+#: /app/src/modules/import/ImportModule.js:2554
 msgid "GB"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2504
+#: /app/src/modules/import/ImportModule.js:2576
 msgid "Download failed"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2508
+#: /app/src/modules/import/ImportModule.js:2580
 msgid "Failed to download import file"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2513
+#: /app/src/modules/import/ImportModule.js:2585
 msgid ""
 "Are you sure you want to rollback this import? All imported transactions "
 "will be deleted."
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2528
+#: /app/src/modules/import/ImportModule.js:2600
 msgid "Rolled back %n transaction"
 msgid_plural "Rolled back %n transactions"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/import/ImportModule.js:2533
+#: /app/src/modules/import/ImportModule.js:2605
 msgid "Rollback failed"
 msgstr ""
 
-#: /app/src/modules/import/ImportModule.js:2537
+#: /app/src/modules/import/ImportModule.js:2609
 msgid "Failed to rollback import: {message}"
 msgstr ""
 
