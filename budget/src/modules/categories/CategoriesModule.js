@@ -8,6 +8,7 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import Chart from 'chart.js/auto';
 import { serverErrorMessage } from '../../utils/helpers.js';
+import { expenseProgressStatus } from '../../utils/budgetProgress.js';
 
 export default class CategoriesModule {
     constructor(app) {
@@ -2263,10 +2264,9 @@ export default class CategoriesModule {
                 else if (percentage >= 60) progressStatus = 'warning';
                 else progressStatus = 'danger';
             } else {
-                // For expenses: under budget is good, over is bad
-                if (percentage >= 100) progressStatus = 'over';
-                else if (percentage >= 80) progressStatus = 'danger';
-                else if (percentage >= 60) progressStatus = 'warning';
+                // For expenses: under budget is good, over is bad. Shared with
+                // project budgets so the two never colour a figure differently
+                progressStatus = expenseProgressStatus(percentage);
             }
 
             // For income, negative remaining = exceeded target (good), positive = not yet reached (neutral)

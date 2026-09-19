@@ -6,22 +6,13 @@
  * total. The penny that will not divide evenly stays with you when you are in
  * the split, and otherwise goes to the first people listed.
  */
+import { toCents } from '../../utils/money.js';
 
 /** Percentages are compared in hundredths of a percent; 33.33 x 3 is close enough */
 const FULL_PERCENT = 10000;
 const PERCENT_SLACK = 1;
 
-/**
- * @param {number|string|null} value an amount in currency units
- * @returns {number} whole pennies, or NaN when it is not a number
- */
-export function toCents(value) {
-    if (value === null || value === undefined || String(value).trim() === '') {
-        return NaN;
-    }
-    const n = Number(value);
-    return Number.isFinite(n) ? Math.round(n * 100) : NaN;
-}
+export { toCents };
 
 /** A percentage to two places, as whole hundredths of a percent */
 const toHundredths = toCents;
