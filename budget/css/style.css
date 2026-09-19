@@ -20675,3 +20675,199 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     cursor: pointer;
 }
 
+/* Project budgets (#391) */
+.projects-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+.project-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.project-card:hover,
+.project-card:focus-visible {
+    border-color: var(--color-primary-element);
+    outline: none;
+}
+
+.project-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.project-name {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+    font-size: 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.project-meta,
+.project-time,
+.project-shared-badge {
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+}
+
+.project-amounts {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
+.project-amounts .negative,
+.project-row-remaining.negative {
+    color: var(--color-error-text, #8a0000);
+}
+
+.project-status {
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--color-background-dark);
+    color: var(--color-main-text);
+    white-space: nowrap;
+}
+
+.project-status-active {
+    background: var(--color-primary-element-light);
+    color: var(--color-primary-element-light-text);
+}
+
+.project-status-finished {
+    color: var(--color-text-maxcontrast);
+}
+
+.projects-finished-section {
+    margin-top: 24px;
+}
+
+.projects-finished-section h3 {
+    font-size: 15px;
+    color: var(--color-text-maxcontrast);
+    margin-bottom: 12px;
+}
+
+.projects-empty {
+    max-width: 560px;
+    margin: 40px auto;
+    text-align: center;
+}
+
+.projects-empty p {
+    margin: 8px 0 16px;
+    color: var(--color-text-maxcontrast);
+}
+
+.project-details-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    color: var(--color-text-maxcontrast);
+}
+
+.project-details-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.project-rows-header,
+.project-row {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) repeat(3, minmax(70px, 1fr)) minmax(80px, 1fr);
+    gap: 10px;
+    align-items: center;
+    padding: 8px 12px;
+}
+
+.project-rows-header {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--color-text-maxcontrast);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.project-row {
+    border-bottom: 1px solid var(--color-border);
+    font-variant-numeric: tabular-nums;
+}
+
+.project-row-name {
+    padding-left: calc(var(--depth, 0) * 16px);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.project-row-budget,
+.project-row-spent,
+.project-row-remaining {
+    text-align: right;
+}
+
+.project-row.outside .project-row-name,
+.project-row-note {
+    color: var(--color-text-maxcontrast);
+}
+
+.project-row-note {
+    display: block;
+    font-size: 12px;
+}
+
+.project-row-unallocated {
+    font-style: italic;
+}
+
+/* On a phone each row stacks, and the figures carry their own labels */
+@media (max-width: 600px) {
+    .project-rows-header {
+        display: none;
+    }
+
+    .project-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 4px 10px;
+    }
+
+    .project-row-budget,
+    .project-row-spent,
+    .project-row-remaining {
+        grid-column: 1 / -1;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .project-row [data-label]:empty {
+        display: none;
+    }
+
+    .project-row [data-label]::before {
+        content: attr(data-label);
+        color: var(--color-text-maxcontrast);
+    }
+
+    .project-row-bar {
+        grid-column: 1 / -1;
+    }
+}

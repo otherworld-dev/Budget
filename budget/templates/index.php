@@ -133,6 +133,16 @@ style('budget', 'budget-app');
                 <?php p($l->t('Savings Goals')); ?>
             </a>
         </li>
+        <li class="app-navigation-entry" data-id="projects">
+            <a href="#projects" class="nav-icon-projects svg">
+                <span class="app-navigation-entry-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17,9H7V7H17M17,13H7V11H17M14,17H7V15H14M12,3A1,1 0 0,1 13,4A1,1 0 0,1 12,5A1,1 0 0,1 11,4A1,1 0 0,1 12,3M19,3H14.82C14.4,1.84 13.3,1 12,1C10.7,1 9.6,1.84 9.18,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3Z"/>
+                    </svg>
+                </span>
+                <?php p($l->t('Projects')); ?>
+            </a>
+        </li>
         <li class="app-navigation-entry" data-id="debt-payoff">
             <a href="#debt-payoff" class="nav-icon-debt svg">
                 <span class="app-navigation-entry-icon">
@@ -2910,6 +2920,27 @@ style('budget', 'budget-app');
 
         <!-- Add Money to Goal Modal -->
 
+        <!-- Projects View (#391) -->
+        <div id="projects-view" class="view">
+            <div class="view-header">
+                <h2><?php p($l->t('Projects')); ?></h2>
+                <button id="add-project-btn" class="primary">
+                    <span class="icon-add" aria-hidden="true"></span>
+                    <?php p($l->t('New Project')); ?>
+                </button>
+            </div>
+            <div id="projects-list" class="projects-list"></div>
+            <div id="empty-projects" class="projects-empty" style="display: none;">
+                <h3><?php p($l->t('No projects yet')); ?></h3>
+                <p><?php p($l->t('A project is one budget for a job that runs over months, such as a renovation, a wedding or a long trip. It covers a category and everything under it from a start date to an end date, and it does not reset each month.')); ?></p>
+                <button id="empty-add-project-btn" class="primary"><?php p($l->t('New Project')); ?></button>
+            </div>
+            <div id="projects-finished-section" class="projects-finished-section" style="display: none;">
+                <h3><?php p($l->t('Finished')); ?></h3>
+                <div id="projects-finished-list" class="projects-list"></div>
+            </div>
+        </div>
+
         <!-- Forecast View -->
         <div id="forecast-view" class="view">
             <div class="forecast-header">
@@ -4993,6 +5024,30 @@ style('budget', 'budget-app');
         </div>
         <div class="modal-actions">
             <button type="button" class="cancel-btn"><?php p($l->t('Close')); ?></button>
+        </div>
+    </div>
+</div>
+
+<!-- Project Details Modal (#391) -->
+<div id="project-details-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="project-details-title" aria-hidden="true">
+    <div class="modal-content modal-wide">
+        <h3 id="project-details-title"></h3>
+        <div id="project-details-meta" class="project-details-meta"></div>
+        <div id="project-details-summary" class="project-details-summary"></div>
+        <p id="project-details-shared-note" class="form-text" style="display: none;"><?php p($l->t('The figures include everything filed under the project categories. View transactions only lists the ones in accounts you can see.')); ?></p>
+        <div class="project-rows-header" aria-hidden="true">
+            <span><?php p($l->t('Subcategory')); ?></span>
+            <span><?php p($l->t('Budget')); ?></span>
+            <span><?php p($l->t('Spent')); ?></span>
+            <span><?php p($l->t('Remaining')); ?></span>
+            <span><?php p($l->t('Progress')); ?></span>
+        </div>
+        <div id="project-details-rows" class="project-rows"></div>
+        <div class="modal-buttons">
+            <button type="button" id="project-transactions-btn" class="secondary"><?php p($l->t('View transactions')); ?></button>
+            <button type="button" id="project-edit-btn" class="primary"><?php p($l->t('Edit')); ?></button>
+            <button type="button" id="project-delete-btn" class="danger"><?php p($l->t('Delete')); ?></button>
+            <button type="button" class="secondary close-btn"><?php p($l->t('Close')); ?></button>
         </div>
     </div>
 </div>
