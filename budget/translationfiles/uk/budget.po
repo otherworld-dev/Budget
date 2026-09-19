@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-16 23:01+0000\n"
+"POT-Creation-Date: 2026-09-19 12:31+0000\n"
 "PO-Revision-Date: 2026-09-17 01:47+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Ukrainian <https://hosted.weblate.org/projects/nextcloud-"
@@ -42,7 +42,7 @@ msgstr "Рахунок не знайдено"
 #: /app/lib/Service/Export/TransactionCsvExporter.php:32
 #: /app/lib/Service/Report/ReportExporter.php:254
 #: /app/lib/Service/Report/ReportExporter.php:467
-#: /app/src/modules/dashboard/DashboardModule.js:4720
+#: /app/src/modules/dashboard/DashboardModule.js:4923
 #: /app/src/modules/rules/components/CriteriaBuilder.js:159
 #: /app/templates/index.php:1007 /app/templates/index.php:1581
 #: /app/templates/index.php:1700 /app/templates/index.php:1764
@@ -150,8 +150,8 @@ msgid "Failed to delete accounts"
 msgstr "Не вдалося видалити рахунки"
 
 #: /app/lib/Controller/AccountController.php:648
-#: /app/src/modules/accounts/AccountsModule.js:3179
-#: /app/src/modules/accounts/AccountsModule.js:3193
+#: /app/src/modules/accounts/AccountsModule.js:3204
+#: /app/src/modules/accounts/AccountsModule.js:3218
 msgid "Failed to delete account"
 msgstr "Не вдалося видалити рахунок"
 
@@ -315,7 +315,7 @@ msgstr "Потрібно вказати рахунок"
 #: /app/templates/index.php:2498 /app/templates/index.php:5231
 #: /app/templates/index.php:5256 /app/templates/index.php:5292
 #: /app/templates/index.php:5470 /app/templates/index.php:5606
-#: /app/templates/index.php:6306 /app/templates/index.php:7122
+#: /app/templates/index.php:6306 /app/templates/index.php:7117
 #: /app/templates/quick-add.php:22
 msgid "Date"
 msgstr "Дата"
@@ -621,7 +621,7 @@ msgstr "Платіж"
 #: /app/lib/Controller/CategoryController.php:381
 #: /app/lib/Controller/CategoryController.php:475
 #: /app/lib/Controller/CategoryController.php:493
-#: /app/lib/Controller/CategoryController.php:511
+#: /app/lib/Controller/CategoryController.php:512
 #: /app/lib/Controller/GoalsController.php:87
 #: /app/lib/Controller/GoalsController.php:316
 #: /app/lib/Controller/GoalsController.php:344
@@ -863,8 +863,8 @@ msgstr "Сума за рік"
 #: /app/lib/Service/Report/ReportExporter.php:512
 #: /app/lib/Service/Report/ReportExporter.php:583
 #: /app/lib/Service/Report/ReportExporter.php:658
-#: /app/src/modules/categories/CategoriesModule.js:2256
-#: /app/src/modules/reports/ReportsModule.js:1926 /app/templates/index.php:7116
+#: /app/src/modules/categories/CategoriesModule.js:2301
+#: /app/src/modules/reports/ReportsModule.js:1926 /app/templates/index.php:7111
 msgid "Total"
 msgstr "Усього"
 
@@ -955,9 +955,9 @@ msgstr "Не вдалося отримати кількість транзакц
 #: /app/lib/Controller/CategoryController.php:381
 #: /app/lib/Controller/CategoryController.php:475
 #: /app/lib/Controller/CategoryController.php:493
-#: /app/lib/Controller/CategoryController.php:498
-#: /app/lib/Controller/CategoryController.php:511
-#: /app/lib/Controller/CategoryController.php:518
+#: /app/lib/Controller/CategoryController.php:499
+#: /app/lib/Controller/CategoryController.php:512
+#: /app/lib/Controller/CategoryController.php:519
 #: /app/lib/Controller/YearOverYearController.php:286
 #: /app/lib/Controller/YearOverYearController.php:388
 #: /app/lib/Service/Export/TransactionCsvExporter.php:31
@@ -969,7 +969,7 @@ msgstr "Не вдалося отримати кількість транзакц
 #: /app/lib/Service/Report/ReportExporter.php:638
 #: /app/lib/Service/Report/ReportExporter.php:675
 #: /app/lib/Service/Report/ReportExporter.php:721 /app/src/main.js:3830
-#: /app/src/modules/dashboard/DashboardModule.js:1916
+#: /app/src/modules/dashboard/DashboardModule.js:2118
 #: /app/src/modules/reports/ReportsModule.js:1153
 #: /app/src/modules/reports/ReportsModule.js:1616
 #: /app/src/modules/transactions/TransactionsModule.js:3217
@@ -1007,8 +1007,8 @@ msgstr "Спільні категорії не можна вкладати од�
 
 #: /app/lib/Controller/CategoryController.php:366
 #: /app/lib/Controller/CategoryController.php:368
-#: /app/src/modules/categories/CategoriesModule.js:554
-#: /app/src/modules/categories/CategoriesModule.js:559
+#: /app/src/modules/categories/CategoriesModule.js:556
+#: /app/src/modules/categories/CategoriesModule.js:561
 msgid "Failed to reorder category"
 msgstr "Не вдалося змінити порядок категорії"
 
@@ -1025,7 +1025,7 @@ msgid "Category not found"
 msgstr "Категорію не знайдено"
 
 #: /app/lib/Controller/CategoryController.php:445
-#: /app/src/modules/categories/CategoriesModule.js:429
+#: /app/src/modules/categories/CategoriesModule.js:431
 msgid "Failed to update report preference"
 msgstr "Не вдалося оновити налаштування звіту"
 
@@ -1034,48 +1034,48 @@ msgstr "Не вдалося оновити налаштування звіту"
 msgid "Failed to retrieve category spending"
 msgstr "Не вдалося отримати витрати за категорією"
 
-#: /app/lib/Controller/CategoryController.php:530
-#: /app/lib/Controller/CategoryController.php:552
-#: /app/lib/Controller/CategoryController.php:582
-#: /app/lib/Controller/CategoryController.php:627
+#: /app/lib/Controller/CategoryController.php:531
+#: /app/lib/Controller/CategoryController.php:553
+#: /app/lib/Controller/CategoryController.php:583
+#: /app/lib/Controller/CategoryController.php:628
 msgid "Invalid month format. Use YYYY-MM"
 msgstr "Неприпустимий формат місяця. Використовуйте РРРР-ММ"
 
-#: /app/lib/Controller/CategoryController.php:558
+#: /app/lib/Controller/CategoryController.php:559
 msgid "Failed to delete budget snapshot"
 msgstr "Не вдалося видалити знімок стану бюджету"
 
-#: /app/lib/Controller/CategoryController.php:571
+#: /app/lib/Controller/CategoryController.php:572
 msgid "Failed to retrieve snapshot months"
 msgstr "Не вдалося отримати місяці зі знімками стану"
 
-#: /app/lib/Controller/CategoryController.php:600
+#: /app/lib/Controller/CategoryController.php:601
 msgid "Failed to retrieve effective budgets"
 msgstr "Не вдалося отримати чинні бюджети"
 
-#: /app/lib/Controller/CategoryController.php:615
+#: /app/lib/Controller/CategoryController.php:616
 msgid "Failed to retrieve recurring budgets"
 msgstr "Не вдалося отримати регулярні бюджети"
 
-#: /app/lib/Controller/CategoryController.php:633
+#: /app/lib/Controller/CategoryController.php:634
 msgid "Invalid budget period"
 msgstr "Неприпустимий період бюджету"
 
 #: /app/lib/Controller/CategoryTransferController.php:64
-#: /app/src/modules/categories/CategoriesModule.js:1488
-#: /app/src/modules/categories/CategoriesModule.js:1501
+#: /app/src/modules/categories/CategoriesModule.js:1494
+#: /app/src/modules/categories/CategoriesModule.js:1507
 msgid "Failed to export categories"
 msgstr "Не вдалося експортувати категорії"
 
 #: /app/lib/Controller/CategoryTransferController.php:89
-#: /app/src/modules/categories/CategoriesModule.js:1529
 #: /app/src/modules/categories/CategoriesModule.js:1535
+#: /app/src/modules/categories/CategoriesModule.js:1541
 msgid "Failed to read the category file"
 msgstr "Не вдалося прочитати файл категорій"
 
 #: /app/lib/Controller/CategoryTransferController.php:109
-#: /app/src/modules/categories/CategoriesModule.js:1607
-#: /app/src/modules/categories/CategoriesModule.js:1615
+#: /app/src/modules/categories/CategoriesModule.js:1613
+#: /app/src/modules/categories/CategoriesModule.js:1621
 msgid "Failed to import categories"
 msgstr "Не вдалося імпортувати категорії"
 
@@ -1753,39 +1753,39 @@ msgstr "Не вдалося створити звіт про доходи та �
 msgid "Failed to export report"
 msgstr "Не вдалося експортувати звіт"
 
-#: /app/lib/Controller/ReportController.php:260
+#: /app/lib/Controller/ReportController.php:262
 msgid "Failed to generate budget report"
 msgstr "Не вдалося створити звіт про бюджет"
 
-#: /app/lib/Controller/ReportController.php:296
+#: /app/lib/Controller/ReportController.php:298
 msgid "Failed to generate comparison report"
 msgstr "Не вдалося створити порівняльний звіт"
 
-#: /app/lib/Controller/ReportController.php:332
+#: /app/lib/Controller/ReportController.php:334
 msgid "Failed to generate cash flow report"
 msgstr "Не вдалося створити звіт про рух грошових коштів"
 
-#: /app/lib/Controller/ReportController.php:367
+#: /app/lib/Controller/ReportController.php:369
 msgid "Failed to generate tag dimensions"
 msgstr "Не вдалося створити виміри тегів"
 
-#: /app/lib/Controller/ReportController.php:406
+#: /app/lib/Controller/ReportController.php:408
 msgid "Failed to generate tag combination report"
 msgstr "Не вдалося створити звіт про комбінації тегів"
 
-#: /app/lib/Controller/ReportController.php:441
+#: /app/lib/Controller/ReportController.php:443
 msgid "Failed to generate cross-tabulation"
 msgstr "Не вдалося створити перехресну таблицю"
 
-#: /app/lib/Controller/ReportController.php:472
+#: /app/lib/Controller/ReportController.php:474
 msgid "Failed to generate tag trend report"
 msgstr "Не вдалося створити звіт про тенденції тегів"
 
-#: /app/lib/Controller/ReportController.php:505
+#: /app/lib/Controller/ReportController.php:507
 msgid "Failed to generate tag set breakdown"
 msgstr "Не вдалося створити розподіл за наборами тегів"
 
-#: /app/lib/Controller/ReportController.php:541
+#: /app/lib/Controller/ReportController.php:543
 msgid "Failed to generate category monthly report"
 msgstr "Не вдалося створити помісячний звіт за категорією"
 
@@ -1808,74 +1808,74 @@ msgstr "Не вдалося оновити збережений звіт"
 msgid "Failed to delete saved report"
 msgstr "Не вдалося видалити збережений звіт"
 
-#: /app/lib/Controller/SettingController.php:101
+#: /app/lib/Controller/SettingController.php:103
 msgid "Failed to retrieve settings"
 msgstr "Не вдалося отримати налаштування"
 
-#: /app/lib/Controller/SettingController.php:126
-#: /app/lib/Controller/SettingController.php:255
+#: /app/lib/Controller/SettingController.php:128
+#: /app/lib/Controller/SettingController.php:257
 msgid "Setting not found"
 msgstr "Налаштування не знайдено"
 
-#: /app/lib/Controller/SettingController.php:130
+#: /app/lib/Controller/SettingController.php:132
 msgid "Failed to retrieve setting"
 msgstr "Не вдалося отримати налаштування"
 
-#: /app/lib/Controller/SettingController.php:156
-#: /app/lib/Controller/SettingController.php:210
+#: /app/lib/Controller/SettingController.php:158
+#: /app/lib/Controller/SettingController.php:212
 #, php-format
 msgid "Invalid receipts folder: %1$s"
 msgstr "Неприпустима папка для чеків: %1$s"
 
-#: /app/lib/Controller/SettingController.php:181
+#: /app/lib/Controller/SettingController.php:183
 msgid "Settings updated successfully"
 msgstr "Налаштування успішно оновлено"
 
-#: /app/lib/Controller/SettingController.php:185
+#: /app/lib/Controller/SettingController.php:187
 msgid "Failed to update settings"
 msgstr "Не вдалося оновити налаштування"
 
-#: /app/lib/Controller/SettingController.php:201
+#: /app/lib/Controller/SettingController.php:203
 msgid "Value parameter is required"
 msgstr "Параметр value є обов’язковим"
 
-#: /app/lib/Controller/SettingController.php:234
+#: /app/lib/Controller/SettingController.php:236
 msgid "Setting updated successfully"
 msgstr "Налаштування успішно оновлено"
 
-#: /app/lib/Controller/SettingController.php:239
+#: /app/lib/Controller/SettingController.php:241
 msgid "Failed to update setting"
 msgstr "Не вдалося оновити налаштування"
 
-#: /app/lib/Controller/SettingController.php:261
+#: /app/lib/Controller/SettingController.php:263
 msgid "Setting reset to default"
 msgstr "Для налаштування відновлено типове значення"
 
-#: /app/lib/Controller/SettingController.php:266
+#: /app/lib/Controller/SettingController.php:268
 msgid "Failed to reset setting"
 msgstr "Не вдалося скинути налаштування"
 
-#: /app/lib/Controller/SettingController.php:281
+#: /app/lib/Controller/SettingController.php:283
 msgid "All settings reset to defaults"
 msgstr "Для всіх налаштувань відновлено типові значення"
 
-#: /app/lib/Controller/SettingController.php:286
+#: /app/lib/Controller/SettingController.php:288
 #: /app/src/modules/settings/SettingsModule.js:395
 #: /app/src/modules/settings/SettingsModule.js:404
 msgid "Failed to reset settings"
 msgstr "Не вдалося скинути налаштування"
 
-#: /app/lib/Controller/SettingController.php:315 /app/templates/index.php:4365
+#: /app/lib/Controller/SettingController.php:317 /app/templates/index.php:4365
 msgid "Sunday"
 msgstr "Неділя"
 
-#: /app/lib/Controller/SettingController.php:316 /app/templates/index.php:4366
+#: /app/lib/Controller/SettingController.php:318 /app/templates/index.php:4366
 msgid "Monday"
 msgstr "Понеділок"
 
-#: /app/lib/Controller/SettingController.php:319
+#: /app/lib/Controller/SettingController.php:321
 #: /app/src/modules/bills/BillsModule.js:327
-#: /app/src/modules/categories/CategoriesModule.js:2261
+#: /app/src/modules/categories/CategoriesModule.js:2306
 #: /app/src/modules/income/IncomeModule.js:117
 #: /app/src/modules/transfers/TransfersModule.js:297
 #: /app/src/modules/transfers/TransfersModule.js:464
@@ -1885,10 +1885,10 @@ msgstr "Понеділок"
 msgid "Weekly"
 msgstr "Щотижня"
 
-#: /app/lib/Controller/SettingController.php:320
+#: /app/lib/Controller/SettingController.php:322
 #: /app/src/modules/accounts/AccountsModule.js:1398
 #: /app/src/modules/bills/BillsModule.js:330
-#: /app/src/modules/categories/CategoriesModule.js:2260
+#: /app/src/modules/categories/CategoriesModule.js:2305
 #: /app/src/modules/income/IncomeModule.js:120
 #: /app/src/modules/pensions/PensionsModule.js:1075
 #: /app/src/modules/transfers/TransfersModule.js:300
@@ -1900,9 +1900,9 @@ msgstr "Щотижня"
 msgid "Monthly"
 msgstr "Щомісяця"
 
-#: /app/lib/Controller/SettingController.php:321
+#: /app/lib/Controller/SettingController.php:323
 #: /app/src/modules/bills/BillsModule.js:331
-#: /app/src/modules/categories/CategoriesModule.js:2262
+#: /app/src/modules/categories/CategoriesModule.js:2307
 #: /app/src/modules/income/IncomeModule.js:121
 #: /app/src/modules/pensions/PensionsModule.js:1076
 #: /app/src/modules/transfers/TransfersModule.js:301
@@ -1913,10 +1913,10 @@ msgstr "Щомісяця"
 msgid "Quarterly"
 msgstr "Щокварталу"
 
-#: /app/lib/Controller/SettingController.php:322
+#: /app/lib/Controller/SettingController.php:324
 #: /app/src/modules/accounts/AccountsModule.js:1399
 #: /app/src/modules/bills/BillsModule.js:333
-#: /app/src/modules/categories/CategoriesModule.js:2263
+#: /app/src/modules/categories/CategoriesModule.js:2308
 #: /app/src/modules/income/IncomeModule.js:123
 #: /app/src/modules/pensions/PensionsModule.js:1077
 #: /app/src/modules/transfers/TransfersModule.js:303
@@ -2069,98 +2069,130 @@ msgid "Failed to update auto-share configuration"
 msgstr ""
 "Не вдалося оновити налаштування автоматичного надання спільного доступу"
 
-#: /app/lib/Controller/SharedExpenseController.php:65
+#: /app/lib/Controller/SharedExpenseController.php:66
 msgid "Failed to get contacts"
 msgstr "Не вдалося отримати контакти"
 
-#: /app/lib/Controller/SharedExpenseController.php:87
+#: /app/lib/Controller/SharedExpenseController.php:88
 msgid "Nextcloud user not found"
 msgstr "Користувача Nextcloud не знайдено"
 
-#: /app/lib/Controller/SharedExpenseController.php:105
+#: /app/lib/Controller/SharedExpenseController.php:106
 msgid "Failed to create contact"
 msgstr "Не вдалося створити контакт"
 
-#: /app/lib/Controller/SharedExpenseController.php:174
+#: /app/lib/Controller/SharedExpenseController.php:175
 msgid "Failed to update contact"
 msgstr "Не вдалося оновити контакт"
 
-#: /app/lib/Controller/SharedExpenseController.php:196
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:394
+#: /app/lib/Controller/SharedExpenseController.php:197
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:395
 msgid "Failed to delete contact"
 msgstr "Не вдалося видалити контакт"
 
-#: /app/lib/Controller/SharedExpenseController.php:218
+#: /app/lib/Controller/SharedExpenseController.php:219
 msgid "Failed to get contact details"
 msgstr "Не вдалося отримати відомості про контакт"
 
-#: /app/lib/Controller/SharedExpenseController.php:242
+#: /app/lib/Controller/SharedExpenseController.php:243
 msgid "Failed to get balances"
 msgstr "Не вдалося отримати баланси"
 
-#: /app/lib/Controller/SharedExpenseController.php:264
+#: /app/lib/Controller/SharedExpenseController.php:265
 msgid "Failed to get shared expenses"
 msgstr "Не вдалося отримати спільні витрати"
 
-#: /app/lib/Controller/SharedExpenseController.php:286
+#: /app/lib/Controller/SharedExpenseController.php:287
 msgid "Failed to get shared transactions"
 msgstr "Не вдалося отримати спільні транзакції"
 
-#: /app/lib/Controller/SharedExpenseController.php:318
-#: /app/lib/Controller/SharedExpenseController.php:345
+#: /app/lib/Controller/SharedExpenseController.php:319
+#: /app/lib/Controller/SharedExpenseController.php:346
 msgid "This transaction is already shared with this contact"
 msgstr "Цю транзакцію вже надано цьому контакту"
 
-#: /app/lib/Controller/SharedExpenseController.php:327
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:751
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:766
+#: /app/lib/Controller/SharedExpenseController.php:328
 msgid "Failed to share expense"
 msgstr "Не вдалося надати спільний доступ до витрати"
 
-#: /app/lib/Controller/SharedExpenseController.php:354
+#: /app/lib/Controller/SharedExpenseController.php:355
 msgid "Failed to split expense"
 msgstr "Не вдалося розподілити витрату"
 
-#: /app/lib/Controller/SharedExpenseController.php:376
+#: /app/lib/Controller/SharedExpenseController.php:381
+msgid "Each person can only be in a split once"
+msgstr ""
+
+#: /app/lib/Controller/SharedExpenseController.php:382
+msgid "A split that has been settled cannot be changed"
+msgstr ""
+
+#: /app/lib/Controller/SharedExpenseController.php:383
+msgid "Every split needs an amount"
+msgstr ""
+
+#: /app/lib/Controller/SharedExpenseController.php:384
+#, fuzzy
+#| msgid "Failed to create transaction"
+msgid "The splits add up to more than the transaction"
+msgstr "Не вдалося створити транзакцію"
+
+#: /app/lib/Controller/SharedExpenseController.php:385
+#: /app/lib/Controller/SharedExpenseController.php:399
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:912
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:967
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:981
+#, fuzzy
+#| msgid "Failed to save splits"
+msgid "Failed to save the split"
+msgstr "Не вдалося зберегти розподіл"
+
+#: /app/lib/Controller/SharedExpenseController.php:390
+#, fuzzy
+#| msgid "Transaction not found"
+msgid "Transaction or contact not found"
+msgstr "Транзакцію не знайдено"
+
+#: /app/lib/Controller/SharedExpenseController.php:421
 msgid "Failed to get shares"
 msgstr "Не вдалося отримати частки"
 
-#: /app/lib/Controller/SharedExpenseController.php:398
+#: /app/lib/Controller/SharedExpenseController.php:443
 msgid "Failed to update share"
 msgstr "Не вдалося оновити частку"
 
-#: /app/lib/Controller/SharedExpenseController.php:420
+#: /app/lib/Controller/SharedExpenseController.php:465
 msgid "Failed to mark settled"
 msgstr "Не вдалося позначити як урегульоване"
 
-#: /app/lib/Controller/SharedExpenseController.php:442
+#: /app/lib/Controller/SharedExpenseController.php:487
 msgid "Failed to delete share"
 msgstr "Не вдалося видалити частку"
 
-#: /app/lib/Controller/SharedExpenseController.php:460
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:614
+#: /app/lib/Controller/SharedExpenseController.php:505
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:632
 msgid "Please select at least one expense to settle"
 msgstr "Виберіть принаймні одну витрату для взаєморозрахунку"
 
-#: /app/lib/Controller/SharedExpenseController.php:475
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:642
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:670
+#: /app/lib/Controller/SharedExpenseController.php:520
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:660
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:688
 msgid "Failed to settle expenses"
 msgstr "Не вдалося виконати взаєморозрахунок за витратами"
 
-#: /app/lib/Controller/SharedExpenseController.php:510
+#: /app/lib/Controller/SharedExpenseController.php:555
 msgid "Failed to record settlement"
 msgstr "Не вдалося зареєструвати взаєморозрахунок"
 
-#: /app/lib/Controller/SharedExpenseController.php:535
+#: /app/lib/Controller/SharedExpenseController.php:580
 msgid "Failed to settle"
 msgstr "Не вдалося виконати взаєморозрахунок"
 
-#: /app/lib/Controller/SharedExpenseController.php:557
+#: /app/lib/Controller/SharedExpenseController.php:602
 msgid "Failed to get settlements"
 msgstr "Не вдалося отримати взаєморозрахунки"
 
-#: /app/lib/Controller/SharedExpenseController.php:579
+#: /app/lib/Controller/SharedExpenseController.php:624
 msgid "Failed to delete settlement"
 msgstr "Не вдалося видалити взаєморозрахунок"
 
@@ -2202,7 +2234,7 @@ msgstr "Не вдалося отримати теги"
 
 #: /app/lib/Controller/TagSetController.php:234
 #: /app/lib/Controller/TagSetController.php:358
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:339
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:340
 msgid "Name is required"
 msgstr "Потрібно вказати назву"
 
@@ -2244,7 +2276,7 @@ msgid "Failed to delete global tag"
 msgstr "Не вдалося видалити глобальний тег"
 
 #: /app/lib/Controller/TransactionController.php:248
-#: /app/src/modules/accounts/AccountsModule.js:3637
+#: /app/src/modules/accounts/AccountsModule.js:3662
 #: /app/src/modules/transactions/TransactionsModule.js:958
 msgid "Failed to export transactions"
 msgstr "Не вдалося експортувати транзакції"
@@ -2258,7 +2290,7 @@ msgstr "Не вдалося експортувати транзакції"
 #: /app/lib/Controller/TransactionController.php:939
 #: /app/lib/Controller/TransactionController.php:956
 #: /app/lib/Controller/TransactionController.php:1001 /app/src/main.js:2014
-#: /app/src/modules/dashboard/DashboardModule.js:1281
+#: /app/src/modules/dashboard/DashboardModule.js:1323
 #: /app/templates/index.php:5604
 msgid "Transaction"
 msgstr "Транзакція"
@@ -2365,7 +2397,7 @@ msgstr "Частина %1$s: сума не може дорівнювати ну�
 #: /app/src/main.js:1264 /app/src/modules/accounts/AccountsModule.js:1665
 #: /app/src/modules/accounts/AccountsModule.js:1688
 #: /app/src/modules/bills/BillsModule.js:360
-#: /app/src/modules/dashboard/DashboardModule.js:1238
+#: /app/src/modules/dashboard/DashboardModule.js:1280
 #: /app/src/modules/rules/RulesModule.js:1004
 #: /app/src/modules/transactions/TransactionsModule.js:5378
 #: /app/templates/index.php:1444 /app/templates/index.php:1601
@@ -2435,14 +2467,14 @@ msgstr "Рік"
 #: /app/lib/Service/Report/ReportExporter.php:543
 #: /app/lib/Service/Report/ReportExporter.php:593
 #: /app/src/core/KeyboardShortcuts.js:338
-#: /app/src/modules/categories/CategoriesModule.js:708
-#: /app/src/modules/categories/CategoriesModule.js:848
-#: /app/src/modules/categories/CategoriesModule.js:1581
-#: /app/src/modules/dashboard/DashboardModule.js:2077
-#: /app/src/modules/dashboard/DashboardModule.js:2590
-#: /app/src/modules/dashboard/DashboardModule.js:2908
-#: /app/src/modules/dashboard/DashboardModule.js:2971
-#: /app/src/modules/dashboard/DashboardModule.js:5070
+#: /app/src/modules/categories/CategoriesModule.js:712
+#: /app/src/modules/categories/CategoriesModule.js:854
+#: /app/src/modules/categories/CategoriesModule.js:1587
+#: /app/src/modules/dashboard/DashboardModule.js:2283
+#: /app/src/modules/dashboard/DashboardModule.js:2796
+#: /app/src/modules/dashboard/DashboardModule.js:3114
+#: /app/src/modules/dashboard/DashboardModule.js:3177
+#: /app/src/modules/dashboard/DashboardModule.js:5310
 #: /app/src/modules/help/HelpModule.js:28
 #: /app/src/modules/reports/ReportsModule.js:763
 #: /app/src/modules/reports/ReportsModule.js:1183
@@ -2468,10 +2500,10 @@ msgstr "Дохід"
 #: /app/lib/Service/Report/ReportExporter.php:469
 #: /app/lib/Service/Report/ReportExporter.php:544
 #: /app/lib/Service/Report/ReportExporter.php:595
-#: /app/src/modules/dashboard/DashboardModule.js:2082
-#: /app/src/modules/dashboard/DashboardModule.js:2598
-#: /app/src/modules/dashboard/DashboardModule.js:2909
-#: /app/src/modules/dashboard/DashboardModule.js:2978
+#: /app/src/modules/dashboard/DashboardModule.js:2288
+#: /app/src/modules/dashboard/DashboardModule.js:2804
+#: /app/src/modules/dashboard/DashboardModule.js:3115
+#: /app/src/modules/dashboard/DashboardModule.js:3184
 #: /app/src/modules/reports/ReportsModule.js:770
 #: /app/src/modules/reports/ReportsModule.js:1191
 #: /app/src/modules/reports/ReportsModule.js:1507
@@ -2483,8 +2515,8 @@ msgid "Expenses"
 msgstr "Витрати"
 
 #: /app/lib/Controller/YearOverYearController.php:249
-#: /app/src/modules/dashboard/DashboardModule.js:1014
-#: /app/src/modules/dashboard/DashboardModule.js:2000
+#: /app/src/modules/dashboard/DashboardModule.js:1056
+#: /app/src/modules/dashboard/DashboardModule.js:2202
 #: /app/src/modules/reports/ReportsModule.js:1528
 #: /app/src/utils/formatters.js:223
 msgid "Savings"
@@ -2498,7 +2530,7 @@ msgstr "Заощадження"
 #: /app/lib/Service/Report/ReportExporter.php:572
 #: /app/lib/Service/Report/ReportExporter.php:615
 #: /app/src/core/KeyboardShortcuts.js:334
-#: /app/src/modules/dashboard/DashboardModule.js:5069
+#: /app/src/modules/dashboard/DashboardModule.js:5309
 #: /app/src/modules/help/HelpModule.js:24 /app/templates/index.php:63
 #: /app/templates/index.php:1392 /app/templates/index.php:1542
 #: /app/templates/index.php:1964 /app/templates/index.php:2501
@@ -2529,12 +2561,13 @@ msgstr "Зміна, %%"
 #: /app/lib/Service/Report/ReportExporter.php:223
 #: /app/lib/Service/Report/ReportExporter.php:228 /app/src/main.js:2449
 #: /app/src/main.js:2452 /app/src/main.js:3546
-#: /app/src/modules/accounts/AccountsModule.js:3534
-#: /app/src/modules/dashboard/DashboardModule.js:2105
-#: /app/src/modules/dashboard/DashboardModule.js:2183
-#: /app/src/modules/dashboard/DashboardModule.js:2326
-#: /app/src/modules/dashboard/DashboardModule.js:2465
+#: /app/src/modules/accounts/AccountsModule.js:3559
+#: /app/src/modules/dashboard/DashboardModule.js:2311
+#: /app/src/modules/dashboard/DashboardModule.js:2389
+#: /app/src/modules/dashboard/DashboardModule.js:2532
+#: /app/src/modules/dashboard/DashboardModule.js:2671
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:174
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:845
 #: /app/src/modules/transactions/TransactionsModule.js:3726
 #: /app/src/modules/transfers/TransfersModule.js:1179
 msgid "Unknown"
@@ -2553,7 +2586,7 @@ msgid "Budget: Overview"
 msgstr "Бюджет: огляд"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:79
-#: /app/src/modules/dashboard/DashboardModule.js:996
+#: /app/src/modules/dashboard/DashboardModule.js:1038
 msgid "No accounts yet"
 msgstr "Рахунків ще немає"
 
@@ -2604,7 +2637,7 @@ msgid "Budget: Upcoming bills"
 msgstr "Бюджет: майбутні платежі"
 
 #: /app/lib/Dashboard/UpcomingBillsWidget.php:78
-#: /app/src/modules/dashboard/DashboardModule.js:1555
+#: /app/src/modules/dashboard/DashboardModule.js:1748
 #: /app/templates/index.php:705
 msgid "No upcoming bills"
 msgstr "Майбутніх платежів немає"
@@ -2632,9 +2665,9 @@ msgstr[2] "строк сплати через %n днів"
 #: /app/lib/Notification/Notifier.php:31 /app/lib/Service/DigestService.php:150
 #: /app/specialAppInfoFakeDummyForL10nScript.php:2
 #: /app/src/core/KeyboardShortcuts.js:337
-#: /app/src/modules/categories/CategoriesModule.js:869
-#: /app/src/modules/categories/CategoriesModule.js:2243
-#: /app/src/modules/dashboard/DashboardModule.js:1917
+#: /app/src/modules/categories/CategoriesModule.js:875
+#: /app/src/modules/categories/CategoriesModule.js:2288
+#: /app/src/modules/dashboard/DashboardModule.js:2119
 #: /app/src/modules/help/HelpModule.js:27 /app/templates/index.php:93
 #: /app/templates/index.php:2109 /app/templates/index.php:2180
 msgid "Budget"
@@ -2837,7 +2870,7 @@ msgstr ""
 #: /app/lib/Service/AccountClosureService.php:79
 #: /app/lib/Service/Bill/BillIcsService.php:54
 #: /app/src/core/KeyboardShortcuts.js:339
-#: /app/src/modules/dashboard/DashboardModule.js:5073
+#: /app/src/modules/dashboard/DashboardModule.js:5313
 #: /app/src/modules/help/HelpModule.js:29
 #: /app/src/modules/sharing/SharingModule.js:256 /app/templates/index.php:113
 #: /app/templates/index.php:2516 /app/templates/index.php:4643
@@ -2876,7 +2909,7 @@ msgstr ""
 msgid "Pension #%1$s"
 msgstr "Пенсія №%1$s"
 
-#: /app/lib/Service/AccountService.php:124
+#: /app/lib/Service/AccountService.php:127
 msgid ""
 "Cannot delete account with existing transactions. Please delete all "
 "transactions first."
@@ -2884,7 +2917,7 @@ msgstr ""
 "Не можна видалити рахунок із наявними транзакціями. Спочатку видаліть усі "
 "транзакції."
 
-#: /app/lib/Service/AccountService.php:278
+#: /app/lib/Service/AccountService.php:281
 msgid "This page is out of date. Please reload it before editing this account."
 msgstr ""
 "Ця сторінка застаріла. Перезавантажте її, перш ніж редагувати цей рахунок."
@@ -2968,16 +3001,16 @@ msgstr "Із платежем не пов’язано рахунок"
 msgid "Bill auto-paid successfully"
 msgstr "Платіж успішно сплачено автоматично"
 
-#: /app/lib/Service/CategoryService.php:143
-#: /app/lib/Service/CategoryService.php:183
+#: /app/lib/Service/CategoryService.php:145
+#: /app/lib/Service/CategoryService.php:185
 msgid "A category with this name already exists at this level"
 msgstr "Категорія з такою назвою вже існує на цьому рівні"
 
-#: /app/lib/Service/CategoryService.php:173
+#: /app/lib/Service/CategoryService.php:175
 msgid "Category cannot be its own parent"
 msgstr "Категорія не може бути батьківською для самої себе"
 
-#: /app/lib/Service/CategoryService.php:202
+#: /app/lib/Service/CategoryService.php:204
 msgid ""
 "Cannot delete this category because it has transactions assigned to it. "
 "Please reassign or delete them first."
@@ -2985,15 +3018,15 @@ msgstr ""
 "Не можна видалити цю категорію, оскільки до неї призначено транзакції. "
 "Спочатку перепризначте або видаліть їх."
 
-#: /app/lib/Service/CategoryService.php:263
+#: /app/lib/Service/CategoryService.php:265
 msgid "A category cannot be nested inside itself"
 msgstr "Категорію не можна вкласти саму в себе"
 
-#: /app/lib/Service/CategoryService.php:562
+#: /app/lib/Service/CategoryService.php:597
 msgid "A budget adjustment already exists for this month"
 msgstr "Коригування бюджету за цей місяць уже існує"
 
-#: /app/lib/Service/CategoryService.php:638
+#: /app/lib/Service/CategoryService.php:673
 msgid "No budget snapshot found for this category and month"
 msgstr "Не знайдено знімка бюджету для цієї категорії та місяця"
 
@@ -3164,7 +3197,7 @@ msgstr "Посилання"
 #: /app/templates/index.php:5063 /app/templates/index.php:5710
 #: /app/templates/index.php:6074 /app/templates/index.php:6226
 #: /app/templates/index.php:6541 /app/templates/index.php:6967
-#: /app/templates/index.php:7081 /app/templates/index.php:7127
+#: /app/templates/index.php:7076 /app/templates/index.php:7122
 #: /app/templates/quick-add.php:70
 msgid "Notes"
 msgstr "Примітки"
@@ -3183,8 +3216,8 @@ msgid "Split of"
 msgstr "Частина транзакції"
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:144
-#: /app/src/modules/categories/CategoriesModule.js:708
-#: /app/src/modules/categories/CategoriesModule.js:1581
+#: /app/src/modules/categories/CategoriesModule.js:712
+#: /app/src/modules/categories/CategoriesModule.js:1587
 #: /app/src/modules/rules/components/ActionBuilder.js:322
 #: /app/src/modules/rules/components/CriteriaBuilder.js:181
 #: /app/templates/index.php:1016 /app/templates/index.php:1443
@@ -3283,26 +3316,26 @@ msgid "Import file not found"
 msgstr "Файл імпорту не знайдено"
 
 #: /app/lib/Service/ImportService.php:728
-#: /app/lib/Service/ImportService.php:1266
+#: /app/lib/Service/ImportService.php:1275
 msgid "Account ID is required for single-account imports"
 msgstr "Для імпорту одного рахунку потрібно вказати ідентифікатор рахунку"
 
-#: /app/lib/Service/ImportService.php:809
-#: /app/lib/Service/ImportService.php:1355
+#: /app/lib/Service/ImportService.php:815
+#: /app/lib/Service/ImportService.php:1364
 msgid "This row has no account, and no account was chosen for the import"
 msgstr "У цьому рядку немає рахунку, і рахунок для імпорту не вибрано"
 
-#: /app/lib/Service/ImportService.php:1112
+#: /app/lib/Service/ImportService.php:1121
 #, php-format
 msgid "Destination account %1$s not found"
 msgstr "Рахунок призначення %1$s не знайдено"
 
-#: /app/lib/Service/ImportService.php:1211
+#: /app/lib/Service/ImportService.php:1220
 #, php-format
 msgid "Failed to recalculate balance for account %1$s"
 msgstr "Не вдалося перерахувати баланс рахунку %1$s"
 
-#: /app/lib/Service/ImportService.php:1356
+#: /app/lib/Service/ImportService.php:1365
 #, php-format
 msgid "Could not resolve account: %1$s"
 msgstr "Не вдалося визначити рахунок: %1$s"
@@ -3546,7 +3579,7 @@ msgid "Net Income"
 msgstr "Чистий дохід"
 
 #: /app/lib/Service/Report/ReportExporter.php:208
-#: /app/src/modules/dashboard/DashboardModule.js:1525
+#: /app/src/modules/dashboard/DashboardModule.js:1718
 msgid "On track"
 msgstr "За планом"
 
@@ -3589,7 +3622,7 @@ msgstr "Загальні витрати"
 
 #: /app/lib/Service/Report/ReportExporter.php:240
 #: /app/lib/Service/Report/ReportExporter.php:438
-#: /app/src/modules/accounts/AccountsModule.js:2883
+#: /app/src/modules/accounts/AccountsModule.js:2908
 #: /app/templates/index.php:1229 /app/templates/index.php:2955
 #: /app/templates/index.php:3710 /app/templates/index.php:5157
 #: /app/templates/index.php:5227
@@ -3606,8 +3639,8 @@ msgstr "порівняно з попереднім періодом"
 #: /app/src/modules/accounts/AccountsModule.js:27
 #: /app/src/modules/accounts/AccountsModule.js:517
 #: /app/src/modules/accounts/AccountsModule.js:518
-#: /app/src/modules/dashboard/DashboardModule.js:2666
-#: /app/src/modules/dashboard/DashboardModule.js:2902
+#: /app/src/modules/dashboard/DashboardModule.js:2872
+#: /app/src/modules/dashboard/DashboardModule.js:3108
 #: /app/src/modules/forecast/ForecastModule.js:305
 #: /app/src/modules/pensions/PensionsModule.js:622
 #: /app/templates/index.php:1075 /app/templates/index.php:1513
@@ -3663,7 +3696,7 @@ msgid "Source"
 msgstr "Джерело"
 
 #: /app/lib/Service/Report/ReportExporter.php:356
-#: /app/src/modules/categories/CategoriesModule.js:2258
+#: /app/src/modules/categories/CategoriesModule.js:2303
 #: /app/templates/index.php:2181 /app/templates/index.php:3080
 msgid "Period"
 msgstr "Період"
@@ -3679,16 +3712,16 @@ msgstr "Передбачено бюджетом"
 
 #: /app/lib/Service/Report/ReportExporter.php:401
 #: /app/lib/Service/Report/ReportExporter.php:640
-#: /app/src/modules/categories/CategoriesModule.js:2266
-#: /app/src/modules/dashboard/DashboardModule.js:1918
+#: /app/src/modules/categories/CategoriesModule.js:2311
+#: /app/src/modules/dashboard/DashboardModule.js:2120
 #: /app/templates/index.php:2182
 msgid "Spent"
 msgstr "Витрачено"
 
 #: /app/lib/Service/Report/ReportExporter.php:402
 #: /app/lib/Service/Report/ReportExporter.php:641
-#: /app/src/modules/categories/CategoriesModule.js:2269
-#: /app/src/modules/dashboard/DashboardModule.js:1919
+#: /app/src/modules/categories/CategoriesModule.js:2314
+#: /app/src/modules/dashboard/DashboardModule.js:2121
 #: /app/templates/index.php:2150 /app/templates/index.php:2183
 msgid "Remaining"
 msgstr "Залишок"
@@ -4062,7 +4095,7 @@ msgstr ""
 "* Розширення PHP BCMath (`php-bcmath`)"
 
 #: /app/src/config/dashboardWidgets.js:8
-#: /app/src/modules/dashboard/DashboardModule.js:2676
+#: /app/src/modules/dashboard/DashboardModule.js:2882
 #: /app/templates/index.php:350 /app/templates/index.php:1128
 msgid "Net Worth"
 msgstr "Чистий капітал"
@@ -4080,8 +4113,8 @@ msgid "Net Savings"
 msgstr "Чисті заощадження"
 
 #: /app/src/config/dashboardWidgets.js:12
-#: /app/src/modules/dashboard/DashboardModule.js:1760
-#: /app/src/modules/dashboard/DashboardModule.js:1766
+#: /app/src/modules/dashboard/DashboardModule.js:1962
+#: /app/src/modules/dashboard/DashboardModule.js:1968
 #: /app/src/modules/pensions/PensionsModule.js:156
 #: /app/src/modules/pensions/PensionsModule.js:162 /app/templates/index.php:402
 msgid "Pension Worth"
@@ -4122,11 +4155,11 @@ msgstr "Витрати за рахунком"
 #: /app/src/main.js:1259 /app/src/main.js:1266 /app/src/main.js:2016
 #: /app/src/main.js:3832 /app/src/modules/accounts/AccountsModule.js:1686
 #: /app/src/modules/accounts/AccountsModule.js:1690
-#: /app/src/modules/accounts/AccountsModule.js:1956
-#: /app/src/modules/categories/CategoriesModule.js:768
-#: /app/src/modules/dashboard/DashboardModule.js:1207
+#: /app/src/modules/accounts/AccountsModule.js:1981
+#: /app/src/modules/categories/CategoriesModule.js:772
+#: /app/src/modules/dashboard/DashboardModule.js:1249
 #: /app/src/modules/import/ImportModule.js:157
-#: /app/src/modules/import/ImportModule.js:1966
+#: /app/src/modules/import/ImportModule.js:1970
 #: /app/src/modules/rules/RulesModule.js:1009
 #: /app/src/modules/transactions/TransactionsModule.js:509
 #: /app/src/modules/transactions/TransactionsModule.js:1202
@@ -4325,7 +4358,7 @@ msgid "Dashboard"
 msgstr "Панель"
 
 #: /app/src/core/KeyboardShortcuts.js:335
-#: /app/src/modules/dashboard/DashboardModule.js:4761
+#: /app/src/modules/dashboard/DashboardModule.js:4964
 #: /app/src/modules/help/HelpModule.js:25
 #: /app/src/modules/sharing/SharingModule.js:255 /app/templates/index.php:73
 #: /app/templates/index.php:1834 /app/templates/index.php:4631
@@ -4333,7 +4366,7 @@ msgid "Categories"
 msgstr "Категорії"
 
 #: /app/src/core/KeyboardShortcuts.js:336
-#: /app/src/modules/accounts/AccountsModule.js:1994
+#: /app/src/modules/accounts/AccountsModule.js:2019
 #: /app/src/modules/bills/BillsModule.js:1848
 #: /app/src/modules/help/HelpModule.js:26
 #: /app/src/modules/reports/ReportsModule.js:442
@@ -4357,7 +4390,7 @@ msgid "Pensions"
 msgstr "Пенсії"
 
 #: /app/src/core/KeyboardShortcuts.js:344
-#: /app/src/modules/dashboard/DashboardModule.js:2683
+#: /app/src/modules/dashboard/DashboardModule.js:2889
 #: /app/src/modules/help/HelpModule.js:34 /app/templates/index.php:163
 #: /app/templates/index.php:1155 /app/templates/index.php:3806
 #: /app/templates/index.php:3889
@@ -4366,7 +4399,7 @@ msgstr "Активи"
 
 #: /app/src/core/KeyboardShortcuts.js:345
 #: /app/src/modules/help/HelpModule.js:35 /app/templates/index.php:173
-#: /app/templates/index.php:4083 /app/templates/index.php:7160
+#: /app/templates/index.php:4083 /app/templates/index.php:7155
 msgid "Shared Expenses"
 msgstr "Спільні витрати"
 
@@ -4443,8 +4476,8 @@ msgstr "Сполучення клавіш"
 #: /app/src/main.js:2066 /app/src/main.js:2070
 #: /app/src/modules/bills/BillsModule.js:1208
 #: /app/src/modules/bills/BillsModule.js:1421
-#: /app/src/modules/import/ImportModule.js:2174
-#: /app/src/modules/import/ImportModule.js:2187
+#: /app/src/modules/import/ImportModule.js:2246
+#: /app/src/modules/import/ImportModule.js:2259
 #: /app/src/modules/sharing/SharingModule.js:134
 #: /app/src/modules/transactions/TransactionsModule.js:5271
 #: /app/src/modules/transfers/TransfersModule.js:145
@@ -4456,8 +4489,8 @@ msgstr "Сполучення клавіш"
 #: /app/templates/index.php:5284 /app/templates/index.php:5320
 #: /app/templates/index.php:5374 /app/templates/index.php:5464
 #: /app/templates/index.php:5573 /app/templates/index.php:6406
-#: /app/templates/index.php:6821 /app/templates/index.php:7177
-#: /app/templates/index.php:7239 /app/templates/index.php:7340
+#: /app/templates/index.php:6821 /app/templates/index.php:7172
+#: /app/templates/index.php:7234 /app/templates/index.php:7335
 msgid "Close"
 msgstr "Закрити"
 
@@ -4584,19 +4617,19 @@ msgid "Linked transfer"
 msgstr "Пов’язаний переказ"
 
 #: /app/src/main.js:1196 /app/src/modules/accounts/AccountsModule.js:1664
-#: /app/src/modules/categories/CategoriesModule.js:777
+#: /app/src/modules/categories/CategoriesModule.js:781
 msgid ""
 "Part of a split transaction. The amount shown is the part in this category."
 msgstr ""
 "Частина розподіленої транзакції. Показана сума належить до цієї категорії."
 
 #: /app/src/main.js:1197 /app/src/modules/accounts/AccountsModule.js:1665
-#: /app/src/modules/dashboard/DashboardModule.js:1238
+#: /app/src/modules/dashboard/DashboardModule.js:1280
 msgid "Split transaction"
 msgstr "Розподілити транзакцію"
 
 #: /app/src/main.js:1197 /app/src/modules/accounts/AccountsModule.js:1665
-#: /app/src/modules/categories/CategoriesModule.js:777
+#: /app/src/modules/categories/CategoriesModule.js:781
 msgid "Split part"
 msgstr "Частина розподілу"
 
@@ -4604,7 +4637,7 @@ msgstr "Частина розподілу"
 msgid "Shared expense - unsettled"
 msgstr "Спільна витрата — взаєморозрахунок не виконано"
 
-#: /app/src/main.js:1201 /app/src/modules/categories/CategoriesModule.js:318
+#: /app/src/main.js:1201 /app/src/modules/categories/CategoriesModule.js:320
 #: /app/src/modules/rules/RulesModule.js:138
 #: /app/src/modules/savings/SavingsModule.js:126
 msgid "Shared"
@@ -4615,11 +4648,12 @@ msgid "Shared expense - settled"
 msgstr "Спільна витрата — взаєморозрахунок виконано"
 
 #: /app/src/main.js:1203
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:67
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:176
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:418
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:485
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:520
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:68
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:177
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:419
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:502
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:537
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:848
 msgid "Settled"
 msgstr "Урегульовано"
 
@@ -4703,8 +4737,8 @@ msgstr "Не вдалося завантажити транзакції"
 msgid "{displayed} of {total} transactions"
 msgstr "{displayed} із {total} транзакцій"
 
-#: /app/src/main.js:1624 /app/src/modules/dashboard/DashboardModule.js:2334
-#: /app/src/modules/import/ImportModule.js:2086
+#: /app/src/main.js:1624 /app/src/modules/dashboard/DashboardModule.js:2540
+#: /app/src/modules/import/ImportModule.js:2090
 msgid "%n transaction"
 msgid_plural "%n transactions"
 msgstr[0] "%n транзакція"
@@ -4715,7 +4749,7 @@ msgstr[2] "%n транзакцій"
 msgid "Total: {amount}"
 msgstr "Усього: {amount}"
 
-#: /app/src/main.js:1668 /app/src/modules/accounts/AccountsModule.js:1801
+#: /app/src/main.js:1668 /app/src/modules/accounts/AccountsModule.js:1826
 msgid "Page {current} of {total}"
 msgstr "Сторінка {current} із {total}"
 
@@ -4914,7 +4948,7 @@ msgid "Deleting..."
 msgstr "Видалення..."
 
 #: /app/src/main.js:2294 /app/src/modules/settings/SettingsModule.js:574
-#: /app/templates/index.php:7223
+#: /app/templates/index.php:7218
 msgid "Delete Everything"
 msgstr "Видалити все"
 
@@ -4972,7 +5006,7 @@ msgstr "Ви цілком упевнені, що хочете продовжит
 msgid "Importing data... This may take a moment."
 msgstr "Імпорт даних... Це може тривати деякий час."
 
-#: /app/src/main.js:2523 /app/src/modules/import/ImportModule.js:2320
+#: /app/src/main.js:2523 /app/src/modules/import/ImportModule.js:2392
 msgid "Import failed"
 msgstr "Не вдалося виконати імпорт"
 
@@ -5024,7 +5058,7 @@ msgstr "Ваші наявні дані не змінено."
 msgid "Failed to calculate scenario"
 msgstr "Не вдалося розрахувати сценарій"
 
-#: /app/src/main.js:2842 /app/src/modules/dashboard/DashboardModule.js:926
+#: /app/src/main.js:2842 /app/src/modules/dashboard/DashboardModule.js:968
 #: /app/src/modules/reports/ReportsModule.js:1624
 msgid "N/A"
 msgstr "Не застосовується"
@@ -5065,7 +5099,7 @@ msgstr "Лавина"
 #: /app/src/modules/assets/AssetsModule.js:166
 #: /app/src/modules/pensions/PensionsModule.js:120
 #: /app/src/modules/savings/SavingsModule.js:138
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:198
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:199
 #: /app/src/modules/tagsets/TagSetsModule.js:86 /app/templates/index.php:1193
 #: /app/templates/index.php:1929 /app/templates/index.php:3901
 msgid "Edit"
@@ -5080,7 +5114,7 @@ msgstr "Редагувати"
 #: /app/src/modules/pensions/PensionsModule.js:821
 #: /app/src/modules/pensions/PensionsModule.js:1092
 #: /app/src/modules/savings/SavingsModule.js:141
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:201
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:202
 #: /app/src/modules/tagsets/TagSetsModule.js:87 /app/templates/index.php:1147
 #: /app/templates/index.php:1683 /app/templates/index.php:1933
 #: /app/templates/index.php:3061
@@ -5366,7 +5400,7 @@ msgid "Excluded"
 msgstr "Виключено"
 
 #: /app/src/modules/accounts/AccountsModule.js:568
-#: /app/src/modules/accounts/AccountsModule.js:2833
+#: /app/src/modules/accounts/AccountsModule.js:2858
 msgid "Edit Account"
 msgstr "Редагувати рахунок"
 
@@ -5375,13 +5409,13 @@ msgid "Delete Account"
 msgstr "Видалити рахунок"
 
 #: /app/src/modules/accounts/AccountsModule.js:641
-#: /app/src/modules/accounts/AccountsModule.js:2545
+#: /app/src/modules/accounts/AccountsModule.js:2570
 #: /app/templates/index.php:1009
 msgid "Select account"
 msgstr "Виберіть рахунок"
 
 #: /app/src/modules/accounts/AccountsModule.js:685
-#: /app/src/modules/categories/CategoriesModule.js:1231
+#: /app/src/modules/categories/CategoriesModule.js:1237
 msgid "%n selected"
 msgid_plural "%n selected"
 msgstr[0] "Вибрано: %n"
@@ -5437,7 +5471,7 @@ msgstr[1] "Видалено %n рахунки"
 msgstr[2] "Видалено %n рахунків"
 
 #: /app/src/modules/accounts/AccountsModule.js:767
-#: /app/src/modules/categories/CategoriesModule.js:1279
+#: /app/src/modules/categories/CategoriesModule.js:1285
 msgid "Failed to delete: {errors}"
 msgstr "Не вдалося видалити: {errors}"
 
@@ -5525,7 +5559,7 @@ msgstr ""
 "приблизними."
 
 #: /app/src/modules/accounts/AccountsModule.js:1621
-#: /app/src/modules/import/ImportModule.js:1912
+#: /app/src/modules/import/ImportModule.js:1916
 msgid "No transactions found"
 msgstr "Транзакцій не знайдено"
 
@@ -5537,35 +5571,35 @@ msgstr "На цьому рахунку ще немає транзакцій."
 msgid "Transfer {direction} {account}"
 msgstr "Переказ {direction} {account}"
 
-#: /app/src/modules/accounts/AccountsModule.js:1832
+#: /app/src/modules/accounts/AccountsModule.js:1857
 #: /app/src/modules/bills/BillsModule.js:356
 #: /app/src/modules/transfers/TransfersModule.js:322
 msgid "No due date"
 msgstr "Без строку сплати"
 
-#: /app/src/modules/accounts/AccountsModule.js:1834
+#: /app/src/modules/accounts/AccountsModule.js:1859
 msgid "{date} (statement balance)"
 msgstr "{date} (баланс за випискою)"
 
-#: /app/src/modules/accounts/AccountsModule.js:1835
+#: /app/src/modules/accounts/AccountsModule.js:1860
 msgid "{date} (current balance)"
 msgstr "{date} (поточний баланс)"
 
-#: /app/src/modules/accounts/AccountsModule.js:1836
+#: /app/src/modules/accounts/AccountsModule.js:1861
 msgid "{date} (minimum payment)"
 msgstr "{date} (мінімальний платіж)"
 
-#: /app/src/modules/accounts/AccountsModule.js:1878
+#: /app/src/modules/accounts/AccountsModule.js:1903
 msgid "{account} payment"
 msgstr "Платіж із рахунку {account}"
 
-#: /app/src/modules/accounts/AccountsModule.js:1956
+#: /app/src/modules/accounts/AccountsModule.js:1981
 #: /app/src/modules/transactions/TransactionsModule.js:509
 #: /app/templates/index.php:1433 /app/templates/index.php:1590
 msgid "All Categories"
 msgstr "Усі категорії"
 
-#: /app/src/modules/accounts/AccountsModule.js:2011
+#: /app/src/modules/accounts/AccountsModule.js:2036
 #: /app/src/modules/reports/ReportsModule.js:467
 #: /app/src/modules/tagsets/TagSetsModule.js:660
 #: /app/src/modules/transactions/TransactionsModule.js:565
@@ -5573,80 +5607,80 @@ msgstr "Усі категорії"
 msgid "No tags available"
 msgstr "Немає доступних тегів"
 
-#: /app/src/modules/accounts/AccountsModule.js:2022
+#: /app/src/modules/accounts/AccountsModule.js:2047
 #: /app/src/modules/reports/ReportsModule.js:479
 #: /app/src/modules/transactions/TransactionsModule.js:576
 #: /app/src/modules/transactions/TransactionsModule.js:4894
 msgid "Type to filter tags..."
 msgstr "Введіть текст для фільтрування тегів..."
 
-#: /app/src/modules/accounts/AccountsModule.js:2105
+#: /app/src/modules/accounts/AccountsModule.js:2130
 #: /app/src/modules/reports/ReportsModule.js:545
 #: /app/src/modules/transactions/TransactionsModule.js:660
 #: /app/src/modules/transactions/TransactionsModule.js:4969
 msgid "No tags found"
 msgstr "Тегів не знайдено"
 
-#: /app/src/modules/accounts/AccountsModule.js:2229
+#: /app/src/modules/accounts/AccountsModule.js:2254
 #: /app/src/modules/transactions/TransactionsModule.js:519
 #: /app/templates/index.php:1702
 msgid "Select account to reconcile"
 msgstr "Виберіть рахунок для звірки"
 
-#: /app/src/modules/accounts/AccountsModule.js:2314
-#: /app/src/modules/accounts/AccountsModule.js:2435
+#: /app/src/modules/accounts/AccountsModule.js:2339
+#: /app/src/modules/accounts/AccountsModule.js:2460
 msgid "No accounts available. Please create an account first."
 msgstr "Немає доступних рахунків. Спочатку створіть рахунок."
 
-#: /app/src/modules/accounts/AccountsModule.js:2317
-#: /app/src/modules/accounts/AccountsModule.js:2438
-#: /app/src/modules/import/ImportModule.js:2255
+#: /app/src/modules/accounts/AccountsModule.js:2342
+#: /app/src/modules/accounts/AccountsModule.js:2463
+#: /app/src/modules/import/ImportModule.js:2327
 msgid "Please select an account"
 msgstr "Виберіть рахунок"
 
-#: /app/src/modules/accounts/AccountsModule.js:2321
-#: /app/src/modules/accounts/AccountsModule.js:2442
+#: /app/src/modules/accounts/AccountsModule.js:2346
+#: /app/src/modules/accounts/AccountsModule.js:2467
 msgid "Please enter a date"
 msgstr "Введіть дату"
 
-#: /app/src/modules/accounts/AccountsModule.js:2325
-#: /app/src/modules/accounts/AccountsModule.js:2446
+#: /app/src/modules/accounts/AccountsModule.js:2350
+#: /app/src/modules/accounts/AccountsModule.js:2471
 msgid "Please select a transaction type"
 msgstr "Виберіть тип транзакції"
 
-#: /app/src/modules/accounts/AccountsModule.js:2329
-#: /app/src/modules/accounts/AccountsModule.js:2450
+#: /app/src/modules/accounts/AccountsModule.js:2354
+#: /app/src/modules/accounts/AccountsModule.js:2475
 #: /app/src/modules/savings/SavingsModule.js:497
 msgid "Please enter a valid amount"
 msgstr "Введіть допустиму суму"
 
-#: /app/src/modules/accounts/AccountsModule.js:2333
-#: /app/src/modules/accounts/AccountsModule.js:2454
+#: /app/src/modules/accounts/AccountsModule.js:2358
+#: /app/src/modules/accounts/AccountsModule.js:2479
 msgid "Please enter a description"
 msgstr "Введіть опис"
 
-#: /app/src/modules/accounts/AccountsModule.js:2377
+#: /app/src/modules/accounts/AccountsModule.js:2402
 msgid "Transaction saved successfully"
 msgstr "Транзакцію успішно збережено"
 
-#: /app/src/modules/accounts/AccountsModule.js:2386
-#: /app/src/modules/accounts/AccountsModule.js:2399
+#: /app/src/modules/accounts/AccountsModule.js:2411
+#: /app/src/modules/accounts/AccountsModule.js:2424
 #: /app/src/modules/transactions/TransactionsModule.js:3057
 #: /app/src/modules/transactions/TransactionsModule.js:3061
 #: /app/templates/quick-add.php:171
 msgid "Failed to save transaction"
 msgstr "Не вдалося зберегти транзакцію"
 
-#: /app/src/modules/accounts/AccountsModule.js:2480
+#: /app/src/modules/accounts/AccountsModule.js:2505
 msgid "Transaction added successfully!"
 msgstr "Транзакцію успішно додано!"
 
-#: /app/src/modules/accounts/AccountsModule.js:2491
-#: /app/src/modules/accounts/AccountsModule.js:2504
+#: /app/src/modules/accounts/AccountsModule.js:2516
+#: /app/src/modules/accounts/AccountsModule.js:2529
 msgid "Failed to add transaction"
 msgstr "Не вдалося додати транзакцію"
 
-#: /app/src/modules/accounts/AccountsModule.js:2557
+#: /app/src/modules/accounts/AccountsModule.js:2582
 #: /app/src/modules/bills/BillsModule.js:907
 #: /app/src/modules/bills/BillsModule.js:971
 #: /app/src/modules/income/IncomeModule.js:460
@@ -5657,16 +5691,16 @@ msgstr "Не вдалося додати транзакцію"
 msgid "No category"
 msgstr "Без категорії"
 
-#: /app/src/modules/accounts/AccountsModule.js:2576
+#: /app/src/modules/accounts/AccountsModule.js:2601
 msgid "Form error: Account name field not found"
 msgstr "Помилка форми: поле «Назва рахунку» не знайдено"
 
-#: /app/src/modules/accounts/AccountsModule.js:2582
+#: /app/src/modules/accounts/AccountsModule.js:2607
 msgid "Form error: Account type field not found"
 msgstr "Помилка форми: поле «Тип рахунку» не знайдено"
 
-#: /app/src/modules/accounts/AccountsModule.js:2636
-#: /app/src/modules/accounts/AccountsModule.js:2650
+#: /app/src/modules/accounts/AccountsModule.js:2661
+#: /app/src/modules/accounts/AccountsModule.js:2675
 msgid ""
 "Enter the amount owed as a positive number. Tick \"This account is in "
 "credit\" if the lender owes you instead."
@@ -5674,39 +5708,39 @@ msgstr ""
 "Введіть суму боргу як додатне число. Якщо натомість кредитор винен вам, "
 "установіть прапорець «Цей рахунок має позитивний баланс»."
 
-#: /app/src/modules/accounts/AccountsModule.js:2687
+#: /app/src/modules/accounts/AccountsModule.js:2712
 msgid "Please enter an account name"
 msgstr "Введіть назву рахунку"
 
-#: /app/src/modules/accounts/AccountsModule.js:2694
+#: /app/src/modules/accounts/AccountsModule.js:2719
 msgid "Please select an account type"
 msgstr "Виберіть тип рахунку"
 
-#: /app/src/modules/accounts/AccountsModule.js:2701
+#: /app/src/modules/accounts/AccountsModule.js:2726
 msgid "Account name is too long (maximum 255 characters)"
 msgstr "Назва рахунку задовга (щонайбільше 255 символів)"
 
-#: /app/src/modules/accounts/AccountsModule.js:2708
+#: /app/src/modules/accounts/AccountsModule.js:2733
 msgid "Please enter a valid balance amount"
 msgstr "Введіть допустиму суму балансу"
 
-#: /app/src/modules/accounts/AccountsModule.js:2739
+#: /app/src/modules/accounts/AccountsModule.js:2764
 msgid "Account saved successfully"
 msgstr "Рахунок успішно збережено"
 
-#: /app/src/modules/accounts/AccountsModule.js:2760
+#: /app/src/modules/accounts/AccountsModule.js:2785
 msgid "Failed to save account"
 msgstr "Не вдалося зберегти рахунок"
 
-#: /app/src/modules/accounts/AccountsModule.js:2783
+#: /app/src/modules/accounts/AccountsModule.js:2808
 msgid "Unknown error occurred"
 msgstr "Сталася невідома помилка"
 
-#: /app/src/modules/accounts/AccountsModule.js:2784
+#: /app/src/modules/accounts/AccountsModule.js:2809
 msgid "Failed to save account: {error}"
 msgstr "Не вдалося зберегти рахунок: {error}"
 
-#: /app/src/modules/accounts/AccountsModule.js:2814
+#: /app/src/modules/accounts/AccountsModule.js:2839
 msgid ""
 "This account has a balance of {balance}. It must be zero before it can be "
 "closed."
@@ -5714,38 +5748,38 @@ msgstr ""
 "Баланс цього рахунку становить {balance}. Перш ніж закрити рахунок, потрібно "
 "звести баланс до нуля."
 
-#: /app/src/modules/accounts/AccountsModule.js:2843
+#: /app/src/modules/accounts/AccountsModule.js:2868
 #: /app/templates/index.php:1092
 msgid "Add Account"
 msgstr "Додати рахунок"
 
-#: /app/src/modules/accounts/AccountsModule.js:2879
+#: /app/src/modules/accounts/AccountsModule.js:2904
 msgid "Balance is calculated from transactions"
 msgstr "Баланс розраховується на основі транзакцій"
 
-#: /app/src/modules/accounts/AccountsModule.js:2887
+#: /app/src/modules/accounts/AccountsModule.js:2912
 msgid "Calculated from transactions"
 msgstr "Розраховано на основі транзакцій"
 
-#: /app/src/modules/accounts/AccountsModule.js:2955
+#: /app/src/modules/accounts/AccountsModule.js:2980
 msgid "••••••••  (leave blank to keep current)"
 msgstr "••••••••  (залиште порожнім, щоб зберегти поточне значення)"
 
-#: /app/src/modules/accounts/AccountsModule.js:2977
+#: /app/src/modules/accounts/AccountsModule.js:3002
 msgid "Failed to load account data"
 msgstr "Не вдалося завантажити дані рахунку"
 
-#: /app/src/modules/accounts/AccountsModule.js:3048
-#: /app/src/modules/accounts/AccountsModule.js:3060
+#: /app/src/modules/accounts/AccountsModule.js:3073
+#: /app/src/modules/accounts/AccountsModule.js:3085
 msgid "Amount owed"
 msgstr "Сума боргу"
 
-#: /app/src/modules/accounts/AccountsModule.js:3049
+#: /app/src/modules/accounts/AccountsModule.js:3074
 #: /app/templates/index.php:5780
 msgid "Opening Balance"
 msgstr "Початковий баланс"
 
-#: /app/src/modules/accounts/AccountsModule.js:3054
+#: /app/src/modules/accounts/AccountsModule.js:3079
 msgid ""
 "Enter what you owe as a plain positive number — the app records it as a debt "
 "for you."
@@ -5753,18 +5787,18 @@ msgstr ""
 "Введіть суму своєї заборгованості як звичайне додатне число — застосунок "
 "запише її як ваш борг."
 
-#: /app/src/modules/accounts/AccountsModule.js:3055
+#: /app/src/modules/accounts/AccountsModule.js:3080
 #: /app/templates/index.php:5782
 msgid "The starting balance when this account was created"
 msgstr "Початковий баланс на момент створення цього рахунку"
 
-#: /app/src/modules/accounts/AccountsModule.js:3061
-#: /app/src/modules/accounts/AccountsModule.js:3103
+#: /app/src/modules/accounts/AccountsModule.js:3086
+#: /app/src/modules/accounts/AccountsModule.js:3128
 #: /app/templates/index.php:5795
 msgid "Starting Balance"
 msgstr "Початковий баланс"
 
-#: /app/src/modules/accounts/AccountsModule.js:3070
+#: /app/src/modules/accounts/AccountsModule.js:3095
 msgid ""
 "This account is currently recorded as being in credit — as if the lender "
 "owes you this money, which adds it to your net worth. If you actually owe "
@@ -5774,17 +5808,17 @@ msgstr ""
 "кредитор винен ці гроші вам, тому вони додаються до вашого чистого капіталу. "
 "Якщо насправді винні ви, зніміть прапорець вище та збережіть зміни."
 
-#: /app/src/modules/accounts/AccountsModule.js:3107
+#: /app/src/modules/accounts/AccountsModule.js:3132
 #: /app/templates/index.php:5797
 msgid "The balance this account starts with"
 msgstr "Баланс, з якого починається цей рахунок"
 
-#: /app/src/modules/accounts/AccountsModule.js:3167
+#: /app/src/modules/accounts/AccountsModule.js:3192
 msgid ""
 "Are you sure you want to delete this account? This action cannot be undone."
 msgstr "Справді видалити цей рахунок? Цю дію неможливо скасувати."
 
-#: /app/src/modules/accounts/AccountsModule.js:3183
+#: /app/src/modules/accounts/AccountsModule.js:3208
 msgid ""
 "This account still has {count} transaction(s). Delete them along with the "
 "account? This cannot be undone."
@@ -5792,7 +5826,7 @@ msgstr ""
 "На цьому рахунку досі є транзакції ({count}). Видалити їх разом із рахунком? "
 "Цю дію неможливо скасувати."
 
-#: /app/src/modules/accounts/AccountsModule.js:3184
+#: /app/src/modules/accounts/AccountsModule.js:3209
 msgid ""
 "This account still has transactions. Delete them along with the account? "
 "This cannot be undone."
@@ -5800,82 +5834,82 @@ msgstr ""
 "На цьому рахунку досі є транзакції. Видалити їх разом із рахунком? Цю дію "
 "неможливо скасувати."
 
-#: /app/src/modules/accounts/AccountsModule.js:3198
+#: /app/src/modules/accounts/AccountsModule.js:3223
 msgid "Account and its {count} transaction(s) deleted"
 msgstr "Рахунок і пов’язані з ним транзакції ({count}) видалено"
 
-#: /app/src/modules/accounts/AccountsModule.js:3199
+#: /app/src/modules/accounts/AccountsModule.js:3224
 msgid "Account deleted successfully"
 msgstr "Рахунок успішно видалено"
 
-#: /app/src/modules/accounts/AccountsModule.js:3209
+#: /app/src/modules/accounts/AccountsModule.js:3234
 msgid "Failed to delete account: {error}"
 msgstr "Не вдалося видалити рахунок: {error}"
 
-#: /app/src/modules/accounts/AccountsModule.js:3432
+#: /app/src/modules/accounts/AccountsModule.js:3457
 msgid "Valid"
 msgstr "Допустимо"
 
-#: /app/src/modules/accounts/AccountsModule.js:3497
+#: /app/src/modules/accounts/AccountsModule.js:3522
 #: /app/templates/index.php:5767
 msgid "Checking Account"
 msgstr "Поточний рахунок"
 
-#: /app/src/modules/accounts/AccountsModule.js:3502
+#: /app/src/modules/accounts/AccountsModule.js:3527
 #: /app/templates/index.php:5768
 msgid "Savings Account"
 msgstr "Ощадний рахунок"
 
-#: /app/src/modules/accounts/AccountsModule.js:3507
-#: /app/src/modules/dashboard/DashboardModule.js:1015
+#: /app/src/modules/accounts/AccountsModule.js:3532
+#: /app/src/modules/dashboard/DashboardModule.js:1057
 #: /app/src/utils/formatters.js:224 /app/templates/index.php:5769
 msgid "Credit Card"
 msgstr "Кредитна картка"
 
-#: /app/src/modules/accounts/AccountsModule.js:3512
-#: /app/src/modules/dashboard/DashboardModule.js:1016
+#: /app/src/modules/accounts/AccountsModule.js:3537
+#: /app/src/modules/dashboard/DashboardModule.js:1058
 #: /app/src/utils/formatters.js:225
 msgid "Investment"
 msgstr "Інвестиційний рахунок"
 
-#: /app/src/modules/accounts/AccountsModule.js:3517
-#: /app/src/modules/dashboard/DashboardModule.js:1018
+#: /app/src/modules/accounts/AccountsModule.js:3542
+#: /app/src/modules/dashboard/DashboardModule.js:1060
 #: /app/src/utils/formatters.js:227
 msgid "Loan"
 msgstr "Позика"
 
-#: /app/src/modules/accounts/AccountsModule.js:3522
-#: /app/src/modules/dashboard/DashboardModule.js:1017
+#: /app/src/modules/accounts/AccountsModule.js:3547
+#: /app/src/modules/dashboard/DashboardModule.js:1059
 #: /app/src/utils/formatters.js:226 /app/templates/index.php:5774
 msgid "Cash"
 msgstr "Готівка"
 
-#: /app/src/modules/accounts/AccountsModule.js:3527
+#: /app/src/modules/accounts/AccountsModule.js:3552
 #: /app/src/utils/formatters.js:230 /app/templates/index.php:5775
 msgid "Cryptocurrency"
 msgstr "Криптовалюта"
 
-#: /app/src/modules/accounts/AccountsModule.js:3549
+#: /app/src/modules/accounts/AccountsModule.js:3574
 msgid "Credit utilization very high"
 msgstr "Використання кредитного ліміту дуже високе"
 
-#: /app/src/modules/accounts/AccountsModule.js:3555
+#: /app/src/modules/accounts/AccountsModule.js:3580
 msgid "Credit utilization high"
 msgstr "Використання кредитного ліміту високе"
 
-#: /app/src/modules/accounts/AccountsModule.js:3565
+#: /app/src/modules/accounts/AccountsModule.js:3590
 msgid "Negative balance"
 msgstr "Від’ємний баланс"
 
-#: /app/src/modules/accounts/AccountsModule.js:3574
+#: /app/src/modules/accounts/AccountsModule.js:3599
 msgid "Exceeds overdraft limit"
 msgstr "Перевищує ліміт овердрафту"
 
-#: /app/src/modules/accounts/AccountsModule.js:3581
+#: /app/src/modules/accounts/AccountsModule.js:3606
 msgid "Account is in good standing"
 msgstr "Рахунок у належному стані"
 
-#: /app/src/modules/accounts/AccountsModule.js:3613
+#: /app/src/modules/accounts/AccountsModule.js:3638
 msgid "No transactions to export"
 msgstr "Немає транзакцій для експорту"
 
@@ -5900,8 +5934,8 @@ msgid "Collectibles"
 msgstr "Предмети колекціонування"
 
 #: /app/src/modules/assets/AssetsModule.js:109
-#: /app/src/modules/dashboard/DashboardModule.js:2004
-#: /app/src/modules/dashboard/DashboardModule.js:5076
+#: /app/src/modules/dashboard/DashboardModule.js:2206
+#: /app/src/modules/dashboard/DashboardModule.js:5316
 #: /app/templates/index.php:5396
 msgid "Other"
 msgstr "Інше"
@@ -5921,7 +5955,7 @@ msgid "View Details"
 msgstr "Переглянути відомості"
 
 #: /app/src/modules/assets/AssetsModule.js:213
-#: /app/src/modules/dashboard/DashboardModule.js:1803
+#: /app/src/modules/dashboard/DashboardModule.js:2005
 msgid "%n asset"
 msgid_plural "%n assets"
 msgstr[0] "%n актив"
@@ -6087,7 +6121,7 @@ msgstr "Неприпустимі облікові дані: {error}"
 #: /app/src/modules/bank-sync/BankSyncModule.js:342
 #: /app/src/modules/bank-sync/BankSyncModule.js:378
 #: /app/templates/index.php:1530 /app/templates/index.php:2479
-#: /app/templates/index.php:7290
+#: /app/templates/index.php:7285
 msgid "Next"
 msgstr "Далі"
 
@@ -6118,7 +6152,7 @@ msgid "No banks found for this country."
 msgstr "Для цієї країни банків не знайдено."
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:578
-#: /app/templates/index.php:7317
+#: /app/templates/index.php:7312
 msgid "Connect"
 msgstr "Підключити"
 
@@ -6151,7 +6185,7 @@ msgid "Authorization check failed: {error}"
 msgstr "Не вдалося перевірити авторизацію: {error}"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:632
-#: /app/templates/index.php:7339
+#: /app/templates/index.php:7334
 msgid "I've Completed Authorization"
 msgstr "Авторизацію завершено"
 
@@ -6301,7 +6335,7 @@ msgstr "Не вдалося відхилити пропозиції"
 
 #: /app/src/modules/bills/BillsModule.js:313
 #: /app/src/modules/reports/ReportsModule.js:1981
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:502
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:519
 #: /app/src/modules/transfers/TransfersModule.js:282
 #: /app/templates/index.php:2596
 msgid "Paid"
@@ -6733,7 +6767,7 @@ msgid "Your account balance will NOT reflect this payment."
 msgstr "Баланс вашого рахунку НЕ враховуватиме цей платіж."
 
 #: /app/src/modules/bills/BillsModule.js:1444
-#: /app/src/modules/categories/CategoriesModule.js:1829
+#: /app/src/modules/categories/CategoriesModule.js:1863
 #: /app/src/modules/transfers/TransfersModule.js:151
 #: /app/src/modules/transfers/TransfersModule.js:572
 #: /app/src/utils/dialogs.js:231 /app/src/utils/dialogs.js:256
@@ -6755,13 +6789,13 @@ msgstr "Баланс вашого рахунку НЕ враховуватиме
 #: /app/templates/index.php:6782 /app/templates/index.php:6878
 #: /app/templates/index.php:6934 /app/templates/index.php:6974
 #: /app/templates/index.php:7000 /app/templates/index.php:7040
-#: /app/templates/index.php:7087 /app/templates/index.php:7133
-#: /app/templates/index.php:7220 /app/templates/index.php:7291
+#: /app/templates/index.php:7082 /app/templates/index.php:7128
+#: /app/templates/index.php:7215 /app/templates/index.php:7286
 msgid "Cancel"
 msgstr "Скасувати"
 
 #: /app/src/modules/bills/BillsModule.js:1445
-#: /app/src/modules/categories/CategoriesModule.js:1828
+#: /app/src/modules/categories/CategoriesModule.js:1862
 #: /app/src/utils/dialogs.js:230
 msgid "Confirm"
 msgstr "Підтвердити"
@@ -6812,7 +6846,7 @@ msgid "Payment skipped. Advanced to next due date."
 msgstr "Платіж пропущено. Установлено наступну дату сплати."
 
 #: /app/src/modules/bills/BillsModule.js:1648
-#: /app/src/modules/categories/CategoriesModule.js:1880
+#: /app/src/modules/categories/CategoriesModule.js:1914
 #: /app/src/modules/income/IncomeModule.js:658
 #: /app/src/modules/transactions/TransactionsModule.js:4295
 #: /app/src/modules/transactions/TransactionsModule.js:4450
@@ -6855,63 +6889,63 @@ msgstr "Не вдалося додати вибрані платежі"
 msgid "No tags defined"
 msgstr "Теги не визначено"
 
-#: /app/src/modules/categories/CategoriesModule.js:110
+#: /app/src/modules/categories/CategoriesModule.js:112
 msgid "Failed to load categories"
 msgstr "Не вдалося завантажити категорії"
 
-#: /app/src/modules/categories/CategoriesModule.js:316
+#: /app/src/modules/categories/CategoriesModule.js:318
 msgid "Shared by {owner} — you can edit"
 msgstr "Надано користувачем {owner} — можна редагувати"
 
-#: /app/src/modules/categories/CategoriesModule.js:316
+#: /app/src/modules/categories/CategoriesModule.js:318
 msgid "Shared (editable)"
 msgstr "Спільний доступ (можна редагувати)"
 
-#: /app/src/modules/categories/CategoriesModule.js:318
+#: /app/src/modules/categories/CategoriesModule.js:320
 #: /app/src/modules/rules/RulesModule.js:138
 #: /app/src/modules/savings/SavingsModule.js:126
 msgid "Shared by {owner}"
 msgstr "Надано користувачем {owner}"
 
-#: /app/src/modules/categories/CategoriesModule.js:320
+#: /app/src/modules/categories/CategoriesModule.js:322
 msgid "Hidden from your reports — the owner and other viewers are unaffected"
 msgstr ""
 "Приховано з ваших звітів — це не впливає на власника та інших користувачів"
 
-#: /app/src/modules/categories/CategoriesModule.js:320
+#: /app/src/modules/categories/CategoriesModule.js:322
 msgid "Hidden from my reports"
 msgstr "Приховано з моїх звітів"
 
-#: /app/src/modules/categories/CategoriesModule.js:328
+#: /app/src/modules/categories/CategoriesModule.js:330
 msgid "Show in my reports"
 msgstr "Показувати в моїх звітах"
 
-#: /app/src/modules/categories/CategoriesModule.js:328
+#: /app/src/modules/categories/CategoriesModule.js:330
 msgid "Hide from my reports"
 msgstr "Приховати з моїх звітів"
 
-#: /app/src/modules/categories/CategoriesModule.js:332
+#: /app/src/modules/categories/CategoriesModule.js:334
 msgid "Delete {name}"
 msgstr "Видалити {name}"
 
-#: /app/src/modules/categories/CategoriesModule.js:423
+#: /app/src/modules/categories/CategoriesModule.js:425
 msgid "Category hidden from your reports"
 msgstr "Категорію приховано з ваших звітів"
 
-#: /app/src/modules/categories/CategoriesModule.js:424
+#: /app/src/modules/categories/CategoriesModule.js:426
 msgid "Category shown in your reports again"
 msgstr "Категорія знову відображається у ваших звітах"
 
-#: /app/src/modules/categories/CategoriesModule.js:531
+#: /app/src/modules/categories/CategoriesModule.js:533
 msgid "Shared categories can only be reordered among themselves"
 msgstr "Спільні категорії можна впорядковувати лише між собою"
 
-#: /app/src/modules/categories/CategoriesModule.js:551
+#: /app/src/modules/categories/CategoriesModule.js:553
 msgid "Category reordered successfully"
 msgstr "Порядок категорії успішно змінено"
 
-#: /app/src/modules/categories/CategoriesModule.js:624
-#: /app/src/modules/dashboard/DashboardModule.js:4712
+#: /app/src/modules/categories/CategoriesModule.js:626
+#: /app/src/modules/dashboard/DashboardModule.js:4915
 #: /app/src/modules/reports/ReportsModule.js:206
 #: /app/src/modules/reports/ReportsModule.js:209
 #: /app/src/modules/reports/ReportsModule.js:211
@@ -6924,80 +6958,80 @@ msgstr "Порядок категорії успішно змінено"
 msgid "All Accounts"
 msgstr "Усі рахунки"
 
-#: /app/src/modules/categories/CategoriesModule.js:729
+#: /app/src/modules/categories/CategoriesModule.js:733
 msgid "Increasing"
 msgstr "Зростає"
 
-#: /app/src/modules/categories/CategoriesModule.js:730
+#: /app/src/modules/categories/CategoriesModule.js:734
 msgid "Decreasing"
 msgstr "Знижується"
 
-#: /app/src/modules/categories/CategoriesModule.js:731
+#: /app/src/modules/categories/CategoriesModule.js:735
 msgid "Stable"
 msgstr "Стабільно"
 
-#: /app/src/modules/categories/CategoriesModule.js:748
+#: /app/src/modules/categories/CategoriesModule.js:752
 #: /app/templates/index.php:2014
 msgid "No transactions in this category yet."
 msgstr "У цій категорії ще немає транзакцій."
 
-#: /app/src/modules/categories/CategoriesModule.js:778
+#: /app/src/modules/categories/CategoriesModule.js:782
 msgid "Split part of {total}"
 msgstr "Частина розподілу із {total}"
 
-#: /app/src/modules/categories/CategoriesModule.js:849
+#: /app/src/modules/categories/CategoriesModule.js:855
 msgid "Spending"
 msgstr "Витрати"
 
-#: /app/src/modules/categories/CategoriesModule.js:994
+#: /app/src/modules/categories/CategoriesModule.js:1000
 msgid "Root"
 msgstr "Кореневий рівень"
 
-#: /app/src/modules/categories/CategoriesModule.js:1018
+#: /app/src/modules/categories/CategoriesModule.js:1024
 #: /app/templates/index.php:1849 /app/templates/index.php:1910
 msgid "Add Category"
 msgstr "Додати категорію"
 
-#: /app/src/modules/categories/CategoriesModule.js:1071
+#: /app/src/modules/categories/CategoriesModule.js:1077
 msgid "Edit Shared Category"
 msgstr "Редагувати спільну категорію"
 
-#: /app/src/modules/categories/CategoriesModule.js:1072
+#: /app/src/modules/categories/CategoriesModule.js:1078
 msgid "Edit Category"
 msgstr "Редагувати категорію"
 
-#: /app/src/modules/categories/CategoriesModule.js:1110
+#: /app/src/modules/categories/CategoriesModule.js:1116
 msgid ""
 "Are you sure you want to delete the category \"{name}\"? This action cannot "
 "be undone."
 msgstr "Справді видалити категорію «{name}»? Цю дію неможливо скасувати."
 
-#: /app/src/modules/categories/CategoriesModule.js:1119
-#: /app/src/modules/categories/CategoriesModule.js:1148
+#: /app/src/modules/categories/CategoriesModule.js:1125
+#: /app/src/modules/categories/CategoriesModule.js:1154
 msgid "Category deleted; its transactions are now Uncategorized"
 msgstr "Категорію видалено; її транзакції тепер без категорії"
 
-#: /app/src/modules/categories/CategoriesModule.js:1120
-#: /app/src/modules/categories/CategoriesModule.js:1149
+#: /app/src/modules/categories/CategoriesModule.js:1126
+#: /app/src/modules/categories/CategoriesModule.js:1155
 msgid "Category deleted successfully"
 msgstr "Категорію успішно видалено"
 
-#: /app/src/modules/categories/CategoriesModule.js:1126
-#: /app/src/modules/categories/CategoriesModule.js:1158
-#: /app/src/modules/categories/CategoriesModule.js:1205
+#: /app/src/modules/categories/CategoriesModule.js:1132
+#: /app/src/modules/categories/CategoriesModule.js:1164
+#: /app/src/modules/categories/CategoriesModule.js:1211
 msgid "Failed to delete category"
 msgstr "Не вдалося видалити категорію"
 
-#: /app/src/modules/categories/CategoriesModule.js:1137
+#: /app/src/modules/categories/CategoriesModule.js:1143
 msgid "this category"
 msgstr "цю категорію"
 
-#: /app/src/modules/categories/CategoriesModule.js:1139
+#: /app/src/modules/categories/CategoriesModule.js:1145
 msgid ""
 "Are you sure you want to delete \"{name}\"? This action cannot be undone."
 msgstr "Справді видалити «{name}»? Цю дію неможливо скасувати."
 
-#: /app/src/modules/categories/CategoriesModule.js:1183
+#: /app/src/modules/categories/CategoriesModule.js:1189
 msgid ""
 "This category still has transactions assigned to it. Move them to "
 "Uncategorized and delete \"{name}\"?"
@@ -7005,7 +7039,7 @@ msgstr ""
 "До цієї категорії досі призначено транзакції. Перемістити їх до «Без "
 "категорії» та видалити «{name}»?"
 
-#: /app/src/modules/categories/CategoriesModule.js:1239
+#: /app/src/modules/categories/CategoriesModule.js:1245
 msgid ""
 "Are you sure you want to delete %n category? This action cannot be undone."
 msgid_plural ""
@@ -7014,56 +7048,56 @@ msgstr[0] "Справді видалити %n категорію? Цю дію н
 msgstr[1] "Справді видалити %n категорії? Цю дію неможливо скасувати."
 msgstr[2] "Справді видалити %n категорій? Цю дію неможливо скасувати."
 
-#: /app/src/modules/categories/CategoriesModule.js:1262
+#: /app/src/modules/categories/CategoriesModule.js:1268
 #: /app/src/modules/pensions/PensionsModule.js:861
 #: /app/src/modules/pensions/PensionsModule.js:1151
 msgid "Failed to delete"
 msgstr "Не вдалося видалити"
 
-#: /app/src/modules/categories/CategoriesModule.js:1271
+#: /app/src/modules/categories/CategoriesModule.js:1277
 msgid "%n category deleted successfully"
 msgid_plural "%n categories deleted successfully"
 msgstr[0] "%n категорію успішно видалено"
 msgstr[1] "%n категорії успішно видалено"
 msgstr[2] "%n категорій успішно видалено"
 
-#: /app/src/modules/categories/CategoriesModule.js:1354
+#: /app/src/modules/categories/CategoriesModule.js:1360
 #: /app/templates/index.php:6608
 msgid "None (Top Level)"
 msgstr "Немає (верхній рівень)"
 
-#: /app/src/modules/categories/CategoriesModule.js:1373
+#: /app/src/modules/categories/CategoriesModule.js:1379
 msgid "Category name is required"
 msgstr "Потрібно вказати назву категорії"
 
-#: /app/src/modules/categories/CategoriesModule.js:1418
+#: /app/src/modules/categories/CategoriesModule.js:1424
 msgid "Category updated successfully"
 msgstr "Категорію успішно оновлено"
 
-#: /app/src/modules/categories/CategoriesModule.js:1418
+#: /app/src/modules/categories/CategoriesModule.js:1424
 msgid "Category created successfully"
 msgstr "Категорію успішно створено"
 
-#: /app/src/modules/categories/CategoriesModule.js:1430
-#: /app/src/modules/categories/CategoriesModule.js:1434
+#: /app/src/modules/categories/CategoriesModule.js:1436
+#: /app/src/modules/categories/CategoriesModule.js:1440
 msgid "Failed to save category"
 msgstr "Не вдалося зберегти категорію"
 
-#: /app/src/modules/categories/CategoriesModule.js:1456
+#: /app/src/modules/categories/CategoriesModule.js:1462
 msgid "Default categories created successfully"
 msgstr "Типові категорії успішно створено"
 
-#: /app/src/modules/categories/CategoriesModule.js:1460
-#: /app/src/modules/categories/CategoriesModule.js:1471
+#: /app/src/modules/categories/CategoriesModule.js:1466
+#: /app/src/modules/categories/CategoriesModule.js:1477
 msgid "Failed to create default categories"
 msgstr "Не вдалося створити типові категорії"
 
-#: /app/src/modules/categories/CategoriesModule.js:1517
+#: /app/src/modules/categories/CategoriesModule.js:1523
 #: /app/src/modules/rules/RulesModule.js:1409
 msgid "Could not read that file: {error}"
 msgstr "Не вдалося прочитати цей файл: {error}"
 
-#: /app/src/modules/categories/CategoriesModule.js:1547
+#: /app/src/modules/categories/CategoriesModule.js:1553
 msgid ""
 "{create} new categories will be created. {exists} already exist and will be "
 "left unchanged."
@@ -7071,53 +7105,53 @@ msgstr ""
 "Буде створено нових категорій: {create}. Уже існують і залишаться без змін: "
 "{exists}."
 
-#: /app/src/modules/categories/CategoriesModule.js:1548
+#: /app/src/modules/categories/CategoriesModule.js:1554
 msgid "%n new category will be created."
 msgid_plural "%n new categories will be created."
 msgstr[0] "Буде створено %n нову категорію."
 msgstr[1] "Буде створено %n нові категорії."
 msgstr[2] "Буде створено %n нових категорій."
 
-#: /app/src/modules/categories/CategoriesModule.js:1567
+#: /app/src/modules/categories/CategoriesModule.js:1573
 msgid "Import %n category"
 msgid_plural "Import %n categories"
 msgstr[0] "Імпортувати %n категорію"
 msgstr[1] "Імпортувати %n категорії"
 msgstr[2] "Імпортувати %n категорій"
 
-#: /app/src/modules/categories/CategoriesModule.js:1568
+#: /app/src/modules/categories/CategoriesModule.js:1574
 msgid "Nothing to import"
 msgstr "Немає чого імпортувати"
 
-#: /app/src/modules/categories/CategoriesModule.js:1578
+#: /app/src/modules/categories/CategoriesModule.js:1584
 msgid "Exists"
 msgstr "Існує"
 
-#: /app/src/modules/categories/CategoriesModule.js:1579
-#: /app/src/modules/import/ImportModule.js:1926
+#: /app/src/modules/categories/CategoriesModule.js:1585
+#: /app/src/modules/import/ImportModule.js:1930
 msgid "New"
 msgstr "Нова"
 
-#: /app/src/modules/categories/CategoriesModule.js:1610
+#: /app/src/modules/categories/CategoriesModule.js:1616
 msgid "Imported %n category"
 msgid_plural "Imported %n categories"
 msgstr[0] "Імпортовано %n категорію"
 msgstr[1] "Імпортовано %n категорії"
 msgstr[2] "Імпортовано %n категорій"
 
-#: /app/src/modules/categories/CategoriesModule.js:1797
+#: /app/src/modules/categories/CategoriesModule.js:1831
 msgid "Budgets adjusted from {month}"
 msgstr "Бюджети скориговано починаючи з {month}"
 
-#: /app/src/modules/categories/CategoriesModule.js:1798
+#: /app/src/modules/categories/CategoriesModule.js:1832
 msgid "Remove adjustment"
 msgstr "Видалити коригування"
 
-#: /app/src/modules/categories/CategoriesModule.js:1811
+#: /app/src/modules/categories/CategoriesModule.js:1845
 msgid "Adjust budgets from this month"
 msgstr "Скоригувати бюджети починаючи з цього місяця"
 
-#: /app/src/modules/categories/CategoriesModule.js:1824
+#: /app/src/modules/categories/CategoriesModule.js:1858
 msgid ""
 "This will save the current budget values as a new baseline from {month} "
 "onwards. Previous months will keep their existing values. You can edit the "
@@ -7127,36 +7161,36 @@ msgstr ""
 "{month}. Попередні місяці збережуть наявні значення. Після підтвердження "
 "нові значення можна буде редагувати."
 
-#: /app/src/modules/categories/CategoriesModule.js:1825
+#: /app/src/modules/categories/CategoriesModule.js:1859
 msgid "Adjust budgets from {month}?"
 msgstr "Скоригувати бюджети починаючи з {month}?"
 
-#: /app/src/modules/categories/CategoriesModule.js:1860
+#: /app/src/modules/categories/CategoriesModule.js:1894
 msgid ""
 "Budget adjusted from {month}. You can now edit values for this month onwards."
 msgstr ""
 "Бюджет скориговано починаючи з {month}. Тепер можна редагувати значення для "
 "цього й наступних місяців."
 
-#: /app/src/modules/categories/CategoriesModule.js:1866
-#: /app/src/modules/categories/CategoriesModule.js:1870
+#: /app/src/modules/categories/CategoriesModule.js:1900
+#: /app/src/modules/categories/CategoriesModule.js:1904
 msgid "Failed to create budget adjustment"
 msgstr "Не вдалося створити коригування бюджету"
 
-#: /app/src/modules/categories/CategoriesModule.js:1879
+#: /app/src/modules/categories/CategoriesModule.js:1913
 msgid "Budget adjustment created."
 msgstr "Коригування бюджету створено."
 
-#: /app/src/modules/categories/CategoriesModule.js:1918
+#: /app/src/modules/categories/CategoriesModule.js:1952
 msgid "Budget adjustment removed"
 msgstr "Коригування бюджету видалено"
 
-#: /app/src/modules/categories/CategoriesModule.js:1920
-#: /app/src/modules/categories/CategoriesModule.js:1924
+#: /app/src/modules/categories/CategoriesModule.js:1954
+#: /app/src/modules/categories/CategoriesModule.js:1958
 msgid "Failed to remove budget adjustment"
 msgstr "Не вдалося видалити коригування бюджету"
 
-#: /app/src/modules/categories/CategoriesModule.js:2240
+#: /app/src/modules/categories/CategoriesModule.js:2285
 msgid ""
 "Envelope budgeting on: unspent budget carries to next month. Click to turn "
 "off."
@@ -7164,261 +7198,289 @@ msgstr ""
 "Конвертне бюджетування ввімкнено: невикористаний бюджет переноситься на "
 "наступний місяць. Натисніть, щоб вимкнути."
 
-#: /app/src/modules/categories/CategoriesModule.js:2240
+#: /app/src/modules/categories/CategoriesModule.js:2285
 msgid "Turn on envelope budgeting: unspent budget carries to next month"
 msgstr ""
 "Увімкнути конвертне бюджетування: невикористаний бюджет переноситься на "
 "наступний місяць"
 
-#: /app/src/modules/categories/CategoriesModule.js:2251
+#: /app/src/modules/categories/CategoriesModule.js:2296
 msgid "Auto-calculated from recurring bills/income. Enter a value to override."
 msgstr ""
 "Автоматично розраховано за регулярними платежами й доходами. Введіть "
 "значення, щоб перевизначити."
 
-#: /app/src/modules/categories/CategoriesModule.js:2251
+#: /app/src/modules/categories/CategoriesModule.js:2296
 #: /app/src/modules/pensions/PensionsModule.js:1083
 msgid "auto"
 msgstr "авто"
 
-#: /app/src/modules/categories/CategoriesModule.js:2253
+#: /app/src/modules/categories/CategoriesModule.js:2298
 msgid "{base} − {over} overspent = {available} available"
 msgstr "{base} − перевитрата {over} = доступно {available}"
 
-#: /app/src/modules/categories/CategoriesModule.js:2254
+#: /app/src/modules/categories/CategoriesModule.js:2299
 msgid "{base} + {carried} carried = {available} available"
 msgstr "{base} + перенесено {carried} = доступно {available}"
 
-#: /app/src/modules/categories/CategoriesModule.js:2255
+#: /app/src/modules/categories/CategoriesModule.js:2300
 msgid "(projected)"
 msgstr "(прогноз)"
 
-#: /app/src/modules/categories/CategoriesModule.js:2272
+#: /app/src/modules/categories/CategoriesModule.js:2317
 #: /app/templates/index.php:2184
 msgid "Progress"
 msgstr "Прогрес"
 
-#: /app/src/modules/categories/CategoriesModule.js:2278
+#: /app/src/modules/categories/CategoriesModule.js:2323
 msgid "No budget set"
 msgstr "Бюджет не встановлено"
 
-#: /app/src/modules/categories/CategoriesModule.js:2356
+#: /app/src/modules/categories/CategoriesModule.js:2401
 msgid "Envelope budgeting enabled — unspent budget now carries to next month"
 msgstr ""
 "Конвертне бюджетування ввімкнено — невикористаний бюджет тепер переноситься "
 "на наступний місяць"
 
-#: /app/src/modules/categories/CategoriesModule.js:2357
+#: /app/src/modules/categories/CategoriesModule.js:2402
 msgid "Envelope budgeting disabled"
 msgstr "Конвертне бюджетування вимкнено"
 
-#: /app/src/modules/categories/CategoriesModule.js:2360
+#: /app/src/modules/categories/CategoriesModule.js:2405
 msgid "Failed to update envelope setting"
 msgstr "Не вдалося оновити налаштування конвертного бюджетування"
 
-#: /app/src/modules/categories/CategoriesModule.js:2482
+#: /app/src/modules/categories/CategoriesModule.js:2527
 msgid "Budget updated"
 msgstr "Бюджет оновлено"
 
-#: /app/src/modules/categories/CategoriesModule.js:2485
+#: /app/src/modules/categories/CategoriesModule.js:2530
 msgid "Failed to update budget"
 msgstr "Не вдалося оновити бюджет"
 
-#: /app/src/modules/categories/CategoriesModule.js:2498
+#: /app/src/modules/categories/CategoriesModule.js:2543
 msgid "Failed to update budget: {message}"
 msgstr "Не вдалося оновити бюджет: {message}"
 
-#: /app/src/modules/dashboard/DashboardModule.js:408
-#: /app/src/modules/dashboard/DashboardModule.js:430
-#: /app/src/modules/dashboard/DashboardModule.js:493
+#: /app/src/modules/dashboard/DashboardModule.js:421
+#: /app/src/modules/dashboard/DashboardModule.js:443
+#: /app/src/modules/dashboard/DashboardModule.js:535
 msgid "{percent}% vs last month"
 msgstr "{percent}% порівняно з минулим місяцем"
 
-#: /app/src/modules/dashboard/DashboardModule.js:447
+#: /app/src/modules/dashboard/DashboardModule.js:460
 #, javascript-format
 msgid "{percent}% savings rate"
 msgstr "{percent}% - рівень заощаджень"
 
-#: /app/src/modules/dashboard/DashboardModule.js:467
+#: /app/src/modules/dashboard/DashboardModule.js:509
 msgid "Great"
 msgstr "Чудово"
 
-#: /app/src/modules/dashboard/DashboardModule.js:467
+#: /app/src/modules/dashboard/DashboardModule.js:509
 msgid "Good"
 msgstr "Добре"
 
-#: /app/src/modules/dashboard/DashboardModule.js:467
+#: /app/src/modules/dashboard/DashboardModule.js:509
 msgid "Low"
 msgstr "Низький"
 
-#: /app/src/modules/dashboard/DashboardModule.js:592
-#: /app/src/modules/dashboard/DashboardModule.js:662
+#: /app/src/modules/dashboard/DashboardModule.js:634
+#: /app/src/modules/dashboard/DashboardModule.js:704
 msgid "Last 7 days"
 msgstr "Останні 7 днів"
 
-#: /app/src/modules/dashboard/DashboardModule.js:593
-#: /app/src/modules/dashboard/DashboardModule.js:665
+#: /app/src/modules/dashboard/DashboardModule.js:635
+#: /app/src/modules/dashboard/DashboardModule.js:707
 msgid "Last 30 days"
 msgstr "Останні 30 днів"
 
-#: /app/src/modules/dashboard/DashboardModule.js:594
-#: /app/src/modules/dashboard/DashboardModule.js:666
+#: /app/src/modules/dashboard/DashboardModule.js:636
+#: /app/src/modules/dashboard/DashboardModule.js:708
 msgid "Last 90 days"
 msgstr "Останні 90 днів"
 
-#: /app/src/modules/dashboard/DashboardModule.js:595
-#: /app/src/modules/dashboard/DashboardModule.js:667
+#: /app/src/modules/dashboard/DashboardModule.js:637
+#: /app/src/modules/dashboard/DashboardModule.js:709
 msgid "Last 6 months"
 msgstr "Останні 6 місяців"
 
-#: /app/src/modules/dashboard/DashboardModule.js:596
-#: /app/src/modules/dashboard/DashboardModule.js:668
+#: /app/src/modules/dashboard/DashboardModule.js:638
+#: /app/src/modules/dashboard/DashboardModule.js:710
 msgid "Last year"
 msgstr "Минулий рік"
 
-#: /app/src/modules/dashboard/DashboardModule.js:597
-#: /app/src/modules/dashboard/DashboardModule.js:671
+#: /app/src/modules/dashboard/DashboardModule.js:639
+#: /app/src/modules/dashboard/DashboardModule.js:713
 msgid "Current budget period"
 msgstr "Поточний бюджетний період"
 
-#: /app/src/modules/dashboard/DashboardModule.js:679
+#: /app/src/modules/dashboard/DashboardModule.js:721
 msgid "Date Range"
 msgstr "Діапазон дат"
 
-#: /app/src/modules/dashboard/DashboardModule.js:765
-#: /app/src/modules/dashboard/DashboardModule.js:767
+#: /app/src/modules/dashboard/DashboardModule.js:807
+#: /app/src/modules/dashboard/DashboardModule.js:809
 msgid "All accounts"
 msgstr "Усі рахунки"
 
-#: /app/src/modules/dashboard/DashboardModule.js:883
+#: /app/src/modules/dashboard/DashboardModule.js:925
 msgid "%n category under budget"
 msgid_plural "%n categories under budget"
 msgstr[0] "%n категорія в межах бюджету"
 msgstr[1] "%n категорії в межах бюджету"
 msgstr[2] "%n категорій у межах бюджету"
 
-#: /app/src/modules/dashboard/DashboardModule.js:909
+#: /app/src/modules/dashboard/DashboardModule.js:951
 msgid "{onTrack}/{total} on track"
 msgstr "За планом: {onTrack}/{total}"
 
-#: /app/src/modules/dashboard/DashboardModule.js:940
+#: /app/src/modules/dashboard/DashboardModule.js:982
 msgid "Debt free by {date}"
 msgstr "Борги буде погашено до {date}"
 
-#: /app/src/modules/dashboard/DashboardModule.js:966
+#: /app/src/modules/dashboard/DashboardModule.js:1008
 msgid "Rates unavailable for {currencies}"
 msgstr "Курси недоступні для {currencies}"
 
-#: /app/src/modules/dashboard/DashboardModule.js:968
+#: /app/src/modules/dashboard/DashboardModule.js:1010
 msgid "Converted to {currency} at current rates"
 msgstr "Конвертовано в {currency} за поточними курсами"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1013
-#: /app/src/modules/dashboard/DashboardModule.js:1999
+#: /app/src/modules/dashboard/DashboardModule.js:1055
+#: /app/src/modules/dashboard/DashboardModule.js:2201
 #: /app/src/utils/formatters.js:222
 msgid "Checking"
 msgstr "Поточний"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1043
+#: /app/src/modules/dashboard/DashboardModule.js:1085
 msgid "All accounts hidden"
 msgstr "Усі рахунки приховано"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1089
+#: /app/src/modules/dashboard/DashboardModule.js:1131
 msgid "No accounts"
 msgstr "Немає рахунків"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1260
+#: /app/src/modules/dashboard/DashboardModule.js:1302
 msgid "No recent transactions"
 msgstr "Немає останніх транзакцій"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1321
+#: /app/src/modules/dashboard/DashboardModule.js:1383
+msgid "No budget alerts. %n category is muted."
+msgid_plural "No budget alerts. %n categories are muted."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: /app/src/modules/dashboard/DashboardModule.js:1384
+msgid "No budget alerts from the budgets you set."
+msgstr ""
+
+#: /app/src/modules/dashboard/DashboardModule.js:1402
 #, javascript-format
 msgid "{percent}% over"
 msgstr "{percent}% понад бюджет"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1322
+#: /app/src/modules/dashboard/DashboardModule.js:1403
 msgid "{percent}% used"
 msgstr "Використано {percent}%"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1372
+#: /app/src/modules/dashboard/DashboardModule.js:1439
+msgid "(from a bill)"
+msgstr ""
+
+#: /app/src/modules/dashboard/DashboardModule.js:1477
+#, fuzzy
+#| msgid "%n category is over budget."
+#| msgid_plural "%n categories are over budget."
+msgid "No category has a budget yet."
+msgstr "%n категорія перевищила бюджет."
+
+#: /app/src/modules/dashboard/DashboardModule.js:1516
+#, fuzzy
+#| msgid "Failed to retrieve budget alerts"
+msgid "Failed to save the budget alert filter"
+msgstr "Не вдалося отримати сповіщення про бюджет"
+
+#: /app/src/modules/dashboard/DashboardModule.js:1565
 msgid "Highest rate: {rate}% APR"
 msgstr "Найвища ставка: {rate}% річних"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1412
+#: /app/src/modules/dashboard/DashboardModule.js:1605
 #: /app/templates/index.php:740 /app/templates/index.php:4014
 msgid "Total Debt"
 msgstr "Загальна заборгованість"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1413
+#: /app/src/modules/dashboard/DashboardModule.js:1606
 msgid "Debt Free"
 msgstr "Без боргів"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1490
+#: /app/src/modules/dashboard/DashboardModule.js:1683
 msgid "remaining"
 msgstr "залишилося"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1493
+#: /app/src/modules/dashboard/DashboardModule.js:1686
 msgid "paid off"
 msgstr "погашено"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1523
+#: /app/src/modules/dashboard/DashboardModule.js:1716
 msgid "Ahead of schedule"
 msgstr "Випереджає графік"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1524
+#: /app/src/modules/dashboard/DashboardModule.js:1717
 msgid "Behind schedule"
 msgstr "Відстає від графіка"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1570
-#: /app/src/modules/dashboard/DashboardModule.js:2242
+#: /app/src/modules/dashboard/DashboardModule.js:1763
+#: /app/src/modules/dashboard/DashboardModule.js:2448
 msgid "Overdue by %n day"
 msgid_plural "Overdue by %n days"
 msgstr[0] "Прострочено на %n день"
 msgstr[1] "Прострочено на %n дні"
 msgstr[2] "Прострочено на %n днів"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1573
-#: /app/src/modules/dashboard/DashboardModule.js:2245
+#: /app/src/modules/dashboard/DashboardModule.js:1766
+#: /app/src/modules/dashboard/DashboardModule.js:2451
 msgid "Due today"
 msgstr "Строк сплати сьогодні"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1576
-#: /app/src/modules/dashboard/DashboardModule.js:2248
+#: /app/src/modules/dashboard/DashboardModule.js:1769
+#: /app/src/modules/dashboard/DashboardModule.js:2454
 msgid "Due in %n day"
 msgid_plural "Due in %n days"
 msgstr[0] "Строк сплати через %n день"
 msgstr[1] "Строк сплати через %n дні"
 msgstr[2] "Строк сплати через %n днів"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1578
+#: /app/src/modules/dashboard/DashboardModule.js:1771
 msgid "Due {date}"
 msgstr "Строк сплати: {date}"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1598
-#: /app/src/modules/dashboard/DashboardModule.js:1613
+#: /app/src/modules/dashboard/DashboardModule.js:1791
+#: /app/src/modules/dashboard/DashboardModule.js:1809
 #: /app/templates/index.php:716
 msgid "No budgets configured"
 msgstr "Бюджети не налаштовано"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1705
+#: /app/src/modules/dashboard/DashboardModule.js:1907
 #: /app/templates/index.php:727 /app/templates/index.php:2894
 msgid "No savings goals yet"
 msgstr "Цілей заощаджень ще немає"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1721
+#: /app/src/modules/dashboard/DashboardModule.js:1923
 msgid "Target: {amount}"
 msgstr "Ціль: {amount}"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1727
+#: /app/src/modules/dashboard/DashboardModule.js:1929
 msgid "{amount} saved"
 msgstr "Заощаджено {amount}"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1763
+#: /app/src/modules/dashboard/DashboardModule.js:1965
 #: /app/src/modules/pensions/PensionsModule.js:159
 msgid "Pension Income"
 msgstr "Пенсійний дохід"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1770
+#: /app/src/modules/dashboard/DashboardModule.js:1972
 #: /app/src/modules/pensions/PensionsModule.js:166
 msgid "%n pension"
 msgid_plural "%n pensions"
@@ -7426,431 +7488,445 @@ msgstr[0] "%n пенсія"
 msgstr[1] "%n пенсії"
 msgstr[2] "%n пенсій"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1773
+#: /app/src/modules/dashboard/DashboardModule.js:1975
 #: /app/src/modules/pensions/PensionsModule.js:169
 msgid "{amount}/yr income"
 msgstr "Дохід {amount} на рік"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1812
+#: /app/src/modules/dashboard/DashboardModule.js:2014
 msgid "{amount} ({percent}%) vs 30d ago"
 msgstr "{amount} ({percent}%) порівняно з показником 30 днів тому"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1829
-#: /app/src/modules/dashboard/DashboardModule.js:1836
-#: /app/src/modules/dashboard/DashboardModule.js:1841
+#: /app/src/modules/dashboard/DashboardModule.js:2031
+#: /app/src/modules/dashboard/DashboardModule.js:2038
+#: /app/src/modules/dashboard/DashboardModule.js:2043
 #: /app/templates/index.php:818
 msgid "No spending data"
 msgstr "Немає даних про витрати"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1875
-#: /app/src/modules/dashboard/DashboardModule.js:1983
+#: /app/src/modules/dashboard/DashboardModule.js:2077
+#: /app/src/modules/dashboard/DashboardModule.js:2185
 #: /app/templates/index.php:827 /app/templates/index.php:854
 msgid "No account data"
 msgstr "Немає даних рахунку"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1908
+#: /app/src/modules/dashboard/DashboardModule.js:2110
 #: /app/templates/index.php:836
 msgid "No budget data"
 msgstr "Немає даних бюджету"
 
-#: /app/src/modules/dashboard/DashboardModule.js:1948
+#: /app/src/modules/dashboard/DashboardModule.js:2150
 #: /app/templates/index.php:845
 msgid "No savings goals"
 msgstr "Немає цілей заощаджень"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2001
+#: /app/src/modules/dashboard/DashboardModule.js:2203
 msgid "Credit Cards"
 msgstr "Кредитні картки"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2002
+#: /app/src/modules/dashboard/DashboardModule.js:2204
 msgid "Investments"
 msgstr "Інвестиції"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2003
+#: /app/src/modules/dashboard/DashboardModule.js:2205
 msgid "Loans"
 msgstr "Позики"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2011
+#: /app/src/modules/dashboard/DashboardModule.js:2213
 msgid "%n account"
 msgid_plural "%n accounts"
 msgstr[0] "%n рахунок"
 msgstr[1] "%n рахунки"
 msgstr[2] "%n рахунків"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2023
+#: /app/src/modules/dashboard/DashboardModule.js:2225
 #: /app/templates/index.php:863
 msgid "No accounts to reconcile"
 msgstr "Немає рахунків для звірки"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2036
+#: /app/src/modules/dashboard/DashboardModule.js:2238
 msgid "All accounts reconciled"
 msgstr "Усі рахунки звірено"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2044
+#: /app/src/modules/dashboard/DashboardModule.js:2246
 msgid "Up to date"
 msgstr "Актуально"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2060
+#: /app/src/modules/dashboard/DashboardModule.js:2262
 msgid "No data available"
 msgstr "Немає доступних даних"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2095
+#: /app/src/modules/dashboard/DashboardModule.js:2301
 msgid "No large transactions"
 msgstr "Немає великих транзакцій"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2119
+#: /app/src/modules/dashboard/DashboardModule.js:2325
 msgid "No spending data for this period"
 msgstr "Немає даних про витрати за цей період"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2138
+#: /app/src/modules/dashboard/DashboardModule.js:2344
 msgid "Daily average"
 msgstr "У середньому за день"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2149
+#: /app/src/modules/dashboard/DashboardModule.js:2355
 msgid "No pensions to project"
 msgstr "Немає пенсій для прогнозування"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2154
+#: /app/src/modules/dashboard/DashboardModule.js:2360
 msgid ""
 "Set your date of birth in your Nextcloud profile for an accurate horizon"
 msgstr ""
 "Укажіть дату народження у своєму профілі Nextcloud, щоб точно визначити "
 "горизонт прогнозу"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2160
+#: /app/src/modules/dashboard/DashboardModule.js:2366
 msgid "Projected at retirement"
 msgstr "Прогноз на момент виходу на пенсію"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2164
+#: /app/src/modules/dashboard/DashboardModule.js:2370
 msgid "Projected income / yr"
 msgstr "Прогнозований дохід на рік"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2176
+#: /app/src/modules/dashboard/DashboardModule.js:2382
 msgid "No unmatched transfers"
 msgstr "Немає незіставлених переказів"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2196
+#: /app/src/modules/dashboard/DashboardModule.js:2402
 msgid "No category trends available"
 msgstr "Немає даних про тенденції за категоріями"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2228
+#: /app/src/modules/dashboard/DashboardModule.js:2434
 msgid "No bills due soon"
 msgstr "Немає найближчих платежів"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2294
-#: /app/src/modules/dashboard/DashboardModule.js:2300
+#: /app/src/modules/dashboard/DashboardModule.js:2500
+#: /app/src/modules/dashboard/DashboardModule.js:2506
 msgid "No recurring income set up"
 msgstr "Регулярні доходи не налаштовано"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2321
+#: /app/src/modules/dashboard/DashboardModule.js:2527
 msgid "No recent imports"
 msgstr "Немає останніх імпортів"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2347
+#: /app/src/modules/dashboard/DashboardModule.js:2553
 msgid "No import rules configured"
 msgstr "Правила імпорту не налаштовано"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2355
+#: /app/src/modules/dashboard/DashboardModule.js:2561
 msgid "Active rules"
 msgstr "Активні правила"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2359
+#: /app/src/modules/dashboard/DashboardModule.js:2565
 msgid "Total rules"
 msgstr "Усього правил"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2370
+#: /app/src/modules/dashboard/DashboardModule.js:2576
 msgid "No spending data available"
 msgstr "Немає доступних даних про витрати"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2380
+#: /app/src/modules/dashboard/DashboardModule.js:2586
 msgid "Per day"
 msgstr "На день"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2384
+#: /app/src/modules/dashboard/DashboardModule.js:2590
 msgid "Projected monthly"
 msgstr "Прогноз за місяць"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2399
+#: /app/src/modules/dashboard/DashboardModule.js:2605
 msgid "Uncategorized transactions"
 msgstr "Транзакції без категорії"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2513
+#: /app/src/modules/dashboard/DashboardModule.js:2719
 #: /app/src/modules/reports/ReportsModule.js:915
 msgid "Click to view transactions"
 msgstr "Натисніть, щоб переглянути транзакції"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2539
+#: /app/src/modules/dashboard/DashboardModule.js:2745
 msgid "Total Spending"
 msgstr "Загальні витрати"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2690
+#: /app/src/modules/dashboard/DashboardModule.js:2896
 #: /app/templates/index.php:1164
 msgid "Liabilities"
 msgstr "Зобов’язання"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2783
+#: /app/src/modules/dashboard/DashboardModule.js:2989
 msgid "Asset Value"
 msgstr "Вартість активів"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2806
+#: /app/src/modules/dashboard/DashboardModule.js:3012
 msgid "Portfolio"
 msgstr "Портфель"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2880
+#: /app/src/modules/dashboard/DashboardModule.js:3086
 #: /app/templates/index.php:770
 msgid "Now"
 msgstr "Зараз"
 
-#: /app/src/modules/dashboard/DashboardModule.js:2888
+#: /app/src/modules/dashboard/DashboardModule.js:3094
 msgid "Projected balance"
 msgstr "Прогнозований баланс"
 
-#: /app/src/modules/dashboard/DashboardModule.js:3027
+#: /app/src/modules/dashboard/DashboardModule.js:3233
 msgid "just now"
 msgstr "щойно"
 
-#: /app/src/modules/dashboard/DashboardModule.js:3029
+#: /app/src/modules/dashboard/DashboardModule.js:3235
 msgid "%n hour ago"
 msgid_plural "%n hours ago"
 msgstr[0] "%n годину тому"
 msgstr[1] "%n години тому"
 msgstr[2] "%n годин тому"
 
-#: /app/src/modules/dashboard/DashboardModule.js:3032
+#: /app/src/modules/dashboard/DashboardModule.js:3238
 msgid "yesterday"
 msgstr "учора"
 
-#: /app/src/modules/dashboard/DashboardModule.js:3034
+#: /app/src/modules/dashboard/DashboardModule.js:3240
 msgid "%n day ago"
 msgid_plural "%n days ago"
 msgstr[0] "%n день тому"
 msgstr[1] "%n дні тому"
 msgstr[2] "%n днів тому"
 
-#: /app/src/modules/dashboard/DashboardModule.js:3037
-#: /app/src/modules/dashboard/DashboardModule.js:3039
+#: /app/src/modules/dashboard/DashboardModule.js:3243
+#: /app/src/modules/dashboard/DashboardModule.js:3245
 msgid "Snapshots recorded automatically daily"
 msgstr "Знімки стану автоматично записуються щодня"
 
-#: /app/src/modules/dashboard/DashboardModule.js:3037
+#: /app/src/modules/dashboard/DashboardModule.js:3243
 msgid "Last: {time}"
 msgstr "Останній: {time}"
 
-#: /app/src/modules/dashboard/DashboardModule.js:3042
+#: /app/src/modules/dashboard/DashboardModule.js:3248
 msgid "Record now"
 msgstr "Записати зараз"
 
-#: /app/src/modules/dashboard/DashboardModule.js:3334
+#: /app/src/modules/dashboard/DashboardModule.js:3540
 msgid "Net worth snapshot recorded"
 msgstr "Знімок чистого капіталу записано"
 
-#: /app/src/modules/dashboard/DashboardModule.js:3342
+#: /app/src/modules/dashboard/DashboardModule.js:3548
 msgid "Failed to record snapshot"
 msgstr "Не вдалося записати знімок"
 
-#: /app/src/modules/dashboard/DashboardModule.js:3569
+#: /app/src/modules/dashboard/DashboardModule.js:3775
 msgid "Failed to save dashboard layout"
 msgstr "Не вдалося зберегти компонування панелі"
 
-#: /app/src/modules/dashboard/DashboardModule.js:3631
+#: /app/src/modules/dashboard/DashboardModule.js:3837
 #: /app/templates/index.php:628
 msgid "No net worth history yet"
 msgstr "Історії чистого капіталу ще немає"
 
-#: /app/src/modules/dashboard/DashboardModule.js:3632
+#: /app/src/modules/dashboard/DashboardModule.js:3838
 msgid "Snapshots are recorded automatically every day."
 msgstr "Знімки стану автоматично записуються щодня."
 
-#: /app/src/modules/dashboard/DashboardModule.js:3646
+#: /app/src/modules/dashboard/DashboardModule.js:3852
 #: /app/templates/index.php:652
 msgid "No asset value history yet"
 msgstr "Історії вартості активів ще немає"
 
-#: /app/src/modules/dashboard/DashboardModule.js:3647
+#: /app/src/modules/dashboard/DashboardModule.js:3853
 #: /app/templates/index.php:653
 msgid "Add snapshots to your assets to track their combined value over time."
 msgstr ""
 "Додайте знімки стану до своїх активів, щоб відстежувати їхню сукупну "
 "вартість у часі."
 
-#: /app/src/modules/dashboard/DashboardModule.js:3655
+#: /app/src/modules/dashboard/DashboardModule.js:3861
 #: /app/templates/index.php:666 /app/templates/index.php:702
 msgid "View All"
 msgstr "Переглянути всі"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4451
+#: /app/src/modules/dashboard/DashboardModule.js:4654
 msgid "Failed to save dashboard lock state"
 msgstr "Не вдалося зберегти стан блокування панелі"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4471
+#: /app/src/modules/dashboard/DashboardModule.js:4674
 #: /app/templates/index.php:336
 msgid "Unlock Dashboard"
 msgstr "Розблокувати панель"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4472
+#: /app/src/modules/dashboard/DashboardModule.js:4675
 #: /app/templates/index.php:313
 msgid "Dashboard is locked. Click unlock to reorder tiles."
 msgstr "Панель заблоковано. Розблокуйте її, щоб змінити порядок плиток."
 
-#: /app/src/modules/dashboard/DashboardModule.js:4486
+#: /app/src/modules/dashboard/DashboardModule.js:4689
 msgid "Lock Dashboard"
 msgstr "Заблокувати панель"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4487
+#: /app/src/modules/dashboard/DashboardModule.js:4690
 msgid "Drag tiles to reorder your dashboard"
 msgstr "Перетягуйте плитки, щоб змінити їхній порядок на панелі"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4550
-#: /app/src/modules/dashboard/DashboardModule.js:4642
-#: /app/templates/index.php:7232
+#: /app/src/modules/dashboard/DashboardModule.js:4753
+#: /app/src/modules/dashboard/DashboardModule.js:4845
+#: /app/templates/index.php:7227
 msgid "Tile Settings"
 msgstr "Налаштування плитки"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4567
+#: /app/src/modules/dashboard/DashboardModule.js:4770
 msgid "Remove tile"
 msgstr "Видалити плитку"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4567
+#: /app/src/modules/dashboard/DashboardModule.js:4770
 msgid "Hide tile"
 msgstr "Приховати плитку"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4672
+#: /app/src/modules/dashboard/DashboardModule.js:4875
 msgid "Look ahead"
 msgstr "Період перегляду"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4675
+#: /app/src/modules/dashboard/DashboardModule.js:4878
 msgid "Next 30 days"
 msgstr "Наступні 30 днів"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4676
+#: /app/src/modules/dashboard/DashboardModule.js:4879
 msgid "Next 60 days"
 msgstr "Наступні 60 днів"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4677
+#: /app/src/modules/dashboard/DashboardModule.js:4880
 msgid "Next 90 days"
 msgstr "Наступні 90 днів"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4686
+#: /app/src/modules/dashboard/DashboardModule.js:4889
 msgid "Forecast horizon"
 msgstr "Горизонт прогнозу"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4689
+#: /app/src/modules/dashboard/DashboardModule.js:4892
 msgid "Next 3 months"
 msgstr "Наступні 3 місяці"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4690
+#: /app/src/modules/dashboard/DashboardModule.js:4893
 msgid "Next 6 months"
 msgstr "Наступні 6 місяців"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4691
+#: /app/src/modules/dashboard/DashboardModule.js:4894
 msgid "Next 12 months"
 msgstr "Наступні 12 місяців"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4700
+#: /app/src/modules/dashboard/DashboardModule.js:4903
 msgid "Years to compare"
 msgstr "Роки для порівняння"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4703
+#: /app/src/modules/dashboard/DashboardModule.js:4906
 msgid "Last 2 years"
 msgstr "Останні 2 роки"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4704
+#: /app/src/modules/dashboard/DashboardModule.js:4907
 msgid "Last 3 years"
 msgstr "Останні 3 роки"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4705
+#: /app/src/modules/dashboard/DashboardModule.js:4908
 msgid "Last 5 years"
 msgstr "Останні 5 років"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4736
+#: /app/src/modules/dashboard/DashboardModule.js:4939
 #: /app/templates/index.php:3107
 msgid "Exclude shared accounts"
 msgstr "Виключити спільні рахунки"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4750
+#: /app/src/modules/dashboard/DashboardModule.js:4953
 msgid "Show legend"
 msgstr "Показувати легенду"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4765
+#: /app/src/modules/dashboard/DashboardModule.js:4968
 msgid "Show top-level categories only"
 msgstr "Показувати лише категорії верхнього рівня"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4780
+#: /app/src/modules/dashboard/DashboardModule.js:4983
 msgid "Chart Type"
 msgstr "Тип діаграми"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4791
+#: /app/src/modules/dashboard/DashboardModule.js:4994
 msgid "Rows to show"
 msgstr "Кількість рядків"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4807
+#: /app/src/modules/dashboard/DashboardModule.js:5010
 msgid "Display Format"
 msgstr "Формат відображення"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4820
+#: /app/src/modules/dashboard/DashboardModule.js:5023
 msgid "Show change indicator"
 msgstr "Показувати індикатор зміни"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4831
+#: /app/src/modules/dashboard/DashboardModule.js:5037
 msgid "No settings available for this tile."
 msgstr "Для цієї плитки немає доступних налаштувань."
 
-#: /app/src/modules/dashboard/DashboardModule.js:4838
+#: /app/src/modules/dashboard/DashboardModule.js:5044
 msgid "Drag to reorder. Toggle visibility for each item."
 msgstr ""
 "Перетягуйте елементи, щоб змінити порядок. Перемикайте видимість кожного "
 "елемента."
 
-#: /app/src/modules/dashboard/DashboardModule.js:5060
+#: /app/src/modules/dashboard/DashboardModule.js:5062
+#, fuzzy
+#| msgid "All categories and budget settings"
+msgid "Only categories with a budget I set"
+msgstr "Усі категорії та налаштування бюджету"
+
+#: /app/src/modules/dashboard/DashboardModule.js:5064
+msgid "Leaves out the budgets worked out from your bills and recurring income."
+msgstr ""
+
+#: /app/src/modules/dashboard/DashboardModule.js:5065
+msgid "Untick a category to stop it alerting, here and in notifications."
+msgstr ""
+
+#: /app/src/modules/dashboard/DashboardModule.js:5300
 msgid "All tiles are visible"
 msgstr "Усі плитки видимі"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5066
+#: /app/src/modules/dashboard/DashboardModule.js:5306
 msgid "Insights & Analytics"
 msgstr "Аналітика та висновки"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5067
+#: /app/src/modules/dashboard/DashboardModule.js:5307
 msgid "Budgeting"
 msgstr "Планування бюджету"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5068
+#: /app/src/modules/dashboard/DashboardModule.js:5308
 msgid "Forecasting"
 msgstr "Прогнозування"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5071
+#: /app/src/modules/dashboard/DashboardModule.js:5311
 #: /app/templates/index.php:5537
 msgid "Debts"
 msgstr "Борги"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5072
+#: /app/src/modules/dashboard/DashboardModule.js:5312
 msgid "Goals"
 msgstr "Цілі"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5074
+#: /app/src/modules/dashboard/DashboardModule.js:5314
 msgid "Alerts"
 msgstr "Сповіщення"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5075
+#: /app/src/modules/dashboard/DashboardModule.js:5315
 msgid "Interactive"
 msgstr "Інтерактивні"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5097
+#: /app/src/modules/dashboard/DashboardModule.js:5337
 msgid "Hero"
 msgstr "Головний блок"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5127
+#: /app/src/modules/dashboard/DashboardModule.js:5367
 msgid "Add Another"
 msgstr "Додати ще"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5200
+#: /app/src/modules/dashboard/DashboardModule.js:5440
 msgid "Maximum of {max} instances reached"
 msgstr "Досягнуто максимальної кількості екземплярів: {max}"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5270
+#: /app/src/modules/dashboard/DashboardModule.js:5510
 msgid "Tile added"
 msgstr "Плитку додано"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5308
+#: /app/src/modules/dashboard/DashboardModule.js:5548
 msgid "Tile removed"
 msgstr "Плитку видалено"
 
@@ -8176,7 +8252,7 @@ msgstr ""
 "безпеку та перенесення даних."
 
 #: /app/src/modules/help/HelpModule.js:46 /app/templates/index.php:276
-#: /app/templates/index.php:4838 /app/templates/index.php:7357
+#: /app/templates/index.php:4838 /app/templates/index.php:7352
 msgid "Help & Docs"
 msgstr "Довідка та документація"
 
@@ -8397,7 +8473,7 @@ msgid "Processing file, please wait..."
 msgstr "Файл опрацьовується, зачекайте..."
 
 #: /app/src/modules/import/ImportModule.js:1627
-#: /app/src/modules/import/ImportModule.js:2248
+#: /app/src/modules/import/ImportModule.js:2320
 msgid "Please map at least one account"
 msgstr "Зіставте принаймні один рахунок"
 
@@ -8413,30 +8489,30 @@ msgstr "Не вдалося опрацювати"
 msgid "Failed to process import data: {message}"
 msgstr "Не вдалося опрацювати дані імпорту: {message}"
 
-#: /app/src/modules/import/ImportModule.js:1723
+#: /app/src/modules/import/ImportModule.js:1727
 msgid "Accounts to create:"
 msgstr "Буде створено рахунки:"
 
-#: /app/src/modules/import/ImportModule.js:1727
+#: /app/src/modules/import/ImportModule.js:1731
 msgid "Existing accounts matched:"
 msgstr "Зіставлено наявні рахунки:"
 
-#: /app/src/modules/import/ImportModule.js:1750
+#: /app/src/modules/import/ImportModule.js:1754
 msgid "Categories to create:"
 msgstr "Буде створено категорії:"
 
-#: /app/src/modules/import/ImportModule.js:1752
+#: /app/src/modules/import/ImportModule.js:1756
 msgid "{count} transfer rows will be skipped"
 msgstr "Буде пропущено рядків переказів: {count}"
 
-#: /app/src/modules/import/ImportModule.js:1815
+#: /app/src/modules/import/ImportModule.js:1819
 msgid "This import will create %n new account"
 msgid_plural "This import will create %n new accounts"
 msgstr[0] "Цей імпорт створить %n новий рахунок"
 msgstr[1] "Цей імпорт створить %n нові рахунки"
 msgstr[2] "Цей імпорт створить %n нових рахунків"
 
-#: /app/src/modules/import/ImportModule.js:1824
+#: /app/src/modules/import/ImportModule.js:1828
 msgid ""
 "The names look like dates, so the date column has probably been mapped to "
 "Account. Go back and check the column mapping - importing now would leave "
@@ -8446,7 +8522,7 @@ msgstr ""
 "Поверніться та перевірте зіставлення стовпців — якщо імпортувати зараз, для "
 "кожної дати буде створено окремий рахунок, який потім доведеться видаляти."
 
-#: /app/src/modules/import/ImportModule.js:1825
+#: /app/src/modules/import/ImportModule.js:1829
 msgid ""
 "One account is created for every distinct value in the column mapped to "
 "Account. If that is more than you expected, go back and check the column "
@@ -8456,15 +8532,15 @@ msgstr ""
 "створюється окремий рахунок. Якщо рахунків більше, ніж ви очікували, "
 "поверніться та перевірте зіставлення стовпців перед імпортом."
 
-#: /app/src/modules/import/ImportModule.js:1854
+#: /app/src/modules/import/ImportModule.js:1858
 msgid "this account"
 msgstr "цей рахунок"
 
-#: /app/src/modules/import/ImportModule.js:1859
+#: /app/src/modules/import/ImportModule.js:1863
 msgid "{matching} of {total} rows have no usable transaction type"
 msgstr "У {matching} із {total} рядків немає придатного типу транзакції"
 
-#: /app/src/modules/import/ImportModule.js:1863
+#: /app/src/modules/import/ImportModule.js:1867
 msgid ""
 "The type column is empty or unrecognized on those rows, so they will be "
 "added based on whether the amount is negative. Fill the type in, or check "
@@ -8474,11 +8550,11 @@ msgstr ""
 "тип буде визначено за тим, чи є сума від’ємною. Якщо це не те, що вам "
 "потрібно, заповніть тип або перевірте зіставлення."
 
-#: /app/src/modules/import/ImportModule.js:1865
+#: /app/src/modules/import/ImportModule.js:1869
 msgid "{matching} of {total} rows would be added as income"
 msgstr "Як дохід буде додано {matching} із {total} рядків"
 
-#: /app/src/modules/import/ImportModule.js:1869
+#: /app/src/modules/import/ImportModule.js:1873
 #, javascript-format
 msgid ""
 "but {percent}% of what is already in {account} is an expense. If that looks "
@@ -8489,11 +8565,11 @@ msgstr ""
 "здається неправильним, поверніться й перед імпортом зіставте стовпець із "
 "типом транзакції."
 
-#: /app/src/modules/import/ImportModule.js:1874
+#: /app/src/modules/import/ImportModule.js:1878
 msgid "{matching} of {total} rows would be added as an expense"
 msgstr "Як витрату буде додано {matching} із {total} рядків"
 
-#: /app/src/modules/import/ImportModule.js:1878
+#: /app/src/modules/import/ImportModule.js:1882
 #, javascript-format
 msgid ""
 "but {percent}% of what is already in {account} is income. If that looks "
@@ -8504,76 +8580,96 @@ msgstr ""
 "здається неправильним, поверніться й перед імпортом зіставте стовпець із "
 "типом транзакції."
 
-#: /app/src/modules/import/ImportModule.js:1910
+#: /app/src/modules/import/ImportModule.js:1914
 msgid "No transactions to import"
 msgstr "Немає транзакцій для імпорту"
 
-#: /app/src/modules/import/ImportModule.js:1925
-#: /app/src/modules/import/ImportModule.js:1965
+#: /app/src/modules/import/ImportModule.js:1929
+#: /app/src/modules/import/ImportModule.js:1969
 msgid "Duplicate"
 msgstr "Дублікат"
 
-#: /app/src/modules/import/ImportModule.js:1947
-#: /app/src/modules/import/ImportModule.js:1989
+#: /app/src/modules/import/ImportModule.js:1951
+#: /app/src/modules/import/ImportModule.js:1993
 msgid "Showing {shown} of {total}"
 msgstr "Показано {shown} із {total}"
 
-#: /app/src/modules/import/ImportModule.js:2004
+#: /app/src/modules/import/ImportModule.js:2008
 msgid "Skip rows without an account"
 msgstr "Пропускати рядки без рахунку"
 
-#: /app/src/modules/import/ImportModule.js:2004
+#: /app/src/modules/import/ImportModule.js:2008
 msgid "Select account…"
 msgstr "Виберіть рахунок…"
 
-#: /app/src/modules/import/ImportModule.js:2018
+#: /app/src/modules/import/ImportModule.js:2022
 msgid "Account for rows without one:"
 msgstr "Рахунок для рядків без рахунку:"
 
-#: /app/src/modules/import/ImportModule.js:2019 /app/templates/index.php:2421
+#: /app/src/modules/import/ImportModule.js:2023 /app/templates/index.php:2421
 msgid "Import to Account:"
 msgstr "Імпортувати до рахунку:"
 
-#: /app/src/modules/import/ImportModule.js:2088
+#: /app/src/modules/import/ImportModule.js:2092
 msgid "Balance: {balance}"
 msgstr "Баланс: {balance}"
 
-#: /app/src/modules/import/ImportModule.js:2093
+#: /app/src/modules/import/ImportModule.js:2097
 msgid "Skip this account"
 msgstr "Пропустити цей рахунок"
 
-#: /app/src/modules/import/ImportModule.js:2163
+#: /app/src/modules/import/ImportModule.js:2161
 msgid "Rows {rows} and {count} more"
 msgstr "Рядки {rows} і ще {count}"
 
-#: /app/src/modules/import/ImportModule.js:2164
+#: /app/src/modules/import/ImportModule.js:2162
 msgid "Rows {rows}"
 msgstr "Рядки {rows}"
 
-#: /app/src/modules/import/ImportModule.js:2173
+#: /app/src/modules/import/ImportModule.js:2197
+msgid "{skipped} of {total} rows will not be imported"
+msgstr ""
+
+#: /app/src/modules/import/ImportModule.js:2201
+#, fuzzy
+#| msgid "%n row was not imported"
+#| msgid_plural "%n rows were not imported"
+msgid "%n row will not be imported"
+msgid_plural "%n rows will not be imported"
+msgstr[0] "%n рядок не імпортовано"
+msgstr[1] "%n рядки не імпортовано"
+msgstr[2] "%n рядків не імпортовано"
+
+#: /app/src/modules/import/ImportModule.js:2206
+msgid ""
+"Those rows have no account of their own. Pick one under \"Account for rows "
+"without one\" below and they will be imported into it."
+msgstr ""
+
+#: /app/src/modules/import/ImportModule.js:2245
 msgid "%n row was not imported"
 msgid_plural "%n rows were not imported"
 msgstr[0] "%n рядок не імпортовано"
 msgstr[1] "%n рядки не імпортовано"
 msgstr[2] "%n рядків не імпортовано"
 
-#: /app/src/modules/import/ImportModule.js:2205
+#: /app/src/modules/import/ImportModule.js:2277
 msgid "No file data available"
 msgstr "Немає доступних даних файлу"
 
-#: /app/src/modules/import/ImportModule.js:2269
+#: /app/src/modules/import/ImportModule.js:2341
 msgid "Importing…"
 msgstr "Імпорт…"
 
-#: /app/src/modules/import/ImportModule.js:2287
+#: /app/src/modules/import/ImportModule.js:2359
 msgid "Server error ({status}): Invalid response"
 msgstr "Помилка сервера ({status}): неприпустима відповідь"
 
-#: /app/src/modules/import/ImportModule.js:2291
+#: /app/src/modules/import/ImportModule.js:2363
 msgid "Successfully imported {imported} transactions ({skipped} skipped)"
 msgstr "Успішно імпортовано транзакцій: {imported} (пропущено: {skipped})"
 
-#: /app/src/modules/import/ImportModule.js:2295
+#: /app/src/modules/import/ImportModule.js:2367
 msgid "%n bill was automatically marked as paid from matching transactions"
 msgid_plural ""
 "%n bills were automatically marked as paid from matching transactions"
@@ -8585,7 +8681,7 @@ msgstr[2] ""
 "%n платежів автоматично позначено як сплачені на основі відповідних "
 "транзакцій"
 
-#: /app/src/modules/import/ImportModule.js:2311
+#: /app/src/modules/import/ImportModule.js:2383
 msgid "Import complete. %n category created — it may take a moment to appear."
 msgid_plural ""
 "Import complete. %n categories created — they may take a moment to appear."
@@ -8596,69 +8692,69 @@ msgstr[1] ""
 msgstr[2] ""
 "Імпорт завершено. Створено %n категорій — вони можуть з’явитися не відразу."
 
-#: /app/src/modules/import/ImportModule.js:2324
+#: /app/src/modules/import/ImportModule.js:2396
 msgid "Failed to import transactions: {message}"
 msgstr "Не вдалося імпортувати транзакції: {message}"
 
-#: /app/src/modules/import/ImportModule.js:2347
+#: /app/src/modules/import/ImportModule.js:2419
 msgid "Auto-linked {count} transfer pairs"
 msgstr "Автоматично пов’язано пар переказів: {count}"
 
-#: /app/src/modules/import/ImportModule.js:2456
+#: /app/src/modules/import/ImportModule.js:2528
 msgid "Download"
 msgstr "Завантажити"
 
-#: /app/src/modules/import/ImportModule.js:2457
+#: /app/src/modules/import/ImportModule.js:2529
 msgid "Rollback"
 msgstr "Відкотити"
 
-#: /app/src/modules/import/ImportModule.js:2480
+#: /app/src/modules/import/ImportModule.js:2552
 msgid "0 Bytes"
 msgstr "0 байтів"
 
-#: /app/src/modules/import/ImportModule.js:2482
+#: /app/src/modules/import/ImportModule.js:2554
 msgid "Bytes"
 msgstr "Байти"
 
-#: /app/src/modules/import/ImportModule.js:2482
+#: /app/src/modules/import/ImportModule.js:2554
 msgid "KB"
 msgstr "КБ"
 
-#: /app/src/modules/import/ImportModule.js:2482
+#: /app/src/modules/import/ImportModule.js:2554
 msgid "MB"
 msgstr "МБ"
 
-#: /app/src/modules/import/ImportModule.js:2482
+#: /app/src/modules/import/ImportModule.js:2554
 msgid "GB"
 msgstr "ГБ"
 
-#: /app/src/modules/import/ImportModule.js:2504
+#: /app/src/modules/import/ImportModule.js:2576
 msgid "Download failed"
 msgstr "Не вдалося завантажити файл"
 
-#: /app/src/modules/import/ImportModule.js:2508
+#: /app/src/modules/import/ImportModule.js:2580
 msgid "Failed to download import file"
 msgstr "Не вдалося завантажити файл імпорту"
 
-#: /app/src/modules/import/ImportModule.js:2513
+#: /app/src/modules/import/ImportModule.js:2585
 msgid ""
 "Are you sure you want to rollback this import? All imported transactions "
 "will be deleted."
 msgstr ""
 "Справді відкотити цей імпорт? Усі імпортовані транзакції буде видалено."
 
-#: /app/src/modules/import/ImportModule.js:2528
+#: /app/src/modules/import/ImportModule.js:2600
 msgid "Rolled back %n transaction"
 msgid_plural "Rolled back %n transactions"
 msgstr[0] "Відкочено %n транзакцію"
 msgstr[1] "Відкочено %n транзакції"
 msgstr[2] "Відкочено %n транзакцій"
 
-#: /app/src/modules/import/ImportModule.js:2533
+#: /app/src/modules/import/ImportModule.js:2605
 msgid "Rollback failed"
 msgstr "Не вдалося відкотити імпорт"
 
-#: /app/src/modules/import/ImportModule.js:2537
+#: /app/src/modules/import/ImportModule.js:2609
 msgid "Failed to rollback import: {message}"
 msgstr "Не вдалося відкотити імпорт: {message}"
 
@@ -8673,7 +8769,7 @@ msgid "Completed"
 msgstr "Завершено"
 
 #: /app/src/modules/income/IncomeModule.js:106
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:502
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:519
 #: /app/templates/index.php:2794
 msgid "Received"
 msgstr "Отримано"
@@ -9349,7 +9445,7 @@ msgid "Invalid criteria: {errors}"
 msgstr "Неприпустимі критерії: {errors}"
 
 #: /app/src/modules/rules/RulesModule.js:903
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:534
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:551
 #: /app/src/modules/sharing/SharingModule.js:38
 #: /app/src/modules/transactions/TransactionsModule.js:1314
 #: /app/src/modules/transactions/TransactionsModule.js:4868
@@ -10209,62 +10305,62 @@ msgstr ""
 msgid "Settings reset to defaults"
 msgstr "Налаштування скинуто до типових значень"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:62
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:63
 msgid "Shared expense"
 msgstr "Спільна витрата"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:68
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:69
 msgid "Outstanding"
 msgstr "Непогашено"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:73
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:74
 msgid "from {owner}"
 msgstr "від {owner}"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:166
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:167
 #: /app/templates/index.php:4118
 msgid "Add contacts to start splitting expenses"
 msgstr "Додайте контакти, щоб почати розподіляти витрати"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:179
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:423
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:524
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:180
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:424
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:541
 msgid "Owes you {amount}"
 msgstr "Заборгованість перед вами: {amount}"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:180
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:424
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:525
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:181
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:425
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:542
 msgid "You owe {amount}"
 msgstr "Ваша заборгованість: {amount}"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:277
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:278
 msgid "Edit Contact"
 msgstr "Редагувати контакт"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:277
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:278
 #: /app/templates/index.php:4087 /app/templates/index.php:7009
 msgid "Add Contact"
 msgstr "Додати контакт"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:294
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:295
 #: /app/templates/index.php:7020
 msgid "— None (enter details manually) —"
 msgstr "— Немає (ввести дані вручну) —"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:360
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:361
 msgid "Contact updated"
 msgstr "Контакт оновлено"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:360
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:361
 msgid "Contact added"
 msgstr "Контакт додано"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:365
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:366
 msgid "Failed to save contact"
 msgstr "Не вдалося зберегти контакт"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:377
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:378
 msgid ""
 "Are you sure you want to delete this contact? This will also remove all "
 "shared expense records with them."
@@ -10272,75 +10368,151 @@ msgstr ""
 "Ви впевнені, що хочете видалити цей контакт? Усі записи про спільні витрати "
 "з ним також буде видалено."
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:389
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:390
 msgid "Contact deleted"
 msgstr "Контакт видалено"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:462
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:469
 msgid "Failed to load contact details"
 msgstr "Не вдалося завантажити відомості про контакт"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:469
-#: /app/templates/index.php:7166
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:476
+#: /app/templates/index.php:7161
 msgid "No shared expenses"
 msgstr "Немає спільних витрат"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:485
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:484
+msgid "Only {name} can settle the expenses they split with you."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:492
+#, fuzzy
+#| msgid "Delete {name}"
+msgid "split by {name}"
+msgstr "Видалити {name}"
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:502
 msgid "Open"
 msgstr "Відкрити"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:494
-#: /app/templates/index.php:7172
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:511
+#: /app/templates/index.php:7167
 msgid "No settlements yet"
 msgstr "Розрахунків ще немає"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:547
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:565
 msgid "No unsettled expenses"
 msgstr "Немає нерозрахованих витрат"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:587
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:605
 msgid "Failed to load expenses"
 msgstr "Не вдалося завантажити витрати"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:619
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:637
 msgid "Date is required"
 msgstr "Потрібно вказати дату"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:636
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:654
 msgid "Expenses settled"
 msgstr "Витрати розраховано"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:647
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:665
 msgid ""
 "This will mark all shared expenses with this contact as settled. Continue?"
 msgstr ""
 "Усі спільні витрати з цим контактом буде позначено як розраховані. "
 "Продовжити?"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:665
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:683
 msgid "All expenses settled"
 msgstr "Усі витрати розраховано"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:687
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:710
 msgid "Please add contacts first in Shared Expenses"
 msgstr "Спочатку додайте контакти в розділі «Спільні витрати»"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:702
-#: /app/templates/index.php:7062
-msgid "Select a contact..."
-msgstr "Виберіть контакт..."
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:723
+#, fuzzy
+#| msgid "Failed to load tag sets"
+msgid "Failed to load the split"
+msgstr "Не вдалося завантажити набори тегів"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:720
-msgid "Please select a contact"
-msgstr "Виберіть контакт"
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:760
+msgid ""
+"{amount} of this has already been settled, so it is left out of the split."
+msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:733
-msgid "Amount is required for custom splits"
-msgstr "Для власного розподілу потрібно вказати суму"
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:808
+#, fuzzy
+#| msgid "Delete {name}"
+msgid "Percentage for {name}"
+msgstr "Видалити {name}"
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:757
-msgid "Expense shared"
-msgstr "Витрату розподілено"
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:809
+#, fuzzy
+#| msgid "Account holder name"
+msgid "Amount for {name}"
+msgstr "Ім’я власника рахунку"
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:828
+#, fuzzy
+#| msgid "You owe"
+msgid "You"
+msgstr "Ваша заборгованість"
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:886
+msgid "Nobody is ticked, so saving removes this split."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:893
+msgid "You owe the others {owed}. Your part is {mine}."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:894
+msgid "The others owe you {owed}. Your share is {mine}."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:897
+#, fuzzy
+#| msgid "Please select at least one expense to settle"
+msgid "Tick at least one person to split with."
+msgstr "Виберіть принаймні одну витрату для взаєморозрахунку"
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:899
+msgid "There is not enough to split between this many people."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:902
+msgid "Enter a percentage for everyone ticked."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:903
+msgid "Enter an amount for everyone ticked."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:905
+msgid "The percentages add up to {total} and need to add up to {full}."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:910
+msgid "The amounts add up to {amount} more than there is to split."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:943
+msgid "Remove this split? Nobody will owe anything for this transaction."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:972
+#, fuzzy
+#| msgid "Tile removed"
+msgid "Split removed"
+msgstr "Плитку видалено"
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:972
+#, fuzzy
+#| msgid "Report saved"
+msgid "Split saved"
+msgstr "Звіт збережено"
 
 #: /app/src/modules/sharing/SharingModule.js:49
 msgid "Failed to load sharing data"
@@ -12523,7 +12695,7 @@ msgstr "100 на сторінці"
 msgid "250 per page"
 msgstr "250 на сторінці"
 
-#: /app/templates/index.php:1787 /app/templates/index.php:7110
+#: /app/templates/index.php:1787 /app/templates/index.php:7105
 msgid "Select all"
 msgstr "Вибрати все"
 
@@ -13495,7 +13667,7 @@ msgid "Edit pension"
 msgstr "Редагувати пенсійний рахунок"
 
 #: /app/templates/index.php:3702 /app/templates/index.php:4737
-#: /app/templates/index.php:5139 /app/templates/index.php:7252
+#: /app/templates/index.php:5139 /app/templates/index.php:7247
 msgid "Provider"
 msgstr "Постачальник"
 
@@ -14444,7 +14616,7 @@ msgstr "Скинути все до типових значень"
 msgid "Open docs site"
 msgstr "Відкрити сайт документації"
 
-#: /app/templates/index.php:4846 /app/templates/index.php:7358
+#: /app/templates/index.php:4846 /app/templates/index.php:7353
 msgid "Report an Issue"
 msgstr "Повідомити про проблему"
 
@@ -15974,7 +16146,7 @@ msgstr "Електронна пошта"
 msgid "Optional email address"
 msgstr "Необов’язкова адреса електронної пошти"
 
-#: /app/templates/index.php:7049 /app/templates/index.php:7086
+#: /app/templates/index.php:7049
 msgid "Share Expense"
 msgstr "Розподілити витрату"
 
@@ -15983,232 +16155,242 @@ msgid "Share expense form"
 msgstr "Форма розподілу витрати"
 
 #: /app/templates/index.php:7060
-msgid "Split with"
-msgstr "Розподілити з"
-
-#: /app/templates/index.php:7067
 msgid "Split Method"
 msgstr "Спосіб розподілу"
 
+#: /app/templates/index.php:7062
+#, fuzzy
+#| msgid "equals"
+msgid "Equally"
+msgstr "дорівнює"
+
+#: /app/templates/index.php:7063
+#, fuzzy
+#| msgid "Percentage"
+msgid "By percentage"
+msgstr "Відсоток"
+
+#: /app/templates/index.php:7064
+#, fuzzy
+#| msgid "amount"
+msgid "By amount"
+msgstr "сума"
+
 #: /app/templates/index.php:7069
-msgid "50/50 Split"
-msgstr "Розподіл 50/50"
-
-#: /app/templates/index.php:7070
-msgid "Custom Amount"
-msgstr "Власна сума"
-
-#: /app/templates/index.php:7075
-msgid "Amount They Owe You"
-msgstr "Сума заборгованості перед вами"
+#, fuzzy
+#| msgid "between"
+msgid "Split between"
+msgstr "між"
 
 #: /app/templates/index.php:7077
-msgid "Positive = they owe you, negative = you owe them"
-msgstr "Додатне значення = вам винні, від’ємне = ви винні"
-
-#: /app/templates/index.php:7082
 msgid "Optional notes about this split"
 msgstr "Необов’язкові примітки про цей розподіл"
 
-#: /app/templates/index.php:7096
+#: /app/templates/index.php:7081
+#, fuzzy
+#| msgid "Save Splits"
+msgid "Save Split"
+msgstr "Зберегти частини"
+
+#: /app/templates/index.php:7091
 msgid "Settle Expenses"
 msgstr "Розрахуватися за витратами"
 
-#: /app/templates/index.php:7097
+#: /app/templates/index.php:7092
 msgid "Settlement form"
 msgstr "Форма розрахунку"
 
-#: /app/templates/index.php:7106
+#: /app/templates/index.php:7101
 msgid "Select expenses to settle"
 msgstr "Виберіть витрати для розрахунку"
 
-#: /app/templates/index.php:7128 /app/templates/quick-add.php:71
+#: /app/templates/index.php:7123 /app/templates/quick-add.php:71
 msgid "Optional notes"
 msgstr "Необов’язкові примітки"
 
-#: /app/templates/index.php:7132
+#: /app/templates/index.php:7127
 msgid "Settle Selected"
 msgstr "Розрахуватися за вибраними"
 
-#: /app/templates/index.php:7142
+#: /app/templates/index.php:7137
 msgid "Contact Details"
 msgstr "Відомості про контакт"
 
-#: /app/templates/index.php:7149
+#: /app/templates/index.php:7144
 msgid "Balance:"
 msgstr "Баланс:"
 
-#: /app/templates/index.php:7155
+#: /app/templates/index.php:7150
 msgid "Settle All"
 msgstr "Розрахуватися за всіма"
 
-#: /app/templates/index.php:7156
+#: /app/templates/index.php:7151
 msgid "Record Payment"
 msgstr "Записати платіж"
 
-#: /app/templates/index.php:7161
+#: /app/templates/index.php:7156
 msgid "Settlement History"
 msgstr "Історія розрахунків"
 
-#: /app/templates/index.php:7187
+#: /app/templates/index.php:7182
 msgid "Confirm Factory Reset"
 msgstr "Підтвердьте відновлення заводських налаштувань"
 
-#: /app/templates/index.php:7191
+#: /app/templates/index.php:7186
 msgid "WARNING: This action cannot be undone!"
 msgstr "ПОПЕРЕДЖЕННЯ: цю дію неможливо скасувати!"
 
-#: /app/templates/index.php:7192
+#: /app/templates/index.php:7187
 msgid "A factory reset will permanently delete ALL of your data including:"
 msgstr ""
 "Відновлення заводських налаштувань назавжди видалить УСІ ваші дані, зокрема:"
 
-#: /app/templates/index.php:7194
+#: /app/templates/index.php:7189
 msgid "All accounts and their balances"
 msgstr "Усі рахунки та їхні баланси"
 
-#: /app/templates/index.php:7195
+#: /app/templates/index.php:7190
 msgid "All transactions and transaction history"
 msgstr "Усі транзакції та історію транзакцій"
 
-#: /app/templates/index.php:7196
+#: /app/templates/index.php:7191
 msgid "All bills and recurring income"
 msgstr "Усі платежі й регулярні доходи"
 
-#: /app/templates/index.php:7197
+#: /app/templates/index.php:7192
 msgid "All categories and budget settings"
 msgstr "Усі категорії та налаштування бюджету"
 
-#: /app/templates/index.php:7198
+#: /app/templates/index.php:7193
 msgid "All savings goals and pension accounts"
 msgstr "Усі цілі заощаджень і пенсійні рахунки"
 
-#: /app/templates/index.php:7199
+#: /app/templates/index.php:7194
 msgid "All import rules and settings"
 msgstr "Усі правила імпорту й налаштування"
 
-#: /app/templates/index.php:7200
+#: /app/templates/index.php:7195
 msgid "All shared expenses and contacts"
 msgstr "Усі спільні витрати й контакти"
 
-#: /app/templates/index.php:7202
+#: /app/templates/index.php:7197
 msgid "Only audit logs will be preserved for compliance purposes."
 msgstr "Для дотримання вимог буде збережено лише журнали аудиту."
 
-#: /app/templates/index.php:7203
+#: /app/templates/index.php:7198
 msgid "You will need to set up everything from scratch after this operation."
 msgstr "Після цієї операції вам доведеться налаштувати все з нуля."
 
-#: /app/templates/index.php:7208
+#: /app/templates/index.php:7203
 msgid "Type DELETE to confirm:"
 msgstr "Введіть DELETE для підтвердження:"
 
-#: /app/templates/index.php:7213
+#: /app/templates/index.php:7208
 msgid "Type DELETE to confirm"
 msgstr "Введіть DELETE для підтвердження"
 
-#: /app/templates/index.php:7216
+#: /app/templates/index.php:7211
 msgid "You must type DELETE (all caps) exactly to proceed"
 msgstr "Щоб продовжити, потрібно ввести DELETE точно великими літерами"
 
-#: /app/templates/index.php:7245 /app/templates/index.php:7249
+#: /app/templates/index.php:7240 /app/templates/index.php:7244
 msgid "Add Bank Connection"
 msgstr "Додати підключення до банку"
 
-#: /app/templates/index.php:7254
+#: /app/templates/index.php:7249
 msgid "Select a provider..."
 msgstr "Виберіть постачальника..."
 
-#: /app/templates/index.php:7255
+#: /app/templates/index.php:7250
 msgid "GoCardless (UK/Europe)"
 msgstr "GoCardless (Велика Британія/Європа)"
 
-#: /app/templates/index.php:7256
+#: /app/templates/index.php:7251
 msgid "SimpleFIN Bridge (US)"
 msgstr "SimpleFIN Bridge (США)"
 
-#: /app/templates/index.php:7261
+#: /app/templates/index.php:7256
 msgid "Connection Name"
 msgstr "Назва підключення"
 
-#: /app/templates/index.php:7262
+#: /app/templates/index.php:7257
 msgid "e.g. My Bank"
 msgstr "наприклад, мій банк"
 
-#: /app/templates/index.php:7268
+#: /app/templates/index.php:7263
 msgid "Setup Token"
 msgstr "Токен налаштування"
 
-#: /app/templates/index.php:7269
+#: /app/templates/index.php:7264
 msgid "Paste your SimpleFIN setup token"
 msgstr "Вставте токен налаштування SimpleFIN"
 
-#: /app/templates/index.php:7270
+#: /app/templates/index.php:7265
 msgid "Get a token from beta-bridge.simplefin.org"
 msgstr "Отримайте токен на beta-bridge.simplefin.org"
 
-#: /app/templates/index.php:7277
+#: /app/templates/index.php:7272
 msgid "Secret ID"
 msgstr "Секретний ідентифікатор"
 
-#: /app/templates/index.php:7278
+#: /app/templates/index.php:7273
 msgid "Your GoCardless Secret ID"
 msgstr "Ваш секретний ідентифікатор GoCardless"
 
-#: /app/templates/index.php:7281
+#: /app/templates/index.php:7276
 msgid "Secret Key"
 msgstr "Секретний ключ"
 
-#: /app/templates/index.php:7282
+#: /app/templates/index.php:7277
 msgid "Your GoCardless Secret Key"
 msgstr "Ваш секретний ключ GoCardless"
 
-#: /app/templates/index.php:7284
+#: /app/templates/index.php:7279
 msgid "Get API keys from bankaccountdata.gocardless.com"
 msgstr "Отримайте ключі API на bankaccountdata.gocardless.com"
 
-#: /app/templates/index.php:7297
+#: /app/templates/index.php:7292
 msgid "Select Your Bank"
 msgstr "Виберіть свій банк"
 
-#: /app/templates/index.php:7300
+#: /app/templates/index.php:7295
 msgid "Country"
 msgstr "Країна"
 
-#: /app/templates/index.php:7305
+#: /app/templates/index.php:7300
 msgid "Search banks..."
 msgstr "Пошук банків..."
 
-#: /app/templates/index.php:7309
+#: /app/templates/index.php:7304
 msgid "Loading banks..."
 msgstr "Завантаження банків..."
 
-#: /app/templates/index.php:7318
+#: /app/templates/index.php:7313
 msgid "Back"
 msgstr "Назад"
 
-#: /app/templates/index.php:7324
+#: /app/templates/index.php:7319
 msgid "Authorize with Your Bank"
 msgstr "Авторизуйте доступ у своєму банку"
 
-#: /app/templates/index.php:7327
+#: /app/templates/index.php:7322
 msgid "A new window has been opened for you to authorize access at your bank."
 msgstr ""
 "Відкрито нове вікно, у якому ви можете авторизувати доступ у своєму банку."
 
-#: /app/templates/index.php:7328
+#: /app/templates/index.php:7323
 msgid "Once you have completed the authorization, click the button below."
 msgstr "Після завершення авторизації натисніть кнопку нижче."
 
-#: /app/templates/index.php:7330
+#: /app/templates/index.php:7325
 msgid "If the window did not open, "
 msgstr "Якщо вікно не відкрилося, "
 
-#: /app/templates/index.php:7331
+#: /app/templates/index.php:7326
 msgid "click here to authorize"
 msgstr "натисніть тут, щоб авторизуватися"
 
-#: /app/templates/index.php:7347 /app/templates/index.php:7350
+#: /app/templates/index.php:7342 /app/templates/index.php:7345
 msgid "Help"
 msgstr "Довідка"
 
@@ -16231,3 +16413,30 @@ msgstr "Зберегти транзакцію"
 #: /app/templates/quick-add.php:165
 msgid "Transaction saved!"
 msgstr "Транзакцію збережено!"
+
+#~ msgid "Select a contact..."
+#~ msgstr "Виберіть контакт..."
+
+#~ msgid "Please select a contact"
+#~ msgstr "Виберіть контакт"
+
+#~ msgid "Amount is required for custom splits"
+#~ msgstr "Для власного розподілу потрібно вказати суму"
+
+#~ msgid "Expense shared"
+#~ msgstr "Витрату розподілено"
+
+#~ msgid "Split with"
+#~ msgstr "Розподілити з"
+
+#~ msgid "50/50 Split"
+#~ msgstr "Розподіл 50/50"
+
+#~ msgid "Custom Amount"
+#~ msgstr "Власна сума"
+
+#~ msgid "Amount They Owe You"
+#~ msgstr "Сума заборгованості перед вами"
+
+#~ msgid "Positive = they owe you, negative = you owe them"
+#~ msgstr "Додатне значення = вам винні, від’ємне = ви винні"
