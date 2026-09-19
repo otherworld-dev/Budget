@@ -1908,6 +1908,9 @@ style('budget', 'budget-app');
                             <button id="category-clear-selection-btn" class="secondary small">
                                 <?php p($l->t('Clear')); ?>
                             </button>
+                            <button id="category-bulk-recolor-btn" class="secondary small" title="<?php p($l->t('Give each selected category a different color')); ?>">
+                                <?php p($l->t('Recolor')); ?>
+                            </button>
                             <button id="category-bulk-delete-btn" class="error small">
                                 <span class="icon-delete" aria-hidden="true"></span>
                                 <?php p($l->t('Delete Selected')); ?>

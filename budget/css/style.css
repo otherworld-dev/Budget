@@ -6218,7 +6218,8 @@ button.danger:hover {
 
 .category-bulk-toolbar .bulk-actions {
     display: flex;
-    gap: 8px;
+    gap: 4px;
+    justify-content: flex-end;
 }
 
 .category-bulk-toolbar button.small {
@@ -6240,6 +6241,7 @@ button.danger:hover {
 #category-bulk-count {
     font-weight: 500;
     color: var(--color-main-text);
+    white-space: nowrap;
 }
 
 .category-toggle {

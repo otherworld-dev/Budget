@@ -9,6 +9,7 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import Chart from 'chart.js/auto';
 import { serverErrorMessage } from '../../utils/helpers.js';
 import { expenseProgressStatus } from '../../utils/budgetProgress.js';
+import { nextCategoryColor, distinctCategoryColors } from '../../utils/colors.js';
 
 export default class CategoriesModule {
     constructor(app) {
@@ -210,6 +211,7 @@ export default class CategoriesModule {
         const selectAllBtn = document.getElementById('category-select-all-btn');
         const clearSelectionBtn = document.getElementById('category-clear-selection-btn');
         const bulkDeleteBtn = document.getElementById('category-bulk-delete-btn');
+        const bulkRecolorBtn = document.getElementById('category-bulk-recolor-btn');
 
         if (selectAllBtn) {
             selectAllBtn.addEventListener('click', () => this.selectAllCategories());
@@ -221,6 +223,10 @@ export default class CategoriesModule {
 
         if (bulkDeleteBtn) {
             bulkDeleteBtn.addEventListener('click', () => this.bulkDeleteCategories());
+        }
+
+        if (bulkRecolorBtn) {
+            bulkRecolorBtn.addEventListener('click', () => this.recolorSelectedCategories());
         }
     }
 
@@ -1329,6 +1335,62 @@ export default class CategoriesModule {
         this.updateBulkCategoryActions();
     }
 
+    /**
+     * Give the selected categories a colour each, different from one another
+     * and from the categories left unselected while the palette lasts (#392).
+     */
+    async recolorSelectedCategories() {
+        const categoryIds = [...this.selectedCategoryIds];
+        const count = categoryIds.length;
+        if (count === 0) return;
+
+        if (!await confirmDialog(n('budget', 'Give %n category a new color? Its current color will be replaced.', 'Give %n categories new colors? Their current colors will be replaced.', count))) {
+            return;
+        }
+
+        const selected = new Set(categoryIds);
+        const keptColors = (this.allCategories || [])
+            .filter(category => !selected.has(category.id))
+            .map(category => category.color);
+        const colors = distinctCategoryColors(count, keptColors);
+
+        let recolored = 0;
+        const errors = [];
+
+        for (const [index, categoryId] of categoryIds.entries()) {
+            const category = this.findCategoryById(categoryId);
+            try {
+                const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}`), {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'requesttoken': OC.requestToken
+                    },
+                    body: JSON.stringify({ color: colors[index] })
+                });
+
+                if (response.ok) {
+                    recolored++;
+                } else {
+                    const error = await response.json().catch(() => ({}));
+                    errors.push(`${category?.name || categoryId}: ${serverErrorMessage(error, t('budget', 'Failed to update category'))}`);
+                }
+            } catch (error) {
+                errors.push(`${category?.name || categoryId}: ${error.message}`);
+            }
+        }
+
+        if (recolored > 0) {
+            showSuccess(n('budget', '%n category recolored', '%n categories recolored', recolored));
+            await this.loadCategories();
+            await this.app.loadInitialData();
+        }
+
+        if (errors.length > 0) {
+            showError(t('budget', 'Failed to recolor: {errors}', { errors: errors.join(', ') }));
+        }
+    }
+
     clearCategorySelection() {
         this.selectedCategoryIds.clear();
         document.querySelectorAll('.category-checkbox').forEach(cb => {
@@ -1361,7 +1423,7 @@ export default class CategoriesModule {
         if (categoryId) categoryId.value = '';
 
         const colorInput = document.getElementById('category-color');
-        if (colorInput) colorInput.value = '#3b82f6';
+        if (colorInput) colorInput.value = nextCategoryColor((this.allCategories || []).map(c => c.color));
 
         const excludedCheckbox = document.getElementById('category-excluded-from-reports');
         if (excludedCheckbox) excludedCheckbox.checked = false;
