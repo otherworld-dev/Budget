@@ -1161,7 +1161,7 @@ style('budget', 'budget-app');
                     <button id="accounts-clear-selection-btn" class="secondary small">
                         <?php p($l->t('Clear')); ?>
                     </button>
-                    <button id="accounts-bulk-delete-btn" class="error small">
+                    <button id="accounts-bulk-delete-btn" class="danger small">
                         <span class="icon-delete" aria-hidden="true"></span>
                         <?php p($l->t('Delete')); ?>
                     </button>
@@ -1699,7 +1699,7 @@ style('budget', 'budget-app');
                     <button id="bulk-unreconcile-btn" class="secondary"><?php p($l->t('Unreconciled')); ?></button>
                     <button id="bulk-edit-btn" class="secondary"><?php p($l->t('Edit Fields...')); ?></button>
                     <button id="bulk-tags-btn" class="secondary"><?php p($l->t('Tags...')); ?></button>
-                    <button id="bulk-delete-btn" class="error"><?php p($l->t('Delete')); ?></button>
+                    <button id="bulk-delete-btn" class="danger"><?php p($l->t('Delete')); ?></button>
                     <button id="cancel-bulk-btn" class="secondary"><?php p($l->t('Cancel')); ?></button>
                 </div>
             </div>
@@ -1911,7 +1911,7 @@ style('budget', 'budget-app');
                             <button id="category-bulk-recolor-btn" class="secondary small" title="<?php p($l->t('Give each selected category a different color')); ?>">
                                 <?php p($l->t('Recolor')); ?>
                             </button>
-                            <button id="category-bulk-delete-btn" class="error small">
+                            <button id="category-bulk-delete-btn" class="danger small">
                                 <span class="icon-delete" aria-hidden="true"></span>
                                 <?php p($l->t('Delete Selected')); ?>
                             </button>

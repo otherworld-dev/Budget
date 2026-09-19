@@ -2088,16 +2088,23 @@ button.success:hover {
     background: var(--color-success-hover);
 }
 
-/* Danger Button - Destructive Actions */
-button.error,
+/* Danger Button - Destructive Actions
+   Use `danger`, never `error`: Nextcloud paints `button.error` with
+   --color-error-text on --color-error and marks every declaration
+   !important, which reads as dark red on red and cannot be overridden by
+   specificity. The fill is a fixed red rather than --color-error, which is a
+   pale surface tint on NC 30 that leaves white text just as unreadable
+   (#project-delete-btn hit that first). */
 button.danger {
-    background: var(--color-error);
-    color: white;
+    background: #b32d2e;
+    border-color: #b32d2e;
+    color: #fff;
 }
 
-button.error:hover,
 button.danger:hover {
-    background: var(--color-error-hover);
+    background: #8f2424;
+    border-color: #8f2424;
+    color: #fff;
 }
 
 /* Legacy Support */
@@ -6226,16 +6233,6 @@ button.danger:hover {
     padding: 4px 10px;
     font-size: 12px;
     min-height: 28px;
-}
-
-.category-bulk-toolbar button.error {
-    background: var(--color-error);
-    border-color: var(--color-error);
-    color: white;
-}
-
-.category-bulk-toolbar button.error:hover {
-    background: var(--color-error-hover, #c82333);
 }
 
 #category-bulk-count {
@@ -12474,15 +12471,6 @@ button.danger:hover {
     margin-top: 20px;
 }
 
-/* Danger button */
-button.danger {
-    background: var(--color-error);
-    border-color: var(--color-error);
-}
-
-button.danger:hover {
-    background: var(--color-error-hover, #c41e1e);
-}
 
 /* Responsive migration styles */
 @media (max-width: 768px) {
