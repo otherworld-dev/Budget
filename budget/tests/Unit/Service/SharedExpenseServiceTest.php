@@ -15,8 +15,10 @@ use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\SharedExpenseService;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\IDBConnection;
 use OCP\IUser;
 use OCP\IUserManager;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class SharedExpenseServiceTest extends TestCase {
@@ -26,6 +28,10 @@ class SharedExpenseServiceTest extends TestCase {
     private SettlementMapper $settlementMapper;
     private TransactionMapper $transactionMapper;
     private IUserManager $userManager;
+    private IDBConnection $db;
+
+    /** Shares findByTransaction() returns; seed it per test (a re-stub can't beat setUp's) */
+    private array $existingShares = [];
 
     protected function setUp(): void {
         $this->contactMapper = $this->createMock(ContactMapper::class);
@@ -34,15 +40,17 @@ class SharedExpenseServiceTest extends TestCase {
         $this->transactionMapper = $this->createMock(TransactionMapper::class);
         $accountMapper = $this->createMock(AccountMapper::class);
         $this->userManager = $this->createMock(IUserManager::class);
+        $this->db = $this->createMock(IDBConnection::class);
 
         // Default: accountMapper->find returns an account with USD currency
         $account = new \OCA\Budget\Db\Account();
         $account->setId(1);
         $account->setCurrency('USD');
         $accountMapper->method('find')->willReturn($account);
+        $accountMapper->method('findById')->willReturn($account);
 
-        // Default: no existing shares on a transaction
-        $this->expenseShareMapper->method('findByTransaction')->willReturn([]);
+        $this->expenseShareMapper->method('findByTransaction')
+            ->willReturnCallback(fn () => $this->existingShares);
 
         $this->service = new SharedExpenseService(
             $this->contactMapper,
@@ -50,7 +58,8 @@ class SharedExpenseServiceTest extends TestCase {
             $this->settlementMapper,
             $this->transactionMapper,
             $accountMapper,
-            $this->userManager
+            $this->userManager,
+            $this->db
         );
     }
 
@@ -163,12 +172,29 @@ class SharedExpenseServiceTest extends TestCase {
         $this->service->updateContact(1, 'user1', 'Updated');
     }
 
-    public function testDeleteContact(): void {
+    public function testDeleteContactRemovesItsSplitsAndSettlements(): void {
         $contact = $this->makeContact();
         $this->contactMapper->method('find')->willReturn($contact);
+
+        // Left behind, they kept a Shared badge on the transaction that
+        // nothing could clear, and dropped out of every balance
+        $this->expenseShareMapper->expects($this->once())->method('deleteByContact')->with(1, 'user1');
+        $this->settlementMapper->expects($this->once())->method('deleteByContact')->with(1, 'user1');
         $this->contactMapper->expects($this->once())->method('delete')
             ->with($contact)->willReturn($contact);
+        $this->db->expects($this->once())->method('beginTransaction');
+        $this->db->expects($this->once())->method('commit');
 
+        $this->service->deleteContact(1, 'user1');
+    }
+
+    public function testDeleteContactRollsBackWhenACleanupFails(): void {
+        $this->contactMapper->method('find')->willReturn($this->makeContact());
+        $this->settlementMapper->method('deleteByContact')->willThrowException(new \RuntimeException('db down'));
+        $this->contactMapper->expects($this->never())->method('delete');
+        $this->db->expects($this->once())->method('rollBack');
+
+        $this->expectException(\RuntimeException::class);
         $this->service->deleteContact(1, 'user1');
     }
 
@@ -227,6 +253,216 @@ class SharedExpenseServiceTest extends TestCase {
             });
 
         $this->service->splitFiftyFifty('user1', 10, 1);
+    }
+
+    // ===== setTransactionShares (#391) =====
+
+    /** Stub the transaction and let every contact id resolve as the user's own */
+    private function givenTransaction(float $amount): void {
+        $this->transactionMapper->method('find')->willReturn($this->makeTransaction(10, $amount));
+        $this->contactMapper->method('find')
+            ->willReturnCallback(fn (int $id) => $this->makeContact($id));
+    }
+
+    public function testSetTransactionSharesAddsOneSplitPerPerson(): void {
+        $this->givenTransaction(-90.0);
+
+        $inserted = [];
+        $this->expenseShareMapper->expects($this->exactly(2))->method('insert')
+            ->willReturnCallback(function (ExpenseShare $s) use (&$inserted) {
+                $inserted[$s->getContactId()] = $s;
+                return $s;
+            });
+        $this->db->expects($this->once())->method('beginTransaction');
+        $this->db->expects($this->once())->method('commit');
+
+        $result = $this->service->setTransactionShares('user1', 10, [
+            ['contactId' => 1, 'amount' => 30],
+            ['contactId' => 2, 'amount' => '30.00'],
+        ], 'Tiles');
+
+        $this->assertCount(2, $result);
+        $this->assertSame(30.0, $inserted[1]->getAmount());
+        $this->assertSame(30.0, $inserted[2]->getAmount());
+        $this->assertSame(10, $inserted[2]->getTransactionId());
+        $this->assertSame('USD', $inserted[2]->getCurrency());
+        $this->assertSame('Tiles', $inserted[2]->getNotes());
+        $this->assertFalse($inserted[2]->getIsSettled());
+    }
+
+    public function testSetTransactionSharesUpdatesChangedSplitsAndRemovesDroppedOnes(): void {
+        $this->givenTransaction(-90.0);
+        $kept = $this->makeShare(1, 20.0, false, 1);
+        $dropped = $this->makeShare(2, 20.0, false, 2);
+        $this->existingShares = [$kept, $dropped];
+
+        $this->expenseShareMapper->expects($this->once())->method('update')
+            ->willReturnCallback(function (ExpenseShare $s) {
+                $this->assertSame(1, $s->getId());
+                $this->assertSame(45.0, $s->getAmount());
+                return $s;
+            });
+        $this->expenseShareMapper->expects($this->once())->method('delete')->with($dropped);
+        $this->expenseShareMapper->expects($this->never())->method('insert');
+
+        $result = $this->service->setTransactionShares('user1', 10, [['contactId' => 1, 'amount' => 45]]);
+
+        $this->assertSame([$kept], $result);
+    }
+
+    public function testSetTransactionSharesLeavesSettledSplitsAlone(): void {
+        $this->givenTransaction(-90.0);
+        $settled = $this->makeShare(3, 30.0, true, 3);
+        $this->existingShares = [$settled];
+
+        $this->expenseShareMapper->expects($this->never())->method('delete');
+        $this->expenseShareMapper->expects($this->never())->method('update');
+        $this->expenseShareMapper->expects($this->once())->method('insert')->willReturnArgument(0);
+
+        $result = $this->service->setTransactionShares('user1', 10, [['contactId' => 1, 'amount' => 30]]);
+
+        $this->assertContains($settled, $result);
+        $this->assertCount(2, $result);
+    }
+
+    public function testSetTransactionSharesWithNoSplitsRemovesEveryOpenOne(): void {
+        $this->givenTransaction(-90.0);
+        $open = $this->makeShare(1, 45.0, false, 1);
+        $this->existingShares = [$open];
+
+        $this->expenseShareMapper->expects($this->once())->method('delete')->with($open);
+
+        $this->assertSame([], $this->service->setTransactionShares('user1', 10, []));
+    }
+
+    public function testSetTransactionSharesRefusesChangingASettledSplit(): void {
+        $this->givenTransaction(-90.0);
+        $this->existingShares = [$this->makeShare(3, 30.0, true, 3)];
+        $this->expectNoWrites();
+
+        $this->expectExceptionCode(SharedExpenseService::SPLIT_ERR_SETTLED);
+        $this->service->setTransactionShares('user1', 10, [['contactId' => 3, 'amount' => 20]]);
+    }
+
+    public function testSetTransactionSharesRefusesMoreThanTheTransaction(): void {
+        $this->givenTransaction(-90.0);
+        $this->expectNoWrites();
+
+        $this->expectExceptionCode(SharedExpenseService::SPLIT_ERR_OVER_TOTAL);
+        $this->service->setTransactionShares('user1', 10, [
+            ['contactId' => 1, 'amount' => 45.01],
+            ['contactId' => 2, 'amount' => 45],
+        ]);
+    }
+
+    public function testSetTransactionSharesAllowsSplittingTheWholeTransaction(): void {
+        $this->givenTransaction(-90.0);
+        $this->expenseShareMapper->method('insert')->willReturnArgument(0);
+
+        $result = $this->service->setTransactionShares('user1', 10, [
+            ['contactId' => 1, 'amount' => 45],
+            ['contactId' => 2, 'amount' => 45],
+        ]);
+
+        $this->assertCount(2, $result);
+    }
+
+    public function testSetTransactionSharesCountsSettledSplitsTowardsTheTotal(): void {
+        $this->givenTransaction(-90.0);
+        $this->existingShares = [$this->makeShare(3, 60.0, true, 3)];
+        $this->expectNoWrites();
+
+        $this->expectExceptionCode(SharedExpenseService::SPLIT_ERR_OVER_TOTAL);
+        $this->service->setTransactionShares('user1', 10, [['contactId' => 1, 'amount' => 40]]);
+    }
+
+    public function testSetTransactionSharesMeasuresMoneyInTheSameWay(): void {
+        // Money in: splits are negative (you owe them), capped by the same total
+        $this->givenTransaction(200.0);
+        $this->expenseShareMapper->method('insert')->willReturnArgument(0);
+
+        $result = $this->service->setTransactionShares('user1', 10, [
+            ['contactId' => 1, 'amount' => -100],
+            ['contactId' => 2, 'amount' => -100],
+        ]);
+
+        $this->assertSame(-100.0, $result[0]->getAmount());
+    }
+
+    public function testSetTransactionSharesRefusesTheSamePersonTwice(): void {
+        $this->givenTransaction(-90.0);
+        $this->expectNoWrites();
+
+        $this->expectExceptionCode(SharedExpenseService::SPLIT_ERR_DUPLICATE);
+        $this->service->setTransactionShares('user1', 10, [
+            ['contactId' => 1, 'amount' => 10],
+            ['contactId' => 1, 'amount' => 20],
+        ]);
+    }
+
+    #[DataProvider('unusableAmounts')]
+    public function testSetTransactionSharesRefusesAnUnusableAmount(mixed $amount): void {
+        $this->givenTransaction(-90.0);
+        $this->expectNoWrites();
+
+        $this->expectExceptionCode(SharedExpenseService::SPLIT_ERR_AMOUNT);
+        $this->service->setTransactionShares('user1', 10, [['contactId' => 1, 'amount' => $amount]]);
+    }
+
+    public static function unusableAmounts(): array {
+        return [
+            'zero' => [0],
+            'rounds to zero' => ['0.004'],
+            'missing' => [null],
+            'not a number' => ['abc'],
+        ];
+    }
+
+    public function testSetTransactionSharesRefusesASplitThatIsNotAnObject(): void {
+        $this->givenTransaction(-90.0);
+        $this->expectNoWrites();
+
+        $this->expectExceptionCode(SharedExpenseService::SPLIT_ERR_AMOUNT);
+        $this->service->setTransactionShares('user1', 10, [45]);
+    }
+
+    public function testSetTransactionSharesRefusesSomeoneElsesContact(): void {
+        $this->transactionMapper->method('find')->willReturn($this->makeTransaction(10, -90.0));
+        $this->contactMapper->method('find')->willThrowException(new DoesNotExistException('nope'));
+        $this->expectNoWrites();
+
+        $this->expectException(DoesNotExistException::class);
+        $this->service->setTransactionShares('user1', 10, [['contactId' => 99, 'amount' => 10]]);
+    }
+
+    public function testSetTransactionSharesReachesATransactionInASharedAccount(): void {
+        $this->transactionMapper->method('find')->willThrowException(new DoesNotExistException('not yours'));
+        $this->transactionMapper->expects($this->once())->method('findForAccounts')
+            ->with(10, [1, 7])->willReturn($this->makeTransaction(10, -90.0));
+        $this->contactMapper->method('find')->willReturn($this->makeContact());
+        $this->expenseShareMapper->method('insert')->willReturnArgument(0);
+
+        $result = $this->service->setTransactionShares('user1', 10, [['contactId' => 1, 'amount' => 45]], null, [1, 7]);
+
+        $this->assertSame('USD', $result[0]->getCurrency());
+    }
+
+    public function testSetTransactionSharesRollsBackWhenAWriteFails(): void {
+        $this->givenTransaction(-90.0);
+        $this->expenseShareMapper->method('insert')->willThrowException(new \RuntimeException('db down'));
+        $this->db->expects($this->once())->method('beginTransaction');
+        $this->db->expects($this->once())->method('rollBack');
+        $this->db->expects($this->never())->method('commit');
+
+        $this->expectException(\RuntimeException::class);
+        $this->service->setTransactionShares('user1', 10, [['contactId' => 1, 'amount' => 45]]);
+    }
+
+    private function expectNoWrites(): void {
+        $this->expenseShareMapper->expects($this->never())->method('insert');
+        $this->expenseShareMapper->expects($this->never())->method('update');
+        $this->expenseShareMapper->expects($this->never())->method('delete');
+        $this->db->expects($this->never())->method('beginTransaction');
     }
 
     // ===== settlement =====

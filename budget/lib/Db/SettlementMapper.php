@@ -60,6 +60,20 @@ class SettlementMapper extends QBMapper {
     }
 
     /**
+     * Delete every settlement with a contact.
+     *
+     * @return int Number of deleted rows
+     */
+    public function deleteByContact(int $contactId, string $userId): int {
+        $qb = $this->db->getQueryBuilder();
+        $qb->delete($this->getTableName())
+            ->where($qb->expr()->eq('contact_id', $qb->createNamedParameter($contactId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+
+        return $qb->executeStatement();
+    }
+
+    /**
      * Settlements another user recorded against their contact for a Nextcloud
      * user — the recipient's side of that user's settlement history (#390).
      * Returned as the owner's entities; amounts are from the owner's side.

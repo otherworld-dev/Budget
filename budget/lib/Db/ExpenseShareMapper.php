@@ -75,6 +75,20 @@ class ExpenseShareMapper extends QBMapper {
     }
 
     /**
+     * Delete every share with a contact, settled or not.
+     *
+     * @return int Number of deleted rows
+     */
+    public function deleteByContact(int $contactId, string $userId): int {
+        $qb = $this->db->getQueryBuilder();
+        $qb->delete($this->getTableName())
+            ->where($qb->expr()->eq('contact_id', $qb->createNamedParameter($contactId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+
+        return $qb->executeStatement();
+    }
+
+    /**
      * Find all unsettled shares.
      *
      * @return ExpenseShare[]

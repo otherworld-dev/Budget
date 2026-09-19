@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **A transaction can be split between several people at once.** The Share expense dialog only split with one contact at a time, either 50/50 or a typed amount, so a bill shared between three meant opening it once for each person and working out their share by hand, and reopening it on a split transaction only offered to add someone else. It now lists all of your contacts with a tick box each, plus a row for you, and splits **Equally**, **By percentage** or **By amount**, showing what each person owes as you go. You are in the split by default, and unticking your own row divides the whole amount between the others, for something you paid on their behalf. A penny that will not divide evenly stays with you. Reopening the dialog shows the splits already saved, which can be changed, added to, or removed by unticking everyone, and a split that has been settled is shown but locked, with what it covered left out of what there is to split. Suggested by @justinlimbo ([#391](https://github.com/otherworld-dev/Budget/issues/391))
+
+### Fixed
+- **Deleting a contact removes what you split with them.** The confirmation said every shared expense with the contact would go, however only the contact itself was deleted. Its splits and settlements stayed behind, left out of every balance, and the transactions they belonged to kept a **Shared** badge that nothing could clear. Deleting a contact now removes its splits and settlements with it, and anything left behind by a contact deleted before this is cleared when you update ([#391](https://github.com/otherworld-dev/Budget/issues/391))
+
 ## [2.52.0] - 2026-09-18
 
 ### Added

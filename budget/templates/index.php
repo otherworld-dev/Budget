@@ -7057,24 +7057,19 @@ style('budget', 'budget-app');
             </div>
 
             <div class="form-group">
-                <label for="share-contact"><?php p($l->t('Split with')); ?> <span class="required">*</span></label>
-                <select id="share-contact" name="contactId" required>
-                    <option value=""><?php p($l->t('Select a contact...')); ?></option>
+                <label for="share-split-type"><?php p($l->t('Split Method')); ?></label>
+                <select id="share-split-type" name="splitType">
+                    <option value="equal"><?php p($l->t('Equally')); ?></option>
+                    <option value="percent"><?php p($l->t('By percentage')); ?></option>
+                    <option value="amount"><?php p($l->t('By amount')); ?></option>
                 </select>
             </div>
 
             <div class="form-group">
-                <label for="share-split-type"><?php p($l->t('Split Method')); ?></label>
-                <select id="share-split-type" name="splitType">
-                    <option value="50-50"><?php p($l->t('50/50 Split')); ?></option>
-                    <option value="custom"><?php p($l->t('Custom Amount')); ?></option>
-                </select>
-            </div>
-
-            <div class="form-group" id="share-custom-amount-group" style="display: none;">
-                <label for="share-amount"><?php p($l->t('Amount They Owe You')); ?></label>
-                <input type="number" id="share-amount" name="amount" step="0.01" placeholder="0.00">
-                <small class="form-text"><?php p($l->t('Positive = they owe you, negative = you owe them')); ?></small>
+                <span id="share-people-label" class="share-people-label"><?php p($l->t('Split between')); ?></span>
+                <div id="share-people" class="share-people" role="group" aria-labelledby="share-people-label"></div>
+                <small id="share-settled-note" class="form-text" style="display: none;"></small>
+                <p id="share-summary" class="share-summary" aria-live="polite"></p>
             </div>
 
             <div class="form-group">
@@ -7083,7 +7078,7 @@ style('budget', 'budget-app');
             </div>
 
             <div class="modal-buttons">
-                <button type="submit" class="primary"><?php p($l->t('Share Expense')); ?></button>
+                <button type="submit" class="primary"><?php p($l->t('Save Split')); ?></button>
                 <button type="button" class="secondary cancel-btn"><?php p($l->t('Cancel')); ?></button>
             </div>
         </form>

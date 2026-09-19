@@ -322,6 +322,7 @@ return [
         ['name' => 'sharedExpense#shareExpense', 'url' => '/api/shared/shares', 'verb' => 'POST'],
         ['name' => 'sharedExpense#splitFiftyFifty', 'url' => '/api/shared/shares/split', 'verb' => 'POST'],
         ['name' => 'sharedExpense#transactionShares', 'url' => '/api/shared/transactions/{transactionId}/shares', 'verb' => 'GET'],
+        ['name' => 'sharedExpense#setTransactionShares', 'url' => '/api/shared/transactions/{transactionId}/shares', 'verb' => 'PUT'],
         ['name' => 'sharedExpense#updateShare', 'url' => '/api/shared/shares/{id}', 'verb' => 'PUT'],
         ['name' => 'sharedExpense#markSettled', 'url' => '/api/shared/shares/{id}/settle', 'verb' => 'POST'],
         ['name' => 'sharedExpense#destroyShare', 'url' => '/api/shared/shares/{id}', 'verb' => 'DELETE'],

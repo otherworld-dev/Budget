@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-18 00:50+0000\n"
+"POT-Creation-Date: 2026-09-19 12:31+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -307,7 +307,7 @@ msgstr ""
 #: /app/templates/index.php:2498 /app/templates/index.php:5231
 #: /app/templates/index.php:5256 /app/templates/index.php:5292
 #: /app/templates/index.php:5470 /app/templates/index.php:5606
-#: /app/templates/index.php:6306 /app/templates/index.php:7122
+#: /app/templates/index.php:6306 /app/templates/index.php:7117
 #: /app/templates/quick-add.php:22
 msgid "Date"
 msgstr ""
@@ -852,7 +852,7 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:583
 #: /app/lib/Service/Report/ReportExporter.php:658
 #: /app/src/modules/categories/CategoriesModule.js:2301
-#: /app/src/modules/reports/ReportsModule.js:1926 /app/templates/index.php:7116
+#: /app/src/modules/reports/ReportsModule.js:1926 /app/templates/index.php:7111
 msgid "Total"
 msgstr ""
 
@@ -2047,98 +2047,124 @@ msgstr ""
 msgid "Failed to update auto-share configuration"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:65
+#: /app/lib/Controller/SharedExpenseController.php:66
 msgid "Failed to get contacts"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:87
+#: /app/lib/Controller/SharedExpenseController.php:88
 msgid "Nextcloud user not found"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:105
+#: /app/lib/Controller/SharedExpenseController.php:106
 msgid "Failed to create contact"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:174
+#: /app/lib/Controller/SharedExpenseController.php:175
 msgid "Failed to update contact"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:196
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:394
+#: /app/lib/Controller/SharedExpenseController.php:197
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:395
 msgid "Failed to delete contact"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:218
+#: /app/lib/Controller/SharedExpenseController.php:219
 msgid "Failed to get contact details"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:242
+#: /app/lib/Controller/SharedExpenseController.php:243
 msgid "Failed to get balances"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:264
+#: /app/lib/Controller/SharedExpenseController.php:265
 msgid "Failed to get shared expenses"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:286
+#: /app/lib/Controller/SharedExpenseController.php:287
 msgid "Failed to get shared transactions"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:318
-#: /app/lib/Controller/SharedExpenseController.php:345
+#: /app/lib/Controller/SharedExpenseController.php:319
+#: /app/lib/Controller/SharedExpenseController.php:346
 msgid "This transaction is already shared with this contact"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:327
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:768
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:783
+#: /app/lib/Controller/SharedExpenseController.php:328
 msgid "Failed to share expense"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:354
+#: /app/lib/Controller/SharedExpenseController.php:355
 msgid "Failed to split expense"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:376
+#: /app/lib/Controller/SharedExpenseController.php:381
+msgid "Each person can only be in a split once"
+msgstr ""
+
+#: /app/lib/Controller/SharedExpenseController.php:382
+msgid "A split that has been settled cannot be changed"
+msgstr ""
+
+#: /app/lib/Controller/SharedExpenseController.php:383
+msgid "Every split needs an amount"
+msgstr ""
+
+#: /app/lib/Controller/SharedExpenseController.php:384
+msgid "The splits add up to more than the transaction"
+msgstr ""
+
+#: /app/lib/Controller/SharedExpenseController.php:385
+#: /app/lib/Controller/SharedExpenseController.php:399
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:912
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:967
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:981
+msgid "Failed to save the split"
+msgstr ""
+
+#: /app/lib/Controller/SharedExpenseController.php:390
+msgid "Transaction or contact not found"
+msgstr ""
+
+#: /app/lib/Controller/SharedExpenseController.php:421
 msgid "Failed to get shares"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:398
+#: /app/lib/Controller/SharedExpenseController.php:443
 msgid "Failed to update share"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:420
+#: /app/lib/Controller/SharedExpenseController.php:465
 msgid "Failed to mark settled"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:442
+#: /app/lib/Controller/SharedExpenseController.php:487
 msgid "Failed to delete share"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:460
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:631
+#: /app/lib/Controller/SharedExpenseController.php:505
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:632
 msgid "Please select at least one expense to settle"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:475
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:659
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:687
+#: /app/lib/Controller/SharedExpenseController.php:520
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:660
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:688
 msgid "Failed to settle expenses"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:510
+#: /app/lib/Controller/SharedExpenseController.php:555
 msgid "Failed to record settlement"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:535
+#: /app/lib/Controller/SharedExpenseController.php:580
 msgid "Failed to settle"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:557
+#: /app/lib/Controller/SharedExpenseController.php:602
 msgid "Failed to get settlements"
 msgstr ""
 
-#: /app/lib/Controller/SharedExpenseController.php:579
+#: /app/lib/Controller/SharedExpenseController.php:624
 msgid "Failed to delete settlement"
 msgstr ""
 
@@ -2180,7 +2206,7 @@ msgstr ""
 
 #: /app/lib/Controller/TagSetController.php:234
 #: /app/lib/Controller/TagSetController.php:358
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:339
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:340
 msgid "Name is required"
 msgstr ""
 
@@ -2513,6 +2539,7 @@ msgstr ""
 #: /app/src/modules/dashboard/DashboardModule.js:2532
 #: /app/src/modules/dashboard/DashboardModule.js:2671
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:174
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:845
 #: /app/src/modules/transactions/TransactionsModule.js:3726
 #: /app/src/modules/transfers/TransfersModule.js:1179
 msgid "Unknown"
@@ -3086,7 +3113,7 @@ msgstr ""
 #: /app/templates/index.php:5063 /app/templates/index.php:5710
 #: /app/templates/index.php:6074 /app/templates/index.php:6226
 #: /app/templates/index.php:6541 /app/templates/index.php:6967
-#: /app/templates/index.php:7081 /app/templates/index.php:7127
+#: /app/templates/index.php:7076 /app/templates/index.php:7122
 #: /app/templates/quick-add.php:70
 msgid "Notes"
 msgstr ""
@@ -4208,7 +4235,7 @@ msgstr ""
 
 #: /app/src/core/KeyboardShortcuts.js:345
 #: /app/src/modules/help/HelpModule.js:35 /app/templates/index.php:173
-#: /app/templates/index.php:4083 /app/templates/index.php:7160
+#: /app/templates/index.php:4083 /app/templates/index.php:7155
 msgid "Shared Expenses"
 msgstr ""
 
@@ -4298,8 +4325,8 @@ msgstr ""
 #: /app/templates/index.php:5284 /app/templates/index.php:5320
 #: /app/templates/index.php:5374 /app/templates/index.php:5464
 #: /app/templates/index.php:5573 /app/templates/index.php:6406
-#: /app/templates/index.php:6821 /app/templates/index.php:7177
-#: /app/templates/index.php:7239 /app/templates/index.php:7340
+#: /app/templates/index.php:6821 /app/templates/index.php:7172
+#: /app/templates/index.php:7234 /app/templates/index.php:7335
 msgid "Close"
 msgstr ""
 
@@ -4446,11 +4473,12 @@ msgid "Shared expense - settled"
 msgstr ""
 
 #: /app/src/main.js:1203
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:67
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:176
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:418
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:501
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:536
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:68
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:177
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:419
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:502
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:537
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:848
 msgid "Settled"
 msgstr ""
 
@@ -4731,7 +4759,7 @@ msgid "Deleting..."
 msgstr ""
 
 #: /app/src/main.js:2294 /app/src/modules/settings/SettingsModule.js:574
-#: /app/templates/index.php:7223
+#: /app/templates/index.php:7218
 msgid "Delete Everything"
 msgstr ""
 
@@ -4882,7 +4910,7 @@ msgstr ""
 #: /app/src/modules/assets/AssetsModule.js:166
 #: /app/src/modules/pensions/PensionsModule.js:120
 #: /app/src/modules/savings/SavingsModule.js:138
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:198
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:199
 #: /app/src/modules/tagsets/TagSetsModule.js:86 /app/templates/index.php:1193
 #: /app/templates/index.php:1929 /app/templates/index.php:3901
 msgid "Edit"
@@ -4897,7 +4925,7 @@ msgstr ""
 #: /app/src/modules/pensions/PensionsModule.js:821
 #: /app/src/modules/pensions/PensionsModule.js:1092
 #: /app/src/modules/savings/SavingsModule.js:141
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:201
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:202
 #: /app/src/modules/tagsets/TagSetsModule.js:87 /app/templates/index.php:1147
 #: /app/templates/index.php:1683 /app/templates/index.php:1933
 #: /app/templates/index.php:3061
@@ -5862,7 +5890,7 @@ msgstr ""
 #: /app/src/modules/bank-sync/BankSyncModule.js:342
 #: /app/src/modules/bank-sync/BankSyncModule.js:378
 #: /app/templates/index.php:1530 /app/templates/index.php:2479
-#: /app/templates/index.php:7290
+#: /app/templates/index.php:7285
 msgid "Next"
 msgstr ""
 
@@ -5893,7 +5921,7 @@ msgid "No banks found for this country."
 msgstr ""
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:578
-#: /app/templates/index.php:7317
+#: /app/templates/index.php:7312
 msgid "Connect"
 msgstr ""
 
@@ -5923,7 +5951,7 @@ msgid "Authorization check failed: {error}"
 msgstr ""
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:632
-#: /app/templates/index.php:7339
+#: /app/templates/index.php:7334
 msgid "I've Completed Authorization"
 msgstr ""
 
@@ -6065,7 +6093,7 @@ msgstr ""
 
 #: /app/src/modules/bills/BillsModule.js:313
 #: /app/src/modules/reports/ReportsModule.js:1981
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:518
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:519
 #: /app/src/modules/transfers/TransfersModule.js:282
 #: /app/templates/index.php:2596
 msgid "Paid"
@@ -6498,8 +6526,8 @@ msgstr ""
 #: /app/templates/index.php:6782 /app/templates/index.php:6878
 #: /app/templates/index.php:6934 /app/templates/index.php:6974
 #: /app/templates/index.php:7000 /app/templates/index.php:7040
-#: /app/templates/index.php:7087 /app/templates/index.php:7133
-#: /app/templates/index.php:7220 /app/templates/index.php:7291
+#: /app/templates/index.php:7082 /app/templates/index.php:7128
+#: /app/templates/index.php:7215 /app/templates/index.php:7286
 msgid "Cancel"
 msgstr ""
 
@@ -7426,7 +7454,7 @@ msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:4753
 #: /app/src/modules/dashboard/DashboardModule.js:4845
-#: /app/templates/index.php:7232
+#: /app/templates/index.php:7227
 msgid "Tile Settings"
 msgstr ""
 
@@ -7852,7 +7880,7 @@ msgid ""
 msgstr ""
 
 #: /app/src/modules/help/HelpModule.js:46 /app/templates/index.php:276
-#: /app/templates/index.php:4838 /app/templates/index.php:7357
+#: /app/templates/index.php:4838 /app/templates/index.php:7352
 msgid "Help & Docs"
 msgstr ""
 
@@ -8325,7 +8353,7 @@ msgid "Completed"
 msgstr ""
 
 #: /app/src/modules/income/IncomeModule.js:106
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:518
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:519
 #: /app/templates/index.php:2794
 msgid "Received"
 msgstr ""
@@ -8992,7 +9020,7 @@ msgid "Invalid criteria: {errors}"
 msgstr ""
 
 #: /app/src/modules/rules/RulesModule.js:903
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:550
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:551
 #: /app/src/modules/sharing/SharingModule.js:38
 #: /app/src/modules/transactions/TransactionsModule.js:1314
 #: /app/src/modules/transactions/TransactionsModule.js:4868
@@ -9802,141 +9830,193 @@ msgstr ""
 msgid "Settings reset to defaults"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:62
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:63
 msgid "Shared expense"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:68
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:69
 msgid "Outstanding"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:73
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:74
 msgid "from {owner}"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:166
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:167
 #: /app/templates/index.php:4118
 msgid "Add contacts to start splitting expenses"
-msgstr ""
-
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:179
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:423
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:540
-msgid "Owes you {amount}"
 msgstr ""
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:180
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:424
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:541
+msgid "Owes you {amount}"
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:181
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:425
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:542
 msgid "You owe {amount}"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:277
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:278
 msgid "Edit Contact"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:277
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:278
 #: /app/templates/index.php:4087 /app/templates/index.php:7009
 msgid "Add Contact"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:294
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:295
 #: /app/templates/index.php:7020
 msgid "— None (enter details manually) —"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:360
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:361
 msgid "Contact updated"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:360
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:361
 msgid "Contact added"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:365
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:366
 msgid "Failed to save contact"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:377
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:378
 msgid ""
 "Are you sure you want to delete this contact? This will also remove all "
 "shared expense records with them."
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:389
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:390
 msgid "Contact deleted"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:468
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:469
 msgid "Failed to load contact details"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:475
-#: /app/templates/index.php:7166
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:476
+#: /app/templates/index.php:7161
 msgid "No shared expenses"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:483
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:484
 msgid "Only {name} can settle the expenses they split with you."
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:491
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:492
 msgid "split by {name}"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:501
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:502
 msgid "Open"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:510
-#: /app/templates/index.php:7172
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:511
+#: /app/templates/index.php:7167
 msgid "No settlements yet"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:564
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:565
 msgid "No unsettled expenses"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:604
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:605
 msgid "Failed to load expenses"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:636
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:637
 msgid "Date is required"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:653
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:654
 msgid "Expenses settled"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:664
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:665
 msgid ""
 "This will mark all shared expenses with this contact as settled. Continue?"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:682
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:683
 msgid "All expenses settled"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:704
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:710
 msgid "Please add contacts first in Shared Expenses"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:719
-#: /app/templates/index.php:7062
-msgid "Select a contact..."
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:723
+msgid "Failed to load the split"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:737
-msgid "Please select a contact"
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:760
+msgid ""
+"{amount} of this has already been settled, so it is left out of the split."
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:750
-msgid "Amount is required for custom splits"
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:808
+msgid "Percentage for {name}"
 msgstr ""
 
-#: /app/src/modules/shared-expenses/SharedExpensesModule.js:774
-msgid "Expense shared"
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:809
+msgid "Amount for {name}"
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:828
+msgid "You"
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:886
+msgid "Nobody is ticked, so saving removes this split."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:893
+msgid "You owe the others {owed}. Your part is {mine}."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:894
+msgid "The others owe you {owed}. Your share is {mine}."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:897
+msgid "Tick at least one person to split with."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:899
+msgid "There is not enough to split between this many people."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:902
+msgid "Enter a percentage for everyone ticked."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:903
+msgid "Enter an amount for everyone ticked."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:905
+msgid "The percentages add up to {total} and need to add up to {full}."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:910
+msgid "The amounts add up to {amount} more than there is to split."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:943
+msgid "Remove this split? Nobody will owe anything for this transaction."
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:972
+msgid "Split removed"
+msgstr ""
+
+#: /app/src/modules/shared-expenses/SharedExpensesModule.js:972
+msgid "Split saved"
 msgstr ""
 
 #: /app/src/modules/sharing/SharingModule.js:49
@@ -12002,7 +12082,7 @@ msgstr ""
 msgid "250 per page"
 msgstr ""
 
-#: /app/templates/index.php:1787 /app/templates/index.php:7110
+#: /app/templates/index.php:1787 /app/templates/index.php:7105
 msgid "Select all"
 msgstr ""
 
@@ -12935,7 +13015,7 @@ msgid "Edit pension"
 msgstr ""
 
 #: /app/templates/index.php:3702 /app/templates/index.php:4737
-#: /app/templates/index.php:5139 /app/templates/index.php:7252
+#: /app/templates/index.php:5139 /app/templates/index.php:7247
 msgid "Provider"
 msgstr ""
 
@@ -13804,7 +13884,7 @@ msgstr ""
 msgid "Open docs site"
 msgstr ""
 
-#: /app/templates/index.php:4846 /app/templates/index.php:7358
+#: /app/templates/index.php:4846 /app/templates/index.php:7353
 msgid "Report an Issue"
 msgstr ""
 
@@ -15244,7 +15324,7 @@ msgstr ""
 msgid "Optional email address"
 msgstr ""
 
-#: /app/templates/index.php:7049 /app/templates/index.php:7086
+#: /app/templates/index.php:7049
 msgid "Share Expense"
 msgstr ""
 
@@ -15253,230 +15333,230 @@ msgid "Share expense form"
 msgstr ""
 
 #: /app/templates/index.php:7060
-msgid "Split with"
-msgstr ""
-
-#: /app/templates/index.php:7067
 msgid "Split Method"
 msgstr ""
 
+#: /app/templates/index.php:7062
+msgid "Equally"
+msgstr ""
+
+#: /app/templates/index.php:7063
+msgid "By percentage"
+msgstr ""
+
+#: /app/templates/index.php:7064
+msgid "By amount"
+msgstr ""
+
 #: /app/templates/index.php:7069
-msgid "50/50 Split"
-msgstr ""
-
-#: /app/templates/index.php:7070
-msgid "Custom Amount"
-msgstr ""
-
-#: /app/templates/index.php:7075
-msgid "Amount They Owe You"
+msgid "Split between"
 msgstr ""
 
 #: /app/templates/index.php:7077
-msgid "Positive = they owe you, negative = you owe them"
-msgstr ""
-
-#: /app/templates/index.php:7082
 msgid "Optional notes about this split"
 msgstr ""
 
-#: /app/templates/index.php:7096
+#: /app/templates/index.php:7081
+msgid "Save Split"
+msgstr ""
+
+#: /app/templates/index.php:7091
 msgid "Settle Expenses"
 msgstr ""
 
-#: /app/templates/index.php:7097
+#: /app/templates/index.php:7092
 msgid "Settlement form"
 msgstr ""
 
-#: /app/templates/index.php:7106
+#: /app/templates/index.php:7101
 msgid "Select expenses to settle"
 msgstr ""
 
-#: /app/templates/index.php:7128 /app/templates/quick-add.php:71
+#: /app/templates/index.php:7123 /app/templates/quick-add.php:71
 msgid "Optional notes"
 msgstr ""
 
-#: /app/templates/index.php:7132
+#: /app/templates/index.php:7127
 msgid "Settle Selected"
 msgstr ""
 
-#: /app/templates/index.php:7142
+#: /app/templates/index.php:7137
 msgid "Contact Details"
 msgstr ""
 
-#: /app/templates/index.php:7149
+#: /app/templates/index.php:7144
 msgid "Balance:"
 msgstr ""
 
-#: /app/templates/index.php:7155
+#: /app/templates/index.php:7150
 msgid "Settle All"
 msgstr ""
 
-#: /app/templates/index.php:7156
+#: /app/templates/index.php:7151
 msgid "Record Payment"
 msgstr ""
 
-#: /app/templates/index.php:7161
+#: /app/templates/index.php:7156
 msgid "Settlement History"
 msgstr ""
 
-#: /app/templates/index.php:7187
+#: /app/templates/index.php:7182
 msgid "Confirm Factory Reset"
 msgstr ""
 
-#: /app/templates/index.php:7191
+#: /app/templates/index.php:7186
 msgid "WARNING: This action cannot be undone!"
 msgstr ""
 
-#: /app/templates/index.php:7192
+#: /app/templates/index.php:7187
 msgid "A factory reset will permanently delete ALL of your data including:"
 msgstr ""
 
-#: /app/templates/index.php:7194
+#: /app/templates/index.php:7189
 msgid "All accounts and their balances"
 msgstr ""
 
-#: /app/templates/index.php:7195
+#: /app/templates/index.php:7190
 msgid "All transactions and transaction history"
 msgstr ""
 
-#: /app/templates/index.php:7196
+#: /app/templates/index.php:7191
 msgid "All bills and recurring income"
 msgstr ""
 
-#: /app/templates/index.php:7197
+#: /app/templates/index.php:7192
 msgid "All categories and budget settings"
 msgstr ""
 
-#: /app/templates/index.php:7198
+#: /app/templates/index.php:7193
 msgid "All savings goals and pension accounts"
 msgstr ""
 
-#: /app/templates/index.php:7199
+#: /app/templates/index.php:7194
 msgid "All import rules and settings"
 msgstr ""
 
-#: /app/templates/index.php:7200
+#: /app/templates/index.php:7195
 msgid "All shared expenses and contacts"
 msgstr ""
 
-#: /app/templates/index.php:7202
+#: /app/templates/index.php:7197
 msgid "Only audit logs will be preserved for compliance purposes."
 msgstr ""
 
-#: /app/templates/index.php:7203
+#: /app/templates/index.php:7198
 msgid "You will need to set up everything from scratch after this operation."
 msgstr ""
 
-#: /app/templates/index.php:7208
+#: /app/templates/index.php:7203
 msgid "Type DELETE to confirm:"
 msgstr ""
 
-#: /app/templates/index.php:7213
+#: /app/templates/index.php:7208
 msgid "Type DELETE to confirm"
 msgstr ""
 
-#: /app/templates/index.php:7216
+#: /app/templates/index.php:7211
 msgid "You must type DELETE (all caps) exactly to proceed"
 msgstr ""
 
-#: /app/templates/index.php:7245 /app/templates/index.php:7249
+#: /app/templates/index.php:7240 /app/templates/index.php:7244
 msgid "Add Bank Connection"
 msgstr ""
 
-#: /app/templates/index.php:7254
+#: /app/templates/index.php:7249
 msgid "Select a provider..."
 msgstr ""
 
-#: /app/templates/index.php:7255
+#: /app/templates/index.php:7250
 msgid "GoCardless (UK/Europe)"
 msgstr ""
 
-#: /app/templates/index.php:7256
+#: /app/templates/index.php:7251
 msgid "SimpleFIN Bridge (US)"
 msgstr ""
 
-#: /app/templates/index.php:7261
+#: /app/templates/index.php:7256
 msgid "Connection Name"
 msgstr ""
 
-#: /app/templates/index.php:7262
+#: /app/templates/index.php:7257
 msgid "e.g. My Bank"
 msgstr ""
 
-#: /app/templates/index.php:7268
+#: /app/templates/index.php:7263
 msgid "Setup Token"
 msgstr ""
 
-#: /app/templates/index.php:7269
+#: /app/templates/index.php:7264
 msgid "Paste your SimpleFIN setup token"
 msgstr ""
 
-#: /app/templates/index.php:7270
+#: /app/templates/index.php:7265
 msgid "Get a token from beta-bridge.simplefin.org"
 msgstr ""
 
-#: /app/templates/index.php:7277
+#: /app/templates/index.php:7272
 msgid "Secret ID"
 msgstr ""
 
-#: /app/templates/index.php:7278
+#: /app/templates/index.php:7273
 msgid "Your GoCardless Secret ID"
 msgstr ""
 
-#: /app/templates/index.php:7281
+#: /app/templates/index.php:7276
 msgid "Secret Key"
 msgstr ""
 
-#: /app/templates/index.php:7282
+#: /app/templates/index.php:7277
 msgid "Your GoCardless Secret Key"
 msgstr ""
 
-#: /app/templates/index.php:7284
+#: /app/templates/index.php:7279
 msgid "Get API keys from bankaccountdata.gocardless.com"
 msgstr ""
 
-#: /app/templates/index.php:7297
+#: /app/templates/index.php:7292
 msgid "Select Your Bank"
 msgstr ""
 
-#: /app/templates/index.php:7300
+#: /app/templates/index.php:7295
 msgid "Country"
 msgstr ""
 
-#: /app/templates/index.php:7305
+#: /app/templates/index.php:7300
 msgid "Search banks..."
 msgstr ""
 
-#: /app/templates/index.php:7309
+#: /app/templates/index.php:7304
 msgid "Loading banks..."
 msgstr ""
 
-#: /app/templates/index.php:7318
+#: /app/templates/index.php:7313
 msgid "Back"
 msgstr ""
 
-#: /app/templates/index.php:7324
+#: /app/templates/index.php:7319
 msgid "Authorize with Your Bank"
 msgstr ""
 
-#: /app/templates/index.php:7327
+#: /app/templates/index.php:7322
 msgid "A new window has been opened for you to authorize access at your bank."
 msgstr ""
 
-#: /app/templates/index.php:7328
+#: /app/templates/index.php:7323
 msgid "Once you have completed the authorization, click the button below."
 msgstr ""
 
-#: /app/templates/index.php:7330
+#: /app/templates/index.php:7325
 msgid "If the window did not open, "
 msgstr ""
 
-#: /app/templates/index.php:7331
+#: /app/templates/index.php:7326
 msgid "click here to authorize"
 msgstr ""
 
-#: /app/templates/index.php:7347 /app/templates/index.php:7350
+#: /app/templates/index.php:7342 /app/templates/index.php:7345
 msgid "Help"
 msgstr ""
 

@@ -16327,6 +16327,123 @@ button.secondary.compact {
     font-weight: 600;
 }
 
+/* Everyone the transaction can be split between (#391) */
+/* Matches .form-group label, as it heads a group rather than one input */
+.share-people-label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: var(--color-text-maxcontrast);
+    font-size: 15px;
+}
+
+.share-people {
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.share-person-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto 90px;
+    gap: 10px;
+    align-items: center;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.share-person-row:last-child {
+    border-bottom: none;
+}
+
+.share-person-row.settled {
+    color: var(--color-text-maxcontrast);
+}
+
+/* Scoped under .share-people to win over the generic .form-group label/input rules */
+.share-people .share-person-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    margin: 0;
+    font-weight: normal;
+    font-size: 14px;
+    color: var(--color-main-text);
+    cursor: pointer;
+}
+
+.share-people .share-person-row.settled .share-person-name {
+    color: var(--color-text-maxcontrast);
+    cursor: default;
+}
+
+.share-people .share-person-name span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.share-people input.share-person-check {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    min-height: 16px;
+    margin: 0;
+    padding: 0;
+    accent-color: var(--color-primary-element, #0082c9);
+}
+
+.share-person-value-wrap {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.share-people input.share-person-value {
+    width: 90px;
+    min-height: 32px;
+    margin: 0;
+    padding: 4px 8px;
+    font-size: 14px;
+    text-align: right;
+}
+
+.share-person-amount {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.share-person-row.settled .share-person-amount {
+    grid-column: 2 / 4;
+}
+
+/* On a phone the box and amount columns squeezed names down to a few letters */
+@media (max-width: 480px) {
+    .share-person-row {
+        grid-template-columns: minmax(0, 1fr) auto 72px;
+        gap: 6px;
+        padding: 6px 8px;
+    }
+
+    .share-people input.share-person-value {
+        width: 64px;
+        padding: 4px 6px;
+    }
+}
+
+.share-summary {
+    margin: 8px 0 0;
+    font-size: 13px;
+}
+
+/* --color-error is a surface tint (#552121 in dark, unreadable as text there) */
+.share-summary.error {
+    color: var(--color-error-text, #8a0000);
+}
+
 /* Settlement Modal */
 .settlement-contact-info {
     display: flex;

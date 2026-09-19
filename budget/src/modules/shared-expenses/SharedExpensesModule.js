@@ -7,6 +7,7 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
+import { computeSplit, toCents } from './splitMath.js';
 
 export default class SharedExpensesModule {
     constructor(app) {
@@ -688,6 +689,11 @@ export default class SharedExpensesModule {
         }
     }
 
+    /**
+     * Split a transaction between any number of contacts at once (#391).
+     * Opens on the transaction's current splits. Settled ones are shown but
+     * locked, and what they cover is left out of what there is to split.
+     */
     async showShareExpenseModal(transaction) {
         const modal = document.getElementById('share-expense-modal');
 
@@ -705,73 +711,267 @@ export default class SharedExpensesModule {
             return;
         }
 
-        document.getElementById('share-transaction-id').value = transaction.id;
-        document.getElementById('share-transaction-date').textContent = transaction.date;
-        document.getElementById('share-transaction-desc').textContent = transaction.description;
-        // Get transaction's account currency
-        const account = (this.app.accounts || []).find(a => a.id === transaction.accountId);
-        const txCurrency = account?.currency || null;
-        this._shareTransactionCurrency = txCurrency;
-        document.getElementById('share-transaction-amount').textContent = this.formatCurrency(Math.abs(transaction.amount), txCurrency);
-
-        // Populate contacts dropdown
-        const contactSelect = document.getElementById('share-contact');
-        contactSelect.innerHTML = `<option value="">${t('budget', 'Select a contact...')}</option>` +
-            (this.contacts || []).map(c => `<option value="${c.id}">${this.escapeHtml(c.name)}</option>`).join('');
-
-        document.getElementById('share-split-type').value = '50-50';
-        document.getElementById('share-custom-amount-group').style.display = 'none';
-        document.getElementById('share-amount').value = '';
-        document.getElementById('share-notes').value = '';
-
-        modal.style.display = 'flex';
-    }
-
-    async saveShareExpense() {
-        const transactionId = parseInt(document.getElementById('share-transaction-id').value);
-        const contactId = parseInt(document.getElementById('share-contact').value);
-        const splitType = document.getElementById('share-split-type').value;
-        const notes = document.getElementById('share-notes').value.trim();
-
-        if (!contactId) {
-            showWarning(t('budget', 'Please select a contact'));
+        let shares;
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/shared/transactions/${transaction.id}/shares`), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) throw new Error('Failed to load shares');
+            shares = await response.json();
+        } catch (error) {
+            console.error('Failed to load transaction shares:', error);
+            showError(t('budget', 'Failed to load the split'));
             return;
         }
 
-        try {
-            let url, body;
+        const account = (this.app.accounts || []).find(a => a.id === transaction.accountId);
+        const settled = shares.filter(s => s.isSettled);
+        const open = shares.filter(s => !s.isSettled);
+        const settledCents = settled.reduce((sum, s) => sum + Math.abs(toCents(s.amount)), 0);
 
-            if (splitType === '50-50') {
-                url = OC.generateUrl('/apps/budget/api/shared/shares/split');
-                body = { transactionId, contactId, notes: notes || null };
-            } else {
-                const amount = parseFloat(document.getElementById('share-amount').value);
-                if (!amount) {
-                    showWarning(t('budget', 'Amount is required for custom splits'));
-                    return;
-                }
-                url = OC.generateUrl('/apps/budget/api/shared/shares');
-                body = { transactionId, contactId, amount, notes: notes || null };
+        this._share = {
+            transactionId: transaction.id,
+            currency: account?.currency || null,
+            isCredit: transaction.type === 'credit',
+            availableCents: Math.max(0, Math.abs(toCents(transaction.amount)) - settledCents),
+            settled,
+            hadOpen: open.length > 0,
+            // An existing split reopens as the amounts it was saved as
+            method: open.length > 0 ? 'amount' : 'equal',
+            includeMe: true,
+            ticked: new Set(open.map(s => s.contactId)),
+            values: {
+                percent: new Map(),
+                amount: new Map(open.map(s => [s.contactId, (Math.abs(toCents(s.amount)) / 100).toFixed(2)])),
+            },
+            // Until a percentage is typed, ticking someone re-spreads them evenly
+            percentTyped: false,
+        };
+
+        document.getElementById('share-transaction-id').value = transaction.id;
+        document.getElementById('share-transaction-date').textContent = transaction.date;
+        document.getElementById('share-transaction-desc').textContent = transaction.description;
+        document.getElementById('share-transaction-amount').textContent = this.formatCurrency(Math.abs(transaction.amount), this._share.currency);
+        document.getElementById('share-split-type').value = this._share.method;
+        document.getElementById('share-notes').value = open.find(s => s.notes)?.notes || '';
+
+        const settledNote = document.getElementById('share-settled-note');
+        settledNote.textContent = settledCents > 0
+            ? t('budget', '{amount} of this has already been settled, so it is left out of the split.', { amount: this.formatCurrency(settledCents / 100, this._share.currency) })
+            : '';
+        settledNote.style.display = settledCents > 0 ? 'block' : 'none';
+
+        this._renderSharePeople();
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    /** Ticked contacts in the order they are listed, which is who gets a spare penny first */
+    _tickedContactIds() {
+        return (this.contacts || []).filter(c => this._share.ticked.has(c.id)).map(c => c.id);
+    }
+
+    _spreadPercentEvenly() {
+        const s = this._share;
+        const ids = [...(s.includeMe ? ['me'] : []), ...this._tickedContactIds()];
+        s.values.percent = new Map();
+        if (ids.length === 0) return;
+        const each = Math.floor(10000 / ids.length);
+        const spare = 10000 - each * ids.length;
+        ids.forEach((id, i) => s.values.percent.set(id, ((each + (i === 0 ? spare : 0)) / 100).toFixed(2)));
+    }
+
+    _computeShare() {
+        const s = this._share;
+        return computeSplit({
+            totalCents: s.availableCents,
+            method: s.method,
+            includeMe: s.includeMe,
+            myValue: s.values.percent.get('me') ?? null,
+            people: this._tickedContactIds().map(id => ({ id, value: s.values[s.method]?.get(id) ?? null })),
+        });
+    }
+
+    /** Your row, a row per contact, then any settled splits, locked */
+    _renderSharePeople() {
+        const s = this._share;
+        if (s.method === 'percent' && !s.percentTyped) {
+            this._spreadPercentEvenly();
+        }
+
+        const values = s.values[s.method];
+        // Only people in the split get a box, so a long contact list stays readable
+        const valueCell = (id, name, inSplit) => {
+            if (s.method === 'equal' || id === null || !inSplit) {
+                return '<span class="share-person-value-wrap"></span>';
             }
+            // t() escapes the name itself
+            const label = s.method === 'percent'
+                ? t('budget', 'Percentage for {name}', { name })
+                : t('budget', 'Amount for {name}', { name });
+            return `
+                <span class="share-person-value-wrap">
+                    <input type="number" class="share-person-value" step="0.01" min="0" inputmode="decimal"
+                           value="${this.escapeHtml(values?.get(id) ?? '')}" aria-label="${label}">
+                    ${s.method === 'percent' ? '<span class="share-person-unit">%</span>' : ''}
+                </span>`;
+        };
+        const row = (id, name, { checked, checkDisabled = false, value = '', amount = '', cls = '' }) => `
+            <div class="share-person-row${cls}" data-person="${id}">
+                <label class="share-person-name">
+                    <input type="checkbox" class="share-person-check"${checked ? ' checked' : ''}${checkDisabled ? ' disabled' : ''}>
+                    <span>${this.escapeHtml(name)}</span>
+                </label>
+                ${value}
+                <span class="share-person-amount">${amount}</span>
+            </div>`;
 
-            const response = await fetch(url, {
-                method: 'POST',
+        const settledIds = new Set(s.settled.map(share => share.contactId));
+        const me = t('budget', 'You');
+        // By amount, you simply keep whatever the others do not owe
+        const meIn = s.method === 'amount' || s.includeMe;
+
+        const html = [
+            row('me', me, {
+                checked: meIn,
+                checkDisabled: s.method === 'amount',
+                value: valueCell(s.method === 'percent' ? 'me' : null, me, s.includeMe),
+            }),
+            ...(this.contacts || []).filter(c => !settledIds.has(c.id)).map(c => {
+                const ticked = s.ticked.has(c.id);
+                return row(c.id, c.name, { checked: ticked, value: valueCell(c.id, c.name, ticked) });
+            }),
+            ...s.settled.map(share => {
+                const contact = (this.contacts || []).find(c => c.id === share.contactId);
+                const amount = this.formatCurrency(Math.abs(share.amount), this._share.currency);
+                return row(share.contactId, contact?.name || t('budget', 'Unknown'), {
+                    checked: true,
+                    checkDisabled: true,
+                    amount: `${this.escapeHtml(amount)} · ${t('budget', 'Settled')}`,
+                    cls: ' settled',
+                });
+            }),
+        ];
+
+        document.getElementById('share-people').innerHTML = html.join('');
+        this._updateShareSummary();
+    }
+
+    /** Each person's share beside their name, and the total or what is wrong underneath */
+    _updateShareSummary() {
+        const s = this._share;
+        const result = this._computeShare();
+        const byId = new Map(result.shares.map(x => [String(x.id), x.cents]));
+        const meIn = s.method === 'amount' || s.includeMe;
+
+        document.querySelectorAll('#share-people .share-person-row:not(.settled)').forEach(rowEl => {
+            const id = rowEl.dataset.person;
+            let cents = null;
+            if (!result.error) {
+                cents = id === 'me' ? (meIn ? result.mineCents : null) : (byId.get(id) ?? null);
+            }
+            rowEl.querySelector('.share-person-amount').textContent =
+                cents === null ? '' : this.formatCurrency(cents / 100, s.currency);
+        });
+
+        const removing = result.error?.code === 'nobody' && s.hadOpen;
+        const summary = document.getElementById('share-summary');
+        summary.classList.toggle('error', !!result.error && !removing);
+        summary.textContent = this._shareSummaryText(result, removing);
+    }
+
+    _shareSummaryText(result, removing) {
+        const s = this._share;
+        const money = (cents) => this.formatCurrency(cents / 100, s.currency);
+
+        if (removing) {
+            return t('budget', 'Nobody is ticked, so saving removes this split.');
+        }
+        switch (result.error?.code) {
+        case undefined: {
+            const owed = money(result.shares.reduce((sum, x) => sum + x.cents, 0));
+            const mine = money(result.mineCents);
+            return s.isCredit
+                ? t('budget', 'You owe the others {owed}. Your part is {mine}.', { owed, mine })
+                : t('budget', 'The others owe you {owed}. Your share is {mine}.', { owed, mine });
+        }
+        case 'nobody':
+            return t('budget', 'Tick at least one person to split with.');
+        case 'too-small':
+            return t('budget', 'There is not enough to split between this many people.');
+        case 'missing':
+            return s.method === 'percent'
+                ? t('budget', 'Enter a percentage for everyone ticked.')
+                : t('budget', 'Enter an amount for everyone ticked.');
+        case 'percent-total':
+            return t('budget', 'The percentages add up to {total} and need to add up to {full}.', {
+                total: `${Number(result.error.percent.toFixed(2))}%`,
+                full: '100%',
+            });
+        case 'over-total':
+            return t('budget', 'The amounts add up to {amount} more than there is to split.', { amount: money(result.error.overCents) });
+        default:
+            return t('budget', 'Failed to save the split');
+        }
+    }
+
+    _setShareMethod(method) {
+        const s = this._share;
+        if (!s || s.method === method) return;
+
+        // Carry the amounts over, so switching to By amount starts from them
+        const before = this._computeShare();
+        if (method === 'amount' && !before.error) {
+            before.shares.forEach(x => {
+                if (!s.values.amount.get(x.id)) {
+                    s.values.amount.set(x.id, (x.cents / 100).toFixed(2));
+                }
+            });
+        }
+        s.method = method;
+        this._renderSharePeople();
+    }
+
+    async saveShareExpense() {
+        const s = this._share;
+        if (!s) return;
+
+        const result = this._computeShare();
+        const removing = result.error?.code === 'nobody' && s.hadOpen;
+        if (result.error && !removing) {
+            showWarning(this._shareSummaryText(result, false));
+            return;
+        }
+        if (removing && !await confirmDialog(t('budget', 'Remove this split? Nobody will owe anything for this transaction.'))) {
+            return;
+        }
+
+        // Money in is split the other way round: you owe them
+        const sign = s.isCredit ? -1 : 1;
+        const splits = removing ? [] : result.shares.map(x => ({
+            contactId: x.id,
+            amount: (sign * x.cents / 100).toFixed(2),
+        }));
+        const notes = document.getElementById('share-notes').value.trim();
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/shared/transactions/${s.transactionId}/shares`), {
+                method: 'PUT',
                 headers: {
                     'requesttoken': OC.requestToken,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(body)
+                body: JSON.stringify({ splits, notes: notes || null })
             });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => null);
-                const message = errorData?.error || t('budget', 'Failed to share expense');
-                showError(message);
+                showError(errorData?.error || t('budget', 'Failed to save the split'));
                 return;
             }
 
             this.closeModal(document.getElementById('share-expense-modal'));
-            showSuccess(t('budget', 'Expense shared'));
+            showSuccess(removing ? t('budget', 'Split removed') : t('budget', 'Split saved'));
             await this.app.loadSharedTransactionIds();
             // Refresh transaction table if visible to show shared badge
             const tbody = document.querySelector('#transactions-table tbody');
@@ -779,8 +979,8 @@ export default class SharedExpensesModule {
                 this.app.renderEnhancedTransactionsTable();
             }
         } catch (error) {
-            console.error('Failed to share expense:', error);
-            showError(t('budget', 'Failed to share expense'));
+            console.error('Failed to save split:', error);
+            showError(t('budget', 'Failed to save the split'));
         }
     }
 
@@ -797,11 +997,33 @@ export default class SharedExpensesModule {
 
         const splitType = document.getElementById('share-split-type');
         if (splitType) {
-            splitType.addEventListener('change', () => {
-                const customGroup = document.getElementById('share-custom-amount-group');
-                if (customGroup) {
-                    customGroup.style.display = splitType.value === 'custom' ? 'block' : 'none';
+            splitType.addEventListener('change', () => this._setShareMethod(splitType.value));
+        }
+
+        const people = document.getElementById('share-people');
+        if (people) {
+            people.addEventListener('change', (e) => {
+                const check = e.target.closest('.share-person-check');
+                if (!check || !this._share) return;
+                const id = check.closest('.share-person-row').dataset.person;
+                if (id === 'me') {
+                    this._share.includeMe = check.checked;
+                } else if (check.checked) {
+                    this._share.ticked.add(Number(id));
+                } else {
+                    this._share.ticked.delete(Number(id));
                 }
+                this._renderSharePeople();
+            });
+            people.addEventListener('input', (e) => {
+                const input = e.target.closest('.share-person-value');
+                if (!input || !this._share) return;
+                const id = input.closest('.share-person-row').dataset.person;
+                this._share.values[this._share.method].set(id === 'me' ? 'me' : Number(id), input.value);
+                if (this._share.method === 'percent') {
+                    this._share.percentTyped = true;
+                }
+                this._updateShareSummary();
             });
         }
 

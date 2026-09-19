@@ -9,6 +9,7 @@ use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\SharedExpenseService;
 use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
@@ -352,6 +353,50 @@ class SharedExpenseController extends Controller {
             ]);
             return new DataResponse(
                 ['error' => $this->l->t('Failed to split expense')],
+                Http::STATUS_INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    /**
+     * Set everyone a transaction is split with in one go (#391). $splits is
+     * the complete list of open splits, [{contactId, amount}]; see
+     * SharedExpenseService::setTransactionShares().
+     *
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function setTransactionShares(int $transactionId, array $splits = [], ?string $notes = null): DataResponse {
+        try {
+            $shares = $this->service->setTransactionShares(
+                $this->getEffectiveUserId(),
+                $transactionId,
+                $splits,
+                $notes,
+                $this->getVisibleAccountIds()
+            );
+            return new DataResponse(array_map(fn($s) => $s->jsonSerialize(), $shares));
+        } catch (\InvalidArgumentException $e) {
+            $message = match ($e->getCode()) {
+                SharedExpenseService::SPLIT_ERR_DUPLICATE => $this->l->t('Each person can only be in a split once'),
+                SharedExpenseService::SPLIT_ERR_SETTLED => $this->l->t('A split that has been settled cannot be changed'),
+                SharedExpenseService::SPLIT_ERR_AMOUNT => $this->l->t('Every split needs an amount'),
+                SharedExpenseService::SPLIT_ERR_OVER_TOTAL => $this->l->t('The splits add up to more than the transaction'),
+                default => $this->l->t('Failed to save the split'),
+            };
+            return new DataResponse(['error' => $message], Http::STATUS_BAD_REQUEST);
+        } catch (DoesNotExistException $e) {
+            return new DataResponse(
+                ['error' => $this->l->t('Transaction or contact not found')],
+                Http::STATUS_NOT_FOUND
+            );
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to set transaction shares', [
+                'exception' => $e,
+                'userId' => $this->getEffectiveUserId(),
+            ]);
+            return new DataResponse(
+                ['error' => $this->l->t('Failed to save the split')],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
