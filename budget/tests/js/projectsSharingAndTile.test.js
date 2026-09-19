@@ -124,6 +124,84 @@ describe('dashboard tile', () => {
     });
 });
 
+/**
+ * The tile fetches on its own, so its data can land after Gridstack has built
+ * the grid and parked the (then still hidden) tile in #hidden-widgets. A
+ * project created or finished later changes it without a page reload too.
+ * Showing or hiding the card alone left the tile parked, so it never appeared.
+ */
+describe('dashboard tile in the grid', () => {
+    let mod;
+    let grid;
+    let stash;
+    const wrapper = () => document.querySelector('[gs-id="projects"]');
+    const p = (overrides) => ({ id: 1, name: 'Renovation', status: 'active', startDate: '2026-03-01', spent: 450, totalAmount: 900, ...overrides });
+
+    beforeEach(() => {
+        document.body.innerHTML = `
+            <div class="dashboard-grid"></div>
+            <div id="hidden-widgets">
+                <div class="grid-stack-item" gs-id="projects" style="display: none;">
+                    <div class="grid-stack-item-content">
+                        <div id="projects-card" data-widget-id="projects" style="display: none;">
+                            <div id="projects-widget"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        grid = document.querySelector('.dashboard-grid');
+        stash = document.getElementById('hidden-widgets');
+        mod = Object.create(DashboardModule.prototype);
+        mod.app = { settings: {}, dashboardConfig: { widgets: { visibility: {} } }, dashboardLocked: true };
+        mod.gridstack = {
+            addWidget: vi.fn(({ el }) => grid.appendChild(el)),
+            removeWidget: vi.fn(),
+        };
+    });
+
+    it('brings a parked tile into the grid when a project turns up', () => {
+        mod.updateProjectsWidget([p({})]);
+
+        expect(mod.gridstack.addWidget).toHaveBeenCalledTimes(1);
+        expect(mod.gridstack.addWidget.mock.calls[0][0].el).toBe(wrapper());
+        expect(grid.contains(wrapper())).toBe(true);
+        expect(wrapper().style.display).toBe('');
+        expect(document.getElementById('projects-card').style.display).toBe('');
+    });
+
+    it('does not add it twice on a repaint', () => {
+        mod.updateProjectsWidget([p({})]);
+        mod.updateProjectsWidget([p({ spent: 500 })]);
+
+        expect(mod.gridstack.addWidget).toHaveBeenCalledTimes(1);
+    });
+
+    it('parks the tile again once nothing is running', () => {
+        mod.updateProjectsWidget([p({})]);
+        mod.updateProjectsWidget([p({ status: 'finished' })]);
+
+        expect(mod.gridstack.removeWidget).toHaveBeenCalledWith(wrapper(), false);
+        expect(stash.contains(wrapper())).toBe(true);
+        expect(wrapper().style.display).toBe('none');
+    });
+
+    it('leaves a tile the user hid where it is', () => {
+        mod.app.dashboardConfig.widgets.visibility.projects = false;
+        mod.updateProjectsWidget([p({})]);
+
+        expect(mod.gridstack.addWidget).not.toHaveBeenCalled();
+        expect(stash.contains(wrapper())).toBe(true);
+    });
+
+    it('leaves the grid alone before Gridstack starts, which reads the card itself', () => {
+        mod.gridstack = null;
+        mod.updateProjectsWidget([p({})]);
+
+        expect(document.getElementById('projects-card').style.display).toBe('');
+        expect(stash.contains(wrapper())).toBe(true);
+    });
+});
+
 describe('help', () => {
     it('has a topic for the Projects page', () => {
         expect(HELP_TOPICS.projects.doc).toBe('projects');

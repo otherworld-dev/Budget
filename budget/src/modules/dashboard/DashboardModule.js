@@ -1969,10 +1969,13 @@ export default class DashboardModule {
         const hiddenByUser = this.dashboardConfig?.widgets?.visibility?.projects === false;
         if (open.length === 0 || hiddenByUser) {
             card.style.display = 'none';
+            // A tile the user hid is already parked by hideWidget()
+            if (!hiddenByUser) this._syncConditionalTileSlot('projects', false);
             return;
         }
 
         card.style.display = '';
+        this._syncConditionalTileSlot('projects', true);
         container.innerHTML = open.slice(0, 5).map(project => {
             const bar = progressFor(project.spent, project.totalAmount);
             return `
@@ -3772,29 +3775,11 @@ export default class DashboardModule {
             let wrapper = document.querySelector(`[gs-id="${widgetId}"]`);
 
             if (wrapper) {
-                const size = this.getWidgetSize(widgetId, 'widgets');
-                const mapped = GRIDSTACK_SIZE_MAP[size] || { w: 1, h: 4 };
-                const w = size === 'l' ? (this.gridColumns || 3) : mapped.w;
-
-                // Clear stale Gridstack data
-                delete wrapper.gridstackNode;
-                wrapper.removeAttribute('gs-x');
-                wrapper.removeAttribute('gs-y');
-                wrapper.removeAttribute('gs-w');
-                wrapper.removeAttribute('gs-h');
-                wrapper.style.display = '';
-
                 // Ensure card inside is visible
                 const card = wrapper.querySelector('.dashboard-card');
                 if (card) card.style.display = '';
 
-                // Remove from stash (don't append to grid — let addWidget handle it)
-                if (wrapper.parentElement) {
-                    wrapper.parentElement.removeChild(wrapper);
-                }
-
-                // Let Gridstack add it to the grid and register it
-                this.gridstack.addWidget({ el: wrapper, w, h: mapped.h, autoPosition: true });
+                this._addWrapperToGrid(widgetId, wrapper);
             }
         }
 
@@ -3815,6 +3800,56 @@ export default class DashboardModule {
 
         this.updateAddTilesMenu();
         await this.saveDashboardVisibility();
+    }
+
+    /** Move a tile's wrapper from the stash into the grid and let Gridstack place it */
+    _addWrapperToGrid(widgetId, wrapper) {
+        const size = this.getWidgetSize(widgetId, 'widgets');
+        const mapped = GRIDSTACK_SIZE_MAP[size] || { w: 1, h: 4 };
+        const w = size === 'l' ? (this.gridColumns || 3) : mapped.w;
+
+        // Clear stale Gridstack data
+        delete wrapper.gridstackNode;
+        wrapper.removeAttribute('gs-x');
+        wrapper.removeAttribute('gs-y');
+        wrapper.removeAttribute('gs-w');
+        wrapper.removeAttribute('gs-h');
+        wrapper.style.display = '';
+
+        // Remove from stash (don't append to grid — let addWidget handle it)
+        if (wrapper.parentElement) {
+            wrapper.parentElement.removeChild(wrapper);
+        }
+
+        // Let Gridstack add it to the grid and register it
+        this.gridstack.addWidget({ el: wrapper, w, h: mapped.h, autoPosition: true });
+    }
+
+    /**
+     * Keep a conditional tile's grid slot in step with its card once Gridstack
+     * is running (#391). The Projects tile loads on its own, so its data can
+     * land after the grid was built with the tile parked as hidden, and a
+     * project created or finished later changes it without a page reload.
+     * Before Gridstack starts there is nothing to do: _wrapCardsForGridstack
+     * reads the card's own display.
+     */
+    _syncConditionalTileSlot(widgetId, shown) {
+        if (!this.gridstack) return;
+        const wrapper = document.querySelector(`.grid-stack-item[gs-id="${widgetId}"]`);
+        const stash = document.getElementById('hidden-widgets');
+        if (!wrapper || !stash) return;
+
+        const parked = stash.contains(wrapper);
+        if (shown && parked) {
+            this._addWrapperToGrid(widgetId, wrapper);
+            if (!this.dashboardLocked) {
+                this.addTileControls();
+            }
+        } else if (!shown && !parked) {
+            this.gridstack.removeWidget(wrapper, false);
+            wrapper.style.display = 'none';
+            stash.appendChild(wrapper);
+        }
     }
 
     async saveDashboardVisibility() {
