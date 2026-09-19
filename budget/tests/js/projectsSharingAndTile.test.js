@@ -98,7 +98,7 @@ describe('dashboard tile', () => {
     });
 
     it('stays hidden when the user hid the tile', () => {
-        mod.dashboardConfig = { widgets: { visibility: { projects: false } } };
+        mod.app.dashboardConfig = { widgets: { visibility: { projects: false } } };
         mod.updateProjectsWidget([p({})]);
         expect(card().style.display).toBe('none');
     });
