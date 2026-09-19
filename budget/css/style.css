@@ -20942,3 +20942,34 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
         gap: 0;
     }
 }
+
+.projects-widget {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.project-tile-header,
+.project-tile-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.project-tile-header {
+    margin-bottom: 4px;
+}
+
+.project-tile-name {
+    font-weight: 600;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.project-tile-footer {
+    margin-top: 4px;
+    color: var(--color-text-maxcontrast);
+}

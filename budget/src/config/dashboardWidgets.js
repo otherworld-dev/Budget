@@ -41,6 +41,7 @@ export const DASHBOARD_WIDGETS = {
         upcomingBills: { id: 'upcoming-bills-card', name: t('budget', 'Upcoming Bills'), defaultSize: 's', allowedSizes: ['s', 'm', 'l'], defaultVisible: true, settingsSchema: { forwardHorizon: true, accountSelector: true, rowCount: { min: 3, max: 20, default: 5 } } },
         budgetProgress: { id: 'budget-progress-card', name: t('budget', 'Budget Progress'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: true, settingsSchema: { dateRange: true, shortRange: true, budgetPeriodRange: true, accountSelector: true, excludeShared: true, topLevelOnly: true } },
         savingsGoals: { id: 'savings-goals-card', name: t('budget', 'Savings Goals'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: true, settingsSchema: {} },
+        projects: { id: 'projects-card', name: t('budget', 'Projects'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: true, settingsSchema: {} },
         debtPayoff: { id: 'debt-payoff-card', name: t('budget', 'Debt Payoff'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: true, settingsSchema: {} },
         debtChart: {
             id: 'debt-chart-card',

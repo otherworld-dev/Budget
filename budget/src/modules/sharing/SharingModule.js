@@ -235,12 +235,20 @@ export default class SharingModule {
             }
             const ownRules = (Array.isArray(rules) ? rules : []).filter(r => !r._shared);
 
+            // Projects aren't part of the initial load either; the owner shares only their own
+            let projects = this.app.projects || [];
+            if (projects.length === 0) {
+                projects = await this.fetchApi('/apps/budget/api/projects').catch(() => []);
+            }
+            const ownProjects = (Array.isArray(projects) ? projects : []).filter(p => !p._shared);
+
             this.renderConfigPanel(panel, shareId, config, {
                 account: accounts,
                 category: ownCategories,
                 bill: this.app.bills || [],
                 recurring_income: this.app.recurringIncome || [],
                 savings_goal: this.app.savingsGoals || [],
+                project: ownProjects,
                 import_rule: ownRules,
             }, autoConfig || {});
         } catch (error) {
@@ -256,6 +264,7 @@ export default class SharingModule {
             { type: 'bill', label: t('budget', 'Bills'), nameField: 'name' },
             { type: 'recurring_income', label: t('budget', 'Recurring Income'), nameField: 'name' },
             { type: 'savings_goal', label: t('budget', 'Savings Goals'), nameField: 'name' },
+            { type: 'project', label: t('budget', 'Projects'), nameField: 'name' },
             { type: 'import_rule', label: t('budget', 'Import Rules'), nameField: 'name' },
         ];
 
@@ -331,7 +340,7 @@ export default class SharingModule {
         const panel = document.getElementById(`share-config-${shareId}`);
         if (!panel) return;
 
-        const types = ['account', 'category', 'bill', 'recurring_income', 'savings_goal', 'import_rule'];
+        const types = ['account', 'category', 'bill', 'recurring_income', 'savings_goal', 'project', 'import_rule'];
         const errors = [];
 
         for (const type of types) {

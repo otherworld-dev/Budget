@@ -738,6 +738,15 @@ style('budget', 'budget-app');
                         </div>
                     </div>
 
+                    <!-- Projects (#391): hidden until a project is running or upcoming -->
+                    <div id="projects-card" class="dashboard-card dashboard-tile-s" data-widget-id="projects" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3><?php p($l->t('Projects')); ?></h3>
+                            <a href="#projects" class="card-link"><?php p($l->t('Manage')); ?></a>
+                        </div>
+                        <div id="projects-widget" class="projects-widget"></div>
+                    </div>
+
                     <!-- Debt Payoff Summary -->
                     <div id="debt-payoff-card" class="dashboard-card debt-payoff-card dashboard-tile-s" data-widget-id="debtPayoff" data-widget-category="widget" style="display: none;">
                         <div class="card-header">

@@ -17,6 +17,7 @@ import { showSuccess, showError } from '../../utils/notifications.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { GridStack } from 'gridstack';
 import 'gridstack/dist/gridstack.min.css';
+import { groupProjects, progressFor } from '../projects/projectMath.js';
 
 const GRIDSTACK_SIZE_MAP = {
     xs: { w: 1, h: 1 },
@@ -282,6 +283,9 @@ export default class DashboardModule {
             // Update Savings Goals Widget
             this.updateSavingsGoalsWidget(savingsGoals);
             this.widgetDataLoaded.savingsGoals = true;
+
+            // Projects tile (#391): fetched on its own so it never holds up the rest
+            this.loadProjectsWidget();
 
             // Update Pension Dashboard Card
             this.updatePensionsSummary(pensionSummary);
@@ -1931,6 +1935,46 @@ export default class DashboardModule {
                     </div>
                 </div>
             `;
+        }).join('');
+    }
+
+    /** Projects tile (#391): its own request, so a failure never blanks the dashboard */
+    async loadProjectsWidget() {
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/projects'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            this.updateProjectsWidget(response.ok ? await response.json() : []);
+        } catch (error) {
+            console.error('Failed to load projects for the dashboard:', error);
+            this.updateProjectsWidget([]);
+        }
+    }
+
+    updateProjectsWidget(projects) {
+        const card = document.getElementById('projects-card');
+        const container = document.getElementById('projects-widget');
+        if (!card || !container) return;
+
+        const { open } = groupProjects(Array.isArray(projects) ? projects : []);
+        const hiddenByUser = this.dashboardConfig?.widgets?.visibility?.projects === false;
+        if (open.length === 0 || hiddenByUser) {
+            card.style.display = 'none';
+            return;
+        }
+
+        card.style.display = '';
+        container.innerHTML = open.slice(0, 5).map(project => {
+            const bar = progressFor(project.spent, project.totalAmount);
+            return `
+                <div class="project-tile-item">
+                    <div class="project-tile-header">
+                        <span class="project-tile-name">${this.escapeHtml(project.name)}</span>
+                        <span class="project-tile-percent">${bar.percent}%</span>
+                    </div>
+                    <div class="budget-progress-bar"><div class="budget-progress-fill ${bar.status}" style="width: ${bar.width}%"></div></div>
+                    <div class="project-tile-footer">${t('budget', '{spent} of {total}', { spent: this.formatCurrency(project.spent), total: this.formatCurrency(project.totalAmount) })}</div>
+                </div>`;
         }).join('');
     }
 
@@ -3668,7 +3712,7 @@ export default class DashboardModule {
             }
 
             // Respect conditional widgets — don't override display:none set by data logic
-            const conditionalTiles = ['budgetAlerts', 'debtPayoff', 'debtChart', 'debtProgress'];
+            const conditionalTiles = ['budgetAlerts', 'debtPayoff', 'debtChart', 'debtProgress', 'projects'];
             if (visible) {
                 const isConditionallyHidden = conditionalTiles.includes(key) &&
                     element.style.display === 'none';
@@ -3880,7 +3924,7 @@ export default class DashboardModule {
             const widgetId = card.dataset.widgetId;
             // Use saved visibility config as source of truth, but respect conditional
             // tiles that are hidden by data logic (e.g., budgetAlerts only shows with alerts)
-            const conditionalTiles = ['budgetAlerts', 'debtPayoff', 'debtChart', 'debtProgress'];
+            const conditionalTiles = ['budgetAlerts', 'debtPayoff', 'debtChart', 'debtProgress', 'projects'];
             const isConditional = conditionalTiles.includes(widgetId);
             const configVisible = visibility[widgetId] === true || (visibility[widgetId] === undefined && card.style.display !== 'none');
             const isVisible = configVisible && !(isConditional && card.style.display === 'none');
@@ -5143,6 +5187,7 @@ export default class DashboardModule {
             // repainting with no argument would blank the tile (#389)
             'budgetAlerts': () => this.refreshBudgetAlertsWidget(),
             'savingsGoals': () => this.updateSavingsGoalsWidget?.(),
+            'projects': () => this.loadProjectsWidget(),
             // Debt widgets
             'debtPayoff': () => this.updateDebtPayoffWidget?.(),
             'debtChart': () => this.renderDebtChartWidget(),
