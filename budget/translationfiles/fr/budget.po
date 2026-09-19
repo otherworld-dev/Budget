@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-16 23:01+0000\n"
-"PO-Revision-Date: 2026-09-17 01:41+0000\n"
-"Last-Translator: Zpiboo <zpiboo@outlook.com>\n"
+"PO-Revision-Date: 2026-09-19 13:11+0000\n"
+"Last-Translator: Christophe <tophe.perso@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
 "Language: fr\n"
@@ -85,10 +85,8 @@ msgstr "Nom du titulaire"
 
 #: /app/lib/Controller/AccountController.php:200
 #: /app/lib/Controller/AccountController.php:440
-#, fuzzy
-#| msgid "Due day must be between 1 and 31"
 msgid "Statement day must be between 1 and 31"
-msgstr "Le jour d’échéance doit être compris entre 1 et 31"
+msgstr "Le jour du relevé doit être compris entre 1 et 31"
 
 #: /app/lib/Controller/AccountController.php:217
 #: /app/lib/Controller/AccountController.php:351
@@ -142,17 +140,13 @@ msgid "Failed to update account"
 msgstr "Impossible de mettre à jour le compte"
 
 #: /app/lib/Controller/AccountController.php:533
-#, fuzzy
-#| msgid "No transaction IDs provided"
 msgid "No account IDs provided"
-msgstr "Aucun identifiant d'opération fourni"
+msgstr "Aucun identifiant de compte fourni"
 
 #: /app/lib/Controller/AccountController.php:586
 #: /app/src/modules/accounts/AccountsModule.js:788
-#, fuzzy
-#| msgid "Failed to delete account"
 msgid "Failed to delete accounts"
-msgstr "La suppression du compte à échoué"
+msgstr "La suppression des comptes à échoué"
 
 #: /app/lib/Controller/AccountController.php:648
 #: /app/src/modules/accounts/AccountsModule.js:3179
@@ -295,16 +289,12 @@ msgid "Failed to retrieve transaction"
 msgstr "Échec de la récupération de l'opération"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:228
-#, fuzzy
-#| msgid "Amount must be greater than zero"
 msgid "Amount must be a number"
-msgstr "Le montant doit être supérieur à zéro"
+msgstr "Le montant doit être un nombre"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:233
-#, fuzzy
-#| msgid "Name and type are required"
 msgid "An account is required"
-msgstr "Le nom et le type sont obligatoire"
+msgstr "Un compte est obligatoire"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:238
 #: /app/lib/Controller/AssetController.php:326
@@ -346,7 +336,7 @@ msgstr ""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:369
 msgid "The transaction was recorded, but it could not be split"
-msgstr ""
+msgstr "L'opération a été enregistrée, mais n'a pas pu être ventilée"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:377
 #: /app/lib/Controller/TransactionController.php:370
@@ -355,23 +345,24 @@ msgstr "Échec de la création de l'opération"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:456
 msgid "This idempotency key was already used for a different transaction"
-msgstr ""
+msgstr "Cette clé d'idempotence a déjà été utilisée pour une autre opération"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:465
 msgid "This request is still being processed. Try again shortly"
 msgstr ""
+"Cette requête est toujours en cours de traitement. Réessayez dans un instant"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:538
 msgid ""
 "splits must be an array of {\"amount\", \"category_id\", \"description\"} "
 "objects"
 msgstr ""
+"les ventilations doivent être un tableau d'objets de type {\"amount\", "
+"\"category_id\", \"description\"}"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:559
-#, fuzzy
-#| msgid "Failed to retrieve transaction counts"
 msgid "Failed to split the transaction"
-msgstr "Impossible de récupérer le nombre de transactions"
+msgstr "Impossible de ventiler l'opération"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:631
 #: /app/lib/Controller/AttachmentController.php:46
@@ -647,10 +638,8 @@ msgstr "%1$s introuvable"
 #: /app/lib/Controller/BillController.php:169
 #: /app/lib/Controller/BillController.php:598
 #: /app/lib/Service/BillService.php:75
-#, fuzzy
-#| msgid "Invalid account type: %1$s"
 msgid "Invalid amount type"
-msgstr "Type de compte invalide : %1$s"
+msgstr "Type de montant invalide"
 
 #: /app/lib/Controller/BillController.php:174
 msgid "Name and amount are required"
@@ -758,10 +747,8 @@ msgstr "Échec de l'annulation"
 #: /app/lib/Controller/BillController.php:836
 #: /app/src/modules/bills/BillsModule.js:1555
 #: /app/src/modules/bills/BillsModule.js:1562
-#, fuzzy
-#| msgid "Failed to mark bill as paid"
 msgid "Failed to mark bill as unpaid"
-msgstr "Impossible de marquer la facture comme payée"
+msgstr "Impossible de marquer la facture comme impayée"
 
 #: /app/lib/Controller/BillController.php:853
 #: /app/src/modules/bills/BillsModule.js:1606
@@ -867,10 +854,8 @@ msgid "Frequency"
 msgstr "Fréquence"
 
 #: /app/lib/Controller/BillController.php:1093
-#, fuzzy
-#| msgid "Monthly Total"
 msgid "Annual Total"
-msgstr "Total mensuel"
+msgstr "Total annuel"
 
 #: /app/lib/Controller/BillController.php:1117
 #: /app/lib/Controller/BillController.php:1193
@@ -886,16 +871,13 @@ msgid "Total"
 msgstr "Total"
 
 #: /app/lib/Controller/BillController.php:1144
-#, fuzzy, php-format
-#| msgid "Bills Calendar"
+#, php-format
 msgid "Bills Calendar %s"
-msgstr "Calendrier des factures"
+msgstr "Calendrier des factures %s"
 
 #: /app/lib/Controller/BillController.php:1172
-#, fuzzy
-#| msgid "Manual"
 msgid "Annual"
-msgstr "Manuel"
+msgstr "Annuel"
 
 #: /app/lib/Controller/BillController.php:1221
 msgid "Split template must have at least 2 splits"
@@ -1088,26 +1070,20 @@ msgstr "Période budgétaire non valide"
 #: /app/lib/Controller/CategoryTransferController.php:64
 #: /app/src/modules/categories/CategoriesModule.js:1488
 #: /app/src/modules/categories/CategoriesModule.js:1501
-#, fuzzy
-#| msgid "Failed to reset categories"
 msgid "Failed to export categories"
-msgstr "Échec de la réinitialisation des catégories"
+msgstr "Échec de l'export des catégories"
 
 #: /app/lib/Controller/CategoryTransferController.php:89
 #: /app/src/modules/categories/CategoriesModule.js:1529
 #: /app/src/modules/categories/CategoriesModule.js:1535
-#, fuzzy
-#| msgid "Failed to reorder category"
 msgid "Failed to read the category file"
-msgstr "Échec du réordonnancement de la catégorie"
+msgstr "Échec de lecture du fichier de catégorie"
 
 #: /app/lib/Controller/CategoryTransferController.php:109
 #: /app/src/modules/categories/CategoriesModule.js:1607
 #: /app/src/modules/categories/CategoriesModule.js:1615
-#, fuzzy
-#| msgid "Failed to reset categories"
 msgid "Failed to import categories"
-msgstr "Échec de la réinitialisation des catégories"
+msgstr "Échec de l'importation des catégories"
 
 #: /app/lib/Controller/DebtController.php:58
 msgid "Failed to retrieve debts"
@@ -1356,18 +1332,16 @@ msgstr "Impossible de traiter l’import"
 
 #: /app/lib/Controller/ImportController.php:265
 msgid "CSV delimiter must be a single character"
-msgstr ""
+msgstr "Le séparateur CSV doit être un caractère unique"
 
 #: /app/lib/Controller/ImportController.php:272
 msgid "Unsupported character encoding"
-msgstr ""
+msgstr "Encodage de caractères non pris en charge"
 
 #: /app/lib/Controller/ImportController.php:287
 #: /app/src/modules/import/ImportModule.js:1142
-#, fuzzy
-#| msgid "Failed to refresh exchange rates"
 msgid "Failed to refresh the data preview"
-msgstr "Impossible d’actualiser les taux de change"
+msgstr "Impossible d’actualiser l'aperçu des données"
 
 #: /app/lib/Controller/ImportController.php:317
 #: /app/lib/Controller/ImportTemplateController.php:51
@@ -1685,16 +1659,20 @@ msgstr "Impossible de récupérer les prévisions combinées des pensions"
 #: /app/lib/Controller/ReceiptScanController.php:92
 msgid "No total could be read from this receipt. Enter the details manually"
 msgstr ""
+"Le montant total n'a pas pu être lu sur ce reçu. Saisissez les informations "
+"manuellement"
 
 #: /app/lib/Controller/ReceiptScanController.php:104
 msgid "The receipt scanning quota is used up. Try again later"
-msgstr ""
+msgstr "Le quota de numérisation des reçus est épuisé. Réessayez plus tard"
 
 #: /app/lib/Controller/ReceiptScanController.php:109
 msgid ""
 "The receipt could not be read. Try a clearer photo, or enter the details "
 "manually"
 msgstr ""
+"Le reçu est illisible. Essayez de prendre une photo plus nette ou saisissez "
+"les informations manuellement"
 
 #: /app/lib/Controller/ReconciliationController.php:58
 msgid "Failed to load reconciliation session"
@@ -1778,10 +1756,8 @@ msgid "Failed to generate income report"
 msgstr "Impossible de générer le rapport de revenus"
 
 #: /app/lib/Controller/ReportController.php:186
-#, fuzzy
-#| msgid "Failed to generate income report"
 msgid "Failed to generate income and expenses report"
-msgstr "Impossible de générer le rapport de revenus"
+msgstr "Impossible de générer le rapport des revenus et dépenses"
 
 #: /app/lib/Controller/ReportController.php:227
 #: /app/src/modules/reports/ReportsModule.js:1668
@@ -1858,10 +1834,9 @@ msgstr "Échec de la récupération du paramètre"
 
 #: /app/lib/Controller/SettingController.php:156
 #: /app/lib/Controller/SettingController.php:210
-#, fuzzy, php-format
-#| msgid "Invalid sort code: %1$s"
+#, php-format
 msgid "Invalid receipts folder: %1$s"
-msgstr "Code de tri invalide : %1$s"
+msgstr "Dossier des reçus invalide : %1$s"
 
 #: /app/lib/Controller/SettingController.php:181
 msgid "Settings updated successfully"
@@ -2281,10 +2256,8 @@ msgstr "Échec de la suppression de l'étiquette générale"
 #: /app/lib/Controller/TransactionController.php:248
 #: /app/src/modules/accounts/AccountsModule.js:3637
 #: /app/src/modules/transactions/TransactionsModule.js:958
-#, fuzzy
-#| msgid "Failed to retrieve transaction counts"
 msgid "Failed to export transactions"
-msgstr "Impossible de récupérer le nombre de transactions"
+msgstr "Échec de l'export des opérations"
 
 #: /app/lib/Controller/TransactionController.php:281
 #: /app/lib/Controller/TransactionController.php:520
@@ -2373,22 +2346,16 @@ msgid "Failed to bulk edit transactions"
 msgstr "Échec de la modification des opérations"
 
 #: /app/lib/Controller/TransactionController.php:844
-#, fuzzy
-#| msgid "No data provided"
 msgid "No tags provided"
-msgstr "Aucune donnée fournie"
+msgstr "Aucune étiquette fournie"
 
 #: /app/lib/Controller/TransactionController.php:856
-#, fuzzy
-#| msgid "Failed to update transactions"
 msgid "Failed to update transaction tags"
-msgstr "Échec de la mise à jour des opérations"
+msgstr "Échec de la mise à jour des étiquettes de l'opération"
 
 #: /app/lib/Controller/TransactionController.php:883
-#, fuzzy
-#| msgid "Failed to load tag sets"
 msgid "Failed to load tag options"
-msgstr "Échec du chargement des jeux d'étiquettes"
+msgstr "Échec du chargement des options d'étiquettes"
 
 #: /app/lib/Controller/TransactionController.php:912
 msgid "Invalid splits data"
@@ -2400,10 +2367,9 @@ msgid "Split %1$s: amount is required"
 msgstr "Fractionnement %1$s : le montant est requis"
 
 #: /app/lib/Controller/TransactionController.php:930
-#, fuzzy, php-format
-#| msgid "Current amount cannot be negative"
+#, php-format
 msgid "Split %1$s: amount cannot be zero"
-msgstr "Le montant actuel ne peut pas être négatif"
+msgstr "Ventilation %1$s: Le montant ne peut pas être négatif"
 
 #: /app/lib/Controller/TransactionController.php:979 /app/src/main.js:1197
 #: /app/src/main.js:1264 /app/src/modules/accounts/AccountsModule.js:1665
@@ -2449,10 +2415,8 @@ msgid "Failed to export YoY data"
 msgstr "Échec de l'exportation des données d'une année sur l'autre"
 
 #: /app/lib/Controller/YearOverYearController.php:232
-#, fuzzy
-#| msgid "Full Year Comparison"
 msgid "Year Comparison"
-msgstr "Comparaison sur l'année complète"
+msgstr "Comparaison sur l'année"
 
 #: /app/lib/Controller/YearOverYearController.php:237
 #: /app/lib/Service/Report/ReportExporter.php:305
@@ -2462,10 +2426,9 @@ msgid "Month"
 msgstr "Mois"
 
 #: /app/lib/Controller/YearOverYearController.php:238
-#, fuzzy, php-format
-#| msgid "Comparison Type"
+#, php-format
 msgid "%s Comparison"
-msgstr "Type de comparaison"
+msgstr "%s Comparaison"
 
 #: /app/lib/Controller/YearOverYearController.php:246
 #: /app/templates/index.php:3480
@@ -2556,23 +2519,20 @@ msgid "Transactions"
 msgstr "Opérations"
 
 #: /app/lib/Controller/YearOverYearController.php:251
-#, fuzzy, php-format
-#| msgid "Income Name"
+#, php-format
 msgid "Income Change %%"
-msgstr "Libellé du revenu"
+msgstr "Variation des revenus %%"
 
 #: /app/lib/Controller/YearOverYearController.php:252
-#, fuzzy, php-format
-#| msgid "Expense shared"
+#, php-format
 msgid "Expense Change %%"
-msgstr "Dépence partagée"
+msgstr "Variation des dépenses %%"
 
 #: /app/lib/Controller/YearOverYearController.php:290
 #: /app/lib/Controller/YearOverYearController.php:392
-#, fuzzy, php-format
-#| msgid "Change"
+#, php-format
 msgid "Change %%"
-msgstr "Modifier"
+msgstr "Variation %%"
 
 #: /app/lib/Controller/YearOverYearController.php:294
 #: /app/lib/Controller/YearOverYearController.php:402
@@ -2591,16 +2551,12 @@ msgid "Unknown"
 msgstr "Inconnu"
 
 #: /app/lib/Controller/YearOverYearController.php:316
-#, fuzzy
-#| msgid "Year-over-Year"
 msgid "Year-over-Year Report"
-msgstr "D'une année sur l'autre"
+msgstr "Rapport d'une année sur l'autre"
 
 #: /app/lib/Controller/YearOverYearController.php:368
-#, fuzzy
-#| msgid "Category Spending"
 msgid "Category Spending Comparison"
-msgstr "Catégorie de dépenses"
+msgstr "Comparaison des dépenses par catégorie"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:43
 msgid "Budget: Overview"
@@ -2793,9 +2749,6 @@ msgid "Your weekly budget digest"
 msgstr "Votre récapitulatif budgétaire hebdomadaire"
 
 #: /app/lib/Notification/Notifier.php:385
-#, fuzzy
-#| msgid ""
-#| "Income {income}, spending {expenses} ({net} net). {bills} bills due soon."
 msgid ""
 "Income {income}, spending {expenses} ({net} net). {bills} bills due soon, "
 "and one category is spending unusually."
@@ -2804,10 +2757,11 @@ msgid_plural ""
 "and {anomalies} categories are spending unusually."
 msgstr[0] ""
 "Revenus {income}, dépenses {expenses} ({net} net). Factures à régler "
-"prochainement : {bills}."
+"prochainement : {bills}, et une catégorie affiche des dépenses inhabituelles."
 msgstr[1] ""
 "Revenus {income}, dépenses {expenses} ({net} net). Factures à régler "
-"prochainement : {bills}."
+"prochainement : {bills}, et {anomalies} catégories affichent des dépenses "
+"inhabituelles."
 
 #. TRANSLATORS: {income}, {expenses}, {net}, {bills} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
 #: /app/lib/Notification/Notifier.php:391
@@ -2841,31 +2795,28 @@ msgstr "{file} a été enregistré dans vos fichiers."
 #. TRANSLATORS: {category} is replaced with the category name. Do NOT translate {category} — keep it exactly as-is.
 #: /app/lib/Notification/Notifier.php:468
 msgid "Approaching your {category} budget"
-msgstr ""
+msgstr "Évaluation de votre budget {category}"
 
 #. TRANSLATORS: {category} is replaced with the category name. Do NOT translate {category} — keep it exactly as-is.
 #: /app/lib/Notification/Notifier.php:471
-#, fuzzy
-#| msgid "%n category is over budget."
-#| msgid_plural "%n categories are over budget."
 msgid "{category} is over budget"
-msgstr "%n  catégorie en dépassement."
+msgstr "{category} dépasse le budget"
 
 #: /app/lib/Notification/Notifier.php:483
 #, php-format
 msgid ""
 "You have spent {spent} of your {budget} budget ({percent}%% of the limit)."
 msgstr ""
+"Vous avez dépensé {spent} de votre budget {budget} ({percent}%% de la limite)"
+"."
 
 #: /app/lib/Notification/Notifier.php:502
-#, fuzzy
-#| msgid "Current balance cannot be negative"
 msgid "Your balance is forecast to go negative"
-msgstr "Le solde actuel ne peut pas être négatif"
+msgstr "Votre solde devrait devenir négatif"
 
 #: /app/lib/Notification/Notifier.php:506
 msgid "Your projected balance falls to {balance} in {month}."
-msgstr ""
+msgstr "Votre solde prévisionnel s'établit à {balance} en {month}."
 
 #: /app/lib/Search/TransactionSearchProvider.php:39
 msgid "Budget transactions"
@@ -2877,18 +2828,17 @@ msgid ""
 "This account still has a balance of %1$s. Record the closing withdrawal, or "
 "adjust the opening balance so it reads zero, then close it."
 msgstr ""
+"Ce compte présente encore un solde de %1$s. Enregistrez le retrait de "
+"clôture ou ajustez le solde d'ouverture pour qu'il soit égal à zéro, puis "
+"clôturez-le."
 
 #: /app/lib/Service/AccountClosureService.php:69
-#, fuzzy
-#| msgid ""
-#| "This account still has transactions. Delete them along with the account? "
-#| "This cannot be undone."
 msgid ""
 "This account still has transactions dated after today. Delete or move them, "
 "then close it."
 msgstr ""
-"Ce compte contient encore des opérations. Faut-il les supprimer en même "
-"temps que le compte ? Cette action est irréversible."
+"Ce compte comporte encore des opérations postérieures à aujourd'hui. "
+"Supprimez-les ou transférez-les, puis fermez-le."
 
 #: /app/lib/Service/AccountClosureService.php:79
 #: /app/lib/Service/Bill/BillIcsService.php:54
@@ -2907,22 +2857,16 @@ msgid "Transfers"
 msgstr "Transferts"
 
 #: /app/lib/Service/AccountClosureService.php:82
-#, fuzzy
-#| msgid "Log Contribution"
 msgid "Pension contributions"
-msgstr "Enregistrer une cotisation"
+msgstr "Cotisations de retraite"
 
 #: /app/lib/Service/AccountClosureService.php:83
-#, fuzzy
-#| msgid "Bank Sync"
 msgid "Bank sync"
 msgstr "Synchronisation bancaire"
 
 #: /app/lib/Service/AccountClosureService.php:84
-#, fuzzy
-#| msgid "Import rule"
 msgid "Import rules"
-msgstr "Règle d’import"
+msgstr "Règles d’import"
 
 #: /app/lib/Service/AccountClosureService.php:92
 #, php-format
@@ -2930,12 +2874,13 @@ msgid ""
 "This account is still used by %1$s. Reassign or deactivate them, then close "
 "it."
 msgstr ""
+"Ce compte est toujours utilisé par %1$s. Réattribuez-le ou désactivez-le, "
+"puis fermez-le."
 
 #: /app/lib/Service/AccountClosureService.php:174
-#, fuzzy, php-format
-#| msgid "Pensions"
+#, php-format
 msgid "Pension #%1$s"
-msgstr "Pensions"
+msgstr "Retraite #%1$s"
 
 #: /app/lib/Service/AccountService.php:124
 msgid ""
@@ -2948,6 +2893,8 @@ msgstr ""
 #: /app/lib/Service/AccountService.php:278
 msgid "This page is out of date. Please reload it before editing this account."
 msgstr ""
+"Cette page n'est plus à jour. Veuillez la recharger avant de modifier ce "
+"compte."
 
 #: /app/lib/Service/BankSync/BankSyncService.php:184
 msgid ""
@@ -2977,14 +2924,14 @@ msgid "Bill due: %1$s"
 msgstr "Facture à payer : %1$s"
 
 #: /app/lib/Service/BillService.php:81
-#, fuzzy
-#| msgid "Transfer requires a destination account"
 msgid "This amount type requires a transfer with a destination account"
-msgstr "Le transfert nécessite un compte de destination"
+msgstr "Ce type de montant nécessite un virement vers un compte destinataire"
 
 #: /app/lib/Service/BillService.php:85
 msgid "This amount type is only available for transfers to a credit card"
 msgstr ""
+"Ce type de montant est seulement disponible pour les virements vers une "
+"carte de crédit"
 
 #: /app/lib/Service/BillService.php:202
 msgid "This bill has never been marked as paid"
@@ -3007,10 +2954,8 @@ msgid "A transaction for this payment already exists"
 msgstr "Une opération pour ce paiement existe déjà"
 
 #: /app/lib/Service/BillService.php:1008 /app/lib/Service/BillService.php:1022
-#, fuzzy
-#| msgid "This bill has never been marked as paid"
 msgid "This bill has no recorded payment to undo"
-msgstr "Cette facture n'a jamais été marquée comme payée"
+msgstr "Cette facture n'a pas de paiement enregistré à annuler"
 
 #: /app/lib/Service/BillService.php:1050
 msgid "Cannot skip a one-time bill"
@@ -3062,69 +3007,65 @@ msgid "No budget snapshot found for this category and month"
 msgstr "Aucun instantané budgétaire trouvé pour cette catégorie et ce mois."
 
 #: /app/lib/Service/CategoryTransferService.php:127
-#, fuzzy
-#| msgid "Only if empty"
 msgid "The file is empty"
-msgstr "Uniquement si vide"
+msgstr "Le fichier est vide"
 
 #: /app/lib/Service/CategoryTransferService.php:139
 #: /app/lib/Service/CategoryTransferService.php:152
 #: /app/lib/Service/CategoryTransferService.php:187
-#, fuzzy
-#| msgid "No rules found in that file."
 msgid "No categories found in the file"
-msgstr "Aucune règle trouvée dans ce fichier."
+msgstr "Aucune catégorie n'a été trouvée dans le fichier"
 
 #: /app/lib/Service/CategoryTransferService.php:147
 msgid "The file is not valid JSON"
-msgstr ""
+msgstr "Ce n'est pas un fichier JSON valide"
 
 #: /app/lib/Service/CategoryTransferService.php:287
 #, php-format
 msgid "Categories are nested deeper than %1$d levels"
-msgstr ""
+msgstr "Les catégories sont imbriquées à plus de %1$d niveaux"
 
 #: /app/lib/Service/CategoryTransferService.php:303
-#, fuzzy
-#| msgid "Save category first to manage tag sets"
 msgid "A category without a name was skipped"
-msgstr "Enregistrez d'abord la catégorie pour gérer les jeux d'étiquettes"
+msgstr "Une catégorie sans nom a été ignorée"
 
 #: /app/lib/Service/CategoryTransferService.php:310
 #, php-format
 msgid "\"%1$s\" is listed more than once; the entries were merged"
-msgstr ""
+msgstr "\"%1$s\" apparait plusieurs fois ; les entrées ont été fusionnées"
 
 #: /app/lib/Service/CategoryTransferService.php:321
-#, fuzzy, php-format
-#| msgid "Failed to load categories"
+#, php-format
 msgid "The file holds more than %1$d categories"
-msgstr "Échec du chargement des catégories"
+msgstr "Le fichier contient plus de %1$d catégories"
 
 #: /app/lib/Service/CategoryTransferService.php:333
 #, php-format
 msgid "\"%1$s\" must have the same type as its parent; imported as %2$s"
-msgstr ""
+msgstr "\"%1$s\" doit avoir le même type que son parent ; importé comme %2$s"
 
 #: /app/lib/Service/CategoryTransferService.php:338
 #, php-format
 msgid "\"%1$s\" has no type; imported as an expense category"
-msgstr ""
+msgstr "\"%1$s\" n'a pas de type ; importé comme une catégorie de dépense"
 
 #: /app/lib/Service/CategoryTransferService.php:339
 #, php-format
 msgid "\"%1$s\" has the unknown type \"%2$s\"; imported as an expense category"
 msgstr ""
+"\"%1$s\" est du type inconnu \"%2$s\" ; importé comme une catégorie de "
+"dépense"
 
 #: /app/lib/Service/CategoryTransferService.php:352
 #, php-format
 msgid "\"%1$s\": the colour \"%2$s\" is not a hex code and was ignored"
 msgstr ""
+"\"%1$s\": la couleur \"%2$s\" n'est pas un code hexadécimal et a été ignorée"
 
 #: /app/lib/Service/CategoryTransferService.php:362
 #, php-format
 msgid "\"%1$s\": the budget \"%2$s\" is not a number and was ignored"
-msgstr ""
+msgstr "\"%1$s\": le budget \"%2$s\" n'est pas un nombre et a été ignoré"
 
 #: /app/lib/Service/DigestService.php:132
 #, php-format
@@ -3244,10 +3185,8 @@ msgid "Status"
 msgstr "Statut"
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:41
-#, fuzzy
-#| msgid "Split"
 msgid "Split of"
-msgstr "Fractionnement"
+msgstr "Ventilation de"
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:144
 #: /app/src/modules/categories/CategoriesModule.js:708
@@ -3258,17 +3197,17 @@ msgstr "Fractionnement"
 #: /app/templates/index.php:1600 /app/templates/index.php:5619
 #: /app/templates/index.php:6600 /app/templates/quick-add.php:39
 msgid "Expense"
-msgstr "Dépence"
+msgstr "Dépense"
 
 #: /app/lib/Service/GranularShareService.php:303
 #, php-format
 msgid "Invalid entity type: %1$s"
-msgstr "Élémént invalide : %1$s"
+msgstr "Élément invalide : %1$s"
 
 #: /app/lib/Service/GranularShareService.php:308
 #, php-format
 msgid "Invalid permission: %1$s"
-msgstr "Autorisation invalide : %1$s"
+msgstr "Autorisation invalide : %1$s"
 
 #: /app/lib/Service/GranularShareService.php:314
 #: /app/lib/Service/ShareService.php:167
@@ -3346,6 +3285,8 @@ msgid ""
 "File does not appear to be a camt.053 bank statement. Only ISO 20022 "
 "camt.053/camt.052 XML is supported."
 msgstr ""
+"Le fichier ne semble pas être un relevé bancaire au format camt.053. Seuls "
+"les fichiers XML au format ISO 20022 camt.053/camt.052 sont pris en charge."
 
 #: /app/lib/Service/ImportService.php:137
 #, php-format
@@ -3366,6 +3307,8 @@ msgstr ""
 #: /app/lib/Service/ImportService.php:1355
 msgid "This row has no account, and no account was chosen for the import"
 msgstr ""
+"Cette ligne ne comporte aucun compte, et aucun compte n'a été sélectionné "
+"pour l'importation"
 
 #: /app/lib/Service/ImportService.php:1112
 #, php-format
@@ -3582,51 +3525,37 @@ msgstr "Décembre"
 #: /app/lib/Service/Report/ReportExporter.php:138
 #, php-format
 msgid "Period: %1$s to %2$s"
-msgstr ""
+msgstr "Période : de %1$s à %2$s"
 
 #: /app/lib/Service/Report/ReportExporter.php:170
-#, fuzzy
-#| msgid "Saved Reports"
 msgid "Summary Report"
-msgstr "Rapports enregistrés"
+msgstr "Rapport de synthèse"
 
 #: /app/lib/Service/Report/ReportExporter.php:171
-#, fuzzy
-#| msgid "Spending Velocity"
 msgid "Spending Report"
-msgstr "Vitesse de dépense"
+msgstr "Rapport sur les dépenses"
 
 #: /app/lib/Service/Report/ReportExporter.php:172
 #: /app/lib/Service/Report/ReportExporter.php:567
-#, fuzzy
-#| msgid "Income Details"
 msgid "Income Report"
-msgstr "Détails des revenus"
+msgstr "Rapport sur les revenus"
 
 #: /app/lib/Service/Report/ReportExporter.php:173
-#, fuzzy
-#| msgid "Cash Flow Forecast"
 msgid "Cash Flow Report"
-msgstr "Prévision de trésorerie"
+msgstr "Rapport sur les flux de trésorerie"
 
 #: /app/lib/Service/Report/ReportExporter.php:174
 #: /app/lib/Service/Report/ReportExporter.php:635
-#, fuzzy
-#| msgid "Budget Alerts"
 msgid "Budget Report"
-msgstr "Alertes budgétaires"
+msgstr "Rapport budgétaire"
 
 #: /app/lib/Service/Report/ReportExporter.php:175
-#, fuzzy
-#| msgid "Category by Month"
 msgid "Category by Month Report"
-msgstr "Catégorie par mois"
+msgstr "Rapport par catégorie et par mois"
 
 #: /app/lib/Service/Report/ReportExporter.php:176
-#, fuzzy
-#| msgid "Income & Expenses by Year"
 msgid "Income & Expenses Report"
-msgstr "Revenus et dépenses par année"
+msgstr "Rapport des revenus et des dépenses"
 
 #: /app/lib/Service/Report/ReportExporter.php:188
 #: /app/lib/Service/Report/ReportExporter.php:239
@@ -3640,20 +3569,16 @@ msgid "On track"
 msgstr "Sur la bonne voie"
 
 #: /app/lib/Service/Report/ReportExporter.php:209
-#, fuzzy
-#| msgid "Apply during import"
 msgid "Approaching limit"
-msgstr "Appliquer lors de l'importation"
+msgstr "Limite approchée"
 
 #: /app/lib/Service/Report/ReportExporter.php:210
 msgid "Near limit"
-msgstr ""
+msgstr "Près de la limite"
 
 #: /app/lib/Service/Report/ReportExporter.php:211
-#, fuzzy
-#| msgid "Open Budget"
 msgid "Over budget"
-msgstr "Ouvrir Budget"
+msgstr "Dépassement du budget"
 
 #: /app/lib/Service/Report/ReportExporter.php:235
 #: /app/src/modules/assets/AssetsModule.js:568 /app/templates/index.php:5474
@@ -3691,10 +3616,8 @@ msgstr "Solde actuel"
 
 #: /app/lib/Service/Report/ReportExporter.php:245
 #: /app/lib/Service/Report/ReportExporter.php:450
-#, fuzzy
-#| msgid "Previous month"
 msgid "vs Previous Period"
-msgstr "Mois précédent"
+msgstr "vs période précédente"
 
 #: /app/lib/Service/Report/ReportExporter.php:255
 #: /app/lib/Service/Report/ReportExporter.php:471
@@ -3725,7 +3648,7 @@ msgstr "Net"
 #: /app/lib/Service/Report/ReportExporter.php:280
 #: /app/lib/Service/Report/ReportExporter.php:403
 msgid "Percentage"
-msgstr ""
+msgstr "Pourcentage"
 
 #: /app/lib/Service/Report/ReportExporter.php:309
 #: /app/lib/Service/Report/ReportExporter.php:546 /app/templates/index.php:3375
@@ -3734,15 +3657,11 @@ msgstr "Cumulative"
 
 #: /app/lib/Service/Report/ReportExporter.php:325
 #: /app/lib/Service/Report/ReportExporter.php:524
-#, fuzzy
-#| msgid "Monthly Trends"
 msgid "Monthly Averages"
-msgstr "Tendances mensuelles"
+msgstr "Moyennes mensuelles"
 
 #: /app/lib/Service/Report/ReportExporter.php:327
 #: /app/lib/Service/Report/ReportExporter.php:528
-#, fuzzy
-#| msgid "Avg Monthly Income"
 msgid "Average Monthly Income"
 msgstr "Revenu mensuel moyen"
 
@@ -3755,10 +3674,8 @@ msgstr "Dépenses mensuelles moyennes"
 
 #: /app/lib/Service/Report/ReportExporter.php:329
 #: /app/lib/Service/Report/ReportExporter.php:532
-#, fuzzy
-#| msgid "Avg Monthly Income"
 msgid "Average Monthly Net"
-msgstr "Revenu mensuel moyen"
+msgstr "Net mensuel moyen"
 
 #: /app/lib/Service/Report/ReportExporter.php:336
 #: /app/lib/Service/Report/ReportExporter.php:570 /app/templates/index.php:6458
@@ -3777,10 +3694,8 @@ msgstr "Résumé"
 
 #: /app/lib/Service/Report/ReportExporter.php:400
 #: /app/lib/Service/Report/ReportExporter.php:639
-#, fuzzy
-#| msgid "Budget"
 msgid "Budgeted"
-msgstr "Budget"
+msgstr "Budgété"
 
 #: /app/lib/Service/Report/ReportExporter.php:401
 #: /app/lib/Service/Report/ReportExporter.php:640
@@ -3799,10 +3714,8 @@ msgid "Remaining"
 msgstr "Restant"
 
 #: /app/lib/Service/Report/ReportExporter.php:431
-#, fuzzy
-#| msgid "Financial Reports"
 msgid "Financial Summary"
-msgstr "Rapports financiers"
+msgstr "Synthèse financière"
 
 #: /app/lib/Service/Report/ReportExporter.php:463 /app/templates/index.php:3202
 msgid "Account Breakdown"
@@ -3870,6 +3783,9 @@ msgid ""
 "No migration on this server adds %1$s — the app's files are incomplete. "
 "Reinstall the app, then run the command."
 msgstr ""
+"Aucune migration n'a été effectuée sur ce serveur pour %1$s — les fichiers "
+"de l'application sont incomplets. Réinstallez l'application, puis exécutez "
+"la commande."
 
 #: /app/lib/Service/SchemaVersionService.php:481
 msgid ""
@@ -3879,7 +3795,14 @@ msgid_plural ""
 "Database updates that came with this version of Budget were never applied "
 "(%n changes are missing). Saving may fail until they are finished."
 msgstr[0] ""
+"Une mise à jour de la base de données fournie avec cette version de Budget "
+"n'a jamais été appliquée (la modification %n est manquante). "
+"L'enregistrement risque d'échouer tant que cette mise à jour n'aura pas été "
+"effectuée."
 msgstr[1] ""
+"Les mises à jour de la base de données fournies avec cette version de Budget "
+"n'ont jamais été appliquées (il manque %n modifications). L'enregistrement "
+"risque d'échouer tant que ces mises à jour n'auront pas été effectuées."
 
 #: /app/lib/Service/SchemaVersionService.php:487
 msgid ""
@@ -3889,7 +3812,13 @@ msgid_plural ""
 "The database is missing %n columns this version of Budget writes to. Saving "
 "will fail until they are added."
 msgstr[0] ""
+"La base de données ne contient pas la colonne %n dans laquelle cette version "
+"de Budget effectue des écritures. L'enregistrement échouera tant que cette "
+"colonne n'aura pas été ajoutée."
 msgstr[1] ""
+"Il manque %n colonnes dans la base de données vers laquelle cette version de "
+"Budget effectue des écritures. L'enregistrement échouera tant que ces "
+"colonnes n'auront pas été ajoutées."
 
 #: /app/lib/Service/ShareService.php:56
 msgid "You cannot share your budget with yourself"
@@ -4019,20 +3948,20 @@ msgid "Invalid transaction type"
 msgstr "Type d'opération invalide"
 
 #: /app/lib/SetupChecks/BudgetSchemaCheck.php:35
-#, fuzzy
-#| msgid "Budget transactions"
 msgid "Budget database migrations"
-msgstr "Opérations budgétaires"
+msgstr "Migrations de la base de données Budget"
 
 #: /app/lib/SetupChecks/BudgetSchemaCheck.php:41
 msgid "Budget's database schema is up to date."
-msgstr ""
+msgstr "Le schéma de la base de données de Budget est à jour."
 
 #: /app/lib/SetupChecks/BudgetSchemaCheck.php:52
 #: /app/lib/Traits/ApiErrorHandlerTrait.php:188
 #, php-format
 msgid "An administrator can finish it by running: %1$s"
 msgstr ""
+"Un administrateur peut terminer cette opération en exécutant la commande "
+"suivante : %1$s"
 
 #: /app/lib/Traits/ApiErrorHandlerTrait.php:55
 msgid "This shared item is read-only"
@@ -4044,6 +3973,10 @@ msgid ""
 "the update did not finish. An administrator can complete it by running: occ "
 "app:disable budget && occ app:enable budget"
 msgstr ""
+"Il manque à la base de données un élément requis par cette version de "
+"Budget, ce qui signifie que la mise à jour ne s'est pas terminée. Un "
+"administrateur peut la finaliser en exécutant la commande suivante : occ "
+"app:disable budget && occ app:enable budget"
 
 #: /app/specialAppInfoFakeDummyForL10nScript.php:3
 msgid "Simple budget tracker and forecaster"
@@ -10413,7 +10346,7 @@ msgstr "Paramètres réinitialisés aux valeurs par défaut"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:62
 msgid "Shared expense"
-msgstr "Dépence partagée"
+msgstr "Dépense partagée"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:68
 msgid "Outstanding"
@@ -10542,7 +10475,7 @@ msgstr "Le montant est requis pour les partages personnalisés"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:757
 msgid "Expense shared"
-msgstr "Dépence partagée"
+msgstr "Dépense partagée"
 
 #: /app/src/modules/sharing/SharingModule.js:49
 msgid "Failed to load sharing data"
