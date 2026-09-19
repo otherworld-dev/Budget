@@ -14,6 +14,8 @@ use OCA\Budget\Db\TagMapper;
 use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionSplitMapper;
+use OCA\Budget\Db\ProjectAllocationMapper;
+use OCA\Budget\Db\ProjectMapper;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Exception\CategoryInUseException;
 use OCP\AppFramework\Db\Entity;
@@ -42,7 +44,9 @@ class CategoryService extends AbstractCrudService {
         private RecurringBudgetService $recurringBudgetService,
         private ?AutoShareService $autoShareService = null,
         private ?CategoryMuteMapper $categoryMuteMapper = null,
-        private ?TransactionSplitMapper $splitMapper = null
+        private ?TransactionSplitMapper $splitMapper = null,
+        private ?ProjectMapper $projectMapper = null,
+        private ?ProjectAllocationMapper $projectAllocationMapper = null
     ) {
         $this->mapper = $mapper;
         $this->transactionMapper = $transactionMapper;
@@ -190,6 +194,13 @@ class CategoryService extends AbstractCrudService {
      * @inheritDoc
      */
     protected function beforeDelete(Entity $entity, string $userId): void {
+        // A project, or one of its subcategory amounts, points at this
+        // category or at one the cascade below would delete. Refused before
+        // any child goes, and deliberately not CategoryInUseException: the
+        // controller answers that by offering to move transactions, which
+        // would not free a project (#391).
+        $this->assertNotUsedByProject($entity->getId(), $userId);
+
         // Cascade delete: Delete child categories first (recursively)
         $children = $this->getCategoryMapper()->findChildren($userId, $entity->getId());
         foreach ($children as $child) {
@@ -241,6 +252,9 @@ class CategoryService extends AbstractCrudService {
     public function deleteWithReassign(int $id, string $userId): void {
         // Ownership check (throws if not found / not the user's).
         $this->find($id, $userId);
+
+        // Before any transaction moves: a refusal must leave nothing changed
+        $this->assertNotUsedByProject($id, $userId);
 
         $categoryIds = $this->collectSelfAndDescendantIds($id, $userId);
         $this->transactionMapper->clearCategory($categoryIds);
@@ -320,6 +334,33 @@ class CategoryService extends AbstractCrudService {
             $ids = array_merge($ids, $this->collectSelfAndDescendantIds($child->getId(), $userId));
         }
         return $ids;
+    }
+
+    /**
+     * @throws \InvalidArgumentException naming the project using this
+     *         category or a category below it
+     */
+    private function assertNotUsedByProject(int $id, string $userId): void {
+        if ($this->projectMapper === null) {
+            return;
+        }
+        $categoryIds = $this->collectSelfAndDescendantIds($id, $userId);
+
+        $projects = $this->projectMapper->findByCategoryIds($categoryIds, $userId);
+        if ($projects === [] && $this->projectAllocationMapper !== null) {
+            $projectIds = array_values(array_unique(array_map(
+                static fn ($allocation) => $allocation->getProjectId(),
+                $this->projectAllocationMapper->findByCategoryIds($categoryIds, $userId)
+            )));
+            $projects = $this->projectMapper->findByIds($projectIds);
+        }
+
+        if ($projects !== []) {
+            throw new \InvalidArgumentException($this->l->t(
+                'This category is used by the project "%1$s". Change or delete the project first.',
+                [$projects[0]->getName()]
+            ));
+        }
     }
 
     /**

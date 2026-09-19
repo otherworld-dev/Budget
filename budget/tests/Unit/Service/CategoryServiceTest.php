@@ -7,6 +7,10 @@ namespace OCA\Budget\Tests\Unit\Service;
 use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Db\Category;
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\Project;
+use OCA\Budget\Db\ProjectAllocation;
+use OCA\Budget\Db\ProjectAllocationMapper;
+use OCA\Budget\Db\ProjectMapper;
 use OCA\Budget\Db\Tag;
 use OCA\Budget\Db\TagMapper;
 use OCA\Budget\Db\TagSet;
@@ -14,6 +18,7 @@ use OCA\Budget\Db\TagSetMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Db\TransactionTagMapper;
+use OCA\Budget\Exception\CategoryInUseException;
 use OCA\Budget\Service\CategoryService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IL10N;
@@ -1102,5 +1107,107 @@ class CategoryServiceTest extends TestCase {
             null,
             $splitMapper
         );
+    }
+
+    private function serviceWithProjects(ProjectMapper $projects, ProjectAllocationMapper $allocations): CategoryService {
+        $l = $this->createMock(IL10N::class);
+        $l->method('t')->willReturnCallback(function (string $text, array $params = []) {
+            foreach ($params as $i => $param) {
+                $text = str_replace('%' . ($i + 1) . '$s', (string)$param, $text);
+            }
+            return $text;
+        });
+
+        return new CategoryService(
+            $this->categoryMapper,
+            $this->transactionMapper,
+            $this->createMock(BudgetSnapshotMapper::class),
+            $this->tagSetMapper,
+            $this->tagMapper,
+            $this->transactionTagMapper,
+            $l,
+            $this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class),
+            $this->createMock(\OCA\Budget\Service\RecurringBudgetService::class),
+            null,
+            null,
+            $this->splitMapper,
+            $projects,
+            $allocations
+        );
+    }
+
+    private function namedProject(int $id, string $name): Project {
+        $project = new Project();
+        $project->setId($id);
+        $project->setName($name);
+        return $project;
+    }
+
+    public function testDeleteRefusesACategoryAProjectIsBuiltOn(): void {
+        $this->categoryMapper->method('find')->willReturn($this->makeCategory(['id' => 1]));
+        $this->categoryMapper->method('findChildren')->willReturn([]);
+        $projects = $this->createMock(ProjectMapper::class);
+        $projects->method('findByCategoryIds')->with([1], 'user1')->willReturn([$this->namedProject(10, 'House renovation')]);
+        $allocations = $this->createMock(ProjectAllocationMapper::class);
+        $allocations->method('findByCategoryIds')->willReturn([]);
+        $this->categoryMapper->expects($this->never())->method('delete');
+
+        try {
+            $this->serviceWithProjects($projects, $allocations)->delete(1, 'user1');
+            $this->fail('The delete should have been refused');
+        } catch (\InvalidArgumentException $e) {
+            $this->assertStringContainsString('"House renovation"', $e->getMessage());
+            $this->assertNotInstanceOf(CategoryInUseException::class, $e);
+        }
+    }
+
+    public function testDeleteRefusesBeforeTouchingASubcategoryAProjectAmountUses(): void {
+        $parent = $this->makeCategory(['id' => 1]);
+        $child = $this->makeCategory(['id' => 2, 'parentId' => 1]);
+        $this->categoryMapper->method('find')->willReturnCallback(fn (int $id) => $id === 1 ? $parent : $child);
+        $this->categoryMapper->method('findChildren')
+            ->willReturnCallback(fn (string $userId, int $parentId) => $parentId === 1 ? [$child] : []);
+        $allocation = new ProjectAllocation();
+        $allocation->setProjectId(10);
+        $allocation->setCategoryId(2);
+        $allocations = $this->createMock(ProjectAllocationMapper::class);
+        $allocations->method('findByCategoryIds')->with([1, 2], 'user1')->willReturn([$allocation]);
+        $projects = $this->createMock(ProjectMapper::class);
+        $projects->method('findByCategoryIds')->willReturn([]);
+        $projects->method('findByIds')->with([10])->willReturn([$this->namedProject(10, 'Wedding')]);
+        // Refused before the cascade deletes the child
+        $this->categoryMapper->expects($this->never())->method('delete');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('"Wedding"');
+        $this->serviceWithProjects($projects, $allocations)->delete(1, 'user1');
+    }
+
+    public function testDeleteWithReassignChecksProjectsBeforeMovingTransactions(): void {
+        $this->categoryMapper->method('find')->willReturn($this->makeCategory(['id' => 1]));
+        $this->categoryMapper->method('findChildren')->willReturn([]);
+        $projects = $this->createMock(ProjectMapper::class);
+        $projects->method('findByCategoryIds')->willReturn([$this->namedProject(10, 'House renovation')]);
+        $allocations = $this->createMock(ProjectAllocationMapper::class);
+        $allocations->method('findByCategoryIds')->willReturn([]);
+        $this->transactionMapper->expects($this->never())->method('clearCategory');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->serviceWithProjects($projects, $allocations)->deleteWithReassign(1, 'user1');
+    }
+
+    public function testDeleteGoesAheadWhenNoProjectUsesTheCategory(): void {
+        $category = $this->makeCategory(['id' => 1]);
+        $this->categoryMapper->method('find')->willReturn($category);
+        $this->categoryMapper->method('findChildren')->willReturn([]);
+        $this->transactionMapper->method('findByCategory')->willReturn([]);
+        $this->tagSetMapper->method('findByCategory')->willReturn([]);
+        $projects = $this->createMock(ProjectMapper::class);
+        $projects->method('findByCategoryIds')->willReturn([]);
+        $allocations = $this->createMock(ProjectAllocationMapper::class);
+        $allocations->method('findByCategoryIds')->willReturn([]);
+        $this->categoryMapper->expects($this->once())->method('delete')->with($category)->willReturn($category);
+
+        $this->serviceWithProjects($projects, $allocations)->delete(1, 'user1');
     }
 }
