@@ -20812,6 +20812,22 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     flex: none;
 }
 
+/* button.danger fills with --color-error, a pale surface tint on NC 30
+   (#FFE7E7 in light), so the white "Delete" was unreadable. The confirm
+   dialog's destructive red holds against white in both themes. */
+#project-delete-btn {
+    background: #b32d2e;
+    border-color: #b32d2e;
+    color: #fff;
+}
+
+#project-delete-btn:hover,
+#project-delete-btn:focus {
+    background: #8f2424;
+    border-color: #8f2424;
+    color: #fff;
+}
+
 .project-rows-header,
 .project-row {
     display: grid;
