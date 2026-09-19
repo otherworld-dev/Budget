@@ -155,6 +155,24 @@ class BillController extends Controller {
     }
 
     /**
+     * Refuse an account the acting user may not post new activity to.
+     *
+     * A bill's payments are booked as the owner of the account it names
+     * (#334), so the account is where the money lands whoever set the bill
+     * up. It has to be one the user owns or holds at write permission, the
+     * same rule TransactionController::create applies.
+     *
+     * @throws \OCA\Budget\Exception\ReadOnlyShareException
+     */
+    private function requireWritableAccounts(?int ...$accountIds): void {
+        foreach ($accountIds as $accountId) {
+            if ($accountId !== null) {
+                $this->requireWriteAccess('account', $accountId);
+            }
+        }
+    }
+
+    /**
      * Create a new bill
      * @NoAdminRequired
      */
@@ -235,6 +253,8 @@ class BillController extends Controller {
                     Http::STATUS_BAD_REQUEST
                 );
             }
+
+            $this->requireWritableAccounts($accountId, $destinationAccountId);
 
             // Validate name (required)
             $nameValidation = $this->validationService->validateName($name, true);
@@ -686,6 +706,20 @@ class BillController extends Controller {
                 }
             }
 
+            // Only an account that changes is a new place to post money to. A
+            // shared bill's form sends back the stored account even when it was
+            // never shared with the editor (#370), and that has to keep saving.
+            $destinationInUpdates = array_key_exists('destinationAccountId', $updates);
+            if ($accountInUpdates || $destinationInUpdates) {
+                $storedBill = $this->service->find($id, $ownerId);
+                $this->requireWritableAccounts(
+                    $accountInUpdates && $updates['accountId'] !== $storedBill->getAccountId()
+                        ? $updates['accountId'] : null,
+                    $destinationInUpdates && $updates['destinationAccountId'] !== $storedBill->getDestinationAccountId()
+                        ? $updates['destinationAccountId'] : null
+                );
+            }
+
             if (empty($updates)) {
                 return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
@@ -998,6 +1032,13 @@ class BillController extends Controller {
             $data = $this->request->getParams();
             if (!isset($data['bills'])) {
                 return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
+            }
+
+            foreach ((array) $data['bills'] as $item) {
+                $this->requireWritableAccounts(
+                    isset($item['accountId']) ? (int) $item['accountId'] : null,
+                    isset($item['destinationAccountId']) ? (int) $item['destinationAccountId'] : null
+                );
             }
 
             $created = $this->service->createFromDetected($this->getEffectiveUserId(), $data['bills']);

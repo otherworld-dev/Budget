@@ -1884,4 +1884,124 @@ class BillControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
 	}
+
+	// ── the accounts a bill pays from and into ──────────────────────
+
+	/**
+	 * A controller whose user may post to $writable accounts only: their own,
+	 * or ones shared with them at write permission. The bill itself is theirs.
+	 *
+	 * @param int[] $writable
+	 */
+	private function controllerWritingTo(array $writable): BillController {
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$granularShareService->method('resolveOwner')->willReturn('user1');
+		$granularShareService->method('requireWriteAccess')
+			->willReturnCallback(function (string $userId, string $type, int $id) use ($writable) {
+				if ($type === 'account' && !in_array($id, $writable, true)) {
+					throw new \OCA\Budget\Exception\ReadOnlyShareException();
+				}
+			});
+		return new BillController(
+			$this->request,
+			$this->service,
+			$this->validationService,
+			$granularShareService,
+			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
+			$this->l,
+			'user1',
+			$this->logger
+		);
+	}
+
+	public function testCreateRefusesAnAccountTheUserCannotPostTo(): void {
+		$this->mockInput(json_encode([
+			'name' => 'Rent', 'amount' => 500, 'frequency' => 'monthly', 'accountId' => 99,
+		]));
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controllerWritingTo([1, 2])->create();
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testCreateRefusesADestinationTheUserCannotPostTo(): void {
+		$this->mockInput(json_encode([
+			'name' => 'Savings', 'amount' => 100, 'frequency' => 'monthly',
+			'accountId' => 1, 'isTransfer' => true, 'destinationAccountId' => 99,
+		]));
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controllerWritingTo([1, 2])->create();
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testCreateAcceptsAccountsTheUserCanPostTo(): void {
+		$this->mockInput(json_encode([
+			'name' => 'Savings', 'amount' => 100, 'frequency' => 'monthly',
+			'accountId' => 1, 'isTransfer' => true, 'destinationAccountId' => 2,
+		]));
+		$this->service->expects($this->once())->method('create')->willReturn(new Bill());
+
+		$response = $this->controllerWritingTo([1, 2])->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	public function testUpdateRefusesMovingABillToAnAccountTheUserCannotPostTo(): void {
+		$this->mockInput(json_encode(['accountId' => 99]));
+		$stored = new Bill();
+		$stored->setAccountId(1);
+		$this->service->method('find')->willReturn($stored);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerWritingTo([1, 2])->update(7);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testUpdateRefusesADestinationTheUserCannotPostTo(): void {
+		$this->mockInput(json_encode(['destinationAccountId' => 99]));
+		$stored = new Bill();
+		$stored->setAccountId(1);
+		$stored->setIsTransfer(true);
+		$stored->setDestinationAccountId(2);
+		$this->service->method('find')->willReturn($stored);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerWritingTo([1, 2])->update(7);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testUpdateKeepsAnUnchangedAccountTheEditorCannotSee(): void {
+		// A shared bill's form sends its pay-from account back untouched even
+		// when that account was never shared with the editor (#370). Only a
+		// change of account is a new place to post money to.
+		$this->mockInput(json_encode(['name' => 'Rent', 'accountId' => 5, 'destinationAccountId' => null]));
+		$stored = new Bill();
+		$stored->setAccountId(5);
+		$this->service->method('find')->willReturn($stored);
+		$this->service->expects($this->once())->method('update')->willReturn(new Bill());
+
+		$response = $this->controllerWritingTo([1, 2])->update(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testCreateFromDetectedRefusesAnAccountTheUserCannotPostTo(): void {
+		$this->mockInput(json_encode([
+			'bills' => [
+				['description' => 'Netflix', 'amount' => 15.99, 'frequency' => 'monthly', 'accountId' => 1],
+				['description' => 'Gym', 'amount' => 30, 'frequency' => 'monthly', 'accountId' => 99],
+			],
+		]));
+		$this->service->expects($this->never())->method('createFromDetected');
+
+		$response = $this->controllerWritingTo([1, 2])->createFromDetected();
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
 }

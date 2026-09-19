@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Restoring a backup keeps each category's report and budget settings.** A backup saved **Exclude from reports**, **Exclude from budgeting** and envelope budgeting for every category, however restoring it never read them back, so every category came back counted in reports and budgets with envelope budgeting turned off. They now come back as they were exported, along with the month the envelope started from. A backup made before these settings existed restores as before ([#391](https://github.com/otherworld-dev/Budget/issues/391))
 - **Amber budget bars show their progress again.** A bar in the amber band showed empty: between 60% and 80% of a budget on the Budget page, and over 50% up to 80% on the dashboard's **Budget Progress** tile. A Nextcloud style for warnings outranked the amber fill and pushed it out of its bar. The fill now stays inside the bar ([#391](https://github.com/otherworld-dev/Budget/issues/391))
 
+### Security
+- **A bill can only pay from, or into, an account you can post to.** Creating or editing a bill never checked the account it named, and a bill's payments are booked as that account's owner, so a bill could put payments into an account belonging to another user on the same Nextcloud, including one never shared with you or shared read-only. Bills now accept only your own accounts and ones shared with you at **Read & Write**, the same rule new transactions already follow. Editing a shared bill still leaves the account it already pays from as it is, even when that account was not shared with you
+
 ## [2.52.0] - 2026-09-18
 
 ### Added
