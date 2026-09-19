@@ -213,6 +213,22 @@ class MigrationService {
             'scope' => ['joins' => [['budget_accounts', 'account_id']]],
             'fk' => ['account_id' => ['map' => 'accounts', 'onMissing' => 'drop']],
         ],
+        // Project budgets (#391). Allocations carry their own user_id so
+        // clearTable() can find them after budget_projects is cleared.
+        'projects' => [
+            'table' => 'budget_projects',
+            'scope' => 'user',
+            'idMap' => 'projects',
+            'fk' => ['category_id' => ['map' => 'categories', 'onMissing' => 'drop']],
+        ],
+        'project_allocs' => [
+            'table' => 'budget_project_allocs',
+            'scope' => 'user',
+            'fk' => [
+                'project_id' => ['map' => 'projects', 'onMissing' => 'drop'],
+                'category_id' => ['map' => 'categories', 'onMissing' => 'drop'],
+            ],
+        ],
     ];
 
     public function __construct(

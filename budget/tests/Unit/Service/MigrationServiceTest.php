@@ -783,6 +783,31 @@ class MigrationServiceTest extends TestCase {
 		}
 	}
 
+	/**
+	 * Both project tables round-trip, with their category and project ids
+	 * remapped (#391). The consistency test above only catches ordering, not
+	 * a table left out, which is how #351 lost tags and splits for years.
+	 */
+	public function testProjectsAreInTheBackupRegistry(): void {
+		$post = (new \ReflectionClass(MigrationService::class))->getConstant('EXTRA_TABLES_POST');
+
+		$this->assertSame('budget_projects', $post['projects']['table']);
+		$this->assertSame('user', $post['projects']['scope']);
+		$this->assertSame('projects', $post['projects']['idMap']);
+		$this->assertSame('categories', $post['projects']['fk']['category_id']['map']);
+
+		$this->assertSame('budget_project_allocs', $post['project_allocs']['table']);
+		// Scoped by its own user_id: through budget_projects it would be
+		// cleared after its parents were gone and never found again
+		$this->assertSame('user', $post['project_allocs']['scope']);
+		$this->assertSame('projects', $post['project_allocs']['fk']['project_id']['map']);
+		$this->assertSame('categories', $post['project_allocs']['fk']['category_id']['map']);
+
+		// Allocations import after the projects they remap to
+		$keys = array_keys($post);
+		$this->assertLessThan(array_search('project_allocs', $keys, true), array_search('projects', $keys, true));
+	}
+
 	private function createTestZip(array $files): string {
 		$tempFile = tempnam(sys_get_temp_dir(), 'test_zip_');
 		$zip = new \ZipArchive();
