@@ -278,6 +278,25 @@ class ProjectServiceTest extends TestCase {
         $this->assertNull($project->getEndDate());
     }
 
+    /**
+     * The amounts are replaced in one transaction, so a failure part way
+     * leaves the project and its old amounts as they were.
+     */
+    public function testUpdateRollsBackWhenAnAmountFailsToSave(): void {
+        $this->projectMapper->method('find')->willReturn($this->makeProject());
+        $this->projectMapper->method('update')->willReturnArgument(0);
+        $this->allocationMapper->method('insert')->willThrowException(new \RuntimeException('db down'));
+        $this->db->expects($this->once())->method('beginTransaction');
+        $this->db->expects($this->once())->method('rollBack');
+        $this->db->expects($this->never())->method('commit');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('db down');
+        $this->service->update(10, 'user1', $this->input([
+            'allocations' => [['categoryId' => 2, 'amount' => 400]],
+        ]), true);
+    }
+
     public function testDeleteRemovesTheAmountsAndTheShares(): void {
         $project = $this->makeProject();
         $this->projectMapper->method('find')->willReturn($project);
