@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-19 12:31+0000\n"
-"PO-Revision-Date: 2026-09-17 01:44+0000\n"
-"Last-Translator: Dayflare <hiazu@hotmail.de>\n"
+"PO-Revision-Date: 2026-09-19 21:21+0000\n"
+"Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
 "Language: de\n"
@@ -1119,10 +1119,8 @@ msgid "Failed to calculate payoff plan"
 msgstr "Fehler bei der Berechnung des Tilgungsplans"
 
 #: /app/lib/Controller/DebtController.php:136
-#, fuzzy
-#| msgid "Failed to retrieve goal progress"
 msgid "Failed to get debt progress"
-msgstr "Fehler beim Laden des Zielverlaufs"
+msgstr "Fortschritt bei der Schuldentilgung konnte nicht abgerufen werden"
 
 #: /app/lib/Controller/DebtController.php:166 /app/src/main.js:3261
 #: /app/src/main.js:3267
@@ -1130,17 +1128,13 @@ msgid "Failed to compare strategies"
 msgstr "Fehler beim Vergleich der Strategien"
 
 #: /app/lib/Controller/DebtScenarioController.php:59
-#, fuzzy
-#| msgid "Failed to retrieve debt summary"
 msgid "Failed to retrieve debt scenarios"
-msgstr "Die Schuldenzusammenfassung konnte nicht abgerufen werden"
+msgstr "Schuldenszenarien konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/DebtScenarioController.php:80
 #: /app/lib/Controller/DebtScenarioController.php:131
-#, fuzzy
-#| msgid "Tag name is required"
 msgid "Scenario name is required"
-msgstr "Schlagwortname ist erforderlich"
+msgstr "Ein Name für das Szenario ist erforderlich"
 
 #: /app/lib/Controller/DebtScenarioController.php:83
 #: /app/lib/Controller/DebtScenarioController.php:134
@@ -1150,44 +1144,32 @@ msgstr "Ungültige Strategie"
 #: /app/lib/Controller/DebtScenarioController.php:86
 #: /app/lib/Controller/DebtScenarioController.php:137
 #: /app/lib/Controller/DebtScenarioController.php:140
-#, fuzzy
-#| msgid "Current amount cannot be negative"
 msgid "Payment amounts cannot be negative"
-msgstr "Der aktuelle Betrag darf nicht negativ sein"
+msgstr "Zahlungsbeträge dürfen nicht negativ sein"
 
 #: /app/lib/Controller/DebtScenarioController.php:89
 #: /app/lib/Controller/DebtScenarioController.php:143
-#, fuzzy
-#| msgid "Remaining payments must be at least 1"
 msgid "Lump sum month must be at least 1"
-msgstr "Die verbleibenden Zahlungen müssen mindesten 1 betragen"
+msgstr "Der Monat für die Einmalzahlung muss mindestens 1 sein"
 
 #: /app/lib/Controller/DebtScenarioController.php:109
-#, fuzzy
-#| msgid "Failed to create pension"
 msgid "Failed to create debt scenario"
-msgstr "Rente konnte nicht erstellt werden"
+msgstr "Schuldenszenario konnte nicht erstellt werden"
 
 #: /app/lib/Controller/DebtScenarioController.php:174
 #: /app/lib/Controller/DebtScenarioController.php:201
 #: /app/lib/Controller/DebtScenarioController.php:228
 #: /app/lib/Controller/DebtScenarioController.php:256
-#, fuzzy
-#| msgid "Share not found"
 msgid "Scenario not found"
-msgstr "Aktie nicht gefunden"
+msgstr "Szenario nicht gefunden"
 
 #: /app/lib/Controller/DebtScenarioController.php:184
-#, fuzzy
-#| msgid "Failed to update pension"
 msgid "Failed to update debt scenario"
-msgstr "Rente konnte nicht aktualisiert werden"
+msgstr "Schuldenszenario konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/DebtScenarioController.php:211
-#, fuzzy
-#| msgid "Failed to delete pension"
 msgid "Failed to delete debt scenario"
-msgstr "Rente konnte nicht gelöscht werden"
+msgstr "Schuldenszenario konnte nicht gelöscht werden"
 
 #: /app/lib/Controller/DebtScenarioController.php:238
 #, fuzzy
@@ -2262,15 +2244,15 @@ msgstr "Fehler beim Aufteilen der Ausgabe"
 
 #: /app/lib/Controller/SharedExpenseController.php:381
 msgid "Each person can only be in a split once"
-msgstr ""
+msgstr "Jede Person kann nur einmal in einer Aufteilung enthalten sein"
 
 #: /app/lib/Controller/SharedExpenseController.php:382
 msgid "A split that has been settled cannot be changed"
-msgstr ""
+msgstr "Eine bereits ausgeglichene Aufteilung kann nicht geändert werden"
 
 #: /app/lib/Controller/SharedExpenseController.php:383
 msgid "Every split needs an amount"
-msgstr ""
+msgstr "Für jede Aufteilung muss ein Betrag angegeben werden"
 
 #: /app/lib/Controller/SharedExpenseController.php:384
 #, fuzzy
@@ -3774,7 +3756,7 @@ msgstr "Dezember"
 #: /app/lib/Service/Report/ReportExporter.php:138
 #, php-format
 msgid "Period: %1$s to %2$s"
-msgstr ""
+msgstr "Zeitraum: %1$s bis %2$s"
 
 #: /app/lib/Service/Report/ReportExporter.php:170
 #, fuzzy
@@ -3829,7 +3811,7 @@ msgstr "Nettoeinkommen"
 #: /app/lib/Service/Report/ReportExporter.php:208
 #: /app/src/modules/dashboard/DashboardModule.js:1718
 msgid "On track"
-msgstr ""
+msgstr "Im Plan"
 
 #: /app/lib/Service/Report/ReportExporter.php:209
 #, fuzzy
@@ -3839,7 +3821,7 @@ msgstr "Während Import anwenden"
 
 #: /app/lib/Service/Report/ReportExporter.php:210
 msgid "Near limit"
-msgstr ""
+msgstr "Nahe am Limit"
 
 #: /app/lib/Service/Report/ReportExporter.php:211
 #, fuzzy
@@ -3917,7 +3899,7 @@ msgstr "Netto"
 #: /app/lib/Service/Report/ReportExporter.php:280
 #: /app/lib/Service/Report/ReportExporter.php:403
 msgid "Percentage"
-msgstr ""
+msgstr "Prozentsatz"
 
 #: /app/lib/Service/Report/ReportExporter.php:309
 #: /app/lib/Service/Report/ReportExporter.php:546 /app/templates/index.php:3375
@@ -4016,7 +3998,7 @@ msgstr "Monatliche Aufschlüsselung"
 #: /app/lib/Service/Report/ReportExporter.php:725
 #: /app/src/modules/reports/ReportsModule.js:1155
 msgid "Overall"
-msgstr ""
+msgstr "Gesamt"
 
 #: /app/lib/Service/Report/ReportExporter.php:692
 #: /app/lib/Service/Report/ReportExporter.php:738
@@ -4067,6 +4049,9 @@ msgid ""
 "No migration on this server adds %1$s — the app's files are incomplete. "
 "Reinstall the app, then run the command."
 msgstr ""
+"Keine Migration auf diesem Server fügt %1$s hinzu – die Dateien der App sind "
+"unvollständig. Installiere die App neu und führe anschließend den Befehl "
+"erneut aus."
 
 #: /app/lib/Service/SchemaVersionService.php:481
 msgid ""
@@ -4076,7 +4061,13 @@ msgid_plural ""
 "Database updates that came with this version of Budget were never applied "
 "(%n changes are missing). Saving may fail until they are finished."
 msgstr[0] ""
+"Ein mit dieser Version von Budget bereitgestelltes Datenbankupdate wurde "
+"nicht angewendet (%n Änderung fehlt). Das Speichern kann fehlschlagen, bis "
+"das Update abgeschlossen ist."
 msgstr[1] ""
+"Ein mit dieser Version von Budget bereitgestelltes Datenbankupdate wurde "
+"nicht angewendet (%n Änderungen fehlen). Das Speichern kann fehlschlagen, "
+"bis das Update abgeschlossen ist."
 
 #: /app/lib/Service/SchemaVersionService.php:487
 msgid ""
@@ -4086,7 +4077,11 @@ msgid_plural ""
 "The database is missing %n columns this version of Budget writes to. Saving "
 "will fail until they are added."
 msgstr[0] ""
+"In der Datenbank fehlt %n Spalte, in die diese Version von Budget schreibt. "
+"Das Speichern schlägt fehl, bis sie hinzugefügt wurde."
 msgstr[1] ""
+"In der Datenbank fehlen %n Spalten, in die diese Version von Budget "
+"schreibt. Das Speichern schlägt fehl, bis sie hinzugefügt wurden."
 
 #: /app/lib/Service/ShareService.php:56
 msgid "You cannot share your budget with yourself"
@@ -4223,7 +4218,7 @@ msgstr "Buchung editieren"
 
 #: /app/lib/SetupChecks/BudgetSchemaCheck.php:41
 msgid "Budget's database schema is up to date."
-msgstr ""
+msgstr "Das Datenbankschema von Budget ist auf dem neuesten Stand."
 
 #: /app/lib/SetupChecks/BudgetSchemaCheck.php:52
 #: /app/lib/Traits/ApiErrorHandlerTrait.php:188
@@ -11123,10 +11118,8 @@ msgid "Percentage for {name}"
 msgstr "{name} löschen"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:809
-#, fuzzy
-#| msgid "Account holder name"
 msgid "Amount for {name}"
-msgstr "Kontoinhaber"
+msgstr "Betrag für {name}"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:828
 #, fuzzy
@@ -11147,10 +11140,9 @@ msgid "The others owe you {owed}. Your share is {mine}."
 msgstr ""
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:897
-#, fuzzy
-#| msgid "Please select at least one expense to settle"
 msgid "Tick at least one person to split with."
-msgstr "Bitte mindestens eine Ausgabe zum Begleichen auswählen"
+msgstr ""
+"Wähle mindestens eine Person aus, mit der du die Ausgabe teilen möchtest."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:899
 msgid "There is not enough to split between this many people."
