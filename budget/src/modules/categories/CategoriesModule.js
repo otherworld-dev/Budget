@@ -1190,6 +1190,12 @@ export default class CategoriesModule {
         const reassignPrompt = t('budget', 'This category still has transactions assigned to it. Move them to Uncategorized and delete "{name}"?', { name: categoryName });
 
         let reassign = this._categoryOrDescendantsHaveTransactions(categoryId);
+        // A project on this branch makes the server refuse the delete and name
+        // the project, so moving the transactions first would not help: send
+        // the plain delete and show that refusal instead of asking (#391).
+        if (reassign && await this._projectUsesCategoryBranch(categoryId)) {
+            reassign = false;
+        }
         if (reassign && !await confirmDialog(reassignPrompt, { destructive: true })) {
             return { deleted: false, reassigned: false };
         }
@@ -1217,13 +1223,41 @@ export default class CategoriesModule {
     /** Whether a category or any of its descendants has transactions (from the count map). */
     _categoryOrDescendantsHaveTransactions(categoryId) {
         const counts = this.serverTransactionCounts || {};
+        return this._selfAndDescendantIds(categoryId).some(id => (counts[id] || 0) > 0);
+    }
+
+    _selfAndDescendantIds(categoryId) {
         const ids = [categoryId];
         const walk = (node) => (node?.children || []).forEach(child => {
             ids.push(child.id);
             walk(child);
         });
         walk(this.findCategoryById(categoryId));
-        return ids.some(id => (counts[id] || 0) > 0);
+        return ids;
+    }
+
+    /**
+     * Whether a project, or one of its subcategory amounts, uses this category
+     * or one below it (#391). Only the owner can delete a category and only the
+     * owner's projects can use it, so matching ids is enough. If the projects
+     * cannot be loaded this answers false and the server still refuses.
+     */
+    async _projectUsesCategoryBranch(categoryId) {
+        const ids = new Set(this._selfAndDescendantIds(categoryId));
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/projects'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) {
+                return false;
+            }
+            const projects = await response.json();
+            return Array.isArray(projects) && projects.some(project =>
+                ids.has(project.categoryId)
+                || (project.allocations || []).some(allocation => ids.has(allocation.categoryId)));
+        } catch {
+            return false;
+        }
     }
 
     updateBulkCategoryActions() {
