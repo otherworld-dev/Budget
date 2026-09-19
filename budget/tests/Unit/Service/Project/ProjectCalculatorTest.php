@@ -193,4 +193,20 @@ class ProjectCalculatorTest extends TestCase {
         $s = ProjectCalculator::summarise($this->project('2026-01-01', '2026-01-10'), [], $this->categories(), [], '2026-01-05');
         $this->assertSame(0.5, $s['timeElapsed']);
     }
+
+    public function testAnAllocationOnTheRootCategoryIsIgnored(): void {
+        $s = ProjectCalculator::summarise($this->project(), [$this->alloc(1, 100.0)], $this->categories(), [], '2026-09-19');
+
+        $this->assertSame(0.0, $s['allocated']);
+        $this->assertSame(900.0, $s['unallocated']);
+        $this->assertSame(['Bathroom', 'Kitchen'], array_column($s['breakdown'], 'name'));
+    }
+
+    public function testAnAllocationOnADeletedCategoryIsIgnored(): void {
+        $s = ProjectCalculator::summarise($this->project(), [$this->alloc(99, 100.0), $this->alloc(2, 400.0)], $this->categories(), self::SPENDING, '2026-09-19');
+
+        $this->assertSame(400.0, $s['allocated']);
+        $this->assertSame(500.0, $s['unallocated']);
+        $this->assertSame(['Bathroom', 'Kitchen'], array_column($s['breakdown'], 'name'));
+    }
 }

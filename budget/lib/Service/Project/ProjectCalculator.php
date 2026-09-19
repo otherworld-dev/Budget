@@ -169,26 +169,35 @@ final class ProjectCalculator {
             $amounts[$allocation->getCategoryId()] = (float)$allocation->getAmount();
         }
 
+        // Filter out allocations on the root category or deleted categories;
+        // they won't appear in rows and must not be counted in allocated/unallocated.
+        $allocatedAmounts = [];
+        foreach ($amounts as $categoryId => $amount) {
+            if ($categoryId !== $rootId && isset($byId[$categoryId])) {
+                $allocatedAmounts[$categoryId] = $amount;
+            }
+        }
+
         $rows = [];
         foreach ($childrenMap[$rootId] ?? [] as $child) {
             if (!isset($inBranch[$child->getId()])) {
                 continue;
             }
-            $rows[] = self::row($child, 0, $amounts[$child->getId()] ?? null, $sum(self::branchIds($child->getId(), $childrenMap)), false);
-            foreach (self::nestedAllocations($child->getId(), $childrenMap, $amounts, 1) as [$category, $depth]) {
-                $rows[] = self::row($category, $depth, $amounts[$category->getId()], $sum(self::branchIds($category->getId(), $childrenMap)), false);
+            $rows[] = self::row($child, 0, $allocatedAmounts[$child->getId()] ?? null, $sum(self::branchIds($child->getId(), $childrenMap)), false);
+            foreach (self::nestedAllocations($child->getId(), $childrenMap, $allocatedAmounts, 1) as [$category, $depth]) {
+                $rows[] = self::row($category, $depth, $allocatedAmounts[$category->getId()], $sum(self::branchIds($category->getId(), $childrenMap)), false);
             }
         }
         // An amount whose category has since moved out of the project, or
         // been flagged out of reports: still shown, but it counts for nothing
-        foreach ($amounts as $categoryId => $amount) {
+        foreach ($allocatedAmounts as $categoryId => $amount) {
             if (isset($inBranch[$categoryId]) || !isset($byId[$categoryId])) {
                 continue;
             }
             $rows[] = self::row($byId[$categoryId], 0, $amount, $sum(self::branchIds($categoryId, $childrenMap)), true);
         }
 
-        $allocated = MoneyCalculator::toFloat(MoneyCalculator::sum(array_values($amounts)));
+        $allocated = MoneyCalculator::toFloat(MoneyCalculator::sum(array_values($allocatedAmounts)));
 
         return [
             'status' => self::status($start, $end, $today),
