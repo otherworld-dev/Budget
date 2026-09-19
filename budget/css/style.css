@@ -11536,6 +11536,16 @@ button.danger:hover {
     background: var(--budget-color-negative);
 }
 
+/* Nextcloud's own `#body-user .warning` (an id and a class) outranks the
+   rules above and adds a margin, padding and a 20% tint, which pushed the
+   amber fill out of its track, so a bar between 60% and 80% showed empty. */
+#body-user .budget-progress-fill.warning {
+    margin: 0;
+    padding: 0;
+    border-radius: 4px;
+    background: #f57c00;
+}
+
 .budget-progress-text {
     font-size: 0.75rem;
     color: var(--color-text-maxcontrast);
