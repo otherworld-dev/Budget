@@ -5,9 +5,10 @@
 import { translate as t } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
-import { showSuccess, showError } from '../../utils/notifications.js';
+import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
-import { groupProjects, progressFor } from './projectMath.js';
+import { setDateValue } from '../../utils/datepicker.js';
+import { groupProjects, progressFor, unallocated, subcategoriesOf, ownExpenseTree } from './projectMath.js';
 
 export default class ProjectsModule {
     constructor(app) {
@@ -15,6 +16,11 @@ export default class ProjectsModule {
         this._eventsSetup = false;
         // The project open in the detail modal
         this._current = null;
+        // The project the form is editing, or null for a new one
+        this._editing = null;
+        // Amounts typed in the form by category id, kept across category changes
+        this._allocationValues = new Map();
+        this._formListenersSetup = false;
     }
 
     get settings() { return this.app.settings; }
@@ -245,6 +251,138 @@ export default class ProjectsModule {
         }
 
         this.ensureFormListeners?.();
+    }
+
+    showProjectForm(project = null) {
+        this.ensureEventListeners();
+        this._editing = project;
+        const isOwner = !project || !project._shared;
+
+        document.getElementById('project-modal-title').textContent = project ? t('budget', 'Edit Project') : t('budget', 'New Project');
+        document.getElementById('project-name').value = project?.name || '';
+        document.getElementById('project-total').value = project ? String(project.totalAmount) : '';
+        setDateValue('project-start', project?.startDate || formatters.getTodayDateString());
+        setDateValue('project-end', project?.endDate || '');
+
+        const select = document.getElementById('project-category');
+        if (isOwner) {
+            select.innerHTML = `<option value="">${t('budget', 'Choose a category…')}</option>`
+                + dom.buildCategoryOptionsHtml(ownExpenseTree(this.app.categoryTree || []), { selectedId: project?.categoryId });
+        } else {
+            // A shared project stays on its owner's category, which the viewer's own picker cannot list
+            select.innerHTML = `<option value="${project.categoryId}" selected>${this.escape(project.categoryName || '')}</option>`;
+        }
+        select.disabled = !isOwner;
+
+        // Only when creating: the owner can untick Exclude from budgeting on the category itself later
+        document.getElementById('project-exclude-group').style.display = project ? 'none' : '';
+        document.getElementById('project-exclude-budget').checked = true;
+
+        this._allocationValues = new Map((project?.allocations || []).map(a => [a.categoryId, String(a.amount)]));
+        this.renderAllocationRows();
+
+        const modal = document.getElementById('project-modal');
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    renderAllocationRows() {
+        const categoryId = parseInt(document.getElementById('project-category').value, 10);
+        const project = this._editing;
+        let subcategories = [];
+        if (!Number.isNaN(categoryId)) {
+            subcategories = project && project.categoryId === categoryId
+                ? (project.subcategories || [])
+                : subcategoriesOf(this.app.categoryTree || [], categoryId);
+        }
+
+        document.getElementById('project-allocations-group').style.display = subcategories.length > 0 ? '' : 'none';
+        document.getElementById('project-allocations').innerHTML = subcategories.map(sub => `
+            <div class="project-alloc-row" style="--depth: ${sub.depth}">
+                <label for="project-alloc-${sub.id}">${this.escape(sub.name)}</label>
+                <input type="number" id="project-alloc-${sub.id}" class="project-alloc-input" data-category-id="${sub.id}"
+                       step="0.01" min="0" inputmode="decimal" placeholder="${t('budget', 'No amount')}"
+                       value="${this.escape(this._allocationValues.get(sub.id) ?? '')}">
+            </div>`).join('');
+        this.updateUnallocated();
+    }
+
+    updateUnallocated() {
+        const inputs = [...document.querySelectorAll('#project-allocations .project-alloc-input')];
+        const result = unallocated(document.getElementById('project-total').value, inputs.map(i => i.value));
+        const el = document.getElementById('project-unallocated');
+        el.classList.toggle('error', result.valid && result.over);
+        el.textContent = result.over && result.valid
+            ? t('budget', 'The subcategory amounts are {amount} over the total', { amount: this.money(Math.abs(result.cents) / 100) })
+            : t('budget', 'Unallocated: {amount}', { amount: this.money(Math.max(result.cents, 0) / 100) });
+    }
+
+    async saveProject() {
+        const project = this._editing;
+        const categoryId = parseInt(document.getElementById('project-category').value, 10);
+        const inputs = [...document.querySelectorAll('#project-allocations .project-alloc-input')];
+        const body = {
+            name: document.getElementById('project-name').value.trim(),
+            categoryId: Number.isNaN(categoryId) ? null : categoryId,
+            totalAmount: parseFloat(document.getElementById('project-total').value),
+            startDate: document.getElementById('project-start').value,
+            endDate: document.getElementById('project-end').value || null,
+            allocations: inputs
+                .filter(input => input.value.trim() !== '')
+                .map(input => ({ categoryId: parseInt(input.dataset.categoryId, 10), amount: input.value.trim() })),
+        };
+
+        let problem = null;
+        if (!body.name) problem = t('budget', 'Enter a name for the project');
+        else if (!body.categoryId) problem = t('budget', 'Choose a category for the project');
+        else if (!(body.totalAmount > 0)) problem = t('budget', 'The total must be more than zero');
+        else if (!body.startDate) problem = t('budget', 'Enter a start date for the project');
+        else if (body.endDate && body.endDate < body.startDate) problem = t('budget', 'The end date cannot be before the start date');
+        else if (unallocated(body.totalAmount, body.allocations.map(a => a.amount)).over) {
+            problem = t('budget', 'The subcategory amounts add up to more than the total');
+        }
+        if (problem) {
+            showWarning(problem);
+            return;
+        }
+
+        if (!project) {
+            body.excludeFromBudget = document.getElementById('project-exclude-budget').checked;
+        }
+
+        try {
+            await this.fetchJson(project ? `/apps/budget/api/projects/${project.id}` : '/apps/budget/api/projects', {
+                method: project ? 'PUT' : 'POST',
+                body: JSON.stringify(body),
+            });
+            this.closeModal(document.getElementById('project-modal'));
+            showSuccess(project ? t('budget', 'Project saved') : t('budget', 'Project created'));
+            if (body.excludeFromBudget) {
+                // The category's Exclude from budgeting flag changed on the server
+                await this.app.loadCategories?.();
+            }
+            await this.loadProjectsView();
+        } catch (error) {
+            showError(error.userMessage || t('budget', 'Failed to save the project'));
+        }
+    }
+
+    ensureFormListeners() {
+        if (this._formListenersSetup) return;
+        this._formListenersSetup = true;
+
+        document.getElementById('project-form')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveProject();
+        });
+        document.getElementById('project-category')?.addEventListener('change', () => this.renderAllocationRows());
+        document.getElementById('project-total')?.addEventListener('input', () => this.updateUnallocated());
+        document.getElementById('project-allocations')?.addEventListener('input', (e) => {
+            const input = e.target.closest('.project-alloc-input');
+            if (!input) return;
+            this._allocationValues.set(parseInt(input.dataset.categoryId, 10), input.value);
+            this.updateUnallocated();
+        });
     }
 
     money(amount) {

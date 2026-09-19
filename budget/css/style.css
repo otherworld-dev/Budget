@@ -20871,3 +20871,74 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
         grid-column: 1 / -1;
     }
 }
+
+.project-dates {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.project-allocations-label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    font-size: 15px;
+    color: var(--color-text-maxcontrast);
+}
+
+.project-allocations {
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.project-alloc-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px 6px calc(12px + (var(--depth, 1) - 1) * 16px);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.project-alloc-row:last-child {
+    border-bottom: none;
+}
+
+/* Scoped to win over the generic .form-group label/input rules */
+#project-allocations .project-alloc-row label {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-weight: normal;
+    font-size: 14px;
+    color: var(--color-main-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#project-allocations input.project-alloc-input {
+    width: 110px;
+    min-height: 32px;
+    margin: 0;
+    padding: 4px 8px;
+    font-size: 14px;
+    text-align: right;
+}
+
+.project-unallocated {
+    margin: 8px 0 0;
+    font-size: 13px;
+}
+
+.project-unallocated.error {
+    color: var(--color-error-text, #8a0000);
+}
+
+@media (max-width: 480px) {
+    .project-dates {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+}

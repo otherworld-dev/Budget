@@ -272,3 +272,147 @@ describe('projects page', () => {
         expect(document.getElementById('empty-projects').style.display).toBe('block');
     });
 });
+
+describe('project form', () => {
+    let mod;
+    const byId = (id) => document.getElementById(id);
+    const setValue = (id, value, event = 'input') => {
+        byId(id).value = value;
+        byId(id).dispatchEvent(new Event(event, { bubbles: true }));
+    };
+    const allocationInput = (categoryId) => document.querySelector(`.project-alloc-input[data-category-id="${categoryId}"]`);
+    const typeAmount = (categoryId, value) => {
+        const input = allocationInput(categoryId);
+        input.value = value;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    beforeEach(() => {
+        global.OC = { generateUrl: (u) => u, requestToken: 'tok' };
+        mountProjects();
+        mod = makeModule();
+        vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+        delete global.OC;
+        delete global.fetch;
+    });
+
+    it('offers only your own expense categories', () => {
+        mod.showProjectForm();
+
+        const values = [...byId('project-category').options].map(o => o.value);
+        expect(values).toEqual(['', '1', '4', '2', '3', '8']);
+        expect(byId('project-category').disabled).toBe(false);
+        expect(byId('project-exclude-group').style.display).toBe('');
+        expect(byId('project-exclude-budget').checked).toBe(true);
+        expect(byId('project-modal').style.display).toBe('flex');
+    });
+
+    it('lists the chosen category\'s subcategories and keeps a running total', () => {
+        mod.showProjectForm();
+        setValue('project-total', '900');
+        setValue('project-category', '1', 'change');
+
+        const ids = [...document.querySelectorAll('.project-alloc-input')].map(i => i.dataset.categoryId);
+        expect(ids).toEqual(['4', '2', '3']);
+        expect(byId('project-unallocated').textContent).toBe('Unallocated: £900.00');
+
+        typeAmount(2, '400');
+        expect(byId('project-unallocated').textContent).toBe('Unallocated: £500.00');
+
+        typeAmount(4, '600');
+        expect(byId('project-unallocated').textContent).toBe('The subcategory amounts are £100.00 over the total');
+        expect(byId('project-unallocated').classList.contains('error')).toBe(true);
+    });
+
+    it('keeps typed amounts when the category is changed and changed back', () => {
+        mod.showProjectForm();
+        setValue('project-category', '1', 'change');
+        typeAmount(2, '400');
+        setValue('project-category', '4', 'change');
+        expect(document.querySelectorAll('.project-alloc-input')).toHaveLength(0);
+        setValue('project-category', '1', 'change');
+        expect(allocationInput(2).value).toBe('400');
+    });
+
+    it('creates a project with its amounts and the monthly-budget box', async () => {
+        serve({ list: [] });
+        mod.showProjectForm();
+        setValue('project-name', 'House renovation');
+        setValue('project-category', '1', 'change');
+        setValue('project-total', '900');
+        setValue('project-start', '2026-03-01');
+        typeAmount(2, '400');
+
+        await mod.saveProject();
+
+        expect(sent('POST')).toEqual({
+            url: '/apps/budget/api/projects',
+            body: {
+                name: 'House renovation',
+                categoryId: 1,
+                totalAmount: 900,
+                startDate: '2026-03-01',
+                endDate: null,
+                allocations: [{ categoryId: 2, amount: '400' }],
+                excludeFromBudget: true,
+            },
+        });
+        // The category's flag changed on the server
+        expect(mod.app.loadCategories).toHaveBeenCalled();
+        expect(byId('project-modal').style.display).toBe('none');
+    });
+
+    it('does not ask the server when the amounts go over the total', async () => {
+        const { showWarning } = await import('../../src/utils/notifications.js');
+        serve();
+        mod.showProjectForm();
+        setValue('project-name', 'House renovation');
+        setValue('project-category', '1', 'change');
+        setValue('project-total', '900');
+        setValue('project-start', '2026-03-01');
+        typeAmount(2, '1000');
+
+        await mod.saveProject();
+
+        expect(showWarning).toHaveBeenCalledWith('The subcategory amounts add up to more than the total');
+        expect(sent('POST')).toBeNull();
+    });
+
+    it('edits with PUT and never sends the monthly-budget box', async () => {
+        serve({ list: [] });
+        mod.showProjectForm(project());
+
+        expect(byId('project-name').value).toBe('House renovation');
+        expect(byId('project-exclude-group').style.display).toBe('none');
+        expect(allocationInput(2).value).toBe('400');
+
+        await mod.saveProject();
+
+        const put = sent('PUT');
+        expect(put.url).toBe('/apps/budget/api/projects/10');
+        expect(put.body).not.toHaveProperty('excludeFromBudget');
+        expect(put.body.endDate).toBe('2026-12-31');
+        expect(mod.app.loadCategories).not.toHaveBeenCalled();
+    });
+
+    it('someone the project is shared with cannot move it to another category', () => {
+        mod.showProjectForm(project({ _shared: true, _canWrite: true }));
+
+        const select = byId('project-category');
+        expect(select.disabled).toBe(true);
+        expect([...select.options].map(o => o.textContent)).toEqual(['Renovation']);
+        // Their subcategories come from the project, not the viewer's own tree
+        expect([...document.querySelectorAll('.project-alloc-input')].map(i => i.dataset.categoryId)).toEqual(['4', '2', '3']);
+    });
+
+    it('New Project opens an empty form', () => {
+        serve({ list: [] });
+        mod.ensureEventListeners();
+        byId('add-project-btn').click();
+        expect(byId('project-modal-title').textContent).toBe('New Project');
+        expect(byId('project-name').value).toBe('');
+    });
+});

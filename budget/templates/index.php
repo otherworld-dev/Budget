@@ -5052,6 +5052,54 @@ style('budget', 'budget-app');
     </div>
 </div>
 
+<!-- Project Modal (#391) -->
+<div id="project-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="project-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <h3 id="project-modal-title"><?php p($l->t('New Project')); ?></h3>
+        <form id="project-form" aria-label="<?php p($l->t('Project form')); ?>">
+            <div class="form-group">
+                <label for="project-name"><?php p($l->t('Name')); ?> <span class="required">*</span></label>
+                <input type="text" id="project-name" maxlength="255" required placeholder="<?php p($l->t('e.g., House renovation')); ?>">
+            </div>
+            <div class="form-group">
+                <label for="project-category"><?php p($l->t('Category')); ?> <span class="required">*</span></label>
+                <select id="project-category" required></select>
+                <small class="form-text"><?php p($l->t('Everything filed under this category and its subcategories counts towards the project.')); ?></small>
+            </div>
+            <div class="form-group">
+                <label for="project-total"><?php p($l->t('Total budget')); ?> <span class="required">*</span></label>
+                <input type="number" id="project-total" step="0.01" min="0" inputmode="decimal" required>
+            </div>
+            <div class="project-dates">
+                <div class="form-group">
+                    <label for="project-start"><?php p($l->t('Start date')); ?> <span class="required">*</span></label>
+                    <input type="date" id="project-start" required>
+                </div>
+                <div class="form-group">
+                    <label for="project-end"><?php p($l->t('End date (optional)')); ?></label>
+                    <input type="date" id="project-end">
+                </div>
+            </div>
+            <div class="form-group" id="project-allocations-group" style="display: none;">
+                <span class="project-allocations-label"><?php p($l->t('Subcategory amounts (optional)')); ?></span>
+                <div id="project-allocations" class="project-allocations"></div>
+                <p id="project-unallocated" class="project-unallocated" aria-live="polite"></p>
+            </div>
+            <div class="form-group" id="project-exclude-group">
+                <label class="checkbox-label" for="project-exclude-budget">
+                    <input type="checkbox" id="project-exclude-budget" checked>
+                    <span><?php p($l->t('Leave these categories out of monthly budgets')); ?></span>
+                </label>
+                <small class="form-text"><?php p($l->t('Ticks Exclude from budgeting on the category, so a big project bill does not show as over budget on the Budget page. The spending still counts in reports and on the dashboard.')); ?></small>
+            </div>
+            <div class="modal-buttons">
+                <button type="submit" class="primary"><?php p($l->t('Save')); ?></button>
+                <button type="button" class="secondary cancel-btn"><?php p($l->t('Cancel')); ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Goal Modal (moved out of #app-content so it can sit above the app navigation) -->
 <div id="goal-modal" class="modal modal-columns modal-columns-2" style="display: none;">
     <div class="modal-content">
