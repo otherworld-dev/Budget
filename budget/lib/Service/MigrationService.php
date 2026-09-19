@@ -665,6 +665,12 @@ class MigrationService {
             $category->setBudgetAmount($catData['budgetAmount'] ?? null);
             $category->setBudgetPeriod($catData['budgetPeriod'] ?? null);
             $category->setSortOrder($catData['sortOrder'] ?? 0);
+            // Exported all along but never read back, so a restore put every
+            // category back into reports and budgets (#391)
+            $category->setExcludedFromReports((bool) ($catData['excludedFromReports'] ?? false));
+            $category->setExcludedFromBudget((bool) ($catData['excludedFromBudget'] ?? false));
+            $category->setBudgetRollover((bool) ($catData['budgetRollover'] ?? false));
+            $category->setRolloverStart($catData['rolloverStart'] ?? null);
             $category->setCreatedAt($catData['createdAt'] ?? date('Y-m-d H:i:s'));
 
             // Remap parent ID

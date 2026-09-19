@@ -863,4 +863,53 @@ class MigrationServiceTest extends TestCase {
 		$this->assertTrue($captured->getClosed(), 'closed must survive a restore');
 		$this->assertTrue($captured->getExcludedFromReports(), 'excludedFromReports must survive a restore');
 	}
+
+	/**
+	 * The category flags were exported but never read back, so a restore put
+	 * every category back into reports and budgets, undoing the Exclude from
+	 * budgeting that creating a project ticks (#391), and dropped rollover.
+	 */
+	public function testImportAllRestoresTheCategoryFlags(): void {
+		$zipContent = $this->createTestZip([
+			'manifest.json' => json_encode(['version' => '1.0.0', 'appId' => 'budget']),
+			'categories.json' => json_encode([
+				['id' => 1, 'name' => 'Renovation', 'type' => 'expense', 'parentId' => null,
+					'excludedFromReports' => true, 'excludedFromBudget' => true,
+					'budgetRollover' => true, 'rolloverStart' => '2026-01'],
+				['id' => 2, 'name' => 'Groceries', 'type' => 'expense', 'parentId' => null],
+			]),
+			'accounts.json' => json_encode([]),
+			'transactions.json' => json_encode([]),
+		]);
+
+		$this->transactionMapper->method('findAll')->willReturn([]);
+		$this->billMapper->method('findAll')->willReturn([]);
+		$this->importRuleMapper->method('findAll')->willReturn([]);
+		$this->accountMapper->method('findAll')->willReturn([]);
+		$this->categoryMapper->method('findAll')->willReturn([]);
+
+		$captured = [];
+		$this->categoryMapper->method('insert')
+			->willReturnCallback(function (Category $c) use (&$captured) {
+				$captured[$c->getName()] = $c;
+				$c->setId(count($captured) + 10);
+				return $c;
+			});
+
+		$result = $this->service->importAll('user1', $zipContent);
+
+		$this->assertTrue($result['success']);
+		$renovation = $captured['Renovation'];
+		$this->assertTrue($renovation->getExcludedFromReports(), 'excludedFromReports must survive a restore');
+		$this->assertTrue($renovation->getExcludedFromBudget(), 'excludedFromBudget must survive a restore');
+		$this->assertTrue($renovation->getBudgetRollover(), 'budgetRollover must survive a restore');
+		$this->assertSame('2026-01', $renovation->getRolloverStart());
+
+		// An older backup without the keys restores the defaults
+		$groceries = $captured['Groceries'];
+		$this->assertFalse((bool) $groceries->getExcludedFromReports());
+		$this->assertFalse((bool) $groceries->getExcludedFromBudget());
+		$this->assertFalse((bool) $groceries->getBudgetRollover());
+		$this->assertNull($groceries->getRolloverStart());
+	}
 }
