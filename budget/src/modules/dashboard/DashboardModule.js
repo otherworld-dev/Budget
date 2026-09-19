@@ -196,6 +196,10 @@ export default class DashboardModule {
             // Cache-busting timestamp to ensure fresh data
             const cacheBuster = Date.now();
 
+            // Projects tile (#391): asked for alongside the rest and never
+            // rejects, so a failure only leaves the tile out
+            const projectsRequest = this.fetchProjectsForTile();
+
             // Load all dashboard data in parallel for better performance
             const [summaryResponse, trendResponse, transResponse, billsResponse, budgetResponse, goalsResponse, pensionResponse, assetResponse, netWorthResponse, alertsResponse, debtResponse, assetHistoryResponse] = await Promise.all([
                 // Current budget cycle summary for hero stats
@@ -284,8 +288,10 @@ export default class DashboardModule {
             this.updateSavingsGoalsWidget(savingsGoals);
             this.widgetDataLoaded.savingsGoals = true;
 
-            // Projects tile (#391): fetched on its own so it never holds up the rest
-            this.loadProjectsWidget();
+            // Projects tile (#391): waited for here so the card is showing
+            // when Gridstack builds the grid and the tile gets its saved
+            // place. Arriving later, it would be added in the first free slot.
+            this.updateProjectsWidget(await projectsRequest);
             this.widgetDataLoaded.projects = true;
 
             // Update Pension Dashboard Card
@@ -1939,17 +1945,25 @@ export default class DashboardModule {
         }).join('');
     }
 
-    /** Projects tile (#391): its own request, so a failure never blanks the dashboard */
-    async loadProjectsWidget() {
+    /**
+     * The projects for the tile (#391). Never rejects: a failure gives an
+     * empty list, which hides the tile, so it can never blank the dashboard.
+     */
+    async fetchProjectsForTile() {
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/projects'), {
                 headers: { 'requesttoken': OC.requestToken }
             });
-            this.updateProjectsWidget(response.ok ? await response.json() : []);
+            return response.ok ? await response.json() : [];
         } catch (error) {
             console.error('Failed to load projects for the dashboard:', error);
-            this.updateProjectsWidget([]);
+            return [];
         }
+    }
+
+    /** Repaint the Projects tile from fresh data, after the dashboard's first load */
+    async loadProjectsWidget() {
+        this.updateProjectsWidget(await this.fetchProjectsForTile());
     }
 
     updateProjectsWidget(projects) {
@@ -3827,9 +3841,10 @@ export default class DashboardModule {
 
     /**
      * Keep a conditional tile's grid slot in step with its card once Gridstack
-     * is running (#391). The Projects tile loads on its own, so its data can
-     * land after the grid was built with the tile parked as hidden, and a
-     * project created or finished later changes it without a page reload.
+     * is running (#391). The first load waits for the Projects tile's data
+     * before building the grid, so there the saved layout places it. After
+     * that a project created or finished changes the tile without a page
+     * reload, and a repaint can find it parked as hidden or needing parking.
      * Before Gridstack starts there is nothing to do: _wrapCardsForGridstack
      * reads the card's own display.
      */

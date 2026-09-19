@@ -3,7 +3,7 @@
  * panel and the dashboard tile.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 vi.mock('@nextcloud/l10n', () => ({
     translate: (_app, text, params = {}) =>
@@ -17,6 +17,10 @@ vi.mock('../../src/utils/notifications.js', () => ({
     showWarning: vi.fn(),
     showInfo: vi.fn(),
 }));
+
+// The first-load test hands the dashboard a stand-in grid to see where tiles go
+const gridstackInit = vi.hoisted(() => vi.fn());
+vi.mock('gridstack', () => ({ GridStack: { init: (...args) => gridstackInit(...args) } }));
 
 import SharingModule from '../../src/modules/sharing/SharingModule.js';
 import DashboardModule from '../../src/modules/dashboard/DashboardModule.js';
@@ -125,10 +129,10 @@ describe('dashboard tile', () => {
 });
 
 /**
- * The tile fetches on its own, so its data can land after Gridstack has built
- * the grid and parked the (then still hidden) tile in #hidden-widgets. A
- * project created or finished later changes it without a page reload too.
- * Showing or hiding the card alone left the tile parked, so it never appeared.
+ * Once Gridstack has built the grid, a repaint can find the tile parked in
+ * #hidden-widgets: a project created or finished changes it without a page
+ * reload. Showing or hiding the card alone left the tile parked, so it never
+ * appeared.
  */
 describe('dashboard tile in the grid', () => {
     let mod;
@@ -199,6 +203,93 @@ describe('dashboard tile in the grid', () => {
 
         expect(document.getElementById('projects-card').style.display).toBe('');
         expect(stash.contains(wrapper())).toBe(true);
+    });
+});
+
+/**
+ * On the first load the tile has to be showing before Gridstack builds the
+ * grid, or it is left out of the saved layout and added later in the first
+ * free slot, and that slot is then saved over its own place.
+ */
+describe('dashboard tile on the first load', () => {
+    const p = (overrides) => ({ id: 1, name: 'Renovation', status: 'active', startDate: '2026-03-01', spent: 450, totalAmount: 900, ...overrides });
+    let grid;
+    let answerProjects;
+
+    beforeEach(() => {
+        document.body.innerHTML = `
+            <div class="dashboard-grid">
+                <div class="dashboard-card" id="projects-card" data-widget-id="projects" data-widget-category="widget" style="display: none;">
+                    <div id="projects-widget"></div>
+                </div>
+            </div>
+            <div id="hidden-widgets"></div>`;
+        grid = {
+            load: vi.fn(),
+            addWidget: vi.fn(),
+            removeWidget: vi.fn(),
+            disable: vi.fn(),
+            enable: vi.fn(),
+            on: vi.fn(),
+            getGridItems: () => [],
+            getColumn: () => 3,
+            column: vi.fn(),
+            update: vi.fn(),
+        };
+        gridstackInit.mockReset();
+        gridstackInit.mockReturnValue(grid);
+
+        global.OC = { generateUrl: (u) => u, requestToken: 'tok' };
+        // The projects answer last, after everything else the dashboard asks for
+        global.fetch = vi.fn((url) => {
+            if (url === '/apps/budget/api/projects') {
+                return new Promise(resolve => {
+                    answerProjects = () => resolve({ ok: true, json: async () => [p({})] });
+                });
+            }
+            return Promise.resolve({ ok: true, json: async () => [] });
+        });
+    });
+
+    afterEach(() => {
+        delete global.OC;
+        delete global.fetch;
+    });
+
+    it('puts the tile back where it was saved when the projects answer after the rest', async () => {
+        const mod = Object.create(DashboardModule.prototype);
+        mod.app = {
+            settings: {},
+            accounts: [],
+            widgetData: {},
+            widgetDataLoaded: {},
+            dashboardLocked: true,
+            dashboardConfig: {
+                hero: { visibility: {}, order: [] },
+                widgets: {
+                    visibility: { projects: true },
+                    order: ['projects'],
+                    positions: { projects: { x: 2, y: 4, w: 1, h: 4 } },
+                },
+            },
+            needsLazyLoad: () => false,
+            getPrimaryCurrency: () => 'GBP',
+        };
+        // Timed follow-ups that need a real grid
+        mod.refreshAllInstances = vi.fn();
+        mod._removeHiddenTilesFromGrid = vi.fn();
+
+        const loading = mod.loadDashboard();
+        await new Promise(resolve => setTimeout(resolve, 20));
+        answerProjects();
+        await loading;
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(gridstackInit).toHaveBeenCalledTimes(1);
+        const placed = grid.load.mock.calls[0][0].find(item => item.el.getAttribute('gs-id') === 'projects');
+        expect(placed).toMatchObject({ x: 2, y: 4, w: 1, h: 4 });
+        expect(grid.addWidget).not.toHaveBeenCalled();
+        expect(document.querySelector('.project-tile-name').textContent).toBe('Renovation');
     });
 });
 
