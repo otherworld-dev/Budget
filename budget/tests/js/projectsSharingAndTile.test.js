@@ -102,6 +102,26 @@ describe('dashboard tile', () => {
         mod.updateProjectsWidget([p({})]);
         expect(card().style.display).toBe('none');
     });
+
+    it('repaints from fresh data instead of hiding when called with no argument', async () => {
+        // A lazy-load path (applyDashboardVisibility/showWidget) calls the
+        // generic update method with no argument once it thinks the tile's
+        // data is loaded; that must mean "repaint", not "there is no data".
+        global.OC = { generateUrl: (u) => u, requestToken: 'tok' };
+        global.fetch = vi.fn(async () => ({ ok: true, json: async () => [p({})] }));
+
+        try {
+            mod.updateProjectsWidget();
+            await new Promise(r => setTimeout(r, 0));
+
+            expect(card().style.display).toBe('');
+            expect(document.querySelector('.project-tile-name').textContent).toBe('Renovation');
+            expect(global.fetch).toHaveBeenCalledWith('/apps/budget/api/projects', expect.anything());
+        } finally {
+            delete global.OC;
+            delete global.fetch;
+        }
+    });
 });
 
 describe('help', () => {

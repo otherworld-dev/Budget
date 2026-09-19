@@ -286,6 +286,7 @@ export default class DashboardModule {
 
             // Projects tile (#391): fetched on its own so it never holds up the rest
             this.loadProjectsWidget();
+            this.widgetDataLoaded.projects = true;
 
             // Update Pension Dashboard Card
             this.updatePensionsSummary(pensionSummary);
@@ -1952,6 +1953,14 @@ export default class DashboardModule {
     }
 
     updateProjectsWidget(projects) {
+        // A lazy-load path (applyDashboardVisibility/showWidget) may call this
+        // with no argument when it thinks the tile hasn't loaded yet — that
+        // means "repaint with fresh data", not "there is no data" (#391).
+        if (projects === undefined) {
+            this.loadProjectsWidget();
+            return;
+        }
+
         const card = document.getElementById('projects-card');
         const container = document.getElementById('projects-widget');
         if (!card || !container) return;
