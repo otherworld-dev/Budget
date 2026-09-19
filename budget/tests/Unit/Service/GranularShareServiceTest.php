@@ -10,6 +10,8 @@ use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\ImportRuleMapper;
+use OCA\Budget\Db\Project;
+use OCA\Budget\Db\ProjectMapper;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\SavingsGoalMapper;
 use OCA\Budget\Db\Share;
@@ -31,6 +33,7 @@ class GranularShareServiceTest extends TestCase {
     private RecurringIncomeMapper $recurringIncomeMapper;
     private SavingsGoalMapper $savingsGoalMapper;
     private ImportRuleMapper $importRuleMapper;
+    private ProjectMapper $projectMapper;
     private IL10N $l;
 
     protected function setUp(): void {
@@ -42,6 +45,7 @@ class GranularShareServiceTest extends TestCase {
         $this->recurringIncomeMapper = $this->createMock(RecurringIncomeMapper::class);
         $this->savingsGoalMapper = $this->createMock(SavingsGoalMapper::class);
         $this->importRuleMapper = $this->createMock(ImportRuleMapper::class);
+        $this->projectMapper = $this->createMock(ProjectMapper::class);
         $this->l = $this->createMock(IL10N::class);
 
         $this->l->method('t')->willReturnCallback(
@@ -57,7 +61,9 @@ class GranularShareServiceTest extends TestCase {
             $this->recurringIncomeMapper,
             $this->savingsGoalMapper,
             $this->importRuleMapper,
-            $this->l
+            $this->l,
+            null,
+            $this->projectMapper
         );
     }
 
@@ -405,6 +411,7 @@ class GranularShareServiceTest extends TestCase {
                 [100, ShareItem::TYPE_RECURRING_INCOME, []],
                 [100, ShareItem::TYPE_SAVINGS_GOAL, []],
                 [100, ShareItem::TYPE_IMPORT_RULE, []],
+                [100, ShareItem::TYPE_PROJECT, []],
             ]);
 
         $config = $this->service->getShareConfig(100);
@@ -422,6 +429,7 @@ class GranularShareServiceTest extends TestCase {
         $this->assertArrayNotHasKey(ShareItem::TYPE_RECURRING_INCOME, $config);
         $this->assertArrayNotHasKey(ShareItem::TYPE_SAVINGS_GOAL, $config);
         $this->assertArrayNotHasKey(ShareItem::TYPE_IMPORT_RULE, $config);
+        $this->assertArrayNotHasKey(ShareItem::TYPE_PROJECT, $config);
     }
 
     // =============================================
@@ -683,5 +691,43 @@ class GranularShareServiceTest extends TestCase {
             ->willReturn([]);
 
         $this->assertEqualsCanonicalizing([1, 2], $this->service->getWritableAccountIds('alice'));
+    }
+
+    // =============================================
+    // projects
+    // =============================================
+
+    public function testProjectsAreSharedLikeAnyOtherType(): void {
+        $project = new Project();
+        $project->setId(10);
+        $project->setUserId('owner');
+        $this->projectMapper->method('findAll')
+            ->willReturnCallback(fn (string $uid) => $uid === 'owner' ? [$project] : []);
+        $this->shareMapper->method('findByRecipient')
+            ->willReturnCallback(fn (string $uid) => $uid === 'bob'
+                ? [$this->makeShare(1, 'owner', 'bob', Share::STATUS_ACCEPTED)]
+                : []);
+        $this->shareItemMapper->method('findSharedEntityIds')
+            ->willReturnCallback(fn (int $shareId, string $type) => $type === ShareItem::TYPE_PROJECT ? [10] : []);
+        $this->shareItemMapper->method('getEntityPermission')->willReturn(ShareItem::PERMISSION_READ);
+
+        $this->assertSame([10], $this->service->getSharedProjectIds('bob'));
+        $this->assertTrue($this->service->canAccess('bob', ShareItem::TYPE_PROJECT, 10));
+        $this->assertFalse($this->service->canWrite('bob', ShareItem::TYPE_PROJECT, 10));
+        $this->assertSame('owner', $this->service->resolveOwner('bob', ShareItem::TYPE_PROJECT, 10));
+        $this->assertTrue($this->service->canWrite('owner', ShareItem::TYPE_PROJECT, 10));
+    }
+
+    public function testAProjectSharedAtReadAndWriteIsWritable(): void {
+        $this->projectMapper->method('findAll')->willReturn([]);
+        $this->shareMapper->method('findByRecipient')
+            ->willReturn([$this->makeShare(1, 'owner', 'bob', Share::STATUS_ACCEPTED)]);
+        $this->shareItemMapper->method('getEntityPermission')->willReturn(ShareItem::PERMISSION_WRITE);
+
+        $this->assertTrue($this->service->canWrite('bob', ShareItem::TYPE_PROJECT, 10));
+    }
+
+    public function testOwnerDisplayNameFallsBackToTheUid(): void {
+        $this->assertSame('owner', $this->service->ownerDisplayName('owner'));
     }
 }

@@ -12,6 +12,7 @@ use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\ImportRuleMapper;
+use OCA\Budget\Db\ProjectMapper;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\SavingsGoalMapper;
 use OCA\Budget\Exception\ReadOnlyShareException;
@@ -35,6 +36,7 @@ class GranularShareService {
     private ImportRuleMapper $importRuleMapper;
     private IL10N $l;
     private ?IUserManager $userManager;
+    private ?ProjectMapper $projectMapper;
 
     /** @var array<string, mixed> Per-request cache */
     private array $cache = [];
@@ -49,7 +51,8 @@ class GranularShareService {
         SavingsGoalMapper $savingsGoalMapper,
         ImportRuleMapper $importRuleMapper,
         IL10N $l,
-        ?IUserManager $userManager = null
+        ?IUserManager $userManager = null,
+        ?ProjectMapper $projectMapper = null
     ) {
         $this->shareMapper = $shareMapper;
         $this->shareItemMapper = $shareItemMapper;
@@ -61,6 +64,7 @@ class GranularShareService {
         $this->importRuleMapper = $importRuleMapper;
         $this->l = $l;
         $this->userManager = $userManager;
+        $this->projectMapper = $projectMapper;
     }
 
     /**
@@ -422,6 +426,23 @@ class GranularShareService {
     }
 
     /**
+     * Ids of projects shared with the user through accepted shares (#391).
+     *
+     * @return int[]
+     */
+    public function getSharedProjectIds(string $userId): array {
+        return $this->getSharedIds($userId, ShareItem::TYPE_PROJECT);
+    }
+
+    /**
+     * An owner's display name for "Shared by …" labels, or their uid when
+     * the user cannot be resolved.
+     */
+    public function ownerDisplayName(string $uid): string {
+        return $this->displayNameFor($uid);
+    }
+
+    /**
      * Fetch shared import rules as serialized arrays, flagged with the owner
      * and the recipient's write permission (mirrors getSharedCategories).
      *
@@ -514,6 +535,10 @@ class GranularShareService {
             ShareItem::TYPE_IMPORT_RULE => array_map(
                 fn($r) => $r->getId(),
                 $this->importRuleMapper->findAll($userId)
+            ),
+            ShareItem::TYPE_PROJECT => $this->projectMapper === null ? [] : array_map(
+                fn($p) => $p->getId(),
+                $this->projectMapper->findAll($userId)
             ),
             default => [],
         };
