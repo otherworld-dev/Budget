@@ -109,6 +109,9 @@ class BudgetApp {
         this.accounts = [];
         this.categories = [];
         this.categoryTree = [];
+        // The tree as the server sends it, before shared categories are
+        // merged in by name: the project form needs your own categories (#391)
+        this.rawCategoryTree = [];
         this.allCategories = [];
         this.transactions = [];
         this.pensions = [];
@@ -831,6 +834,7 @@ class BudgetApp {
             if (categoryTreeResponse.ok) {
                 const treeData = await categoryTreeResponse.json();
                 const rawTree = Array.isArray(treeData) ? treeData : [];
+                this.rawCategoryTree = rawTree;
                 // Merge own + shared categories (shared takes priority, dedup by name)
                 this.categoryTree = this.categoriesModule.mergeCategoryTree(rawTree);
                 this.allCategories = this.flattenCategories(this.categoryTree);

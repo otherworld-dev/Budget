@@ -28,6 +28,7 @@ vi.mock('../../src/utils/datepicker.js', () => ({
 }));
 
 import ProjectsModule from '../../src/modules/projects/ProjectsModule.js';
+import CategoriesModule from '../../src/modules/categories/CategoriesModule.js';
 
 export const TREE = [
     { id: 1, name: 'Renovation', type: 'expense', children: [
@@ -131,7 +132,10 @@ export function sent(method) {
 export function makeModule() {
     return new ProjectsModule({
         settings: {},
+        // The app keeps the merged tree the other pickers use and the tree as
+        // the server sent it; with no shared name clash the two are the same
         categoryTree: TREE,
+        rawCategoryTree: TREE,
         openTransactionsForCategory: vi.fn(),
         loadCategories: vi.fn(async () => {}),
     });
@@ -308,6 +312,54 @@ describe('project form', () => {
         expect(byId('project-exclude-group').style.display).toBe('');
         expect(byId('project-exclude-budget').checked).toBe(true);
         expect(byId('project-modal').style.display).toBe('flex');
+    });
+
+    it('offers your own category when a shared one has the same name', () => {
+        // Your own Home > Renovation > Kitchen, and someone else's Home shared with you
+        const raw = [
+            { id: 20, name: 'Home', type: 'expense', children: [
+                { id: 21, name: 'Renovation', type: 'expense', children: [
+                    { id: 22, name: 'Kitchen', type: 'expense', children: [] },
+                ] },
+            ] },
+            { id: 30, name: 'Home', type: 'expense', _shared: true, children: [
+                { id: 31, name: 'Bills', type: 'expense', _shared: true, children: [] },
+            ] },
+        ];
+        // The merged tree the other pickers use puts the shared Home in place
+        // of yours, with your Renovation under it
+        mod.app.categoryTree = Object.create(CategoriesModule.prototype).mergeCategoryTree(raw);
+        expect(mod.app.categoryTree.map(node => node.id)).toEqual([30]);
+        mod.app.rawCategoryTree = raw;
+
+        mod.showProjectForm();
+
+        const values = [...byId('project-category').options].map(o => o.value);
+        expect(values).toEqual(['', '20', '21', '22']);
+
+        setValue('project-category', '20', 'change');
+        const ids = [...document.querySelectorAll('.project-alloc-input')].map(i => i.dataset.categoryId);
+        expect(ids).toEqual(['21', '22']);
+    });
+
+    it('gets the tree as the server sent it when the categories reload', async () => {
+        const raw = [
+            { id: 20, name: 'Home', type: 'expense', children: [] },
+            { id: 30, name: 'Home', type: 'expense', _shared: true, children: [] },
+        ];
+        global.fetch = vi.fn(async (url) => ({
+            ok: true,
+            json: async () => (url === '/apps/budget/api/categories/tree' ? raw : []),
+        }));
+        const categories = Object.create(CategoriesModule.prototype);
+        categories.app = mod.app;
+        categories.renderCategoriesTree = vi.fn();
+        categories.setupCategoriesEventListeners = vi.fn();
+
+        await categories.loadCategories();
+
+        expect(mod.app.categoryTree.map(node => node.id)).toEqual([30]);
+        expect(mod.app.rawCategoryTree).toBe(raw);
     });
 
     it('lists the chosen category\'s subcategories and keeps a running total', () => {

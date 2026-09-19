@@ -90,6 +90,8 @@ export default class CategoriesModule {
             ]);
             if (treeResponse.ok) {
                 const fullTree = await treeResponse.json();
+                // Unmerged, for the project form's own-category picker (#391)
+                this.app.rawCategoryTree = fullTree;
                 // Merge own + shared for dropdowns and budget view
                 const mergedTree = this.mergeCategoryTree(fullTree);
                 this.app.categoryTree = mergedTree;
@@ -1687,6 +1689,8 @@ export default class CategoriesModule {
             });
             if (response.ok) {
                 const rawTree = await response.json();
+                // Unmerged, for the project form's own-category picker (#391)
+                this.app.rawCategoryTree = rawTree;
                 // Merge own + shared: shared takes priority, children merged
                 const mergedTree = this.mergeCategoryTree(rawTree);
                 this.categoryTree = mergedTree;

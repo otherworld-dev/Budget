@@ -90,6 +90,11 @@ export function subcategoriesOf(categoryTree, categoryId) {
  * The tree pruned to the viewer's own expense categories, for the project's
  * category picker. Shared categories stay out: the project would be built on
  * someone else's category.
+ *
+ * Pass the tree as the server sends it (app.rawCategoryTree), not the merged
+ * app.categoryTree: merging swaps your own top-level category for a shared
+ * one of the same name, so your category and everything under it would be
+ * dropped here with the shared node.
  */
 export function ownExpenseTree(categoryTree) {
     return (categoryTree || [])

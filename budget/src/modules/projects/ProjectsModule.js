@@ -267,7 +267,7 @@ export default class ProjectsModule {
         const select = document.getElementById('project-category');
         if (isOwner) {
             select.innerHTML = `<option value="">${t('budget', 'Choose a category…')}</option>`
-                + dom.buildCategoryOptionsHtml(ownExpenseTree(this.app.categoryTree || []), { selectedId: project?.categoryId });
+                + dom.buildCategoryOptionsHtml(ownExpenseTree(this.app.rawCategoryTree || []), { selectedId: project?.categoryId });
         } else {
             // A shared project stays on its owner's category, which the viewer's own picker cannot list
             select.innerHTML = `<option value="${project.categoryId}" selected>${this.escape(project.categoryName || '')}</option>`;
@@ -293,7 +293,7 @@ export default class ProjectsModule {
         if (!Number.isNaN(categoryId)) {
             subcategories = project && project.categoryId === categoryId
                 ? (project.subcategories || [])
-                : subcategoriesOf(this.app.categoryTree || [], categoryId);
+                : subcategoriesOf(this.app.rawCategoryTree || [], categoryId);
         }
 
         document.getElementById('project-allocations-group').style.display = subcategories.length > 0 ? '' : 'none';
