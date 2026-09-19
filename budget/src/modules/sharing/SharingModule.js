@@ -214,18 +214,29 @@ export default class SharingModule {
         if (!panel) return;
 
         try {
-            // Only fetch the share config — use cached app state for entity lists
             const config = await this.fetchApi(`/apps/budget/api/shares/${shareId}/items`);
             // Auto-share rules (map of entity type -> permission). Tolerate older
             // backends without the endpoint by falling back to none.
             const autoConfig = await this.fetchApi(`/apps/budget/api/shares/${shareId}/auto-config`).catch(() => ({}));
 
-            // Use app state for entity lists (already loaded by loadInitialData)
-            const accounts = this.app.accounts || [];
+            // Accounts and categories are part of the initial load. Everything
+            // below is filtered to the owner's own items: the server refuses a
+            // whole section if one ticked item belongs to someone else.
+            const own = list => (Array.isArray(list) ? list : []).filter(item => !item._shared);
+            const ownAccounts = own(this.app.accounts);
             const categoryTree = this.app.categoryTree || [];
             const flatCategories = this.flattenCategoryTree(Array.isArray(categoryTree) ? categoryTree : [], 0);
-            // Filter to own categories only (owner configures their own entities)
-            const ownCategories = flatCategories.filter(c => !c._shared);
+            const ownCategories = own(flatCategories);
+
+            // Bills, income and goals are only held once their own pages have
+            // been opened, and the Bills page leaves transfers out, so fetch
+            // them here. Reading the cached lists left the Bills section out
+            // entirely for anyone who came straight to Sharing (#392).
+            const [bills, recurringIncome, savingsGoals] = await Promise.all([
+                this.fetchApi('/apps/budget/api/bills').catch(() => []),
+                this.fetchApi('/apps/budget/api/recurring-income').catch(() => []),
+                this.fetchApi('/apps/budget/api/savings-goals').catch(() => []),
+            ]);
 
             // Import rules aren't part of the initial load; fetch on demand and
             // keep only the owner's own rules (recipients can't reshare).
@@ -243,11 +254,11 @@ export default class SharingModule {
             const ownProjects = (Array.isArray(projects) ? projects : []).filter(p => !p._shared);
 
             this.renderConfigPanel(panel, shareId, config, {
-                account: accounts,
+                account: ownAccounts,
                 category: ownCategories,
-                bill: this.app.bills || [],
-                recurring_income: this.app.recurringIncome || [],
-                savings_goal: this.app.savingsGoals || [],
+                bill: own(bills),
+                recurring_income: own(recurringIncome),
+                savings_goal: own(savingsGoals),
                 project: ownProjects,
                 import_rule: ownRules,
             }, autoConfig || {});
