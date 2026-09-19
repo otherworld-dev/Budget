@@ -20800,6 +20800,18 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     margin-bottom: 16px;
 }
 
+/* The shared .budget-progress-bar grows with `flex: 1` along the Budget
+   page's rows. Down a flex column, like a project card or the breakdown's
+   summary, that shrinks it to nothing, and a breakdown row's bar is a span,
+   which ignores a height, so none of the project bars showed. */
+.project-card .budget-progress-bar,
+.project-details-summary .budget-progress-bar,
+.project-row-bar .budget-progress-bar,
+.project-row-bar .budget-progress-fill {
+    display: block;
+    flex: none;
+}
+
 .project-rows-header,
 .project-row {
     display: grid;
