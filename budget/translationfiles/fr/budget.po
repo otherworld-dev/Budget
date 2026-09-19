@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-19 12:31+0000\n"
-"PO-Revision-Date: 2026-09-19 13:11+0000\n"
+"PO-Revision-Date: 2026-09-19 21:21+0000\n"
 "Last-Translator: Christophe <tophe.perso@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
@@ -1937,7 +1937,7 @@ msgstr "Trimestriel"
 #: /app/templates/index.php:5877 /app/templates/index.php:5982
 #: /app/templates/index.php:6472
 msgid "Yearly"
-msgstr "Annuel"
+msgstr "Annuelle"
 
 #: /app/lib/Controller/SetupController.php:67
 msgid "Budget app initialized successfully"
@@ -2131,37 +2131,31 @@ msgstr "Échec du fractionnement de la dépense"
 
 #: /app/lib/Controller/SharedExpenseController.php:381
 msgid "Each person can only be in a split once"
-msgstr ""
+msgstr "Chaque personne ne peut faire partie que d'un seul groupe à la fois"
 
 #: /app/lib/Controller/SharedExpenseController.php:382
 msgid "A split that has been settled cannot be changed"
-msgstr ""
+msgstr "Une répartition qui a été finalisée ne peut plus être modifiée"
 
 #: /app/lib/Controller/SharedExpenseController.php:383
 msgid "Every split needs an amount"
-msgstr ""
+msgstr "Chaque ventilation doit contenir un montant"
 
 #: /app/lib/Controller/SharedExpenseController.php:384
-#, fuzzy
-#| msgid "Failed to create transaction"
 msgid "The splits add up to more than the transaction"
-msgstr "Échec de la création de l'opération"
+msgstr "Le total des montants ventilés dépasse le montant de l'opération"
 
 #: /app/lib/Controller/SharedExpenseController.php:385
 #: /app/lib/Controller/SharedExpenseController.php:399
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:912
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:967
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:981
-#, fuzzy
-#| msgid "Failed to save splits"
 msgid "Failed to save the split"
 msgstr "Échec de l'enregistrement des ventilations"
 
 #: /app/lib/Controller/SharedExpenseController.php:390
-#, fuzzy
-#| msgid "Transaction not found"
 msgid "Transaction or contact not found"
-msgstr "Opération introuvable"
+msgstr "Opération ou contact introuvable"
 
 #: /app/lib/Controller/SharedExpenseController.php:421
 msgid "Failed to get shares"
@@ -2303,7 +2297,7 @@ msgstr "Échec de l'export des opérations"
 #: /app/src/modules/dashboard/DashboardModule.js:1323
 #: /app/templates/index.php:5604
 msgid "Transaction"
-msgstr "Transaction"
+msgstr "Opération"
 
 #: /app/lib/Controller/TransactionController.php:470
 msgid "Invalid status. Must be cleared, scheduled or pending"
@@ -2401,7 +2395,7 @@ msgstr "Fractionnement %1$s : le montant est requis"
 #: /app/lib/Controller/TransactionController.php:930
 #, php-format
 msgid "Split %1$s: amount cannot be zero"
-msgstr "Ventilation %1$s: Le montant ne peut pas être négatif"
+msgstr "Ventilation %1$s : Le montant ne peut pas être négatif"
 
 #: /app/lib/Controller/TransactionController.php:979 /app/src/main.js:1197
 #: /app/src/main.js:1264 /app/src/modules/accounts/AccountsModule.js:1665
@@ -2814,7 +2808,7 @@ msgid ""
 "{category} spending is {percent}%% above your typical level — {amount} so "
 "far this month."
 msgstr ""
-"Les dépenses dans la catégorie {category} sont supérieures de  {percent}%% à "
+"Les dépenses dans la catégorie {category} sont supérieures de {percent}%% à "
 "votre niveau habituel — {amount} depuis le début du mois."
 
 #: /app/lib/Notification/Notifier.php:438
@@ -2972,7 +2966,7 @@ msgstr "Cette facture n'a jamais été marquée comme payée"
 
 #: /app/lib/Service/BillService.php:205
 msgid "Assign an account to the bill first"
-msgstr "Affectez d'abord un compte à la facture."
+msgstr "Affectez d'abord un compte à la facture"
 
 #: /app/lib/Service/BillService.php:214
 msgid ""
@@ -3033,11 +3027,11 @@ msgstr "Une catégorie ne peut pas être imbriquée en elle-même"
 
 #: /app/lib/Service/CategoryService.php:597
 msgid "A budget adjustment already exists for this month"
-msgstr "Un ajustement budgétaire existe déjà pour ce mois-ci."
+msgstr "Un ajustement budgétaire existe déjà pour ce mois-ci"
 
 #: /app/lib/Service/CategoryService.php:673
 msgid "No budget snapshot found for this category and month"
-msgstr "Aucun instantané budgétaire trouvé pour cette catégorie et ce mois."
+msgstr "Aucun instantané budgétaire trouvé pour cette catégorie et ce mois"
 
 #: /app/lib/Service/CategoryTransferService.php:127
 msgid "The file is empty"
@@ -3093,12 +3087,12 @@ msgstr ""
 #, php-format
 msgid "\"%1$s\": the colour \"%2$s\" is not a hex code and was ignored"
 msgstr ""
-"\"%1$s\": la couleur \"%2$s\" n'est pas un code hexadécimal et a été ignorée"
+"\"%1$s\" : la couleur \"%2$s\" n'est pas un code hexadécimal et a été ignorée"
 
 #: /app/lib/Service/CategoryTransferService.php:362
 #, php-format
 msgid "\"%1$s\": the budget \"%2$s\" is not a number and was ignored"
-msgstr "\"%1$s\": le budget \"%2$s\" n'est pas un nombre et a été ignoré"
+msgstr "\"%1$s\" : le budget \"%2$s\" n'est pas un nombre et a été ignoré"
 
 #: /app/lib/Service/DigestService.php:132
 #, php-format
@@ -3114,8 +3108,8 @@ msgstr ""
 #: /app/lib/Service/DigestService.php:148
 msgid "%n category is over budget."
 msgid_plural "%n categories are over budget."
-msgstr[0] "%n  catégorie en dépassement."
-msgstr[1] "%n  catégories en dépassement."
+msgstr[0] "%n catégorie en dépassement."
+msgstr[1] "%n catégories en dépassement."
 
 #: /app/lib/Service/DigestService.php:158
 msgid "Upcoming bills"
@@ -3302,8 +3296,8 @@ msgid ""
 "File does not appear to be a valid QIF file. Missing !Type: or !Account "
 "header."
 msgstr ""
-"Le fichier ne semble pas être un fichier QIF valide. En-tête « !Type: » ou "
-"« !Account » manquant."
+"Le fichier ne semble pas être un fichier QIF valide. En-tête « !Type: » ou « "
+"!Account » manquant."
 
 #: /app/lib/Service/Import/FileValidator.php:214
 msgid ""
@@ -3686,7 +3680,7 @@ msgstr "Pourcentage"
 #: /app/lib/Service/Report/ReportExporter.php:309
 #: /app/lib/Service/Report/ReportExporter.php:546 /app/templates/index.php:3375
 msgid "Cumulative"
-msgstr "Cumulative"
+msgstr "Cumulé"
 
 #: /app/lib/Service/Report/ReportExporter.php:325
 #: /app/lib/Service/Report/ReportExporter.php:524
@@ -3700,8 +3694,6 @@ msgstr "Revenu mensuel moyen"
 
 #: /app/lib/Service/Report/ReportExporter.php:328
 #: /app/lib/Service/Report/ReportExporter.php:530
-#, fuzzy
-#| msgid "Avg Monthly Expenses"
 msgid "Average Monthly Expenses"
 msgstr "Dépenses mensuelles moyennes"
 
@@ -3902,7 +3894,7 @@ msgstr "Modèle d'expression régulière invalide"
 #: /app/lib/Service/ValidationService.php:175
 msgid "Color must be a valid hex code (e.g., #FFF or #FFFFFF)"
 msgstr ""
-"La couleur doit être un code hexadécimal valide (par ex. #FFF ou #FFFFFF)."
+"La couleur doit être un code hexadécimal valide (par ex. #FFF ou #FFFFFF)"
 
 #: /app/lib/Service/ValidationService.php:194
 #, php-format
@@ -4016,59 +4008,6 @@ msgid "Simple budget tracker and forecaster"
 msgstr "Outil simple de suivi et de prévision budgétaire"
 
 #: /app/specialAppInfoFakeDummyForL10nScript.php:4
-#, fuzzy
-#| msgid ""
-#| "**⚠️ Beta: This app is currently in testing. Data loss is possible. Please "
-#| "backup your data regularly and report any issues.**\n"
-#| "\n"
-#| "# Budget - Financial Tracking for Nextcloud\n"
-#| "\n"
-#| "Track your spending habits, manage savings, and forecast future account "
-#| "balances with intelligent analysis of your financial history.\n"
-#| "\n"
-#| "## Features\n"
-#| "\n"
-#| "* **Import Bank Statements**: Support for CSV, OFX, and QIF formats\n"
-#| "* **Smart Categorization**: Automatic vendor matching and transaction "
-#| "categorization\n"
-#| "* **Auto-Categorization Rules**: Apply rules to existing transactions "
-#| "anytime with preview\n"
-#| "* **Split Transactions**: Allocate single transactions across multiple "
-#| "categories\n"
-#| "* **Transfer Detection**: Automatic matching of transfers between "
-#| "accounts\n"
-#| "* **Budget Tracking**: Set spending limits with alerts when approaching "
-#| "or exceeding budgets\n"
-#| "* **Balance Forecasting**: Predict future balances based on historical "
-#| "data\n"
-#| "* **Recurring Bills**: Track bills with due date monitoring and Nextcloud "
-#| "notifications\n"
-#| "* **Recurring Income**: Track expected income sources with receipt "
-#| "tracking\n"
-#| "* **Split Expenses**: Share expenses with contacts and track who owes "
-#| "whom\n"
-#| "* **Debt Payoff Planner**: Plan repayment using avalanche or snowball "
-#| "strategies\n"
-#| "* **Savings Goals**: Set targets with progress tracking and achievement "
-#| "forecasting\n"
-#| "* **Pension Tracker**: Track retirement accounts with growth projections\n"
-#| "* **Net Worth History**: Track assets and liabilities over time\n"
-#| "* **Year-over-Year Reports**: Compare spending across multiple years\n"
-#| "* **Multi-Account Support**: Manage multiple bank accounts and "
-#| "currencies\n"
-#| "* **Custom Categories**: Create your own category hierarchy\n"
-#| "* **Reports & Charts**: Visualize your financial data with interactive "
-#| "charts\n"
-#| "\n"
-#| "## Documentation\n"
-#| "\n"
-#| "Full user documentation: https://budget.otherworld.dev/docs/\n"
-#| "\n"
-#| "## Requirements\n"
-#| "\n"
-#| "* Nextcloud 30 or higher\n"
-#| "* PHP 8.1 or higher\n"
-#| "* PHP BCMath extension (`php-bcmath`)"
 msgid ""
 "**⚠️ Beta: This app is currently in testing. Data loss is possible. Please "
 "backup your data regularly and report any issues.**\n"
@@ -4118,8 +4057,8 @@ msgid ""
 "* PHP 8.1 or higher\n"
 "* PHP BCMath extension (`php-bcmath`)"
 msgstr ""
-"**⚠️ Bêta : Cette application est actuellement en phase de test. Une perte de "
-"données est possible. Veuillez sauvegarder régulièrement vos données et "
+"**⚠️ Bêta : Cette application est actuellement en phase de test. Une perte "
+"de données est possible. Veuillez sauvegarder régulièrement vos données et "
 "signaler tout problème.**\n"
 "\n"
 "# Budget - Suivi financier pour Nextcloud\n"
@@ -4130,46 +4069,46 @@ msgstr ""
 "\n"
 "## Fonctionnalités\n"
 "\n"
-"* **Importation de relevés bancaires** : Prise en charge des formats CSV, "
-"OFX et QIF\n"
-"* **Catégorisation intelligente** : Association automatique aux commerçants "
+"* **Importation de relevés bancaires** : Prise en charge des formats CSV, "
+"OFX, QIF et ISO 20022 camt.053 XML\n"
+"* **Catégorisation intelligente** : Association automatique aux commerçants "
 "et catégorisation des opérations\n"
-"* **Règles de catégorisation automatique** : Application de règles aux "
+"* **Règles de catégorisation automatique** : Application de règles aux "
 "opérations existantes à tout moment, avec prévisualisation\n"
-"* **Ventilation d'opérations** : Répartition d'une même opération entre "
+"* **Ventilation d'opérations** : Répartition d'une même opération entre "
 "plusieurs catégories\n"
-"* **Détection de virements** : Association automatique des virements entre "
+"* **Détection de virements** : Association automatique des virements entre "
 "comptes\n"
-"* **Suivi budgétaire** : Définition de plafonds de dépenses avec alertes à "
+"* **Suivi budgétaire** : Définition de plafonds de dépenses avec alertes à "
 "l'approche ou au dépassement du budget\n"
-"* **Prévision de solde** : Estimation des soldes futurs basée sur les "
+"* **Prévision de solde** : Estimation des soldes futurs basée sur les "
 "données historiques\n"
-"* **Factures récurrentes** : Suivi des factures avec rappel des échéances et "
+"* **Factures récurrentes** : Suivi des factures avec rappel des échéances et "
 "notifications Nextcloud\n"
-"* **Revenus récurrents** : Suivi des sources de revenus prévues et de leur "
+"* **Revenus récurrents** : Suivi des sources de revenus prévues et de leur "
 "encaissement\n"
-"* **Partage de dépenses** : Partage de frais avec des contacts et suivi des "
+"* **Partage de dépenses** : Partage de frais avec des contacts et suivi des "
 "dettes mutuelles\n"
-"* **Planificateur de remboursement de dettes** : Planification du "
+"* **Planificateur de remboursement de dettes** : Planification du "
 "remboursement via les méthodes « avalanche » ou « boule de neige »\n"
-"* **Objectifs d'épargne** : Définition d'objectifs avec suivi de la "
+"* **Objectifs d'épargne** : Définition d'objectifs avec suivi de la "
 "progression et prévision de réalisation\n"
-"* **Suivi de retraite** : Suivi des comptes de retraite avec projections de "
+"* **Suivi de retraite** : Suivi des comptes de retraite avec projections de "
 "croissance\n"
-"* **Historique du patrimoine net** : Suivi de l'évolution des actifs et des "
+"* **Historique du patrimoine net** : Suivi de l'évolution des actifs et des "
 "passifs dans le temps\n"
-"* **Rapports annuels comparatifs** : Comparaison des dépenses sur plusieurs "
+"* **Rapports annuels comparatifs** : Comparaison des dépenses sur plusieurs "
 "années\n"
-"* **Gestion multi-comptes** : Gestion de plusieurs comptes bancaires et "
+"* **Gestion multi-comptes** : Gestion de plusieurs comptes bancaires et "
 "devises\n"
-"* **Catégories personnalisées** : Création de votre propre hiérarchie de "
+"* **Catégories personnalisées** : Création de votre propre hiérarchie de "
 "catégories\n"
-"* **Rapports et graphiques** : Visualisation de vos données financières via "
+"* **Rapports et graphiques** : Visualisation de vos données financières via "
 "des graphiques interactifs\n"
 "\n"
 "## Documentation\n"
 "\n"
-"Documentation utilisateur complète : https://budget.otherworld.dev/docs/\n"
+"Documentation utilisateur complète : https://budget.otherworld.dev/docs/\n"
 "\n"
 "## Prérequis\n"
 "\n"
@@ -4470,7 +4409,7 @@ msgstr "Étiquettes"
 #: /app/src/modules/help/HelpModule.js:33 /app/templates/index.php:153
 #: /app/templates/index.php:3593
 msgid "Pensions"
-msgstr "Pensions"
+msgstr "Retraites"
 
 #: /app/src/core/KeyboardShortcuts.js:344
 #: /app/src/modules/dashboard/DashboardModule.js:2889
@@ -4579,7 +4518,7 @@ msgstr "Fermer"
 
 #: /app/src/main.js:449
 msgid "Duplicate transaction"
-msgstr "Opération en double"
+msgstr "Dupliquer l'opération"
 
 #: /app/src/main.js:452
 msgid "Share expense"
@@ -4667,24 +4606,22 @@ msgid "Auto-Categorisation Rules"
 msgstr "Règles de catégorisation automatique"
 
 #: /app/src/main.js:954 /app/templates/index.php:4862
-#, fuzzy
-#| msgid "Share Your Budget"
 msgid "Support Budget"
-msgstr "Partagez votre budget"
+msgstr "Soutenez Budget"
 
 #: /app/src/main.js:955
 msgid "Free and open source. If Budget helps you, a donation keeps it going."
 msgstr ""
+"Gratuit et open source. Si Budget vous est utile, un don permettra d'assurer "
+"sa pérennité."
 
 #: /app/src/main.js:957 /app/templates/index.php:4872
-#, fuzzy
-#| msgid "report them on GitHub"
 msgid "Sponsor on GitHub"
-msgstr "signalez-les sur GitHub"
+msgstr "Sponsor sur GitHub"
 
 #: /app/src/main.js:958 /app/templates/index.php:4875
 msgid "Donate via PayPal"
-msgstr ""
+msgstr "Faites un don sur PayPal"
 
 #: /app/src/main.js:1188 /app/src/modules/accounts/AccountsModule.js:1651
 #: /app/src/modules/reports/ReportsModule.js:1992
@@ -4707,6 +4644,8 @@ msgstr "Transfert lié"
 msgid ""
 "Part of a split transaction. The amount shown is the part in this category."
 msgstr ""
+"Fait partie d'une opération ventilée. Le montant indiqué correspond à la "
+"partie relevant de cette catégorie."
 
 #: /app/src/main.js:1197 /app/src/modules/accounts/AccountsModule.js:1665
 #: /app/src/modules/dashboard/DashboardModule.js:1280
@@ -4715,10 +4654,8 @@ msgstr "Opération fractionnée"
 
 #: /app/src/main.js:1197 /app/src/modules/accounts/AccountsModule.js:1665
 #: /app/src/modules/categories/CategoriesModule.js:781
-#, fuzzy
-#| msgid "Split with"
 msgid "Split part"
-msgstr "Partager avec"
+msgstr "Partie ventilée"
 
 #: /app/src/main.js:1201
 msgid "Shared expense - unsettled"
@@ -4792,12 +4729,12 @@ msgstr "Aucune description"
 msgid ""
 "This amount is set by the transaction split. Open the split to change it."
 msgstr ""
+"Ce montant est défini par la ventilation de l'opération. Ouvrez la "
+"ventilation pour le modifier."
 
 #: /app/src/main.js:1286 /app/src/modules/accounts/AccountsModule.js:1698
-#, fuzzy
-#| msgid "By total"
 msgid "of {total}"
-msgstr "Par total"
+msgstr "de {total}"
 
 #: /app/src/main.js:1297 /app/src/main.js:3504
 #: /app/src/modules/transactions/TransactionsModule.js:3684
@@ -4887,7 +4824,7 @@ msgstr "doublon de"
 
 #: /app/src/main.js:1913
 msgid "Duplicate Auto-Generated Transactions"
-msgstr "Opérations générées automatiquement en double"
+msgstr "Opérations dupliquées automatiquement"
 
 #: /app/src/main.js:1916 /app/src/main.js:1977 /app/src/main.js:2028
 msgid "and {more} more"
@@ -4914,20 +4851,16 @@ msgid "Future Transactions Not Marked as Scheduled"
 msgstr "Opérations à venir non marquées comme planifiées"
 
 #: /app/src/main.js:1991
-#, fuzzy
-#| msgid "{amount}/yr income"
 msgid "Now: {amount} in credit"
-msgstr "revenu de {amount}/an"
+msgstr "Maintenant : {amount} au crédit"
 
 #: /app/src/main.js:1992
-#, fuzzy
-#| msgid "Stored: {amount}"
 msgid "After repair: {amount} owed"
-msgstr "Enregistré : {amount}"
+msgstr "Après réparation : {amount} dû"
 
 #: /app/src/main.js:1999
 msgid "Debts Recorded as Being in Credit"
-msgstr ""
+msgstr "Dettes saisies comme étant au crédit"
 
 #: /app/src/main.js:2003
 msgid ""
@@ -4935,18 +4868,19 @@ msgid ""
 "you have rather than money you owe. Untick any you really have overpaid — "
 "those are recorded as genuine credits and left out of future scans."
 msgstr ""
+"Ces dettes présentent un solde positif ; l'application les considère donc "
+"comme de l'argent dont vous disposez plutôt que comme de l'argent que vous "
+"devez. Décochez celles pour lesquelles vous avez effectivement payé plus que "
+"nécessaire : celles-ci seront enregistrées comme de véritables crédits et ne "
+"seront plus prises en compte lors des prochains analyses."
 
 #: /app/src/main.js:2016
-#, fuzzy
-#| msgid "Failed to update category"
 msgid "Listed under {category}"
-msgstr "Échec de la mise à jour de la catégorie"
+msgstr "Répertorié sous {category}"
 
 #: /app/src/main.js:2023
-#, fuzzy
-#| msgid "No transactions in this category yet."
 msgid "Split Transactions Carrying a Category"
-msgstr "Aucune opération dans cette catégorie pour le moment."
+msgstr "Opérations ventilées associées à une catégorie"
 
 #: /app/src/main.js:2027
 msgid ""
@@ -4956,6 +4890,13 @@ msgid ""
 "Repairing removes just that stray category — the split itself, and every "
 "part of it, is left exactly as it is."
 msgstr ""
+"Une opération ventilée conserve les catégories de chacune de ses parties ; "
+"elle ne devrait donc pas en comporter une qui lui soit propre. Celles-ci ont "
+"hérité d'une catégorie provenant d'une ancienne version de la modification "
+"groupée ou d'une règle, et cette catégorie leur est restée attribuée depuis. "
+"La réparation supprime uniquement cette catégorie superflue : l'opération "
+"ventilée elle-même, ainsi que chacune de ses parties, reste exactement telle "
+"quelle."
 
 #: /app/src/main.js:2038
 msgid "Stored: {amount}"
@@ -5006,18 +4947,16 @@ msgid "{count} future transactions set to scheduled"
 msgstr "{count} opérations à venir programmées"
 
 #: /app/src/main.js:2151
-#, fuzzy
-#| msgid "{count} duplicate transactions removed"
 msgid "{count} split transactions had a stray category removed"
-msgstr "{count} opérations en double supprimées"
+msgstr "Une catégorie erronée a été supprimée de {count} opérations ventilées"
 
 #: /app/src/main.js:2154
 msgid "{count} debts re-recorded as owed"
-msgstr ""
+msgstr "{count} dettes réenregistrées comme dues"
 
 #: /app/src/main.js:2156
 msgid "{count} confirmed as genuine credits"
-msgstr ""
+msgstr "{count} confirmés comme crédits véritables"
 
 #: /app/src/main.js:2160
 msgid "{count} account balances corrected"
@@ -5457,10 +5396,8 @@ msgid "No asset accounts yet"
 msgstr "Aucun compte d'actif pour le moment"
 
 #: /app/src/modules/accounts/AccountsModule.js:333
-#, fuzzy
-#| msgid "Choose account type"
 msgid "Closed accounts ({count})"
-msgstr "Choisir le type de compte"
+msgstr "Comptes fermés ({count})"
 
 #: /app/src/modules/accounts/AccountsModule.js:495
 msgid "Never reconciled"
@@ -5480,18 +5417,14 @@ msgid "Credit"
 msgstr "Crédit"
 
 #: /app/src/modules/accounts/AccountsModule.js:538
-#, fuzzy
-#| msgid "Failed to retrieve pension activity"
 msgid "Closed: history kept, no new activity"
-msgstr "Échec de la récupération des activités liées à la pension de retraite"
+msgstr "Clôturé : historique conservé, aucune nouvelle activité"
 
 #: /app/src/modules/accounts/AccountsModule.js:538
 #: /app/src/modules/accounts/AccountsModule.js:597
 #: /app/templates/index.php:1217
-#, fuzzy
-#| msgid "Close"
 msgid "Closed"
-msgstr "Fermer"
+msgstr "Clôturé"
 
 #: /app/src/modules/accounts/AccountsModule.js:539
 msgid "Excluded from reports, dashboard & forecast"
@@ -5531,13 +5464,13 @@ msgid_plural ""
 "Delete %n accounts? Accounts that still have transactions are kept back and "
 "asked about separately."
 msgstr[0] ""
+"Supprimer %n compte ? Les comptes contenant encore des opérations sont mis "
+"de côté et feront l'objet d'une demande de confirmation distincte."
 msgstr[1] ""
+"Supprimer %n comptes ? Les comptes contenant encore des opérations sont mis "
+"de côté et feront l'objet d'une demande de confirmation distincte."
 
 #: /app/src/modules/accounts/AccountsModule.js:743
-#, fuzzy
-#| msgid ""
-#| "This account still has transactions. Delete them along with the account? "
-#| "This cannot be undone."
 msgid ""
 "%n account still has transactions: {names}. Delete it along with its {rows} "
 "transaction(s)? This cannot be undone."
@@ -5545,28 +5478,24 @@ msgid_plural ""
 "%n accounts still have transactions: {names}. Delete them along with their "
 "{rows} transaction(s)? This cannot be undone."
 msgstr[0] ""
-"Ce compte contient encore des opérations. Faut-il les supprimer en même "
-"temps que le compte ? Cette action est irréversible."
+"%n compte contient encore des opérations : {names}. Faut-il le supprimer en "
+"même temps que ses {rows} opération(s) ? Cette action est irréversible."
 msgstr[1] ""
-"Ce compte contient encore des opérations. Faut-il les supprimer en même "
-"temps que le compte ? Cette action est irréversible."
+"%n comptes contiennent encore des opérations : {names}. Faut-il les "
+"supprimer en même temps que leurs {rows} opération(s) ? Cette action est "
+"irréversible."
 
 #: /app/src/modules/accounts/AccountsModule.js:761
-#, fuzzy
-#| msgid "Account and its {count} transaction(s) deleted"
 msgid "%n account and {count} transaction(s) deleted"
 msgid_plural "%n accounts and {count} transaction(s) deleted"
-msgstr[0] "Compte et sa/ses {count} opérations(s) supprimé(s)"
-msgstr[1] "Compte et sa/ses {count} opérations(s) supprimé(s)"
+msgstr[0] "%n compte et {count} opérations(s) supprimé(s)"
+msgstr[1] "%n comptes et {count} opérations(s) supprimé(s)"
 
 #: /app/src/modules/accounts/AccountsModule.js:764
-#, fuzzy
-#| msgid "%n account routed"
-#| msgid_plural "%n accounts routed"
 msgid "%n account deleted"
 msgid_plural "%n accounts deleted"
-msgstr[0] "%n compte routé"
-msgstr[1] "%n comptes routés"
+msgstr[0] "%n compte supprimé"
+msgstr[1] "%n comptes supprimés"
 
 #: /app/src/modules/accounts/AccountsModule.js:767
 #: /app/src/modules/categories/CategoriesModule.js:1285
@@ -5574,10 +5503,8 @@ msgid "Failed to delete: {errors}"
 msgstr "Échec de la suppression : {errors}"
 
 #: /app/src/modules/accounts/AccountsModule.js:781
-#, fuzzy
-#| msgid "Failed to delete account: {error}"
 msgid "Failed to delete accounts: {error}"
-msgstr "Échec de la suppression du compte : {error}"
+msgstr "Échec de la suppression des comptes : {error}"
 
 #: /app/src/modules/accounts/AccountsModule.js:902
 msgid "Always shown"
@@ -5589,7 +5516,7 @@ msgstr "Échec du chargement des détails du compte"
 
 #: /app/src/modules/accounts/AccountsModule.js:1258
 msgid "Day {day} each month"
-msgstr ""
+msgstr "Le {day} de chaque mois"
 
 #: /app/src/modules/accounts/AccountsModule.js:1311
 #: /app/src/modules/accounts/AccountsModule.js:1312
@@ -5679,21 +5606,19 @@ msgstr "Aucune date d'échéance"
 
 #: /app/src/modules/accounts/AccountsModule.js:1859
 msgid "{date} (statement balance)"
-msgstr ""
+msgstr "{date} (solde du relevé)"
 
 #: /app/src/modules/accounts/AccountsModule.js:1860
 msgid "{date} (current balance)"
-msgstr ""
+msgstr "{date} (solde actuel)"
 
 #: /app/src/modules/accounts/AccountsModule.js:1861
 msgid "{date} (minimum payment)"
-msgstr ""
+msgstr "{date} (paiement minimum)"
 
 #: /app/src/modules/accounts/AccountsModule.js:1903
-#, fuzzy
-#| msgid "Monthly"
 msgid "{account} payment"
-msgstr "Mensuel"
+msgstr "{account} paiement"
 
 #: /app/src/modules/accounts/AccountsModule.js:1981
 #: /app/src/modules/transactions/TransactionsModule.js:509
@@ -5807,6 +5732,8 @@ msgid ""
 "Enter the amount owed as a positive number. Tick \"This account is in "
 "credit\" if the lender owes you instead."
 msgstr ""
+"Saisir le montant dû sous forme de nombre positif. Cochez la case « Ce "
+"compte est créditeur » si c'est le prêteur qui vous doit de l'argent."
 
 #: /app/src/modules/accounts/AccountsModule.js:2712
 msgid "Please enter an account name"
@@ -5845,6 +5772,8 @@ msgid ""
 "This account has a balance of {balance}. It must be zero before it can be "
 "closed."
 msgstr ""
+"Le solde de ce compte s'élève à {balance}. Il doit être nul avant que le "
+"compte puisse être clôturé."
 
 #: /app/src/modules/accounts/AccountsModule.js:2868
 #: /app/templates/index.php:1092
@@ -5869,10 +5798,8 @@ msgstr "Échec du chargement des données du compte"
 
 #: /app/src/modules/accounts/AccountsModule.js:3073
 #: /app/src/modules/accounts/AccountsModule.js:3085
-#, fuzzy
-#| msgid "Amount to Add"
 msgid "Amount owed"
-msgstr "Montant à ajouter"
+msgstr "Montant dû"
 
 #: /app/src/modules/accounts/AccountsModule.js:3074
 #: /app/templates/index.php:5780
@@ -5884,6 +5811,8 @@ msgid ""
 "Enter what you owe as a plain positive number — the app records it as a debt "
 "for you."
 msgstr ""
+"Saisir le montant que vous devez sous forme de nombre entier positif : "
+"l'application l'enregistrera comme une dette pour vous."
 
 #: /app/src/modules/accounts/AccountsModule.js:3080
 #: /app/templates/index.php:5782
@@ -5902,6 +5831,10 @@ msgid ""
 "owes you this money, which adds it to your net worth. If you actually owe "
 "it, untick the box above and save."
 msgstr ""
+"Ce compte est actuellement enregistré comme étant créditeur — comme si le "
+"prêteur vous devait cette somme, ce qui vient s'ajouter à votre patrimoine "
+"net. Si c'est en réalité vous qui devez cette somme, décochez la case ci-"
+"dessus et enregistrez."
 
 #: /app/src/modules/accounts/AccountsModule.js:3132
 #: /app/templates/index.php:5797
@@ -6553,21 +6486,17 @@ msgstr "Passer"
 
 #: /app/src/modules/bills/BillsModule.js:381
 #: /app/src/modules/transfers/TransfersModule.js:338
-#, fuzzy
-#| msgid "Failed to export data"
 msgid "Revert the last payment"
-msgstr "Impossible d’exporter les données"
+msgstr "Annuler le dernier paiement"
 
 #: /app/src/modules/bills/BillsModule.js:383
 #: /app/src/modules/transfers/TransfersModule.js:340
-#, fuzzy
-#| msgid "Mark Paid"
 msgid "Mark Unpaid"
-msgstr "Marquer comme payé"
+msgstr "Marquer comme impayé"
 
 #: /app/src/modules/bills/BillsModule.js:386
 msgid "Edit bill"
-msgstr "Modifier unefacture"
+msgstr "Modifier une facture"
 
 #: /app/src/modules/bills/BillsModule.js:389
 msgid "Delete bill"
@@ -6579,17 +6508,13 @@ msgstr "Modifier une facture"
 
 #: /app/src/modules/bills/BillsModule.js:723 /app/templates/index.php:2528
 msgid "Add Bill"
-msgstr "Ajouter unefacture"
+msgstr "Ajouter une facture"
 
 #: /app/src/modules/bills/BillsModule.js:797
-#, fuzzy
-#| msgid "Unable to share with this user"
 msgid "Unavailable (not shared with you)"
-msgstr "Impossible de partager avec cet utilisateur"
+msgstr "Indisponible (non partagé avec vous)"
 
 #: /app/src/modules/bills/BillsModule.js:868
-#, fuzzy
-#| msgid "Due Day"
 msgid "Due Date"
 msgstr "Date d'échéance"
 
@@ -6604,6 +6529,8 @@ msgid ""
 "The date this bill is due. It can be in the past - an invoice you are "
 "entering late stays due on its own date."
 msgstr ""
+"La date d'échéance de cette facture. Elle peut être antérieure : une facture "
+"que vous saisissez en retard reste due à sa date d'origine."
 
 #: /app/src/modules/bills/BillsModule.js:873 /app/templates/index.php:6088
 msgid "Bill only occurs on or after this date (optional)"
@@ -6860,6 +6787,8 @@ msgid ""
 "Whichever you choose, the bill is marked as paid and moves on to its next "
 "due date."
 msgstr ""
+"Quel que soit votre choix, la facture est marquée comme payée et passe à la "
+"prochaine date d'échéance."
 
 #: /app/src/modules/bills/BillsModule.js:1432
 msgid "Create a new transaction instead"
@@ -6926,6 +6855,9 @@ msgid ""
 "deleted, a linked imported transaction will be unlinked, and the bill "
 "schedule rolled back."
 msgstr ""
+"Marquer cette facture comme non payée ? Les opérations créées pour ce "
+"paiement seront supprimées, toute opération importée associée sera dissociée "
+"et le calendrier de facturation sera réinitialisé."
 
 #: /app/src/modules/bills/BillsModule.js:1538
 #: /app/src/modules/transfers/TransfersModule.js:937
@@ -6933,10 +6865,13 @@ msgid ""
 "Auto-pay is on for this bill — it may pay it again on the next run. Disable "
 "auto-pay first if the payment should not recur."
 msgstr ""
+"Le paiement automatique est activé pour cette facture — il se peut qu'elle "
+"soit à nouveau réglée lors du prochain cycle. Désactivez d'abord le paiement "
+"automatique si vous ne souhaitez pas que ce paiement soit renouvelé."
 
 #: /app/src/modules/bills/BillsModule.js:1559
 msgid "Payment reverted — the bill is marked as unpaid."
-msgstr ""
+msgstr "Paiement refusé — la facture est marquée comme impayée."
 
 #: /app/src/modules/bills/BillsModule.js:1573
 msgid "Skip this payment and advance to the next due date?"
@@ -7077,10 +7012,8 @@ msgid "No transactions in this category yet."
 msgstr "Aucune opération dans cette catégorie pour le moment."
 
 #: /app/src/modules/categories/CategoriesModule.js:782
-#, fuzzy
-#| msgid "Syncing {current} of {total}..."
 msgid "Split part of {total}"
-msgstr "Synchronisation de {current} sur {total}..."
+msgstr "Partie ventilée de {total}"
 
 #: /app/src/modules/categories/CategoriesModule.js:855
 msgid "Spending"
@@ -7211,33 +7144,28 @@ msgid ""
 "{create} new categories will be created. {exists} already exist and will be "
 "left unchanged."
 msgstr ""
+"{create} nouvelles catégories seront créées. {exists} existent déjà et "
+"resteront inchangées."
 
 #: /app/src/modules/categories/CategoriesModule.js:1554
-#, fuzzy
-#| msgid "%n category is over budget."
-#| msgid_plural "%n categories are over budget."
 msgid "%n new category will be created."
 msgid_plural "%n new categories will be created."
-msgstr[0] "%n  catégorie en dépassement."
-msgstr[1] "%n  catégories en dépassement."
+msgstr[0] "%n nouvelle catégorie sera créée."
+msgstr[1] "%n nouvelles catégories seront créées."
 
 #: /app/src/modules/categories/CategoriesModule.js:1573
-#, fuzzy
-#| msgid "No category"
 msgid "Import %n category"
 msgid_plural "Import %n categories"
-msgstr[0] "Aucune catégorie"
-msgstr[1] "Aucune catégorie"
+msgstr[0] "Import %n catégorie"
+msgstr[1] "Import %n catégories"
 
 #: /app/src/modules/categories/CategoriesModule.js:1574
-#, fuzzy
-#| msgid "No transactions to import"
 msgid "Nothing to import"
-msgstr "Aucune opération à importer"
+msgstr "Rien à importer"
 
 #: /app/src/modules/categories/CategoriesModule.js:1584
 msgid "Exists"
-msgstr ""
+msgstr "Existe"
 
 #: /app/src/modules/categories/CategoriesModule.js:1585
 #: /app/src/modules/import/ImportModule.js:1930
@@ -7245,13 +7173,10 @@ msgid "New"
 msgstr "Nouveau"
 
 #: /app/src/modules/categories/CategoriesModule.js:1616
-#, fuzzy
-#| msgid "Imported %n rule"
-#| msgid_plural "Imported %n rules"
 msgid "Imported %n category"
 msgid_plural "Imported %n categories"
-msgstr[0] "%n règle importée"
-msgstr[1] "%n règles importées"
+msgstr[0] "Importé %n catégorie"
+msgstr[1] "Importé %n catégories"
 
 #: /app/src/modules/categories/CategoriesModule.js:1831
 msgid "Budgets adjusted from {month}"
@@ -7315,8 +7240,8 @@ msgstr ""
 #: /app/src/modules/categories/CategoriesModule.js:2285
 msgid "Turn on envelope budgeting: unspent budget carries to next month"
 msgstr ""
-"Activez la budgétisation par enveloppes : le budget non dépensé est reporté "
-"au mois suivant."
+"Activez la budgétisation par enveloppes : le budget non dépensé est reporté "
+"au mois suivant"
 
 #: /app/src/modules/categories/CategoriesModule.js:2296
 msgid "Auto-calculated from recurring bills/income. Enter a value to override."
@@ -7385,7 +7310,7 @@ msgstr "{percent} % par rapport au mois dernier"
 #: /app/src/modules/dashboard/DashboardModule.js:460
 #, javascript-format
 msgid "{percent}% savings rate"
-msgstr ""
+msgstr "{percent}% de taux d'épargne"
 
 #: /app/src/modules/dashboard/DashboardModule.js:509
 msgid "Great"
@@ -7401,10 +7326,8 @@ msgstr "Bas"
 
 #: /app/src/modules/dashboard/DashboardModule.js:634
 #: /app/src/modules/dashboard/DashboardModule.js:704
-#, fuzzy
-#| msgid "Last 30 days"
 msgid "Last 7 days"
-msgstr "30 derniers jours"
+msgstr "7 derniers jours"
 
 #: /app/src/modules/dashboard/DashboardModule.js:635
 #: /app/src/modules/dashboard/DashboardModule.js:707
@@ -7428,10 +7351,8 @@ msgstr "Année dernière"
 
 #: /app/src/modules/dashboard/DashboardModule.js:639
 #: /app/src/modules/dashboard/DashboardModule.js:713
-#, fuzzy
-#| msgid "Invalid budget period"
 msgid "Current budget period"
-msgstr "Période budgétaire non valide"
+msgstr "Période budgétaire actuelle"
 
 #: /app/src/modules/dashboard/DashboardModule.js:721
 msgid "Date Range"
@@ -7485,12 +7406,12 @@ msgstr "Aucune opération récente"
 #: /app/src/modules/dashboard/DashboardModule.js:1383
 msgid "No budget alerts. %n category is muted."
 msgid_plural "No budget alerts. %n categories are muted."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Aucune alerte budgétaire. %n catégorie est désactivée."
+msgstr[1] "Aucune alerte budgétaire. %n catégories sont désactivées."
 
 #: /app/src/modules/dashboard/DashboardModule.js:1384
 msgid "No budget alerts from the budgets you set."
-msgstr ""
+msgstr "Aucune alerte budgétaire concernant les budgets que vous avez définis."
 
 #: /app/src/modules/dashboard/DashboardModule.js:1402
 #, javascript-format
@@ -7503,14 +7424,11 @@ msgstr "{percent} % utilisé"
 
 #: /app/src/modules/dashboard/DashboardModule.js:1439
 msgid "(from a bill)"
-msgstr ""
+msgstr "(depuis une facture)"
 
 #: /app/src/modules/dashboard/DashboardModule.js:1477
-#, fuzzy
-#| msgid "%n category is over budget."
-#| msgid_plural "%n categories are over budget."
 msgid "No category has a budget yet."
-msgstr "%n  catégorie en dépassement."
+msgstr "Aucune catégorie ne dispose encore d'un budget."
 
 #: /app/src/modules/dashboard/DashboardModule.js:1516
 #, fuzzy
@@ -7894,7 +7812,7 @@ msgstr "Masquer la tuile"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4875
 msgid "Look ahead"
-msgstr ""
+msgstr "Regarder vers l'avenir"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4878
 #, fuzzy
@@ -7915,10 +7833,8 @@ msgid "Next 90 days"
 msgstr "90 derniers jours"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4889
-#, fuzzy
-#| msgid "Forecast Period:"
 msgid "Forecast horizon"
-msgstr "Période de prévision :"
+msgstr "Horizon prévisionnel"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4892
 #, fuzzy
@@ -8009,10 +7925,14 @@ msgstr "Toutes les catégories et tous les paramètres de budget"
 #: /app/src/modules/dashboard/DashboardModule.js:5064
 msgid "Leaves out the budgets worked out from your bills and recurring income."
 msgstr ""
+"Ne tient pas compte des budgets établis à partir de vos factures et de vos "
+"revenus réguliers."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5065
 msgid "Untick a category to stop it alerting, here and in notifications."
 msgstr ""
+"Décochez une catégorie pour désactiver ses alertes, ici et dans les "
+"notifications."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5300
 msgid "All tiles are visible"
@@ -8176,7 +8096,7 @@ msgstr "{amount}/mois"
 
 #: /app/src/modules/forecast/ForecastModule.js:379
 msgid "Based on {months} month(s) of data ({count} transactions)"
-msgstr "Basé sur {months} ​​mois de données ({count} opérations)"
+msgstr "Basé sur {months} mois de données ({count} opérations)"
 
 #: /app/src/modules/help/HelpModule.js:22
 msgid ""
@@ -8363,7 +8283,7 @@ msgstr ""
 
 #: /app/src/modules/help/HelpModule.js:43
 msgid "Receipt Scanning"
-msgstr ""
+msgstr "Numérisation des reçus"
 
 #: /app/src/modules/help/HelpModule.js:43
 msgid ""
@@ -8371,6 +8291,10 @@ msgid ""
 "provider, or a hosted service. Off by default; the scan buttons themselves "
 "arrive in the next release."
 msgstr ""
+"Choisir qui lira les reçus photographiés : un modèle local, le fournisseur "
+"d'IA de ce serveur ou un service hébergé. Cette option est désactivée par "
+"défaut ; les boutons de numérisation seront disponibles dans la prochaine "
+"version."
 
 #: /app/src/modules/help/HelpModule.js:44
 msgid "REST API"
@@ -8448,10 +8372,8 @@ msgid "Failed to load system info"
 msgstr "Échec du chargement des informations système"
 
 #: /app/src/modules/import/ImportModule.js:47
-#, fuzzy
-#| msgid "Account number"
 msgid "Column: {number}"
-msgstr "Numéro de compte"
+msgstr "Colonne : {number}"
 
 #: /app/src/modules/import/ImportModule.js:155
 msgid "Rule: {name}"
@@ -8595,21 +8517,23 @@ msgstr "Détecter les factures"
 
 #: /app/src/modules/import/ImportModule.js:1046
 msgid "Reading this file as {encoding}."
-msgstr ""
+msgstr "Lecture de ce fichier au format {encoding}."
 
 #: /app/src/modules/import/ImportModule.js:1048
 msgid "Unicode (UTF-8)"
-msgstr ""
+msgstr "Unicode (UTF-8)"
 
 #: /app/src/modules/import/ImportModule.js:1047
 msgid ""
 "Detected {encoding}. Change this if accented or non-Latin characters look "
 "wrong in the preview below."
 msgstr ""
+"{encoding} a été détecté. Modifiez ce paramètre si les caractères accentués "
+"ou non latins s'affichent de manière incorrecte dans l'aperçu ci-dessous."
 
 #: /app/src/modules/import/ImportModule.js:1472
 msgid "Please select a file first"
-msgstr "Veuillez d'abord sélectionner un fichier."
+msgstr "Veuillez d'abord sélectionner un fichier"
 
 #: /app/src/modules/import/ImportModule.js:1591
 msgid "Processing file, please wait..."
@@ -8622,7 +8546,7 @@ msgstr "Veuillez mapper au moins un compte"
 
 #: /app/src/modules/import/ImportModule.js:1634
 msgid "Please select an account first"
-msgstr "Veuillez d'abord sélectionner un compte."
+msgstr "Veuillez d'abord sélectionner un compte"
 
 #: /app/src/modules/import/ImportModule.js:1666
 msgid "Processing failed"
@@ -8649,12 +8573,10 @@ msgid "{count} transfer rows will be skipped"
 msgstr "{count} lignes de transfert seront ignorées"
 
 #: /app/src/modules/import/ImportModule.js:1819
-#, fuzzy
-#| msgid "Please map at least one account"
 msgid "This import will create %n new account"
 msgid_plural "This import will create %n new accounts"
-msgstr[0] "Veuillez mapper au moins un compte"
-msgstr[1] "Veuillez mapper au moins un compte"
+msgstr[0] "Cet import va créer %n nouveau compte"
+msgstr[1] "Cet import va créer %n nouveaux comptes"
 
 #: /app/src/modules/import/ImportModule.js:1828
 msgid ""
@@ -8662,6 +8584,10 @@ msgid ""
 "Account. Go back and check the column mapping - importing now would leave "
 "you an account per date to clean up."
 msgstr ""
+"Les noms ressemblent à des dates ; la colonne « Date » a donc probablement "
+"été associée à « Compte ». Revenez en arrière et vérifiez l'association des "
+"colonnes. Si vous procédez à l'importation maintenant, vous vous retrouverez "
+"avec un compte par date à nettoyer."
 
 #: /app/src/modules/import/ImportModule.js:1829
 msgid ""
@@ -8669,6 +8595,10 @@ msgid ""
 "Account. If that is more than you expected, go back and check the column "
 "mapping before importing."
 msgstr ""
+"Un compte est créé pour chaque valeur distincte de la colonne mise en "
+"correspondance avec « Compte ». Si ce nombre est supérieur à ce que vous "
+"aviez prévu, revenez en arrière et vérifiez la mise en correspondance des "
+"colonnes avant de lancer l'importation."
 
 #: /app/src/modules/import/ImportModule.js:1858
 msgid "this account"
@@ -8744,8 +8674,9 @@ msgid "Select account…"
 msgstr "Sélectionner un compte…"
 
 #: /app/src/modules/import/ImportModule.js:2022
+#, fuzzy
 msgid "Account for rows without one:"
-msgstr ""
+msgstr "Prendre en compte les lignes qui n'en contiennent pas :"
 
 #: /app/src/modules/import/ImportModule.js:2023 /app/templates/index.php:2421
 msgid "Import to Account:"
@@ -8761,23 +8692,21 @@ msgstr "Ignorer ce compte"
 
 #: /app/src/modules/import/ImportModule.js:2161
 msgid "Rows {rows} and {count} more"
-msgstr ""
+msgstr "Lignes {rows} et {count} de plus"
 
 #: /app/src/modules/import/ImportModule.js:2162
-#, fuzzy
-#| msgid "Rows to show"
 msgid "Rows {rows}"
-msgstr "Lignes à afficher"
+msgstr "Lignes {rows}"
 
 #: /app/src/modules/import/ImportModule.js:2197
 msgid "{skipped} of {total} rows will not be imported"
-msgstr ""
+msgstr "{skipped} lignes sur {total} ne seront pas importées"
 
 #: /app/src/modules/import/ImportModule.js:2201
 msgid "%n row will not be imported"
 msgid_plural "%n rows will not be imported"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n ligne ne sera pas importée"
+msgstr[1] "%n lignes ne seront pas importées"
 
 #: /app/src/modules/import/ImportModule.js:2206
 msgid ""
@@ -9020,7 +8949,7 @@ msgstr[1] "%n occurrences"
 
 #: /app/src/modules/income/IncomeModule.js:756
 msgid "Source: {source}"
-msgstr "Source: {source}"
+msgstr "Source : {source}"
 
 #: /app/src/modules/income/IncomeModule.js:773
 msgid "Please select at least one income source to add"
@@ -10172,7 +10101,7 @@ msgstr "est"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:255
 msgid "e.g., {\"min\": 10, \"max\": 100}"
-msgstr "par ex. {\"min\": 10, \"max\": 100}"
+msgstr "par ex. {\"min\" : 10, \"max\" : 100}"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:257
 msgid "e.g., 50.00"
@@ -10180,7 +10109,7 @@ msgstr "par ex. 50,00"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:262
 msgid "e.g., {\"min\": \"2024-01-01\", \"max\": \"2024-12-31\"}"
-msgstr "par exemple, {\"min\": \"2024-01-01\", \"max\": \"2024-12-31\"}"
+msgstr "par exemple, {\"min\" : \"2024-01-01\", \"max\" : \"2024-12-31\"}"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:264
 msgid "e.g., 2024-01-15"
@@ -10579,10 +10508,8 @@ msgid "Percentage for {name}"
 msgstr "Supprimer {name}"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:809
-#, fuzzy
-#| msgid "Account holder name"
 msgid "Amount for {name}"
-msgstr "Nom du titulaire"
+msgstr "Montant pour {name}"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:828
 #, fuzzy
@@ -10603,10 +10530,8 @@ msgid "The others owe you {owed}. Your share is {mine}."
 msgstr ""
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:897
-#, fuzzy
-#| msgid "Please select at least one expense to settle"
 msgid "Tick at least one person to split with."
-msgstr "Veuillez sélectionner au moins une dépense à régler"
+msgstr "Cochez au moins une personne avec laquelle partager."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:899
 msgid "There is not enough to split between this many people."
@@ -11015,7 +10940,7 @@ msgstr "Jeu d'étiquettes mis à jour avec succès"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:1245
 msgid "Tag updated successfully"
-msgstr "ÉTiquettes mise à jour avec succès"
+msgstr "Étiquette mise à jour avec succès"
 
 #: /app/src/modules/transactions/TransactionsModule.js:479
 msgid "{category} + {count} subcategory"
@@ -11159,7 +11084,7 @@ msgstr[1] "Mise à jour réussie de %n opérations"
 #: /app/src/modules/transactions/TransactionsModule.js:1268
 msgid "Failed to update %n transaction"
 msgid_plural "Failed to update %n transactions"
-msgstr[0] "Échec de la mise à jour de %n opérations"
+msgstr[0] "Échec de la mise à jour de %n opération"
 msgstr[1] "Échec de la mise à jour de %n opérations"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1272
@@ -11177,10 +11102,8 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:1378
-#, fuzzy
-#| msgid "Page {current} of {total}"
 msgid "applies to {count} of {total}"
-msgstr "Page {current} sur {total}"
+msgstr "s'applique à {count} sur {total}"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1394
 msgid "%n selected transaction is in a category these tags do not cover."
@@ -11203,13 +11126,10 @@ msgid "Failed to update tags"
 msgstr "Échec de la mise à jour de l'étiquette"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1461
-#, fuzzy
-#| msgid "Failed to update %n transaction"
-#| msgid_plural "Failed to update %n transactions"
 msgid "Failed to update tags on %n transaction"
 msgid_plural "Failed to update tags on %n transactions"
-msgstr[0] "Échec de la mise à jour de %n opérations"
-msgstr[1] "Échec de la mise à jour de %n opérations"
+msgstr[0] "Échec de la mise à jour des étiquettes sur %n opération"
+msgstr[1] "Échec de la mise à jour des étiquettes sur %n opérations"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1479
 #, fuzzy
@@ -11280,12 +11200,10 @@ msgid "Finish"
 msgstr "Terminer"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1652
-#, fuzzy
-#| msgid "Transaction updated"
 msgid "Tick %n transaction up to {date}"
 msgid_plural "Tick all %n transactions up to {date}"
-msgstr[0] "Opération mise à jour"
-msgstr[1] "Opération mise à jour"
+msgstr[0] "Cochez %n opération jusqu'au {date}"
+msgstr[1] "Cochez toutes les %n opérations jusqu'au {date}"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1653
 msgid "Create {amount} adjustment"
@@ -12278,10 +12196,8 @@ msgid "Please confirm"
 msgstr ""
 
 #: /app/src/utils/dialogs.js:253
-#, fuzzy
-#| msgid "Enter tag name:"
 msgid "Enter a value"
-msgstr "Saisissez le nom de l'étiquette :"
+msgstr "Saisir une valeur"
 
 #: /app/src/utils/dialogs.js:255 /app/src/utils/dialogs.js:277
 msgid "OK"
@@ -12825,10 +12741,8 @@ msgid "Edit Fields..."
 msgstr "Modifier les champs..."
 
 #: /app/templates/index.php:1682
-#, fuzzy
-#| msgid "Tags"
 msgid "Tags..."
-msgstr "Étiquettes"
+msgstr "Étiquettes…"
 
 #: /app/templates/index.php:1697
 msgid "Account Reconciliation"
@@ -13364,7 +13278,7 @@ msgstr "Rechercher des règles"
 
 #: /app/templates/index.php:2698
 msgid "Inactive"
-msgstr "Inactive"
+msgstr "Inactif"
 
 #: /app/templates/index.php:2707
 msgid "Pri"
@@ -13681,10 +13595,8 @@ msgid "Monthly Cash Flow"
 msgstr "Flux de trésorerie mensuel"
 
 #: /app/templates/index.php:3391
-#, fuzzy
-#| msgid "No active rules in this group"
 msgid "No income or expenses in this period."
-msgstr "Aucune règle active dans ce groupe"
+msgstr "Aucun revenu ou dépense n'existent au cours de cette période."
 
 #: /app/templates/index.php:3404
 msgid "Comparison Type"
@@ -13968,7 +13880,7 @@ msgstr "Nom de l'actif"
 
 #: /app/templates/index.php:3927 /app/templates/index.php:5423
 msgid "Purchase Price"
-msgstr "Prix ​​d'achat"
+msgstr "Prix d'achat"
 
 #: /app/templates/index.php:3931
 msgid "Gain / Loss"
@@ -14342,9 +14254,9 @@ msgid ""
 "Notify when a category runs well above its 6-month typical spending (max one "
 "alert per category per month)"
 msgstr ""
-"Recevoir une notification lorsqu'une catégorie dépasse largement ses "
-"dépenses habituelles sur 6 mois (une seule alerte par catégorie et par mois "
-"au maximum)."
+"Envoyer une notification lorsqu'une catégorie dépasse largement ses dépenses "
+"habituelles sur 6 mois (une seule alerte par catégorie et par mois au "
+"maximum)"
 
 #: /app/templates/index.php:4460
 msgid "Budget Digest"
@@ -14520,7 +14432,7 @@ msgstr ""
 
 #: /app/templates/index.php:4600 /app/templates/index.php:4804
 msgid "Warning:"
-msgstr "Avertissement:"
+msgstr "Avertissement :"
 
 #: /app/templates/index.php:4600
 msgid ""
@@ -15259,7 +15171,7 @@ msgstr "Un paiement supplémentaire unique effectué en une seule fois"
 
 #: /app/templates/index.php:5529
 msgid "Apply Lump Sum In Month"
-msgstr "Appliquer un versement forfaitaire dans..."
+msgstr "Appliquer le montant forfaitaire au cours du mois"
 
 #: /app/templates/index.php:5531
 msgid "Which month to apply the lump sum (1 = immediately)"
@@ -15781,7 +15693,7 @@ msgstr "Nom de la règle"
 
 #: /app/templates/index.php:6194
 msgid "e.g., Amazon Purchases, Grocery Stores"
-msgstr "par ex. Achats sur CDiscount, Épicerie"
+msgstr "par ex. Achats sur Amazon, Épiceries"
 
 #: /app/templates/index.php:6195
 msgid "A descriptive name for this rule"
@@ -16502,8 +16414,7 @@ msgstr "Tapez SUPPRIMER pour confirmer"
 #: /app/templates/index.php:7211
 msgid "You must type DELETE (all caps) exactly to proceed"
 msgstr ""
-"Vous devez saisir SUPPRIMER (en majuscules) exactement tel quel pour "
-"continuer"
+"Vous devez saisir DELETE (en majuscules) exactement tel quel pour continuer"
 
 #: /app/templates/index.php:7240 /app/templates/index.php:7244
 msgid "Add Bank Connection"
@@ -16543,7 +16454,7 @@ msgstr "Obtenez un jeton sur beta-bridge.simplefin.org"
 
 #: /app/templates/index.php:7272
 msgid "Secret ID"
-msgstr "Secret ID"
+msgstr "ID secret"
 
 #: /app/templates/index.php:7273
 msgid "Your GoCardless Secret ID"
