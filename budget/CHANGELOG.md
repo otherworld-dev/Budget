@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Deleting a contact removes what you split with them.** The confirmation said every shared expense with the contact would go, however only the contact itself was deleted. Its splits and settlements stayed behind, left out of every balance, and the transactions they belonged to kept a **Shared** badge that nothing could clear. Deleting a contact now removes its splits and settlements with it, and anything left behind by a contact deleted before this is cleared when you update ([#391](https://github.com/otherworld-dev/Budget/issues/391))
+- **Restoring a backup keeps each category's report and budget settings.** A backup saved **Exclude from reports**, **Exclude from budgeting** and envelope budgeting for every category, however restoring it never read them back, so every category came back counted in reports and budgets with envelope budgeting turned off. They now come back as they were exported, along with the month the envelope started from. A backup made before these settings existed restores as before ([#391](https://github.com/otherworld-dev/Budget/issues/391))
+- **Amber budget bars show their progress again.** A bar in the amber band showed empty: between 60% and 80% of a budget on the Budget page, and over 50% up to 80% on the dashboard's **Budget Progress** tile. A Nextcloud style for warnings outranked the amber fill and pushed it out of its bar. The fill now stays inside the bar ([#391](https://github.com/otherworld-dev/Budget/issues/391))
 
 ## [2.52.0] - 2026-09-18
 
