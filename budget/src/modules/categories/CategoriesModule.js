@@ -1184,9 +1184,13 @@ export default class CategoriesModule {
     /**
      * Delete a category, offering to move its transactions to No Category when
      * it (or a descendant) still has any (#332). Returns { deleted, reassigned }.
-     * The transaction count is checked up front so the normal case sends a single
-     * request; the 409 branch is a fallback for transactions the count map does
-     * not cover (e.g. in a report-excluded account).
+     * The transaction count is checked up front, so a category without
+     * transactions is deleted with a single request. One with transactions
+     * first asks GET /api/projects whether a project uses the branch (#391):
+     * if one does, the plain delete goes to the server, which refuses and names
+     * the project; if not, the user is asked before deleting with reassign.
+     * The 409 branch is a fallback for transactions the count map does not
+     * cover (e.g. in a report-excluded account).
      */
     async _deleteCategoryWithReassign(categoryId, categoryName) {
         const reassignPrompt = t('budget', 'This category still has transactions assigned to it. Move them to Uncategorized and delete "{name}"?', { name: categoryName });
