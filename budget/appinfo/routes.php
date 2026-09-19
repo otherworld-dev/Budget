@@ -221,6 +221,13 @@ return [
         ['name' => 'goals#progress', 'url' => '/api/savings-goals/{id}/progress', 'verb' => 'GET'],
         ['name' => 'goals#forecast', 'url' => '/api/savings-goals/{id}/forecast', 'verb' => 'GET'],
 
+        // Project budgets (#391)
+        ['name' => 'project#index', 'url' => '/api/projects', 'verb' => 'GET'],
+        ['name' => 'project#show', 'url' => '/api/projects/{id}', 'verb' => 'GET'],
+        ['name' => 'project#create', 'url' => '/api/projects', 'verb' => 'POST'],
+        ['name' => 'project#update', 'url' => '/api/projects/{id}', 'verb' => 'PUT'],
+        ['name' => 'project#destroy', 'url' => '/api/projects/{id}', 'verb' => 'DELETE'],
+
         // Net Worth routes
         ['name' => 'netWorth#current', 'url' => '/api/net-worth/current', 'verb' => 'GET'],
         ['name' => 'netWorth#snapshots', 'url' => '/api/net-worth/snapshots', 'verb' => 'GET'],
