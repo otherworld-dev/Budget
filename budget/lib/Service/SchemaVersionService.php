@@ -90,6 +90,8 @@ class SchemaVersionService {
         'budget_pen_contribs' => \OCA\Budget\Db\PensionContribution::class,
         'budget_pen_recur' => \OCA\Budget\Db\PensionRecurringContribution::class,
         'budget_pen_snaps' => \OCA\Budget\Db\PensionSnapshot::class,
+        'budget_projects' => \OCA\Budget\Db\Project::class,
+        'budget_project_allocs' => \OCA\Budget\Db\ProjectAllocation::class,
         'budget_recon_sessions' => \OCA\Budget\Db\ReconciliationSession::class,
         'budget_recurring_income' => \OCA\Budget\Db\RecurringIncome::class,
         'budget_saved_reports' => \OCA\Budget\Db\SavedReport::class,
