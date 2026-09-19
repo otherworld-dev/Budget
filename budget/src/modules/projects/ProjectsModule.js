@@ -137,7 +137,6 @@ export default class ProjectsModule {
         document.getElementById('project-details-rows').innerHTML = this.breakdownHtml(project);
         document.getElementById('project-edit-btn').style.display = canWrite ? '' : 'none';
         document.getElementById('project-delete-btn').style.display = project._shared ? 'none' : '';
-        document.getElementById('project-details-shared-note').style.display = project._shared ? 'block' : 'none';
 
         const modal = document.getElementById('project-details-modal');
         modal.style.display = 'flex';

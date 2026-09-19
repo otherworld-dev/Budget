@@ -87,7 +87,7 @@ export function mountProjects() {
             <h3 id="project-details-title"></h3>
             <div id="project-details-meta"></div>
             <div id="project-details-summary"></div>
-            <p id="project-details-shared-note" style="display: none;"></p>
+            <p id="project-details-shared-note"></p>
             <div id="project-details-rows"></div>
             <button id="project-transactions-btn">View transactions</button>
             <button id="project-edit-btn">Edit</button>
@@ -236,7 +236,9 @@ describe('projects page', () => {
         await mod.showProjectDetails(10);
         expect(document.getElementById('project-edit-btn').style.display).toBe('');
         expect(document.getElementById('project-delete-btn').style.display).toBe('');
-        expect(document.getElementById('project-details-shared-note').style.display).toBe('none');
+        // The owner's figures include what others file under a shared
+        // category too, which the owner's list of transactions cannot show
+        expect(document.getElementById('project-details-shared-note').style.display).not.toBe('none');
     });
 
     it('a read-only shared project can only be looked at', async () => {
@@ -244,7 +246,7 @@ describe('projects page', () => {
         await mod.showProjectDetails(10);
         expect(document.getElementById('project-edit-btn').style.display).toBe('none');
         expect(document.getElementById('project-delete-btn').style.display).toBe('none');
-        expect(document.getElementById('project-details-shared-note').style.display).toBe('block');
+        expect(document.getElementById('project-details-shared-note').style.display).not.toBe('none');
     });
 
     it('a project shared at Read & Write can be edited but not deleted', async () => {

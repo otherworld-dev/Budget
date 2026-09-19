@@ -5043,7 +5043,7 @@ style('budget', 'budget-app');
         <h3 id="project-details-title"></h3>
         <div id="project-details-meta" class="project-details-meta"></div>
         <div id="project-details-summary" class="project-details-summary"></div>
-        <p id="project-details-shared-note" class="form-text" style="display: none;"><?php p($l->t('The figures include everything filed under the project categories. View transactions only lists the ones in accounts you can see.')); ?></p>
+        <p id="project-details-shared-note" class="form-text"><?php p($l->t('The figures include everything filed under the project categories, including by people you share them with. View transactions only lists the ones in accounts you can see.')); ?></p>
         <div class="project-rows-header" aria-hidden="true">
             <span><?php p($l->t('Subcategory')); ?></span>
             <span><?php p($l->t('Budget')); ?></span>
