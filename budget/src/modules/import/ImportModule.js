@@ -151,6 +151,13 @@ export default class ImportModule {
             const cat = this.categories.find(c => c.id === transaction.categoryId);
             if (cat) return cat.name;
         }
+        // A column mapped to Category names the category for any row a rule
+        // has not already categorized, and the import finds or creates it. The
+        // Auto-categorized counter counts these rows, so the table has to show
+        // them too, or it reads "3" above a table showing one (#388).
+        if (!transaction.categoryId && transaction._categoryName) {
+            return transaction._categoryName;
+        }
         if (transaction.appliedRule?.name) {
             return t('budget', 'Rule: {name}', { name: transaction.appliedRule.name });
         }
@@ -1698,6 +1705,8 @@ export default class ImportModule {
         }
         document.getElementById('categorized-transactions').textContent = categorized;
 
+        // First, so it sits below the others: these rows still import.
+        this.renderBlankDescriptionWarning(result.blankDescriptionRows, result.validTransactions);
         this.renderDirectionWarnings(result.directionWarnings);
         // Last of the three, so it prepends above the direction warnings: a
         // row that will not be imported at all outranks one that might go in
@@ -2217,6 +2226,50 @@ export default class ImportModule {
                     </li>`).join('')}
                 </ul>
                 ${hint ? `<p>${dom.escapeHtml(hint)}</p>` : ''}
+            </div>
+        </div>`;
+    }
+
+    /**
+     * Say which rows are about to be imported with no description.
+     *
+     * Description is a required mapping, however nothing checked the cells
+     * under it. A Nextcloud Tables export left the Description cell out of five
+     * rows in six, the reporter's rules all match on the description, and the
+     * review step showed those rows as uncategorized without saying why (#388).
+     * The rows still import, so this is a warning and not a skipped-rows error.
+     *
+     * @param {Array<number|string>} rows - Row numbers, as the server numbers them
+     * @param {number} total - Rows the preview lists, for "5 of 6"
+     */
+    renderBlankDescriptionWarning(rows, total) {
+        let container = document.getElementById('import-blank-descriptions');
+
+        if (!rows || rows.length === 0) {
+            if (container) container.innerHTML = '';
+            return;
+        }
+
+        if (!container) {
+            const summarySection = document.querySelector('.import-summary');
+            if (!summarySection) return;
+            container = document.createElement('div');
+            container.id = 'import-blank-descriptions';
+            // Above the stats, like the other warnings.
+            summarySection.prepend(container);
+        }
+
+        const headline = total
+            ? t('budget', '{blank} of {total} rows have no description', { blank: rows.length, total })
+            : n('budget', '%n row has no description', '%n rows have no description', rows.length);
+        const context = t('budget', 'The column mapped to Description is empty on those rows. They will still be imported, however import rules that match on the description cannot categorize them. If the cells should not be empty, check the file before importing.');
+
+        container.innerHTML = `<div class="import-direction-warning">
+            <span class="icon-error" aria-hidden="true"></span>
+            <div>
+                <strong>${dom.escapeHtml(headline)}</strong>
+                <p>${dom.escapeHtml(context)}</p>
+                <p class="import-skipped-rows-list">${dom.escapeHtml(this.formatErrorRows(rows))}</p>
             </div>
         </div>`;
     }

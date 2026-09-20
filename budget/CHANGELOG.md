@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **The import review says which rows have no description.** Description has to be mapped before a file can be imported, however nothing checked the cells under it, so a row with an empty description went through the review step without a word. Import rules that match on the description cannot categorise a row that has none, and in the file this came from five rows in six had been exported with the cell empty and showed as uncategorized with nothing to say why. A warning above the statistics now says how many of the rows have no description, with their row numbers, and that they will still be imported. A row whose description is filled in by a **Set Description** rule is not counted. Reported by @TerjeTM ([#388](https://github.com/otherworld-dev/Budget/issues/388))
+
+### Fixed
+- **The import review shows the category a Category column gives a row.** With a column mapped to **Category**, a row that no import rule has categorised is filed under the category that column names, and **Auto-categorized** counted it, however the table beside it read "Uncategorized" for the same row, so a six-row file could say "Auto-categorized: 3" above a table showing one category. The table now shows the category from the column, and **Show uncategorized** no longer hides those rows. A rule's category still comes first, as it does when the file is imported ([#388](https://github.com/otherworld-dev/Budget/issues/388))
+
 ## [2.53.0] - 2026-09-20
 
 ### Added
