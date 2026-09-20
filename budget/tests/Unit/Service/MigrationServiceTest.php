@@ -783,6 +783,31 @@ class MigrationServiceTest extends TestCase {
 		}
 	}
 
+	/**
+	 * Both project tables round-trip, with their category and project ids
+	 * remapped (#391). The consistency test above only catches ordering, not
+	 * a table left out, which is how #351 lost tags and splits for years.
+	 */
+	public function testProjectsAreInTheBackupRegistry(): void {
+		$post = (new \ReflectionClass(MigrationService::class))->getConstant('EXTRA_TABLES_POST');
+
+		$this->assertSame('budget_projects', $post['projects']['table']);
+		$this->assertSame('user', $post['projects']['scope']);
+		$this->assertSame('projects', $post['projects']['idMap']);
+		$this->assertSame('categories', $post['projects']['fk']['category_id']['map']);
+
+		$this->assertSame('budget_project_allocs', $post['project_allocs']['table']);
+		// Scoped by its own user_id: through budget_projects it would be
+		// cleared after its parents were gone and never found again
+		$this->assertSame('user', $post['project_allocs']['scope']);
+		$this->assertSame('projects', $post['project_allocs']['fk']['project_id']['map']);
+		$this->assertSame('categories', $post['project_allocs']['fk']['category_id']['map']);
+
+		// Allocations import after the projects they remap to
+		$keys = array_keys($post);
+		$this->assertLessThan(array_search('project_allocs', $keys, true), array_search('projects', $keys, true));
+	}
+
 	private function createTestZip(array $files): string {
 		$tempFile = tempnam(sys_get_temp_dir(), 'test_zip_');
 		$zip = new \ZipArchive();
@@ -837,5 +862,54 @@ class MigrationServiceTest extends TestCase {
 		$this->assertTrue($result['success']);
 		$this->assertTrue($captured->getClosed(), 'closed must survive a restore');
 		$this->assertTrue($captured->getExcludedFromReports(), 'excludedFromReports must survive a restore');
+	}
+
+	/**
+	 * The category flags were exported but never read back, so a restore put
+	 * every category back into reports and budgets, undoing the Exclude from
+	 * budgeting that creating a project ticks (#391), and dropped rollover.
+	 */
+	public function testImportAllRestoresTheCategoryFlags(): void {
+		$zipContent = $this->createTestZip([
+			'manifest.json' => json_encode(['version' => '1.0.0', 'appId' => 'budget']),
+			'categories.json' => json_encode([
+				['id' => 1, 'name' => 'Renovation', 'type' => 'expense', 'parentId' => null,
+					'excludedFromReports' => true, 'excludedFromBudget' => true,
+					'budgetRollover' => true, 'rolloverStart' => '2026-01'],
+				['id' => 2, 'name' => 'Groceries', 'type' => 'expense', 'parentId' => null],
+			]),
+			'accounts.json' => json_encode([]),
+			'transactions.json' => json_encode([]),
+		]);
+
+		$this->transactionMapper->method('findAll')->willReturn([]);
+		$this->billMapper->method('findAll')->willReturn([]);
+		$this->importRuleMapper->method('findAll')->willReturn([]);
+		$this->accountMapper->method('findAll')->willReturn([]);
+		$this->categoryMapper->method('findAll')->willReturn([]);
+
+		$captured = [];
+		$this->categoryMapper->method('insert')
+			->willReturnCallback(function (Category $c) use (&$captured) {
+				$captured[$c->getName()] = $c;
+				$c->setId(count($captured) + 10);
+				return $c;
+			});
+
+		$result = $this->service->importAll('user1', $zipContent);
+
+		$this->assertTrue($result['success']);
+		$renovation = $captured['Renovation'];
+		$this->assertTrue($renovation->getExcludedFromReports(), 'excludedFromReports must survive a restore');
+		$this->assertTrue($renovation->getExcludedFromBudget(), 'excludedFromBudget must survive a restore');
+		$this->assertTrue($renovation->getBudgetRollover(), 'budgetRollover must survive a restore');
+		$this->assertSame('2026-01', $renovation->getRolloverStart());
+
+		// An older backup without the keys restores the defaults
+		$groceries = $captured['Groceries'];
+		$this->assertFalse((bool) $groceries->getExcludedFromReports());
+		$this->assertFalse((bool) $groceries->getExcludedFromBudget());
+		$this->assertFalse((bool) $groceries->getBudgetRollover());
+		$this->assertNull($groceries->getRolloverStart());
 	}
 }

@@ -17,6 +17,7 @@ import { showSuccess, showError } from '../../utils/notifications.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { GridStack } from 'gridstack';
 import 'gridstack/dist/gridstack.min.css';
+import { groupProjects, progressFor } from '../projects/projectMath.js';
 
 const GRIDSTACK_SIZE_MAP = {
     xs: { w: 1, h: 1 },
@@ -195,6 +196,10 @@ export default class DashboardModule {
             // Cache-busting timestamp to ensure fresh data
             const cacheBuster = Date.now();
 
+            // Projects tile (#391): asked for alongside the rest and never
+            // rejects, so a failure only leaves the tile out
+            const projectsRequest = this.fetchProjectsForTile();
+
             // Load all dashboard data in parallel for better performance
             const [summaryResponse, trendResponse, transResponse, billsResponse, budgetResponse, goalsResponse, pensionResponse, assetResponse, netWorthResponse, alertsResponse, debtResponse, assetHistoryResponse] = await Promise.all([
                 // Current budget cycle summary for hero stats
@@ -282,6 +287,12 @@ export default class DashboardModule {
             // Update Savings Goals Widget
             this.updateSavingsGoalsWidget(savingsGoals);
             this.widgetDataLoaded.savingsGoals = true;
+
+            // Projects tile (#391): waited for here so the card is showing
+            // when Gridstack builds the grid and the tile gets its saved
+            // place. Arriving later, it would be added in the first free slot.
+            this.updateProjectsWidget(await projectsRequest);
+            this.widgetDataLoaded.projects = true;
 
             // Update Pension Dashboard Card
             this.updatePensionsSummary(pensionSummary);
@@ -1931,6 +1942,65 @@ export default class DashboardModule {
                     </div>
                 </div>
             `;
+        }).join('');
+    }
+
+    /**
+     * The projects for the tile (#391). Never rejects: a failure gives an
+     * empty list, which hides the tile, so it can never blank the dashboard.
+     */
+    async fetchProjectsForTile() {
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/projects'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            return response.ok ? await response.json() : [];
+        } catch (error) {
+            console.error('Failed to load projects for the dashboard:', error);
+            return [];
+        }
+    }
+
+    /** Repaint the Projects tile from fresh data, after the dashboard's first load */
+    async loadProjectsWidget() {
+        this.updateProjectsWidget(await this.fetchProjectsForTile());
+    }
+
+    updateProjectsWidget(projects) {
+        // A lazy-load path (applyDashboardVisibility/showWidget) may call this
+        // with no argument when it thinks the tile hasn't loaded yet — that
+        // means "repaint with fresh data", not "there is no data" (#391).
+        if (projects === undefined) {
+            this.loadProjectsWidget();
+            return;
+        }
+
+        const card = document.getElementById('projects-card');
+        const container = document.getElementById('projects-widget');
+        if (!card || !container) return;
+
+        const { open } = groupProjects(Array.isArray(projects) ? projects : []);
+        const hiddenByUser = this.dashboardConfig?.widgets?.visibility?.projects === false;
+        if (open.length === 0 || hiddenByUser) {
+            card.style.display = 'none';
+            // A tile the user hid is already parked by hideWidget()
+            if (!hiddenByUser) this._syncConditionalTileSlot('projects', false);
+            return;
+        }
+
+        card.style.display = '';
+        this._syncConditionalTileSlot('projects', true);
+        container.innerHTML = open.slice(0, 5).map(project => {
+            const bar = progressFor(project.spent, project.totalAmount);
+            return `
+                <div class="project-tile-item">
+                    <div class="project-tile-header">
+                        <span class="project-tile-name">${this.escapeHtml(project.name)}</span>
+                        <span class="project-tile-percent">${bar.percent}%</span>
+                    </div>
+                    <div class="budget-progress-bar"><div class="budget-progress-fill ${bar.status}" style="width: ${bar.width}%"></div></div>
+                    <div class="project-tile-footer">${t('budget', '{spent} of {total}', { spent: this.formatCurrency(project.spent), total: this.formatCurrency(project.totalAmount) })}</div>
+                </div>`;
         }).join('');
     }
 
@@ -3668,7 +3738,7 @@ export default class DashboardModule {
             }
 
             // Respect conditional widgets — don't override display:none set by data logic
-            const conditionalTiles = ['budgetAlerts', 'debtPayoff', 'debtChart', 'debtProgress'];
+            const conditionalTiles = ['budgetAlerts', 'debtPayoff', 'debtChart', 'debtProgress', 'projects'];
             if (visible) {
                 const isConditionallyHidden = conditionalTiles.includes(key) &&
                     element.style.display === 'none';
@@ -3719,29 +3789,11 @@ export default class DashboardModule {
             let wrapper = document.querySelector(`[gs-id="${widgetId}"]`);
 
             if (wrapper) {
-                const size = this.getWidgetSize(widgetId, 'widgets');
-                const mapped = GRIDSTACK_SIZE_MAP[size] || { w: 1, h: 4 };
-                const w = size === 'l' ? (this.gridColumns || 3) : mapped.w;
-
-                // Clear stale Gridstack data
-                delete wrapper.gridstackNode;
-                wrapper.removeAttribute('gs-x');
-                wrapper.removeAttribute('gs-y');
-                wrapper.removeAttribute('gs-w');
-                wrapper.removeAttribute('gs-h');
-                wrapper.style.display = '';
-
                 // Ensure card inside is visible
                 const card = wrapper.querySelector('.dashboard-card');
                 if (card) card.style.display = '';
 
-                // Remove from stash (don't append to grid — let addWidget handle it)
-                if (wrapper.parentElement) {
-                    wrapper.parentElement.removeChild(wrapper);
-                }
-
-                // Let Gridstack add it to the grid and register it
-                this.gridstack.addWidget({ el: wrapper, w, h: mapped.h, autoPosition: true });
+                this._addWrapperToGrid(widgetId, wrapper);
             }
         }
 
@@ -3762,6 +3814,57 @@ export default class DashboardModule {
 
         this.updateAddTilesMenu();
         await this.saveDashboardVisibility();
+    }
+
+    /** Move a tile's wrapper from the stash into the grid and let Gridstack place it */
+    _addWrapperToGrid(widgetId, wrapper) {
+        const size = this.getWidgetSize(widgetId, 'widgets');
+        const mapped = GRIDSTACK_SIZE_MAP[size] || { w: 1, h: 4 };
+        const w = size === 'l' ? (this.gridColumns || 3) : mapped.w;
+
+        // Clear stale Gridstack data
+        delete wrapper.gridstackNode;
+        wrapper.removeAttribute('gs-x');
+        wrapper.removeAttribute('gs-y');
+        wrapper.removeAttribute('gs-w');
+        wrapper.removeAttribute('gs-h');
+        wrapper.style.display = '';
+
+        // Remove from stash (don't append to grid — let addWidget handle it)
+        if (wrapper.parentElement) {
+            wrapper.parentElement.removeChild(wrapper);
+        }
+
+        // Let Gridstack add it to the grid and register it
+        this.gridstack.addWidget({ el: wrapper, w, h: mapped.h, autoPosition: true });
+    }
+
+    /**
+     * Keep a conditional tile's grid slot in step with its card once Gridstack
+     * is running (#391). The first load waits for the Projects tile's data
+     * before building the grid, so there the saved layout places it. After
+     * that a project created or finished changes the tile without a page
+     * reload, and a repaint can find it parked as hidden or needing parking.
+     * Before Gridstack starts there is nothing to do: _wrapCardsForGridstack
+     * reads the card's own display.
+     */
+    _syncConditionalTileSlot(widgetId, shown) {
+        if (!this.gridstack) return;
+        const wrapper = document.querySelector(`.grid-stack-item[gs-id="${widgetId}"]`);
+        const stash = document.getElementById('hidden-widgets');
+        if (!wrapper || !stash) return;
+
+        const parked = stash.contains(wrapper);
+        if (shown && parked) {
+            this._addWrapperToGrid(widgetId, wrapper);
+            if (!this.dashboardLocked) {
+                this.addTileControls();
+            }
+        } else if (!shown && !parked) {
+            this.gridstack.removeWidget(wrapper, false);
+            wrapper.style.display = 'none';
+            stash.appendChild(wrapper);
+        }
     }
 
     async saveDashboardVisibility() {
@@ -3880,7 +3983,7 @@ export default class DashboardModule {
             const widgetId = card.dataset.widgetId;
             // Use saved visibility config as source of truth, but respect conditional
             // tiles that are hidden by data logic (e.g., budgetAlerts only shows with alerts)
-            const conditionalTiles = ['budgetAlerts', 'debtPayoff', 'debtChart', 'debtProgress'];
+            const conditionalTiles = ['budgetAlerts', 'debtPayoff', 'debtChart', 'debtProgress', 'projects'];
             const isConditional = conditionalTiles.includes(widgetId);
             const configVisible = visibility[widgetId] === true || (visibility[widgetId] === undefined && card.style.display !== 'none');
             const isVisible = configVisible && !(isConditional && card.style.display === 'none');
@@ -5143,6 +5246,7 @@ export default class DashboardModule {
             // repainting with no argument would blank the tile (#389)
             'budgetAlerts': () => this.refreshBudgetAlertsWidget(),
             'savingsGoals': () => this.updateSavingsGoalsWidget?.(),
+            'projects': () => this.loadProjectsWidget(),
             // Debt widgets
             'debtPayoff': () => this.updateDebtPayoffWidget?.(),
             'debtChart': () => this.renderDebtChartWidget(),

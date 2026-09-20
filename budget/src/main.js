@@ -85,6 +85,7 @@ import TransactionsModule from './modules/transactions/TransactionsModule.js';
 import PensionsModule from './modules/pensions/PensionsModule.js';
 import AssetsModule from './modules/assets/AssetsModule.js';
 import SavingsModule from './modules/savings/SavingsModule.js';
+import ProjectsModule from './modules/projects/ProjectsModule.js';
 import IncomeModule from './modules/income/IncomeModule.js';
 import BillsModule from './modules/bills/BillsModule.js';
 import TransfersModule from './modules/transfers/TransfersModule.js';
@@ -108,6 +109,9 @@ class BudgetApp {
         this.accounts = [];
         this.categories = [];
         this.categoryTree = [];
+        // The tree as the server sends it, before shared categories are
+        // merged in by name: the project form needs your own categories (#391)
+        this.rawCategoryTree = [];
         this.allCategories = [];
         this.transactions = [];
         this.pensions = [];
@@ -160,6 +164,7 @@ class BudgetApp {
         this.pensionsModule = new PensionsModule(this);
         this.assetsModule = new AssetsModule(this);
         this.savingsModule = new SavingsModule(this);
+        this.projectsModule = new ProjectsModule(this);
         this.incomeModule = new IncomeModule(this);
         this.billsModule = new BillsModule(this);
         this.transfersModule = new TransfersModule(this);
@@ -829,6 +834,7 @@ class BudgetApp {
             if (categoryTreeResponse.ok) {
                 const treeData = await categoryTreeResponse.json();
                 const rawTree = Array.isArray(treeData) ? treeData : [];
+                this.rawCategoryTree = rawTree;
                 // Merge own + shared categories (shared takes priority, dedup by name)
                 this.categoryTree = this.categoriesModule.mergeCategoryTree(rawTree);
                 this.allCategories = this.flattenCategories(this.categoryTree);
@@ -2685,6 +2691,10 @@ class BudgetApp {
     // ============================================
     // SAVINGS GOALS METHODS
     // ============================================
+
+    async loadProjectsView() {
+        return this.projectsModule.loadProjectsView();
+    }
 
     async loadSavingsGoalsView() {
         return this.savingsModule.loadSavingsGoalsView();

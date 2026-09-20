@@ -17,6 +17,8 @@ use OCA\Budget\Db\NetWorthSnapshotMapper;
 use OCA\Budget\Db\PensionAccountMapper;
 use OCA\Budget\Db\PensionContributionMapper;
 use OCA\Budget\Db\PensionSnapshotMapper;
+use OCA\Budget\Db\ProjectAllocationMapper;
+use OCA\Budget\Db\ProjectMapper;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\SavingsGoalMapper;
 use OCA\Budget\Db\SettingMapper;
@@ -55,6 +57,8 @@ class FactoryResetServiceTest extends TestCase {
     private \OCA\Budget\Db\AttachmentMapper $attachmentMapper;
     private $reconciliationSessionMapper;
     private $dismissedSuggestionMapper;
+    private $projectMapper;
+    private $projectAllocationMapper;
 
     protected function setUp(): void {
         $this->db = $this->createMock(IDBConnection::class);
@@ -83,6 +87,8 @@ class FactoryResetServiceTest extends TestCase {
         $reconciliationSessionMapper = $this->createMock(\OCA\Budget\Db\ReconciliationSessionMapper::class);
         $this->reconciliationSessionMapper = $reconciliationSessionMapper;
         $this->dismissedSuggestionMapper = $this->createMock(\OCA\Budget\Db\DismissedSuggestionMapper::class);
+        $this->projectMapper = $this->createMock(ProjectMapper::class);
+        $this->projectAllocationMapper = $this->createMock(ProjectAllocationMapper::class);
 
         $this->service = new FactoryResetService(
             $this->accountMapper,
@@ -108,7 +114,9 @@ class FactoryResetServiceTest extends TestCase {
             $this->attachmentMapper,
             $this->reconciliationSessionMapper,
             $this->dismissedSuggestionMapper,
-            $this->db
+            $this->db,
+            $this->projectAllocationMapper,
+            $this->projectMapper
         );
     }
 
@@ -197,5 +205,15 @@ class FactoryResetServiceTest extends TestCase {
         // Missing tables should return 0
         $this->assertEquals(0, $counts['expenseShares']);
         $this->assertEquals(0, $counts['settlements']);
+    }
+
+    public function testExecuteFactoryResetClearsProjects(): void {
+        $this->projectAllocationMapper->expects($this->once())->method('deleteAll')->with('user1')->willReturn(3);
+        $this->projectMapper->expects($this->once())->method('deleteAll')->with('user1')->willReturn(1);
+
+        $counts = $this->service->executeFactoryReset('user1');
+
+        $this->assertSame(3, $counts['projectAllocations']);
+        $this->assertSame(1, $counts['projects']);
     }
 }

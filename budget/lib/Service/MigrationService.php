@@ -213,6 +213,22 @@ class MigrationService {
             'scope' => ['joins' => [['budget_accounts', 'account_id']]],
             'fk' => ['account_id' => ['map' => 'accounts', 'onMissing' => 'drop']],
         ],
+        // Project budgets (#391). Allocations carry their own user_id so
+        // clearTable() can find them after budget_projects is cleared.
+        'projects' => [
+            'table' => 'budget_projects',
+            'scope' => 'user',
+            'idMap' => 'projects',
+            'fk' => ['category_id' => ['map' => 'categories', 'onMissing' => 'drop']],
+        ],
+        'project_allocs' => [
+            'table' => 'budget_project_allocs',
+            'scope' => 'user',
+            'fk' => [
+                'project_id' => ['map' => 'projects', 'onMissing' => 'drop'],
+                'category_id' => ['map' => 'categories', 'onMissing' => 'drop'],
+            ],
+        ],
     ];
 
     public function __construct(
@@ -649,6 +665,12 @@ class MigrationService {
             $category->setBudgetAmount($catData['budgetAmount'] ?? null);
             $category->setBudgetPeriod($catData['budgetPeriod'] ?? null);
             $category->setSortOrder($catData['sortOrder'] ?? 0);
+            // Exported all along but never read back, so a restore put every
+            // category back into reports and budgets (#391)
+            $category->setExcludedFromReports((bool) ($catData['excludedFromReports'] ?? false));
+            $category->setExcludedFromBudget((bool) ($catData['excludedFromBudget'] ?? false));
+            $category->setBudgetRollover((bool) ($catData['budgetRollover'] ?? false));
+            $category->setRolloverStart($catData['rolloverStart'] ?? null);
             $category->setCreatedAt($catData['createdAt'] ?? date('Y-m-d H:i:s'));
 
             // Remap parent ID

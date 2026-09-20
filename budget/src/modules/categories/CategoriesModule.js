@@ -8,6 +8,8 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import Chart from 'chart.js/auto';
 import { serverErrorMessage } from '../../utils/helpers.js';
+import { expenseProgressStatus } from '../../utils/budgetProgress.js';
+import { nextCategoryColor, distinctCategoryColors } from '../../utils/colors.js';
 
 export default class CategoriesModule {
     constructor(app) {
@@ -89,6 +91,8 @@ export default class CategoriesModule {
             ]);
             if (treeResponse.ok) {
                 const fullTree = await treeResponse.json();
+                // Unmerged, for the project form's own-category picker (#391)
+                this.app.rawCategoryTree = fullTree;
                 // Merge own + shared for dropdowns and budget view
                 const mergedTree = this.mergeCategoryTree(fullTree);
                 this.app.categoryTree = mergedTree;
@@ -207,6 +211,7 @@ export default class CategoriesModule {
         const selectAllBtn = document.getElementById('category-select-all-btn');
         const clearSelectionBtn = document.getElementById('category-clear-selection-btn');
         const bulkDeleteBtn = document.getElementById('category-bulk-delete-btn');
+        const bulkRecolorBtn = document.getElementById('category-bulk-recolor-btn');
 
         if (selectAllBtn) {
             selectAllBtn.addEventListener('click', () => this.selectAllCategories());
@@ -218,6 +223,10 @@ export default class CategoriesModule {
 
         if (bulkDeleteBtn) {
             bulkDeleteBtn.addEventListener('click', () => this.bulkDeleteCategories());
+        }
+
+        if (bulkRecolorBtn) {
+            bulkRecolorBtn.addEventListener('click', () => this.recolorSelectedCategories());
         }
     }
 
@@ -1181,14 +1190,24 @@ export default class CategoriesModule {
     /**
      * Delete a category, offering to move its transactions to No Category when
      * it (or a descendant) still has any (#332). Returns { deleted, reassigned }.
-     * The transaction count is checked up front so the normal case sends a single
-     * request; the 409 branch is a fallback for transactions the count map does
-     * not cover (e.g. in a report-excluded account).
+     * The transaction count is checked up front, so a category without
+     * transactions is deleted with a single request. One with transactions
+     * first asks GET /api/projects whether a project uses the branch (#391):
+     * if one does, the plain delete goes to the server, which refuses and names
+     * the project; if not, the user is asked before deleting with reassign.
+     * The 409 branch is a fallback for transactions the count map does not
+     * cover (e.g. in a report-excluded account).
      */
     async _deleteCategoryWithReassign(categoryId, categoryName) {
         const reassignPrompt = t('budget', 'This category still has transactions assigned to it. Move them to Uncategorized and delete "{name}"?', { name: categoryName });
 
         let reassign = this._categoryOrDescendantsHaveTransactions(categoryId);
+        // A project on this branch makes the server refuse the delete and name
+        // the project, so moving the transactions first would not help: send
+        // the plain delete and show that refusal instead of asking (#391).
+        if (reassign && await this._projectUsesCategoryBranch(categoryId)) {
+            reassign = false;
+        }
         if (reassign && !await confirmDialog(reassignPrompt, { destructive: true })) {
             return { deleted: false, reassigned: false };
         }
@@ -1216,13 +1235,41 @@ export default class CategoriesModule {
     /** Whether a category or any of its descendants has transactions (from the count map). */
     _categoryOrDescendantsHaveTransactions(categoryId) {
         const counts = this.serverTransactionCounts || {};
+        return this._selfAndDescendantIds(categoryId).some(id => (counts[id] || 0) > 0);
+    }
+
+    _selfAndDescendantIds(categoryId) {
         const ids = [categoryId];
         const walk = (node) => (node?.children || []).forEach(child => {
             ids.push(child.id);
             walk(child);
         });
         walk(this.findCategoryById(categoryId));
-        return ids.some(id => (counts[id] || 0) > 0);
+        return ids;
+    }
+
+    /**
+     * Whether a project, or one of its subcategory amounts, uses this category
+     * or one below it (#391). Only the owner can delete a category and only the
+     * owner's projects can use it, so matching ids is enough. If the projects
+     * cannot be loaded this answers false and the server still refuses.
+     */
+    async _projectUsesCategoryBranch(categoryId) {
+        const ids = new Set(this._selfAndDescendantIds(categoryId));
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/projects'), {
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) {
+                return false;
+            }
+            const projects = await response.json();
+            return Array.isArray(projects) && projects.some(project =>
+                ids.has(project.categoryId)
+                || (project.allocations || []).some(allocation => ids.has(allocation.categoryId)));
+        } catch {
+            return false;
+        }
     }
 
     updateBulkCategoryActions() {
@@ -1288,6 +1335,62 @@ export default class CategoriesModule {
         this.updateBulkCategoryActions();
     }
 
+    /**
+     * Give the selected categories a colour each, different from one another
+     * and from the categories left unselected while the palette lasts (#392).
+     */
+    async recolorSelectedCategories() {
+        const categoryIds = [...this.selectedCategoryIds];
+        const count = categoryIds.length;
+        if (count === 0) return;
+
+        if (!await confirmDialog(n('budget', 'Give %n category a new color? Its current color will be replaced.', 'Give %n categories new colors? Their current colors will be replaced.', count))) {
+            return;
+        }
+
+        const selected = new Set(categoryIds);
+        const keptColors = (this.allCategories || [])
+            .filter(category => !selected.has(category.id))
+            .map(category => category.color);
+        const colors = distinctCategoryColors(count, keptColors);
+
+        let recolored = 0;
+        const errors = [];
+
+        for (const [index, categoryId] of categoryIds.entries()) {
+            const category = this.findCategoryById(categoryId);
+            try {
+                const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}`), {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'requesttoken': OC.requestToken
+                    },
+                    body: JSON.stringify({ color: colors[index] })
+                });
+
+                if (response.ok) {
+                    recolored++;
+                } else {
+                    const error = await response.json().catch(() => ({}));
+                    errors.push(`${category?.name || categoryId}: ${serverErrorMessage(error, t('budget', 'Failed to update category'))}`);
+                }
+            } catch (error) {
+                errors.push(`${category?.name || categoryId}: ${error.message}`);
+            }
+        }
+
+        if (recolored > 0) {
+            showSuccess(n('budget', '%n category recolored', '%n categories recolored', recolored));
+            await this.loadCategories();
+            await this.app.loadInitialData();
+        }
+
+        if (errors.length > 0) {
+            showError(t('budget', 'Failed to recolor: {errors}', { errors: errors.join(', ') }));
+        }
+    }
+
     clearCategorySelection() {
         this.selectedCategoryIds.clear();
         document.querySelectorAll('.category-checkbox').forEach(cb => {
@@ -1320,7 +1423,7 @@ export default class CategoriesModule {
         if (categoryId) categoryId.value = '';
 
         const colorInput = document.getElementById('category-color');
-        if (colorInput) colorInput.value = '#3b82f6';
+        if (colorInput) colorInput.value = nextCategoryColor((this.allCategories || []).map(c => c.color));
 
         const excludedCheckbox = document.getElementById('category-excluded-from-reports');
         if (excludedCheckbox) excludedCheckbox.checked = false;
@@ -1652,6 +1755,8 @@ export default class CategoriesModule {
             });
             if (response.ok) {
                 const rawTree = await response.json();
+                // Unmerged, for the project form's own-category picker (#391)
+                this.app.rawCategoryTree = rawTree;
                 // Merge own + shared: shared takes priority, children merged
                 const mergedTree = this.mergeCategoryTree(rawTree);
                 this.categoryTree = mergedTree;
@@ -2263,10 +2368,9 @@ export default class CategoriesModule {
                 else if (percentage >= 60) progressStatus = 'warning';
                 else progressStatus = 'danger';
             } else {
-                // For expenses: under budget is good, over is bad
-                if (percentage >= 100) progressStatus = 'over';
-                else if (percentage >= 80) progressStatus = 'danger';
-                else if (percentage >= 60) progressStatus = 'warning';
+                // For expenses: under budget is good, over is bad. Shared with
+                // project budgets so the two never colour a figure differently
+                progressStatus = expenseProgressStatus(percentage);
             }
 
             // For income, negative remaining = exceeded target (good), positive = not yet reached (neutral)

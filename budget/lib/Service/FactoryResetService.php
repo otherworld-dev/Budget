@@ -17,6 +17,8 @@ use OCA\Budget\Db\NetWorthSnapshotMapper;
 use OCA\Budget\Db\PensionAccountMapper;
 use OCA\Budget\Db\PensionContributionMapper;
 use OCA\Budget\Db\PensionSnapshotMapper;
+use OCA\Budget\Db\ProjectAllocationMapper;
+use OCA\Budget\Db\ProjectMapper;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\SavingsGoalMapper;
 use OCA\Budget\Db\SettingMapper;
@@ -54,7 +56,9 @@ class FactoryResetService {
         private \OCA\Budget\Db\AttachmentMapper $attachmentMapper,
         private \OCA\Budget\Db\ReconciliationSessionMapper $reconciliationSessionMapper,
         private \OCA\Budget\Db\DismissedSuggestionMapper $dismissedSuggestionMapper,
-        private IDBConnection $db
+        private IDBConnection $db,
+        private ?ProjectAllocationMapper $projectAllocationMapper = null,
+        private ?ProjectMapper $projectMapper = null
     ) {
     }
 
@@ -106,6 +110,14 @@ class FactoryResetService {
 
             // Level 5.5: Budget snapshots (depend on categories)
             $counts['budgetSnapshots'] = $this->safeDelete($this->budgetSnapshotMapper, $userId);
+
+            // Level 5.6: Project budgets (depend on categories) (#391)
+            if ($this->projectAllocationMapper !== null) {
+                $counts['projectAllocations'] = $this->safeDelete($this->projectAllocationMapper, $userId);
+            }
+            if ($this->projectMapper !== null) {
+                $counts['projects'] = $this->safeDelete($this->projectMapper, $userId);
+            }
 
             // Level 6: Categories (self-referential, but deleteAll handles it)
             $counts['categories'] = $this->safeDelete($this->categoryMapper, $userId);

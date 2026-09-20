@@ -113,6 +113,7 @@ export default class Router {
         'rules': 'loadRulesView',
         'income': 'loadIncomeView',
         'savings-goals': 'loadSavingsGoalsView',
+        'projects': 'loadProjectsView',
         'debt-payoff': 'loadDebtPayoffView',
         'shared-expenses': 'loadSharedExpensesView',
         'pensions': 'loadPensionsView',

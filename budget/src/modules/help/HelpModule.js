@@ -29,6 +29,7 @@ export const HELP_TOPICS = {
     bills: { title: () => t('budget', 'Bills'), summary: () => t('budget', 'Track recurring payments with auto-pay, custom frequencies, and notifications. View the bills calendar in Reports.'), doc: 'bills' },
     transfers: { title: () => t('budget', 'Transfers'), summary: () => t('budget', 'Set up recurring or one-time transfers between your accounts with auto-pay support.'), doc: 'transfers' },
     'savings-goals': { title: () => t('budget', 'Savings Goals'), summary: () => t('budget', 'Set financial targets and track progress. Link goals to tags for automatic amount calculation.'), doc: 'savings-goals' },
+    projects: { title: () => t('budget', 'Projects'), summary: () => t('budget', 'One budget for a job that runs over months, such as a renovation. It covers a category and its subcategories between two dates, can give its subcategories amounts of their own, and does not reset each month.'), doc: 'projects' },
     'debt-payoff': { title: () => t('budget', 'Debt Payoff'), summary: () => t('budget', 'Plan debt repayment using avalanche (highest interest first) or snowball (smallest balance first) strategies.'), doc: 'debt-payoff' },
     pensions: { title: () => t('budget', 'Pensions'), summary: () => t('budget', 'Track retirement accounts with contributions and growth projections.'), doc: 'pensions' },
     assets: { title: () => t('budget', 'Assets'), summary: () => t('budget', 'Track non-liquid assets like property, vehicles, and collectibles with value snapshots over time.'), doc: 'assets' },

@@ -13,16 +13,25 @@ use OCA\Budget\Db\ExpenseShareMapper;
 use OCA\Budget\Db\Settlement;
 use OCA\Budget\Db\SettlementMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\Transaction;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\IDBConnection;
 use OCP\IUserManager;
 
 class SharedExpenseService {
+    /** Why setTransactionShares() refused a set of splits, as the exception code */
+    public const SPLIT_ERR_DUPLICATE = 1;
+    public const SPLIT_ERR_SETTLED = 2;
+    public const SPLIT_ERR_AMOUNT = 3;
+    public const SPLIT_ERR_OVER_TOTAL = 4;
+
     private ContactMapper $contactMapper;
     private ExpenseShareMapper $expenseShareMapper;
     private SettlementMapper $settlementMapper;
     private TransactionMapper $transactionMapper;
     private AccountMapper $accountMapper;
     private IUserManager $userManager;
+    private IDBConnection $db;
 
     public function __construct(
         ContactMapper $contactMapper,
@@ -30,7 +39,8 @@ class SharedExpenseService {
         SettlementMapper $settlementMapper,
         TransactionMapper $transactionMapper,
         AccountMapper $accountMapper,
-        IUserManager $userManager
+        IUserManager $userManager,
+        IDBConnection $db
     ) {
         $this->contactMapper = $contactMapper;
         $this->expenseShareMapper = $expenseShareMapper;
@@ -38,6 +48,7 @@ class SharedExpenseService {
         $this->transactionMapper = $transactionMapper;
         $this->accountMapper = $accountMapper;
         $this->userManager = $userManager;
+        $this->db = $db;
     }
 
     /**
@@ -155,7 +166,22 @@ class SharedExpenseService {
      */
     public function deleteContact(int $id, string $userId): Contact {
         $contact = $this->contactMapper->find($id, $userId);
-        return $this->contactMapper->delete($contact);
+
+        // Their splits and settlements go too. Nothing can reach a split whose
+        // contact is gone, so left behind it dropped out of every balance and
+        // kept a Shared badge on its transaction that nothing could clear.
+        $this->db->beginTransaction();
+        try {
+            $this->expenseShareMapper->deleteByContact($id, $userId);
+            $this->settlementMapper->deleteByContact($id, $userId);
+            $deleted = $this->contactMapper->delete($contact);
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+
+        return $deleted;
     }
 
     // ==================== Expense Share Methods ====================
@@ -241,6 +267,138 @@ class SharedExpenseService {
             return $this->shareExpense($userId, $transactionId, $contactId, $amount, $notes, $visibleAccountIds);
         } else {
             return $this->shareExpense($userId, $transactionId, $contactId, -$amount, $notes, $visibleAccountIds);
+        }
+    }
+
+    /**
+     * Set everyone a transaction is split with in one go (#391).
+     *
+     * $splits is the complete list of open splits the transaction should end
+     * up with, one per contact: positive when they owe you, negative when you
+     * owe them. An open split whose contact is missing from the list is
+     * removed. Settled splits belong to a recorded settlement, so they are
+     * never changed and their contacts cannot be listed, but they still count
+     * towards the transaction's amount, which the splits together may not
+     * exceed.
+     *
+     * @param array<array{contactId: int, amount: float|int|string}> $splits
+     * @param int[]|null $visibleAccountIds also reach a transaction in an account shared with the user
+     * @return ExpenseShare[] every split on the transaction afterwards, settled ones included
+     * @throws \InvalidArgumentException coded with a SPLIT_ERR_* constant
+     * @throws DoesNotExistException when the transaction or a contact is not the user's
+     */
+    public function setTransactionShares(
+        string $userId,
+        int $transactionId,
+        array $splits,
+        ?string $notes = null,
+        ?array $visibleAccountIds = null
+    ): array {
+        $transaction = $this->findShareableTransaction($transactionId, $userId, $visibleAccountIds);
+
+        $open = [];
+        $settled = [];
+        foreach ($this->expenseShareMapper->findByTransaction($transactionId, $userId) as $share) {
+            if ($share->getIsSettled()) {
+                $settled[$share->getContactId()] = $share;
+            } else {
+                $open[$share->getContactId()] = $share;
+            }
+        }
+
+        $amounts = [];
+        $total = '0';
+        foreach ($splits as $split) {
+            $split = is_array($split) ? $split : [];
+            $contactId = (int)($split['contactId'] ?? 0);
+            $amount = $split['amount'] ?? null;
+            if (!is_numeric($amount) || MoneyCalculator::compare((float)$amount, '0') === 0) {
+                throw new \InvalidArgumentException('Every split needs an amount', self::SPLIT_ERR_AMOUNT);
+            }
+            if (isset($amounts[$contactId])) {
+                throw new \InvalidArgumentException('A contact can only be in a split once', self::SPLIT_ERR_DUPLICATE);
+            }
+            if (isset($settled[$contactId])) {
+                throw new \InvalidArgumentException('A settled split cannot be changed', self::SPLIT_ERR_SETTLED);
+            }
+            $this->contactMapper->find($contactId, $userId);
+
+            $amounts[$contactId] = MoneyCalculator::add((float)$amount, '0');
+            $total = MoneyCalculator::add($total, MoneyCalculator::abs($amounts[$contactId]));
+        }
+        foreach ($settled as $share) {
+            $total = MoneyCalculator::add($total, MoneyCalculator::abs((float)$share->getAmount()));
+        }
+        if (MoneyCalculator::compare($total, MoneyCalculator::abs((float)$transaction->getAmount())) > 0) {
+            throw new \InvalidArgumentException('The splits add up to more than the transaction', self::SPLIT_ERR_OVER_TOTAL);
+        }
+
+        $currency = $this->accountCurrency($transaction);
+        $result = array_values($settled);
+
+        $this->db->beginTransaction();
+        try {
+            foreach ($open as $contactId => $share) {
+                if (!isset($amounts[$contactId])) {
+                    $this->expenseShareMapper->delete($share);
+                }
+            }
+            foreach ($amounts as $contactId => $amount) {
+                $share = $open[$contactId] ?? null;
+                if ($share !== null) {
+                    $share->setAmount(MoneyCalculator::toFloat($amount));
+                    $share->setNotes($notes);
+                    $result[] = $this->expenseShareMapper->update($share);
+                    continue;
+                }
+
+                $share = new ExpenseShare();
+                $share->setUserId($userId);
+                $share->setTransactionId($transactionId);
+                $share->setContactId($contactId);
+                $share->setAmount(MoneyCalculator::toFloat($amount));
+                $share->setCurrency($currency);
+                $share->setIsSettled(false);
+                $share->setNotes($notes);
+                $share->setCreatedAt((new DateTime())->format('Y-m-d H:i:s'));
+                $result[] = $this->expenseShareMapper->insert($share);
+            }
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+
+        return $result;
+    }
+
+    /**
+     * The user's own transaction, or failing that one in an account shared
+     * with them.
+     *
+     * @param int[]|null $visibleAccountIds
+     * @throws DoesNotExistException
+     */
+    private function findShareableTransaction(int $transactionId, string $userId, ?array $visibleAccountIds): Transaction {
+        try {
+            return $this->transactionMapper->find($transactionId, $userId);
+        } catch (DoesNotExistException $e) {
+            if (empty($visibleAccountIds)) {
+                throw $e;
+            }
+            return $this->transactionMapper->findForAccounts($transactionId, $visibleAccountIds);
+        }
+    }
+
+    /**
+     * The currency of the account a transaction is in, looked up by id so a
+     * transaction in a shared account gets its owner's currency too.
+     */
+    private function accountCurrency(Transaction $transaction): ?string {
+        try {
+            return $this->accountMapper->findById($transaction->getAccountId())->getCurrency() ?: null;
+        } catch (\Exception $e) {
+            return null;
         }
     }
 

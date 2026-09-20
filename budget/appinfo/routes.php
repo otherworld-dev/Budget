@@ -221,6 +221,13 @@ return [
         ['name' => 'goals#progress', 'url' => '/api/savings-goals/{id}/progress', 'verb' => 'GET'],
         ['name' => 'goals#forecast', 'url' => '/api/savings-goals/{id}/forecast', 'verb' => 'GET'],
 
+        // Project budgets (#391)
+        ['name' => 'project#index', 'url' => '/api/projects', 'verb' => 'GET'],
+        ['name' => 'project#show', 'url' => '/api/projects/{id}', 'verb' => 'GET'],
+        ['name' => 'project#create', 'url' => '/api/projects', 'verb' => 'POST'],
+        ['name' => 'project#update', 'url' => '/api/projects/{id}', 'verb' => 'PUT'],
+        ['name' => 'project#destroy', 'url' => '/api/projects/{id}', 'verb' => 'DELETE'],
+
         // Net Worth routes
         ['name' => 'netWorth#current', 'url' => '/api/net-worth/current', 'verb' => 'GET'],
         ['name' => 'netWorth#snapshots', 'url' => '/api/net-worth/snapshots', 'verb' => 'GET'],
@@ -322,6 +329,7 @@ return [
         ['name' => 'sharedExpense#shareExpense', 'url' => '/api/shared/shares', 'verb' => 'POST'],
         ['name' => 'sharedExpense#splitFiftyFifty', 'url' => '/api/shared/shares/split', 'verb' => 'POST'],
         ['name' => 'sharedExpense#transactionShares', 'url' => '/api/shared/transactions/{transactionId}/shares', 'verb' => 'GET'],
+        ['name' => 'sharedExpense#setTransactionShares', 'url' => '/api/shared/transactions/{transactionId}/shares', 'verb' => 'PUT'],
         ['name' => 'sharedExpense#updateShare', 'url' => '/api/shared/shares/{id}', 'verb' => 'PUT'],
         ['name' => 'sharedExpense#markSettled', 'url' => '/api/shared/shares/{id}/settle', 'verb' => 'POST'],
         ['name' => 'sharedExpense#destroyShare', 'url' => '/api/shared/shares/{id}', 'verb' => 'DELETE'],

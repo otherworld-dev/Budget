@@ -133,6 +133,16 @@ style('budget', 'budget-app');
                 <?php p($l->t('Savings Goals')); ?>
             </a>
         </li>
+        <li class="app-navigation-entry" data-id="projects">
+            <a href="#projects" class="nav-icon-projects svg">
+                <span class="app-navigation-entry-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17,9H7V7H17M17,13H7V11H17M14,17H7V15H14M12,3A1,1 0 0,1 13,4A1,1 0 0,1 12,5A1,1 0 0,1 11,4A1,1 0 0,1 12,3M19,3H14.82C14.4,1.84 13.3,1 12,1C10.7,1 9.6,1.84 9.18,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3Z"/>
+                    </svg>
+                </span>
+                <?php p($l->t('Projects')); ?>
+            </a>
+        </li>
         <li class="app-navigation-entry" data-id="debt-payoff">
             <a href="#debt-payoff" class="nav-icon-debt svg">
                 <span class="app-navigation-entry-icon">
@@ -728,6 +738,15 @@ style('budget', 'budget-app');
                         </div>
                     </div>
 
+                    <!-- Projects (#391): hidden until a project is running or upcoming -->
+                    <div id="projects-card" class="dashboard-card dashboard-tile-s" data-widget-id="projects" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3><?php p($l->t('Projects')); ?></h3>
+                            <a href="#projects" class="card-link"><?php p($l->t('Manage')); ?></a>
+                        </div>
+                        <div id="projects-widget" class="projects-widget"></div>
+                    </div>
+
                     <!-- Debt Payoff Summary -->
                     <div id="debt-payoff-card" class="dashboard-card debt-payoff-card dashboard-tile-s" data-widget-id="debtPayoff" data-widget-category="widget" style="display: none;">
                         <div class="card-header">
@@ -1142,7 +1161,7 @@ style('budget', 'budget-app');
                     <button id="accounts-clear-selection-btn" class="secondary small">
                         <?php p($l->t('Clear')); ?>
                     </button>
-                    <button id="accounts-bulk-delete-btn" class="error small">
+                    <button id="accounts-bulk-delete-btn" class="danger small">
                         <span class="icon-delete" aria-hidden="true"></span>
                         <?php p($l->t('Delete')); ?>
                     </button>
@@ -1680,7 +1699,7 @@ style('budget', 'budget-app');
                     <button id="bulk-unreconcile-btn" class="secondary"><?php p($l->t('Unreconciled')); ?></button>
                     <button id="bulk-edit-btn" class="secondary"><?php p($l->t('Edit Fields...')); ?></button>
                     <button id="bulk-tags-btn" class="secondary"><?php p($l->t('Tags...')); ?></button>
-                    <button id="bulk-delete-btn" class="error"><?php p($l->t('Delete')); ?></button>
+                    <button id="bulk-delete-btn" class="danger"><?php p($l->t('Delete')); ?></button>
                     <button id="cancel-bulk-btn" class="secondary"><?php p($l->t('Cancel')); ?></button>
                 </div>
             </div>
@@ -1889,7 +1908,10 @@ style('budget', 'budget-app');
                             <button id="category-clear-selection-btn" class="secondary small">
                                 <?php p($l->t('Clear')); ?>
                             </button>
-                            <button id="category-bulk-delete-btn" class="error small">
+                            <button id="category-bulk-recolor-btn" class="secondary small" title="<?php p($l->t('Give each selected category a different color')); ?>">
+                                <?php p($l->t('Recolor')); ?>
+                            </button>
+                            <button id="category-bulk-delete-btn" class="danger small">
                                 <span class="icon-delete" aria-hidden="true"></span>
                                 <?php p($l->t('Delete Selected')); ?>
                             </button>
@@ -2909,6 +2931,27 @@ style('budget', 'budget-app');
         <!-- Goal Modal -->
 
         <!-- Add Money to Goal Modal -->
+
+        <!-- Projects View (#391) -->
+        <div id="projects-view" class="view">
+            <div class="view-header">
+                <h2><?php p($l->t('Projects')); ?></h2>
+                <button id="add-project-btn" class="primary">
+                    <span class="icon-add" aria-hidden="true"></span>
+                    <?php p($l->t('New Project')); ?>
+                </button>
+            </div>
+            <div id="projects-list" class="projects-list"></div>
+            <div id="empty-projects" class="projects-empty" style="display: none;">
+                <h3><?php p($l->t('No projects yet')); ?></h3>
+                <p><?php p($l->t('A project is one budget for a job that runs over months, such as a renovation, a wedding or a long trip. It covers a category and everything under it from a start date to an end date, and it does not reset each month.')); ?></p>
+                <button id="empty-add-project-btn" class="primary"><?php p($l->t('New Project')); ?></button>
+            </div>
+            <div id="projects-finished-section" class="projects-finished-section" style="display: none;">
+                <h3><?php p($l->t('Finished')); ?></h3>
+                <div id="projects-finished-list" class="projects-list"></div>
+            </div>
+        </div>
 
         <!-- Forecast View -->
         <div id="forecast-view" class="view">
@@ -4997,6 +5040,78 @@ style('budget', 'budget-app');
     </div>
 </div>
 
+<!-- Project Details Modal (#391) -->
+<div id="project-details-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="project-details-title" aria-hidden="true">
+    <div class="modal-content modal-wide">
+        <h3 id="project-details-title"></h3>
+        <div id="project-details-meta" class="project-details-meta"></div>
+        <div id="project-details-summary" class="project-details-summary"></div>
+        <p id="project-details-shared-note" class="form-text"><?php p($l->t('The figures include everything filed under the project categories, including by people you share them with. View transactions only lists the ones in accounts you can see.')); ?></p>
+        <div class="project-rows-header" aria-hidden="true">
+            <span><?php p($l->t('Subcategory')); ?></span>
+            <span><?php p($l->t('Budget')); ?></span>
+            <span><?php p($l->t('Spent')); ?></span>
+            <span><?php p($l->t('Remaining')); ?></span>
+            <span><?php p($l->t('Progress')); ?></span>
+        </div>
+        <div id="project-details-rows" class="project-rows"></div>
+        <div class="modal-buttons">
+            <button type="button" id="project-transactions-btn" class="secondary"><?php p($l->t('View transactions')); ?></button>
+            <button type="button" id="project-edit-btn" class="primary"><?php p($l->t('Edit')); ?></button>
+            <button type="button" id="project-delete-btn" class="danger"><?php p($l->t('Delete')); ?></button>
+            <button type="button" class="secondary close-btn"><?php p($l->t('Close')); ?></button>
+        </div>
+    </div>
+</div>
+
+<!-- Project Modal (#391) -->
+<div id="project-modal" class="modal" style="display: none;" role="dialog" aria-labelledby="project-modal-title" aria-hidden="true">
+    <div class="modal-content">
+        <h3 id="project-modal-title"><?php p($l->t('New Project')); ?></h3>
+        <form id="project-form" aria-label="<?php p($l->t('Project form')); ?>">
+            <div class="form-group">
+                <label for="project-name"><?php p($l->t('Name')); ?> <span class="required">*</span></label>
+                <input type="text" id="project-name" maxlength="255" required placeholder="<?php p($l->t('e.g., House renovation')); ?>">
+            </div>
+            <div class="form-group">
+                <label for="project-category"><?php p($l->t('Category')); ?> <span class="required">*</span></label>
+                <select id="project-category" required></select>
+                <small class="form-text"><?php p($l->t('Everything filed under this category and its subcategories counts towards the project.')); ?></small>
+            </div>
+            <div class="form-group">
+                <label for="project-total"><?php p($l->t('Total budget')); ?> <span class="required">*</span></label>
+                <input type="number" id="project-total" step="0.01" min="0" inputmode="decimal" required>
+            </div>
+            <div class="project-dates">
+                <div class="form-group">
+                    <label for="project-start"><?php p($l->t('Start date')); ?> <span class="required">*</span></label>
+                    <input type="date" id="project-start" required>
+                </div>
+                <div class="form-group">
+                    <label for="project-end"><?php p($l->t('End date (optional)')); ?></label>
+                    <input type="date" id="project-end">
+                </div>
+            </div>
+            <div class="form-group" id="project-allocations-group" style="display: none;">
+                <span class="project-allocations-label"><?php p($l->t('Subcategory amounts (optional)')); ?></span>
+                <div id="project-allocations" class="project-allocations"></div>
+                <p id="project-unallocated" class="project-unallocated" aria-live="polite"></p>
+            </div>
+            <div class="form-group" id="project-exclude-group">
+                <label class="checkbox-label" for="project-exclude-budget">
+                    <input type="checkbox" id="project-exclude-budget" checked>
+                    <span><?php p($l->t('Leave these categories out of monthly budgets')); ?></span>
+                </label>
+                <small class="form-text"><?php p($l->t('Ticks Exclude from budgeting on the category, so a big project bill does not show as over budget on the Budget page. The spending still counts in reports and on the dashboard.')); ?></small>
+            </div>
+            <div class="modal-buttons">
+                <button type="submit" class="primary"><?php p($l->t('Save')); ?></button>
+                <button type="button" class="secondary cancel-btn"><?php p($l->t('Cancel')); ?></button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Goal Modal (moved out of #app-content so it can sit above the app navigation) -->
 <div id="goal-modal" class="modal modal-columns modal-columns-2" style="display: none;">
     <div class="modal-content">
@@ -7057,24 +7172,19 @@ style('budget', 'budget-app');
             </div>
 
             <div class="form-group">
-                <label for="share-contact"><?php p($l->t('Split with')); ?> <span class="required">*</span></label>
-                <select id="share-contact" name="contactId" required>
-                    <option value=""><?php p($l->t('Select a contact...')); ?></option>
+                <label for="share-split-type"><?php p($l->t('Split Method')); ?></label>
+                <select id="share-split-type" name="splitType">
+                    <option value="equal"><?php p($l->t('Equally')); ?></option>
+                    <option value="percent"><?php p($l->t('By percentage')); ?></option>
+                    <option value="amount"><?php p($l->t('By amount')); ?></option>
                 </select>
             </div>
 
             <div class="form-group">
-                <label for="share-split-type"><?php p($l->t('Split Method')); ?></label>
-                <select id="share-split-type" name="splitType">
-                    <option value="50-50"><?php p($l->t('50/50 Split')); ?></option>
-                    <option value="custom"><?php p($l->t('Custom Amount')); ?></option>
-                </select>
-            </div>
-
-            <div class="form-group" id="share-custom-amount-group" style="display: none;">
-                <label for="share-amount"><?php p($l->t('Amount They Owe You')); ?></label>
-                <input type="number" id="share-amount" name="amount" step="0.01" placeholder="0.00">
-                <small class="form-text"><?php p($l->t('Positive = they owe you, negative = you owe them')); ?></small>
+                <span id="share-people-label" class="share-people-label"><?php p($l->t('Split between')); ?></span>
+                <div id="share-people" class="share-people" role="group" aria-labelledby="share-people-label"></div>
+                <small id="share-settled-note" class="form-text" style="display: none;"></small>
+                <p id="share-summary" class="share-summary" aria-live="polite"></p>
             </div>
 
             <div class="form-group">
@@ -7083,7 +7193,7 @@ style('budget', 'budget-app');
             </div>
 
             <div class="modal-buttons">
-                <button type="submit" class="primary"><?php p($l->t('Share Expense')); ?></button>
+                <button type="submit" class="primary"><?php p($l->t('Save Split')); ?></button>
                 <button type="button" class="secondary cancel-btn"><?php p($l->t('Cancel')); ?></button>
             </div>
         </form>

@@ -10,10 +10,12 @@ use OCA\Budget\Db\ExpenseShare;
 use OCA\Budget\Db\Settlement;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\SharedExpenseService;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserManager;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -351,6 +353,73 @@ class SharedExpenseControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus());
 		$this->assertSame('Failed to split expense', $response->getData()['error']);
+	}
+
+	// ── setTransactionShares (#391) ─────────────────────────────────
+
+	public function testSetTransactionSharesReturnsEverySplit(): void {
+		$splits = [['contactId' => 1, 'amount' => 30], ['contactId' => 2, 'amount' => 30]];
+		$this->service->expects($this->once())
+			->method('setTransactionShares')
+			->with('user1', 10, $splits, 'Tiles', [])
+			->willReturn([$this->makeShare(1, 30.0), $this->makeShare(2, 30.0)]);
+
+		$response = $this->controller->setTransactionShares(10, $splits, 'Tiles');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertCount(2, $response->getData());
+		$this->assertSame(30.0, $response->getData()[1]['amount']);
+	}
+
+	public function testSetTransactionSharesDefaultsToNoSplits(): void {
+		$this->service->expects($this->once())
+			->method('setTransactionShares')
+			->with('user1', 10, [], null, [])
+			->willReturn([]);
+
+		$response = $this->controller->setTransactionShares(10);
+
+		$this->assertSame([], $response->getData());
+	}
+
+	#[DataProvider('refusals')]
+	public function testSetTransactionSharesExplainsARefusal(int $code, string $message): void {
+		$this->service->method('setTransactionShares')
+			->willThrowException(new \InvalidArgumentException('refused', $code));
+
+		$response = $this->controller->setTransactionShares(10, [['contactId' => 1, 'amount' => 30]]);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame($message, $response->getData()['error']);
+	}
+
+	public static function refusals(): array {
+		return [
+			'duplicate' => [SharedExpenseService::SPLIT_ERR_DUPLICATE, 'Each person can only be in a split once'],
+			'settled' => [SharedExpenseService::SPLIT_ERR_SETTLED, 'A split that has been settled cannot be changed'],
+			'amount' => [SharedExpenseService::SPLIT_ERR_AMOUNT, 'Every split needs an amount'],
+			'over total' => [SharedExpenseService::SPLIT_ERR_OVER_TOTAL, 'The splits add up to more than the transaction'],
+		];
+	}
+
+	public function testSetTransactionSharesReportsAMissingTransactionOrContact(): void {
+		$this->service->method('setTransactionShares')
+			->willThrowException(new DoesNotExistException('gone'));
+
+		$response = $this->controller->setTransactionShares(10, [['contactId' => 99, 'amount' => 30]]);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+		$this->assertSame('Transaction or contact not found', $response->getData()['error']);
+	}
+
+	public function testSetTransactionSharesHandlesError(): void {
+		$this->service->method('setTransactionShares')
+			->willThrowException(new \RuntimeException('db down'));
+
+		$response = $this->controller->setTransactionShares(10, [['contactId' => 1, 'amount' => 30]]);
+
+		$this->assertSame(Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus());
+		$this->assertSame('Failed to save the split', $response->getData()['error']);
 	}
 
 	// ── transactionShares ───────────────────────────────────────────
