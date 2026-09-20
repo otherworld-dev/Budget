@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-19 22:05+0000\n"
-"PO-Revision-Date: 2026-09-19 21:21+0000\n"
+"PO-Revision-Date: 2026-09-20 19:25+0000\n"
 "Last-Translator: Christophe <tophe.perso@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
@@ -1660,10 +1660,8 @@ msgstr "Impossible de récupérer les prévisions combinées des pensions"
 
 #: /app/lib/Controller/ProjectController.php:62
 #: /app/src/modules/projects/ProjectsModule.js:35
-#, fuzzy
-#| msgid "Failed to load rules"
 msgid "Failed to load projects"
-msgstr "Échec du chargement des règles"
+msgstr "Échec du chargement des projets"
 
 #: /app/lib/Controller/ProjectController.php:81
 #: /app/src/modules/projects/ProjectsModule.js:127
@@ -1716,7 +1714,7 @@ msgstr "Le montant cible doit être supérieur à zéro"
 
 #: /app/lib/Controller/ProjectController.php:195
 msgid "Choose one of your own expense categories"
-msgstr ""
+msgstr "Choisissez l'une de vos propres catégories de dépenses"
 
 #: /app/lib/Controller/ProjectController.php:196
 #: /app/src/modules/projects/ProjectsModule.js:338
@@ -1741,6 +1739,8 @@ msgstr "Le montant cible doit être supérieur à zéro"
 #: /app/lib/Controller/ProjectController.php:199
 msgid "Amounts can only go to subcategories of the project category"
 msgstr ""
+"Les montants ne peuvent être affectés qu'aux sous-catégories de la catégorie "
+"« projet »"
 
 #: /app/lib/Controller/ProjectController.php:200
 #, fuzzy
@@ -1751,6 +1751,8 @@ msgstr "Chaque personne ne peut faire partie que d'un seul groupe à la fois"
 #: /app/lib/Controller/ProjectController.php:201
 msgid "A subcategory and one of its own subcategories cannot both have amounts"
 msgstr ""
+"Une sous-catégorie et l'une de ses propres sous-catégories ne peuvent pas "
+"avoir toutes les deux des montants"
 
 #: /app/lib/Controller/ProjectController.php:202
 #: /app/src/modules/projects/ProjectsModule.js:341
@@ -2986,7 +2988,7 @@ msgstr "Factures"
 #: /app/src/core/KeyboardShortcuts.js:340
 #: /app/src/modules/help/HelpModule.js:30 /app/templates/index.php:123
 msgid "Transfers"
-msgstr "Transferts"
+msgstr "Virements"
 
 #: /app/lib/Service/AccountClosureService.php:82
 msgid "Pension contributions"
@@ -3136,6 +3138,8 @@ msgid ""
 "This category is used by the project \"%1$s\". Change or delete the project "
 "first."
 msgstr ""
+"Cette catégorie est utilisée par le projet « %1$s ». Modifiez ou supprimez "
+"d'abord le projet."
 
 #: /app/lib/Service/CategoryService.php:638
 msgid "A budget adjustment already exists for this month"
@@ -3823,7 +3827,7 @@ msgstr "Source"
 #: /app/src/modules/categories/CategoriesModule.js:2407
 #: /app/templates/index.php:2203 /app/templates/index.php:3123
 msgid "Period"
-msgstr "Prériode"
+msgstr "Période"
 
 #: /app/lib/Service/Report/ReportExporter.php:365 /app/templates/index.php:3307
 msgid "Summary"
@@ -4372,10 +4376,8 @@ msgstr "Objectifs d'épargne"
 #: /app/src/modules/help/HelpModule.js:32
 #: /app/src/modules/sharing/SharingModule.js:278 /app/templates/index.php:143
 #: /app/templates/index.php:744 /app/templates/index.php:2938
-#, fuzzy
-#| msgid "(projected)"
 msgid "Projects"
-msgstr "(prévu)"
+msgstr "Projets"
 
 #: /app/src/config/dashboardWidgets.js:45
 #: /app/src/core/KeyboardShortcuts.js:342
@@ -4434,7 +4436,7 @@ msgstr "Dépenses hebdomadaires"
 
 #: /app/src/config/dashboardWidgets.js:78 /app/templates/index.php:925
 msgid "Unmatched Transfers"
-msgstr "Transferts non référencés"
+msgstr "Virements non référencés"
 
 #: /app/src/config/dashboardWidgets.js:79 /app/templates/index.php:934
 msgid "Category Trends"
@@ -5497,7 +5499,7 @@ msgstr "Numéro de compte"
 
 #: /app/src/modules/accounts/AccountsModule.js:26 /app/templates/index.php:1097
 msgid "Last reconciled"
-msgstr "Dernière rapprochement"
+msgstr "Dernier rapprochement"
 
 #: /app/src/modules/accounts/AccountsModule.js:28
 msgid "Converted balance"
@@ -7241,7 +7243,11 @@ msgid "Give %n category a new color? Its current color will be replaced."
 msgid_plural ""
 "Give %n categories new colors? Their current colors will be replaced."
 msgstr[0] ""
+"Attribuer une nouvelle couleur à %n catégorie ? Sa couleur actuelle sera "
+"remplacée."
 msgstr[1] ""
+"Attribuer de nouvelles couleurs à %n catégories ? Leurs couleurs actuelles "
+"seront remplacées."
 
 #: /app/src/modules/categories/CategoriesModule.js:1384
 #, fuzzy
@@ -7890,7 +7896,7 @@ msgstr "Instantanés enregistrés automatiquement chaque jour"
 
 #: /app/src/modules/dashboard/DashboardModule.js:3313
 msgid "Last: {time}"
-msgstr "Dernier : {time}"
+msgstr "Le dernier : {time}"
 
 #: /app/src/modules/dashboard/DashboardModule.js:3318
 msgid "Record now"
@@ -7977,22 +7983,16 @@ msgid "Look ahead"
 msgstr "Regarder vers l'avenir"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4981
-#, fuzzy
-#| msgid "Last 30 days"
 msgid "Next 30 days"
-msgstr "30 derniers jours"
+msgstr "30 prochains jours"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4982
-#, fuzzy
-#| msgid "Last 30 days"
 msgid "Next 60 days"
-msgstr "30 derniers jours"
+msgstr "60 prochains jours"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4983
-#, fuzzy
-#| msgid "Last 90 days"
 msgid "Next 90 days"
-msgstr "90 derniers jours"
+msgstr "90 prochains jours"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4992
 msgid "Forecast horizon"
@@ -8357,6 +8357,10 @@ msgid ""
 "a category and its subcategories between two dates, can give its "
 "subcategories amounts of their own, and does not reset each month."
 msgstr ""
+"Un budget destiné à un projet s'étalant sur plusieurs mois, comme des "
+"travaux de rénovation. Il couvre une catégorie et ses sous-catégories entre "
+"deux dates, permet d'attribuer des montants spécifiques à chacune de ses "
+"sous-catégories et n'est pas réinitialisé chaque mois."
 
 #: /app/src/modules/help/HelpModule.js:33
 msgid ""
@@ -8882,12 +8886,15 @@ msgid ""
 "Those rows have no account of their own. Pick one under \"Account for rows "
 "without one\" below and they will be imported into it."
 msgstr ""
+"Ces lignes ne disposent pas de compte propre. Choisissez-en un dans la "
+"section « Compte pour les lignes sans compte » ci-dessous : elles y seront "
+"alors importées."
 
 #: /app/src/modules/import/ImportModule.js:2245
 msgid "%n row was not imported"
 msgid_plural "%n rows were not imported"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n ligne n'a pas été importée"
+msgstr[1] "%n lignes n'ont pas été importées"
 
 #: /app/src/modules/import/ImportModule.js:2277
 msgid "No file data available"
@@ -9064,7 +9071,7 @@ msgstr "Jour du mois où le revenu est attendu"
 #: /app/src/modules/income/IncomeModule.js:449
 #: /app/src/modules/transfers/TransfersModule.js:727
 msgid "Follows the start date"
-msgstr ""
+msgstr "Suit la date de début"
 
 #: /app/src/modules/income/IncomeModule.js:524
 msgid "Income source created successfully"
@@ -9385,7 +9392,7 @@ msgstr "Terminer"
 
 #: /app/src/modules/projects/ProjectsModule.js:101
 msgid "{start} to {end}"
-msgstr ""
+msgstr "{start} à {end}"
 
 #: /app/src/modules/projects/ProjectsModule.js:102
 #, fuzzy
@@ -9395,7 +9402,7 @@ msgstr "À partir de"
 
 #: /app/src/modules/projects/ProjectsModule.js:108
 msgid "{time} of the time gone, {spent} spent"
-msgstr ""
+msgstr "{time} du temps écoulé, {spent} dépensé"
 
 #: /app/src/modules/projects/ProjectsModule.js:117
 #, fuzzy
@@ -9432,6 +9439,8 @@ msgid ""
 "Delete the project \"{name}\"? Its categories and transactions are not "
 "changed."
 msgstr ""
+"Supprimer le projet « {name} » ? Ses catégories et ses opérations resteront "
+"inchangées."
 
 #: /app/src/modules/projects/ProjectsModule.js:207
 #, fuzzy
@@ -9467,7 +9476,7 @@ msgstr "d'un montant de {amount}"
 
 #: /app/src/modules/projects/ProjectsModule.js:315
 msgid "The subcategory amounts are {amount} over the total"
-msgstr ""
+msgstr "Les montants des sous-catégories représentent {amount} du total"
 
 #: /app/src/modules/projects/ProjectsModule.js:316
 #, fuzzy
@@ -9477,7 +9486,7 @@ msgstr "Attendu : {amount}"
 
 #: /app/src/modules/projects/ProjectsModule.js:336
 msgid "Choose a category for the project"
-msgstr ""
+msgstr "Choisissez une catégorie pour le projet"
 
 #: /app/src/modules/projects/ProjectsModule.js:358
 #, fuzzy
@@ -9529,7 +9538,7 @@ msgstr "{percentage} % par rapport à la période précédente"
 
 #: /app/src/modules/reports/ReportsModule.js:1019
 msgid "Nothing in this period"
-msgstr ""
+msgstr "Rien durant cette période"
 
 #: /app/src/modules/reports/ReportsModule.js:1109
 msgid "No data for the selected period."
@@ -9549,10 +9558,8 @@ msgstr "Flux de trésorerie net"
 
 #: /app/src/modules/reports/ReportsModule.js:1350 /app/templates/index.php:3115
 #: /app/templates/index.php:3431
-#, fuzzy
-#| msgid "Monthly Cash Flow"
 msgid "Money Flow"
-msgstr "Flux de trésorerie mensuel"
+msgstr "Flux de trésorerie"
 
 #: /app/src/modules/reports/ReportsModule.js:1481
 msgid "Failed to generate comparison"
@@ -9589,6 +9596,8 @@ msgstr "Total des factures"
 #: /app/src/modules/reports/ReportsModule.js:1984
 msgid "No payment recorded - the bill has moved on from this date"
 msgstr ""
+"Aucun paiement n'a été enregistré — la facture a été reportée au-delà de "
+"cette date"
 
 #: /app/src/modules/reports/ReportsModule.js:1987
 #, fuzzy
@@ -9609,11 +9618,11 @@ msgstr[1] "%n factures"
 
 #: /app/src/modules/reports/moneyFlow.js:166
 msgid "Surplus"
-msgstr ""
+msgstr "Excédent"
 
 #: /app/src/modules/reports/moneyFlow.js:170
 msgid "Deficit"
-msgstr ""
+msgstr "Déficit"
 
 #: /app/src/modules/rules/RulesModule.js:92
 msgid "Failed to load rules"
@@ -10176,7 +10185,7 @@ msgstr "Description :"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:225
 msgid "e.g., Grocery purchase, Salary"
-msgstr ""
+msgstr "par ex : courses, salaire"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:240
 msgid "Notes Text:"
@@ -10404,7 +10413,7 @@ msgstr "par ex. ^ORDER-\\d+"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:274
 msgid "e.g., OFX Import"
-msgstr ""
+msgstr "par ex : OFX Import"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:277
 msgid "e.g., amazon"
@@ -10572,14 +10581,16 @@ msgid ""
 "Remove the stored key? Receipt scanning stops working until a new one is "
 "saved."
 msgstr ""
+"Supprimer la clé enregistrée ? La numérisation des reçus cessera de "
+"fonctionner jusqu'à ce qu'une nouvelle clé soit enregistrée."
 
 #: /app/src/modules/settings/SettingsModule.js:186
 msgid "License key"
-msgstr ""
+msgstr "Clé de licence"
 
 #: /app/src/modules/settings/SettingsModule.js:187
 msgid "API key (leave blank if the endpoint needs none)"
-msgstr ""
+msgstr "Clé API (à laisser vide si le endpoint n'en nécessite pas)"
 
 #: /app/src/modules/settings/SettingsModule.js:198
 msgid ""
@@ -10587,6 +10598,10 @@ msgid ""
 "not work until one is set up. Install an AI app with image support and "
 "configure it in the Nextcloud admin settings."
 msgstr ""
+"Aucun fournisseur d'IA sur ce Nextcloud ne peut encore lire les images ; "
+"cette option ne fonctionnera donc pas tant qu'un fournisseur n'aura pas été "
+"configuré. Installez une application d'IA prenant en charge les images et "
+"configurez-la dans les paramètres d'administration de Nextcloud."
 
 #: /app/src/modules/settings/SettingsModule.js:212
 msgid ""
@@ -10595,6 +10610,11 @@ msgid ""
 "is a local model, the image never leaves this server; if it is a cloud "
 "service, the image is sent to that company."
 msgstr ""
+"L'image du reçu est transmise au fournisseur d'IA avec lequel ce Nextcloud "
+"est configuré pour fonctionner. La suite du traitement dépend de ce "
+"fournisseur : s'il s'agit d'un modèle local, l'image ne quitte jamais ce "
+"serveur ; s'il s'agit d'un service cloud, l'image est envoyée à cette "
+"entreprise."
 
 #: /app/src/modules/settings/SettingsModule.js:214
 msgid ""
@@ -10603,6 +10623,11 @@ msgid ""
 "balances, or other transactions. If the endpoint is a machine on your own "
 "network, the image never leaves your network."
 msgstr ""
+"L'image du reçu est envoyée depuis ce serveur vers le endpoint ci-dessous, "
+"accompagnée de la clé API si vous en avez défini une. Aucune autre "
+"information n'est transmise : ni nom de compte, ni solde, ni aucune autre "
+"transaction. Si le point de terminaison est un ordinateur de votre propre "
+"réseau, l'image ne quitte jamais votre réseau."
 
 #: /app/src/modules/settings/SettingsModule.js:216
 msgid ""
@@ -10611,14 +10636,19 @@ msgid ""
 "not stored or used for training. Nothing else is sent: no account names, "
 "balances, or other transactions."
 msgstr ""
+"L'image du reçu est envoyée depuis ce serveur vers le service hébergé par "
+"Otherworld, qui la lit et renvoie les données. Les images sont traitées puis "
+"supprimées ; elles ne sont ni stockées ni utilisées à des fins "
+"d'apprentissage. Aucune autre information n'est transmise : ni nom de "
+"compte, ni solde, ni aucune autre transaction."
 
 #: /app/src/modules/settings/SettingsModule.js:272
 msgid "Receipt scanning is on"
-msgstr ""
+msgstr "La numérisation des reçus est activée"
 
 #: /app/src/modules/settings/SettingsModule.js:273
 msgid "Receipt scanning settings saved"
-msgstr ""
+msgstr "Paramètres de numérisation des reçus enregistrés"
 
 #: /app/src/modules/settings/SettingsModule.js:312
 #, fuzzy
@@ -10725,7 +10755,7 @@ msgstr "Aucune dépense partagée"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:484
 msgid "Only {name} can settle the expenses they split with you."
-msgstr ""
+msgstr "Seul {name} peut régler les dépenses qu'il partage avec vous."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:492
 #, fuzzy
@@ -10783,6 +10813,8 @@ msgstr "Échec du chargement des jeux d'étiquettes"
 msgid ""
 "{amount} of this has already been settled, so it is left out of the split."
 msgstr ""
+"{amount} de cette somme a déjà été réglé ; il n'est donc pas pris en compte "
+"dans le partage."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:810
 #, fuzzy
@@ -10802,15 +10834,15 @@ msgstr "Vous devez"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:888
 msgid "Nobody is ticked, so saving removes this split."
-msgstr ""
+msgstr "Comme aucune case n'est cochée, l'enregistrement supprime ce partage."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:895
 msgid "You owe the others {owed}. Your part is {mine}."
-msgstr ""
+msgstr "Tu dois aux autres {owed}. Ta part, c'est {mine}."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:896
 msgid "The others owe you {owed}. Your share is {mine}."
-msgstr ""
+msgstr "Les autres te doivent {owed}. Ta part, c'est {mine}."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:899
 msgid "Tick at least one person to split with."
@@ -10818,27 +10850,30 @@ msgstr "Cochez au moins une personne avec laquelle partager."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:901
 msgid "There is not enough to split between this many people."
-msgstr ""
+msgstr "C'est insuffisant pour partager entre tout le monde."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:904
 msgid "Enter a percentage for everyone ticked."
-msgstr ""
+msgstr "Indiquez un pourcentage pour chaque case cochée."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:905
 msgid "Enter an amount for everyone ticked."
-msgstr ""
+msgstr "Indiquez un montant pour chaque personne cochée."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:907
 msgid "The percentages add up to {total} and need to add up to {full}."
 msgstr ""
+"La somme de ces pourcentages est égale à {total} et doit être égale à {full}."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:912
 msgid "The amounts add up to {amount} more than there is to split."
-msgstr ""
+msgstr "Le total de ces montants dépasse de {amount} la somme à répartir."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:945
 msgid "Remove this split? Nobody will owe anything for this transaction."
 msgstr ""
+"Supprimer cette répartition ? Personne n'aura de dette à payer suite à cette "
+"opération."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:974
 #, fuzzy
@@ -11051,7 +11086,7 @@ msgstr "Créez votre première étiquette"
 #: /app/src/modules/tagsets/TagSetsModule.js:423
 #: /app/src/modules/tagsets/TagSetsModule.js:784
 msgid "Hidden: not offered when tagging new transactions"
-msgstr ""
+msgstr "Masqué : non proposé lors de l'ajout de nouvelles opérations"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:85
 #: /app/src/modules/tagsets/TagSetsModule.js:425
@@ -11228,8 +11263,8 @@ msgstr "Étiquette mise à jour avec succès"
 #: /app/src/modules/transactions/TransactionsModule.js:479
 msgid "{category} + {count} subcategory"
 msgid_plural "{category} + {count} subcategories"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{category} + {count} sous-catégorie"
+msgstr[1] "{category} + {count} sous-catégories"
 
 #: /app/src/modules/transactions/TransactionsModule.js:938
 msgid "Failed to select all matching transactions"
@@ -11382,7 +11417,11 @@ msgid_plural ""
 "Add or remove tags on %n selected transactions. Tags you leave unchecked are "
 "not touched."
 msgstr[0] ""
+"Ajoutez ou supprimez des étiquettes sur %n opération sélectionnée. Les "
+"étiquettes que vous ne cochez pas ne seront pas modifiées."
 msgstr[1] ""
+"Ajoutez ou supprimez des étiquettes sur %n opérations sélectionnées. Les "
+"étiquettes que vous ne cochez pas ne seront pas modifiées."
 
 #: /app/src/modules/transactions/TransactionsModule.js:1378
 msgid "applies to {count} of {total}"
@@ -11393,7 +11432,11 @@ msgid "%n selected transaction is in a category these tags do not cover."
 msgid_plural ""
 "%n selected transactions are in categories these tags do not cover."
 msgstr[0] ""
+"%n opération sélectionnée appartient à une catégorie qui n'est pas couverte "
+"par ces étiquettes."
 msgstr[1] ""
+"%n opérations sélectionnées appartiennent à des catégories qui ne sont pas "
+"couvertes par ces étiquettes."
 
 #: /app/src/modules/transactions/TransactionsModule.js:1426
 #, fuzzy
@@ -11425,7 +11468,7 @@ msgstr[1] "Échec du rapprochement de %n opérations"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1487
 msgid "{tag} applied to {count} of them"
-msgstr ""
+msgstr "{tag} a été appliquée à {count} d'entre eux"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1523
 msgid "Server error ({status}) — check the Nextcloud logs"
@@ -11469,6 +11512,10 @@ msgid ""
 "anything already marked reconciled. Check it against your statement’s "
 "opening balance."
 msgstr ""
+"Solde du compte avant ce relevé : le solde figurant lors de votre dernier "
+"rapprochement ou, s'il s'agit de la première fois, le solde d'ouverture du "
+"compte majoré des montants déjà marqués comme rapprochés. Vérifiez-le par "
+"rapport au solde d'ouverture indiqué sur votre relevé."
 
 #: /app/src/modules/transactions/TransactionsModule.js:1642
 msgid "Ticked ({count})"
@@ -11607,7 +11654,7 @@ msgstr "Échec du chargement de l'opération"
 #: /app/src/modules/transactions/TransactionsModule.js:2340
 #: /app/src/modules/transactions/TransactionsModule.js:2353
 msgid "The receipt could not be read"
-msgstr ""
+msgstr "Le reçu n'a pas pu être lu"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2383
 #, fuzzy
@@ -11623,11 +11670,11 @@ msgstr "Compte"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2390
 msgid "description"
-msgstr ""
+msgstr "description"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2391
 msgid "vendor"
-msgstr ""
+msgstr "fournisseur"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2397
 #, fuzzy
@@ -11637,71 +11684,80 @@ msgstr "Catégorie"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2492
 msgid "Savings / discount"
-msgstr ""
+msgstr "Économies / réduction"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2497
 msgid "VAT / tax"
-msgstr ""
+msgstr "TVA / taxe"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2536
 msgid "Split into {count} lines from the receipt. Set a category on each."
 msgstr ""
+"Ventilez le reçu en {count} lignes. Attribuez une catégorie à chacune "
+"d'entre elles."
 
 #: /app/src/modules/transactions/TransactionsModule.js:2547
 msgid "Filled in: {fields}. Check them before saving."
 msgstr ""
+"Les champs suivants ont été renseignés : {fields}. Vérifiez-les avant de "
+"sauvegarder."
 
 #: /app/src/modules/transactions/TransactionsModule.js:2548
 msgid ""
 "Nothing was filled in — the fields already had values. Clear one and scan "
 "again to use the receipt."
 msgstr ""
+"Aucun champ n'a été renseigné : les champs contenaient déjà des valeurs. "
+"Effacez l'un d'entre eux et relancez le scan pour utiliser le reçu."
 
 #: /app/src/modules/transactions/TransactionsModule.js:2552
 msgid "Read {count} items from the receipt."
-msgstr ""
+msgstr "Lecture de {count} lignes du reçu."
 
 #: /app/src/modules/transactions/TransactionsModule.js:2555
 msgid "The items do not add up to the total — worth a look."
 msgstr ""
+"Le total des articles ne correspond pas au montant total — c'est intéressant."
 
 #: /app/src/modules/transactions/TransactionsModule.js:2558
 msgid "Receipt currency: {currency}."
-msgstr ""
+msgstr "Devise du reçu : {currency}."
 
 #: /app/src/modules/transactions/TransactionsModule.js:2560
 msgid "The photo will be attached when you save."
-msgstr ""
+msgstr "La photo sera jointe lorsque vous enregistrerez le fichier."
 
 #: /app/src/modules/transactions/TransactionsModule.js:2578
 msgid ""
 "These items cannot be split individually: they do not add up to the total, "
 "so the parts would not balance."
 msgstr ""
+"Ces éléments ne peuvent pas être ventilés individuellement : leur somme "
+"n'égale pas le total, ce qui fausserait l'équilibre des comptes."
 
 #: /app/src/modules/transactions/TransactionsModule.js:2587
 msgid "Split into {count} lines"
-msgstr ""
+msgstr "Ventilé en {count} lignes"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2589
 msgid "the savings as a negative line"
-msgstr ""
+msgstr "les économies sous forme de ligne négative"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2590
 msgid "the tax as its own line"
-msgstr ""
+msgstr "la taxe sur une ligne distincte"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2592
 msgid " and "
-msgstr ""
+msgstr " et "
 
 #: /app/src/modules/transactions/TransactionsModule.js:2592
 msgid "One line per item, plus {extras}"
-msgstr ""
+msgstr "Une ligne par article, plus {extras}"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2593
 msgid "One line per item on the receipt"
-msgstr ""
+msgstr "Une ligne par article sur le reçu"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2643
 msgid "Select receipt"
@@ -12212,28 +12268,20 @@ msgid "e.g., Monthly Savings"
 msgstr "par ex. Épargne mensuelle"
 
 #: /app/src/modules/transfers/TransfersModule.js:450
-#, fuzzy
-#| msgid "Account"
 msgid "Amount type"
-msgstr "Compte"
+msgstr "Type de montant"
 
 #: /app/src/modules/transfers/TransfersModule.js:452
-#, fuzzy
-#| msgid "Account"
 msgid "Fixed amount"
-msgstr "Compte"
+msgstr "Montant fixe"
 
 #: /app/src/modules/transfers/TransfersModule.js:454
-#, fuzzy
-#| msgid "Current balance cannot be negative"
 msgid "Current balance"
-msgstr "Le solde actuel ne peut pas être négatif"
+msgstr "Solde actuel"
 
 #: /app/src/modules/transfers/TransfersModule.js:455
-#, fuzzy
-#| msgid "Monthly"
 msgid "Minimum payment"
-msgstr "Mensuel"
+msgstr "Paiement minimum"
 
 #: /app/src/modules/transfers/TransfersModule.js:474
 msgid "From Account"
@@ -12312,6 +12360,8 @@ msgstr "Mettre à jour le virement"
 msgid ""
 "Pays what was owed at the due date. Later charges roll to the next payment"
 msgstr ""
+"Paie le montant dû à la date d'échéance. Les frais ultérieurs sont reportés "
+"sur le prochain paiement"
 
 #: /app/src/modules/transfers/TransfersModule.js:629
 msgid "Pays everything owed on the card at payment time"
@@ -12320,6 +12370,7 @@ msgstr ""
 #: /app/src/modules/transfers/TransfersModule.js:630
 msgid "Pays the card's minimum payment, never more than is owed"
 msgstr ""
+"Paie le montant minimum dû sur la carte, sans jamais dépasser le montant dû"
 
 #: /app/src/modules/transfers/TransfersModule.js:643
 #, fuzzy
@@ -12328,10 +12379,8 @@ msgid "Resolved from the card at each payment"
 msgstr "Impossible d’exporter les données"
 
 #: /app/src/modules/transfers/TransfersModule.js:716
-#, fuzzy
-#| msgid "Day of the month when bill is due"
 msgid "Day of the month when the transfer is due"
-msgstr "Jour du mois où la facture est exigible"
+msgstr "Jour du mois où le virement doit être effectué"
 
 #: /app/src/modules/transfers/TransfersModule.js:737
 #, fuzzy
@@ -12340,10 +12389,8 @@ msgid "The transfer repeats from this date (optional)"
 msgstr "La facture n'est émise qu'à partir de cette date (facultatif)"
 
 #: /app/src/modules/transfers/TransfersModule.js:738
-#, fuzzy
-#| msgid "Bill only occurs on or after this date (optional)"
 msgid "Transfer only occurs on or after this date (optional)"
-msgstr "La facture n'est émise qu'à partir de cette date (facultatif)"
+msgstr "Le virement n'a lieu qu'à partir de cette date (facultatif)"
 
 #: /app/src/modules/transfers/TransfersModule.js:768
 msgid "Please select a source account"
@@ -12592,16 +12639,16 @@ msgstr "Activer/désactiver le verrouillage du tableau de bord"
 
 #: /app/templates/index.php:587 /app/templates/index.php:2019
 msgid "Last 6 Months"
-msgstr "6 derniers mois"
+msgstr "Les 6 derniers mois"
 
 #: /app/templates/index.php:588 /app/templates/index.php:2021
 msgid "Last 12 Months"
-msgstr "12 derniers mois"
+msgstr "Les 12 derniers mois"
 
 #: /app/templates/index.php:589 /app/templates/index.php:2020
 #: /app/templates/index.php:3126
 msgid "Last 3 Months"
-msgstr "3 derniers mois"
+msgstr "Les 3 derniers mois"
 
 #: /app/templates/index.php:639
 msgid ""
@@ -12713,11 +12760,11 @@ msgstr "Date d'ajout"
 
 #: /app/templates/index.php:1101
 msgid "Ascending"
-msgstr "Ascendante"
+msgstr "Ascendant"
 
 #: /app/templates/index.php:1102
 msgid "Descending"
-msgstr "Descendante"
+msgstr "Descendant"
 
 #: /app/templates/index.php:1105
 msgid "Reset to defaults"
@@ -13691,10 +13738,8 @@ msgid "Create Your First Goal"
 msgstr "Créez votre premier objectif"
 
 #: /app/templates/index.php:2946
-#, fuzzy
-#| msgid "No rules yet"
 msgid "No projects yet"
-msgstr "Pas encore de règle"
+msgstr "Pas encore de projets"
 
 #: /app/templates/index.php:2947
 msgid ""
@@ -13839,7 +13884,7 @@ msgstr "Tableau de bord récapitulatif"
 
 #: /app/templates/index.php:3113
 msgid "Income & Expenses"
-msgstr ""
+msgstr "Revenus & dépenses"
 
 #: /app/templates/index.php:3116
 msgid "Year over Year"
@@ -15110,6 +15155,8 @@ msgid ""
 "Stop offering this tag when tagging new transactions. Transactions that "
 "already have it keep it."
 msgstr ""
+"Ne plus proposer cette étiquette lors de l'ajout de nouvelles opérations. "
+"Les opérations qui la possèdent déjà la conservent."
 
 #: /app/templates/index.php:5010
 msgid "Save Import Template"
@@ -15805,10 +15852,8 @@ msgstr ""
 "de comptes ainsi que sur sa propre page."
 
 #: /app/templates/index.php:6039
-#, fuzzy
-#| msgid "this account"
 msgid "This account is closed"
-msgstr "ce compte"
+msgstr "Ce compte est clôturé"
 
 #: /app/templates/index.php:6041
 msgid ""
@@ -15817,6 +15862,11 @@ msgid ""
 "income or imports. The balance must be zero, with nothing scheduled to pay "
 "into or out of it."
 msgstr ""
+"Son historique et ses données dans les rapports sont conservés, mais ce "
+"compte n'apparaît plus lorsque vous sélectionnez un compte pour effectuer de "
+"nouvelles opérations, des virements, payer des factures, enregistrer des "
+"revenus ou effectuer des importations. Le solde doit être nul, et aucun "
+"paiement entrant ou sortant ne doit être programmé."
 
 #: /app/templates/index.php:6050
 msgid "Save account"
@@ -16782,7 +16832,7 @@ msgstr "Tapez SUPPRIMER pour confirmer :"
 
 #: /app/templates/index.php:7323
 msgid "Type DELETE to confirm"
-msgstr "Tapez SUPPRIMER pour confirmer"
+msgstr "Tapez DELETE pour confirmer"
 
 #: /app/templates/index.php:7326
 msgid "You must type DELETE (all caps) exactly to proceed"
