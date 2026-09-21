@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-20 18:41+0000\n"
-"PO-Revision-Date: 2026-09-21 19:51+0000\n"
+"PO-Revision-Date: 2026-09-21 21:11+0000\n"
 "Last-Translator: Christophe <tophe.perso@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
@@ -11007,10 +11007,8 @@ msgstr "Masqué : non proposé lors de l'ajout de nouvelles opérations"
 #: /app/src/modules/tagsets/TagSetsModule.js:425
 #: /app/src/modules/tagsets/TagSetsModule.js:786 /app/templates/index.php:4994
 #: /app/templates/index.php:6856
-#, fuzzy
-#| msgid "Hidden Tiles"
 msgid "Hidden"
-msgstr "Tuiles cachées"
+msgstr "Masqué"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:183 /app/templates/index.php:6836
 msgid "Edit Tag"
@@ -11354,17 +11352,13 @@ msgstr[1] ""
 "couvertes par ces étiquettes."
 
 #: /app/src/modules/transactions/TransactionsModule.js:1426
-#, fuzzy
-#| msgid "Please select at least one transfer to add"
 msgid "Please select at least one tag to add or remove"
-msgstr "Veuillez sélectionner au moins un virement à ajouter"
+msgstr "Veuillez sélectionner au moins une étiquette à ajouter ou à supprimer"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1447
 #: /app/src/modules/transactions/TransactionsModule.js:1465
-#, fuzzy
-#| msgid "Failed to update tag"
 msgid "Failed to update tags"
-msgstr "Échec de la mise à jour de l'étiquette"
+msgstr "Échec de la mise à jour des étiquettes"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1461
 msgid "Failed to update tags on %n transaction"
@@ -11373,13 +11367,10 @@ msgstr[0] "Échec de la mise à jour des étiquettes sur %n opération"
 msgstr[1] "Échec de la mise à jour des étiquettes sur %n opérations"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1479
-#, fuzzy
-#| msgid "Failed to reconcile %n transaction"
-#| msgid_plural "Failed to reconcile %n transactions"
 msgid "Updated tags on %n transaction"
 msgid_plural "Updated tags on %n transactions"
-msgstr[0] "Échec du rapprochement de %n opération"
-msgstr[1] "Échec du rapprochement de %n opérations"
+msgstr[0] "Étiquettes mises à jour sur %n opération"
+msgstr[1] "Étiquettes mises à jour sur %n opérations"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1487
 msgid "{tag} applied to {count} of them"
@@ -11463,16 +11454,12 @@ msgid "Cancel session"
 msgstr "Annuler la session"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1687
-#, fuzzy
-#| msgid "Failed to link transactions"
 msgid "Failed to tick transactions"
-msgstr "Échec de la liaison des opérations"
+msgstr "Échec de la validation des opérations"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1699
-#, fuzzy
-#| msgid "Failed to import transactions: {message}"
 msgid "Failed to tick transactions: {message}"
-msgstr "Échec de l'importation des opérations : {message}"
+msgstr "Échec de la validation des opérations : {message}"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1753
 msgid "Failed to update reconciliation"
@@ -11572,16 +11559,12 @@ msgid "The receipt could not be read"
 msgstr "Le reçu n'a pas pu être lu"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2383
-#, fuzzy
-#| msgid "End date"
 msgid "date"
-msgstr "Date de fin"
+msgstr "Date"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2387
-#, fuzzy
-#| msgid "Account"
 msgid "amount"
-msgstr "Compte"
+msgstr "montant"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2390
 msgid "description"
@@ -11592,10 +11575,8 @@ msgid "vendor"
 msgstr "fournisseur"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2397
-#, fuzzy
-#| msgid "Category"
 msgid "category"
-msgstr "Catégorie"
+msgstr "catégorie"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2492
 msgid "Savings / discount"
@@ -12292,20 +12273,16 @@ msgstr ""
 "Paie le montant minimum dû sur la carte, sans jamais dépasser le montant dû"
 
 #: /app/src/modules/transfers/TransfersModule.js:643
-#, fuzzy
-#| msgid "Failed to export data"
 msgid "Resolved from the card at each payment"
-msgstr "Impossible d’exporter les données"
+msgstr "Déduit de la carte à chaque paiement"
 
 #: /app/src/modules/transfers/TransfersModule.js:716
 msgid "Day of the month when the transfer is due"
 msgstr "Jour du mois où le virement doit être effectué"
 
 #: /app/src/modules/transfers/TransfersModule.js:737
-#, fuzzy
-#| msgid "Bill only occurs on or after this date (optional)"
 msgid "The transfer repeats from this date (optional)"
-msgstr "La facture n'est émise qu'à partir de cette date (facultatif)"
+msgstr "Le virement est récurrent à partir de cette date (facultatif)"
 
 #: /app/src/modules/transfers/TransfersModule.js:738
 msgid "Transfer only occurs on or after this date (optional)"
@@ -12369,20 +12346,16 @@ msgstr "Virement marqué comme payé"
 
 #: /app/src/modules/transfers/TransfersModule.js:954
 #: /app/src/modules/transfers/TransfersModule.js:963
-#, fuzzy
-#| msgid "Failed to mark transfer as paid"
 msgid "Failed to mark transfer as unpaid"
-msgstr "Échec du marquage du virement comme payé"
+msgstr "Échec du marquage du virement comme impayé"
 
 #: /app/src/modules/transfers/TransfersModule.js:960
 msgid "Payment reverted — the transfer is marked as unpaid."
 msgstr "Paiement rejeté — le virement est marqué comme non réglé."
 
 #: /app/src/modules/transfers/TransfersModule.js:970
-#, fuzzy
-#| msgid "Monthly"
 msgid "Statement"
-msgstr "Mensuel"
+msgstr "Relevé"
 
 #: /app/src/modules/transfers/TransfersModule.js:971
 msgid "Full balance"
@@ -12465,10 +12438,8 @@ msgid "Select column(s)..."
 msgstr "Sélectionnez la/les colonnes..."
 
 #: /app/src/utils/multiselect.js:206
-#, fuzzy
-#| msgid "No tags available"
 msgid "No options available"
-msgstr "Aucune étiquette disponible"
+msgstr "Aucune option disponible"
 
 #: /app/src/utils/validators.js:25
 msgid "This field is required"
@@ -12612,20 +12583,18 @@ msgid "All Goals Progress"
 msgstr "Progression de tous les objectifs"
 
 #: /app/templates/index.php:959
-#, fuzzy
-#| msgid "No net worth history yet"
 msgid "Not enough history yet to forecast"
-msgstr "Aucun historique de la valeur nette pour l'instant"
+msgstr ""
+"Les données historiques sont encore insuffisantes pour établir des prévisions"
 
 #: /app/templates/index.php:965
 msgid "Year-over-Year Comparison"
 msgstr "Comparaison d'une année sur l'autre"
 
 #: /app/templates/index.php:971
-#, fuzzy
-#| msgid "Failed to compare year data"
 msgid "No yearly data to compare yet"
-msgstr "Échec de la comparaison des données annuelles"
+msgstr ""
+"Il n'y a pas encore de données annuelles permettant de faire une comparaison"
 
 #: /app/templates/index.php:1015
 msgid "Open standalone page (for mobile bookmarks)"
@@ -12702,10 +12671,8 @@ msgid "Total Liabilities"
 msgstr "Passif total"
 
 #: /app/templates/index.php:1192
-#, fuzzy
-#| msgid "No accounts"
 msgid "Closed accounts"
-msgstr "Aucun compte"
+msgstr "Comptes clôturés"
 
 #: /app/templates/index.php:1207
 msgid "Account Details"
@@ -12745,16 +12712,12 @@ msgid "Credit Limit"
 msgstr "Limite de crédit"
 
 #: /app/templates/index.php:1269 /app/templates/index.php:6014
-#, fuzzy
-#| msgid "Statement Date"
 msgid "Statement due day"
-msgstr "Date du relevé"
+msgstr "Date d'échéance du relevé"
 
 #: /app/templates/index.php:1273
-#, fuzzy
-#| msgid "Monthly"
 msgid "Payment due"
-msgstr "Mensuel"
+msgstr "Paiement dû"
 
 #: /app/templates/index.php:1277
 msgid "Accrued Interest"
