@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-20 18:41+0000\n"
-"PO-Revision-Date: 2026-09-21 19:51+0000\n"
+"PO-Revision-Date: 2026-09-21 21:11+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -1555,10 +1555,8 @@ msgid "Transfer value cannot be negative"
 msgstr "Umbuchungwert kann nicht negativ sein"
 
 #: /app/lib/Controller/PensionController.php:182
-#, fuzzy
-#| msgid "Current value cannot be negative"
 msgid "Projection target cannot be negative"
-msgstr "Der aktuelle Wert kann nicht negativ sein"
+msgstr "Der Prognosezielwert darf nicht negativ sein"
 
 #: /app/lib/Controller/PensionController.php:201
 msgid "Failed to create pension"
@@ -1606,10 +1604,8 @@ msgstr "Beitrag konnte nicht erstellt werden"
 
 #: /app/lib/Controller/PensionController.php:497
 #: /app/src/modules/pensions/PensionsModule.js:1032
-#, fuzzy
-#| msgid "Failed to export data"
 msgid "Failed to record withdrawal"
-msgstr "Daten konnten nicht exportiert werden"
+msgstr "Auszahlung konnte nicht erfasst werden"
 
 #: /app/lib/Controller/PensionController.php:508
 msgid "Contribution deleted successfully"
@@ -1620,34 +1616,24 @@ msgid "Failed to delete contribution"
 msgstr "Beitrag konnte nicht gelöscht werden"
 
 #: /app/lib/Controller/PensionController.php:528
-#, fuzzy
-#| msgid "Failed to retrieve asset value history"
 msgid "Failed to retrieve balance history"
-msgstr "Der Verlauf des Anlagenwertes konnte nicht geladen werden"
+msgstr "Kontostandsverlauf konnte nicht abgerufen werden"
 
 #: /app/lib/Controller/PensionController.php:542
-#, fuzzy
-#| msgid "Failed to retrieve pension summary"
 msgid "Failed to retrieve pension activity"
-msgstr "Rentenzusammenfassung konnte nicht abgerufen werden"
+msgstr "Altersvorsorgeaktivitäten konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/PensionController.php:558
-#, fuzzy
-#| msgid "Failed to retrieve contributions"
 msgid "Failed to retrieve recurring contributions"
-msgstr "Beiträge konnten nicht abgerufen werden"
+msgstr "Wiederkehrende Beiträge konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/PensionController.php:580
-#, fuzzy
-#| msgid "Amount and date are required"
 msgid "Amount, frequency and next date are required"
-msgstr "Betrag und Datum sind erforderlich"
+msgstr "Betrag, Häufigkeit und nächster Termin sind erforderlich"
 
 #: /app/lib/Controller/PensionController.php:586
-#, fuzzy
-#| msgid "Target date"
 msgid "Next date"
-msgstr "Fälligkeitsdatum"
+msgstr "Nächster Termin"
 
 #: /app/lib/Controller/PensionController.php:611
 #, fuzzy
