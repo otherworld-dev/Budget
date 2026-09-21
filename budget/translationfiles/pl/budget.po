@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-20 18:41+0000\n"
-"PO-Revision-Date: 2026-09-17 01:46+0000\n"
-"Last-Translator: Anonymous <noreply@weblate.org>\n"
+"PO-Revision-Date: 2026-09-21 19:51+0000\n"
+"Last-Translator: Leonid Zaliubovskyi <la399fox@gmail.com>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/pl/>\n"
 "Language: pl\n"
@@ -1655,102 +1655,78 @@ msgstr "Nie udało się pobrać łącznej prognozy emerytur"
 
 #: /app/lib/Controller/ProjectController.php:62
 #: /app/src/modules/projects/ProjectsModule.js:35
-#, fuzzy
-#| msgid "Failed to load rules"
 msgid "Failed to load projects"
-msgstr "Nie udało się wczytać reguł"
+msgstr "Nie udało się wczytać projektów"
 
 #: /app/lib/Controller/ProjectController.php:81
 #: /app/src/modules/projects/ProjectsModule.js:127
-#, fuzzy
-#| msgid "Failed to load tag sets"
 msgid "Failed to load the project"
-msgstr "Nie udało się wczytać zestawów tagów"
+msgstr "Nie udało się wczytać projektu"
 
 #: /app/lib/Controller/ProjectController.php:107
 #: /app/lib/Controller/ProjectController.php:147
 #: /app/lib/Controller/ProjectController.php:203
 #: /app/src/modules/projects/ProjectsModule.js:365
-#, fuzzy
-#| msgid "Failed to save splits"
 msgid "Failed to save the project"
-msgstr "Nie udało się zapisać podziałów"
+msgstr "Nie udało się zapisać projektu"
 
 #: /app/lib/Controller/ProjectController.php:163
-#, fuzzy
-#| msgid "Only the rule owner can delete it"
 msgid "Only the owner can delete this project"
-msgstr "Tylko właściciel reguły może ją usunąć"
+msgstr "Tylko właściciel może usunąć ten projekt"
 
 #: /app/lib/Controller/ProjectController.php:172
 #: /app/src/modules/projects/ProjectsModule.js:210
-#, fuzzy
-#| msgid "Failed to delete tag set"
 msgid "Failed to delete the project"
-msgstr "Nie udało się usunąć zestawu tagów"
+msgstr "Nie udało się usunąć projektu"
 
 #: /app/lib/Controller/ProjectController.php:186
-#, fuzzy
-#| msgid "(projected)"
 msgid "Project"
-msgstr "(prognozowane)"
+msgstr "Projekt"
 
 #: /app/lib/Controller/ProjectController.php:193
 #: /app/src/modules/projects/ProjectsModule.js:335
-#, fuzzy
-#| msgid "Please enter a name for the report"
 msgid "Enter a name for the project"
-msgstr "Wprowadź nazwę raportu"
+msgstr "Wprowadź nazwę projektu"
 
 #: /app/lib/Controller/ProjectController.php:194
 #: /app/src/modules/projects/ProjectsModule.js:337
-#, fuzzy
-#| msgid "Target amount must be greater than zero"
 msgid "The total must be more than zero"
-msgstr "Kwota docelowa musi być większa od zera"
+msgstr "Łączna kwota musi być większa od zera"
 
 #: /app/lib/Controller/ProjectController.php:195
 msgid "Choose one of your own expense categories"
-msgstr ""
+msgstr "Wybierz jedną z własnych kategorii wydatków"
 
 #: /app/lib/Controller/ProjectController.php:196
 #: /app/src/modules/projects/ProjectsModule.js:338
-#, fuzzy
-#| msgid "Please enter a name for the report"
 msgid "Enter a start date for the project"
-msgstr "Wprowadź nazwę raportu"
+msgstr "Wprowadź datę rozpoczęcia projektu"
 
 #: /app/lib/Controller/ProjectController.php:197
 #: /app/src/modules/projects/ProjectsModule.js:339
-#, fuzzy
-#| msgid "Start date must be before the end date"
 msgid "The end date cannot be before the start date"
-msgstr "Data rozpoczęcia musi być wcześniejsza niż data zakończenia"
+msgstr "Data zakończenia nie może być wcześniejsza niż data rozpoczęcia"
 
 #: /app/lib/Controller/ProjectController.php:198
-#, fuzzy
-#| msgid "Target amount must be greater than zero"
 msgid "Every subcategory amount must be more than zero"
-msgstr "Kwota docelowa musi być większa od zera"
+msgstr "Kwota każdej podkategorii musi być większa od zera"
 
 #: /app/lib/Controller/ProjectController.php:199
 msgid "Amounts can only go to subcategories of the project category"
-msgstr ""
+msgstr "Kwoty można przypisać tylko do podkategorii kategorii projektu"
 
 #: /app/lib/Controller/ProjectController.php:200
 msgid "Each subcategory can only have one amount"
-msgstr ""
+msgstr "Każda podkategoria może mieć tylko jedną kwotę"
 
 #: /app/lib/Controller/ProjectController.php:201
 msgid "A subcategory and one of its own subcategories cannot both have amounts"
-msgstr ""
+msgstr "Podkategoria i jedna z jej podkategorii nie mogą jednocześnie mieć kwot"
 
 #: /app/lib/Controller/ProjectController.php:202
 #: /app/src/modules/projects/ProjectsModule.js:341
-#, fuzzy
-#| msgid "Failed to create transaction"
 msgid "The subcategory amounts add up to more than the total"
-msgstr "Nie udało się utworzyć transakcji"
+msgstr "Suma kwot podkategorii przekracza łączną kwotę"
 
 #: /app/lib/Controller/ReceiptScanController.php:92
 msgid "No total could be read from this receipt. Enter the details manually"
@@ -2207,7 +2183,7 @@ msgstr "Nie udało się pobrać sald"
 
 #: /app/lib/Controller/SharedExpenseController.php:265
 msgid "Failed to get shared expenses"
-msgstr "Nie udało się pobrać współdzielonych wydatków"
+msgstr "Nie udało się pobrać wspólnych wydatków"
 
 #: /app/lib/Controller/SharedExpenseController.php:287
 msgid "Failed to get shared transactions"
@@ -2220,7 +2196,7 @@ msgstr "Ta transakcja jest już udostępniona temu kontaktowi"
 
 #: /app/lib/Controller/SharedExpenseController.php:328
 msgid "Failed to share expense"
-msgstr "Nie udało się udostępnić wydatku"
+msgstr "Nie udało się podzielić wydatku"
 
 #: /app/lib/Controller/SharedExpenseController.php:355
 msgid "Failed to split expense"
@@ -2228,37 +2204,31 @@ msgstr "Nie udało się podzielić wydatku"
 
 #: /app/lib/Controller/SharedExpenseController.php:381
 msgid "Each person can only be in a split once"
-msgstr ""
+msgstr "Każda osoba może wystąpić w podziale tylko raz"
 
 #: /app/lib/Controller/SharedExpenseController.php:382
 msgid "A split that has been settled cannot be changed"
-msgstr ""
+msgstr "Podziału, który został rozliczony, nie można zmienić"
 
 #: /app/lib/Controller/SharedExpenseController.php:383
 msgid "Every split needs an amount"
-msgstr ""
+msgstr "Każdy podział wymaga kwoty"
 
 #: /app/lib/Controller/SharedExpenseController.php:384
-#, fuzzy
-#| msgid "Failed to create transaction"
 msgid "The splits add up to more than the transaction"
-msgstr "Nie udało się utworzyć transakcji"
+msgstr "Suma podziałów przekracza kwotę transakcji"
 
 #: /app/lib/Controller/SharedExpenseController.php:385
 #: /app/lib/Controller/SharedExpenseController.php:399
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:914
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:969
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:983
-#, fuzzy
-#| msgid "Failed to save splits"
 msgid "Failed to save the split"
-msgstr "Nie udało się zapisać podziałów"
+msgstr "Nie udało się zapisać podziału"
 
 #: /app/lib/Controller/SharedExpenseController.php:390
-#, fuzzy
-#| msgid "Transaction not found"
 msgid "Transaction or contact not found"
-msgstr "Nie znaleziono transakcji"
+msgstr "Nie znaleziono transakcji ani kontaktu"
 
 #: /app/lib/Controller/SharedExpenseController.php:421
 msgid "Failed to get shares"
@@ -3134,6 +3104,8 @@ msgid ""
 "This category is used by the project \"%1$s\". Change or delete the project "
 "first."
 msgstr ""
+"Ta kategoria jest używana przez projekt „%1$s”. Najpierw zmień lub usuń "
+"projekt."
 
 #: /app/lib/Service/CategoryService.php:638
 msgid "A budget adjustment already exists for this month"
@@ -4356,10 +4328,8 @@ msgstr "Cele oszczędnościowe"
 #: /app/src/modules/help/HelpModule.js:32
 #: /app/src/modules/sharing/SharingModule.js:278 /app/templates/index.php:143
 #: /app/templates/index.php:744 /app/templates/index.php:2938
-#, fuzzy
-#| msgid "(projected)"
 msgid "Projects"
-msgstr "(prognozowane)"
+msgstr "Projekty"
 
 #: /app/src/config/dashboardWidgets.js:45
 #: /app/src/core/KeyboardShortcuts.js:342
@@ -4631,7 +4601,7 @@ msgstr "Duplikuj transakcję"
 
 #: /app/src/main.js:457
 msgid "Share expense"
-msgstr "Udostępnij wydatek"
+msgstr "Podziel wydatek"
 
 #: /app/src/main.js:461
 msgid "Unlink transfer"
@@ -4765,7 +4735,7 @@ msgstr "Część podziału"
 
 #: /app/src/main.js:1207
 msgid "Shared expense - unsettled"
-msgstr "Współdzielony wydatek — nierozliczony"
+msgstr "Wspólny wydatek — nierozliczony"
 
 #: /app/src/main.js:1207 /app/src/modules/categories/CategoriesModule.js:329
 #: /app/src/modules/projects/ProjectsModule.js:64
@@ -4776,7 +4746,7 @@ msgstr "Współdzielone"
 
 #: /app/src/main.js:1209
 msgid "Shared expense - settled"
-msgstr "Współdzielony wydatek — rozliczony"
+msgstr "Wspólny wydatek — rozliczony"
 
 #: /app/src/main.js:1209
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:68
@@ -5554,9 +5524,9 @@ msgstr "Wybierz konto"
 #: /app/src/modules/categories/CategoriesModule.js:1284
 msgid "%n selected"
 msgid_plural "%n selected"
-msgstr[0] "Wybrano %n"
-msgstr[1] "Wybrano %n"
-msgstr[2] "Wybrano %n"
+msgstr[0] "%n wybrano"
+msgstr[1] "%n wybrano"
+msgstr[2] "%n wybrano"
 
 #: /app/src/modules/accounts/AccountsModule.js:719
 msgid ""
@@ -7210,25 +7180,20 @@ msgstr[2] "Pomyślnie usunięto %n kategorii"
 msgid "Give %n category a new color? Its current color will be replaced."
 msgid_plural ""
 "Give %n categories new colors? Their current colors will be replaced."
-msgstr[0] ""
-msgstr[1] ""
-msgstr[2] ""
+msgstr[0] "Nadać %n kategorii nowy kolor? Jej obecny kolor zostanie zastąpiony."
+msgstr[1] "Nadać %n kategoriom nowe kolory? Ich obecne kolory zostaną zastąpione."
+msgstr[2] "Nadać %n kategoriom nowe kolory? Ich obecne kolory zostaną zastąpione."
 
 #: /app/src/modules/categories/CategoriesModule.js:1384
-#, fuzzy
-#| msgid "%n category over budget"
-#| msgid_plural "%n categories over budget"
 msgid "%n category recolored"
 msgid_plural "%n categories recolored"
-msgstr[0] "%n kategoria przekroczyła budżet"
-msgstr[1] "%n kategorie przekroczyły budżet"
-msgstr[2] "%n kategorii przekroczyło budżet"
+msgstr[0] "Zmieniono kolor %n kategorii"
+msgstr[1] "Zmieniono kolory %n kategorii"
+msgstr[2] "Zmieniono kolory %n kategorii"
 
 #: /app/src/modules/categories/CategoriesModule.js:1390
-#, fuzzy
-#| msgid "Failed to delete: {errors}"
 msgid "Failed to recolor: {errors}"
-msgstr "Nie udało się usunąć: {errors}"
+msgstr "Nie udało się zmienić koloru: {errors}"
 
 #: /app/src/modules/categories/CategoriesModule.js:1463
 #: /app/templates/index.php:6723
@@ -7537,13 +7502,13 @@ msgstr "Brak ostatnich transakcji"
 #: /app/src/modules/dashboard/DashboardModule.js:1394
 msgid "No budget alerts. %n category is muted."
 msgid_plural "No budget alerts. %n categories are muted."
-msgstr[0] ""
-msgstr[1] ""
-msgstr[2] ""
+msgstr[0] "Brak alertów budżetowych. %n kategoria jest wyciszona."
+msgstr[1] "Brak alertów budżetowych. %n kategorie są wyciszone."
+msgstr[2] "Brak alertów budżetowych. %n kategorii jest wyciszonych."
 
 #: /app/src/modules/dashboard/DashboardModule.js:1395
 msgid "No budget alerts from the budgets you set."
-msgstr ""
+msgstr "Brak alertów z ustawionych przez Ciebie budżetów."
 
 #: /app/src/modules/dashboard/DashboardModule.js:1413
 #, javascript-format
@@ -7556,20 +7521,15 @@ msgstr "Wykorzystano {percent}%"
 
 #: /app/src/modules/dashboard/DashboardModule.js:1450
 msgid "(from a bill)"
-msgstr ""
+msgstr "(z rachunku)"
 
 #: /app/src/modules/dashboard/DashboardModule.js:1488
-#, fuzzy
-#| msgid "%n category is over budget."
-#| msgid_plural "%n categories are over budget."
 msgid "No category has a budget yet."
-msgstr "%n kategoria przekracza budżet."
+msgstr "Żadna kategoria nie ma jeszcze budżetu."
 
 #: /app/src/modules/dashboard/DashboardModule.js:1527
-#, fuzzy
-#| msgid "Failed to retrieve budget alerts"
 msgid "Failed to save the budget alert filter"
-msgstr "Nie udało się pobrać alertów budżetowych"
+msgstr "Nie udało się zapisać filtra alertów budżetowych"
 
 #: /app/src/modules/dashboard/DashboardModule.js:1576
 msgid "Highest rate: {rate}% APR"
@@ -7646,10 +7606,8 @@ msgstr "Zaoszczędzono {amount}"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2002
 #: /app/src/modules/projects/ProjectsModule.js:84
-#, fuzzy
-#| msgid "Page {current} of {total}"
 msgid "{spent} of {total}"
-msgstr "Strona {current} z {total}"
+msgstr "{spent} z {total}"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2035
 #: /app/src/modules/pensions/PensionsModule.js:159
@@ -8038,18 +7996,17 @@ msgstr ""
 "Przeciągnij, aby zmienić kolejność. Przełącz widoczność każdego elementu."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5165
-#, fuzzy
-#| msgid "All categories and budget settings"
 msgid "Only categories with a budget I set"
-msgstr "Wszystkie kategorie i ustawienia budżetu"
+msgstr "Tylko kategorie z ustawionym przeze mnie budżetem"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5167
 msgid "Leaves out the budgets worked out from your bills and recurring income."
-msgstr ""
+msgstr "Pomija budżety obliczone na podstawie rachunków i regularnych dochodów."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5168
 msgid "Untick a category to stop it alerting, here and in notifications."
 msgstr ""
+"Odznacz kategorię, aby przestała wysyłać alerty tutaj i w powiadomieniach."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5404
 msgid "All tiles are visible"
@@ -8310,6 +8267,9 @@ msgid ""
 "a category and its subcategories between two dates, can give its "
 "subcategories amounts of their own, and does not reset each month."
 msgstr ""
+"Jeden budżet dla zadania trwającego miesiącami, na przykład remontu. "
+"Obejmuje kategorię i jej podkategorie między dwiema datami, pozwala nadać "
+"podkategoriom własne kwoty i nie resetuje się co miesiąc."
 
 #: /app/src/modules/help/HelpModule.js:33
 msgid ""
@@ -8810,38 +8770,33 @@ msgstr "Wiersze {rows}"
 
 #: /app/src/modules/import/ImportModule.js:2206
 msgid "{skipped} of {total} rows will not be imported"
-msgstr ""
+msgstr "{skipped} z {total} wierszy nie zostanie zaimportowanych"
 
 #: /app/src/modules/import/ImportModule.js:2210
-#, fuzzy
-#| msgid "%n row was not imported"
-#| msgid_plural "%n rows were not imported"
 msgid "%n row will not be imported"
 msgid_plural "%n rows will not be imported"
-msgstr[0] "%n wiersz nie został zaimportowany"
-msgstr[1] "%n wiersze nie zostały zaimportowane"
-msgstr[2] "%n wierszy nie zostało zaimportowanych"
+msgstr[0] "%n wiersz nie zostanie zaimportowany"
+msgstr[1] "%n wiersze nie zostaną zaimportowane"
+msgstr[2] "%n wierszy nie zostanie zaimportowanych"
 
 #: /app/src/modules/import/ImportModule.js:2215
 msgid ""
 "Those rows have no account of their own. Pick one under \"Account for rows "
 "without one\" below and they will be imported into it."
 msgstr ""
+"Te wiersze nie mają własnego konta. Wybierz jedno poniżej w polu „Konto dla "
+"wierszy bez przypisanego konta”, a zostaną do niego zaimportowane."
 
 #: /app/src/modules/import/ImportModule.js:2263
-#, fuzzy
-#| msgid "{matching} of {total} rows have no usable transaction type"
 msgid "{blank} of {total} rows have no description"
-msgstr "W {matching} z {total} wierszy brakuje prawidłowego typu transakcji"
+msgstr "{blank} z {total} wierszy nie ma opisu"
 
 #: /app/src/modules/import/ImportModule.js:2264
-#, fuzzy
-#| msgid "(no description)"
 msgid "%n row has no description"
 msgid_plural "%n rows have no description"
-msgstr[0] "(brak opisu)"
-msgstr[1] "(brak opisu)"
-msgstr[2] "(brak opisu)"
+msgstr[0] "%n wiersz nie ma opisu"
+msgstr[1] "%n wiersze nie mają opisu"
+msgstr[2] "%n wierszy nie ma opisu"
 
 #: /app/src/modules/import/ImportModule.js:2265
 msgid ""
@@ -8850,6 +8805,10 @@ msgid ""
 "categorize them. If the cells should not be empty, check the file before "
 "importing."
 msgstr ""
+"Kolumna przypisana do opisu jest w tych wierszach pusta. Mimo to zostaną one "
+"zaimportowane, ale reguły importu dopasowujące opis nie będą mogły ich "
+"skategoryzować. Jeśli komórki nie powinny być puste, sprawdź plik przed "
+"importem."
 
 #: /app/src/modules/import/ImportModule.js:2298
 msgid "%n row was not imported"
@@ -9355,118 +9314,89 @@ msgid "Contribution posted"
 msgstr "Zaksięgowano wpłatę"
 
 #: /app/src/modules/projects/ProjectsModule.js:94 /app/templates/index.php:2951
-#, fuzzy
-#| msgid "Finish"
 msgid "Finished"
-msgstr "Zakończ"
+msgstr "Zakończono"
 
 #: /app/src/modules/projects/ProjectsModule.js:101
 msgid "{start} to {end}"
-msgstr ""
+msgstr "od {start} do {end}"
 
 #: /app/src/modules/projects/ProjectsModule.js:102
-#, fuzzy
-#| msgid "From Date"
 msgid "From {start}"
-msgstr "Data od"
+msgstr "Od {start}"
 
 #: /app/src/modules/projects/ProjectsModule.js:108
 msgid "{time} of the time gone, {spent} spent"
-msgstr ""
+msgstr "Upłynęło {time} czasu, wydano {spent}"
 
 #: /app/src/modules/projects/ProjectsModule.js:117
-#, fuzzy
-#| msgid "{count} left"
 msgid "{amount} left"
-msgstr "Pozostało: {count}"
+msgstr "Pozostało {amount}"
 
 #: /app/src/modules/projects/ProjectsModule.js:161
-#, fuzzy
-#| msgid "Nothing in this period"
 msgid "Not counted in this project"
-msgstr "Brak danych w tym okresie"
+msgstr "Nie jest liczone w tym projekcie"
 
 #: /app/src/modules/projects/ProjectsModule.js:176
-#, fuzzy
-#| msgid "Listed under {category}"
 msgid "Directly in {category}"
-msgstr "Wymieniono w kategorii {category}"
+msgstr "Bezpośrednio w {category}"
 
 #: /app/src/modules/projects/ProjectsModule.js:179
-#, fuzzy
-#| msgid "Fully allocated"
 msgid "Unallocated"
-msgstr "W pełni przydzielono"
+msgstr "Nieprzydzielone"
 
 #: /app/src/modules/projects/ProjectsModule.js:184
-#, fuzzy
-#| msgid "No categories yet"
 msgid "No subcategories or amounts yet"
-msgstr "Brak kategorii"
+msgstr "Nie ma jeszcze podkategorii ani kwot"
 
 #: /app/src/modules/projects/ProjectsModule.js:202
 msgid ""
 "Delete the project \"{name}\"? Its categories and transactions are not "
 "changed."
 msgstr ""
+"Usunąć projekt „{name}”? Jego kategorie i transakcje nie zostaną zmienione."
 
 #: /app/src/modules/projects/ProjectsModule.js:207
-#, fuzzy
-#| msgid "Contact deleted"
 msgid "Project deleted"
-msgstr "Usunięto kontakt"
+msgstr "Usunięto projekt"
 
 #: /app/src/modules/projects/ProjectsModule.js:260
-#, fuzzy
-#| msgid "Edit rule"
 msgid "Edit Project"
-msgstr "Edytuj regułę"
+msgstr "Edytuj projekt"
 
 #: /app/src/modules/projects/ProjectsModule.js:260
 #: /app/templates/index.php:2941 /app/templates/index.php:2948
 #: /app/templates/index.php:5070
-#, fuzzy
-#| msgid "Pension Projection"
 msgid "New Project"
-msgstr "Prognoza emerytury"
+msgstr "Nowy projekt"
 
 #: /app/src/modules/projects/ProjectsModule.js:268
-#, fuzzy
-#| msgid "this category"
 msgid "Choose a category…"
-msgstr "tę kategorię"
+msgstr "Wybierz kategorię…"
 
 #: /app/src/modules/projects/ProjectsModule.js:303
-#, fuzzy
-#| msgid "of {amount}"
 msgid "No amount"
-msgstr "z {amount}"
+msgstr "Brak kwoty"
 
 #: /app/src/modules/projects/ProjectsModule.js:315
 msgid "The subcategory amounts are {amount} over the total"
-msgstr ""
+msgstr "Kwoty podkategorii przekraczają łączną kwotę o {amount}"
 
 #: /app/src/modules/projects/ProjectsModule.js:316
-#, fuzzy
-#| msgid "Expected: {amount}"
 msgid "Unallocated: {amount}"
-msgstr "Oczekiwano: {amount}"
+msgstr "Nieprzydzielone: {amount}"
 
 #: /app/src/modules/projects/ProjectsModule.js:336
 msgid "Choose a category for the project"
-msgstr ""
+msgstr "Wybierz kategorię dla projektu"
 
 #: /app/src/modules/projects/ProjectsModule.js:358
-#, fuzzy
-#| msgid "Projected value"
 msgid "Project saved"
-msgstr "Prognozowana wartość"
+msgstr "Zapisano projekt"
 
 #: /app/src/modules/projects/ProjectsModule.js:358
-#, fuzzy
-#| msgid "Goal created"
 msgid "Project created"
-msgstr "Utworzono cel"
+msgstr "Utworzono projekt"
 
 #: /app/src/modules/reports/ReportsModule.js:215
 msgid "1 account"
@@ -9564,6 +9494,7 @@ msgstr "Łączna kwota rachunków"
 #: /app/src/modules/reports/ReportsModule.js:1984
 msgid "No payment recorded - the bill has moved on from this date"
 msgstr ""
+"Nie zarejestrowano płatności - rachunek przeszedł już do kolejnego terminu"
 
 #: /app/src/modules/reports/ReportsModule.js:1987
 msgid "Due"
@@ -10034,10 +9965,8 @@ msgstr "Ustaw odbiorcę"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:93
 #: /app/src/modules/rules/components/ActionBuilder.js:126
-#, fuzzy
-#| msgid "Description"
 msgid "Set Description"
-msgstr "Opis"
+msgstr "Ustaw opis"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:94
 #: /app/src/modules/rules/components/ActionBuilder.js:127
@@ -10153,7 +10082,7 @@ msgstr "Opis:"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:225
 msgid "e.g., Grocery purchase, Salary"
-msgstr ""
+msgstr "np. zakup artykułów spożywczych, wynagrodzenie"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:240
 msgid "Notes Text:"
@@ -10262,10 +10191,8 @@ msgid "Action {number}: Vendor name is empty"
 msgstr "Działanie {number}: nazwa odbiorcy jest pusta"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:546
-#, fuzzy
-#| msgid "Action {number}: Notes text is empty"
 msgid "Action {number}: Description is empty"
-msgstr "Działanie {number}: treść notatek jest pusta"
+msgstr "Działanie {number}: opis jest pusty"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:551
 msgid "Action {number}: Notes text is empty"
@@ -10718,13 +10645,11 @@ msgstr "Brak wspólnych wydatków"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:484
 msgid "Only {name} can settle the expenses they split with you."
-msgstr ""
+msgstr "Tylko {name} może rozliczyć wydatki, które dzieli z Tobą."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:492
-#, fuzzy
-#| msgid "Delete {name}"
 msgid "split by {name}"
-msgstr "Usuń {name}"
+msgstr "podzielone przez {name}"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:502
 msgid "Open"
@@ -10767,87 +10692,74 @@ msgid "Please add contacts first in Shared Expenses"
 msgstr "Najpierw dodaj kontakty w sekcji Wspólne wydatki"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:723
-#, fuzzy
-#| msgid "Failed to load tag sets"
 msgid "Failed to load the split"
-msgstr "Nie udało się wczytać zestawów tagów"
+msgstr "Nie udało się wczytać podziału"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:760
 msgid ""
 "{amount} of this has already been settled, so it is left out of the split."
 msgstr ""
+"Kwota {amount} została już rozliczona, więc nie jest uwzględniona w podziale."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:810
-#, fuzzy
-#| msgid "Delete {name}"
 msgid "Percentage for {name}"
-msgstr "Usuń {name}"
+msgstr "Procent dla {name}"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:811
-#, fuzzy
-#| msgid "Account holder name"
 msgid "Amount for {name}"
-msgstr "Nazwa właściciela konta"
+msgstr "Kwota dla {name}"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:830
-#, fuzzy
-#| msgid "You owe"
 msgid "You"
-msgstr "Twoje zobowiązania"
+msgstr "Ty"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:888
 msgid "Nobody is ticked, so saving removes this split."
-msgstr ""
+msgstr "Nikt nie jest zaznaczony, więc zapisanie usunie ten podział."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:895
 msgid "You owe the others {owed}. Your part is {mine}."
-msgstr ""
+msgstr "Masz do oddania innym {owed}. Twoja część to {mine}."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:896
 msgid "The others owe you {owed}. Your share is {mine}."
-msgstr ""
+msgstr "Inni są Ci winni {owed}. Twój udział to {mine}."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:899
-#, fuzzy
-#| msgid "Please select at least one expense to settle"
 msgid "Tick at least one person to split with."
-msgstr "Wybierz co najmniej jeden wydatek do rozliczenia"
+msgstr "Zaznacz co najmniej jedną osobę do podziału."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:901
 msgid "There is not enough to split between this many people."
-msgstr ""
+msgstr "Nie ma wystarczającej kwoty, aby podzielić ją między tak wiele osób."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:904
 msgid "Enter a percentage for everyone ticked."
-msgstr ""
+msgstr "Wprowadź procent dla każdej zaznaczonej osoby."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:905
 msgid "Enter an amount for everyone ticked."
-msgstr ""
+msgstr "Wprowadź kwotę dla każdej zaznaczonej osoby."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:907
 msgid "The percentages add up to {total} and need to add up to {full}."
-msgstr ""
+msgstr "Suma procentów wynosi {total}, a powinna wynosić {full}."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:912
 msgid "The amounts add up to {amount} more than there is to split."
-msgstr ""
+msgstr "Suma kwot przekracza kwotę do podziału o {amount}."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:945
 msgid "Remove this split? Nobody will owe anything for this transaction."
-msgstr ""
+msgstr "Usunąć ten podział? Nikt nie będzie nic winien za tę transakcję."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:974
-#, fuzzy
-#| msgid "Tile removed"
 msgid "Split removed"
-msgstr "Kafelek został usunięty"
+msgstr "Usunięto podział"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:974
-#, fuzzy
-#| msgid "Report saved"
 msgid "Split saved"
-msgstr "Zapisano raport"
+msgstr "Zapisano podział"
 
 #: /app/src/modules/sharing/SharingModule.js:49
 msgid "Failed to load sharing data"
@@ -13076,13 +12988,11 @@ msgstr "Zwiń wszystko"
 
 #: /app/templates/index.php:1911
 msgid "Give each selected category a different color"
-msgstr ""
+msgstr "Nadaj każdej wybranej kategorii inny kolor"
 
 #: /app/templates/index.php:1912
-#, fuzzy
-#| msgid "Record"
 msgid "Recolor"
-msgstr "Zarejestruj"
+msgstr "Zmień kolor"
 
 #: /app/templates/index.php:1927 /app/templates/index.php:2214
 msgid "No categories yet"
@@ -13665,10 +13575,8 @@ msgid "Create Your First Goal"
 msgstr "Utwórz pierwszy cel"
 
 #: /app/templates/index.php:2946
-#, fuzzy
-#| msgid "No rules yet"
 msgid "No projects yet"
-msgstr "Brak reguł"
+msgstr "Nie ma jeszcze projektów"
 
 #: /app/templates/index.php:2947
 msgid ""
@@ -13676,6 +13584,9 @@ msgid ""
 "renovation, a wedding or a long trip. It covers a category and everything "
 "under it from a start date to an end date, and it does not reset each month."
 msgstr ""
+"Projekt to jeden budżet dla zadania trwającego miesiącami, na przykład "
+"remontu, ślubu lub długiej podróży. Obejmuje kategorię i wszystko pod nią od "
+"daty rozpoczęcia do daty zakończenia i nie resetuje się co miesiąc."
 
 #: /app/templates/index.php:2959
 msgid "Financial Forecast"
@@ -15127,58 +15038,49 @@ msgid ""
 "by people you share them with. View transactions only lists the ones in "
 "accounts you can see."
 msgstr ""
+"Kwoty obejmują wszystko przypisane do kategorii projektu, także przez osoby, "
+"z którymi je współdzielisz. Widok transakcji pokazuje tylko te z kont, które "
+"możesz zobaczyć."
 
 #: /app/templates/index.php:5051
-#, fuzzy
-#| msgid "category"
 msgid "Subcategory"
-msgstr "kategoria"
+msgstr "Podkategoria"
 
 #: /app/templates/index.php:5059
-#, fuzzy
-#| msgid "View All Transactions"
 msgid "View transactions"
-msgstr "Wyświetl wszystkie transakcje"
+msgstr "Wyświetl transakcje"
 
 #: /app/templates/index.php:5071
-#, fuzzy
-#| msgid "Projected Income"
 msgid "Project form"
-msgstr "Prognozowane dochody"
+msgstr "Formularz projektu"
 
 #: /app/templates/index.php:5074
-#, fuzzy
-#| msgid "e.g., Bonus top-up"
 msgid "e.g., House renovation"
-msgstr "np. Dodatkowa wpłata z premii"
+msgstr "np. remont domu"
 
 #: /app/templates/index.php:5079
 msgid ""
 "Everything filed under this category and its subcategories counts towards "
 "the project."
 msgstr ""
+"Wszystko przypisane do tej kategorii i jej podkategorii jest uwzględniane w "
+"projekcie."
 
 #: /app/templates/index.php:5082
-#, fuzzy
-#| msgid "Total Budgeted"
 msgid "Total budget"
-msgstr "Łącznie zaplanowano"
+msgstr "Łączny budżet"
 
 #: /app/templates/index.php:5091
-#, fuzzy
-#| msgid "Linked Tag (optional)"
 msgid "End date (optional)"
-msgstr "Powiązany tag (opcjonalnie)"
+msgstr "Data zakończenia (opcjonalnie)"
 
 #: /app/templates/index.php:5096
-#, fuzzy
-#| msgid "Make this a subcategory (optional)"
 msgid "Subcategory amounts (optional)"
-msgstr "Ustaw jako podkategorię (opcjonalnie)"
+msgstr "Kwoty podkategorii (opcjonalnie)"
 
 #: /app/templates/index.php:5103
 msgid "Leave these categories out of monthly budgets"
-msgstr ""
+msgstr "Wyłącz te kategorie z miesięcznych budżetów"
 
 #: /app/templates/index.php:5105
 msgid ""
@@ -15186,6 +15088,9 @@ msgid ""
 "show as over budget on the Budget page. The spending still counts in reports "
 "and on the dashboard."
 msgstr ""
+"Zaznacza w kategorii opcję „Wyklucz z budżetowania”, aby duży rachunek "
+"związany z projektem nie był widoczny jako przekroczenie budżetu na stronie "
+"Budżet. Wydatki nadal są uwzględniane w raportach i na pulpicie."
 
 #: /app/templates/index.php:5127
 msgid "Goal Name"
@@ -16605,38 +16510,28 @@ msgid "Split Method"
 msgstr "Sposób podziału"
 
 #: /app/templates/index.php:7177
-#, fuzzy
-#| msgid "equals"
 msgid "Equally"
-msgstr "jest równe"
+msgstr "Po równo"
 
 #: /app/templates/index.php:7178
-#, fuzzy
-#| msgid "Percentage"
 msgid "By percentage"
-msgstr "Procent"
+msgstr "Według procentu"
 
 #: /app/templates/index.php:7179
-#, fuzzy
-#| msgid "amount"
 msgid "By amount"
-msgstr "kwota"
+msgstr "Według kwoty"
 
 #: /app/templates/index.php:7184
-#, fuzzy
-#| msgid "between"
 msgid "Split between"
-msgstr "pomiędzy"
+msgstr "Podziel między"
 
 #: /app/templates/index.php:7192
 msgid "Optional notes about this split"
 msgstr "Opcjonalne notatki dotyczące tego podziału"
 
 #: /app/templates/index.php:7196
-#, fuzzy
-#| msgid "Save Splits"
 msgid "Save Split"
-msgstr "Zapisz części"
+msgstr "Zapisz podział"
 
 #: /app/templates/index.php:7206
 msgid "Settle Expenses"
