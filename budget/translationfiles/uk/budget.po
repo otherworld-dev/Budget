@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-20 18:41+0000\n"
-"PO-Revision-Date: 2026-09-17 01:47+0000\n"
-"Last-Translator: Anonymous <noreply@weblate.org>\n"
+"PO-Revision-Date: 2026-09-21 19:51+0000\n"
+"Last-Translator: Leonid Zaliubovskyi <la399fox@gmail.com>\n"
 "Language-Team: Ukrainian <https://hosted.weblate.org/projects/nextcloud-"
 "budget/budget/uk/>\n"
 "Language: uk\n"
@@ -1652,102 +1652,80 @@ msgstr "Не вдалося отримати сукупний прогноз п�
 
 #: /app/lib/Controller/ProjectController.php:62
 #: /app/src/modules/projects/ProjectsModule.js:35
-#, fuzzy
-#| msgid "Failed to load rules"
 msgid "Failed to load projects"
-msgstr "Не вдалося завантажити правила"
+msgstr "Не вдалося завантажити проєкти"
 
 #: /app/lib/Controller/ProjectController.php:81
 #: /app/src/modules/projects/ProjectsModule.js:127
-#, fuzzy
-#| msgid "Failed to load tag sets"
 msgid "Failed to load the project"
-msgstr "Не вдалося завантажити набори тегів"
+msgstr "Не вдалося завантажити проєкт"
 
 #: /app/lib/Controller/ProjectController.php:107
 #: /app/lib/Controller/ProjectController.php:147
 #: /app/lib/Controller/ProjectController.php:203
 #: /app/src/modules/projects/ProjectsModule.js:365
-#, fuzzy
-#| msgid "Failed to save splits"
 msgid "Failed to save the project"
-msgstr "Не вдалося зберегти розподіл"
+msgstr "Не вдалося зберегти проєкт"
 
 #: /app/lib/Controller/ProjectController.php:163
-#, fuzzy
-#| msgid "Only the rule owner can delete it"
 msgid "Only the owner can delete this project"
-msgstr "Видалити правило може лише його власник"
+msgstr "Лише власник може видалити цей проєкт"
 
 #: /app/lib/Controller/ProjectController.php:172
 #: /app/src/modules/projects/ProjectsModule.js:210
-#, fuzzy
-#| msgid "Failed to delete tag set"
 msgid "Failed to delete the project"
-msgstr "Не вдалося видалити набір тегів"
+msgstr "Не вдалося видалити проєкт"
 
 #: /app/lib/Controller/ProjectController.php:186
-#, fuzzy
-#| msgid "(projected)"
 msgid "Project"
-msgstr "(прогноз)"
+msgstr "Проєкт"
 
 #: /app/lib/Controller/ProjectController.php:193
 #: /app/src/modules/projects/ProjectsModule.js:335
-#, fuzzy
-#| msgid "Please enter a name for the report"
 msgid "Enter a name for the project"
-msgstr "Введіть назву звіту"
+msgstr "Введіть назву проєкту"
 
 #: /app/lib/Controller/ProjectController.php:194
 #: /app/src/modules/projects/ProjectsModule.js:337
-#, fuzzy
-#| msgid "Target amount must be greater than zero"
 msgid "The total must be more than zero"
-msgstr "Цільова сума має бути більшою за нуль"
+msgstr "Загальна сума має бути більшою за нуль"
 
 #: /app/lib/Controller/ProjectController.php:195
 msgid "Choose one of your own expense categories"
-msgstr ""
+msgstr "Виберіть одну зі своїх категорій витрат"
 
 #: /app/lib/Controller/ProjectController.php:196
 #: /app/src/modules/projects/ProjectsModule.js:338
-#, fuzzy
-#| msgid "Please enter a name for the report"
 msgid "Enter a start date for the project"
-msgstr "Введіть назву звіту"
+msgstr "Введіть дату початку проєкту"
 
 #: /app/lib/Controller/ProjectController.php:197
 #: /app/src/modules/projects/ProjectsModule.js:339
-#, fuzzy
-#| msgid "Start date must be before the end date"
 msgid "The end date cannot be before the start date"
-msgstr "Дата початку має передувати даті завершення"
+msgstr "Дата завершення не може бути раніше за дату початку"
 
 #: /app/lib/Controller/ProjectController.php:198
-#, fuzzy
-#| msgid "Target amount must be greater than zero"
 msgid "Every subcategory amount must be more than zero"
-msgstr "Цільова сума має бути більшою за нуль"
+msgstr "Сума для кожної підкатегорії має бути більшою за нуль"
 
 #: /app/lib/Controller/ProjectController.php:199
 msgid "Amounts can only go to subcategories of the project category"
-msgstr ""
+msgstr "Суми можна вказувати лише для підкатегорій категорії проєкту"
 
 #: /app/lib/Controller/ProjectController.php:200
 msgid "Each subcategory can only have one amount"
-msgstr ""
+msgstr "Для кожної підкатегорії можна вказати лише одну суму"
 
 #: /app/lib/Controller/ProjectController.php:201
 msgid "A subcategory and one of its own subcategories cannot both have amounts"
 msgstr ""
+"Для підкатегорії та однієї з її підкатегорій не можна одночасно вказувати "
+"суми"
 
 #: /app/lib/Controller/ProjectController.php:202
 #: /app/src/modules/projects/ProjectsModule.js:341
-#, fuzzy
-#| msgid "Failed to create transaction"
 msgid "The subcategory amounts add up to more than the total"
-msgstr "Не вдалося створити транзакцію"
+msgstr "Сума підкатегорій перевищує загальну суму"
 
 #: /app/lib/Controller/ReceiptScanController.php:92
 msgid "No total could be read from this receipt. Enter the details manually"
@@ -2214,7 +2192,7 @@ msgstr "Цю транзакцію вже надано цьому контакт�
 
 #: /app/lib/Controller/SharedExpenseController.php:328
 msgid "Failed to share expense"
-msgstr "Не вдалося надати спільний доступ до витрати"
+msgstr "Не вдалося розподілити витрату"
 
 #: /app/lib/Controller/SharedExpenseController.php:355
 msgid "Failed to split expense"
@@ -2222,37 +2200,31 @@ msgstr "Не вдалося розподілити витрату"
 
 #: /app/lib/Controller/SharedExpenseController.php:381
 msgid "Each person can only be in a split once"
-msgstr ""
+msgstr "Кожну особу можна додати до розподілу лише один раз"
 
 #: /app/lib/Controller/SharedExpenseController.php:382
 msgid "A split that has been settled cannot be changed"
-msgstr ""
+msgstr "Розподіл із завершеним розрахунком не можна змінити"
 
 #: /app/lib/Controller/SharedExpenseController.php:383
 msgid "Every split needs an amount"
-msgstr ""
+msgstr "Для кожного розподілу потрібна сума"
 
 #: /app/lib/Controller/SharedExpenseController.php:384
-#, fuzzy
-#| msgid "Failed to create transaction"
 msgid "The splits add up to more than the transaction"
-msgstr "Не вдалося створити транзакцію"
+msgstr "Сума розподілів перевищує суму транзакції"
 
 #: /app/lib/Controller/SharedExpenseController.php:385
 #: /app/lib/Controller/SharedExpenseController.php:399
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:914
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:969
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:983
-#, fuzzy
-#| msgid "Failed to save splits"
 msgid "Failed to save the split"
 msgstr "Не вдалося зберегти розподіл"
 
 #: /app/lib/Controller/SharedExpenseController.php:390
-#, fuzzy
-#| msgid "Transaction not found"
 msgid "Transaction or contact not found"
-msgstr "Транзакцію не знайдено"
+msgstr "Транзакцію або контакт не знайдено"
 
 #: /app/lib/Controller/SharedExpenseController.php:421
 msgid "Failed to get shares"
@@ -3131,6 +3103,8 @@ msgid ""
 "This category is used by the project \"%1$s\". Change or delete the project "
 "first."
 msgstr ""
+"Ця категорія використовується в проєкті «%1$s». Спочатку змініть або "
+"видаліть проєкт."
 
 #: /app/lib/Service/CategoryService.php:638
 msgid "A budget adjustment already exists for this month"
@@ -4348,10 +4322,8 @@ msgstr "Цілі заощаджень"
 #: /app/src/modules/help/HelpModule.js:32
 #: /app/src/modules/sharing/SharingModule.js:278 /app/templates/index.php:143
 #: /app/templates/index.php:744 /app/templates/index.php:2938
-#, fuzzy
-#| msgid "(projected)"
 msgid "Projects"
-msgstr "(прогноз)"
+msgstr "Проєкти"
 
 #: /app/src/config/dashboardWidgets.js:45
 #: /app/src/core/KeyboardShortcuts.js:342
@@ -4623,7 +4595,7 @@ msgstr "Дублювати транзакцію"
 
 #: /app/src/main.js:457
 msgid "Share expense"
-msgstr "Надати спільний доступ до витрати"
+msgstr "Розподілити витрату"
 
 #: /app/src/main.js:461
 msgid "Unlink transfer"
@@ -5544,9 +5516,9 @@ msgstr "Виберіть рахунок"
 #: /app/src/modules/categories/CategoriesModule.js:1284
 msgid "%n selected"
 msgid_plural "%n selected"
-msgstr[0] "Вибрано: %n"
-msgstr[1] "Вибрано: %n"
-msgstr[2] "Вибрано: %n"
+msgstr[0] "%n вибрано"
+msgstr[1] "%n вибрано"
+msgstr[2] "%n вибрано"
 
 #: /app/src/modules/accounts/AccountsModule.js:719
 msgid ""
@@ -7196,25 +7168,20 @@ msgstr[2] "%n категорій успішно видалено"
 msgid "Give %n category a new color? Its current color will be replaced."
 msgid_plural ""
 "Give %n categories new colors? Their current colors will be replaced."
-msgstr[0] ""
-msgstr[1] ""
-msgstr[2] ""
+msgstr[0] "Надати %n категорії новий колір? Поточний колір буде замінено."
+msgstr[1] "Надати %n категоріям нові кольори? Їхні поточні кольори буде замінено."
+msgstr[2] "Надати %n категоріям нові кольори? Їхні поточні кольори буде замінено."
 
 #: /app/src/modules/categories/CategoriesModule.js:1384
-#, fuzzy
-#| msgid "%n category over budget"
-#| msgid_plural "%n categories over budget"
 msgid "%n category recolored"
 msgid_plural "%n categories recolored"
-msgstr[0] "%n категорія перевищила бюджет"
-msgstr[1] "%n категорії перевищили бюджет"
-msgstr[2] "%n категорій перевищили бюджет"
+msgstr[0] "Колір %n категорії змінено"
+msgstr[1] "Кольори %n категорій змінено"
+msgstr[2] "Кольори %n категорій змінено"
 
 #: /app/src/modules/categories/CategoriesModule.js:1390
-#, fuzzy
-#| msgid "Failed to delete: {errors}"
 msgid "Failed to recolor: {errors}"
-msgstr "Не вдалося видалити: {errors}"
+msgstr "Не вдалося змінити колір: {errors}"
 
 #: /app/src/modules/categories/CategoriesModule.js:1463
 #: /app/templates/index.php:6723
@@ -7523,13 +7490,13 @@ msgstr "Немає останніх транзакцій"
 #: /app/src/modules/dashboard/DashboardModule.js:1394
 msgid "No budget alerts. %n category is muted."
 msgid_plural "No budget alerts. %n categories are muted."
-msgstr[0] ""
-msgstr[1] ""
-msgstr[2] ""
+msgstr[0] "Немає сповіщень про бюджет. Сповіщення для %n категорії вимкнено."
+msgstr[1] "Немає сповіщень про бюджет. Сповіщення для %n категорій вимкнено."
+msgstr[2] "Немає сповіщень про бюджет. Сповіщення для %n категорій вимкнено."
 
 #: /app/src/modules/dashboard/DashboardModule.js:1395
 msgid "No budget alerts from the budgets you set."
-msgstr ""
+msgstr "Немає сповіщень від установлених вами бюджетів."
 
 #: /app/src/modules/dashboard/DashboardModule.js:1413
 #, javascript-format
@@ -7542,20 +7509,15 @@ msgstr "Використано {percent}%"
 
 #: /app/src/modules/dashboard/DashboardModule.js:1450
 msgid "(from a bill)"
-msgstr ""
+msgstr "(з платежу)"
 
 #: /app/src/modules/dashboard/DashboardModule.js:1488
-#, fuzzy
-#| msgid "%n category is over budget."
-#| msgid_plural "%n categories are over budget."
 msgid "No category has a budget yet."
-msgstr "%n категорія перевищила бюджет."
+msgstr "Ще для жодної категорії не встановлено бюджет."
 
 #: /app/src/modules/dashboard/DashboardModule.js:1527
-#, fuzzy
-#| msgid "Failed to retrieve budget alerts"
 msgid "Failed to save the budget alert filter"
-msgstr "Не вдалося отримати сповіщення про бюджет"
+msgstr "Не вдалося зберегти фільтр сповіщень про бюджет"
 
 #: /app/src/modules/dashboard/DashboardModule.js:1576
 msgid "Highest rate: {rate}% APR"
@@ -7632,10 +7594,8 @@ msgstr "Заощаджено {amount}"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2002
 #: /app/src/modules/projects/ProjectsModule.js:84
-#, fuzzy
-#| msgid "Page {current} of {total}"
 msgid "{spent} of {total}"
-msgstr "Сторінка {current} із {total}"
+msgstr "{spent} із {total}"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2035
 #: /app/src/modules/pensions/PensionsModule.js:159
@@ -8026,18 +7986,18 @@ msgstr ""
 "елемента."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5165
-#, fuzzy
-#| msgid "All categories and budget settings"
 msgid "Only categories with a budget I set"
-msgstr "Усі категорії та налаштування бюджету"
+msgstr "Лише категорії з установленим мною бюджетом"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5167
 msgid "Leaves out the budgets worked out from your bills and recurring income."
-msgstr ""
+msgstr "Виключає бюджети, розраховані з ваших платежів і регулярних доходів."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5168
 msgid "Untick a category to stop it alerting, here and in notifications."
 msgstr ""
+"Зніміть позначку з категорії, щоб вимкнути сповіщення про неї тут і в "
+"системних повідомленнях."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5404
 msgid "All tiles are visible"
@@ -8298,6 +8258,9 @@ msgid ""
 "a category and its subcategories between two dates, can give its "
 "subcategories amounts of their own, and does not reset each month."
 msgstr ""
+"Один бюджет для справи, що триває місяцями, наприклад ремонту. Він охоплює "
+"категорію та її підкатегорії між двома датами, дає змогу вказати суми для "
+"підкатегорій і не скидається щомісяця."
 
 #: /app/src/modules/help/HelpModule.js:33
 msgid ""
@@ -8797,38 +8760,33 @@ msgstr "Рядки {rows}"
 
 #: /app/src/modules/import/ImportModule.js:2206
 msgid "{skipped} of {total} rows will not be imported"
-msgstr ""
+msgstr "{skipped} із {total} рядків не буде імпортовано"
 
 #: /app/src/modules/import/ImportModule.js:2210
-#, fuzzy
-#| msgid "%n row was not imported"
-#| msgid_plural "%n rows were not imported"
 msgid "%n row will not be imported"
 msgid_plural "%n rows will not be imported"
-msgstr[0] "%n рядок не імпортовано"
-msgstr[1] "%n рядки не імпортовано"
-msgstr[2] "%n рядків не імпортовано"
+msgstr[0] "%n рядок не буде імпортовано"
+msgstr[1] "%n рядки не буде імпортовано"
+msgstr[2] "%n рядків не буде імпортовано"
 
 #: /app/src/modules/import/ImportModule.js:2215
 msgid ""
 "Those rows have no account of their own. Pick one under \"Account for rows "
 "without one\" below and they will be imported into it."
 msgstr ""
+"Ці рядки не мають власного рахунку. Виберіть нижче рахунок у розділі «"
+"Рахунок для рядків без рахунку», і їх буде імпортовано до нього."
 
 #: /app/src/modules/import/ImportModule.js:2263
-#, fuzzy
-#| msgid "{matching} of {total} rows have no usable transaction type"
 msgid "{blank} of {total} rows have no description"
-msgstr "У {matching} із {total} рядків немає придатного типу транзакції"
+msgstr "{blank} із {total} рядків не мають опису"
 
 #: /app/src/modules/import/ImportModule.js:2264
-#, fuzzy
-#| msgid "(no description)"
 msgid "%n row has no description"
 msgid_plural "%n rows have no description"
-msgstr[0] "(без опису)"
-msgstr[1] "(без опису)"
-msgstr[2] "(без опису)"
+msgstr[0] "%n рядок не має опису"
+msgstr[1] "%n рядки не мають опису"
+msgstr[2] "%n рядків не мають опису"
 
 #: /app/src/modules/import/ImportModule.js:2265
 msgid ""
@@ -8837,6 +8795,10 @@ msgid ""
 "categorize them. If the cells should not be empty, check the file before "
 "importing."
 msgstr ""
+"Стовпець, зіставлений з описом, у цих рядках порожній. Їх усе одно буде "
+"імпортовано, але правила імпорту, що зіставляють опис, не зможуть їх "
+"категоризувати. Якщо клітинки не мають бути порожніми, перевірте файл перед "
+"імпортом."
 
 #: /app/src/modules/import/ImportModule.js:2298
 msgid "%n row was not imported"
@@ -9335,118 +9297,88 @@ msgid "Contribution posted"
 msgstr "Внесок проведено"
 
 #: /app/src/modules/projects/ProjectsModule.js:94 /app/templates/index.php:2951
-#, fuzzy
-#| msgid "Finish"
 msgid "Finished"
-msgstr "Завершити"
+msgstr "Завершено"
 
 #: /app/src/modules/projects/ProjectsModule.js:101
 msgid "{start} to {end}"
-msgstr ""
+msgstr "з {start} до {end}"
 
 #: /app/src/modules/projects/ProjectsModule.js:102
-#, fuzzy
-#| msgid "From Date"
 msgid "From {start}"
-msgstr "Дата від"
+msgstr "Від {start}"
 
 #: /app/src/modules/projects/ProjectsModule.js:108
 msgid "{time} of the time gone, {spent} spent"
-msgstr ""
+msgstr "Минуло {time} часу, витрачено {spent}"
 
 #: /app/src/modules/projects/ProjectsModule.js:117
-#, fuzzy
-#| msgid "{count} left"
 msgid "{amount} left"
-msgstr "Залишилося: {count}"
+msgstr "Залишилося {amount}"
 
 #: /app/src/modules/projects/ProjectsModule.js:161
-#, fuzzy
-#| msgid "Nothing in this period"
 msgid "Not counted in this project"
-msgstr "За цей період нічого немає"
+msgstr "Не враховується в цьому проєкті"
 
 #: /app/src/modules/projects/ProjectsModule.js:176
-#, fuzzy
-#| msgid "Listed under {category}"
 msgid "Directly in {category}"
-msgstr "Зазначено в категорії «{category}»"
+msgstr "Безпосередньо в {category}"
 
 #: /app/src/modules/projects/ProjectsModule.js:179
-#, fuzzy
-#| msgid "Fully allocated"
 msgid "Unallocated"
-msgstr "Повністю розподілено"
+msgstr "Не розподілено"
 
 #: /app/src/modules/projects/ProjectsModule.js:184
-#, fuzzy
-#| msgid "No categories yet"
 msgid "No subcategories or amounts yet"
-msgstr "Категорій ще немає"
+msgstr "Підкатегорій або сум ще немає"
 
 #: /app/src/modules/projects/ProjectsModule.js:202
 msgid ""
 "Delete the project \"{name}\"? Its categories and transactions are not "
 "changed."
-msgstr ""
+msgstr "Видалити проєкт «{name}»? Його категорії та транзакції не зміняться."
 
 #: /app/src/modules/projects/ProjectsModule.js:207
-#, fuzzy
-#| msgid "Contact deleted"
 msgid "Project deleted"
-msgstr "Контакт видалено"
+msgstr "Проєкт видалено"
 
 #: /app/src/modules/projects/ProjectsModule.js:260
-#, fuzzy
-#| msgid "Edit rule"
 msgid "Edit Project"
-msgstr "Редагувати правило"
+msgstr "Редагувати проєкт"
 
 #: /app/src/modules/projects/ProjectsModule.js:260
 #: /app/templates/index.php:2941 /app/templates/index.php:2948
 #: /app/templates/index.php:5070
-#, fuzzy
-#| msgid "Pension Projection"
 msgid "New Project"
-msgstr "Прогноз пенсійних накопичень"
+msgstr "Новий проєкт"
 
 #: /app/src/modules/projects/ProjectsModule.js:268
-#, fuzzy
-#| msgid "this category"
 msgid "Choose a category…"
-msgstr "цю категорію"
+msgstr "Виберіть категорію…"
 
 #: /app/src/modules/projects/ProjectsModule.js:303
-#, fuzzy
-#| msgid "of {amount}"
 msgid "No amount"
-msgstr "із {amount}"
+msgstr "Немає суми"
 
 #: /app/src/modules/projects/ProjectsModule.js:315
 msgid "The subcategory amounts are {amount} over the total"
-msgstr ""
+msgstr "Суми підкатегорій на {amount} перевищують загальну суму"
 
 #: /app/src/modules/projects/ProjectsModule.js:316
-#, fuzzy
-#| msgid "Expected: {amount}"
 msgid "Unallocated: {amount}"
-msgstr "Очікується: {amount}"
+msgstr "Не розподілено: {amount}"
 
 #: /app/src/modules/projects/ProjectsModule.js:336
 msgid "Choose a category for the project"
-msgstr ""
+msgstr "Виберіть категорію для проєкту"
 
 #: /app/src/modules/projects/ProjectsModule.js:358
-#, fuzzy
-#| msgid "Projected value"
 msgid "Project saved"
-msgstr "Прогнозована вартість"
+msgstr "Проєкт збережено"
 
 #: /app/src/modules/projects/ProjectsModule.js:358
-#, fuzzy
-#| msgid "Goal created"
 msgid "Project created"
-msgstr "Ціль створено"
+msgstr "Проєкт створено"
 
 #: /app/src/modules/reports/ReportsModule.js:215
 msgid "1 account"
@@ -9543,7 +9475,7 @@ msgstr "Усього платежів"
 
 #: /app/src/modules/reports/ReportsModule.js:1984
 msgid "No payment recorded - the bill has moved on from this date"
-msgstr ""
+msgstr "Оплату не зафіксовано — платіж уже перейшов до наступної дати"
 
 #: /app/src/modules/reports/ReportsModule.js:1987
 msgid "Due"
@@ -10010,10 +9942,8 @@ msgstr "Установити продавця"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:93
 #: /app/src/modules/rules/components/ActionBuilder.js:126
-#, fuzzy
-#| msgid "Description"
 msgid "Set Description"
-msgstr "Опис"
+msgstr "Указати опис"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:94
 #: /app/src/modules/rules/components/ActionBuilder.js:127
@@ -10127,7 +10057,7 @@ msgstr "Опис:"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:225
 msgid "e.g., Grocery purchase, Salary"
-msgstr ""
+msgstr "наприклад, купівля продуктів, зарплата"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:240
 msgid "Notes Text:"
@@ -10236,10 +10166,8 @@ msgid "Action {number}: Vendor name is empty"
 msgstr "Дія {number}: назва продавця порожня"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:546
-#, fuzzy
-#| msgid "Action {number}: Notes text is empty"
 msgid "Action {number}: Description is empty"
-msgstr "Дія {number}: текст приміток порожній"
+msgstr "Дія {number}: опис порожній"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:551
 msgid "Action {number}: Notes text is empty"
@@ -10672,7 +10600,7 @@ msgid ""
 "shared expense records with them."
 msgstr ""
 "Ви впевнені, що хочете видалити цей контакт? Усі записи про спільні витрати "
-"з ним також буде видалено."
+"з цим контактом також буде видалено."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:390
 msgid "Contact deleted"
@@ -10689,13 +10617,11 @@ msgstr "Немає спільних витрат"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:484
 msgid "Only {name} can settle the expenses they split with you."
-msgstr ""
+msgstr "Лише {name} може розрахуватися за витрати, які ділить з вами."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:492
-#, fuzzy
-#| msgid "Delete {name}"
 msgid "split by {name}"
-msgstr "Видалити {name}"
+msgstr "розподілено користувачем {name}"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:502
 msgid "Open"
@@ -10738,87 +10664,73 @@ msgid "Please add contacts first in Shared Expenses"
 msgstr "Спочатку додайте контакти в розділі «Спільні витрати»"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:723
-#, fuzzy
-#| msgid "Failed to load tag sets"
 msgid "Failed to load the split"
-msgstr "Не вдалося завантажити набори тегів"
+msgstr "Не вдалося завантажити розподіл"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:760
 msgid ""
 "{amount} of this has already been settled, so it is left out of the split."
-msgstr ""
+msgstr "{amount} із цієї суми вже розраховано, тому не включено до розподілу."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:810
-#, fuzzy
-#| msgid "Delete {name}"
 msgid "Percentage for {name}"
-msgstr "Видалити {name}"
+msgstr "Відсоток для {name}"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:811
-#, fuzzy
-#| msgid "Account holder name"
 msgid "Amount for {name}"
-msgstr "Ім’я власника рахунку"
+msgstr "Сума для {name}"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:830
-#, fuzzy
-#| msgid "You owe"
 msgid "You"
-msgstr "Ваша заборгованість"
+msgstr "Ви"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:888
 msgid "Nobody is ticked, so saving removes this split."
-msgstr ""
+msgstr "Нікого не позначено, тому збереження видалить цей розподіл."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:895
 msgid "You owe the others {owed}. Your part is {mine}."
-msgstr ""
+msgstr "Ви винні іншим {owed}. Ваша частка — {mine}."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:896
 msgid "The others owe you {owed}. Your share is {mine}."
-msgstr ""
+msgstr "Інші винні вам {owed}. Ваша частка — {mine}."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:899
-#, fuzzy
-#| msgid "Please select at least one expense to settle"
 msgid "Tick at least one person to split with."
-msgstr "Виберіть принаймні одну витрату для взаєморозрахунку"
+msgstr "Позначте принаймні одну особу для розподілу."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:901
 msgid "There is not enough to split between this many people."
-msgstr ""
+msgstr "Недостатньо коштів, щоб розподілити між такою кількістю людей."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:904
 msgid "Enter a percentage for everyone ticked."
-msgstr ""
+msgstr "Введіть відсоток для кожної позначеної особи."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:905
 msgid "Enter an amount for everyone ticked."
-msgstr ""
+msgstr "Введіть суму для кожної позначеної особи."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:907
 msgid "The percentages add up to {total} and need to add up to {full}."
-msgstr ""
+msgstr "Сума відсотків становить {total}, а має становити {full}."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:912
 msgid "The amounts add up to {amount} more than there is to split."
-msgstr ""
+msgstr "Сума на {amount} перевищує доступне для розподілу."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:945
 msgid "Remove this split? Nobody will owe anything for this transaction."
-msgstr ""
+msgstr "Видалити цей розподіл? Ніхто нічого не буде винен за цією транзакцією."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:974
-#, fuzzy
-#| msgid "Tile removed"
 msgid "Split removed"
-msgstr "Плитку видалено"
+msgstr "Розподіл видалено"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:974
-#, fuzzy
-#| msgid "Report saved"
 msgid "Split saved"
-msgstr "Звіт збережено"
+msgstr "Розподіл збережено"
 
 #: /app/src/modules/sharing/SharingModule.js:49
 msgid "Failed to load sharing data"
@@ -13032,13 +12944,11 @@ msgstr "Згорнути все"
 
 #: /app/templates/index.php:1911
 msgid "Give each selected category a different color"
-msgstr ""
+msgstr "Надати кожній вибраній категорії інший колір"
 
 #: /app/templates/index.php:1912
-#, fuzzy
-#| msgid "Record"
 msgid "Recolor"
-msgstr "Записати"
+msgstr "Змінити колір"
 
 #: /app/templates/index.php:1927 /app/templates/index.php:2214
 msgid "No categories yet"
@@ -13619,10 +13529,8 @@ msgid "Create Your First Goal"
 msgstr "Створити першу ціль"
 
 #: /app/templates/index.php:2946
-#, fuzzy
-#| msgid "No rules yet"
 msgid "No projects yet"
-msgstr "Правил ще немає"
+msgstr "Проєктів ще немає"
 
 #: /app/templates/index.php:2947
 msgid ""
@@ -13630,6 +13538,9 @@ msgid ""
 "renovation, a wedding or a long trip. It covers a category and everything "
 "under it from a start date to an end date, and it does not reset each month."
 msgstr ""
+"Проєкт — це один бюджет для справи, що триває місяцями, наприклад ремонту, "
+"весілля або тривалої подорожі. Він охоплює категорію та все під нею від дати "
+"початку до дати завершення й не скидається щомісяця."
 
 #: /app/templates/index.php:2959
 msgid "Financial Forecast"
@@ -14365,7 +14276,7 @@ msgstr ""
 #: /app/templates/index.php:4374
 #, php-format
 msgid "Budget alert threshold (%%)"
-msgstr "Поріг попередження про бюджет (%%)"
+msgstr "Поріг сповіщення про бюджет (%%)"
 
 #: /app/templates/index.php:4375
 msgid ""
@@ -14373,9 +14284,9 @@ msgid ""
 "percentage of its budget. Set to 100 to alert only when a category goes over "
 "budget."
 msgstr ""
-"Показувати категорію на плитці попереджень про бюджет, коли витрати "
-"перевищать цей відсоток її бюджету. Установіть 100, щоб попередження "
-"з’являлося лише після перевищення бюджету категорії."
+"Показувати категорію на плитці сповіщень про бюджет, коли витрати перевищать "
+"цей відсоток її бюджету. Установіть 100, щоб сповіщення з’являлося лише "
+"після перевищення бюджету категорії."
 
 #: /app/templates/index.php:4385
 msgid "Display Settings"
@@ -15080,58 +14991,48 @@ msgid ""
 "by people you share them with. View transactions only lists the ones in "
 "accounts you can see."
 msgstr ""
+"Ці дані містять усе, віднесене до категорій проєкту, зокрема людьми, з якими "
+"ви ними ділитеся. Перегляд транзакцій показує лише ті, що є на доступних вам "
+"рахунках."
 
 #: /app/templates/index.php:5051
-#, fuzzy
-#| msgid "category"
 msgid "Subcategory"
-msgstr "категорія"
+msgstr "Підкатегорія"
 
 #: /app/templates/index.php:5059
-#, fuzzy
-#| msgid "View All Transactions"
 msgid "View transactions"
-msgstr "Переглянути всі транзакції"
+msgstr "Переглянути транзакції"
 
 #: /app/templates/index.php:5071
-#, fuzzy
-#| msgid "Projected Income"
 msgid "Project form"
-msgstr "Прогнозований дохід"
+msgstr "Форма проєкту"
 
 #: /app/templates/index.php:5074
-#, fuzzy
-#| msgid "e.g., Bonus top-up"
 msgid "e.g., House renovation"
-msgstr "наприклад, додатковий внесок із премії"
+msgstr "наприклад, ремонт будинку"
 
 #: /app/templates/index.php:5079
 msgid ""
 "Everything filed under this category and its subcategories counts towards "
 "the project."
 msgstr ""
+"Усе, віднесене до цієї категорії та її підкатегорій, враховується в проєкті."
 
 #: /app/templates/index.php:5082
-#, fuzzy
-#| msgid "Total Budgeted"
 msgid "Total budget"
-msgstr "Усього заплановано"
+msgstr "Загальний бюджет"
 
 #: /app/templates/index.php:5091
-#, fuzzy
-#| msgid "Linked Tag (optional)"
 msgid "End date (optional)"
-msgstr "Пов’язаний тег (необов’язково)"
+msgstr "Дата завершення (необов’язково)"
 
 #: /app/templates/index.php:5096
-#, fuzzy
-#| msgid "Make this a subcategory (optional)"
 msgid "Subcategory amounts (optional)"
-msgstr "Зробити підкатегорією (необов’язково)"
+msgstr "Суми підкатегорій (необов’язково)"
 
 #: /app/templates/index.php:5103
 msgid "Leave these categories out of monthly budgets"
-msgstr ""
+msgstr "Виключити ці категорії з місячних бюджетів"
 
 #: /app/templates/index.php:5105
 msgid ""
@@ -15139,6 +15040,9 @@ msgid ""
 "show as over budget on the Budget page. The spending still counts in reports "
 "and on the dashboard."
 msgstr ""
+"Позначає для категорії «Виключити з бюджетування», щоб великий платіж, "
+"пов’язаний із проєктом, не відображався як перевищення бюджету на сторінці "
+"бюджету. Витрати все одно враховуються у звітах і на інформаційній панелі."
 
 #: /app/templates/index.php:5127
 msgid "Goal Name"
@@ -16313,7 +16217,7 @@ msgid ""
 msgstr ""
 "Для витрат, які ви відстежуєте, але ніколи не закладаєте в бюджет. Категорія "
 "й надалі враховується у звітах, на панелі та в усіх підсумках — вона лише "
-"зникає разом із підкатегоріями зі сторінки бюджету, попереджень про бюджет і "
+"зникає разом із підкатегоріями зі сторінки бюджету, сповіщень про бюджет і "
 "бюджетного звіту."
 
 #: /app/templates/index.php:6765
@@ -16555,38 +16459,28 @@ msgid "Split Method"
 msgstr "Спосіб розподілу"
 
 #: /app/templates/index.php:7177
-#, fuzzy
-#| msgid "equals"
 msgid "Equally"
-msgstr "дорівнює"
+msgstr "Порівну"
 
 #: /app/templates/index.php:7178
-#, fuzzy
-#| msgid "Percentage"
 msgid "By percentage"
-msgstr "Відсоток"
+msgstr "За відсотком"
 
 #: /app/templates/index.php:7179
-#, fuzzy
-#| msgid "amount"
 msgid "By amount"
-msgstr "сума"
+msgstr "За сумою"
 
 #: /app/templates/index.php:7184
-#, fuzzy
-#| msgid "between"
 msgid "Split between"
-msgstr "між"
+msgstr "Розподілити між"
 
 #: /app/templates/index.php:7192
 msgid "Optional notes about this split"
 msgstr "Необов’язкові примітки про цей розподіл"
 
 #: /app/templates/index.php:7196
-#, fuzzy
-#| msgid "Save Splits"
 msgid "Save Split"
-msgstr "Зберегти частини"
+msgstr "Зберегти розподіл"
 
 #: /app/templates/index.php:7206
 msgid "Settle Expenses"
