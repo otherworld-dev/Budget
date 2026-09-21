@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-20 18:41+0000\n"
-"PO-Revision-Date: 2026-09-21 21:11+0000\n"
+"PO-Revision-Date: 2026-09-22 12:38+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -1736,7 +1736,7 @@ msgstr "Der Zielbetrag muss größer als null sein"
 
 #: /app/lib/Controller/ProjectController.php:195
 msgid "Choose one of your own expense categories"
-msgstr ""
+msgstr "Wähle eine deiner eigenen Ausgabenkategorien aus"
 
 #: /app/lib/Controller/ProjectController.php:196
 #: /app/src/modules/projects/ProjectsModule.js:338
@@ -1761,6 +1761,7 @@ msgstr "Der Zielbetrag muss größer als null sein"
 #: /app/lib/Controller/ProjectController.php:199
 msgid "Amounts can only go to subcategories of the project category"
 msgstr ""
+"Beträge können nur Unterkategorien der Projektkategorie zugewiesen werden"
 
 #: /app/lib/Controller/ProjectController.php:200
 #, fuzzy
@@ -1771,6 +1772,8 @@ msgstr "Jede Person kann nur einmal in einer Aufteilung enthalten sein"
 #: /app/lib/Controller/ProjectController.php:201
 msgid "A subcategory and one of its own subcategories cannot both have amounts"
 msgstr ""
+"Einer Unterkategorie und einer ihrer eigenen Unterkategorien können nicht "
+"gleichzeitig Beträge zugewiesen werden"
 
 #: /app/lib/Controller/ProjectController.php:202
 #: /app/src/modules/projects/ProjectsModule.js:341
@@ -3282,6 +3285,8 @@ msgid ""
 "This category is used by the project \"%1$s\". Change or delete the project "
 "first."
 msgstr ""
+"Diese Kategorie wird vom Projekt „%1$s“ verwendet. Ändere oder lösche zuerst "
+"das Projekt."
 
 #: /app/lib/Service/CategoryService.php:638
 #, fuzzy
@@ -4302,6 +4307,8 @@ msgstr "Das Datenbankschema von Budget ist auf dem neuesten Stand."
 #, php-format
 msgid "An administrator can finish it by running: %1$s"
 msgstr ""
+"Ein Administrator kann den Vorgang abschließen, indem er folgenden Befehl "
+"ausführt: %1$s"
 
 #: /app/lib/Traits/ApiErrorHandlerTrait.php:55
 msgid "This shared item is read-only"
@@ -4313,6 +4320,10 @@ msgid ""
 "the update did not finish. An administrator can complete it by running: occ "
 "app:disable budget && occ app:enable budget"
 msgstr ""
+"In der Datenbank fehlt etwas, das diese Version von Budget benötigt. Das "
+"Update wurde daher nicht vollständig abgeschlossen. Ein Administrator kann "
+"es mit folgendem Befehl abschließen: occ app:disable budget && occ "
+"app:enable budget"
 
 #: /app/specialAppInfoFakeDummyForL10nScript.php:3
 msgid "Simple budget tracker and forecaster"
@@ -4926,24 +4937,32 @@ msgid ""
 "Your session has expired, so account names could not be loaded. Reload the "
 "page to restore them."
 msgstr ""
+"Deine Sitzung ist abgelaufen. Daher konnten die Kontonamen nicht geladen "
+"werden. Lade die Seite neu, um sie wiederherzustellen."
 
 #: /app/src/main.js:868
 msgid ""
 "Your session has expired, so categories could not be loaded. Reload the page "
 "to restore them."
 msgstr ""
+"Deine Sitzung ist abgelaufen. Daher konnten die Kategorien nicht geladen "
+"werden. Lade die Seite neu, um sie wiederherzustellen."
 
 #: /app/src/main.js:873
 msgid ""
 "Accounts could not be loaded (error {status}). Transactions will show as "
 "\"Unknown Account\" until this is resolved."
 msgstr ""
+"Konten konnten nicht geladen werden (Fehler {status}). Bis das Problem "
+"behoben ist, wird bei Transaktionen „Unbekanntes Konto“ angezeigt."
 
 #: /app/src/main.js:874
 msgid ""
 "Categories could not be loaded (error {status}). Transactions will show as "
 "\"Uncategorized\" until this is resolved."
 msgstr ""
+"Kategorien konnten nicht geladen werden (Fehler {status}). Bis das Problem "
+"behoben ist, wird bei Transaktionen „Nicht kategorisiert“ angezeigt."
 
 #: /app/src/main.js:940
 msgid "Read full guide"
@@ -4955,7 +4974,7 @@ msgstr "Budget kann über die Tastatur bedient werden – drücke"
 
 #: /app/src/main.js:945
 msgid "anytime to see the full list."
-msgstr ""
+msgstr "jederzeit, um die vollständige Liste anzuzeigen."
 
 #: /app/src/main.js:946
 msgid "Show keyboard shortcuts"
@@ -5020,6 +5039,8 @@ msgstr "Verknüpfter Transfer"
 msgid ""
 "Part of a split transaction. The amount shown is the part in this category."
 msgstr ""
+"Teil einer aufgeteilten Transaktion. Der angezeigte Betrag ist der dieser "
+"Kategorie zugeordnete Teilbetrag."
 
 #: /app/src/main.js:1203 /app/src/modules/accounts/AccountsModule.js:1665
 #: /app/src/modules/dashboard/DashboardModule.js:1291
@@ -5110,6 +5131,8 @@ msgstr "Keine Beschreibung"
 msgid ""
 "This amount is set by the transaction split. Open the split to change it."
 msgstr ""
+"Dieser Betrag wird durch die Aufteilung der Transaktion festgelegt. Öffne "
+"die Aufteilung, um ihn zu ändern."
 
 #: /app/src/main.js:1292 /app/src/modules/accounts/AccountsModule.js:1698
 msgid "of {total}"
@@ -5255,7 +5278,7 @@ msgstr "Ziel: {amount}"
 
 #: /app/src/main.js:2005
 msgid "Debts Recorded as Being in Credit"
-msgstr ""
+msgstr "Schuldenkonten mit positivem Saldo"
 
 #: /app/src/main.js:2009
 msgid ""
@@ -5263,6 +5286,11 @@ msgid ""
 "you have rather than money you owe. Untick any you really have overpaid — "
 "those are recorded as genuine credits and left out of future scans."
 msgstr ""
+"Diese Schuldenkonten weisen einen positiven Saldo auf. Die App zählt sie "
+"daher als Guthaben statt als Schulden. Entferne das Häkchen bei allen "
+"Konten, bei denen du tatsächlich zu viel gezahlt hast. Diese werden als "
+"echte Guthaben erfasst und bei zukünftigen Prüfungen nicht mehr "
+"berücksichtigt."
 
 #: /app/src/main.js:2022
 msgid "Listed under {category}"
@@ -5280,6 +5308,13 @@ msgid ""
 "Repairing removes just that stray category — the split itself, and every "
 "part of it, is left exactly as it is."
 msgstr ""
+"Bei einer aufgeteilten Transaktion werden die Kategorien den einzelnen "
+"Teilbeträgen zugewiesen. Die Transaktion selbst sollte daher keine eigene "
+"Kategorie haben. Diese Transaktionen haben durch eine ältere Version der "
+"Massenbearbeitung oder durch eine Regel eine zusätzliche Kategorie erhalten, "
+"die seitdem bestehen geblieben ist. Bei der Reparatur wird nur diese "
+"überflüssige Kategorie entfernt. Die Aufteilung selbst und alle ihre "
+"Teilbeträge bleiben unverändert."
 
 #: /app/src/main.js:2044
 #, fuzzy
@@ -5353,7 +5388,7 @@ msgstr "{count} doppelte Transaktionen entfernt"
 
 #: /app/src/main.js:2160
 msgid "{count} debts re-recorded as owed"
-msgstr ""
+msgstr "{count} Schulden wieder als Verbindlichkeiten erfasst"
 
 #: /app/src/main.js:2162
 msgid "{count} confirmed as genuine credits"
