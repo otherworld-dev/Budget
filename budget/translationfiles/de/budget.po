@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-20 18:41+0000\n"
-"PO-Revision-Date: 2026-09-19 21:21+0000\n"
+"PO-Revision-Date: 2026-09-21 19:51+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -1174,28 +1174,20 @@ msgid "Failed to delete debt scenario"
 msgstr "Schuldenszenario konnte nicht gelöscht werden"
 
 #: /app/lib/Controller/DebtScenarioController.php:238
-#, fuzzy
-#| msgid "Failed to retrieve debt summary"
 msgid "Failed to activate debt scenario"
-msgstr "Die Schuldenzusammenfassung konnte nicht abgerufen werden"
+msgstr "Schuldenszenario konnte nicht aktiviert werden"
 
 #: /app/lib/Controller/DebtScenarioController.php:266
-#, fuzzy
-#| msgid "Failed to calculate payoff plan"
 msgid "Failed to calculate debt scenario plan"
-msgstr "Fehler bei der Berechnung des Tilgungsplans"
+msgstr "Der Tilgungsplan für das Schuldenszenario konnte nicht berechnet werden"
 
 #: /app/lib/Controller/DebtScenarioController.php:284
-#, fuzzy
-#| msgid "No transaction IDs provided"
 msgid "No scenario IDs provided"
-msgstr "Keine Buchungs-ID bereitgestellt"
+msgstr "Keine Szenario-IDs angegeben"
 
 #: /app/lib/Controller/DebtScenarioController.php:298
-#, fuzzy
-#| msgid "Failed to run forecast scenarios"
 msgid "Failed to compare debt scenarios"
-msgstr "Prognoseszenarien konnten nicht ausgeführt werden"
+msgstr "Schuldenszenarien konnten nicht verglichen werden"
 
 #: /app/lib/Controller/ExchangeRateController.php:111
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:38
@@ -1207,10 +1199,8 @@ msgid "Failed to get base currency"
 msgstr "Fehler beim Abrufen der Basiswährung"
 
 #: /app/lib/Controller/ExchangeRateController.php:162
-#, fuzzy
-#| msgid "Failed to get base currency"
 msgid "Failed to convert currency"
-msgstr "Fehler beim Abrufen der Basiswährung"
+msgstr "Währung konnte nicht umgerechnet werden"
 
 #: /app/lib/Controller/ExchangeRateController.php:176
 msgid "Exchange rates refreshed successfully"
@@ -1302,10 +1292,8 @@ msgstr "Ungültige Schlagwort ID"
 
 #: /app/lib/Controller/GoalsController.php:167
 #: /app/lib/Controller/GoalsController.php:264
-#, fuzzy
-#| msgid "Invalid account type"
 msgid "Invalid account ID"
-msgstr "Ungültige Kontoart"
+msgstr "Ungültige Konto-ID"
 
 #: /app/lib/Controller/GoalsController.php:193
 msgid "Failed to create goal"
@@ -1366,10 +1354,8 @@ msgstr "Nicht unterstützte Zeichenkodierung"
 
 #: /app/lib/Controller/ImportController.php:287
 #: /app/src/modules/import/ImportModule.js:1149
-#, fuzzy
-#| msgid "Failed to refresh exchange rates"
 msgid "Failed to refresh the data preview"
-msgstr "Wechselkurse konnten nicht aktualisiert werden"
+msgstr "Datenvorschau konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/ImportController.php:317
 #: /app/lib/Controller/ImportTemplateController.php:51
@@ -1397,10 +1383,8 @@ msgid "Failed to retrieve import rules"
 msgstr "Fehler beim Abrufen der Importregeln"
 
 #: /app/lib/Controller/ImportRuleController.php:78
-#, fuzzy
-#| msgid "Failed to retrieve goals"
 msgid "Failed to retrieve rule groups"
-msgstr "Fehler beim Laden der Ziele"
+msgstr "Regelgruppen konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/ImportRuleController.php:90
 #: /app/lib/Controller/ImportRuleController.php:103
@@ -1443,10 +1427,8 @@ msgid "Failed to update import rule"
 msgstr "Fehler beim Aktualisieren der Importregel"
 
 #: /app/lib/Controller/ImportRuleController.php:365
-#, fuzzy
-#| msgid "Only the goal owner can delete it"
 msgid "Only the rule owner can delete it"
-msgstr "Nur der Eigentümer des Ziels kann das löschen"
+msgstr "Nur der Eigentümer der Regel kann sie löschen"
 
 #: /app/lib/Controller/ImportRuleController.php:385
 msgid "Failed to test import rules"
@@ -1479,22 +1461,16 @@ msgstr "Validierung fehlgeschlagen"
 
 #: /app/lib/Controller/ImportTemplateController.php:63
 #: /app/lib/Controller/ImportTemplateController.php:173
-#, fuzzy
-#| msgid "Import rule"
 msgid "Import template"
-msgstr "Importregel"
+msgstr "Importvorlage"
 
 #: /app/lib/Controller/ImportTemplateController.php:101
-#, fuzzy
-#| msgid "Failed to retrieve import templates"
 msgid "Failed to create import template"
-msgstr "Fehler beim Laden der Importvorlagen"
+msgstr "Importvorlage konnte nicht erstellt werden"
 
 #: /app/lib/Controller/ImportTemplateController.php:160
-#, fuzzy
-#| msgid "Failed to update import rule"
 msgid "Failed to update import template"
-msgstr "Fehler beim Aktualisieren der Importregel"
+msgstr "Importvorlage konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/MigrationController.php:67
 msgid "Failed to export data"
@@ -8165,10 +8141,8 @@ msgstr "{amount} gespart"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2002
 #: /app/src/modules/projects/ProjectsModule.js:84
-#, fuzzy
-#| msgid "Page {current} of {total}"
 msgid "{spent} of {total}"
-msgstr "Seite {current} von {total}"
+msgstr "{spent} von {total}"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2035
 #: /app/src/modules/pensions/PensionsModule.js:159
@@ -9427,18 +9401,14 @@ msgid ""
 msgstr ""
 
 #: /app/src/modules/import/ImportModule.js:2263
-#, fuzzy
-#| msgid "{displayed} of {total} transactions"
 msgid "{blank} of {total} rows have no description"
-msgstr "{displayed} von {total} Buchungen"
+msgstr "{blank} von {total} Zeilen haben keine Beschreibung"
 
 #: /app/src/modules/import/ImportModule.js:2264
-#, fuzzy
-#| msgid "(no description)"
 msgid "%n row has no description"
 msgid_plural "%n rows have no description"
-msgstr[0] "(keine Beschreibung)"
-msgstr[1] "(keine Beschreibung)"
+msgstr[0] "%n Zeile hat keine Beschreibung"
+msgstr[1] "%n Zeilen haben keine Beschreibung"
 
 #: /app/src/modules/import/ImportModule.js:2265
 msgid ""
@@ -9989,20 +9959,16 @@ msgid "{start} to {end}"
 msgstr ""
 
 #: /app/src/modules/projects/ProjectsModule.js:102
-#, fuzzy
-#| msgid "From Date"
 msgid "From {start}"
-msgstr "Von Datum"
+msgstr "Ab {start}"
 
 #: /app/src/modules/projects/ProjectsModule.js:108
 msgid "{time} of the time gone, {spent} spent"
 msgstr ""
 
 #: /app/src/modules/projects/ProjectsModule.js:117
-#, fuzzy
-#| msgid "{count} left"
 msgid "{amount} left"
-msgstr "{count} verbleiben"
+msgstr "{amount} verfügbar"
 
 #: /app/src/modules/projects/ProjectsModule.js:161
 #, fuzzy
@@ -10055,16 +10021,12 @@ msgid "New Project"
 msgstr "Einsparungsprognose"
 
 #: /app/src/modules/projects/ProjectsModule.js:268
-#, fuzzy
-#| msgid "this category"
 msgid "Choose a category…"
-msgstr "diese Kategorie"
+msgstr "Kategorie auswählen …"
 
 #: /app/src/modules/projects/ProjectsModule.js:303
-#, fuzzy
-#| msgid "of {amount}"
 msgid "No amount"
-msgstr "von {amount}"
+msgstr "Kein Betrag"
 
 #: /app/src/modules/projects/ProjectsModule.js:315
 msgid "The subcategory amounts are {amount} over the total"
