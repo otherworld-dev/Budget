@@ -302,6 +302,60 @@ class BudgetAlertServiceTest extends TestCase {
         $this->assertSame(3, $statuses[0]['categoryId']);
     }
 
+    // ===== A budget measures its branch (#551) =====
+
+    /**
+     * @param array<int, float> $debitByCategory
+     */
+    private function setupSpendingByCategory(array $categories, array $debitByCategory): void {
+        $this->categoryMapper->method('findAll')->willReturn($categories);
+        $this->transactionMapper->method('getCategorySpending')
+            ->willReturnCallback(
+                static fn(...$args): float => ($args[6] ?? 'debit') === 'debit' ? ($debitByCategory[$args[1]] ?? 0.0) : 0.0
+            );
+        $this->transactionMapper->method('getSplitTransactionIds')->willReturn([]);
+    }
+
+    public function testParentBudgetCountsSpendingFiledUnderItsChildren(): void {
+        // Housing is budgeted, the spending is all under Rent, which has no
+        // budget of its own: it used to read 0 spent and never alert
+        $parent = $this->makeCategory(['id' => 1, 'name' => 'Housing', 'budgetAmount' => 100.0]);
+        $child = $this->makeCategory(['id' => 2, 'name' => 'Rent', 'parentId' => 1, 'budgetAmount' => 0.0]);
+        $this->setupSpendingByCategory([$parent, $child], [2 => 120.0]);
+
+        $statuses = $this->service->getBudgetStatus(self::USER_ID);
+        $alerts = $this->service->getAlerts(self::USER_ID);
+
+        $this->assertCount(1, $statuses);
+        $this->assertSame(120.0, $statuses[0]['spent']);
+        $this->assertCount(1, $alerts);
+        $this->assertSame(1, $alerts[0]['categoryId']);
+        $this->assertSame('danger', $alerts[0]['severity']);
+    }
+
+    public function testChildWithItsOwnBudgetKeepsItsSpending(): void {
+        // Rent has a budget of its own, so it measures itself and Housing
+        // does not count it a second time
+        $parent = $this->makeCategory(['id' => 1, 'name' => 'Housing', 'budgetAmount' => 100.0]);
+        $child = $this->makeCategory(['id' => 2, 'name' => 'Rent', 'parentId' => 1, 'budgetAmount' => 50.0]);
+        $this->setupSpendingByCategory([$parent, $child], [1 => 10.0, 2 => 40.0]);
+
+        $spent = array_column($this->service->getBudgetStatus(self::USER_ID), 'spent', 'categoryId');
+
+        $this->assertSame([1 => 10.0, 2 => 40.0], [1 => $spent[1], 2 => $spent[2]]);
+    }
+
+    public function testMutedChildBudgetDoesNotMoveOntoItsParent(): void {
+        // Muting Rent silences Rent; its spending must not turn up on
+        // Housing's alert instead
+        $this->seedSettings(['budget_alert_muted_categories' => '[2]']);
+        $parent = $this->makeCategory(['id' => 1, 'name' => 'Housing', 'budgetAmount' => 100.0]);
+        $child = $this->makeCategory(['id' => 2, 'name' => 'Rent', 'parentId' => 1, 'budgetAmount' => 50.0]);
+        $this->setupSpendingByCategory([$parent, $child], [2 => 150.0]);
+
+        $this->assertSame([], $this->service->getAlerts(self::USER_ID));
+    }
+
     // ===== Over-budget boundary (#293) =====
 
     public function testSpendingExactlyAtBudgetIsWarningNotDanger(): void {

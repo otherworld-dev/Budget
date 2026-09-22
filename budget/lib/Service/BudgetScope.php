@@ -54,4 +54,64 @@ final class BudgetScope {
 
         return $excluded;
     }
+
+    /**
+     * The categories whose spending counts toward each budget: the budgeted
+     * category itself and its descendants, stopping at a descendant with a
+     * budget of its own, which counts its own branch instead. A parent budget
+     * whose spending is all filed under its children would otherwise read 0
+     * spent and never alert (#551). Each category lands in at most one branch,
+     * so a total over the branches counts nothing twice.
+     *
+     * A descendant out of reports or out of budgeting is left out along with
+     * everything under it, as the Budget view drops it, and so is one of a
+     * different type: an income subcategory is not spending.
+     *
+     * @param Category[] $categories the user's full category list
+     * @param array<int, true> $budgetedIds categories with a budget in play
+     * @return array<int, int[]> budgeted categoryId => member ids, itself first
+     */
+    public static function spendingBranches(array $categories, array $budgetedIds): array {
+        $byId = [];
+        $children = [];
+        foreach ($categories as $category) {
+            $byId[$category->getId()] = $category;
+            if ($category->getParentId() !== null) {
+                $children[$category->getParentId()][] = $category->getId();
+            }
+        }
+        $notBudgeted = self::excludedCategoryIds($categories);
+
+        $branches = [];
+        foreach (array_keys($budgetedIds) as $rootId) {
+            if (!isset($byId[$rootId])) {
+                continue;
+            }
+            $type = $byId[$rootId]->getType();
+            $members = [];
+            $seen = [$rootId => true];
+            $stack = [[$rootId, 0]];
+            while ($stack) {
+                [$id, $depth] = array_pop($stack);
+                $members[] = $id;
+                if ($depth >= self::MAX_DEPTH) {
+                    continue;
+                }
+                foreach (array_reverse($children[$id] ?? []) as $childId) {
+                    $child = $byId[$childId];
+                    if (isset($seen[$childId]) || isset($budgetedIds[$childId])
+                        || ($child->getExcludedFromReports() ?? false)
+                        || isset($notBudgeted[$childId])
+                        || $child->getType() !== $type) {
+                        continue;
+                    }
+                    $seen[$childId] = true;
+                    $stack[] = [$childId, $depth + 1];
+                }
+            }
+            $branches[$rootId] = $members;
+        }
+
+        return $branches;
+    }
 }

@@ -603,6 +603,36 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertSame(120.0, $result['categories'][0]['spent']);
 	}
 
+	public function testBudgetReportCountsABudgetsWholeBranch(): void {
+		// Housing (budgeted) → Rent (no budget) → Deposit (no budget), and
+		// Bills (budgeted of its own) under Housing too: Housing counts Rent
+		// and Deposit, Bills counts itself, and nothing is counted twice (#551)
+		$housing = $this->makeCategory(1, 'Housing', 'expense');
+		$housing->setBudgetAmount(500.0);
+		$rent = $this->makeCategory(2, 'Rent', 'expense', 1);
+		$deposit = $this->makeCategory(3, 'Deposit', 'expense', 2);
+		$bills = $this->makeCategory(4, 'Bills', 'expense', 1);
+		$bills->setBudgetAmount(100.0);
+		$this->categoryMapper->method('findAll')->willReturn([$housing, $rent, $deposit, $bills]);
+		$this->budgetSnapshotMapper->method('findEffectiveBatch')->willReturn([]);
+
+		$asked = [];
+		$this->transactionMapper->method('getCategorySpendingBatch')
+			->willReturnCallback(function (array $ids, ...$rest) use (&$asked) {
+				$asked = array_merge($asked, $ids);
+				return array_intersect_key([1 => 5.0, 2 => 300.0, 3 => 20.0, 4 => 60.0], array_flip($ids));
+			});
+
+		$result = $this->aggregator->getBudgetReport('user1', '2026-09-01', '2026-09-30');
+
+		$spent = array_column($result['categories'], 'spent', 'categoryId');
+		$this->assertEqualsWithDelta(325.0, $spent[1], 0.001);
+		$this->assertEqualsWithDelta(60.0, $spent[4], 0.001);
+		$this->assertEqualsWithDelta(385.0, $result['totals']['spent'], 0.001);
+		sort($asked);
+		$this->assertSame([1, 2, 3, 4], $asked);
+	}
+
 	// ===== getCategoryMonthlyReport (#288) =====
 
 	private function makeCategory(int $id, string $name, string $type, ?int $parentId = null, bool $excluded = false): \OCA\Budget\Db\Category {
