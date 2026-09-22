@@ -9,6 +9,7 @@ use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\SchemaVersionService;
+use OCP\App\IAppManager;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IRequest;
@@ -19,6 +20,7 @@ class PageController extends Controller {
     private CategoryMapper $categoryMapper;
     private GranularShareService $granularShareService;
     private SchemaVersionService $schemaVersionService;
+    private IAppManager $appManager;
     private ?string $userId;
 
     public function __construct(
@@ -27,6 +29,7 @@ class PageController extends Controller {
         CategoryMapper $categoryMapper,
         GranularShareService $granularShareService,
         SchemaVersionService $schemaVersionService,
+        IAppManager $appManager,
         // Nullable: the controller is constructed before the auth middleware
         // runs, so an unauthenticated request injects null here (the page
         // routes still require login, which the middleware enforces next).
@@ -37,6 +40,7 @@ class PageController extends Controller {
         $this->categoryMapper = $categoryMapper;
         $this->granularShareService = $granularShareService;
         $this->schemaVersionService = $schemaVersionService;
+        $this->appManager = $appManager;
         $this->userId = $userId;
     }
 
@@ -49,15 +53,21 @@ class PageController extends Controller {
         Util::addScript(Application::APP_ID, 'budget-app');
         Util::addStyle(Application::APP_ID, 'style');
 
-        $params = [
+        return new TemplateResponse(Application::APP_ID, 'index', $this->indexParams());
+    }
+
+    /** @return array<string, mixed> */
+    private function indexParams(): array {
+        return [
             'appName' => Application::APP_ID,
             // An upgrade Nextcloud never ran leaves the database behind the
             // code, and nothing notices until a save fails on a column that
             // was never added (#333). Say so before that happens.
             'schemaWarning' => $this->schemaVersionService->getWarning(),
+            // Read by the What's new popup (src/utils/whatsNew.js) to tell
+            // whether this user has seen the notes for the installed version.
+            'appVersion' => $this->appManager->getAppVersion(Application::APP_ID),
         ];
-
-        return new TemplateResponse(Application::APP_ID, 'index', $params);
     }
 
     /**

@@ -9,11 +9,13 @@ use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\SchemaVersionService;
+use OCP\App\IAppManager;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 
 class PageControllerTest extends TestCase {
 	private PageController $controller;
+	private IAppManager $appManager;
 
 	protected function setUp(): void {
 		$request = $this->createMock(IRequest::class);
@@ -21,6 +23,7 @@ class PageControllerTest extends TestCase {
 		$categoryMapper = $this->createMock(CategoryMapper::class);
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$schemaVersionService = $this->createMock(SchemaVersionService::class);
+		$this->appManager = $this->createMock(IAppManager::class);
 
 		$this->controller = new PageController(
 			$request,
@@ -28,6 +31,7 @@ class PageControllerTest extends TestCase {
 			$categoryMapper,
 			$granularShareService,
 			$schemaVersionService,
+			$this->appManager,
 			'user1'
 		);
 	}
@@ -45,8 +49,19 @@ class PageControllerTest extends TestCase {
 			$this->createMock(CategoryMapper::class),
 			$this->createMock(GranularShareService::class),
 			$this->createMock(SchemaVersionService::class),
+			$this->createMock(IAppManager::class),
 			null
 		);
 		$this->assertInstanceOf(PageController::class, $controller);
+	}
+
+	public function testIndexPassesTheInstalledVersionToThePage(): void {
+		// The What's new popup compares it with the last version the user saw.
+		$this->appManager->method('getAppVersion')->with('budget')->willReturn('2.54.0');
+
+		// index() itself calls Util::addScript, which needs a running server.
+		$params = (new \ReflectionMethod(PageController::class, 'indexParams'))->invoke($this->controller);
+
+		$this->assertSame('2.54.0', $params['appVersion']);
 	}
 }

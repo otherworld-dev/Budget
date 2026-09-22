@@ -44,7 +44,7 @@ function buildDialog(spec) {
     backdrop.className = 'budget-dialog';
 
     const panel = document.createElement('div');
-    panel.className = 'budget-dialog-panel';
+    panel.className = 'budget-dialog-panel' + (spec.panelClass ? ` ${spec.panelClass}` : '');
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-modal', 'true');
 
@@ -58,10 +58,14 @@ function buildDialog(spec) {
 
     const body = document.createElement('div');
     body.className = 'budget-dialog-message';
-    for (const line of messageLines(spec.message)) {
-        const p = document.createElement('p');
-        p.textContent = line;
-        body.appendChild(p);
+    if (spec.renderBody) {
+        spec.renderBody(body);
+    } else {
+        for (const line of messageLines(spec.message)) {
+            const p = document.createElement('p');
+            p.textContent = line;
+            body.appendChild(p);
+        }
     }
     panel.appendChild(body);
 
@@ -129,6 +133,8 @@ function render(spec) {
             e.stopPropagation();
             close(spec.cancelAnswer);
         } else if (e.key === 'Enter') {
+            // A focused link in the body opens as links do.
+            if (document.activeElement && document.activeElement.tagName === 'A') return;
             e.preventDefault();
             e.stopPropagation();
             // Enter activates whatever is focused, so on a destructive dialog
@@ -275,6 +281,62 @@ export function alertDialog(message, options = {}) {
         message,
         title: options.title || t('budget', 'Notice'),
         confirmLabel: options.confirmLabel || t('budget', 'OK'),
+        destructive: false,
+        confirmAnswer: () => undefined,
+        cancelAnswer: undefined,
+    });
+}
+
+/**
+ * Show release notes after an update (src/whatsnew.json, see utils/whatsNew.js).
+ * Built with textContent only, like every dialog here.
+ *
+ * @param {Array<{version: string, title: string, items: string[], link?: string}>} entries
+ *        Newest first.
+ * @return {Promise<void>} resolves once dismissed, however it was dismissed.
+ */
+export function whatsNewDialog(entries) {
+    return open({
+        kind: 'alert',
+        title: t('budget', "What's new in Budget"),
+        panelClass: 'budget-dialog-panel--wide',
+        renderBody: (body) => {
+            for (const entry of entries) {
+                const section = document.createElement('section');
+                section.className = 'whats-new-entry';
+
+                const heading = document.createElement('h4');
+                heading.className = 'whats-new-heading';
+                heading.textContent = entry.title;
+                const version = document.createElement('span');
+                version.className = 'whats-new-version';
+                version.textContent = entry.version;
+                heading.appendChild(version);
+                section.appendChild(heading);
+
+                const list = document.createElement('ul');
+                list.className = 'whats-new-items';
+                for (const item of entry.items || []) {
+                    const li = document.createElement('li');
+                    li.textContent = item;
+                    list.appendChild(li);
+                }
+                section.appendChild(list);
+
+                if (typeof entry.link === 'string' && entry.link.startsWith('https://')) {
+                    const link = document.createElement('a');
+                    link.className = 'whats-new-link';
+                    link.href = entry.link;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    link.textContent = t('budget', 'Read more');
+                    section.appendChild(link);
+                }
+
+                body.appendChild(section);
+            }
+        },
+        confirmLabel: t('budget', 'Got it'),
         destructive: false,
         confirmAnswer: () => undefined,
         cancelAnswer: undefined,
