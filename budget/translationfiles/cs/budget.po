@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-20 18:41+0000\n"
+"POT-Creation-Date: 2026-09-22 12:25+0000\n"
 "PO-Revision-Date: 2026-09-17 01:45+0000\n"
 "Last-Translator: Pavel Borecki <pavel.borecki@gmail.com>\n"
 "Language-Team: Czech <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -3961,14 +3961,14 @@ msgstr ""
 msgid "The report configuration is invalid or too large"
 msgstr ""
 
-#: /app/lib/Service/SchemaVersionService.php:477
+#: /app/lib/Service/SchemaVersionService.php:478
 #, php-format
 msgid ""
 "No migration on this server adds %1$s — the app's files are incomplete. "
 "Reinstall the app, then run the command."
 msgstr ""
 
-#: /app/lib/Service/SchemaVersionService.php:483
+#: /app/lib/Service/SchemaVersionService.php:484
 msgid ""
 "A database update that came with this version of Budget was never applied "
 "(%n change is missing). Saving may fail until it is finished."
@@ -3979,7 +3979,7 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-#: /app/lib/Service/SchemaVersionService.php:489
+#: /app/lib/Service/SchemaVersionService.php:490
 msgid ""
 "The database is missing %n column this version of Budget writes to. Saving "
 "will fail until it is added."
@@ -3989,6 +3989,12 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
+
+#: /app/lib/Service/SchemaVersionService.php:496
+msgid ""
+"Disabling and re-enabling Budget on the Apps page repairs this, no command "
+"line needed."
+msgstr ""
 
 #: /app/lib/Service/ShareService.php:56
 msgid "You cannot share your budget with yourself"

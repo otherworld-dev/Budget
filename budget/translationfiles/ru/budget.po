@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-20 18:41+0000\n"
+"POT-Creation-Date: 2026-09-22 12:25+0000\n"
 "PO-Revision-Date: 2026-09-21 19:51+0000\n"
 "Last-Translator: Leonid Zaliubovskyi <la399fox@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -3882,7 +3882,7 @@ msgstr "Сохранённый отчёт с таким названием уж�
 msgid "The report configuration is invalid or too large"
 msgstr "Конфигурация отчёта недействительна или слишком велика"
 
-#: /app/lib/Service/SchemaVersionService.php:477
+#: /app/lib/Service/SchemaVersionService.php:478
 #, php-format
 msgid ""
 "No migration on this server adds %1$s — the app's files are incomplete. "
@@ -3891,7 +3891,7 @@ msgstr ""
 "На этом сервере нет миграции, добавляющей %1$s: файлы приложения неполны. "
 "Переустановите приложение, затем выполните команду."
 
-#: /app/lib/Service/SchemaVersionService.php:483
+#: /app/lib/Service/SchemaVersionService.php:484
 msgid ""
 "A database update that came with this version of Budget was never applied "
 "(%n change is missing). Saving may fail until it is finished."
@@ -3911,7 +3911,7 @@ msgstr[2] ""
 "(отсутствуют %n изменений). Пока обновления не завершены, сохранение может "
 "завершаться ошибкой."
 
-#: /app/lib/Service/SchemaVersionService.php:489
+#: /app/lib/Service/SchemaVersionService.php:490
 msgid ""
 "The database is missing %n column this version of Budget writes to. Saving "
 "will fail until it is added."
@@ -3930,6 +3930,12 @@ msgstr[2] ""
 "В базе данных отсутствуют %n столбцов, в которые записывает данные эта "
 "версия приложения «Бюджет». Пока они не будут добавлены, сохранение будет "
 "завершаться ошибкой."
+
+#: /app/lib/Service/SchemaVersionService.php:496
+msgid ""
+"Disabling and re-enabling Budget on the Apps page repairs this, no command "
+"line needed."
+msgstr ""
 
 #: /app/lib/Service/ShareService.php:56
 msgid "You cannot share your budget with yourself"
@@ -7190,8 +7196,10 @@ msgid "Give %n category a new color? Its current color will be replaced."
 msgid_plural ""
 "Give %n categories new colors? Their current colors will be replaced."
 msgstr[0] "Назначить %n категории новый цвет? Текущий цвет будет заменён."
-msgstr[1] "Назначить %n категориям новые цвета? Их текущие цвета будут заменены."
-msgstr[2] "Назначить %n категориям новые цвета? Их текущие цвета будут заменены."
+msgstr[1] ""
+"Назначить %n категориям новые цвета? Их текущие цвета будут заменены."
+msgstr[2] ""
+"Назначить %n категориям новые цвета? Их текущие цвета будут заменены."
 
 #: /app/src/modules/categories/CategoriesModule.js:1384
 msgid "%n category recolored"
@@ -8011,7 +8019,8 @@ msgstr "Только категории с установленным мной �
 
 #: /app/src/modules/dashboard/DashboardModule.js:5167
 msgid "Leaves out the budgets worked out from your bills and recurring income."
-msgstr "Исключает бюджеты, рассчитанные по вашим платежам и регулярным доходам."
+msgstr ""
+"Исключает бюджеты, рассчитанные по вашим платежам и регулярным доходам."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5168
 msgid "Untick a category to stop it alerting, here and in notifications."

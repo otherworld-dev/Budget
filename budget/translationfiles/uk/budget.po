@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-20 18:41+0000\n"
+"POT-Creation-Date: 2026-09-22 12:25+0000\n"
 "PO-Revision-Date: 2026-09-21 19:51+0000\n"
 "Last-Translator: Leonid Zaliubovskyi <la399fox@gmail.com>\n"
 "Language-Team: Ukrainian <https://hosted.weblate.org/projects/nextcloud-"
@@ -3877,7 +3877,7 @@ msgstr "Збережений звіт із такою назвою вже існ
 msgid "The report configuration is invalid or too large"
 msgstr "Конфігурація звіту неприпустима або завелика"
 
-#: /app/lib/Service/SchemaVersionService.php:477
+#: /app/lib/Service/SchemaVersionService.php:478
 #, php-format
 msgid ""
 "No migration on this server adds %1$s — the app's files are incomplete. "
@@ -3886,7 +3886,7 @@ msgstr ""
 "На цьому сервері немає міграції, яка додає %1$s — файли застосунку неповні. "
 "Перевстановіть застосунок, а потім виконайте команду."
 
-#: /app/lib/Service/SchemaVersionService.php:483
+#: /app/lib/Service/SchemaVersionService.php:484
 msgid ""
 "A database update that came with this version of Budget was never applied "
 "(%n change is missing). Saving may fail until it is finished."
@@ -3903,7 +3903,7 @@ msgstr[2] ""
 "Оновлення бази даних, що входять до цієї версії «Бюджету», не застосовано "
 "(бракує %n змін). Збереження може не працювати, доки їх не буде завершено."
 
-#: /app/lib/Service/SchemaVersionService.php:489
+#: /app/lib/Service/SchemaVersionService.php:490
 msgid ""
 "The database is missing %n column this version of Budget writes to. Saving "
 "will fail until it is added."
@@ -3919,6 +3919,12 @@ msgstr[1] ""
 msgstr[2] ""
 "У базі даних немає %n стовпців, до яких записує ця версія «Бюджету». "
 "Збереження не працюватиме, доки їх не буде додано."
+
+#: /app/lib/Service/SchemaVersionService.php:496
+msgid ""
+"Disabling and re-enabling Budget on the Apps page repairs this, no command "
+"line needed."
+msgstr ""
 
 #: /app/lib/Service/ShareService.php:56
 msgid "You cannot share your budget with yourself"
@@ -7169,8 +7175,10 @@ msgid "Give %n category a new color? Its current color will be replaced."
 msgid_plural ""
 "Give %n categories new colors? Their current colors will be replaced."
 msgstr[0] "Надати %n категорії новий колір? Поточний колір буде замінено."
-msgstr[1] "Надати %n категоріям нові кольори? Їхні поточні кольори буде замінено."
-msgstr[2] "Надати %n категоріям нові кольори? Їхні поточні кольори буде замінено."
+msgstr[1] ""
+"Надати %n категоріям нові кольори? Їхні поточні кольори буде замінено."
+msgstr[2] ""
+"Надати %n категоріям нові кольори? Їхні поточні кольори буде замінено."
 
 #: /app/src/modules/categories/CategoriesModule.js:1384
 msgid "%n category recolored"
@@ -8774,8 +8782,8 @@ msgid ""
 "Those rows have no account of their own. Pick one under \"Account for rows "
 "without one\" below and they will be imported into it."
 msgstr ""
-"Ці рядки не мають власного рахунку. Виберіть нижче рахунок у розділі «"
-"Рахунок для рядків без рахунку», і їх буде імпортовано до нього."
+"Ці рядки не мають власного рахунку. Виберіть нижче рахунок у розділі "
+"«Рахунок для рядків без рахунку», і їх буде імпортовано до нього."
 
 #: /app/src/modules/import/ImportModule.js:2263
 msgid "{blank} of {total} rows have no description"

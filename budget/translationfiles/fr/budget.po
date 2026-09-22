@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-20 18:41+0000\n"
+"POT-Creation-Date: 2026-09-22 12:25+0000\n"
 "PO-Revision-Date: 2026-09-21 21:11+0000\n"
 "Last-Translator: Christophe <tophe.perso@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -3898,7 +3898,7 @@ msgstr "Un rapport enregistré portant ce nom existe déjà"
 msgid "The report configuration is invalid or too large"
 msgstr "La configuration du rapport est invalide ou trop volumineuse"
 
-#: /app/lib/Service/SchemaVersionService.php:477
+#: /app/lib/Service/SchemaVersionService.php:478
 #, php-format
 msgid ""
 "No migration on this server adds %1$s — the app's files are incomplete. "
@@ -3908,7 +3908,7 @@ msgstr ""
 "de l'application sont incomplets. Réinstallez l'application, puis exécutez "
 "la commande."
 
-#: /app/lib/Service/SchemaVersionService.php:483
+#: /app/lib/Service/SchemaVersionService.php:484
 msgid ""
 "A database update that came with this version of Budget was never applied "
 "(%n change is missing). Saving may fail until it is finished."
@@ -3925,7 +3925,7 @@ msgstr[1] ""
 "n'ont jamais été appliquées (il manque %n modifications). L'enregistrement "
 "risque d'échouer tant que ces mises à jour n'auront pas été effectuées."
 
-#: /app/lib/Service/SchemaVersionService.php:489
+#: /app/lib/Service/SchemaVersionService.php:490
 msgid ""
 "The database is missing %n column this version of Budget writes to. Saving "
 "will fail until it is added."
@@ -3940,6 +3940,12 @@ msgstr[1] ""
 "Il manque %n colonnes dans la base de données vers laquelle cette version de "
 "Budget effectue des écritures. L'enregistrement échouera tant que ces "
 "colonnes n'auront pas été ajoutées."
+
+#: /app/lib/Service/SchemaVersionService.php:496
+msgid ""
+"Disabling and re-enabling Budget on the Apps page repairs this, no command "
+"line needed."
+msgstr ""
 
 #: /app/lib/Service/ShareService.php:56
 msgid "You cannot share your budget with yourself"
@@ -14538,9 +14544,9 @@ msgid ""
 "Where uploaded receipts are filed in your Files. Year and month subfolders "
 "are created underneath. Receipts already attached stay where they are."
 msgstr ""
-"Les reçus téléchargés sont classés dans votre dossier. Des sous-dossiers « "
-"Année » et « Mois » sont créés à l'intérieur. Les reçus déjà joints restent "
-"à leur emplacement d'origine."
+"Les reçus téléchargés sont classés dans votre dossier. Des sous-dossiers "
+"« Année » et « Mois » sont créés à l'intérieur. Les reçus déjà joints "
+"restent à leur emplacement d'origine."
 
 #: /app/templates/index.php:4538
 msgid "Receipts folder"

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-20 18:41+0000\n"
+"POT-Creation-Date: 2026-09-22 12:25+0000\n"
 "PO-Revision-Date: 2026-09-22 12:38+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -1179,7 +1179,8 @@ msgstr "Schuldenszenario konnte nicht aktiviert werden"
 
 #: /app/lib/Controller/DebtScenarioController.php:266
 msgid "Failed to calculate debt scenario plan"
-msgstr "Der Tilgungsplan für das Schuldenszenario konnte nicht berechnet werden"
+msgstr ""
+"Der Tilgungsplan für das Schuldenszenario konnte nicht berechnet werden"
 
 #: /app/lib/Controller/DebtScenarioController.php:284
 msgid "No scenario IDs provided"
@@ -4125,7 +4126,7 @@ msgstr "Eine Kategorie mit diesem Namen existiert bereits in dieser Ebene"
 msgid "The report configuration is invalid or too large"
 msgstr "Die Berichtskonfiguration ist ungültig oder zu groß"
 
-#: /app/lib/Service/SchemaVersionService.php:477
+#: /app/lib/Service/SchemaVersionService.php:478
 #, php-format
 msgid ""
 "No migration on this server adds %1$s — the app's files are incomplete. "
@@ -4135,7 +4136,7 @@ msgstr ""
 "unvollständig. Installiere die App neu und führe anschließend den Befehl "
 "erneut aus."
 
-#: /app/lib/Service/SchemaVersionService.php:483
+#: /app/lib/Service/SchemaVersionService.php:484
 msgid ""
 "A database update that came with this version of Budget was never applied "
 "(%n change is missing). Saving may fail until it is finished."
@@ -4151,7 +4152,7 @@ msgstr[1] ""
 "nicht angewendet (%n Änderungen fehlen). Das Speichern kann fehlschlagen, "
 "bis das Update abgeschlossen ist."
 
-#: /app/lib/Service/SchemaVersionService.php:489
+#: /app/lib/Service/SchemaVersionService.php:490
 msgid ""
 "The database is missing %n column this version of Budget writes to. Saving "
 "will fail until it is added."
@@ -4164,6 +4165,12 @@ msgstr[0] ""
 msgstr[1] ""
 "In der Datenbank fehlen %n Spalten, in die diese Version von Budget "
 "schreibt. Das Speichern schlägt fehl, bis sie hinzugefügt wurden."
+
+#: /app/lib/Service/SchemaVersionService.php:496
+msgid ""
+"Disabling and re-enabling Budget on the Apps page repairs this, no command "
+"line needed."
+msgstr ""
 
 #: /app/lib/Service/ShareService.php:56
 msgid "You cannot share your budget with yourself"

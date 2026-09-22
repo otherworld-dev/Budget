@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-20 18:41+0000\n"
+"POT-Creation-Date: 2026-09-22 12:25+0000\n"
 "PO-Revision-Date: 2026-09-21 19:51+0000\n"
 "Last-Translator: Leonid Zaliubovskyi <la399fox@gmail.com>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -1721,7 +1721,8 @@ msgstr "Każda podkategoria może mieć tylko jedną kwotę"
 
 #: /app/lib/Controller/ProjectController.php:201
 msgid "A subcategory and one of its own subcategories cannot both have amounts"
-msgstr "Podkategoria i jedna z jej podkategorii nie mogą jednocześnie mieć kwot"
+msgstr ""
+"Podkategoria i jedna z jej podkategorii nie mogą jednocześnie mieć kwot"
 
 #: /app/lib/Controller/ProjectController.php:202
 #: /app/src/modules/projects/ProjectsModule.js:341
@@ -3878,7 +3879,7 @@ msgstr "Zapisany raport o tej nazwie już istnieje"
 msgid "The report configuration is invalid or too large"
 msgstr "Konfiguracja raportu jest nieprawidłowa lub zbyt duża"
 
-#: /app/lib/Service/SchemaVersionService.php:477
+#: /app/lib/Service/SchemaVersionService.php:478
 #, php-format
 msgid ""
 "No migration on this server adds %1$s — the app's files are incomplete. "
@@ -3887,7 +3888,7 @@ msgstr ""
 "Na tym serwerze nie ma migracji dodającej %1$s — pliki aplikacji są "
 "niekompletne. Zainstaluj aplikację ponownie, a następnie uruchom polecenie."
 
-#: /app/lib/Service/SchemaVersionService.php:483
+#: /app/lib/Service/SchemaVersionService.php:484
 msgid ""
 "A database update that came with this version of Budget was never applied "
 "(%n change is missing). Saving may fail until it is finished."
@@ -3907,7 +3908,7 @@ msgstr[2] ""
 "zastosowane (brakuje %n zmian). Zapisywanie może się nie powieść, dopóki nie "
 "zostaną ukończone."
 
-#: /app/lib/Service/SchemaVersionService.php:489
+#: /app/lib/Service/SchemaVersionService.php:490
 msgid ""
 "The database is missing %n column this version of Budget writes to. Saving "
 "will fail until it is added."
@@ -3923,6 +3924,12 @@ msgstr[1] ""
 msgstr[2] ""
 "W bazie danych brakuje %n kolumn, do których zapisuje ta wersja Budżetu. "
 "Zapisywanie nie powiedzie się, dopóki nie zostaną dodane."
+
+#: /app/lib/Service/SchemaVersionService.php:496
+msgid ""
+"Disabling and re-enabling Budget on the Apps page repairs this, no command "
+"line needed."
+msgstr ""
 
 #: /app/lib/Service/ShareService.php:56
 msgid "You cannot share your budget with yourself"
@@ -7180,9 +7187,12 @@ msgstr[2] "Pomyślnie usunięto %n kategorii"
 msgid "Give %n category a new color? Its current color will be replaced."
 msgid_plural ""
 "Give %n categories new colors? Their current colors will be replaced."
-msgstr[0] "Nadać %n kategorii nowy kolor? Jej obecny kolor zostanie zastąpiony."
-msgstr[1] "Nadać %n kategoriom nowe kolory? Ich obecne kolory zostaną zastąpione."
-msgstr[2] "Nadać %n kategoriom nowe kolory? Ich obecne kolory zostaną zastąpione."
+msgstr[0] ""
+"Nadać %n kategorii nowy kolor? Jej obecny kolor zostanie zastąpiony."
+msgstr[1] ""
+"Nadać %n kategoriom nowe kolory? Ich obecne kolory zostaną zastąpione."
+msgstr[2] ""
+"Nadać %n kategoriom nowe kolory? Ich obecne kolory zostaną zastąpione."
 
 #: /app/src/modules/categories/CategoriesModule.js:1384
 msgid "%n category recolored"
@@ -8001,7 +8011,8 @@ msgstr "Tylko kategorie z ustawionym przeze mnie budżetem"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5167
 msgid "Leaves out the budgets worked out from your bills and recurring income."
-msgstr "Pomija budżety obliczone na podstawie rachunków i regularnych dochodów."
+msgstr ""
+"Pomija budżety obliczone na podstawie rachunków i regularnych dochodów."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5168
 msgid "Untick a category to stop it alerting, here and in notifications."
