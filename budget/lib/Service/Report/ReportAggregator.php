@@ -472,11 +472,14 @@ class ReportAggregator {
         // category is measured by what came IN, so asking for debits reported
         // nothing against its budget; now that the figure is net (#361) it
         // would have reported a negative one. The Budget page has always split
-        // the two this way — see CategoryService::getBudgetAnalysis.
+        // the two this way — see CategoryService::getBudgetAnalysis. Spent
+        // is held to the accounts in view, as the carryover above already
+        // is and the Budget page's spent figures are (#551).
+        $spendingScope = !empty($visibleAccountIds) ? $visibleAccountIds : null;
         $categorySpending = $this->transactionMapper->getCategorySpendingBatch(
-            $expenseCategoryIds, $startDate, $endDate, 'debit', $accountId
+            $expenseCategoryIds, $startDate, $endDate, 'debit', $accountId, false, $userId, $spendingScope
         ) + $this->transactionMapper->getCategorySpendingBatch(
-            $incomeCategoryIds, $startDate, $endDate, 'credit', $accountId
+            $incomeCategoryIds, $startDate, $endDate, 'credit', $accountId, false, $userId, $spendingScope
         );
 
         foreach ($categories as $category) {

@@ -573,6 +573,36 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertSame(340.0, $result['categories'][0]['budgeted']);
 	}
 
+	public function testBudgetReportHoldsSpentToTheAccountsInView(): void {
+		// The carryover was scoped to the visible accounts and spent was not,
+		// so with shared accounts excluded the report still counted spending
+		// in them (#551).
+		$category = new \OCA\Budget\Db\Category();
+		$category->setId(5);
+		$category->setName('Groceries');
+		$category->setType('expense');
+		$category->setBudgetAmount(300.0);
+		$category->setBudgetPeriod('monthly');
+		$this->categoryMapper->method('findAll')->willReturn([$category]);
+		$this->budgetSnapshotMapper->method('findEffectiveBatch')->willReturn([]);
+
+		$calls = [];
+		$this->transactionMapper->method('getCategorySpendingBatch')
+			->willReturnCallback(function (...$args) use (&$calls) {
+				$calls[] = $args;
+				return $args[3] === 'debit' ? [5 => 120.0] : [];
+			});
+
+		$result = $this->aggregator->getBudgetReport('user1', '2026-09-01', '2026-09-30', null, [3, 4]);
+
+		$this->assertCount(2, $calls);
+		foreach ($calls as $args) {
+			$this->assertSame('user1', $args[6] ?? null, 'spent must be scoped to the user');
+			$this->assertSame([3, 4], $args[7] ?? null, 'spent must be held to the visible accounts');
+		}
+		$this->assertSame(120.0, $result['categories'][0]['spent']);
+	}
+
 	// ===== getCategoryMonthlyReport (#288) =====
 
 	private function makeCategory(int $id, string $name, string $type, ?int $parentId = null, bool $excluded = false): \OCA\Budget\Db\Category {
