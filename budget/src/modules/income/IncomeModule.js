@@ -4,7 +4,7 @@
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
-import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { showSuccess, showError, showWarning, showInfo, showUndoNotification } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { serverErrorMessage, isoWeekday } from '../../utils/helpers.js';
@@ -592,7 +592,7 @@ export default class IncomeModule {
             const message = income.accountId
                 ? t('budget', 'Income marked as received. Transaction created.')
                 : t('budget', 'Income marked as received.');
-            this.showUndoNotification(message, () => this.undoMarkReceived());
+            showUndoNotification(message, () => this.undoMarkReceived());
 
             // Set timer to clear undo data after 5 seconds
             this._undoTimer = setTimeout(() => {
@@ -647,61 +647,6 @@ export default class IncomeModule {
             console.error('Failed to undo mark received:', error);
             showError(t('budget', 'Failed to undo action: {message}', { message: error.message }));
         }
-    }
-
-    showUndoNotification(message, undoCallback) {
-        // Create a custom notification element with an undo button
-        const notification = document.createElement('div');
-        notification.className = 'undo-notification';
-        notification.innerHTML = `
-            <span class="undo-message">${message}</span>
-            <button class="undo-btn">${t('budget', 'Undo')}</button>
-        `;
-
-        // Style the notification
-        Object.assign(notification.style, {
-            position: 'fixed',
-            bottom: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            backgroundColor: '#333',
-            color: '#fff',
-            padding: '12px 20px',
-            borderRadius: '4px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '15px',
-            zIndex: '10000',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-            animation: 'slideUp 0.3s ease-out'
-        });
-
-        const undoBtn = notification.querySelector('.undo-btn');
-        Object.assign(undoBtn.style, {
-            backgroundColor: '#fff',
-            color: '#333',
-            border: 'none',
-            padding: '6px 12px',
-            borderRadius: '3px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '13px'
-        });
-
-        undoBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            undoCallback();
-            notification.remove();
-        });
-
-        document.body.appendChild(notification);
-
-        // Auto-remove after 5 seconds
-        setTimeout(() => {
-            notification.style.animation = 'slideDown 0.3s ease-in';
-            setTimeout(() => notification.remove(), 300);
-        }, 5000);
     }
 
     async detectIncome() {

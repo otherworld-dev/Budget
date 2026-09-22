@@ -4,7 +4,7 @@
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
-import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { showSuccess, showError, showWarning, showUndoNotification } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { initSingleDatePicker } from '../../utils/datepicker.js';
 import { serverErrorMessage, isoWeekday } from '../../utils/helpers.js';
@@ -201,6 +201,16 @@ export default class TransfersModule {
             }
         });
 
+        // Skip an occurrence (#396)
+        document.addEventListener('click', (e) => {
+            const skipBtn = e.target.closest('.transfer-skip-btn');
+            if (skipBtn) {
+                e.preventDefault();
+                const transferId = parseInt(skipBtn.dataset.transferId);
+                this.skipTransfer(transferId);
+            }
+        });
+
         // Mark transfer as unpaid (revert the last payment, #365)
         document.addEventListener('click', (e) => {
             const unpaidBtn = e.target.closest('.transfer-unpaid-btn');
@@ -332,6 +342,12 @@ export default class TransfersModule {
                             <button class="bill-action-btn transfer-paid-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Mark as paid')}">
                                 <span class="icon-checkmark" aria-hidden="true"></span>
                                 ${t('budget', 'Mark Paid')}
+                            </button>
+                        ` : ''}
+                        ${!isPaid && frequency !== 'one-time' ? `
+                            <button class="bill-action-btn transfer-skip-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Skip this payment')}">
+                                <span aria-hidden="true">&#x23ED;</span>
+                                ${t('budget', 'Skip')}
                             </button>
                         ` : ''}
                         ${transfer.canMarkUnpaid ? `
@@ -921,6 +937,90 @@ export default class TransfersModule {
         } catch (error) {
             console.error('Failed to mark transfer as paid:', error);
             showError(t('budget', 'Failed to mark transfer as paid'));
+        }
+    }
+
+    /**
+     * Skip the next occurrence of a transfer (#396). The bill skip endpoint
+     * already handles a transfer - both pre-booked legs for the skipped date
+     * go, and the next pair is pre-booked - so this is the bills list's Skip
+     * with the same confirm and the same short-lived undo.
+     */
+    async skipTransfer(transferId) {
+        const transfer = this.transfers.find(tx => tx.id === transferId);
+        if (!transfer) return;
+
+        if (!await confirmDialog(t('budget', 'Skip this payment and advance to the next due date?'))) {
+            return;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${transferId}/skip`), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to skip transfer')));
+            }
+
+            const result = await response.json();
+            this._undoData = {
+                transferId,
+                previousNextDueDate: result.previousNextDueDate ?? null,
+                action: 'skip'
+            };
+
+            await this.loadTransfers();
+            this.renderTransfers();
+            this.updateSummary();
+
+            showUndoNotification(
+                t('budget', 'Payment skipped. Advanced to next due date.'),
+                () => this.undoSkipTransfer(),
+                () => { this._undoData = null; }
+            );
+        } catch (error) {
+            console.error('Failed to skip transfer:', error);
+            showError(error.message || t('budget', 'Failed to skip transfer'));
+        }
+    }
+
+    async undoSkipTransfer() {
+        if (!this._undoData || this._undoData.action !== 'skip') {
+            return;
+        }
+
+        try {
+            const { transferId, previousNextDueDate } = this._undoData;
+
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${transferId}/undo-skip`), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({ previousNextDueDate })
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
+            }
+
+            this._undoData = null;
+            await this.loadTransfers();
+            this.renderTransfers();
+            this.updateSummary();
+
+            showSuccess(t('budget', 'Action undone'));
+        } catch (error) {
+            console.error('Failed to undo skip:', error);
+            showError(t('budget', 'Failed to undo action: {message}', { message: error.message }));
         }
     }
 

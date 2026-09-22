@@ -1121,8 +1121,10 @@ class BillService {
 
         $bill = $this->mapper->update($bill);
 
-        // Recreate scheduled transaction for the restored date
-        if ($bill->getIsActive() && $bill->getAccountId() !== null) {
+        // Recreate scheduled transaction for the restored date, unless the
+        // bill opted out of pre-created transactions - skipPayment() honours
+        // that, and undoing it must not put back what it never had (#396)
+        if (($bill->getCreateTransaction() ?? true) && $bill->getIsActive() && $bill->getAccountId() !== null) {
             try {
                 $nextTransaction = $this->transactionService->createFromBill($userId, $bill, null);
                 $this->applySplitTemplate($bill, $nextTransaction, $userId);

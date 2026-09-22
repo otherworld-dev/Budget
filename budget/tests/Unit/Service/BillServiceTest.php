@@ -738,6 +738,22 @@ class BillServiceTest extends TestCase {
 		$this->assertSame('2099-07-15', $result['bill']->getNextDueDate());
 	}
 
+	// Undoing a skip put a placeholder back for a bill that had opted out of
+	// them, so a transfer with pre-created transactions off gained a pair of
+	// scheduled legs the moment its skip was undone (#396).
+	public function testUndoSkipSkipsPlaceholderWhenOptedOut(): void {
+		$bill = $this->makeBill(['createTransaction' => false]);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$this->transactionService->expects($this->once())->method('deleteScheduledBillTransactions')->with(1);
+		$this->transactionService->expects($this->never())->method('createFromBill');
+
+		$bill = $this->service->undoSkip(1, 'user1', '2099-06-15');
+
+		$this->assertSame('2099-06-15', $bill->getNextDueDate());
+	}
+
 	// ── recording the payment vs. the ledger's placeholders (#376) ──
 
 	// "Don't create any transaction (just mark as paid)" left the placeholder
