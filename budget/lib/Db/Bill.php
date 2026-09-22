@@ -215,8 +215,15 @@ class Bill extends Entity implements JsonSerializable {
             'excludedFromForecast' => $this->getExcludedFromForecast() ?? false,
             'createTransaction' => $this->getCreateTransaction() ?? true,
             // Derived hint only — the raw undo blob stays server-side (#365)
-            'canMarkUnpaid' => $this->getPaidUndoState() !== null && $this->getPaidUndoState() !== '',
+            'canMarkUnpaid' => $this->canMarkUnpaid(),
             'currency' => $this->getCurrency(),
         ];
+    }
+
+    /**
+     * Whether the last payment can be reverted: it left a snapshot behind (#365).
+     */
+    public function canMarkUnpaid(): bool {
+        return $this->getPaidUndoState() !== null && $this->getPaidUndoState() !== '';
     }
 }

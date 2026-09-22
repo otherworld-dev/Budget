@@ -7,6 +7,7 @@ namespace OCA\Budget\Tests\Unit\Service;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
+use OCA\Budget\Db\DismissedSuggestionMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Bill\RecurringBillDetector;
@@ -25,6 +26,7 @@ class BillServiceTest extends TestCase {
 	private RecurringBillDetector $recurringDetector;
 	private TransactionService $transactionService;
 	private AccountMapper $accountMapper;
+	private DismissedSuggestionMapper $dismissedMapper;
 
 	protected function setUp(): void {
 		$this->mapper = $this->createMock(BillMapper::class);
@@ -43,6 +45,7 @@ class BillServiceTest extends TestCase {
 		$currencyConversion = $this->createMock(CurrencyConversionService::class);
 		$splitService = $this->createMock(TransactionSplitService::class);
 		$logger = $this->createMock(LoggerInterface::class);
+		$this->dismissedMapper = $this->createMock(DismissedSuggestionMapper::class);
 		$this->service = new BillService(
 			$this->mapper,
 			$this->frequencyCalculator,
@@ -52,7 +55,8 @@ class BillServiceTest extends TestCase {
 			$this->accountMapper,
 			$currencyConversion,
 			$splitService,
-			$logger
+			$logger,
+			$this->dismissedMapper
 		);
 	}
 
@@ -1447,6 +1451,68 @@ class BillServiceTest extends TestCase {
 
 		$this->expectException(\InvalidArgumentException::class);
 		$this->service->recordMissedPayment(7, 'user1');
+	}
+
+	// ── dismissing an unrecorded payment (#394) ─────────────────────
+
+	public function testFindUnrecordedPaymentsSkipsADismissedPayment(): void {
+		$paidDate = date('Y-m-d', strtotime('-10 days'));
+		$bill = $this->makeBill(['id' => 7, 'lastPaidDate' => $paidDate]);
+		$this->mapper->method('findAll')->willReturn([$bill]);
+		$this->transactionService->method('findRecordedBillTransactions')->willReturn([]);
+		$this->dismissedMapper->method('findHashes')
+			->with('user1', 'unrecorded')
+			->willReturn([sha1("7:{$paidDate}")]);
+
+		$this->assertSame([], $this->service->findUnrecordedPayments('user1'));
+	}
+
+	/** A dismissal covers one payment: the next one without a transaction is flagged again. */
+	public function testFindUnrecordedPaymentsFlagsTheNextPaymentAfterADismissal(): void {
+		$paidDate = date('Y-m-d', strtotime('-10 days'));
+		$earlier = date('Y-m-d', strtotime('-40 days'));
+		$bill = $this->makeBill(['id' => 7, 'lastPaidDate' => $paidDate]);
+		$this->mapper->method('findAll')->willReturn([$bill]);
+		$this->transactionService->method('findRecordedBillTransactions')->willReturn([]);
+		$this->dismissedMapper->method('findHashes')->willReturn([sha1("7:{$earlier}")]);
+
+		$result = $this->service->findUnrecordedPayments('user1');
+
+		$this->assertCount(1, $result);
+		$this->assertSame(7, $result[0]['billId']);
+	}
+
+	public function testFindUnrecordedPaymentsSaysWhetherThePaymentCanBeReverted(): void {
+		$paidDate = date('Y-m-d', strtotime('-10 days'));
+		$revertible = $this->makeBill(['id' => 7, 'lastPaidDate' => $paidDate]);
+		$revertible->setPaidUndoState(json_encode(['previousState' => ['lastPaidDate' => null]]));
+		$plain = $this->makeBill(['id' => 8, 'lastPaidDate' => $paidDate]);
+		$this->mapper->method('findAll')->willReturn([$revertible, $plain]);
+		$this->transactionService->method('findRecordedBillTransactions')->willReturn([]);
+
+		$byId = array_column($this->service->findUnrecordedPayments('user1'), null, 'billId');
+
+		$this->assertTrue($byId[7]['canMarkUnpaid']);
+		$this->assertFalse($byId[8]['canMarkUnpaid']);
+	}
+
+	public function testDismissUnrecordedPaymentRemembersTheBillAndItsPaidDate(): void {
+		$bill = $this->makeBill(['id' => 7, 'lastPaidDate' => '2026-07-25']);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->dismissedMapper->expects($this->once())
+			->method('dismiss')
+			->with('user1', 'unrecorded', sha1('7:2026-07-25'), '7:2026-07-25');
+
+		$this->service->dismissUnrecordedPayment(7, 'user1');
+	}
+
+	public function testDismissUnrecordedPaymentRefusesABillNeverMarkedPaid(): void {
+		$bill = $this->makeBill(['id' => 7, 'lastPaidDate' => null]);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->dismissedMapper->expects($this->never())->method('dismiss');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->dismissUnrecordedPayment(7, 'user1');
 	}
 
 	// ── amountType (#347) ───────────────────────────────────────────

@@ -1187,6 +1187,27 @@ class BillControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
+	// ── dismissing an unrecorded payment (#394) ─────────────────────
+
+	public function testDismissUnrecordedPaymentReturnsSuccess(): void {
+		$this->service->expects($this->once())
+			->method('dismissUnrecordedPayment')
+			->with(7, 'user1');
+
+		$response = $this->controller->dismissUnrecordedPayment(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testDismissUnrecordedPaymentRejectsInvalid(): void {
+		$this->service->method('dismissUnrecordedPayment')
+			->willThrowException(new \InvalidArgumentException('This bill has never been marked as paid'));
+
+		$response = $this->controller->dismissUnrecordedPayment(7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
 	// ── markPaid ────────────────────────────────────────────────────
 
 	public function testMarkPaidReturnsBill(): void {

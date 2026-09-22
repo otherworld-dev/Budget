@@ -107,6 +107,10 @@ export default class BillsModule {
                         ${item.accountId
                             ? `<button class="primary unrecorded-payment-record" data-bill-id="${item.billId}">${t('budget', 'Record transaction')}</button>`
                             : `<button class="unrecorded-payment-assign" data-bill-id="${item.billId}" title="${t('budget', 'One-time bills leave the list after payment — open it here to assign an account')}">${t('budget', 'Assign an account')}</button>`}
+                        ${item.canMarkUnpaid
+                            ? `<button class="unrecorded-payment-unpaid" data-bill-id="${item.billId}" title="${t('budget', 'Revert the last payment')}">${t('budget', 'Mark Unpaid')}</button>`
+                            : ''}
+                        <button class="secondary unrecorded-payment-dismiss" data-bill-id="${item.billId}" title="${t('budget', 'Keep the bill as paid and stop listing this payment')}">${t('budget', 'Dismiss')}</button>
                     </div>
                 </div>
             `).join('');
@@ -122,9 +126,41 @@ export default class BillsModule {
                 btn.addEventListener('click', (e) => this.editBill(parseInt(e.currentTarget.dataset.billId)));
             });
 
+            // The two ways out other than recording the payment (#394): the
+            // payment never happened (revert it, same action as the list) or it
+            // did but is not meant to be in the ledger (dismiss this one).
+            list.querySelectorAll('.unrecorded-payment-unpaid').forEach(btn => {
+                btn.addEventListener('click', (e) => this.markBillUnpaid(parseInt(e.currentTarget.dataset.billId)));
+            });
+            list.querySelectorAll('.unrecorded-payment-dismiss').forEach(btn => {
+                btn.addEventListener('click', (e) => this.dismissUnrecordedPayment(parseInt(e.currentTarget.dataset.billId)));
+            });
+
             card.style.display = 'block';
         } catch (error) {
             card.style.display = 'none';
+        }
+    }
+
+    /**
+     * The missing transaction is deliberate (paid some other way, or the
+     * ledger row was removed on purpose), so stop listing it. Covers this
+     * one payment only: the bill's next unrecorded payment is flagged
+     * again (#394).
+     */
+    async dismissUnrecordedPayment(billId) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/dismiss-unrecorded`), {
+                method: 'POST',
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
+            }
+            await this.loadUnrecordedPayments();
+        } catch (error) {
+            showError(error.message || t('budget', 'Failed to dismiss the payment'));
         }
     }
 

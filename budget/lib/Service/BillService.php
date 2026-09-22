@@ -7,6 +7,7 @@ namespace OCA\Budget\Service;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
+use OCA\Budget\Db\DismissedSuggestionMapper;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Bill\RecurringBillDetector;
@@ -30,6 +31,7 @@ class BillService {
     private CurrencyConversionService $currencyConversion;
     private TransactionSplitService $splitService;
     private LoggerInterface $logger;
+    private DismissedSuggestionMapper $dismissedMapper;
     private ?AutoShareService $autoShareService;
 
     public function __construct(
@@ -42,6 +44,7 @@ class BillService {
         CurrencyConversionService $currencyConversion,
         TransactionSplitService $splitService,
         LoggerInterface $logger,
+        DismissedSuggestionMapper $dismissedMapper,
         ?AutoShareService $autoShareService = null
     ) {
         $this->mapper = $mapper;
@@ -53,11 +56,15 @@ class BillService {
         $this->currencyConversion = $currencyConversion;
         $this->splitService = $splitService;
         $this->logger = $logger;
+        $this->dismissedMapper = $dismissedMapper;
         $this->autoShareService = $autoShareService;
     }
 
     /** Amount types whose figure is resolved from the destination card at payment time (#347) */
     private const DYNAMIC_AMOUNT_TYPES = ['statement', 'current_balance', 'minimum_payment'];
+
+    /** suggestion_type under which dismissed unrecorded payments are stored (#394) */
+    private const UNRECORDED_DISMISS_TYPE = 'unrecorded';
 
     /**
      * @throws DoesNotExistException
@@ -146,7 +153,7 @@ class BillService {
      * the account balance out of step with the bank. This returns recent
      * occurrences (last $sinceDays days) so the Bills page can surface them.
      * Deliberate skips (Skip button) never set the last-paid date and are
-     * not flagged.
+     * not flagged, and neither is a payment dismissed from the card (#394).
      */
     public function findUnrecordedPayments(string $userId, int $sinceDays = 60): array {
         $cutoff = date('Y-m-d', strtotime("-{$sinceDays} days"));
@@ -167,10 +174,16 @@ class BillService {
             $txDatesByBill[$tx->getBillId()][] = $tx->getDate();
         }
 
+        // Payments the user has dismissed as deliberately unrecorded (#394)
+        $dismissed = array_flip($this->dismissedMapper->findHashes($userId, self::UNRECORDED_DISMISS_TYPE));
+
         $currencyMap = $this->buildCurrencyMap($userId);
         $unrecorded = [];
         foreach ($candidates as $bill) {
             if ($this->hasRecordedPayment($bill->getLastPaidDate(), $txDatesByBill[$bill->getId()] ?? [])) {
+                continue;
+            }
+            if (isset($dismissed[sha1($this->unrecordedPaymentKey($bill->getId(), $bill->getLastPaidDate()))])) {
                 continue;
             }
             $unrecorded[] = [
@@ -182,6 +195,8 @@ class BillService {
                 'currency' => $bill->getAccountId() !== null
                     ? ($currencyMap[$bill->getAccountId()] ?? null)
                     : null,
+                // Lets the card offer Mark Unpaid alongside Dismiss (#394)
+                'canMarkUnpaid' => $bill->canMarkUnpaid(),
             ];
         }
 
@@ -227,6 +242,28 @@ class BillService {
         $this->applySplitTemplate($bill, $transaction, $userId);
 
         return ['transaction' => $transaction];
+    }
+
+    /**
+     * Acknowledge that a payment has no transaction on purpose, so the
+     * unrecorded-payments card stops listing it (#394). The dismissal is
+     * keyed on the paid date, so the bill's next payment without a
+     * transaction is flagged afresh.
+     */
+    public function dismissUnrecordedPayment(int $id, string $userId): void {
+        $bill = $this->find($id, $userId);
+
+        $lastPaid = $bill->getLastPaidDate();
+        if ($lastPaid === null) {
+            throw new \InvalidArgumentException($this->l->t('This bill has never been marked as paid'));
+        }
+
+        $key = $this->unrecordedPaymentKey($bill->getId(), $lastPaid);
+        $this->dismissedMapper->dismiss($userId, self::UNRECORDED_DISMISS_TYPE, sha1($key), $key);
+    }
+
+    private function unrecordedPaymentKey(int $billId, string $paidDate): string {
+        return $billId . ':' . $paidDate;
     }
 
     /**

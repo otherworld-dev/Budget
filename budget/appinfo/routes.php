@@ -207,6 +207,7 @@ return [
         ['name' => 'bill#findMatchingTransactions', 'url' => '/api/bills/{id}/matching-transactions', 'verb' => 'GET'],
         ['name' => 'bill#markPaid', 'url' => '/api/bills/{id}/paid', 'verb' => 'POST'],
         ['name' => 'bill#recordMissedPayment', 'url' => '/api/bills/{id}/record-payment', 'verb' => 'POST'],
+        ['name' => 'bill#dismissUnrecordedPayment', 'url' => '/api/bills/{id}/dismiss-unrecorded', 'verb' => 'POST'],
         ['name' => 'bill#skipPayment', 'url' => '/api/bills/{id}/skip', 'verb' => 'POST'],
         ['name' => 'bill#undoSkip', 'url' => '/api/bills/{id}/undo-skip', 'verb' => 'POST'],
         ['name' => 'bill#undoPaid', 'url' => '/api/bills/{id}/undo-paid', 'verb' => 'POST'],

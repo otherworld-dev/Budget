@@ -793,6 +793,25 @@ class BillController extends Controller {
     }
 
     /**
+     * Dismiss a payment from the unrecorded-payments card: the missing
+     * transaction is deliberate (#394). Stored against the same user the
+     * card is worked out for.
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function dismissUnrecordedPayment(int $id): DataResponse {
+        try {
+            $this->requireWriteAccess('bill', $id);
+            $this->service->dismissUnrecordedPayment($id, $this->getEffectiveUserId());
+            return new DataResponse(['status' => 'success']);
+        } catch (\InvalidArgumentException $e) {
+            return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
+        } catch (\Exception $e) {
+            return $this->handleError($e, $this->l->t('Failed to dismiss the payment'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
+        }
+    }
+
+    /**
      * Mark a bill as paid
      * @NoAdminRequired
      */
