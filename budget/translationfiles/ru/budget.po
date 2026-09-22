@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-22 14:58+0000\n"
+"POT-Creation-Date: 2026-09-22 18:02+0000\n"
 "PO-Revision-Date: 2026-09-21 19:51+0000\n"
 "Last-Translator: Leonid Zaliubovskyi <la399fox@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -610,7 +610,7 @@ msgstr "Не удалось получить платежи"
 #: /app/lib/Controller/BillController.php:134
 #: /app/lib/Controller/BillController.php:748
 #: /app/lib/Controller/BillController.php:1149
-#: /app/lib/Controller/BillController.php:1227 /app/templates/index.php:3577
+#: /app/lib/Controller/BillController.php:1254 /app/templates/index.php:3577
 #: /app/templates/index.php:6069
 msgid "Bill"
 msgstr "Платёж"
@@ -634,7 +634,7 @@ msgstr "Объект %1$s не найден"
 
 #: /app/lib/Controller/BillController.php:187
 #: /app/lib/Controller/BillController.php:618
-#: /app/lib/Service/BillService.php:82
+#: /app/lib/Service/BillService.php:84
 msgid "Invalid amount type"
 msgstr "Недопустимый тип суммы"
 
@@ -644,19 +644,19 @@ msgstr "Укажите название и сумму"
 
 #: /app/lib/Controller/BillController.php:236
 #: /app/lib/Controller/BillController.php:703
-#: /app/lib/Service/BillService.php:392 /app/lib/Service/BillService.php:502
+#: /app/lib/Service/BillService.php:401 /app/lib/Service/BillService.php:511
 msgid "Auto-pay requires an account to be set"
 msgstr "Для автоплатежа нужно выбрать счёт"
 
 #: /app/lib/Controller/BillController.php:244
 #: /app/lib/Controller/BillController.php:637
-#: /app/lib/Service/BillService.php:397
+#: /app/lib/Service/BillService.php:406
 msgid "Transfer requires a destination account"
 msgstr "Для перевода нужен счёт назначения"
 
 #: /app/lib/Controller/BillController.php:252
 #: /app/lib/Controller/BillController.php:665
-#: /app/lib/Service/BillService.php:402
+#: /app/lib/Service/BillService.php:411
 #: /app/src/modules/transfers/TransfersModule.js:840
 msgid "Cannot transfer to the same account"
 msgstr "Нельзя выполнить перевод на тот же счёт"
@@ -819,7 +819,7 @@ msgid "Failed to export bills calendar"
 msgstr "Не удалось экспортировать календарь платежей"
 
 #: /app/lib/Controller/BillController.php:1149
-#: /app/lib/Controller/BillController.php:1228
+#: /app/lib/Controller/BillController.php:1255
 #: /app/lib/Service/Export/TransactionCsvExporter.php:34
 #: /app/lib/Service/Report/ReportExporter.php:278
 #: /app/lib/Service/Report/ReportExporter.php:336
@@ -862,7 +862,7 @@ msgid "Annual Total"
 msgstr "Итого за год"
 
 #: /app/lib/Controller/BillController.php:1177
-#: /app/lib/Controller/BillController.php:1253
+#: /app/lib/Controller/BillController.php:1280
 #: /app/lib/Service/Report/ReportExporter.php:297
 #: /app/lib/Service/Report/ReportExporter.php:347
 #: /app/lib/Service/Report/ReportExporter.php:420
@@ -874,68 +874,75 @@ msgstr "Итого за год"
 msgid "Total"
 msgstr "Всего"
 
-#: /app/lib/Controller/BillController.php:1204
+#: /app/lib/Controller/BillController.php:1216
+#: /app/src/modules/reports/ReportsModule.js:2048
+#, fuzzy
+#| msgid "Balance Update"
+msgid "Balance after bills"
+msgstr "Обновление баланса"
+
+#: /app/lib/Controller/BillController.php:1231
 #, php-format
 msgid "Bills Calendar %s"
 msgstr "Календарь платежей %s"
 
-#: /app/lib/Controller/BillController.php:1232
+#: /app/lib/Controller/BillController.php:1259
 msgid "Annual"
 msgstr "Ежегодно"
 
-#: /app/lib/Controller/BillController.php:1281
+#: /app/lib/Controller/BillController.php:1318
 msgid "Split template must have at least 2 splits"
 msgstr "Шаблон разбивки должен содержать не менее двух частей"
 
-#: /app/lib/Controller/BillController.php:1287
+#: /app/lib/Controller/BillController.php:1324
 msgid "Each split must have a positive amount"
 msgstr "Сумма каждой части должна быть положительной"
 
-#: /app/lib/Controller/BillController.php:1293
+#: /app/lib/Controller/BillController.php:1330
 msgid "Split amounts must equal the bill amount"
 msgstr "Сумма частей должна быть равна сумме платежа"
 
-#: /app/lib/Controller/BillController.php:1305
+#: /app/lib/Controller/BillController.php:1342
 msgid "Invalid JSON in custom recurrence pattern"
 msgstr "Недопустимый JSON в пользовательском шаблоне повторения"
 
-#: /app/lib/Controller/BillController.php:1312
+#: /app/lib/Controller/BillController.php:1349
 msgid "Custom recurrence pattern must be a JSON object"
 msgstr "Пользовательский шаблон повторения должен быть объектом JSON"
 
-#: /app/lib/Controller/BillController.php:1321
+#: /app/lib/Controller/BillController.php:1358
 msgid "Months must be an array"
 msgstr "Поле months должно быть массивом"
 
-#: /app/lib/Controller/BillController.php:1328
+#: /app/lib/Controller/BillController.php:1365
 msgid "At least one month must be specified"
 msgstr "Укажите хотя бы один месяц"
 
-#: /app/lib/Controller/BillController.php:1336
+#: /app/lib/Controller/BillController.php:1373
 msgid "Each month must be a number between 1 and 12"
 msgstr "Каждый месяц должен быть числом от 1 до 12"
 
-#: /app/lib/Controller/BillController.php:1349
+#: /app/lib/Controller/BillController.php:1386
 msgid "Dates must be an array"
 msgstr "Поле dates должно быть массивом"
 
-#: /app/lib/Controller/BillController.php:1356
+#: /app/lib/Controller/BillController.php:1393
 msgid "At least one date must be specified"
 msgstr "Укажите хотя бы одну дату"
 
-#: /app/lib/Controller/BillController.php:1364
+#: /app/lib/Controller/BillController.php:1401
 msgid "Each date must have \"month\" and \"day\" fields"
 msgstr "В каждой дате должны быть поля \"month\" и \"day\""
 
-#: /app/lib/Controller/BillController.php:1371
+#: /app/lib/Controller/BillController.php:1408
 msgid "Month must be a number between 1 and 12"
 msgstr "Месяц должен быть числом от 1 до 12"
 
-#: /app/lib/Controller/BillController.php:1378
+#: /app/lib/Controller/BillController.php:1415
 msgid "Day must be a number between 1 and 31"
 msgstr "День должен быть числом от 1 до 31"
 
-#: /app/lib/Controller/BillController.php:1388
+#: /app/lib/Controller/BillController.php:1425
 msgid "Custom pattern must contain either \"months\" or \"dates\" field"
 msgstr "Пользовательский шаблон должен содержать поле \"months\" или \"dates\""
 
@@ -3027,23 +3034,23 @@ msgstr "Синхронизация завершена. Ошибок: %1$s"
 msgid "Bill due: %1$s"
 msgstr "Срок платежа: %1$s"
 
-#: /app/lib/Service/BillService.php:88
+#: /app/lib/Service/BillService.php:90
 msgid "This amount type requires a transfer with a destination account"
 msgstr "Для этого типа суммы необходим перевод на счёт назначения"
 
-#: /app/lib/Service/BillService.php:92
+#: /app/lib/Service/BillService.php:94
 msgid "This amount type is only available for transfers to a credit card"
 msgstr "Этот тип суммы доступен только для переводов на кредитную карту"
 
-#: /app/lib/Service/BillService.php:217 /app/lib/Service/BillService.php:258
+#: /app/lib/Service/BillService.php:219 /app/lib/Service/BillService.php:260
 msgid "This bill has never been marked as paid"
 msgstr "Этот платёж ещё ни разу не отмечался как оплаченный"
 
-#: /app/lib/Service/BillService.php:220
+#: /app/lib/Service/BillService.php:222
 msgid "Assign an account to the bill first"
 msgstr "Сначала привяжите счёт к платежу"
 
-#: /app/lib/Service/BillService.php:229
+#: /app/lib/Service/BillService.php:231
 msgid ""
 "The account linked to this bill no longer exists. Edit the bill and choose "
 "an account."
@@ -3051,31 +3058,31 @@ msgstr ""
 "Связанный с этим платежом счёт больше не существует. Отредактируйте платёж и "
 "выберите счёт."
 
-#: /app/lib/Service/BillService.php:238
+#: /app/lib/Service/BillService.php:240
 msgid "A transaction for this payment already exists"
 msgstr "Транзакция для этого платежа уже существует"
 
-#: /app/lib/Service/BillService.php:1045 /app/lib/Service/BillService.php:1059
+#: /app/lib/Service/BillService.php:1054 /app/lib/Service/BillService.php:1068
 msgid "This bill has no recorded payment to undo"
 msgstr "У этого платежа нет учтённой оплаты, которую можно отменить"
 
-#: /app/lib/Service/BillService.php:1087
+#: /app/lib/Service/BillService.php:1096
 msgid "Cannot skip a one-time bill"
 msgstr "Нельзя пропустить разовый платёж"
 
-#: /app/lib/Service/BillService.php:1091
+#: /app/lib/Service/BillService.php:1100
 msgid "Cannot skip an inactive bill"
 msgstr "Нельзя пропустить неактивный платёж"
 
-#: /app/lib/Service/BillService.php:1510
+#: /app/lib/Service/BillService.php:1519
 msgid "Auto-pay is not enabled for this bill"
 msgstr "Автоплатёж для этого платежа не включён"
 
-#: /app/lib/Service/BillService.php:1523
+#: /app/lib/Service/BillService.php:1532
 msgid "Bill has no account associated"
 msgstr "С платежом не связан счёт"
 
-#: /app/lib/Service/BillService.php:1533
+#: /app/lib/Service/BillService.php:1542
 msgid "Bill auto-paid successfully"
 msgstr "Платёж успешно выполнен автоматически"
 
@@ -3511,7 +3518,7 @@ msgstr "Апр"
 #: /app/lib/Service/Report/MonthNames.php:25
 #: /app/lib/Service/Report/MonthNames.php:46
 #: /app/src/modules/reports/ReportsModule.js:1901
-#: /app/src/modules/reports/ReportsModule.js:2021
+#: /app/src/modules/reports/ReportsModule.js:2059
 #: /app/src/utils/formatters.js:202 /app/templates/index.php:3469
 #: /app/templates/index.php:3582 /app/templates/index.php:6111
 #: /app/templates/index.php:6137 /app/templates/index.php:6613
@@ -3568,67 +3575,67 @@ msgid "Dec"
 msgstr "Дек"
 
 #: /app/lib/Service/Report/MonthNames.php:42
-#: /app/src/modules/reports/ReportsModule.js:2021 /app/templates/index.php:3465
+#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3465
 #: /app/templates/index.php:6133 /app/templates/index.php:6609
 msgid "January"
 msgstr "Январь"
 
 #: /app/lib/Service/Report/MonthNames.php:43
-#: /app/src/modules/reports/ReportsModule.js:2021 /app/templates/index.php:3466
+#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3466
 #: /app/templates/index.php:6134 /app/templates/index.php:6610
 msgid "February"
 msgstr "Февраль"
 
 #: /app/lib/Service/Report/MonthNames.php:44
-#: /app/src/modules/reports/ReportsModule.js:2021 /app/templates/index.php:3467
+#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3467
 #: /app/templates/index.php:6135 /app/templates/index.php:6611
 msgid "March"
 msgstr "Март"
 
 #: /app/lib/Service/Report/MonthNames.php:45
-#: /app/src/modules/reports/ReportsModule.js:2021 /app/templates/index.php:3468
+#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3468
 #: /app/templates/index.php:6136 /app/templates/index.php:6612
 msgid "April"
 msgstr "Апрель"
 
 #: /app/lib/Service/Report/MonthNames.php:47
-#: /app/src/modules/reports/ReportsModule.js:2021 /app/templates/index.php:3470
+#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3470
 #: /app/templates/index.php:6138 /app/templates/index.php:6614
 msgid "June"
 msgstr "Июнь"
 
 #: /app/lib/Service/Report/MonthNames.php:48
-#: /app/src/modules/reports/ReportsModule.js:2021 /app/templates/index.php:3471
+#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3471
 #: /app/templates/index.php:6139 /app/templates/index.php:6615
 msgid "July"
 msgstr "Июль"
 
 #: /app/lib/Service/Report/MonthNames.php:49
-#: /app/src/modules/reports/ReportsModule.js:2021 /app/templates/index.php:3472
+#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3472
 #: /app/templates/index.php:6140 /app/templates/index.php:6616
 msgid "August"
 msgstr "Август"
 
 #: /app/lib/Service/Report/MonthNames.php:50
-#: /app/src/modules/reports/ReportsModule.js:2021 /app/templates/index.php:3473
+#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3473
 #: /app/templates/index.php:6141 /app/templates/index.php:6617
 msgid "September"
 msgstr "Сентябрь"
 
 #: /app/lib/Service/Report/MonthNames.php:51
-#: /app/src/modules/reports/ReportsModule.js:2021 /app/templates/index.php:3474
+#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3474
 #: /app/templates/index.php:6142 /app/templates/index.php:6618
 msgid "October"
 msgstr "Октябрь"
 
 #: /app/lib/Service/Report/MonthNames.php:52
-#: /app/src/modules/reports/ReportsModule.js:2021 /app/templates/index.php:3475
+#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3475
 #: /app/templates/index.php:6143 /app/templates/index.php:6619
 msgid "November"
 msgstr "Ноябрь"
 
 #: /app/lib/Service/Report/MonthNames.php:53
-#: /app/src/modules/reports/ReportsModule.js:2021 /app/templates/index.php:3476
+#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3476
 #: /app/templates/index.php:6144 /app/templates/index.php:6620
 msgid "December"
 msgstr "Декабрь"
@@ -9530,8 +9537,18 @@ msgstr "К оплате"
 msgid "Monthly Totals"
 msgstr "Всего за месяц"
 
-#: /app/src/modules/reports/ReportsModule.js:2039
-#: /app/src/modules/reports/ReportsModule.js:2041
+#: /app/src/modules/reports/ReportsModule.js:2026
+msgid ""
+"Pick an account above to see what is left in it after each month's bills."
+msgstr ""
+
+#: /app/src/modules/reports/ReportsModule.js:2042
+msgid ""
+"Balance of {account} today ({balance}), less the bills still due in the month"
+msgstr ""
+
+#: /app/src/modules/reports/ReportsModule.js:2077
+#: /app/src/modules/reports/ReportsModule.js:2079
 msgid "%n bill"
 msgid_plural "%n bills"
 msgstr[0] "%n платеж"
