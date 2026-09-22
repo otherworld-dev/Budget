@@ -19264,6 +19264,31 @@ button.secondary.compact {
     border-top: 2px solid var(--color-border-dark);
 }
 
+/* What is left in the picked account after each month's bills (#393) */
+.bills-calendar-table .balance-after-row {
+    border-top: 1px solid var(--color-border);
+}
+
+.bills-calendar-table .balance-cell {
+    text-align: right;
+    padding-right: 8px;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--budget-color-positive);
+}
+
+.bills-calendar-table .balance-cell.negative {
+    background-color: rgba(198, 40, 40, 0.1);
+    color: var(--budget-color-negative);
+}
+
+.bills-calendar-table .balance-hint-row td {
+    padding: 6px 8px;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--color-text-maxcontrast);
+}
+
 .transfer-badge {
     display: inline-block;
     margin-left: 6px;

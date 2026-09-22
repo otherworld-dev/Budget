@@ -1602,6 +1602,17 @@ class TransactionServiceTest extends TestCase {
         $this->assertSame(0.0, $this->service->getStatementAmountForAccount(20, '2026-08-15'));
     }
 
+    // ── getBalanceAsOf (#393) ───────────────────────────────────────
+
+    /** The balance on a date is the stored balance with everything dated after it taken back out. */
+    public function testBalanceAsOfTakesLaterActivityBackOut(): void {
+        $this->accountById[20] = $this->makeAccount(['id' => 20, 'balance' => 1000.00, 'currency' => 'CHF']);
+        // 150 leaves the account after the date, and the stored balance already shows it gone
+        $this->mapper->method('getNetChangeAfterDate')->with(20, '2026-09-22')->willReturn(-150.0);
+
+        $this->assertEqualsWithDelta(1150.0, $this->service->getBalanceAsOf(20, '2026-09-22'), 0.001);
+    }
+
     // ── clearScheduledBillTransaction transfer pairs (#347) ─────────
 
     private function makeScheduledPair(): array {

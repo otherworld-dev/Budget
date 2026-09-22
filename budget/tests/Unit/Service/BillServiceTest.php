@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Tests\Unit\Service;
 
+use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
@@ -568,6 +569,114 @@ class BillServiceTest extends TestCase {
 		$this->assertEqualsWithDelta(17.99, $result['monthlyTotals'][2], 0.001);
 		$this->assertEqualsWithDelta(15.99, $result['monthlyTotals'][3], 0.001);
 		$this->assertEqualsWithDelta(15.99 + 321.60, $result['monthlyTotals'][8], 0.001);
+	}
+
+	// ── annual overview: balance after bills (#393) ─────────────────
+
+	private function makeAccount(int $id, string $name, string $currency = 'CHF'): Account {
+		$account = new Account();
+		$account->setId($id);
+		$account->setUserId('user1');
+		$account->setName($name);
+		$account->setCurrency($currency);
+		return $account;
+	}
+
+	private function debit(int $billId, string $date, float $amount): Transaction {
+		$tx = new Transaction();
+		$tx->setBillId($billId);
+		$tx->setDate($date);
+		$tx->setAmount($amount);
+		$tx->setType('debit');
+		$tx->setStatus('cleared');
+		return $tx;
+	}
+
+	/**
+	 * With an account picked, the calendar says what is left in it once the
+	 * month's bills are paid: today's balance less every occurrence still
+	 * due that pays out of the account. A transfer arriving into it is not
+	 * a payment out, and a bill paying from elsewhere is not its business.
+	 */
+	public function testAnnualOverviewForAnAccountDeductsWhatStillLeavesIt(): void {
+		$this->accountMapper->method('findAll')->with('user1')->willReturn([
+			$this->makeAccount(5, 'Current'), $this->makeAccount(7, 'Savings'), $this->makeAccount(8, 'Joint'),
+		]);
+		$this->transactionService->method('getBalanceAsOf')->with(5, date('Y-m-d'))->willReturn(1000.0);
+
+		// Rent is paid for January and February, so it is next due in March;
+		// the rest have their whole year ahead of them
+		$rent = $this->makeBill(['id' => 1, 'name' => 'Rent', 'amount' => 500.0, 'accountId' => 5, 'nextDueDate' => '2026-03-15']);
+		$toSavings = $this->makeBill(['id' => 2, 'name' => 'To savings', 'amount' => 200.0, 'accountId' => 5, 'isTransfer' => true, 'destinationAccountId' => 7, 'nextDueDate' => '2026-01-15']);
+		$fromSavings = $this->makeBill(['id' => 3, 'name' => 'Top-up', 'amount' => 300.0, 'accountId' => 7, 'isTransfer' => true, 'destinationAccountId' => 5, 'nextDueDate' => '2026-01-15']);
+		$gym = $this->makeBill(['id' => 4, 'name' => 'Gym', 'amount' => 40.0, 'accountId' => 8, 'nextDueDate' => '2026-01-15']);
+		$this->mapper->method('findByType')->willReturn([$rent, $toSavings, $fromSavings, $gym]);
+		$this->transactionService->method('findBillPaymentsInYear')->willReturn([
+			$this->debit(1, '2026-01-15', 500.0),
+			$this->debit(1, '2026-02-15', 500.0),
+		]);
+
+		$result = $this->service->getAnnualOverview('user1', 2026, true, 'active', 5);
+
+		$this->assertSame(['id' => 5, 'name' => 'Current', 'currency' => 'CHF', 'balance' => 1000.0], $result['account']);
+		// Rent is paid for January: only the transfer out is still to come
+		$this->assertEqualsWithDelta(800.0, $result['balanceAfterBills'][1], 0.001);
+		// March owes both, and the 300 arriving from savings is not taken off
+		$this->assertEqualsWithDelta(300.0, $result['balanceAfterBills'][3], 0.001);
+	}
+
+	/** A month with nothing left to pay shows no figure: there is nothing to take off. */
+	public function testAnnualOverviewLeavesTheBalanceBlankWhereNothingIsDue(): void {
+		$this->accountMapper->method('findAll')->willReturn([$this->makeAccount(5, 'Current')]);
+		$this->transactionService->method('getBalanceAsOf')->willReturn(1000.0);
+		// Paid for January, so next due in February
+		$this->mapper->method('findByType')->willReturn([$this->makeBill(['id' => 1, 'name' => 'Rent', 'amount' => 500.0, 'accountId' => 5, 'nextDueDate' => '2026-02-15'])]);
+		$this->transactionService->method('findBillPaymentsInYear')->willReturn([$this->debit(1, '2026-01-15', 500.0)]);
+
+		$result = $this->service->getAnnualOverview('user1', 2026, false, 'active', 5);
+
+		$this->assertNull($result['balanceAfterBills'][1]);
+		$this->assertEqualsWithDelta(500.0, $result['balanceAfterBills'][2], 0.001);
+	}
+
+	/** An occurrence the bill has moved past without a payment is not owed, so nothing is taken off for it either (#333). */
+	public function testAnnualOverviewDoesNotDeductAnUnrecordedMonth(): void {
+		$this->accountMapper->method('findAll')->willReturn([$this->makeAccount(5, 'Current')]);
+		$this->transactionService->method('getBalanceAsOf')->willReturn(1000.0);
+		// Next due in March: January and February are behind it with nothing recorded
+		$this->mapper->method('findByType')->willReturn([
+			$this->makeBill(['id' => 1, 'name' => 'Rent', 'amount' => 500.0, 'accountId' => 5, 'nextDueDate' => '2026-03-15']),
+		]);
+		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
+
+		$result = $this->service->getAnnualOverview('user1', 2026, false, 'active', 5);
+
+		$this->assertNull($result['balanceAfterBills'][2]);
+		$this->assertEqualsWithDelta(500.0, $result['balanceAfterBills'][3], 0.001);
+	}
+
+	public function testAnnualOverviewWithoutAnAccountHasNoBalanceRow(): void {
+		$this->mapper->method('findByType')->willReturn([$this->makeBill(['accountId' => 5])]);
+		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
+		$this->transactionService->expects($this->never())->method('getBalanceAsOf');
+
+		$result = $this->service->getAnnualOverview('user1', 2026);
+
+		$this->assertNull($result['account']);
+		$this->assertNull($result['balanceAfterBills']);
+	}
+
+	/** An account id the user cannot see gives no balance, rather than someone else's. */
+	public function testAnnualOverviewIgnoresAnAccountTheUserCannotSee(): void {
+		$this->accountMapper->method('findAll')->willReturn([$this->makeAccount(5, 'Current')]);
+		$this->transactionService->expects($this->never())->method('getBalanceAsOf');
+		$this->mapper->method('findByType')->willReturn([]);
+		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
+
+		$result = $this->service->getAnnualOverview('user1', 2026, false, 'active', 99);
+
+		$this->assertNull($result['account']);
+		$this->assertNull($result['balanceAfterBills']);
 	}
 
 	public function testCreateAutoPayRequiresAccount(): void {

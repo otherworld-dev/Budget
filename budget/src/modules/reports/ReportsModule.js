@@ -1863,7 +1863,7 @@ export default class ReportsModule {
             const view = document.getElementById('bills-calendar-view')?.value || 'table';
 
             if (view === 'table') {
-                this.renderBillsCalendarTable(data.bills, data.monthlyTotals);
+                this.renderBillsCalendarTable(data.bills, data.monthlyTotals, data.account || null, data.balanceAfterBills || null);
             } else {
                 this.renderBillsCalendarHeatmap(data.bills, data.monthlyTotals);
             }
@@ -1939,7 +1939,7 @@ export default class ReportsModule {
         });
     }
 
-    renderBillsCalendarTable(bills, monthlyTotals) {
+    renderBillsCalendarTable(bills, monthlyTotals, account = null, balanceAfterBills = null) {
         const tbody = document.getElementById('bills-calendar-table-body');
         const tfoot = document.getElementById('bills-calendar-table-footer');
         if (!tbody || !tfoot) return;
@@ -2009,6 +2009,44 @@ export default class ReportsModule {
             <tr class="totals-row">
                 <td class="bill-name-col"><strong>${t('budget', 'Monthly Totals')}</strong></td>
                 ${totals.join('')}
+            </tr>
+            ${this.renderBalanceAfterBillsRow(account, balanceAfterBills)}
+        `;
+    }
+
+    /**
+     * Second footer row: what is left in the picked account after each
+     * month's bills, worked out by the server from today's balance (#393).
+     * Drawn in the account's own currency; blank where nothing is still
+     * due, and left out when that is true all year. With no account picked
+     * there is no balance to start from, so a hint stands in for the row.
+     */
+    renderBalanceAfterBillsRow(account, balanceAfterBills) {
+        if (!account || !balanceAfterBills) {
+            return `<tr class="balance-hint-row"><td colspan="13">${t('budget', "Pick an account above to see what is left in it after each month's bills.")}</td></tr>`;
+        }
+
+        const cells = [];
+        let anyDue = false;
+        for (let month = 1; month <= 12; month++) {
+            const left = balanceAfterBills[month];
+            if (left === null || left === undefined) {
+                cells.push('<td class="balance-cell"></td>');
+                continue;
+            }
+            anyDue = true;
+            cells.push(`<td class="balance-cell${left < 0 ? ' negative' : ''}">${this.formatCurrency(left, account.currency)}</td>`);
+        }
+        if (!anyDue) return '';
+
+        const title = t('budget', 'Balance of {account} today ({balance}), less the bills still due in the month', {
+            account: account.name,
+            balance: this.formatCurrency(account.balance, account.currency),
+        });
+        return `
+            <tr class="totals-row balance-after-row" title="${this.escapeHtml(title)}">
+                <td class="bill-name-col"><strong>${t('budget', 'Balance after bills')}</strong></td>
+                ${cells.join('')}
             </tr>
         `;
     }

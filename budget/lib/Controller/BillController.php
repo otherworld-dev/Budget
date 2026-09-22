@@ -1184,6 +1184,11 @@ class BillController extends Controller {
         $totalsRow[] = number_format($grandTotal, 2);
         fputcsv($csv, $totalsRow);
 
+        $balanceRow = $this->balanceAfterBillsRow($data);
+        if ($balanceRow !== null) {
+            fputcsv($csv, $balanceRow);
+        }
+
         rewind($csv);
         $content = stream_get_contents($csv);
         fclose($csv);
@@ -1193,6 +1198,28 @@ class BillController extends Controller {
             'contentType' => 'text/csv',
             'filename' => "bills_calendar_{$year}_" . date('Y-m-d') . '.csv',
         ];
+    }
+
+    /**
+     * The calendar's balance row for an export, in the CSV's column order:
+     * label, today's balance in the Amount column, a blank for Frequency,
+     * then what is left after each month's bills (blank where nothing is
+     * still due), and a blank Annual Total. Null when no account was picked,
+     * since there is then no balance to start from (#393).
+     *
+     * @return string[]|null
+     */
+    private function balanceAfterBillsRow(array $data): ?array {
+        if (empty($data['account']) || !is_array($data['balanceAfterBills'] ?? null)) {
+            return null;
+        }
+        $row = [$this->l->t('Balance after bills'), number_format((float) $data['account']['balance'], 2), ''];
+        for ($m = 1; $m <= 12; $m++) {
+            $left = $data['balanceAfterBills'][$m] ?? null;
+            $row[] = $left === null ? '' : number_format((float) $left, 2);
+        }
+        $row[] = '';
+        return $row;
     }
 
     private function exportCalendarToPdf(array $data): array {
@@ -1259,6 +1286,16 @@ class BillController extends Controller {
             $grandTotal += $total;
         }
         $pdf->Cell($totalW, 5, number_format($grandTotal, 2), 1, 1, 'R');
+
+        $balanceRow = $this->balanceAfterBillsRow($data);
+        if ($balanceRow !== null) {
+            $pdf->Cell($nameW, 5, $balanceRow[0], 1, 0, 'L');
+            $pdf->Cell($amtW, 5, $balanceRow[1], 1, 0, 'R');
+            for ($m = 1; $m <= 12; $m++) {
+                $pdf->Cell($monthW, 5, $balanceRow[2 + $m], 1, 0, 'R');
+            }
+            $pdf->Cell($totalW, 5, '', 1, 1, 'R');
+        }
 
         return [
             'stream' => $pdf->Output('', 'S'),

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service;
 
+use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\DismissedSuggestionMapper;
 use OCA\Budget\Db\ShareItem;
+use OCA\Budget\Enum\Currency;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Bill\RecurringBillDetector;
 use OCA\Budget\Service\CurrencyConversionService;
@@ -287,7 +289,14 @@ class BillService {
      * Build a map of accountId => currency for the user's accounts.
      */
     private function buildCurrencyMap(string $userId): array {
-        $accounts = $this->accountMapper->findAll($userId);
+        return $this->currencyMapFor($this->accountMapper->findAll($userId));
+    }
+
+    /**
+     * @param Account[] $accounts
+     * @return array<int, string|null> account id => currency code
+     */
+    private function currencyMapFor(array $accounts): array {
         $map = [];
         foreach ($accounts as $account) {
             $map[$account->getId()] = $account->getCurrency() ?: null;
@@ -1624,8 +1633,10 @@ class BillService {
             $bills = array_filter($bills, fn(Bill $bill) => $bill->getIsActive() || isset($paymentsByBill[$bill->getId()]));
         }
 
-        // Build currency map for conversion
-        $currencyMap = $this->buildCurrencyMap($userId);
+        // Build currency map for conversion. The same list finds the picked
+        // account below, so an id the user cannot see finds nothing.
+        $accounts = $this->accountMapper->findAll($userId);
+        $currencyMap = $this->currencyMapFor($accounts);
         $baseCurrency = $this->currencyConversion->getBaseCurrency($userId);
 
         // Calculate monthly occurrences for each bill
@@ -1696,12 +1707,76 @@ class BillService {
             $billsData[] = $billData;
         }
 
+        // With an account picked: what is left in it after each month's
+        // bills, from today's balance (#393)
+        $accountSummary = null;
+        $balanceAfterBills = null;
+        $account = $accountId === null ? null : $this->accountAmong($accounts, $accountId);
+        if ($account !== null) {
+            $balance = $this->transactionService->getBalanceAsOf($account->getId(), date('Y-m-d'));
+            $accountSummary = [
+                'id' => $account->getId(),
+                'name' => $account->getName(),
+                'currency' => $account->getCurrency() ?: $baseCurrency,
+                'balance' => $balance,
+            ];
+            $balanceAfterBills = $this->balanceAfterBills($billsData, $account, $balance);
+        }
+
         return [
             'year' => $year,
             'bills' => $this->groupOneTimeBillsByName($billsData),
             'monthlyTotals' => $monthlyTotals,
             'baseCurrency' => $baseCurrency,
+            'account' => $accountSummary,
+            'balanceAfterBills' => $balanceAfterBills,
         ];
+    }
+
+    /** @param Account[] $accounts */
+    private function accountAmong(array $accounts, int $accountId): ?Account {
+        foreach ($accounts as $account) {
+            if ($account->getId() === $accountId) {
+                return $account;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * What is left in the account after each month's bills: today's balance
+     * less every occurrence still due that pays out of it. Paid and
+     * unrecorded (moved past, #333) occurrences are not owed; a transfer
+     * arriving into the account is not a payment out. A month with nothing
+     * still due has nothing to take off, and is null rather than the bare
+     * balance (#393).
+     *
+     * @param array[] $billsData ungrouped calendar rows, in the account's own currency
+     * @return array<int, float|null> month => balance left, or null
+     */
+    private function balanceAfterBills(array $billsData, Account $account, float $balance): array {
+        $scale = Currency::decimalsFor($account->getCurrency());
+        $due = array_fill(1, 12, null);
+        foreach ($billsData as $row) {
+            if ($row['accountId'] !== $account->getId()) {
+                continue;
+            }
+            $settled = array_flip(array_merge($row['paidMonths'], $row['unrecordedMonths']));
+            foreach ($row['expectedAmounts'] as $month => $amount) {
+                if (isset($settled[$month])) {
+                    continue;
+                }
+                $due[$month] = MoneyCalculator::add($due[$month] ?? '0', $amount, $scale);
+            }
+        }
+
+        $left = [];
+        foreach ($due as $month => $owed) {
+            $left[$month] = $owed === null
+                ? null
+                : MoneyCalculator::toFloat(MoneyCalculator::subtract($balance, $owed, $scale));
+        }
+        return $left;
     }
 
     /**

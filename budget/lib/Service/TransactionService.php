@@ -1334,15 +1334,23 @@ class TransactionService {
      * negative when owed; returns 0 when nothing is owed.
      */
     public function getStatementAmountForAccount(int $accountId, string $boundaryDate): float {
-        $account = $this->accountMapper->findById($accountId);
-        $scale = Currency::decimalsFor($account->getCurrency());
-        $asOfBoundary = MoneyCalculator::subtract(
-            (string) ($account->getBalance() ?? 0),
-            $this->mapper->getNetChangeAfterDate($accountId, $boundaryDate),
-            $scale
-        );
-        $owed = MoneyCalculator::toFloat($asOfBoundary);
+        $owed = $this->getBalanceAsOf($accountId, $boundaryDate);
         return $owed < 0 ? -$owed : 0.0;
+    }
+
+    /**
+     * An account's balance at the end of $date: the stored balance with
+     * everything dated after it taken back out (scheduled rows are in
+     * neither). With today's date this is the figure the Accounts page shows.
+     */
+    public function getBalanceAsOf(int $accountId, string $date): float {
+        $account = $this->accountMapper->findById($accountId);
+        $asOf = MoneyCalculator::subtract(
+            (string) ($account->getBalance() ?? 0),
+            $this->mapper->getNetChangeAfterDate($accountId, $date),
+            Currency::decimalsFor($account->getCurrency())
+        );
+        return MoneyCalculator::toFloat($asOf);
     }
 
     /**
