@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-22 18:02+0000\n"
+"POT-Creation-Date: 2026-09-22 21:10+0000\n"
 "PO-Revision-Date: 2026-09-17 01:48+0000\n"
 "Last-Translator: Alexandre Heuschkel <alexandre@heuschkel.online>\n"
 "Language-Team: Portuguese <https://hosted.weblate.org/projects/nextcloud-"
@@ -624,7 +624,7 @@ msgstr "Falha ao buscar as contas"
 #: /app/lib/Controller/BillController.php:134
 #: /app/lib/Controller/BillController.php:748
 #: /app/lib/Controller/BillController.php:1149
-#: /app/lib/Controller/BillController.php:1254 /app/templates/index.php:3577
+#: /app/lib/Controller/BillController.php:1255 /app/templates/index.php:3577
 #: /app/templates/index.php:6069
 msgid "Bill"
 msgstr "Contas"
@@ -648,7 +648,7 @@ msgstr ""
 
 #: /app/lib/Controller/BillController.php:187
 #: /app/lib/Controller/BillController.php:618
-#: /app/lib/Service/BillService.php:84
+#: /app/lib/Service/BillService.php:89
 #, fuzzy
 #| msgid "Invalid account type: %1$s"
 msgid "Invalid amount type"
@@ -660,19 +660,19 @@ msgstr "Nome e quantidade são necessários"
 
 #: /app/lib/Controller/BillController.php:236
 #: /app/lib/Controller/BillController.php:703
-#: /app/lib/Service/BillService.php:401 /app/lib/Service/BillService.php:511
+#: /app/lib/Service/BillService.php:406 /app/lib/Service/BillService.php:516
 msgid "Auto-pay requires an account to be set"
 msgstr "O pagamento automático requer que uma conta seja selecionada"
 
 #: /app/lib/Controller/BillController.php:244
 #: /app/lib/Controller/BillController.php:637
-#: /app/lib/Service/BillService.php:406
+#: /app/lib/Service/BillService.php:411
 msgid "Transfer requires a destination account"
 msgstr "Transferência requer uma conta de destino"
 
 #: /app/lib/Controller/BillController.php:252
 #: /app/lib/Controller/BillController.php:665
-#: /app/lib/Service/BillService.php:411
+#: /app/lib/Service/BillService.php:416
 #: /app/src/modules/transfers/TransfersModule.js:840
 msgid "Cannot transfer to the same account"
 msgstr "Não é possível transferir para a mesma conta"
@@ -839,7 +839,7 @@ msgid "Failed to export bills calendar"
 msgstr "Falha ao exportar o calendário de contas"
 
 #: /app/lib/Controller/BillController.php:1149
-#: /app/lib/Controller/BillController.php:1255
+#: /app/lib/Controller/BillController.php:1256
 #: /app/lib/Service/Export/TransactionCsvExporter.php:34
 #: /app/lib/Service/Report/ReportExporter.php:278
 #: /app/lib/Service/Report/ReportExporter.php:336
@@ -884,7 +884,7 @@ msgid "Annual Total"
 msgstr "Totais Mensais"
 
 #: /app/lib/Controller/BillController.php:1177
-#: /app/lib/Controller/BillController.php:1280
+#: /app/lib/Controller/BillController.php:1281
 #: /app/lib/Service/Report/ReportExporter.php:297
 #: /app/lib/Service/Report/ReportExporter.php:347
 #: /app/lib/Service/Report/ReportExporter.php:420
@@ -896,77 +896,78 @@ msgstr "Totais Mensais"
 msgid "Total"
 msgstr "Total"
 
-#: /app/lib/Controller/BillController.php:1216
-#: /app/src/modules/reports/ReportsModule.js:2048
+#: /app/lib/Controller/BillController.php:1217
+#: /app/src/modules/dashboard/DashboardModule.js:3164
+#: /app/src/modules/reports/ReportsModule.js:2071
 #, fuzzy
-#| msgid "Failed to retrieve bills"
-msgid "Balance after bills"
-msgstr "Falha ao buscar as contas"
+#| msgid "Current Category"
+msgid "Projected balance"
+msgstr "Categoria Atual"
 
-#: /app/lib/Controller/BillController.php:1231
+#: /app/lib/Controller/BillController.php:1232
 #, php-format
 msgid "Bills Calendar %s"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1259
+#: /app/lib/Controller/BillController.php:1260
 #, fuzzy
 #| msgid "Semi-Annually"
 msgid "Annual"
 msgstr "Semestral"
 
-#: /app/lib/Controller/BillController.php:1318
+#: /app/lib/Controller/BillController.php:1319
 msgid "Split template must have at least 2 splits"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1324
+#: /app/lib/Controller/BillController.php:1325
 msgid "Each split must have a positive amount"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1330
+#: /app/lib/Controller/BillController.php:1331
 msgid "Split amounts must equal the bill amount"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1342
+#: /app/lib/Controller/BillController.php:1343
 msgid "Invalid JSON in custom recurrence pattern"
 msgstr "JSON inválido em padrão de recorrência personalizado"
 
-#: /app/lib/Controller/BillController.php:1349
+#: /app/lib/Controller/BillController.php:1350
 msgid "Custom recurrence pattern must be a JSON object"
 msgstr "O padrão de recorrência personalizado deve ser um objeto JSON"
 
-#: /app/lib/Controller/BillController.php:1358
+#: /app/lib/Controller/BillController.php:1359
 msgid "Months must be an array"
 msgstr "Meses devem ser um array"
 
-#: /app/lib/Controller/BillController.php:1365
+#: /app/lib/Controller/BillController.php:1366
 msgid "At least one month must be specified"
 msgstr "Pelo menos um mês deve ser especificado"
 
-#: /app/lib/Controller/BillController.php:1373
+#: /app/lib/Controller/BillController.php:1374
 msgid "Each month must be a number between 1 and 12"
 msgstr "Cada mês deve ser um número entre 1 e 12"
 
-#: /app/lib/Controller/BillController.php:1386
+#: /app/lib/Controller/BillController.php:1387
 msgid "Dates must be an array"
 msgstr "As datas devem ser um array"
 
-#: /app/lib/Controller/BillController.php:1393
+#: /app/lib/Controller/BillController.php:1394
 msgid "At least one date must be specified"
 msgstr "Pelo menos uma data deve ser especificada"
 
-#: /app/lib/Controller/BillController.php:1401
+#: /app/lib/Controller/BillController.php:1402
 msgid "Each date must have \"month\" and \"day\" fields"
 msgstr "Cada data deve ter os campos de \"mês\" e \"dia\""
 
-#: /app/lib/Controller/BillController.php:1408
+#: /app/lib/Controller/BillController.php:1409
 msgid "Month must be a number between 1 and 12"
 msgstr "O mês deve ser um número entre 1 e 12"
 
-#: /app/lib/Controller/BillController.php:1415
+#: /app/lib/Controller/BillController.php:1416
 msgid "Day must be a number between 1 and 31"
 msgstr "O dia deve ser um número entre 1 e 31"
 
-#: /app/lib/Controller/BillController.php:1425
+#: /app/lib/Controller/BillController.php:1426
 msgid "Custom pattern must contain either \"months\" or \"dates\" field"
 msgstr "O padrão personalizado deve conter o campo \"meses\" ou \"datas\""
 
@@ -3076,55 +3077,55 @@ msgstr ""
 msgid "Bill due: %1$s"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:90
+#: /app/lib/Service/BillService.php:95
 #, fuzzy
 #| msgid "Transfer requires a destination account"
 msgid "This amount type requires a transfer with a destination account"
 msgstr "Transferência requer uma conta de destino"
 
-#: /app/lib/Service/BillService.php:94
+#: /app/lib/Service/BillService.php:99
 msgid "This amount type is only available for transfers to a credit card"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:219 /app/lib/Service/BillService.php:260
+#: /app/lib/Service/BillService.php:224 /app/lib/Service/BillService.php:265
 msgid "This bill has never been marked as paid"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:222
+#: /app/lib/Service/BillService.php:227
 msgid "Assign an account to the bill first"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:231
+#: /app/lib/Service/BillService.php:236
 msgid ""
 "The account linked to this bill no longer exists. Edit the bill and choose "
 "an account."
 msgstr ""
 
-#: /app/lib/Service/BillService.php:240
+#: /app/lib/Service/BillService.php:245
 msgid "A transaction for this payment already exists"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:1054 /app/lib/Service/BillService.php:1068
+#: /app/lib/Service/BillService.php:1063 /app/lib/Service/BillService.php:1077
 msgid "This bill has no recorded payment to undo"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:1096
+#: /app/lib/Service/BillService.php:1105
 msgid "Cannot skip a one-time bill"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:1100
+#: /app/lib/Service/BillService.php:1109
 msgid "Cannot skip an inactive bill"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:1519
+#: /app/lib/Service/BillService.php:1528
 msgid "Auto-pay is not enabled for this bill"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:1532
+#: /app/lib/Service/BillService.php:1541
 msgid "Bill has no account associated"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:1542
+#: /app/lib/Service/BillService.php:1551
 msgid "Bill auto-paid successfully"
 msgstr ""
 
@@ -3529,7 +3530,8 @@ msgstr "Abr"
 #: /app/lib/Service/Report/MonthNames.php:25
 #: /app/lib/Service/Report/MonthNames.php:46
 #: /app/src/modules/reports/ReportsModule.js:1901
-#: /app/src/modules/reports/ReportsModule.js:2059
+#: /app/src/modules/reports/ReportsModule.js:2035
+#: /app/src/modules/reports/ReportsModule.js:2082
 #: /app/src/utils/formatters.js:202 /app/templates/index.php:3469
 #: /app/templates/index.php:3582 /app/templates/index.php:6111
 #: /app/templates/index.php:6137 /app/templates/index.php:6613
@@ -3586,67 +3588,78 @@ msgid "Dec"
 msgstr "Dez"
 
 #: /app/lib/Service/Report/MonthNames.php:42
-#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3465
+#: /app/src/modules/reports/ReportsModule.js:2035
+#: /app/src/modules/reports/ReportsModule.js:2082 /app/templates/index.php:3465
 #: /app/templates/index.php:6133 /app/templates/index.php:6609
 msgid "January"
 msgstr "Janeiro"
 
 #: /app/lib/Service/Report/MonthNames.php:43
-#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3466
+#: /app/src/modules/reports/ReportsModule.js:2035
+#: /app/src/modules/reports/ReportsModule.js:2082 /app/templates/index.php:3466
 #: /app/templates/index.php:6134 /app/templates/index.php:6610
 msgid "February"
 msgstr "Fevereiro"
 
 #: /app/lib/Service/Report/MonthNames.php:44
-#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3467
+#: /app/src/modules/reports/ReportsModule.js:2035
+#: /app/src/modules/reports/ReportsModule.js:2082 /app/templates/index.php:3467
 #: /app/templates/index.php:6135 /app/templates/index.php:6611
 msgid "March"
 msgstr "Março"
 
 #: /app/lib/Service/Report/MonthNames.php:45
-#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3468
+#: /app/src/modules/reports/ReportsModule.js:2035
+#: /app/src/modules/reports/ReportsModule.js:2082 /app/templates/index.php:3468
 #: /app/templates/index.php:6136 /app/templates/index.php:6612
 msgid "April"
 msgstr "Abril"
 
 #: /app/lib/Service/Report/MonthNames.php:47
-#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3470
+#: /app/src/modules/reports/ReportsModule.js:2035
+#: /app/src/modules/reports/ReportsModule.js:2082 /app/templates/index.php:3470
 #: /app/templates/index.php:6138 /app/templates/index.php:6614
 msgid "June"
 msgstr "Junho"
 
 #: /app/lib/Service/Report/MonthNames.php:48
-#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3471
+#: /app/src/modules/reports/ReportsModule.js:2035
+#: /app/src/modules/reports/ReportsModule.js:2082 /app/templates/index.php:3471
 #: /app/templates/index.php:6139 /app/templates/index.php:6615
 msgid "July"
 msgstr "Julho"
 
 #: /app/lib/Service/Report/MonthNames.php:49
-#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3472
+#: /app/src/modules/reports/ReportsModule.js:2035
+#: /app/src/modules/reports/ReportsModule.js:2082 /app/templates/index.php:3472
 #: /app/templates/index.php:6140 /app/templates/index.php:6616
 msgid "August"
 msgstr "Agosto"
 
 #: /app/lib/Service/Report/MonthNames.php:50
-#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3473
+#: /app/src/modules/reports/ReportsModule.js:2035
+#: /app/src/modules/reports/ReportsModule.js:2082 /app/templates/index.php:3473
 #: /app/templates/index.php:6141 /app/templates/index.php:6617
 msgid "September"
 msgstr "Setembro"
 
 #: /app/lib/Service/Report/MonthNames.php:51
-#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3474
+#: /app/src/modules/reports/ReportsModule.js:2035
+#: /app/src/modules/reports/ReportsModule.js:2082 /app/templates/index.php:3474
 #: /app/templates/index.php:6142 /app/templates/index.php:6618
 msgid "October"
 msgstr "Outubro"
 
 #: /app/lib/Service/Report/MonthNames.php:52
-#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3475
+#: /app/src/modules/reports/ReportsModule.js:2035
+#: /app/src/modules/reports/ReportsModule.js:2082 /app/templates/index.php:3475
 #: /app/templates/index.php:6143 /app/templates/index.php:6619
 msgid "November"
 msgstr "Novembro"
 
 #: /app/lib/Service/Report/MonthNames.php:53
-#: /app/src/modules/reports/ReportsModule.js:2059 /app/templates/index.php:3476
+#: /app/src/modules/reports/ReportsModule.js:2035
+#: /app/src/modules/reports/ReportsModule.js:2082 /app/templates/index.php:3476
 #: /app/templates/index.php:6144 /app/templates/index.php:6620
 msgid "December"
 msgstr "Dezembro"
@@ -7685,12 +7698,6 @@ msgstr ""
 msgid "Now"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3164
-#, fuzzy
-#| msgid "Current Category"
-msgid "Projected balance"
-msgstr "Categoria Atual"
-
 #: /app/src/modules/dashboard/DashboardModule.js:3303
 msgid "just now"
 msgstr ""
@@ -9290,18 +9297,31 @@ msgstr "Dez"
 msgid "Monthly Totals"
 msgstr "Totais Mensais"
 
-#: /app/src/modules/reports/ReportsModule.js:2026
+#: /app/src/modules/reports/ReportsModule.js:2029
 msgid ""
-"Pick an account above to see what is left in it after each month's bills."
+"Pick an account above to see its projected balance for the rest of the year."
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:2042
-msgid ""
-"Balance of {account} today ({balance}), less the bills still due in the month"
+#: /app/src/modules/reports/ReportsModule.js:2032
+msgid "The projected balance is only shown for the current year."
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:2077
-#: /app/src/modules/reports/ReportsModule.js:2079
+#: /app/src/modules/reports/ReportsModule.js:2050
+msgid "Bills {bills}, transfers in {transfers}, income {income}"
+msgstr ""
+
+#: /app/src/modules/reports/ReportsModule.js:2059
+msgid ""
+"{account} today: {balance}. Each month carries on from the month before, "
+"less the bills and plus the transfers and recurring income still due."
+msgstr ""
+
+#: /app/src/modules/reports/ReportsModule.js:2064
+msgid "Lowest: {balance} in {month}."
+msgstr ""
+
+#: /app/src/modules/reports/ReportsModule.js:2100
+#: /app/src/modules/reports/ReportsModule.js:2102
 msgid "%n bill"
 msgid_plural "%n bills"
 msgstr[0] "%n conta"
@@ -16269,6 +16289,11 @@ msgstr ""
 #: /app/templates/quick-add.php:165
 msgid "Transaction saved!"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Failed to retrieve bills"
+#~ msgid "Balance after bills"
+#~ msgstr "Falha ao buscar as contas"
 
 #~ msgid "Expense shared"
 #~ msgstr "Despesa partilhada"
