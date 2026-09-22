@@ -268,7 +268,14 @@ class SchemaVersionServiceTest extends TestCase {
         $this->assertTrue($service->isBehind());
     }
 
-    public function testTheWarningNamesTheColumnAndTheMigrationToReExecute(): void {
+    /**
+     * Recorded yet absent: enabling the app runs the RestoreMissingColumns
+     * repair step, which re-runs the migration that adds the column, so the
+     * same command fixes this as fixes an unrecorded migration. It used to
+     * name `occ migrations:execute` with the debug toggle around it, which
+     * nobody without a shell could act on (#398).
+     */
+    public function testARecordedMigrationsMissingColumnPointsAtAppEnable(): void {
         $this->shipMigration('001000094Date20260819', ['budget_bills', 'amount_type']);
         $this->probe->method('tableColumns')->willReturn(['id', 'name']);
 
@@ -277,12 +284,44 @@ class SchemaVersionServiceTest extends TestCase {
         $this->assertNotNull($warning);
         $this->assertStringContainsString('1 column', $warning['message']);
         $this->assertSame(['budget_bills.amount_type'], $warning['details']);
-        $this->assertStringContainsString('occ migrations:execute budget 001000094Date20260819', $warning['command']);
-        // The migrations:* commands only exist with debug on — say so, both ways.
-        $this->assertStringContainsString('debug --value=true', $warning['command']);
-        $this->assertStringContainsString('debug --value=false', $warning['command']);
-        // Not the generic line: it was followed on the #333 instance and did nothing.
-        $this->assertStringNotContainsString('app:disable', $warning['command']);
+        $this->assertSame('occ app:disable budget && occ app:enable budget', $warning['command']);
+    }
+
+    /** The Apps page's Disable and Enable buttons run the same repair, with no shell. */
+    public function testTheWarningForAMissingColumnSaysTheAppsPageRepairsIt(): void {
+        $this->shipMigration('001000094Date20260819', ['budget_bills', 'amount_type']);
+        $this->probe->method('tableColumns')->willReturn(['id', 'name']);
+
+        $warning = $this->service(['001000094Date20260819', '001000096Date20260824', '001000097Date20260825'])->getWarning();
+
+        $this->assertStringContainsString('Apps page', $warning['message']);
+    }
+
+    public function testTheWarningForAPendingMigrationSaysTheAppsPageRepairsIt(): void {
+        $warning = $this->service([])->getWarning();
+
+        $this->assertStringContainsString('Apps page', $warning['message']);
+    }
+
+    /**
+     * After the repair step has put a column back, the answers computed and
+     * recorded before it are stale: the memoised scan, and the "verified for
+     * this version" marker that a repair from maintenance:repair would
+     * otherwise leave in place.
+     */
+    public function testRefreshForgetsWhatWasComputedAndRecorded(): void {
+        $this->shipMigration('001000094Date20260819', ['budget_bills', 'amount_type']);
+        $this->probe->method('tableColumns')->willReturnOnConsecutiveCalls(['id', 'name'], ['id', 'name', 'amount_type']);
+        $this->probe->expects($this->once())->method('reset');
+        $this->config->expects($this->once())
+            ->method('deleteAppValue')
+            ->with('budget', 'schema_verified_for');
+
+        $service = $this->service(['001000094Date20260819', '001000096Date20260824', '001000097Date20260825']);
+
+        $this->assertSame(['budget_bills' => ['amount_type']], $service->getMissingColumns());
+        $service->refresh();
+        $this->assertSame([], $service->getMissingColumns());
     }
 
     /** Unrecorded AND absent: app:enable applies it, no re-execute needed. */
@@ -315,9 +354,9 @@ class SchemaVersionServiceTest extends TestCase {
         $warning = $service->getWarning();
 
         // due_day is expected (a migration names it) and missing, and that
-        // migration is recorded — so it is the one to re-execute.
+        // migration is recorded — so enabling the app re-runs it.
         $this->assertSame(['budget_bills' => ['due_day']], $service->getMissingColumns());
-        $this->assertStringContainsString('migrations:execute budget 001000094Date20260819', $warning['command']);
+        $this->assertSame('occ app:disable budget && occ app:enable budget', $warning['command']);
     }
 
     public function testAWholeTableThatIsAbsentIsReportedAsSuch(): void {

@@ -75,6 +75,11 @@ Full user documentation: https://budget.otherworld.dev/docs/
         <job>OCA\Budget\BackgroundJob\DigestJob</job>
         <job>OCA\Budget\BackgroundJob\ScheduledReportJob</job>
     </background-jobs>
+    <repair-steps>
+        <post-migration>
+            <step>OCA\Budget\Repair\RestoreMissingColumns</step>
+        </post-migration>
+    </repair-steps>
     <commands>
         <command>OCA\Budget\Command\SeedDemo</command>
         <command>OCA\Budget\Command\OcrConfig</command>

@@ -38,12 +38,20 @@ use OCP\IL10N;
  * every entity's properties are what its mapper INSERTs, and a migration
  * quoting the column name is what should have created it.
  *
- * WHY IT ONLY REPORTS. Running the pending migrations from a web request would
- * be DDL outside Nextcloud's upgrade flow, with no maintenance mode and
- * concurrent requests free to hit a half-changed schema. The repair belongs in
- * occ, where Nextcloud already does it safely — and for a recorded-but-absent
- * change the exact command is `occ migrations:execute`, which re-runs one
- * named migration regardless of what the table says, so the warning names it.
+ * HOW A RECORDED MIGRATION LOSES ITS COLUMN. Nextcloud's migrator diffs the
+ * whole database against a snapshot taken when the step started and drops
+ * whatever the snapshot lacked, so two updates running at once remove each
+ * other's freshly added columns — and the Apps page's "Update all" runs every
+ * app's update in parallel. Reproduced; see RestoreMissingColumns (#398).
+ *
+ * WHY IT ONLY REPORTS. Running DDL from a web request would be outside
+ * Nextcloud's upgrade flow, with no maintenance mode and concurrent requests
+ * free to hit a half-changed schema. The repair belongs in that flow, and
+ * that is where it is: the RestoreMissingColumns repair step runs after the
+ * app's migrations on every update, enable and maintenance:repair, and
+ * re-runs the migration behind whatever this check finds missing. So the fix
+ * named here is `occ app:disable && occ app:enable` in every case, which the
+ * Apps page's own Disable and Enable buttons do as well, with no shell.
  *
  * COST. The common path is a single appconfig read: once a version has been
  * found complete it is remembered, and the scan is skipped until the app
@@ -459,20 +467,13 @@ class SchemaVersionService {
             }
         }
 
-        $commands = [];
-        if ($pending !== []) {
-            $commands[] = 'occ app:disable budget && occ app:enable budget';
-        }
-        if ($reExecute !== []) {
-            $versions = array_keys($reExecute);
-            sort($versions);
-            // The migrations:* commands only exist while debug is on.
-            $commands[] = 'occ config:system:set debug --value=true --type=boolean';
-            foreach ($versions as $version) {
-                $commands[] = 'occ migrations:execute budget ' . $version;
-            }
-            $commands[] = 'occ config:system:set debug --value=false --type=boolean';
-        }
+        // Enabling the app runs every migration Nextcloud has no record of,
+        // then the RestoreMissingColumns repair step, which re-runs the
+        // migration behind every column that is recorded yet absent. One
+        // command covers both, and the Apps page's Disable and Enable
+        // buttons go the same way, so nobody needs a shell for it (#398).
+        $recoverable = $pending !== [] || $reExecute !== [];
+        $commands = $recoverable ? ['occ app:disable budget && occ app:enable budget'] : [];
         foreach ($unrecoverable as $name) {
             $details[] = $this->l->t('No migration on this server adds %1$s — the app\'s files are incomplete. Reinstall the app, then run the command.', [$name]);
         }
@@ -491,11 +492,32 @@ class SchemaVersionService {
                 $missingCount
             );
         }
+        if ($recoverable) {
+            $message .= ' ' . $this->l->t('Disabling and re-enabling Budget on the Apps page repairs this, no command line needed.');
+        }
 
         return [
             'message' => $message,
             'command' => implode(' && ', $commands),
             'details' => $details,
         ];
+    }
+
+    /**
+     * Forget every answer computed and recorded so far, so the next question
+     * is answered from the live schema: the memoised scan, the probe's
+     * snapshot, and the "verified for this version" marker.
+     *
+     * For the repair step, which has just changed the schema those answers
+     * were computed from — and whose marker, when the repair ran from
+     * maintenance:repair with no version change, would otherwise keep saying
+     * "verified" over a column that was missing when it was written.
+     */
+    public function refresh(): void {
+        $this->pending = null;
+        $this->missing = null;
+        $this->probeFailed = false;
+        $this->probe->reset();
+        $this->config->deleteAppValue(Application::APP_ID, self::CHECKED_KEY);
     }
 }

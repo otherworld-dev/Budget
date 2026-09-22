@@ -54,4 +54,9 @@ class SchemaProbe {
 
         return $columns;
     }
+
+    /** Drop the snapshot, so the next question reads the database again. */
+    public function reset(): void {
+        $this->schema = null;
+    }
 }
