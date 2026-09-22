@@ -1863,7 +1863,7 @@ export default class ReportsModule {
             const view = document.getElementById('bills-calendar-view')?.value || 'table';
 
             if (view === 'table') {
-                this.renderBillsCalendarTable(data.bills, data.monthlyTotals, data.account || null, data.balanceAfterBills || null);
+                this.renderBillsCalendarTable(data.bills, data.monthlyTotals, data.account || null, data.projectedBalance || null, data.projectedFlows || null);
             } else {
                 this.renderBillsCalendarHeatmap(data.bills, data.monthlyTotals);
             }
@@ -1939,7 +1939,7 @@ export default class ReportsModule {
         });
     }
 
-    renderBillsCalendarTable(bills, monthlyTotals, account = null, balanceAfterBills = null) {
+    renderBillsCalendarTable(bills, monthlyTotals, account = null, projectedBalance = null, projectedFlows = null) {
         const tbody = document.getElementById('bills-calendar-table-body');
         const tfoot = document.getElementById('bills-calendar-table-footer');
         if (!tbody || !tfoot) return;
@@ -2010,42 +2010,65 @@ export default class ReportsModule {
                 <td class="bill-name-col"><strong>${t('budget', 'Monthly Totals')}</strong></td>
                 ${totals.join('')}
             </tr>
-            ${this.renderBalanceAfterBillsRow(account, balanceAfterBills)}
+            ${this.renderProjectedBalanceRow(account, projectedBalance, projectedFlows)}
         `;
     }
 
     /**
-     * Second footer row: what is left in the picked account after each
-     * month's bills, worked out by the server from today's balance (#393).
-     * Drawn in the account's own currency; blank where nothing is still
-     * due, and left out when that is true all year. With no account picked
-     * there is no balance to start from, so a hint stands in for the row.
+     * Second footer row: the picked account's balance carried from month to
+     * month through the rest of this year, worked out by the server from
+     * today's balance, less the bills and plus the transfers and recurring
+     * income still due (#393). Drawn in the account's own currency; the
+     * months already gone are blank. Each cell's tooltip breaks the month
+     * down and the row's gives the starting balance and the lowest point.
+     * With no account picked, or another year, there is no balance to start
+     * from, so a hint stands in for the row.
      */
-    renderBalanceAfterBillsRow(account, balanceAfterBills) {
-        if (!account || !balanceAfterBills) {
-            return `<tr class="balance-hint-row"><td colspan="13">${t('budget', "Pick an account above to see what is left in it after each month's bills.")}</td></tr>`;
+    renderProjectedBalanceRow(account, projectedBalance, projectedFlows) {
+        if (!account) {
+            return `<tr class="balance-hint-row"><td colspan="13">${t('budget', 'Pick an account above to see its projected balance for the rest of the year.')}</td></tr>`;
+        }
+        if (!projectedBalance) {
+            return `<tr class="balance-hint-row"><td colspan="13">${t('budget', 'The projected balance is only shown for the current year.')}</td></tr>`;
         }
 
+        const monthNames = [t('budget', 'January'), t('budget', 'February'), t('budget', 'March'), t('budget', 'April'), t('budget', 'May'), t('budget', 'June'), t('budget', 'July'), t('budget', 'August'), t('budget', 'September'), t('budget', 'October'), t('budget', 'November'), t('budget', 'December')];
+        const money = value => this.formatCurrency(value, account.currency);
         const cells = [];
-        let anyDue = false;
+        let lowest = null;
         for (let month = 1; month <= 12; month++) {
-            const left = balanceAfterBills[month];
-            if (left === null || left === undefined) {
+            const balance = projectedBalance[month];
+            if (balance === null || balance === undefined) {
                 cells.push('<td class="balance-cell"></td>');
                 continue;
             }
-            anyDue = true;
-            cells.push(`<td class="balance-cell${left < 0 ? ' negative' : ''}">${this.formatCurrency(left, account.currency)}</td>`);
+            if (lowest === null || balance < lowest.balance) {
+                lowest = { balance, month };
+            }
+            const flows = projectedFlows?.[month];
+            const title = flows
+                ? t('budget', 'Bills {bills}, transfers in {transfers}, income {income}', {
+                    bills: money(flows.bills),
+                    transfers: money(flows.transfersIn),
+                    income: money(flows.income),
+                })
+                : '';
+            cells.push(`<td class="balance-cell${balance < 0 ? ' negative' : ''}" title="${this.escapeHtml(title)}">${money(balance)}</td>`);
         }
-        if (!anyDue) return '';
 
-        const title = t('budget', 'Balance of {account} today ({balance}), after the bills and transfers still due in the month', {
+        let title = t('budget', '{account} today: {balance}. Each month carries on from the month before, less the bills and plus the transfers and recurring income still due.', {
             account: account.name,
-            balance: this.formatCurrency(account.balance, account.currency),
+            balance: money(account.balance),
         });
+        if (lowest !== null) {
+            title += ' ' + t('budget', 'Lowest: {balance} in {month}.', {
+                balance: money(lowest.balance),
+                month: monthNames[lowest.month - 1],
+            });
+        }
         return `
             <tr class="totals-row balance-after-row" title="${this.escapeHtml(title)}">
-                <td class="bill-name-col"><strong>${t('budget', 'Balance after bills')}</strong></td>
+                <td class="bill-name-col"><strong>${t('budget', 'Projected balance')}</strong></td>
                 ${cells.join('')}
             </tr>
         `;

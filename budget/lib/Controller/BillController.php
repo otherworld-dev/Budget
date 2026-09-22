@@ -1184,7 +1184,7 @@ class BillController extends Controller {
         $totalsRow[] = number_format($grandTotal, 2);
         fputcsv($csv, $totalsRow);
 
-        $balanceRow = $this->balanceAfterBillsRow($data);
+        $balanceRow = $this->projectedBalanceRow($data);
         if ($balanceRow !== null) {
             fputcsv($csv, $balanceRow);
         }
@@ -1201,21 +1201,22 @@ class BillController extends Controller {
     }
 
     /**
-     * The calendar's balance row for an export, in the CSV's column order:
-     * label, today's balance in the Amount column, a blank for Frequency,
-     * then what is left after each month's bills (blank where nothing is
-     * still due), and a blank Annual Total. Null when no account was picked,
-     * since there is then no balance to start from (#393).
+     * The calendar's projected balance row for an export, in the CSV's
+     * column order: label, today's balance in the Amount column, a blank for
+     * Frequency, then the balance at the end of each month (blank for the
+     * months already gone), and a blank Annual Total. Null when no account
+     * was picked or the year is not this one, since there is then no
+     * balance to start from (#393).
      *
      * @return string[]|null
      */
-    private function balanceAfterBillsRow(array $data): ?array {
-        if (empty($data['account']) || !is_array($data['balanceAfterBills'] ?? null)) {
+    private function projectedBalanceRow(array $data): ?array {
+        if (empty($data['account']) || !is_array($data['projectedBalance'] ?? null)) {
             return null;
         }
-        $row = [$this->l->t('Balance after bills'), number_format((float) $data['account']['balance'], 2), ''];
+        $row = [$this->l->t('Projected balance'), number_format((float) $data['account']['balance'], 2), ''];
         for ($m = 1; $m <= 12; $m++) {
-            $left = $data['balanceAfterBills'][$m] ?? null;
+            $left = $data['projectedBalance'][$m] ?? null;
             $row[] = $left === null ? '' : number_format((float) $left, 2);
         }
         $row[] = '';
@@ -1287,7 +1288,7 @@ class BillController extends Controller {
         }
         $pdf->Cell($totalW, 5, number_format($grandTotal, 2), 1, 1, 'R');
 
-        $balanceRow = $this->balanceAfterBillsRow($data);
+        $balanceRow = $this->projectedBalanceRow($data);
         if ($balanceRow !== null) {
             $pdf->Cell($nameW, 5, $balanceRow[0], 1, 0, 'L');
             $pdf->Cell($amtW, 5, $balanceRow[1], 1, 0, 'R');

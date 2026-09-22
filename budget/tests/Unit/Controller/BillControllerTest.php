@@ -1673,32 +1673,32 @@ class BillControllerTest extends TestCase {
 	private function calendarDataWithBalance(): array {
 		return $this->calendarData() + [
 			'account' => ['id' => 5, 'name' => 'Current', 'currency' => 'CHF', 'balance' => 1000.0],
-			'balanceAfterBills' => array_replace(array_fill(1, 12, null), [2 => 800.0, 3 => -200.0]),
+			'projectedBalance' => array_replace(array_fill(1, 12, null), [2 => 800.0, 3 => -200.0]),
 		];
 	}
 
-	/** With an account picked the export carries the calendar's balance row: today's balance, then what is left after each month's bills (#393). */
-	public function testExportCalendarCsvCarriesTheBalanceAfterBillsRow(): void {
+	/** With an account picked the export carries the calendar's projected balance row: today's balance, then the balance at the end of each month (#393). */
+	public function testExportCalendarCsvCarriesTheProjectedBalanceRow(): void {
 		$this->service->method('getAnnualOverview')->willReturn($this->calendarDataWithBalance());
 
 		$csv = $this->controller->exportCalendar('csv', 2026, 'false', 'active', 5)->render();
 
-		$this->assertStringContainsString('"Balance after bills","1,000.00",,,800.00,-200.00,,,,,,,,,,' . "\n", $csv);
+		$this->assertStringContainsString('"Projected balance","1,000.00",,,800.00,-200.00,,,,,,,,,,' . "\n", $csv);
 	}
 
 	public function testExportCalendarCsvHasNoBalanceRowWithoutAnAccount(): void {
 		$this->service->method('getAnnualOverview')->willReturn($this->calendarData());
 
-		$this->assertStringNotContainsString('Balance after bills', $this->controller->exportCalendar('csv', 2026)->render());
+		$this->assertStringNotContainsString('Projected balance', $this->controller->exportCalendar('csv', 2026)->render());
 	}
 
-	public function testExportCalendarPdfCarriesTheBalanceAfterBillsRow(): void {
+	public function testExportCalendarPdfCarriesTheProjectedBalanceRow(): void {
 		$this->requireTcpdf();
 		$this->service->method('getAnnualOverview')->willReturn($this->calendarDataWithBalance());
 
 		$text = $this->pdfText($this->controller->exportCalendar('pdf', 2026, 'false', 'active', 5)->render());
 
-		$this->assertStringContainsString('Balance after bills', $text);
+		$this->assertStringContainsString('Projected balance', $text);
 		$this->assertStringContainsString('800.00', $text);
 	}
 
