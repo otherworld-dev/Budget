@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-22 18:02+0000\n"
-"PO-Revision-Date: 2026-09-22 12:38+0000\n"
+"PO-Revision-Date: 2026-09-22 21:14+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -744,10 +744,8 @@ msgstr "Die Zahlung konnte nicht erfasst werden"
 
 #: /app/lib/Controller/BillController.php:810
 #: /app/src/modules/bills/BillsModule.js:163
-#, fuzzy
-#| msgid "Failed to record the payment"
 msgid "Failed to dismiss the payment"
-msgstr "Die Zahlung konnte nicht erfasst werden"
+msgstr "Die Zahlung konnte nicht verworfen werden"
 
 #: /app/lib/Controller/BillController.php:833
 #: /app/src/modules/bills/BillsModule.js:1313
@@ -887,10 +885,8 @@ msgstr "Summe"
 
 #: /app/lib/Controller/BillController.php:1216
 #: /app/src/modules/reports/ReportsModule.js:2048
-#, fuzzy
-#| msgid "Balance Update"
 msgid "Balance after bills"
-msgstr "Saldo-Aktualisierung"
+msgstr "Kontostand nach Abzug der Rechnungen"
 
 #: /app/lib/Controller/BillController.php:1231
 #, php-format
@@ -1651,22 +1647,16 @@ msgid "Next date"
 msgstr "Nächster Termin"
 
 #: /app/lib/Controller/PensionController.php:611
-#, fuzzy
-#| msgid "Failed to create contribution"
 msgid "Failed to create recurring contribution"
-msgstr "Beitrag konnte nicht erstellt werden"
+msgstr "Wiederkehrender Beitrag konnte nicht erstellt werden"
 
 #: /app/lib/Controller/PensionController.php:625
-#, fuzzy
-#| msgid "Failed to update share configuration"
 msgid "Failed to update recurring contribution"
-msgstr "Aktualisieren Aktieneinstellung fehlgeschlagen"
+msgstr "Wiederkehrender Beitrag konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/PensionController.php:636
-#, fuzzy
-#| msgid "Recurring income deleted"
 msgid "Recurring contribution deleted"
-msgstr "Laufende Einnahme entfernt"
+msgstr "Wiederkehrender Beitrag gelöscht"
 
 #: /app/lib/Controller/PensionController.php:638
 #, fuzzy
