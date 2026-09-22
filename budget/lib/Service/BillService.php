@@ -637,42 +637,46 @@ class BillService {
         }
 
         if ($needsRecalculation) {
-            // Apply updates to get current state for calculation
+            // Apply updates to a copy to get the edited state for the
+            // calculation. Not to $bill itself: the pre-booking toggle and the
+            // amount-type switch below compare $bill's stored values against
+            // the updates, and a mutated $bill made both read "unchanged" (#584)
+            $edited = clone $bill;
             foreach ($updates as $key => $value) {
-                if (property_exists($bill, $key)) {
+                if (property_exists($edited, $key)) {
                     $setter = 'set' . ucfirst($key);
-                    $bill->$setter($value);
+                    $edited->$setter($value);
                 }
             }
 
             // A one-time bill's date is its schedule (#375): keep day and
             // month in step with it, in the entity and in what is written.
-            if ($bill->getFrequency() === 'one-time' && $bill->getStartDate()) {
-                $bill->setDueDay((int) (new \DateTime($bill->getStartDate()))->format('j'));
-                $bill->setDueMonth((int) (new \DateTime($bill->getStartDate()))->format('n'));
-                $dbUpdates['due_day'] = $bill->getDueDay();
-                $dbUpdates['due_month'] = $bill->getDueMonth();
+            if ($edited->getFrequency() === 'one-time' && $edited->getStartDate()) {
+                $edited->setDueDay((int) (new \DateTime($edited->getStartDate()))->format('j'));
+                $edited->setDueMonth((int) (new \DateTime($edited->getStartDate()))->format('n'));
+                $dbUpdates['due_day'] = $edited->getDueDay();
+                $dbUpdates['due_month'] = $edited->getDueMonth();
             }
 
             // Recalculate from today (not from the old nextDueDate) since
             // the schedule parameters changed; a startDate anchors the
             // weekly/biweekly parity (#364)
             $nextDue = $this->frequencyCalculator->calculateNextDueDate(
-                $bill->getFrequency(),
-                $bill->getDueDay(),
-                $bill->getDueMonth(),
+                $edited->getFrequency(),
+                $edited->getDueDay(),
+                $edited->getDueMonth(),
                 null, // recalculate from today
-                $bill->getCustomRecurrencePattern(),
+                $edited->getCustomRecurrencePattern(),
                 false,
-                $bill->getStartDate()
+                $edited->getStartDate()
             );
             $nextDue = $this->applyStartDateFloor(
                 $nextDue,
-                $bill->getStartDate(),
-                $bill->getFrequency(),
-                $bill->getDueDay(),
-                $bill->getDueMonth(),
-                $bill->getCustomRecurrencePattern()
+                $edited->getStartDate(),
+                $edited->getFrequency(),
+                $edited->getDueDay(),
+                $edited->getDueMonth(),
+                $edited->getCustomRecurrencePattern()
             );
             $dbUpdates['next_due_date'] = $nextDue;
         }

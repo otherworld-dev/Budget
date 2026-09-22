@@ -960,6 +960,77 @@ class BillServiceTest extends TestCase {
 		$this->service->update(1, 'user1', ['createTransaction' => true]);
 	}
 
+	public function testUpdateTogglingOnWithAScheduleChangeCreatesPlaceholder(): void {
+		// The recalculation copied the updates onto the in-memory bill before
+		// the toggle compared old against new, so turning pre-booking on in
+		// the same save as a due-day change read "already on" and created
+		// nothing (#584).
+		$bill = $this->makeBill(['createTransaction' => false]);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-06-20');
+
+		$this->transactionService->expects($this->once())->method('createFromBill');
+
+		$this->service->update(1, 'user1', ['dueDay' => 20, 'createTransaction' => true]);
+	}
+
+	public function testUpdateSwitchingToStatementWithAScheduleChangeRefreshesPlaceholder(): void {
+		// Same in-memory mutation: the switch to a dynamic amount compared the
+		// bill's amount type after the recalculation had already overwritten
+		// it, so the old placeholder kept the old fixed amount (#584).
+		$bill = $this->makeBill(['isTransfer' => true, 'destinationAccountId' => 7]);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-06-20');
+		$card = new Account();
+		$card->setType('credit_card');
+		$this->accountMapper->method('findById')->willReturn($card);
+		$this->transactionService->method('getStatementAmountForAccount')->willReturn(120.0);
+
+		$this->transactionService->expects($this->once())->method('deleteScheduledBillTransactions')->with(1);
+		$this->transactionService->expects($this->once())->method('createFromBill');
+
+		$this->service->update(1, 'user1', ['dueDay' => 20, 'amountType' => 'statement']);
+	}
+
+	/**
+	 * @dataProvider paidAheadPeriods
+	 */
+	public function testUpdateKeepsADueDateAdvancedByAnEarlyPayment(int $periodsAhead): void {
+		// A monthly bill paid before its due date advances past the occurrence
+		// it paid; an unrelated edit must leave that date alone (#584).
+		$real = new FrequencyCalculator();
+		$this->frequencyCalculator->method('calculateNextDueDate')
+			->willReturnCallback(fn(...$args) => $real->calculateNextDueDate(...$args));
+
+		$due = (new \DateTime('+5 days'))->format('Y-m-d');
+		$dueDay = (int) (new \DateTime($due))->format('j');
+		$nextDue = $due;
+		for ($i = 0; $i < $periodsAhead; $i++) {
+			$nextDue = $real->calculateNextDueDate('monthly', $dueDay, null, $nextDue, null, true);
+		}
+		$bill = $this->makeBill([
+			'dueDay' => $dueDay,
+			'nextDueDate' => $nextDue,
+			'lastPaidDate' => date('Y-m-d'),
+		]);
+		$this->mapper->method('find')->willReturn($bill);
+
+		$captured = null;
+		$this->mapper->method('updateFields')
+			->willReturnCallback(function ($id, $userId, $updates) use (&$captured) {
+				$captured = $updates;
+			});
+
+		$this->service->update(1, 'user1', ['name' => 'Renamed', 'amount' => 20.0]);
+
+		$this->assertNotNull($captured);
+		$this->assertArrayNotHasKey('next_due_date', $captured, 'an edit after an early payment must not reset next due');
+	}
+
+	public static function paidAheadPeriods(): array {
+		return ['one period ahead' => [1], 'two periods ahead' => [2]];
+	}
+
 	// ── biweekly anchoring to startDate (#364) ──────────────────────
 
 	public function testCreateBiweeklyAnchorsToStartDate(): void {
