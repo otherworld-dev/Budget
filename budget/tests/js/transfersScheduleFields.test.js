@@ -76,7 +76,9 @@ describe('updateTransferScheduleFields', () => {
         expect(dueDayMax()).toBe('31');
     });
 
-    it('shows the start date for recurring frequencies and hides it for one-time', () => {
+    it('shows the start date for recurring frequencies', () => {
+        // One-time shows it too, as the due date - see
+        // transfersOneTimeDate.test.js (#395)
         const mod = Object.create(TransfersModule.prototype);
 
         for (const f of ['weekly', 'biweekly', 'monthly']) {
@@ -84,10 +86,6 @@ describe('updateTransferScheduleFields', () => {
             mod.updateTransferScheduleFields();
             expect(startDateGroup().style.display).toBe('block');
         }
-
-        setFrequency('one-time');
-        mod.updateTransferScheduleFields();
-        expect(startDateGroup().style.display).toBe('none');
     });
 });
 
@@ -199,23 +197,6 @@ describe('saveTransfer startDate payload', () => {
         expect(body.startDate).toBeNull();
     });
 
-    it('sends null for one-time even if the hidden field holds a stale value', async () => {
-        // The field is hidden for one-time, but a value left over from a
-        // previous frequency choice used to be submitted anyway and reach
-        // the server's start-date floor.
-        mountSaveForm();
-        setFrequency('one-time');
-        document.getElementById('transfer-start-date').value = '2026-08-14';
-        global.OC = { generateUrl: (p) => p, requestToken: 'token' };
-
-        let body = null;
-        global.fetch = vi.fn(async (url, options) => {
-            body = JSON.parse(options.body);
-            return { ok: true, json: async () => ({}) };
-        });
-
-        await makeModule().saveTransfer();
-
-        expect(body.startDate).toBeNull();
-    });
+    // For one-time the same field is the due date and is required - see
+    // transfersOneTimeDate.test.js (#395)
 });

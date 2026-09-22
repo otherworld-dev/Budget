@@ -11,6 +11,18 @@ import { serverErrorMessage, isoWeekday } from '../../utils/helpers.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { openAccounts, pickableAccounts, accountOptionLabel } from '../../utils/accounts.js';
 
+/**
+ * The date to open the form on for a one-time transfer saved before the
+ * form had a date field (#395). Its only date is the next_due_date the
+ * server worked out from the day alone, so that is shown - the wrong year
+ * in plain view, ready to be corrected - rather than an empty required
+ * field. Recurring transfers have no fallback: their start date is optional.
+ */
+function oneTimeFallbackDate(transfer) {
+    if ((transfer.frequency || 'monthly') !== 'one-time') return '';
+    return transfer.nextDueDate || transfer.next_due_date || '';
+}
+
 export default class TransfersModule {
     constructor(app) {
         this.app = app;
@@ -277,7 +289,10 @@ export default class TransfersModule {
         emptyTransfers.style.display = 'none';
 
         transfersList.innerHTML = this.transfers.map(transfer => {
-            const dueDate = transfer.nextDueDate || transfer.next_due_date;
+            // A paid one-time transfer has no next occurrence, but it still
+            // has the date it was due - kept as its start date (#375, #395)
+            const dueDate = transfer.nextDueDate || transfer.next_due_date
+                || ((transfer.frequency || 'monthly') === 'one-time' ? (transfer.startDate || transfer.start_date || null) : null);
             // An inactive transfer has no next occurrence: never offer an
             // actionable Mark Paid on it — markPaid would still execute (#365)
             const isActive = transfer.isActive ?? transfer.is_active ?? true;
@@ -519,9 +534,9 @@ export default class TransfersModule {
                                 </div>
 
                                 <div class="form-group" id="transfer-start-date-group" style="display: none;">
-                                <label for="transfer-start-date">${t('budget', 'Start Date')}</label>
+                                <label for="transfer-start-date" id="transfer-start-date-label">${t('budget', 'Start Date')}</label>
                                 <input type="date" id="transfer-start-date"
-                                value="${isEdit && transfer.startDate ? transfer.startDate : ''}">
+                                value="${isEdit ? (transfer.startDate || oneTimeFallbackDate(transfer)) : ''}">
                                 <small class="form-text" id="transfer-start-date-help"></small>
                                 </div>
                               </div>
@@ -710,17 +725,40 @@ export default class TransfersModule {
      * form: weekly/biweekly take a weekday (1-7), everything else a day of
      * month (1-31). The start date shows for every recurring frequency —
      * for weekly/biweekly it anchors the schedule (weekday + fortnight,
-     * #364), for the rest it floors the first occurrence (#268).
+     * #364), for the rest it floors the first occurrence (#268). For a
+     * one-time transfer the same field is the due date and the whole
+     * schedule, with the day of month hidden (#395, as bills since #375).
      */
     updateTransferScheduleFields() {
         const frequency = document.getElementById('transfer-frequency')?.value;
+        const dueDayGroup = document.getElementById('transfer-due-day-group');
         const dueDayLabel = document.getElementById('transfer-due-day-label');
         const dueDayInput = document.getElementById('transfer-due-day');
         const dueDayHelp = document.getElementById('transfer-due-day-help');
         const startDateInput = document.getElementById('transfer-start-date');
         const startDateGroup = document.getElementById('transfer-start-date-group');
+        const startDateLabel = document.getElementById('transfer-start-date-label');
         const startDateHelp = document.getElementById('transfer-start-date-help');
         if (!frequency || !dueDayLabel || !dueDayInput) return;
+
+        // A one-time transfer has no day of month of its own: with only a
+        // day to go on the server had to guess the month, and guessed
+        // January, so "day 28" entered in September fell due the following
+        // January. The date below is its schedule; day and month follow it
+        // on save (#395)
+        const isOneTime = frequency === 'one-time';
+        if (dueDayGroup) dueDayGroup.style.display = isOneTime ? 'none' : 'block';
+        if (startDateGroup) startDateGroup.style.display = 'block';
+        if (startDateLabel) {
+            startDateLabel.textContent = isOneTime ? t('budget', 'Due Date') : t('budget', 'Start Date');
+        }
+        if (startDateInput) startDateInput.required = isOneTime;
+        if (isOneTime) {
+            if (startDateHelp) {
+                startDateHelp.textContent = t('budget', 'The date this transfer is due. It can be in the past.');
+            }
+            return;
+        }
 
         const isAnchored = frequency === 'weekly' || frequency === 'biweekly';
         if (isAnchored) {
@@ -745,9 +783,6 @@ export default class TransfersModule {
             dueDayInput.disabled = false;
         }
 
-        if (startDateGroup) {
-            startDateGroup.style.display = frequency === 'one-time' ? 'none' : 'block';
-        }
         if (startDateHelp) {
             startDateHelp.textContent = isAnchored
                 ? t('budget', 'The transfer repeats from this date (optional)')
@@ -764,13 +799,24 @@ export default class TransfersModule {
         const frequency = document.getElementById('transfer-frequency').value;
         const fromAccountId = parseInt(document.getElementById('recurring-transfer-from-account').value);
         const toAccountId = parseInt(document.getElementById('recurring-transfer-to-account').value);
-        const dueDay = document.getElementById('transfer-due-day').value ?
-                       parseInt(document.getElementById('transfer-due-day').value) : null;
-        // The field is hidden for one-time — a stale value left over from a
-        // previous frequency choice must not be submitted (mirrors IncomeModule)
-        const startDate = frequency === 'one-time'
-            ? null
-            : (document.getElementById('transfer-start-date')?.value || null);
+        let dueDay = document.getElementById('transfer-due-day').value ?
+                     parseInt(document.getElementById('transfer-due-day').value) : null;
+        let dueMonth;
+        const startDate = document.getElementById('transfer-start-date')?.value || null;
+        // A one-time transfer's date is its whole schedule: the day and
+        // month follow it, and the hidden day-of-month input may still hold
+        // a previous frequency's value (#395, as bills since #375)
+        if (frequency === 'one-time') {
+            if (!startDate) {
+                showWarning(t('budget', 'Please enter the date the transfer is due'));
+                return false;
+            }
+            const [, month, day] = startDate.split('-').map(Number);
+            if (month && day) {
+                dueDay = day;
+                dueMonth = month;
+            }
+        }
         const transferDescriptionPattern = document.getElementById('transfer-description-pattern').value || null;
         const categoryId = document.getElementById('transfer-category')?.value ? parseInt(document.getElementById('transfer-category').value) : null;
         const tagIds = this.getSelectedTagIds();
@@ -803,6 +849,7 @@ export default class TransfersModule {
             accountId: fromAccountId,
             destinationAccountId: toAccountId,
             dueDay,
+            ...(dueMonth !== undefined ? { dueMonth } : {}),
             startDate,
             transferDescriptionPattern,
             categoryId,
