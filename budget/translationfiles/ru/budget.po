@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-19 22:05+0000\n"
-"PO-Revision-Date: 2026-09-17 01:42+0000\n"
-"Last-Translator: Anonymous <noreply@weblate.org>\n"
+"POT-Creation-Date: 2026-09-20 18:41+0000\n"
+"PO-Revision-Date: 2026-09-21 19:51+0000\n"
+"Last-Translator: Leonid Zaliubovskyi <la399fox@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/ru/>\n"
 "Language: ru\n"
@@ -613,7 +613,7 @@ msgstr "Не удалось получить платежи"
 #: /app/lib/Controller/BillController.php:1208 /app/templates/index.php:3577
 #: /app/templates/index.php:6069
 msgid "Bill"
-msgstr "Платеж"
+msgstr "Платёж"
 
 #: /app/lib/Controller/BillController.php:119
 #: /app/lib/Controller/CategoryController.php:381
@@ -1313,7 +1313,7 @@ msgid "File upload failed"
 msgstr "Загрузка файла не удалась"
 
 #: /app/lib/Controller/ImportController.php:134
-#: /app/src/modules/import/ImportModule.js:186
+#: /app/src/modules/import/ImportModule.js:193
 msgid "Failed to upload file"
 msgstr "Не удалось загрузить файл"
 
@@ -1335,7 +1335,7 @@ msgid "Unsupported character encoding"
 msgstr "Неподдерживаемая кодировка символов"
 
 #: /app/lib/Controller/ImportController.php:287
-#: /app/src/modules/import/ImportModule.js:1142
+#: /app/src/modules/import/ImportModule.js:1149
 msgid "Failed to refresh the data preview"
 msgstr "Не удалось обновить предварительный просмотр данных"
 
@@ -1652,102 +1652,79 @@ msgstr "Не удалось получить общий прогноз по пе
 
 #: /app/lib/Controller/ProjectController.php:62
 #: /app/src/modules/projects/ProjectsModule.js:35
-#, fuzzy
-#| msgid "Failed to load rules"
 msgid "Failed to load projects"
-msgstr "Не удалось загрузить правила"
+msgstr "Не удалось загрузить проекты"
 
 #: /app/lib/Controller/ProjectController.php:81
 #: /app/src/modules/projects/ProjectsModule.js:127
-#, fuzzy
-#| msgid "Failed to load tag sets"
 msgid "Failed to load the project"
-msgstr "Не удалось загрузить наборы тегов"
+msgstr "Не удалось загрузить проект"
 
 #: /app/lib/Controller/ProjectController.php:107
 #: /app/lib/Controller/ProjectController.php:147
 #: /app/lib/Controller/ProjectController.php:203
 #: /app/src/modules/projects/ProjectsModule.js:365
-#, fuzzy
-#| msgid "Failed to save splits"
 msgid "Failed to save the project"
-msgstr "Не удалось сохранить разбивку"
+msgstr "Не удалось сохранить проект"
 
 #: /app/lib/Controller/ProjectController.php:163
-#, fuzzy
-#| msgid "Only the rule owner can delete it"
 msgid "Only the owner can delete this project"
-msgstr "Удалить правило может только его владелец"
+msgstr "Только владелец может удалить этот проект"
 
 #: /app/lib/Controller/ProjectController.php:172
 #: /app/src/modules/projects/ProjectsModule.js:210
-#, fuzzy
-#| msgid "Failed to delete tag set"
 msgid "Failed to delete the project"
-msgstr "Не удалось удалить набор тегов"
+msgstr "Не удалось удалить проект"
 
 #: /app/lib/Controller/ProjectController.php:186
-#, fuzzy
-#| msgid "(projected)"
 msgid "Project"
-msgstr "(прогноз)"
+msgstr "Проект"
 
 #: /app/lib/Controller/ProjectController.php:193
 #: /app/src/modules/projects/ProjectsModule.js:335
-#, fuzzy
-#| msgid "Please enter a name for the report"
 msgid "Enter a name for the project"
-msgstr "Введите название отчёта"
+msgstr "Введите название проекта"
 
 #: /app/lib/Controller/ProjectController.php:194
 #: /app/src/modules/projects/ProjectsModule.js:337
-#, fuzzy
-#| msgid "Target amount must be greater than zero"
 msgid "The total must be more than zero"
-msgstr "Целевая сумма должна быть больше нуля"
+msgstr "Общая сумма должна быть больше нуля"
 
 #: /app/lib/Controller/ProjectController.php:195
 msgid "Choose one of your own expense categories"
-msgstr ""
+msgstr "Выберите одну из своих категорий расходов"
 
 #: /app/lib/Controller/ProjectController.php:196
 #: /app/src/modules/projects/ProjectsModule.js:338
-#, fuzzy
-#| msgid "Enter a descriptive name for this account"
 msgid "Enter a start date for the project"
-msgstr "Введите описательное название этого счета"
+msgstr "Введите дату начала проекта"
 
 #: /app/lib/Controller/ProjectController.php:197
 #: /app/src/modules/projects/ProjectsModule.js:339
-#, fuzzy
-#| msgid "Start date must be before the end date"
 msgid "The end date cannot be before the start date"
-msgstr "Дата начала должна быть раньше даты окончания"
+msgstr "Дата окончания не может быть раньше даты начала"
 
 #: /app/lib/Controller/ProjectController.php:198
-#, fuzzy
-#| msgid "Target amount must be greater than zero"
 msgid "Every subcategory amount must be more than zero"
-msgstr "Целевая сумма должна быть больше нуля"
+msgstr "Сумма для каждой подкатегории должна быть больше нуля"
 
 #: /app/lib/Controller/ProjectController.php:199
 msgid "Amounts can only go to subcategories of the project category"
-msgstr ""
+msgstr "Суммы можно задавать только для подкатегорий категории проекта"
 
 #: /app/lib/Controller/ProjectController.php:200
 msgid "Each subcategory can only have one amount"
-msgstr ""
+msgstr "Для каждой подкатегории можно указать только одну сумму"
 
 #: /app/lib/Controller/ProjectController.php:201
 msgid "A subcategory and one of its own subcategories cannot both have amounts"
 msgstr ""
+"У подкатегории и одной из её подкатегорий нельзя одновременно указывать суммы"
 
 #: /app/lib/Controller/ProjectController.php:202
 #: /app/src/modules/projects/ProjectsModule.js:341
-#, fuzzy
-#| msgid "Failed to create transaction"
 msgid "The subcategory amounts add up to more than the total"
-msgstr "Не удалось создать транзакцию"
+msgstr "Сумма подкатегорий превышает общую сумму"
 
 #: /app/lib/Controller/ReceiptScanController.php:92
 msgid "No total could be read from this receipt. Enter the details manually"
@@ -2199,7 +2176,7 @@ msgstr "Не удалось получить балансы"
 
 #: /app/lib/Controller/SharedExpenseController.php:265
 msgid "Failed to get shared expenses"
-msgstr "Не удалось получить общие расходы"
+msgstr "Не удалось получить совместные расходы"
 
 #: /app/lib/Controller/SharedExpenseController.php:287
 msgid "Failed to get shared transactions"
@@ -2212,7 +2189,7 @@ msgstr "Эта транзакция уже доступна этому конт�
 
 #: /app/lib/Controller/SharedExpenseController.php:328
 msgid "Failed to share expense"
-msgstr "Не удалось поделиться расходом"
+msgstr "Не удалось разделить расход"
 
 #: /app/lib/Controller/SharedExpenseController.php:355
 msgid "Failed to split expense"
@@ -2220,37 +2197,31 @@ msgstr "Не удалось разбить расход"
 
 #: /app/lib/Controller/SharedExpenseController.php:381
 msgid "Each person can only be in a split once"
-msgstr ""
+msgstr "Каждый человек может участвовать в распределении только один раз"
 
 #: /app/lib/Controller/SharedExpenseController.php:382
 msgid "A split that has been settled cannot be changed"
-msgstr ""
+msgstr "Распределение, по которому выполнен взаиморасчёт, нельзя изменить"
 
 #: /app/lib/Controller/SharedExpenseController.php:383
 msgid "Every split needs an amount"
-msgstr ""
+msgstr "Для каждого распределения нужна сумма"
 
 #: /app/lib/Controller/SharedExpenseController.php:384
-#, fuzzy
-#| msgid "Failed to create transaction"
 msgid "The splits add up to more than the transaction"
-msgstr "Не удалось создать транзакцию"
+msgstr "Сумма долей превышает сумму транзакции"
 
 #: /app/lib/Controller/SharedExpenseController.php:385
 #: /app/lib/Controller/SharedExpenseController.php:399
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:914
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:969
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:983
-#, fuzzy
-#| msgid "Failed to save splits"
 msgid "Failed to save the split"
-msgstr "Не удалось сохранить разбивку"
+msgstr "Не удалось сохранить распределение"
 
 #: /app/lib/Controller/SharedExpenseController.php:390
-#, fuzzy
-#| msgid "Transaction not found"
 msgid "Transaction or contact not found"
-msgstr "Транзакция не найдена"
+msgstr "Транзакция или контакт не найдены"
 
 #: /app/lib/Controller/SharedExpenseController.php:421
 msgid "Failed to get shares"
@@ -3128,6 +3099,8 @@ msgid ""
 "This category is used by the project \"%1$s\". Change or delete the project "
 "first."
 msgstr ""
+"Эта категория используется в проекте «%1$s». Сначала измените или удалите "
+"проект."
 
 #: /app/lib/Service/CategoryService.php:638
 msgid "A budget adjustment already exists for this month"
@@ -3433,26 +3406,26 @@ msgid "Import file not found"
 msgstr "Файл импорта не найден"
 
 #: /app/lib/Service/ImportService.php:728
-#: /app/lib/Service/ImportService.php:1275
+#: /app/lib/Service/ImportService.php:1303
 msgid "Account ID is required for single-account imports"
 msgstr "Для импорта одного счёта необходимо указать идентификатор счёта"
 
 #: /app/lib/Service/ImportService.php:815
-#: /app/lib/Service/ImportService.php:1364
+#: /app/lib/Service/ImportService.php:1392
 msgid "This row has no account, and no account was chosen for the import"
 msgstr "В этой строке не указан счёт, и счёт для импорта не выбран"
 
-#: /app/lib/Service/ImportService.php:1121
+#: /app/lib/Service/ImportService.php:1149
 #, php-format
 msgid "Destination account %1$s not found"
 msgstr "Счёт назначения %1$s не найден"
 
-#: /app/lib/Service/ImportService.php:1220
+#: /app/lib/Service/ImportService.php:1248
 #, php-format
 msgid "Failed to recalculate balance for account %1$s"
 msgstr "Не удалось пересчитать баланс счёта %1$s"
 
-#: /app/lib/Service/ImportService.php:1365
+#: /app/lib/Service/ImportService.php:1393
 #, php-format
 msgid "Could not resolve account: %1$s"
 msgstr "Не удалось определить счёт: %1$s"
@@ -4286,8 +4259,8 @@ msgstr "Расходы по счёту"
 #: /app/src/modules/accounts/AccountsModule.js:1981
 #: /app/src/modules/categories/CategoriesModule.js:781
 #: /app/src/modules/dashboard/DashboardModule.js:1260
-#: /app/src/modules/import/ImportModule.js:157
-#: /app/src/modules/import/ImportModule.js:1970
+#: /app/src/modules/import/ImportModule.js:164
+#: /app/src/modules/import/ImportModule.js:1979
 #: /app/src/modules/rules/RulesModule.js:1009
 #: /app/src/modules/transactions/TransactionsModule.js:509
 #: /app/src/modules/transactions/TransactionsModule.js:1202
@@ -4341,7 +4314,7 @@ msgstr "Счета"
 #: /app/src/config/dashboardWidgets.js:40 /app/templates/index.php:700
 #: /app/templates/index.php:4473
 msgid "Budget Alerts"
-msgstr "Предупреждения по бюджету"
+msgstr "Оповещения о бюджете"
 
 #: /app/src/config/dashboardWidgets.js:41 /app/templates/index.php:711
 msgid "Upcoming Bills"
@@ -4363,10 +4336,8 @@ msgstr "Цели накоплений"
 #: /app/src/modules/help/HelpModule.js:32
 #: /app/src/modules/sharing/SharingModule.js:278 /app/templates/index.php:143
 #: /app/templates/index.php:744 /app/templates/index.php:2938
-#, fuzzy
-#| msgid "(projected)"
 msgid "Projects"
-msgstr "(прогноз)"
+msgstr "Проекты"
 
 #: /app/src/config/dashboardWidgets.js:45
 #: /app/src/core/KeyboardShortcuts.js:342
@@ -4613,8 +4584,8 @@ msgstr "Сочетания клавиш"
 #: /app/src/main.js:2072 /app/src/main.js:2076
 #: /app/src/modules/bills/BillsModule.js:1208
 #: /app/src/modules/bills/BillsModule.js:1421
-#: /app/src/modules/import/ImportModule.js:2246
-#: /app/src/modules/import/ImportModule.js:2259
+#: /app/src/modules/import/ImportModule.js:2299
+#: /app/src/modules/import/ImportModule.js:2312
 #: /app/src/modules/sharing/SharingModule.js:134
 #: /app/src/modules/transactions/TransactionsModule.js:5271
 #: /app/src/modules/transfers/TransfersModule.js:145
@@ -4638,7 +4609,7 @@ msgstr "Дублировать транзакцию"
 
 #: /app/src/main.js:457
 msgid "Share expense"
-msgstr "Поделиться расходом"
+msgstr "Разделить расход"
 
 #: /app/src/main.js:461
 msgid "Unlink transfer"
@@ -4876,7 +4847,7 @@ msgid "{displayed} of {total} transactions"
 msgstr "{displayed} из {total} транзакций"
 
 #: /app/src/main.js:1630 /app/src/modules/dashboard/DashboardModule.js:2610
-#: /app/src/modules/import/ImportModule.js:2090
+#: /app/src/modules/import/ImportModule.js:2099
 msgid "%n transaction"
 msgid_plural "%n transactions"
 msgstr[0] "%n транзакция"
@@ -5146,7 +5117,7 @@ msgstr "Вы действительно уверены, что хотите пр
 msgid "Importing data... This may take a moment."
 msgstr "Импорт данных... Это может занять некоторое время."
 
-#: /app/src/main.js:2529 /app/src/modules/import/ImportModule.js:2392
+#: /app/src/main.js:2529 /app/src/modules/import/ImportModule.js:2445
 msgid "Import failed"
 msgstr "Ошибка импорта"
 
@@ -5249,7 +5220,7 @@ msgstr "Изменить"
 #: /app/src/main.js:3071 /app/src/modules/accounts/AccountsModule.js:619
 #: /app/src/modules/accounts/AccountsModule.js:1413
 #: /app/src/modules/assets/AssetsModule.js:169
-#: /app/src/modules/import/ImportModule.js:636
+#: /app/src/modules/import/ImportModule.js:643
 #: /app/src/modules/pensions/PensionsModule.js:123
 #: /app/src/modules/pensions/PensionsModule.js:820
 #: /app/src/modules/pensions/PensionsModule.js:821
@@ -5563,9 +5534,9 @@ msgstr "Выберите счёт"
 #: /app/src/modules/categories/CategoriesModule.js:1284
 msgid "%n selected"
 msgid_plural "%n selected"
-msgstr[0] "Выбрано: %n"
-msgstr[1] "Выбрано: %n"
-msgstr[2] "Выбрано: %n"
+msgstr[0] "%n выбрано"
+msgstr[1] "%n выбрано"
+msgstr[2] "%n выбрано"
 
 #: /app/src/modules/accounts/AccountsModule.js:719
 msgid ""
@@ -5706,7 +5677,7 @@ msgstr ""
 "убытков может быть приблизительным."
 
 #: /app/src/modules/accounts/AccountsModule.js:1621
-#: /app/src/modules/import/ImportModule.js:1916
+#: /app/src/modules/import/ImportModule.js:1925
 msgid "No transactions found"
 msgstr "Транзакции не найдены"
 
@@ -5781,7 +5752,7 @@ msgstr "Нет доступных счетов. Сначала создайте 
 
 #: /app/src/modules/accounts/AccountsModule.js:2342
 #: /app/src/modules/accounts/AccountsModule.js:2463
-#: /app/src/modules/import/ImportModule.js:2327
+#: /app/src/modules/import/ImportModule.js:2380
 msgid "Please select an account"
 msgstr "Выберите счёт"
 
@@ -6692,7 +6663,7 @@ msgstr "Суммы совпадают"
 
 #: /app/src/modules/bills/BillsModule.js:1017
 msgid "{amount} remaining"
-msgstr "Осталось {amount}"
+msgstr "{amount} осталось"
 
 #: /app/src/modules/bills/BillsModule.js:1020
 #: /app/src/modules/projects/ProjectsModule.js:116
@@ -7218,25 +7189,20 @@ msgstr[2] "%n категорий удалено"
 msgid "Give %n category a new color? Its current color will be replaced."
 msgid_plural ""
 "Give %n categories new colors? Their current colors will be replaced."
-msgstr[0] ""
-msgstr[1] ""
-msgstr[2] ""
+msgstr[0] "Назначить %n категории новый цвет? Текущий цвет будет заменён."
+msgstr[1] "Назначить %n категориям новые цвета? Их текущие цвета будут заменены."
+msgstr[2] "Назначить %n категориям новые цвета? Их текущие цвета будут заменены."
 
 #: /app/src/modules/categories/CategoriesModule.js:1384
-#, fuzzy
-#| msgid "%n category over budget"
-#| msgid_plural "%n categories over budget"
 msgid "%n category recolored"
 msgid_plural "%n categories recolored"
-msgstr[0] "%n категория превысила бюджет"
-msgstr[1] "%n категории превысили бюджет"
-msgstr[2] "%n категорий превысили бюджет"
+msgstr[0] "Цвет %n категории изменён"
+msgstr[1] "Цвета %n категорий изменены"
+msgstr[2] "Цвета %n категорий изменены"
 
 #: /app/src/modules/categories/CategoriesModule.js:1390
-#, fuzzy
-#| msgid "Failed to delete: {errors}"
 msgid "Failed to recolor: {errors}"
-msgstr "Не удалось удалить: {errors}"
+msgstr "Не удалось изменить цвет: {errors}"
 
 #: /app/src/modules/categories/CategoriesModule.js:1463
 #: /app/templates/index.php:6723
@@ -7305,7 +7271,7 @@ msgid "Exists"
 msgstr "Существует"
 
 #: /app/src/modules/categories/CategoriesModule.js:1688
-#: /app/src/modules/import/ImportModule.js:1930
+#: /app/src/modules/import/ImportModule.js:1939
 msgid "New"
 msgstr "Новая"
 
@@ -7545,13 +7511,13 @@ msgstr "Нет недавних транзакций"
 #: /app/src/modules/dashboard/DashboardModule.js:1394
 msgid "No budget alerts. %n category is muted."
 msgid_plural "No budget alerts. %n categories are muted."
-msgstr[0] ""
-msgstr[1] ""
-msgstr[2] ""
+msgstr[0] "Нет оповещений о бюджете. Оповещения для %n категории отключены."
+msgstr[1] "Нет оповещений о бюджете. Оповещения для %n категорий отключены."
+msgstr[2] "Нет оповещений о бюджете. Оповещения для %n категорий отключены."
 
 #: /app/src/modules/dashboard/DashboardModule.js:1395
 msgid "No budget alerts from the budgets you set."
-msgstr ""
+msgstr "Нет оповещений от установленных вами бюджетов."
 
 #: /app/src/modules/dashboard/DashboardModule.js:1413
 #, javascript-format
@@ -7564,20 +7530,15 @@ msgstr "{percent}% использовано"
 
 #: /app/src/modules/dashboard/DashboardModule.js:1450
 msgid "(from a bill)"
-msgstr ""
+msgstr "(из платежа)"
 
 #: /app/src/modules/dashboard/DashboardModule.js:1488
-#, fuzzy
-#| msgid "%n category is over budget."
-#| msgid_plural "%n categories are over budget."
 msgid "No category has a budget yet."
-msgstr "%n категория превысила бюджет."
+msgstr "Ни для одной категории ещё не задан бюджет."
 
 #: /app/src/modules/dashboard/DashboardModule.js:1527
-#, fuzzy
-#| msgid "Failed to retrieve budget alerts"
 msgid "Failed to save the budget alert filter"
-msgstr "Не удалось получить оповещения о бюджете"
+msgstr "Не удалось сохранить фильтр оповещений о бюджете"
 
 #: /app/src/modules/dashboard/DashboardModule.js:1576
 msgid "Highest rate: {rate}% APR"
@@ -7654,10 +7615,8 @@ msgstr "{amount} накоплено"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2002
 #: /app/src/modules/projects/ProjectsModule.js:84
-#, fuzzy
-#| msgid "Page {current} of {total}"
 msgid "{spent} of {total}"
-msgstr "Страница {current} из {total}"
+msgstr "{spent} из {total}"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2035
 #: /app/src/modules/pensions/PensionsModule.js:159
@@ -8047,18 +8006,18 @@ msgstr ""
 "настроить видимость."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5165
-#, fuzzy
-#| msgid "All categories and budget settings"
 msgid "Only categories with a budget I set"
-msgstr "Все категории и настройки бюджета"
+msgstr "Только категории с установленным мной бюджетом"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5167
 msgid "Leaves out the budgets worked out from your bills and recurring income."
-msgstr ""
+msgstr "Исключает бюджеты, рассчитанные по вашим платежам и регулярным доходам."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5168
 msgid "Untick a category to stop it alerting, here and in notifications."
 msgstr ""
+"Снимите отметку с категории, чтобы она не присылала оповещения здесь и в "
+"уведомлениях."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5404
 msgid "All tiles are visible"
@@ -8317,6 +8276,9 @@ msgid ""
 "a category and its subcategories between two dates, can give its "
 "subcategories amounts of their own, and does not reset each month."
 msgstr ""
+"Один бюджет для дела, которое длится месяцами, например ремонта. Он "
+"охватывает категорию и её подкатегории между двумя датами, позволяет задать "
+"суммы для подкатегорий и не сбрасывается каждый месяц."
 
 #: /app/src/modules/help/HelpModule.js:33
 msgid ""
@@ -8494,69 +8456,69 @@ msgstr "Не удалось загрузить сведения о систем�
 msgid "Column: {number}"
 msgstr "Столбец: {number}"
 
-#: /app/src/modules/import/ImportModule.js:155
+#: /app/src/modules/import/ImportModule.js:162
 msgid "Rule: {name}"
 msgstr "Правило: {name}"
 
-#: /app/src/modules/import/ImportModule.js:182
+#: /app/src/modules/import/ImportModule.js:189
 msgid "Upload failed"
 msgstr "Загрузка не удалась"
 
-#: /app/src/modules/import/ImportModule.js:259
+#: /app/src/modules/import/ImportModule.js:266
 msgid "Import Format"
 msgstr "Формат импорта"
 
-#: /app/src/modules/import/ImportModule.js:261
+#: /app/src/modules/import/ImportModule.js:268
 msgid "Custom CSV (manual mapping)"
 msgstr "Пользовательский CSV (ручное сопоставление)"
 
-#: /app/src/modules/import/ImportModule.js:262
-#: /app/src/modules/import/ImportModule.js:735
+#: /app/src/modules/import/ImportModule.js:269
+#: /app/src/modules/import/ImportModule.js:742
 msgid "My Templates"
 msgstr "Мои шаблоны"
 
-#: /app/src/modules/import/ImportModule.js:263
+#: /app/src/modules/import/ImportModule.js:270
 msgid "Bank Presets"
 msgstr "Предустановки банков"
 
-#: /app/src/modules/import/ImportModule.js:266
+#: /app/src/modules/import/ImportModule.js:273
 msgid "Save mapping as template…"
 msgstr "Сохранить сопоставление как шаблон…"
 
-#: /app/src/modules/import/ImportModule.js:267
-#: /app/src/modules/import/ImportModule.js:739
+#: /app/src/modules/import/ImportModule.js:274
+#: /app/src/modules/import/ImportModule.js:746
 msgid "Manage templates"
 msgstr "Управление шаблонами"
 
-#: /app/src/modules/import/ImportModule.js:308
+#: /app/src/modules/import/ImportModule.js:315
 msgid ""
 "Using saved template. Adjust any column to switch back to a custom mapping."
 msgstr ""
 "Используется сохранённый шаблон. Измените любой столбец, чтобы вернуться к "
 "пользовательскому сопоставлению."
 
-#: /app/src/modules/import/ImportModule.js:517
+#: /app/src/modules/import/ImportModule.js:524
 msgid "Map the required columns before saving a template"
 msgstr "Перед сохранением шаблона сопоставьте обязательные столбцы"
 
-#: /app/src/modules/import/ImportModule.js:521
+#: /app/src/modules/import/ImportModule.js:528
 msgid "Map at least one account before saving a template"
 msgstr "Перед сохранением шаблона сопоставьте хотя бы один счёт"
 
-#: /app/src/modules/import/ImportModule.js:536
+#: /app/src/modules/import/ImportModule.js:543
 msgid "Please enter a template name"
 msgstr "Введите название шаблона"
 
-#: /app/src/modules/import/ImportModule.js:572
+#: /app/src/modules/import/ImportModule.js:579
 msgid "Import template saved"
 msgstr "Шаблон импорта сохранён"
 
-#: /app/src/modules/import/ImportModule.js:588
-#: /app/src/modules/import/ImportModule.js:592
+#: /app/src/modules/import/ImportModule.js:595
+#: /app/src/modules/import/ImportModule.js:599
 msgid "Failed to save import template"
 msgstr "Не удалось сохранить шаблон импорта"
 
-#: /app/src/modules/import/ImportModule.js:608
+#: /app/src/modules/import/ImportModule.js:615
 msgid ""
 "No saved templates yet. Map your columns, then use “Save mapping as "
 "template”."
@@ -8564,86 +8526,86 @@ msgstr ""
 "Сохранённых шаблонов пока нет. Сопоставьте столбцы, затем выберите "
 "«Сохранить сопоставление как шаблон»."
 
-#: /app/src/modules/import/ImportModule.js:620
+#: /app/src/modules/import/ImportModule.js:627
 msgid "%n column mapped"
 msgid_plural "%n columns mapped"
 msgstr[0] "Сопоставлен %n столбец"
 msgstr[1] "Сопоставлено %n столбца"
 msgstr[2] "Сопоставлено %n столбцов"
 
-#: /app/src/modules/import/ImportModule.js:623
+#: /app/src/modules/import/ImportModule.js:630
 msgid "%n account routed"
 msgid_plural "%n accounts routed"
 msgstr[0] "Настроено распределение для %n счёта"
 msgstr[1] "Настроено распределение для %n счетов"
 msgstr[2] "Настроено распределение для %n счетов"
 
-#: /app/src/modules/import/ImportModule.js:635
+#: /app/src/modules/import/ImportModule.js:642
 msgid "Rename"
 msgstr "Переименовать"
 
-#: /app/src/modules/import/ImportModule.js:645
+#: /app/src/modules/import/ImportModule.js:652
 msgid "New template name"
 msgstr "Новое название шаблона"
 
-#: /app/src/modules/import/ImportModule.js:658
+#: /app/src/modules/import/ImportModule.js:665
 msgid "Import template renamed"
 msgstr "Шаблон импорта переименован"
 
-#: /app/src/modules/import/ImportModule.js:663
-#: /app/src/modules/import/ImportModule.js:667
+#: /app/src/modules/import/ImportModule.js:670
+#: /app/src/modules/import/ImportModule.js:674
 msgid "Failed to rename import template"
 msgstr "Не удалось переименовать шаблон импорта"
 
-#: /app/src/modules/import/ImportModule.js:672
+#: /app/src/modules/import/ImportModule.js:679
 msgid "Are you sure you want to delete this import template?"
 msgstr "Удалить этот шаблон импорта?"
 
-#: /app/src/modules/import/ImportModule.js:680
+#: /app/src/modules/import/ImportModule.js:687
 msgid "Import template deleted"
 msgstr "Шаблон импорта удалён"
 
-#: /app/src/modules/import/ImportModule.js:688
-#: /app/src/modules/import/ImportModule.js:692
+#: /app/src/modules/import/ImportModule.js:695
+#: /app/src/modules/import/ImportModule.js:699
 msgid "Failed to delete import template"
 msgstr "Не удалось удалить шаблон импорта"
 
-#: /app/src/modules/import/ImportModule.js:732
+#: /app/src/modules/import/ImportModule.js:739
 msgid "Saved Account Routing"
 msgstr "Сохранённое распределение по счетам"
 
-#: /app/src/modules/import/ImportModule.js:734
+#: /app/src/modules/import/ImportModule.js:741
 msgid "Manual (set below)"
 msgstr "Вручную (указать ниже)"
 
-#: /app/src/modules/import/ImportModule.js:738
+#: /app/src/modules/import/ImportModule.js:745
 msgid "Save routing as template…"
 msgstr "Сохранить распределение как шаблон…"
 
-#: /app/src/modules/import/ImportModule.js:786
+#: /app/src/modules/import/ImportModule.js:793
 msgid "This template’s accounts don’t match the uploaded file"
 msgstr "Счета в этом шаблоне не соответствуют загруженному файлу"
 
-#: /app/src/modules/import/ImportModule.js:936
+#: /app/src/modules/import/ImportModule.js:943
 msgid "%n record"
 msgid_plural "%n records"
 msgstr[0] "%n запись"
 msgstr[1] "%n записи"
 msgstr[2] "%n записей"
 
-#: /app/src/modules/import/ImportModule.js:1034 /app/templates/index.php:2299
+#: /app/src/modules/import/ImportModule.js:1041 /app/templates/index.php:2299
 msgid "Detect automatically"
 msgstr "Определять автоматически"
 
-#: /app/src/modules/import/ImportModule.js:1046
+#: /app/src/modules/import/ImportModule.js:1053
 msgid "Reading this file as {encoding}."
 msgstr "Файл читается в кодировке {encoding}."
 
-#: /app/src/modules/import/ImportModule.js:1048
+#: /app/src/modules/import/ImportModule.js:1055
 msgid "Unicode (UTF-8)"
 msgstr "Юникод (UTF-8)"
 
-#: /app/src/modules/import/ImportModule.js:1047
+#: /app/src/modules/import/ImportModule.js:1054
 msgid ""
 "Detected {encoding}. Change this if accented or non-Latin characters look "
 "wrong in the preview below."
@@ -8651,55 +8613,55 @@ msgstr ""
 "Определена кодировка {encoding}. Измените её, если диакритические знаки или "
 "нелатинские символы в предварительном просмотре ниже выглядят неправильно."
 
-#: /app/src/modules/import/ImportModule.js:1472
+#: /app/src/modules/import/ImportModule.js:1479
 msgid "Please select a file first"
 msgstr "Сначала выберите файл"
 
-#: /app/src/modules/import/ImportModule.js:1591
+#: /app/src/modules/import/ImportModule.js:1598
 msgid "Processing file, please wait..."
 msgstr "Обработка файла, подождите..."
 
-#: /app/src/modules/import/ImportModule.js:1627
-#: /app/src/modules/import/ImportModule.js:2320
+#: /app/src/modules/import/ImportModule.js:1634
+#: /app/src/modules/import/ImportModule.js:2373
 msgid "Please map at least one account"
 msgstr "Сопоставьте хотя бы один счёт"
 
-#: /app/src/modules/import/ImportModule.js:1634
+#: /app/src/modules/import/ImportModule.js:1641
 msgid "Please select an account first"
 msgstr "Сначала выберите счёт"
 
-#: /app/src/modules/import/ImportModule.js:1666
+#: /app/src/modules/import/ImportModule.js:1673
 msgid "Processing failed"
 msgstr "Обработка не удалась"
 
-#: /app/src/modules/import/ImportModule.js:1670
+#: /app/src/modules/import/ImportModule.js:1677
 msgid "Failed to process import data: {message}"
 msgstr "Не удалось обработать импортированные данные: {message}"
 
-#: /app/src/modules/import/ImportModule.js:1727
+#: /app/src/modules/import/ImportModule.js:1736
 msgid "Accounts to create:"
 msgstr "Будут созданы счета:"
 
-#: /app/src/modules/import/ImportModule.js:1731
+#: /app/src/modules/import/ImportModule.js:1740
 msgid "Existing accounts matched:"
 msgstr "Сопоставлены существующие счета:"
 
-#: /app/src/modules/import/ImportModule.js:1754
+#: /app/src/modules/import/ImportModule.js:1763
 msgid "Categories to create:"
 msgstr "Будут созданы категории:"
 
-#: /app/src/modules/import/ImportModule.js:1756
+#: /app/src/modules/import/ImportModule.js:1765
 msgid "{count} transfer rows will be skipped"
 msgstr "Будет пропущено строк переводов: {count}"
 
-#: /app/src/modules/import/ImportModule.js:1819
+#: /app/src/modules/import/ImportModule.js:1828
 msgid "This import will create %n new account"
 msgid_plural "This import will create %n new accounts"
 msgstr[0] "При импорте будет создан %n новый счёт"
 msgstr[1] "При импорте будут созданы %n новых счёта"
 msgstr[2] "При импорте будет создано %n новых счетов"
 
-#: /app/src/modules/import/ImportModule.js:1828
+#: /app/src/modules/import/ImportModule.js:1837
 msgid ""
 "The names look like dates, so the date column has probably been mapped to "
 "Account. Go back and check the column mapping - importing now would leave "
@@ -8709,7 +8671,7 @@ msgstr ""
 "счётом. Вернитесь и проверьте сопоставление столбцов: при импорте сейчас для "
 "каждой даты будет создан отдельный счёт, который придётся удалять."
 
-#: /app/src/modules/import/ImportModule.js:1829
+#: /app/src/modules/import/ImportModule.js:1838
 msgid ""
 "One account is created for every distinct value in the column mapped to "
 "Account. If that is more than you expected, go back and check the column "
@@ -8719,17 +8681,17 @@ msgstr ""
 "создаётся отдельный счёт. Если счетов больше, чем ожидалось, перед импортом "
 "вернитесь и проверьте сопоставление столбцов."
 
-#: /app/src/modules/import/ImportModule.js:1858
+#: /app/src/modules/import/ImportModule.js:1867
 msgid "this account"
 msgstr "этот счёт"
 
-#: /app/src/modules/import/ImportModule.js:1863
+#: /app/src/modules/import/ImportModule.js:1872
 msgid "{matching} of {total} rows have no usable transaction type"
 msgstr ""
 "В {matching} из {total} строк не указан пригодный для использования тип "
 "транзакции"
 
-#: /app/src/modules/import/ImportModule.js:1867
+#: /app/src/modules/import/ImportModule.js:1876
 msgid ""
 "The type column is empty or unrecognized on those rows, so they will be "
 "added based on whether the amount is negative. Fill the type in, or check "
@@ -8739,11 +8701,11 @@ msgstr ""
 "определён по знаку суммы. Если это нежелательно, заполните тип или проверьте "
 "сопоставление."
 
-#: /app/src/modules/import/ImportModule.js:1869
+#: /app/src/modules/import/ImportModule.js:1878
 msgid "{matching} of {total} rows would be added as income"
 msgstr "Как доход будет добавлено строк: {matching} из {total}"
 
-#: /app/src/modules/import/ImportModule.js:1873
+#: /app/src/modules/import/ImportModule.js:1882
 #, javascript-format
 msgid ""
 "but {percent}% of what is already in {account} is an expense. If that looks "
@@ -8754,11 +8716,11 @@ msgstr ""
 "кажется неверным, вернитесь назад и перед импортом сопоставьте столбец с "
 "типом транзакции."
 
-#: /app/src/modules/import/ImportModule.js:1878
+#: /app/src/modules/import/ImportModule.js:1887
 msgid "{matching} of {total} rows would be added as an expense"
 msgstr "Как расход будет добавлено строк: {matching} из {total}"
 
-#: /app/src/modules/import/ImportModule.js:1882
+#: /app/src/modules/import/ImportModule.js:1891
 #, javascript-format
 msgid ""
 "but {percent}% of what is already in {account} is income. If that looks "
@@ -8769,96 +8731,118 @@ msgstr ""
 "доходам. Если это выглядит неверно, перед импортом вернитесь и сопоставьте "
 "столбец с типом транзакции."
 
-#: /app/src/modules/import/ImportModule.js:1914
+#: /app/src/modules/import/ImportModule.js:1923
 msgid "No transactions to import"
 msgstr "Нет транзакций для импорта"
 
-#: /app/src/modules/import/ImportModule.js:1929
-#: /app/src/modules/import/ImportModule.js:1969
+#: /app/src/modules/import/ImportModule.js:1938
+#: /app/src/modules/import/ImportModule.js:1978
 msgid "Duplicate"
 msgstr "Дубликат"
 
-#: /app/src/modules/import/ImportModule.js:1951
-#: /app/src/modules/import/ImportModule.js:1993
+#: /app/src/modules/import/ImportModule.js:1960
+#: /app/src/modules/import/ImportModule.js:2002
 msgid "Showing {shown} of {total}"
 msgstr "Показано {shown} из {total}"
 
-#: /app/src/modules/import/ImportModule.js:2008
+#: /app/src/modules/import/ImportModule.js:2017
 msgid "Skip rows without an account"
 msgstr "Пропустить строки без счёта"
 
-#: /app/src/modules/import/ImportModule.js:2008
+#: /app/src/modules/import/ImportModule.js:2017
 msgid "Select account…"
 msgstr "Выберите счёт…"
 
-#: /app/src/modules/import/ImportModule.js:2022
+#: /app/src/modules/import/ImportModule.js:2031
 msgid "Account for rows without one:"
 msgstr "Счёт для строк без счёта:"
 
-#: /app/src/modules/import/ImportModule.js:2023 /app/templates/index.php:2443
+#: /app/src/modules/import/ImportModule.js:2032 /app/templates/index.php:2443
 msgid "Import to Account:"
 msgstr "Импортировать на счёт:"
 
-#: /app/src/modules/import/ImportModule.js:2092
+#: /app/src/modules/import/ImportModule.js:2101
 msgid "Balance: {balance}"
 msgstr "Баланс: {balance}"
 
-#: /app/src/modules/import/ImportModule.js:2097
+#: /app/src/modules/import/ImportModule.js:2106
 msgid "Skip this account"
 msgstr "Пропустить этот счёт"
 
-#: /app/src/modules/import/ImportModule.js:2161
+#: /app/src/modules/import/ImportModule.js:2170
 msgid "Rows {rows} and {count} more"
 msgstr "Строки {rows} и ещё {count}"
 
-#: /app/src/modules/import/ImportModule.js:2162
+#: /app/src/modules/import/ImportModule.js:2171
 msgid "Rows {rows}"
 msgstr "Строки {rows}"
 
-#: /app/src/modules/import/ImportModule.js:2197
+#: /app/src/modules/import/ImportModule.js:2206
 msgid "{skipped} of {total} rows will not be imported"
-msgstr ""
+msgstr "{skipped} из {total} строк не будут импортированы"
 
-#: /app/src/modules/import/ImportModule.js:2201
-#, fuzzy
-#| msgid "%n row was not imported"
-#| msgid_plural "%n rows were not imported"
+#: /app/src/modules/import/ImportModule.js:2210
 msgid "%n row will not be imported"
 msgid_plural "%n rows will not be imported"
-msgstr[0] "%n строка не импортирована"
-msgstr[1] "%n строки не импортированы"
-msgstr[2] "%n строк не импортировано"
+msgstr[0] "%n строка не будет импортирована"
+msgstr[1] "%n строки не будут импортированы"
+msgstr[2] "%n строк не будут импортированы"
 
-#: /app/src/modules/import/ImportModule.js:2206
+#: /app/src/modules/import/ImportModule.js:2215
 msgid ""
 "Those rows have no account of their own. Pick one under \"Account for rows "
 "without one\" below and they will be imported into it."
 msgstr ""
+"У этих строк нет собственного счёта. Выберите ниже счёт в разделе «Счёт для "
+"строк без счёта», и они будут импортированы в него."
 
-#: /app/src/modules/import/ImportModule.js:2245
+#: /app/src/modules/import/ImportModule.js:2263
+msgid "{blank} of {total} rows have no description"
+msgstr "У {blank} из {total} строк нет описания"
+
+#: /app/src/modules/import/ImportModule.js:2264
+msgid "%n row has no description"
+msgid_plural "%n rows have no description"
+msgstr[0] "У %n строки нет описания"
+msgstr[1] "У %n строк нет описания"
+msgstr[2] "У %n строк нет описания"
+
+#: /app/src/modules/import/ImportModule.js:2265
+msgid ""
+"The column mapped to Description is empty on those rows. They will still be "
+"imported, however import rules that match on the description cannot "
+"categorize them. If the cells should not be empty, check the file before "
+"importing."
+msgstr ""
+"Столбец, сопоставленный с описанием, в этих строках пуст. Они всё равно "
+"будут импортированы, но правила импорта, сопоставляющие описание, не смогут "
+"их категоризировать. Если ячейки не должны быть пустыми, проверьте файл "
+"перед импортом."
+
+#: /app/src/modules/import/ImportModule.js:2298
 msgid "%n row was not imported"
 msgid_plural "%n rows were not imported"
 msgstr[0] "%n строка не импортирована"
 msgstr[1] "%n строки не импортированы"
 msgstr[2] "%n строк не импортировано"
 
-#: /app/src/modules/import/ImportModule.js:2277
+#: /app/src/modules/import/ImportModule.js:2330
 msgid "No file data available"
 msgstr "Нет доступных данных файла"
 
-#: /app/src/modules/import/ImportModule.js:2341
+#: /app/src/modules/import/ImportModule.js:2394
 msgid "Importing…"
 msgstr "Импорт…"
 
-#: /app/src/modules/import/ImportModule.js:2359
+#: /app/src/modules/import/ImportModule.js:2412
 msgid "Server error ({status}): Invalid response"
 msgstr "Ошибка сервера ({status}): недопустимый ответ"
 
-#: /app/src/modules/import/ImportModule.js:2363
+#: /app/src/modules/import/ImportModule.js:2416
 msgid "Successfully imported {imported} transactions ({skipped} skipped)"
 msgstr "Импортировано транзакций: {imported}, пропущено: {skipped}"
 
-#: /app/src/modules/import/ImportModule.js:2367
+#: /app/src/modules/import/ImportModule.js:2420
 msgid "%n bill was automatically marked as paid from matching transactions"
 msgid_plural ""
 "%n bills were automatically marked as paid from matching transactions"
@@ -8869,7 +8853,7 @@ msgstr[1] ""
 msgstr[2] ""
 "%n платежей автоматически отмечены как оплаченные по совпавшим транзакциям"
 
-#: /app/src/modules/import/ImportModule.js:2383
+#: /app/src/modules/import/ImportModule.js:2436
 msgid "Import complete. %n category created — it may take a moment to appear."
 msgid_plural ""
 "Import complete. %n categories created — they may take a moment to appear."
@@ -8880,68 +8864,68 @@ msgstr[1] ""
 msgstr[2] ""
 "Импорт завершён. Создано %n категорий — они могут появиться не сразу."
 
-#: /app/src/modules/import/ImportModule.js:2396
+#: /app/src/modules/import/ImportModule.js:2449
 msgid "Failed to import transactions: {message}"
 msgstr "Не удалось импортировать транзакции: {message}"
 
-#: /app/src/modules/import/ImportModule.js:2419
+#: /app/src/modules/import/ImportModule.js:2472
 msgid "Auto-linked {count} transfer pairs"
 msgstr "Автоматически связано пар переводов: {count}"
 
-#: /app/src/modules/import/ImportModule.js:2528
+#: /app/src/modules/import/ImportModule.js:2581
 msgid "Download"
 msgstr "Скачать"
 
-#: /app/src/modules/import/ImportModule.js:2529
+#: /app/src/modules/import/ImportModule.js:2582
 msgid "Rollback"
 msgstr "Откатить"
 
-#: /app/src/modules/import/ImportModule.js:2552
+#: /app/src/modules/import/ImportModule.js:2605
 msgid "0 Bytes"
 msgstr "0 байт"
 
-#: /app/src/modules/import/ImportModule.js:2554
+#: /app/src/modules/import/ImportModule.js:2607
 msgid "Bytes"
 msgstr "Байт"
 
-#: /app/src/modules/import/ImportModule.js:2554
+#: /app/src/modules/import/ImportModule.js:2607
 msgid "KB"
 msgstr "КБ"
 
-#: /app/src/modules/import/ImportModule.js:2554
+#: /app/src/modules/import/ImportModule.js:2607
 msgid "MB"
 msgstr "МБ"
 
-#: /app/src/modules/import/ImportModule.js:2554
+#: /app/src/modules/import/ImportModule.js:2607
 msgid "GB"
 msgstr "ГБ"
 
-#: /app/src/modules/import/ImportModule.js:2576
+#: /app/src/modules/import/ImportModule.js:2629
 msgid "Download failed"
 msgstr "Не удалось скачать файл"
 
-#: /app/src/modules/import/ImportModule.js:2580
+#: /app/src/modules/import/ImportModule.js:2633
 msgid "Failed to download import file"
 msgstr "Не удалось скачать файл для импорта"
 
-#: /app/src/modules/import/ImportModule.js:2585
+#: /app/src/modules/import/ImportModule.js:2638
 msgid ""
 "Are you sure you want to rollback this import? All imported transactions "
 "will be deleted."
 msgstr "Откатить этот импорт? Все импортированные транзакции будут удалены."
 
-#: /app/src/modules/import/ImportModule.js:2600
+#: /app/src/modules/import/ImportModule.js:2653
 msgid "Rolled back %n transaction"
 msgid_plural "Rolled back %n transactions"
 msgstr[0] "%n транзакция отменена"
 msgstr[1] "%n транзакции отменены"
 msgstr[2] "%n транзакций отменено"
 
-#: /app/src/modules/import/ImportModule.js:2605
+#: /app/src/modules/import/ImportModule.js:2658
 msgid "Rollback failed"
 msgstr "Не удалось откатить импорт"
 
-#: /app/src/modules/import/ImportModule.js:2609
+#: /app/src/modules/import/ImportModule.js:2662
 msgid "Failed to rollback import: {message}"
 msgstr "Не удалось отменить импорт: {message}"
 
@@ -9328,118 +9312,88 @@ msgid "Contribution posted"
 msgstr "Взнос проведён"
 
 #: /app/src/modules/projects/ProjectsModule.js:94 /app/templates/index.php:2951
-#, fuzzy
-#| msgid "Finish"
 msgid "Finished"
-msgstr "Завершить"
+msgstr "Завершено"
 
 #: /app/src/modules/projects/ProjectsModule.js:101
 msgid "{start} to {end}"
-msgstr ""
+msgstr "с {start} по {end}"
 
 #: /app/src/modules/projects/ProjectsModule.js:102
-#, fuzzy
-#| msgid "From Date"
 msgid "From {start}"
-msgstr "Дата с"
+msgstr "С {start}"
 
 #: /app/src/modules/projects/ProjectsModule.js:108
 msgid "{time} of the time gone, {spent} spent"
-msgstr ""
+msgstr "Прошло {time} времени, потрачено {spent}"
 
 #: /app/src/modules/projects/ProjectsModule.js:117
-#, fuzzy
-#| msgid "{count} left"
 msgid "{amount} left"
-msgstr "{count} осталось"
+msgstr "{amount} осталось"
 
 #: /app/src/modules/projects/ProjectsModule.js:161
-#, fuzzy
-#| msgid "Nothing in this period"
 msgid "Not counted in this project"
-msgstr "За этот период данных нет"
+msgstr "Не учитывается в этом проекте"
 
 #: /app/src/modules/projects/ProjectsModule.js:176
-#, fuzzy
-#| msgid "Listed under {category}"
 msgid "Directly in {category}"
-msgstr "Указано в категории «{category}»"
+msgstr "Непосредственно в {category}"
 
 #: /app/src/modules/projects/ProjectsModule.js:179
-#, fuzzy
-#| msgid "Fully allocated"
 msgid "Unallocated"
-msgstr "Полностью распределено"
+msgstr "Не распределено"
 
 #: /app/src/modules/projects/ProjectsModule.js:184
-#, fuzzy
-#| msgid "No categories yet"
 msgid "No subcategories or amounts yet"
-msgstr "Категорий пока нет"
+msgstr "Подкатегорий или сумм пока нет"
 
 #: /app/src/modules/projects/ProjectsModule.js:202
 msgid ""
 "Delete the project \"{name}\"? Its categories and transactions are not "
 "changed."
-msgstr ""
+msgstr "Удалить проект «{name}»? Его категории и транзакции не изменятся."
 
 #: /app/src/modules/projects/ProjectsModule.js:207
-#, fuzzy
-#| msgid "Contact deleted"
 msgid "Project deleted"
-msgstr "Контакт удалён"
+msgstr "Проект удалён"
 
 #: /app/src/modules/projects/ProjectsModule.js:260
-#, fuzzy
-#| msgid "Edit rule"
 msgid "Edit Project"
-msgstr "Редактировать правило"
+msgstr "Изменить проект"
 
 #: /app/src/modules/projects/ProjectsModule.js:260
 #: /app/templates/index.php:2941 /app/templates/index.php:2948
 #: /app/templates/index.php:5070
-#, fuzzy
-#| msgid "Pension Projection"
 msgid "New Project"
-msgstr "Прогноз пенсионных накоплений"
+msgstr "Новый проект"
 
 #: /app/src/modules/projects/ProjectsModule.js:268
-#, fuzzy
-#| msgid "this category"
 msgid "Choose a category…"
-msgstr "эта категория"
+msgstr "Выберите категорию…"
 
 #: /app/src/modules/projects/ProjectsModule.js:303
-#, fuzzy
-#| msgid "of {amount}"
 msgid "No amount"
-msgstr "из {amount}"
+msgstr "Нет суммы"
 
 #: /app/src/modules/projects/ProjectsModule.js:315
 msgid "The subcategory amounts are {amount} over the total"
-msgstr ""
+msgstr "Суммы подкатегорий на {amount} превышают общую сумму"
 
 #: /app/src/modules/projects/ProjectsModule.js:316
-#, fuzzy
-#| msgid "Expected: {amount}"
 msgid "Unallocated: {amount}"
-msgstr "Ожидается: {amount}"
+msgstr "Не распределено: {amount}"
 
 #: /app/src/modules/projects/ProjectsModule.js:336
 msgid "Choose a category for the project"
-msgstr ""
+msgstr "Выберите категорию для проекта"
 
 #: /app/src/modules/projects/ProjectsModule.js:358
-#, fuzzy
-#| msgid "Projected value"
 msgid "Project saved"
-msgstr "Прогнозируемая стоимость"
+msgstr "Проект сохранён"
 
 #: /app/src/modules/projects/ProjectsModule.js:358
-#, fuzzy
-#| msgid "Goal created"
 msgid "Project created"
-msgstr "Цель создана"
+msgstr "Проект создан"
 
 #: /app/src/modules/reports/ReportsModule.js:215
 msgid "1 account"
@@ -9536,7 +9490,7 @@ msgstr "Всего платежей"
 
 #: /app/src/modules/reports/ReportsModule.js:1984
 msgid "No payment recorded - the bill has moved on from this date"
-msgstr ""
+msgstr "Нет записи об оплате - платёж уже перешёл к следующей дате"
 
 #: /app/src/modules/reports/ReportsModule.js:1987
 msgid "Due"
@@ -10004,10 +9958,8 @@ msgstr "Задать продавца"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:93
 #: /app/src/modules/rules/components/ActionBuilder.js:126
-#, fuzzy
-#| msgid "Description"
 msgid "Set Description"
-msgstr "Описание"
+msgstr "Указать описание"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:94
 #: /app/src/modules/rules/components/ActionBuilder.js:127
@@ -10121,7 +10073,7 @@ msgstr "Описание:"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:225
 msgid "e.g., Grocery purchase, Salary"
-msgstr ""
+msgstr "например, покупка продуктов, зарплата"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:240
 msgid "Notes Text:"
@@ -10230,10 +10182,8 @@ msgid "Action {number}: Vendor name is empty"
 msgstr "Действие {number}: имя продавца не указано"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:546
-#, fuzzy
-#| msgid "Action {number}: Notes text is empty"
 msgid "Action {number}: Description is empty"
-msgstr "Действие {number}: текст заметки не указан"
+msgstr "Действие {number}: описание пусто"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:551
 msgid "Action {number}: Notes text is empty"
@@ -10663,8 +10613,8 @@ msgid ""
 "Are you sure you want to delete this contact? This will also remove all "
 "shared expense records with them."
 msgstr ""
-"Удалить этот контакт? Все записи о совместных расходах с ним также будут "
-"удалены."
+"Вы уверены, что хотите удалить этот контакт? Все записи о совместных "
+"расходах с этим контактом также будут удалены."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:390
 msgid "Contact deleted"
@@ -10682,12 +10632,12 @@ msgstr "Нет совместных расходов"
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:484
 msgid "Only {name} can settle the expenses they split with you."
 msgstr ""
+"Только {name} может выполнить взаиморасчёт по расходам, которыми делится с "
+"вами."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:492
-#, fuzzy
-#| msgid "Delete {name}"
 msgid "split by {name}"
-msgstr "Удалить {name}"
+msgstr "распределено пользователем {name}"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:502
 msgid "Open"
@@ -10730,87 +10680,77 @@ msgid "Please add contacts first in Shared Expenses"
 msgstr "Вначале добавьте контакты в раздел «Совместные расходы»"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:723
-#, fuzzy
-#| msgid "Failed to load tag sets"
 msgid "Failed to load the split"
-msgstr "Не удалось загрузить наборы тегов"
+msgstr "Не удалось загрузить распределение"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:760
 msgid ""
 "{amount} of this has already been settled, so it is left out of the split."
 msgstr ""
+"{amount} из этой суммы уже рассчитано, поэтому эта сумма не включена в "
+"распределение."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:810
-#, fuzzy
-#| msgid "Delete {name}"
 msgid "Percentage for {name}"
-msgstr "Удалить {name}"
+msgstr "Процент для {name}"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:811
-#, fuzzy
-#| msgid "Account holder name"
 msgid "Amount for {name}"
-msgstr "Имя владельца счёта"
+msgstr "Сумма для {name}"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:830
-#, fuzzy
-#| msgid "You owe"
 msgid "You"
-msgstr "Вы должны"
+msgstr "Вы"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:888
 msgid "Nobody is ticked, so saving removes this split."
 msgstr ""
+"Никто не отмечен, поэтому при сохранении это распределение будет удалено."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:895
 msgid "You owe the others {owed}. Your part is {mine}."
-msgstr ""
+msgstr "Вы должны остальным {owed}. Ваша доля — {mine}."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:896
 msgid "The others owe you {owed}. Your share is {mine}."
-msgstr ""
+msgstr "Остальные должны вам {owed}. Ваша доля — {mine}."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:899
-#, fuzzy
-#| msgid "Please select at least one expense to settle"
 msgid "Tick at least one person to split with."
-msgstr "Выберите хотя бы один расход для взаиморасчёта"
+msgstr "Отметьте хотя бы одного человека для распределения."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:901
 msgid "There is not enough to split between this many people."
-msgstr ""
+msgstr "Недостаточно средств для распределения между таким числом людей."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:904
 msgid "Enter a percentage for everyone ticked."
-msgstr ""
+msgstr "Введите процент для каждого отмеченного человека."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:905
 msgid "Enter an amount for everyone ticked."
-msgstr ""
+msgstr "Введите сумму для каждого отмеченного человека."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:907
 msgid "The percentages add up to {total} and need to add up to {full}."
-msgstr ""
+msgstr "Сумма процентов составляет {total}, а должна составлять {full}."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:912
 msgid "The amounts add up to {amount} more than there is to split."
-msgstr ""
+msgstr "Сумма долей на {amount} превышает доступную для распределения сумму."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:945
 msgid "Remove this split? Nobody will owe anything for this transaction."
 msgstr ""
+"Удалить это распределение? Никто не будет ничего должен по этой транзакции."
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:974
-#, fuzzy
-#| msgid "Tile removed"
 msgid "Split removed"
-msgstr "Плитка удалена"
+msgstr "Распределение удалено"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:974
-#, fuzzy
-#| msgid "Report saved"
 msgid "Split saved"
-msgstr "Отчёт сохранён"
+msgstr "Распределение сохранено"
 
 #: /app/src/modules/sharing/SharingModule.js:49
 msgid "Failed to load sharing data"
@@ -13021,13 +12961,11 @@ msgstr "Свернуть все"
 
 #: /app/templates/index.php:1911
 msgid "Give each selected category a different color"
-msgstr ""
+msgstr "Назначить каждой выбранной категории свой цвет"
 
 #: /app/templates/index.php:1912
-#, fuzzy
-#| msgid "Record"
 msgid "Recolor"
-msgstr "Записать"
+msgstr "Изменить цвет"
 
 #: /app/templates/index.php:1927 /app/templates/index.php:2214
 msgid "No categories yet"
@@ -13607,10 +13545,8 @@ msgid "Create Your First Goal"
 msgstr "Создать первую цель"
 
 #: /app/templates/index.php:2946
-#, fuzzy
-#| msgid "No rules yet"
 msgid "No projects yet"
-msgstr "Правил пока нет"
+msgstr "Проектов пока нет"
 
 #: /app/templates/index.php:2947
 msgid ""
@@ -13618,6 +13554,9 @@ msgid ""
 "renovation, a wedding or a long trip. It covers a category and everything "
 "under it from a start date to an end date, and it does not reset each month."
 msgstr ""
+"Проект — это один бюджет для дела, которое длится месяцами, например "
+"ремонта, свадьбы или долгой поездки. Он охватывает категорию и всё под ней "
+"от даты начала до даты окончания и не сбрасывается каждый месяц."
 
 #: /app/templates/index.php:2959
 msgid "Financial Forecast"
@@ -14350,7 +14289,7 @@ msgstr ""
 #: /app/templates/index.php:4374
 #, php-format
 msgid "Budget alert threshold (%%)"
-msgstr "Порог предупреждения о бюджете (%%)"
+msgstr "Порог оповещения о бюджете (%%)"
 
 #: /app/templates/index.php:4375
 msgid ""
@@ -14358,8 +14297,8 @@ msgid ""
 "percentage of its budget. Set to 100 to alert only when a category goes over "
 "budget."
 msgstr ""
-"Показывать категорию на плитке предупреждений бюджета, когда расходы "
-"превысят этот процент бюджета. Укажите 100, чтобы предупреждать только после "
+"Показывать категорию на плитке оповещений о бюджете, когда расходы превысят "
+"этот процент бюджета. Укажите 100, чтобы показывать оповещение только после "
 "превышения бюджета."
 
 #: /app/templates/index.php:4385
@@ -15065,58 +15004,48 @@ msgid ""
 "by people you share them with. View transactions only lists the ones in "
 "accounts you can see."
 msgstr ""
+"В цифры входит всё, отнесённое к категориям проекта, в том числе людьми, с "
+"которыми вы ими делитесь. В просмотре транзакций показаны только записи на "
+"доступных вам счетах."
 
 #: /app/templates/index.php:5051
-#, fuzzy
-#| msgid "category"
 msgid "Subcategory"
-msgstr "категория"
+msgstr "Подкатегория"
 
 #: /app/templates/index.php:5059
-#, fuzzy
-#| msgid "View All Transactions"
 msgid "View transactions"
-msgstr "Просмотр всех транзакций"
+msgstr "Просмотреть транзакции"
 
 #: /app/templates/index.php:5071
-#, fuzzy
-#| msgid "Projected Income"
 msgid "Project form"
-msgstr "Прогнозируемый доход"
+msgstr "Форма проекта"
 
 #: /app/templates/index.php:5074
-#, fuzzy
-#| msgid "e.g., Bonus top-up"
 msgid "e.g., House renovation"
-msgstr "например, бонусное пополнение"
+msgstr "например, ремонт дома"
 
 #: /app/templates/index.php:5079
 msgid ""
 "Everything filed under this category and its subcategories counts towards "
 "the project."
 msgstr ""
+"Всё, отнесённое к этой категории и её подкатегориям, учитывается в проекте."
 
 #: /app/templates/index.php:5082
-#, fuzzy
-#| msgid "Total Budgeted"
 msgid "Total budget"
-msgstr "Всего запланировано"
+msgstr "Общий бюджет"
 
 #: /app/templates/index.php:5091
-#, fuzzy
-#| msgid "Linked Tag (optional)"
 msgid "End date (optional)"
-msgstr "Связанный тег (необязательно)"
+msgstr "Дата окончания (необязательно)"
 
 #: /app/templates/index.php:5096
-#, fuzzy
-#| msgid "Make this a subcategory (optional)"
 msgid "Subcategory amounts (optional)"
-msgstr "Сделать подкатегорией (необязательно)"
+msgstr "Суммы подкатегорий (необязательно)"
 
 #: /app/templates/index.php:5103
 msgid "Leave these categories out of monthly budgets"
-msgstr ""
+msgstr "Исключить эти категории из ежемесячных бюджетов"
 
 #: /app/templates/index.php:5105
 msgid ""
@@ -15124,6 +15053,9 @@ msgid ""
 "show as over budget on the Budget page. The spending still counts in reports "
 "and on the dashboard."
 msgstr ""
+"Включает для категории параметр «Исключить из бюджетирования», чтобы крупный "
+"платёж по проекту не отображался как превышение бюджета на странице бюджета. "
+"Расходы всё равно учитываются в отчётах и на панели управления."
 
 #: /app/templates/index.php:5127
 msgid "Goal Name"
@@ -16297,8 +16229,8 @@ msgid ""
 msgstr ""
 "Для расходов, которые вы отслеживаете, но не включаете в бюджет. Категория "
 "по-прежнему учитывается в отчётах, на главном экране и во всех итогах, но "
-"вместе с подкатегориями исключается со страницы бюджета, из предупреждений и "
-"отчёта по бюджету."
+"вместе с подкатегориями исключается со страницы бюджета, из оповещений о "
+"бюджете и отчёта по бюджету."
 
 #: /app/templates/index.php:6765
 msgid "Save category"
@@ -16540,38 +16472,28 @@ msgid "Split Method"
 msgstr "Способ разделения"
 
 #: /app/templates/index.php:7177
-#, fuzzy
-#| msgid "equals"
 msgid "Equally"
-msgstr "равен"
+msgstr "Поровну"
 
 #: /app/templates/index.php:7178
-#, fuzzy
-#| msgid "Percentage"
 msgid "By percentage"
-msgstr "Процент"
+msgstr "По проценту"
 
 #: /app/templates/index.php:7179
-#, fuzzy
-#| msgid "amount"
 msgid "By amount"
-msgstr "сумма"
+msgstr "По сумме"
 
 #: /app/templates/index.php:7184
-#, fuzzy
-#| msgid "between"
 msgid "Split between"
-msgstr "между"
+msgstr "Разделить между"
 
 #: /app/templates/index.php:7192
 msgid "Optional notes about this split"
 msgstr "Заметки об этом разделении (необязательно)"
 
 #: /app/templates/index.php:7196
-#, fuzzy
-#| msgid "Save Splits"
 msgid "Save Split"
-msgstr "Сохранить части"
+msgstr "Сохранить распределение"
 
 #: /app/templates/index.php:7206
 msgid "Settle Expenses"
