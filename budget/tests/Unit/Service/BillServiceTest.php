@@ -595,34 +595,37 @@ class BillServiceTest extends TestCase {
 	/**
 	 * With an account picked, the calendar says what is left in it once the
 	 * month's bills are paid: today's balance less every occurrence still
-	 * due that pays out of the account. A transfer arriving into it is not
-	 * a payment out, and a bill paying from elsewhere is not its business.
+	 * due that pays out of the account, plus every transfer still due that
+	 * arrives into it. A bill paying from elsewhere is not its business.
 	 */
-	public function testAnnualOverviewForAnAccountDeductsWhatStillLeavesIt(): void {
+	public function testAnnualOverviewForAnAccountNetsWhatStillLeavesAndArrives(): void {
 		$this->accountMapper->method('findAll')->with('user1')->willReturn([
 			$this->makeAccount(5, 'Current'), $this->makeAccount(7, 'Savings'), $this->makeAccount(8, 'Joint'),
 		]);
 		$this->transactionService->method('getBalanceAsOf')->with(5, date('Y-m-d'))->willReturn(1000.0);
 
 		// Rent is paid for January and February, so it is next due in March;
+		// the top-up has arrived for January, so it is next due in February;
 		// the rest have their whole year ahead of them
 		$rent = $this->makeBill(['id' => 1, 'name' => 'Rent', 'amount' => 500.0, 'accountId' => 5, 'nextDueDate' => '2026-03-15']);
 		$toSavings = $this->makeBill(['id' => 2, 'name' => 'To savings', 'amount' => 200.0, 'accountId' => 5, 'isTransfer' => true, 'destinationAccountId' => 7, 'nextDueDate' => '2026-01-15']);
-		$fromSavings = $this->makeBill(['id' => 3, 'name' => 'Top-up', 'amount' => 300.0, 'accountId' => 7, 'isTransfer' => true, 'destinationAccountId' => 5, 'nextDueDate' => '2026-01-15']);
+		$fromSavings = $this->makeBill(['id' => 3, 'name' => 'Top-up', 'amount' => 300.0, 'accountId' => 7, 'isTransfer' => true, 'destinationAccountId' => 5, 'nextDueDate' => '2026-02-15']);
 		$gym = $this->makeBill(['id' => 4, 'name' => 'Gym', 'amount' => 40.0, 'accountId' => 8, 'nextDueDate' => '2026-01-15']);
 		$this->mapper->method('findByType')->willReturn([$rent, $toSavings, $fromSavings, $gym]);
 		$this->transactionService->method('findBillPaymentsInYear')->willReturn([
 			$this->debit(1, '2026-01-15', 500.0),
 			$this->debit(1, '2026-02-15', 500.0),
+			$this->debit(3, '2026-01-15', 300.0),
 		]);
 
 		$result = $this->service->getAnnualOverview('user1', 2026, true, 'active', 5);
 
 		$this->assertSame(['id' => 5, 'name' => 'Current', 'currency' => 'CHF', 'balance' => 1000.0], $result['account']);
-		// Rent is paid for January: only the transfer out is still to come
+		// Rent and the top-up are settled for January (the top-up is already
+		// in today's balance): only the transfer out is still to come
 		$this->assertEqualsWithDelta(800.0, $result['balanceAfterBills'][1], 0.001);
-		// March owes both, and the 300 arriving from savings is not taken off
-		$this->assertEqualsWithDelta(300.0, $result['balanceAfterBills'][3], 0.001);
+		// March owes both, and the 300 arriving from savings is added on
+		$this->assertEqualsWithDelta(600.0, $result['balanceAfterBills'][3], 0.001);
 	}
 
 	/** A month with nothing left to pay shows no figure: there is nothing to take off. */

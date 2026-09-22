@@ -2039,7 +2039,7 @@ export default class ReportsModule {
         }
         if (!anyDue) return '';
 
-        const title = t('budget', 'Balance of {account} today ({balance}), less the bills still due in the month', {
+        const title = t('budget', 'Balance of {account} today ({balance}), after the bills and transfers still due in the month', {
             account: account.name,
             balance: this.formatCurrency(account.balance, account.currency),
         });

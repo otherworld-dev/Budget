@@ -1749,20 +1749,22 @@ class BillService {
 
     /**
      * What is left in the account after each month's bills: today's balance
-     * less every occurrence still due that pays out of it. Paid and
-     * unrecorded (moved past, #333) occurrences are not owed; a transfer
-     * arriving into the account is not a payment out. A month with nothing
-     * still due has nothing to take off, and is null rather than the bare
-     * balance (#393).
+     * less every occurrence still due that pays out of it, plus every
+     * transfer still due that arrives into it. Paid and unrecorded (moved
+     * past, #333) occurrences are already in the balance or not owed, so
+     * neither counts. A transfer books the same amount into the destination
+     * as it takes from the source, so an arriving one needs no conversion. A
+     * month with nothing still due is null rather than the bare balance (#393).
      *
-     * @param array[] $billsData ungrouped calendar rows, in the account's own currency
+     * @param array[] $billsData ungrouped calendar rows
      * @return array<int, float|null> month => balance left, or null
      */
     private function balanceAfterBills(array $billsData, Account $account, float $balance): array {
         $scale = Currency::decimalsFor($account->getCurrency());
         $due = array_fill(1, 12, null);
         foreach ($billsData as $row) {
-            if ($row['accountId'] !== $account->getId()) {
+            $arriving = $row['accountId'] !== $account->getId();
+            if ($arriving && !($row['isTransfer'] && $row['destinationAccountId'] === $account->getId())) {
                 continue;
             }
             $settled = array_flip(array_merge($row['paidMonths'], $row['unrecordedMonths']));
@@ -1770,7 +1772,10 @@ class BillService {
                 if (isset($settled[$month])) {
                     continue;
                 }
-                $due[$month] = MoneyCalculator::add($due[$month] ?? '0', $amount, $scale);
+                $owed = $due[$month] ?? '0';
+                $due[$month] = $arriving
+                    ? MoneyCalculator::subtract($owed, $amount, $scale)
+                    : MoneyCalculator::add($owed, $amount, $scale);
             }
         }
 

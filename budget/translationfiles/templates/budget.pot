@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-22 18:02+0000\n"
+"POT-Creation-Date: 2026-09-22 20:53+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2997,27 +2997,27 @@ msgstr ""
 msgid "A transaction for this payment already exists"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:1054 /app/lib/Service/BillService.php:1068
+#: /app/lib/Service/BillService.php:1058 /app/lib/Service/BillService.php:1072
 msgid "This bill has no recorded payment to undo"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:1096
+#: /app/lib/Service/BillService.php:1100
 msgid "Cannot skip a one-time bill"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:1100
+#: /app/lib/Service/BillService.php:1104
 msgid "Cannot skip an inactive bill"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:1519
+#: /app/lib/Service/BillService.php:1523
 msgid "Auto-pay is not enabled for this bill"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:1532
+#: /app/lib/Service/BillService.php:1536
 msgid "Bill has no account associated"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:1542
+#: /app/lib/Service/BillService.php:1546
 msgid "Bill auto-paid successfully"
 msgstr ""
 
@@ -9096,7 +9096,8 @@ msgstr ""
 
 #: /app/src/modules/reports/ReportsModule.js:2042
 msgid ""
-"Balance of {account} today ({balance}), less the bills still due in the month"
+"Balance of {account} today ({balance}), after the bills and transfers still "
+"due in the month"
 msgstr ""
 
 #: /app/src/modules/reports/ReportsModule.js:2077
