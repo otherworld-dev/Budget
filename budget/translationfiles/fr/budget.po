@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-22 18:02+0000\n"
-"PO-Revision-Date: 2026-09-21 21:11+0000\n"
+"PO-Revision-Date: 2026-09-22 21:14+0000\n"
 "Last-Translator: Christophe <tophe.perso@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
@@ -738,10 +738,8 @@ msgstr "Échec de l'enregistrement du paiement"
 
 #: /app/lib/Controller/BillController.php:810
 #: /app/src/modules/bills/BillsModule.js:163
-#, fuzzy
-#| msgid "Failed to record the payment"
 msgid "Failed to dismiss the payment"
-msgstr "Échec de l'enregistrement du paiement"
+msgstr "Impossible d'annuler le paiement"
 
 #: /app/lib/Controller/BillController.php:833
 #: /app/src/modules/bills/BillsModule.js:1313
@@ -880,10 +878,8 @@ msgstr "Total"
 
 #: /app/lib/Controller/BillController.php:1216
 #: /app/src/modules/reports/ReportsModule.js:2048
-#, fuzzy
-#| msgid "Balance Update"
 msgid "Balance after bills"
-msgstr "Mise à jour du solde"
+msgstr "Solde après paiement des factures"
 
 #: /app/lib/Controller/BillController.php:1231
 #, php-format
@@ -3960,6 +3956,8 @@ msgid ""
 "Disabling and re-enabling Budget on the Apps page repairs this, no command "
 "line needed."
 msgstr ""
+"Désactiver puis réactiver Budget sur la page « Apps » pour résoudre ce "
+"problème ; aucune ligne de commande n'est nécessaire."
 
 #: /app/lib/Service/ShareService.php:56
 msgid "You cannot share your budget with yourself"
@@ -6472,6 +6470,7 @@ msgstr "Marquer comme impayé"
 #: /app/src/modules/bills/BillsModule.js:113
 msgid "Keep the bill as paid and stop listing this payment"
 msgstr ""
+"Conservez la facture comme étant payée et ne mentionnez plus ce paiement"
 
 #: /app/src/modules/bills/BillsModule.js:113
 #: /app/src/modules/bills/BillsModule.js:223
@@ -9580,11 +9579,15 @@ msgstr "Totaux mensuels"
 msgid ""
 "Pick an account above to see what is left in it after each month's bills."
 msgstr ""
+"Choisissez un compte parmi ceux ci-dessus pour voir le solde restant après "
+"le paiement des factures mensuelles."
 
 #: /app/src/modules/reports/ReportsModule.js:2042
 msgid ""
 "Balance of {account} today ({balance}), less the bills still due in the month"
 msgstr ""
+"Solde de {account} aujourd'hui ({balance}), moins les factures encore à "
+"régler ce mois-ci"
 
 #: /app/src/modules/reports/ReportsModule.js:2077
 #: /app/src/modules/reports/ReportsModule.js:2079
@@ -12304,7 +12307,7 @@ msgstr "Mettre à jour le virement"
 msgid ""
 "Pays what was owed at the due date. Later charges roll to the next payment"
 msgstr ""
-"Paie le montant dû à la date d'échéance. Les frais ultérieurs sont reportés "
+"Règle le montant dû à la date d'échéance. Les frais ultérieurs sont reportés "
 "sur le prochain paiement"
 
 #: /app/src/modules/transfers/TransfersModule.js:660
@@ -12314,7 +12317,7 @@ msgstr "Règle la totalité du montant dû sur la carte à la date d'échéance"
 #: /app/src/modules/transfers/TransfersModule.js:661
 msgid "Pays the card's minimum payment, never more than is owed"
 msgstr ""
-"Paie le montant minimum dû sur la carte, sans jamais dépasser le montant dû"
+"Règle le montant minimum dû sur la carte, sans jamais dépasser le montant dû"
 
 #: /app/src/modules/transfers/TransfersModule.js:674
 msgid "Resolved from the card at each payment"
@@ -12323,6 +12326,8 @@ msgstr "Déduit de la carte à chaque paiement"
 #: /app/src/modules/transfers/TransfersModule.js:758
 msgid "The date this transfer is due. It can be in the past."
 msgstr ""
+"La date à laquelle ce virement doit être effectué. Elle peut être antérieure "
+"à la date du présent document."
 
 #: /app/src/modules/transfers/TransfersModule.js:770
 msgid "Day of the month when the transfer is due"
@@ -12337,10 +12342,8 @@ msgid "Transfer only occurs on or after this date (optional)"
 msgstr "Le virement n'a lieu qu'à partir de cette date (facultatif)"
 
 #: /app/src/modules/transfers/TransfersModule.js:811
-#, fuzzy
-#| msgid "Day of the month when the transfer is due"
 msgid "Please enter the date the transfer is due"
-msgstr "Jour du mois où le virement doit être effectué"
+msgstr "Veuillez saisir la date à laquelle le virement doit être effectué"
 
 #: /app/src/modules/transfers/TransfersModule.js:830
 msgid "Please select a source account"
@@ -12400,10 +12403,8 @@ msgstr "Virement marqué comme payé"
 
 #: /app/src/modules/transfers/TransfersModule.js:1015
 #: /app/src/modules/transfers/TransfersModule.js:1036
-#, fuzzy
-#| msgid "Failed to save transfer"
 msgid "Failed to skip transfer"
-msgstr "Échec de l'enregistrement du virement"
+msgstr "Impossible de passer l'étape du virement"
 
 #: /app/src/modules/transfers/TransfersModule.js:1101
 #: /app/src/modules/transfers/TransfersModule.js:1110
@@ -13062,16 +13063,12 @@ msgid "Add new category"
 msgstr "Ajouter une nouvelle catégorie"
 
 #: /app/templates/index.php:1870
-#, fuzzy
-#| msgid "Export all rules as JSON"
 msgid "Export the category tree as a JSON file"
-msgstr "Exporter toutes les règles au format JSON"
+msgstr "Exporter l'arborescence des catégories sous forme de fichier JSON"
 
 #: /app/templates/index.php:1874
-#, fuzzy
-#| msgid "Import rules from a JSON file"
 msgid "Import categories from a JSON or CSV file"
-msgstr "Importer des règles depuis un fichier JSON"
+msgstr "Importer des catégories à partir d'un fichier JSON ou CSV"
 
 #: /app/templates/index.php:1888
 msgid "Search categories..."
@@ -13090,10 +13087,8 @@ msgid "Give each selected category a different color"
 msgstr "Attribuez une couleur différente à chaque catégorie sélectionnée"
 
 #: /app/templates/index.php:1912
-#, fuzzy
-#| msgid "Record"
 msgid "Recolor"
-msgstr "Enregistrer"
+msgstr "Recoloriser"
 
 #: /app/templates/index.php:1927 /app/templates/index.php:2214
 msgid "No categories yet"
@@ -13255,10 +13250,10 @@ msgid "Step 1: Select File"
 msgstr "Étape 1 : Sélectionner un fichier"
 
 #: /app/templates/index.php:2258
-#, fuzzy
-#| msgid "Choose your bank statement file (CSV, OFX, or QIF format)"
 msgid "Choose your bank statement file (CSV, OFX, QIF, or camt.053 XML format)"
-msgstr "Choisissez votre fichier de relevé bancaire (format CSV, OFX ou QIF)"
+msgstr ""
+"Choisissez votre fichier de relevé bancaire (format CSV, OFX, QIF ou XML "
+"camt.053)"
 
 #: /app/templates/index.php:2263
 msgid "Drag and drop your bank statement here"
@@ -15174,28 +15169,20 @@ msgstr ""
 "des comptes auxquels vous avez accès."
 
 #: /app/templates/index.php:5051
-#, fuzzy
-#| msgid "Category"
 msgid "Subcategory"
-msgstr "Catégorie"
+msgstr "Sous-catégorie"
 
 #: /app/templates/index.php:5059
-#, fuzzy
-#| msgid "View All Transactions"
 msgid "View transactions"
-msgstr "Afficher toutes les opérations"
+msgstr "Afficher les opérations"
 
 #: /app/templates/index.php:5071
-#, fuzzy
-#| msgid "Projected Income"
 msgid "Project form"
-msgstr "Revenu prévu"
+msgstr "Formulaire de projet"
 
 #: /app/templates/index.php:5074
-#, fuzzy
-#| msgid "e.g., Bonus top-up"
 msgid "e.g., House renovation"
-msgstr "par ex. : Supplément de prime"
+msgstr "par ex. : la rénovation d'une maison"
 
 #: /app/templates/index.php:5079
 msgid ""
@@ -15206,22 +15193,16 @@ msgstr ""
 "en compte dans le projet."
 
 #: /app/templates/index.php:5082
-#, fuzzy
-#| msgid "Total Budgeted"
 msgid "Total budget"
-msgstr "Total budgétisé"
+msgstr "Budget total"
 
 #: /app/templates/index.php:5091
-#, fuzzy
-#| msgid "Linked Tag (optional)"
 msgid "End date (optional)"
-msgstr "Étiquette liée (facultatif)"
+msgstr "Date de fin (facultative)"
 
 #: /app/templates/index.php:5096
-#, fuzzy
-#| msgid "Make this a subcategory (optional)"
 msgid "Subcategory amounts (optional)"
-msgstr "En faire une sous-catégorie (facultatif)"
+msgstr "Montants des sous-catégories (facultatif)"
 
 #: /app/templates/index.php:5103
 msgid "Leave these categories out of monthly budgets"
@@ -15816,10 +15797,8 @@ msgid "Used for debt payoff calculations"
 msgstr "Utilisé pour les calculs de remboursement de dettes"
 
 #: /app/templates/index.php:6016
-#, fuzzy
-#| msgid "Day of the month when bill is due"
 msgid "Day of the month the statement payment is due"
-msgstr "Jour du mois où la facture est exigible"
+msgstr "Jour du mois où le paiement du relevé est dû"
 
 #: /app/templates/index.php:6022
 msgid "Track accrued interest over time, with variable rate support"
@@ -16310,16 +16289,12 @@ msgid "How often you receive this income"
 msgstr "Fréquence à laquelle vous recevez ce revenu"
 
 #: /app/templates/index.php:6600
-#, fuzzy
-#| msgid "Invalid statement date"
 msgid "First payment date"
-msgstr "Date de relevé non valide"
+msgstr "Date du premier versement"
 
 #: /app/templates/index.php:6602
-#, fuzzy
-#| msgid "Bill only occurs on or after this date (optional)"
 msgid "Payments repeat from this date (optional)"
-msgstr "La facture n'est émise qu'à partir de cette date (facultatif)"
+msgstr "Les paiements sont récurrents à partir de cette date (facultatif)"
 
 #: /app/templates/index.php:6606
 msgid "Expected Month"
@@ -16374,10 +16349,8 @@ msgid "Save income"
 msgstr "Enregistrer le revenu"
 
 #: /app/templates/index.php:6681
-#, fuzzy
-#| msgid "Go to Categories"
 msgid "Import Categories"
-msgstr "Aller aux catégories"
+msgstr "Importe les catégories"
 
 #: /app/templates/index.php:6686
 msgid ""
@@ -16625,40 +16598,28 @@ msgid "Update Transactions"
 msgstr "Mettre à jour les opérations"
 
 #: /app/templates/index.php:7098
-#, fuzzy
-#| msgid "Edit Tag"
 msgid "Bulk Edit Tags"
-msgstr "Modifier l'étiquette"
+msgstr "Modifie en masse les étiquettes"
 
 #: /app/templates/index.php:7100
-#, fuzzy
-#| msgid "Bulk edit form"
 msgid "Bulk tag form"
-msgstr "Formulaire de modification en masse"
+msgstr "Formulaire des étiquettes en masse"
 
 #: /app/templates/index.php:7102
-#, fuzzy
-#| msgid "Add new tag"
 msgid "Add these tags"
-msgstr "Ajouter une nouvelle étiquette"
+msgstr "Ajouter ces étiquettes"
 
 #: /app/templates/index.php:7107
-#, fuzzy
-#| msgid "Remove this group"
 msgid "Remove these tags"
-msgstr "Supprimer ce groupe"
+msgstr "Supprimer ces étiquettes"
 
 #: /app/templates/index.php:7114
-#, fuzzy
-#| msgid "Update selected transactions"
 msgid "Apply tag changes to selected transactions"
-msgstr "Mettre à jour les opérations sélectionnées"
+msgstr "Appliquer les modifications des étiquettes aux opérations sélectionnées"
 
 #: /app/templates/index.php:7114
-#, fuzzy
-#| msgid "Apply rules"
 msgid "Apply Tags"
-msgstr "Appliquer les règles"
+msgstr "Appliquer les étiquettes"
 
 #: /app/templates/index.php:7125
 msgid "Contact form"
@@ -16701,38 +16662,28 @@ msgid "Split Method"
 msgstr "Méthode de répartition"
 
 #: /app/templates/index.php:7177
-#, fuzzy
-#| msgid "equals"
 msgid "Equally"
-msgstr "égale"
+msgstr "Equitablement"
 
 #: /app/templates/index.php:7178
-#, fuzzy
-#| msgid "Percentage"
 msgid "By percentage"
-msgstr "Pourcentage"
+msgstr "En pourcentage"
 
 #: /app/templates/index.php:7179
-#, fuzzy
-#| msgid "Account"
 msgid "By amount"
-msgstr "Compte"
+msgstr "Par montant"
 
 #: /app/templates/index.php:7184
-#, fuzzy
-#| msgid "between"
 msgid "Split between"
-msgstr "entre"
+msgstr "Ventilé entre"
 
 #: /app/templates/index.php:7192
 msgid "Optional notes about this split"
 msgstr "Remarques facultatives concernant cette répartition"
 
 #: /app/templates/index.php:7196
-#, fuzzy
-#| msgid "Save Splits"
 msgid "Save Split"
-msgstr "Enregistrer les ventilations"
+msgstr "Enregistrer la ventilation"
 
 #: /app/templates/index.php:7206
 msgid "Settle Expenses"
