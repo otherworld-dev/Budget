@@ -4,6 +4,7 @@
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
+import { billRowDateText } from '../../utils/billDates.js';
 import { showSuccess, showError, showWarning, showUndoNotification } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { initSingleDatePicker } from '../../utils/datepicker.js';
@@ -344,7 +345,7 @@ export default class TransfersModule {
                     <div class="bill-details">
                         <div class="bill-due-date">
                             <span class="icon-calendar" aria-hidden="true"></span>
-                            ${dueDate ? formatters.formatDate(dueDate, this.settings) : t('budget', 'No due date')}
+                            ${dom.escapeHtml(billRowDateText(transfer, dueDate, isPaid, this.settings))}
                         </div>
                         <div class="bill-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>

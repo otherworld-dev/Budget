@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-22 21:10+0000\n"
+"POT-Creation-Date: 2026-09-22 22:10+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -649,7 +649,7 @@ msgstr ""
 #: /app/lib/Controller/BillController.php:252
 #: /app/lib/Controller/BillController.php:665
 #: /app/lib/Service/BillService.php:416
-#: /app/src/modules/transfers/TransfersModule.js:840
+#: /app/src/modules/transfers/TransfersModule.js:841
 msgid "Cannot transfer to the same account"
 msgstr ""
 
@@ -695,7 +695,7 @@ msgid "Remaining payments must be at least 1"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:388
-#: /app/src/modules/bills/BillsModule.js:258
+#: /app/src/modules/bills/BillsModule.js:259
 msgid "Failed to create bill"
 msgstr ""
 
@@ -718,17 +718,17 @@ msgid "Failed to check for unrecorded payments"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:791
-#: /app/src/modules/bills/BillsModule.js:181
+#: /app/src/modules/bills/BillsModule.js:182
 msgid "Failed to record the payment"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:810
-#: /app/src/modules/bills/BillsModule.js:163
+#: /app/src/modules/bills/BillsModule.js:164
 msgid "Failed to dismiss the payment"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:833
-#: /app/src/modules/bills/BillsModule.js:1313
+#: /app/src/modules/bills/BillsModule.js:1314
 msgid "Failed to mark bill as paid"
 msgstr ""
 
@@ -737,13 +737,13 @@ msgid "Failed to undo mark as paid"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:889
-#: /app/src/modules/bills/BillsModule.js:1591
-#: /app/src/modules/bills/BillsModule.js:1598
+#: /app/src/modules/bills/BillsModule.js:1592
+#: /app/src/modules/bills/BillsModule.js:1599
 msgid "Failed to mark bill as unpaid"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:906
-#: /app/src/modules/bills/BillsModule.js:1642
+#: /app/src/modules/bills/BillsModule.js:1643
 msgid "Failed to skip bill payment"
 msgstr ""
 
@@ -776,7 +776,7 @@ msgid "Failed to retrieve bill status"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:1009
-#: /app/src/modules/bills/BillsModule.js:1701
+#: /app/src/modules/bills/BillsModule.js:1702
 msgid "Failed to detect recurring bills"
 msgstr ""
 
@@ -785,7 +785,7 @@ msgid "Failed to load bill suggestions"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:1040
-#: /app/src/modules/bills/BillsModule.js:278
+#: /app/src/modules/bills/BillsModule.js:279
 msgid "Failed to dismiss suggestion"
 msgstr ""
 
@@ -815,7 +815,7 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:494
 #: /app/lib/Service/Report/ReportExporter.php:571
 #: /app/lib/Service/Report/ReportExporter.php:614 /app/src/main.js:3835
-#: /app/src/modules/bills/BillsModule.js:997
+#: /app/src/modules/bills/BillsModule.js:998
 #: /app/src/modules/rules/RulesModule.js:955
 #: /app/src/modules/rules/RulesModule.js:1177
 #: /app/src/modules/rules/components/CriteriaBuilder.js:154
@@ -824,7 +824,7 @@ msgstr ""
 #: /app/src/modules/transactions/TransactionsModule.js:3297
 #: /app/src/modules/transactions/TransactionsModule.js:3623
 #: /app/src/modules/transactions/TransactionsModule.js:3861
-#: /app/src/modules/transfers/TransfersModule.js:474
+#: /app/src/modules/transfers/TransfersModule.js:475
 #: /app/templates/index.php:1040 /app/templates/index.php:1530
 #: /app/templates/index.php:1775 /app/templates/index.php:1828
 #: /app/templates/index.php:2326 /app/templates/index.php:2487
@@ -839,7 +839,7 @@ msgid "Amount"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:1149
-#: /app/src/modules/transfers/TransfersModule.js:492
+#: /app/src/modules/transfers/TransfersModule.js:493
 #: /app/templates/index.php:5443 /app/templates/index.php:6089
 #: /app/templates/index.php:6579
 msgid "Frequency"
@@ -934,12 +934,12 @@ msgid "Custom pattern must contain either \"months\" or \"dates\" field"
 msgstr ""
 
 #: /app/lib/Controller/CalendarFeedController.php:94
-#: /app/src/modules/bills/BillsModule.js:1221
+#: /app/src/modules/bills/BillsModule.js:1222
 msgid "Failed to get calendar feed"
 msgstr ""
 
 #: /app/lib/Controller/CalendarFeedController.php:108
-#: /app/src/modules/bills/BillsModule.js:1272
+#: /app/src/modules/bills/BillsModule.js:1273
 msgid "Failed to regenerate calendar feed token"
 msgstr ""
 
@@ -974,7 +974,7 @@ msgstr ""
 #: /app/src/modules/reports/ReportsModule.js:1616
 #: /app/src/modules/transactions/TransactionsModule.js:3217
 #: /app/src/modules/transactions/TransactionsModule.js:3866
-#: /app/src/modules/transfers/TransfersModule.js:556
+#: /app/src/modules/transfers/TransfersModule.js:557
 #: /app/templates/index.php:1048 /app/templates/index.php:1450
 #: /app/templates/index.php:1528 /app/templates/index.php:1607
 #: /app/templates/index.php:1767 /app/templates/index.php:1821
@@ -1945,12 +1945,12 @@ msgid "Monday"
 msgstr ""
 
 #: /app/lib/Controller/SettingController.php:321
-#: /app/src/modules/bills/BillsModule.js:363
+#: /app/src/modules/bills/BillsModule.js:364
 #: /app/src/modules/categories/CategoriesModule.js:2410
 #: /app/src/modules/income/IncomeModule.js:117
-#: /app/src/modules/transfers/TransfersModule.js:322
-#: /app/src/modules/transfers/TransfersModule.js:495
-#: /app/src/modules/transfers/TransfersModule.js:1142
+#: /app/src/modules/transfers/TransfersModule.js:323
+#: /app/src/modules/transfers/TransfersModule.js:496
+#: /app/src/modules/transfers/TransfersModule.js:1143
 #: /app/templates/index.php:4356 /app/templates/index.php:4515
 #: /app/templates/index.php:6091 /app/templates/index.php:6581
 msgid "Weekly"
@@ -1958,13 +1958,13 @@ msgstr ""
 
 #: /app/lib/Controller/SettingController.php:322
 #: /app/src/modules/accounts/AccountsModule.js:1398
-#: /app/src/modules/bills/BillsModule.js:366
+#: /app/src/modules/bills/BillsModule.js:367
 #: /app/src/modules/categories/CategoriesModule.js:2409
 #: /app/src/modules/income/IncomeModule.js:120
 #: /app/src/modules/pensions/PensionsModule.js:1075
-#: /app/src/modules/transfers/TransfersModule.js:325
-#: /app/src/modules/transfers/TransfersModule.js:498
-#: /app/src/modules/transfers/TransfersModule.js:1145
+#: /app/src/modules/transfers/TransfersModule.js:326
+#: /app/src/modules/transfers/TransfersModule.js:499
+#: /app/src/modules/transfers/TransfersModule.js:1146
 #: /app/templates/index.php:4357 /app/templates/index.php:4516
 #: /app/templates/index.php:5445 /app/templates/index.php:5991
 #: /app/templates/index.php:6094 /app/templates/index.php:6584
@@ -1972,13 +1972,13 @@ msgid "Monthly"
 msgstr ""
 
 #: /app/lib/Controller/SettingController.php:323
-#: /app/src/modules/bills/BillsModule.js:367
+#: /app/src/modules/bills/BillsModule.js:368
 #: /app/src/modules/categories/CategoriesModule.js:2411
 #: /app/src/modules/income/IncomeModule.js:121
 #: /app/src/modules/pensions/PensionsModule.js:1076
-#: /app/src/modules/transfers/TransfersModule.js:326
-#: /app/src/modules/transfers/TransfersModule.js:499
-#: /app/src/modules/transfers/TransfersModule.js:1146
+#: /app/src/modules/transfers/TransfersModule.js:327
+#: /app/src/modules/transfers/TransfersModule.js:500
+#: /app/src/modules/transfers/TransfersModule.js:1147
 #: /app/templates/index.php:4358 /app/templates/index.php:5446
 #: /app/templates/index.php:6095 /app/templates/index.php:6585
 msgid "Quarterly"
@@ -1986,13 +1986,13 @@ msgstr ""
 
 #: /app/lib/Controller/SettingController.php:324
 #: /app/src/modules/accounts/AccountsModule.js:1399
-#: /app/src/modules/bills/BillsModule.js:369
+#: /app/src/modules/bills/BillsModule.js:370
 #: /app/src/modules/categories/CategoriesModule.js:2412
 #: /app/src/modules/income/IncomeModule.js:123
 #: /app/src/modules/pensions/PensionsModule.js:1077
-#: /app/src/modules/transfers/TransfersModule.js:328
-#: /app/src/modules/transfers/TransfersModule.js:500
-#: /app/src/modules/transfers/TransfersModule.js:1148
+#: /app/src/modules/transfers/TransfersModule.js:329
+#: /app/src/modules/transfers/TransfersModule.js:501
+#: /app/src/modules/transfers/TransfersModule.js:1149
 #: /app/templates/index.php:4359 /app/templates/index.php:5447
 #: /app/templates/index.php:5992 /app/templates/index.php:6097
 #: /app/templates/index.php:6587
@@ -2456,7 +2456,7 @@ msgstr ""
 #: /app/lib/Controller/TransactionController.php:979 /app/src/main.js:1203
 #: /app/src/main.js:1270 /app/src/modules/accounts/AccountsModule.js:1665
 #: /app/src/modules/accounts/AccountsModule.js:1688
-#: /app/src/modules/bills/BillsModule.js:396
+#: /app/src/modules/bills/BillsModule.js:397
 #: /app/src/modules/dashboard/DashboardModule.js:1291
 #: /app/src/modules/rules/RulesModule.js:1004
 #: /app/src/modules/transactions/TransactionsModule.js:5378
@@ -2629,7 +2629,7 @@ msgstr ""
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:174
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:847
 #: /app/src/modules/transactions/TransactionsModule.js:3726
-#: /app/src/modules/transfers/TransfersModule.js:1326
+#: /app/src/modules/transfers/TransfersModule.js:1327
 msgid "Unknown"
 msgstr ""
 
@@ -3205,7 +3205,7 @@ msgstr ""
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:37
 #: /app/src/modules/rules/components/CriteriaBuilder.js:157
-#: /app/src/modules/transfers/TransfersModule.js:567
+#: /app/src/modules/transfers/TransfersModule.js:568
 #: /app/templates/index.php:2353 /app/templates/index.php:2486
 #: /app/templates/index.php:5178 /app/templates/index.php:5825
 #: /app/templates/index.php:6189 /app/templates/index.php:6341
@@ -4328,7 +4328,7 @@ msgstr ""
 
 #: /app/src/core/KeyboardShortcuts.js:336
 #: /app/src/modules/accounts/AccountsModule.js:2019
-#: /app/src/modules/bills/BillsModule.js:1822
+#: /app/src/modules/bills/BillsModule.js:1823
 #: /app/src/modules/help/HelpModule.js:26
 #: /app/src/modules/reports/ReportsModule.js:442
 #: /app/src/modules/rules/RulesModule.js:830
@@ -4337,7 +4337,7 @@ msgstr ""
 #: /app/src/modules/transactions/TransactionsModule.js:548
 #: /app/src/modules/transactions/TransactionsModule.js:1374
 #: /app/src/modules/transactions/TransactionsModule.js:4912
-#: /app/src/modules/transfers/TransfersModule.js:1185
+#: /app/src/modules/transfers/TransfersModule.js:1186
 #: /app/templates/index.php:83 /app/templates/index.php:1503
 #: /app/templates/index.php:1679 /app/templates/index.php:1771
 #: /app/templates/index.php:1825 /app/templates/index.php:2075
@@ -4435,13 +4435,13 @@ msgstr ""
 
 #: /app/src/core/KeyboardShortcuts.js:393 /app/src/main.js:2065
 #: /app/src/main.js:2072 /app/src/main.js:2076
-#: /app/src/modules/bills/BillsModule.js:1244
-#: /app/src/modules/bills/BillsModule.js:1457
+#: /app/src/modules/bills/BillsModule.js:1245
+#: /app/src/modules/bills/BillsModule.js:1458
 #: /app/src/modules/import/ImportModule.js:2299
 #: /app/src/modules/import/ImportModule.js:2312
 #: /app/src/modules/sharing/SharingModule.js:134
 #: /app/src/modules/transactions/TransactionsModule.js:5271
-#: /app/src/modules/transfers/TransfersModule.js:157
+#: /app/src/modules/transfers/TransfersModule.js:158
 #: /app/templates/index.php:2645 /app/templates/index.php:2843
 #: /app/templates/index.php:3733 /app/templates/index.php:5011
 #: /app/templates/index.php:5032 /app/templates/index.php:5038
@@ -4555,7 +4555,7 @@ msgstr ""
 #: /app/src/main.js:1194 /app/src/modules/accounts/AccountsModule.js:1651
 #: /app/src/modules/reports/ReportsModule.js:1992
 #: /app/src/modules/transactions/TransactionsModule.js:2057
-#: /app/src/modules/transfers/TransfersModule.js:465
+#: /app/src/modules/transfers/TransfersModule.js:466
 #: /app/templates/index.php:5736
 msgid "Transfer"
 msgstr ""
@@ -5201,7 +5201,7 @@ msgstr ""
 msgid "Optional note"
 msgstr ""
 
-#: /app/src/main.js:3853 /app/src/modules/bills/BillsModule.js:1024
+#: /app/src/main.js:3853 /app/src/modules/bills/BillsModule.js:1025
 #: /app/src/modules/transactions/TransactionsModule.js:3879
 msgid "Remove split"
 msgstr ""
@@ -5256,7 +5256,7 @@ msgid "Failed to save column preferences"
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:22
-#: /app/src/modules/transfers/TransfersModule.js:467
+#: /app/src/modules/transfers/TransfersModule.js:468
 #: /app/templates/index.php:1093 /app/templates/index.php:2730
 #: /app/templates/index.php:5073 /app/templates/index.php:5499
 #: /app/templates/index.php:7141
@@ -5490,8 +5490,7 @@ msgid "Transfer {direction} {account}"
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:1857
-#: /app/src/modules/bills/BillsModule.js:392
-#: /app/src/modules/transfers/TransfersModule.js:347
+#: /app/src/utils/billDates.js:36
 msgid "No due date"
 msgstr ""
 
@@ -5599,11 +5598,11 @@ msgid "Failed to add transaction"
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:2582
-#: /app/src/modules/bills/BillsModule.js:943
-#: /app/src/modules/bills/BillsModule.js:1007
+#: /app/src/modules/bills/BillsModule.js:944
+#: /app/src/modules/bills/BillsModule.js:1008
 #: /app/src/modules/income/IncomeModule.js:460
 #: /app/src/modules/transactions/TransactionsModule.js:2034
-#: /app/src/modules/transfers/TransfersModule.js:558
+#: /app/src/modules/transfers/TransfersModule.js:559
 #: /app/templates/index.php:1050 /app/templates/index.php:5772
 #: /app/templates/index.php:6158 /app/templates/index.php:6628
 msgid "No category"
@@ -6162,494 +6161,494 @@ msgstr ""
 msgid "Pending transactions will be included during sync"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:67
+#: /app/src/modules/bills/BillsModule.js:68
 msgid "Failed to load bills"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:104
+#: /app/src/modules/bills/BillsModule.js:105
 msgid "Marked paid on {date}"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:108
+#: /app/src/modules/bills/BillsModule.js:109
 msgid "Record transaction"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:109
+#: /app/src/modules/bills/BillsModule.js:110
 msgid ""
 "One-time bills leave the list after payment — open it here to assign an "
 "account"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:109
+#: /app/src/modules/bills/BillsModule.js:110
 msgid "Assign an account"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:111
-#: /app/src/modules/bills/BillsModule.js:417
-#: /app/src/modules/transfers/TransfersModule.js:369
+#: /app/src/modules/bills/BillsModule.js:112
+#: /app/src/modules/bills/BillsModule.js:418
+#: /app/src/modules/transfers/TransfersModule.js:370
 msgid "Revert the last payment"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:111
-#: /app/src/modules/bills/BillsModule.js:419
-#: /app/src/modules/transfers/TransfersModule.js:371
+#: /app/src/modules/bills/BillsModule.js:112
+#: /app/src/modules/bills/BillsModule.js:420
+#: /app/src/modules/transfers/TransfersModule.js:372
 msgid "Mark Unpaid"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:113
+#: /app/src/modules/bills/BillsModule.js:114
 msgid "Keep the bill as paid and stop listing this payment"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:113
-#: /app/src/modules/bills/BillsModule.js:223
+#: /app/src/modules/bills/BillsModule.js:114
+#: /app/src/modules/bills/BillsModule.js:224
 #: /app/src/modules/transactions/TransactionsModule.js:1823
 msgid "Dismiss"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:177
+#: /app/src/modules/bills/BillsModule.js:178
 msgid "Transaction recorded"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:219
-#: /app/src/modules/bills/BillsModule.js:1725
+#: /app/src/modules/bills/BillsModule.js:220
+#: /app/src/modules/bills/BillsModule.js:1726
 #: /app/src/modules/income/IncomeModule.js:704
-#: /app/src/modules/transfers/TransfersModule.js:1338
+#: /app/src/modules/transfers/TransfersModule.js:1339
 #, javascript-format
 msgid "{percent}% confidence"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:222
+#: /app/src/modules/bills/BillsModule.js:223
 msgid "Create bill"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:260
+#: /app/src/modules/bills/BillsModule.js:261
 msgid "Bill \"{name}\" created"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:263
+#: /app/src/modules/bills/BillsModule.js:264
 msgid "Failed to create bill: {message}"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:284
+#: /app/src/modules/bills/BillsModule.js:285
 msgid "Dismiss all suggestions? They will not be shown again."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:295
+#: /app/src/modules/bills/BillsModule.js:296
 msgid "Failed to dismiss suggestions"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:349
+#: /app/src/modules/bills/BillsModule.js:350
 #: /app/src/modules/reports/ReportsModule.js:1981
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:519
-#: /app/src/modules/transfers/TransfersModule.js:307
+#: /app/src/modules/transfers/TransfersModule.js:308
 #: /app/templates/index.php:2618
 msgid "Paid"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:352
-#: /app/src/modules/transfers/TransfersModule.js:131
-#: /app/src/modules/transfers/TransfersModule.js:310
+#: /app/src/modules/bills/BillsModule.js:353
+#: /app/src/modules/transfers/TransfersModule.js:132
+#: /app/src/modules/transfers/TransfersModule.js:311
 #: /app/templates/index.php:2590 /app/templates/index.php:2617
 msgid "Overdue"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:355
-#: /app/src/modules/transfers/TransfersModule.js:130
-#: /app/src/modules/transfers/TransfersModule.js:313
+#: /app/src/modules/bills/BillsModule.js:356
+#: /app/src/modules/transfers/TransfersModule.js:131
+#: /app/src/modules/transfers/TransfersModule.js:314
 #: /app/templates/index.php:2616
 msgid "Due Soon"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:358
+#: /app/src/modules/bills/BillsModule.js:359
 #: /app/src/modules/income/IncomeModule.js:112
 #: /app/src/modules/projects/ProjectsModule.js:92
-#: /app/src/modules/transfers/TransfersModule.js:316
+#: /app/src/modules/transfers/TransfersModule.js:317
 msgid "Upcoming"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:364
+#: /app/src/modules/bills/BillsModule.js:365
 #: /app/src/modules/income/IncomeModule.js:118
-#: /app/src/modules/transfers/TransfersModule.js:323
-#: /app/src/modules/transfers/TransfersModule.js:496
-#: /app/src/modules/transfers/TransfersModule.js:1143
+#: /app/src/modules/transfers/TransfersModule.js:324
+#: /app/src/modules/transfers/TransfersModule.js:497
+#: /app/src/modules/transfers/TransfersModule.js:1144
 #: /app/templates/index.php:6092 /app/templates/index.php:6582
 msgid "Bi-Weekly"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:365
+#: /app/src/modules/bills/BillsModule.js:366
 #: /app/src/modules/income/IncomeModule.js:119
-#: /app/src/modules/transfers/TransfersModule.js:324
-#: /app/src/modules/transfers/TransfersModule.js:497
-#: /app/src/modules/transfers/TransfersModule.js:1144
+#: /app/src/modules/transfers/TransfersModule.js:325
+#: /app/src/modules/transfers/TransfersModule.js:498
+#: /app/src/modules/transfers/TransfersModule.js:1145
 #: /app/templates/index.php:6093 /app/templates/index.php:6583
 msgid "Semi-Monthly"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:368
+#: /app/src/modules/bills/BillsModule.js:369
 #: /app/src/modules/income/IncomeModule.js:122
-#: /app/src/modules/transfers/TransfersModule.js:327
-#: /app/src/modules/transfers/TransfersModule.js:1147
+#: /app/src/modules/transfers/TransfersModule.js:328
+#: /app/src/modules/transfers/TransfersModule.js:1148
 #: /app/templates/index.php:6096 /app/templates/index.php:6586
 msgid "Semi-Annually"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:370
+#: /app/src/modules/bills/BillsModule.js:371
 #: /app/src/modules/income/IncomeModule.js:124
-#: /app/src/modules/transfers/TransfersModule.js:321
-#: /app/src/modules/transfers/TransfersModule.js:494
-#: /app/src/modules/transfers/TransfersModule.js:1149
+#: /app/src/modules/transfers/TransfersModule.js:322
+#: /app/src/modules/transfers/TransfersModule.js:495
+#: /app/src/modules/transfers/TransfersModule.js:1150
 #: /app/templates/index.php:6098 /app/templates/index.php:6588
 msgid "One-Time"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:396 /app/templates/index.php:5780
+#: /app/src/modules/bills/BillsModule.js:397 /app/templates/index.php:5780
 #: /app/templates/index.php:6169
 msgid "Split across categories"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:397
-#: /app/src/modules/transfers/TransfersModule.js:351
+#: /app/src/modules/bills/BillsModule.js:398
+#: /app/src/modules/transfers/TransfersModule.js:352
 msgid "Auto-pay enabled"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:397
-#: /app/src/modules/transfers/TransfersModule.js:351
+#: /app/src/modules/bills/BillsModule.js:398
+#: /app/src/modules/transfers/TransfersModule.js:352
 msgid "Auto-pay"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:398
-#: /app/src/modules/transfers/TransfersModule.js:352
+#: /app/src/modules/bills/BillsModule.js:399
+#: /app/src/modules/transfers/TransfersModule.js:353
 msgid "Auto-pay failed - disabled"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:398
-#: /app/src/modules/transfers/TransfersModule.js:352
+#: /app/src/modules/bills/BillsModule.js:399
+#: /app/src/modules/transfers/TransfersModule.js:353
 msgid "Auto-pay Failed"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:399
+#: /app/src/modules/bills/BillsModule.js:400
 msgid "Remaining payments"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:399
+#: /app/src/modules/bills/BillsModule.js:400
 msgid "{count} left"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:400
+#: /app/src/modules/bills/BillsModule.js:401
 msgid "Ends {date}"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:405
-#: /app/src/modules/transfers/TransfersModule.js:357
+#: /app/src/modules/bills/BillsModule.js:406
+#: /app/src/modules/transfers/TransfersModule.js:358
 msgid "Mark as paid"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:407
-#: /app/src/modules/transfers/TransfersModule.js:359
+#: /app/src/modules/bills/BillsModule.js:408
+#: /app/src/modules/transfers/TransfersModule.js:360
 msgid "Mark Paid"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:411
-#: /app/src/modules/transfers/TransfersModule.js:363
+#: /app/src/modules/bills/BillsModule.js:412
+#: /app/src/modules/transfers/TransfersModule.js:364
 msgid "Skip this payment"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:413
-#: /app/src/modules/transfers/TransfersModule.js:365
+#: /app/src/modules/bills/BillsModule.js:414
+#: /app/src/modules/transfers/TransfersModule.js:366
 msgid "Skip"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:422
+#: /app/src/modules/bills/BillsModule.js:423
 msgid "Edit bill"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:425
+#: /app/src/modules/bills/BillsModule.js:426
 msgid "Delete bill"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:674
+#: /app/src/modules/bills/BillsModule.js:675
 msgid "Edit Bill"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:759 /app/templates/index.php:2550
+#: /app/src/modules/bills/BillsModule.js:760 /app/templates/index.php:2550
 msgid "Add Bill"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:833
+#: /app/src/modules/bills/BillsModule.js:834
 msgid "Unavailable (not shared with you)"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:904
-#: /app/src/modules/transfers/TransfersModule.js:753
+#: /app/src/modules/bills/BillsModule.js:905
+#: /app/src/modules/transfers/TransfersModule.js:754
 msgid "Due Date"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:904
-#: /app/src/modules/transfers/TransfersModule.js:537
-#: /app/src/modules/transfers/TransfersModule.js:753
+#: /app/src/modules/bills/BillsModule.js:905
+#: /app/src/modules/transfers/TransfersModule.js:538
+#: /app/src/modules/transfers/TransfersModule.js:754
 #: /app/templates/index.php:6201
 msgid "Start Date"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:908
+#: /app/src/modules/bills/BillsModule.js:909
 msgid ""
 "The date this bill is due. It can be in the past - an invoice you are "
 "entering late stays due on its own date."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:909 /app/templates/index.php:6203
+#: /app/src/modules/bills/BillsModule.js:910 /app/templates/index.php:6203
 msgid "Bill only occurs on or after this date (optional)"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:924
-#: /app/src/modules/transfers/TransfersModule.js:765
+#: /app/src/modules/bills/BillsModule.js:925
+#: /app/src/modules/transfers/TransfersModule.js:766
 msgid "Due Day (1-7)"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:925
+#: /app/src/modules/bills/BillsModule.js:926
 #: /app/src/modules/income/IncomeModule.js:432
-#: /app/src/modules/transfers/TransfersModule.js:766
+#: /app/src/modules/transfers/TransfersModule.js:767
 msgid "Day of the week (1=Monday, 7=Sunday)"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:928
-#: /app/src/modules/bills/BillsModule.js:932 /app/templates/index.php:6124
+#: /app/src/modules/bills/BillsModule.js:929
+#: /app/src/modules/bills/BillsModule.js:933 /app/templates/index.php:6124
 msgid "Due Day"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:929
+#: /app/src/modules/bills/BillsModule.js:930
 msgid "Day of the selected months when bill is due"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:933 /app/templates/index.php:6126
+#: /app/src/modules/bills/BillsModule.js:934 /app/templates/index.php:6126
 msgid "Day of the month when bill is due"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:952
+#: /app/src/modules/bills/BillsModule.js:953
 #: /app/src/modules/income/IncomeModule.js:469 /app/templates/index.php:6177
 #: /app/templates/index.php:6636
 msgid "No specific account"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1014 /app/templates/index.php:7023
+#: /app/src/modules/bills/BillsModule.js:1015 /app/templates/index.php:7023
 msgid "Description (optional)"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1050
+#: /app/src/modules/bills/BillsModule.js:1051
 msgid "Balanced"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1053
+#: /app/src/modules/bills/BillsModule.js:1054
 msgid "{amount} remaining"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1056
+#: /app/src/modules/bills/BillsModule.js:1057
 #: /app/src/modules/projects/ProjectsModule.js:116
 msgid "{amount} over"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1132
+#: /app/src/modules/bills/BillsModule.js:1133
 msgid "Please select at least one month for custom frequency"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1162
+#: /app/src/modules/bills/BillsModule.js:1163
 msgid "Bill created successfully"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1162
+#: /app/src/modules/bills/BillsModule.js:1163
 msgid "Bill updated successfully"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1166
+#: /app/src/modules/bills/BillsModule.js:1167
 msgid "Failed to save bill"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1182
+#: /app/src/modules/bills/BillsModule.js:1183
 msgid "Failed to load bill"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1187
+#: /app/src/modules/bills/BillsModule.js:1188
 msgid "Are you sure you want to delete this bill?"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1199
+#: /app/src/modules/bills/BillsModule.js:1200
 msgid "Bill deleted successfully"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1203
+#: /app/src/modules/bills/BillsModule.js:1204
 msgid "Failed to delete bill"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1234
+#: /app/src/modules/bills/BillsModule.js:1235
 msgid "Bills calendar subscription"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1235
+#: /app/src/modules/bills/BillsModule.js:1236
 msgid ""
 "Subscribe to this URL from any calendar app (Nextcloud Calendar, "
 "Thunderbird, your phone) to see upcoming bill due dates. Bills appear as all-"
 "day events for the next 12 months and refresh automatically."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1237
+#: /app/src/modules/bills/BillsModule.js:1238
 msgid "Subscription URL"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1240
+#: /app/src/modules/bills/BillsModule.js:1241
 msgid ""
 "Anyone with this URL can read your bill names and amounts. Regenerate the "
 "link if it leaks."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1242
+#: /app/src/modules/bills/BillsModule.js:1243
 msgid "Copy link"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1243
+#: /app/src/modules/bills/BillsModule.js:1244
 msgid "Regenerate link"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1253
+#: /app/src/modules/bills/BillsModule.js:1254
 msgid "Link copied to clipboard"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1256
+#: /app/src/modules/bills/BillsModule.js:1257
 msgid "Press Ctrl+C to copy the selected link"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1261
+#: /app/src/modules/bills/BillsModule.js:1262
 msgid ""
 "Regenerate the link? Existing calendar subscriptions will stop updating."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1270
+#: /app/src/modules/bills/BillsModule.js:1271
 msgid "New link generated"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1365
+#: /app/src/modules/bills/BillsModule.js:1366
 msgid "Bill marked as paid. Linked to existing transaction."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1369
+#: /app/src/modules/bills/BillsModule.js:1370
 msgid ""
 "No transaction was recorded for this payment — your account balance will not "
 "reflect it."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1370
+#: /app/src/modules/bills/BillsModule.js:1371
 msgid "Bill marked as paid. No transaction created."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1379
+#: /app/src/modules/bills/BillsModule.js:1380
 msgid ""
 "The bill was marked as paid, but linking the selected transaction failed. "
 "You can link it manually from the transaction."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1381
+#: /app/src/modules/bills/BillsModule.js:1382
 msgid ""
 "No transaction was recorded for this payment — your account balance will not "
 "reflect it. Assign an account to the bill, or add the transaction manually."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1383
+#: /app/src/modules/bills/BillsModule.js:1384
 msgid "Bill marked as paid — without a transaction."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1387
+#: /app/src/modules/bills/BillsModule.js:1388
 msgid "Bill marked as paid. Transaction created."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1388
+#: /app/src/modules/bills/BillsModule.js:1389
 msgid "Bill marked as paid. Future transaction created."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1416
+#: /app/src/modules/bills/BillsModule.js:1417
 msgid "Exact amount"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1417
+#: /app/src/modules/bills/BillsModule.js:1418
 msgid "Similar amount (±5%)"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1418
+#: /app/src/modules/bills/BillsModule.js:1419
 msgid "Approximate amount (±20%)"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1419
+#: /app/src/modules/bills/BillsModule.js:1420
 msgid "Vendor matches"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1420
+#: /app/src/modules/bills/BillsModule.js:1421
 msgid "Vendor partially matches"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1421
+#: /app/src/modules/bills/BillsModule.js:1422
 msgid "Description matches"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1422
+#: /app/src/modules/bills/BillsModule.js:1423
 msgid "Description partially matches"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1423
+#: /app/src/modules/bills/BillsModule.js:1424
 msgid "Same day"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1424
+#: /app/src/modules/bills/BillsModule.js:1425
 msgid "±1 day"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1425
+#: /app/src/modules/bills/BillsModule.js:1426
 msgid "±3 days"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1426
+#: /app/src/modules/bills/BillsModule.js:1427
 msgid "±7 days"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1431
+#: /app/src/modules/bills/BillsModule.js:1432
 #: /app/src/modules/transactions/TransactionsModule.js:5354
 msgid "(no description)"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1444
+#: /app/src/modules/bills/BillsModule.js:1445
 msgid "Strong match"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1456
+#: /app/src/modules/bills/BillsModule.js:1457
 msgid "Existing Transaction Found"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1460
+#: /app/src/modules/bills/BillsModule.js:1461
 msgid ""
 "We found existing transactions that may already represent this bill payment "
 "({billName}, {amount}). Would you like to link one instead of creating a new "
 "transaction?"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1461
+#: /app/src/modules/bills/BillsModule.js:1462
 msgid ""
 "Whichever you choose, the bill is marked as paid and moves on to its next "
 "due date."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1468
+#: /app/src/modules/bills/BillsModule.js:1469
 msgid "Create a new transaction instead"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1474
+#: /app/src/modules/bills/BillsModule.js:1475
 msgid "Don't create any transaction (just mark as paid)"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1475
+#: /app/src/modules/bills/BillsModule.js:1476
 msgid "Your account balance will NOT reflect this payment."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1480
+#: /app/src/modules/bills/BillsModule.js:1481
 #: /app/src/modules/categories/CategoriesModule.js:1968
-#: /app/src/modules/transfers/TransfersModule.js:163
-#: /app/src/modules/transfers/TransfersModule.js:603
+#: /app/src/modules/transfers/TransfersModule.js:164
+#: /app/src/modules/transfers/TransfersModule.js:604
 #: /app/src/utils/dialogs.js:231 /app/src/utils/dialogs.js:256
 #: /app/templates/index.php:1703 /app/templates/index.php:1733
 #: /app/templates/index.php:2503 /app/templates/index.php:2654
@@ -6675,87 +6674,87 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1481
+#: /app/src/modules/bills/BillsModule.js:1482
 #: /app/src/modules/categories/CategoriesModule.js:1967
 #: /app/src/utils/dialogs.js:230
 msgid "Confirm"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1551
-#: /app/src/modules/bills/BillsModule.js:1671
+#: /app/src/modules/bills/BillsModule.js:1552
+#: /app/src/modules/bills/BillsModule.js:1672
 #: /app/src/modules/income/IncomeModule.js:645
-#: /app/src/modules/transfers/TransfersModule.js:1067
+#: /app/src/modules/transfers/TransfersModule.js:1068
 msgid "Action undone"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1554
-#: /app/src/modules/bills/BillsModule.js:1674
+#: /app/src/modules/bills/BillsModule.js:1555
+#: /app/src/modules/bills/BillsModule.js:1675
 #: /app/src/modules/income/IncomeModule.js:648
-#: /app/src/modules/transfers/TransfersModule.js:1070
+#: /app/src/modules/transfers/TransfersModule.js:1071
 msgid "Failed to undo action: {message}"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1569
-#: /app/src/modules/transfers/TransfersModule.js:1081
+#: /app/src/modules/bills/BillsModule.js:1570
+#: /app/src/modules/transfers/TransfersModule.js:1082
 msgid ""
 "Mark this bill as unpaid? Transactions created for the payment will be "
 "deleted, a linked imported transaction will be unlinked, and the bill "
 "schedule rolled back."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1574
-#: /app/src/modules/transfers/TransfersModule.js:1084
+#: /app/src/modules/bills/BillsModule.js:1575
+#: /app/src/modules/transfers/TransfersModule.js:1085
 msgid ""
 "Auto-pay is on for this bill — it may pay it again on the next run. Disable "
 "auto-pay first if the payment should not recur."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1595
+#: /app/src/modules/bills/BillsModule.js:1596
 msgid "Payment reverted — the bill is marked as unpaid."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1609
-#: /app/src/modules/transfers/TransfersModule.js:1000
+#: /app/src/modules/bills/BillsModule.js:1610
+#: /app/src/modules/transfers/TransfersModule.js:1001
 msgid "Skip this payment and advance to the next due date?"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1635
-#: /app/src/modules/transfers/TransfersModule.js:1030
+#: /app/src/modules/bills/BillsModule.js:1636
+#: /app/src/modules/transfers/TransfersModule.js:1031
 msgid "Payment skipped. Advanced to next due date."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1681
+#: /app/src/modules/bills/BillsModule.js:1682
 #: /app/src/modules/income/IncomeModule.js:655
-#: /app/src/modules/transfers/TransfersModule.js:1287
+#: /app/src/modules/transfers/TransfersModule.js:1288
 msgid "Detecting..."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1693
-#: /app/src/modules/transfers/TransfersModule.js:1299
+#: /app/src/modules/bills/BillsModule.js:1694
+#: /app/src/modules/transfers/TransfersModule.js:1300
 msgid "No recurring transactions detected"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1704 /app/templates/index.php:2546
+#: /app/src/modules/bills/BillsModule.js:1705 /app/templates/index.php:2546
 msgid "Detect Bills"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1741
+#: /app/src/modules/bills/BillsModule.js:1742
 msgid "Please select at least one bill to add"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1761
+#: /app/src/modules/bills/BillsModule.js:1762
 msgid "%n bill added successfully"
 msgid_plural "%n bills added successfully"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/bills/BillsModule.js:1765
+#: /app/src/modules/bills/BillsModule.js:1766
 msgid "Failed to add selected bills"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1858
+#: /app/src/modules/bills/BillsModule.js:1859
 #: /app/src/modules/tagsets/TagSetsModule.js:704
-#: /app/src/modules/transfers/TransfersModule.js:1221
+#: /app/src/modules/transfers/TransfersModule.js:1222
 msgid "No tags defined"
 msgstr ""
 
@@ -8538,7 +8537,7 @@ msgid "Failed to load recurring income"
 msgstr ""
 
 #: /app/src/modules/income/IncomeModule.js:103
-#: /app/src/modules/transfers/TransfersModule.js:132
+#: /app/src/modules/transfers/TransfersModule.js:133
 #: /app/templates/index.php:1412 /app/templates/index.php:2902
 msgid "Completed"
 msgstr ""
@@ -8602,7 +8601,7 @@ msgid "Day of the month when income is expected"
 msgstr ""
 
 #: /app/src/modules/income/IncomeModule.js:449
-#: /app/src/modules/transfers/TransfersModule.js:781
+#: /app/src/modules/transfers/TransfersModule.js:782
 msgid "Follows the start date"
 msgstr ""
 
@@ -10871,7 +10870,7 @@ msgid "Reconciliation started — tick the transactions on your statement"
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:1634
-#: /app/src/modules/transfers/TransfersModule.js:484
+#: /app/src/modules/transfers/TransfersModule.js:485
 msgid "Statement balance"
 msgstr ""
 
@@ -11000,8 +10999,8 @@ msgid "Choose an account"
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:2013
-#: /app/src/modules/transfers/TransfersModule.js:507
-#: /app/src/modules/transfers/TransfersModule.js:519
+#: /app/src/modules/transfers/TransfersModule.js:508
+#: /app/src/modules/transfers/TransfersModule.js:520
 #: /app/templates/index.php:2445 /app/templates/quick-add.php:29
 msgid "Select account..."
 msgstr ""
@@ -11479,349 +11478,357 @@ msgstr ""
 msgid "Failed to delete duplicates"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:61
+#: /app/src/modules/transfers/TransfersModule.js:62
 msgid "Failed to load transfers"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:74
+#: /app/src/modules/transfers/TransfersModule.js:75
 msgid "Recurring Transfers"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:76
+#: /app/src/modules/transfers/TransfersModule.js:77
 msgid "Detect recurring transfers"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:78
-#: /app/src/modules/transfers/TransfersModule.js:1309
+#: /app/src/modules/transfers/TransfersModule.js:79
+#: /app/src/modules/transfers/TransfersModule.js:1310
 msgid "Find Transfers"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:80
+#: /app/src/modules/transfers/TransfersModule.js:81
 msgid "Add new transfer"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:82
-#: /app/src/modules/transfers/TransfersModule.js:451
-#: /app/src/modules/transfers/TransfersModule.js:601
+#: /app/src/modules/transfers/TransfersModule.js:83
+#: /app/src/modules/transfers/TransfersModule.js:452
+#: /app/src/modules/transfers/TransfersModule.js:602
 msgid "Add Transfer"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:95
+#: /app/src/modules/transfers/TransfersModule.js:96
 msgid "Active Transfers"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:104
+#: /app/src/modules/transfers/TransfersModule.js:105
 #: /app/templates/index.php:2581
 msgid "Due This Month"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:113
+#: /app/src/modules/transfers/TransfersModule.js:114
 #: /app/templates/index.php:2599 /app/templates/index.php:2789
 msgid "Monthly Total"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:122
+#: /app/src/modules/transfers/TransfersModule.js:123
 msgid "Completed This Month"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:129
+#: /app/src/modules/transfers/TransfersModule.js:130
 msgid "All Transfers"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:144
+#: /app/src/modules/transfers/TransfersModule.js:145
 msgid "No recurring transfers yet"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:145
+#: /app/src/modules/transfers/TransfersModule.js:146
 msgid ""
 "Set up automatic transfers between your accounts to automate savings or bill "
 "payments."
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:148
+#: /app/src/modules/transfers/TransfersModule.js:149
 msgid "Add Your First Transfer"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:156
+#: /app/src/modules/transfers/TransfersModule.js:157
 msgid "Detected Recurring Transfers"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:159
+#: /app/src/modules/transfers/TransfersModule.js:160
 msgid ""
 "These recurring transactions may be transfers between your accounts. Select "
 "the ones to add and choose the destination account."
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:162
+#: /app/src/modules/transfers/TransfersModule.js:163
 msgid "Add Selected as Transfers"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:374
+#: /app/src/modules/transfers/TransfersModule.js:375
 msgid "Edit transfer"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:377
+#: /app/src/modules/transfers/TransfersModule.js:378
 msgid "Delete transfer"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:451
+#: /app/src/modules/transfers/TransfersModule.js:452
 msgid "Edit Transfer"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:469
+#: /app/src/modules/transfers/TransfersModule.js:470
 msgid "e.g., Monthly Savings"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:481
+#: /app/src/modules/transfers/TransfersModule.js:482
 msgid "Amount type"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:483
+#: /app/src/modules/transfers/TransfersModule.js:484
 msgid "Fixed amount"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:485
+#: /app/src/modules/transfers/TransfersModule.js:486
 msgid "Current balance"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:486
+#: /app/src/modules/transfers/TransfersModule.js:487
 msgid "Minimum payment"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:505
+#: /app/src/modules/transfers/TransfersModule.js:506
 msgid "From Account"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:517
+#: /app/src/modules/transfers/TransfersModule.js:518
 #: /app/templates/index.php:5740
 msgid "To Account"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:529
-#: /app/src/modules/transfers/TransfersModule.js:769
+#: /app/src/modules/transfers/TransfersModule.js:530
+#: /app/src/modules/transfers/TransfersModule.js:770
 msgid "Day of Month (1-31)"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:531
+#: /app/src/modules/transfers/TransfersModule.js:532
 msgid "e.g., 15"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:546
+#: /app/src/modules/transfers/TransfersModule.js:547
 #: /app/templates/index.php:701 /app/templates/index.php:723
 #: /app/templates/index.php:5149 /app/templates/index.php:5760
 #: /app/templates/index.php:5872 /app/templates/index.php:6706
 msgid "Details"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:548
+#: /app/src/modules/transfers/TransfersModule.js:549
 msgid "Transaction Description Pattern (Optional)"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:550
+#: /app/src/modules/transfers/TransfersModule.js:551
 msgid "e.g., Savings Transfer"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:552
+#: /app/src/modules/transfers/TransfersModule.js:553
 msgid "Used to match imported transactions"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:561
+#: /app/src/modules/transfers/TransfersModule.js:562
 msgid "Category for created transactions (optional)"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:569
+#: /app/src/modules/transfers/TransfersModule.js:570
 msgid "Optional notes..."
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:576
+#: /app/src/modules/transfers/TransfersModule.js:577
 msgid "Also create transactions now"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:578
+#: /app/src/modules/transfers/TransfersModule.js:579
 msgid "Creates paired debit/credit transactions immediately"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:582
+#: /app/src/modules/transfers/TransfersModule.js:583
 #: /app/templates/index.php:6242
 msgid "Transaction Date"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:584
+#: /app/src/modules/transfers/TransfersModule.js:585
 #: /app/templates/index.php:6244
 msgid "Leave empty to use next due date"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:591
+#: /app/src/modules/transfers/TransfersModule.js:592
 msgid "Enable auto-pay (automatically create transactions when due)"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:601
+#: /app/src/modules/transfers/TransfersModule.js:602
 msgid "Update Transfer"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:659
+#: /app/src/modules/transfers/TransfersModule.js:660
 msgid ""
 "Pays what was owed at the due date. Later charges roll to the next payment"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:660
+#: /app/src/modules/transfers/TransfersModule.js:661
 msgid "Pays everything owed on the card at payment time"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:661
+#: /app/src/modules/transfers/TransfersModule.js:662
 msgid "Pays the card's minimum payment, never more than is owed"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:674
+#: /app/src/modules/transfers/TransfersModule.js:675
 msgid "Resolved from the card at each payment"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:758
+#: /app/src/modules/transfers/TransfersModule.js:759
 msgid "The date this transfer is due. It can be in the past."
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:770
+#: /app/src/modules/transfers/TransfersModule.js:771
 msgid "Day of the month when the transfer is due"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:788
+#: /app/src/modules/transfers/TransfersModule.js:789
 msgid "The transfer repeats from this date (optional)"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:789
+#: /app/src/modules/transfers/TransfersModule.js:790
 msgid "Transfer only occurs on or after this date (optional)"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:811
+#: /app/src/modules/transfers/TransfersModule.js:812
 msgid "Please enter the date the transfer is due"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:830
+#: /app/src/modules/transfers/TransfersModule.js:831
 msgid "Please select a source account"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:835
+#: /app/src/modules/transfers/TransfersModule.js:836
 msgid "Please select a destination account"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:882
-#: /app/src/modules/transfers/TransfersModule.js:895
+#: /app/src/modules/transfers/TransfersModule.js:883
+#: /app/src/modules/transfers/TransfersModule.js:896
 msgid "Failed to save transfer"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:886
+#: /app/src/modules/transfers/TransfersModule.js:887
 msgid "Transfer updated"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:886
+#: /app/src/modules/transfers/TransfersModule.js:887
 msgid "Transfer added"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:901
+#: /app/src/modules/transfers/TransfersModule.js:902
 msgid "Are you sure you want to delete this transfer?"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:911
-#: /app/src/modules/transfers/TransfersModule.js:920
+#: /app/src/modules/transfers/TransfersModule.js:912
+#: /app/src/modules/transfers/TransfersModule.js:921
 msgid "Failed to delete transfer"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:913
+#: /app/src/modules/transfers/TransfersModule.js:914
 msgid "Transfer deleted"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:940
-#: /app/src/modules/transfers/TransfersModule.js:951
+#: /app/src/modules/transfers/TransfersModule.js:941
+#: /app/src/modules/transfers/TransfersModule.js:952
 msgid "Failed to update transfer"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:943
+#: /app/src/modules/transfers/TransfersModule.js:944
 msgid "Transfer deactivated"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:943
+#: /app/src/modules/transfers/TransfersModule.js:944
 msgid "Transfer activated"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:977
-#: /app/src/modules/transfers/TransfersModule.js:986
+#: /app/src/modules/transfers/TransfersModule.js:978
+#: /app/src/modules/transfers/TransfersModule.js:987
 msgid "Failed to mark transfer as paid"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:979
+#: /app/src/modules/transfers/TransfersModule.js:980
 msgid "Transfer marked as paid"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:1015
-#: /app/src/modules/transfers/TransfersModule.js:1036
+#: /app/src/modules/transfers/TransfersModule.js:1016
+#: /app/src/modules/transfers/TransfersModule.js:1037
 msgid "Failed to skip transfer"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:1101
-#: /app/src/modules/transfers/TransfersModule.js:1110
+#: /app/src/modules/transfers/TransfersModule.js:1102
+#: /app/src/modules/transfers/TransfersModule.js:1111
 msgid "Failed to mark transfer as unpaid"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:1107
+#: /app/src/modules/transfers/TransfersModule.js:1108
 msgid "Payment reverted — the transfer is marked as unpaid."
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:1117
+#: /app/src/modules/transfers/TransfersModule.js:1118
 msgid "Statement"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:1118
+#: /app/src/modules/transfers/TransfersModule.js:1119
 msgid "Full balance"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:1119
+#: /app/src/modules/transfers/TransfersModule.js:1120
 msgid "Minimum"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:1122
+#: /app/src/modules/transfers/TransfersModule.js:1123
 msgid "Amount is resolved from the card at each payment"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:1306
+#: /app/src/modules/transfers/TransfersModule.js:1307
 msgid "Failed to detect recurring transfers"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:1339
+#: /app/src/modules/transfers/TransfersModule.js:1340
 msgid "From: {account}"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:1342
+#: /app/src/modules/transfers/TransfersModule.js:1343
 msgid "To:"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:1344
+#: /app/src/modules/transfers/TransfersModule.js:1345
 msgid "— Select destination —"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:1361
+#: /app/src/modules/transfers/TransfersModule.js:1362
 msgid "Please select at least one transfer to add"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:1372
+#: /app/src/modules/transfers/TransfersModule.js:1373
 msgid "Please select a destination account for all selected transfers"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:1378
+#: /app/src/modules/transfers/TransfersModule.js:1379
 msgid "Source and destination accounts must be different"
 msgstr ""
 
-#: /app/src/modules/transfers/TransfersModule.js:1403
+#: /app/src/modules/transfers/TransfersModule.js:1404
 msgid "%n transfer added successfully"
 msgid_plural "%n transfers added successfully"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transfers/TransfersModule.js:1406
+#: /app/src/modules/transfers/TransfersModule.js:1407
 msgid "Failed to add selected transfers"
 msgstr ""
 
 #: /app/src/utils/accounts.js:51
 msgid "{name} (closed)"
+msgstr ""
+
+#: /app/src/utils/billDates.js:29
+msgid "Paid {paidDate}, next due {dueDate}"
+msgstr ""
+
+#: /app/src/utils/billDates.js:34
+msgid "Paid {date}"
 msgstr ""
 
 #: /app/src/utils/dialogs.js:229
