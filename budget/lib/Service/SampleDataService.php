@@ -28,8 +28,12 @@ class SampleDataService {
     /** User setting marking that the sample data is what the user is looking at */
     public const SETTING_KEY = 'sample_data_loaded';
 
-    /** Monthly income the default category budgets are sized from */
-    private const OWNER_MONTHLY_INCOME = 3600.0;
+    /**
+     * Monthly income the default category budgets are sized from: the
+     * sample's salary, so its budgets roughly match what comes in and
+     * "Ready to assign" starts a little above zero
+     */
+    private const OWNER_MONTHLY_INCOME = 3200.0;
 
     public function __construct(
         private SettingService $settingService,
@@ -377,41 +381,72 @@ class SampleDataService {
     // ==========================================================
 
     /**
-     * Create the default category tree (sized budgets on what it creates) and
-     * return name => id over the user's whole tree, so categories the user
-     * already made — from the checklist's default-categories step, say — are
-     * used rather than left out. Existing default categories with no budget
-     * get the suggested one too.
+     * Create the default category tree and return name => id over the
+     * user's whole tree, so categories the user already made (from the
+     * checklist's default-categories step, say) are used rather than left
+     * out.
+     *
+     * Budgets are sized from $monthlyIncome, on the subcategories only. The
+     * catalog also suggests a budget for each parent, but the Budget page
+     * adds a parent's own budget on top of its children's, so keeping both
+     * would budget that slice of income twice and put the sample deep into
+     * "over-assigned". A budget the user set on an existing category is left
+     * alone.
      *
      * @return array<string, int>
      */
     private function seedCategories(string $u, float $monthlyIncome): array {
-        $this->categoryService->createDefaultCategories($u, $monthlyIncome);
-
-        $byName = [];
-        $entities = [];
-        foreach ($this->categoryService->findAll($u) as $category) {
-            $byName[$category->getName()] ??= $category->getId();
-            $entities[$category->getName()] ??= $category;
+        $created = [];
+        foreach ($this->categoryService->createDefaultCategories($u, $monthlyIncome) as $category) {
+            $created[$category->getId()] = true;
         }
 
-        foreach ($this->categoryService->getDefaultCategoryDefinitions() as $parent) {
-            foreach (array_merge([$parent], $parent['children'] ?? []) as $definition) {
-                $category = $entities[$definition['name']] ?? null;
-                if ($category === null || !isset($definition['budgetPercent']) || $category->getBudgetAmount() !== null) {
+        $byName = [];
+        $roots = [];
+        $children = [];
+        foreach ($this->categoryService->findAll($u) as $category) {
+            $byName[$category->getName()] ??= $category->getId();
+            if ($category->getParentId() === null) {
+                $roots[$category->getType() . '|' . $category->getName()] ??= $category;
+            } else {
+                $children[$category->getParentId() . '|' . $category->getName()] ??= $category;
+            }
+        }
+
+        foreach ($this->categoryService->getDefaultCategoryDefinitions() as $definition) {
+            $parent = $roots[($definition['type'] ?? 'expense') . '|' . $definition['name']] ?? null;
+            if ($parent === null) {
+                continue;
+            }
+
+            $childBudgets = false;
+            foreach ($definition['children'] ?? [] as $childDefinition) {
+                if (!isset($childDefinition['budgetPercent'])) {
                     continue;
                 }
-                try {
-                    $this->categoryService->update($category->getId(), $u, [
-                        'budgetAmount' => round($monthlyIncome * $definition['budgetPercent'] / 100, 2),
-                    ]);
-                } catch (\Throwable $e) {
-                    // best effort: a category without a budget is still usable
+                $childBudgets = true;
+                $child = $children[$parent->getId() . '|' . $childDefinition['name']] ?? null;
+                if ($child !== null && !isset($created[$child->getId()]) && $child->getBudgetAmount() === null) {
+                    $this->setBudget($u, $child->getId(), round($monthlyIncome * $childDefinition['budgetPercent'] / 100, 2));
                 }
+            }
+
+            if ($childBudgets && isset($created[$parent->getId()])) {
+                $this->setBudget($u, $parent->getId(), null);
+            } elseif (!$childBudgets && isset($definition['budgetPercent']) && $parent->getBudgetAmount() === null) {
+                $this->setBudget($u, $parent->getId(), round($monthlyIncome * $definition['budgetPercent'] / 100, 2));
             }
         }
 
         return $byName;
+    }
+
+    private function setBudget(string $u, int $categoryId, ?float $amount): void {
+        try {
+            $this->categoryService->update($categoryId, $u, ['budgetAmount' => $amount]);
+        } catch (\Throwable $e) {
+            // best effort: a category without a budget is still usable
+        }
     }
 
     /**

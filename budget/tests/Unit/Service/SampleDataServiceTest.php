@@ -119,14 +119,25 @@ class SampleDataServiceTest extends TestCase {
         };
     }
 
-    private function category(int $id, string $name, ?float $budget = null): Category {
+    private function category(int $id, string $name, ?float $budget = null, ?int $parentId = null): Category {
         $c = new Category();
         $c->setId($id);
         $c->setName($name);
         $c->setType('expense');
+        $c->setParentId($parentId);
         $c->setBudgetAmount($budget);
         return $c;
     }
+
+    private const DEFINITIONS = [
+        ['name' => 'Food', 'type' => 'expense', 'budgetPercent' => 15, 'children' => [
+            ['name' => 'Groceries', 'budgetPercent' => 10],
+        ]],
+        ['name' => 'Housing', 'type' => 'expense', 'budgetPercent' => 30, 'children' => [
+            ['name' => 'Rent/Mortgage', 'budgetPercent' => 25],
+        ]],
+        ['name' => 'Savings', 'type' => 'expense', 'budgetPercent' => 5],
+    ];
 
     public function testRefusesWhenTheUserAlreadyHasAnAccount(): void {
         $this->existingAccounts = [new Account()];
@@ -182,29 +193,51 @@ class SampleDataServiceTest extends TestCase {
     }
 
     public function testUsesCategoriesTheUserAlreadyHasAndBudgetsTheUnbudgetedOnes(): void {
+        // The user ran the checklist's default-categories step first: the
+        // tree exists without budgets, and one budget is their own
         $this->categoryList = [
             $this->category(40, 'Salary'),
-            $this->category(41, 'Groceries'),
-            $this->category(42, 'Rent/Mortgage', 900.0),
+            $this->category(50, 'Food'),
+            $this->category(41, 'Groceries', null, 50),
+            $this->category(51, 'Housing'),
+            $this->category(42, 'Rent/Mortgage', 900.0, 51),
+            $this->category(52, 'Savings'),
         ];
-        $this->categories->method('getDefaultCategoryDefinitions')->willReturn([
-            ['name' => 'Food', 'type' => 'expense', 'children' => [
-                ['name' => 'Groceries', 'budgetPercent' => 10],
-            ]],
-            ['name' => 'Housing', 'type' => 'expense', 'children' => [
-                ['name' => 'Rent/Mortgage', 'budgetPercent' => 30],
-            ]],
-        ]);
-        $this->categories->expects($this->once())->method('update')
-            ->with(41, 'alice', ['budgetAmount' => 360.0]);
+        $this->categories->method('getDefaultCategoryDefinitions')->willReturn(self::DEFINITIONS);
+        $updates = [];
+        $this->categories->method('update')->willReturnCallback(function (int $id, string $u, array $changes) use (&$updates) {
+            $updates[$id] = $changes['budgetAmount'];
+            return new Category();
+        });
 
         $this->service()->loadForUser('alice');
 
+        // Subcategory and childless parent get the suggestion; the user's
+        // own 900 and the parents with budgeted children are left alone
+        $this->assertSame([41 => 320.0, 52 => 160.0], $updates);
         $salaryRows = array_filter($this->createdTransactions, fn(array $a) => $a[3] === 'Monthly salary');
         $this->assertNotEmpty($salaryRows);
         foreach ($salaryRows as $args) {
             $this->assertSame(40, $args[6]);
         }
+    }
+
+    public function testNewParentsDropTheirBudgetSoIncomeIsNotBudgetedTwice(): void {
+        $food = $this->category(50, 'Food', 480.0);
+        $groceries = $this->category(41, 'Groceries', 320.0, 50);
+        $savings = $this->category(52, 'Savings', 160.0);
+        $this->categoryList = [$food, $groceries, $savings];
+        $this->categories->method('createDefaultCategories')->willReturn([$food, $groceries, $savings]);
+        $this->categories->method('getDefaultCategoryDefinitions')->willReturn(self::DEFINITIONS);
+        $updates = [];
+        $this->categories->method('update')->willReturnCallback(function (int $id, string $u, array $changes) use (&$updates) {
+            $updates[$id] = $changes['budgetAmount'];
+            return new Category();
+        });
+
+        $this->service()->loadForUser('alice');
+
+        $this->assertSame([50 => null], $updates);
     }
 
     public function testTheDemoProfileStaysMultiCurrency(): void {
