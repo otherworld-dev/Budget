@@ -10,7 +10,7 @@ import { setDateValue } from '../../utils/datepicker.js';
 import Chart from 'chart.js/auto';
 import { serverErrorMessage } from '../../utils/helpers.js';
 import { openAccounts } from '../../utils/accounts.js';
-import { showLoading, clearLoading } from '../../utils/loading.js';
+import { showLoading, showLoadError } from '../../utils/loading.js';
 
 export default class PensionsModule {
     constructor(app) {
@@ -26,15 +26,18 @@ export default class PensionsModule {
     get charts() { return this.app.charts; }
 
     async loadPensionsView() {
+        // Before any fetch, so a failed first load leaves working buttons.
+        this.setupPensionEventListeners();
         showLoading('pensions-list');
         try {
             await this.loadPensions();
             this.renderPensions();
-            this.setupPensionEventListeners();
         } catch (error) {
             console.error('Failed to load pensions view:', error);
-            clearLoading('pensions-list');
             showError(t('budget', 'Failed to load pensions'));
+            const emptyState = document.getElementById('empty-pensions');
+            if (emptyState) emptyState.style.display = 'none';
+            showLoadError('pensions-list', t('budget', 'Failed to load pensions'), () => this.loadPensionsView());
         }
     }
 

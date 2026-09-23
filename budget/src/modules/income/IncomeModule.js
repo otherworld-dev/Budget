@@ -9,6 +9,7 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { serverErrorMessage, isoWeekday } from '../../utils/helpers.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
+import { showLoadError } from '../../utils/loading.js';
 
 export default class IncomeModule {
     constructor(app) {
@@ -28,6 +29,12 @@ export default class IncomeModule {
     get settings() { return this.app.settings; }
 
     async loadIncomeView() {
+        // Before any fetch, so a failed first load leaves working buttons.
+        if (!this._eventsSetup) {
+            this.setupIncomeEventListeners();
+            this._eventsSetup = true;
+        }
+
         try {
             // Load summary first
             await this.loadIncomeSummary();
@@ -42,17 +49,14 @@ export default class IncomeModule {
             this.recurringIncome = await response.json();
             this.renderRecurringIncome(this.recurringIncome);
 
-            // Setup event listeners (only once)
-            if (!this._eventsSetup) {
-                this.setupIncomeEventListeners();
-                this._eventsSetup = true;
-            }
-
             // Populate dropdowns in income modal
             this.populateIncomeModalDropdowns();
         } catch (error) {
             console.error('Failed to load recurring income:', error);
             showError(t('budget', 'Failed to load recurring income'));
+            const emptyIncome = document.getElementById('empty-income');
+            if (emptyIncome) emptyIncome.style.display = 'none';
+            showLoadError('income-list', t('budget', 'Failed to load recurring income'), () => this.loadIncomeView());
         }
     }
 
@@ -144,7 +148,7 @@ export default class IncomeModule {
                         </div>
                         <div class="income-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>
-                            ${autoCreateEnabled ? `<span class="status-badge auto-create" title="${t('budget', 'Auto-create enabled')}" style="background: #007bff; margin-left: 5px;"><span class="icon-checkmark"></span> ${t('budget', 'Auto-create')}</span>` : ''}
+                            ${autoCreateEnabled ? `<span class="status-badge badge-extra auto-create" title="${t('budget', 'Auto-create enabled')}"><span class="icon-checkmark"></span> ${t('budget', 'Auto-create')}</span>` : ''}
                         </div>
                     </div>
                     <div class="income-actions">
@@ -795,7 +799,7 @@ export default class IncomeModule {
                             <span class="detected-bill-amount">${formatters.formatCurrency(item.amount, null, this.settings)}</span>
                             <span class="detected-bill-frequency">${item.frequency}</span>
                             <span class="detected-bill-occurrences">${n('budget', '%n occurrence', '%n occurrences', item.occurrences)}</span>
-                            <span class="detected-bill-source">${t('budget', 'Source: {source}', { source: dom.escapeHtml(item.source) })}</span>
+                            <span class="detected-bill-source">${t('budget', 'Source: {source}', { source: dom.escapeHtml(item.source) }, undefined, { escape: false })}</span>
                         </div>
                         <div class="detected-bill-confidence">
                             <span class="confidence-badge ${confidenceClass}">${t('budget', '{percent}% confidence', { percent: confidencePercent })}</span>

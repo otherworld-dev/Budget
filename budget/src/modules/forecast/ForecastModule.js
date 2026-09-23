@@ -5,6 +5,7 @@ import { translate as t } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import Chart from 'chart.js/auto';
 import { showError } from '../../utils/notifications.js';
+import { escapeHtml } from '../../utils/dom.js';
 
 export default class ForecastModule {
     constructor(app) {
@@ -349,7 +350,7 @@ export default class ForecastModule {
             const item = document.createElement('div');
             item.className = 'category-trend-item';
             item.innerHTML = `
-                <span class="category-name">${category.name}</span>
+                <span class="category-name">${escapeHtml(category.name)}</span>
                 <span class="category-amount">${t('budget', '{amount}/mo', { amount: this.formatCurrency(category.avgMonthly, currency) })}</span>
                 <span class="category-trend ${trendClass}">${trendArrow}</span>
             `;

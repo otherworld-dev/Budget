@@ -9,7 +9,7 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { offerableTags } from '../../utils/tags.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
-import { showLoading, clearLoading } from '../../utils/loading.js';
+import { showLoading, showLoadError } from '../../utils/loading.js';
 
 export default class SavingsModule {
     constructor(app) {
@@ -25,6 +25,12 @@ export default class SavingsModule {
     get settings() { return this.app.settings; }
 
     async loadSavingsGoalsView() {
+        // Before any fetch, so a failed first load leaves working buttons.
+        if (!this._eventsSetup) {
+            this.setupGoalsEventListeners();
+            this._eventsSetup = true;
+        }
+
         showLoading('goals-list');
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/savings-goals'), {
@@ -37,19 +43,15 @@ export default class SavingsModule {
             this.updateGoalsSummary();
             this.renderGoals(this.savingsGoals);
 
-            // Setup event listeners (only once)
-            if (!this._eventsSetup) {
-                this.setupGoalsEventListeners();
-                this._eventsSetup = true;
-            }
-
             // Populate dropdowns in modal
             this.populateGoalAccountDropdown();
             this.populateGoalTagDropdown();
         } catch (error) {
             console.error('Failed to load savings goals:', error);
-            clearLoading('goals-list');
             showError(t('budget', 'Failed to load savings goals'));
+            const emptyGoals = document.getElementById('empty-goals');
+            if (emptyGoals) emptyGoals.style.display = 'none';
+            showLoadError('goals-list', t('budget', 'Failed to load savings goals'), () => this.loadSavingsGoalsView());
         }
     }
 
@@ -126,7 +128,7 @@ export default class SavingsModule {
             }
 
             const sharedBadge = isShared
-                ? `<span class="goal-shared-badge" title="${dom.escapeHtml(t('budget', 'Shared by {owner}', { owner }))}"><span class="icon-shared"></span> ${t('budget', 'Shared')}</span>`
+                ? `<span class="goal-shared-badge" title="${dom.escapeHtml(t('budget', 'Shared by {owner}', { owner }, undefined, { escape: false }))}"><span class="icon-shared"></span> ${t('budget', 'Shared')}</span>`
                 : '';
 
             return `

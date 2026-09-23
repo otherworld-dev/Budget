@@ -10,6 +10,7 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { initSingleDatePicker } from '../../utils/datepicker.js';
 import { serverErrorMessage, isoWeekday } from '../../utils/helpers.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
+import { showLoadError } from '../../utils/loading.js';
 import { openAccounts, pickableAccounts, accountOptionLabel } from '../../utils/accounts.js';
 
 /**
@@ -42,12 +43,21 @@ export default class TransfersModule {
     }
 
     async loadTransfersView() {
-        await this.loadTransfers();
+        const loaded = await this.loadTransfers();
         this.render();
         this.renderTransfers();
         this.updateSummary();
+        if (!loaded) {
+            // Say it failed rather than showing "No recurring transfers yet"
+            const empty = document.getElementById('empty-transfers');
+            if (empty) empty.style.display = 'none';
+            showLoadError('transfers-list', t('budget', 'Failed to load transfers'), () => this.loadTransfersView());
+        }
     }
 
+    /**
+     * @returns {Promise<boolean>} false when the fetch failed
+     */
     async loadTransfers() {
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/bills?isTransfer=true'), {
@@ -57,9 +67,11 @@ export default class TransfersModule {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             this.transfers = await response.json();
+            return true;
         } catch (error) {
             console.error('Failed to load transfers:', error);
             showError(t('budget', 'Failed to load transfers'));
+            return false;
         }
     }
 
@@ -349,8 +361,8 @@ export default class TransfersModule {
                         </div>
                         <div class="bill-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>
-                            ${autoPayEnabled ? `<span class="status-badge auto-pay" title="${t('budget', 'Auto-pay enabled')}" style="background: #007bff; margin-left: 5px;"><span class="icon-checkmark"></span> ${t('budget', 'Auto-pay')}</span>` : ''}
-                            ${autoPayFailed ? `<span class="status-badge auto-pay-failed" title="${t('budget', 'Auto-pay failed - disabled')}" style="background: #ffc107; color: #856404; margin-left: 5px;"><span class="icon-error"></span> ${t('budget', 'Auto-pay Failed')}</span>` : ''}
+                            ${autoPayEnabled ? `<span class="status-badge badge-extra auto-pay" title="${t('budget', 'Auto-pay enabled')}"><span class="icon-checkmark"></span> ${t('budget', 'Auto-pay')}</span>` : ''}
+                            ${autoPayFailed ? `<span class="status-badge badge-extra auto-pay-failed" title="${t('budget', 'Auto-pay failed - disabled')}"><span class="icon-error"></span> ${t('budget', 'Auto-pay Failed')}</span>` : ''}
                         </div>
                     </div>
                     <div class="bill-actions">
@@ -1341,7 +1353,7 @@ export default class TransfersModule {
                         </div>
                         <div class="detected-transfer-dest" style="margin-top: 4px;">
                             <label style="font-size: 12px; margin-right: 4px;">${t('budget', 'To:')}</label>
-                            <select class="detected-dest-account" data-index="${index}" style="font-size: 12px; padding: 2px 4px;">
+                            <select class="detected-dest-account" data-index="${index}" style="font-size: 12px; padding: 2px 4px;" aria-label="${t('budget', 'To:')}">
                                 <option value="">${t('budget', '— Select destination —')}</option>
                                 ${accountOptions}
                             </select>

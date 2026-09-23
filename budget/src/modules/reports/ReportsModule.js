@@ -757,7 +757,11 @@ export default class ReportsModule {
         this.reportCharts.trend = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: trends.labels || [],
+                // Y-m keys formatted in the user's language; the English
+                // labels only if the server did not send them
+                labels: Array.isArray(trends.months) && trends.months.length
+                    ? trends.months.map(m => formatters.formatYearMonth(m))
+                    : (trends.labels || []),
                 datasets: [
                     {
                         label: t('budget', 'Income'),
@@ -937,8 +941,8 @@ export default class ReportsModule {
             const color = item.color || defaultColors[i % defaultColors.length];
             return `
                 <div class="spending-legend-item">
-                    <span class="spending-legend-color" style="background: ${color}"></span>
-                    <span class="spending-legend-name">${item.name}</span>
+                    <span class="spending-legend-color" style="background: ${this.escapeHtml(color)}"></span>
+                    <span class="spending-legend-name">${this.escapeHtml(item.name)}</span>
                     <span class="spending-legend-value">${this.formatCurrency(item.total)}</span>
                     <span class="spending-legend-pct">${pct}%</span>
                 </div>
@@ -957,8 +961,8 @@ export default class ReportsModule {
             return `
                 <tr>
                     <td>
-                        <span class="category-color" style="background: ${cat.color || '#888'}"></span>
-                        ${cat.name}
+                        <span class="category-color" style="background: ${this.escapeHtml(cat.color || '#888')}"></span>
+                        ${this.escapeHtml(cat.name)}
                     </td>
                     <td class="text-right">${this.formatCurrency(cat.total, currency)}</td>
                     <td class="text-right">${pct}%</td>
@@ -1039,7 +1043,7 @@ export default class ReportsModule {
 
         tbody.innerHTML = data.map(vendor => `
             <tr>
-                <td>${vendor.name}</td>
+                <td>${this.escapeHtml(vendor.name)}</td>
                 <td class="text-right">${this.formatCurrency(vendor.total, currency)}</td>
                 <td class="text-right">${vendor.count}</td>
             </tr>
@@ -1898,7 +1902,7 @@ export default class ReportsModule {
         const ctx = canvas.getContext('2d');
         const currency = this.getPrimaryCurrency();
 
-        const months = [t('budget', 'Jan'), t('budget', 'Feb'), t('budget', 'Mar'), t('budget', 'Apr'), t('budget', 'May'), t('budget', 'Jun'), t('budget', 'Jul'), t('budget', 'Aug'), t('budget', 'Sep'), t('budget', 'Oct'), t('budget', 'Nov'), t('budget', 'Dec')];
+        const months = Array.from({ length: 12 }, (_, i) => formatters.monthName(i + 1, 'short'));
         const data = [];
         for (let i = 1; i <= 12; i++) {
             data.push(monthlyTotals[i] || 0);
@@ -1989,7 +1993,7 @@ export default class ReportsModule {
                 months.push(`<td class="month-cell ${cellClass}" title="${title}">${amount}</td>`);
             }
 
-            const transferBadge = bill.isTransfer ? ` <span class="transfer-badge" style="background: #0082c9; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px;">${t('budget', 'Transfer')}</span>` : '';
+            const transferBadge = bill.isTransfer ? ` <span class="transfer-badge">${t('budget', 'Transfer')}</span>` : '';
 
             return `
                 <tr>
@@ -2032,7 +2036,7 @@ export default class ReportsModule {
             return `<tr class="balance-hint-row"><td colspan="13">${t('budget', 'The projected balance is only shown for the current year.')}</td></tr>`;
         }
 
-        const monthNames = [t('budget', 'January'), t('budget', 'February'), t('budget', 'March'), t('budget', 'April'), t('budget', 'May'), t('budget', 'June'), t('budget', 'July'), t('budget', 'August'), t('budget', 'September'), t('budget', 'October'), t('budget', 'November'), t('budget', 'December')];
+        const monthNames = Array.from({ length: 12 }, (_, i) => formatters.monthName(i + 1));
         const money = value => this.formatCurrency(value, account.currency);
         const cells = [];
         let lowest = null;
@@ -2079,7 +2083,7 @@ export default class ReportsModule {
         if (!container) return;
 
         const currency = this.getPrimaryCurrency();
-        const months = [t('budget', 'January'), t('budget', 'February'), t('budget', 'March'), t('budget', 'April'), t('budget', 'May'), t('budget', 'June'), t('budget', 'July'), t('budget', 'August'), t('budget', 'September'), t('budget', 'October'), t('budget', 'November'), t('budget', 'December')];
+        const months = Array.from({ length: 12 }, (_, i) => formatters.monthName(i + 1));
 
         // Find max total for color scaling
         const maxTotal = Math.max(...Object.values(monthlyTotals));

@@ -9,7 +9,7 @@ import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { serverErrorMessage, downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES, hasSplitPortion, transactionDisplayAmount } from '../../utils/helpers.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { openAccounts } from '../../utils/accounts.js';
-import { showLoading, clearLoading } from '../../utils/loading.js';
+import { showLoading, clearLoading, showLoadError } from '../../utils/loading.js';
 
 // Which account attributes are rendered in the accounts view (tiles + list).
 // User-configurable through the gear menu in the accounts header, stored in
@@ -523,8 +523,8 @@ export default class AccountsModule {
         // Tiles show the same attributes in the same order as the list columns
         const metaItems = {
             type: () => `<span class="account-type-badge">${typeInfo.label}</span>`,
-            institution: () => (institution ? `<span class="account-institution">${institution}</span>` : ''),
-            accountNumber: () => (accountNumber ? `<span class="account-number">${accountNumber}</span>` : ''),
+            institution: () => (institution ? `<span class="account-institution">${dom.escapeHtml(institution)}</span>` : ''),
+            accountNumber: () => (accountNumber ? `<span class="account-number">${dom.escapeHtml(accountNumber)}</span>` : ''),
             lastReconciled: () => `<span class="account-reconciled">${this.formatLastReconciled(account)}</span>`
         };
 
@@ -536,7 +536,7 @@ export default class AccountsModule {
                         <span class="${typeInfo.icon}" aria-hidden="true"></span>
                     </div>
                     <div class="account-details">
-                        <h3 class="account-name">${accountName}</h3>
+                        <h3 class="account-name">${dom.escapeHtml(accountName)}</h3>
                         <div class="account-meta">
                             ${account.closed ? `<span class="account-closed-badge" title="${t('budget', 'Closed: history kept, no new activity')}">${t('budget', 'Closed')}</span>` : ''}
                             ${account.excludedFromReports ? `<span class="account-excluded-badge" title="${t('budget', 'Excluded from reports, dashboard & forecast')}">${t('budget', 'Excluded')}</span>` : ''}
@@ -597,10 +597,10 @@ export default class AccountsModule {
             : (accountBalance >= 0 ? 'positive' : 'negative');
 
         const cells = {
-            name: () => `<div class="account-row-name">${accountName}${account.closed ? ` <span class="account-closed-badge">${t('budget', 'Closed')}</span>` : ''}</div>`,
+            name: () => `<div class="account-row-name">${dom.escapeHtml(accountName)}${account.closed ? ` <span class="account-closed-badge">${t('budget', 'Closed')}</span>` : ''}</div>`,
             type: () => `<div class="account-row-type">${typeInfo.label}</div>`,
-            institution: () => `<div class="account-row-institution">${institution || '—'}</div>`,
-            accountNumber: () => `<div class="account-row-number">${accountNumber || '—'}</div>`,
+            institution: () => `<div class="account-row-institution">${dom.escapeHtml(institution) || '—'}</div>`,
+            accountNumber: () => `<div class="account-row-number">${dom.escapeHtml(accountNumber) || '—'}</div>`,
             lastReconciled: () => `<div class="account-row-reconciled">${this.formatLastReconciled(account)}</div>`,
             balance: () => `<div class="account-row-balance ${balanceClass}">
                     ${this.formatCurrency(displayBalance, accountCurrency)}
@@ -1406,7 +1406,7 @@ export default class AccountsModule {
         tbody.innerHTML = rates.map((rate, _index) => `
             <tr>
                 <td>${this.formatDate(rate.effectiveDate)}</td>
-                <td>${rate.rate}%</td>
+                <td>${dom.escapeHtml(rate.rate)}%</td>
                 <td>${compoundingLabels[rate.compoundingFrequency] || rate.compoundingFrequency}</td>
                 <td>
                     ${rates.length > 1 ? `
@@ -1605,9 +1605,11 @@ export default class AccountsModule {
 
         } catch (error) {
             console.error('Failed to load account transactions:', error);
-            // Show empty state
+            // Not the "no transactions yet" empty state: that would tell the
+            // user the account is empty when the fetch simply failed.
             this.accountTransactions = [];
-            this.renderAccountTransactions();
+            showLoadError('account-transactions-body', t('budget', 'Failed to load transactions'),
+                () => this.loadAccountTransactions(accountId));
         }
     }
 
@@ -1651,10 +1653,10 @@ export default class AccountsModule {
             const isLinked = transaction.linkedTransactionId != null;
             const linkedAccountName = transaction.linkedAccountName || this.app.accounts?.find(a => a.id === transaction.linkedAccountId)?.name || '';
             const linkedDirection = transaction.type === 'debit' ? '→' : '←';
-            const linkedLabel = linkedAccountName ? t('budget', 'Transfer {direction} {account}', { direction: linkedDirection, account: dom.escapeHtml(linkedAccountName) }) : t('budget', 'Transfer');
-            const linkedTitle = linkedAccountName ? t('budget', 'Click to view linked transaction in {account}', { account: dom.escapeHtml(linkedAccountName) }) : t('budget', 'Linked transfer');
+            const linkedLabel = linkedAccountName ? t('budget', 'Transfer {direction} {account}', { direction: linkedDirection, account: dom.escapeHtml(linkedAccountName) }, undefined, { escape: false }) : t('budget', 'Transfer');
+            const linkedTitle = linkedAccountName ? t('budget', 'Click to view linked transaction in {account}', { account: dom.escapeHtml(linkedAccountName) }, undefined, { escape: false }) : t('budget', 'Linked transfer');
             const linkedBadge = isLinked
-                ? `<span class="linked-indicator" data-transaction-id="${transaction.id}" data-linked-id="${transaction.linkedTransactionId}" data-linked-account-id="${transaction.linkedAccountId || ''}" title="${linkedTitle}">&#x1F517; ${linkedLabel}</span>`
+                ? `<button type="button" class="linked-indicator" data-transaction-id="${transaction.id}" data-linked-id="${transaction.linkedTransactionId}" data-linked-account-id="${transaction.linkedAccountId || ''}" title="${linkedTitle}"><span aria-hidden="true">&#x1F517;</span> ${linkedLabel}</button>`
                 : '';
 
             // Split badge. Filtering the register by a category also matches a
@@ -1727,6 +1729,20 @@ export default class AccountsModule {
     }
 
     setupAccountTransactionActionListeners() {
+        // On a phone the register rows are cards, like the main transactions
+        // list, and a tap on the card opens the edit form. Bound once on the
+        // table, which outlives the re-rendered rows.
+        const table = document.getElementById('account-transactions-table');
+        if (table && this._registerTapTable !== table) {
+            this._registerTapTable = table;
+            table.addEventListener('click', (e) => {
+                if (!window.matchMedia?.(dom.PHONE_CARD_QUERY).matches) return;
+                const row = e.target.closest('tr.transaction-row');
+                if (!row || e.target.closest('input, button, a, select, .linked-indicator')) return;
+                this.editTransaction(parseInt(row.dataset.transactionId, 10));
+            });
+        }
+
         // Edit transaction buttons
         document.querySelectorAll('.edit-transaction-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -1749,8 +1765,8 @@ export default class AccountsModule {
         document.querySelectorAll('#account-transactions-body .linked-indicator').forEach(badge => {
             badge.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const linkedId = parseInt(e.target.getAttribute('data-linked-id'));
-                const linkedAccountId = parseInt(e.target.getAttribute('data-linked-account-id'));
+                const linkedId = parseInt(badge.getAttribute('data-linked-id'));
+                const linkedAccountId = parseInt(badge.getAttribute('data-linked-account-id'));
                 this.app.navigateToLinkedTransaction(linkedId, linkedAccountId);
             });
         });
@@ -2256,7 +2272,7 @@ export default class AccountsModule {
             if (reconcileAccountSelect.options.length <= 1 && this.accounts) {
                 reconcileAccountSelect.innerHTML = '<option value="">' + t('budget', 'Select account to reconcile') + '</option>';
                 openAccounts(this.accounts).forEach(account => {
-                    reconcileAccountSelect.innerHTML += `<option value="${account.id}">${account.name}</option>`;
+                    reconcileAccountSelect.innerHTML += `<option value="${account.id}">${dom.escapeHtml(account.name)}</option>`;
                 });
             }
             reconcileAccountSelect.value = accountId;
@@ -3638,7 +3654,7 @@ export default class AccountsModule {
         }
 
         if (!this.accountTransactions || this.accountTransactions.length === 0) {
-            OC.Notification.showTemporary(t('budget', 'No transactions to export'));
+            showWarning(t('budget', 'No transactions to export'));
             return;
         }
 
@@ -3662,7 +3678,7 @@ export default class AccountsModule {
             await downloadTransactionsCsv(params, account.name || 'account');
         } catch (error) {
             console.error('Failed to export transactions:', error);
-            OC.Notification.showTemporary(t('budget', 'Failed to export transactions'));
+            showError(t('budget', 'Failed to export transactions'));
         }
     }
 }

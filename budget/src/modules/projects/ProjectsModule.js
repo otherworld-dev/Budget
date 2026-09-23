@@ -9,7 +9,8 @@ import { showSuccess, showError, showWarning } from '../../utils/notifications.j
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import { groupProjects, progressFor, unallocated, subcategoriesOf, ownExpenseTree } from './projectMath.js';
-import { showLoading, clearLoading } from '../../utils/loading.js';
+import { progressBarAttrs, overBudgetText } from '../../utils/budgetProgress.js';
+import { showLoading, showLoadError } from '../../utils/loading.js';
 
 export default class ProjectsModule {
     constructor(app) {
@@ -34,8 +35,10 @@ export default class ProjectsModule {
             this.renderProjects(this.app.projects);
         } catch (error) {
             console.error('Failed to load projects:', error);
-            clearLoading('projects-list');
             showError(t('budget', 'Failed to load projects'));
+            const emptyState = document.getElementById('empty-projects');
+            if (emptyState) emptyState.style.display = 'none';
+            showLoadError('projects-list', t('budget', 'Failed to load projects'), () => this.loadProjectsView());
         }
     }
 
@@ -82,7 +85,8 @@ export default class ProjectsModule {
         const bar = progressFor(project.spent, project.totalAmount);
         const time = this.timeText(project);
         return `
-            <div class="budget-progress-bar"><div class="budget-progress-fill ${bar.status}" style="width: ${bar.width}%"></div></div>
+            <div class="budget-progress-bar" ${progressBarAttrs(bar.percent, project.name)}><div class="budget-progress-fill ${bar.status}" style="width: ${bar.width}%"></div></div>
+            ${overBudgetText(project.remaining < 0)}
             <div class="project-amounts">
                 <span>${t('budget', '{spent} of {total}', { spent: this.money(project.spent), total: this.money(project.totalAmount) })}</span>
                 <span class="${project.remaining < 0 ? 'negative' : ''}">${this.remainingText(project.remaining)}</span>
@@ -171,7 +175,7 @@ export default class ProjectsModule {
                 this.money(entry.spent),
                 hasAmount ? this.money(entry.remaining) : '',
                 hasAmount && entry.remaining < 0 ? ' negative' : '',
-                bar ? `<span class="budget-progress-bar"><span class="budget-progress-fill ${bar.status}" style="width: ${bar.width}%"></span></span>` : ''
+                bar ? `<span class="budget-progress-bar" ${progressBarAttrs(bar.percent, entry.name)}><span class="budget-progress-fill ${bar.status}" style="width: ${bar.width}%"></span></span>${overBudgetText(hasAmount && entry.remaining < 0)}` : ''
             );
         });
 

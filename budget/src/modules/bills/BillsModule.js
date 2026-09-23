@@ -11,6 +11,7 @@ import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { serverErrorMessage } from '../../utils/helpers.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
+import { showLoadError } from '../../utils/loading.js';
 
 export default class BillsModule {
     constructor(app) {
@@ -30,6 +31,13 @@ export default class BillsModule {
     get settings() { return this.app.settings; }
 
     async loadBillsView() {
+        // Before any fetch: a failed first load must not leave the view's
+        // buttons (Add bill, filters) dead for the rest of the session.
+        if (!this._eventsSetup) {
+            this.setupBillsEventListeners();
+            this._eventsSetup = true;
+        }
+
         try {
             // Load summary first
             await this.loadBillsSummary();
@@ -49,12 +57,6 @@ export default class BillsModule {
             this.bills = await response.json();
             this.renderBills(this.bills);
 
-            // Setup event listeners (only once)
-            if (!this._eventsSetup) {
-                this.setupBillsEventListeners();
-                this._eventsSetup = true;
-            }
-
             // Populate dropdowns in bill modal
             this.populateBillModalDropdowns();
 
@@ -66,6 +68,9 @@ export default class BillsModule {
         } catch (error) {
             console.error('Failed to load bills:', error);
             showError(t('budget', 'Failed to load bills'));
+            const emptyBills = document.getElementById('empty-bills');
+            if (emptyBills) emptyBills.style.display = 'none';
+            showLoadError('bills-list', t('budget', 'Failed to load bills'), () => this.loadBillsView());
         }
     }
 
@@ -394,11 +399,11 @@ export default class BillsModule {
                         </div>
                         <div class="bill-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>
-                            ${hasSplits ? `<span class="status-badge" title="${t('budget', 'Split across categories')}" style="background: #6f42c1; margin-left: 5px;">${t('budget', 'Split')}</span>` : ''}
-                            ${autoPayEnabled ? `<span class="status-badge auto-pay" title="${t('budget', 'Auto-pay enabled')}" style="background: #007bff; margin-left: 5px;"><span class="icon-checkmark"></span> ${t('budget', 'Auto-pay')}</span>` : ''}
-                            ${autoPayFailed ? `<span class="status-badge auto-pay-failed" title="${t('budget', 'Auto-pay failed - disabled')}" style="background: #ffc107; color: #856404; margin-left: 5px;"><span class="icon-error"></span> ${t('budget', 'Auto-pay Failed')}</span>` : ''}
-                            ${remainingPayments !== null ? `<span class="status-badge" title="${t('budget', 'Remaining payments')}" style="background: #6c757d; margin-left: 5px;">${t('budget', '{count} left', { count: remainingPayments })}</span>` : ''}
-                            ${endDate ? `<span class="status-badge" title="${t('budget', 'Ends {date}', { date: formatters.formatDate(endDate, this.settings) })}" style="background: #6c757d; margin-left: 5px;">${t('budget', 'Ends {date}', { date: formatters.formatDate(endDate, this.settings) })}</span>` : ''}
+                            ${hasSplits ? `<span class="status-badge badge-extra badge-split" title="${t('budget', 'Split across categories')}">${t('budget', 'Split')}</span>` : ''}
+                            ${autoPayEnabled ? `<span class="status-badge badge-extra auto-pay" title="${t('budget', 'Auto-pay enabled')}"><span class="icon-checkmark"></span> ${t('budget', 'Auto-pay')}</span>` : ''}
+                            ${autoPayFailed ? `<span class="status-badge badge-extra auto-pay-failed" title="${t('budget', 'Auto-pay failed - disabled')}"><span class="icon-error"></span> ${t('budget', 'Auto-pay Failed')}</span>` : ''}
+                            ${remainingPayments !== null ? `<span class="status-badge badge-extra badge-neutral" title="${t('budget', 'Remaining payments')}">${t('budget', '{count} left', { count: remainingPayments })}</span>` : ''}
+                            ${endDate ? `<span class="status-badge badge-extra badge-neutral" title="${t('budget', 'Ends {date}', { date: formatters.formatDate(endDate, this.settings) })}">${t('budget', 'Ends {date}', { date: formatters.formatDate(endDate, this.settings) })}</span>` : ''}
                         </div>
                     </div>
                     <div class="bill-actions">
@@ -1459,7 +1464,7 @@ export default class BillsModule {
                         <button class="close-btn" title="${t('budget', 'Close')}" aria-label="${t('budget', 'Close')}">&times;</button>
                     </div>
                     <div class="budget-modal-body">
-                        <p class="matching-tx-intro">${t('budget', 'We found existing transactions that may already represent this bill payment ({billName}, {amount}). Would you like to link one instead of creating a new transaction?', { billName: dom.escapeHtml(bill.name), amount: formatAmount(bill.amount) })}</p>
+                        <p class="matching-tx-intro">${t('budget', 'We found existing transactions that may already represent this bill payment ({billName}, {amount}). Would you like to link one instead of creating a new transaction?', { billName: dom.escapeHtml(bill.name), amount: dom.escapeHtml(formatAmount(bill.amount)) }, undefined, { escape: false })}</p>
                         <p class="matching-tx-intro">${t('budget', 'Whichever you choose, the bill is marked as paid and moves on to its next due date.')}</p>
                         <div class="matching-tx-list">
                             ${candidateRows}

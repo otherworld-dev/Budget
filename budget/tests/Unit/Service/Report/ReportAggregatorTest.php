@@ -461,6 +461,24 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertFalse($result['currencyConverted']);
 	}
 
+	// ===== Trend months =====
+
+	public function testTrendDataCarriesYearMonthKeysAlongsideLabels(): void {
+		$account = $this->makeAccount(1, 'Current', 'checking', 1000.00, 'GBP');
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([]);
+		$this->setupDefaultMocks();
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+
+		$result = $this->aggregator->generateSummary('user1', 1, '2025-11-01', '2026-01-31');
+
+		// Y-m for the UI to format in the user's language; the English
+		// labels are kept for compatibility.
+		$this->assertSame(['2025-11', '2025-12', '2026-01'], $result['trends']['months']);
+		$this->assertSame(['Nov 2025', 'Dec 2025', 'Jan 2026'], $result['trends']['labels']);
+		$this->assertCount(3, $result['trends']['income']);
+	}
+
 	// ===== Metadata in response =====
 
 	public function testResponseIncludesCurrencyMetadata(): void {

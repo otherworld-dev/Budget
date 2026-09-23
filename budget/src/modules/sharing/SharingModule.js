@@ -8,6 +8,7 @@
 import { translate as t } from '@nextcloud/l10n';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
+import { escapeHtml } from '../../utils/dom.js';
 
 export default class SharingModule {
     constructor(app) {
@@ -98,7 +99,7 @@ export default class SharingModule {
                     <h3>${t('budget', 'Share Your Budget')}</h3>
                     <p class="sharing-description">${t('budget', 'Invite a Nextcloud user and then configure which parts of your budget they can access.')}</p>
                     <div class="sharing-add-form">
-                        <select id="share-username-input" class="sharing-input">
+                        <select id="share-username-input" class="sharing-input" aria-label="${t('budget', 'User to share with')}">
                             <option value="">${t('budget', 'Select a user...')}</option>
                         </select>
                         <button id="share-add-btn" class="primary">${t('budget', 'Invite')}</button>
@@ -486,8 +487,6 @@ export default class SharingModule {
     }
 
     esc(str) {
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
+        return escapeHtml(str);
     }
 }

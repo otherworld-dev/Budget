@@ -10,6 +10,7 @@ import { whatsNewDialog } from '../../utils/dialogs.js';
 import { entriesToShow, latestEntries, installedVersion, WHATS_NEW_SEEN_KEY } from '../../utils/whatsNew.js';
 import WHATS_NEW from '../../whatsnew.json';
 import { translate as t } from '@nextcloud/l10n';
+import { escapeHtml } from '../../utils/dom.js';
 
 // The documentation lives in the website project, not here — this app only
 // links to the published pages. A topic's `doc` slug is the page name, so
@@ -228,14 +229,14 @@ export default class HelpModule {
             ];
 
             let html = `<table class="system-info-table">${lines.map(([label, value]) =>
-                `<tr><td class="system-info-label">${label}</td><td class="system-info-value">${value}</td></tr>`
+                `<tr><td class="system-info-label">${escapeHtml(label)}</td><td class="system-info-value">${escapeHtml(value)}</td></tr>`
             ).join('')}</table>`;
 
             // Failed API requests
             if (diag.failedRequests.length > 0) {
                 html += `<h4 class="system-info-subhead">${t('budget', 'Failed API Requests')} (${diag.failedRequests.length})</h4>`;
                 html += `<div class="system-info-log">${diag.failedRequests.map(r =>
-                    `<div class="log-entry error">${r.time.substring(11, 19)} ${r.method} ${r.url} → ${r.status}</div>`
+                    `<div class="log-entry error">${escapeHtml(r.time.substring(11, 19))} ${escapeHtml(r.method)} ${escapeHtml(r.url)} → ${escapeHtml(r.status)}</div>`
                 ).join('')}</div>`;
             }
 
@@ -243,7 +244,7 @@ export default class HelpModule {
             if (diag.errors.length > 0) {
                 html += `<h4 class="system-info-subhead">${t('budget', 'JavaScript Errors')} (${diag.errors.length})</h4>`;
                 html += `<div class="system-info-log">${diag.errors.map(e =>
-                    `<div class="log-entry error">${e.time.substring(11, 19)} ${e.message}${e.source ? ' (' + e.source + ':' + e.line + ')' : ''}</div>`
+                    `<div class="log-entry error">${escapeHtml(e.time.substring(11, 19))} ${escapeHtml(e.message)}${e.source ? escapeHtml(' (' + e.source + ':' + e.line + ')') : ''}</div>`
                 ).join('')}</div>`;
             }
 
@@ -259,7 +260,7 @@ export default class HelpModule {
                 const levelMap = { 0: 'DEBUG', 1: 'INFO', 2: 'WARN', 3: 'ERROR', 4: 'FATAL' };
                 html += `<h4 class="system-info-subhead">${t('budget', 'Server Logs (Budget)')} (${info.serverLogs.length})</h4>`;
                 html += `<div class="system-info-log">${info.serverLogs.map(l =>
-                    `<div class="log-entry ${l.level >= 3 ? 'error' : ''}">${l.time.substring(11, 19)} [${levelMap[l.level] || l.level}] ${l.message}</div>`
+                    `<div class="log-entry ${l.level >= 3 ? 'error' : ''}">${escapeHtml(l.time.substring(11, 19))} [${escapeHtml(levelMap[l.level] || l.level)}] ${escapeHtml(l.message)}</div>`
                 ).join('')}</div>`;
             } else if (info.serverLogs !== undefined) {
                 html += `<p class="system-info-ok">&#10004; ${t('budget', 'No server errors logged')}</p>`;

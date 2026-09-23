@@ -21,8 +21,8 @@ import { offerableTags } from '../../utils/tags.js';
 import flatpickr from 'flatpickr';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
-/** Width at which the transactions table turns into cards; keep in step with style.css. */
-const PHONE_CARD_QUERY = '(max-width: 640px)';
+/** Width at which the transactions table turns into cards (shared with the account register). */
+const PHONE_CARD_QUERY = dom.PHONE_CARD_QUERY;
 
 export default class TransactionsModule {
     constructor(app) {
@@ -503,7 +503,7 @@ export default class TransactionsModule {
         const accountFilter = document.getElementById('filter-account');
         if (accountFilter && this.accounts) {
             accountFilter.innerHTML = `<option value="">${t('budget', 'All Accounts')}</option>`
-                + this.accounts.map(account => `<option value="${account.id}">${account.name}</option>`).join('');
+                + this.accounts.map(account => `<option value="${account.id}">${dom.escapeHtml(account.name)}</option>`).join('');
         }
 
         // Populate category filter
@@ -521,7 +521,7 @@ export default class TransactionsModule {
         if (reconcileAccount && this.accounts) {
             reconcileAccount.innerHTML = `<option value="">${t('budget', 'Select account to reconcile')}</option>`;
             openAccounts(this.accounts).forEach(account => {
-                reconcileAccount.innerHTML += `<option value="${account.id}">${account.name}</option>`;
+                reconcileAccount.innerHTML += `<option value="${account.id}">${dom.escapeHtml(account.name)}</option>`;
             });
         }
 
@@ -1984,7 +1984,7 @@ export default class TransactionsModule {
         return transactions.map(tx => `
             <div class="transaction-item">
                 <span class="transaction-date">${this.formatDate(tx.date)}</span>
-                <span class="transaction-description">${tx.description}</span>
+                <span class="transaction-description">${dom.escapeHtml(tx.description)}</span>
                 <span class="amount ${tx.type}">${this.formatCurrency(tx.amount, tx.accountCurrency)}</span>
             </div>
         `).join('');
@@ -3331,20 +3331,20 @@ export default class TransactionsModule {
         row.innerHTML = `
             <div class="split-field split-amount-field">
                 <label>${t('budget', 'Amount')}</label>
-                <input type="number" class="inline-split-amount" step="0.01" ${minAttr} placeholder="0.00"
+                <input aria-label="${t('budget', 'Amount')}" type="number" class="inline-split-amount" step="0.01" ${minAttr} placeholder="0.00"
                        value="${existingSplit ? existingSplit.amount : ''}">
             </div>
             <div class="split-field split-category-field">
                 <label>${t('budget', 'Category')}</label>
-                <select class="inline-split-category">
+                <select aria-label="${t('budget', 'Category')}" class="inline-split-category">
                     <option value="">${t('budget', 'Uncategorized')}</option>
                     ${this.app.getCategoryOptions(existingSplit?.categoryId || null, transactionType)}
                 </select>
             </div>
             <div class="split-field split-description-field">
                 <label>${t('budget', 'Description')}</label>
-                <input type="text" class="inline-split-description" maxlength="255" placeholder="${t('budget', 'Optional note')}"
-                       value="${existingSplit?.description || ''}">
+                <input aria-label="${t('budget', 'Description')}" type="text" class="inline-split-description" maxlength="255" placeholder="${t('budget', 'Optional note')}"
+                       value="${dom.escapeHtml(existingSplit?.description || '')}">
             </div>
             <div class="split-actions">
                 <button type="button" class="split-remove-btn ${isFirst ? 'disabled' : ''}"
@@ -3844,7 +3844,7 @@ export default class TransactionsModule {
                         <span class="match-date">${this.formatDate(match.date)}</span>
                         <span class="match-description">${this.escapeHtml(match.description)}</span>
                         <span class="match-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
-                        <span class="match-account">${matchAccount?.name || t('budget', 'Unknown')}</span>
+                        <span class="match-account">${dom.escapeHtml(matchAccount?.name) || t('budget', 'Unknown')}</span>
                         <button class="link-match-btn" data-source-id="${transactionId}" data-target-id="${match.id}">
                             ${t('budget', 'Link as Transfer')}
                         </button>
@@ -3980,20 +3980,20 @@ export default class TransactionsModule {
         row.innerHTML = `
             <div class="split-field split-amount-field">
                 <label>${t('budget', 'Amount')}</label>
-                <input type="number" class="split-amount" step="0.01" min="0.01"
+                <input aria-label="${t('budget', 'Amount')}" type="number" class="split-amount" step="0.01" min="0.01"
                        value="${split ? split.amount : ''}" placeholder="0.00" required>
             </div>
             <div class="split-field split-category-field">
                 <label>${t('budget', 'Category')}</label>
-                <select class="split-category">
+                <select aria-label="${t('budget', 'Category')}" class="split-category">
                     <option value="">${t('budget', 'Uncategorized')}</option>
                     ${this.getCategoryOptions(split?.categoryId, transactionType)}
                 </select>
             </div>
             <div class="split-field split-description-field">
                 <label>${t('budget', 'Description')}</label>
-                <input type="text" class="split-description" maxlength="255"
-                       value="${split?.description || ''}" placeholder="${t('budget', 'Optional note')}">
+                <input aria-label="${t('budget', 'Description')}" type="text" class="split-description" maxlength="255"
+                       value="${dom.escapeHtml(split?.description || '')}" placeholder="${t('budget', 'Optional note')}">
             </div>
             <div class="split-actions">
                 <button type="button" class="split-remove-btn ${isFirst ? 'disabled' : ''}"
@@ -4687,6 +4687,9 @@ export default class TransactionsModule {
             if (cell && !cell.classList.contains('editing')) {
                 // Don't trigger if clicking on checkbox
                 if (e.target.type === 'checkbox') return;
+                // The transfer badge is a button of its own (it opens the
+                // linked transaction), not a way into the description editor.
+                if (e.target.closest('.linked-indicator')) return;
                 this.startInlineEdit(cell);
             }
         });
@@ -4863,8 +4866,8 @@ export default class TransactionsModule {
                 dropdown.innerHTML = filtered.map(c => `
                     <div class="category-autocomplete-item ${c.id === parseInt(input.dataset.categoryId) ? 'selected' : ''}"
                          data-category-id="${c.id}"
-                         data-category-name="${c.name}">
-                        ${c.prefix}${c.name}
+                         data-category-name="${dom.escapeHtml(c.name)}">
+                        ${dom.escapeHtml(c.prefix)}${dom.escapeHtml(c.name)}
                     </div>
                 `).join('');
             }

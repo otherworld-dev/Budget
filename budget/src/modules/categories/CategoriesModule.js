@@ -8,7 +8,8 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import Chart from 'chart.js/auto';
 import { serverErrorMessage } from '../../utils/helpers.js';
-import { expenseProgressStatus } from '../../utils/budgetProgress.js';
+import { expenseProgressStatus, progressBarAttrs, overBudgetText } from '../../utils/budgetProgress.js';
+import { showLoadError } from '../../utils/loading.js';
 import { nextCategoryColor, distinctCategoryColors } from '../../utils/colors.js';
 
 export default class CategoriesModule {
@@ -71,12 +72,15 @@ export default class CategoriesModule {
     }
 
     escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        // dom.escapeHtml also escapes quotes, so the result is safe inside an
+        // attribute value too (textContent/innerHTML leaves " alone).
+        return dom.escapeHtml(text);
     }
 
     async loadCategories() {
+        // Before any fetch (and guarded inside), so a failed first load
+        // leaves the tabs and Add button working.
+        this.setupCategoriesEventListeners();
         try {
             const [treeResponse, countsResponse, mutesResponse] = await Promise.all([
                 fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
@@ -109,18 +113,21 @@ export default class CategoriesModule {
                 // Categories this user hid from their own reports (shared ones)
                 this.reportMutedIds = new Set(await mutesResponse.json());
             }
+            if (!treeResponse.ok) throw new Error(`HTTP ${treeResponse.status}`);
             this.renderCategoriesTree();
-            this.setupCategoriesEventListeners();
         } catch (error) {
             console.error('Failed to load categories:', error);
             showError(t('budget', 'Failed to load categories'));
+            const emptyState = document.getElementById('empty-categories');
+            if (emptyState) emptyState.style.display = 'none';
+            showLoadError('categories-tree', t('budget', 'Failed to load categories'), () => this.loadCategories());
         }
     }
 
     renderCategoryTree(categories, level = 0) {
         return categories.map(cat => `
             <div class="category-item" style="margin-left: ${level * 20}px" data-id="${cat.id}">
-                <span class="category-name">${cat.name}</span>
+                <span class="category-name">${this.escapeHtml(cat.name)}</span>
                 ${cat.children ? this.renderCategoryTree(cat.children, level + 1) : ''}
             </div>
         `).join('');
@@ -299,6 +306,7 @@ export default class CategoriesModule {
             const shared = !!category._shared;
             const canWrite = !!category._canWrite;
             const sharedOwner = category._sharedByName || category._sharedBy || '';
+            const sharedOwnerHtml = this.escapeHtml(sharedOwner);
             const mutedForMe = shared && !!this.reportMutedIds?.has(category.id);
 
             return `
@@ -306,6 +314,7 @@ export default class CategoriesModule {
                     <div class="category-item ${isSelected ? 'selected' : ''} ${isChecked ? 'checked' : ''} ${shared && !canWrite ? 'category-shared' : ''} ${shared && canWrite ? 'category-write-shared' : ''}"
                          data-category-id="${category.id}"
                          tabindex="0"
+                         ${shared && !canWrite ? '' : 'aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight"'}
                          ${shared && !canWrite ? 'data-shared="1"' : ''}${shared && canWrite ? 'data-write-shared="1"' : ''}
                          draggable="${shared ? 'false' : 'true'}">
                         ${shared ? '' : `<input type="checkbox"
@@ -321,17 +330,17 @@ export default class CategoriesModule {
                             </button>
                         ` : '<div style="width: 20px;"></div>'}
 
-                        <div class="category-icon" style="background-color: ${category.color || '#999'};">
-                            <span class="${category.icon || 'icon-tag'}" aria-hidden="true"></span>
+                        <div class="category-icon" style="background-color: ${this.escapeHtml(category.color || '#999')};">
+                            <span class="${this.escapeHtml(category.icon || 'icon-tag')}" aria-hidden="true"></span>
                         </div>
 
                         <div class="category-content">
-                            <span class="category-name">${category.name}</span>
+                            <span class="category-name">${this.escapeHtml(category.name)}</span>
                             <div class="category-meta">
                                 ${shared && canWrite
-                                    ? `<span class="category-shared-badge write-shared" title="${t('budget', 'Shared by {owner} — you can edit', { owner: sharedOwner })}">${t('budget', 'Shared (editable)')} · ${sharedOwner}</span>`
+                                    ? `<span class="category-shared-badge write-shared" title="${t('budget', 'Shared by {owner} — you can edit', { owner: sharedOwner })}">${t('budget', 'Shared (editable)')} · ${sharedOwnerHtml}</span>`
                                     : shared
-                                    ? `<span class="category-shared-badge" title="${t('budget', 'Shared by {owner}', { owner: sharedOwner })}">${t('budget', 'Shared')} · ${sharedOwner}</span>`
+                                    ? `<span class="category-shared-badge" title="${t('budget', 'Shared by {owner}', { owner: sharedOwner })}">${t('budget', 'Shared')} · ${sharedOwnerHtml}</span>`
                                     : ''}
                                 ${mutedForMe ? `<span class="category-muted-badge" title="${t('budget', 'Hidden from your reports — the owner and other viewers are unaffected')}">${t('budget', 'Hidden from my reports')}</span>` : ''}
                                 ${transactionCount > 0 ? `<span class="transaction-count">${transactionCount}</span>` : ''}
@@ -485,7 +494,64 @@ export default class CategoriesModule {
                     this.reorderCategory(draggedId, targetId, this.getDropPosition(e, item));
                 }
             });
+
+            // Keyboard equivalent of the drag, so reordering does not need a
+            // pointer: Alt+Up/Down moves among siblings, Alt+Right nests under
+            // the category above, Alt+Left moves out to the parent's level.
+            // Same reorder endpoint (and the same shared-category rules) as a drop.
+            item.addEventListener('keydown', (e) => {
+                if (!e.altKey || e.target !== item) return;
+                const move = this.keyboardReorderTarget(item, e.key);
+                if (move === undefined) return;
+                e.preventDefault();
+                if (!move) return;
+                const id = parseInt(item.dataset.categoryId);
+                this.reorderCategory(id, move.targetId, move.position).then(() => {
+                    document.querySelector(`.category-item[data-category-id="${id}"]`)?.focus();
+                });
+            });
         });
+    }
+
+    /**
+     * Where an Alt+Arrow key press moves a category in the tree.
+     *
+     * @param {HTMLElement} item - the focused .category-item
+     * @param {string} key - KeyboardEvent.key
+     * @returns {{targetId: number, position: string}|null|undefined}
+     *          undefined for a key that is not a move, null when there is
+     *          nowhere to move (already first, last or top level)
+     */
+    keyboardReorderTarget(item, key) {
+        const node = item.closest('.category-node');
+        if (!node) return undefined;
+        const idOf = (n) => parseInt(n?.querySelector(':scope > .category-item')?.dataset.categoryId);
+        const sibling = (dir) => {
+            let el = node[dir];
+            while (el && !el.classList.contains('category-node')) el = el[dir];
+            return el;
+        };
+
+        switch (key) {
+            case 'ArrowUp': {
+                const prev = sibling('previousElementSibling');
+                return prev ? { targetId: idOf(prev), position: 'above' } : null;
+            }
+            case 'ArrowDown': {
+                const next = sibling('nextElementSibling');
+                return next ? { targetId: idOf(next), position: 'below' } : null;
+            }
+            case 'ArrowRight': {
+                const prev = sibling('previousElementSibling');
+                return prev ? { targetId: idOf(prev), position: 'child' } : null;
+            }
+            case 'ArrowLeft': {
+                const parent = node.parentElement?.closest('.category-node');
+                return parent ? { targetId: idOf(parent), position: 'below' } : null;
+            }
+            default:
+                return undefined;
+        }
     }
 
     showDropIndicator(e, targetItem) {
@@ -1964,22 +2030,22 @@ export default class CategoriesModule {
         }
     }
 
-    confirmCreateSnapshot() {
+    async confirmCreateSnapshot() {
         const monthLabel = formatters.parseLocalDate(this.budgetMonth + '-01').toLocaleDateString(formatters.userLocale(), { month: 'long', year: 'numeric' });
 
-        OC.dialogs.confirmDestructive(
+        // Not a destructive action (earlier months keep their values), so the
+        // app's own dialog with a normal confirm button, not the deprecated
+        // OC.dialogs.confirmDestructive and its red one.
+        const confirmed = await confirmDialog(
             t('budget', 'This will save the current budget values as a new baseline from {month} onwards. Previous months will keep their existing values. You can edit the new values after confirming.', { month: monthLabel }),
-            t('budget', 'Adjust budgets from {month}?', { month: monthLabel }),
             {
-                type: OC.dialogs.YES_NO_BUTTONS,
-                confirm: t('budget', 'Confirm'),
-                cancel: t('budget', 'Cancel'),
-            },
-            async (confirmed) => {
-                if (!confirmed) return;
-                await this.createSnapshot(this.budgetMonth);
+                title: t('budget', 'Adjust budgets from {month}?', { month: monthLabel }),
+                confirmLabel: t('budget', 'Confirm'),
+                cancelLabel: t('budget', 'Cancel'),
             }
         );
+        if (!confirmed) return;
+        await this.createSnapshot(this.budgetMonth);
     }
 
     async createSnapshot(month) {
@@ -2393,8 +2459,8 @@ export default class CategoriesModule {
             return `
                 <div class="budget-category-row ${hasChildren ? 'parent-row' : ''}" data-category-id="${category.id}">
                     <div class="budget-category-name level-${level}" data-label="">
-                        <span class="category-color" style="background-color: ${category.color || '#3b82f6'}"></span>
-                        <span class="category-label">${category.name}</span>
+                        <span class="category-color" style="background-color: ${this.escapeHtml(category.color || '#3b82f6')}"></span>
+                        <span class="category-label">${this.escapeHtml(category.name)}</span>
                         ${rolloverEligible ? `<button class="budget-rollover-toggle ${rolloverEnabled ? 'active' : ''}"
                                 data-category-id="${category.id}"
                                 data-enabled="${rolloverEnabled ? '1' : '0'}"
@@ -2405,6 +2471,7 @@ export default class CategoriesModule {
                     <div class="budget-input-wrapper" data-label="${t('budget', 'Budget')}">
                         <input type="number"
                                class="budget-input ${isAutoBudget ? 'auto-budget' : ''}"
+                               aria-label="${t('budget', 'Budget for {category}', { category: category.name })}"
                                data-category-id="${category.id}"
                                value="${manualBudgetAmount ? Math.round(manualBudgetAmount * 100) / 100 : ''}"
                                placeholder="${isAutoBudget ? Math.round(recurringBudgetAmount * 100) / 100 : '0.00'}"
@@ -2418,7 +2485,7 @@ export default class CategoriesModule {
                         ${hasChildren && budget > effectiveBudgetAmount ? `<span class="budget-aggregate-hint">${t('budget', 'Total')}: ${this.formatCurrency(budget)}</span>` : ''}
                     </div>
                     <div data-label="${t('budget', 'Period')}">
-                        <select class="budget-period-select" data-category-id="${category.id}">
+                        <select class="budget-period-select" data-category-id="${category.id}" aria-label="${t('budget', 'Budget period for {category}', { category: category.name })}">
                             <option value="monthly" ${effectivePeriod === 'monthly' ? 'selected' : ''}>${t('budget', 'Monthly')}</option>
                             <option value="weekly" ${effectivePeriod === 'weekly' ? 'selected' : ''}>${t('budget', 'Weekly')}</option>
                             <option value="quarterly" ${effectivePeriod === 'quarterly' ? 'selected' : ''}>${t('budget', 'Quarterly')}</option>
@@ -2433,10 +2500,11 @@ export default class CategoriesModule {
                     </div>
                     <div class="budget-progress-wrapper" data-label="${t('budget', 'Progress')}">
                         ${hasBudget ? `
-                            <div class="budget-progress-bar">
+                            <div class="budget-progress-bar" ${progressBarAttrs(budget > 0 ? (spent / budget) * 100 : percentage, category.name)}>
                                 <div class="budget-progress-fill ${progressStatus}" style="width: ${percentage}%"></div>
                             </div>
                             <span class="budget-progress-text">${Math.round(percentage)}%</span>
+                            ${overBudgetText(!isIncome && spent - budget > 0.005)}
                         ` : `<span class="no-budget">${t('budget', 'No budget set')}</span>`}
                     </div>
                 </div>
