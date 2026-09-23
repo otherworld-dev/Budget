@@ -4,6 +4,7 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { serverErrorMessage } from '../../utils/helpers.js';
 import { pickableAccounts, accountOptionLabel } from '../../utils/accounts.js';
 import { userLocale } from '../../utils/formatters.js';
+import { escapeHtml as domEscapeHtml } from '../../utils/dom.js';
 
 /**
  * Bank Sync Module — manages bank connections, account mappings, and sync operations.
@@ -943,9 +944,8 @@ export default class BankSyncModule {
     }
 
     escapeHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        // Not textContent/innerHTML: that leaves quotes alone, and these
+        // values are also written into attribute values.
+        return domEscapeHtml(text);
     }
 }

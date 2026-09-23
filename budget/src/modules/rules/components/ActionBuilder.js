@@ -1,5 +1,5 @@
 import './ActionBuilder.css';
-import { buildCategoryOptionsHtml } from '../../../utils/dom.js';
+import { buildCategoryOptionsHtml, escapeHtml as domEscapeHtml } from '../../../utils/dom.js';
 import { offerableTagSets } from '../../../utils/tags.js';
 import { pickableAccounts, accountOptionLabel } from '../../../utils/accounts.js';
 import { translate as t } from '@nextcloud/l10n';
@@ -581,8 +581,8 @@ export class ActionBuilder {
 	}
 
 	escapeHtml(text) {
-		const div = document.createElement('div');
-		div.textContent = text;
-		return div.innerHTML;
+		// Not textContent/innerHTML: that leaves quotes alone, and these
+		// values are also written into attribute values.
+		return domEscapeHtml(text);
 	}
 }

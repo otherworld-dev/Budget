@@ -4,12 +4,12 @@
 
 /**
  * Escape HTML special characters to prevent XSS
- * @param {string} str - String to escape
+ * @param {string|number|null|undefined} str - Value to escape (numbers are stringified)
  * @returns {string} Escaped HTML string
  */
 export function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/&/g, '&amp;')
+    if (str === null || str === undefined || str === false || str === '') return '';
+    return String(str).replace(/&/g, '&amp;')
               .replace(/</g, '&lt;')
               .replace(/>/g, '&gt;')
               .replace(/"/g, '&quot;')

@@ -2,6 +2,7 @@ import './CriteriaBuilder.css';
 import { translate as t } from '@nextcloud/l10n';
 import { alertDialog } from '../../../utils/dialogs.js';
 import { formatAccountType } from '../../../utils/formatters';
+import { escapeHtml as domEscapeHtml } from '../../../utils/dom.js';
 
 /**
  * CriteriaBuilder - Visual query builder for complex boolean expression trees
@@ -524,8 +525,8 @@ export class CriteriaBuilder {
 	}
 
 	escapeHtml(text) {
-		const div = document.createElement('div');
-		div.textContent = text;
-		return div.innerHTML;
+		// Not textContent/innerHTML: that leaves quotes alone, and these
+		// values are also written into attribute values.
+		return domEscapeHtml(text);
 	}
 }

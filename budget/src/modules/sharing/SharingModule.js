@@ -8,6 +8,7 @@
 import { translate as t } from '@nextcloud/l10n';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
+import { escapeHtml } from '../../utils/dom.js';
 
 export default class SharingModule {
     constructor(app) {
@@ -486,8 +487,6 @@ export default class SharingModule {
     }
 
     esc(str) {
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
+        return escapeHtml(str);
     }
 }

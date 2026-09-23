@@ -503,7 +503,7 @@ export default class TransactionsModule {
         const accountFilter = document.getElementById('filter-account');
         if (accountFilter && this.accounts) {
             accountFilter.innerHTML = `<option value="">${t('budget', 'All Accounts')}</option>`
-                + this.accounts.map(account => `<option value="${account.id}">${account.name}</option>`).join('');
+                + this.accounts.map(account => `<option value="${account.id}">${dom.escapeHtml(account.name)}</option>`).join('');
         }
 
         // Populate category filter
@@ -521,7 +521,7 @@ export default class TransactionsModule {
         if (reconcileAccount && this.accounts) {
             reconcileAccount.innerHTML = `<option value="">${t('budget', 'Select account to reconcile')}</option>`;
             openAccounts(this.accounts).forEach(account => {
-                reconcileAccount.innerHTML += `<option value="${account.id}">${account.name}</option>`;
+                reconcileAccount.innerHTML += `<option value="${account.id}">${dom.escapeHtml(account.name)}</option>`;
             });
         }
 
@@ -1984,7 +1984,7 @@ export default class TransactionsModule {
         return transactions.map(tx => `
             <div class="transaction-item">
                 <span class="transaction-date">${this.formatDate(tx.date)}</span>
-                <span class="transaction-description">${tx.description}</span>
+                <span class="transaction-description">${dom.escapeHtml(tx.description)}</span>
                 <span class="amount ${tx.type}">${this.formatCurrency(tx.amount, tx.accountCurrency)}</span>
             </div>
         `).join('');
@@ -3344,7 +3344,7 @@ export default class TransactionsModule {
             <div class="split-field split-description-field">
                 <label>${t('budget', 'Description')}</label>
                 <input type="text" class="inline-split-description" maxlength="255" placeholder="${t('budget', 'Optional note')}"
-                       value="${existingSplit?.description || ''}">
+                       value="${dom.escapeHtml(existingSplit?.description || '')}">
             </div>
             <div class="split-actions">
                 <button type="button" class="split-remove-btn ${isFirst ? 'disabled' : ''}"
@@ -3844,7 +3844,7 @@ export default class TransactionsModule {
                         <span class="match-date">${this.formatDate(match.date)}</span>
                         <span class="match-description">${this.escapeHtml(match.description)}</span>
                         <span class="match-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
-                        <span class="match-account">${matchAccount?.name || t('budget', 'Unknown')}</span>
+                        <span class="match-account">${dom.escapeHtml(matchAccount?.name) || t('budget', 'Unknown')}</span>
                         <button class="link-match-btn" data-source-id="${transactionId}" data-target-id="${match.id}">
                             ${t('budget', 'Link as Transfer')}
                         </button>
@@ -3993,7 +3993,7 @@ export default class TransactionsModule {
             <div class="split-field split-description-field">
                 <label>${t('budget', 'Description')}</label>
                 <input type="text" class="split-description" maxlength="255"
-                       value="${split?.description || ''}" placeholder="${t('budget', 'Optional note')}">
+                       value="${dom.escapeHtml(split?.description || '')}" placeholder="${t('budget', 'Optional note')}">
             </div>
             <div class="split-actions">
                 <button type="button" class="split-remove-btn ${isFirst ? 'disabled' : ''}"
@@ -4863,8 +4863,8 @@ export default class TransactionsModule {
                 dropdown.innerHTML = filtered.map(c => `
                     <div class="category-autocomplete-item ${c.id === parseInt(input.dataset.categoryId) ? 'selected' : ''}"
                          data-category-id="${c.id}"
-                         data-category-name="${c.name}">
-                        ${c.prefix}${c.name}
+                         data-category-name="${dom.escapeHtml(c.name)}">
+                        ${dom.escapeHtml(c.prefix)}${dom.escapeHtml(c.name)}
                     </div>
                 `).join('');
             }

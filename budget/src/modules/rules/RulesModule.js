@@ -256,7 +256,7 @@ export default class RulesModule {
                         badges.push(`<span class="action-badge tags">${t('budget', 'Set tags')}</span>`);
                         break;
                     case 'type':
-                        badges.push(`<span class="action-badge type">${t('budget', 'Type:')} ${action.value}</span>`);
+                        badges.push(`<span class="action-badge type">${t('budget', 'Type:')} ${this.escapeHtml(action.value)}</span>`);
                         break;
                     case 'account':
                         badges.push(`<span class="action-badge account">${t('budget', 'Move account')}</span>`);

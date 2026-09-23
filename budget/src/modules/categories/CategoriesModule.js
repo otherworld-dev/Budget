@@ -71,9 +71,9 @@ export default class CategoriesModule {
     }
 
     escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        // dom.escapeHtml also escapes quotes, so the result is safe inside an
+        // attribute value too (textContent/innerHTML leaves " alone).
+        return dom.escapeHtml(text);
     }
 
     async loadCategories() {
@@ -120,7 +120,7 @@ export default class CategoriesModule {
     renderCategoryTree(categories, level = 0) {
         return categories.map(cat => `
             <div class="category-item" style="margin-left: ${level * 20}px" data-id="${cat.id}">
-                <span class="category-name">${cat.name}</span>
+                <span class="category-name">${this.escapeHtml(cat.name)}</span>
                 ${cat.children ? this.renderCategoryTree(cat.children, level + 1) : ''}
             </div>
         `).join('');
@@ -299,6 +299,7 @@ export default class CategoriesModule {
             const shared = !!category._shared;
             const canWrite = !!category._canWrite;
             const sharedOwner = category._sharedByName || category._sharedBy || '';
+            const sharedOwnerHtml = this.escapeHtml(sharedOwner);
             const mutedForMe = shared && !!this.reportMutedIds?.has(category.id);
 
             return `
@@ -321,17 +322,17 @@ export default class CategoriesModule {
                             </button>
                         ` : '<div style="width: 20px;"></div>'}
 
-                        <div class="category-icon" style="background-color: ${category.color || '#999'};">
-                            <span class="${category.icon || 'icon-tag'}" aria-hidden="true"></span>
+                        <div class="category-icon" style="background-color: ${this.escapeHtml(category.color || '#999')};">
+                            <span class="${this.escapeHtml(category.icon || 'icon-tag')}" aria-hidden="true"></span>
                         </div>
 
                         <div class="category-content">
-                            <span class="category-name">${category.name}</span>
+                            <span class="category-name">${this.escapeHtml(category.name)}</span>
                             <div class="category-meta">
                                 ${shared && canWrite
-                                    ? `<span class="category-shared-badge write-shared" title="${t('budget', 'Shared by {owner} — you can edit', { owner: sharedOwner })}">${t('budget', 'Shared (editable)')} · ${sharedOwner}</span>`
+                                    ? `<span class="category-shared-badge write-shared" title="${t('budget', 'Shared by {owner} — you can edit', { owner: sharedOwner })}">${t('budget', 'Shared (editable)')} · ${sharedOwnerHtml}</span>`
                                     : shared
-                                    ? `<span class="category-shared-badge" title="${t('budget', 'Shared by {owner}', { owner: sharedOwner })}">${t('budget', 'Shared')} · ${sharedOwner}</span>`
+                                    ? `<span class="category-shared-badge" title="${t('budget', 'Shared by {owner}', { owner: sharedOwner })}">${t('budget', 'Shared')} · ${sharedOwnerHtml}</span>`
                                     : ''}
                                 ${mutedForMe ? `<span class="category-muted-badge" title="${t('budget', 'Hidden from your reports — the owner and other viewers are unaffected')}">${t('budget', 'Hidden from my reports')}</span>` : ''}
                                 ${transactionCount > 0 ? `<span class="transaction-count">${transactionCount}</span>` : ''}
@@ -2390,8 +2391,8 @@ export default class CategoriesModule {
             return `
                 <div class="budget-category-row ${hasChildren ? 'parent-row' : ''}" data-category-id="${category.id}">
                     <div class="budget-category-name level-${level}" data-label="">
-                        <span class="category-color" style="background-color: ${category.color || '#3b82f6'}"></span>
-                        <span class="category-label">${category.name}</span>
+                        <span class="category-color" style="background-color: ${this.escapeHtml(category.color || '#3b82f6')}"></span>
+                        <span class="category-label">${this.escapeHtml(category.name)}</span>
                         ${rolloverEligible ? `<button class="budget-rollover-toggle ${rolloverEnabled ? 'active' : ''}"
                                 data-category-id="${category.id}"
                                 data-enabled="${rolloverEnabled ? '1' : '0'}"

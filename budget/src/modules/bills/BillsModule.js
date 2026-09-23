@@ -1459,7 +1459,7 @@ export default class BillsModule {
                         <button class="close-btn" title="${t('budget', 'Close')}" aria-label="${t('budget', 'Close')}">&times;</button>
                     </div>
                     <div class="budget-modal-body">
-                        <p class="matching-tx-intro">${t('budget', 'We found existing transactions that may already represent this bill payment ({billName}, {amount}). Would you like to link one instead of creating a new transaction?', { billName: dom.escapeHtml(bill.name), amount: formatAmount(bill.amount) })}</p>
+                        <p class="matching-tx-intro">${t('budget', 'We found existing transactions that may already represent this bill payment ({billName}, {amount}). Would you like to link one instead of creating a new transaction?', { billName: dom.escapeHtml(bill.name), amount: dom.escapeHtml(formatAmount(bill.amount)) }, undefined, { escape: false })}</p>
                         <p class="matching-tx-intro">${t('budget', 'Whichever you choose, the bill is marked as paid and moves on to its next due date.')}</p>
                         <div class="matching-tx-list">
                             ${candidateRows}

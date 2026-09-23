@@ -1262,7 +1262,7 @@ export default class DashboardModule {
     _recentTransactionCategoryCell(tx) {
         const uncategorized = t('budget', 'Uncategorized');
         const colorFor = (id) => this.categories?.find(c => c.id === id)?.color || '#999';
-        const dot = (color) => `<span class="recent-transaction-category-dot" style="background: ${color}"></span>`;
+        const dot = (color) => `<span class="recent-transaction-category-dot" style="background: ${this.escapeHtml(color)}"></span>`;
         const cell = (dots, label, title) =>
             `<span class="recent-transaction-category"${title ? ` title="${title}"` : ''}>`
             + `${dots}<span class="recent-transaction-category-name">${label}</span></span>`;

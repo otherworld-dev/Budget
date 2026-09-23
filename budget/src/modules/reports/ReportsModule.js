@@ -937,8 +937,8 @@ export default class ReportsModule {
             const color = item.color || defaultColors[i % defaultColors.length];
             return `
                 <div class="spending-legend-item">
-                    <span class="spending-legend-color" style="background: ${color}"></span>
-                    <span class="spending-legend-name">${item.name}</span>
+                    <span class="spending-legend-color" style="background: ${this.escapeHtml(color)}"></span>
+                    <span class="spending-legend-name">${this.escapeHtml(item.name)}</span>
                     <span class="spending-legend-value">${this.formatCurrency(item.total)}</span>
                     <span class="spending-legend-pct">${pct}%</span>
                 </div>
@@ -957,8 +957,8 @@ export default class ReportsModule {
             return `
                 <tr>
                     <td>
-                        <span class="category-color" style="background: ${cat.color || '#888'}"></span>
-                        ${cat.name}
+                        <span class="category-color" style="background: ${this.escapeHtml(cat.color || '#888')}"></span>
+                        ${this.escapeHtml(cat.name)}
                     </td>
                     <td class="text-right">${this.formatCurrency(cat.total, currency)}</td>
                     <td class="text-right">${pct}%</td>
@@ -1039,7 +1039,7 @@ export default class ReportsModule {
 
         tbody.innerHTML = data.map(vendor => `
             <tr>
-                <td>${vendor.name}</td>
+                <td>${this.escapeHtml(vendor.name)}</td>
                 <td class="text-right">${this.formatCurrency(vendor.total, currency)}</td>
                 <td class="text-right">${vendor.count}</td>
             </tr>

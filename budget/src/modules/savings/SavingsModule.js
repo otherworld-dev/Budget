@@ -126,7 +126,7 @@ export default class SavingsModule {
             }
 
             const sharedBadge = isShared
-                ? `<span class="goal-shared-badge" title="${dom.escapeHtml(t('budget', 'Shared by {owner}', { owner }))}"><span class="icon-shared"></span> ${t('budget', 'Shared')}</span>`
+                ? `<span class="goal-shared-badge" title="${dom.escapeHtml(t('budget', 'Shared by {owner}', { owner }, undefined, { escape: false }))}"><span class="icon-shared"></span> ${t('budget', 'Shared')}</span>`
                 : '';
 
             return `

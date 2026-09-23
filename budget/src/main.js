@@ -790,8 +790,11 @@ class BudgetApp {
         const originalText = textElement.dataset.originalText || textElement.textContent;
         textElement.dataset.originalText = originalText;
 
-        const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-        const highlightedText = originalText.replace(regex, '<mark>$1</mark>');
+        // Escape first, then highlight: the label is text, and only the
+        // <mark> tags added here should be parsed as markup.
+        const safeQuery = dom.escapeHtml(query);
+        const regex = new RegExp(`(${safeQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        const highlightedText = dom.escapeHtml(originalText).replace(regex, '<mark>$1</mark>');
 
         // Only update if we have an icon span to preserve
         const iconSpan = textElement.querySelector('.app-navigation-entry-icon');
@@ -1247,7 +1250,7 @@ class BudgetApp {
             const linkedAccountName = transaction.linkedAccountName || this.accounts?.find(a => a.id === transaction.linkedAccountId)?.name || '';
             const linkedDirection = transaction.type === 'debit' ? '→' : '←';
             const linkedLabel = linkedAccountName ? `${t('budget', 'Transfer')} ${linkedDirection} ${this.escapeHtml(linkedAccountName)}` : t('budget', 'Transfer');
-            const linkedTitle = linkedAccountName ? t('budget', 'Click to view linked transaction in {account}', { account: this.escapeHtml(linkedAccountName) }) : t('budget', 'Linked transfer');
+            const linkedTitle = linkedAccountName ? t('budget', 'Click to view linked transaction in {account}', { account: this.escapeHtml(linkedAccountName) }, undefined, { escape: false }) : t('budget', 'Linked transfer');
             const linkedBadge = isLinked
                 ? `<span class="linked-indicator" data-transaction-id="${transaction.id}" data-linked-id="${transaction.linkedTransactionId}" data-linked-account-id="${transaction.linkedAccountId || ''}" title="${linkedTitle}">&#x1F517; ${linkedLabel}</span>`
                 : '';
@@ -1936,10 +1939,10 @@ class BudgetApp {
             if (dupCount > 0) {
                 const dupItems = findings.duplicateTransactions.slice(0, 20).map(d =>
                     `<div class="repair-item">
-                        <span>${d.vendor || t('budget', '(unnamed)')}</span>
+                        <span>${this.escapeHtml(d.vendor) || t('budget', '(unnamed)')}</span>
                         <span>${formatCurrency(d.amount)}</span>
-                        <span>${d.date}</span>
-                        <span class="repair-item-note">${t('budget', 'duplicate of')} ${d.originalDate}</span>
+                        <span>${this.escapeHtml(d.date)}</span>
+                        <span class="repair-item-note">${t('budget', 'duplicate of')} ${this.escapeHtml(d.originalDate)}</span>
                     </div>`
                 ).join('');
 
@@ -1957,7 +1960,7 @@ class BudgetApp {
             if (stuckCount > 0) {
                 const stuckItems = findings.stuckBills.map(b =>
                     `<div class="repair-item">
-                        <span>${b.name}</span>
+                        <span>${this.escapeHtml(b.name)}</span>
                         <span>${t('budget', 'Due: {date}', { date: b.nextDueDate })}</span>
                         <span>${t('budget', 'Paid: {date}', { date: b.lastPaidDate })}</span>
                     </div>`
@@ -1977,7 +1980,7 @@ class BudgetApp {
             if (paidOneTimeCount > 0) {
                 const paidOneTimeItems = findings.paidOneTimeBills.map(b =>
                     `<div class="repair-item">
-                        <span>${b.name}</span>
+                        <span>${this.escapeHtml(b.name)}</span>
                         <span>${formatCurrency(b.amount)}</span>
                         <span>${t('budget', 'Paid: {date}', { date: b.lastPaidDate })}</span>
                     </div>`
@@ -1997,10 +2000,10 @@ class BudgetApp {
             if (futureCount > 0) {
                 const futureItems = findings.futureClearedTransactions.slice(0, 20).map(f =>
                     `<div class="repair-item">
-                        <span>${f.description || t('budget', '(unnamed)')}</span>
+                        <span>${this.escapeHtml(f.description) || t('budget', '(unnamed)')}</span>
                         <span>${formatCurrency(f.amount)}</span>
-                        <span>${f.date}</span>
-                        <span class="repair-item-note">${f.accountName}</span>
+                        <span>${this.escapeHtml(f.date)}</span>
+                        <span class="repair-item-note">${this.escapeHtml(f.accountName)}</span>
                     </div>`
                 ).join('');
 
@@ -2022,7 +2025,7 @@ class BudgetApp {
                     `<div class="repair-item">
                         <label class="repair-item-select">
                             <input type="checkbox" class="repair-account-checkbox" data-account-id="${a.accountId}" checked>
-                            <span>${a.accountName}</span>
+                            <span>${this.escapeHtml(a.accountName)}</span>
                         </label>
                         <span>${t('budget', 'Now: {amount} in credit', { amount: formatCurrency(Math.abs(a.currentBalance)) })}</span>
                         <span>${t('budget', 'After repair: {amount} owed', { amount: formatCurrency(Math.abs(a.repairedBalance)) })}</span>
@@ -2049,7 +2052,7 @@ class BudgetApp {
                     return `<div class="repair-item">
                         <span>${this.escapeHtml(tx.description || tx.vendor || t('budget', 'Transaction'))}</span>
                         <span>${this.escapeHtml(this.formatDate(tx.date))}</span>
-                        <span>${t('budget', 'Listed under {category}', { category: this.escapeHtml(category ? category.name : t('budget', 'Uncategorized')) })}</span>
+                        <span>${t('budget', 'Listed under {category}', { category: this.escapeHtml(category ? category.name : t('budget', 'Uncategorized')) }, undefined, { escape: false })}</span>
                     </div>`;
                 }).join('');
 
@@ -2070,7 +2073,7 @@ class BudgetApp {
             if (driftCount > 0) {
                 const driftItems = findings.balanceDrift.map(a =>
                     `<div class="repair-item">
-                        <span>${a.accountName}</span>
+                        <span>${this.escapeHtml(a.accountName)}</span>
                         <span>${t('budget', 'Stored: {amount}', { amount: formatCurrency(a.storedBalance) })}</span>
                         <span>${t('budget', 'Expected: {amount}', { amount: formatCurrency(a.expectedBalance) })}</span>
                         <span class="repair-item-note">${t('budget', 'Diff: {amount}', { amount: formatCurrency(a.difference) })}</span>
@@ -2592,7 +2595,7 @@ class BudgetApp {
                 <div class="result-error">
                     <span class="icon-error-color"></span>
                     <h5>${t('budget', 'Import Failed')}</h5>
-                    <p>${error.message}</p>
+                    <p>${this.escapeHtml(error.message)}</p>
                     <p class="result-hint">${t('budget', 'Your existing data has not been modified.')}</p>
                 </div>
             `;
@@ -3583,7 +3586,7 @@ class BudgetApp {
                         <span class="match-date">${this.formatDate(match.date)}</span>
                         <span class="match-description">${this.escapeHtml(match.description)}</span>
                         <span class="match-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
-                        <span class="match-account">${matchAccount?.name || t('budget', 'Unknown')}</span>
+                        <span class="match-account">${this.escapeHtml(matchAccount?.name) || t('budget', 'Unknown')}</span>
                         <button class="link-match-btn" data-source-id="${transactionId}" data-target-id="${match.id}">
                             ${t('budget', 'Link as Transfer')}
                         </button>
@@ -3876,7 +3879,7 @@ class BudgetApp {
             <div class="split-field split-description-field">
                 <label>${t('budget', 'Description')}</label>
                 <input type="text" class="split-description" maxlength="255"
-                       value="${split?.description || ''}" placeholder="${t('budget', 'Optional note')}">
+                       value="${this.escapeHtml(split?.description || '')}" placeholder="${t('budget', 'Optional note')}">
             </div>
             <div class="split-actions">
                 <button type="button" class="split-remove-btn ${isFirst ? 'disabled' : ''}"

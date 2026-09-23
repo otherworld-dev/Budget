@@ -1882,7 +1882,7 @@ export default class ImportModule {
                 context = t('budget', 'but {percent}% of what is already in {account} is an expense. If that looks wrong, go back and map the column holding the transaction type before importing.', {
                     percent: warning.existingOppositePercent,
                     account: account,
-                });
+                }, undefined, { escape: false });
             } else {
                 headline = t('budget', '{matching} of {total} rows would be added as an expense', {
                     matching: warning.matching,
@@ -1891,7 +1891,7 @@ export default class ImportModule {
                 context = t('budget', 'but {percent}% of what is already in {account} is income. If that looks wrong, go back and map the column holding the transaction type before importing.', {
                     percent: warning.existingOppositePercent,
                     account: account,
-                });
+                }, undefined, { escape: false });
             }
 
             return `<div class="import-direction-warning">
@@ -2098,7 +2098,7 @@ export default class ImportModule {
             if (sourceAccount.currency) details.push(sourceAccount.currency);
             if (sourceAccount.transactionCount) details.push(n('budget', '%n transaction', '%n transactions', sourceAccount.transactionCount));
             if (sourceAccount.ledgerBalance !== null && sourceAccount.ledgerBalance !== undefined) {
-                details.push(t('budget', 'Balance: {balance}', { balance: this.formatCurrency(sourceAccount.ledgerBalance) }));
+                details.push(t('budget', 'Balance: {balance}', { balance: this.formatCurrency(sourceAccount.ledgerBalance) }, undefined, { escape: false }));
             }
 
             // Build account options HTML with auto-match selection
@@ -2107,13 +2107,13 @@ export default class ImportModule {
             openAccounts(accounts).forEach(account => {
                 const accountNum = account.accountNumber ? ` - ${account.accountNumber}` : '';
                 const selected = suggestedMatch === account.id ? ' selected' : '';
-                optionsHtml += `<option value="${account.id}"${selected}>${account.name} (${account.type}${accountNum})</option>`;
+                optionsHtml += `<option value="${account.id}"${selected}>${dom.escapeHtml(account.name)} (${account.type}${dom.escapeHtml(accountNum)})</option>`;
             });
 
             row.innerHTML = `
                 <div class="source-account-info">
-                    <span class="source-account-id">${sourceAccount.accountId}</span>
-                    <span class="source-account-details">${details.join(' • ')}</span>
+                    <span class="source-account-id">${dom.escapeHtml(sourceAccount.accountId)}</span>
+                    <span class="source-account-details">${dom.escapeHtml(details.join(' • '))}</span>
                 </div>
                 <span class="mapping-arrow">→</span>
                 <select class="destination-account-select" data-source-id="${sourceAccount.accountId}">
@@ -2569,8 +2569,8 @@ export default class ImportModule {
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${this.formatDate(item.importDate)}</td>
-                <td>${item.filename}</td>
-                <td>${item.accountName}</td>
+                <td>${dom.escapeHtml(item.filename)}</td>
+                <td>${dom.escapeHtml(item.accountName)}</td>
                 <td>${item.transactionCount}</td>
                 <td>
                     <span class="status-badge status-${item.status}">

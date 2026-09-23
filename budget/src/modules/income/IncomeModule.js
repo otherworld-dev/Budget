@@ -795,7 +795,7 @@ export default class IncomeModule {
                             <span class="detected-bill-amount">${formatters.formatCurrency(item.amount, null, this.settings)}</span>
                             <span class="detected-bill-frequency">${item.frequency}</span>
                             <span class="detected-bill-occurrences">${n('budget', '%n occurrence', '%n occurrences', item.occurrences)}</span>
-                            <span class="detected-bill-source">${t('budget', 'Source: {source}', { source: dom.escapeHtml(item.source) })}</span>
+                            <span class="detected-bill-source">${t('budget', 'Source: {source}', { source: dom.escapeHtml(item.source) }, undefined, { escape: false })}</span>
                         </div>
                         <div class="detected-bill-confidence">
                             <span class="confidence-badge ${confidenceClass}">${t('budget', '{percent}% confidence', { percent: confidencePercent })}</span>

@@ -523,8 +523,8 @@ export default class AccountsModule {
         // Tiles show the same attributes in the same order as the list columns
         const metaItems = {
             type: () => `<span class="account-type-badge">${typeInfo.label}</span>`,
-            institution: () => (institution ? `<span class="account-institution">${institution}</span>` : ''),
-            accountNumber: () => (accountNumber ? `<span class="account-number">${accountNumber}</span>` : ''),
+            institution: () => (institution ? `<span class="account-institution">${dom.escapeHtml(institution)}</span>` : ''),
+            accountNumber: () => (accountNumber ? `<span class="account-number">${dom.escapeHtml(accountNumber)}</span>` : ''),
             lastReconciled: () => `<span class="account-reconciled">${this.formatLastReconciled(account)}</span>`
         };
 
@@ -536,7 +536,7 @@ export default class AccountsModule {
                         <span class="${typeInfo.icon}" aria-hidden="true"></span>
                     </div>
                     <div class="account-details">
-                        <h3 class="account-name">${accountName}</h3>
+                        <h3 class="account-name">${dom.escapeHtml(accountName)}</h3>
                         <div class="account-meta">
                             ${account.closed ? `<span class="account-closed-badge" title="${t('budget', 'Closed: history kept, no new activity')}">${t('budget', 'Closed')}</span>` : ''}
                             ${account.excludedFromReports ? `<span class="account-excluded-badge" title="${t('budget', 'Excluded from reports, dashboard & forecast')}">${t('budget', 'Excluded')}</span>` : ''}
@@ -597,10 +597,10 @@ export default class AccountsModule {
             : (accountBalance >= 0 ? 'positive' : 'negative');
 
         const cells = {
-            name: () => `<div class="account-row-name">${accountName}${account.closed ? ` <span class="account-closed-badge">${t('budget', 'Closed')}</span>` : ''}</div>`,
+            name: () => `<div class="account-row-name">${dom.escapeHtml(accountName)}${account.closed ? ` <span class="account-closed-badge">${t('budget', 'Closed')}</span>` : ''}</div>`,
             type: () => `<div class="account-row-type">${typeInfo.label}</div>`,
-            institution: () => `<div class="account-row-institution">${institution || '—'}</div>`,
-            accountNumber: () => `<div class="account-row-number">${accountNumber || '—'}</div>`,
+            institution: () => `<div class="account-row-institution">${dom.escapeHtml(institution) || '—'}</div>`,
+            accountNumber: () => `<div class="account-row-number">${dom.escapeHtml(accountNumber) || '—'}</div>`,
             lastReconciled: () => `<div class="account-row-reconciled">${this.formatLastReconciled(account)}</div>`,
             balance: () => `<div class="account-row-balance ${balanceClass}">
                     ${this.formatCurrency(displayBalance, accountCurrency)}
@@ -1406,7 +1406,7 @@ export default class AccountsModule {
         tbody.innerHTML = rates.map((rate, _index) => `
             <tr>
                 <td>${this.formatDate(rate.effectiveDate)}</td>
-                <td>${rate.rate}%</td>
+                <td>${dom.escapeHtml(rate.rate)}%</td>
                 <td>${compoundingLabels[rate.compoundingFrequency] || rate.compoundingFrequency}</td>
                 <td>
                     ${rates.length > 1 ? `
@@ -1651,8 +1651,8 @@ export default class AccountsModule {
             const isLinked = transaction.linkedTransactionId != null;
             const linkedAccountName = transaction.linkedAccountName || this.app.accounts?.find(a => a.id === transaction.linkedAccountId)?.name || '';
             const linkedDirection = transaction.type === 'debit' ? '→' : '←';
-            const linkedLabel = linkedAccountName ? t('budget', 'Transfer {direction} {account}', { direction: linkedDirection, account: dom.escapeHtml(linkedAccountName) }) : t('budget', 'Transfer');
-            const linkedTitle = linkedAccountName ? t('budget', 'Click to view linked transaction in {account}', { account: dom.escapeHtml(linkedAccountName) }) : t('budget', 'Linked transfer');
+            const linkedLabel = linkedAccountName ? t('budget', 'Transfer {direction} {account}', { direction: linkedDirection, account: dom.escapeHtml(linkedAccountName) }, undefined, { escape: false }) : t('budget', 'Transfer');
+            const linkedTitle = linkedAccountName ? t('budget', 'Click to view linked transaction in {account}', { account: dom.escapeHtml(linkedAccountName) }, undefined, { escape: false }) : t('budget', 'Linked transfer');
             const linkedBadge = isLinked
                 ? `<span class="linked-indicator" data-transaction-id="${transaction.id}" data-linked-id="${transaction.linkedTransactionId}" data-linked-account-id="${transaction.linkedAccountId || ''}" title="${linkedTitle}">&#x1F517; ${linkedLabel}</span>`
                 : '';
@@ -2256,7 +2256,7 @@ export default class AccountsModule {
             if (reconcileAccountSelect.options.length <= 1 && this.accounts) {
                 reconcileAccountSelect.innerHTML = '<option value="">' + t('budget', 'Select account to reconcile') + '</option>';
                 openAccounts(this.accounts).forEach(account => {
-                    reconcileAccountSelect.innerHTML += `<option value="${account.id}">${account.name}</option>`;
+                    reconcileAccountSelect.innerHTML += `<option value="${account.id}">${dom.escapeHtml(account.name)}</option>`;
                 });
             }
             reconcileAccountSelect.value = accountId;

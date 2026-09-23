@@ -71,7 +71,7 @@ export default class SharedExpensesModule {
                     <div class="shared-with-me-item">
                         <div class="shared-with-me-main">
                             <span class="shared-with-me-desc">${desc}</span>
-                            <span class="shared-with-me-meta">${t('budget', 'from {owner}', { owner })}${date ? ' · ' + date : ''}</span>
+                            <span class="shared-with-me-meta">${t('budget', 'from {owner}', { owner }, undefined, { escape: false })}${date ? ' · ' + date : ''}</span>
                         </div>
                         <div class="shared-with-me-right">
                             <span class="shared-with-me-amount">${amount}</span>
@@ -185,7 +185,7 @@ export default class SharedExpensesModule {
                 <div class="contact-card" data-contact-id="${item.contact.id}" tabindex="0">
                     <div class="contact-card-main">
                         <div class="contact-avatar">
-                            ${item.contact.name.charAt(0).toUpperCase()}
+                            ${this.escapeHtml(item.contact.name.charAt(0).toUpperCase())}
                         </div>
                         <div class="contact-info">
                             <span class="contact-name">${this.escapeHtml(item.contact.name)}</span>
@@ -494,7 +494,7 @@ export default class SharedExpensesModule {
 
             return `
                 <div class="share-item ${statusClass}">
-                    <div class="share-date">${txn.date}</div>
+                    <div class="share-date">${this.escapeHtml(txn.date)}</div>
                     <div class="share-desc">${this.escapeHtml(txn.description)}${origin}</div>
                     <div class="share-amount ${share.amount >= 0 ? 'positive' : 'negative'}">
                         ${share.amount >= 0 ? '+' : ''}${this.formatCurrency(share.amount, share.currency)}
