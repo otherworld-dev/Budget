@@ -4825,10 +4825,11 @@ style('budget', 'budget-app');
                             <label for="setting-ocr-plan"><strong><?php p($l->t('Subscription')); ?></strong></label>
                             <div id="setting-ocr-subscribe-row">
                                 <select id="setting-ocr-plan">
-                                    <option value="budget_ocr_standard_monthly"><?php p($l->t('Standard — £2.99/month (500 scans)')); ?></option>
-                                    <option value="budget_ocr_standard_yearly"><?php p($l->t('Standard — £29/year (500 scans a month)')); ?></option>
-                                    <option value="budget_ocr_business_monthly"><?php p($l->t('Business — £7.99/month (1,500 scans)')); ?></option>
-                                    <option value="budget_ocr_business_yearly"><?php p($l->t('Business — £79/year (1,500 scans a month)')); ?></option>
+                                    <?php /* Prices are parameters, not part of the msgid, so a price change does not invalidate every translation. */ ?>
+                                    <option value="budget_ocr_standard_monthly"><?php p($l->t('Standard — %s/month (500 scans)', ['£2.99'])); ?></option>
+                                    <option value="budget_ocr_standard_yearly"><?php p($l->t('Standard — %s/year (500 scans a month)', ['£29'])); ?></option>
+                                    <option value="budget_ocr_business_monthly"><?php p($l->t('Business — %s/month (1,500 scans)', ['£7.99'])); ?></option>
+                                    <option value="budget_ocr_business_yearly"><?php p($l->t('Business — %s/year (1,500 scans a month)', ['£79'])); ?></option>
                                 </select>
                                 <button type="button" class="secondary" id="setting-ocr-subscribe-btn"><?php p($l->t('Subscribe')); ?></button>
                                 <small><?php p($l->t('Checkout opens in a new tab. Your license key is shown once after payment and emailed to you — paste it into the field above.')); ?></small>
