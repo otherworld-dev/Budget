@@ -55,6 +55,43 @@ class SchemaProbe {
         return $columns;
     }
 
+    /**
+     * How each column of a table binds: 'bool', 'int' or 'string', keyed by
+     * lowercased column name, or null when the table is not there.
+     *
+     * For writers that build rows from untyped data (the backup restore's
+     * table-level import): PostgreSQL refuses '' or '0' for a boolean column
+     * and a string for an integer one, so the value's own PHP type is not
+     * enough - a backup written on SQLite or MySQL holds booleans as 0/1.
+     * Doctrine's type classes are checked by name because the app's vendor
+     * directory does not ship Doctrine; the server does.
+     *
+     * @param string $table Unprefixed name, e.g. 'budget_tags'
+     * @return array<string, 'bool'|'int'|'string'>|null
+     */
+    public function columnBindings(string $table): ?array {
+        $this->schema ??= $this->db->createSchema();
+        $name = $this->config->getSystemValueString('dbtableprefix', 'oc_') . $table;
+
+        if (!$this->schema->hasTable($name)) {
+            return null;
+        }
+
+        $bindings = [];
+        foreach ($this->schema->getTable($name)->getColumns() as $column) {
+            $type = $column->getType();
+            $bindings[strtolower($column->getName())] = match (true) {
+                $type instanceof \Doctrine\DBAL\Types\BooleanType => 'bool',
+                $type instanceof \Doctrine\DBAL\Types\IntegerType,
+                $type instanceof \Doctrine\DBAL\Types\BigIntType,
+                $type instanceof \Doctrine\DBAL\Types\SmallIntType => 'int',
+                default => 'string',
+            };
+        }
+
+        return $bindings;
+    }
+
     /** Drop the snapshot, so the next question reads the database again. */
     public function reset(): void {
         $this->schema = null;
