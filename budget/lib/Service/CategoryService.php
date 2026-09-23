@@ -867,6 +867,132 @@ class CategoryService extends AbstractCrudService {
         return $analysis;
     }
 
+    /**
+     * "Ready to assign" for budget month $month: the income received in the
+     * month minus what the month's budgets hand out. Positive is money not
+     * yet given a job, negative means the budgets promise more than came in.
+     *
+     * Income: credits (net of any debits) filed under the user's income
+     * categories within the month's dates, start-day aware, through the same
+     * report-scoped aggregate the Budget page's spending figures use, so a
+     * report-excluded account or category counts here exactly as it counts
+     * there. An income category out of budgeting still counts: the money
+     * arrived even if the user sets no income target for it.
+     *
+     * Budgeted: each budgeted expense category's own budget for the month
+     * (manual/snapshot value, else the recurring fallback) turned into a
+     * monthly amount, over the categories BudgetScope keeps in budgeting and
+     * outside any report-excluded branch — the rows the Budget page lists.
+     * Envelope carryover is left out: money carried in was assigned from an
+     * earlier month's income, so counting it again would take it twice.
+     * Rollover therefore never changes this figure.
+     *
+     * Amounts are summed as stored, with no currency conversion, as the
+     * Budget page's own totals are.
+     *
+     * @param int[]|null $visibleAccountIds account scope, as the page's other calls
+     * @param array<int, array>|null $effectiveBudgets resolveEffectiveBudgets()
+     *        output for $month when the caller already has it
+     * @return array{month: string, startDate: string, endDate: string, income: float, budgeted: float, amount: float}
+     */
+    public function getReadyToAssign(string $userId, string $month, ?array $visibleAccountIds = null, ?array $effectiveBudgets = null): array {
+        $categories = $this->findAll($userId);
+        $effectiveBudgets ??= $this->resolveEffectiveBudgets($userId, $month, $visibleAccountIds);
+        [$startDate, $endDate] = BudgetPeriod::range($month, $this->carryoverService->budgetStartDay($userId));
+
+        $byId = [];
+        foreach ($categories as $category) {
+            $byId[$category->getId()] = $category;
+        }
+        $outOfReports = $this->reportExcludedBranchIds($categories);
+
+        $budgeted = [];
+        foreach ($effectiveBudgets as $catId => $entry) {
+            $category = $byId[$catId] ?? null;
+            if ($category === null || $category->getType() !== 'expense' || isset($outOfReports[$catId])) {
+                continue;
+            }
+            // available = base + carried; only the base is this month's money
+            $base = MoneyCalculator::subtract(
+                (string) ($entry['available'] ?? 0),
+                (string) ($entry['carried'] ?? 0),
+                6
+            );
+            if (MoneyCalculator::compare($base, '0', 6) <= 0) {
+                continue;
+            }
+            $budgeted[] = $this->toMonthlyAmount($base, (string) ($entry['period'] ?? 'monthly'));
+        }
+
+        $income = [];
+        $rows = $this->transactionMapper->getSpendingSummary(
+            $userId, $startDate, $endDate,
+            visibleAccountIds: $visibleAccountIds,
+            transactionType: 'credit',
+            netOpposite: true
+        );
+        foreach ($rows as $row) {
+            $catId = (int) ($row['id'] ?? 0);
+            $category = $byId[$catId] ?? null;
+            if ($category === null || $category->getType() !== 'income' || isset($outOfReports[$catId])) {
+                continue;
+            }
+            $income[] = (string) ($row['total'] ?? 0);
+        }
+
+        $incomeTotal = MoneyCalculator::sum($income, 6);
+        $budgetedTotal = MoneyCalculator::sum($budgeted, 6);
+
+        return [
+            'month' => $month,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'income' => round(MoneyCalculator::toFloat($incomeTotal), 2),
+            'budgeted' => round(MoneyCalculator::toFloat($budgetedTotal), 2),
+            'amount' => round(MoneyCalculator::toFloat(MoneyCalculator::subtract($incomeTotal, $budgetedTotal, 6)), 2),
+        ];
+    }
+
+    /**
+     * A budget amount for $period as its monthly equivalent, by the same
+     * yearly ratios the Budget page's summary uses (formatters.prorateBudget).
+     */
+    private function toMonthlyAmount(string $amount, string $period): string {
+        $perYear = ['weekly' => '52', 'monthly' => '12', 'quarterly' => '4', 'yearly' => '1'][$period] ?? '12';
+        if ($perYear === '12') {
+            return $amount;
+        }
+        return MoneyCalculator::divide(MoneyCalculator::multiply($amount, $perYear, 6), '12', 6);
+    }
+
+    /**
+     * Categories flagged excluded_from_reports, plus everything under them:
+     * the Budget page drops a flagged category's whole branch.
+     *
+     * @param Category[] $categories
+     * @return array<int, true>
+     */
+    private function reportExcludedBranchIds(array $categories): array {
+        $flagged = [];
+        $parents = [];
+        foreach ($categories as $category) {
+            $flagged[$category->getId()] = (bool) ($category->getExcludedFromReports() ?? false);
+            $parents[$category->getId()] = $category->getParentId();
+        }
+        $excluded = [];
+        foreach (array_keys($flagged) as $id) {
+            $cursor = $id;
+            for ($depth = 0; $cursor !== null && $depth < 64 && isset($flagged[$cursor]); $depth++) {
+                if ($flagged[$cursor]) {
+                    $excluded[$id] = true;
+                    break;
+                }
+                $cursor = $parents[$cursor];
+            }
+        }
+        return $excluded;
+    }
+
     private function getBudgetStatus(float $percentage): string {
         if ($percentage <= 50) {
             return 'good';

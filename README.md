@@ -12,12 +12,16 @@ Budget is a personal finance app for Nextcloud. It keeps your bank accounts, cre
 
 - Accounts and transactions in over 45 currencies, with splits, tags, transfers and statement reconciliation
 - Statement import from CSV, OFX, QIF and camt.053 XML, rules that categorise transactions for you, and bank sync through GoCardless or SimpleFIN
-- Category budgets (including envelope budgets that roll over), bills, recurring income and balance forecasts
+- Receipt photos attached to transactions, and receipt scanning (OCR) that reads the amount and items once an admin sets it up
+- Category budgets (including envelope budgets that roll over) with a "ready to assign" figure, project budgets for jobs that run over months, bills, recurring income and balance forecasts
+- Detection of payments that look recurring but are not tracked yet, so subscriptions become bills in one click
 - Savings goals, debt payoff plans, assets, pensions and net worth history
-- Reports with PDF export, and a dashboard you can arrange yourself
-- Sharing accounts and budgets with other Nextcloud users, and splitting expenses with contacts
+- Reports with PDF export, including a money flow (Sankey) diagram, scheduled monthly PDF reports, and a dashboard you can arrange yourself
+- A weekly or monthly digest and alerts for unusual spending
+- Sharing accounts and budgets with other Nextcloud users, and splitting expenses with one or several people
 - Nextcloud dashboard widgets, unified search and a calendar feed for your bills
-- A [public API](https://budget.otherworld.dev/docs/api.html) for scripts and automation, which the Budget Companion Android app (in development) also uses
+- A Quick Add page for recording spending from your phone, and a [public API](https://budget.otherworld.dev/docs/api.html) for scripts and automation, which the Budget Companion Android app (in development) also uses
+- A getting started checklist for new users, with sample data to try the app before adding your own
 
 Every feature is explained in the [documentation](https://budget.otherworld.dev/docs/), and the [changelog](budget/CHANGELOG.md) lists what has changed in each release.
 
