@@ -77,6 +77,7 @@ import * as dom from './utils/dom.js';
 import { showSuccess, showError, showWarning } from './utils/notifications.js';
 import { confirmDialog } from './utils/dialogs.js';
 import { initDatePickers } from './utils/datepicker.js';
+import { setupChartTheme } from './utils/chartTheme.js';
 import { setupHeaderMenus } from './utils/headerMenu.js';
 import { setupClickableCards } from './utils/clickableCards.js';
 import { serverErrorMessage, hasSplitPortion, transactionDisplayAmount } from './utils/helpers.js';
@@ -4609,5 +4610,8 @@ class BudgetApp {
 
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
+    // Before any chart is drawn: axis labels, legends and grid lines follow
+    // the Nextcloud theme instead of Chart.js's fixed grey.
+    setupChartTheme(Chart);
     window.budgetApp = new BudgetApp();
 });
