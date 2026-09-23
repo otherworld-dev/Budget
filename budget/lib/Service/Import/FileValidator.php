@@ -34,11 +34,13 @@ class FileValidator {
     }
 
     private const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-    private const ALLOWED_EXTENSIONS = ['csv', 'ofx', 'qif', 'xml', 'txt'];
+    // tsv: YNAB exports a plan that uses a comma decimal tab-separated
+    private const ALLOWED_EXTENSIONS = ['csv', 'ofx', 'qif', 'xml', 'txt', 'tsv'];
 
     private const MIME_TYPES = [
         'csv' => ['text/csv', 'text/plain', 'application/csv', 'application/vnd.ms-excel'],
         'txt' => ['text/plain'],
+        'tsv' => ['text/tab-separated-values', 'text/plain', 'text/csv'],
         'ofx' => ['text/plain', 'application/x-ofx', 'application/xml', 'text/xml', 'application/sgml'],
         'qif' => ['text/plain', 'application/qif', 'application/x-qif'],
         'xml' => ['application/xml', 'text/xml', 'text/plain'],
@@ -119,7 +121,7 @@ class FileValidator {
         }
 
         match ($extension) {
-            'csv', 'txt' => $this->validateCsvContent($content),
+            'csv', 'txt', 'tsv' => $this->validateCsvContent($content),
             'ofx' => $this->validateOfxContent($content),
             'qif' => $this->validateQifContent($content),
             'xml' => $this->validateCamtContent($content),

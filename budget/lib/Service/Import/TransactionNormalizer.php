@@ -583,8 +583,13 @@ class TransactionNormalizer {
         // the cleaning cannot change an ID and turn a re-imported statement
         // into a second copy of itself (#340). Rows from any other source
         // (OFX/QIF via ofxImportIdentity) carry neither and hash as before.
+        //
+        // _hashDate is set only by the app-export presets (#191 follow-up):
+        // they hash the date cell exactly as the file wrote it, so a later
+        // export whose day/month order is detected differently (YNAB follows
+        // the user's own date setting) cannot re-key rows already imported.
         return 'hash_' . md5(
-            ($transaction['date'] ?? '') .
+            ($transaction['_hashDate'] ?? $transaction['date'] ?? '') .
             ($transaction['amount'] ?? '') .
             ($transaction['_hashDescription'] ?? $transaction['description'] ?? '') .
             ($transaction['_hashReference'] ?? $transaction['reference'] ?? '')

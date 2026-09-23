@@ -63,6 +63,11 @@ class FileValidatorTest extends TestCase {
 		$this->assertSame('txt', $this->validator->validateExtension('export.txt'));
 	}
 
+	// YNAB writes a plan that uses a comma decimal as tab-separated text
+	public function testValidateExtensionTsv(): void {
+		$this->assertSame('tsv', $this->validator->validateExtension('Plan - Register.tsv'));
+	}
+
 	public function testValidateExtensionUppercase(): void {
 		$this->assertSame('csv', $this->validator->validateExtension('DATA.CSV'));
 	}
@@ -202,7 +207,8 @@ class FileValidatorTest extends TestCase {
 		$this->assertContains('ofx', $extensions);
 		$this->assertContains('qif', $extensions);
 		$this->assertContains('txt', $extensions);
-		$this->assertCount(5, $extensions);
+		$this->assertContains('tsv', $extensions);
+		$this->assertCount(6, $extensions);
 	}
 
 	public function testGetMaxFileSize(): void {

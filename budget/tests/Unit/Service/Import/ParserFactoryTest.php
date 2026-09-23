@@ -302,4 +302,22 @@ class ParserFactoryTest extends TestCase {
         $this->assertCount(1, $this->factory->parse($xml, 'camt'));
         $this->assertSame(1, $this->factory->countRows($xml, 'camt'));
     }
+
+    // ===== parseCsvRecords (app-export presets) =====
+
+    public function testParseCsvRecordsKeepsAQuotedMultiLineFieldInItsRow(): void {
+        $csv = "\xEF\xBB\xBFa,b\r\n1,\"two\r\nlines\"\r\n\r\n3,4\r\n";
+
+        $records = $this->factory->parseCsvRecords($csv);
+
+        $this->assertSame([['a', 'b'], ['1', "two\r\nlines"], ['3', '4']], $records);
+    }
+
+    public function testParseCsvRecordsHonoursTheDelimiter(): void {
+        $this->assertSame([['a', 'b,c'], ['1', '2']], $this->factory->parseCsvRecords("a\tb,c\n1\t2\n", "\t"));
+    }
+
+    public function testDetectFormatTsvIsCsv(): void {
+        $this->assertEquals('csv', $this->factory->detectFormat('Plan - Register.tsv'));
+    }
 }

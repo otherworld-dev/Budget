@@ -11,6 +11,7 @@ use OCA\Budget\Service\Import\EncodingNormalizer;
 use OCA\Budget\Service\Import\FileValidator;
 use OCA\Budget\Service\Import\ImportRuleApplicator;
 use OCA\Budget\Service\Import\ParserFactory;
+use OCA\Budget\Service\Import\Preset\HeaderMappedPresetInterface;
 use OCA\Budget\Service\Import\Preset\ImportPresetInterface;
 use OCA\Budget\Service\Import\Preset\PresetRegistry;
 use OCA\Budget\Service\Import\TransactionNormalizer;
@@ -559,6 +560,9 @@ class ImportService {
             'size' => $fileSize,
             'delimiter' => $format === 'csv' ? $delimiter : null,
             'skipFirstRow' => $skipFirstRow,
+            // The app export this file looks like, so the import screen can
+            // offer its preset (null when it matches none)
+            'suggestedPreset' => $format === 'csv' && $skipFirstRow ? $this->presetRegistry->detect($columns) : null,
         ];
     }
 
@@ -736,13 +740,8 @@ class ImportService {
             }
         }
 
-        $data = $this->parserFactory->parse($content, $format, null, $delimiter, $preset || ($mapping['skipFirstRow'] ?? true));
-
-        // Remap CSV headers by position when preset provides canonical headers
-        // (makes import language-independent — e.g., Toshl exports in German)
-        if ($preset) {
-            $data = $this->remapHeaders($data, $preset);
-        }
+        $droppedByPreset = 0;
+        $data = $this->readImportRows($content, $format, $delimiter, $mapping, $preset, $droppedByPreset);
 
         // Resolve accounts for multi-account imports (preset or manual account column mapping)
         $accountsToCreate = [];
@@ -756,14 +755,17 @@ class ImportService {
         $duplicates = 0;
         $errors = [];
         $categoriesToCreate = [];
-        $skippedByPreset = 0;
+        // Rows the preset dropped while reading (a split's total line)
+        $skippedByPreset = $droppedByPreset;
         $hashCounts = [];
         $seenImportIds = [];
         $directionCounts = [];
         $unresolvedTypes = [];
 
-        // Detect date format from all rows before processing individually (unless preset set it)
-        if (!$preset) {
+        // Detect date format from all rows before processing individually,
+        // unless the preset fixes it (a YNAB export follows the user's own
+        // date setting, so its preset has to detect like a manual mapping)
+        if (!$preset || $preset->getDateFormatHint() === null) {
             $dateColumn = $mapping['date'] ?? null;
             if ($dateColumn !== null) {
                 $dateStrings = array_filter(array_map(
@@ -788,7 +790,7 @@ class ImportService {
 
                     // Collect categories and tags that will be created
                     if (!empty($transaction['_categoryName'])) {
-                        $catKey = $transaction['_categoryName'];
+                        $catKey = $this->presetCategoryLabel($transaction);
                         if (!isset($categoriesToCreate[$catKey])) {
                             $categoriesToCreate[$catKey] = ['name' => $catKey, 'tags' => []];
                         }
@@ -1311,12 +1313,8 @@ class ImportService {
             }
         }
 
-        $data = $this->parserFactory->parse($content, $format, null, $delimiter, $preset || ($mapping['skipFirstRow'] ?? true));
-
-        // Remap CSV headers by position when preset provides canonical headers
-        if ($preset) {
-            $data = $this->remapHeaders($data, $preset);
-        }
+        $droppedByPreset = 0;
+        $data = $this->readImportRows($content, $format, $delimiter, $mapping, $preset, $droppedByPreset);
 
         // Resolve accounts for multi-account imports (preset or manual account column mapping)
         $resolvedAccounts = [];
@@ -1329,16 +1327,19 @@ class ImportService {
 
         $account = $accountId ? $this->accountMapper->find($accountId, $userId) : null;
         $imported = 0;
-        $skipped = 0;
+        $skipped = $droppedByPreset;
         $errors = [];
         $categoriesCreated = 0;
+        $presetTransferLegs = [];
         $transferLinkIds = [];
         $hashCounts = [];
         $touchedAccounts = [];
         $createdForBillMatch = [];
 
-        // Detect date format from all rows before processing individually (unless preset set it)
-        if (!$preset) {
+        // Detect date format from all rows before processing individually,
+        // unless the preset fixes it (a YNAB export follows the user's own
+        // date setting, so its preset has to detect like a manual mapping)
+        if (!$preset || $preset->getDateFormatHint() === null) {
             $dateColumn = $mapping['date'] ?? null;
             if ($dateColumn !== null) {
                 $dateStrings = array_filter(array_map(
@@ -1492,6 +1493,20 @@ class ImportService {
                     $transferLinkIds[] = $createdTx->getId();
                 }
 
+                // One side of a transfer an app-export preset recognised. The
+                // other side is in the same file, so the pair is linked once
+                // every row is saved.
+                if ($preset && !empty($transaction['_transfer'])) {
+                    $presetTransferLegs[] = [
+                        'id' => $createdTx->getId(),
+                        'accountId' => $txAccountId,
+                        'amount' => (float) $transaction['amount'],
+                        'type' => (string) $transaction['type'],
+                        'date' => (string) $transaction['date'],
+                        'peer' => (string) ($transaction['_transferPeer'] ?? ''),
+                    ];
+                }
+
                 $imported++;
 
                 // Track per-account stats
@@ -1543,6 +1558,10 @@ class ImportService {
             }
         }
 
+        if (!empty($presetTransferLegs)) {
+            $transfersLinked += $this->linkPresetTransferLegs($userId, $presetTransferLegs, $resolvedAccounts);
+        }
+
         // Auto-mark bills paid from matching imported transactions (#274).
         // Best-effort: a matching failure must never fail the import.
         $billsMarkedPaid = 0;
@@ -1583,6 +1602,9 @@ class ImportService {
         }
         if ($tagsCreated > 0) {
             $result['tagsCreated'] = $tagsCreated;
+        }
+        if ($transfersLinked > 0) {
+            $result['transfersLinked'] = $transfersLinked;
         }
 
         return $result;
@@ -1650,6 +1672,25 @@ class ImportService {
         // Collect unique accounts with their currencies
         $accountInfo = [];
         foreach ($data as $row) {
+            if ($preset instanceof HeaderMappedPresetInterface) {
+                // The preset decides which account a row belongs to (a
+                // Firefly III deposit lands in its destination column, a
+                // withdrawal leaves its source) and may know its type and
+                // currency from the file.
+                $processed = $preset->postProcessRow([], $row);
+                $name = trim((string) ($processed['_accountName'] ?? ''));
+                if ($processed === null || $name === '' || isset($accountInfo[$name])) {
+                    continue;
+                }
+                $currency = strtoupper(trim((string) ($processed['_currency'] ?? '')));
+                $accountInfo[$name] = [
+                    'name' => $name,
+                    'currency' => preg_match('/^[A-Z]{3}$/', $currency) === 1 ? $currency : $defaultCurrency,
+                    'type' => (string) ($processed['_accountType'] ?? $preset->inferAccountType($name)),
+                ];
+                continue;
+            }
+
             $name = trim($row[$accountColumn] ?? '');
             if ($name === '') {
                 continue;
@@ -1775,6 +1816,11 @@ class ImportService {
         $categoryName = $transaction['_categoryName'];
         $type = ($transaction['type'] === 'credit') ? 'income' : 'expense';
 
+        $parentName = trim((string) ($transaction['_categoryParent'] ?? ''));
+        if ($parentName !== '') {
+            return $this->resolvePresetSubcategory($userId, $parentName, $categoryName, $type, $categoryCache, $categoriesCreated);
+        }
+
         $cacheKey = $type . '::' . $categoryName;
         if (isset($categoryCache[$cacheKey])) {
             return $categoryCache[$cacheKey];
@@ -1801,6 +1847,154 @@ class ImportService {
         }
 
         return $category->getId();
+    }
+
+    /**
+     * Resolve a two-level preset category (YNAB's "Group: Category", Actual's
+     * category group) to the child category under a parent of the group's
+     * name, creating either as needed.
+     *
+     * Like the one-level case, a name already resolved for the other type in
+     * this import is reused rather than duplicated: YNAB and Actual file
+     * refunds under the same category as the spending they reverse.
+     */
+    private function resolvePresetSubcategory(
+        string $userId,
+        string $parentName,
+        string $categoryName,
+        string $type,
+        array &$categoryCache,
+        int &$categoriesCreated
+    ): int {
+        $oppositeType = ($type === 'income') ? 'expense' : 'income';
+        $key = $parentName . '::' . $categoryName;
+        foreach ([$type, $oppositeType] as $candidate) {
+            if (isset($categoryCache['sub::' . $candidate . '::' . $key])) {
+                return $categoryCache['sub::' . $type . '::' . $key] = $categoryCache['sub::' . $candidate . '::' . $key];
+            }
+        }
+
+        $parentId = null;
+        foreach ([$type, $oppositeType] as $candidate) {
+            if (isset($categoryCache['parent::' . $candidate . '::' . $parentName])) {
+                $parentId = $categoryCache['parent::' . $candidate . '::' . $parentName];
+                break;
+            }
+        }
+        if ($parentId === null) {
+            $parent = $this->categoryService->findOrCreate($userId, $parentName, $type);
+            $this->countIfJustCreated($parent, $categoriesCreated);
+            $parentId = $parent->getId();
+            $categoryCache['parent::' . $type . '::' . $parentName] = $parentId;
+        }
+
+        $category = $this->categoryService->findOrCreateSubcategory($userId, $categoryName, $type, $parentId);
+        $this->countIfJustCreated($category, $categoriesCreated);
+        $categoryCache['sub::' . $type . '::' . $key] = $category->getId();
+
+        return $category->getId();
+    }
+
+    /**
+     * Count a category from findOrCreate*() as created by this import when
+     * its timestamp is only seconds old (the same test the one-level path uses).
+     */
+    private function countIfJustCreated(\OCA\Budget\Db\Category $category, int &$categoriesCreated): void {
+        $createdAt = $category->getCreatedAt();
+        if ($createdAt && (time() - strtotime($createdAt)) < 10) {
+            $categoriesCreated++;
+        }
+    }
+
+    /**
+     * How a preset row's category is listed in the import preview.
+     */
+    private function presetCategoryLabel(array $transaction): string {
+        $name = (string) $transaction['_categoryName'];
+        $parent = trim((string) ($transaction['_categoryParent'] ?? ''));
+        return $parent !== '' ? $parent . ' / ' . $name : $name;
+    }
+
+    /**
+     * Link the two sides of each transfer an app-export preset recognised.
+     *
+     * Only rows created by this import take part, so nothing already in the
+     * ledger can be paired by mistake. Two sides match when they are in
+     * different accounts, go in opposite directions for the same amount,
+     * are dated within three days of each other, and, where the file names
+     * the other account, name each other's. The closest date wins. A side
+     * with no partner stays an ordinary transaction.
+     *
+     * @param array<int, array{id: int, accountId: int, amount: float, type: string, date: string, peer: string}> $legs
+     * @param array<string, int> $accountIdsByName Accounts this import resolved, by name
+     * @return int Transfers linked
+     */
+    private function linkPresetTransferLegs(string $userId, array $legs, array $accountIdsByName): int {
+        // Bucket by amount so a large file does not compare every pair
+        $byAmount = [];
+        foreach ($legs as $i => $leg) {
+            $byAmount[number_format($leg['amount'], 2, '.', '')][] = $i;
+        }
+
+        // null: the file does not name the other account, so any will do.
+        // false: it names one that is not an account in this import, so the
+        // row is not a transfer between two of them after all.
+        $peerId = static function (array $leg) use ($accountIdsByName): int|false|null {
+            if ($leg['peer'] === '') {
+                return null;
+            }
+            return $accountIdsByName[$leg['peer']] ?? false;
+        };
+
+        $linked = 0;
+        $used = [];
+        foreach ($legs as $i => $a) {
+            if (isset($used[$i])) {
+                continue;
+            }
+            $aPeer = $peerId($a);
+            if ($aPeer === false) {
+                continue;
+            }
+
+            $best = null;
+            $bestGap = null;
+            foreach ($byAmount[number_format($a['amount'], 2, '.', '')] as $j) {
+                $b = $legs[$j];
+                if ($j === $i || isset($used[$j]) || $b['accountId'] === $a['accountId'] || $b['type'] === $a['type']) {
+                    continue;
+                }
+                $bPeer = $peerId($b);
+                if ($bPeer === false
+                    || ($aPeer !== null && $aPeer !== $b['accountId'])
+                    || ($bPeer !== null && $bPeer !== $a['accountId'])) {
+                    continue;
+                }
+                $gap = abs((int) strtotime($a['date']) - (int) strtotime($b['date']));
+                if ($gap > 3 * 86400) {
+                    continue;
+                }
+                if ($best === null || $gap < $bestGap) {
+                    $best = $j;
+                    $bestGap = $gap;
+                }
+            }
+
+            if ($best === null) {
+                continue;
+            }
+            try {
+                $this->transactionService->linkTransactions($a['id'], $legs[$best]['id'], $userId);
+                $used[$i] = true;
+                $used[$best] = true;
+                $linked++;
+            } catch (\Throwable $e) {
+                // Already linked by an import rule, or the two accounts are in
+                // different currencies: both stay ordinary transactions.
+            }
+        }
+
+        return $linked;
     }
 
     /**
@@ -1959,6 +2153,103 @@ class ImportService {
         }
 
         return $matches;
+    }
+
+    /**
+     * Parse the file into the rows a single-account CSV import walks.
+     *
+     * Header-mapped presets key rows by column name; every other import
+     * keys them by position, remapped to Toshl's canonical headers when that
+     * preset is active.
+     *
+     * @param int $dropped Rows a header-mapped preset dropped while reading
+     */
+    private function readImportRows(string $content, string $format, string $delimiter, array $mapping, ?ImportPresetInterface $preset, int &$dropped): array {
+        if ($preset instanceof HeaderMappedPresetInterface) {
+            return $this->readHeaderMappedRows($content, $format, $preset, $dropped);
+        }
+
+        $data = $this->parserFactory->parse($content, $format, null, $delimiter, $preset || ($mapping['skipFirstRow'] ?? true));
+
+        // Remap CSV headers by position when preset provides canonical headers
+        // (makes import language-independent — e.g., Toshl exports in German)
+        if ($preset) {
+            $data = $this->remapHeaders($data, $preset);
+        }
+
+        return $data;
+    }
+
+    /**
+     * Read an app export whose columns the preset names rather than numbers.
+     *
+     * The header row is matched case-insensitively against the preset's
+     * required columns; a file missing any of them is refused with the list,
+     * rather than imported as blanks. When the header does not split on the
+     * preset's delimiter the other usual ones are tried: YNAB exports a plan
+     * with a comma decimal as tab-separated text.
+     *
+     * Rows the preset expands into several (a Firefly III transfer, one per
+     * account) keep the first in place and append the rest after the file's
+     * own rows, so every file row keeps its position for error messages.
+     *
+     * @param int $dropped Set to the number of rows the preset dropped
+     * @return array<int, array<string, string>>
+     */
+    private function readHeaderMappedRows(string $content, string $format, HeaderMappedPresetInterface $preset, int &$dropped): array {
+        if ($format !== 'csv') {
+            throw new \Exception($this->l->t('The %1$s format reads CSV files only', [$preset->getName()]));
+        }
+
+        $required = [];
+        foreach ($preset->getRequiredHeaders() as $header) {
+            $required[mb_strtolower($header)] = $header;
+        }
+
+        $best = null;
+        foreach (array_values(array_unique([$preset->getDelimiter(), "\t", ';', ','])) as $delimiter) {
+            $records = $this->parserFactory->parseCsvRecords($content, $delimiter);
+            $header = array_map(static fn($h) => trim((string) $h), $records[0] ?? []);
+            $present = array_flip(array_map('mb_strtolower', $header));
+            $missing = array_diff_key($required, $present);
+            if ($best === null || count($missing) < count($best['missing'])) {
+                $best = ['records' => $records, 'header' => $header, 'missing' => $missing];
+            }
+            if ($missing === []) {
+                break;
+            }
+        }
+
+        if ($best['missing'] !== []) {
+            throw new \Exception($this->l->t(
+                'This file does not look like a %1$s export. Columns missing: %2$s',
+                [$preset->getName(), implode(', ', array_values($best['missing']))]
+            ));
+        }
+
+        // Key columns by the preset's own spelling where it names them
+        $keys = array_map(static fn($h) => $required[mb_strtolower($h)] ?? $h, $best['header']);
+
+        $rows = [];
+        $extra = [];
+        $dropped = 0;
+        foreach (array_slice($best['records'], 1) as $record) {
+            $row = [];
+            foreach ($keys as $i => $key) {
+                $row[$key] = $record[$i] ?? '';
+            }
+            $expanded = array_values($preset->expandRow($row));
+            if ($expanded === []) {
+                $dropped++;
+                continue;
+            }
+            $rows[] = array_shift($expanded);
+            foreach ($expanded as $more) {
+                $extra[] = $more;
+            }
+        }
+
+        return array_merge($rows, $extra);
     }
 
     /**

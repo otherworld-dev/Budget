@@ -1536,4 +1536,17 @@ class TransactionNormalizerTest extends TestCase {
 
 		$this->assertSame('Single Payee', $result['description']);
 	}
+
+	// App-export presets hash the date cell as the file wrote it, so a later
+	// export whose day/month order is detected differently keeps its IDs.
+	public function testGenerateImportIdPrefersTheFrozenRawDate(): void {
+		$tx = ['date' => '2024-02-01', 'amount' => 5.0, 'description' => 'Shop'];
+		$legacy = 'hash_' . md5('2024-02-01' . 5.0 . 'Shop' . '');
+		$this->assertSame($legacy, $this->normalizer->generateImportId('f', 0, $tx), 'Rows without _hashDate hash as before');
+
+		$a = $tx + ['_hashDate' => '02/01/2024'];
+		$b = ['date' => '2024-01-02'] + $a;
+		$this->assertSame('hash_' . md5('02/01/2024' . 5.0 . 'Shop' . ''), $this->normalizer->generateImportId('f', 0, $a));
+		$this->assertSame($this->normalizer->generateImportId('f', 0, $a), $this->normalizer->generateImportId('f', 0, $b));
+	}
 }
