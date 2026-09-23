@@ -347,6 +347,7 @@
     /* Prevent page headings from being covered by the hamburger menu button */
     .view-header h2,
     .view > h2:first-of-type,
+    .dashboard-header .dashboard-title,
     .dashboard-header .dashboard-header-hint,
     .forecast-header h2 {
         padding-left: 48px;
@@ -456,6 +457,13 @@
     transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
+
+/* A pension or asset card with nothing behind it would only ever read 0.
+   It steps aside while the dashboard is locked, and shows again while the
+   dashboard is being arranged. */
+#dashboard-view.dashboard-locked .hero-card--empty {
+    display: none;
+}
 
 .hero-card:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -1049,9 +1057,9 @@
 .spending-breakdown-header {
     display: flex;
     justify-content: space-between;
-    padding: 12px 0 8px 0;
+    padding: 4px 0 6px 0;
     border-bottom: 2px solid var(--color-border);
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     font-size: 14px;
 }
 
@@ -1059,7 +1067,9 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 0;
+    /* Compact so a typical month's categories fit the tile without a
+       scrollbar of their own. */
+    padding: 5px 0;
     border-bottom: 1px solid var(--color-border-dark);
 }
 
@@ -1555,7 +1565,9 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 0;
+    /* Tight enough that the default eight rows fit the tile without a
+       scrollbar inside the already-scrolling page. */
+    padding: 7px 0;
     border-bottom: 1px solid var(--color-border-dark);
 }
 
@@ -1701,12 +1713,27 @@
 }
 
 @media (max-width: 768px) {
+    /* Two to a row: stacked one per row, the summary cards alone filled the
+       whole first screen on a phone. */
     .dashboard-hero {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
     }
 
     .hero-card {
-        padding: 16px;
+        padding: 12px;
+        gap: 10px;
+    }
+
+    .hero-card .hero-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+    }
+
+    .hero-card .hero-icon svg {
+        width: 18px;
+        height: 18px;
     }
 
     .spending-chart-wrapper {
@@ -17680,7 +17707,14 @@ button.secondary.compact {
     padding: 0 4px;
 }
 
+.dashboard-title {
+    margin: 0;
+    margin-inline-end: auto;
+}
+
+/* While unlocked the hint sits between the title and the buttons. */
 .dashboard-header-hint {
+    margin-inline-end: 16px;
     display: flex;
     align-items: center;
     gap: 6px;

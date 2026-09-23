@@ -319,6 +319,7 @@ style('budget', 'budget-app');
         <!-- Dashboard View -->
         <div id="dashboard-view" class="view active">
             <div class="dashboard-header">
+                <h2 class="dashboard-title"><?php p($l->t('Dashboard')); ?></h2>
                 <div class="dashboard-header-hint" id="dashboard-hint">
                     <span class="icon-info" aria-hidden="true"></span>
                     <span><?php p($l->t('Dashboard is locked. Click unlock to reorder tiles.')); ?></span>

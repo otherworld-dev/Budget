@@ -66,6 +66,11 @@ window.budgetDiagnostics = budgetDiagnostics;
 import Chart from 'chart.js/auto';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
+// Curved lines are drawn monotone: a plain `tension` curve overshoots between
+// points, so a month's line could dip below zero or peak above a value that
+// never happened. Monotone curves pass through the points without that.
+Chart.defaults.elements.line.cubicInterpolationMode = 'monotone';
+
 // Utilities
 import * as formatters from './utils/formatters.js';
 import * as dom from './utils/dom.js';
@@ -2987,7 +2992,7 @@ class BudgetApp {
                         stacked: isArea,
                         beginAtZero: true,
                         ticks: {
-                            callback: (value) => this.formatCurrency(value, this.getPrimaryCurrency()),
+                            callback: (value) => formatters.formatCurrencyCompact(value, this.getPrimaryCurrency(), this.settings),
                             color: getComputedStyle(document.documentElement).getPropertyValue('--color-text-maxcontrast').trim() || '#999',
                         },
                         grid: {

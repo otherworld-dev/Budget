@@ -386,7 +386,10 @@ export default class DashboardModule {
 
             // Remove tiles that ended up hidden — run after all async data loading settles
             // (some tiles get display:none set by lazy load callbacks)
-            setTimeout(() => this._removeHiddenTilesFromGrid(), 500);
+            setTimeout(() => {
+                this._removeHiddenTilesFromGrid();
+                this._compactEmptyTiles();
+            }, 500);
 
         } catch (error) {
             console.error('Failed to load dashboard:', error);
@@ -1315,7 +1318,8 @@ export default class DashboardModule {
         }
 
         const txSettings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
-        const rowCount = txSettings.rowCount || 8;
+        // Same default as the tile settings dialog offers (config/dashboardWidgets.js).
+        const rowCount = txSettings.rowCount || 5;
         container.innerHTML = transactions.slice(0, rowCount).map(tx => {
             const isCredit = tx.type === 'credit';
             const amount = parseFloat(tx.amount) || 0;
@@ -2020,7 +2024,10 @@ export default class DashboardModule {
             countEl.textContent = count;
         }
 
-        // Update dashboard hero card
+        // Update dashboard hero card. With no pensions at all it would only
+        // ever read 0, so it steps aside while the dashboard is locked.
+        document.querySelector('.hero-pension')?.classList.toggle(
+            'hero-card--empty', count === 0 && pensionWorth === 0 && projectedIncome === 0);
         const heroPensionValue = document.getElementById('hero-pension-value');
         const heroPensionCount = document.getElementById('hero-pension-count');
         const heroPensionLabel = document.querySelector('.hero-pension .hero-label');
@@ -2063,7 +2070,8 @@ export default class DashboardModule {
             countEl.textContent = count;
         }
 
-        // Update dashboard hero card
+        // Update dashboard hero card (hidden while there are no assets, as above)
+        document.querySelector('.hero-assets')?.classList.toggle('hero-card--empty', count === 0);
         const heroAssetsValue = document.getElementById('hero-assets-value');
         const heroAssetsCount = document.getElementById('hero-assets-count');
         const heroAssetsChange = document.getElementById('hero-assets-change');
@@ -2857,6 +2865,18 @@ export default class DashboardModule {
         const trendChartType = trendSettings.chartType || 'line';
         const isBar = trendChartType === 'bar';
         const trendShowLegend = trendSettings.showLegend !== false;
+
+        // The month in progress is only part of a month, so its drop is not a
+        // real fall: draw the line into it dashed and say "so far" on hover.
+        // Labels come from the server as English "M Y" (ReportAggregator).
+        const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const now = new Date();
+        const lastIndex = trends.labels.length - 1;
+        const partialIndex = trends.labels[lastIndex] === `${MONTHS[now.getMonth()]} ${now.getFullYear()}` ? lastIndex : -1;
+        const partialSegment = {
+            borderDash: (segCtx) => (partialIndex > 0 && segCtx.p1DataIndex === partialIndex ? [6, 4] : undefined),
+        };
+
         this.charts[instanceId] = new Chart(ctx, {
             type: isBar ? 'bar' : 'line',
             data: {
@@ -2868,7 +2888,8 @@ export default class DashboardModule {
                         borderColor: '#46ba61',
                         backgroundColor: isBar ? 'rgba(70, 186, 97, 0.6)' : 'rgba(70, 186, 97, 0.1)',
                         fill: !isBar,
-                        tension: isBar ? 0 : 0.3
+                        tension: isBar ? 0 : 0.3,
+                        segment: partialSegment,
                     },
                     {
                         label: t('budget', 'Expenses'),
@@ -2876,7 +2897,8 @@ export default class DashboardModule {
                         borderColor: '#e9322d',
                         backgroundColor: isBar ? 'rgba(233, 50, 45, 0.6)' : 'rgba(233, 50, 45, 0.1)',
                         fill: !isBar,
-                        tension: isBar ? 0 : 0.3
+                        tension: isBar ? 0 : 0.3,
+                        segment: partialSegment,
                     }
                 ]
             },
@@ -2888,12 +2910,18 @@ export default class DashboardModule {
                     legend: { display: trendShowLegend, position: 'top' },
                     tooltip: {
                         callbacks: {
+                            title: (items) => {
+                                const label = items[0]?.label || '';
+                                return items[0]?.dataIndex === partialIndex
+                                    ? t('budget', '{month} (so far)', { month: label })
+                                    : label;
+                            },
                             label: (context) => `${context.dataset.label}: ${this.formatCurrency(context.raw)}`
                         }
                     }
                 },
                 scales: {
-                    y: { ticks: { callback: (value) => this.formatCurrency(value) } }
+                    y: { ticks: { callback: (value) => formatters.formatCurrencyCompact(value, null, this.settings) } }
                 }
             }
         });
@@ -3002,7 +3030,7 @@ export default class DashboardModule {
                 scales: {
                     y: {
                         ticks: {
-                            callback: (value) => this.formatCurrency(value, currency)
+                            callback: (value) => formatters.formatCurrencyCompact(value, currency, this.settings)
                         }
                     },
                     x: {
@@ -3087,7 +3115,7 @@ export default class DashboardModule {
                 scales: {
                     y: {
                         ticks: {
-                            callback: (value) => this.formatCurrency(value, currency)
+                            callback: (value) => formatters.formatCurrencyCompact(value, currency, this.settings)
                         }
                     },
                     x: {
@@ -3542,7 +3570,7 @@ export default class DashboardModule {
     /** Fetch limit for a Recent Transactions instance: the tile's saved rows-to-show setting */
     _recentTxLimit(instanceId = 'recentTransactions') {
         const rowCount = parseInt(this.dashboardConfig?.widgets?.tileSettings?.[instanceId]?.rowCount, 10);
-        return rowCount > 0 ? rowCount : 8;
+        return rowCount > 0 ? rowCount : 5;
     }
 
     async refreshRecentTransactions(accountId = null, instanceId = 'recentTransactions') {
@@ -4111,7 +4139,11 @@ export default class DashboardModule {
         this._gridstackReady = false;
         setTimeout(() => { this._gridstackReady = true; }, 500);
         this.gridstack.on('change', (_event, _changedItems) => {
-            if (this._gridstackReady) {
+            // Only the user's own rearranging is saved. Tiles shrinking or
+            // growing with their data, and the one-column reflow on a phone,
+            // happen while locked and are how the layout is shown, not a new
+            // layout.
+            if (this._gridstackReady && !this.dashboardLocked && !this._compactingTiles) {
                 this._saveGridstackPositions();
             }
         });
@@ -4179,6 +4211,60 @@ export default class DashboardModule {
         });
     }
 
+    /**
+     * A tile with nothing to show yet ("No upcoming bills", an empty chart)
+     * takes two grid rows instead of its full four while the dashboard is
+     * locked. It is a view-only change: the saved layout keeps each tile's
+     * real height (see _saveGridstackPositions), and unlocking or the data
+     * arriving puts the tile back to full size.
+     */
+    _compactEmptyTiles() {
+        if (!this.gridstack) return;
+        const COMPACT_H = 2;
+        this._compactingTiles = true;
+        try {
+            this.gridstack.batchUpdate();
+            this.gridstack.getGridItems().forEach(el => {
+                const node = el.gridstackNode;
+                const card = el.querySelector('.dashboard-card');
+                if (!node || !card) return;
+                const compact = !!this.dashboardLocked && this._isTileEmpty(card);
+                if (compact && !el.dataset.fullH && node.h > COMPACT_H) {
+                    el.dataset.fullH = String(node.h);
+                    this.gridstack.update(el, { h: COMPACT_H });
+                } else if (!compact && el.dataset.fullH) {
+                    this.gridstack.update(el, { h: parseInt(el.dataset.fullH, 10) });
+                    delete el.dataset.fullH;
+                }
+            });
+            this.gridstack.batchUpdate(false);
+        } finally {
+            this._compactingTiles = false;
+        }
+        requestAnimationFrame(() => this.resizeAllCharts());
+    }
+
+    /**
+     * True when everything a tile shows, apart from its header, is an empty
+     * state message: no chart, and no other visible text.
+     */
+    _isTileEmpty(card) {
+        const visible = el => el.getClientRects().length > 0;
+        const empties = [...card.querySelectorAll('.empty-state-small, .chart-empty-state')].filter(visible);
+        if (empties.length === 0) return false;
+        if ([...card.querySelectorAll('canvas')].some(visible)) return false;
+
+        const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            if (!node.textContent.trim()) continue;
+            const el = node.parentElement;
+            if (!el || !visible(el)) continue;
+            if (el.closest('.card-header, .empty-state-small, .chart-empty-state, .widget-tile-controls')) continue;
+            return false;
+        }
+        return true;
+    }
+
     _saveGridstackPositions() {
         if (!this.gridstack) return;
         const positions = {};
@@ -4187,7 +4273,9 @@ export default class DashboardModule {
             if (id) {
                 const node = el.gridstackNode;
                 if (node) {
-                    positions[id] = { x: node.x, y: node.y, w: node.w, h: node.h };
+                    // A compacted empty tile is saved at its real height.
+                    const h = el.dataset.fullH ? parseInt(el.dataset.fullH, 10) : node.h;
+                    positions[id] = { x: node.x, y: node.y, w: node.w, h };
                 }
             }
         });
@@ -4767,6 +4855,15 @@ export default class DashboardModule {
 
         if (!btn || !btnText || !hint) return;
 
+        document.getElementById('dashboard-view')?.classList.toggle('dashboard-locked', !!this.dashboardLocked);
+        // Locked is the everyday state, so it gets no banner: just the lock
+        // icon. The hint only shows while the tiles can be moved.
+        hint.style.display = this.dashboardLocked ? 'none' : '';
+        btnText.classList.toggle('visually-hidden', !!this.dashboardLocked);
+        const btnLabel = this.dashboardLocked ? t('budget', 'Unlock Dashboard') : t('budget', 'Lock Dashboard');
+        btn.setAttribute('aria-label', btnLabel);
+        btn.title = btnLabel;
+
         const lockedSvg = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>';
         const unlockedSvg = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 5-5 5 5 0 0 1 5 5"></path>';
 
@@ -4804,6 +4901,9 @@ export default class DashboardModule {
 
         // Update Add Tiles dropdown content
         this.updateAddTilesMenu();
+
+        // Rearranging needs every tile at its real size; viewing doesn't.
+        this._compactEmptyTiles();
     }
 
     addTileControls() {
