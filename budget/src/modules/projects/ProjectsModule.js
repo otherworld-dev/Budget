@@ -9,6 +9,7 @@ import { showSuccess, showError, showWarning } from '../../utils/notifications.j
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import { groupProjects, progressFor, unallocated, subcategoriesOf, ownExpenseTree } from './projectMath.js';
+import { showLoading, clearLoading } from '../../utils/loading.js';
 
 export default class ProjectsModule {
     constructor(app) {
@@ -27,11 +28,13 @@ export default class ProjectsModule {
 
     async loadProjectsView() {
         this.ensureEventListeners();
+        showLoading('projects-list');
         try {
             this.app.projects = await this.fetchJson('/apps/budget/api/projects');
             this.renderProjects(this.app.projects);
         } catch (error) {
             console.error('Failed to load projects:', error);
+            clearLoading('projects-list');
             showError(t('budget', 'Failed to load projects'));
         }
     }

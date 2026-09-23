@@ -4980,28 +4980,6 @@ button.danger:hover {
     font-size: 13px;
 }
 
-/* Empty Tags State */
-.empty-tag-sets {
-    text-align: center;
-    padding: 60px 40px;
-    background: var(--color-main-background);
-    border: 1px dashed var(--color-border);
-    border-radius: 12px;
-}
-
-.empty-tag-sets .empty-content h3 {
-    margin: 20px 0 10px;
-    color: var(--color-main-text);
-}
-
-.empty-tag-sets .empty-content p {
-    margin: 0 0 20px;
-    color: var(--color-text-maxcontrast);
-    max-width: 400px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
 /* Transaction Tag Selectors (in transaction modal) */
 .tag-set-selector {
     margin-bottom: 12px;
@@ -6736,31 +6714,83 @@ button.danger:hover {
     border-top: 1px solid var(--color-border);
 }
 
-/* Empty States */
-.empty-categories,
-.empty-content {
+/* Empty states: one look for every full-page "nothing here yet" panel.
+   The per-view wrappers (.empty-bills, .empty-goals, …) only toggle
+   visibility; the panel itself is always .empty-content, laid out the way
+   Nextcloud's NcEmptyContent is: a large faint icon, a title, a line of
+   explanation and the action that fills the page. */
+.empty-content,
+.forecast-empty,
+.projects-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 48px 20px;
     text-align: center;
-    padding: 40px 20px;
-    color: var(--color-text-lighter);
+    color: var(--color-text-maxcontrast);
 }
 
-.empty-content span {
-    font-size: 48px;
-    opacity: 0.3;
-    margin-bottom: 16px;
+.empty-categories .empty-content,
+.empty-tag-sets .empty-content {
+    padding-block: 32px;
+}
+
+/* The icon: a direct child, so icons inside the action button keep their
+   normal size. Nextcloud's icon-* classes are background images, so the
+   size comes from width/background-size, not font-size. */
+.empty-content > [class^="icon-"],
+.empty-content > [class*=" icon-"] {
     display: block;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 16px;
+    background-size: 64px;
+    opacity: 0.4;
 }
 
-.empty-content h3 {
-    margin: 0 0 8px 0;
-    font-size: 18px;
+.empty-content > .empty-icon:not([class*="icon-"]),
+.forecast-empty > .empty-icon {
+    font-size: 48px;
+    line-height: 1;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.empty-content h3,
+.forecast-empty h3,
+.projects-empty h3 {
+    margin: 0 0 8px;
+    font-size: 20px;
+    font-weight: 600;
     color: var(--color-main-text);
 }
 
-.empty-content p {
-    margin: 0 0 20px 0;
+.empty-content p,
+.forecast-empty p,
+.projects-empty p {
+    margin: 0 0 20px;
     font-size: 14px;
     line-height: 1.5;
+}
+
+/* A list's placeholder while its first load is in flight (utils/loading.js). */
+.budget-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 48px 20px;
+    color: var(--color-text-maxcontrast);
+    grid-column: 1 / -1;
+}
+
+.budget-loading .icon-loading {
+    position: relative;
+    width: 24px;
+    height: 24px;
+    min-height: 0;
 }
 
 .empty-buttons {
@@ -7731,30 +7761,6 @@ button.danger:hover {
     height: 40px;
     border-width: 3px;
     margin-bottom: 16px;
-}
-
-/* Forecast Empty State */
-.forecast-empty {
-    text-align: center;
-    padding: 60px 20px;
-    color: var(--color-text-lighter);
-}
-
-.forecast-empty .empty-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-}
-
-.forecast-empty h3 {
-    margin: 0 0 8px 0;
-    color: var(--color-main-text);
-}
-
-.forecast-empty p {
-    margin: 0;
-    max-width: 400px;
-    margin-left: auto;
-    margin-right: auto;
 }
 
 /* Forecast Sections */
@@ -9103,7 +9109,7 @@ button.danger:hover {
 .help-panel {
     position: fixed;
     bottom: 12px;
-    left: calc(var(--budget-nav-width, 300px) + 12px);
+    left: calc(var(--budget-nav-width, 300px) + 24px);
     width: 340px;
     max-height: 480px;
     background: var(--color-main-background);
@@ -9672,36 +9678,6 @@ button.danger:hover {
 
 .bill-action-btn.bill-paid-btn:hover {
     background: var(--color-success-hover, #1a9b4f);
-}
-
-/* Empty Bills State */
-.empty-bills {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 60px 20px;
-    text-align: center;
-}
-
-.empty-bills .empty-content {
-    max-width: 400px;
-}
-
-.empty-bills .empty-content span {
-    font-size: 48px;
-    margin-bottom: 16px;
-    display: block;
-    opacity: 0.5;
-}
-
-.empty-bills .empty-content h3 {
-    margin: 0 0 8px;
-    font-size: 20px;
-}
-
-.empty-bills .empty-content p {
-    margin: 0 0 20px;
-    color: var(--color-text-maxcontrast);
 }
 
 /* ==========================================
@@ -10307,36 +10283,6 @@ button.danger:hover {
     background: var(--color-success-hover, #1a9b4f);
 }
 
-/* Empty Income State */
-.empty-income {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 60px 20px;
-    text-align: center;
-}
-
-.empty-income .empty-content {
-    max-width: 400px;
-}
-
-.empty-income .empty-content span {
-    font-size: 48px;
-    margin-bottom: 16px;
-    display: block;
-    opacity: 0.5;
-}
-
-.empty-income .empty-content h3 {
-    margin: 0 0 8px;
-    font-size: 20px;
-}
-
-.empty-income .empty-content p {
-    margin: 0 0 20px;
-    color: var(--color-text-maxcontrast);
-}
-
 /* ============================================
    SAVINGS GOALS PAGE STYLES
    ============================================ */
@@ -10584,27 +10530,6 @@ button.danger:hover {
     border-radius: 12px;
     font-size: 11px;
     font-weight: 500;
-}
-
-.empty-goals {
-    text-align: center;
-    padding: 60px 40px;
-    background: var(--color-main-background);
-    border: 1px dashed var(--color-border);
-    border-radius: 12px;
-}
-
-.empty-goals .empty-content h3 {
-    margin: 20px 0 10px;
-    color: var(--color-main-text);
-}
-
-.empty-goals .empty-content p {
-    margin: 0 0 20px;
-    color: var(--color-text-maxcontrast);
-    max-width: 400px;
-    margin-left: auto;
-    margin-right: auto;
 }
 
 /* Goals responsive */
@@ -11590,34 +11515,6 @@ button.danger:hover {
     color: var(--color-text-maxcontrast);
     font-style: italic;
     font-size: 0.875rem;
-}
-
-/* Empty Budget State */
-.empty-budget {
-    padding: 60px 20px;
-    text-align: center;
-}
-
-.empty-budget .empty-content {
-    max-width: 400px;
-    margin: 0 auto;
-}
-
-.empty-budget .empty-content span {
-    font-size: 48px;
-    display: block;
-    margin-bottom: 16px;
-    opacity: 0.5;
-}
-
-.empty-budget h3 {
-    margin: 0 0 8px 0;
-    color: var(--color-main-text);
-}
-
-.empty-budget p {
-    color: var(--color-text-maxcontrast);
-    margin: 0 0 20px 0;
 }
 
 /* Responsive Budget */
@@ -13722,27 +13619,6 @@ tr.pending-transaction td:first-child {
     background-color: var(--color-background-hover);
 }
 
-/* Empty Pensions State */
-.empty-pensions {
-    text-align: center;
-    padding: 60px 20px;
-}
-
-.empty-pensions .empty-content {
-    max-width: 400px;
-    margin: 0 auto;
-}
-
-.empty-pensions h3 {
-    margin: 16px 0 8px;
-    color: var(--color-main-text);
-}
-
-.empty-pensions p {
-    color: var(--color-text-maxcontrast);
-    margin-bottom: 20px;
-}
-
 /* Pension Detail Panel */
 /* Pension detail is a centered modal (uses the shared .modal overlay). */
 .pension-detail-modal {
@@ -14581,28 +14457,6 @@ button.secondary.compact {
     .asset-balance-section .balance-secondary {
         gap: 20px;
     }
-}
-
-/* Empty Assets State */
-.empty-assets {
-    text-align: center;
-    padding: 60px 40px;
-    background: var(--color-main-background);
-    border: 1px dashed var(--color-border);
-    border-radius: 12px;
-}
-
-.empty-assets .empty-content h3 {
-    margin: 20px 0 10px;
-    color: var(--color-main-text);
-}
-
-.empty-assets .empty-content p {
-    margin: 0 0 20px;
-    color: var(--color-text-maxcontrast);
-    max-width: 400px;
-    margin-left: auto;
-    margin-right: auto;
 }
 
 /* Assets Responsive */
@@ -16926,39 +16780,6 @@ button.secondary.compact {
     background: var(--color-background-dark);
     color: var(--color-text-maxcontrast);
     font-style: italic;
-}
-
-/* Empty Rules State */
-.empty-rules {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 60px 20px;
-}
-
-.empty-rules .empty-content {
-    max-width: 400px;
-    text-align: center;
-}
-
-.empty-rules .empty-content .empty-icon {
-    font-size: 48px;
-    display: block;
-    margin-bottom: 16px;
-    opacity: 0.4;
-}
-
-.empty-rules .empty-content h3 {
-    margin: 0 0 8px;
-    font-size: 18px;
-    color: var(--color-main-text);
-}
-
-.empty-rules .empty-content p {
-    margin: 0 0 20px;
-    color: var(--color-text-maxcontrast);
-    font-size: 14px;
-    line-height: 1.5;
 }
 
 /* ==========================================
@@ -20864,17 +20685,6 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     font-size: 15px;
     color: var(--color-text-maxcontrast);
     margin-bottom: 12px;
-}
-
-.projects-empty {
-    max-width: 560px;
-    margin: 40px auto;
-    text-align: center;
-}
-
-.projects-empty p {
-    margin: 8px 0 16px;
-    color: var(--color-text-maxcontrast);
 }
 
 .project-details-meta {

@@ -6,6 +6,7 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showInfo } from '../../utils/notifications.js';
 import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
+import { showLoading } from '../../utils/loading.js';
 
 export default class TagSetsModule {
     constructor(app) {
@@ -32,6 +33,7 @@ export default class TagSetsModule {
     // ============================================
 
     async loadTagsView() {
+        showLoading('global-tags-container');
         await this.loadGlobalTags();
         this.renderGlobalTagsUI();
         this.updateTagsSummary();

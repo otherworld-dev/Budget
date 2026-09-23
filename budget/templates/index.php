@@ -1202,7 +1202,7 @@ style('budget', 'budget-app');
             <div class="view-header">
                 <div class="breadcrumb">
                     <button id="back-to-accounts-btn" class="breadcrumb-back">
-                        <span class="icon-arrow-left" aria-hidden="true"></span>
+                        <span aria-hidden="true">←</span>
                         <?php p($l->t('Accounts')); ?>
                     </button>
                     <span class="breadcrumb-separator">/</span>
@@ -1330,7 +1330,7 @@ style('budget', 'budget-app');
                         </div>
                         <div class="metric-card">
                             <div class="metric-icon">
-                                <span class="icon-activity" aria-hidden="true"></span>
+                                <span class="icon-history" aria-hidden="true"></span>
                             </div>
                             <div class="metric-content">
                                 <div class="metric-value" id="avg-transaction">$0</div>
@@ -1541,7 +1541,7 @@ style('budget', 'budget-app');
                         <!-- Pagination -->
                         <div id="account-transactions-pagination" class="pagination">
                             <button id="account-prev-page" class="pagination-btn" disabled>
-                                <span class="icon-arrow-left" aria-hidden="true"></span>
+                                <span aria-hidden="true">←</span>
                                 <?php p($l->t('Previous')); ?>
                             </button>
                             <div class="page-info">
@@ -1549,7 +1549,7 @@ style('budget', 'budget-app');
                             </div>
                             <button id="account-next-page" class="pagination-btn" disabled>
                                 <?php p($l->t('Next')); ?>
-                                <span class="icon-arrow-right" aria-hidden="true"></span>
+                                <span aria-hidden="true">→</span>
                             </button>
                         </div>
                     </div>
@@ -1934,7 +1934,7 @@ style('budget', 'budget-app');
                                         <?php p($l->t('Add Category')); ?>
                                     </button>
                                     <button class="secondary" id="create-default-categories-btn">
-                                        <span class="icon-template" aria-hidden="true"></span>
+                                        <span class="icon-file" aria-hidden="true"></span>
                                         <?php p($l->t('Use Default Categories')); ?>
                                     </button>
                                 </div>
@@ -2585,7 +2585,7 @@ style('budget', 'budget-app');
                 </div>
                 <div class="summary-card warning">
                     <div class="summary-icon">
-                        <span class="icon-alert" aria-hidden="true"></span>
+                        <span class="icon-alert-outline" aria-hidden="true"></span>
                     </div>
                     <div class="summary-content">
                         <div class="summary-value" id="bills-overdue-count">0</div>
@@ -3930,7 +3930,7 @@ style('budget', 'budget-app');
             <div class="view-header">
                 <div class="breadcrumb">
                     <button id="back-to-assets-btn" class="breadcrumb-back">
-                        <span class="icon-arrow-left" aria-hidden="true"></span>
+                        <span aria-hidden="true">←</span>
                         <?php p($l->t('Assets')); ?>
                     </button>
                     <span class="breadcrumb-separator">/</span>

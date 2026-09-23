@@ -9,6 +9,7 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import Chart from 'chart.js/auto';
 import { serverErrorMessage } from '../../utils/helpers.js';
+import { showLoading, clearLoading } from '../../utils/loading.js';
 
 export default class AssetsModule {
     constructor(app) {
@@ -24,12 +25,14 @@ export default class AssetsModule {
     get charts() { return this.app.charts; }
 
     async loadAssetsView() {
+        showLoading('assets-list');
         try {
             await this.loadAssets();
             this.renderAssets();
             this.setupAssetEventListeners();
         } catch (error) {
             console.error('Failed to load assets view:', error);
+            clearLoading('assets-list');
             showError(t('budget', 'Failed to load assets'));
         }
     }
