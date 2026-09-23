@@ -602,4 +602,79 @@ class RecurringIncomeControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
 	}
+
+	// ── skip / undo skip (#396) ─────────────────────────────────────
+
+	public function testSkipPaymentRunsAsTheIncomeOwner(): void {
+		$income = new RecurringIncome();
+		$this->service->expects($this->once())->method('skipPayment')
+			->with(7, 'owner1')
+			->willReturn(['income' => $income, 'previousNextExpectedDate' => '2026-04-25']);
+
+		$response = $this->controllerOwnedBy('owner1')->skipPayment(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame('2026-04-25', $response->getData()['previousNextExpectedDate']);
+	}
+
+	public function testSkipPaymentIsRefusedOnAReadOnlyShare(): void {
+		$this->service->expects($this->never())->method('skipPayment');
+
+		$response = $this->controllerOwnedBy('owner1', false)->skipPayment(7);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testSkipPaymentPassesTheServiceRefusalThrough(): void {
+		$this->service->method('skipPayment')
+			->willThrowException(new \InvalidArgumentException('Cannot skip a one-time income'));
+
+		$response = $this->controller->skipPayment(7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Cannot skip a one-time income', $response->getData()['error']);
+	}
+
+	public function testUndoSkipRestoresTheDateAsTheIncomeOwner(): void {
+		$this->request->method('getParams')->willReturn(['previousNextExpectedDate' => '2026-04-25']);
+		$this->service->expects($this->once())->method('undoSkip')
+			->with(7, 'owner1', '2026-04-25')
+			->willReturn(new RecurringIncome());
+
+		$response = $this->controllerOwnedBy('owner1')->undoSkip(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testUndoSkipRejectsAMissingOrMalformedDate(): void {
+		$validationService = $this->createMock(ValidationService::class);
+		$validationService->method('validateDate')
+			->willReturn(['valid' => false, 'error' => 'Previous expected date is required', 'formatted' => null]);
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('resolveOwner')->willReturn('user1');
+		$controller = new RecurringIncomeController(
+			$this->request,
+			$this->service,
+			$validationService,
+			$granularShareService,
+			$this->l,
+			'user1',
+			$this->logger
+		);
+		$this->request->method('getParams')->willReturn([]);
+		$this->service->expects($this->never())->method('undoSkip');
+
+		$response = $controller->undoSkip(7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testUndoSkipIsRefusedOnAReadOnlyShare(): void {
+		$this->request->method('getParams')->willReturn(['previousNextExpectedDate' => '2026-04-25']);
+		$this->service->expects($this->never())->method('undoSkip');
+
+		$response = $this->controllerOwnedBy('owner1', false)->undoSkip(7);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
 }

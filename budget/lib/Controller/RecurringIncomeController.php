@@ -393,6 +393,45 @@ class RecurringIncomeController extends Controller {
     }
 
     /**
+     * Skip the next expected payment, advancing to the one after (#396)
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function skipPayment(int $id): DataResponse {
+        try {
+            $this->requireWriteAccess('recurring_income', $id);
+            $result = $this->service->skipPayment($id, $this->incomeOwner($id));
+            return new DataResponse($result);
+        } catch (\InvalidArgumentException $e) {
+            return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['incomeId' => $id]);
+        } catch (\Exception $e) {
+            return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);
+        }
+    }
+
+    /**
+     * Undo a skipped income payment
+     * @NoAdminRequired
+     */
+    #[UserRateLimit(limit: 30, period: 60)]
+    public function undoSkip(int $id): DataResponse {
+        try {
+            $this->requireWriteAccess('recurring_income', $id);
+            $previous = $this->request->getParams()['previousNextExpectedDate'] ?? null;
+            $previous = is_string($previous) ? $previous : null;
+            $validation = $this->validationService->validateDate($previous, $this->l->t('Previous expected date'), true);
+            if (!$validation['valid']) {
+                return new DataResponse(['error' => $validation['error']], Http::STATUS_BAD_REQUEST);
+            }
+
+            $income = $this->service->undoSkip($id, $this->incomeOwner($id), (string) $previous);
+            return new DataResponse($income);
+        } catch (\Exception $e) {
+            return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);
+        }
+    }
+
+    /**
      * Auto-detect recurring income from transaction history
      * @NoAdminRequired
      */

@@ -11,6 +11,7 @@ use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Income\RecurringIncomeDetector;
 use OCA\Budget\Service\RecurringIncomeService;
 use OCA\Budget\Service\TransactionService;
+use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -31,13 +32,16 @@ class RecurringIncomeServiceTest extends TestCase {
         $this->recurringDetector = $this->createMock(RecurringIncomeDetector::class);
         $this->transactionService = $this->createMock(TransactionService::class);
         $logger = $this->createMock(LoggerInterface::class);
+        $l = $this->createMock(IL10N::class);
+        $l->method('t')->willReturnCallback(fn($text, $params = []) => vsprintf($text, $params));
 
         $this->service = new RecurringIncomeService(
             $this->mapper,
             $this->frequencyCalculator,
             $this->recurringDetector,
             $this->transactionService,
-            $logger
+            $logger,
+            $l
         );
     }
 
@@ -208,6 +212,80 @@ class RecurringIncomeServiceTest extends TestCase {
         $result = $this->service->markReceived(1, 'user1', '2026-03-25', true);
         $this->assertEquals('2026-03-25', $result->getLastReceivedDate());
         $this->assertEquals('2026-04-25', $result->getNextExpectedDate());
+    }
+
+    // ===== skipPayment / undoSkip (#396) =====
+
+    public function testSkipPaymentAdvancesOneCycleWithoutRecordingReceipt(): void {
+        $income = $this->makeIncome(['lastReceivedDate' => '2026-03-25', 'nextExpectedDate' => '2026-04-25']);
+        $income->setStartDate(null);
+        $this->mapper->method('find')->willReturn($income);
+
+        $this->frequencyCalculator->expects($this->once())->method('calculateNextDueDate')
+            ->with('monthly', 25, null, '2026-04-25', null, true, null)
+            ->willReturn('2026-05-25');
+
+        $this->mapper->expects($this->once())->method('update')
+            ->willReturnCallback(function (RecurringIncome $i) {
+                $this->assertSame('2026-05-25', $i->getNextExpectedDate());
+                $this->assertSame('2026-03-25', $i->getLastReceivedDate());
+                return $i;
+            });
+        $this->transactionService->expects($this->never())->method('createFromIncome');
+
+        $result = $this->service->skipPayment(1, 'user1');
+
+        $this->assertSame('2026-04-25', $result['previousNextExpectedDate']);
+        $this->assertSame('2026-05-25', $result['income']->getNextExpectedDate());
+    }
+
+    public function testSkipPaymentKeepsTheStartDateAnchor(): void {
+        $income = $this->makeIncome(['frequency' => 'biweekly', 'expectedDay' => 5, 'nextExpectedDate' => '2026-04-24']);
+        $income->setStartDate('2026-01-02');
+        $this->mapper->method('find')->willReturn($income);
+        $this->mapper->method('update')->willReturnArgument(0);
+
+        $this->frequencyCalculator->expects($this->once())->method('calculateNextDueDate')
+            ->with('biweekly', 5, null, '2026-04-24', null, true, '2026-01-02')
+            ->willReturn('2026-05-08');
+
+        $result = $this->service->skipPayment(1, 'user1');
+
+        $this->assertSame('2026-05-08', $result['income']->getNextExpectedDate());
+    }
+
+    public function testSkipPaymentRefusesOneTimeIncome(): void {
+        $this->mapper->method('find')->willReturn($this->makeIncome(['frequency' => 'one-time']));
+        $this->mapper->expects($this->never())->method('update');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->service->skipPayment(1, 'user1');
+    }
+
+    public function testSkipPaymentRefusesInactiveIncome(): void {
+        $this->mapper->method('find')->willReturn($this->makeIncome(['isActive' => false]));
+        $this->mapper->expects($this->never())->method('update');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->service->skipPayment(1, 'user1');
+    }
+
+    public function testSkipPaymentRefusesIncomeWithNoExpectedDate(): void {
+        $this->mapper->method('find')->willReturn($this->makeIncome(['nextExpectedDate' => null]));
+        $this->mapper->expects($this->never())->method('update');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->service->skipPayment(1, 'user1');
+    }
+
+    public function testUndoSkipRestoresThePreviousExpectedDate(): void {
+        $this->mapper->method('find')->willReturn($this->makeIncome(['nextExpectedDate' => '2026-05-25']));
+        $this->frequencyCalculator->expects($this->never())->method('calculateNextDueDate');
+        $this->mapper->expects($this->once())->method('update')->willReturnArgument(0);
+
+        $result = $this->service->undoSkip(1, 'user1', '2026-04-25');
+
+        $this->assertSame('2026-04-25', $result->getNextExpectedDate());
     }
 
     // ===== getMonthlySummary =====

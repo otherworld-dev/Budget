@@ -248,6 +248,8 @@ return [
         ['name' => 'recurringIncome#update', 'url' => '/api/recurring-income/{id}', 'verb' => 'PUT'],
         ['name' => 'recurringIncome#destroy', 'url' => '/api/recurring-income/{id}', 'verb' => 'DELETE'],
         ['name' => 'recurringIncome#markReceived', 'url' => '/api/recurring-income/{id}/received', 'verb' => 'POST'],
+        ['name' => 'recurringIncome#skipPayment', 'url' => '/api/recurring-income/{id}/skip', 'verb' => 'POST'],
+        ['name' => 'recurringIncome#undoSkip', 'url' => '/api/recurring-income/{id}/undo-skip', 'verb' => 'POST'],
 
         // Pension routes - specific paths before {id} wildcard
         ['name' => 'pension#index', 'url' => '/api/pensions', 'verb' => 'GET'],

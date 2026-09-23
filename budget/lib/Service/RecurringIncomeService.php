@@ -10,6 +10,7 @@ use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Income\RecurringIncomeDetector;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\IL10N;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -23,6 +24,7 @@ class RecurringIncomeService extends AbstractCrudService {
     private RecurringIncomeDetector $recurringDetector;
     private TransactionService $transactionService;
     private LoggerInterface $logger;
+    private IL10N $l;
     private ?AutoShareService $autoShareService;
 
     public function __construct(
@@ -31,6 +33,7 @@ class RecurringIncomeService extends AbstractCrudService {
         RecurringIncomeDetector $recurringDetector,
         TransactionService $transactionService,
         LoggerInterface $logger,
+        IL10N $l,
         ?AutoShareService $autoShareService = null
     ) {
         $this->mapper = $mapper;
@@ -38,6 +41,7 @@ class RecurringIncomeService extends AbstractCrudService {
         $this->recurringDetector = $recurringDetector;
         $this->transactionService = $transactionService;
         $this->logger = $logger;
+        $this->l = $l;
         $this->autoShareService = $autoShareService;
     }
 
@@ -266,6 +270,55 @@ class RecurringIncomeService extends AbstractCrudService {
         }
 
         return $income;
+    }
+
+    /**
+     * Skip the next expected payment, advancing one cycle without recording a
+     * receipt or creating a transaction (#396). The last received date is left
+     * alone so the entry doesn't read as received.
+     *
+     * @return array{income: RecurringIncome, previousNextExpectedDate: string}
+     */
+    public function skipPayment(int $id, string $userId): array {
+        $income = $this->find($id, $userId);
+
+        if ($income->getFrequency() === 'one-time') {
+            throw new \InvalidArgumentException($this->l->t('Cannot skip a one-time income'));
+        }
+        if (!$income->getIsActive()) {
+            throw new \InvalidArgumentException($this->l->t('Cannot skip an inactive income'));
+        }
+
+        $previousNextExpectedDate = $income->getNextExpectedDate();
+        if ($previousNextExpectedDate === null) {
+            throw new \InvalidArgumentException($this->l->t('This income has no expected date to skip'));
+        }
+
+        $nextExpected = $this->frequencyCalculator->calculateNextDueDate(
+            $income->getFrequency(),
+            $income->getExpectedDay(),
+            $income->getExpectedMonth(),
+            $previousNextExpectedDate,
+            null,
+            true, // forceAdvance: always one cycle on, even if not yet due
+            $income->getStartDate()
+        );
+        $income->setNextExpectedDate($nextExpected);
+        $income = $this->mapper->update($income);
+
+        return [
+            'income' => $income,
+            'previousNextExpectedDate' => $previousNextExpectedDate,
+        ];
+    }
+
+    /**
+     * Undo a skip by putting back the expected date it moved past (#396).
+     */
+    public function undoSkip(int $id, string $userId, string $previousNextExpectedDate): RecurringIncome {
+        $income = $this->find($id, $userId);
+        $income->setNextExpectedDate($previousNextExpectedDate);
+        return $this->mapper->update($income);
     }
 
     /**
