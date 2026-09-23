@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service;
 
-use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Service\Report\ReportCalculator;
 use OCA\Budget\Service\Report\ReportAggregator;
 use OCA\Budget\Service\Report\ReportExporter;
@@ -18,20 +17,17 @@ class ReportService {
     private ReportAggregator $aggregator;
     private ReportExporter $exporter;
     private TagReportService $tagReportService;
-    private CategoryMapper $categoryMapper;
 
     public function __construct(
         ReportCalculator $calculator,
         ReportAggregator $aggregator,
         ReportExporter $exporter,
-        TagReportService $tagReportService,
-        CategoryMapper $categoryMapper
+        TagReportService $tagReportService
     ) {
         $this->calculator = $calculator;
         $this->aggregator = $aggregator;
         $this->exporter = $exporter;
         $this->tagReportService = $tagReportService;
-        $this->categoryMapper = $categoryMapper;
     }
 
     /**
@@ -86,6 +82,14 @@ class ReportService {
 
     /**
      * Generate a spending report grouped by the specified dimension.
+     *
+     * Every grouping reads the same rows — excluded-from-reports and muted
+     * categories are dropped in SQL by the mapper's report scope, split parts
+     * included (#219) — so the groupings that cover every transaction
+     * (category, month, account) total the same for one period. Vendor lists
+     * the largest named vendors and tag only tagged transactions, so those
+     * two can total less.
+     *
      * @param int|null $tagSetId Tag set ID when groupBy='tag'
      * @param int|null $categoryId Category filter when groupBy='tag'
      */
@@ -116,7 +120,7 @@ class ReportService {
             'category' => $this->calculator->getSpendingByCategory($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
             'month' => $this->calculator->getSpendingByMonth($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
             'vendor' => $this->calculator->getSpendingByVendor($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
-            'account' => $this->calculator->getSpendingByAccount($userId, $startDate, $endDate, $visibleAccountIds),
+            'account' => $this->calculator->getSpendingByAccount($userId, $startDate, $endDate, $visibleAccountIds, $accountId),
             'tag' => $tagSetId !== null
                 ? $this->calculator->getSpendingByTag($userId, $tagSetId, $startDate, $endDate, $accountId, $categoryId, $visibleAccountIds)
                 : [],
@@ -125,22 +129,6 @@ class ReportService {
 
         if ($groupBy === 'tag' && $tagSetId !== null) {
             $report['tagSetId'] = $tagSetId;
-        }
-
-        // Filter out categories marked as "excluded from reports"
-        if ($groupBy === 'category') {
-            $excludedIds = [];
-            foreach ($this->categoryMapper->findAll($userId) as $cat) {
-                if ($cat->getExcludedFromReports()) {
-                    $excludedIds[$cat->getId()] = true;
-                }
-            }
-            if (!empty($excludedIds)) {
-                $report['data'] = array_values(array_filter($report['data'], function ($item) use ($excludedIds) {
-                    $catId = $item['categoryId'] ?? $item['id'] ?? 0;
-                    return !isset($excludedIds[$catId]);
-                }));
-            }
         }
 
         $report['totals'] = $this->calculator->calculateTotals($report['data']);
@@ -190,22 +178,6 @@ class ReportService {
             $report['tagSetId'] = $tagSetId;
         }
 
-        // Filter out categories marked as "excluded from reports"
-        if ($groupBy === 'category') {
-            $excludedIds = [];
-            foreach ($this->categoryMapper->findAll($userId) as $cat) {
-                if ($cat->getExcludedFromReports()) {
-                    $excludedIds[$cat->getId()] = true;
-                }
-            }
-            if (!empty($excludedIds)) {
-                $report['data'] = array_values(array_filter($report['data'], function ($item) use ($excludedIds) {
-                    $catId = $item['categoryId'] ?? $item['id'] ?? 0;
-                    return !isset($excludedIds[$catId]);
-                }));
-            }
-        }
-
         $report['totals'] = $this->calculator->calculateTotals($report['data']);
 
         return $report;
@@ -215,8 +187,9 @@ class ReportService {
      * Income and expenses side by side, each broken down by category, for the
      * year-end job of showing what came in and what went out (#344).
      *
-     * Both halves come from the existing category reports, so the
-     * excluded-from-reports rules they already apply hold here too.
+     * Both halves come from the category reports, so the report scope they
+     * share (excluded and muted categories, transfers in the all-accounts
+     * view) holds here too.
      *
      * @param int[]|null $visibleAccountIds
      * @return array{period: array{startDate: string, endDate: string}, income: array, expenses: array, totals: array{income: float, expenses: float, net: float}}

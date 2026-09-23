@@ -158,6 +158,197 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
+     * Scale report merges add at: wide enough for every supported currency
+     * (crypto keeps 8dp), so merging two SQL sums never truncates either.
+     */
+    private const REPORT_MERGE_SCALE = 8;
+
+    /**
+     * Scope ONE half of a report aggregate to the rows every report grouping
+     * must agree on, so month, category, vendor, account and tag views of the
+     * same period add up to the same money.
+     *
+     * A report aggregate runs twice, once per half of the direct/split
+     * partition directRowPredicate() explains (#360):
+     *  - the direct half ($splitHalf false) reads the transaction's own row:
+     *    its amount and its category;
+     *  - the split half ($splitHalf true) reads a split parent's parts
+     *    (budget_tx_splits as 's'): each part's amount and category.
+     * The caller merges the two in PHP — never a join into one query, for the
+     * reason #359 gives.
+     *
+     * Either way the category the money is filed under is left-joined as
+     * 'exc' and run through the choke point, so a category flagged
+     * excluded_from_reports (#219), or muted by the viewing user, drops out
+     * whole — including the part of a split filed under it, which a filter on
+     * the parent row alone cannot see. Uncategorised money is kept.
+     *
+     * Also applied: the viewer's account scope with report-excluded accounts
+     * dropped in the all-accounts view (#286), the scheduled-future and
+     * pension-funding exclusion (#304), the single account when one is
+     * selected, and — when $excludeTransfers — linked transfers (#349). A
+     * linked transfer is internal money movement, never income or spending,
+     * so the all-accounts view drops both legs (#262); a single-account view
+     * keeps its own legs, because the money really did enter or leave it.
+     *
+     * Adds FROM budget_transactions 't' joined to budget_accounts 'a'.
+     *
+     * @param int[]|null $visibleAccountIds
+     * @return string alias carrying this half's money: 't' or 's'. Read the
+     *                amount from "{alias}.amount" and the category from
+     *                "{alias}.category_id".
+     */
+    private function scopeReportHalf(
+        IQueryBuilder $qb,
+        bool $splitHalf,
+        string $userId,
+        ?int $accountId,
+        string $startDate,
+        string $endDate,
+        ?array $visibleAccountIds,
+        bool $excludeTransfers
+    ): string {
+        $qb->from($this->getTableName(), 't')
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
+
+        // A specific (possibly report-excluded) account selected upstream still
+        // reports; only the all-accounts view drops excluded ones (#309)
+        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        }
+
+        $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+
+        $this->excludeScheduledFuture($qb);
+        if ($excludeTransfers) {
+            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
+        }
+
+        if ($splitHalf) {
+            $qb->innerJoin('t', 'budget_tx_splits', 's', $qb->expr()->eq('s.transaction_id', 't.id'))
+                ->andWhere($this->splitParentPredicate($qb));
+            $alloc = 's';
+        } else {
+            $qb->andWhere($this->directRowPredicate($qb));
+            $alloc = 't';
+        }
+
+        $this->leftJoinExcludeReportCategories($qb, $alloc, 'exc', $userId);
+
+        return $alloc;
+    }
+
+    /**
+     * Run a report aggregate over both halves of the direct/split partition
+     * and return each half's rows: [direct rows, split rows].
+     *
+     * $build receives a fresh query builder already scoped by
+     * scopeReportHalf(), plus the alias carrying that half's money.
+     *
+     * @param callable(IQueryBuilder, string): void $build
+     * @param int[]|null $visibleAccountIds
+     * @return array{0: array[], 1: array[]}
+     */
+    private function fetchReportHalves(
+        string $userId,
+        ?int $accountId,
+        string $startDate,
+        string $endDate,
+        ?array $visibleAccountIds,
+        bool $excludeTransfers,
+        callable $build
+    ): array {
+        $halves = [];
+        foreach ([false, true] as $splitHalf) {
+            $qb = $this->db->getQueryBuilder();
+            $alloc = $this->scopeReportHalf(
+                $qb, $splitHalf, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $excludeTransfers
+            );
+            $build($qb, $alloc);
+
+            $result = $qb->executeQuery();
+            $halves[] = $result->fetchAll();
+            $result->closeCursor();
+        }
+
+        return $halves;
+    }
+
+    /**
+     * Merge the two halves of a report aggregate row by row: rows sharing the
+     * values of $keyColumns are one group, their $moneyColumns added through
+     * MoneyCalculator (#274) and their $countColumns added as integers.
+     *
+     * A transaction lives in exactly one half, and every grouping key used
+     * here (month, vendor, account, tag, ...) belongs to the transaction, so
+     * its parts all land in one group — adding counts never counts a
+     * transaction twice.
+     *
+     * Money columns come back as floats, count columns as ints; first-seen
+     * order is kept, so callers sort the result themselves.
+     *
+     * @param string[] $keyColumns
+     * @param string[] $moneyColumns
+     * @param string[] $countColumns
+     * @return array[]
+     */
+    private function mergeReportHalves(array $direct, array $split, array $keyColumns, array $moneyColumns, array $countColumns = []): array {
+        $merged = [];
+        foreach ([$direct, $split] as $rows) {
+            foreach ($rows as $row) {
+                $key = implode("\x1f", array_map(static fn(string $col) => (string)($row[$col] ?? ''), $keyColumns));
+                if (!isset($merged[$key])) {
+                    $merged[$key] = $row;
+                    foreach ($moneyColumns as $col) {
+                        $merged[$key][$col] = '0';
+                    }
+                    foreach ($countColumns as $col) {
+                        $merged[$key][$col] = 0;
+                    }
+                }
+                foreach ($moneyColumns as $col) {
+                    $merged[$key][$col] = MoneyCalculator::add(
+                        $merged[$key][$col], self::sqlMoney($row[$col] ?? null), self::REPORT_MERGE_SCALE
+                    );
+                }
+                foreach ($countColumns as $col) {
+                    $merged[$key][$col] += (int)($row[$col] ?? 0);
+                }
+            }
+        }
+
+        foreach ($merged as &$row) {
+            foreach ($moneyColumns as $col) {
+                $row[$col] = MoneyCalculator::toFloat($row[$col]);
+            }
+        }
+        unset($row);
+
+        return array_values($merged);
+    }
+
+    /**
+     * A money value as the database returned it, in a form bcmath accepts.
+     * SQLite hands back a netted REAL sum as text such as "1.4e-14", which
+     * bcadd() rejects outright, so anything in exponent form goes through
+     * float (MoneyCalculator prints floats without an exponent).
+     */
+    private static function sqlMoney(mixed $value): float|string {
+        if ($value === null || $value === '') {
+            return '0';
+        }
+        if (is_int($value)) {
+            return (string)$value;
+        }
+        if (is_string($value) && stripos($value, 'e') !== false) {
+            return (float)$value;
+        }
+        return is_float($value) ? $value : (string)$value;
+    }
+
+    /**
      * @throws DoesNotExistException
      */
     public function find(int $id, string $userId): Transaction {
@@ -1670,156 +1861,131 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
-     * Get spending grouped by month
+     * Get spending grouped by month.
+     *
+     * Report-scoped like every other grouping of the spending report
+     * (scopeReportHalf()): excluded and muted categories — split parts
+     * included — never count, and the all-accounts view leaves transfers out
+     * (#349), so month, category, vendor, account and tag views of one period
+     * agree.
+     *
+     * @return array<int, array{month: string, total: float, count: int}>
      */
     public function getSpendingByMonth(string $userId, ?int $accountId, string $startDate, string $endDate, ?array $visibleAccountIds = null): array {
-        $qb = $this->db->getQueryBuilder();
-
-        // Use SUBSTR with CAST for month extraction (compatible with SQLite, MySQL, PostgreSQL)
-        $qb->select($qb->createFunction($this->monthExpr() . ' as month'))
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->selectAlias($qb->func()->count('t.id'), 'count')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-        $this->excludeTransfersForAllAccounts($qb, $accountId);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->groupBy($qb->createFunction($this->monthExpr()))
-            ->orderBy($qb->createFunction($this->monthExpr()), 'ASC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return $data;
+        return $this->getTotalsByMonth($userId, $accountId, $startDate, $endDate, $visibleAccountIds, 'debit');
     }
 
     /**
-     * Get spending grouped by vendor
+     * Get spending grouped by vendor: the $limit largest named vendors
+     * (transactions without a vendor are left out), report-scoped like the
+     * other groupings (see getSpendingByMonth()).
      */
     public function getSpendingByVendor(string $userId, ?int $accountId, string $startDate, string $endDate, int $limit = 15, ?array $visibleAccountIds = null): array {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select('t.vendor')
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->selectAlias($qb->func()->count('t.id'), 'count')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($qb->expr()->isNotNull('t.vendor'))
-            ->andWhere($qb->expr()->neq('t.vendor', $qb->createNamedParameter('')));
-
-        $this->excludeScheduledFuture($qb);
-        $this->excludeTransfersForAllAccounts($qb, $accountId);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->groupBy('t.vendor')
-            ->orderBy('total', 'DESC')
-            ->setMaxResults($limit);
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => [
-            'name' => $row['vendor'] ?: 'Unknown',
-            'unknown' => !$row['vendor'],
-            'total' => (float)$row['total'],
-            'count' => (int)$row['count']
-        ], $data);
+        return $this->getTotalsByVendor($userId, $accountId, $startDate, $endDate, $limit, $visibleAccountIds, 'debit', false, 'Unknown');
     }
 
     /**
-     * Get income grouped by month
+     * Get income grouped by month, report-scoped like the spending groupings
+     * (see getSpendingByMonth()).
+     *
+     * @return array<int, array{month: string, total: float, count: int}>
      */
     public function getIncomeByMonth(string $userId, ?int $accountId, string $startDate, string $endDate, ?array $visibleAccountIds = null): array {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select($qb->createFunction($this->monthExpr() . ' as month'))
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->selectAlias($qb->func()->count('t.id'), 'count')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('credit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-        $this->excludeTransfersForAllAccounts($qb, $accountId);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->groupBy($qb->createFunction($this->monthExpr()))
-            ->orderBy($qb->createFunction($this->monthExpr()), 'ASC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return $data;
+        return $this->getTotalsByMonth($userId, $accountId, $startDate, $endDate, $visibleAccountIds, 'credit');
     }
 
     /**
-     * Get income grouped by source (vendor)
+     * Get income grouped by source (vendor): the $limit largest, with income
+     * that names no source grouped as one "Unknown Source" row.
      */
     public function getIncomeBySource(string $userId, ?int $accountId, string $startDate, string $endDate, int $limit = 15, ?array $visibleAccountIds = null): array {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select('t.vendor')
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->selectAlias($qb->func()->count('t.id'), 'count')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('credit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-        $this->excludeTransfersForAllAccounts($qb, $accountId);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->groupBy('t.vendor')
-            ->orderBy('total', 'DESC')
-            ->setMaxResults($limit);
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => [
-            'name' => $row['vendor'] ?: 'Unknown Source',
-            'unknown' => !$row['vendor'],
-            'total' => (float)$row['total'],
-            'count' => (int)$row['count']
-        ], $data);
+        return $this->getTotalsByVendor($userId, $accountId, $startDate, $endDate, $limit, $visibleAccountIds, 'credit', true, 'Unknown Source');
     }
 
     /**
-     * Get cash flow data by month (income and expenses combined) - OPTIMIZED single query
+     * One direction's report-scoped totals per month.
+     *
+     * @param int[]|null $visibleAccountIds
+     * @return array<int, array{month: string, total: float, count: int}>
+     */
+    private function getTotalsByMonth(string $userId, ?int $accountId, string $startDate, string $endDate, ?array $visibleAccountIds, string $type): array {
+        [$direct, $split] = $this->fetchReportHalves(
+            $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
+            function (IQueryBuilder $qb, string $alloc) use ($type): void {
+                $qb->select($qb->createFunction($this->monthExpr() . ' as month'))
+                    ->selectAlias($qb->func()->sum("{$alloc}.amount"), 'total')
+                    ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
+                    ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($type)))
+                    ->groupBy($qb->createFunction($this->monthExpr()));
+            }
+        );
+
+        $rows = $this->mergeReportHalves($direct, $split, ['month'], ['total'], ['count']);
+        usort($rows, static fn(array $a, array $b) => strcmp((string)$a['month'], (string)$b['month']));
+
+        return array_map(static fn(array $row) => [
+            'month' => (string)$row['month'],
+            'total' => $row['total'],
+            'count' => $row['count'],
+        ], $rows);
+    }
+
+    /**
+     * One direction's report-scoped totals per vendor, largest first, cut to
+     * $limit after the two halves are merged (cutting each half first could
+     * drop a vendor whose money is spread across both).
+     *
+     * @param int[]|null $visibleAccountIds
+     */
+    private function getTotalsByVendor(
+        string $userId,
+        ?int $accountId,
+        string $startDate,
+        string $endDate,
+        int $limit,
+        ?array $visibleAccountIds,
+        string $type,
+        bool $includeUnnamed,
+        string $unnamedLabel
+    ): array {
+        [$direct, $split] = $this->fetchReportHalves(
+            $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
+            function (IQueryBuilder $qb, string $alloc) use ($type, $includeUnnamed): void {
+                $qb->select('t.vendor')
+                    ->selectAlias($qb->func()->sum("{$alloc}.amount"), 'total')
+                    ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
+                    ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($type)))
+                    ->groupBy('t.vendor');
+                if (!$includeUnnamed) {
+                    $qb->andWhere($qb->expr()->isNotNull('t.vendor'))
+                        ->andWhere($qb->expr()->neq('t.vendor', $qb->createNamedParameter('')));
+                }
+            }
+        );
+
+        $rows = $this->mergeReportHalves($direct, $split, ['vendor'], ['total'], ['count']);
+        usort($rows, static fn(array $a, array $b) => $b['total'] <=> $a['total']);
+
+        return array_map(static fn(array $row) => [
+            'name' => $row['vendor'] ?: $unnamedLabel,
+            'unknown' => !$row['vendor'],
+            'total' => $row['total'],
+            'count' => $row['count'],
+        ], array_slice($rows, 0, $limit));
+    }
+
+    /**
+     * Get cash flow data by month (income and expenses combined).
+     *
+     * Report-scoped (scopeReportHalf()): excluded and muted categories —
+     * split parts included — never count, so the cash-flow report agrees with
+     * the income and spending reports for the same period. Transfers are
+     * dropped only when the caller asks, as before: the all-accounts view
+     * does, a single account keeps its own legs.
+     *
      * @param int[] $tagIds Optional tag filter (OR logic)
      * @param bool $includeUntagged Include untagged transactions when filtering by tags
+     * @return array<int, array{month: string, income: float, expenses: float, net: float, count: int}>
      */
     public function getCashFlowByMonth(
         string $userId,
@@ -1831,49 +1997,42 @@ class TransactionMapper extends QBMapper {
         bool $excludeTransfers = false,
         ?array $visibleAccountIds = null
     ): array {
-        $qb = $this->db->getQueryBuilder();
+        [$direct, $split] = $this->fetchReportHalves(
+            $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $excludeTransfers,
+            function (IQueryBuilder $qb, string $alloc) use ($tagIds, $includeUntagged): void {
+                $qb->select($qb->createFunction($this->monthExpr() . ' as month'));
+                $this->selectIncomeExpenses($qb, $alloc);
+                $qb->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count');
+                $this->applyTagFilter($qb, $tagIds, $includeUntagged);
+                $qb->groupBy($qb->createFunction($this->monthExpr()));
+            }
+        );
 
-        $qb->select($qb->createFunction($this->monthExpr() . ' as month'))
-            ->selectAlias(
-                $qb->createFunction('SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE 0 END)'),
+        $rows = $this->mergeReportHalves($direct, $split, ['month'], ['income', 'expenses'], ['count']);
+        usort($rows, static fn(array $a, array $b) => strcmp((string)$a['month'], (string)$b['month']));
+
+        return array_map(fn(array $row) => [
+            'month' => (string)$row['month'],
+            'income' => $row['income'],
+            'expenses' => $row['expenses'],
+            'net' => MoneyCalculator::toFloat(MoneyCalculator::subtract($row['income'], $row['expenses'], self::REPORT_MERGE_SCALE)),
+            'count' => $row['count'],
+        ], $rows);
+    }
+
+    /**
+     * Select gross income (credits) and expenses (debits) of $alloc's amount
+     * as 'income' and 'expenses'.
+     */
+    private function selectIncomeExpenses(IQueryBuilder $qb, string $alloc): void {
+        $qb->selectAlias(
+                $qb->createFunction("SUM(CASE WHEN t.type = 'credit' THEN {$alloc}.amount ELSE 0 END)"),
                 'income'
             )
             ->selectAlias(
-                $qb->createFunction('SUM(CASE WHEN t.type = \'debit\' THEN t.amount ELSE 0 END)'),
+                $qb->createFunction("SUM(CASE WHEN t.type = 'debit' THEN {$alloc}.amount ELSE 0 END)"),
                 'expenses'
-            )
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        if ($excludeTransfers) {
-            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
-        }
-
-        // Apply tag filtering if requested
-        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
-
-        $qb->groupBy($qb->createFunction($this->monthExpr()))
-            ->orderBy($qb->createFunction($this->monthExpr()), 'ASC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => [
-            'month' => $row['month'],
-            'income' => (float)$row['income'],
-            'expenses' => (float)$row['expenses'],
-            'net' => (float)$row['income'] - (float)$row['expenses']
-        ], $data);
+            );
     }
 
     /**
@@ -2090,9 +2249,16 @@ class TransactionMapper extends QBMapper {
      * user's accounts, or to $visibleAccountIds (own + shared) when given, the
      * same scope the Budget page's spent figures use (#551).
      *
+     * With $excludeReportCategories the report choke point applies as well:
+     * categories flagged excluded_from_reports (and, given $userId, the ones
+     * that user muted) report nothing, split parts included (#219). For the
+     * report-style consumers (anomaly detection, year over year); the budget
+     * surfaces leave it off, since a category can be budgeted yet kept out of
+     * reports.
+     *
      * @param int[]|null $visibleAccountIds
      */
-    public function getCategorySpendingBatch(array $categoryIds, string $startDate, string $endDate, string $transactionType = 'debit', ?int $accountId = null, bool $excludeDeductedTransfers = false, ?string $userId = null, ?array $visibleAccountIds = null): array {
+    public function getCategorySpendingBatch(array $categoryIds, string $startDate, string $endDate, string $transactionType = 'debit', ?int $accountId = null, bool $excludeDeductedTransfers = false, ?string $userId = null, ?array $visibleAccountIds = null, bool $excludeReportCategories = false): array {
         if (empty($categoryIds)) {
             return [];
         }
@@ -2118,6 +2284,9 @@ class TransactionMapper extends QBMapper {
         }
 
         $this->excludeScheduledFuture($qb);
+        if ($excludeReportCategories) {
+            $this->leftJoinExcludeReportCategories($qb, 't', 'exc', $userId);
+        }
 
         // Leave the transactions the companion query speaks for to it — the
         // direct/split partition directRowPredicate() explains (#360).
@@ -2136,9 +2305,12 @@ class TransactionMapper extends QBMapper {
 
         foreach ($this->getSplitCategorySpendingBatch(
             $categoryIds, $startDate, $endDate, $transactionType, $accountId, $excludeDeductedTransfers,
-            $userId, $visibleAccountIds
+            $userId, $visibleAccountIds, $excludeReportCategories
         ) as $categoryId => $total) {
-            $spending[$categoryId] = ($spending[$categoryId] ?? 0.0) + $total;
+            // Money accumulates through MoneyCalculator, never float + (#274)
+            $spending[$categoryId] = MoneyCalculator::toFloat(MoneyCalculator::add(
+                self::sqlMoney($spending[$categoryId] ?? 0.0), self::sqlMoney($total), self::REPORT_MERGE_SCALE
+            ));
         }
 
         return $spending;
@@ -2201,7 +2373,8 @@ class TransactionMapper extends QBMapper {
         ?int $accountId,
         bool $excludeDeductedTransfers,
         ?string $userId = null,
-        ?array $visibleAccountIds = null
+        ?array $visibleAccountIds = null,
+        bool $excludeReportCategories = false
     ): array {
         $qb = $this->db->getQueryBuilder();
 
@@ -2224,6 +2397,9 @@ class TransactionMapper extends QBMapper {
         }
 
         $this->excludeScheduledFuture($qb);
+        if ($excludeReportCategories) {
+            $this->leftJoinExcludeReportCategories($qb, 's', 'exc', $userId);
+        }
 
         $qb->groupBy('s.category_id');
 
@@ -2395,39 +2571,37 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
-     * Get spending by account with aggregation in SQL (avoids N+1)
+     * Get spending by account with aggregation in SQL (avoids N+1),
+     * report-scoped like the other spending groupings (see
+     * getSpendingByMonth()).
+     *
+     * With $accountId the breakdown is that one account's row, its own
+     * transfer legs kept, as every single-account report view does (#349);
+     * without it, every account in view with transfers left out.
+     *
+     * @param int[]|null $visibleAccountIds
      */
-    public function getSpendingByAccountAggregated(string $userId, string $startDate, string $endDate, ?array $visibleAccountIds = null): array {
-        $qb = $this->db->getQueryBuilder();
+    public function getSpendingByAccountAggregated(string $userId, string $startDate, string $endDate, ?array $visibleAccountIds = null, ?int $accountId = null): array {
+        [$direct, $split] = $this->fetchReportHalves(
+            $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
+            function (IQueryBuilder $qb, string $alloc): void {
+                $qb->select('a.id', 'a.name')
+                    ->selectAlias($qb->func()->sum("{$alloc}.amount"), 'total')
+                    ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
+                    ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+                    ->groupBy('a.id', 'a.name');
+            }
+        );
 
-        $qb->select('a.id', 'a.name')
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->selectAlias($qb->func()->count('t.id'), 'count')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
-        $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+        $rows = $this->mergeReportHalves($direct, $split, ['id'], ['total'], ['count']);
+        usort($rows, static fn(array $a, array $b) => $b['total'] <=> $a['total']);
 
-        $this->excludeScheduledFuture($qb);
-        // Per-account breakdown of the all-accounts expense report — no
-        // single-account variant, so transfers are always excluded (#349)
-        $this->excludeTransfersForAllAccounts($qb, null);
-
-        $qb->groupBy('a.id', 'a.name')
-            ->orderBy('total', 'DESC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => [
+        return array_map(static fn(array $row) => [
             'name' => $row['name'],
-            'total' => (float)$row['total'],
-            'count' => (int)$row['count'],
-            'average' => (int)$row['count'] > 0 ? (float)$row['total'] / (int)$row['count'] : 0
-        ], $data);
+            'total' => $row['total'],
+            'count' => $row['count'],
+            'average' => $row['count'] > 0 ? $row['total'] / $row['count'] : 0
+        ], $rows);
     }
 
     /**
@@ -2939,9 +3113,15 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
-     * Get monthly aggregates for trend data (single query for all months)
+     * Get monthly aggregates for trend data (single pass for all months).
+     *
+     * The same report-scoped figures as getCashFlowByMonth() — the summary's
+     * income/expense chart and the cash-flow report must never disagree on a
+     * month — minus the net and count columns.
+     *
      * @param int[] $tagIds Optional tag filter (OR logic)
      * @param bool $includeUntagged Include untagged transactions when filtering by tags
+     * @return array<int, array{month: string, income: float, expenses: float}>
      */
     public function getMonthlyTrendData(
         string $userId,
@@ -2953,57 +3133,19 @@ class TransactionMapper extends QBMapper {
         bool $excludeTransfers = false,
         ?array $visibleAccountIds = null
     ): array {
-        $qb = $this->db->getQueryBuilder();
-
-        // SQLite-compatible: dates stored as TEXT in YYYY-MM-DD format, no need for CAST
-        $qb->select($qb->createFunction($this->monthExpr() . ' as month'))
-            ->selectAlias(
-                $qb->createFunction('SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE 0 END)'),
-                'income'
-            )
-            ->selectAlias(
-                $qb->createFunction('SUM(CASE WHEN t.type = \'debit\' THEN t.amount ELSE 0 END)'),
-                'expenses'
-            )
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-        // Income-vs-expense trend must drop transactions in excluded-from-reports
-        // categories (#219); uncategorised transactions are kept.
-        $this->leftJoinExcludeReportCategories($qb, 't', 'exc', $userId);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        if ($excludeTransfers) {
-            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
-        }
-
-        // Apply tag filtering if requested
-        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
-
-        $qb->groupBy($qb->createFunction($this->monthExpr()))
-            ->orderBy($qb->createFunction($this->monthExpr()), 'ASC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => [
+        return array_map(static fn(array $row) => [
             'month' => $row['month'],
-            'income' => (float)$row['income'],
-            'expenses' => (float)$row['expenses']
-        ], $data);
+            'income' => $row['income'],
+            'expenses' => $row['expenses'],
+        ], $this->getCashFlowByMonth(
+            $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
+        ));
     }
 
     /**
      * Get monthly trend data grouped by account for currency conversion.
      * Returns per-account-per-month rows so the aggregator can convert before summing.
+     * Same figures as getCashFlowByMonthByAccount(), minus the net column.
      *
      * @param int[] $tagIds Optional tag filter (OR logic)
      * @param bool $includeUntagged Include untagged transactions when filtering by tags
@@ -3018,53 +3160,20 @@ class TransactionMapper extends QBMapper {
         bool $excludeTransfers = false,
         ?array $visibleAccountIds = null
     ): array {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select('t.account_id')
-            ->addSelect($qb->createFunction($this->monthExpr() . ' as month'))
-            ->selectAlias(
-                $qb->createFunction('SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE 0 END)'),
-                'income'
-            )
-            ->selectAlias(
-                $qb->createFunction('SUM(CASE WHEN t.type = \'debit\' THEN t.amount ELSE 0 END)'),
-                'expenses'
-            )
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
-        $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-        // Income-vs-expense trend must drop transactions in excluded-from-reports
-        // categories (#219); uncategorised transactions are kept.
-        $this->leftJoinExcludeReportCategories($qb, 't', 'exc', $userId);
-
-        if ($excludeTransfers) {
-            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
-        }
-
-        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
-
-        $qb->groupBy('t.account_id', $qb->createFunction($this->monthExpr()))
-            ->orderBy($qb->createFunction($this->monthExpr()), 'ASC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => [
+        return array_map(static fn(array $row) => [
             'month' => $row['month'],
-            'account_id' => (int)$row['account_id'],
-            'income' => (float)$row['income'],
-            'expenses' => (float)$row['expenses']
-        ], $data);
+            'account_id' => $row['account_id'],
+            'income' => $row['income'],
+            'expenses' => $row['expenses'],
+        ], $this->getCashFlowByMonthByAccount(
+            $userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
+        ));
     }
 
     /**
      * Get cash flow by month grouped by account for currency conversion.
      * Returns per-account-per-month rows so the aggregator can convert before summing.
+     * Report-scoped exactly like getCashFlowByMonth(), all-accounts view.
      *
      * @param int[] $tagIds Optional tag filter (OR logic)
      * @param bool $includeUntagged Include untagged transactions when filtering by tags
@@ -3079,46 +3188,27 @@ class TransactionMapper extends QBMapper {
         bool $excludeTransfers = false,
         ?array $visibleAccountIds = null
     ): array {
-        $qb = $this->db->getQueryBuilder();
+        [$direct, $split] = $this->fetchReportHalves(
+            $userId, null, $startDate, $endDate, $visibleAccountIds, $excludeTransfers,
+            function (IQueryBuilder $qb, string $alloc) use ($tagIds, $includeUntagged): void {
+                $qb->select('t.account_id')
+                    ->addSelect($qb->createFunction($this->monthExpr() . ' as month'));
+                $this->selectIncomeExpenses($qb, $alloc);
+                $this->applyTagFilter($qb, $tagIds, $includeUntagged);
+                $qb->groupBy('t.account_id', $qb->createFunction($this->monthExpr()));
+            }
+        );
 
-        $qb->select('t.account_id')
-            ->addSelect($qb->createFunction($this->monthExpr() . ' as month'))
-            ->selectAlias(
-                $qb->createFunction('SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE 0 END)'),
-                'income'
-            )
-            ->selectAlias(
-                $qb->createFunction('SUM(CASE WHEN t.type = \'debit\' THEN t.amount ELSE 0 END)'),
-                'expenses'
-            )
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
-        $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+        $rows = $this->mergeReportHalves($direct, $split, ['account_id', 'month'], ['income', 'expenses']);
+        usort($rows, static fn(array $a, array $b) => strcmp((string)$a['month'], (string)$b['month']));
 
-        $this->excludeScheduledFuture($qb);
-
-        if ($excludeTransfers) {
-            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
-        }
-
-        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
-
-        $qb->groupBy('t.account_id', $qb->createFunction($this->monthExpr()))
-            ->orderBy($qb->createFunction($this->monthExpr()), 'ASC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => [
-            'month' => $row['month'],
+        return array_map(static fn(array $row) => [
+            'month' => (string)$row['month'],
             'account_id' => (int)$row['account_id'],
-            'income' => (float)$row['income'],
-            'expenses' => (float)$row['expenses'],
-            'net' => (float)$row['income'] - (float)$row['expenses']
-        ], $data);
+            'income' => $row['income'],
+            'expenses' => $row['expenses'],
+            'net' => MoneyCalculator::toFloat(MoneyCalculator::subtract($row['income'], $row['expenses'], self::REPORT_MERGE_SCALE)),
+        ], $rows);
     }
 
     /**
@@ -3657,21 +3747,6 @@ class TransactionMapper extends QBMapper {
         $qb->andWhere($qb->expr()->isNull("{$alias}.pension_contrib_id"));
     }
 
-    /**
-     * Drop linked transfers from an all-accounts report aggregate (#349).
-     *
-     * A linked transfer is internal money movement, never income or spending,
-     * so the all-accounts view excludes both legs — the same policy the
-     * dashboard totals and cash-flow queries apply (#262). A single-account
-     * view keeps its own legs: the money really did enter or leave that
-     * account. Pass null for aggregates that have no single-account variant.
-     */
-    private function excludeTransfersForAllAccounts(IQueryBuilder $qb, ?int $accountId): void {
-        if ($accountId === null) {
-            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
-        }
-    }
-
     // ==================== TAG-BASED REPORTING METHODS ====================
 
     /**
@@ -3704,14 +3779,16 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
-     * Get spending grouped by tags within a specific tag set
+     * Get spending grouped by tags within a specific tag set, report-scoped
+     * like the other spending groupings (see getSpendingByMonth()).
      *
      * @param string $userId
      * @param int $tagSetId Tag set to group by
      * @param string $startDate
      * @param string $endDate
      * @param int|null $accountId Optional account filter
-     * @param int|null $categoryId Optional category filter
+     * @param int|null $categoryId Optional category filter (a split counts
+     *                             the parts filed under it)
      * @return array Array of [tagId, tagName, color, total, count]
      */
     public function getSpendingByTag(
@@ -3723,50 +3800,12 @@ class TransactionMapper extends QBMapper {
         ?int $categoryId = null,
         ?array $visibleAccountIds = null
     ): array {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select('tag.id', 'tag.name', 'tag.color')
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
-            ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->eq('tag.tag_set_id', $qb->createNamedParameter($tagSetId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-        $this->excludeTransfersForAllAccounts($qb, $accountId);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        if ($categoryId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->groupBy('tag.id', 'tag.name', 'tag.color')
-            ->orderBy('total', 'DESC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => [
-            'tagId' => (int)$row['id'],
-            'name' => $row['name'],
-            'color' => $row['color'],
-            'total' => (float)$row['total'],
-            'count' => (int)$row['count']
-        ], $data);
+        return $this->getTotalsByTag($userId, $tagSetId, $startDate, $endDate, $accountId, $categoryId, $visibleAccountIds, 'debit');
     }
 
     /**
-     * Get income grouped by tags within a specific tag set
+     * Get income grouped by tags within a specific tag set, report-scoped
+     * like getSpendingByTag().
      *
      * @param string $userId
      * @param int $tagSetId Tag set to group by
@@ -3785,46 +3824,51 @@ class TransactionMapper extends QBMapper {
         ?int $categoryId = null,
         ?array $visibleAccountIds = null
     ): array {
-        $qb = $this->db->getQueryBuilder();
+        return $this->getTotalsByTag($userId, $tagSetId, $startDate, $endDate, $accountId, $categoryId, $visibleAccountIds, 'credit');
+    }
 
-        $qb->select('tag.id', 'tag.name', 'tag.color')
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
-            ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->eq('tag.tag_set_id', $qb->createNamedParameter($tagSetId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('credit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+    /**
+     * One direction's report-scoped totals per tag of one tag set.
+     *
+     * @param int[]|null $visibleAccountIds
+     */
+    private function getTotalsByTag(
+        string $userId,
+        int $tagSetId,
+        string $startDate,
+        string $endDate,
+        ?int $accountId,
+        ?int $categoryId,
+        ?array $visibleAccountIds,
+        string $type
+    ): array {
+        [$direct, $split] = $this->fetchReportHalves(
+            $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
+            function (IQueryBuilder $qb, string $alloc) use ($tagSetId, $categoryId, $type): void {
+                $qb->select('tag.id', 'tag.name', 'tag.color')
+                    ->selectAlias($qb->func()->sum("{$alloc}.amount"), 'total')
+                    ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
+                    ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
+                    ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'))
+                    ->andWhere($qb->expr()->eq('tag.tag_set_id', $qb->createNamedParameter($tagSetId, IQueryBuilder::PARAM_INT)))
+                    ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($type)))
+                    ->groupBy('tag.id', 'tag.name', 'tag.color');
+                if ($categoryId !== null) {
+                    $qb->andWhere($qb->expr()->eq("{$alloc}.category_id", $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)));
+                }
+            }
+        );
 
-        $this->excludeScheduledFuture($qb);
-        $this->excludeTransfersForAllAccounts($qb, $accountId);
+        $rows = $this->mergeReportHalves($direct, $split, ['id'], ['total'], ['count']);
+        usort($rows, static fn(array $a, array $b) => $b['total'] <=> $a['total']);
 
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        if ($categoryId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->groupBy('tag.id', 'tag.name', 'tag.color')
-            ->orderBy('total', 'DESC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => [
+        return array_map(static fn(array $row) => [
             'tagId' => (int)$row['id'],
             'name' => $row['name'],
             'color' => $row['color'],
-            'total' => (float)$row['total'],
-            'count' => (int)$row['count']
-        ], $data);
+            'total' => $row['total'],
+            'count' => $row['count'],
+        ], $rows);
     }
 
     /**

@@ -24,6 +24,12 @@ class ReportCalculator {
 
     /**
      * Get spending grouped by category.
+     *
+     * The all-accounts view leaves linked transfers out, as the report's
+     * month, vendor, account and tag groupings do (#349): a transfer filed
+     * under a category is still money that never left the household, and
+     * counting it here made the category view of a period larger than every
+     * other view of the same period.
      */
     public function getSpendingByCategory(
         string $userId,
@@ -32,7 +38,11 @@ class ReportCalculator {
         string $endDate,
         ?array $visibleAccountIds = null
     ): array {
-        return $this->transactionMapper->getSpendingSummary($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds);
+        return $this->transactionMapper->getSpendingSummary(
+            $userId, $startDate, $endDate, $accountId,
+            excludeTransfers: $accountId === null,
+            visibleAccountIds: $visibleAccountIds
+        );
     }
 
     /**
@@ -75,13 +85,20 @@ class ReportCalculator {
         string $userId,
         string $startDate,
         string $endDate,
-        ?array $visibleAccountIds = null
+        ?array $visibleAccountIds = null,
+        ?int $accountId = null
     ): array {
-        return $this->transactionMapper->getSpendingByAccountAggregated($userId, $startDate, $endDate, $visibleAccountIds);
+        return $this->transactionMapper->getSpendingByAccountAggregated($userId, $startDate, $endDate, $visibleAccountIds, $accountId);
     }
 
     /**
-     * Get income grouped by category.
+     * Get income grouped by category: credits per income category, split
+     * parts included, report-scoped like spending by category.
+     *
+     * This used to answer with income by source (the 15 largest payers) as a
+     * stand-in, so the Income & Expenses report listed payers under a
+     * "category" heading and its income total left out every payer below the
+     * top fifteen.
      */
     public function getIncomeByCategory(
         string $userId,
@@ -90,8 +107,12 @@ class ReportCalculator {
         string $endDate,
         ?array $visibleAccountIds = null
     ): array {
-        // For income by category, use income by source as a proxy
-        return $this->getIncomeBySource($userId, $accountId, $startDate, $endDate, $visibleAccountIds);
+        return $this->transactionMapper->getSpendingSummary(
+            $userId, $startDate, $endDate, $accountId,
+            excludeTransfers: $accountId === null,
+            visibleAccountIds: $visibleAccountIds,
+            transactionType: 'credit'
+        );
     }
 
     /**

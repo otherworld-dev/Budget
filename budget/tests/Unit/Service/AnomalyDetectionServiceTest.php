@@ -98,6 +98,26 @@ class AnomalyDetectionServiceTest extends TestCase {
         $this->assertGreaterThan(30, $anomalies[0]['percentAbove']);
     }
 
+    /**
+     * Categories kept out of reports are dropped by the mapper's SQL choke
+     * point (#219), not by a PHP check on the category here: every spend
+     * lookup, the period's and the baseline's, asks for it.
+     */
+    public function testEverySpendLookupAppliesTheReportChokePoint(): void {
+        $this->seedBaseline(500.0);
+        $flags = [];
+        // Records alongside the setUp stub, which still supplies the values
+        $this->transactionMapper->method('getCategorySpendingBatch')
+            ->willReturnCallback(function (...$args) use (&$flags) {
+                $flags[] = $args[8] ?? false;
+                return [];
+            });
+
+        $this->service->detect('alice');
+
+        $this->assertSame(array_fill(0, 7, true), $flags);
+    }
+
     public function testWithinThresholdNotFlagged(): void {
         $this->seedBaseline(300.0); // under the 346.67 limit
 

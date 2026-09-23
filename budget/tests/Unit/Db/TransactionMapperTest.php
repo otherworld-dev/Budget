@@ -523,12 +523,14 @@ class TransactionMapperTest extends TestCase {
     // ===== getSpendingByVendor =====
 
     public function testGetSpendingByVendorReturnsFormattedArray(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['vendor' => 'Starbucks', 'total' => '150.00', 'count' => '10'],
-            ['vendor' => '', 'total' => '50.00', 'count' => '3'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+        // Report aggregates run a direct half, then a split half (#219)
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([
+                ['vendor' => 'Starbucks', 'total' => '150.00', 'count' => '10'],
+                ['vendor' => '', 'total' => '50.00', 'count' => '3'],
+            ]),
+            $this->resultOf([])
+        );
 
         $data = $this->mapper->getSpendingByVendor('user1', null, '2026-01-01', '2026-01-31');
 
@@ -546,12 +548,14 @@ class TransactionMapperTest extends TestCase {
     // ===== getIncomeBySource =====
 
     public function testGetIncomeBySourceReturnsFormattedArray(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['vendor' => 'Employer Inc', 'total' => '5000.00', 'count' => '1'],
-            ['vendor' => '', 'total' => '200.00', 'count' => '2'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+        // Report aggregates run a direct half, then a split half (#219)
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([
+                ['vendor' => 'Employer Inc', 'total' => '5000.00', 'count' => '1'],
+                ['vendor' => '', 'total' => '200.00', 'count' => '2'],
+            ]),
+            $this->resultOf([])
+        );
 
         $data = $this->mapper->getIncomeBySource('user1', null, '2026-01-01', '2026-01-31');
 
@@ -568,12 +572,14 @@ class TransactionMapperTest extends TestCase {
     // ===== getCashFlowByMonth =====
 
     public function testGetCashFlowByMonthCalculatesNet(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['month' => '2026-01', 'income' => '3000.00', 'expenses' => '2000.00'],
-            ['month' => '2026-02', 'income' => '3500.00', 'expenses' => '4000.00'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+        // Report aggregates run a direct half, then a split half (#219)
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([
+                ['month' => '2026-01', 'income' => '3000.00', 'expenses' => '2000.00', 'count' => '4'],
+                ['month' => '2026-02', 'income' => '3500.00', 'expenses' => '4000.00', 'count' => '6'],
+            ]),
+            $this->resultOf([])
+        );
 
         $data = $this->mapper->getCashFlowByMonth('user1', null, '2026-01-01', '2026-02-28');
 
@@ -941,12 +947,14 @@ class TransactionMapperTest extends TestCase {
     // ===== getSpendingByAccountAggregated =====
 
     public function testGetSpendingByAccountAggregatedReturnsFormattedArray(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['name' => 'Checking', 'total' => '1000.00', 'count' => '20'],
-            ['name' => 'Credit Card', 'total' => '500.00', 'count' => '10'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+        // Report aggregates run a direct half, then a split half (#219)
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([
+                ['id' => '1', 'name' => 'Checking', 'total' => '1000.00', 'count' => '20'],
+                ['id' => '2', 'name' => 'Credit Card', 'total' => '500.00', 'count' => '10'],
+            ]),
+            $this->resultOf([])
+        );
 
         $data = $this->mapper->getSpendingByAccountAggregated('user1', '2026-01-01', '2026-01-31');
 
@@ -958,11 +966,13 @@ class TransactionMapperTest extends TestCase {
     }
 
     public function testGetSpendingByAccountAggregatedZeroCountAverageIsZero(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['name' => 'Empty', 'total' => '0.00', 'count' => '0'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+        // Report aggregates run a direct half, then a split half (#219)
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([
+                ['id' => '1', 'name' => 'Empty', 'total' => '0.00', 'count' => '0'],
+            ]),
+            $this->resultOf([])
+        );
 
         $data = $this->mapper->getSpendingByAccountAggregated('user1', '2026-01-01', '2026-01-31');
 
@@ -1302,11 +1312,13 @@ class TransactionMapperTest extends TestCase {
     // ===== getMonthlyTrendData =====
 
     public function testGetMonthlyTrendDataReturnsFormattedArray(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['month' => '2026-01', 'income' => '5000.00', 'expenses' => '3000.00'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+        // Report aggregates run a direct half, then a split half (#219)
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([
+                ['month' => '2026-01', 'income' => '5000.00', 'expenses' => '3000.00', 'count' => '9'],
+            ]),
+            $this->resultOf([])
+        );
 
         $data = $this->mapper->getMonthlyTrendData('user1', null, '2026-01-01', '2026-01-31');
 
@@ -1387,11 +1399,13 @@ class TransactionMapperTest extends TestCase {
     // ===== getSpendingByTag =====
 
     public function testGetSpendingByTagReturnsFormattedArray(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['id' => '1', 'name' => 'Essential', 'color' => '#ff0000', 'total' => '300.00', 'count' => '15'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+        // Report aggregates run a direct half, then a split half (#219)
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([
+                ['id' => '1', 'name' => 'Essential', 'color' => '#ff0000', 'total' => '300.00', 'count' => '15'],
+            ]),
+            $this->resultOf([])
+        );
 
         $data = $this->mapper->getSpendingByTag('user1', 1, '2026-01-01', '2026-01-31');
 
@@ -1700,6 +1714,153 @@ class TransactionMapperTest extends TestCase {
             $call();
             $this->assertNotContains('t.linked_transaction_id', $this->isNullColumns, $method);
         }
+    }
+
+    // ===== report aggregates: one scope for every grouping (#219) =====
+
+    /**
+     * The report groupings every run a direct half and a split half. Each
+     * returns its own totals per group; merged, a month holding a direct
+     * purchase and a split receipt reports both, counted once each.
+     */
+    public function testGetSpendingByMonthMergesTheSplitHalf(): void {
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([
+                ['month' => '2026-02', 'total' => '10.10', 'count' => '1'],
+                ['month' => '2026-01', 'total' => '50.10', 'count' => '2'],
+            ]),
+            $this->resultOf([
+                ['month' => '2026-01', 'total' => '60.00', 'count' => '1'],
+                ['month' => '2026-03', 'total' => '15.00', 'count' => '1'],
+            ])
+        );
+
+        $data = $this->mapper->getSpendingByMonth('user1', null, '2026-01-01', '2026-03-31');
+
+        $this->assertSame([
+            ['month' => '2026-01', 'total' => 110.1, 'count' => 3],
+            ['month' => '2026-02', 'total' => 10.1, 'count' => 1],
+            ['month' => '2026-03', 'total' => 15.0, 'count' => 1],
+        ], $data);
+    }
+
+    /**
+     * The vendor list is cut to its limit AFTER the halves merge: a vendor
+     * whose money is spread over both halves must rank by its whole total.
+     */
+    public function testGetSpendingByVendorLimitsAfterMergingTheHalves(): void {
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([
+                ['vendor' => 'Big', 'total' => '100.00', 'count' => '1'],
+                ['vendor' => 'Costco', 'total' => '60.00', 'count' => '1'],
+            ]),
+            $this->resultOf([
+                ['vendor' => 'Costco', 'total' => '60.00', 'count' => '1'],
+            ])
+        );
+
+        $data = $this->mapper->getSpendingByVendor('user1', null, '2026-01-01', '2026-01-31', 1);
+
+        $this->assertCount(1, $data);
+        $this->assertSame('Costco', $data[0]['name']);
+        $this->assertSame(120.0, $data[0]['total']);
+        $this->assertSame(2, $data[0]['count']);
+    }
+
+    /**
+     * A netted SQLite sum comes back in exponent form ("1.4e-14"), which
+     * bcmath rejects; the merge must take it rather than throw.
+     */
+    public function testReportMergeAcceptsExponentFormSums(): void {
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([['month' => '2026-01', 'total' => '1.4210854715202e-14', 'count' => '1']]),
+            $this->resultOf([['month' => '2026-01', 'total' => '5.00', 'count' => '1']])
+        );
+
+        $data = $this->mapper->getSpendingByMonth('user1', null, '2026-01-01', '2026-01-31');
+
+        $this->assertSame(5.0, $data[0]['total']);
+    }
+
+    /**
+     * Every report grouping routes its category through the choke point, in
+     * BOTH halves: the direct half joins the transaction's own category, the
+     * split half each part's category — a filter on the parent row alone
+     * cannot see a part filed under an excluded category. The viewer's
+     * mutes join the same category row.
+     *
+     * @dataProvider reportGroupingProvider
+     */
+    public function testReportGroupingsExcludeCategoriesInBothHalves(string $method, array $args): void {
+        $joins = [];
+        $this->qb->method('leftJoin')->willReturnCallback(function ($from, $table) use (&$joins) {
+            $joins[] = "{$from}->{$table}";
+            return $this->qb;
+        });
+        $splitJoins = [];
+        $this->qb->method('innerJoin')->willReturnCallback(function ($from, $table) use (&$splitJoins) {
+            if ($table === 'budget_tx_splits') {
+                $splitJoins[] = $from;
+            }
+            return $this->qb;
+        });
+        $this->qb->method('executeQuery')->willReturnCallback(fn() => $this->resultOf([]));
+
+        $this->mapper->{$method}(...$args);
+
+        $this->assertContains('t->budget_categories', $joins, "{$method}: direct half joins its own category");
+        $this->assertContains('s->budget_categories', $joins, "{$method}: split half joins each part's category");
+        $this->assertContains('exc->budget_cat_mutes', $joins, "{$method}: the viewer's mutes apply");
+        $this->assertSame(['t'], $splitJoins, "{$method}: exactly one half reads the split parts");
+    }
+
+    public static function reportGroupingProvider(): array {
+        return [
+            'spending by month' => ['getSpendingByMonth', ['user1', null, '2026-01-01', '2026-01-31']],
+            'spending by vendor' => ['getSpendingByVendor', ['user1', null, '2026-01-01', '2026-01-31']],
+            'income by month' => ['getIncomeByMonth', ['user1', null, '2026-01-01', '2026-01-31']],
+            'income by source' => ['getIncomeBySource', ['user1', null, '2026-01-01', '2026-01-31']],
+            'cash flow by month' => ['getCashFlowByMonth', ['user1', null, '2026-01-01', '2026-01-31']],
+            'cash flow by account' => ['getCashFlowByMonthByAccount', ['user1', '2026-01-01', '2026-01-31']],
+            'trend' => ['getMonthlyTrendData', ['user1', null, '2026-01-01', '2026-01-31']],
+            'trend by account' => ['getMonthlyTrendDataByAccount', ['user1', '2026-01-01', '2026-01-31']],
+            'spending by account' => ['getSpendingByAccountAggregated', ['user1', '2026-01-01', '2026-01-31']],
+            'spending by tag' => ['getSpendingByTag', ['user1', 3, '2026-01-01', '2026-01-31']],
+            'income by tag' => ['getIncomeByTag', ['user1', 3, '2026-01-01', '2026-01-31']],
+        ];
+    }
+
+    /**
+     * The split half of a tag grouping filtered to a category matches the
+     * PART's category, not the parent's (which a split nulls).
+     */
+    public function testTagGroupingCategoryFilterReadsThePartCategoryInTheSplitHalf(): void {
+        $eqColumns = [];
+        $this->expr->method('eq')->willReturnCallback(function ($column) use (&$eqColumns) {
+            $eqColumns[] = $column;
+            return 'eq';
+        });
+        $this->qb->method('executeQuery')->willReturnCallback(fn() => $this->resultOf([]));
+
+        $this->mapper->getSpendingByTag('user1', 3, '2026-01-01', '2026-01-31', null, 7);
+
+        $this->assertContains('t.category_id', $eqColumns);
+        $this->assertContains('s.category_id', $eqColumns);
+    }
+
+    public function testCategorySpendingBatchCanApplyTheReportChokePoint(): void {
+        $joins = [];
+        $this->qb->method('leftJoin')->willReturnCallback(function ($from, $table) use (&$joins) {
+            $joins[] = "{$from}->{$table}";
+            return $this->qb;
+        });
+        $this->qb->method('executeQuery')->willReturnCallback(fn() => $this->resultOf([]));
+
+        $this->mapper->getCategorySpendingBatch([1, 2], '2026-01-01', '2026-01-31');
+        $this->assertSame([], $joins, 'off by default: budgets count categories kept out of reports');
+
+        $this->mapper->getCategorySpendingBatch([1, 2], '2026-01-01', '2026-01-31', excludeReportCategories: true);
+        $this->assertSame(['t->budget_categories', 's->budget_categories'], $joins);
     }
 
     // ===== findDuplicates (#333) =====

@@ -302,7 +302,8 @@ class ReportAggregator {
 
         $excludeTransfers = $accountId === null;
 
-        // Get spending breakdown (filter out excluded categories)
+        // Spending breakdown. Excluded and muted categories are dropped by
+        // the mapper's report choke point (#219), never filtered here.
         $spending = $this->transactionMapper->getSpendingSummary(
             $userId,
             $startDate,
@@ -313,12 +314,6 @@ class ReportAggregator {
             $excludeTransfers,
             !empty($visibleAccountIds) ? $visibleAccountIds : null
         );
-
-        if (!empty($excludedCategoryIds)) {
-            $spending = array_values(array_filter($spending, function ($item) use ($excludedCategoryIds) {
-                return !isset($excludedCategoryIds[$item['categoryId'] ?? 0]);
-            }));
-        }
         $summary['spending'] = $spending;
 
         // Generate trend data (with currency conversion for multi-account view)

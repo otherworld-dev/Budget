@@ -155,6 +155,42 @@ class ReportCalculatorTest extends TestCase {
 		$this->assertSame($expected, $result);
 	}
 
+	/**
+	 * The category grouping leaves transfers out of the all-accounts view,
+	 * as the month, vendor, account and tag groupings do (#349), and keeps a
+	 * single account's own legs.
+	 */
+	public function testSpendingByCategoryDropsTransfersOnlyForAllAccounts(): void {
+		$calls = [];
+		$this->transactionMapper->method('getSpendingSummary')
+			->willReturnCallback(function (...$args) use (&$calls) {
+				$calls[] = $args;
+				return [];
+			});
+
+		$this->calculator->getSpendingByCategory('user1', null, '2024-01-01', '2024-03-31');
+		$this->calculator->getSpendingByCategory('user1', 5, '2024-01-01', '2024-03-31');
+
+		// excludeTransfers is the 7th argument
+		$this->assertTrue($calls[0][6]);
+		$this->assertFalse($calls[1][6]);
+	}
+
+	/**
+	 * Income by category is income per income category — not the top-15
+	 * payers it used to stand in with — and report-scoped like spending.
+	 */
+	public function testIncomeByCategoryIsTheCreditCategorySummary(): void {
+		$expected = [['id' => 9, 'name' => 'Salary', 'total' => 2000.0, 'count' => 1]];
+		$this->transactionMapper->expects($this->never())->method('getIncomeBySource');
+		$this->transactionMapper->expects($this->once())
+			->method('getSpendingSummary')
+			->with('user1', '2024-01-01', '2024-03-31', null, [], true, true, [1, 2], 'credit')
+			->willReturn($expected);
+
+		$this->assertSame($expected, $this->calculator->getIncomeByCategory('user1', null, '2024-01-01', '2024-03-31', [1, 2]));
+	}
+
 	public function testGetSpendingByMonthFormatsLabels(): void {
 		$this->transactionMapper->expects($this->once())
 			->method('getSpendingByMonth')
