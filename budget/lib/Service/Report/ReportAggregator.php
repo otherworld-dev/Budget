@@ -7,6 +7,7 @@ namespace OCA\Budget\Service\Report;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\CategoryMuteMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionReportQueries;
 use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\BudgetSnapshotMapper;
@@ -47,6 +48,7 @@ class ReportAggregator {
         private RecurringBudgetService $recurringBudgetService,
         private BudgetCarryoverService $carryoverService,
         private TransactionSplitMapper $splitMapper,
+        private TransactionReportQueries $reportQueries,
         private ?GranularShareService $granularShareService = null,
         private ?CategoryMuteMapper $categoryMuteMapper = null
     ) {
@@ -579,12 +581,12 @@ class ReportAggregator {
                     $userId, $startDate, $endDate, $currencyMap, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
                 );
             } else {
-                $cashFlow = $this->transactionMapper->getCashFlowByMonth(
+                $cashFlow = $this->reportQueries->getCashFlowByMonth(
                     $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
                 );
             }
         } else {
-            $cashFlow = $this->transactionMapper->getCashFlowByMonth(
+            $cashFlow = $this->reportQueries->getCashFlowByMonth(
                 $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers
             );
         }
@@ -626,7 +628,7 @@ class ReportAggregator {
         bool $excludeTransfers,
         ?array $visibleAccountIds = null
     ): array {
-        $perAccountData = $this->transactionMapper->getCashFlowByMonthByAccount(
+        $perAccountData = $this->reportQueries->getCashFlowByMonthByAccount(
             $userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
         );
 
@@ -691,7 +693,7 @@ class ReportAggregator {
                     $userId, $startDate, $endDate, $currencyMap, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
                 );
             } else {
-                $monthlyData = $this->transactionMapper->getMonthlyTrendData(
+                $monthlyData = $this->reportQueries->getMonthlyTrendData(
                     $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
                 );
                 $dataByMonth = [];
@@ -700,7 +702,7 @@ class ReportAggregator {
                 }
             }
         } else {
-            $monthlyData = $this->transactionMapper->getMonthlyTrendData(
+            $monthlyData = $this->reportQueries->getMonthlyTrendData(
                 $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, false
             );
             $dataByMonth = [];
@@ -959,7 +961,7 @@ class ReportAggregator {
         bool $excludeTransfers,
         ?array $visibleAccountIds = null
     ): array {
-        $perAccountData = $this->transactionMapper->getMonthlyTrendDataByAccount(
+        $perAccountData = $this->reportQueries->getMonthlyTrendDataByAccount(
             $userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
         );
 
@@ -1007,7 +1009,7 @@ class ReportAggregator {
     ): array {
         if ($categoryId !== null) {
             // Single category
-            $dimensions = $this->transactionMapper->getTagDimensionsForCategory(
+            $dimensions = $this->reportQueries->getTagDimensionsForCategory(
                 $userId,
                 $categoryId,
                 $startDate,
@@ -1034,7 +1036,7 @@ class ReportAggregator {
 
         foreach ($spending as $categoryData) {
             $catId = (int)$categoryData['id'];
-            $dimensions = $this->transactionMapper->getTagDimensionsForCategory(
+            $dimensions = $this->reportQueries->getTagDimensionsForCategory(
                 $userId,
                 $catId,
                 $startDate,

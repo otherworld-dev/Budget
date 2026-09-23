@@ -9,6 +9,7 @@ use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionReportQueries;
 use OCA\Budget\Service\CurrencyConversionService;
 use OCA\Budget\Service\Report\ReportAggregator;
 use OCA\Budget\Service\Report\ReportCalculator;
@@ -18,6 +19,7 @@ class ReportAggregatorTest extends TestCase {
 	private ReportAggregator $aggregator;
 	private AccountMapper $accountMapper;
 	private TransactionMapper $transactionMapper;
+	private TransactionReportQueries $reportQueries;
 	private CategoryMapper $categoryMapper;
 	private ReportCalculator $calculator;
 	private CurrencyConversionService $conversionService;
@@ -32,6 +34,7 @@ class ReportAggregatorTest extends TestCase {
 	protected function setUp(): void {
 		$this->accountMapper = $this->createMock(AccountMapper::class);
 		$this->transactionMapper = $this->createMock(TransactionMapper::class);
+		$this->reportQueries = $this->createMock(TransactionReportQueries::class);
 		$this->categoryMapper = $this->createMock(CategoryMapper::class);
 		$this->calculator = $this->createMock(ReportCalculator::class);
 		$this->conversionService = $this->createMock(CurrencyConversionService::class);
@@ -63,6 +66,7 @@ class ReportAggregatorTest extends TestCase {
 			$this->recurringBudgetService,
 			$this->carryoverService,
 			$this->splitMapper,
+			$this->reportQueries,
 			$this->granularShareService,
 			$this->categoryMuteMapper
 		);
@@ -81,7 +85,7 @@ class ReportAggregatorTest extends TestCase {
 	private function setupDefaultMocks(): void {
 		$this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
 		$this->transactionMapper->method('getSpendingSummary')->willReturn([]);
-		$this->transactionMapper->method('getMonthlyTrendData')->willReturn([]);
+		$this->reportQueries->method('getMonthlyTrendData')->willReturn([]);
 	}
 
 	// ===== Single currency (no conversion) =====
@@ -845,7 +849,7 @@ class ReportAggregatorTest extends TestCase {
 	}
 
 	public function testCashFlowTotalsAddWithoutFloatDrift(): void {
-		$this->transactionMapper->method('getCashFlowByMonth')->willReturn([
+		$this->reportQueries->method('getCashFlowByMonth')->willReturn([
 			['month' => '2026-01', 'income' => 0.1, 'expenses' => 0.2, 'net' => -0.1, 'count' => 2],
 			['month' => '2026-02', 'income' => 0.2, 'expenses' => 0.1, 'net' => 0.1, 'count' => 2],
 		]);

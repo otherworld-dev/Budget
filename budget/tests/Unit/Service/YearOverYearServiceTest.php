@@ -7,6 +7,7 @@ namespace OCA\Budget\Tests\Unit\Service;
 use OCA\Budget\Db\Category;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionReportQueries;
 use OCA\Budget\Service\YearOverYearService;
 use PHPUnit\Framework\TestCase;
 
@@ -14,14 +15,17 @@ class YearOverYearServiceTest extends TestCase {
     private YearOverYearService $service;
     private TransactionMapper $transactionMapper;
     private CategoryMapper $categoryMapper;
+    private TransactionReportQueries $reportQueries;
 
     protected function setUp(): void {
         $this->transactionMapper = $this->createMock(TransactionMapper::class);
         $this->categoryMapper = $this->createMock(CategoryMapper::class);
+        $this->reportQueries = $this->createMock(TransactionReportQueries::class);
 
         $this->service = new YearOverYearService(
             $this->transactionMapper,
-            $this->categoryMapper
+            $this->categoryMapper,
+            $this->reportQueries
         );
     }
 
@@ -36,7 +40,7 @@ class YearOverYearServiceTest extends TestCase {
      * @param array<int, array[]> $rowsByYear
      */
     private function cashFlowByYear(array $rowsByYear): void {
-        $this->transactionMapper->method('getCashFlowByMonth')
+        $this->reportQueries->method('getCashFlowByMonth')
             ->willReturnCallback(function (string $userId, ?int $accountId, string $start, string $end) use ($rowsByYear) {
                 $rows = $rowsByYear[(int) substr($start, 0, 4)] ?? [];
                 return array_values(array_filter(
@@ -104,7 +108,7 @@ class YearOverYearServiceTest extends TestCase {
      */
     public function testTransfersAreLeftOutOfTheAllAccountsViewOnly(): void {
         $excludeTransfers = [];
-        $this->transactionMapper->method('getCashFlowByMonth')
+        $this->reportQueries->method('getCashFlowByMonth')
             ->willReturnCallback(function (string $u, ?int $acc, string $s, string $e, array $tags, bool $untagged, bool $exclude, ?array $visible) use (&$excludeTransfers) {
                 $excludeTransfers[] = [$acc, $exclude, $visible];
                 return [];
@@ -171,7 +175,7 @@ class YearOverYearServiceTest extends TestCase {
 
     public function testCompareYearsAsksForTheYearInProgressUpToToday(): void {
         $windows = [];
-        $this->transactionMapper->method('getCashFlowByMonth')
+        $this->reportQueries->method('getCashFlowByMonth')
             ->willReturnCallback(function (string $u, ?int $acc, string $start, string $end) use (&$windows) {
                 $windows[] = [$start, $end];
                 return [];
@@ -314,7 +318,7 @@ class YearOverYearServiceTest extends TestCase {
                 $this->month("$lastYear-11", 50.5, 10.25),
             ],
         ]);
-        $this->transactionMapper->expects($this->exactly(2))->method('getCashFlowByMonth');
+        $this->reportQueries->expects($this->exactly(2))->method('getCashFlowByMonth');
 
         $result = $this->service->getMonthlyTrends('user1', 2);
 

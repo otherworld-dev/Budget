@@ -6,13 +6,14 @@ namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\TransactionReportQueries;
 
 /**
  * Service for year-over-year comparison calculations.
  *
  * Every figure comes from the same report-scoped SQL aggregates as the
- * Reports page (TransactionMapper::getCashFlowByMonth() and
- * getCategorySpendingBatch()), so a year here agrees with the cash-flow
+ * Reports page (TransactionReportQueries::getCashFlowByMonth() and
+ * TransactionMapper::getCategorySpendingBatch()), so a year here agrees with the cash-flow
  * report for the same dates: transfers between accounts are left out of the
  * all-accounts view, pension-funding legs and scheduled future rows never
  * count, and categories kept out of reports (or muted) stay out.
@@ -20,13 +21,16 @@ use OCA\Budget\Db\CategoryMapper;
 class YearOverYearService {
     private TransactionMapper $transactionMapper;
     private CategoryMapper $categoryMapper;
+    private TransactionReportQueries $reportQueries;
 
     public function __construct(
         TransactionMapper $transactionMapper,
-        CategoryMapper $categoryMapper
+        CategoryMapper $categoryMapper,
+        TransactionReportQueries $reportQueries
     ) {
         $this->transactionMapper = $transactionMapper;
         $this->categoryMapper = $categoryMapper;
+        $this->reportQueries = $reportQueries;
     }
 
     /**
@@ -282,7 +286,7 @@ class YearOverYearService {
      */
     private function cashFlowByMonth(string $userId, string $startDate, string $endDate, ?int $accountId, ?array $visibleAccountIds): array {
         $byMonth = [];
-        foreach ($this->transactionMapper->getCashFlowByMonth(
+        foreach ($this->reportQueries->getCashFlowByMonth(
             $userId, $accountId, $startDate, $endDate, [], true, $accountId === null, $visibleAccountIds
         ) as $row) {
             $byMonth[$row['month']] = $row;

@@ -6,20 +6,24 @@ namespace OCA\Budget\Tests\Unit\Service\Report;
 
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionReportQueries;
 use OCA\Budget\Service\Report\ReportCalculator;
 use PHPUnit\Framework\TestCase;
 
 class ReportCalculatorTest extends TestCase {
 	private ReportCalculator $calculator;
 	private TransactionMapper $transactionMapper;
+	private TransactionReportQueries $reportQueries;
 	private AccountMapper $accountMapper;
 
 	protected function setUp(): void {
 		$this->accountMapper = $this->createMock(AccountMapper::class);
 		$this->transactionMapper = $this->createMock(TransactionMapper::class);
+		$this->reportQueries = $this->createMock(TransactionReportQueries::class);
 		$this->calculator = new ReportCalculator(
 			$this->accountMapper,
-			$this->transactionMapper
+			$this->transactionMapper,
+			$this->reportQueries
 		);
 	}
 
@@ -191,7 +195,7 @@ class ReportCalculatorTest extends TestCase {
 	 */
 	public function testIncomeByCategoryIsTheCreditCategorySummary(): void {
 		$expected = [['id' => 9, 'name' => 'Salary', 'total' => 2000.0, 'count' => 1]];
-		$this->transactionMapper->expects($this->never())->method('getIncomeBySource');
+		$this->reportQueries->expects($this->never())->method('getIncomeBySource');
 		$this->transactionMapper->expects($this->once())
 			->method('getSpendingSummary')
 			->with('user1', '2024-01-01', '2024-03-31', null, [], true, true, [1, 2], 'credit')
@@ -201,7 +205,7 @@ class ReportCalculatorTest extends TestCase {
 	}
 
 	public function testGetSpendingByMonthFormatsLabels(): void {
-		$this->transactionMapper->expects($this->once())
+		$this->reportQueries->expects($this->once())
 			->method('getSpendingByMonth')
 			->willReturn([
 				['month' => '2024-01', 'total' => '500.00', 'count' => '15'],
@@ -219,7 +223,7 @@ class ReportCalculatorTest extends TestCase {
 	}
 
 	public function testGetIncomeByMonthFormatsLabels(): void {
-		$this->transactionMapper->expects($this->once())
+		$this->reportQueries->expects($this->once())
 			->method('getIncomeByMonth')
 			->willReturn([
 				['month' => '2024-03', 'total' => '3000.00', 'count' => '2'],

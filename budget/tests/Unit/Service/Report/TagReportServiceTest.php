@@ -8,23 +8,23 @@ use OCA\Budget\Db\Tag;
 use OCA\Budget\Db\TagMapper;
 use OCA\Budget\Db\TagSet;
 use OCA\Budget\Db\TagSetMapper;
-use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionReportQueries;
 use OCA\Budget\Service\Report\TagReportService;
 use PHPUnit\Framework\TestCase;
 
 class TagReportServiceTest extends TestCase {
     private TagReportService $service;
-    private TransactionMapper $transactionMapper;
+    private TransactionReportQueries $reportQueries;
     private TagSetMapper $tagSetMapper;
     private TagMapper $tagMapper;
 
     protected function setUp(): void {
-        $this->transactionMapper = $this->createMock(TransactionMapper::class);
+        $this->reportQueries = $this->createMock(TransactionReportQueries::class);
         $this->tagSetMapper = $this->createMock(TagSetMapper::class);
         $this->tagMapper = $this->createMock(TagMapper::class);
 
         $this->service = new TagReportService(
-            $this->transactionMapper,
+            $this->reportQueries,
             $this->tagSetMapper,
             $this->tagMapper
         );
@@ -52,7 +52,7 @@ class TagReportServiceTest extends TestCase {
         $combinations = [
             ['tags' => [1, 2], 'total' => 500.0, 'count' => 10],
         ];
-        $this->transactionMapper->expects($this->once())->method('getSpendingByTagCombination')
+        $this->reportQueries->expects($this->once())->method('getSpendingByTagCombination')
             ->with('user1', '2025-01-01', '2025-12-31', null, null, 2, 50)
             ->willReturn($combinations);
 
@@ -66,7 +66,7 @@ class TagReportServiceTest extends TestCase {
     }
 
     public function testGetTagCombinationReportWithFilters(): void {
-        $this->transactionMapper->expects($this->once())->method('getSpendingByTagCombination')
+        $this->reportQueries->expects($this->once())->method('getSpendingByTagCombination')
             ->with('user1', '2025-01-01', '2025-06-30', 5, 10, 3, 25);
 
         $this->service->getTagCombinationReport('user1', '2025-01-01', '2025-06-30', 5, 10, 3, 25);
@@ -83,7 +83,7 @@ class TagReportServiceTest extends TestCase {
             [2, 'user1', $tagSet2],
         ]);
 
-        $this->transactionMapper->method('getTagCrossTabulation')->willReturn([
+        $this->reportQueries->method('getTagCrossTabulation')->willReturn([
             'rows' => [['id' => 10, 'name' => 'High']],
             'columns' => [['id' => 20, 'name' => 'Recurring']],
             'data' => [
@@ -107,7 +107,7 @@ class TagReportServiceTest extends TestCase {
             return $this->makeTagSet($id, "Set{$id}");
         });
 
-        $this->transactionMapper->method('getTagCrossTabulation')->willReturn([
+        $this->reportQueries->method('getTagCrossTabulation')->willReturn([
             'rows' => [['id' => 1, 'name' => 'A'], ['id' => 2, 'name' => 'B']],
             'columns' => [['id' => 3, 'name' => 'X'], ['id' => 4, 'name' => 'Y']],
             'data' => [
@@ -142,7 +142,7 @@ class TagReportServiceTest extends TestCase {
         $tag2 = $this->makeTag(2, 'Optional', '#00ff00');
 
         $this->tagMapper->method('findByIds')->willReturn([1 => $tag1, 2 => $tag2]);
-        $this->transactionMapper->method('getTagTrendByMonth')->willReturn([
+        $this->reportQueries->method('getTagTrendByMonth')->willReturn([
             ['tagId' => 1, 'month' => '2025-01', 'total' => 500.0],
             ['tagId' => 1, 'month' => '2025-02', 'total' => 600.0],
             ['tagId' => 2, 'month' => '2025-01', 'total' => 200.0],
@@ -163,7 +163,7 @@ class TagReportServiceTest extends TestCase {
 
         $this->tagMapper->method('findByIds')->willReturn([1 => $tag]);
         // Only has data for January, not February
-        $this->transactionMapper->method('getTagTrendByMonth')->willReturn([
+        $this->reportQueries->method('getTagTrendByMonth')->willReturn([
             ['tagId' => 1, 'month' => '2025-01', 'total' => 100.0],
         ]);
 
@@ -181,7 +181,7 @@ class TagReportServiceTest extends TestCase {
         $tagSet = $this->makeTagSet(1, 'Priority', 'Expense priority');
         $this->tagSetMapper->method('find')->willReturn($tagSet);
 
-        $this->transactionMapper->method('getSpendingByTag')->willReturn([
+        $this->reportQueries->method('getSpendingByTag')->willReturn([
             ['tagId' => 1, 'name' => 'Essential', 'total' => 750.0, 'count' => 15],
             ['tagId' => 2, 'name' => 'Optional', 'total' => 250.0, 'count' => 5],
         ]);
@@ -201,7 +201,7 @@ class TagReportServiceTest extends TestCase {
         $tagSet = $this->makeTagSet(1, 'Empty');
         $this->tagSetMapper->method('find')->willReturn($tagSet);
 
-        $this->transactionMapper->method('getSpendingByTag')->willReturn([
+        $this->reportQueries->method('getSpendingByTag')->willReturn([
             ['tagId' => 1, 'name' => 'Tag', 'total' => 0.0, 'count' => 0],
         ]);
 
