@@ -14,7 +14,7 @@ use OCP\IDBConnection;
  * budget aggregate may count, in one stateless place so they stay single
  * while the queries using them live in more than one mapper.
  *
- * These are the SQL choke points CLAUDE.md names: report-excluded accounts
+ * These are the SQL choke points for report-excluded accounts
  * (#286), report-excluded and viewer-muted categories (#219), scheduled
  * future rows and pension-funding legs (#304), and the direct/split
  * partition every per-category aggregate relies on (#360). Every report
