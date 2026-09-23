@@ -2235,9 +2235,7 @@ class TransactionMapper extends QBMapper {
      * still in users' databases. Such a row satisfies both queries and would
      * otherwise be counted at its full amount AND part by part.
      *
-     * Callers must not add split allocations again on top of this. Note
-     * getCategorySpending() — the single-category method — is deliberately
-     * still direct-only, because BudgetAlertService adds splits to it itself.
+     * Callers must not add split allocations again on top of this.
      *
      * When $excludeDeductedTransfers is true, excludes ALL linked transfers
      * (which getTransferTotals() also fully deducts), since a transfer is never
@@ -3515,50 +3513,6 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
-     * Get spending for a single category within a date range for a user.
-     *
-     * Direct-only: split parents are left to the caller's own split-total
-     * query, the same partition getCategorySpendingBatch() applies. A row
-     * whose is_split predates the column (NULL) is only "direct" when it has
-     * no parts — one with parts is a split parent and belongs solely to the
-     * split query, or its full amount would be counted again on top of its
-     * own allocations (#360).
-     *
-     * Gross, not net — the caller nets it, because BudgetAlertService has to
-     * combine this with the split allocations it fetches separately and can
-     * only subtract once it has both (#361).
-     */
-    public function getCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null, string $transactionType = 'debit'): float {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)))
-            ->andWhere($this->directRowPredicate($qb));
-
-        // The account list REPLACES the owner predicate rather than narrowing
-        // it. Added as an extra AND (#299), it could only ever shrink the
-        // owner's own accounts, so passing a scope that included an account
-        // shared with the user still returned nothing from it (#341).
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
-        $this->excludeScheduledFuture($qb);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $result = $qb->executeQuery();
-        $row = $result->fetch();
-        $result->closeCursor();
-
-        return (float)($row['total'] ?? 0);
-    }
-
-    /**
      * Direct (non-split) debit spending per category per bucket over a date
      * range, in one query. Bucket is the calendar month (YYYY-MM) by default,
      * or the exact date (YYYY-MM-DD) with $byDay — used by the budget
@@ -3649,42 +3603,6 @@ class TransactionMapper extends QBMapper {
         $result->closeCursor();
 
         return $totals;
-    }
-
-    /**
-     * Get IDs of split transactions within a date range for a user.
-     * Used to calculate spending from splits.
-     *
-     * @return int[]
-     */
-    public function getSplitTransactionIds(string $userId, string $startDate, string $endDate, ?array $visibleAccountIds = null, string $transactionType = 'debit', ?int $accountId = null): array {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select('t.id')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)))
-            ->andWhere($this->splitParentPredicate($qb));
-
-        // Honour a single-account scope where the caller has one, or a view
-        // filtered to one account would draw its split totals from all of
-        // them (#360).
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        // Same visible-account scope as the rest of a budget surface, so a
-        // split booked in a shared account is not silently dropped (#341).
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
-        $this->excludeScheduledFuture($qb);
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => (int)$row['id'], $data);
     }
 
     /**

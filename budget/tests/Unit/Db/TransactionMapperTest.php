@@ -1122,53 +1122,6 @@ class TransactionMapperTest extends TestCase {
         $this->assertEquals(42, $linkedId);
     }
 
-    // ===== getCategorySpending (user-scoped version) =====
-
-    public function testGetCategorySpendingReturnsFloat(): void {
-        $this->result->method('fetch')->willReturn(['total' => '450.75']);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $spending = $this->mapper->getCategorySpending('user1', 5, '2026-01-01', '2026-01-31');
-
-        $this->assertEquals(450.75, $spending);
-    }
-
-    public function testGetCategorySpendingReturnsZeroForNull(): void {
-        $this->result->method('fetch')->willReturn(['total' => null]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $spending = $this->mapper->getCategorySpending('user1', 5, '2026-01-01', '2026-01-31');
-
-        $this->assertEquals(0.0, $spending);
-    }
-
-    // ===== getSplitTransactionIds =====
-
-    public function testGetSplitTransactionIdsReturnsIntArray(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['id' => '100'],
-            ['id' => '200'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $ids = $this->mapper->getSplitTransactionIds('user1', '2026-01-01', '2026-01-31');
-
-        $this->assertEquals([100, 200], $ids);
-    }
-
-    public function testGetSplitTransactionIdsReturnsEmptyArrayWhenNone(): void {
-        $this->result->method('fetchAll')->willReturn([]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $ids = $this->mapper->getSplitTransactionIds('user1', '2026-01-01', '2026-01-31');
-
-        $this->assertEmpty($ids);
-    }
-
     // ===== deleteAll =====
 
     public function testDeleteAllReturnsAffectedRows(): void {

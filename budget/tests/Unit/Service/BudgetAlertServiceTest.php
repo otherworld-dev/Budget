@@ -8,7 +8,6 @@ use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Db\Category;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\TransactionMapper;
-use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Service\AmountFormatter;
 use OCA\Budget\Service\BudgetAlertService;
 use OCA\Budget\Service\SettingService;
@@ -35,7 +34,6 @@ class BudgetAlertServiceTest extends TestCase {
     private TestableBudgetAlertService $service;
     private CategoryMapper $categoryMapper;
     private TransactionMapper $transactionMapper;
-    private TransactionSplitMapper $splitMapper;
     private SettingService $settingService;
     /** @var array<int, float> Recurring budgets returned by the mock */
     private array $recurringBudgets = [];
@@ -56,7 +54,6 @@ class BudgetAlertServiceTest extends TestCase {
     protected function setUp(): void {
         $this->categoryMapper = $this->createMock(CategoryMapper::class);
         $this->transactionMapper = $this->createMock(TransactionMapper::class);
-        $this->splitMapper = $this->createMock(TransactionSplitMapper::class);
         $this->settingService = $this->createMock(SettingService::class);
 
         $budgetSnapshotMapper = $this->createMock(BudgetSnapshotMapper::class);
@@ -90,7 +87,6 @@ class BudgetAlertServiceTest extends TestCase {
             $this->categoryMapper,
             $budgetSnapshotMapper,
             $this->transactionMapper,
-            $this->splitMapper,
             $this->settingService,
             $recurringBudgetService,
             $carryoverService,
@@ -111,9 +107,8 @@ class BudgetAlertServiceTest extends TestCase {
         ]);
 
         $transactionMapper = $this->createMock(TransactionMapper::class);
-        $transactionMapper->method('getCategorySpending')
-            ->willReturnCallback(fn(...$args): float => ($args[6] ?? 'debit') === 'debit' ? $this->spend : 0.0);
-        $transactionMapper->method('getSplitTransactionIds')->willReturn([]);
+        $transactionMapper->method('getCategorySpendingBatch')
+            ->willReturnCallback(fn(array $ids): array => array_fill_keys($ids, $this->spend));
 
         $settingService = $this->createMock(SettingService::class);
         $settingService->method('get')
@@ -149,7 +144,6 @@ class BudgetAlertServiceTest extends TestCase {
             $categoryMapper,
             $this->createMock(BudgetSnapshotMapper::class),
             $transactionMapper,
-            $this->createMock(TransactionSplitMapper::class),
             $settingService,
             $recurringBudgetService,
             $carryoverService,
@@ -196,12 +190,12 @@ class BudgetAlertServiceTest extends TestCase {
             ->with(self::USER_ID)
             ->willReturn([$category]);
 
-        $this->transactionMapper->method('getCategorySpending')
+        // The batch nets in SQL: 216.90 out, 158.61 back. It is asked for the
+        // money-out direction, which is what makes a refund come off.
+        $this->transactionMapper->method('getCategorySpendingBatch')
             ->willReturnCallback(
-                static fn(...$args): float => ($args[6] ?? 'debit') === 'debit' ? 216.90 : 158.61
+                static fn(array $ids, string $s, string $e, string $type): array => $type === 'debit' ? [1 => 58.29] : []
             );
-        $this->transactionMapper->method('getSplitTransactionIds')
-            ->willReturn([]);
 
         $statuses = $this->service->getBudgetStatus(self::USER_ID);
 
@@ -217,13 +211,8 @@ class BudgetAlertServiceTest extends TestCase {
             ->with(self::USER_ID)
             ->willReturn($categories);
 
-        $this->transactionMapper->method('getCategorySpending')
-            ->willReturnCallback(
-                static fn(...$args): float => ($args[6] ?? 'debit') === 'debit' ? $spending : 0.0
-            );
-
-        $this->transactionMapper->method('getSplitTransactionIds')
-            ->willReturn([]);
+        $this->transactionMapper->method('getCategorySpendingBatch')
+            ->willReturnCallback(static fn(array $ids): array => array_fill_keys($ids, $spending));
     }
 
     /**
@@ -309,11 +298,8 @@ class BudgetAlertServiceTest extends TestCase {
      */
     private function setupSpendingByCategory(array $categories, array $debitByCategory): void {
         $this->categoryMapper->method('findAll')->willReturn($categories);
-        $this->transactionMapper->method('getCategorySpending')
-            ->willReturnCallback(
-                static fn(...$args): float => ($args[6] ?? 'debit') === 'debit' ? ($debitByCategory[$args[1]] ?? 0.0) : 0.0
-            );
-        $this->transactionMapper->method('getSplitTransactionIds')->willReturn([]);
+        $this->transactionMapper->method('getCategorySpendingBatch')
+            ->willReturnCallback(static fn(array $ids): array => array_intersect_key($debitByCategory, array_flip($ids)));
     }
 
     public function testParentBudgetCountsSpendingFiledUnderItsChildren(): void {
@@ -354,6 +340,56 @@ class BudgetAlertServiceTest extends TestCase {
         $this->setupSpendingByCategory([$parent, $child], [2 => 150.0]);
 
         $this->assertSame([], $this->service->getAlerts(self::USER_ID));
+    }
+
+    // ===== One batch per period (N+1) =====
+
+    /**
+     * Spending comes from one getCategorySpendingBatch() per distinct period
+     * covering every branch measured over it — not two queries per branch
+     * member per budget plus four split queries — scoped to the viewer's
+     * accounts and asked for the money-out direction.
+     */
+    public function testSpendingIsFetchedOncePerPeriodForEveryBranch(): void {
+        $this->service->setNow(new \DateTime('2026-03-18'));
+        $categories = [
+            $this->makeCategory(['id' => 1, 'name' => 'Food', 'budgetAmount' => 100.0]),
+            $this->makeCategory(['id' => 2, 'name' => 'Groceries', 'parentId' => 1, 'budgetAmount' => 0.0]),
+            $this->makeCategory(['id' => 3, 'name' => 'Rent', 'budgetAmount' => 900.0]),
+            $this->makeCategory(['id' => 4, 'name' => 'Fun', 'budgetAmount' => 50.0, 'budgetPeriod' => 'weekly']),
+        ];
+        $this->categoryMapper->method('findAll')->willReturn($categories);
+        $calls = [];
+        $this->transactionMapper->method('getCategorySpendingBatch')
+            ->willReturnCallback(function (...$args) use (&$calls): array {
+                $calls[] = $args;
+                return [1 => 10.0, 2 => 20.5, 3 => 800.0, 4 => 12.25];
+            });
+
+        $statuses = $this->service->getBudgetStatus(self::USER_ID, [7, 8]);
+
+        $this->assertCount(2, $calls);
+        [$monthly, $weekly] = $calls;
+        $this->assertSame([[1, 2, 3], '2026-03-01', '2026-03-31', 'debit', null, false, self::USER_ID, [7, 8], false], $monthly);
+        $this->assertSame([[4], '2026-03-16', '2026-03-22', 'debit', null, false, self::USER_ID, [7, 8], false], $weekly);
+
+        $spent = array_column($statuses, 'spent', 'categoryName');
+        $this->assertSame(30.5, $spent['Food']);   // its own 10 + Groceries 20.50
+        $this->assertSame(800.0, $spent['Rent']);
+        $this->assertSame(12.25, $spent['Fun']);
+    }
+
+    public function testAlertsFetchSpendingOncePerPeriodToo(): void {
+        $this->categoryMapper->method('findAll')->willReturn([
+            $this->makeCategory(['id' => 1, 'budgetAmount' => 100.0]),
+            $this->makeCategory(['id' => 2, 'name' => 'Rent', 'budgetAmount' => 100.0]),
+        ]);
+        $this->transactionMapper->expects($this->once())->method('getCategorySpendingBatch')
+            ->willReturn([1 => 95.0, 2 => 120.0]);
+
+        $alerts = $this->service->getAlerts(self::USER_ID);
+
+        $this->assertSame(['danger', 'warning'], array_column($alerts, 'severity'));
     }
 
     // ===== Over-budget boundary (#293) =====
@@ -679,16 +715,8 @@ class BudgetAlertServiceTest extends TestCase {
             ->with(self::USER_ID)
             ->willReturn([$category]);
 
-        // Spending is 90 out of 100 = 90% (warning threshold). Money out only:
-        // the figure is net, so answering 90 to the credit direction too would
-        // cancel it to zero (#361).
-        $this->transactionMapper->method('getCategorySpending')
-            ->willReturnCallback(
-                static fn(...$args): float => ($args[6] ?? 'debit') === 'debit' ? 90.0 : 0.0
-            );
-
-        $this->transactionMapper->method('getSplitTransactionIds')
-            ->willReturn([]);
+        // Spending is 90 out of 100 = 90% (warning threshold)
+        $this->transactionMapper->method('getCategorySpendingBatch')->willReturn([1 => 90.0]);
 
         $alerts = $this->service->getAlerts(self::USER_ID);
         $this->assertCount(1, $alerts);

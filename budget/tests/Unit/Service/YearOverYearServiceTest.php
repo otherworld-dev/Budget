@@ -230,7 +230,6 @@ class YearOverYearServiceTest extends TestCase {
             $this->makeCategory(3, 'Salary', 'income'),
         ]);
         $calls = [];
-        $this->transactionMapper->expects($this->never())->method('getCategorySpending');
         $this->transactionMapper->expects($this->exactly(2))->method('getCategorySpendingBatch')
             ->willReturnCallback(function (...$args) use (&$calls) {
                 $calls[] = $args;
