@@ -8,7 +8,6 @@ use OCA\Budget\Service\FactoryResetService;
 use OCA\Budget\Service\TransactionService;
 use OCA\Budget\Tests\Integration\FullDataset;
 use OCA\Budget\Tests\Integration\IntegrationTestCase;
-use PHPUnit\Framework\Attributes\Group;
 
 /**
  * No child table has a foreign key, so a transaction deleted without its
@@ -120,13 +119,10 @@ class TransactionDeletionTest extends IntegrationTestCase {
 	}
 
 	/**
-	 * FactoryResetService never calls TransactionTagMapper::deleteAll(), and
-	 * TagMapper::deleteAll() says "cascade handles transaction_tags" - but no
-	 * table here has a foreign key, so nothing cascades. Every tagged
-	 * transaction leaves its tag links behind, pointing at deleted
-	 * transactions and deleted tags. Tag sets are never deleted either.
+	 * No table here has a foreign key, so nothing cascades: a reset that
+	 * deleted transactions before their tag links (as it once did) left them
+	 * pointing at deleted transactions and tags for good.
 	 */
-	#[Group('known-bug')]
 	public function testFactoryResetLeavesNoDanglingReferencesAnywhere(): void {
 		$this->seedEveryTable($this->userId);
 
@@ -136,28 +132,48 @@ class TransactionDeletionTest extends IntegrationTestCase {
 	}
 
 	/**
-	 * "Delete ALL user data except audit logs", says FactoryResetService. A
-	 * reset should at least remove everything a backup would restore, but
-	 * roughly a dozen of those tables (import templates, saved reports,
-	 * interest rates, manual exchange rates, recurring pension contributions,
-	 * debt scenarios, muted categories, ...) are not in its list and survive.
+	 * "Delete ALL user data except audit logs", says FactoryResetService -
+	 * everything a backup would restore, and also what no backup holds:
+	 * shares the user granted, bank connections and their mappings (deleted
+	 * without reading the stored credentials, which here are not even valid
+	 * ciphertext), idempotency keys and the legacy forecasts table.
 	 */
-	#[Group('known-bug')]
-	public function testFactoryResetRemovesEverythingABackupWouldRestore(): void {
+	public function testFactoryResetRemovesEverythingButTheAuditLog(): void {
 		$this->seedEveryTable($this->userId);
 
 		$this->service(FactoryResetService::class)->executeFactoryReset($this->userId);
 
 		$survivors = array_filter(
 			$this->countEveryTable($this->userId),
-			static fn (int $n, string $table): bool => $n > 0 && !in_array($table, [
-				// Kept deliberately (compliance), or not user data a backup holds
-				'budget_audit_log', 'budget_bc', 'budget_bam', 'budget_shares', 'budget_share_items',
-				'budget_share_auto', 'budget_idem_keys', 'budget_forecasts',
-			], true),
+			static fn (int $n, string $table): bool => $n > 0 && $table !== 'budget_audit_log',
 			ARRAY_FILTER_USE_BOTH
 		);
 		$this->assertSame([], $survivors, 'Tables that still hold the user\'s rows after a factory reset');
+		$this->assertSame(1, $this->countUserRows('budget_audit_log', $this->userId), 'The audit log is kept for compliance');
+	}
+
+	/**
+	 * A share another user granted TO this user is the other user's: their
+	 * reset would revoke it, this user's must not.
+	 */
+	public function testFactoryResetKeepsSharesOtherUsersGrantedToTheUser(): void {
+		$owner = $this->newUserId();
+		$ownerAccount = $this->makeAccount(['name' => 'Joint'], $owner)->getId();
+		$share = $this->insertRow('budget_shares', [
+			'owner_user_id' => $owner, 'shared_with_user_id' => $this->userId, 'status' => 'accepted',
+			'created_at' => $this->now(), 'updated_at' => $this->now(),
+		]);
+		$item = $this->insertRow('budget_share_items', [
+			'share_id' => $share, 'entity_type' => 'account', 'entity_id' => $ownerAccount, 'permission' => 'write',
+			'created_at' => $this->now(), 'updated_at' => $this->now(),
+		]);
+		$this->seedEveryTable($this->userId);
+
+		$this->service(FactoryResetService::class)->executeFactoryReset($this->userId);
+
+		$this->assertNotNull($this->fetchRow('budget_shares', $share));
+		$this->assertNotNull($this->fetchRow('budget_share_items', $item));
+		$this->assertNotNull($this->fetchRow('budget_accounts', $ownerAccount));
 	}
 
 	private function assertNoOrphans(): void {

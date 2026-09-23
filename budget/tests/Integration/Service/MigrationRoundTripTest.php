@@ -190,6 +190,25 @@ class MigrationRoundTripTest extends IntegrationTestCase {
 	}
 
 	/**
+	 * Bank connections, their mappings, shares the user granted and API
+	 * idempotency keys are not in a backup, so a restore must leave them
+	 * alone - clearing them would destroy them for good. Only a factory
+	 * reset removes them.
+	 */
+	public function testRestoringOverExistingDataKeepsWhatNoBackupHolds(): void {
+		$this->seedEveryTable($this->userId);
+		$kept = ['budget_bc', 'budget_bam', 'budget_shares', 'budget_share_items', 'budget_share_auto', 'budget_idem_keys'];
+		$before = array_map(fn (string $table) => $this->countUserRows($table, $this->userId), array_combine($kept, $kept));
+
+		$this->migration->importAll($this->userId, $this->migration->exportAll($this->userId)['content']);
+
+		foreach ($kept as $table) {
+			$this->assertGreaterThan(0, $before[$table], "The seed must put a row in {$table}");
+			$this->assertSame($before[$table], $this->countUserRows($table, $this->userId), "A restore deleted {$table} rows");
+		}
+	}
+
+	/**
 	 * The table-level import used to bind every value as a string, so a
 	 * boolean false reached PostgreSQL as '' and any backup holding a tag
 	 * failed to restore there. The archive also carries booleans in whatever
