@@ -224,6 +224,11 @@
     background: var(--color-main-background);
 }
 
+#app-settings-header {
+    display: flex;
+    align-items: center;
+}
+
 #app-settings ul {
     list-style: none;
     margin: 0;
@@ -235,7 +240,8 @@
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    width: calc(100% - 16px);
+    flex: 1;
+    min-width: 0;
     padding: 0 calc(var(--default-grid-baseline, 4px) * 2) 0 0;
     background: transparent;
     border: none;
@@ -9067,37 +9073,37 @@ button.danger:hover {
     width: 100%;
 }
 
-/* Help FAB & Panel */
+/* Help button & panel. The button sits in the sidebar footer beside
+   "Tools & Settings" (it used to float over the content, where it covered the
+   last row's delete button); the panel opens just right of the sidebar. */
 .help-fab {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: var(--color-primary-element);
-    color: var(--color-primary-element-text);
+    flex-shrink: 0;
+    width: var(--default-clickable-area, 34px);
+    height: var(--default-clickable-area, 34px);
+    min-height: 0;
+    margin: 0 calc(var(--default-grid-baseline, 4px) * 2) 0 0;
+    padding: 0;
     border: none;
-    font-size: 20px;
+    border-radius: var(--border-radius-element, 8px);
+    background: transparent;
+    color: var(--color-main-text);
+    font-size: 16px;
     font-weight: 700;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-    z-index: 1000;
-    transition: transform 0.15s, box-shadow 0.15s;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-.help-fab:hover {
-    transform: scale(1.1);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+.help-fab:hover,
+.help-fab[aria-expanded="true"] {
+    background-color: var(--color-background-hover);
 }
 
 .help-panel {
     position: fixed;
-    bottom: 80px;
-    right: 24px;
+    bottom: 12px;
+    left: calc(var(--budget-nav-width, 300px) + 12px);
     width: 340px;
     max-height: 480px;
     background: var(--color-main-background);
@@ -9246,17 +9252,14 @@ button.danger:hover {
     text-decoration: underline;
 }
 
-@media (max-width: 768px) {
+/* Below 1024px the sidebar slides over the content, so the panel spans the
+   screen instead of sitting beside it. */
+@media (max-width: 1024px) {
     .help-panel {
         right: 12px;
         left: 12px;
         width: auto;
-        bottom: 72px;
-    }
-
-    .help-fab {
-        bottom: 16px;
-        right: 16px;
+        z-index: 2000;
     }
 }
 
@@ -11522,8 +11525,10 @@ button.danger:hover {
     font-weight: 500;
 }
 
-.budget-remaining.zero {
+.budget-remaining.zero,
+.budget-spent.zero {
     color: var(--color-text-maxcontrast);
+    font-weight: normal;
 }
 
 /* Budget Progress */

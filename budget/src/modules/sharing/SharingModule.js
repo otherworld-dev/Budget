@@ -85,8 +85,8 @@ export default class SharingModule {
                                     <span class="sharing-item-status badge-pending">${t('budget', 'Pending')}</span>
                                 </div>
                                 <div class="sharing-item-actions">
-                                    <button class="btn btn-primary btn-accept-share" data-id="${share.id}">${t('budget', 'Accept')}</button>
-                                    <button class="btn btn-secondary btn-decline-share" data-id="${share.id}">${t('budget', 'Decline')}</button>
+                                    <button class="primary btn-accept-share" data-id="${share.id}">${t('budget', 'Accept')}</button>
+                                    <button class="secondary btn-decline-share" data-id="${share.id}">${t('budget', 'Decline')}</button>
                                 </div>
                             </div>
                         `).join('')}
@@ -101,7 +101,7 @@ export default class SharingModule {
                         <select id="share-username-input" class="sharing-input">
                             <option value="">${t('budget', 'Select a user...')}</option>
                         </select>
-                        <button id="share-add-btn" class="btn btn-primary">${t('budget', 'Invite')}</button>
+                        <button id="share-add-btn" class="primary">${t('budget', 'Invite')}</button>
                     </div>
 
                     ${pendingOutgoing.length > 0 ? `
@@ -113,7 +113,7 @@ export default class SharingModule {
                                     <span class="sharing-item-status badge-pending">${t('budget', 'Pending')}</span>
                                 </div>
                                 <div class="sharing-item-actions">
-                                    <button class="btn btn-danger btn-revoke-share" data-id="${share.id}">${t('budget', 'Revoke')}</button>
+                                    <button class="danger btn-revoke-share" data-id="${share.id}">${t('budget', 'Revoke')}</button>
                                 </div>
                             </div>
                         `).join('')}
@@ -130,10 +130,10 @@ export default class SharingModule {
                                         <span class="sharing-item-status badge-accepted">${t('budget', 'Active')}</span>
                                     </div>
                                     <div class="sharing-item-actions">
-                                        <button class="btn btn-secondary btn-configure-share" data-id="${share.id}">
+                                        <button class="secondary btn-configure-share" data-id="${share.id}">
                                             ${this.expandedConfigId === share.id ? t('budget', 'Close') : t('budget', 'Configure')}
                                         </button>
-                                        <button class="btn btn-danger btn-revoke-share" data-id="${share.id}">${t('budget', 'Revoke')}</button>
+                                        <button class="danger btn-revoke-share" data-id="${share.id}">${t('budget', 'Revoke')}</button>
                                     </div>
                                 </div>
                                 <div class="share-config-panel" id="share-config-${share.id}"
@@ -160,7 +160,7 @@ export default class SharingModule {
                                     <span class="sharing-item-status badge-accepted">${t('budget', 'Active')}</span>
                                 </div>
                                 <div class="sharing-item-actions">
-                                    <button class="btn btn-danger btn-leave-share" data-id="${share.id}">${t('budget', 'Leave')}</button>
+                                    <button class="danger btn-leave-share" data-id="${share.id}">${t('budget', 'Leave')}</button>
                                 </div>
                             </div>
                         `).join('')}
@@ -296,7 +296,7 @@ export default class SharingModule {
                                         <input type="checkbox" class="share-config-autoshare" data-type="${section.type}" ${autoConfig[section.type] ? 'checked' : ''} />
                                         <span>${t('budget', 'Auto-share new')}</span>
                                     </label>
-                                    <button class="btn btn-small btn-select-all" data-type="${section.type}">${t('budget', 'Select All')}</button>
+                                    <button class="btn-select-all" data-type="${section.type}">${t('budget', 'Select All')}</button>
                                     <select class="share-config-permission" data-type="${section.type}">
                                         <option value="read" ${currentConfig.permission === 'read' ? 'selected' : ''}>${t('budget', 'Read only')}</option>
                                         <option value="write" ${currentConfig.permission === 'write' ? 'selected' : ''}>${t('budget', 'Read & Write')}</option>
@@ -323,7 +323,7 @@ export default class SharingModule {
                     `;
                 }).join('')}
                 <div class="share-config-actions">
-                    <button class="btn btn-primary btn-save-config" data-share-id="${shareId}">
+                    <button class="primary btn-save-config" data-share-id="${shareId}">
                         ${t('budget', 'Save Configuration')}
                     </button>
                 </div>

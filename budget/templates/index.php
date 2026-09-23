@@ -214,6 +214,7 @@ style('budget', 'budget-app');
                 </span>
                 <?php p($l->t('Tools & Settings')); ?>
             </button>
+            <button id="help-fab" class="help-fab" type="button" aria-controls="help-panel" aria-expanded="false" title="<?php p($l->t('Help')); ?>" aria-label="<?php p($l->t('Help')); ?>">?</button>
         </div>
         <ul id="app-settings-content">
             <li class="app-navigation-entry" data-id="import">
@@ -324,7 +325,7 @@ style('budget', 'budget-app');
                 </div>
                 <div class="dashboard-header-actions">
                     <div class="add-tiles-dropdown" id="add-tiles-dropdown" style="display: none;">
-                        <button id="add-tiles-btn" class="btn btn-secondary" aria-label="<?php p($l->t('Add tiles')); ?>">
+                        <button id="add-tiles-btn" class="secondary" aria-label="<?php p($l->t('Add tiles')); ?>">
                             <span class="icon-add" aria-hidden="true"></span>
                             <?php p($l->t('Add Tiles')); ?>
                         </button>
@@ -341,7 +342,7 @@ style('budget', 'budget-app');
                         <button class="columns-btn" data-cols="3">3</button>
                         <button class="columns-btn" data-cols="4">4</button>
                     </div>
-                    <button id="toggle-dashboard-lock-btn" class="btn btn-secondary" aria-label="<?php p($l->t('Toggle dashboard lock')); ?>">
+                    <button id="toggle-dashboard-lock-btn" class="secondary" aria-label="<?php p($l->t('Toggle dashboard lock')); ?>">
                         <svg id="lock-btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                         <span id="lock-btn-text"><?php p($l->t('Unlock Dashboard')); ?></span>
                     </button>
@@ -353,7 +354,8 @@ style('budget', 'budget-app');
                 <div class="hero-card hero-net-worth" data-widget-id="netWorth" data-widget-category="hero">
                     <div class="hero-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+                            <!-- Wallet, not a dollar sign: this app is used in every currency -->
+                            <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
                         </svg>
                     </div>
                     <div class="hero-content">
@@ -637,7 +639,7 @@ style('budget', 'budget-app');
                             <div class="empty-state-content">
                                 <p class="empty-state-title"><?php p($l->t('No net worth history yet')); ?></p>
                                 <p class="empty-state-subtitle"><?php p($l->t('Snapshots are recorded automatically every day. Your first snapshot will appear within 24 hours.')); ?></p>
-                                <button id="record-net-worth-btn" class="btn btn-secondary btn-small"><?php p($l->t('Record snapshot now')); ?></button>
+                                <button id="record-net-worth-btn" class="secondary"><?php p($l->t('Record snapshot now')); ?></button>
                             </div>
                         </div>
                     </div>
@@ -1140,7 +1142,7 @@ style('budget', 'budget-app');
                 <div class="summary-card summary-card-networth">
                     <div class="summary-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+                            <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
                         </svg>
                     </div>
                     <div class="summary-content">
@@ -1381,7 +1383,7 @@ style('budget', 'budget-app');
                 <div class="account-details-section" id="interest-rate-history-section" style="display: none;">
                     <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
                         <h3><?php p($l->t('Interest Rate History')); ?></h3>
-                        <button class="btn btn-secondary btn-sm" id="add-rate-change-btn">
+                        <button class="secondary" id="add-rate-change-btn">
                             <span class="icon-add" aria-hidden="true"></span>
                             <?php p($l->t('Add Rate Change')); ?>
                         </button>
@@ -1543,7 +1545,7 @@ style('budget', 'budget-app');
                                 <?php p($l->t('Previous')); ?>
                             </button>
                             <div class="page-info">
-                                <span id="account-page-info">Page 1 of 1</span>
+                                <span id="account-page-info"><?php p($l->t('Page %1$s of %2$s', [1, 1])); ?></span>
                             </div>
                             <button id="account-next-page" class="pagination-btn" disabled>
                                 <?php p($l->t('Next')); ?>
@@ -1792,9 +1794,9 @@ style('budget', 'budget-app');
                             <option value="250"><?php p($l->t('250 per page')); ?></option>
                         </select>
                         <div class="pagination-controls">
-                            <button id="prev-page-btn" class="secondary" disabled>←</button>
-                            <span id="page-info">Page 1 of 1</span>
-                            <button id="next-page-btn" class="secondary" disabled>→</button>
+                            <button id="prev-page-btn" class="secondary" disabled aria-label="<?php p($l->t('Previous')); ?>" title="<?php p($l->t('Previous')); ?>">←</button>
+                            <span id="page-info"><?php p($l->t('Page %1$s of %2$s', [1, 1])); ?></span>
+                            <button id="next-page-btn" class="secondary" disabled aria-label="<?php p($l->t('Next')); ?>" title="<?php p($l->t('Next')); ?>">→</button>
                         </div>
                     </div>
                 </div>
@@ -1840,9 +1842,9 @@ style('budget', 'budget-app');
                 </table>
 
                 <div class="pagination-controls pagination-bottom">
-                    <button id="prev-page-btn-bottom" class="secondary" disabled>←</button>
-                    <span id="page-info-bottom">Page 1 of 1</span>
-                    <button id="next-page-btn-bottom" class="secondary" disabled>→</button>
+                    <button id="prev-page-btn-bottom" class="secondary" disabled aria-label="<?php p($l->t('Previous')); ?>" title="<?php p($l->t('Previous')); ?>">←</button>
+                    <span id="page-info-bottom"><?php p($l->t('Page %1$s of %2$s', [1, 1])); ?></span>
+                    <button id="next-page-btn-bottom" class="secondary" disabled aria-label="<?php p($l->t('Next')); ?>" title="<?php p($l->t('Next')); ?>">→</button>
                 </div>
             </div>
         </div>
@@ -3207,7 +3209,7 @@ style('budget', 'budget-app');
                         <div class="summary-card summary-card-net">
                             <div class="summary-icon">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+                                    <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
                                 </svg>
                             </div>
                             <div class="summary-content">
@@ -4287,11 +4289,11 @@ style('budget', 'budget-app');
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                         <h3><?php p($l->t('Bank Connections')); ?></h3>
                         <div style="display: flex; gap: 8px;">
-                            <button class="btn btn-secondary" id="sync-all-connections-btn" style="display: none;" title="<?php p($l->t('Sync all active connections')); ?>">
+                            <button class="secondary" id="sync-all-connections-btn" style="display: none;" title="<?php p($l->t('Sync all active connections')); ?>">
                                 <span class="icon-play" aria-hidden="true"></span>
                                 <?php p($l->t('Sync All')); ?>
                             </button>
-                            <button class="btn btn-primary" id="add-bank-connection-btn">
+                            <button class="primary" id="add-bank-connection-btn">
                                 <span class="icon-add" aria-hidden="true"></span>
                                 <?php p($l->t('Add Connection')); ?>
                             </button>
@@ -4306,7 +4308,7 @@ style('budget', 'budget-app');
                 <div class="settings-section" id="bank-mappings-section" style="display: none;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <h3 id="bank-mappings-title"><?php p($l->t('Account Mappings')); ?></h3>
-                        <button class="btn btn-sm" id="refresh-accounts-btn" title="<?php p($l->t('Refresh account list from bank')); ?>">
+                        <button id="refresh-accounts-btn" title="<?php p($l->t('Refresh account list from bank')); ?>">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/></svg>
                         </button>
                     </div>
@@ -5712,7 +5714,7 @@ style('budget', 'budget-app');
 <!-- Modals -->
 <div id="transaction-modal" class="modal modal-columns" style="display: none;" role="dialog" aria-labelledby="transaction-modal-title" aria-hidden="true">
     <div class="modal-content">
-        <h3 id="transaction-modal-title"><?php p($l->t('Add/Edit Transaction')); ?></h3>
+        <h3 id="transaction-modal-title"><?php p($l->t('New transaction')); ?></h3>
         <form id="transaction-form" class="wide-form">
             <input type="hidden" id="transaction-id">
 
@@ -5850,7 +5852,7 @@ style('budget', 'budget-app');
                         <span id="inline-split-remaining" class="inline-splits-remaining"></span>
                     </div>
                     <div id="inline-splits-container"></div>
-                    <button type="button" id="inline-add-split-btn" class="btn-small btn-secondary">+ <?php p($l->t('Add Row')); ?></button>
+                    <button type="button" id="inline-add-split-btn" class="secondary">+ <?php p($l->t('Add Row')); ?></button>
               </div>
             </div>
 
@@ -7459,11 +7461,10 @@ style('budget', 'budget-app');
 </div>
 
 <!-- Help Panel -->
-<button id="help-fab" class="help-fab" title="<?php p($l->t('Help')); ?>" aria-label="<?php p($l->t('Help')); ?>">?</button>
 <div id="help-panel" class="help-panel" style="display: none;">
     <div class="help-panel-header">
         <h3><?php p($l->t('Help')); ?></h3>
-        <button id="help-panel-close" class="help-panel-close">&times;</button>
+        <button id="help-panel-close" class="help-panel-close" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
     </div>
     <div id="help-panel-content" class="help-panel-content">
         <!-- Populated dynamically based on current view -->

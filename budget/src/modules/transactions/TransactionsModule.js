@@ -2044,6 +2044,13 @@ export default class TransactionsModule {
     showTransactionModal(transaction = null, preSelectedAccountId = null) {
         const modal = document.getElementById('transaction-modal');
         if (modal) {
+            const titleEl = document.getElementById('transaction-modal-title');
+            if (titleEl) {
+                titleEl.textContent = transaction?.id
+                    ? t('budget', 'Edit transaction')
+                    : t('budget', 'New transaction');
+            }
+
             // Populate account and category dropdowns first
             this.populateTransactionModalDropdowns();
 

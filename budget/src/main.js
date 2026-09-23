@@ -971,14 +971,20 @@ class BudgetApp {
             `;
         };
 
+        const setOpen = (open) => {
+            panel.style.display = open ? 'flex' : 'none';
+            fab.setAttribute('aria-expanded', open ? 'true' : 'false');
+        };
+
         fab.addEventListener('click', () => {
-            const isVisible = panel.style.display !== 'none';
-            if (isVisible) {
-                panel.style.display = 'none';
+            if (panel.style.display !== 'none') {
+                setOpen(false);
                 return;
             }
             updateHelpContent();
-            panel.style.display = 'flex';
+            setOpen(true);
+            // On narrow screens the sidebar covers the page; get it out of the way.
+            this.router.closeMobileNavigation();
         });
 
         // Store update function so Router can call it on navigation
@@ -988,15 +994,13 @@ class BudgetApp {
             }
         };
 
-        closeBtn?.addEventListener('click', () => {
-            panel.style.display = 'none';
-        });
+        closeBtn?.addEventListener('click', () => setOpen(false));
 
         // "Show keyboard shortcuts" button inside the help panel — open the
         // cheat-sheet overlay and close the panel so it's not behind it.
         content.addEventListener('click', (e) => {
             if (e.target.closest('.help-shortcuts-btn')) {
-                panel.style.display = 'none';
+                setOpen(false);
                 this.keyboardShortcuts.openShortcuts();
             }
         });
@@ -1005,7 +1009,7 @@ class BudgetApp {
         // must not fall through to the browser's hash handling).
         document.getElementById('help-panel-all-docs')?.addEventListener('click', (e) => {
             e.preventDefault();
-            panel.style.display = 'none';
+            setOpen(false);
             this.router.showView('help');
         });
     }
@@ -1186,9 +1190,11 @@ class BudgetApp {
             const portionAmount = transactionDisplayAmount(transaction);
             const signedPortion = transaction.type === 'credit' ? portionAmount : -portionAmount;
             const amountClass = isSplitPortion ? (signedPortion >= 0 ? 'positive' : 'negative') : typeClass;
-            const displayAmount = isSplitPortion
+            // The sign is spelled out, not left to the colour, so the direction
+            // reads for colour-blind users and in dark mode alike.
+            const displayAmount = (amountClass === 'positive' ? '+' : '-') + (isSplitPortion
                 ? this.formatCurrency(Math.abs(portionAmount), currency)
-                : formattedAmount;
+                : this.formatCurrency(Math.abs(transaction.amount), currency));
             const showsWholeToo = isSplitPortion
                 && Math.abs(Math.abs(portionAmount) - Math.abs(transaction.amount)) > 0.005;
 

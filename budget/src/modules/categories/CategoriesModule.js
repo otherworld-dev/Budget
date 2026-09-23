@@ -2387,6 +2387,7 @@ export default class CategoriesModule {
                                 data-category-id="${category.id}"
                                 data-enabled="${rolloverEnabled ? '1' : '0'}"
                                 title="${rolloverEnabled ? t('budget', 'Envelope budgeting on: unspent budget carries to next month. Click to turn off.') : t('budget', 'Turn on envelope budgeting: unspent budget carries to next month')}"
+                                aria-label="${t('budget', 'Envelope budgeting')}"
                                 aria-pressed="${rolloverEnabled ? 'true' : 'false'}">&#8635;</button>` : ''}
                     </div>
                     <div class="budget-input-wrapper" data-label="${t('budget', 'Budget')}">
@@ -2412,7 +2413,7 @@ export default class CategoriesModule {
                             <option value="yearly" ${effectivePeriod === 'yearly' ? 'selected' : ''}>${t('budget', 'Yearly')}</option>
                         </select>
                     </div>
-                    <div class="budget-spent" data-label="${t('budget', 'Spent')}">
+                    <div class="budget-spent ${Math.abs(spent) < 0.005 ? 'zero' : ''}" data-label="${t('budget', 'Spent')}">
                         ${this.formatCurrency(spent)}
                     </div>
                     <div class="budget-remaining ${remainingClass}" data-label="${t('budget', 'Remaining')}">
