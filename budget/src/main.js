@@ -72,6 +72,7 @@ import * as dom from './utils/dom.js';
 import { showSuccess, showError, showWarning } from './utils/notifications.js';
 import { confirmDialog } from './utils/dialogs.js';
 import { initDatePickers } from './utils/datepicker.js';
+import { setupHeaderMenus } from './utils/headerMenu.js';
 import { serverErrorMessage, hasSplitPortion, transactionDisplayAmount } from './utils/helpers.js';
 
 // Configuration
@@ -435,53 +436,89 @@ class BudgetApp {
             });
         }
 
-        // More-actions menu (fixed position to avoid overflow clipping)
+        // More-actions menu: a labelled dropdown under the row's ⋮ button, fixed
+        // so the table's overflow can't clip it. Delete lives here rather than
+        // as an always-visible button on every row.
+        const closeActionMenu = (restoreFocus) => {
+            const open = document.querySelector('.action-menu-fixed');
+            if (!open) return;
+            const owner = open._owner;
+            open.remove();
+            owner?.setAttribute('aria-expanded', 'false');
+            if (restoreFocus) owner?.focus();
+        };
+
         document.addEventListener('click', (e) => {
             const moreBtn = e.target.closest('.more-actions-btn');
-            if (moreBtn) {
-                e.stopPropagation();
-                const existing = document.querySelector('.action-menu-fixed');
-                if (existing) existing.remove();
-
-                const transactionId = moreBtn.getAttribute('data-transaction-id');
-                const transaction = this.transactions?.find(tx => tx.id === parseInt(transactionId));
-                const isLinked = transaction?.linkedTransactionId != null;
-                const rect = moreBtn.getBoundingClientRect();
-
-                const menu = document.createElement('div');
-                menu.className = 'action-menu-fixed';
-                menu.style.top = `${rect.top + (rect.height / 2)}px`;
-                menu.style.left = `${rect.left - 4}px`;
-                menu.style.transform = 'translate(-100%, -50%)';
-                menu.innerHTML = `
-                    <button class="action-menu-item transaction-duplicate-btn" data-transaction-id="${transactionId}" title="${t('budget', 'Duplicate transaction')}">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                    </button>
-                    <button class="action-menu-item transaction-share-btn" data-transaction-id="${transactionId}" title="${t('budget', 'Share expense')}">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    </button>
-                    ${isLinked
-                        ? `<button class="action-menu-item transaction-unlink-btn" data-transaction-id="${transactionId}" title="${t('budget', 'Unlink transfer')}">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.84 12.25l1.72-1.71a4 4 0 0 0-5.66-5.66l-1.71 1.72"/><path d="M5.17 11.75l-1.71 1.71a4 4 0 0 0 5.66 5.66l1.71-1.71"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
-                        </button>`
-                        : `<button class="action-menu-item transaction-match-btn" data-transaction-id="${transactionId}" title="${t('budget', 'Match transfer')}">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                        </button>`
-                    }
-                `;
-                document.body.appendChild(menu);
-
-                // Close menu on any click (after this event)
-                setTimeout(() => {
-                    const closeMenu = () => {
-                        menu.remove();
-                        document.removeEventListener('click', closeMenu);
-                    };
-                    document.addEventListener('click', closeMenu);
-                }, 0);
+            const existing = document.querySelector('.action-menu-fixed');
+            if (!moreBtn) {
+                // Any click elsewhere (including on a menu item, after its own
+                // handler has run) closes the menu.
+                if (existing) setTimeout(() => closeActionMenu(false), 0);
                 return;
             }
+            e.stopPropagation();
+            const reopening = existing && existing._owner === moreBtn;
+            closeActionMenu(false);
+            if (reopening) return;
+
+            const transactionId = moreBtn.getAttribute('data-transaction-id');
+            const transaction = this.transactions?.find(tx => tx.id === parseInt(transactionId));
+            const isLinked = transaction?.linkedTransactionId != null;
+            const icon = (paths) => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">${paths}</svg>`;
+            const item = (cls, label, paths) => `
+                <button type="button" role="menuitem" class="action-menu-item ${cls}" data-transaction-id="${transactionId}">
+                    ${icon(paths)}<span>${label}</span>
+                </button>`;
+
+            const menu = document.createElement('div');
+            menu.className = 'action-menu-fixed';
+            menu.setAttribute('role', 'menu');
+            menu.innerHTML = [
+                item('transaction-duplicate-btn', t('budget', 'Duplicate'),
+                    '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'),
+                item('transaction-share-btn', t('budget', 'Share expense'),
+                    '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'),
+                isLinked
+                    ? item('transaction-unlink-btn', t('budget', 'Unlink transfer'),
+                        '<path d="M18.84 12.25l1.72-1.71a4 4 0 0 0-5.66-5.66l-1.71 1.72"/><path d="M5.17 11.75l-1.71 1.71a4 4 0 0 0 5.66 5.66l1.71-1.71"/><line x1="2" y1="2" x2="22" y2="22"/>')
+                    : item('transaction-match-btn', t('budget', 'Match transfer'),
+                        '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'),
+                '<div class="action-menu-separator" role="separator"></div>',
+                item('transaction-delete-btn action-menu-item--danger', t('budget', 'Delete'),
+                    '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>'),
+            ].join('');
+            menu._owner = moreBtn;
+            document.body.appendChild(menu);
+
+            // Below the button, right-aligned to it; flipped above when it
+            // would run off the bottom of the window.
+            const rect = moreBtn.getBoundingClientRect();
+            const menuHeight = menu.offsetHeight;
+            const below = rect.bottom + 4;
+            menu.style.top = `${below + menuHeight > window.innerHeight - 8 ? Math.max(8, rect.top - 4 - menuHeight) : below}px`;
+            menu.style.left = `${Math.max(8, rect.right - menu.offsetWidth)}px`;
+
+            moreBtn.setAttribute('aria-expanded', 'true');
+            menu.querySelector('.action-menu-item')?.focus();
+
+            menu.addEventListener('keydown', (ev) => {
+                const items = [...menu.querySelectorAll('.action-menu-item')];
+                const i = items.indexOf(document.activeElement);
+                if (ev.key === 'Escape') {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    closeActionMenu(true);
+                } else if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+                    ev.preventDefault();
+                    const next = ev.key === 'ArrowDown' ? i + 1 : i - 1;
+                    items[(next + items.length) % items.length].focus();
+                } else if (ev.key === 'Tab') {
+                    closeActionMenu(false);
+                }
+            });
         });
+        window.addEventListener('scroll', () => closeActionMenu(false), true);
 
         // Account action buttons, transaction action buttons, and autocomplete (using event delegation)
         document.addEventListener('click', (e) => {
@@ -629,6 +666,7 @@ class BudgetApp {
 
         // Help panel
         this.setupHelpPanel();
+        setupHeaderMenus();
 
         // Window resize handler for responsive dashboard layout
         let resizeTimeout;
@@ -1278,9 +1316,7 @@ class BudgetApp {
                             })()
                             : isSplit
                             ? `<span class="category-badge cell-display split-category">${t('budget', 'Split')}</span>`
-                            : `<span class="category-badge cell-display ${category ? 'categorized' : 'uncategorized'}">
-                                ${category ? this.escapeHtml(category.name) : t('budget', 'Uncategorized')}
-                            </span>`
+                            : `<span class="category-badge cell-display ${category ? 'categorized' : 'uncategorized'}">${category && category.color ? `<span class="category-dot" style="background-color: ${this.escapeHtml(category.color)}" aria-hidden="true"></span>` : ''}${category ? this.escapeHtml(category.name) : t('budget', 'Uncategorized')}</span>`
                         }
                     </td>
                     <td class="tags-column editable-cell"
@@ -1314,20 +1350,19 @@ class BudgetApp {
                     </td>
                     <td class="actions-column">
                         <div class="transaction-actions">
-                            <button class="action-btn more-actions-btn"
-                                    data-transaction-id="${transaction.id}"
-                                    title="${t('budget', 'More actions')}">
-                                <span aria-hidden="true">&#x22EE;</span>
-                            </button>
                             <button class="action-btn edit-btn transaction-edit-btn"
                                     data-transaction-id="${transaction.id}"
-                                    title="${t('budget', 'Edit transaction')}">
+                                    title="${t('budget', 'Edit transaction')}"
+                                    aria-label="${t('budget', 'Edit transaction')}">
                                 <span class="icon-rename" aria-hidden="true"></span>
                             </button>
-                            <button class="action-btn delete-btn transaction-delete-btn"
+                            <button class="action-btn more-actions-btn"
                                     data-transaction-id="${transaction.id}"
-                                    title="${t('budget', 'Delete transaction')}">
-                                <span class="icon-delete" aria-hidden="true"></span>
+                                    title="${t('budget', 'More actions')}"
+                                    aria-label="${t('budget', 'More actions')}"
+                                    aria-haspopup="menu"
+                                    aria-expanded="false">
+                                <span aria-hidden="true">&#x22EE;</span>
                             </button>
                         </div>
                     </td>

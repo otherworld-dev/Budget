@@ -212,9 +212,11 @@ export default class KeyboardShortcuts {
         if (modal.contains(document.activeElement)) return;
         // Skip date pickers: focusing one pops its calendar open over the rest of
         // the form, and they already hold a sensible default (usually today).
+        // Controls kept only for their value (tabindex="-1", visually hidden)
+        // are skipped too.
         const field = modal.querySelector(
-            'input:not([type=hidden]):not([disabled]):not(.flatpickr-input),' +
-            ' select:not([disabled]), textarea:not([disabled])'
+            'input:not([type=hidden]):not([disabled]):not(.flatpickr-input):not([tabindex="-1"]),' +
+            ' select:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]):not([tabindex="-1"])'
         ) || modal.querySelector('button.primary');
         // Defer so it wins over any focus the open handler sets synchronously.
         if (field) setTimeout(() => {

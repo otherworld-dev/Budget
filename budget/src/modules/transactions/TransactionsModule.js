@@ -2094,6 +2094,9 @@ export default class TransactionsModule {
                 document.getElementById('transaction-form').reset();
                 document.getElementById('transaction-id').value = '';
                 setDateValue('transaction-date', formatters.getTodayDateString());
+                // Most entries are spending; start there rather than on an
+                // empty "choose a type" the user must always fill in.
+                document.getElementById('transaction-type').value = 'debit';
 
                 // Receipts can be chosen before saving: they are held and
                 // attached as soon as the transaction has an id.
@@ -2112,9 +2115,13 @@ export default class TransactionsModule {
                 const amtLabel = document.getElementById('transaction-amount-label');
                 if (amtLabel) amtLabel.textContent = t('budget', 'Amount');
 
-                // Pre-select account if provided
-                if (preSelectedAccountId) {
-                    document.getElementById('transaction-account').value = preSelectedAccountId;
+                // Pre-select an account: the one asked for, else the one the
+                // list is filtered to, else the last one used, else the only
+                // open one.
+                const accountSelect = document.getElementById('transaction-account');
+                const defaultAccountId = preSelectedAccountId || this._defaultTransactionAccountId();
+                if (defaultAccountId && accountSelect.querySelector(`option[value="${defaultAccountId}"]`)) {
+                    accountSelect.value = String(defaultAccountId);
                 }
 
                 // Clear tag selectors
@@ -2194,8 +2201,92 @@ export default class TransactionsModule {
             // Set up inline split toggle
             this.setupInlineSplitToggle();
 
+            // "More options" starts open when this transaction already uses
+            // something in it; receipt scanning opens it too (setupReceiptScan).
+            const extras = document.getElementById('transaction-extras');
+            if (extras) {
+                extras.open = !!(transaction && (transaction.notes || transaction.excludedFromForecast
+                    || this.app.attachmentCounts?.[transaction.id]));
+            }
+
+            this._setupTypeToggle();
+            this._syncTypeToggle();
+
             modal.style.display = 'flex';
         }
+    }
+
+    /**
+     * Account for a new transaction when none was asked for: the account the
+     * list is filtered to, then the last one a transaction was saved to, then
+     * the only open account. Null when none of those applies.
+     */
+    _defaultTransactionAccountId() {
+        const open = openAccounts(this.accounts);
+        const isOpen = (id) => open.some(a => String(a.id) === String(id));
+
+        const filtered = document.getElementById('filter-account')?.value;
+        if (filtered && isOpen(filtered)) return filtered;
+
+        let last = null;
+        try {
+            last = window.localStorage.getItem('budget.lastTransactionAccountId');
+        } catch (e) {
+            // Storage blocked (private mode, policy): no remembered account.
+        }
+        if (last && isOpen(last)) return last;
+
+        return open.length === 1 ? open[0].id : null;
+    }
+
+    /** Wire the Expense / Income / Transfer buttons to the hidden type select. */
+    _setupTypeToggle() {
+        if (this._typeToggleBound) return;
+        const toggle = document.getElementById('transaction-type-toggle');
+        const select = document.getElementById('transaction-type');
+        if (!toggle || !select) return;
+        this._typeToggleBound = true;
+
+        const choose = (btn) => {
+            if (!btn || btn.hidden || select.value === btn.dataset.value) return;
+            select.value = btn.dataset.value;
+            // The select's own change handler shows or hides the transfer fields.
+            select.dispatchEvent(new Event('change'));
+            this._syncTypeToggle();
+        };
+
+        toggle.addEventListener('click', (e) => choose(e.target.closest('button[data-value]')));
+
+        // Arrow keys move between the options, as in any radio group.
+        toggle.addEventListener('keydown', (e) => {
+            if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+            e.preventDefault();
+            const buttons = [...toggle.querySelectorAll('button[data-value]')].filter(b => !b.hidden);
+            const i = buttons.findIndex(b => b.dataset.value === select.value);
+            const step = (e.key === 'ArrowRight' || e.key === 'ArrowDown') ? 1 : -1;
+            const next = buttons[(i + step + buttons.length) % buttons.length];
+            choose(next);
+            next?.focus();
+        });
+    }
+
+    /**
+     * Mirror the select onto the buttons: which one is chosen, and whether
+     * Transfer is offered at all (it is removed from the select when editing).
+     */
+    _syncTypeToggle() {
+        const toggle = document.getElementById('transaction-type-toggle');
+        const select = document.getElementById('transaction-type');
+        if (!toggle || !select) return;
+        toggle.querySelectorAll('button[data-value]').forEach(btn => {
+            const offered = !!select.querySelector(`option[value="${btn.dataset.value}"]`);
+            const chosen = offered && select.value === btn.dataset.value;
+            btn.hidden = !offered;
+            btn.classList.toggle('active', chosen);
+            btn.setAttribute('aria-checked', chosen ? 'true' : 'false');
+            // Only the chosen option is in the tab order (roving tabindex).
+            btn.tabIndex = chosen || (!select.value && btn.dataset.value === 'debit') ? 0 : -1;
+        });
     }
 
     async editTransaction(id) {
@@ -2283,6 +2374,12 @@ export default class TransactionsModule {
 
         group.style.display = this._ocrAvailable ? '' : 'none';
         if (!this._ocrAvailable) return;
+
+        // Scanning is a way to fill the whole form, so don't fold it away.
+        if (isNewTransaction) {
+            const extras = document.getElementById('transaction-extras');
+            if (extras) extras.open = true;
+        }
 
         this._scanIsNewTransaction = isNewTransaction;
 
@@ -2824,6 +2921,13 @@ export default class TransactionsModule {
         const id = document.getElementById('transaction-id').value;
         const date = document.getElementById('transaction-date').value;
         const accountId = parseInt(document.getElementById('transaction-account').value);
+        if (!id && accountId) {
+            try {
+                window.localStorage.setItem('budget.lastTransactionAccountId', String(accountId));
+            } catch (e) {
+                // Storage blocked: the next form just won't pre-select it.
+            }
+        }
         const type = document.getElementById('transaction-type').value;
         const amount = parseFloat(document.getElementById('transaction-amount').value);
 

@@ -1820,7 +1820,6 @@
 }
 
 .amount {
-    font-family: monospace;
     text-align: right;
     font-variant-numeric: tabular-nums;
 }
@@ -2640,6 +2639,117 @@ button.danger:hover {
 .wide-form .form-text {
     margin-top: 4px;
     font-size: 12px;
+}
+
+/* A field's caption where there is no single control for a <label> to point
+   at (the transaction type toggle). Matches .form-group label. */
+.wide-form .form-group .form-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--color-text-maxcontrast);
+}
+
+/* Hidden from sight but still in the form, so `required` and the existing
+   change handlers keep working. */
+.visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: -1px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* Segmented control: a small set of mutually exclusive choices shown as one
+   joined row of buttons (transaction type). */
+.segmented-toggle {
+    display: flex;
+    width: 100%;
+    padding: 3px;
+    gap: 3px;
+    border: 1px solid var(--color-border-dark);
+    border-radius: var(--border-radius-element, 8px);
+    background: var(--color-background-dark);
+}
+
+.segmented-toggle > button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: calc(var(--default-clickable-area, 34px) - 6px);
+    margin: 0;
+    padding: 0 8px;
+    border: none;
+    border-radius: calc(var(--border-radius-element, 8px) - 2px);
+    background: transparent;
+    color: var(--color-main-text);
+    font-weight: normal;
+}
+
+.segmented-toggle > button:hover {
+    background: var(--color-background-hover);
+}
+
+.segmented-toggle > button.active {
+    background: var(--color-main-background);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    font-weight: bold;
+}
+
+.segmented-toggle > button[hidden] {
+    display: none;
+}
+
+/* "More options" in the transaction dialog: receipts, notes and the forecast
+   flag, folded under the everyday fields. */
+.wide-form .form-extras > summary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: fit-content;
+    cursor: pointer;
+    font-weight: bold;
+    color: var(--color-main-text);
+    list-style: none;
+}
+
+.wide-form .form-extras > summary::-webkit-details-marker {
+    display: none;
+}
+
+.wide-form .form-extras > summary::before {
+    content: '';
+    width: 0;
+    height: 0;
+    border-left: 5px solid currentColor;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    transition: transform 0.15s ease;
+}
+
+.wide-form .form-extras[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.form-extras-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 26px;
+    margin-top: 14px;
+}
+
+.form-extras-col .form-group:last-child {
+    margin-bottom: 0;
+}
+
+@media (max-width: 767px) {
+    .form-extras-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Balance is derived from transactions on edit — show it as a readout rather
@@ -4311,8 +4421,32 @@ button.danger:hover {
     /* Wide enough for an 8-decimal crypto amount plus its suffix, e.g.
        "0.00012345 BTC" — 100px ellipsised the suffix to "…" (#331). */
     width: 140px;
-    text-align: center;
+    text-align: right;
     white-space: nowrap;
+}
+
+/* Figures line up on the right, header included. */
+.transactions-table.enhanced th.amount-column {
+    text-align: right;
+    padding-right: 20px;
+}
+
+/* The account column read larger and bolder than the rest of the row,
+   picking up the account cards' .account-name heading style. */
+.transactions-table.enhanced .account-name {
+    font-size: inherit;
+    font-weight: normal;
+    margin: 0;
+}
+
+/* The category's own colour, as the dashboard and Budget page show it. */
+.category-badge .category-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-inline-end: 5px;
+    border-radius: 50%;
+    vertical-align: baseline;
 }
 
 .balance-column {
@@ -4514,36 +4648,111 @@ button.danger:hover {
 .action-menu-fixed {
     position: fixed;
     z-index: 1000;
+    min-width: 180px;
+    display: flex;
+    flex-direction: column;
+    padding: 4px;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    padding: 4px;
-    display: flex;
-    gap: 2px;
+    border-radius: var(--border-radius-large, 12px);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
 }
 
-.action-menu-item {
+.action-menu-fixed button.action-menu-item {
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    padding: 0;
+    gap: 10px;
+    justify-content: flex-start;
+    width: 100%;
+    min-height: var(--default-clickable-area, 34px);
+    margin: 0;
+    padding: 0 12px;
     border: none;
+    border-radius: var(--border-radius-element, 8px);
     background: none;
-    border-radius: 4px;
-    cursor: pointer;
     color: var(--color-main-text);
-    transition: background-color 0.15s ease;
+    font-weight: normal;
+    text-align: start;
+    cursor: pointer;
 }
 
-.action-menu-item:hover {
+.action-menu-fixed button.action-menu-item:hover,
+.action-menu-fixed button.action-menu-item:focus-visible {
     background: var(--color-background-hover);
 }
 
 .action-menu-item svg {
     flex-shrink: 0;
+    opacity: 0.8;
+}
+
+.action-menu-fixed button.action-menu-item--danger {
+    color: var(--color-error-text, var(--budget-color-negative));
+}
+
+.action-menu-separator {
+    height: 1px;
+    margin: 4px 8px;
+    background: var(--color-border);
+}
+
+/* "More" dropdown in a view header (utils/headerMenu.js): the less common
+   actions, so the header fits on one line beside the title. */
+.header-menu {
+    position: relative;
+}
+
+.header-menu-toggle {
+    min-width: var(--default-clickable-area, 34px);
+    padding-inline: 10px;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.header-menu-list {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 1100;
+    min-width: 240px;
+    display: flex;
+    flex-direction: column;
+    padding: 4px;
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-large, 12px);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+}
+
+.header-menu-list[hidden] {
+    display: none;
+}
+
+.header-menu .header-menu-list > button {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    width: 100%;
+    min-height: var(--default-clickable-area, 34px);
+    margin: 0;
+    padding: 0 12px;
+    border: none;
+    border-radius: var(--border-radius-element, 8px);
+    background: none;
+    color: var(--color-main-text);
+    font-weight: normal;
+    text-align: start;
+}
+
+.header-menu .header-menu-list > button:hover,
+.header-menu .header-menu-list > button:focus-visible {
+    background: var(--color-background-hover);
+}
+
+.view-controls .header-menu .header-menu-list > button.active {
+    background: color-mix(in srgb, var(--color-primary-element) 16%, transparent);
+    color: var(--color-main-text);
 }
 
 /* Inline Editing */
@@ -5214,6 +5423,117 @@ button.danger:hover {
         .description-column {
             min-width: 150px;
         }
+    }
+}
+
+/* Phones: each transaction becomes a two-line card rather than a table
+   squeezed to three columns, which dropped the description and cut off the
+   amount.
+     [ ] Description ......................... -£12.34
+         24 Aug · Groceries · Current            ✎ ⋮      */
+@media (max-width: 640px) {
+    #transactions-table.transactions-table.enhanced {
+        display: block;
+        table-layout: auto;
+    }
+
+    #transactions-table thead {
+        display: none;
+    }
+
+    #transactions-table tbody {
+        display: block;
+    }
+
+    #transactions-table tr.transaction-row {
+        display: grid;
+        grid-template-columns: 24px auto auto minmax(0, 1fr) auto;
+        grid-template-areas:
+            "select desc desc desc amount"
+            "select date cat account actions";
+        align-items: center;
+        column-gap: 8px;
+        row-gap: 2px;
+        padding: 10px 4px;
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    #transactions-table tr.transaction-row > td {
+        display: block;
+        width: auto;
+        min-width: 0;
+        max-width: none;
+        height: auto;
+        min-height: 0;
+        align-self: center;
+        padding: 0 !important;
+        border: none;
+        text-align: start;
+    }
+
+    #transactions-table tr.transaction-row > td.select-column { grid-area: select; align-self: start; padding-top: 2px !important; }
+    #transactions-table tr.transaction-row > td.description-column .transaction-description { padding: 0; }
+    #transactions-table tr.transaction-row > td.description-column { grid-area: desc; min-width: 0; }
+    #transactions-table tr.transaction-row > td.amount-column { grid-area: amount; text-align: end; font-size: 14px; }
+    #transactions-table tr.transaction-row > td.date-column { grid-area: date; color: var(--color-text-maxcontrast); font-size: 12px; }
+    #transactions-table tr.transaction-row > td.category-column { grid-area: cat; max-width: 40vw; }
+    #transactions-table tr.transaction-row > td.account-column {
+        grid-area: account;
+        display: block;
+        color: var(--color-text-maxcontrast);
+        font-size: 12px;
+    }
+    #transactions-table tr.transaction-row > td.actions-column { grid-area: actions; justify-self: end; }
+
+    #transactions-table tr.transaction-row > td.vendor-column,
+    #transactions-table tr.transaction-row > td.tags-column,
+    #transactions-table tr.transaction-row > td.balance-column,
+    #transactions-table tr.transaction-row > td.reconcile-column {
+        display: none;
+    }
+
+    #transactions-table .transaction-description .primary-text {
+        font-size: 14px;
+    }
+
+    #transactions-table .category-badge {
+        padding: 0 6px;
+    }
+
+    #transactions-table .transaction-actions {
+        gap: 2px;
+    }
+
+    #transactions-table .transaction-actions .action-btn {
+        width: 30px;
+        height: 30px;
+        min-height: 0;
+    }
+
+    /* The count, rows-per-page and paging share two short lines instead of
+       four stacked ones. */
+    #transactions-view .table-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+
+    #transactions-view .table-header .table-info {
+        justify-content: flex-start;
+    }
+
+    #transactions-view .table-header .table-pagination {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+    }
+
+    #transactions-view .table-header #rows-per-page {
+        width: auto;
+        min-width: 0;
+        flex: 1;
     }
 }
 

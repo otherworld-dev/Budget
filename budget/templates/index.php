@@ -1570,26 +1570,33 @@ style('budget', 'budget-app');
                         <span class="icon-checkmark" aria-hidden="true"></span>
                         <?php p($l->t('Bulk Actions')); ?>
                     </button>
-                    <button id="reconcile-mode-btn" class="secondary" title="<?php p($l->t('Reconciliation mode')); ?>">
-                        <span class="icon-history" aria-hidden="true"></span>
-                        <?php p($l->t('Reconcile')); ?>
-                    </button>
-                    <button id="find-duplicates-btn" class="secondary" title="<?php p($l->t('Find suspected duplicate transactions')); ?>">
-                        <span class="icon-search" aria-hidden="true"></span>
-                        <?php p($l->t('Find Duplicates')); ?>
-                    </button>
-                    <button id="bulk-match-btn" class="secondary" title="<?php p($l->t('Auto-match transfer transactions')); ?>">
-                        <span class="icon-link" aria-hidden="true"></span>
-                        <?php p($l->t('Match All')); ?>
-                    </button>
-                    <button id="transactions-export-btn" class="secondary" title="<?php p($l->t('Export every transaction matching the current filters as CSV')); ?>">
-                        <span class="icon-download" aria-hidden="true"></span>
-                        <?php p($l->t('Export')); ?>
-                    </button>
                     <button id="add-transaction-btn" class="primary" aria-label="<?php p($l->t('Add new transaction')); ?>">
                         <span class="icon-add" aria-hidden="true"></span>
                         <?php p($l->t('Add Transaction')); ?>
                     </button>
+                    <div class="header-menu">
+                        <button type="button" class="secondary header-menu-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="transactions-more-menu" title="<?php p($l->t('More actions')); ?>" aria-label="<?php p($l->t('More actions')); ?>">
+                            <span aria-hidden="true">&#x22EF;</span>
+                        </button>
+                        <div id="transactions-more-menu" class="header-menu-list" role="menu" hidden>
+                            <button id="reconcile-mode-btn" role="menuitem" title="<?php p($l->t('Reconciliation mode')); ?>">
+                                <span class="icon-history" aria-hidden="true"></span>
+                                <?php p($l->t('Reconcile')); ?>
+                            </button>
+                            <button id="find-duplicates-btn" role="menuitem" title="<?php p($l->t('Find suspected duplicate transactions')); ?>">
+                                <span class="icon-search" aria-hidden="true"></span>
+                                <?php p($l->t('Find Duplicates')); ?>
+                            </button>
+                            <button id="bulk-match-btn" role="menuitem" title="<?php p($l->t('Auto-match transfer transactions')); ?>">
+                                <span class="icon-link" aria-hidden="true"></span>
+                                <?php p($l->t('Match All')); ?>
+                            </button>
+                            <button id="transactions-export-btn" role="menuitem" title="<?php p($l->t('Export every transaction matching the current filters as CSV')); ?>">
+                                <span class="icon-download" aria-hidden="true"></span>
+                                <?php p($l->t('Export')); ?>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -5712,41 +5719,33 @@ style('budget', 'budget-app');
 </div>
 
 <!-- Modals -->
-<div id="transaction-modal" class="modal modal-columns" style="display: none;" role="dialog" aria-labelledby="transaction-modal-title" aria-hidden="true">
+<div id="transaction-modal" class="modal modal-columns modal-columns-2" style="display: none;" role="dialog" aria-labelledby="transaction-modal-title" aria-hidden="true">
     <div class="modal-content">
         <h3 id="transaction-modal-title"><?php p($l->t('New transaction')); ?></h3>
         <form id="transaction-form" class="wide-form">
             <input type="hidden" id="transaction-id">
 
             <div class="modal-scroll">
-              <div class="form-columns">
+              <div class="form-columns form-columns-2">
                 <!-- Column 1 -->
                 <div class="form-col">
                   <div class="form-block">
                     <h4><?php p($l->t('Transaction')); ?></h4>
                     <div class="form-group">
-                        <label for="transaction-date"><?php p($l->t('Date')); ?> <span class="required">*</span></label>
-                        <input type="date" id="transaction-date" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="transaction-account"><?php p($l->t('Account')); ?> <span class="required">*</span></label>
-                        <select id="transaction-account" required>
-                            <option value=""><?php p($l->t('Choose an account')); ?></option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="transaction-type"><?php p($l->t('Type')); ?> <span class="required">*</span></label>
-                        <select id="transaction-type" required>
+                        <span id="transaction-type-label" class="form-label"><?php p($l->t('Type')); ?></span>
+                        <!-- Segmented control over the select below, which stays the
+                             source of truth (its change handler shows the transfer
+                             fields). TransactionsModule keeps the two in step. -->
+                        <div id="transaction-type-toggle" class="segmented-toggle" role="radiogroup" aria-labelledby="transaction-type-label">
+                            <button type="button" role="radio" data-value="debit" aria-checked="false"><?php p($l->t('Expense')); ?></button>
+                            <button type="button" role="radio" data-value="credit" aria-checked="false"><?php p($l->t('Income')); ?></button>
+                            <button type="button" role="radio" data-value="transfer" aria-checked="false"><?php p($l->t('Transfer')); ?></button>
+                        </div>
+                        <select id="transaction-type" class="visually-hidden" tabindex="-1" aria-hidden="true" required>
                             <option value=""><?php p($l->t('Choose transaction type')); ?></option>
                             <option value="debit"><?php p($l->t('Expense')); ?></option>
                             <option value="credit"><?php p($l->t('Income')); ?></option>
                             <option value="transfer"><?php p($l->t('Transfer')); ?></option>
-                        </select>
-                    </div>
-                    <div id="transfer-to-account-wrapper" class="form-group" style="display: none;">
-                        <label for="transfer-to-account"><?php p($l->t('To Account')); ?></label>
-                        <select id="transfer-to-account">
-                            <option value=""><?php p($l->t('Choose destination account')); ?></option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -5757,6 +5756,22 @@ style('budget', 'budget-app');
                         <label for="transfer-dest-amount"><span id="transfer-dest-amount-label"><?php p($l->t('Destination Amount')); ?></span></label>
                         <input type="number" id="transfer-dest-amount" step="0.01" min="0" aria-describedby="transfer-dest-amount-help">
                         <small id="transfer-dest-amount-help" class="form-text"><?php p($l->t('Auto-filled from the exchange rate, editable')); ?></small>
+                    </div>
+                    <div class="form-group">
+                        <label for="transaction-account"><?php p($l->t('Account')); ?> <span class="required">*</span></label>
+                        <select id="transaction-account" required>
+                            <option value=""><?php p($l->t('Choose an account')); ?></option>
+                        </select>
+                    </div>
+                    <div id="transfer-to-account-wrapper" class="form-group" style="display: none;">
+                        <label for="transfer-to-account"><?php p($l->t('To Account')); ?></label>
+                        <select id="transfer-to-account">
+                            <option value=""><?php p($l->t('Choose destination account')); ?></option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="transaction-date"><?php p($l->t('Date')); ?> <span class="required">*</span></label>
+                        <input type="date" id="transaction-date" required>
                     </div>
                   </div>
                 </div>
@@ -5793,56 +5808,61 @@ style('budget', 'budget-app');
                   </div>
                 </div>
 
-                <!-- Column 3 -->
-                <div class="form-col">
-                  <div class="form-block">
-                    <h4><?php p($l->t('Extras')); ?></h4>
+              </div>
 
-                    <!-- Receipt scanning (#535). Hidden unless an admin has
-                         configured an OCR provider — see ReceiptScanController. -->
-                    <div id="transaction-scan-group" class="form-group" style="display: none;">
-                        <label><?php p($l->t('Scan a receipt')); ?></label>
-                        <div id="transaction-scan-drop" class="receipt-scan-drop" tabindex="0" role="button"
-                             aria-describedby="transaction-scan-help">
-                            <span class="receipt-scan-idle">
-                                <?php p($l->t('Drop a photo here, or click to choose one')); ?>
-                            </span>
-                            <span class="receipt-scan-busy" hidden>
-                                <span class="icon-loading-small"></span>
-                                <?php p($l->t('Reading the receipt…')); ?>
-                            </span>
+              <!-- Receipts, notes and the forecast flag: open for a transaction
+                   that uses them (and when receipt scanning is available),
+                   folded away otherwise so the everyday fields come first. -->
+              <details id="transaction-extras" class="form-block form-block-full form-extras">
+                <summary><?php p($l->t('More options')); ?></summary>
+                <div class="form-extras-grid">
+                  <div class="form-extras-col">
+                        <!-- Receipt scanning (#535). Hidden unless an admin has
+                             configured an OCR provider — see ReceiptScanController. -->
+                        <div id="transaction-scan-group" class="form-group" style="display: none;">
+                            <label><?php p($l->t('Scan a receipt')); ?></label>
+                            <div id="transaction-scan-drop" class="receipt-scan-drop" tabindex="0" role="button"
+                                 aria-describedby="transaction-scan-help">
+                                <span class="receipt-scan-idle">
+                                    <?php p($l->t('Drop a photo here, or click to choose one')); ?>
+                                </span>
+                                <span class="receipt-scan-busy" hidden>
+                                    <span class="icon-loading-small"></span>
+                                    <?php p($l->t('Reading the receipt…')); ?>
+                                </span>
+                            </div>
+                            <input type="file" id="transaction-scan-input" accept="image/jpeg,image/png,image/webp" style="display: none;">
+                            <div id="transaction-scan-result" class="receipt-scan-result" hidden></div>
+                            <small id="transaction-scan-help" class="form-text"><?php p($l->t('The photo is read on your server and fills in the form for you to check. It is attached to the transaction when you save.')); ?></small>
                         </div>
-                        <input type="file" id="transaction-scan-input" accept="image/jpeg,image/png,image/webp" style="display: none;">
-                        <div id="transaction-scan-result" class="receipt-scan-result" hidden></div>
-                        <small id="transaction-scan-help" class="form-text"><?php p($l->t('The photo is read on your server and fills in the fields below for you to check. It is attached to the transaction when you save.')); ?></small>
-                    </div>
 
-                    <div id="transaction-attachments-group" class="form-group" style="display: none;">
-                        <label><?php p($l->t('Receipts')); ?></label>
-                        <div id="transaction-attachments-list" class="attachments-list"></div>
-                        <div class="attachment-actions">
-                            <button type="button" id="attachment-upload-btn" class="secondary"><?php p($l->t('Upload receipt')); ?></button>
-                            <input type="file" id="attachment-file-input" accept="image/*,application/pdf" multiple style="display: none;">
-                            <button type="button" id="attachment-pick-btn" class="secondary"><?php p($l->t('Choose from Files')); ?></button>
+                        <div id="transaction-attachments-group" class="form-group" style="display: none;">
+                            <label><?php p($l->t('Receipts')); ?></label>
+                            <div id="transaction-attachments-list" class="attachments-list"></div>
+                            <div class="attachment-actions">
+                                <button type="button" id="attachment-upload-btn" class="secondary"><?php p($l->t('Upload receipt')); ?></button>
+                                <input type="file" id="attachment-file-input" accept="image/*,application/pdf" multiple style="display: none;">
+                                <button type="button" id="attachment-pick-btn" class="secondary"><?php p($l->t('Choose from Files')); ?></button>
+                            </div>
+                            <small class="form-text"><?php p($l->t('Receipts are stored in your Files (Budget/Receipts) and linked to this transaction.')); ?></small>
                         </div>
-                        <small class="form-text"><?php p($l->t('Receipts are stored in your Files (Budget/Receipts) and linked to this transaction.')); ?></small>
-                    </div>
+                  </div>
+                  <div class="form-extras-col">
+                        <div class="form-group">
+                            <label for="transaction-notes"><?php p($l->t('Notes')); ?></label>
+                            <textarea id="transaction-notes" maxlength="500" rows="3"></textarea>
+                        </div>
 
-                    <div class="form-group">
-                        <label for="transaction-notes"><?php p($l->t('Notes')); ?></label>
-                        <textarea id="transaction-notes" maxlength="500" rows="3"></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-check">
-                            <input type="checkbox" id="transaction-excluded-from-forecast">
-                            <span><?php p($l->t('Exclude from forecast (extraordinary / one-time)')); ?></span>
-                        </label>
-                        <small class="form-text"><?php p($l->t('Keeps this one-off amount out of forecast averages. It still affects your account balance.')); ?></small>
-                    </div>
+                        <div class="form-group">
+                            <label class="form-check">
+                                <input type="checkbox" id="transaction-excluded-from-forecast">
+                                <span><?php p($l->t('Exclude from forecast (extraordinary / one-time)')); ?></span>
+                            </label>
+                            <small class="form-text"><?php p($l->t('Keeps this one-off amount out of forecast averages. It still affects your account balance.')); ?></small>
+                        </div>
                   </div>
                 </div>
-              </div>
+              </details>
 
               <!-- Inline Split Rows (hidden by default). Full width — a split row
                    is a four-column grid that doesn't fit a single form column. -->
