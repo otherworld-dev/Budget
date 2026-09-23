@@ -6,6 +6,7 @@ import { showSuccess, showError } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { initDatePickers } from '../../utils/datepicker.js';
 import { apiFetch } from '../../utils/api.js';
+import { refreshBankSyncNav } from '../bank-sync/bankSyncStatus.js';
 
 export default class SettingsModule {
     constructor(app) {
@@ -62,9 +63,7 @@ export default class SettingsModule {
                             });
                             showSuccess(t('budget', 'Admin settings saved'));
                             // Update bank sync nav visibility
-                            if (this.app.bankSyncModule) {
-                                this.app.bankSyncModule.checkStatus();
-                            }
+                            refreshBankSyncNav();
                         } catch (error) {
                             showError(t('budget', 'Failed to save admin settings'));
                             toggle.checked = !toggle.checked;

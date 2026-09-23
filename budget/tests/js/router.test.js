@@ -14,7 +14,7 @@ vi.mock('@nextcloud/l10n', () => ({
 
 import Router from '../../src/core/Router.js';
 
-const VIEWS = ['dashboard', 'accounts', 'transactions', 'settings', 'import'];
+const VIEWS = ['dashboard', 'accounts', 'transactions', 'settings', 'account-details'];
 
 function renderShell() {
     document.body.innerHTML = `
@@ -142,10 +142,10 @@ describe('Router.showView', () => {
     it('shows a view that has markup but no loader without failing', () => {
         const app = makeApp();
 
-        new Router(app).showView('import');
+        new Router(app).showView('account-details');
 
-        expect(activeViews()).toEqual(['import-view']);
-        expect(app.currentView).toBe('import');
+        expect(activeViews()).toEqual(['account-details-view']);
+        expect(app.currentView).toBe('account-details');
     });
 
     it('ignores an unknown view: no loader, no current-view change, no history entry', () => {
@@ -420,7 +420,7 @@ describe('Router.reloadCurrentView', () => {
 
     it('does nothing for a view without a loader', () => {
         const app = makeApp();
-        app.currentView = 'import';
+        app.currentView = 'account-details';
 
         expect(() => new Router(app).reloadCurrentView()).not.toThrow();
         Object.values(Router.VIEW_LOADERS).forEach(loader => expect(app[loader]).not.toHaveBeenCalled());

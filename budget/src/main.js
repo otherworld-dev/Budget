@@ -63,6 +63,8 @@ window.fetch = function(...args) {
 
 window.budgetDiagnostics = budgetDiagnostics;
 
+// Before anything that could load a chunk
+import './publicPath.js';
 import Chart from 'chart.js/auto';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
@@ -91,28 +93,42 @@ import KeyboardShortcuts from './core/KeyboardShortcuts.js';
 // Modules
 import DashboardModule from './modules/dashboard/DashboardModule.js';
 import TransactionsModule from './modules/transactions/TransactionsModule.js';
-import PensionsModule from './modules/pensions/PensionsModule.js';
-import AssetsModule from './modules/assets/AssetsModule.js';
 import SavingsModule from './modules/savings/SavingsModule.js';
-import ProjectsModule from './modules/projects/ProjectsModule.js';
 import IncomeModule from './modules/income/IncomeModule.js';
-import BillsModule from './modules/bills/BillsModule.js';
 import TransfersModule from './modules/transfers/TransfersModule.js';
 import SettingsModule from './modules/settings/SettingsModule.js';
 import SharedExpensesModule from './modules/shared-expenses/SharedExpensesModule.js';
 import TagSetsModule from './modules/tagsets/TagSetsModule.js';
-import RulesModule from './modules/rules/RulesModule.js';
-import ForecastModule from './modules/forecast/ForecastModule.js';
-import ReportsModule from './modules/reports/ReportsModule.js';
-import ImportModule from './modules/import/ImportModule.js';
 import AccountsModule from './modules/accounts/AccountsModule.js';
 import CategoriesModule from './modules/categories/CategoriesModule.js';
-import ExchangeRatesModule from './modules/exchange-rates/ExchangeRatesModule.js';
 import SharingModule from './modules/sharing/SharingModule.js';
-import BankSyncModule from './modules/bank-sync/BankSyncModule.js';
 import HelpModule, { HELP_TOPICS, helpDocUrl, SUPPORT_LINKS } from './modules/help/HelpModule.js';
 import OnboardingModule from './modules/onboarding/OnboardingModule.js';
 import { renderTransactionRow } from './modules/transactions/transactionRow.js';
+import { refreshBankSyncNav } from './modules/bank-sync/bankSyncStatus.js';
+// The rule editor's styles ship in budget-app.css with the rest, rather than
+// as a stylesheet of their own fetched when the Rules view first opens
+import './modules/rules/components/CriteriaBuilder.css';
+import './modules/rules/components/ActionBuilder.css';
+
+/**
+ * Views whose code loads the first time they are opened, not with the app.
+ * Each becomes its own file in js/ (budget-<name>.js); nothing outside the
+ * view calls into these modules, so the rest of the app never waits on them.
+ * Reach one only through lazyModule().
+ */
+const LAZY_MODULES = {
+    reportsModule: () => import(/* webpackChunkName: "reports" */ './modules/reports/ReportsModule.js'),
+    forecastModule: () => import(/* webpackChunkName: "forecast" */ './modules/forecast/ForecastModule.js'),
+    pensionsModule: () => import(/* webpackChunkName: "pensions" */ './modules/pensions/PensionsModule.js'),
+    assetsModule: () => import(/* webpackChunkName: "assets" */ './modules/assets/AssetsModule.js'),
+    importModule: () => import(/* webpackChunkName: "import" */ './modules/import/ImportModule.js'),
+    bankSyncModule: () => import(/* webpackChunkName: "bank-sync" */ './modules/bank-sync/BankSyncModule.js'),
+    rulesModule: () => import(/* webpackChunkName: "rules" */ './modules/rules/RulesModule.js'),
+    billsModule: () => import(/* webpackChunkName: "bills" */ './modules/bills/BillsModule.js'),
+    exchangeRatesModule: () => import(/* webpackChunkName: "exchange-rates" */ './modules/exchange-rates/ExchangeRatesModule.js'),
+    projectsModule: () => import(/* webpackChunkName: "projects" */ './modules/projects/ProjectsModule.js'),
+};
 
 class BudgetApp {
     constructor() {
@@ -173,36 +189,55 @@ class BudgetApp {
         // Initialize modules
         this.dashboardModule = new DashboardModule(this);
         this.transactionsModule = new TransactionsModule(this);
-        this.pensionsModule = new PensionsModule(this);
-        this.assetsModule = new AssetsModule(this);
         this.savingsModule = new SavingsModule(this);
-        this.projectsModule = new ProjectsModule(this);
         this.incomeModule = new IncomeModule(this);
-        this.billsModule = new BillsModule(this);
         this.transfersModule = new TransfersModule(this);
         this.settingsModule = new SettingsModule(this);
         this.sharedExpensesModule = new SharedExpensesModule(this);
         this.tagSetsModule = new TagSetsModule(this);
-        this.rulesModule = new RulesModule(this);
-        this.forecastModule = new ForecastModule(this);
-        this.reportsModule = new ReportsModule(this);
-        this.importModule = new ImportModule(this);
         this.accountsModule = new AccountsModule(this);
         this.categoriesModule = new CategoriesModule(this);
-        this.exchangeRatesModule = new ExchangeRatesModule(this);
         this.sharingModule = new SharingModule(this);
-        this.bankSyncModule = new BankSyncModule(this);
         this.helpModule = new HelpModule(this);
         this.onboardingModule = new OnboardingModule(this);
+        // The views in LAZY_MODULES get theirs from lazyModule()
+        this._lazyLoads = {};
 
         this.init();
+    }
+
+    /**
+     * The module behind a view in LAZY_MODULES, loading its file the first
+     * time. A failed load (a flaky connection, or files replaced by an app
+     * update under an open page) is reported and can be retried by opening
+     * the view again.
+     *
+     * @param {string} name - A LAZY_MODULES key, e.g. 'reportsModule'
+     * @returns {Promise<object>} The module instance
+     */
+    async lazyModule(name) {
+        if (this[name]) return this[name];
+        if (!this._lazyLoads[name]) {
+            this._lazyLoads[name] = LAZY_MODULES[name]()
+                .then(({ default: Module }) => {
+                    this[name] = new Module(this);
+                    return this[name];
+                })
+                .catch((error) => {
+                    delete this._lazyLoads[name];
+                    console.error(`Failed to load ${name}:`, error);
+                    showError(t('budget', 'This page could not be loaded. Reload the page to try again.'));
+                    throw error;
+                });
+        }
+        return this._lazyLoads[name];
     }
 
     async init() {
         this.setupNavigation();
         this.setupEventListeners();
         await this.loadInitialData();
-        this.bankSyncModule.init();
+        refreshBankSyncNav();
 
         // Honor a deep link in the URL hash (e.g. #/transactions?search=rent
         // from unified search results) instead of always landing on the
@@ -662,12 +697,6 @@ class BudgetApp {
         // Enhanced Transaction Features
         this.setupTransactionEventListeners();
         this.setupInlineEditingListeners();
-
-        // Enhanced Import System
-        this.setupImportEventListeners();
-
-        // Enhanced Forecast System
-        this.setupForecastEventListeners();
 
         // Note: Generate report button event listener is handled by ReportsModule
 
@@ -1594,33 +1623,26 @@ class BudgetApp {
     // Import Module Delegations
     // ============================================
 
-    setupImportEventListeners() {
-        return this.importModule.setupImportEventListeners();
-    }
-
-    async handleImportFile(file) {
-        return this.importModule.handleImportFile(file);
-    }
-
-    // ============================================
-    // Forecast Module Delegations
-    // ============================================
-
-    setupForecastEventListeners() {
-        // This method may not exist in ForecastModule yet
-        // For now, just return to prevent errors
-        if (this.forecastModule.setupForecastEventListeners) {
-            return this.forecastModule.setupForecastEventListeners();
+    async loadImportView() {
+        const importModule = await this.lazyModule('importModule');
+        // The wizard's markup is permanent, so its listeners are bound once
+        if (!this._importListenersBound) {
+            this._importListenersBound = true;
+            importModule.setupImportEventListeners();
         }
     }
 
+    async handleImportFile(file) {
+        await this.loadImportView();
+        return this.importModule.handleImportFile(file);
+    }
 
     // ===========================
     // Reports Management - delegated to ReportsModule
     // ===========================
 
     async loadReportsView() {
-        return this.reportsModule.loadReportsView();
+        return (await this.lazyModule('reportsModule')).loadReportsView();
     }
 
     // ==========================================
@@ -1628,7 +1650,7 @@ class BudgetApp {
     // ==========================================
 
     async loadForecastView() {
-        return this.forecastModule.loadForecastView();
+        return (await this.lazyModule('forecastModule')).loadForecastView();
     }
 
     // Shared Expenses - delegated to SharedExpensesModule
@@ -2425,7 +2447,10 @@ class BudgetApp {
 
     // Bank Sync - delegated to BankSyncModule
     async loadBankSyncView() {
-        return this.bankSyncModule.loadBankSyncView();
+        const bankSyncModule = await this.lazyModule('bankSyncModule');
+        // Binds its listeners once
+        bankSyncModule.setupEventListeners();
+        return bankSyncModule.loadBankSyncView();
     }
 
     // Settings - delegated to SettingsModule
@@ -2449,7 +2474,7 @@ class BudgetApp {
     // Bills Management - delegated to BillsModule
     // ==========================================
     async loadBillsView() {
-        return this.billsModule.loadBillsView();
+        return (await this.lazyModule('billsModule')).loadBillsView();
     }
 
     async loadTransfersView() {
@@ -2457,11 +2482,11 @@ class BudgetApp {
     }
 
     async loadRulesView() {
-        return this.rulesModule.loadRulesView();
+        return (await this.lazyModule('rulesModule')).loadRulesView();
     }
 
     async loadExchangeRatesView() {
-        return this.exchangeRatesModule.loadExchangeRatesView();
+        return (await this.lazyModule('exchangeRatesModule')).loadExchangeRatesView();
     }
 
     // ============================================
@@ -2521,7 +2546,7 @@ class BudgetApp {
     // ============================================
 
     async loadProjectsView() {
-        return this.projectsModule.loadProjectsView();
+        return (await this.lazyModule('projectsModule')).loadProjectsView();
     }
 
     async loadSavingsGoalsView() {
@@ -3848,199 +3873,15 @@ class BudgetApp {
     }
 
     // =====================
-    // Pensions Methods
+    // Pensions and Assets (their modules load with the view)
     // =====================
 
     async loadPensionsView() {
-        return this.pensionsModule.loadPensionsView();
+        return (await this.lazyModule('pensionsModule')).loadPensionsView();
     }
-
-    async loadPensions() {
-        return this.pensionsModule.loadPensions();
-    }
-
-    async loadPensionSummary() {
-        return this.pensionsModule.loadPensionSummary();
-    }
-
-    async loadPensionProjection() {
-        return this.pensionsModule.loadPensionProjection();
-    }
-
-    renderPensions() {
-        return this.pensionsModule.renderPensions();
-    }
-
-    renderPensionCard(pension) {
-        return this.pensionsModule.renderPensionCard(pension);
-    }
-
-    updatePensionsSummary(summary) {
-        return this.pensionsModule.updatePensionsSummary(summary);
-    }
-
-    updatePensionsProjection(projection) {
-        return this.pensionsModule.updatePensionsProjection(projection);
-    }
-
-    setupPensionEventListeners() {
-        return this.pensionsModule.setupPensionEventListeners();
-    }
-
-    togglePensionFields() {
-        return this.pensionsModule.togglePensionFields();
-    }
-
-    showPensionModal(pensionId = null) {
-        return this.pensionsModule.showPensionModal(pensionId);
-    }
-
-    closePensionModal() {
-        return this.pensionsModule.closePensionModal();
-    }
-
-    async savePension() {
-        return this.pensionsModule.savePension();
-    }
-
-    async deletePension(pensionId) {
-        return this.pensionsModule.deletePension(pensionId);
-    }
-
-    async showPensionDetails(pensionId) {
-        return this.pensionsModule.showPensionDetails(pensionId);
-    }
-
-    closePensionDetails() {
-        return this.pensionsModule.closePensionDetails();
-    }
-
-    async loadPensionBalanceChart(pensionId) {
-        return this.pensionsModule.loadPensionBalanceChart(pensionId);
-    }
-
-    async loadPensionProjectionChart(pensionId) {
-        return this.pensionsModule.loadPensionProjectionChart(pensionId);
-    }
-
-    async loadPensionActivity(pensionId) {
-        return this.pensionsModule.loadPensionActivity(pensionId);
-    }
-
-    showBalanceModal() {
-        return this.pensionsModule.showBalanceModal();
-    }
-
-    closeBalanceModal() {
-        return this.pensionsModule.closeBalanceModal();
-    }
-
-    async saveSnapshot() {
-        return this.pensionsModule.saveSnapshot();
-    }
-
-    showContributionModal() {
-        return this.pensionsModule.showContributionModal();
-    }
-
-    closeContributionModal() {
-        return this.pensionsModule.closeContributionModal();
-    }
-
-    async saveContribution() {
-        return this.pensionsModule.saveContribution();
-    }
-
-    async loadDashboardPensionSummary() {
-        return this.pensionsModule.loadDashboardPensionSummary();
-    }
-
-    // =====================
-    // Assets Methods
-    // =====================
 
     async loadAssetsView() {
-        return this.assetsModule.loadAssetsView();
-    }
-
-    async loadAssets() {
-        return this.assetsModule.loadAssets();
-    }
-
-    async loadAssetSummary() {
-        return this.assetsModule.loadAssetSummary();
-    }
-
-    async loadAssetProjection() {
-        return this.assetsModule.loadAssetProjection();
-    }
-
-    renderAssets() {
-        return this.assetsModule.renderAssets();
-    }
-
-    renderAssetCard(asset) {
-        return this.assetsModule.renderAssetCard(asset);
-    }
-
-    updateAssetsSummary(summary) {
-        return this.assetsModule.updateAssetsSummary(summary);
-    }
-
-    updateAssetsProjection(projection) {
-        return this.assetsModule.updateAssetsProjection(projection);
-    }
-
-    setupAssetEventListeners() {
-        return this.assetsModule.setupAssetEventListeners();
-    }
-
-    showAssetModal(assetId = null) {
-        return this.assetsModule.showAssetModal(assetId);
-    }
-
-    closeAssetModal() {
-        return this.assetsModule.closeAssetModal();
-    }
-
-    async saveAsset() {
-        return this.assetsModule.saveAsset();
-    }
-
-    async deleteAsset(assetId) {
-        return this.assetsModule.deleteAsset(assetId);
-    }
-
-    async showAssetDetails(assetId) {
-        return this.assetsModule.showAssetDetails(assetId);
-    }
-
-    closeAssetDetails() {
-        return this.assetsModule.closeAssetDetails();
-    }
-
-    async loadAssetValueChart(assetId) {
-        return this.assetsModule.loadAssetValueChart(assetId);
-    }
-
-    async loadAssetProjectionChart(assetId) {
-        return this.assetsModule.loadAssetProjectionChart(assetId);
-    }
-
-    showValueModal() {
-        return this.assetsModule.showValueModal();
-    }
-
-    closeValueModal() {
-        return this.assetsModule.closeValueModal();
-    }
-
-    async saveValueUpdate() {
-        return this.assetsModule.saveValueUpdate();
-    }
-
-    async loadDashboardAssetSummary() {
-        return this.assetsModule.loadDashboardAssetSummary();
+        return (await this.lazyModule('assetsModule')).loadAssetsView();
     }
 
     parseColumnVisibility(settingValue) {

@@ -2,6 +2,7 @@ import { translate as t } from '@nextcloud/l10n';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { apiFetch } from '../../utils/api.js';
+import { refreshBankSyncNav } from './bankSyncStatus.js';
 import { pickableAccounts, accountOptionLabel } from '../../utils/accounts.js';
 import { userLocale } from '../../utils/formatters.js';
 import { escapeHtml } from '../../utils/dom.js';
@@ -42,17 +43,7 @@ export default class BankSyncModule {
     }
 
     async checkStatus() {
-        try {
-            const data = await apiFetch('/apps/budget/api/bank-sync/status');
-            const navItem = document.getElementById('bank-sync-nav');
-            if (navItem) {
-                navItem.style.display = data.enabled ? '' : 'none';
-            }
-            return data;
-        } catch (error) {
-            console.error('Failed to check bank sync status:', error);
-            return { enabled: false };
-        }
+        return refreshBankSyncNav();
     }
 
     setupEventListeners() {
