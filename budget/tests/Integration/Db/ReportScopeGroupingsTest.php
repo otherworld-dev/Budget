@@ -78,6 +78,81 @@ class ReportScopeGroupingsTest extends IntegrationTestCase {
 		$this->assertEqualsWithDelta(8.0, $totals[$this->food]['2026-02'], 0.001);
 	}
 
+	// ==================== Tag reports ====================
+
+	public function testTagCombinationsCountSplitPartsAndDropExcludedCategories(): void {
+		[$red, $big] = $this->twoTagSets();
+		$plain = $this->makeTransaction($this->accountId, ['category_id' => $this->food, 'amount' => '10.00']);
+		$excluded = $this->makeTransaction($this->accountId, ['category_id' => $this->hidden, 'amount' => '99.00']);
+		$split = $this->makeSplitTransaction($this->accountId, [[$this->food, '6.00'], [$this->hidden, '4.00']]);
+		$transfer = $this->makeTransfer('25.00', '2026-03-15', $this->food);
+		foreach ([$plain, $excluded, $split, $transfer] as $tx) {
+			$this->tagTransaction($tx, $red);
+			$this->tagTransaction($tx, $big);
+		}
+
+		$combos = $this->reports->getSpendingByTagCombination($this->userId, '2026-01-01', '2026-12-31');
+
+		$this->assertCount(1, $combos);
+		$this->assertEqualsWithDelta(16.0, $combos[0]['total'], 0.001);
+		$this->assertSame(2, $combos[0]['count']);
+	}
+
+	public function testTagCrossTabAndTrendSeeSharedAccountsInView(): void {
+		[$red, $big] = $this->twoTagSets();
+		$owner = $this->newUserId();
+		$shared = $this->makeAccount(['name' => 'Joint'], $owner)->getId();
+		$mine = $this->makeTransaction($this->accountId, ['category_id' => $this->food, 'amount' => '10.00', 'date' => '2026-03-01']);
+		$theirs = $this->makeTransaction($shared, ['amount' => '20.00', 'date' => '2026-03-02']);
+		$excluded = $this->makeTransaction($this->accountId, ['category_id' => $this->muted, 'amount' => '99.00', 'date' => '2026-03-03']);
+		foreach ([$mine, $theirs, $excluded] as $tx) {
+			$this->tagTransaction($tx, $red);
+			$this->tagTransaction($tx, $big);
+		}
+		$visible = [$this->accountId, $this->savingsId, $shared];
+		$redSet = (int)$this->fetchRow('budget_tags', $red)['tag_set_id'];
+		$bigSet = (int)$this->fetchRow('budget_tags', $big)['tag_set_id'];
+
+		$crossTab = $this->reports->getTagCrossTabulation($this->userId, $redSet, $bigSet, '2026-01-01', '2026-12-31', null, null, $visible);
+		$trend = $this->reports->getTagTrendByMonth($this->userId, [$red], '2026-01-01', '2026-12-31', null, $visible);
+
+		$this->assertCount(1, $crossTab['data']);
+		$this->assertEqualsWithDelta(30.0, $crossTab['data'][0]['total'], 0.001);
+		$this->assertSame(2, $crossTab['data'][0]['count']);
+		$this->assertSame([['month' => '2026-03', 'total' => 30.0]], array_map(
+			static fn (array $row) => ['month' => $row['month'], 'total' => $row['total']],
+			$trend
+		));
+	}
+
+	public function testTagDimensionsCountTheCategorysSplitParts(): void {
+		$set = $this->makeTagSet($this->food);
+		$tag = $this->makeTag($set);
+		$plain = $this->makeTransaction($this->accountId, ['category_id' => $this->food, 'amount' => '10.00']);
+		$split = $this->makeSplitTransaction($this->accountId, [[$this->food, '6.00'], [$this->hidden, '4.00']]);
+		$this->tagTransaction($plain, $tag);
+		$this->tagTransaction($split, $tag);
+
+		$dimensions = $this->reports->getTagDimensionsForCategory($this->userId, $this->food, '2026-01-01', '2026-12-31');
+
+		$this->assertCount(1, $dimensions);
+		$this->assertSame($set, $dimensions[0]['tagSetId']);
+		$this->assertEqualsWithDelta(16.0, $dimensions[0]['tags'][0]['total'], 0.001);
+		$this->assertSame(2, $dimensions[0]['tags'][0]['count']);
+	}
+
+	/**
+	 * Two tags, each in its own tag set.
+	 *
+	 * @return array{0: int, 1: int}
+	 */
+	private function twoTagSets(): array {
+		return [
+			$this->makeTag($this->makeTagSet($this->food)),
+			$this->makeTag($this->makeTagSet($this->food)),
+		];
+	}
+
 	/**
 	 * A linked transfer from the current account to savings, the outgoing
 	 * leg filed under $categoryId. Returns the outgoing leg's id.

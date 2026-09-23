@@ -419,7 +419,9 @@ class ReportController extends Controller {
         ?string $startDate = null,
         ?string $endDate = null,
         ?int $accountId = null,
-        ?int $categoryId = null
+        ?int $categoryId = null,
+        ?array $accountIds = null,
+        ?bool $excludeShared = null
     ): DataResponse {
         try {
             if (!$startDate) {
@@ -429,6 +431,9 @@ class ReportController extends Controller {
                 $endDate = date('Y-m-d');
             }
 
+            // Every account the viewer can see, shared ones included, like
+            // the other reports - it used to count the viewer's own only
+            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
             $crossTab = $this->service->getTagCrossTabulation(
                 $this->getEffectiveUserId(),
                 $tagSetId1,
@@ -436,7 +441,8 @@ class ReportController extends Controller {
                 $startDate,
                 $endDate,
                 $accountId,
-                $categoryId
+                $categoryId,
+                $visibleAccountIds
             );
             return new DataResponse($crossTab);
         } catch (\Exception $e) {
@@ -452,7 +458,9 @@ class ReportController extends Controller {
         ?array $tagIds = null,
         ?string $startDate = null,
         ?string $endDate = null,
-        ?int $accountId = null
+        ?int $accountId = null,
+        ?array $accountIds = null,
+        ?bool $excludeShared = null
     ): DataResponse {
         try {
             if (!$startDate) {
@@ -462,12 +470,14 @@ class ReportController extends Controller {
                 $endDate = date('Y-m-d');
             }
 
+            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
             $trends = $this->service->getTagTrendReport(
                 $this->getEffectiveUserId(),
                 $tagIds ?? [],
                 $startDate,
                 $endDate,
-                $accountId
+                $accountId,
+                $visibleAccountIds
             );
             return new DataResponse($trends);
         } catch (\Exception $e) {
@@ -484,7 +494,9 @@ class ReportController extends Controller {
         ?string $startDate = null,
         ?string $endDate = null,
         ?int $accountId = null,
-        ?int $categoryId = null
+        ?int $categoryId = null,
+        ?array $accountIds = null,
+        ?bool $excludeShared = null
     ): DataResponse {
         try {
             if (!$startDate) {
@@ -494,13 +506,15 @@ class ReportController extends Controller {
                 $endDate = date('Y-m-d');
             }
 
+            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
             $breakdown = $this->service->getTagSetBreakdown(
                 $this->getEffectiveUserId(),
                 $tagSetId,
                 $startDate,
                 $endDate,
                 $accountId,
-                $categoryId
+                $categoryId,
+                $visibleAccountIds
             );
             return new DataResponse($breakdown);
         } catch (\Exception $e) {

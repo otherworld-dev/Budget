@@ -79,6 +79,7 @@ class TagReportService {
      * @param string $endDate
      * @param int|null $accountId Optional account filter
      * @param int|null $categoryId Optional category filter
+     * @param int[]|null $visibleAccountIds Accounts in view (own + shared)
      * @return array
      */
     public function getCrossTabulation(
@@ -88,7 +89,8 @@ class TagReportService {
         string $startDate,
         string $endDate,
         ?int $accountId = null,
-        ?int $categoryId = null
+        ?int $categoryId = null,
+        ?array $visibleAccountIds = null
     ): array {
         // Get tag set metadata
         $tagSet1 = $this->tagSetMapper->find($tagSetId1, $userId);
@@ -102,7 +104,8 @@ class TagReportService {
             $startDate,
             $endDate,
             $accountId,
-            $categoryId
+            $categoryId,
+            $visibleAccountIds
         );
 
         // Build the matrix structure for easier consumption
@@ -163,6 +166,7 @@ class TagReportService {
      * @param string $startDate
      * @param string $endDate
      * @param int|null $accountId Optional account filter
+     * @param int[]|null $visibleAccountIds Accounts in view (own + shared)
      * @return array
      */
     public function getTagTrendReport(
@@ -170,7 +174,8 @@ class TagReportService {
         array $tagIds,
         string $startDate,
         string $endDate,
-        ?int $accountId = null
+        ?int $accountId = null,
+        ?array $visibleAccountIds = null
     ): array {
         if (empty($tagIds)) {
             return [
@@ -189,7 +194,8 @@ class TagReportService {
             $tagIds,
             $startDate,
             $endDate,
-            $accountId
+            $accountId,
+            $visibleAccountIds
         );
 
         // Organize data by tag
@@ -252,6 +258,7 @@ class TagReportService {
      * @param string $endDate
      * @param int|null $accountId Optional account filter
      * @param int|null $categoryId Optional category filter
+     * @param int[]|null $visibleAccountIds Accounts in view (own + shared)
      * @return array
      */
     public function getTagSetBreakdown(
@@ -260,7 +267,8 @@ class TagReportService {
         string $startDate,
         string $endDate,
         ?int $accountId = null,
-        ?int $categoryId = null
+        ?int $categoryId = null,
+        ?array $visibleAccountIds = null
     ): array {
         // Get tag set metadata
         $tagSet = $this->tagSetMapper->find($tagSetId, $userId);
@@ -272,7 +280,8 @@ class TagReportService {
             $startDate,
             $endDate,
             $accountId,
-            $categoryId
+            $categoryId,
+            $visibleAccountIds
         );
 
         // Calculate totals

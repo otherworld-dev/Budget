@@ -248,11 +248,13 @@ class TransactionReportQueriesTest extends TestCase {
     }
 
     public function testGetTagTrendByMonthReturnsFormattedArray(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['month' => '2026-01', 'tag_id' => '1', 'tag_name' => 'Groceries', 'color' => '#00ff00', 'total' => '200.00'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+        // Report aggregates run a direct half, then a split half
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([
+                ['month' => '2026-01', 'tag_id' => '1', 'tag_name' => 'Groceries', 'color' => '#00ff00', 'total' => '200.00'],
+            ]),
+            $this->resultOf([])
+        );
 
         $data = $this->mapper->getTagTrendByMonth('user1', [1], '2026-01-01', '2026-01-31');
 
@@ -286,13 +288,15 @@ class TransactionReportQueriesTest extends TestCase {
     // ===== getTagDimensionsForCategory =====
 
     public function testGetTagDimensionsForCategoryGroupsByTagSet(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['tag_set_id' => '1', 'tag_set_name' => 'Priority', 'tag_id' => '10', 'tag_name' => 'High', 'color' => '#ff0000', 'total' => '200.00', 'count' => '5'],
-            ['tag_set_id' => '1', 'tag_set_name' => 'Priority', 'tag_id' => '11', 'tag_name' => 'Low', 'color' => '#00ff00', 'total' => '100.00', 'count' => '3'],
-            ['tag_set_id' => '2', 'tag_set_name' => 'Type', 'tag_id' => '20', 'tag_name' => 'Essential', 'color' => '#0000ff', 'total' => '150.00', 'count' => '4'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+        // Report aggregates run a direct half, then a split half
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([
+                ['tag_set_id' => '1', 'tag_set_name' => 'Priority', 'tag_id' => '10', 'tag_name' => 'High', 'color' => '#ff0000', 'total' => '200.00', 'count' => '5'],
+                ['tag_set_id' => '1', 'tag_set_name' => 'Priority', 'tag_id' => '11', 'tag_name' => 'Low', 'color' => '#00ff00', 'total' => '100.00', 'count' => '3'],
+                ['tag_set_id' => '2', 'tag_set_name' => 'Type', 'tag_id' => '20', 'tag_name' => 'Essential', 'color' => '#0000ff', 'total' => '150.00', 'count' => '4'],
+            ]),
+            $this->resultOf([])
+        );
 
         $dimensions = $this->mapper->getTagDimensionsForCategory('user1', 5, '2026-01-01', '2026-01-31');
 
@@ -313,18 +317,20 @@ class TransactionReportQueriesTest extends TestCase {
     // ===== getSpendingByTagCombination =====
 
     public function testGetSpendingByTagCombinationGroupsByTagSet(): void {
-        $this->result->method('fetchAll')->willReturn([
-            // Transaction 1 has tags 10 and 20
-            ['id' => '1', 'amount' => '100.00', 'tag_id' => '10', 'tag_name' => 'A'],
-            ['id' => '1', 'amount' => '100.00', 'tag_id' => '20', 'tag_name' => 'B'],
-            // Transaction 2 has tags 10 and 20 (same combo)
-            ['id' => '2', 'amount' => '50.00', 'tag_id' => '10', 'tag_name' => 'A'],
-            ['id' => '2', 'amount' => '50.00', 'tag_id' => '20', 'tag_name' => 'B'],
-            // Transaction 3 has only tag 10 (filtered out by minCombinationSize)
-            ['id' => '3', 'amount' => '75.00', 'tag_id' => '10', 'tag_name' => 'A'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+        // Report aggregates run a direct half, then a split half
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([
+                // Transaction 1 has tags 10 and 20
+                ['id' => '1', 'amount' => '100.00', 'tag_id' => '10', 'tag_name' => 'A', 'tag_set_id' => '1'],
+                ['id' => '1', 'amount' => '100.00', 'tag_id' => '20', 'tag_name' => 'B', 'tag_set_id' => '1'],
+                // Transaction 2 has tags 10 and 20 (same combo)
+                ['id' => '2', 'amount' => '50.00', 'tag_id' => '10', 'tag_name' => 'A', 'tag_set_id' => '1'],
+                ['id' => '2', 'amount' => '50.00', 'tag_id' => '20', 'tag_name' => 'B', 'tag_set_id' => '1'],
+                // Transaction 3 has only tag 10 (filtered out by minCombinationSize)
+                ['id' => '3', 'amount' => '75.00', 'tag_id' => '10', 'tag_name' => 'A', 'tag_set_id' => '1'],
+            ]),
+            $this->resultOf([])
+        );
 
         $combos = $this->mapper->getSpendingByTagCombination('user1', '2026-01-01', '2026-01-31');
 
@@ -337,14 +343,16 @@ class TransactionReportQueriesTest extends TestCase {
 
     public function testGetSpendingByTagCombinationRespectsLimit(): void {
         // Build 3 transactions with different tag combos
-        $this->result->method('fetchAll')->willReturn([
-            ['id' => '1', 'amount' => '100.00', 'tag_id' => '10', 'tag_name' => 'A'],
-            ['id' => '1', 'amount' => '100.00', 'tag_id' => '20', 'tag_name' => 'B'],
-            ['id' => '2', 'amount' => '200.00', 'tag_id' => '30', 'tag_name' => 'C'],
-            ['id' => '2', 'amount' => '200.00', 'tag_id' => '40', 'tag_name' => 'D'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+        // Report aggregates run a direct half, then a split half
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([
+                ['id' => '1', 'amount' => '100.00', 'tag_id' => '10', 'tag_name' => 'A', 'tag_set_id' => '1'],
+                ['id' => '1', 'amount' => '100.00', 'tag_id' => '20', 'tag_name' => 'B', 'tag_set_id' => '1'],
+                ['id' => '2', 'amount' => '200.00', 'tag_id' => '30', 'tag_name' => 'C', 'tag_set_id' => '1'],
+                ['id' => '2', 'amount' => '200.00', 'tag_id' => '40', 'tag_name' => 'D', 'tag_set_id' => '1'],
+            ]),
+            $this->resultOf([])
+        );
 
         $combos = $this->mapper->getSpendingByTagCombination(
             'user1', '2026-01-01', '2026-01-31',
@@ -359,16 +367,18 @@ class TransactionReportQueriesTest extends TestCase {
     // ===== getTagCrossTabulation =====
 
     public function testGetTagCrossTabulationBuildsMatrix(): void {
-        $this->result->method('fetchAll')->willReturn([
-            // Transaction 1: tag from set 1 (id=10) and set 2 (id=20)
-            ['id' => '1', 'amount' => '100.00', 'tag_id' => '10', 'tag_name' => 'High', 'tag_set_id' => '1', 'color' => '#ff0000'],
-            ['id' => '1', 'amount' => '100.00', 'tag_id' => '20', 'tag_name' => 'Essential', 'tag_set_id' => '2', 'color' => '#0000ff'],
-            // Transaction 2: same tag combo
-            ['id' => '2', 'amount' => '50.00', 'tag_id' => '10', 'tag_name' => 'High', 'tag_set_id' => '1', 'color' => '#ff0000'],
-            ['id' => '2', 'amount' => '50.00', 'tag_id' => '20', 'tag_name' => 'Essential', 'tag_set_id' => '2', 'color' => '#0000ff'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+        // Report aggregates run a direct half, then a split half
+        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+            $this->resultOf([
+                // Transaction 1: tag from set 1 (id=10) and set 2 (id=20)
+                ['id' => '1', 'amount' => '100.00', 'tag_id' => '10', 'tag_name' => 'High', 'tag_set_id' => '1', 'color' => '#ff0000'],
+                ['id' => '1', 'amount' => '100.00', 'tag_id' => '20', 'tag_name' => 'Essential', 'tag_set_id' => '2', 'color' => '#0000ff'],
+                // Transaction 2: same tag combo
+                ['id' => '2', 'amount' => '50.00', 'tag_id' => '10', 'tag_name' => 'High', 'tag_set_id' => '1', 'color' => '#ff0000'],
+                ['id' => '2', 'amount' => '50.00', 'tag_id' => '20', 'tag_name' => 'Essential', 'tag_set_id' => '2', 'color' => '#0000ff'],
+            ]),
+            $this->resultOf([])
+        );
 
         $result = $this->mapper->getTagCrossTabulation('user1', 1, 2, '2026-01-01', '2026-01-31');
 
