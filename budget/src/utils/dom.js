@@ -17,6 +17,12 @@ export function escapeHtml(str) {
 }
 
 /**
+ * Width at which the transaction tables (the main list and an account's
+ * register) turn into two-line cards; keep in step with style.css.
+ */
+export const PHONE_CARD_QUERY = '(max-width: 640px)';
+
+/**
  * Close a modal by hiding it and setting ARIA attributes
  * @param {HTMLElement} modal - Modal element to close
  */

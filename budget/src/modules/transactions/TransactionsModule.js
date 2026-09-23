@@ -21,8 +21,8 @@ import { offerableTags } from '../../utils/tags.js';
 import flatpickr from 'flatpickr';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
-/** Width at which the transactions table turns into cards; keep in step with style.css. */
-const PHONE_CARD_QUERY = '(max-width: 640px)';
+/** Width at which the transactions table turns into cards (shared with the account register). */
+const PHONE_CARD_QUERY = dom.PHONE_CARD_QUERY;
 
 export default class TransactionsModule {
     constructor(app) {

@@ -1729,6 +1729,20 @@ export default class AccountsModule {
     }
 
     setupAccountTransactionActionListeners() {
+        // On a phone the register rows are cards, like the main transactions
+        // list, and a tap on the card opens the edit form. Bound once on the
+        // table, which outlives the re-rendered rows.
+        const table = document.getElementById('account-transactions-table');
+        if (table && this._registerTapTable !== table) {
+            this._registerTapTable = table;
+            table.addEventListener('click', (e) => {
+                if (!window.matchMedia?.(dom.PHONE_CARD_QUERY).matches) return;
+                const row = e.target.closest('tr.transaction-row');
+                if (!row || e.target.closest('input, button, a, select, .linked-indicator')) return;
+                this.editTransaction(parseInt(row.dataset.transactionId, 10));
+            });
+        }
+
         // Edit transaction buttons
         document.querySelectorAll('.edit-transaction-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {

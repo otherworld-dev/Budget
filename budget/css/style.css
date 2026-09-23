@@ -5023,6 +5023,80 @@ button.danger:hover {
     }
 }
 
+/* Phones: an account's register gets the same two-line cards as the main
+   list, instead of a seven-column table shrunk to 13px.
+     Description ......................... -£12.34
+     24 Aug · Groceries          £1,204.50   ✎ 🗑        */
+@media (max-width: 640px) {
+    #account-transactions-table {
+        display: block;
+        table-layout: auto;
+    }
+
+    #account-transactions-table thead {
+        display: none;
+    }
+
+    #account-transactions-table tbody {
+        display: block;
+    }
+
+    #account-transactions-table tr.transaction-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto auto;
+        grid-template-areas:
+            "desc desc desc amount"
+            "date cat balance actions";
+        align-items: center;
+        column-gap: 8px;
+        row-gap: 2px;
+        padding: 10px 4px;
+        border-bottom: 1px solid var(--color-border);
+        cursor: pointer;
+    }
+
+    #account-transactions-table tr.transaction-row > td {
+        display: block;
+        width: auto;
+        min-width: 0;
+        max-width: none;
+        height: auto;
+        padding: 0 !important;
+        border: none;
+        text-align: start;
+        font-size: inherit;
+    }
+
+    #account-transactions-table tr.transaction-row > td.description-column { grid-area: desc; min-width: 0; font-size: 14px; }
+    #account-transactions-table tr.transaction-row > td.amount-column { grid-area: amount; text-align: end; font-size: 14px; }
+    #account-transactions-table tr.transaction-row > td.date-column { grid-area: date; color: var(--color-text-maxcontrast); font-size: 12px; }
+    #account-transactions-table tr.transaction-row > td.category-column { grid-area: cat; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #account-transactions-table tr.transaction-row > td.balance-column { grid-area: balance; text-align: end; font-size: 12px; }
+    #account-transactions-table tr.transaction-row > td.actions-column { grid-area: actions; justify-self: end; }
+    #account-transactions-table tr.transaction-row > td.vendor-column {
+        display: none;
+    }
+
+    #account-transactions-table .transaction-actions {
+        gap: 2px;
+    }
+
+    #account-transactions-table .transaction-actions button {
+        width: 30px;
+        height: 30px;
+        min-height: 0;
+    }
+
+    /* Empty, loading and error rows span the card list, not a grid cell */
+    #account-transactions-table tbody > tr:not(.transaction-row) {
+        display: block;
+    }
+
+    #account-transactions-table tbody > tr:not(.transaction-row) > td {
+        display: block;
+    }
+}
+
 /* Account Details View */
 #account-details-view {
     width: 100%;
