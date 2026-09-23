@@ -9,6 +9,7 @@ use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Service\AccountBalanceCalculator;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJob;
 use PHPUnit\Framework\TestCase;
@@ -21,6 +22,9 @@ class ScheduledTransactionJobTest extends TestCase {
 	private TransactionMapper $mapper;
 	private AccountMapper $accountMapper;
 	private LoggerInterface $logger;
+	private Account $account;
+	/** @var array<int, string> balances passed to updateBalance(), by account id */
+	private array $writtenBalances = [];
 
 	protected function setUp(): void {
 		$this->timeFactory = $this->createMock(ITimeFactory::class);
@@ -29,17 +33,21 @@ class ScheduledTransactionJobTest extends TestCase {
 		$this->logger = $this->createMock(LoggerInterface::class);
 
 		// Mock account lookup for balance updates
-		$account = new Account();
-		$account->setId(1);
-		$account->setUserId('user1');
-		$account->setBalance(1000.00);
-		$this->accountMapper->method('findById')->willReturn($account);
-		$this->accountMapper->method('updateBalance')->willReturn($account);
+		$this->account = new Account();
+		$this->account->setId(1);
+		$this->account->setUserId('user1');
+		$this->account->setBalance(1000.00);
+		$this->accountMapper->method('findById')->willReturnCallback(fn () => $this->account);
+		$this->accountMapper->method('updateBalance')->willReturnCallback(function ($id, $balance) {
+			$this->writtenBalances[$id] = $balance;
+			return $this->account;
+		});
 
 		$container = $this->createMock(ContainerInterface::class);
 		$container->method('get')->willReturnMap([
 			[TransactionMapper::class, $this->mapper],
 			[AccountMapper::class, $this->accountMapper],
+			[AccountBalanceCalculator::class, new AccountBalanceCalculator($this->accountMapper, $this->mapper)],
 			[LoggerInterface::class, $this->logger],
 		]);
 		\OC::$server = $container;
@@ -79,6 +87,21 @@ class ScheduledTransactionJobTest extends TestCase {
 		$this->assertEquals('cleared', $txn2->getStatus());
 		$this->assertNotNull($txn1->getUpdatedAt());
 		$this->assertNotNull($txn2->getUpdatedAt());
+	}
+
+	/**
+	 * The job used to recompute at the default 2dp, so every scheduled row
+	 * clearing on a crypto account rounded its balance away (#331).
+	 */
+	public function testRunKeepsCryptoPrecisionWhenRecomputingBalance(): void {
+		$this->account->setCurrency('BTC');
+		$this->account->setOpeningBalance(0.12345678);
+		$this->mapper->method('findScheduledDueForTransition')->willReturn([$this->makeTransaction(1)]);
+		$this->mapper->method('getNetChangeAll')->willReturn(-0.00000123);
+
+		$this->invokeRun();
+
+		$this->assertSame('0.12345555', $this->writtenBalances[1] ?? null);
 	}
 
 	public function testRunDoesNothingWhenNoScheduledTransactions(): void {

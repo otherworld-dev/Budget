@@ -29,6 +29,7 @@ class AccountService extends AbstractCrudService {
     private ?AutoShareService $autoShareService;
     private ?AccountClosureService $closureService;
     private ?BudgetCarryoverService $carryoverService;
+    private AccountBalanceCalculator $balanceCalculator;
 
     public function __construct(
         AccountMapper $mapper,
@@ -48,6 +49,7 @@ class AccountService extends AbstractCrudService {
         $this->conversionService = $conversionService;
         $this->granularShareService = $granularShareService;
         $this->transactionService = $transactionService;
+        $this->balanceCalculator = new AccountBalanceCalculator($mapper, $transactionMapper);
         $this->l = $l;
         $this->autoShareService = $autoShareService;
         $this->closureService = $closureService;
@@ -304,9 +306,7 @@ class AccountService extends AbstractCrudService {
         $account = parent::update($id, $userId, $updates);
 
         if (isset($updates['openingBalance'])) {
-            $openingBalance = (string) ($account->getOpeningBalance() ?? 0);
-            $newBalance = MoneyCalculator::add($openingBalance, $this->transactionMapper->getNetChangeAll($id), Currency::decimalsFor($account->getCurrency()));
-
+            $newBalance = $this->balanceCalculator->balanceFor($id, $account->getOpeningBalance(), $account->getCurrency());
             $this->mapper->updateBalance($id, $newBalance, $userId);
             $account = $this->find($id, $userId);
         }
@@ -616,11 +616,10 @@ class AccountService extends AbstractCrudService {
         foreach ($accounts as $account) {
             $accountId = $account->getId();
             $oldBalance = (string) $account->getBalance();
-            $openingBalance = (string) ($account->getOpeningBalance() ?? 0);
 
             // new_balance = opening_balance + net transaction effect, at the
             // account currency's precision so crypto keeps its 8dp (#331).
-            $newBalance = MoneyCalculator::add($openingBalance, $this->transactionMapper->getNetChangeAll($accountId), Currency::decimalsFor($account->getCurrency()));
+            $newBalance = $this->balanceCalculator->expectedBalance($account);
 
             $diff = MoneyCalculator::subtract($newBalance, $oldBalance);
             $changed = !MoneyCalculator::equals($newBalance, $oldBalance, '0.005');

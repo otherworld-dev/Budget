@@ -6,7 +6,7 @@ namespace OCA\Budget\BackgroundJob;
 
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\TransactionMapper;
-use OCA\Budget\Service\MoneyCalculator;
+use OCA\Budget\Service\AccountBalanceCalculator;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\TimedJob;
 use OCP\Server;
@@ -32,6 +32,7 @@ class ScheduledTransactionJob extends TimedJob {
     protected function run($argument): void {
         $mapper = Server::get(TransactionMapper::class);
         $accountMapper = Server::get(AccountMapper::class);
+        $balanceCalculator = Server::get(AccountBalanceCalculator::class);
         $logger = Server::get(LoggerInterface::class);
 
         try {
@@ -62,10 +63,9 @@ class ScheduledTransactionJob extends TimedJob {
             // concurrent import/sync recompute and reintroduce drift (#274).
             foreach (array_keys($touchedAccounts) as $accountId) {
                 try {
-                    $account = $accountMapper->findById($accountId);
-                    $openingBalance = (string) ($account->getOpeningBalance() ?? 0);
-                    $newBalance = MoneyCalculator::add($openingBalance, $mapper->getNetChangeAll($accountId));
-                    $accountMapper->updateBalance($accountId, $newBalance, $account->getUserId());
+                    // At the account currency's scale: a crypto account must
+                    // keep its 8dp when a scheduled row clears (#331).
+                    $balanceCalculator->recalculate($accountMapper->findById($accountId));
                 } catch (\Exception $e) {
                     $logger->warning('Failed to recalculate balance for account {id}: {error}', [
                         'id' => $accountId,

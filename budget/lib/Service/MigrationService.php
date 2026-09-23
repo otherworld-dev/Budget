@@ -15,6 +15,7 @@ use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Enum\AccountType;
+use OCA\Budget\Enum\Currency;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCP\IDBConnection;
@@ -287,7 +288,10 @@ class MigrationService {
             foreach (($idMaps['accounts'] ?? []) as $newAccountId) {
                 $account = $this->accountMapper->findById($newAccountId);
                 $net = $this->transactionMapper->getNetChangeAll($newAccountId);
-                $account->setOpeningBalance(round(((float)$account->getBalance()) - $net, 2));
+                // At the account currency's precision: rounding to 2dp here
+                // shifted a restored crypto balance on its next recompute (#331).
+                $dp = Currency::decimalsFor($account->getCurrency());
+                $account->setOpeningBalance(round(((float)$account->getBalance()) - $net, $dp));
                 $this->accountMapper->update($account);
             }
 
