@@ -11840,22 +11840,37 @@ button.danger:hover {
 /* ===== Transaction Matching Styles ===== */
 
 /* Linked transaction indicator */
+/* A <button> so it is reachable by keyboard; reset the app-wide button
+   sizing so it still reads as a small inline badge. */
 .linked-indicator {
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    min-height: 0;
+    height: auto;
+    margin: 0;
     padding: 2px 6px;
+    border: none;
     background: var(--color-primary-element-light);
     border-radius: var(--border-radius-small, 4px);
+    font: inherit;
     font-size: 11px;
+    font-weight: normal;
+    line-height: 1.4;
     color: var(--color-primary-element);
     cursor: pointer;
     transition: background 0.2s;
 }
 
-.linked-indicator:hover {
+.linked-indicator:hover,
+.linked-indicator:focus-visible {
     background: var(--color-primary-element);
     color: var(--color-primary-element-text);
+}
+
+.linked-indicator:focus-visible {
+    outline: 2px solid var(--color-main-text);
+    outline-offset: 1px;
 }
 
 .linked-indicator .icon-link {

@@ -1654,7 +1654,7 @@ export default class AccountsModule {
             const linkedLabel = linkedAccountName ? t('budget', 'Transfer {direction} {account}', { direction: linkedDirection, account: dom.escapeHtml(linkedAccountName) }, undefined, { escape: false }) : t('budget', 'Transfer');
             const linkedTitle = linkedAccountName ? t('budget', 'Click to view linked transaction in {account}', { account: dom.escapeHtml(linkedAccountName) }, undefined, { escape: false }) : t('budget', 'Linked transfer');
             const linkedBadge = isLinked
-                ? `<span class="linked-indicator" data-transaction-id="${transaction.id}" data-linked-id="${transaction.linkedTransactionId}" data-linked-account-id="${transaction.linkedAccountId || ''}" title="${linkedTitle}">&#x1F517; ${linkedLabel}</span>`
+                ? `<button type="button" class="linked-indicator" data-transaction-id="${transaction.id}" data-linked-id="${transaction.linkedTransactionId}" data-linked-account-id="${transaction.linkedAccountId || ''}" title="${linkedTitle}"><span aria-hidden="true">&#x1F517;</span> ${linkedLabel}</button>`
                 : '';
 
             // Split badge. Filtering the register by a category also matches a
@@ -1749,8 +1749,8 @@ export default class AccountsModule {
         document.querySelectorAll('#account-transactions-body .linked-indicator').forEach(badge => {
             badge.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const linkedId = parseInt(e.target.getAttribute('data-linked-id'));
-                const linkedAccountId = parseInt(e.target.getAttribute('data-linked-account-id'));
+                const linkedId = parseInt(badge.getAttribute('data-linked-id'));
+                const linkedAccountId = parseInt(badge.getAttribute('data-linked-account-id'));
                 this.app.navigateToLinkedTransaction(linkedId, linkedAccountId);
             });
         });

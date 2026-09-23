@@ -4687,6 +4687,9 @@ export default class TransactionsModule {
             if (cell && !cell.classList.contains('editing')) {
                 // Don't trigger if clicking on checkbox
                 if (e.target.type === 'checkbox') return;
+                // The transfer badge is a button of its own (it opens the
+                // linked transaction), not a way into the description editor.
+                if (e.target.closest('.linked-indicator')) return;
                 this.startInlineEdit(cell);
             }
         });

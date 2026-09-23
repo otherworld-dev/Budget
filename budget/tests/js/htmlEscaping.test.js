@@ -138,6 +138,8 @@ describe('names passed through t() are escaped once, not twice', () => {
         mod.renderAccountTransactions();
 
         const badge = document.querySelector('.linked-indicator');
+        // A real button, so it can be reached and pressed from the keyboard.
+        expect(badge.tagName).toBe('BUTTON');
         expect(badge.textContent).toContain('B&Q <b>');
         expect(badge.textContent).not.toContain('&amp;');
         expect(badge.getAttribute('title')).toContain('B&Q <b>');
