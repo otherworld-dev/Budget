@@ -298,7 +298,7 @@ class YearOverYearService {
      * Totals of some months of cash flow, money added through MoneyCalculator
      * (#274).
      *
-     * @param array<array{income: float, expenses: float, count?: int}> $months
+     * @param array<array{income: float, expenses: float, count?: int, ...}> $months
      * @return array{income: float, expenses: float, savings: float, transactionCount: int}
      */
     private function summarise(array $months): array {

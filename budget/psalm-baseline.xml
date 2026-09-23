@@ -1,13 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <files psalm-version="5.26.1@d747f6500b38ac4f7dfc5edbcae6e4b637d7add0">
-  <file src="lib/Controller/AccountController.php">
-    <UndefinedMagicMethod>
-      <code><![CDATA[getName]]></code>
-      <code><![CDATA[getName]]></code>
-      <code><![CDATA[getUserId]]></code>
-      <code><![CDATA[getUserId]]></code>
-    </UndefinedMagicMethod>
-  </file>
   <file src="lib/Controller/AssetController.php">
     <TypeDoesNotContainNull>
       <code><![CDATA[$this->getEffectiveUserId() === null]]></code>
@@ -51,11 +43,6 @@
       <code><![CDATA[$balance]]></code>
     </InvalidCast>
   </file>
-  <file src="lib/Db/QueryFilterBuilder.php">
-    <UndefinedInterfaceMethod>
-      <code><![CDATA[escapeLikeParameter]]></code>
-    </UndefinedInterfaceMethod>
-  </file>
   <file src="lib/Db/TagMapper.php">
     <InvalidReturnStatement>
       <code><![CDATA[$result]]></code>
@@ -76,9 +63,6 @@
     <RedundantFunctionCall>
       <code><![CDATA[array_values]]></code>
     </RedundantFunctionCall>
-    <UndefinedInterfaceMethod>
-      <code><![CDATA[escapeLikeParameter]]></code>
-    </UndefinedInterfaceMethod>
   </file>
   <file src="lib/Migration/Version001000011Date20260117.php">
     <UndefinedInterfaceMethod>
