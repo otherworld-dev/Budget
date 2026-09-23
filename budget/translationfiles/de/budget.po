@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-22 22:56+0000\n"
-"PO-Revision-Date: 2026-09-22 21:14+0000\n"
+"PO-Revision-Date: 2026-09-23 12:36+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -1748,17 +1748,13 @@ msgstr "Wähle eine deiner eigenen Ausgabenkategorien aus"
 
 #: /app/lib/Controller/ProjectController.php:196
 #: /app/src/modules/projects/ProjectsModule.js:338
-#, fuzzy
-#| msgid "Enter a descriptive name for this account"
 msgid "Enter a start date for the project"
-msgstr "Gib diesem Konto einen aussagekräftigen Namen"
+msgstr "Gib ein Startdatum für das Projekt ein"
 
 #: /app/lib/Controller/ProjectController.php:197
 #: /app/src/modules/projects/ProjectsModule.js:339
-#, fuzzy
-#| msgid "Start date must be before the end date"
 msgid "The end date cannot be before the start date"
-msgstr "Das Startdatum muss vor dem Enddatum liegen"
+msgstr "Das Enddatum darf nicht vor dem Startdatum liegen"
 
 #: /app/lib/Controller/ProjectController.php:198
 #, fuzzy
@@ -6914,10 +6910,8 @@ msgstr "Aufzeichnen der Abrechnung fehlgeschlagen"
 #: /app/src/modules/bills/BillsModule.js:112
 #: /app/src/modules/bills/BillsModule.js:420
 #: /app/src/modules/transfers/TransfersModule.js:372
-#, fuzzy
-#| msgid "Mark Paid"
 msgid "Mark Unpaid"
-msgstr "Bezahlt kennzeichnen"
+msgstr "Als unbezahlt markieren"
 
 #: /app/src/modules/bills/BillsModule.js:114
 msgid "Keep the bill as paid and stop listing this payment"
@@ -7121,8 +7115,6 @@ msgstr "Fälligkeitstag"
 #: /app/src/modules/transfers/TransfersModule.js:538
 #: /app/src/modules/transfers/TransfersModule.js:754
 #: /app/templates/index.php:6206
-#, fuzzy
-#| msgid "Start date"
 msgid "Start Date"
 msgstr "Startdatum"
 
@@ -7360,10 +7352,8 @@ msgid "Description matches"
 msgstr "Beschreibung"
 
 #: /app/src/modules/bills/BillsModule.js:1423
-#, fuzzy
-#| msgid "Description (optional)"
 msgid "Description partially matches"
-msgstr "Beschreibung (optional)"
+msgstr "Beschreibung stimmt teilweise überein"
 
 #: /app/src/modules/bills/BillsModule.js:1424
 msgid "Same day"
@@ -7412,6 +7402,8 @@ msgid ""
 "Whichever you choose, the bill is marked as paid and moves on to its next "
 "due date."
 msgstr ""
+"Unabhängig von deiner Auswahl wird die Rechnung als bezahlt markiert und der "
+"nächste Fälligkeitstermin festgelegt."
 
 #: /app/src/modules/bills/BillsModule.js:1469
 #, fuzzy
@@ -7485,6 +7477,9 @@ msgid ""
 "deleted, a linked imported transaction will be unlinked, and the bill "
 "schedule rolled back."
 msgstr ""
+"Diese Rechnung als unbezahlt markieren? Für die Zahlung erstellte "
+"Transaktionen werden gelöscht, eine verknüpfte importierte Transaktion wird "
+"von der Rechnung getrennt und der Rechnungsplan zurückgesetzt."
 
 #: /app/src/modules/bills/BillsModule.js:1575
 #: /app/src/modules/transfers/TransfersModule.js:1085
@@ -7495,7 +7490,7 @@ msgstr ""
 
 #: /app/src/modules/bills/BillsModule.js:1596
 msgid "Payment reverted — the bill is marked as unpaid."
-msgstr ""
+msgstr "Zahlung rückgängig gemacht – die Rechnung ist als unbezahlt markiert."
 
 #: /app/src/modules/bills/BillsModule.js:1610
 #: /app/src/modules/transfers/TransfersModule.js:1001
@@ -10069,10 +10064,8 @@ msgstr "Regel bearbeiten"
 #: /app/src/modules/projects/ProjectsModule.js:260
 #: /app/templates/index.php:2941 /app/templates/index.php:2948
 #: /app/templates/index.php:5075
-#, fuzzy
-#| msgid "Savings Projection"
 msgid "New Project"
-msgstr "Einsparungsprognose"
+msgstr "Neues Projekt"
 
 #: /app/src/modules/projects/ProjectsModule.js:268
 msgid "Choose a category…"
@@ -10843,7 +10836,7 @@ msgstr "Beschreibung:"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:225
 msgid "e.g., Grocery purchase, Salary"
-msgstr ""
+msgstr "z. B. Lebensmitteleinkauf, Gehalt"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:240
 msgid "Notes Text:"
@@ -13043,22 +13036,16 @@ msgid "The date this transfer is due. It can be in the past."
 msgstr ""
 
 #: /app/src/modules/transfers/TransfersModule.js:771
-#, fuzzy
-#| msgid "Day of the month when bill is due"
 msgid "Day of the month when the transfer is due"
-msgstr "Tag im Monat, an dem die Rechnung fällig ist"
+msgstr "Tag des Monats, an dem die Umbuchung fällig ist"
 
 #: /app/src/modules/transfers/TransfersModule.js:789
-#, fuzzy
-#| msgid "Bill will automatically stop after this date (optional)"
 msgid "The transfer repeats from this date (optional)"
-msgstr "Die Rechnung endet nach diesem Datum automatisch (optional)"
+msgstr "Die Umbuchung wird ab diesem Datum wiederholt (optional)"
 
 #: /app/src/modules/transfers/TransfersModule.js:790
-#, fuzzy
-#| msgid "Bill will automatically stop after this date (optional)"
 msgid "Transfer only occurs on or after this date (optional)"
-msgstr "Die Rechnung endet nach diesem Datum automatisch (optional)"
+msgstr "Die Umbuchung erfolgt erst ab diesem Datum (optional)"
 
 #: /app/src/modules/transfers/TransfersModule.js:812
 #, fuzzy
@@ -13131,10 +13118,8 @@ msgstr "Fehler beim Speichern der Umbuchung"
 
 #: /app/src/modules/transfers/TransfersModule.js:1102
 #: /app/src/modules/transfers/TransfersModule.js:1111
-#, fuzzy
-#| msgid "Failed to mark transfer as paid"
 msgid "Failed to mark transfer as unpaid"
-msgstr "Fehler beim Markieren der Umbuchung als bezahlt"
+msgstr "Die Umbuchung konnte nicht als unbezahlt markiert werden"
 
 #: /app/src/modules/transfers/TransfersModule.js:1108
 msgid "Payment reverted — the transfer is marked as unpaid."
@@ -13216,7 +13201,7 @@ msgstr ""
 
 #: /app/src/utils/billDates.js:29
 msgid "Paid {paidDate}, next due {dueDate}"
-msgstr ""
+msgstr "Bezahlt am {paidDate}, nächste Fälligkeit am {dueDate}"
 
 #: /app/src/utils/billDates.js:34
 #, fuzzy
@@ -14502,10 +14487,8 @@ msgid "Create Your First Goal"
 msgstr "Erstellen Sie Ihr erstes Ziel"
 
 #: /app/templates/index.php:2946
-#, fuzzy
-#| msgid "No rules yet"
 msgid "No projects yet"
-msgstr "Noch keine Regeln"
+msgstr "Noch keine Projekte"
 
 #: /app/templates/index.php:2947
 msgid ""
@@ -14513,6 +14496,10 @@ msgid ""
 "renovation, a wedding or a long trip. It covers a category and everything "
 "under it from a start date to an end date, and it does not reset each month."
 msgstr ""
+"Ein Projekt ist ein einmaliges Budget für ein Vorhaben, das sich über "
+"mehrere Monate erstreckt, zum Beispiel eine Renovierung, eine Hochzeit oder "
+"eine längere Reise. Es umfasst eine Kategorie und alle ihre Unterkategorien "
+"vom Start- bis zum Enddatum und wird nicht jeden Monat zurückgesetzt."
 
 #: /app/templates/index.php:2959
 msgid "Financial Forecast"
@@ -16016,16 +16003,16 @@ msgid "Project form"
 msgstr "Voraussichtliches Einkommen"
 
 #: /app/templates/index.php:5079
-#, fuzzy
-#| msgid "e.g., Bonus top-up"
 msgid "e.g., House renovation"
-msgstr "z. B. Bonusaufladung"
+msgstr "z. B. Hausrenovierung"
 
 #: /app/templates/index.php:5084
 msgid ""
 "Everything filed under this category and its subcategories counts towards "
 "the project."
 msgstr ""
+"Alles, was dieser Kategorie und ihren Unterkategorien zugeordnet ist, wird "
+"dem Projekt zugerechnet."
 
 #: /app/templates/index.php:5087
 #, fuzzy
@@ -16034,20 +16021,16 @@ msgid "Total budget"
 msgstr "In Budgets erfasst"
 
 #: /app/templates/index.php:5096
-#, fuzzy
-#| msgid "Linked Tag (optional)"
 msgid "End date (optional)"
-msgstr "Verknüpftes Schlagwort (optional)"
+msgstr "Enddatum (optional)"
 
 #: /app/templates/index.php:5101
-#, fuzzy
-#| msgid "Make this a subcategory (optional)"
 msgid "Subcategory amounts (optional)"
-msgstr "Als Unterkategorie anlegen (optional)"
+msgstr "Beträge der Unterkategorien (optional)"
 
 #: /app/templates/index.php:5108
 msgid "Leave these categories out of monthly budgets"
-msgstr ""
+msgstr "Diese Kategorien von den monatlichen Budgets ausschließen"
 
 #: /app/templates/index.php:5110
 msgid ""
@@ -16055,6 +16038,10 @@ msgid ""
 "show as over budget on the Budget page. The spending still counts in reports "
 "and on the dashboard."
 msgstr ""
+"Aktiviert für die Kategorie „Von der Budgetierung ausschließen“, damit eine "
+"hohe Projektausgabe auf der Budgetseite nicht als Budgetüberschreitung "
+"angezeigt wird. Die Ausgaben werden weiterhin in Berichten und im Dashboard "
+"berücksichtigt."
 
 #: /app/templates/index.php:5132
 msgid "Goal Name"
@@ -16225,6 +16212,8 @@ msgid ""
 "Optional: records a matching withdrawal in that account and keeps it out of "
 "your spending"
 msgstr ""
+"Optional: Erfasst eine entsprechende Abbuchung auf diesem Konto und "
+"berücksichtigt sie nicht als Ausgabe"
 
 #: /app/templates/index.php:5387 /app/templates/index.php:5423
 #: /app/templates/index.php:5470
@@ -16247,7 +16236,7 @@ msgstr "Konto bearbeiten"
 
 #: /app/templates/index.php:5420
 msgid "Optional: records a matching deposit in that account"
-msgstr ""
+msgstr "Optional: Erfasst eine entsprechende Einzahlung auf diesem Konto"
 
 #: /app/templates/index.php:5424
 msgid "e.g., Tax-free lump sum"
@@ -16440,7 +16429,7 @@ msgstr "Manuell überschriebene Wechselkurse"
 
 #: /app/templates/index.php:5666
 msgid "Optionally override interest rates for what-if analysis"
-msgstr ""
+msgstr "Optional: Zinssätze für Was-wäre-wenn-Analysen überschreiben"
 
 #: /app/templates/index.php:5674
 #, fuzzy
@@ -16566,7 +16555,7 @@ msgstr "Konto erstellen oder ändern"
 
 #: /app/templates/index.php:5880
 msgid "e.g. Everyday Current"
-msgstr ""
+msgstr "z. B. Girokonto für den täglichen Gebrauch"
 
 #: /app/templates/index.php:5886
 msgid "Choose account type"
@@ -16598,7 +16587,7 @@ msgstr ""
 
 #: /app/templates/index.php:5929
 msgid "e.g. Chase, NatWest"
-msgstr ""
+msgstr "z. B. Sparkasse, Deutsche Bank"
 
 #: /app/templates/index.php:5938
 #, fuzzy
@@ -16743,14 +16732,12 @@ msgid "Name of the vendor or recurring bill"
 msgstr "Name des Anbieters oder der wiederkehrenden Rechnung"
 
 #: /app/templates/index.php:6083 /app/templates/index.php:6567
-#, fuzzy
-#| msgid "Transaction Description Pattern (Optional)"
 msgid "Transaction description (optional)"
-msgstr "Muster des Buchungstextes (Optional)"
+msgstr "Transaktionsbeschreibung (optional)"
 
 #: /app/templates/index.php:6084 /app/templates/index.php:6568
 msgid "Used as the description when transactions are auto-generated"
-msgstr ""
+msgstr "Wird als Beschreibung für automatisch erstellte Transaktionen verwendet"
 
 #: /app/templates/index.php:6090
 msgid "Expected bill amount"
@@ -17215,22 +17202,16 @@ msgid "Account where income is received (optional)"
 msgstr "Konto auf welches diese Einnahme gebucht wird (optional)"
 
 #: /app/templates/index.php:6649
-#, fuzzy
-#| msgid "Also create transactions now"
 msgid "Auto-create transaction when due"
-msgstr "Buchungen jetzt erstellen"
+msgstr "Transaktion bei Fälligkeit automatisch erstellen"
 
 #: /app/templates/index.php:6651
-#, fuzzy
-#| msgid ""
-#| "Automatically mark this bill as paid when due date arrives (requires "
-#| "account)"
 msgid ""
 "Automatically create a transaction when the expected date arrives (requires "
 "account)"
 msgstr ""
-"Diese Rechnung bei Fälligkeit automatisch als bezahlt markieren (Konto "
-"erforderlich)"
+"Transaktion automatisch erstellen, sobald das erwartete Datum erreicht ist "
+"(erfordert ein Konto)"
 
 #: /app/templates/index.php:6656
 msgid "e.g., PAYROLL, DIVIDEND"
@@ -17244,6 +17225,8 @@ msgstr "Suchmuster in Buchungen zur automatischen Zuordnung"
 msgid ""
 "Transactions generated by this income are left out of forecast averages."
 msgstr ""
+"Durch diese Einnahme erstellte Transaktionen werden bei den "
+"Durchschnittswerten der Prognose nicht berücksichtigt."
 
 #: /app/templates/index.php:6675
 msgid "Save income"
