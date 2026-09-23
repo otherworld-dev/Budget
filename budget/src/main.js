@@ -1801,29 +1801,9 @@ class BudgetApp {
     // ===========================
 
     setupSettingsEventListeners() {
-        // Save buttons (both top and bottom)
-        const saveButtons = [
-            document.getElementById('save-settings-btn'),
-            document.getElementById('save-settings-btn-bottom')
-        ];
-
-        saveButtons.forEach(btn => {
-            if (btn) {
-                btn.addEventListener('click', () => this.saveSettings());
-            }
-        });
-
-        // Reset buttons (both top and bottom)
-        const resetButtons = [
-            document.getElementById('reset-settings-btn'),
-            document.getElementById('reset-settings-btn-bottom')
-        ];
-
-        resetButtons.forEach(btn => {
-            if (btn) {
-                btn.addEventListener('click', () => this.resetSettings());
-            }
-        });
+        // Settings save as they change (SettingsModule.setupAutoSave); only
+        // Reset has a button, in the Danger Zone.
+        document.getElementById('reset-settings-btn')?.addEventListener('click', () => this.resetSettings());
 
         // Number format preview update
         const numberFormatInputs = [

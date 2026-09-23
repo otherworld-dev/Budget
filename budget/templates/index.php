@@ -1316,7 +1316,7 @@ style('budget', 'budget-app');
                                 <span class="icon-add" style="color: var(--color-success);" aria-hidden="true"></span>
                             </div>
                             <div class="metric-content">
-                                <div class="metric-value" id="total-income">$0</div>
+                                <div class="metric-value" id="total-income">--</div>
                                 <div class="metric-label"><?php p($l->t('This Month Income')); ?></div>
                             </div>
                         </div>
@@ -1325,7 +1325,7 @@ style('budget', 'budget-app');
                                 <span class="icon-close" style="color: var(--color-error);" aria-hidden="true"></span>
                             </div>
                             <div class="metric-content">
-                                <div class="metric-value" id="total-expenses">$0</div>
+                                <div class="metric-value" id="total-expenses">--</div>
                                 <div class="metric-label"><?php p($l->t('This Month Expenses')); ?></div>
                             </div>
                         </div>
@@ -1334,7 +1334,7 @@ style('budget', 'budget-app');
                                 <span class="icon-history" aria-hidden="true"></span>
                             </div>
                             <div class="metric-content">
-                                <div class="metric-value" id="avg-transaction">$0</div>
+                                <div class="metric-value" id="avg-transaction">--</div>
                                 <div class="metric-label"><?php p($l->t('Avg. Transaction')); ?></div>
                             </div>
                         </div>
@@ -1982,7 +1982,7 @@ style('budget', 'budget-app');
                             </div>
                             <div class="category-total-spent" id="category-total-spent">
                                 <span class="total-spent-label"><?php p($l->t('Total Spent')); ?></span>
-                                <span class="total-spent-value" id="category-total-spent-value">$0</span>
+                                <span class="total-spent-value" id="category-total-spent-value">--</span>
                             </div>
                         </div>
 
@@ -1998,7 +1998,7 @@ style('budget', 'budget-app');
                                 </div>
                                 <div class="analytics-card">
                                     <div class="analytics-content">
-                                        <div class="analytics-value" id="avg-transaction-amount">$0</div>
+                                        <div class="analytics-value" id="avg-transaction-amount">--</div>
                                         <div class="analytics-label"><?php p($l->t('Average')); ?></div>
                                     </div>
                                 </div>
@@ -2010,7 +2010,7 @@ style('budget', 'budget-app');
                                 </div>
                                 <div class="analytics-card">
                                     <div class="analytics-content">
-                                        <div class="analytics-value" id="category-this-month">$0</div>
+                                        <div class="analytics-value" id="category-this-month">--</div>
                                         <div class="analytics-label"><?php p($l->t('This Month')); ?></div>
                                     </div>
                                 </div>
@@ -2160,31 +2160,31 @@ style('budget', 'budget-app');
                         <span class="icon-quota" aria-hidden="true"></span>
                     </div>
                     <div class="summary-content">
-                        <div class="summary-value" id="budget-total-budgeted">$0</div>
+                        <div class="summary-value" id="budget-total-budgeted">--</div>
                         <div class="summary-label"><?php p($l->t('Total Budgeted')); ?></div>
                     </div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-icon">
-                        <span class="icon-close" style="color: var(--color-error);" aria-hidden="true"></span>
+                        <span class="icon-category-monitoring" aria-hidden="true"></span>
                     </div>
                     <div class="summary-content">
-                        <div class="summary-value" id="budget-total-spent">$0</div>
+                        <div class="summary-value" id="budget-total-spent">--</div>
                         <div class="summary-label"><?php p($l->t('Total Spent')); ?></div>
                     </div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-icon">
-                        <span class="icon-checkmark" style="color: var(--color-success);" aria-hidden="true"></span>
+                        <span class="icon-checkmark" aria-hidden="true"></span>
                     </div>
                     <div class="summary-content">
-                        <div class="summary-value" id="budget-total-remaining">$0</div>
+                        <div class="summary-value" id="budget-total-remaining">--</div>
                         <div class="summary-label"><?php p($l->t('Remaining')); ?></div>
                     </div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-icon">
-                        <span class="icon-category-integration" aria-hidden="true"></span>
+                        <span class="icon-tag" aria-hidden="true"></span>
                     </div>
                     <div class="summary-content">
                         <div class="summary-value" id="budget-categories-count">0</div>
@@ -2194,13 +2194,13 @@ style('budget', 'budget-app');
             </div>
 
             <!-- Budget Type Tabs -->
-            <div class="budget-tabs">
-                <button class="tab-button active" data-budget-type="expense">
-                    <span class="icon-close" aria-hidden="true"></span>
+            <!-- No icons: an x on Expenses and a + on Income read as
+                 "remove" and "add", not as two views of the budget. -->
+            <div class="budget-tabs" role="tablist">
+                <button class="tab-button active" role="tab" aria-selected="true" data-budget-type="expense">
                     <?php p($l->t('Expenses')); ?>
                 </button>
-                <button class="tab-button" data-budget-type="income">
-                    <span class="icon-add" aria-hidden="true"></span>
+                <button class="tab-button" role="tab" aria-selected="false" data-budget-type="income">
                     <?php p($l->t('Income')); ?>
                 </button>
             </div>
@@ -2605,7 +2605,7 @@ style('budget', 'budget-app');
                         <span class="icon-quota" aria-hidden="true"></span>
                     </div>
                     <div class="summary-content">
-                        <div class="summary-value" id="bills-monthly-total">$0</div>
+                        <div class="summary-value" id="bills-monthly-total">--</div>
                         <div class="summary-label"><?php p($l->t('Monthly Total')); ?></div>
                     </div>
                 </div>
@@ -2890,7 +2890,7 @@ style('budget', 'budget-app');
                         <span class="icon-quota" aria-hidden="true"></span>
                     </div>
                     <div class="summary-content">
-                        <div class="summary-value" id="goals-total-saved">$0</div>
+                        <div class="summary-value" id="goals-total-saved">--</div>
                         <div class="summary-label"><?php p($l->t('Total Saved')); ?></div>
                     </div>
                 </div>
@@ -2899,7 +2899,7 @@ style('budget', 'budget-app');
                         <span class="icon-category-office" aria-hidden="true"></span>
                     </div>
                     <div class="summary-content">
-                        <div class="summary-value" id="goals-total-target">$0</div>
+                        <div class="summary-value" id="goals-total-target">--</div>
                         <div class="summary-label"><?php p($l->t('Total Target')); ?></div>
                     </div>
                 </div>
@@ -4329,21 +4329,28 @@ style('budget', 'budget-app');
         <div id="settings-view" class="view">
             <div class="view-header">
                 <h2><?php p($l->t('Settings')); ?></h2>
-                <div class="view-controls">
-                    <button id="reset-settings-btn" class="secondary" title="<?php p($l->t('Reset all settings to defaults')); ?>">
-                        <span class="icon-history" aria-hidden="true"></span>
-                        <?php p($l->t('Reset All')); ?>
-                    </button>
-                    <button id="save-settings-btn" class="primary" title="<?php p($l->t('Save settings')); ?>">
-                        <span class="icon-checkmark" aria-hidden="true"></span>
-                        <?php p($l->t('Save Changes')); ?>
-                    </button>
-                </div>
             </div>
+            <p class="settings-autosave-note"><?php p($l->t('Changes are saved as you make them.')); ?></p>
+
+            <!-- Jump list. Buttons, not #links: the router reads any hash as a
+                 view name, so an in-page anchor would blank the page. -->
+            <nav class="settings-jump" aria-label="<?php p($l->t('Settings sections')); ?>">
+                <button type="button" data-target="settings-general"><?php p($l->t('General Settings')); ?></button>
+                <button type="button" data-target="settings-display"><?php p($l->t('Display Settings')); ?></button>
+                <button type="button" data-target="settings-number-format"><?php p($l->t('Number Format')); ?></button>
+                <button type="button" data-target="settings-notifications"><?php p($l->t('Notifications')); ?></button>
+                <button type="button" data-target="settings-receipts"><?php p($l->t('Receipts')); ?></button>
+                <button type="button" data-target="settings-reports"><?php p($l->t('Scheduled Reports')); ?></button>
+                <button type="button" data-target="settings-import-export"><?php p($l->t('Import & Export')); ?></button>
+                <button type="button" data-target="settings-migration"><?php p($l->t('Data Migration')); ?></button>
+                <button type="button" data-target="settings-maintenance"><?php p($l->t('Maintenance')); ?></button>
+                <button type="button" data-target="admin-settings-section" class="settings-jump-admin" hidden><?php p($l->t('Admin Settings')); ?></button>
+                <button type="button" data-target="settings-danger"><?php p($l->t('Danger Zone')); ?></button>
+            </nav>
 
             <div class="settings-container">
                 <!-- General Settings Section -->
-                <div class="settings-section">
+                <div class="settings-section" id="settings-general">
                     <h3><?php p($l->t('General Settings')); ?></h3>
 
                     <div class="settings-group">
@@ -4391,7 +4398,7 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Display Settings Section -->
-                <div class="settings-section">
+                <div class="settings-section" id="settings-display">
                     <h3><?php p($l->t('Display Settings')); ?></h3>
 
                     <div class="settings-group">
@@ -4424,7 +4431,7 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Number Format Settings Section -->
-                <div class="settings-section">
+                <div class="settings-section" id="settings-number-format">
                     <h3><?php p($l->t('Number Format')); ?></h3>
 
                     <div class="settings-group">
@@ -4472,7 +4479,7 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Notification Settings Section -->
-                <div class="settings-section">
+                <div class="settings-section" id="settings-notifications">
                     <h3><?php p($l->t('Notifications')); ?></h3>
 
                     <div class="settings-group">
@@ -4540,7 +4547,7 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Receipts Section (#352) -->
-                <div class="settings-section">
+                <div class="settings-section" id="settings-receipts">
                     <h3><?php p($l->t('Receipts')); ?></h3>
                     <p class="settings-description"><?php p($l->t('Where uploaded receipts are filed in your Files. Year and month subfolders are created underneath. Receipts already attached stay where they are.')); ?></p>
                     <div class="settings-group">
@@ -4559,7 +4566,7 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Scheduled Reports Section -->
-                <div class="settings-section">
+                <div class="settings-section" id="settings-reports">
                     <h3><?php p($l->t('Scheduled Reports')); ?></h3>
 
                     <div class="settings-group">
@@ -4586,7 +4593,7 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Import/Export Settings Section -->
-                <div class="settings-section">
+                <div class="settings-section" id="settings-import-export">
                     <h3><?php p($l->t('Import & Export')); ?></h3>
 
                     <div class="settings-group">
@@ -4625,7 +4632,7 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Data Migration Section -->
-                <div class="settings-section">
+                <div class="settings-section" id="settings-migration">
                     <h3><?php p($l->t('Data Migration')); ?></h3>
                     <p class="settings-description"><?php p($l->t('Export all your data for backup or migration to another Nextcloud instance. Import to restore or migrate data.')); ?></p>
 
@@ -4731,7 +4738,7 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Maintenance Section -->
-                <div class="settings-section">
+                <div class="settings-section" id="settings-maintenance">
                     <h3><?php p($l->t('Maintenance')); ?></h3>
                     <div class="settings-group">
                         <div class="settings-action-item">
@@ -4850,7 +4857,7 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Danger Zone Section -->
-                <div class="settings-section danger-zone">
+                <div class="settings-section danger-zone" id="settings-danger">
                     <h3><?php p($l->t('Danger Zone')); ?></h3>
                     <p class="settings-description danger-zone-description">
                         <span class="icon-error" aria-hidden="true"></span>
@@ -4858,6 +4865,17 @@ style('budget', 'budget-app');
                     </p>
 
                     <div class="settings-group">
+                        <div class="danger-zone-item">
+                            <div class="danger-zone-info">
+                                <h4><?php p($l->t('Reset All to Defaults')); ?></h4>
+                                <p><?php p($l->t('Put every setting on this page back to its default. Your accounts, transactions and other data are not touched.')); ?></p>
+                            </div>
+                            <button id="reset-settings-btn" class="secondary" type="button">
+                                <span class="icon-history" aria-hidden="true"></span>
+                                <?php p($l->t('Reset All to Defaults')); ?>
+                            </button>
+                        </div>
+
                         <div class="danger-zone-item">
                             <div class="danger-zone-info">
                                 <h4><?php p($l->t('Factory Reset')); ?></h4>
@@ -4869,18 +4887,6 @@ style('budget', 'budget-app');
                             </button>
                         </div>
                     </div>
-                </div>
-
-                <!-- Settings Actions (mirrors the buttons in the view header) -->
-                <div class="settings-actions">
-                    <button id="save-settings-btn-bottom" class="primary">
-                        <span class="icon-checkmark" aria-hidden="true"></span>
-                        <?php p($l->t('Save Changes')); ?>
-                    </button>
-                    <button id="reset-settings-btn-bottom" class="secondary">
-                        <span class="icon-history" aria-hidden="true"></span>
-                        <?php p($l->t('Reset All to Defaults')); ?>
-                    </button>
                 </div>
             </div>
         </div>

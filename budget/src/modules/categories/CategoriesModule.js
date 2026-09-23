@@ -2068,8 +2068,12 @@ export default class CategoriesModule {
         // Budget type tabs
         document.querySelectorAll('.budget-tabs .tab-button').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                document.querySelectorAll('.budget-tabs .tab-button').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.budget-tabs .tab-button').forEach(b => {
+                    b.classList.remove('active');
+                    b.setAttribute('aria-selected', 'false');
+                });
                 e.currentTarget.classList.add('active');
+                e.currentTarget.setAttribute('aria-selected', 'true');
                 this.budgetType = e.currentTarget.dataset.budgetType;
                 this.renderBudgetTree();
                 this.updateBudgetSummary();
