@@ -99,11 +99,11 @@ class TransactionCsvExporter {
      * @param iterable<array<int, array<string, mixed>>> $batches
      */
     public function write($handle, iterable $batches): void {
-        fputcsv($handle, $this->headerRow());
+        CsvSafe::put($handle, $this->headerRow());
 
         foreach ($batches as $batch) {
             foreach ($batch as $transaction) {
-                fputcsv($handle, $this->dataRow($transaction));
+                CsvSafe::put($handle, $this->dataRow($transaction));
             }
         }
     }

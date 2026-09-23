@@ -1735,6 +1735,17 @@ class BillControllerTest extends TestCase {
 		$this->assertStringContainsString('"Projected balance","1,000.00",,,800.00,-200.00,,,,,,,,,,' . "\n", $csv);
 	}
 
+	/** A bill name is user text; one starting with = would run as a formula when the export is opened. */
+	public function testExportCalendarCsvNeutralisesAFormulaBillName(): void {
+		$data = $this->calendarData();
+		$data['bills'][0]['name'] = '=HYPERLINK("http://evil")';
+		$this->service->method('getAnnualOverview')->willReturn($data);
+
+		$csv = $this->controller->exportCalendar('csv', 2026)->render();
+
+		$this->assertStringContainsString('"\'=HYPERLINK(""http://evil"")"', $csv);
+	}
+
 	public function testExportCalendarCsvHasNoBalanceRowWithoutAnAccount(): void {
 		$this->service->method('getAnnualOverview')->willReturn($this->calendarData());
 

@@ -6,6 +6,7 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\BillService;
+use OCA\Budget\Service\Export\CsvSafe;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\Report\MonthNames;
 use OCA\Budget\Service\ValidationService;
@@ -1162,7 +1163,7 @@ class BillController extends Controller {
             $header[] = MonthNames::short($this->l, $m);
         }
         $header[] = $this->l->t('Annual Total');
-        fputcsv($csv, $header);
+        CsvSafe::put($csv, $header);
 
         // Bill rows
         foreach ($data['bills'] ?? [] as $bill) {
@@ -1181,7 +1182,7 @@ class BillController extends Controller {
                 }
             }
             $row[] = number_format($annualTotal, 2);
-            fputcsv($csv, $row);
+            CsvSafe::put($csv, $row);
         }
 
         // Monthly totals row
@@ -1193,11 +1194,11 @@ class BillController extends Controller {
             $grandTotal += $total;
         }
         $totalsRow[] = number_format($grandTotal, 2);
-        fputcsv($csv, $totalsRow);
+        CsvSafe::put($csv, $totalsRow);
 
         $balanceRow = $this->projectedBalanceRow($data);
         if ($balanceRow !== null) {
-            fputcsv($csv, $balanceRow);
+            CsvSafe::put($csv, $balanceRow);
         }
 
         rewind($csv);

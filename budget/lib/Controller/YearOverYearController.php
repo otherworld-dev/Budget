@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Service\Export\CsvSafe;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\Report\MonthNames;
 use OCA\Budget\Service\YearOverYearService;
@@ -254,11 +255,11 @@ class YearOverYearController extends Controller {
     }
 
     private function writeYoYComparisonCsv($handle, array $data, string $comparisonType): void {
-        fputcsv($handle, [$this->comparisonHeading($data, $comparisonType)]);
-        fputcsv($handle, $this->comparisonColumns());
+        CsvSafe::put($handle, [$this->comparisonHeading($data, $comparisonType)]);
+        CsvSafe::put($handle, $this->comparisonColumns());
 
         foreach ($data['years'] ?? [] as $year) {
-            fputcsv($handle, [
+            CsvSafe::put($handle, [
                 $year['year'] ?? '',
                 $year['income'] ?? 0,
                 $year['expenses'] ?? 0,
@@ -288,7 +289,7 @@ class YearOverYearController extends Controller {
             $header[] = (string) $y;
         }
         $header[] = $this->l->t('Change %%');
-        fputcsv($handle, $header);
+        CsvSafe::put($handle, $header);
 
         foreach ($data['categories'] ?? [] as $cat) {
             $row = [$cat['name'] ?? $this->l->t('Unknown')];
@@ -301,7 +302,7 @@ class YearOverYearController extends Controller {
                 $row[] = $yearLookup[$y] ?? 0;
             }
             $row[] = $cat['change'] !== null ? round($cat['change'], 1) . '%' : '-';
-            fputcsv($handle, $row);
+            CsvSafe::put($handle, $row);
         }
     }
 

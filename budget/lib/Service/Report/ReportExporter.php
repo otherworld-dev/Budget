@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Service\Report;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Service\Export\CsvSafe;
 use OCP\IL10N;
 use OCP\L10N\IFactory;
 
@@ -232,25 +233,25 @@ class ReportExporter {
      * Write summary report to CSV.
      */
     private function writeSummaryCsv($handle, array $data): void {
-        fputcsv($handle, [$this->l->t('Type'), $this->l->t('Value')]);
+        CsvSafe::put($handle, [$this->l->t('Type'), $this->l->t('Value')]);
 
-        fputcsv($handle, [$this->l->t('Total Income'), $data['totals']['totalIncome'] ?? 0]);
-        fputcsv($handle, [$this->l->t('Total Expenses'), $data['totals']['totalExpenses'] ?? 0]);
-        fputcsv($handle, [$this->l->t('Net Income'), $data['totals']['netIncome'] ?? 0]);
-        fputcsv($handle, [$this->l->t('Current Balance'), $data['totals']['currentBalance'] ?? 0]);
+        CsvSafe::put($handle, [$this->l->t('Total Income'), $data['totals']['totalIncome'] ?? 0]);
+        CsvSafe::put($handle, [$this->l->t('Total Expenses'), $data['totals']['totalExpenses'] ?? 0]);
+        CsvSafe::put($handle, [$this->l->t('Net Income'), $data['totals']['netIncome'] ?? 0]);
+        CsvSafe::put($handle, [$this->l->t('Current Balance'), $data['totals']['currentBalance'] ?? 0]);
 
         // Comparison if available
         if (isset($data['comparison']['changes'])) {
-            fputcsv($handle, ['']);
-            fputcsv($handle, [$this->l->t('vs Previous Period')]);
+            CsvSafe::put($handle, ['']);
+            CsvSafe::put($handle, [$this->l->t('vs Previous Period')]);
             foreach ($data['comparison']['changes'] as $key => $change) {
-                fputcsv($handle, [$this->comparisonLabel((string) $key), $this->signedPercentage($change)]);
+                CsvSafe::put($handle, [$this->comparisonLabel((string) $key), $this->signedPercentage($change)]);
             }
         }
 
         // Write account details
-        fputcsv($handle, ['']);
-        fputcsv($handle, [
+        CsvSafe::put($handle, ['']);
+        CsvSafe::put($handle, [
             $this->l->t('Account'),
             $this->l->t('Balance'),
             $this->l->t('Income'),
@@ -259,7 +260,7 @@ class ReportExporter {
         ]);
 
         foreach ($data['accounts'] ?? [] as $account) {
-            fputcsv($handle, [
+            CsvSafe::put($handle, [
                 $account['name'] ?? '',
                 $account['balance'] ?? 0,
                 $account['income'] ?? 0,
@@ -273,7 +274,7 @@ class ReportExporter {
      * Write spending report to CSV.
      */
     private function writeSpendingCsv($handle, array $data): void {
-        fputcsv($handle, [
+        CsvSafe::put($handle, [
             $this->l->t('Category'),
             $this->l->t('Amount'),
             $this->l->t('Transactions'),
@@ -285,7 +286,7 @@ class ReportExporter {
         foreach ($data['data'] ?? [] as $item) {
             $itemTotal = (float)($item['total'] ?? 0);
             $pct = $total > 0 ? round(($itemTotal / $total) * 100, 1) : 0;
-            fputcsv($handle, [
+            CsvSafe::put($handle, [
                 $this->itemLabel($item),
                 $itemTotal,
                 $item['count'] ?? 0,
@@ -293,15 +294,15 @@ class ReportExporter {
             ]);
         }
 
-        fputcsv($handle, ['']);
-        fputcsv($handle, [$this->l->t('Total'), $total, $data['totals']['transactions'] ?? 0, '100%']);
+        CsvSafe::put($handle, ['']);
+        CsvSafe::put($handle, [$this->l->t('Total'), $total, $data['totals']['transactions'] ?? 0, '100%']);
     }
 
     /**
      * Write cash flow report to CSV.
      */
     private function writeCashFlowCsv($handle, array $data): void {
-        fputcsv($handle, [
+        CsvSafe::put($handle, [
             $this->l->t('Month'),
             $this->l->t('Income'),
             $this->l->t('Expenses'),
@@ -312,7 +313,7 @@ class ReportExporter {
         $cumulative = 0;
         foreach ($data['data'] ?? [] as $month) {
             $cumulative += (float)($month['net'] ?? 0);
-            fputcsv($handle, [
+            CsvSafe::put($handle, [
                 $month['month'] ?? '',
                 $month['income'] ?? 0,
                 $month['expenses'] ?? 0,
@@ -321,30 +322,30 @@ class ReportExporter {
             ]);
         }
 
-        fputcsv($handle, ['']);
-        fputcsv($handle, [$this->l->t('Monthly Averages')]);
+        CsvSafe::put($handle, ['']);
+        CsvSafe::put($handle, [$this->l->t('Monthly Averages')]);
         $averages = $data['averageMonthly'] ?? [];
-        fputcsv($handle, [$this->l->t('Average Monthly Income'), $averages['income'] ?? 0]);
-        fputcsv($handle, [$this->l->t('Average Monthly Expenses'), $averages['expenses'] ?? 0]);
-        fputcsv($handle, [$this->l->t('Average Monthly Net'), $averages['net'] ?? 0]);
+        CsvSafe::put($handle, [$this->l->t('Average Monthly Income'), $averages['income'] ?? 0]);
+        CsvSafe::put($handle, [$this->l->t('Average Monthly Expenses'), $averages['expenses'] ?? 0]);
+        CsvSafe::put($handle, [$this->l->t('Average Monthly Net'), $averages['net'] ?? 0]);
     }
 
     /**
      * Write income report to CSV.
      */
     private function writeIncomeCsv($handle, array $data): void {
-        fputcsv($handle, [$this->l->t('Source'), $this->l->t('Amount'), $this->l->t('Transactions')]);
+        CsvSafe::put($handle, [$this->l->t('Source'), $this->l->t('Amount'), $this->l->t('Transactions')]);
 
         foreach ($data['data'] ?? [] as $item) {
-            fputcsv($handle, [
+            CsvSafe::put($handle, [
                 $this->itemLabel($item),
                 $item['total'] ?? 0,
                 $item['count'] ?? 0
             ]);
         }
 
-        fputcsv($handle, ['']);
-        fputcsv($handle, [$this->l->t('Total'), $data['totals']['amount'] ?? 0, $data['totals']['transactions'] ?? 0]);
+        CsvSafe::put($handle, ['']);
+        CsvSafe::put($handle, [$this->l->t('Total'), $data['totals']['amount'] ?? 0, $data['totals']['transactions'] ?? 0]);
     }
 
     /**
@@ -353,19 +354,19 @@ class ReportExporter {
      */
     private function writeIncomeExpenseCsv($handle, array $data): void {
         $period = $data['period'] ?? [];
-        fputcsv($handle, [$this->l->t('Period'), $period['startDate'] ?? '', $period['endDate'] ?? '']);
-        fputcsv($handle, ['']);
+        CsvSafe::put($handle, [$this->l->t('Period'), $period['startDate'] ?? '', $period['endDate'] ?? '']);
+        CsvSafe::put($handle, ['']);
 
         $this->writeIncomeExpenseSection($handle, $this->l->t('Income'), $this->l->t('Total Income'), $data['income'] ?? []);
-        fputcsv($handle, ['']);
+        CsvSafe::put($handle, ['']);
         $this->writeIncomeExpenseSection($handle, $this->l->t('Expenses'), $this->l->t('Total Expenses'), $data['expenses'] ?? []);
 
         $totals = $data['totals'] ?? [];
-        fputcsv($handle, ['']);
-        fputcsv($handle, [$this->l->t('Summary')]);
-        fputcsv($handle, [$this->l->t('Total Income'), $totals['income'] ?? 0]);
-        fputcsv($handle, [$this->l->t('Total Expenses'), $totals['expenses'] ?? 0]);
-        fputcsv($handle, [$this->l->t('Net'), $totals['net'] ?? 0]);
+        CsvSafe::put($handle, ['']);
+        CsvSafe::put($handle, [$this->l->t('Summary')]);
+        CsvSafe::put($handle, [$this->l->t('Total Income'), $totals['income'] ?? 0]);
+        CsvSafe::put($handle, [$this->l->t('Total Expenses'), $totals['expenses'] ?? 0]);
+        CsvSafe::put($handle, [$this->l->t('Net'), $totals['net'] ?? 0]);
     }
 
     /**
@@ -373,18 +374,18 @@ class ReportExporter {
      * row, a row per category and the section's own total.
      */
     private function writeIncomeExpenseSection($handle, string $heading, string $totalLabel, array $section): void {
-        fputcsv($handle, [$heading]);
-        fputcsv($handle, [$this->l->t('Category'), $this->l->t('Amount'), $this->l->t('Transactions')]);
+        CsvSafe::put($handle, [$heading]);
+        CsvSafe::put($handle, [$this->l->t('Category'), $this->l->t('Amount'), $this->l->t('Transactions')]);
 
         foreach ($section['data'] ?? [] as $item) {
-            fputcsv($handle, [
+            CsvSafe::put($handle, [
                 $this->itemLabel($item),
                 $item['total'] ?? 0,
                 $item['count'] ?? 0,
             ]);
         }
 
-        fputcsv($handle, [
+        CsvSafe::put($handle, [
             $totalLabel,
             $section['totals']['amount'] ?? 0,
             $section['totals']['transactions'] ?? 0,
@@ -395,7 +396,7 @@ class ReportExporter {
      * Write budget report to CSV.
      */
     private function writeBudgetCsv($handle, array $data): void {
-        fputcsv($handle, [
+        CsvSafe::put($handle, [
             $this->l->t('Category'),
             $this->l->t('Budgeted'),
             $this->l->t('Spent'),
@@ -405,7 +406,7 @@ class ReportExporter {
         ]);
 
         foreach ($data['categories'] ?? [] as $category) {
-            fputcsv($handle, [
+            CsvSafe::put($handle, [
                 $category['categoryName'] ?? '',
                 $category['budgeted'] ?? 0,
                 $category['spent'] ?? 0,
@@ -416,8 +417,8 @@ class ReportExporter {
         }
 
         $totals = $data['totals'] ?? [];
-        fputcsv($handle, ['']);
-        fputcsv($handle, [$this->l->t('Total'), $totals['budgeted'] ?? 0, $totals['spent'] ?? 0, $totals['remaining'] ?? 0]);
+        CsvSafe::put($handle, ['']);
+        CsvSafe::put($handle, [$this->l->t('Total'), $totals['budgeted'] ?? 0, $totals['spent'] ?? 0, $totals['remaining'] ?? 0]);
     }
 
     /**
@@ -677,7 +678,7 @@ class ReportExporter {
             $header[] = MonthNames::shortWithYear($this->l, (string) $m);
         }
         $header[] = $this->l->t('Overall');
-        fputcsv($handle, $header);
+        CsvSafe::put($handle, $header);
 
         foreach ($data['rows'] ?? [] as $row) {
             $line = [str_repeat('    ', (int) ($row['depth'] ?? 0)) . ($row['name'] ?? '')];
@@ -685,16 +686,16 @@ class ReportExporter {
                 $line[] = number_format((float) ($row['monthly'][$m] ?? 0), 2, '.', '');
             }
             $line[] = number_format((float) ($row['total'] ?? 0), 2, '.', '');
-            fputcsv($handle, $line);
+            CsvSafe::put($handle, $line);
         }
 
-        fputcsv($handle, ['']);
+        CsvSafe::put($handle, ['']);
         $totalLine = [$this->l->t('Net total')];
         foreach ($months as $m) {
             $totalLine[] = number_format((float) ($data['totals']['monthly'][$m] ?? 0), 2, '.', '');
         }
         $totalLine[] = number_format((float) ($data['totals']['total'] ?? 0), 2, '.', '');
-        fputcsv($handle, $totalLine);
+        CsvSafe::put($handle, $totalLine);
     }
 
     /**
