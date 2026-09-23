@@ -16048,7 +16048,16 @@ button.secondary.compact {
     color: var(--color-primary-element);
 }
 
+/* Here the indicator is a text arrow after the heading. The transactions
+   table's .sort-indicator is an absolutely positioned CSS triangle, and with
+   no positioned header to anchor to, the arrow landed at the far right of the
+   page (and pushed it 2px wider than the window). */
 .rules-table th .sort-indicator {
+    position: static;
+    width: auto;
+    height: auto;
+    transform: none;
+    opacity: 1;
     font-size: 11px;
 }
 
