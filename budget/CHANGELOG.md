@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Reordering without dragging.** Categories can be moved with Alt+Up and Alt+Down, Alt+Right makes one a subcategory of the one above and Alt+Left moves it back out a level. On the unlocked dashboard each tile has Move earlier and Move later, and the accounts tile settings have Move up and Move down.
 - **An account's transaction list works on a phone.** It shows as two-line cards like the main Transactions page, and tapping one opens it for editing.
 - **A notification when someone adds a receipt to your transaction.** A receipt photo added by someone you share an account with is saved in your Files, so you now get a Nextcloud notification saying who added it.
+- **Find the person to share with by typing their name.** The share form and the shared-expense contact form search Nextcloud users as you type a name, user ID or email, so they still work on servers that hide the full user list.
 
 ### Changed
 - **The sidebar matches the other Nextcloud apps.** The menu used its own taller rows, 44px high with a pill-shaped highlight, so it looked noticeably bulkier next to Files and the rest of Nextcloud and fewer pages fitted on screen before it had to scroll. It now uses Nextcloud's own sizes, 34px rows with the same spacing, text size and rounded corners, and the page you are on is shown the way Nextcloud 35 shows it, a light tint with a bar down the left side, in place of the solid blue fill. The search box and **Tools & Settings** have been brought in line as well, and the **Tools & Settings** label now lines up with the items under it.
@@ -39,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A page that fails to load says so and offers Retry**, where it used to show an empty list with buttons that did nothing. An account whose transactions failed to load no longer says it has none.
 - **Factory reset removes everything.** It left tag sets, interest rates, recurring pension contributions, debt scenarios, import templates, saved reports, the shares you granted, bank connections and transaction tags behind. Shares other people granted to you are kept.
 - **Bank sync with SimpleFIN only connects to simplefin.org.**
+- **Budget opens faster.** Reports, Forecast, Pensions, Assets, Import, Rules, Bills, Bank Sync, Exchange Rates and Projects are now loaded the first time you open them rather than all at once, which cuts the download when the app starts by about a quarter.
+- **An account's transaction list shows the same details as the Transactions page**, including the pending, not in forecast and pension badges and the reference, and a transfer's label is translated in both.
+- **Import History lists your imports.** The tab was always empty. It now shows each import's date, account, number of transactions and the dates they cover. The Download and Rollback buttons have gone, as there was nothing to download and rolling back never removed anything.
 
 ### Fixed
 - **Dialogs close when you leave the page.** Going to another page with the browser's Back button left an open dialog on top of the new page. The dialogs the app builds as it goes, the duplicates finder and the transfer form among them, also ignored Escape and let the keyboard wander behind them, and most dialogs were hidden from screen readers while open.
@@ -63,6 +67,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Screen readers announce** the form fields that had no label, the transfer link in transaction lists, and budget progress including when a budget is overspent.
 - **Dates using a month name no longer garble months containing "j" or "d"**, such as French "janv.".
 - **An error during bill auto-pay no longer stops the reminder job** for everyone else.
+- **Forecast month labels and pension chart dates** follow your language and date format instead of showing in English.
+- **Some bulk actions and settings switches said they had worked when the server had refused them.** They now show the error.
+- **The rules list showed "No actions" for every rule made in the rule builder.** It now shows each rule's category, vendor, tags and other actions.
+- **Routing number and sort code checks on the account form never ran.** They were sent under the wrong field name, so only IBAN was checked.
+- **A receipt that failed to attach to a new transaction** now shows the warning saying so, where the failure used to go unnoticed.
 
 ### Security
 - **Names are always shown as text.** Payees and vendors from imports and bank sync, and the names of shared categories and accounts, were put into some lists as HTML, so markup in a name was rendered.
