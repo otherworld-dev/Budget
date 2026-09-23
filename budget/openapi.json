@@ -365,7 +365,14 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/BadRequest"
+            "description": "Invalid input; ocs.data.error says what. This includes a `category_id` the account owner cannot use (see NewTransaction.category_id), answered with the error \"Category not found\".",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
           },
           "401": {
             "$ref": "#/components/responses/Unauthorised"
@@ -867,7 +874,7 @@
             }
           },
           "400": {
-            "description": "The parts do not sum to the transaction amount, there are fewer than two, or `splits` is not a usable array. The message states which.",
+            "description": "The parts do not sum to the transaction amount, there are fewer than two, `splits` is not a usable array, or a part's `category_id` is not a category the account owner can use (\"Category not found\"). The message states which.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1399,7 +1406,7 @@
           },
           "splits_error": {
             "type": "string",
-            "description": "Present when the transaction was created but its splits were rejected. The transaction is correct and unsplit; do not retry the create.",
+            "description": "Present when the transaction was created but its splits were rejected: the parts do not add up, there are fewer than two, or a part names a category the account owner cannot use (\"Category not found\"). The transaction is correct and unsplit; do not retry the create.",
             "example": "Split amounts (3.00) must equal transaction amount (23.77)"
           }
         }
@@ -1469,7 +1476,7 @@
           },
           "category_id": {
             "type": "integer",
-            "description": "Omit to file as uncategorised."
+            "description": "Omit to file as uncategorised. Must be a category the account owner can use: one of their own categories, or one shared with them. On an account shared with you that means the owner's categories, not yours; any other id is refused with 400 and the error \"Category not found\", and nothing is recorded."
           },
           "description": {
             "type": "string",
@@ -1761,7 +1768,7 @@
           "category_id": {
             "type": "integer",
             "nullable": true,
-            "description": "Omit or null to leave the part uncategorised (useful for a tax line).",
+            "description": "Omit or null to leave the part uncategorised (useful for a tax line). Otherwise a category the account owner can use: one of their own categories, or one shared with them. On an account shared with you that means the owner's categories, not yours; any other id rejects the split set with the message \"Category not found\".",
             "example": 12
           },
           "description": {
