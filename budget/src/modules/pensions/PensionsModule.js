@@ -600,7 +600,8 @@ export default class PensionsModule {
             this.charts.pensionBalance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: data.labels,
+                    // Snapshot dates (Y-m-d), shown in the user's date format
+                    labels: data.labels.map(date => formatters.formatDate(date, this.settings)),
                     datasets: [{
                         label: t('budget', 'Balance'),
                         data: data.values,

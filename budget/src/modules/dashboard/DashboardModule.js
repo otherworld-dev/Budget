@@ -3149,7 +3149,9 @@ export default class DashboardModule {
         if (emptyState) emptyState.style.display = 'none';
 
         const currency = this.getPrimaryCurrency();
-        const labels = [t('budget', 'Now'), ...projections.map((p) => p.month)];
+        // `yearMonth` is formatted in the user's language; `month` is the
+        // English label a forecast cached before it existed still carries
+        const labels = [t('budget', 'Now'), ...projections.map((p) => (p.yearMonth ? formatters.formatYearMonth(p.yearMonth) : p.month))];
         const balances = [forecast.currentBalance ?? 0, ...projections.map((p) => p.balance)];
 
         this.charts[instanceId] = new Chart(canvas.getContext('2d'), {

@@ -228,7 +228,11 @@ class ForecastService {
             $savingsMonthlyData[] = $cumulativeSavings;
 
             $monthlyProjections[] = [
+                // `yearMonth` (Y-m) is what the web UI formats in the user's
+                // own language; `month` stays the English "M Y" label for the
+                // forecast-warning notification and anything else reading it.
                 'month' => $monthLabel,
+                'yearMonth' => date('Y-m', $projectionDate),
                 'balance' => round($projectedBalance, 2),
                 'income' => round($projectedIncome, 2),
                 'expenses' => round($projectedExpenses, 2),

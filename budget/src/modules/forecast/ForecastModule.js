@@ -8,6 +8,15 @@ import { showError } from '../../utils/notifications.js';
 import { escapeHtml } from '../../utils/dom.js';
 import { apiFetch } from '../../utils/api.js';
 
+/**
+ * A projection's month in the user's language. `yearMonth` (Y-m) is what the
+ * server sends for that; `month` is its English "M Y" label, kept for a
+ * forecast cached before `yearMonth` existed.
+ */
+export function projectionMonthLabel(projection) {
+    return projection.yearMonth ? formatters.formatYearMonth(projection.yearMonth) : projection.month;
+}
+
 export default class ForecastModule {
     constructor(app) {
         this.app = app;
@@ -192,7 +201,7 @@ export default class ForecastModule {
             this.savingsChart.destroy();
         }
 
-        const labels = monthlyProjections.map(p => p.month);
+        const labels = monthlyProjections.map(projectionMonthLabel);
         const savingsData = [];
         let cumulative = 0;
         monthlyProjections.forEach(p => {
@@ -247,7 +256,7 @@ export default class ForecastModule {
             this.balanceChart.destroy();
         }
 
-        const labels = monthlyProjections.map(p => p.month);
+        const labels = monthlyProjections.map(projectionMonthLabel);
         const balanceData = monthlyProjections.map(p => p.balance);
         const incomeData = monthlyProjections.map(p => p.income);
         const expenseData = monthlyProjections.map(p => p.expenses);

@@ -123,6 +123,29 @@ class ForecastServiceTest extends TestCase {
         $this->assertArrayHasKey('dataQuality', $result);
     }
 
+    public function testLiveForecastProjectionsCarryAYearMonthForTheUi(): void {
+        $this->cache->method('get')->willReturn(null);
+        $this->accountMapper->method('findAll')->willReturn([$this->makeAccount(1, 100.0, 'GBP')]);
+        $this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
+        $this->transactionMapper->method('findAllByUserAndDateRange')->willReturn([]);
+        $this->patternAnalyzer->method('aggregateMonthlyData')->willReturn([]);
+        $this->patternAnalyzer->method('getCategoryBreakdown')->willReturn([]);
+        $this->trendCalculator->method('calculateTrend')->willReturn(0.0);
+        $this->trendCalculator->method('getTrendDirection')->willReturn('stable');
+        $this->projector->method('calculateDataConfidence')->willReturn(50.0);
+
+        $result = $this->service->getLiveForecast('user1', 3);
+
+        // The web UI formats `yearMonth` in the user's language; `month` stays
+        // the English label the forecast-warning notification reads.
+        $this->assertCount(3, $result['monthlyProjections']);
+        foreach ($result['monthlyProjections'] as $i => $projection) {
+            $expected = strtotime('+' . ($i + 1) . ' months');
+            $this->assertSame(date('Y-m', $expected), $projection['yearMonth']);
+            $this->assertSame(date('M Y', $expected), $projection['month']);
+        }
+    }
+
     public function testGetLiveForecastDeterminesPrimaryCurrency(): void {
         $this->cache->method('get')->willReturn(null);
 
