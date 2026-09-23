@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The "Budget adjusted from" message named the previous month** for anyone west of Greenwich, and a savings goal's target date could show the day before, as both read the date as UTC. The target date now follows your date format setting as well.
 - **The Overdue card on the Bills page showed an empty circle**, along with a few other icons the app asked Nextcloud for under names it doesn't have.
 - **Cards and column headers can be used from the keyboard.** Account, asset, pension and contact cards, the category tree, rule groups and sortable columns can be reached with Tab and opened with Enter, and icon buttons and fields that had no name for screen readers now have one.
+- **The Rules page no longer scrolls sideways.** The sort arrow for the rule list picked up the transactions table's styling, which placed it absolutely, so it was drawn at the far right edge of the page instead of beside its column heading and made the page 2px wider than the window.
+- **Icon buttons have names for screen readers.** Around 80 icon-only buttons (edit, delete, close and the like) were named only by their tooltip, which touch screens never show and some screen readers skip. The dashboard's tile size buttons now read Extra small, Small, Medium and Large in your language, where they were in English only.
 
 ## [2.54.0] - 2026-09-23
 
