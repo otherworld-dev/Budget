@@ -20017,3 +20017,32 @@ th.sortable:focus-visible {
     color: var(--color-error);
     font-weight: 600;
 }
+
+/* Actions that appear on hover. Hover alone left them invisible to keyboard
+   users (tabbing onto an invisible button) and unreachable on touch screens,
+   which have no hover: show them while anything in the row/card has focus,
+   and always on devices that cannot hover. */
+.account-row:focus-within .account-row-actions,
+.account-card:focus-within .account-actions,
+.global-tag-chip:focus-within .global-tag-chip-action,
+.category-item:focus-within .category-delete-btn,
+.category-item:focus-within .category-mute-btn,
+.asset-card:focus-within .asset-card-actions,
+.contact-card:focus-within .contact-actions-hover,
+.hero-card:focus-within .widget-tile-controls,
+.dashboard-card:focus-within .widget-tile-controls {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .account-row-actions,
+    .account-actions,
+    .global-tag-chip-action,
+    .category-delete-btn,
+    .category-mute-btn,
+    .asset-card-actions,
+    .contact-actions-hover,
+    .widget-tile-controls {
+        opacity: 1;
+    }
+}
