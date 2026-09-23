@@ -145,16 +145,23 @@ trait EncryptedFieldsTrait {
      *
      * @param Entity $entity The entity
      * @param string $propertyName The property name
-     * @return string|null The encrypted value
+     * @return string|null The encrypted value; the raw value (as a string) for a
+     *                     property that isn't encrypted; null for an unknown property
      */
     protected function getEncryptedValue(Entity $entity, string $propertyName): ?string {
         if (!isset($this->encryptedProperties[$propertyName])) {
-            // Not an encrypted property, return raw value
-            $getter = 'get' . ucfirst($propertyName);
-            if (method_exists($entity, $getter)) {
-                return $entity->$getter();
+            // Not an encrypted property, return raw value. Entity getters are
+            // magic (__call), so method_exists() can't see them: check the
+            // backing field instead.
+            if (!property_exists($entity, $propertyName)) {
+                return null;
             }
-            return null;
+            $getter = 'get' . ucfirst($propertyName);
+            $value = $entity->$getter();
+            if ($value === null || is_string($value)) {
+                return $value;
+            }
+            return is_scalar($value) ? (string)$value : null;
         }
 
         $property = $this->encryptedProperties[$propertyName];

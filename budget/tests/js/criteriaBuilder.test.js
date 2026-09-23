@@ -147,14 +147,39 @@ describe('rendering', () => {
         expect(q('input.condition-pattern').value).toBe('<img src=x onerror=alert(1)>');
     });
 
-    // escapeHtml() goes through textContent/innerHTML, which escapes < > &
-    // but not quotes. The pattern lands inside value="...", so a double quote
-    // ends the attribute: the value is cut short, and the rest of the pattern
-    // is parsed as markup. A rule shared with another user carries it along.
-    it.fails('keeps a double quote in a text pattern intact (known bug: quotes not escaped in value="")', () => {
+    // The pattern lands inside value="...", so an unescaped double quote
+    // would end the attribute and the rest of the pattern would be parsed as
+    // markup. A rule shared with another user carries it along.
+    it('keeps a double quote in a text pattern intact', () => {
         build(tree([cond({ pattern: 'say "hi" now' })]));
 
         expect(q('input.condition-pattern').value).toBe('say "hi" now');
+    });
+
+    it('does not let a quote in a pattern add attributes to the input', () => {
+        build(tree([cond({ pattern: '" autofocus onfocus="alert(1)' })]));
+
+        const input = q('input.condition-pattern');
+        expect(input.hasAttribute('onfocus')).toBe(false);
+        expect(input.value).toBe('" autofocus onfocus="alert(1)');
+    });
+
+    it('keeps a single quote in a text pattern intact', () => {
+        build(tree([cond({ pattern: "O'Brien's" })]));
+
+        expect(q('input.condition-pattern').value).toBe("O'Brien's");
+    });
+
+    it('shows a numeric pattern instead of dropping it', () => {
+        build(tree([cond({ field: 'amount', matchType: 'equals', pattern: 0 })]));
+
+        expect(q('input.condition-pattern').value).toBe('0');
+    });
+
+    it('shows a saved between range as the JSON the user would type', () => {
+        build(tree([cond({ field: 'amount', matchType: 'between', pattern: { min: 0, max: 100 } })]));
+
+        expect(JSON.parse(q('input.condition-pattern').value)).toEqual({ min: 0, max: 100 });
     });
 
     describe('match types per field', () => {
@@ -255,13 +280,13 @@ describe('rendering', () => {
             expect(q('input.condition-pattern').placeholder).toBe(expected);
         });
 
-        // The placeholder is written into placeholder="..." unescaped, so the
-        // quotes in the JSON example end the attribute and the user sees only
-        // "e.g., {" - the one hint that explains the format.
-        it.fails.each([
+        // The quotes in the JSON example must be escaped inside
+        // placeholder="...", or the user sees only "e.g., {" - the one hint
+        // that explains the format.
+        it.each([
             ['amount', 'e.g., {"min": 10, "max": 100}'],
             ['date', 'e.g., {"min": "2024-01-01", "max": "2024-12-31"}'],
-        ])('%s / between shows the whole JSON example (known bug: placeholder cut at the first quote)', (field, expected) => {
+        ])('%s / between shows the whole JSON example', (field, expected) => {
             build(tree([cond({ field, matchType: 'between', pattern: '' })]));
 
             expect(q('input.condition-pattern').placeholder).toBe(expected);
@@ -543,18 +568,40 @@ describe('validate', () => {
         expect(result.errors).toEqual(["Condition at condition 1 'between' pattern must have 'min' and 'max' properties"]);
     });
 
-    // `!parsed.min` treats 0 as missing, so "amount between 0 and 100" can't
-    // be saved from the visual builder.
-    it.fails('accepts a between range starting at 0 (known bug: min of 0 read as missing)', () => {
+    // A min of 0 is a real bound, not a missing one, so "amount between 0
+    // and 100" must be savable from the visual builder.
+    it('accepts a between range starting at 0', () => {
         const result = build(tree([cond({ field: 'amount', matchType: 'between', pattern: '{"min": 0, "max": 100}' })])).validate();
 
         expect(result.valid).toBe(true);
     });
 
+    it('accepts a between range saved as an object', () => {
+        const result = build(tree([cond({ field: 'amount', matchType: 'between', pattern: { min: 0, max: 100 } })])).validate();
+
+        expect(result.valid).toBe(true);
+    });
+
+    it.each([
+        ['JSON null', 'null'],
+        ['a non-numeric amount bound', '{"min": "ten", "max": 100}'],
+        ['an empty bound', '{"min": "", "max": 100}'],
+    ])('rejects a between range with %s', (_label, pattern) => {
+        const result = build(tree([cond({ field: 'amount', matchType: 'between', pattern })])).validate();
+
+        expect(result.errors).toEqual(["Condition at condition 1 'between' pattern must have 'min' and 'max' properties"]);
+    });
+
     // Criteria can come from the JSON editor or an older save with a numeric
-    // pattern (an account id). validate() calls .trim() on it and throws.
-    it.fails('validates a numeric pattern instead of throwing (known bug: pattern.trim on a number)', () => {
+    // pattern (an account id), so validate() must not assume a string.
+    it('validates a numeric pattern instead of throwing', () => {
         const builder = build(tree([cond({ field: 'account', matchType: 'equals', pattern: 7 })]), { accounts: ACCOUNTS });
+
+        expect(builder.validate()).toEqual({ valid: true, errors: [] });
+    });
+
+    it('accepts a numeric pattern of 0', () => {
+        const builder = build(tree([cond({ field: 'amount', matchType: 'equals', pattern: 0 })]));
 
         expect(builder.validate()).toEqual({ valid: true, errors: [] });
     });

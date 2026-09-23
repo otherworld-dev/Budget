@@ -124,6 +124,10 @@ class ImportRuleService extends AbstractCrudService {
                 throw new \InvalidArgumentException('Criteria required for v2 rules');
             }
 
+            // Store 'between' ranges in their canonical array shape (the
+            // visual builder sends the JSON text the user typed)
+            $criteria = CriteriaEvaluator::normalizeCriteria($criteria);
+
             // Validate criteria structure
             $validation = $this->criteriaEvaluator->validate($criteria);
             if (!$validation['valid']) {
@@ -213,6 +217,9 @@ class ImportRuleService extends AbstractCrudService {
         if ($newVersion === 2) {
             // Validate criteria if being updated
             if (isset($updates['criteria'])) {
+                if (is_array($updates['criteria'])) {
+                    $updates['criteria'] = CriteriaEvaluator::normalizeCriteria($updates['criteria']);
+                }
                 $validation = $this->criteriaEvaluator->validate($updates['criteria']);
                 if (!$validation['valid']) {
                     throw new \InvalidArgumentException('Invalid criteria: ' . implode(', ', $validation['errors']));

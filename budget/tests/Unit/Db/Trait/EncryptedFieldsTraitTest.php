@@ -297,20 +297,19 @@ class EncryptedFieldsTraitTest extends TestCase {
 
 	/**
 	 * The docblock promises the raw value for a property that isn't encrypted.
-	 * The fallback checks method_exists() for the getter, but Entity getters
-	 * are magic (__call), so method_exists() is false and null comes back.
-	 * No current caller passes a plain property, so it's latent.
+	 * Entity getters are magic (__call), so the fallback must look for the
+	 * backing field rather than a getter method.
 	 */
 	public function testGetEncryptedValueReturnsTheRawValueForAPlainProperty(): void {
-		$value = $this->mapper->callGetEncryptedValue($this->makeEntity(), 'name');
+		$this->assertSame('Main', $this->mapper->callGetEncryptedValue($this->makeEntity(), 'name'));
+		$this->assertNull($this->mapper->callGetEncryptedValue($this->makeEntity(name: null), 'name'));
+	}
 
-		if ($value === null) {
-			$this->markTestIncomplete(
-				'Known bug: EncryptedFieldsTrait::getEncryptedValue() returns null for a non-encrypted '
-				. 'property because method_exists() cannot see Entity\'s magic getters.'
-			);
-		}
-		$this->assertSame('Main', $value);
+	public function testGetEncryptedValueReturnsANumericPlainPropertyAsAString(): void {
+		$entity = $this->makeEntity();
+		$entity->setId(42);
+
+		$this->assertSame('42', $this->mapper->callGetEncryptedValue($entity, 'id'));
 	}
 }
 
