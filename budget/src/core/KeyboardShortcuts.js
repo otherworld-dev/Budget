@@ -378,6 +378,14 @@ export default class KeyboardShortcuts {
                     [['x'], t('budget', 'Select / deselect the current row')],
                 ],
             },
+            {
+                title: t('budget', 'Reordering'),
+                rows: [
+                    [['Alt', '↑', '/', '↓'], t('budget', 'Move a focused category or list column up / down')],
+                    [['Alt', '→'], t('budget', 'Make a focused category a subcategory of the one above')],
+                    [['Alt', '←'], t('budget', 'Move a focused subcategory out one level')],
+                ],
+            },
         ];
 
         const overlay = document.createElement('div');

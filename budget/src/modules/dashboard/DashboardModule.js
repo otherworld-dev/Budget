@@ -1165,8 +1165,12 @@ export default class DashboardModule {
 
         listEl.innerHTML = sortedAccounts.map(account => `
             <div class="tile-config-item" draggable="true" data-account-id="${account.id}">
-                <span class="tile-config-drag-handle">&#x2630;</span>
+                <span class="tile-config-drag-handle" aria-hidden="true">&#x2630;</span>
                 <span class="tile-config-name">${this.escapeHtml(account.name)}</span>
+                <span class="tile-config-move">
+                    <button type="button" class="tile-config-move-btn" data-direction="-1" title="${t('budget', 'Move up')}" aria-label="${t('budget', 'Move up')}">&#x2191;</button>
+                    <button type="button" class="tile-config-move-btn" data-direction="1" title="${t('budget', 'Move down')}" aria-label="${t('budget', 'Move down')}">&#x2193;</button>
+                </span>
                 <label class="tile-config-toggle">
                     <input type="checkbox" ${!hiddenIds.has(account.id) ? 'checked' : ''} data-account-id="${account.id}">
                 </label>
@@ -1211,6 +1215,24 @@ export default class DashboardModule {
                 } else {
                     listEl.insertBefore(dragItem, item.nextSibling);
                 }
+            });
+        });
+
+        // Up/down buttons: the keyboard and touch route to the same order,
+        // saved the same way as a drop.
+        listEl.querySelectorAll('.tile-config-move-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const item = btn.closest('.tile-config-item');
+                const dir = parseInt(btn.dataset.direction, 10);
+                const neighbour = dir < 0 ? item.previousElementSibling : item.nextElementSibling;
+                if (!neighbour) return;
+                listEl.insertBefore(item, dir < 0 ? neighbour : neighbour.nextSibling);
+                btn.focus();
+                const config = this.getAccountsTileConfig();
+                config.order = Array.from(listEl.querySelectorAll('.tile-config-item'))
+                    .map(el => parseInt(el.dataset.accountId));
+                await this.saveAccountsTileConfig(config);
+                this.updateAccountsWidget(this._allDashboardAccounts);
             });
         });
 
@@ -4372,6 +4394,56 @@ export default class DashboardModule {
         });
     }
 
+    /**
+     * Move a hero tile one place earlier (-1) or later (1) among the visible
+     * hero tiles, and save the order as a drop does.
+     *
+     * @returns {boolean} whether it moved
+     */
+    moveHeroTile(card, dir) {
+        const container = card?.parentElement;
+        if (!container) return false;
+        const visible = Array.from(container.querySelectorAll('[data-widget-category="hero"]'))
+            .filter(c => c.style.display !== 'none');
+        const index = visible.indexOf(card);
+        const neighbour = visible[index + dir];
+        if (index < 0 || !neighbour) return false;
+
+        if (dir < 0) {
+            container.insertBefore(card, neighbour);
+        } else {
+            container.insertBefore(card, neighbour.nextSibling);
+        }
+        this._saveHeroOrder();
+        return true;
+    }
+
+    /**
+     * Move a gridstack tile one place earlier (-1) or later (1) in reading
+     * order. Gridstack's own change event then saves the layout, exactly as
+     * after a drag.
+     *
+     * @returns {boolean} whether it moved
+     */
+    moveGridTile(card, dir) {
+        if (!this.gridstack) return false;
+        const item = card?.closest('.grid-stack-item');
+        if (!item?.gridstackNode) return false;
+        const items = this.gridstack.getGridItems()
+            .filter(el => el.gridstackNode)
+            .sort((a, b) => a.gridstackNode.y - b.gridstackNode.y || a.gridstackNode.x - b.gridstackNode.x);
+        const index = items.indexOf(item);
+        const neighbour = items[index + dir];
+        if (index < 0 || !neighbour) return false;
+
+        // Put the later of the two where the earlier one is; gridstack moves
+        // the other out of the way.
+        const [later, earlier] = dir < 0 ? [item, neighbour] : [neighbour, item];
+        const { x, y } = earlier.gridstackNode;
+        this.gridstack.update(later, { x, y });
+        return true;
+    }
+
     teardownHeroDragAndDrop() {
         const container = document.querySelector('.dashboard-hero');
         if (!container) return;
@@ -4959,6 +5031,31 @@ export default class DashboardModule {
                 div1.className = 'tile-controls-divider';
                 controls.appendChild(div1);
             }
+
+            // Move earlier / later: the keyboard and touch route to what
+            // dragging does, saved the same way a drag is.
+            [[-1, t('budget', 'Move earlier'), '\u2190'], [1, t('budget', 'Move later'), '\u2192']].forEach(([dir, label, arrow]) => {
+                const moveBtn = document.createElement('button');
+                moveBtn.type = 'button';
+                moveBtn.className = 'tile-move-btn';
+                moveBtn.dataset.direction = String(dir);
+                moveBtn.textContent = arrow;
+                moveBtn.title = label;
+                moveBtn.setAttribute('aria-label', label);
+                moveBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (category === 'hero') {
+                        this.moveHeroTile(card, dir);
+                    } else {
+                        this.moveGridTile(card, dir);
+                    }
+                    moveBtn.focus();
+                };
+                controls.appendChild(moveBtn);
+            });
+            const moveDivider = document.createElement('div');
+            moveDivider.className = 'tile-controls-divider';
+            controls.appendChild(moveDivider);
 
             // Gear icon (widgets only — hero tiles have no settings)
             if (category !== 'hero') {

@@ -793,6 +793,37 @@
     white-space: nowrap;
 }
 
+/* Up/down buttons: reordering without dragging (keyboard, touch) */
+.tile-config-move {
+    display: inline-flex;
+    gap: 2px;
+}
+
+.tile-config-move-btn {
+    width: 26px;
+    height: 26px;
+    min-height: 0;
+    padding: 0;
+    border: none;
+    border-radius: var(--border-radius-small, 4px);
+    background: transparent;
+    color: var(--color-text-maxcontrast);
+    font-size: 14px;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+.tile-config-move-btn:hover,
+.tile-config-move-btn:focus-visible {
+    background: var(--color-background-hover);
+    color: var(--color-main-text);
+}
+
+.tile-config-item:first-child .tile-config-move-btn[data-direction="-1"],
+.tile-config-item:last-child .tile-config-move-btn[data-direction="1"] {
+    visibility: hidden;
+}
+
 /* A list that only toggles, with nothing to drag (Budget Alerts) */
 .tile-config-item--static {
     cursor: default;
@@ -16789,9 +16820,11 @@ button.secondary.compact {
     border-radius: var(--border-radius-small, 4px);
 }
 
-.tile-gear-btn {
+.tile-gear-btn,
+.tile-move-btn {
     width: 26px;
     height: 26px;
+    min-height: 0;
     border: none;
     border-radius: var(--border-radius-small, 4px);
     background: transparent;
@@ -16803,9 +16836,15 @@ button.secondary.compact {
     justify-content: center;
     transition: background 0.1s, color 0.1s;
 }
-.tile-gear-btn:hover {
+.tile-gear-btn:hover,
+.tile-move-btn:hover {
     background: var(--color-background-hover);
     color: var(--color-main-text);
+}
+
+.tile-move-btn {
+    font-size: 14px;
+    font-weight: normal;
 }
 
 /* Widget Remove Button */

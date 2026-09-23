@@ -314,6 +314,7 @@ export default class CategoriesModule {
                     <div class="category-item ${isSelected ? 'selected' : ''} ${isChecked ? 'checked' : ''} ${shared && !canWrite ? 'category-shared' : ''} ${shared && canWrite ? 'category-write-shared' : ''}"
                          data-category-id="${category.id}"
                          tabindex="0"
+                         ${shared && !canWrite ? '' : 'aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight"'}
                          ${shared && !canWrite ? 'data-shared="1"' : ''}${shared && canWrite ? 'data-write-shared="1"' : ''}
                          draggable="${shared ? 'false' : 'true'}">
                         ${shared ? '' : `<input type="checkbox"
@@ -493,7 +494,64 @@ export default class CategoriesModule {
                     this.reorderCategory(draggedId, targetId, this.getDropPosition(e, item));
                 }
             });
+
+            // Keyboard equivalent of the drag, so reordering does not need a
+            // pointer: Alt+Up/Down moves among siblings, Alt+Right nests under
+            // the category above, Alt+Left moves out to the parent's level.
+            // Same reorder endpoint (and the same shared-category rules) as a drop.
+            item.addEventListener('keydown', (e) => {
+                if (!e.altKey || e.target !== item) return;
+                const move = this.keyboardReorderTarget(item, e.key);
+                if (move === undefined) return;
+                e.preventDefault();
+                if (!move) return;
+                const id = parseInt(item.dataset.categoryId);
+                this.reorderCategory(id, move.targetId, move.position).then(() => {
+                    document.querySelector(`.category-item[data-category-id="${id}"]`)?.focus();
+                });
+            });
         });
+    }
+
+    /**
+     * Where an Alt+Arrow key press moves a category in the tree.
+     *
+     * @param {HTMLElement} item - the focused .category-item
+     * @param {string} key - KeyboardEvent.key
+     * @returns {{targetId: number, position: string}|null|undefined}
+     *          undefined for a key that is not a move, null when there is
+     *          nowhere to move (already first, last or top level)
+     */
+    keyboardReorderTarget(item, key) {
+        const node = item.closest('.category-node');
+        if (!node) return undefined;
+        const idOf = (n) => parseInt(n?.querySelector(':scope > .category-item')?.dataset.categoryId);
+        const sibling = (dir) => {
+            let el = node[dir];
+            while (el && !el.classList.contains('category-node')) el = el[dir];
+            return el;
+        };
+
+        switch (key) {
+            case 'ArrowUp': {
+                const prev = sibling('previousElementSibling');
+                return prev ? { targetId: idOf(prev), position: 'above' } : null;
+            }
+            case 'ArrowDown': {
+                const next = sibling('nextElementSibling');
+                return next ? { targetId: idOf(next), position: 'below' } : null;
+            }
+            case 'ArrowRight': {
+                const prev = sibling('previousElementSibling');
+                return prev ? { targetId: idOf(prev), position: 'child' } : null;
+            }
+            case 'ArrowLeft': {
+                const parent = node.parentElement?.closest('.category-node');
+                return parent ? { targetId: idOf(parent), position: 'below' } : null;
+            }
+            default:
+                return undefined;
+        }
     }
 
     showDropIndicator(e, targetItem) {
