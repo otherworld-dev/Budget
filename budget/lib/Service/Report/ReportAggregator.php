@@ -8,7 +8,6 @@ use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\CategoryMuteMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionReportQueries;
-use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Enum\Currency;
@@ -47,7 +46,6 @@ class ReportAggregator {
         CurrencyConversionService $conversionService,
         private RecurringBudgetService $recurringBudgetService,
         private BudgetCarryoverService $carryoverService,
-        private TransactionSplitMapper $splitMapper,
         private TransactionReportQueries $reportQueries,
         private ?GranularShareService $granularShareService = null,
         private ?CategoryMuteMapper $categoryMuteMapper = null
@@ -742,7 +740,12 @@ class ReportAggregator {
      * columns are each calendar month in the range. Cell value is the signed net
      * for that category and month — income positive, expense negative — including
      * split allocations. Parent rows include the totals of all their descendants.
-     * Accounts flagged out of reports (#286) are excluded.
+     *
+     * The money is report-scoped in SQL like every other grouping
+     * (TransactionReportQueries::getCategoryNetByMonth()): report-excluded
+     * accounts and categories, categories the viewer muted, future scheduled
+     * rows, pension legs and - in the all-accounts view - transfers never
+     * count. This method only shapes the rows.
      *
      * Amounts are summed in their stored currency; for a single-currency budget
      * this is exact. (Multi-currency conversion is not applied here.)
@@ -763,23 +766,14 @@ class ReportAggregator {
         $vis = !empty($visibleAccountIds) ? $visibleAccountIds : null;
         $months = $this->buildMonthList($startDate, $endDate);
 
-        // Signed net per category per month: each category's OWN amounts (direct + splits)
-        $direct = $this->transactionMapper->getCategoryNetByMonthBatch($userId, $startDate, $endDate, $accountId, $vis);
-        $splits = $this->splitMapper->getCategoryNetByMonthBatch($userId, $startDate, $endDate, $accountId, $vis);
-        $own = [];
-        foreach ([$direct, $splits] as $src) {
-            foreach ($src as $catId => $monthMap) {
-                foreach ($monthMap as $m => $v) {
-                    $own[(int) $catId][$m] = ($own[(int) $catId][$m] ?? 0.0) + (float) $v;
-                }
-            }
-        }
+        // Signed net per category per month: each category's OWN amounts
+        // (direct + split parts), already report-scoped in SQL
+        $own = $this->reportQueries->getCategoryNetByMonth($userId, $startDate, $endDate, $accountId, $vis);
 
-        // Categories, honoring the category-level exclude-from-reports flag that
-        // the other reports respect: excluded categories contribute nothing and
-        // are not shown; any non-excluded children are promoted to the nearest
-        // non-excluded ancestor (or to the root). Orphans (parent missing) are
-        // treated as roots.
+        // Rows: a category excluded from reports, or muted by this viewer,
+        // carries no money (the query dropped it) and is not shown either;
+        // its non-excluded children are promoted to the nearest shown
+        // ancestor (or to the root). Orphans (parent missing) are roots.
         $categories = $this->categoryMapper->findAll($userId);
         $excluded = [];
         $parentOf = [];
@@ -789,11 +783,8 @@ class ReportAggregator {
                 $excluded[$c->getId()] = true;
             }
         }
-        // Drop excluded categories' own amounts so they affect neither rows nor totals
-        foreach (array_keys($own) as $catId) {
-            if (isset($excluded[$catId])) {
-                unset($own[$catId]);
-            }
+        foreach ($this->categoryMuteMapper?->findMutedCategoryIds($userId) ?? [] as $mutedId) {
+            $excluded[(int) $mutedId] = true;
         }
         // Walk up to the nearest non-excluded ancestor (null => becomes a root)
         $effectiveParent = function (?int $pid) use ($parentOf, $excluded): ?int {

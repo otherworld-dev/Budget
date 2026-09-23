@@ -766,4 +766,50 @@ class TransactionReportQueries {
             'total' => (float)$row['total']
         ], $data);
     }
+
+    // ==================== Category by month ====================
+
+    /**
+     * Signed net per category per month for the Category-by-Month report
+     * (#288): credits positive, debits negative, each split part under its
+     * own category.
+     *
+     * Report-scoped like every other grouping (scopeReportHalf()): a
+     * category excluded from reports or muted by the viewer drops out whole,
+     * split parts included; future scheduled rows and pension legs never
+     * count; and the all-accounts view leaves transfers out (#349), so this
+     * report agrees with the spending and income reports for the same
+     * period. The report used to drop excluded categories in PHP after the
+     * fetch - the owner flag only, never mutes, and transfers still counted.
+     * Uncategorised money is not a row here and is left out.
+     *
+     * @param int[]|null $visibleAccountIds
+     * @return array<int, array<string, float>> categoryId => 'YYYY-MM' => net
+     */
+    public function getCategoryNetByMonth(
+        string $userId,
+        string $startDate,
+        string $endDate,
+        ?int $accountId = null,
+        ?array $visibleAccountIds = null
+    ): array {
+        [$direct, $split] = ReportScope::fetchReportHalves(
+            $this->db, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
+            function (IQueryBuilder $qb, string $alloc): void {
+                $qb->select("{$alloc}.category_id")
+                    ->addSelect($qb->createFunction(ReportScope::monthExpr() . ' as month'))
+                    ->selectAlias($qb->createFunction(ReportScope::signedAmountSum($qb, 'credit', "{$alloc}.amount")), 'net')
+                    ->andWhere($qb->expr()->isNotNull("{$alloc}.category_id"))
+                    ->groupBy("{$alloc}.category_id")
+                    ->addGroupBy($qb->createFunction(ReportScope::monthExpr()));
+            }
+        );
+
+        $totals = [];
+        foreach (ReportScope::mergeReportHalves($direct, $split, ['category_id', 'month'], ['net']) as $row) {
+            $totals[(int)$row['category_id']][substr((string)$row['month'], 0, 7)] = $row['net'];
+        }
+
+        return $totals;
+    }
 }

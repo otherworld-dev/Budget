@@ -375,58 +375,6 @@ class TransactionSplitMapperTest extends TestCase {
         $this->assertTrue($guardFound, 'getCategoryTotalsByBucket must OR eq(is_split, true) with isNull(is_split)');
     }
 
-    // ===== getCategoryNetByMonthBatch (#288) =====
-
-    public function testGetCategoryNetByMonthBatchMapsSignedNet(): void {
-        $this->result->method('fetch')->willReturnOnConsecutiveCalls(
-            ['category_id' => 5, 'bucket' => '2026-01', 'net_total' => '-30.00'],
-            false
-        );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $out = $this->mapper->getCategoryNetByMonthBatch('user1', '2026-01-01', '2026-01-31');
-
-        $this->assertSame(-30.0, $out[5]['2026-01']);
-    }
-
-    /**
-     * Same inlined stray-part guard as getCategoryTotalsByBucket above (#360).
-     */
-    public function testGetCategoryNetByMonthBatchGuardsAgainstStrayPartsOnUnsplitParents(): void {
-        $eqCalls = [];
-        $this->expr->method('eq')->willReturnCallback(function (string $col, $val) use (&$eqCalls) {
-            $eqCalls[] = $col;
-            return "eq($col)";
-        });
-        $isNullCalls = [];
-        $this->expr->method('isNull')->willReturnCallback(function (string $col) use (&$isNullCalls) {
-            $isNullCalls[] = $col;
-            return "isNull($col)";
-        });
-        $orXCalls = [];
-        $orXResult = $this->createMock(ICompositeExpression::class);
-        $this->expr->method('orX')->willReturnCallback(function (...$parts) use (&$orXCalls, $orXResult) {
-            $orXCalls[] = $parts;
-            return $orXResult;
-        });
-
-        $this->result->method('fetch')->willReturn(false);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $this->mapper->getCategoryNetByMonthBatch('user1', '2026-01-01', '2026-01-31');
-
-        $guardFound = false;
-        foreach ($orXCalls as $parts) {
-            if (in_array('eq(t.is_split)', $parts, true) && in_array('isNull(t.is_split)', $parts, true)) {
-                $guardFound = true;
-                break;
-            }
-        }
-        $this->assertTrue($guardFound, 'getCategoryNetByMonthBatch must OR eq(is_split, true) with isNull(is_split)');
-    }
-
     // ===== findByTransactionIds =====
 
     public function testFindByTransactionIdsGroupsPartsByTransaction(): void {

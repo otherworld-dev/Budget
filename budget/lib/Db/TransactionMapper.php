@@ -2699,53 +2699,6 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
-     * Direct (non-split) signed-net amount per category per month over a date
-     * range, in one query: credits count positive, debits negative. Used by the
-     * Category-by-Month report (#288) where income and expense categories appear
-     * in one matrix. Scheduled-future transactions and accounts flagged out of
-     * reports (#286) are excluded.
-     *
-     * @param int[]|null $visibleAccountIds If provided, scope by account IDs instead of userId
-     * @return array<int, array<string, float>> categoryId => 'YYYY-MM' => signed net
-     */
-    public function getCategoryNetByMonthBatch(string $userId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null): array {
-        $qb = $this->db->getQueryBuilder();
-
-        $bucketExpr = ReportScope::monthExpr();
-
-        $qb->select('t.category_id')
-            ->selectAlias($qb->createFunction($bucketExpr), 'bucket')
-            ->selectAlias($qb->createFunction(
-                "SUM(CASE WHEN t.type = 'credit' THEN t.amount ELSE -t.amount END)"
-            ), 'net_total')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-        $qb->andWhere($qb->expr()->isNotNull('t.category_id'))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            // Same partition as getCategorySpendingByBucketBatch: a NULL-flag
-            // row with split parts belongs to the companion query only (#360).
-            ->andWhere(ReportScope::directRowPredicate($qb))
-            ->groupBy('t.category_id')
-            ->addGroupBy($qb->createFunction($bucketExpr));
-
-        ReportScope::excludeScheduledFuture($qb);
-
-        $result = $qb->executeQuery();
-        $totals = [];
-        while ($row = $result->fetch()) {
-            $totals[(int) $row['category_id']][substr((string) $row['bucket'], 0, 7)] = (float) $row['net_total'];
-        }
-        $result->closeCursor();
-
-        return $totals;
-    }
-
-    /**
      * Delete all transactions for a user (via account ownership)
      *
      * @param string $userId
