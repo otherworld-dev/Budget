@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\BackgroundJob;
 
+use OCA\Budget\BackgroundJob\Support\JobUsers;
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\PensionRecurringContributionMapper;
@@ -211,51 +212,18 @@ class BillReminderJob extends TimedJob {
     }
 
     /**
-     * Get all unique user IDs from the bills table.
+     * Users with an active bill, active recurring income (for auto-create)
+     * or an auto-posting pension contribution schedule (#251).
      *
      * @return string[]
      */
     private function getAllUserIds(IDBConnection $db): array {
-        $userIds = [];
-
-        // Users with active bills
-        $qb = $db->getQueryBuilder();
-        $qb->selectDistinct('user_id')
-            ->from('budget_bills')
-            ->where($qb->expr()->eq('is_active', $qb->createNamedParameter(true)));
-
-        $result = $qb->executeQuery();
-        while ($row = $result->fetch()) {
-            $userIds[$row['user_id']] = true;
-        }
-        $result->closeCursor();
-
-        // Users with active recurring income (for auto-create)
-        $qb2 = $db->getQueryBuilder();
-        $qb2->selectDistinct('user_id')
-            ->from('budget_recurring_income')
-            ->where($qb2->expr()->eq('is_active', $qb2->createNamedParameter(true)));
-
-        $result2 = $qb2->executeQuery();
-        while ($row = $result2->fetch()) {
-            $userIds[$row['user_id']] = true;
-        }
-        $result2->closeCursor();
-
-        // Users with auto-post pension contribution schedules (#251)
-        $qb3 = $db->getQueryBuilder();
-        $qb3->selectDistinct('user_id')
-            ->from('budget_pen_recur')
-            ->where($qb3->expr()->eq('is_active', $qb3->createNamedParameter(true)))
-            ->andWhere($qb3->expr()->eq('auto_post_enabled', $qb3->createNamedParameter(true)));
-
-        $result3 = $qb3->executeQuery();
-        while ($row = $result3->fetch()) {
-            $userIds[$row['user_id']] = true;
-        }
-        $result3->closeCursor();
-
-        return array_keys($userIds);
+        $users = new JobUsers($db);
+        return JobUsers::union(
+            $users->from('budget_bills', ['is_active' => true]),
+            $users->from('budget_recurring_income', ['is_active' => true]),
+            $users->from('budget_pen_recur', ['is_active' => true, 'auto_post_enabled' => true])
+        );
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\BackgroundJob;
 
+use OCA\Budget\BackgroundJob\Support\JobUsers;
 use OCA\Budget\Db\NetWorthSnapshot;
 use OCA\Budget\Service\NetWorthService;
 use OCP\AppFramework\Utility\ITimeFactory;
@@ -73,22 +74,11 @@ class NetWorthSnapshotJob extends TimedJob {
     }
 
     /**
-     * Get all unique user IDs from the accounts table.
+     * Everyone who owns an account.
      *
      * @return string[]
      */
     private function getAllUserIds(IDBConnection $db): array {
-        $qb = $db->getQueryBuilder();
-        $qb->selectDistinct('user_id')
-            ->from('budget_accounts');
-
-        $result = $qb->executeQuery();
-        $userIds = [];
-        while ($row = $result->fetch()) {
-            $userIds[] = $row['user_id'];
-        }
-        $result->closeCursor();
-
-        return $userIds;
+        return (new JobUsers($db))->accountOwners();
     }
 }
