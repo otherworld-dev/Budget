@@ -1882,6 +1882,38 @@ class TransactionMapperTest extends TestCase {
         $this->assertStringContainsString('NOT EXISTS (SELECT 1 FROM *PREFIX*budget_transaction_tags btu WHERE btu.transaction_id = t.id)', $sql);
     }
 
+    /**
+     * A selected account narrows the user's scope, it doesn't replace it:
+     * the id comes straight off the request, and on its own it let a budget
+     * report read any account at all.
+     */
+    public function testCategorySpendingBatchKeepsTheUserScopeWithASelectedAccount(): void {
+        $eqColumns = [];
+        $this->expr->method('eq')->willReturnCallback(function ($column, $value) use (&$eqColumns) {
+            // Parameter comparisons only, not join conditions
+            if ($value === ':param') {
+                $eqColumns[] = $column;
+            }
+            return 'eq';
+        });
+        $inColumns = [];
+        $this->expr->method('in')->willReturnCallback(function ($column) use (&$inColumns) {
+            $inColumns[] = $column;
+            return 'in';
+        });
+        $this->qb->method('executeQuery')->willReturnCallback(fn() => $this->resultOf([]));
+
+        $this->mapper->getCategorySpendingBatch([1], '2026-01-01', '2026-01-31', 'debit', 42, false, 'user1');
+        $this->assertSame(2, count(array_keys($eqColumns, 'a.user_id', true)), 'both halves keep the owner scope');
+        $this->assertSame(2, count(array_keys($eqColumns, 't.account_id', true)), 'both halves narrow to the account');
+
+        $eqColumns = [];
+        $this->mapper->getCategorySpendingBatch([1], '2026-01-01', '2026-01-31', 'debit', 42, false, 'user1', [42, 43]);
+        $this->assertNotContains('a.user_id', $eqColumns);
+        $this->assertSame(2, count(array_keys($inColumns, 'a.id', true)), 'both halves keep the visible-account scope');
+        $this->assertSame(2, count(array_keys($eqColumns, 't.account_id', true)));
+    }
+
     public function testCategorySpendingBatchCanApplyTheReportChokePoint(): void {
         $joins = [];
         $this->qb->method('leftJoin')->willReturnCallback(function ($from, $table) use (&$joins) {

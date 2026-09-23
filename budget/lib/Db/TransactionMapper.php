@@ -2320,18 +2320,25 @@ class TransactionMapper extends QBMapper {
      * The account scope shared by getCategorySpendingBatch() and its split
      * companion, so the direct and split halves can never disagree on it.
      *
+     * A selected account narrows the user's scope rather than replacing it:
+     * the account id arrives straight from the request, so with the user
+     * scope dropped any account id at all — someone else's included — was
+     * read. A selected account keeps its transactions even when it is flagged
+     * out of reports, as everywhere else (#309).
+     *
      * @param int[]|null $visibleAccountIds
      */
     private function scopeCategorySpendingBatch(IQueryBuilder $qb, ?int $accountId, ?string $userId, ?array $visibleAccountIds): void {
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        } elseif ($userId !== null) {
+        if ($userId !== null) {
             // Held to the accounts the user can see (#551); drops the
-            // report-excluded accounts as well
-            $this->applyUserScope($qb, $userId, $visibleAccountIds);
-        } else {
+            // report-excluded accounts as well unless one is selected
+            $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
+        } elseif ($accountId === null) {
             // All-accounts batch: drop accounts flagged out of reports/budgets (#286)
             $this->excludeReportExcludedAccounts($qb);
+        }
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
         }
     }
 
