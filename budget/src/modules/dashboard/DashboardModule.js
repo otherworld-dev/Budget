@@ -18,6 +18,7 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { GridStack } from 'gridstack';
 import 'gridstack/dist/gridstack.min.css';
 import { groupProjects, progressFor } from '../projects/projectMath.js';
+import { progressBarAttrs, overBudgetText } from '../../utils/budgetProgress.js';
 
 const GRIDSTACK_SIZE_MAP = {
     xs: { w: 1, h: 1 },
@@ -1445,7 +1446,7 @@ export default class DashboardModule {
                     <div class="alert-content">
                         <div class="alert-category">${this.escapeHtml(alert.categoryName)}</div>
                         <div class="alert-progress">
-                            <div class="alert-progress-bar">
+                            <div class="alert-progress-bar" ${progressBarAttrs(alert.percentage, alert.categoryName)}>
                                 <div class="alert-progress-fill ${severityClass}" style="width: ${Math.min(100, alert.percentage)}%"></div>
                             </div>
                             <span class="alert-percent">${percentDisplay}</span>
@@ -1877,9 +1878,10 @@ export default class DashboardModule {
                             ${this.formatCurrency(spent)} / ${this.formatCurrency(budgeted)}
                         </div>
                     </div>
-                    <div class="budget-progress-bar">
+                    <div class="budget-progress-bar" ${progressBarAttrs(budgeted > 0 ? actualPercentage : percentage, cat.categoryName || cat.name)}>
                         <div class="budget-progress-fill ${statusClass}" style="width: ${percentage}%"></div>
                     </div>
+                    ${overBudgetText(statusClass === 'over')}
                 </div>
             `;
         }).join('');
@@ -2024,7 +2026,8 @@ export default class DashboardModule {
                         <span class="project-tile-name">${this.escapeHtml(project.name)}</span>
                         <span class="project-tile-percent">${bar.percent}%</span>
                     </div>
-                    <div class="budget-progress-bar"><div class="budget-progress-fill ${bar.status}" style="width: ${bar.width}%"></div></div>
+                    <div class="budget-progress-bar" ${progressBarAttrs(bar.percent, project.name)}><div class="budget-progress-fill ${bar.status}" style="width: ${bar.width}%"></div></div>
+                    ${overBudgetText(project.spent > project.totalAmount && project.totalAmount > 0)}
                     <div class="project-tile-footer">${t('budget', '{spent} of {total}', { spent: this.formatCurrency(project.spent), total: this.formatCurrency(project.totalAmount) })}</div>
                 </div>`;
         }).join('');

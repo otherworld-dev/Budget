@@ -8,7 +8,7 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import Chart from 'chart.js/auto';
 import { serverErrorMessage } from '../../utils/helpers.js';
-import { expenseProgressStatus } from '../../utils/budgetProgress.js';
+import { expenseProgressStatus, progressBarAttrs, overBudgetText } from '../../utils/budgetProgress.js';
 import { showLoadError } from '../../utils/loading.js';
 import { nextCategoryColor, distinctCategoryColors } from '../../utils/colors.js';
 
@@ -2497,10 +2497,11 @@ export default class CategoriesModule {
                     </div>
                     <div class="budget-progress-wrapper" data-label="${t('budget', 'Progress')}">
                         ${hasBudget ? `
-                            <div class="budget-progress-bar">
+                            <div class="budget-progress-bar" ${progressBarAttrs(budget > 0 ? (spent / budget) * 100 : percentage, category.name)}>
                                 <div class="budget-progress-fill ${progressStatus}" style="width: ${percentage}%"></div>
                             </div>
                             <span class="budget-progress-text">${Math.round(percentage)}%</span>
+                            ${overBudgetText(!isIncome && spent - budget > 0.005)}
                         ` : `<span class="no-budget">${t('budget', 'No budget set')}</span>`}
                     </div>
                 </div>
