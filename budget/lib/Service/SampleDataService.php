@@ -85,13 +85,11 @@ class SampleDataService {
 
         // The currency every other part of the app falls back to when unset
         $base = strtoupper($this->settingService->get($userId, 'default_currency') ?? 'GBP');
-        $counts = ['accounts' => 0, 'transactions' => 0, 'categories' => 0];
         // Flagged first: should seeding fail halfway, what did land is still
         // marked as sample data, and "Clear sample data" can take it away
         $this->settingService->set($userId, self::SETTING_KEY, '1');
-        $this->seedFullProfile($userId, $base, false, null, $counts);
 
-        return $counts;
+        return $this->seedFullProfile($userId, $base, false)['counts'];
     }
 
     /**
@@ -130,10 +128,10 @@ class SampleDataService {
      *        rates, as `occ budget:seed-demo` has always built; false: every
      *        account in $base, no crypto wallet and no manual rates
      * @param callable(string):void|null $log progress lines
-     * @param array<string, int>|null $counts filled with what was created
-     * @return array{accountIds: array<string,int>, categoryIds: array<string,int>, holidayGoalId: int}
+     * @return array{accountIds: array<string,int>, categoryIds: array<string,int>, holidayGoalId: int,
+     *               counts: array{accounts: int, transactions: int, categories: int}}
      */
-    public function seedFullProfile(string $u, string $base, bool $multiCurrency = true, ?callable $log = null, ?array &$counts = null): array {
+    public function seedFullProfile(string $u, string $base, bool $multiCurrency = true, ?callable $log = null): array {
         $log ??= static function (string $line): void {
         };
 
@@ -324,16 +322,15 @@ class SampleDataService {
             $log('    (skip shared expense: ' . $e->getMessage() . ')');
         }
 
-        if ($counts !== null) {
-            $counts['accounts'] = count($acct);
-            $counts['transactions'] = count($rows);
-            $counts['categories'] = count($cat);
-        }
-
         return [
             'accountIds' => $acct,
             'categoryIds' => $cat,
             'holidayGoalId' => $holiday->getId(),
+            'counts' => [
+                'accounts' => count($acct),
+                'transactions' => count($rows),
+                'categories' => count($cat),
+            ],
         ];
     }
 
