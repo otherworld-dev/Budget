@@ -458,4 +458,72 @@ class ImportRuleServiceTest extends TestCase {
             'the split guard must exclude rows that have parts, not rows whose flag is NULL'
         );
     }
+
+    /**
+     * A bulk rule run recomputes each touched account's ledger once, after
+     * the run — not once per changed row, which re-summed the whole account
+     * for every row a rule touched. An account a row moved OUT of is touched
+     * too; rows whose changes leave balances alone touch nothing.
+     */
+    public function testApplyRulesRecomputesEachTouchedAccountOnceAfterTheRun(): void {
+        $transactionService = $this->createMock(\OCA\Budget\Service\TransactionService::class);
+        $recomputed = [];
+        $transactionService->method('recalculateAccountBalance')
+            ->willReturnCallback(function (int $accountId, string $userId) use (&$recomputed) {
+                $recomputed[] = [$accountId, $userId];
+            });
+
+        $service = $this->getMockBuilder(ImportRuleService::class)
+            ->setConstructorArgs([
+                $this->mapper, $this->categoryMapper, $this->transactionMapper, $transactionService,
+                $this->db, $this->criteriaEvaluator, $this->actionApplicator, $this->granularShareService,
+            ])
+            ->onlyMethods(['findTransactionsForRules', 'findActiveIncludingShared'])
+            ->getMock();
+
+        $rows = [];
+        foreach ([[1, 3], [2, 3], [3, 3], [4, 5]] as [$id, $accountId]) {
+            $tx = new \OCA\Budget\Db\Transaction();
+            $tx->setId($id);
+            $tx->setAccountId($accountId);
+            $tx->setDescription('grocery run');
+            $tx->setAmount(10.0);
+            $tx->setType('debit');
+            $tx->setDate('2026-09-01');
+            $rows[] = $tx;
+        }
+        $service->method('findTransactionsForRules')->willReturn($rows);
+        $service->method('findActiveIncludingShared')->willReturn([$this->makeRule(['schemaVersion' => 2])]);
+        $this->criteriaEvaluator->method('evaluate')->willReturn(true);
+        $this->transactionMapper->method('update')->willReturnArgument(0);
+
+        // Account-type lookups for the rule fields
+        $result = $this->createMock(\OCP\DB\IResult::class);
+        $result->method('fetchOne')->willReturn('checking');
+        $qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
+        $qb->method('expr')->willReturn($this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class));
+        foreach (['select', 'from', 'where', 'andWhere'] as $fluent) {
+            $qb->method($fluent)->willReturnSelf();
+        }
+        $qb->method('executeQuery')->willReturn($result);
+        $this->db->method('getQueryBuilder')->willReturn($qb);
+
+        $this->actionApplicator->method('applyRules')
+            ->willReturnCallback(function (\OCA\Budget\Db\Transaction $tx) use (&$recomputed) {
+                // Nothing may be recomputed while the rows are still being changed
+                $this->assertSame([], $recomputed);
+                return match ($tx->getId()) {
+                    1, 2 => ['type' => ['old' => 'debit', 'new' => 'credit']],
+                    // moved from account 7 into account 3
+                    3 => ['account' => ['old' => 7, 'new' => 3]],
+                    // a category change leaves every balance alone
+                    4 => ['category' => ['old' => null, 'new' => 5]],
+                };
+            });
+
+        $outcome = $service->applyRulesToTransactions('user1', [], []);
+
+        $this->assertSame(4, $outcome['success']);
+        $this->assertSame([[3, 'user1'], [7, 'user1']], $recomputed);
+    }
 }

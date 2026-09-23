@@ -16,6 +16,7 @@ use OCA\Budget\Service\Import\RuleActionApplicator;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
+use Psr\Log\LoggerInterface;
 
 /**
  * @extends AbstractCrudService<ImportRule>
@@ -29,6 +30,7 @@ class ImportRuleService extends AbstractCrudService {
     private RuleActionApplicator $actionApplicator;
     private GranularShareService $granularShareService;
     private ?AutoShareService $autoShareService;
+    private ?LoggerInterface $logger;
 
     /** @var array<int,string> Cache of account id => type for the account/account_type rule fields */
     private array $accountTypeCache = [];
@@ -42,7 +44,8 @@ class ImportRuleService extends AbstractCrudService {
         CriteriaEvaluator $criteriaEvaluator,
         RuleActionApplicator $actionApplicator,
         GranularShareService $granularShareService,
-        ?AutoShareService $autoShareService = null
+        ?AutoShareService $autoShareService = null,
+        ?LoggerInterface $logger = null
     ) {
         $this->mapper = $mapper;
         $this->categoryMapper = $categoryMapper;
@@ -53,6 +56,7 @@ class ImportRuleService extends AbstractCrudService {
         $this->actionApplicator = $actionApplicator;
         $this->granularShareService = $granularShareService;
         $this->autoShareService = $autoShareService;
+        $this->logger = $logger;
     }
 
     /**
@@ -583,6 +587,9 @@ class ImportRuleService extends AbstractCrudService {
         $failed = 0;
         $skipped = 0;
         $applied = [];
+        // Accounts whose ledger a rule changed, recomputed once each after the
+        // run rather than once per changed row
+        $touchedAccounts = [];
 
         foreach ($transactions as $transaction) {
             $transactionData = $this->extractTransactionData($transaction, $userId);
@@ -614,11 +621,13 @@ class ImportRuleService extends AbstractCrudService {
                     $updatedTransaction = $this->transactionMapper->update($transaction);
 
                     // Rules can change type (set_type) or account (set_account) —
-                    // both affect balances, so recompute from the ledger
+                    // both affect balances, so the ledger is recomputed once the
+                    // run is over. Recomputing it here, per changed row, redid
+                    // the whole account's sum for every row a rule touched.
                     if (isset($changes['type']) || isset($changes['account'])) {
-                        $this->transactionService->recalculateAccountBalance($updatedTransaction->getAccountId(), $userId);
+                        $touchedAccounts[$updatedTransaction->getAccountId()] = true;
                         if (isset($changes['account']) && !empty($changes['account']['old'])) {
-                            $this->transactionService->recalculateAccountBalance((int)$changes['account']['old'], $userId);
+                            $touchedAccounts[(int)$changes['account']['old']] = true;
                         }
                     }
 
@@ -654,6 +663,20 @@ class ImportRuleService extends AbstractCrudService {
                 }
             } catch (\Exception $e) {
                 $failed++;
+            }
+        }
+
+        foreach (array_keys($touchedAccounts) as $accountId) {
+            try {
+                $this->transactionService->recalculateAccountBalance((int)$accountId, $userId);
+            } catch (\Exception $e) {
+                // The rows are already saved; one account's failure must not
+                // cost the others their recompute
+                $this->logger?->warning('Balance recompute after a rule run failed', [
+                    'app' => 'budget',
+                    'accountId' => $accountId,
+                    'exception' => $e,
+                ]);
             }
         }
 
