@@ -2592,11 +2592,9 @@ style('budget', 'budget-app');
                             <thead>
                                 <tr>
                                     <th scope="col"><?php p($l->t('Date')); ?></th>
-                                    <th scope="col"><?php p($l->t('File Name')); ?></th>
                                     <th scope="col"><?php p($l->t('Account')); ?></th>
                                     <th scope="col"><?php p($l->t('Transactions')); ?></th>
-                                    <th scope="col"><?php p($l->t('Status')); ?></th>
-                                    <th scope="col"><?php p($l->t('Actions')); ?></th>
+                                    <th scope="col"><?php p($l->t('Date Range')); ?></th>
                                 </tr>
                             </thead>
                             <tbody></tbody>

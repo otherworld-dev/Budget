@@ -2601,53 +2601,47 @@ export default class ImportModule {
     async loadImportHistory() {
         try {
             const history = await apiFetch('/apps/budget/api/import/history');
-            this.importHistory = history;
-            this.renderImportHistory(history);
+            this.importHistory = Array.isArray(history) ? history : [];
+            this.renderImportHistory(this.importHistory);
         } catch (error) {
             console.error('Failed to load import history:', error);
         }
     }
 
+    /**
+     * One row per import batch as the server groups them
+     * (TransactionMapper::getRecentImports): the account, when it was
+     * imported, how many transactions and the dates they span. The server
+     * keeps no file name or status for a batch, so there are none to show.
+     *
+     * @param {Array<{account_name: string, count: number|string, min_date: string, max_date: string, imported_at: string}>} history
+     */
     renderImportHistory(history) {
         const tbody = document.querySelector('#history-table tbody');
         if (!tbody) return;
 
-        tbody.innerHTML = '';
+        if (!history || history.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="empty-state-small">${t('budget', 'No recent imports')}</td></tr>`;
+            return;
+        }
 
-        history.forEach(item => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${this.formatDate(item.importDate)}</td>
-                <td>${dom.escapeHtml(item.filename)}</td>
-                <td>${dom.escapeHtml(item.accountName)}</td>
-                <td>${item.transactionCount}</td>
-                <td>
-                    <span class="status-badge status-${item.status}">
-                        ${item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-                    </span>
-                </td>
-                <td>
-                    <button class="icon-download import-download-btn" data-import-id="${item.id}" title="${t('budget', 'Download')}" aria-label="${t('budget', 'Download')}"></button>
-                    <button class="icon-delete import-rollback-btn" data-import-id="${item.id}" title="${t('budget', 'Rollback')}" aria-label="${t('budget', 'Rollback')}"></button>
-                </td>
+        const day = (value) => (value ? this.formatDate(String(value).slice(0, 10)) : '');
+
+        tbody.innerHTML = history.map(item => {
+            const first = day(item.min_date);
+            const last = day(item.max_date);
+            const range = first && last && first !== last
+                ? t('budget', '{start} to {end}', { start: first, end: last })
+                : (first || last);
+            return `
+                <tr>
+                    <td>${dom.escapeHtml(day(item.imported_at))}</td>
+                    <td>${dom.escapeHtml(item.account_name || '')}</td>
+                    <td>${parseInt(item.count, 10) || 0}</td>
+                    <td>${dom.escapeHtml(range)}</td>
+                </tr>
             `;
-            tbody.appendChild(row);
-        });
-
-        // Setup event listeners
-        document.querySelectorAll('.import-download-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const importId = parseInt(btn.dataset.importId);
-                this.downloadImport(importId);
-            });
-        });
-
-        document.querySelectorAll('.import-rollback-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const importId = parseInt(btn.dataset.importId);
-                this.rollbackImport(importId);
-            });
-        });
+        }).join('');
     }
 
     formatFileSize(bytes) {
@@ -2656,44 +2650,5 @@ export default class ImportModule {
         const sizes = [t('budget', 'Bytes'), t('budget', 'KB'), t('budget', 'MB'), t('budget', 'GB')];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    async downloadImport(importId) {
-        try {
-            const blob = await apiFetch(`/apps/budget/api/import/download/${importId}`, {
-                responseType: 'blob',
-                errorMessage: t('budget', 'Download failed'),
-            });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `import_${importId}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error('Failed to download import:', error);
-            showError(t('budget', 'Failed to download import file'));
-        }
-    }
-
-    async rollbackImport(importId) {
-        if (!await confirmDialog(t('budget', 'Are you sure you want to rollback this import? All imported transactions will be deleted.'), { destructive: true })) {
-            return;
-        }
-
-        try {
-            const result = await apiFetch(`/apps/budget/api/import/rollback/${importId}`, {
-                method: 'POST',
-                errorMessage: t('budget', 'Rollback failed'),
-            });
-            showSuccess(n('budget', 'Rolled back %n transaction', 'Rolled back %n transactions', result.deleted));
-            this.loadImportHistory();
-            this.loadTransactions();
-        } catch (error) {
-            console.error('Failed to rollback import:', error);
-            showError(t('budget', 'Failed to rollback import: {message}', { message: error.message }));
-        }
     }
 }
