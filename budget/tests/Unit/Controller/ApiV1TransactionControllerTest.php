@@ -413,6 +413,38 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame('Account not found', $response->getData()['error']);
 	}
 
+	/**
+	 * Any category id used to be stored as-is, and every read then carried
+	 * that category's name — another user's included. The owner's visible
+	 * categories are the only ones accepted, and a refusal must also release
+	 * the idempotency reservation so an honest retry is not blocked.
+	 */
+	public function testCreateRejectsACategoryTheOwnerCannotSee(): void {
+		$this->granularShareService->method('requireUsableCategory')
+			->willThrowException(new \InvalidArgumentException('Category not found'));
+		$this->service->expects($this->never())->method('create');
+		$this->idempotencyKeys->expects($this->once())->method('delete');
+		$this->params = $this->captureParams(['category_id' => '999', 'idempotency_key' => 'k1']);
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Category not found', $response->getData()['error']);
+	}
+
+	public function testCreateChecksTheCategoryAgainstTheAccountOwner(): void {
+		$owner = new Account();
+		$owner->setUserId('owner');
+		$this->service->method('findAccountById')->willReturn($owner);
+		$this->service->method('create')->willReturn($this->transaction());
+		$this->granularShareService->expects($this->once())->method('requireUsableCategory')->with('owner', 7);
+		$this->params = $this->captureParams(['account_id' => '9', 'category_id' => '7']);
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
 	// ── create: the inline photo ────────────────────────────────────
 
 	public function testCreateAttachesAnInlinePhoto(): void {
@@ -422,7 +454,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->service->method('create')->willReturn($this->transaction());
 		$this->attachmentService->expects($this->once())
 			->method('upload')
-			->with(10, 'user1', $this->uploads['photo']);
+			->with(10, 'user1', $this->uploads['photo'], 'user1');
 
 		$this->assertSame(Http::STATUS_CREATED, $this->controller->create()->getStatus());
 	}
@@ -441,7 +473,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->service->method('create')->willReturn($this->transaction());
 		$this->attachmentService->expects($this->once())
 			->method('upload')
-			->with(10, 'owner2', $this->uploads['photo']);
+			->with(10, 'owner2', $this->uploads['photo'], 'user1');
 
 		$response = $this->controller->create();
 
@@ -702,7 +734,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->attachmentService->method('listForTransaction')->with(10, 'user1')->willReturn([]);
 		$this->attachmentService->expects($this->once())
 			->method('upload')
-			->with(10, 'user1', $this->uploads['photo']);
+			->with(10, 'user1', $this->uploads['photo'], 'user1');
 		$this->service->expects($this->never())->method('create');
 
 		$this->assertSame(Http::STATUS_CREATED, $controller->create()->getStatus());

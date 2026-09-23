@@ -27,6 +27,7 @@ class TransactionService {
     private TransactionSplitMapper $splitMapper;
     private ExpenseShareMapper $expenseShareMapper;
     private DismissedImportMapper $dismissedImportMapper;
+    private AccountBalanceCalculator $balanceCalculator;
 
     public function __construct(
         TransactionMapper $mapper,
@@ -46,6 +47,7 @@ class TransactionService {
         $this->splitMapper = $splitMapper;
         $this->expenseShareMapper = $expenseShareMapper;
         $this->dismissedImportMapper = $dismissedImportMapper;
+        $this->balanceCalculator = new AccountBalanceCalculator($accountMapper, $mapper);
     }
 
     /**
@@ -1313,13 +1315,11 @@ class TransactionService {
      */
     public function recalculateAccountBalance(int $accountId, string $userId): void {
         $account = $this->accountMapper->find($accountId, $userId);
-        $openingBalance = (string) ($account->getOpeningBalance() ?? 0);
-        // Compute at the account currency's precision so a crypto balance keeps
-        // its 8dp instead of being rounded to 2 (#331).
-        $scale = Currency::decimalsFor($account->getCurrency());
-        // Pass the float through: MoneyCalculator normalizes it without
-        // scientific notation (a string cast would bypass that)
-        $newBalance = MoneyCalculator::add($openingBalance, $this->mapper->getNetChangeAll($accountId), $scale);
+        $newBalance = $this->balanceCalculator->balanceFor(
+            $accountId,
+            $account->getOpeningBalance(),
+            $account->getCurrency()
+        );
 
         $this->accountMapper->updateBalance($accountId, $newBalance, $userId);
     }

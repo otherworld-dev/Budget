@@ -15,9 +15,11 @@ use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Enum\AccountType;
+use OCA\Budget\Enum\Currency;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCP\IDBConnection;
+use OCP\IL10N;
 
 /**
  * Service for exporting and importing all user data for migration between instances.
@@ -25,6 +27,15 @@ use OCP\IDBConnection;
 class MigrationService {
     private const EXPORT_VERSION = '1.2.0';
     private const APP_ID = 'budget';
+
+    /**
+     * Uncompressed size limits for a backup archive. A zip of a few KB can
+     * inflate to gigabytes, and every entry used to be read whole into
+     * memory. A real backup's largest file (transactions) is a few MB per
+     * ten thousand rows, so these leave generous room.
+     */
+    public const MAX_ENTRY_BYTES = 200 * 1024 * 1024;
+    public const MAX_TOTAL_BYTES = 500 * 1024 * 1024;
 
     /**
      * Table-level round-trip specs (#351): everything beyond the five bespoke
@@ -42,13 +53,16 @@ class MigrationService {
      * bills (bills remap their tagIds through the tags map). POST entries
      * import after bills. Order within each phase is dependency order.
      *
+     * Restore and factory reset both clear a user's data from this list
+     * (UserTableCleaner), so a table registered here is also wiped by both.
+     *
      * Deliberately NOT exported: audit log and idempotency keys (instance
      * state), bank-sync connections/mappings (provider agreements and
      * credentials are instance-specific), shares (reference other Nextcloud
      * users), attachments (file ids do not survive), fetched exchange-rate
      * cache (manual rates ARE exported), legacy tables nothing reads.
      */
-    private const EXTRA_TABLES_PRE = [
+    public const EXTRA_TABLES_PRE = [
         'tag_sets' => [
             'table' => 'budget_tag_sets',
             'scope' => ['joins' => [['budget_categories', 'category_id']]],
@@ -63,7 +77,7 @@ class MigrationService {
         ],
     ];
 
-    private const EXTRA_TABLES_POST = [
+    public const EXTRA_TABLES_POST = [
         'transaction_tags' => [
             'table' => 'budget_transaction_tags',
             'scope' => ['joins' => [['budget_transactions', 'transaction_id'], ['budget_accounts', 'account_id']]],
@@ -231,6 +245,8 @@ class MigrationService {
         ],
     ];
 
+    private UserTableCleaner $tableCleaner;
+
     public function __construct(
         private AccountMapper $accountMapper,
         private TransactionMapper $transactionMapper,
@@ -238,8 +254,15 @@ class MigrationService {
         private BillMapper $billMapper,
         private ImportRuleMapper $importRuleMapper,
         private SettingMapper $settingMapper,
-        private IDBConnection $db
+        private IDBConnection $db,
+        private ?IL10N $l = null
     ) {
+        $this->tableCleaner = new UserTableCleaner($db);
+    }
+
+    /** Translate when a translator is wired (always, through DI). */
+    private function t(string $text, array $parameters = []): string {
+        return $this->l !== null ? $this->l->t($text, $parameters) : vsprintf($text, $parameters);
     }
 
     /**
@@ -287,7 +310,10 @@ class MigrationService {
             foreach (($idMaps['accounts'] ?? []) as $newAccountId) {
                 $account = $this->accountMapper->findById($newAccountId);
                 $net = $this->transactionMapper->getNetChangeAll($newAccountId);
-                $account->setOpeningBalance(round(((float)$account->getBalance()) - $net, 2));
+                // At the account currency's precision: rounding to 2dp here
+                // shifted a restored crypto balance on its next recompute (#331).
+                $dp = Currency::decimalsFor($account->getCurrency());
+                $account->setOpeningBalance(round(((float)$account->getBalance()) - $net, $dp));
                 $this->accountMapper->update($account);
             }
 
@@ -471,9 +497,39 @@ class MigrationService {
             $files[$key] = $key . '.json';
         }
 
+        // Refuse oversized entries before reading any of them. The sizes in
+        // the zip's directory are only what the archive claims, so each read
+        // is also capped at its claimed size + 1 byte: an entry that unpacks
+        // to more than it declared is caught without inflating it further.
+        // (getFromName() allocates its length up front, so the cap must be
+        // the declared size, not the limit.)
+        $total = 0;
+        $declared = [];
+        foreach ($files as $filename) {
+            $stat = $zip->statName($filename);
+            if ($stat === false) {
+                continue;
+            }
+            $size = max(0, (int) ($stat['size'] ?? 0));
+            $declared[$filename] = $size;
+            $total += $size;
+            if ($size > static::MAX_ENTRY_BYTES || $total > static::MAX_TOTAL_BYTES) {
+                $zip->close();
+                unlink($tempFile);
+                throw new \InvalidArgumentException($this->tooLargeMessage($filename, $size > static::MAX_ENTRY_BYTES));
+            }
+        }
+
         foreach ($files as $key => $filename) {
-            $content = $zip->getFromName($filename);
+            $content = isset($declared[$filename])
+                ? $zip->getFromName($filename, $declared[$filename] + 1)
+                : false;
             if ($content !== false) {
+                if (strlen($content) > $declared[$filename]) {
+                    $zip->close();
+                    unlink($tempFile);
+                    throw new \InvalidArgumentException($this->tooLargeMessage($filename, true));
+                }
                 $decoded = json_decode($content, true);
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     $zip->close();
@@ -490,6 +546,12 @@ class MigrationService {
         unlink($tempFile);
 
         return $data;
+    }
+
+    private function tooLargeMessage(string $filename, bool $singleEntry): string {
+        return $singleEntry
+            ? $this->t('This backup cannot be imported: %1$s is larger than %2$s MB when unpacked', [$filename, (string) (static::MAX_ENTRY_BYTES / 1024 / 1024)])
+            : $this->t('This backup cannot be imported: its files add up to more than %1$s MB when unpacked', [(string) (static::MAX_TOTAL_BYTES / 1024 / 1024)]);
     }
 
     /**
@@ -535,15 +597,16 @@ class MigrationService {
         // Table-level extras first — the join-scoped ones (transaction tags,
         // splits, dismissed imports, tag sets) resolve their owner through
         // parents that are deleted further down (#351)
-        foreach (self::EXTRA_TABLES_POST + self::EXTRA_TABLES_PRE as $spec) {
-            $this->clearTable($userId, $spec);
-        }
+        $this->tableCleaner->clearRegisteredTables($userId);
 
-        // Transactions reference accounts and categories
-        $transactions = $this->transactionMapper->findAll($userId);
-        foreach ($transactions as $txn) {
-            $this->transactionMapper->delete($txn);
-        }
+        // Attachment rows are not in the registry (file ids do not survive an
+        // export), but they hang off transactions: without this every restore
+        // over existing data orphaned them. The files stay in the user's Files.
+        $this->tableCleaner->clearTable($userId, ['table' => 'budget_attachments', 'scope' => 'user']);
+
+        // Transactions reference accounts and categories. One bulk delete: the
+        // children deleteWithChildren() would cascade to are all cleared above.
+        $this->transactionMapper->deleteAll($userId);
 
         // Bills reference accounts and categories
         $bills = $this->billMapper->findAll($userId);
@@ -1094,37 +1157,6 @@ class MigrationService {
             }
         }
         return $filtered;
-    }
-
-    /**
-     * Delete one registry table's rows for the user (import is
-     * wipe-then-restore). Join-scoped tables are cleared through their
-     * parent chain and must be cleared before the parents are.
-     */
-    private function clearTable(string $userId, array $spec): void {
-        if (($spec['scope'] ?? 'user') === 'user') {
-            $qb = $this->db->getQueryBuilder();
-            $qb->delete($spec['table'])
-                ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
-            $qb->executeStatement();
-            return;
-        }
-
-        $joins = $spec['scope']['joins'];
-        // Innermost select: ids of the deepest parent owned by the user
-        [$deepTable] = $joins[count($joins) - 1];
-        $sql = 'SELECT id FROM *PREFIX*' . $deepTable . ' WHERE user_id = ?';
-        // Wrap outward through the chain
-        for ($i = count($joins) - 2; $i >= 0; $i--) {
-            [$table] = $joins[$i];
-            [, $childColumn] = $joins[$i + 1];
-            $sql = 'SELECT id FROM *PREFIX*' . $table . ' WHERE ' . $childColumn . ' IN (' . $sql . ')';
-        }
-        [, $localColumn] = $joins[0];
-        $this->db->executeStatement(
-            'DELETE FROM *PREFIX*' . $spec['table'] . ' WHERE ' . $localColumn . ' IN (' . $sql . ')',
-            [$userId]
-        );
     }
 
     /**

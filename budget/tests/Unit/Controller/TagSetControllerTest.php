@@ -528,7 +528,7 @@ class TagSetControllerTest extends TestCase {
 		$tag->setId(5);
 		$this->service->expects($this->once())
 			->method('updateTag')
-			->with(5, 'user1', ['name' => 'Updated'])
+			->with(5, 'user1', ['name' => 'Updated'], 10)
 			->willReturn($tag);
 
 		$response = $this->controller->updateTag(10, 5);
@@ -543,7 +543,7 @@ class TagSetControllerTest extends TestCase {
 		$tag->setId(5);
 		$this->service->expects($this->once())
 			->method('updateTag')
-			->with(5, 'user1', ['color' => '#00ff00'])
+			->with(5, 'user1', ['color' => '#00ff00'], 10)
 			->willReturn($tag);
 
 		$response = $this->controller->updateTag(10, 5);
@@ -558,7 +558,7 @@ class TagSetControllerTest extends TestCase {
 		$tag->setId(5);
 		$this->service->expects($this->once())
 			->method('updateTag')
-			->with(5, 'user1', ['sortOrder' => 3])
+			->with(5, 'user1', ['sortOrder' => 3], 10)
 			->willReturn($tag);
 
 		$response = $this->controller->updateTag(10, 5);
@@ -581,7 +581,7 @@ class TagSetControllerTest extends TestCase {
 				'name' => 'New',
 				'color' => '#0000ff',
 				'sortOrder' => 1,
-			])
+			], 10)
 			->willReturn($tag);
 
 		$response = $this->controller->updateTag(10, 5);
@@ -646,12 +646,38 @@ class TagSetControllerTest extends TestCase {
 	// ── destroyTag ──────────────────────────────────────────────────
 
 	public function testDestroyTagDeletesTag(): void {
-		$this->service->expects($this->once())->method('deleteTag')->with(5, 'user1');
+		$this->service->expects($this->once())->method('deleteTag')->with(5, 'user1', 1);
 
 		$response = $this->controller->destroyTag(1, 5);
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertSame('success', $response->getData()['status']);
+	}
+
+	/**
+	 * Access is checked on the tag set in the URL; the tag must be looked up
+	 * inside that set, so the set id has to reach the service.
+	 */
+	public function testDestroyTagFromAnotherTagSetIsRefused(): void {
+		$this->service->expects($this->once())->method('deleteTag')
+			->with(99, 'user1', 1)
+			->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException('Tag not found in this tag set'));
+
+		$response = $this->controller->destroyTag(1, 99);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertArrayNotHasKey('status', $response->getData());
+	}
+
+	public function testUpdateTagFromAnotherTagSetIsRefused(): void {
+		$this->mockInput(json_encode(['name' => 'Hijacked']));
+		$this->service->expects($this->once())->method('updateTag')
+			->with(99, 'user1', ['name' => 'Hijacked'], 10)
+			->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException('Tag not found in this tag set'));
+
+		$response = $this->controller->updateTag(10, 99);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
 	public function testDestroyTagHandlesError(): void {
@@ -751,7 +777,7 @@ class TagSetControllerTest extends TestCase {
 		$tag->setId(5);
 		$this->service->expects($this->once())
 			->method('updateTag')
-			->with(5, 'user1', ['hidden' => true])
+			->with(5, 'user1', ['hidden' => true], 10)
 			->willReturn($tag);
 
 		$response = $this->controller->updateTag(10, 5);
@@ -766,7 +792,7 @@ class TagSetControllerTest extends TestCase {
 		$tag->setId(5);
 		$this->service->expects($this->once())
 			->method('updateTag')
-			->with(5, 'user1', ['hidden' => false])
+			->with(5, 'user1', ['hidden' => false], 10)
 			->willReturn($tag);
 
 		$response = $this->controller->updateTag(10, 5);

@@ -169,6 +169,23 @@ class ReportExporterTest extends TestCase {
         $this->assertStringContainsString('spending', $result['filename']);
     }
 
+    /**
+     * Category and account names are user text: one starting with = would
+     * run as a formula in the spreadsheet the report is opened in.
+     */
+    public function testCsvReportNeutralisesFormulaNamesButKeepsNegativeNumbers(): void {
+        $data = $this->spendingData();
+        $data['data'][0]['name'] = '=HYPERLINK("http://evil")';
+        $data['data'][0]['total'] = -500.0;
+
+        $csv = $this->exporter->export($data, 'spending', 'csv')['stream'];
+
+        $this->assertStringContainsString('"\'=HYPERLINK(""http://evil"")"', $csv);
+        $this->assertStringNotContainsString(',=HYPERLINK', $csv);
+        $this->assertStringContainsString('-500', $csv);
+        $this->assertStringNotContainsString("'-500", $csv);
+    }
+
     public function testExportCashFlowCsv(): void {
         $result = $this->exporter->export($this->cashFlowData(), 'cashflow', 'csv');
 

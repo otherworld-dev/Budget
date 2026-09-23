@@ -309,7 +309,7 @@ class TagSetController extends Controller {
             }
 
             $owner = $this->tagSetCategoryOwner($tagSetId, true);
-            $tag = $this->service->updateTag($tagId, $owner, $updates);
+            $tag = $this->service->updateTag($tagId, $owner, $updates, $tagSetId);
             return new DataResponse($tag);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to update tag'), Http::STATUS_BAD_REQUEST, ['tagId' => $tagId]);
@@ -323,7 +323,7 @@ class TagSetController extends Controller {
     public function destroyTag(int $tagSetId, int $tagId): DataResponse {
         try {
             $owner = $this->tagSetCategoryOwner($tagSetId, true);
-            $this->service->deleteTag($tagId, $owner);
+            $this->service->deleteTag($tagId, $owner, $tagSetId);
             return new DataResponse(['status' => 'success']);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to delete tag'), Http::STATUS_BAD_REQUEST, ['tagId' => $tagId]);

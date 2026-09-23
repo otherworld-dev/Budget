@@ -530,7 +530,7 @@ export default class AccountsModule {
 
         return `
             <div class="account-card${account.closed ? ' is-closed' : ''}" data-type="${accountType}" data-account-id="${accountId}" tabindex="0">
-                ${this.renderAccountSelectCheckbox(accountId)}
+                ${account._shared ? '' : this.renderAccountSelectCheckbox(accountId)}
                 <div class="account-card-header">
                     <div class="account-icon" style="background-color: ${typeInfo.color};">
                         <span class="${typeInfo.icon}" aria-hidden="true"></span>
@@ -571,9 +571,9 @@ export default class AccountsModule {
                         <button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit Account')}" aria-label="${t('budget', 'Edit Account')}">
                             <span class="icon-rename" aria-hidden="true"></span>
                         </button>
-                        <button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="${t('budget', 'Delete Account')}" aria-label="${t('budget', 'Delete Account')}">
+                        ${account._shared ? '' : `<button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="${t('budget', 'Delete Account')}" aria-label="${t('budget', 'Delete Account')}">
                             <span class="icon-delete" aria-hidden="true"></span>
-                        </button>
+                        </button>`}
                     </div>
                 </div>
             </div>
@@ -610,7 +610,7 @@ export default class AccountsModule {
 
         return `
             <div class="account-row${account.closed ? ' is-closed' : ''}" data-type="${accountType}" data-account-id="${accountId}">
-                <div class="account-row-select">${this.renderAccountSelectCheckbox(accountId)}</div>
+                <div class="account-row-select">${account._shared ? '' : this.renderAccountSelectCheckbox(accountId)}</div>
                 <div class="account-row-icon" style="background-color: ${typeInfo.color};">
                     <span class="${typeInfo.icon}" aria-hidden="true"></span>
                 </div>
@@ -619,9 +619,9 @@ export default class AccountsModule {
                     <button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit')}" aria-label="${t('budget', 'Edit')}">
                         <span class="icon-rename" aria-hidden="true"></span>
                     </button>
-                    <button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}">
+                    ${account._shared ? '' : `<button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}">
                         <span class="icon-delete" aria-hidden="true"></span>
-                    </button>
+                    </button>`}
                 </div>
             </div>
         `;

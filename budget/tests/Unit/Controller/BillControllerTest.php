@@ -229,6 +229,55 @@ class BillControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
 	}
 
+	private function controllerRefusingCategory(int $refusedCategoryId): BillController {
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$granularShareService->method('resolveOwner')->willReturn('user1');
+		$granularShareService->method('requireUsableCategory')->willReturnCallback(
+			function (string $ownerId, ?int $categoryId) use ($refusedCategoryId): void {
+				if ($categoryId === $refusedCategoryId) {
+					throw new \InvalidArgumentException('Category not found');
+				}
+			}
+		);
+		return new BillController(
+			$this->request, $this->service, $this->validationService, $granularShareService,
+			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
+			$this->l, 'user1', $this->logger
+		);
+	}
+
+	public function testCreateRejectsACategoryTheOwnerCannotSee(): void {
+		$this->mockInput(json_encode(['name' => 'Netflix', 'amount' => 15.99, 'categoryId' => 999]));
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controllerRefusingCategory(999)->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Category not found', $response->getData()['error']);
+	}
+
+	public function testCreateRejectsASplitTemplateCategoryTheOwnerCannotSee(): void {
+		$this->mockInput(json_encode(['name' => 'Shop', 'amount' => 30, 'splitTemplate' => [
+			['categoryId' => 3, 'amount' => 10],
+			['categoryId' => 999, 'amount' => 20],
+		]]));
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controllerRefusingCategory(999)->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testUpdateRejectsACategoryTheOwnerCannotSee(): void {
+		$this->mockInput(json_encode(['categoryId' => 999]));
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerRefusingCategory(999)->update(5);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
 	public function testCreateCoercesStringFalseAutoPayToOff(): void {
 		// A client that sends autoPayEnabled as the string "false" must not enable
 		// auto-pay — (bool)"false" is true, so the flag is filter_var'd (#335).
@@ -1684,6 +1733,17 @@ class BillControllerTest extends TestCase {
 		$csv = $this->controller->exportCalendar('csv', 2026, 'false', 'active', 5)->render();
 
 		$this->assertStringContainsString('"Projected balance","1,000.00",,,800.00,-200.00,,,,,,,,,,' . "\n", $csv);
+	}
+
+	/** A bill name is user text; one starting with = would run as a formula when the export is opened. */
+	public function testExportCalendarCsvNeutralisesAFormulaBillName(): void {
+		$data = $this->calendarData();
+		$data['bills'][0]['name'] = '=HYPERLINK("http://evil")';
+		$this->service->method('getAnnualOverview')->willReturn($data);
+
+		$csv = $this->controller->exportCalendar('csv', 2026)->render();
+
+		$this->assertStringContainsString('"\'=HYPERLINK(""http://evil"")"', $csv);
 	}
 
 	public function testExportCalendarCsvHasNoBalanceRowWithoutAnAccount(): void {

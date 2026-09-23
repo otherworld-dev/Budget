@@ -6,6 +6,7 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\BillService;
+use OCA\Budget\Service\Export\CsvSafe;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\Report\MonthNames;
 use OCA\Budget\Service\ValidationService;
@@ -348,6 +349,8 @@ class BillController extends Controller {
             if ($remainingPayments !== null && $remainingPayments < 1) {
                 return new DataResponse(['error' => $this->l->t('Remaining payments must be at least 1')], Http::STATUS_BAD_REQUEST);
             }
+
+            $this->requireUsableCategories($this->getEffectiveUserId(), $categoryId, $splitTemplate);
 
             $bill = $this->service->create(
                 $this->getEffectiveUserId(),
@@ -724,6 +727,12 @@ class BillController extends Controller {
                 return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
             }
 
+            $this->requireUsableCategories(
+                $ownerId,
+                array_key_exists('categoryId', $updates) ? $updates['categoryId'] : null,
+                isset($data['splitTemplate']) && is_array($data['splitTemplate']) ? $data['splitTemplate'] : null
+            );
+
             $bill = $this->service->update($id, $ownerId, $updates);
             return new DataResponse($bill);
         } catch (\InvalidArgumentException $e) {
@@ -1058,6 +1067,7 @@ class BillController extends Controller {
                     isset($item['accountId']) ? (int) $item['accountId'] : null,
                     isset($item['destinationAccountId']) ? (int) $item['destinationAccountId'] : null
                 );
+                $this->requireUsableCategories($this->getEffectiveUserId(), is_array($item) ? ($item['categoryId'] ?? null) : null, null);
             }
 
             $created = $this->service->createFromDetected($this->getEffectiveUserId(), $data['bills']);
@@ -1065,6 +1075,8 @@ class BillController extends Controller {
                 'created' => count($created),
                 'bills' => $created,
             ], Http::STATUS_CREATED);
+        } catch (\InvalidArgumentException $e) {
+            return $this->handleValidationError($e);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to create bills from detected patterns'));
         }
@@ -1151,7 +1163,7 @@ class BillController extends Controller {
             $header[] = MonthNames::short($this->l, $m);
         }
         $header[] = $this->l->t('Annual Total');
-        fputcsv($csv, $header);
+        CsvSafe::put($csv, $header);
 
         // Bill rows
         foreach ($data['bills'] ?? [] as $bill) {
@@ -1170,7 +1182,7 @@ class BillController extends Controller {
                 }
             }
             $row[] = number_format($annualTotal, 2);
-            fputcsv($csv, $row);
+            CsvSafe::put($csv, $row);
         }
 
         // Monthly totals row
@@ -1182,11 +1194,11 @@ class BillController extends Controller {
             $grandTotal += $total;
         }
         $totalsRow[] = number_format($grandTotal, 2);
-        fputcsv($csv, $totalsRow);
+        CsvSafe::put($csv, $totalsRow);
 
         $balanceRow = $this->projectedBalanceRow($data);
         if ($balanceRow !== null) {
-            fputcsv($csv, $balanceRow);
+            CsvSafe::put($csv, $balanceRow);
         }
 
         rewind($csv);
@@ -1314,6 +1326,25 @@ class BillController extends Controller {
     /**
      * Validate a split template array against the bill amount.
      */
+    /**
+     * The bill's category and every split-template category must be ones the
+     * bill's owner can see; any other id was stored as-is and its name came
+     * back through the listing joins. Empty / 0 means uncategorised.
+     *
+     * @throws \InvalidArgumentException
+     */
+    private function requireUsableCategories(string $ownerId, mixed $categoryId, ?array $splitTemplate): void {
+        $normalise = static fn (mixed $raw): ?int =>
+            ($raw === null || $raw === '' || (int) $raw <= 0) ? null : (int) $raw;
+
+        $this->granularShareService->requireUsableCategory($ownerId, $normalise($categoryId));
+        foreach ($splitTemplate ?? [] as $split) {
+            if (is_array($split)) {
+                $this->granularShareService->requireUsableCategory($ownerId, $normalise($split['categoryId'] ?? null));
+            }
+        }
+    }
+
     private function validateSplitTemplate(array $splits, float $billAmount): array {
         if (count($splits) < 2) {
             return ['valid' => false, 'error' => $this->l->t('Split template must have at least 2 splits')];

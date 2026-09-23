@@ -44,6 +44,11 @@ class SimpleFINProvider implements BankSyncProviderInterface {
         if ($claimUrl === false || !filter_var($claimUrl, FILTER_VALIDATE_URL)) {
             throw new \InvalidArgumentException('Invalid setup token');
         }
+        // The token is user input the server then POSTs to: only ever send
+        // that request to SimpleFIN itself
+        if (!self::isSimpleFinUrl($claimUrl)) {
+            throw new \InvalidArgumentException('Invalid setup token: it must come from SimpleFIN (https://*.simplefin.org)');
+        }
 
         // Claim the token to get the access URL
         $client = $this->clientService->newClient();
@@ -51,7 +56,8 @@ class SimpleFINProvider implements BankSyncProviderInterface {
             $response = $client->post($claimUrl, ['timeout' => 30]);
             $accessUrl = $response->getBody();
 
-            if (empty($accessUrl) || !filter_var($accessUrl, FILTER_VALIDATE_URL)) {
+            if (empty($accessUrl) || !filter_var($accessUrl, FILTER_VALIDATE_URL)
+                || !self::isSimpleFinUrl((string) $accessUrl)) {
                 throw new \Exception('Invalid access URL received from SimpleFIN');
             }
         } catch (\Exception $e) {
@@ -74,7 +80,7 @@ class SimpleFINProvider implements BankSyncProviderInterface {
 
         // Parse the access URL to extract Basic Auth credentials
         $parsed = parse_url($accessUrl);
-        if (!$parsed || empty($parsed['user'])) {
+        if (!$parsed || empty($parsed['user']) || !self::isSimpleFinUrl($accessUrl)) {
             throw new \Exception('Invalid SimpleFIN access URL');
         }
 
@@ -158,6 +164,26 @@ class SimpleFINProvider implements BankSyncProviderInterface {
     public function fetchAccountList(string $credentials, array $options = []): array {
         // SimpleFIN doesn't have a separate metadata endpoint
         return $this->fetchAccounts($credentials, $options);
+    }
+
+    /**
+     * Whether a URL points at SimpleFIN over https (bridge.simplefin.org,
+     * beta-bridge.simplefin.org, ...).
+     *
+     * The setup token decodes to an arbitrary URL that the server POSTs to,
+     * and the claim answers with another URL the server then GETs with
+     * credentials — both server-side requests steered by user input. The
+     * protocol's own examples all live on simplefin.org, so nothing else is
+     * accepted, for the claim URL, the access URL it returns, or a stored
+     * access URL at sync time.
+     */
+    public static function isSimpleFinUrl(string $url): bool {
+        $parts = parse_url($url);
+        if (!is_array($parts) || strtolower($parts['scheme'] ?? '') !== 'https') {
+            return false;
+        }
+        $host = strtolower(rtrim((string) ($parts['host'] ?? ''), '.'));
+        return $host === 'simplefin.org' || str_ends_with($host, '.simplefin.org');
     }
 
     /**

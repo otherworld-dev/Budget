@@ -69,6 +69,46 @@ class SimpleFINProviderTest extends TestCase {
 		$this->provider->initializeConnection(['setupToken' => 'AAAA']);
 	}
 
+	public static function foreignUrls(): array {
+		return [
+			'other host' => ['https://evil.example/claim/abc'],
+			'internal address' => ['https://192.168.0.1/claim/abc'],
+			'look-alike suffix' => ['https://simplefin.org.evil.example/claim/abc'],
+			'look-alike prefix' => ['https://evilsimplefin.org/claim/abc'],
+			'plain http' => ['http://bridge.simplefin.org/claim/abc'],
+		];
+	}
+
+	/**
+	 * The setup token decodes to a URL the server POSTs to; anything but
+	 * SimpleFIN over https is refused before a request is made.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('foreignUrls')]
+	public function testInitializeConnectionRefusesAClaimUrlOutsideSimpleFin(string $claimUrl): void {
+		$this->client->expects($this->never())->method('post');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->provider->initializeConnection(['setupToken' => base64_encode($claimUrl)]);
+	}
+
+	public function testInitializeConnectionRefusesAnAccessUrlOutsideSimpleFin(): void {
+		$response = $this->createMock(IResponse::class);
+		$response->method('getBody')->willReturn('https://user:pass@evil.example/simplefin');
+		$this->client->method('post')->willReturn($response);
+		$this->client->expects($this->never())->method('get');
+
+		$this->expectException(\Exception::class);
+		$this->provider->initializeConnection(['setupToken' => base64_encode('https://bridge.simplefin.org/simplefin/claim/abc')]);
+	}
+
+	public function testFetchAccountsRefusesAStoredAccessUrlOutsideSimpleFin(): void {
+		$this->client->expects($this->never())->method('get');
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('Invalid SimpleFIN access URL');
+		$this->provider->fetchAccounts('https://user:pass@169.254.169.254/latest');
+	}
+
 	public function testInitializeConnectionClaimsTokenAndFetchesAccounts(): void {
 		$claimUrl = 'https://beta-bridge.simplefin.org/claim/abc123';
 		$setupToken = base64_encode($claimUrl);

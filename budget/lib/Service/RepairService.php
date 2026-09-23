@@ -37,6 +37,7 @@ class RepairService {
     private FrequencyCalculator $frequencyCalculator;
     private AccountService $accountService;
     private TransactionService $transactionService;
+    private AccountBalanceCalculator $balanceCalculator;
 
     public function __construct(
         TransactionMapper $transactionMapper,
@@ -52,6 +53,7 @@ class RepairService {
         $this->frequencyCalculator = $frequencyCalculator;
         $this->accountService = $accountService;
         $this->transactionService = $transactionService;
+        $this->balanceCalculator = new AccountBalanceCalculator($accountMapper, $transactionMapper);
     }
 
     /**
@@ -656,9 +658,9 @@ class RepairService {
         foreach ($accounts as $account) {
             $accountId = $account->getId();
             $storedBalance = (float) $account->getBalance();
-            $openingBalance = (float) ($account->getOpeningBalance() ?? 0);
-            $transactionNet = $this->transactionMapper->getNetChangeAll($accountId);
-            $expectedBalance = $openingBalance + $transactionNet;
+            // The same figure the repair (recalculateAllBalances) will write,
+            // so what is reported and what is fixed never disagree.
+            $expectedBalance = MoneyCalculator::toFloat($this->balanceCalculator->expectedBalance($account));
 
             $diff = abs($expectedBalance - $storedBalance);
             if ($diff > 0.005) {

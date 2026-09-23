@@ -13,13 +13,16 @@ use OCP\AppFramework\Db\DoesNotExistException;
 class TransactionSplitService {
     private TransactionSplitMapper $splitMapper;
     private TransactionMapper $transactionMapper;
+    private GranularShareService $granularShareService;
 
     public function __construct(
         TransactionSplitMapper $splitMapper,
-        TransactionMapper $transactionMapper
+        TransactionMapper $transactionMapper,
+        GranularShareService $granularShareService
     ) {
         $this->splitMapper = $splitMapper;
         $this->transactionMapper = $transactionMapper;
+        $this->granularShareService = $granularShareService;
     }
 
     /**
@@ -60,6 +63,12 @@ class TransactionSplitService {
             throw new \InvalidArgumentException('A split transaction must have at least 2 parts');
         }
 
+        // Every part's category must be one the ledger owner can see ($userId
+        // is the owner: the transaction was found under it above)
+        foreach ($splits as $splitData) {
+            $this->granularShareService->requireUsableCategory($userId, self::categoryIdOf($splitData['categoryId'] ?? null));
+        }
+
         // Delete existing splits
         $this->splitMapper->deleteByTransaction($transactionId);
 
@@ -70,7 +79,7 @@ class TransactionSplitService {
         foreach ($splits as $splitData) {
             $split = new TransactionSplit();
             $split->setTransactionId($transactionId);
-            $split->setCategoryId($splitData['categoryId'] ?? null);
+            $split->setCategoryId(self::categoryIdOf($splitData['categoryId'] ?? null));
             $split->setAmount((string) ($splitData['amount'] ?? 0));
             $split->setDescription($splitData['description'] ?? null);
             $split->setCreatedAt($now);
@@ -100,6 +109,7 @@ class TransactionSplitService {
         if (!$transaction->getIsSplit()) {
             throw new \InvalidArgumentException('Transaction is not split');
         }
+        $this->granularShareService->requireUsableCategory($userId, $categoryId);
 
         // Delete all splits
         $this->splitMapper->deleteByTransaction($transactionId);
@@ -123,7 +133,9 @@ class TransactionSplitService {
 
         // Update fields
         if (isset($data['categoryId'])) {
-            $split->setCategoryId($data['categoryId'] ?: null);
+            $categoryId = self::categoryIdOf($data['categoryId']);
+            $this->granularShareService->requireUsableCategory($userId, $categoryId);
+            $split->setCategoryId($categoryId);
         }
         if (isset($data['amount'])) {
             // Validate new total
@@ -148,6 +160,15 @@ class TransactionSplitService {
         }
 
         return $this->splitMapper->update($split);
+    }
+
+    /** A split's category from client input: empty/0 means uncategorised. */
+    private static function categoryIdOf(mixed $raw): ?int {
+        if ($raw === null || $raw === '' || $raw === false) {
+            return null;
+        }
+        $id = (int) $raw;
+        return $id > 0 ? $id : null;
     }
 
     /**

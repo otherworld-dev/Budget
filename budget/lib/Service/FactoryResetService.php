@@ -5,68 +5,49 @@ declare(strict_types=1);
 namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\AccountMapper;
-use OCA\Budget\Db\AssetMapper;
-use OCA\Budget\Db\AssetSnapshotMapper;
+use OCA\Budget\Db\AttachmentMapper;
 use OCA\Budget\Db\BillMapper;
-use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Db\CategoryMapper;
-use OCA\Budget\Db\ContactMapper;
-use OCA\Budget\Db\ExpenseShareMapper;
 use OCA\Budget\Db\ImportRuleMapper;
-use OCA\Budget\Db\NetWorthSnapshotMapper;
-use OCA\Budget\Db\PensionAccountMapper;
-use OCA\Budget\Db\PensionContributionMapper;
-use OCA\Budget\Db\PensionSnapshotMapper;
-use OCA\Budget\Db\ProjectAllocationMapper;
-use OCA\Budget\Db\ProjectMapper;
-use OCA\Budget\Db\RecurringIncomeMapper;
-use OCA\Budget\Db\SavingsGoalMapper;
 use OCA\Budget\Db\SettingMapper;
-use OCA\Budget\Db\SettlementMapper;
-use OCA\Budget\Db\TagMapper;
 use OCA\Budget\Db\TransactionMapper;
-use OCA\Budget\Db\TransactionSplitMapper;
 use OCP\IDBConnection;
 
 /**
  * Service for performing a complete factory reset - deleting all user data except audit logs.
+ *
+ * The table-level deletes are driven by the backup registry
+ * (MigrationService::EXTRA_TABLES_PRE / _POST) through UserTableCleaner, the
+ * same code backup restore uses, so every table registered for backup is also
+ * wiped here. The previous hand-written list drifted: it never cleared tag
+ * sets, interest rates, recurring pension contributions, category mutes,
+ * debt scenarios, dismissed imports, import links, import templates, manual
+ * rates or saved reports, and it deleted transactions before their tags,
+ * orphaning those rows permanently.
  */
 class FactoryResetService {
+    private UserTableCleaner $tableCleaner;
+
     public function __construct(
         private AccountMapper $accountMapper,
         private TransactionMapper $transactionMapper,
-        private TransactionSplitMapper $transactionSplitMapper,
         private BillMapper $billMapper,
         private CategoryMapper $categoryMapper,
-        private RecurringIncomeMapper $recurringIncomeMapper,
         private ImportRuleMapper $importRuleMapper,
         private SettingMapper $settingMapper,
-        private ContactMapper $contactMapper,
-        private ExpenseShareMapper $expenseShareMapper,
-        private SettlementMapper $settlementMapper,
-        private SavingsGoalMapper $savingsGoalMapper,
-        private PensionAccountMapper $pensionAccountMapper,
-        private PensionContributionMapper $pensionContributionMapper,
-        private PensionSnapshotMapper $pensionSnapshotMapper,
-        private NetWorthSnapshotMapper $netWorthSnapshotMapper,
-        private AssetMapper $assetMapper,
-        private AssetSnapshotMapper $assetSnapshotMapper,
-        private BudgetSnapshotMapper $budgetSnapshotMapper,
-        private TagMapper $tagMapper,
-        private \OCA\Budget\Db\AttachmentMapper $attachmentMapper,
-        private \OCA\Budget\Db\ReconciliationSessionMapper $reconciliationSessionMapper,
-        private \OCA\Budget\Db\DismissedSuggestionMapper $dismissedSuggestionMapper,
+        private AttachmentMapper $attachmentMapper,
         private IDBConnection $db,
-        private ?ProjectAllocationMapper $projectAllocationMapper = null,
-        private ?ProjectMapper $projectMapper = null
     ) {
+        $this->tableCleaner = new UserTableCleaner($db);
     }
 
     /**
      * Execute factory reset - delete ALL user data except audit logs.
      *
      * @param string $userId The user to reset
-     * @return array<string, int> Counts of deleted items per entity type
+     * @return array<string, int> Counts of deleted rows, keyed by backup
+     *                            registry key for table-level data and by
+     *                            entity name for the rest
      * @throws \Exception If deletion fails
      */
     public function executeFactoryReset(string $userId): array {
@@ -74,58 +55,22 @@ class FactoryResetService {
         $this->db->beginTransaction();
 
         try {
-            $counts = [];
+            // 1. Every registry table. Join-scoped ones (transaction tags,
+            //    splits, tag sets, dismissed imports) find their rows through
+            //    transactions, accounts and categories, so they go first.
+            $counts = $this->tableCleaner->clearRegisteredTables($userId, true);
 
-            // CRITICAL: Delete in correct order to avoid foreign key issues
-            // Note: We use safeDelete to skip tables that don't exist yet
-
-            // Level 1: Child records first (depend on transactions/contacts)
-            $counts['expenseShares'] = $this->safeDelete($this->expenseShareMapper, $userId);
-            $counts['transactionSplits'] = $this->safeDelete($this->transactionSplitMapper, $userId);
-            $counts['settlements'] = $this->safeDelete($this->settlementMapper, $userId);
-            // Attachment rows only — the receipt files stay in the user's Files
-            $counts['attachments'] = $this->safeDelete($this->attachmentMapper, $userId);
-        $counts['reconciliation_sessions'] = $this->safeDelete($this->reconciliationSessionMapper, $userId);
-        $counts['dismissed_suggestions'] = $this->safeDelete($this->dismissedSuggestionMapper, $userId);
-
-            // Level 2: Records dependent on accounts/categories
+            // 2. The bespoke entities, children before parents: transactions
+            //    are found through their account, so they go before accounts.
             $counts['transactions'] = $this->safeDelete($this->transactionMapper, $userId);
             $counts['bills'] = $this->safeDelete($this->billMapper, $userId);
-            $counts['recurringIncome'] = $this->safeDelete($this->recurringIncomeMapper, $userId);
-
-            // Level 3: Child pension/asset data (depend on parent accounts)
-            $counts['pensionContributions'] = $this->safeDelete($this->pensionContributionMapper, $userId);
-            $counts['pensionSnapshots'] = $this->safeDelete($this->pensionSnapshotMapper, $userId);
-            $counts['assetSnapshots'] = $this->safeDelete($this->assetSnapshotMapper, $userId);
-
-            // Level 4: Independent entities
-            $counts['accounts'] = $this->safeDelete($this->accountMapper, $userId);
-            $counts['pensionAccounts'] = $this->safeDelete($this->pensionAccountMapper, $userId);
-            $counts['assets'] = $this->safeDelete($this->assetMapper, $userId);
-            $counts['contacts'] = $this->safeDelete($this->contactMapper, $userId);
-            $counts['savingsGoals'] = $this->safeDelete($this->savingsGoalMapper, $userId);
-
-            // Level 5: Tags (global tags won't cascade from category deletion)
-            $counts['tags'] = $this->safeDelete($this->tagMapper, $userId);
-
-            // Level 5.5: Budget snapshots (depend on categories)
-            $counts['budgetSnapshots'] = $this->safeDelete($this->budgetSnapshotMapper, $userId);
-
-            // Level 5.6: Project budgets (depend on categories) (#391)
-            if ($this->projectAllocationMapper !== null) {
-                $counts['projectAllocations'] = $this->safeDelete($this->projectAllocationMapper, $userId);
-            }
-            if ($this->projectMapper !== null) {
-                $counts['projects'] = $this->safeDelete($this->projectMapper, $userId);
-            }
-
-            // Level 6: Categories (self-referential, but deleteAll handles it)
-            $counts['categories'] = $this->safeDelete($this->categoryMapper, $userId);
-
-            // Level 6: Configuration/metadata
             $counts['importRules'] = $this->safeDelete($this->importRuleMapper, $userId);
+            $counts['accounts'] = $this->safeDelete($this->accountMapper, $userId);
+            $counts['categories'] = $this->safeDelete($this->categoryMapper, $userId);
             $counts['settings'] = $this->safeDelete($this->settingMapper, $userId);
-            $counts['netWorthSnapshots'] = $this->safeDelete($this->netWorthSnapshotMapper, $userId);
+
+            // 3. Attachment rows only — the receipt files stay in the user's Files
+            $counts['attachments'] = $this->safeDelete($this->attachmentMapper, $userId);
 
             // IMPORTANT: AuditLog is NOT deleted - preserved for compliance
 
@@ -151,13 +96,10 @@ class FactoryResetService {
         try {
             return $mapper->deleteAll($userId);
         } catch (\Exception $e) {
-            // If the table doesn't exist, return 0 (feature not used yet)
-            // This handles cases where tables are added in newer migrations
-            if (str_contains($e->getMessage(), 'no such table') ||
-                str_contains($e->getMessage(), 'Table') && str_contains($e->getMessage(), 'doesn\'t exist')) {
+            // Tables added by newer migrations may not exist yet
+            if (UserTableCleaner::isMissingTable($e)) {
                 return 0;
             }
-            // Re-throw other exceptions
             throw $e;
         }
     }

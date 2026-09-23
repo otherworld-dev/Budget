@@ -295,6 +295,11 @@ class ApiV1TransactionController extends OCSController {
             }
 
             try {
+                // The row lands in the owner's ledger: a category the owner
+                // cannot see is refused rather than stored (its name would
+                // come back on every read)
+                $this->granularShareService->requireUsableCategory($effectiveUserId, $categoryId);
+
                 $transaction = $this->service->create(
                     $effectiveUserId,
                     $accountId,
@@ -335,7 +340,7 @@ class ApiV1TransactionController extends OCSController {
             $photo = $this->request->getUploadedFile('photo');
             if ($photo) {
                 try {
-                    $this->attachmentService->upload($transaction->getId(), $effectiveUserId, $photo);
+                    $this->attachmentService->upload($transaction->getId(), $effectiveUserId, $photo, $this->userId);
                 } catch (\Throwable $e) {
                     $this->logger?->warning('Receipt attach during create failed: ' . $e->getMessage(), [
                         'app' => Application::APP_ID,
@@ -373,6 +378,8 @@ class ApiV1TransactionController extends OCSController {
             return new DataResponse($out, Http::STATUS_CREATED);
         } catch (DoesNotExistException $e) {
             return $this->notFound($this->l->t('Account not found'));
+        } catch (\InvalidArgumentException $e) {
+            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to create transaction'));
         }
@@ -482,7 +489,7 @@ class ApiV1TransactionController extends OCSController {
             try {
                 $ownerId = $this->service->findAccountById($transaction->getAccountId())->getUserId();
                 if ($this->attachmentService->listForTransaction($transaction->getId(), $ownerId) === []) {
-                    $this->attachmentService->upload($transaction->getId(), $ownerId, $photo);
+                    $this->attachmentService->upload($transaction->getId(), $ownerId, $photo, $this->userId);
                 }
             } catch (\Throwable $e) {
                 $this->logger?->warning('Receipt attach during replay failed: ' . $e->getMessage(), [

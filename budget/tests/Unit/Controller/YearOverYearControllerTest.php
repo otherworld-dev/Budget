@@ -387,6 +387,21 @@ class YearOverYearControllerTest extends TestCase {
 		$this->assertInstanceOf(DataDownloadResponse::class, $response);
 	}
 
+	/** A category name is user text; one starting with = would run as a formula in the spreadsheet. */
+	public function testExportCsvCategoriesNeutralisesAFormulaName(): void {
+		$this->service->method('compareCategorySpending')->willReturn([
+			'categories' => [[
+				'name' => '=HYPERLINK("http://evil")',
+				'years' => [['year' => 2026, 'spending' => -100]],
+				'change' => -12.5,
+			]],
+		]);
+
+		$csv = $this->controller->export('categories', 'csv', 3)->render();
+
+		$this->assertStringContainsString('"\'=HYPERLINK(""http://evil"")",-100,-12.5%', $csv);
+	}
+
 	public function testExportCsvCategoriesWithNullChange(): void {
 		$data = [
 			'categories' => [

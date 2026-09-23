@@ -12,9 +12,11 @@ use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\SharedExpenseService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
+use OCP\Collaboration\Collaborators\ISearch;
 use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserManager;
+use OCP\Share\IShare;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -24,6 +26,7 @@ class SharedExpenseControllerTest extends TestCase {
 	private SharedExpenseService $service;
 	private IRequest $request;
 	private LoggerInterface $logger;
+	private ISearch $collaboratorSearch;
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
@@ -37,6 +40,7 @@ class SharedExpenseControllerTest extends TestCase {
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn(true);
 		$userManager = $this->createMock(IUserManager::class);
+		$this->collaboratorSearch = $this->createMock(ISearch::class);
 
 		$this->controller = new SharedExpenseController(
 			$this->request,
@@ -45,8 +49,57 @@ class SharedExpenseControllerTest extends TestCase {
 			$userManager,
 			$l,
 			'user1',
-			$this->logger
+			$this->logger,
+			$this->collaboratorSearch
 		);
+	}
+
+	// ── searchUsers ─────────────────────────────────────────────────
+
+	private static function sharee(string $uid, string $label): array {
+		return ['label' => $label, 'value' => ['shareType' => IShare::TYPE_USER, 'shareWith' => $uid]];
+	}
+
+	/**
+	 * The search goes through Nextcloud's sharee search, which applies the
+	 * admin's enumeration and group settings; '*' asks it for whoever those
+	 * settings allow (an empty search), never a raw user-manager listing.
+	 */
+	public function testSearchUsersUsesTheShareeSearchForAWildcard(): void {
+		$this->collaboratorSearch->expects($this->once())->method('search')
+			->with('', [IShare::TYPE_USER], false, 50, 0)
+			->willReturn([['exact' => ['users' => []], 'users' => [self::sharee('bob', 'Bob')]], false]);
+
+		$response = $this->controller->searchUsers('*');
+
+		$this->assertSame([['uid' => 'bob', 'displayName' => 'Bob']], $response->getData());
+	}
+
+	public function testSearchUsersMergesExactMatchesFirstAndDropsDuplicatesAndSelf(): void {
+		$this->collaboratorSearch->method('search')->willReturn([[
+			'exact' => ['users' => [self::sharee('alice', 'Alice')]],
+			'users' => [self::sharee('alice', 'Alice'), self::sharee('user1', 'Me'), self::sharee('alicia', 'Alicia')],
+		], false]);
+
+		$response = $this->controller->searchUsers('ali');
+
+		$this->assertSame([
+			['uid' => 'alice', 'displayName' => 'Alice'],
+			['uid' => 'alicia', 'displayName' => 'Alicia'],
+		], $response->getData());
+	}
+
+	/** With enumeration disabled core returns nothing for a partial query, and so do we. */
+	public function testSearchUsersReturnsWhatTheShareeSearchAllowsAndNothingMore(): void {
+		$this->collaboratorSearch->method('search')->willReturn([['exact' => ['users' => []], 'users' => []], false]);
+
+		$this->assertSame([], $this->controller->searchUsers('*')->getData());
+	}
+
+	public function testSearchUsersNeedsTwoCharactersUnlessWildcard(): void {
+		$this->collaboratorSearch->expects($this->never())->method('search');
+
+		$this->assertSame([], $this->controller->searchUsers('a')->getData());
 	}
 
 	private function makeContact(int $id = 1, string $name = 'Alice', ?string $email = null): Contact {

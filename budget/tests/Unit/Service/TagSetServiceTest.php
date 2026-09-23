@@ -233,6 +233,8 @@ class TagSetServiceTest extends TestCase {
                 $this->assertEquals(1, $tag->getTagSetId());
                 $this->assertEquals('Store', $tag->getName());
                 $this->assertEquals('#00ff00', $tag->getColor());
+                // Backups and factory reset find tags by user_id
+                $this->assertSame('user1', $tag->getUserId());
                 $tag->setId(10);
                 return $tag;
             });
@@ -275,7 +277,7 @@ class TagSetServiceTest extends TestCase {
             ->method('update')
             ->willReturnArgument(0);
 
-        $result = $this->service->updateTag(1, 'user1', ['name' => 'Renamed']);
+        $result = $this->service->updateTag(1, 'user1', ['name' => 'Renamed'], 1);
         $this->assertEquals('Renamed', $result->getName());
     }
 
@@ -297,7 +299,7 @@ class TagSetServiceTest extends TestCase {
             ->method('delete')
             ->with($tag);
 
-        $this->service->deleteTag(5, 'user1');
+        $this->service->deleteTag(5, 'user1', 1);
     }
 
     public function testDeleteTagThrowsIfNotFound(): void {
@@ -305,7 +307,38 @@ class TagSetServiceTest extends TestCase {
             ->willThrowException(new DoesNotExistException(''));
 
         $this->expectException(DoesNotExistException::class);
-        $this->service->deleteTag(999, 'user1');
+        $this->service->deleteTag(999, 'user1', 1);
+    }
+
+    /**
+     * The controller authorises the tag SET; a tag from another set of the
+     * same owner must not be reachable through it, or write access to one
+     * shared category would reach every tag the owner has.
+     */
+    public function testUpdateTagRejectsATagFromAnotherTagSet(): void {
+        $this->tagMapper->method('find')->willReturn($this->makeTag(['id' => 5, 'tagSetId' => 2]));
+        $this->tagMapper->expects($this->never())->method('update');
+
+        $this->expectException(DoesNotExistException::class);
+        $this->service->updateTag(5, 'user1', ['name' => 'Hijacked'], 1);
+    }
+
+    public function testDeleteTagRejectsATagFromAnotherTagSet(): void {
+        $this->tagMapper->method('find')->willReturn($this->makeTag(['id' => 5, 'tagSetId' => 2]));
+        $this->tagMapper->expects($this->never())->method('delete');
+        $this->transactionTagMapper->expects($this->never())->method('deleteByTag');
+        $this->savingsGoalMapper->expects($this->never())->method('clearTagReference');
+
+        $this->expectException(DoesNotExistException::class);
+        $this->service->deleteTag(5, 'user1', 1);
+    }
+
+    public function testDeleteTagRejectsAGlobalTagThroughATagSet(): void {
+        $this->tagMapper->method('find')->willReturn($this->makeTag(['id' => 5, 'tagSetId' => null]));
+        $this->tagMapper->expects($this->never())->method('delete');
+
+        $this->expectException(DoesNotExistException::class);
+        $this->service->deleteTag(5, 'user1', 1);
     }
 
     // ===== beforeUpdate() (via update()) =====
@@ -392,7 +425,7 @@ class TagSetServiceTest extends TestCase {
         $this->tagMapper->method('find')->with(1, 'user1')->willReturn($tag);
         $this->tagMapper->expects($this->once())->method('update')->willReturnArgument(0);
 
-        $result = $this->service->updateTag(1, 'user1', ['hidden' => true]);
+        $result = $this->service->updateTag(1, 'user1', ['hidden' => true], 1);
 
         $this->assertTrue($result->getHidden());
     }

@@ -12,6 +12,8 @@ use OCP\Files\File;
 use OCP\Files\IRootFolder;
 use OCP\Files\NotEnoughSpaceException;
 use OCP\Files\NotPermittedException;
+use OCP\IUserManager;
+use OCP\Notification\IManager as INotificationManager;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -39,6 +41,8 @@ class AttachmentService {
         private IRootFolder $rootFolder,
         private LoggerInterface $logger,
         private ?SettingService $settings = null,
+        private ?INotificationManager $notificationManager = null,
+        private ?IUserManager $userManager = null,
     ) {
     }
 
@@ -147,15 +151,24 @@ class AttachmentService {
      * user's Files (default Budget/Receipts, configurable per user — #352)
      * and attach it.
      *
+     * $userId is the ledger owner: the file lands in THEIR Files, against
+     * their quota. When someone else (a share recipient with write access)
+     * is the one uploading, pass them as $actingUserId and the owner gets a
+     * notification, so a file never appears in their Files unannounced.
+     *
      * @param array $uploadedFile PHP uploaded-file array (name, type, tmp_name, error, size)
      */
-    public function upload(int $transactionId, string $userId, array $uploadedFile): Attachment {
+    public function upload(int $transactionId, string $userId, array $uploadedFile, ?string $actingUserId = null): Attachment {
         $transaction = $this->transactionMapper->find($transactionId, $userId); // ownership or 404
 
         if (($uploadedFile['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
             throw new \InvalidArgumentException('Upload failed');
         }
-        if (($uploadedFile['size'] ?? 0) > self::MAX_SIZE) {
+        // The size on disk is the truth; the array's own figure is only used
+        // when the temp file cannot be read
+        $tmpName = (string)($uploadedFile['tmp_name'] ?? '');
+        $actualSize = ($tmpName !== '' && is_file($tmpName)) ? (int)filesize($tmpName) : 0;
+        if (max($actualSize, (int)($uploadedFile['size'] ?? 0)) > self::MAX_SIZE) {
             throw new \InvalidArgumentException('File exceeds the 25 MB limit');
         }
         $mime = mime_content_type($uploadedFile['tmp_name']) ?: ($uploadedFile['type'] ?? '');
@@ -182,7 +195,47 @@ class AttachmentService {
             throw new \InvalidArgumentException('You are not allowed to write to the receipts folder');
         }
 
-        return $this->createRow($transactionId, $userId, $node);
+        $attachment = $this->createRow($transactionId, $userId, $node);
+
+        if ($actingUserId !== null && $actingUserId !== $userId) {
+            $this->notifyOwnerOfUpload($userId, $actingUserId, $transaction, $node);
+        }
+
+        return $attachment;
+    }
+
+    /**
+     * Tell the ledger owner someone else put a receipt in their Files. Never
+     * fails the upload: the receipt is stored either way.
+     */
+    private function notifyOwnerOfUpload(string $ownerId, string $actingUserId, Transaction $transaction, File $node): void {
+        if ($this->notificationManager === null) {
+            return;
+        }
+        try {
+            $actor = $this->userManager?->get($actingUserId);
+            $notification = $this->notificationManager->createNotification();
+            $notification->setApp('budget')
+                ->setUser($ownerId)
+                ->setDateTime(new \DateTime())
+                ->setObject('attachment', (string)$node->getId())
+                ->setSubject('receipt_added_by_other', [
+                    'actorUserId' => $actingUserId,
+                    'actorDisplayName' => $actor?->getDisplayName() ?: $actingUserId,
+                    'transactionId' => (int)$transaction->getId(),
+                    'description' => (string)($transaction->getVendor() ?: $transaction->getDescription()),
+                    'fileId' => (int)$node->getId(),
+                    'fileName' => $node->getName(),
+                ]);
+            $this->notificationManager->notify($notification);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Could not notify {owner} of a receipt added by {actor}: {error}', [
+                'owner' => $ownerId,
+                'actor' => $actingUserId,
+                'error' => $e->getMessage(),
+                'app' => 'budget',
+            ]);
+        }
     }
 
     /**

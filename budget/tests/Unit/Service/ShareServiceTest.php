@@ -10,11 +10,13 @@ use OCA\Budget\Db\ShareMapper;
 use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\ShareService;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\IGroupManager;
 use OCP\IL10N;
 use OCP\IUser;
 use OCP\IUserManager;
 use OCP\Notification\IManager as INotificationManager;
 use OCP\Notification\INotification;
+use OCP\Share\IManager as IShareManager;
 use PHPUnit\Framework\TestCase;
 
 class ShareServiceTest extends TestCase {
@@ -24,6 +26,8 @@ class ShareServiceTest extends TestCase {
     private AuditService $auditService;
     private IUserManager $userManager;
     private INotificationManager $notificationManager;
+    private IShareManager $shareManager;
+    private IGroupManager $groupManager;
 
     protected function setUp(): void {
         $this->mapper = $this->createMock(ShareMapper::class);
@@ -31,6 +35,8 @@ class ShareServiceTest extends TestCase {
         $this->auditService = $this->createMock(AuditService::class);
         $this->userManager = $this->createMock(IUserManager::class);
         $this->notificationManager = $this->createMock(INotificationManager::class);
+        $this->shareManager = $this->createMock(IShareManager::class);
+        $this->groupManager = $this->createMock(IGroupManager::class);
 
         $l = $this->createMock(IL10N::class);
         $l->method('t')->willReturnCallback(function (string $text, array $params = []) {
@@ -46,7 +52,9 @@ class ShareServiceTest extends TestCase {
             $this->auditService,
             $this->userManager,
             $this->notificationManager,
-            $l
+            $l,
+            $this->shareManager,
+            $this->groupManager
         );
     }
 
@@ -101,6 +109,54 @@ class ShareServiceTest extends TestCase {
         $this->expectExceptionMessage('Unable to share with this user');
 
         $this->service->shareWith('owner1', 'nonexistent');
+    }
+
+    private function groupMembersOnly(array $groupsByUser, array $excluded = []): void {
+        $this->shareManager->method('shareWithGroupMembersOnly')->willReturn(true);
+        $this->shareManager->method('shareWithGroupMembersOnlyExcludeGroupsList')->willReturn($excluded);
+        $this->userManager->method('get')->willReturnCallback(function (string $uid) {
+            $user = $this->createMock(IUser::class);
+            $user->method('getUID')->willReturn($uid);
+            return $user;
+        });
+        $this->groupManager->method('getUserGroupIds')->willReturnCallback(
+            fn (IUser $user) => $groupsByUser[$user->getUID()] ?? []
+        );
+    }
+
+    /**
+     * "Only share with group members" is an admin setting core enforces for
+     * file shares; budget sharing ignored it and let anyone invite anyone.
+     */
+    public function testShareWithRefusesARecipientOutsideTheOwnersGroupsWhenRestricted(): void {
+        $this->groupMembersOnly(['owner1' => ['family'], 'stranger' => ['work']]);
+        $this->mapper->expects($this->never())->method('insert');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unable to share with this user');
+        $this->service->shareWith('owner1', 'stranger');
+    }
+
+    public function testShareWithIgnoresAnExcludedGroupWhenRestricted(): void {
+        $this->groupMembersOnly(['owner1' => ['everyone'], 'stranger' => ['everyone']], ['everyone']);
+        $this->mapper->expects($this->never())->method('insert');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->service->shareWith('owner1', 'stranger');
+    }
+
+    public function testShareWithAllowsAGroupMemberWhenRestricted(): void {
+        $this->groupMembersOnly(['owner1' => ['family'], 'partner' => ['family', 'work']]);
+        $this->mapper->method('findByOwnerAndRecipient')->willThrowException(new DoesNotExistException(''));
+        $this->mapper->expects($this->once())->method('insert')->willReturnCallback(function (Share $share) {
+            $share->setId(5);
+            return $share;
+        });
+        $this->notificationManager->method('createNotification')->willReturn($this->createMock(INotification::class));
+
+        $share = $this->service->shareWith('owner1', 'partner');
+
+        $this->assertSame('partner', $share->getSharedWithUserId());
     }
 
     public function testShareWithThrowsWhenAlreadyAccepted(): void {

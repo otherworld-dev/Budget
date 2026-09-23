@@ -808,6 +808,120 @@ class MigrationServiceTest extends TestCase {
 		$this->assertLessThan(array_search('project_allocs', $keys, true), array_search('projects', $keys, true));
 	}
 
+	/**
+	 * Restoring over existing data used to delete transactions one at a time
+	 * with the bare mapper, skipping deleteWithChildren(), and never touched
+	 * budget_attachments (not in the registry) — every restore orphaned the
+	 * user's attachment rows for good.
+	 */
+	public function testImportAllClearsAttachmentRowsAndDeletesTransactionsInBulk(): void {
+		$deletedTables = [];
+		$db = $this->createMock(IDBConnection::class);
+		$db->method('getQueryBuilder')->willReturnCallback(function () use (&$deletedTables) {
+			$expr = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
+			$expr->method('eq')->willReturn('eq');
+			$qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
+			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin', 'insert', 'update', 'set', 'setValue'] as $m) {
+				$qb->method($m)->willReturnSelf();
+			}
+			$qb->method('delete')->willReturnCallback(function (string $table) use (&$deletedTables, $qb) {
+				$deletedTables[] = $table;
+				return $qb;
+			});
+			$qb->method('expr')->willReturn($expr);
+			$qb->method('createNamedParameter')->willReturn(':p');
+			$result = $this->createMock(\OCP\DB\IResult::class);
+			$result->method('fetch')->willReturn(false);
+			$qb->method('executeQuery')->willReturn($result);
+			$qb->method('executeStatement')->willReturn(0);
+			return $qb;
+		});
+		$db->method('executeStatement')->willReturn(0);
+		$service = new MigrationService(
+			$this->accountMapper, $this->transactionMapper, $this->categoryMapper,
+			$this->billMapper, $this->importRuleMapper, $this->settingMapper, $db
+		);
+
+		$this->transactionMapper->expects($this->once())->method('deleteAll')->with('user1')->willReturn(3);
+		$this->transactionMapper->expects($this->never())->method('delete');
+		$this->billMapper->method('findAll')->willReturn([]);
+		$this->importRuleMapper->method('findAll')->willReturn([]);
+		$this->accountMapper->method('findAll')->willReturn([]);
+		$this->categoryMapper->method('findAll')->willReturn([]);
+
+		$service->importAll('user1', $this->createTestZip([
+			'manifest.json' => json_encode(['version' => '1.0.0', 'appId' => 'budget']),
+			'categories.json' => json_encode([]),
+			'accounts.json' => json_encode([]),
+			'transactions.json' => json_encode([]),
+		]));
+
+		$this->assertContains('budget_attachments', $deletedTables);
+	}
+
+	/** The same service with limits small enough to test without allocating hundreds of MB. */
+	private function smallLimitService(): MigrationService {
+		return new class(
+			$this->accountMapper, $this->transactionMapper, $this->categoryMapper,
+			$this->billMapper, $this->importRuleMapper, $this->settingMapper, $this->db
+		) extends MigrationService {
+			public const MAX_ENTRY_BYTES = 1000;
+			public const MAX_TOTAL_BYTES = 2500;
+		};
+	}
+
+	private function backupWith(array $extra): string {
+		return $this->createTestZip($extra + [
+			'manifest.json' => json_encode(['version' => '1.0.0', 'appId' => 'budget']),
+			'categories.json' => '[]',
+			'accounts.json' => '[]',
+			'transactions.json' => '[]',
+		]);
+	}
+
+	/**
+	 * A backup is untrusted input: a few KB of zip can unpack to gigabytes,
+	 * and every entry used to be read whole into memory. An entry over the
+	 * limit is refused before anything is read or deleted.
+	 */
+	public function testImportRefusesAnEntryThatUnpacksTooLarge(): void {
+		// Highly compressible: tiny on disk, over the limit unpacked
+		$content = $this->backupWith(['transactions.json' => '[' . str_repeat(' ', 1001) . ']']);
+
+		$this->transactionMapper->expects($this->never())->method('deleteAll');
+		$this->db->expects($this->never())->method('beginTransaction');
+
+		try {
+			$this->smallLimitService()->importAll('user1', $content);
+			$this->fail('An oversized entry must be refused');
+		} catch (\InvalidArgumentException $e) {
+			$this->assertStringContainsString('transactions.json is larger than', $e->getMessage());
+		}
+	}
+
+	public function testImportRefusesEntriesThatTogetherUnpackTooLarge(): void {
+		$content = $this->backupWith([
+			'bills.json' => '[' . str_repeat(' ', 900) . ']',
+			'import_rules.json' => '[' . str_repeat(' ', 900) . ']',
+			'settings.json' => '{' . str_repeat(' ', 900) . '}',
+		]);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('add up to more than');
+		$this->smallLimitService()->previewImport($content);
+	}
+
+	public function testABackupWithinTheLimitsStillPreviews(): void {
+		$content = $this->backupWith(['bills.json' => '[' . str_repeat(' ', 900) . ']']);
+
+		$this->assertTrue($this->smallLimitService()->previewImport($content)['valid']);
+	}
+
+	public function testTheRealLimitsAreGenerous(): void {
+		$this->assertSame(200 * 1024 * 1024, MigrationService::MAX_ENTRY_BYTES);
+		$this->assertGreaterThan(MigrationService::MAX_ENTRY_BYTES, MigrationService::MAX_TOTAL_BYTES);
+	}
+
 	private function createTestZip(array $files): string {
 		$tempFile = tempnam(sys_get_temp_dir(), 'test_zip_');
 		$zip = new \ZipArchive();

@@ -151,16 +151,55 @@ class ImportServiceTest extends TestCase {
         $this->assertTrue($result['rolledBack']);
     }
 
+    // ===== import file ownership =====
+
+    public static function foreignFileIds(): array {
+        $hex = '0123456789abcdef0123456789abcdef';
+        return [
+            'another user' => ["import_bob_{$hex}.csv"],
+            'user whose id extends ours' => ["import_user1_x_{$hex}.csv"],
+            'path separator' => ["../import_user1_{$hex}.csv"],
+            'backslash' => ["import_user1_{$hex}.csv\..\x"],
+            'no random part' => ['import_user1_.csv'],
+            'plain name' => ['statement.csv'],
+        ];
+    }
+
+    /**
+     * Every user's uploads share one app-data folder, and the file id comes
+     * from the client: only an id handed to THIS user is ever opened, and
+     * anything else looks exactly like a missing file.
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('foreignFileIds')]
+    public function testAnotherUsersImportFileIsNotOpened(string $fileId): void {
+        $folder = $this->createMock(ISimpleFolder::class);
+        $folder->expects($this->never())->method('getFile');
+        $this->appData->method('getFolder')->willReturn($folder);
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('Import file not found');
+        $this->service->validateFile('user1', $fileId);
+    }
+
+    public function testOwnImportFileIdShapes(): void {
+        $hex = '0123456789abcdef0123456789abcdef';
+        $this->assertTrue(ImportService::isOwnImportFileId('user1', "import_user1_{$hex}.csv"));
+        $this->assertTrue(ImportService::isOwnImportFileId('user1', "import_user1_{$hex}"));
+        $this->assertTrue(ImportService::isOwnImportFileId('a.b@c', "import_a.b@c_{$hex}.ofx"));
+        $this->assertFalse(ImportService::isOwnImportFileId('user1', "import_user1_{$hex}.csv/.."));
+        $this->assertFalse(ImportService::isOwnImportFileId('', "import__{$hex}.csv"));
+    }
+
     // ===== validateFile =====
 
     public function testValidateFileReturnsValidForParseable(): void {
-        $this->mockImportFile('file.csv', "date,amount\n2025-01-01,100");
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', "date,amount\n2025-01-01,100");
         $this->parserFactory->method('detectFormat')->willReturn('csv');
         $this->parserFactory->method('parse')->willReturn([
             ['date' => '2025-01-01', 'amount' => '100'],
         ]);
 
-        $result = $this->service->validateFile('user1', 'file.csv');
+        $result = $this->service->validateFile('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv');
 
         $this->assertTrue($result['valid']);
         $this->assertEquals('csv', $result['format']);
@@ -169,11 +208,11 @@ class ImportServiceTest extends TestCase {
     }
 
     public function testValidateFileReturnsInvalidOnParseError(): void {
-        $this->mockImportFile('bad.csv', 'garbage data');
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', 'garbage data');
         $this->parserFactory->method('detectFormat')->willReturn('csv');
         $this->parserFactory->method('parse')->willThrowException(new \Exception('Parse error'));
 
-        $result = $this->service->validateFile('user1', 'bad.csv');
+        $result = $this->service->validateFile('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv');
 
         $this->assertFalse($result['valid']);
         $this->assertEquals('Parse error', $result['error']);
@@ -182,17 +221,17 @@ class ImportServiceTest extends TestCase {
     // ===== previewImport - single account =====
 
     public function testPreviewSingleAccountImportRequiresAccountId(): void {
-        $this->mockImportFile('file.csv', 'data');
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', 'data');
         $this->parserFactory->method('detectFormat')->willReturn('csv');
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Account ID is required');
 
-        $this->service->previewImport('user1', 'file.csv', ['date' => 0]);
+        $this->service->previewImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 0]);
     }
 
     public function testPreviewSingleAccountImport(): void {
-        $this->mockImportFile('file.csv', "date,amount,description\n2025-01-01,100,Test");
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', "date,amount,description\n2025-01-01,100,Test");
         $this->parserFactory->method('detectFormat')->willReturn('csv');
         $this->parserFactory->method('parse')->willReturn([
             ['date' => '2025-01-01', 'amount' => '100', 'description' => 'Test'],
@@ -211,7 +250,7 @@ class ImportServiceTest extends TestCase {
         $this->duplicateDetector->method('isDuplicate')->willReturn(false);
         $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
 
-        $result = $this->service->previewImport('user1', 'file.csv', ['date' => 'date'], 1);
+        $result = $this->service->previewImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 'date'], 1);
 
         $this->assertEquals(1, $result['totalRows']);
         $this->assertEquals(1, $result['validTransactions']);
@@ -224,7 +263,7 @@ class ImportServiceTest extends TestCase {
     // Regression: skipFirstRow must actually reach the parser now, and a
     // mapping field at column index 0 must resolve (the empty() bug fix).
     public function testPreviewSingleAccountImportForwardsSkipFirstRowAndAcceptsColumnZero(): void {
-        $this->mockImportFile('file.csv', "2025-01-01,100,Test\n");
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', "2025-01-01,100,Test\n");
         $this->parserFactory->method('detectFormat')->willReturn('csv');
         $this->parserFactory->expects($this->once())
             ->method('parse')
@@ -243,7 +282,7 @@ class ImportServiceTest extends TestCase {
 
         $result = $this->service->previewImport(
             'user1',
-            'file.csv',
+            'import_user1_0123456789abcdef0123456789abcdef.csv',
             ['date' => 0, 'amount' => 1, 'description' => 2, 'skipFirstRow' => false],
             1
         );
@@ -252,7 +291,7 @@ class ImportServiceTest extends TestCase {
     }
 
     public function testDataPreviewUsesDelimiterAndHeaderSetting(): void {
-        $this->mockImportFile('file.csv', "date;amount\n2025-01-01;12.34\n2025-01-02;56.78\n");
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', "date;amount\n2025-01-01;12.34\n2025-01-02;56.78\n");
         $this->parserFactory->method('detectFormat')->willReturn('csv');
         $this->parserFactory->method('stripBom')->willReturnArgument(0);
         $this->parserFactory->method('detectDataWidth')->willReturn(2);
@@ -265,7 +304,7 @@ class ImportServiceTest extends TestCase {
             ]);
         $this->parserFactory->method('countRows')->with($this->anything(), 'csv', ';', true)->willReturn(2);
 
-        $result = $this->service->dataPreview('user1', 'file.csv', 'bank.csv', ';', true, null);
+        $result = $this->service->dataPreview('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', 'bank.csv', ';', true, null);
 
         $this->assertSame(';', $result['delimiter']);
         $this->assertTrue($result['skipFirstRow']);
@@ -273,7 +312,7 @@ class ImportServiceTest extends TestCase {
     }
 
     public function testPreviewSingleAccountSkipsDuplicates(): void {
-        $this->mockImportFile('file.csv', 'data');
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', 'data');
         $this->parserFactory->method('detectFormat')->willReturn('csv');
         $this->parserFactory->method('parse')->willReturn([
             ['date' => '2025-01-01', 'amount' => '100', 'description' => 'Test'],
@@ -286,7 +325,7 @@ class ImportServiceTest extends TestCase {
         $this->normalizer->method('generateImportId')->willReturn('imp_001');
         $this->duplicateDetector->method('isDuplicate')->willReturn(true); // Is duplicate
 
-        $result = $this->service->previewImport('user1', 'file.csv', ['date' => 'date'], 1);
+        $result = $this->service->previewImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 'date'], 1);
 
         $this->assertEquals(1, $result['duplicates']);
         $this->assertEquals(0, $result['validTransactions']);
@@ -317,7 +356,7 @@ class ImportServiceTest extends TestCase {
         $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
         $this->transactionService->expects($this->once())->method('create');
 
-        $result = $this->service->processImport('user1', 'file.csv', ['date' => 'date'], 1);
+        $result = $this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 'date'], 1);
 
         $this->assertEquals(1, $result['imported']);
         $this->assertEquals(0, $result['skipped']);
@@ -329,7 +368,7 @@ class ImportServiceTest extends TestCase {
     // existing single-account test matches no arguments, so dropping the notes
     // argument from create() would have left the suite green.
     public function testProcessSingleAccountImportStoresMappedNotes(): void {
-        $this->mockImportFile('file.csv', 'csv data');
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', 'csv data');
         $this->parserFactory->method('detectFormat')->willReturn('csv');
         $this->parserFactory->method('parse')->willReturn([
             ['Date' => '2026-08-04', 'Amount' => '-12.34', 'Details' => 'Coffee shop', 'Info' => 'Kartenzahlung'],
@@ -366,7 +405,7 @@ class ImportServiceTest extends TestCase {
 
         $result = $this->service->processImport(
             'user1',
-            'file.csv',
+            'import_user1_0123456789abcdef0123456789abcdef.csv',
             ['date' => 'Date', 'amount' => 'Amount', 'description' => 'Details', 'notes' => 'Info'],
             1
         );
@@ -380,7 +419,7 @@ class ImportServiceTest extends TestCase {
     // of them was dropped with "Could not resolve account:" - 14 of 27 in that
     // report. The wizard already knows where the file is going.
     public function testProcessImportFallsBackToChosenAccountWhenRowHasNoAccount(): void {
-        $this->mockImportFile('file.csv', 'csv data');
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', 'csv data');
         $this->parserFactory->method('detectFormat')->willReturn('csv');
         $this->parserFactory->method('parse')->willReturn([
             ['2026-08-25', '', '18.40', 'Zigaretten'],
@@ -404,7 +443,7 @@ class ImportServiceTest extends TestCase {
 
         $result = $this->service->processImport(
             'user1',
-            'file.csv',
+            'import_user1_0123456789abcdef0123456789abcdef.csv',
             ['date' => 0, 'account' => 1, 'amount' => 2, 'description' => 3],
             1
         );
@@ -417,7 +456,7 @@ class ImportServiceTest extends TestCase {
     // With no destination chosen either, there is nothing to fall back to and
     // the row must still be reported rather than imported into nowhere.
     public function testProcessImportReportsBlankAccountWhenNoAccountWasChosen(): void {
-        $this->mockImportFile('file.csv', 'csv data');
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', 'csv data');
         $this->parserFactory->method('detectFormat')->willReturn('csv');
         $this->parserFactory->method('parse')->willReturn([
             ['2026-08-25', '', '18.40', 'Zigaretten'],
@@ -437,7 +476,7 @@ class ImportServiceTest extends TestCase {
 
         $result = $this->service->processImport(
             'user1',
-            'file.csv',
+            'import_user1_0123456789abcdef0123456789abcdef.csv',
             ['date' => 0, 'account' => 1, 'amount' => 2, 'description' => 3],
             null
         );
@@ -460,7 +499,7 @@ class ImportServiceTest extends TestCase {
         ];
         $mapping = ['date' => 0, 'account' => 1, 'amount' => 2, 'description' => 3];
 
-        $this->mockImportFile('file.csv', 'csv data');
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', 'csv data');
         $this->parserFactory->method('detectFormat')->willReturn('csv');
         $this->parserFactory->method('parse')->willReturn($rows);
 
@@ -482,8 +521,8 @@ class ImportServiceTest extends TestCase {
         $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
         $this->accountService->expects($this->never())->method('create');
 
-        $preview = $this->service->previewImport('user1', 'file.csv', $mapping, null);
-        $executed = $this->service->processImport('user1', 'file.csv', $mapping, null);
+        $preview = $this->service->previewImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', $mapping, null);
+        $executed = $this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', $mapping, null);
 
         $this->assertSame(3, $preview['totalRows']);
         $this->assertSame(1, $preview['validTransactions']);
@@ -510,7 +549,7 @@ class ImportServiceTest extends TestCase {
         $this->stubDescriptionPreview($rows);
         $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
 
-        $preview = $this->service->previewImport('user1', 'file.csv', ['date' => 0, 'amount' => 1, 'description' => 2], 1);
+        $preview = $this->service->previewImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 0, 'amount' => 1, 'description' => 2], 1);
 
         $this->assertSame(3, $preview['validTransactions']);
         $this->assertSame([2, 3], $preview['blankDescriptionRows']);
@@ -524,7 +563,7 @@ class ImportServiceTest extends TestCase {
             fn(string $userId, array $transaction) => array_merge($transaction, ['description' => 'Groceries'])
         );
 
-        $preview = $this->service->previewImport('user1', 'file.csv', ['date' => 0, 'amount' => 1, 'description' => 2], 1);
+        $preview = $this->service->previewImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 0, 'amount' => 1, 'description' => 2], 1);
 
         $this->assertArrayNotHasKey('blankDescriptionRows', $preview);
     }
@@ -533,7 +572,7 @@ class ImportServiceTest extends TestCase {
         $this->stubDescriptionPreview([['2026-09-17', '19.45', 'Alkohol']]);
         $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
 
-        $preview = $this->service->previewImport('user1', 'file.csv', ['date' => 0, 'amount' => 1, 'description' => 2], 1);
+        $preview = $this->service->previewImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 0, 'amount' => 1, 'description' => 2], 1);
 
         $this->assertArrayNotHasKey('blankDescriptionRows', $preview);
     }
@@ -543,7 +582,7 @@ class ImportServiceTest extends TestCase {
      * straight from the row's third cell.
      */
     private function stubDescriptionPreview(array $rows): void {
-        $this->mockImportFile('file.csv', 'csv data');
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', 'csv data');
         $this->parserFactory->method('detectFormat')->willReturn('csv');
         $this->parserFactory->method('parse')->willReturn($rows);
         $this->accountMapper->method('find')->willReturn($this->makeAccount(1, 'Lohnkonto'));
@@ -564,7 +603,7 @@ class ImportServiceTest extends TestCase {
     // (The normalizer is mocked to name an account the resolver never saw,
     // which is the only way to reach the branch with the resolver stubbed.)
     public function testProcessImportStillReportsAnUnresolvableAccountName(): void {
-        $this->mockImportFile('file.csv', 'csv data');
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', 'csv data');
         $this->parserFactory->method('detectFormat')->willReturn('csv');
         $this->parserFactory->method('parse')->willReturn([
             ['2026-08-25', '', '18.40', 'Zigaretten'],
@@ -584,7 +623,7 @@ class ImportServiceTest extends TestCase {
 
         $result = $this->service->processImport(
             'user1',
-            'file.csv',
+            'import_user1_0123456789abcdef0123456789abcdef.csv',
             ['date' => 0, 'account' => 1, 'amount' => 2, 'description' => 3],
             null
         );
@@ -598,7 +637,7 @@ class ImportServiceTest extends TestCase {
     // off, and its own text became an account: #333 grew a USD account called
     // "Account:" out of the column title.
     public function testProcessImportDoesNotCreateAnAccountFromANonTransactionRow(): void {
-        $this->mockImportFile('file.csv', 'csv data');
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', 'csv data');
         $this->parserFactory->method('detectFormat')->willReturn('csv');
         $this->parserFactory->method('parse')->willReturn([
             ['Date:', 'Account:', 'Amount:', 'Description:'],
@@ -629,7 +668,7 @@ class ImportServiceTest extends TestCase {
 
         $result = $this->service->processImport(
             'user1',
-            'file.csv',
+            'import_user1_0123456789abcdef0123456789abcdef.csv',
             ['date' => 0, 'account' => 1, 'amount' => 2, 'description' => 3],
             1
         );
@@ -640,7 +679,7 @@ class ImportServiceTest extends TestCase {
 
     // Every account he owns is CHF; the importer made the new one USD.
     public function testProcessImportCreatesAccountsInTheUsersDefaultCurrency(): void {
-        $this->mockImportFile('file.csv', 'csv data');
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', 'csv data');
         $this->parserFactory->method('detectFormat')->willReturn('csv');
         $this->parserFactory->method('parse')->willReturn([
             ['2026-08-25', 'Sparkonto', '18.40', 'Zigaretten'],
@@ -669,7 +708,7 @@ class ImportServiceTest extends TestCase {
 
         $this->service->processImport(
             'user1',
-            'file.csv',
+            'import_user1_0123456789abcdef0123456789abcdef.csv',
             ['date' => 0, 'account' => 1, 'amount' => 2, 'description' => 3],
             1
         );
@@ -699,7 +738,7 @@ class ImportServiceTest extends TestCase {
         // Should NOT create transaction for duplicate
         $this->transactionService->expects($this->never())->method('create');
 
-        $result = $this->service->processImport('user1', 'file.csv', ['date' => 'date'], 1);
+        $result = $this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 'date'], 1);
 
         $this->assertEquals(0, $result['imported']);
         $this->assertEquals(1, $result['skipped']);
@@ -742,7 +781,7 @@ class ImportServiceTest extends TestCase {
             ->method('linkTransactions')
             ->with(42, 99, 'user1');
 
-        $result = $this->service->processImport('user1', 'file.csv', ['date' => 'date'], 1);
+        $result = $this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 'date'], 1);
 
         $this->assertEquals(1, $result['imported']);
         $this->assertEmpty($result['errors']);
@@ -778,7 +817,7 @@ class ImportServiceTest extends TestCase {
         $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
         $this->transactionService->expects($this->exactly(2))->method('create');
 
-        $result = $this->service->processImport('user1', 'file.csv', ['date' => 'date'], 1);
+        $result = $this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 'date'], 1);
 
         $this->assertEquals(2, $result['imported']);
         $this->assertEquals(0, $result['skipped']);
@@ -805,7 +844,7 @@ class ImportServiceTest extends TestCase {
         $this->duplicateDetector->method('isDuplicateByImportId')->willReturn(true);
         $this->transactionService->expects($this->never())->method('create');
 
-        $result = $this->service->processImport('user1', 'file.csv', ['date' => 'date'], 1);
+        $result = $this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 'date'], 1);
 
         $this->assertEquals(0, $result['imported']);
         $this->assertEquals(2, $result['skipped']);
@@ -843,7 +882,7 @@ class ImportServiceTest extends TestCase {
         $this->transactionService->expects($this->once())->method('create');
 
         $result = $this->service->processImport(
-            'user1', 'file.csv', ['date' => 'date'], 1, null, false /* skipDuplicates */
+            'user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 'date'], 1, null, false /* skipDuplicates */
         );
 
         $this->assertEquals(1, $result['imported']);
@@ -878,7 +917,7 @@ class ImportServiceTest extends TestCase {
             });
         $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
 
-        $this->service->processImport('user1', 'file.csv', ['date' => 'date'], 1);
+        $this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 'date'], 1);
 
         $this->assertSame(['ofx_fitid_42', 'ofx_fitid_42'], $checkedIds);
     }
@@ -886,7 +925,7 @@ class ImportServiceTest extends TestCase {
     public function testPreviewFlagsRepeatedFitidAsDuplicate(): void {
         // A repeated FITID in one file is the same transaction twice — execute
         // will skip the second occurrence, so preview must count it too.
-        $this->mockImportFile('file.csv', 'data');
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', 'data');
         $this->parserFactory->method('detectFormat')->willReturn('csv');
         $row = ['date' => '2025-01-01', 'amount' => '3.50', 'description' => 'Coffee'];
         $this->parserFactory->method('parse')->willReturn([$row, $row]);
@@ -899,7 +938,7 @@ class ImportServiceTest extends TestCase {
         $this->duplicateDetector->method('isDuplicate')->willReturn(false); // not in DB
         $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
 
-        $result = $this->service->previewImport('user1', 'file.csv', ['date' => 'date'], 1);
+        $result = $this->service->previewImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 'date'], 1);
 
         $this->assertEquals(1, $result['validTransactions']);
         $this->assertEquals(1, $result['duplicates']);
@@ -908,7 +947,7 @@ class ImportServiceTest extends TestCase {
     public function testPreviewMarksIdenticalRowsAsDistinct(): void {
         // Preview must use the same occurrence-aware IDs as execute so the
         // preview's duplicate count matches what the import will actually do.
-        $this->mockImportFile('file.csv', 'data');
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', 'data');
         $this->parserFactory->method('detectFormat')->willReturn('csv');
         $row = ['date' => '2025-01-01', 'amount' => '3.50', 'description' => 'Coffee'];
         $this->parserFactory->method('parse')->willReturn([$row, $row]);
@@ -927,7 +966,7 @@ class ImportServiceTest extends TestCase {
             });
         $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
 
-        $result = $this->service->previewImport('user1', 'file.csv', ['date' => 'date'], 1);
+        $result = $this->service->previewImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 'date'], 1);
 
         $this->assertEquals(2, $result['validTransactions']);
         $this->assertEquals(0, $result['duplicates']);
@@ -940,7 +979,7 @@ class ImportServiceTest extends TestCase {
      * @param array $txn One parsed OFX row
      */
     private function mockOfxFile(array $txn): void {
-        $this->mockImportFile('statement.ofx', 'ofx data');
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.ofx', 'ofx data');
         $this->parserFactory->method('detectFormat')->willReturn('ofx');
         $this->parserFactory->method('parseFull')->willReturn([
             'accounts' => [
@@ -978,7 +1017,7 @@ class ImportServiceTest extends TestCase {
         $this->normalizer->method('ofxImportIdentity')->willReturnArgument(0);
 
         $this->service->processImport(
-            'user1', 'statement.ofx', ['description' => 'memo'], null, ['1234567' => 7]
+            'user1', 'import_user1_0123456789abcdef0123456789abcdef.ofx', ['description' => 'memo'], null, ['1234567' => 7]
         );
 
         $this->assertSame(['description' => 'memo'], $seenMapping);
@@ -998,7 +1037,7 @@ class ImportServiceTest extends TestCase {
         $this->normalizer->method('ofxImportIdentity')->willReturnArgument(0);
 
         $this->service->previewImport(
-            'user1', 'statement.ofx', ['description' => 'memo'], null, ['1234567' => 7]
+            'user1', 'import_user1_0123456789abcdef0123456789abcdef.ofx', ['description' => 'memo'], null, ['1234567' => 7]
         );
 
         $this->assertSame(['description' => 'memo'], $seenMapping);
@@ -1027,7 +1066,7 @@ class ImportServiceTest extends TestCase {
             });
 
         $this->service->processImport(
-            'user1', 'statement.ofx', ['description' => 'memo'], null, ['1234567' => 7]
+            'user1', 'import_user1_0123456789abcdef0123456789abcdef.ofx', ['description' => 'memo'], null, ['1234567' => 7]
         );
 
         $this->assertSame(['description' => 'POINT OF SALE PURCHASE'], $seenIdentity);
@@ -1063,7 +1102,7 @@ class ImportServiceTest extends TestCase {
             );
 
         $this->service->processImport(
-            'user1', 'statement.ofx', ['description' => 'memo'], null, ['1234567' => 7]
+            'user1', 'import_user1_0123456789abcdef0123456789abcdef.ofx', ['description' => 'memo'], null, ['1234567' => 7]
         );
     }
 
@@ -1073,7 +1112,7 @@ class ImportServiceTest extends TestCase {
         // QifParser emitted no 'accountId', but the shared multi-account loop
         // reads exactly that key — so every QIF account was skipped and a QIF
         // import silently imported nothing at all.
-        $this->mockImportFile('statement.qif', 'qif data');
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.qif', 'qif data');
         $this->parserFactory->method('detectFormat')->willReturn('qif');
         $this->parserFactory->method('parseFull')->willReturn([
             'accounts' => [
@@ -1099,7 +1138,7 @@ class ImportServiceTest extends TestCase {
         $this->transactionService->expects($this->once())->method('create');
 
         $result = $this->service->processImport(
-            'user1', 'statement.qif', [], null, ['My Checking' => 7]
+            'user1', 'import_user1_0123456789abcdef0123456789abcdef.qif', [], null, ['My Checking' => 7]
         );
 
         $this->assertEquals(1, $result['imported']);
@@ -1122,13 +1161,13 @@ class ImportServiceTest extends TestCase {
                 return $transaction;
             });
 
-        $this->service->processImport('user1', 'statement.ofx', [], null, ['1234567' => 7]);
+        $this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.ofx', [], null, ['1234567' => 7]);
 
         $this->assertSame('OFX Import', $seenSource);
     }
 
     public function testProcessImportSetsQifImportSource(): void {
-        $this->mockImportFile('statement.qif', 'qif data');
+        $this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.qif', 'qif data');
         $this->parserFactory->method('detectFormat')->willReturn('qif');
         $this->parserFactory->method('parseFull')->willReturn([
             'accounts' => [
@@ -1153,7 +1192,7 @@ class ImportServiceTest extends TestCase {
                 return $transaction;
             });
 
-        $this->service->processImport('user1', 'statement.qif', [], null, ['My Checking' => 7]);
+        $this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.qif', [], null, ['My Checking' => 7]);
 
         $this->assertSame('QIF Import', $seenSource);
     }
@@ -1171,7 +1210,7 @@ class ImportServiceTest extends TestCase {
         $this->parserFactory->method('parse')->willReturn([]);
         $this->accountMapper->method('find')->willReturn($this->makeAccount(1, 'Checking'));
 
-        $this->service->processImport('user1', 'file.csv', [], 1);
+        $this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', [], 1);
     }
 
     public function testProcessImportWithoutRules(): void {
@@ -1198,7 +1237,7 @@ class ImportServiceTest extends TestCase {
         // applyRules should NOT be called when applyRules=false
         $this->ruleApplicator->expects($this->never())->method('applyRules');
 
-        $result = $this->service->processImport('user1', 'file.csv', ['date' => 'date'], 1, null, true, false);
+        $result = $this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 'date'], 1, null, true, false);
         $this->assertEquals(1, $result['imported']);
     }
 

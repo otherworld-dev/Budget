@@ -352,6 +352,13 @@ class TransactionController extends Controller {
                 $effectiveUserId = $account->getUserId();
             }
 
+            // The row lands in the owner's ledger, so the category must be one
+            // the owner can see — any other id leaked its name back (400)
+            if ($categoryId !== null && $categoryId <= 0) {
+                $categoryId = null;
+            }
+            $this->granularShareService->requireUsableCategory($effectiveUserId, $categoryId);
+
             $transaction = $this->service->create(
                 $effectiveUserId,
                 $accountId,
@@ -366,6 +373,8 @@ class TransactionController extends Controller {
                 excludedFromForecast: $excludedFromForecast
             );
             return new DataResponse($transaction, Http::STATUS_CREATED);
+        } catch (\InvalidArgumentException $e) {
+            return $this->handleValidationError($e);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to create transaction'));
         }
@@ -454,7 +463,8 @@ class TransactionController extends Controller {
             }
             if (array_key_exists('categoryId', $params)) {
                 $catValue = $params['categoryId'];
-                $updates['categoryId'] = ($catValue === null || $catValue === '') ? null : (int)$catValue;
+                // Empty or 0 means uncategorised
+                $updates['categoryId'] = ($catValue === null || $catValue === '' || (int)$catValue <= 0) ? null : (int)$catValue;
             }
             if ($accountId !== null) {
                 $updates['accountId'] = $accountId;
@@ -489,8 +499,14 @@ class TransactionController extends Controller {
                 }
             }
 
+            if (array_key_exists('categoryId', $updates)) {
+                $this->granularShareService->requireUsableCategory($effectiveUserId, $updates['categoryId']);
+            }
+
             $transaction = $this->service->update($id, $effectiveUserId, $updates);
             return new DataResponse($transaction);
+        } catch (\InvalidArgumentException $e) {
+            return $this->handleValidationError($e);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to update transaction'), Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
         }
@@ -816,8 +832,17 @@ class TransactionController extends Controller {
                 $updates['notes'] = $notesValidation['sanitized'];
             }
 
+            if (array_key_exists('categoryId', $updates)) {
+                $raw = $updates['categoryId'];
+                $updates['categoryId'] = ($raw === null || $raw === '' || (int) $raw <= 0) ? null : (int) $raw;
+                // bulkEdit only reaches the caller's own transactions
+                $this->granularShareService->requireUsableCategory($this->getEffectiveUserId(), $updates['categoryId']);
+            }
+
             $results = $this->service->bulkEdit($this->getEffectiveUserId(), $ids, $updates);
             return new DataResponse($results);
+        } catch (\InvalidArgumentException $e) {
+            return $this->handleValidationError($e);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to bulk edit transactions'));
         }

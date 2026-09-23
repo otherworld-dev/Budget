@@ -13,9 +13,11 @@ use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\Collaboration\Collaborators\ISearch;
 use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserManager;
+use OCP\Share\IShare;
 use Psr\Log\LoggerInterface;
 
 class SharedExpenseController extends Controller {
@@ -34,7 +36,8 @@ class SharedExpenseController extends Controller {
         IUserManager $userManager,
         IL10N $l,
         string $userId,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        private ISearch $collaboratorSearch
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->service = $service;
@@ -112,46 +115,45 @@ class SharedExpenseController extends Controller {
     /**
      * Search Nextcloud users by display name or username.
      *
+     * Goes through Nextcloud's own sharee search (the one the Files share
+     * dialog uses), so the admin's sharing settings apply here too: user
+     * enumeration off, enumeration limited to the caller's groups or phone
+     * book, and "only share with group members". A direct user-manager search
+     * ignored all of them — `query=*` listed up to 50 accounts on any server.
+     * With enumeration off only an exact match on the user id, display name
+     * or email comes back, exactly as in the share dialog.
+     *
      * @NoAdminRequired
      */
     #[UserRateLimit(limit: 30, period: 60)]
     public function searchUsers(string $query = ''): DataResponse {
-        // Allow wildcard '*' to list all users, or require 2+ chars for search
+        // '*' lists whoever the admin's settings allow; otherwise 2+ chars
         $searchQuery = ($query === '*') ? '' : $query;
-        if ($query !== '*' && strlen($query) < 2) {
+        if ($query !== '*' && mb_strlen($query) < 2) {
             return new DataResponse([]);
         }
 
+        try {
+            [$found] = $this->collaboratorSearch->search($searchQuery, [IShare::TYPE_USER], false, 50, 0);
+        } catch (\Exception $e) {
+            $this->logger->error('User search failed', ['exception' => $e]);
+            return new DataResponse([]);
+        }
+
+        $currentUserId = $this->getEffectiveUserId();
         $results = [];
         $seen = [];
-
-        // Search by username
-        $users = $this->userManager->search($searchQuery, 50);
-        foreach ($users as $user) {
-            if (!isset($seen[$user->getUID()])) {
-                $results[] = [
-                    'uid' => $user->getUID(),
-                    'displayName' => $user->getDisplayName(),
-                ];
-                $seen[$user->getUID()] = true;
+        foreach (array_merge($found['exact']['users'] ?? [], $found['users'] ?? []) as $entry) {
+            $uid = $entry['value']['shareWith'] ?? null;
+            if (!is_string($uid) || $uid === '' || $uid === $currentUserId || isset($seen[$uid])) {
+                continue;
             }
+            $seen[$uid] = true;
+            $results[] = [
+                'uid' => $uid,
+                'displayName' => (string) ($entry['label'] ?? $uid),
+            ];
         }
-
-        // Also search by display name
-        $displayUsers = $this->userManager->searchDisplayName($searchQuery, 50);
-        foreach ($displayUsers as $user) {
-            if (!isset($seen[$user->getUID()])) {
-                $results[] = [
-                    'uid' => $user->getUID(),
-                    'displayName' => $user->getDisplayName(),
-                ];
-                $seen[$user->getUID()] = true;
-            }
-        }
-
-        // Remove current user from results
-        $currentUserId = $this->getEffectiveUserId();
-        $results = array_values(array_filter($results, fn($r) => $r['uid'] !== $currentUserId));
 
         return new DataResponse($results);
     }

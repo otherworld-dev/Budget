@@ -291,6 +291,87 @@ class TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
+	// ── category ids must be the ledger owner's ─────────────────────
+
+	/**
+	 * A controller whose share service knows categories 1-9 for 'owner' and
+	 * 'user1'. Anything else is someone else's category, and the list query
+	 * would hand its name back if it were stored.
+	 */
+	private function controllerWithCategories(array $ownAccountIds, ?array &$checks = null): TransactionController {
+		$checks = [];
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('getOwnAccountIds')->willReturn($ownAccountIds);
+		$granularShareService->method('getVisibleAccountIds')->willReturn([1, 2, 3, 50]);
+		$granularShareService->method('requireUsableCategory')->willReturnCallback(
+			function (string $ownerId, ?int $categoryId) use (&$checks): void {
+				$checks[] = [$ownerId, $categoryId];
+				if ($categoryId !== null && $categoryId >= 10) {
+					throw new \InvalidArgumentException('Category not found');
+				}
+			}
+		);
+		return new TransactionController(
+			$this->request, $this->service, $this->splitService,
+			$this->tagService, $this->validationService, $granularShareService,
+			new TransactionCsvExporter($this->l), $this->l, 'user1', $this->logger
+		);
+	}
+
+	public function testCreateRejectsACategoryTheOwnerCannotSee(): void {
+		$this->service->expects($this->never())->method('create');
+		$controller = $this->controllerWithCategories([1, 2, 3]);
+
+		$response = $controller->create(1, '2026-03-01', 'Test', 10.0, 'debit', 999);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Category not found', $response->getData()['error']);
+	}
+
+	public function testCreateOnASharedAccountChecksTheOwnersCategories(): void {
+		$account = new \OCA\Budget\Db\Account();
+		$account->setUserId('owner');
+		$this->service->method('findAccountById')->willReturn($account);
+		$this->service->method('create')->willReturn(new Transaction());
+		$controller = $this->controllerWithCategories([], $checks);
+
+		$response = $controller->create(50, '2026-03-01', 'Test', 10.0, 'debit', 4);
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame([['owner', 4]], $checks);
+	}
+
+	public function testUpdateRejectsACategoryTheOwnerCannotSee(): void {
+		$this->request->method('getParams')->willReturn(['categoryId' => 999]);
+		$this->service->expects($this->never())->method('update');
+		$controller = $this->controllerWithCategories([1, 2, 3]);
+
+		$response = $controller->update(1, categoryId: 999);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testUpdateAllowsClearingTheCategory(): void {
+		$this->request->method('getParams')->willReturn(['categoryId' => null]);
+		$this->service->expects($this->once())->method('update')
+			->with(1, 'user1', ['categoryId' => null])
+			->willReturn(new Transaction());
+		$controller = $this->controllerWithCategories([1, 2, 3]);
+
+		$response = $controller->update(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testBulkEditRejectsACategoryTheOwnerCannotSee(): void {
+		$this->service->expects($this->never())->method('bulkEdit');
+		$controller = $this->controllerWithCategories([1, 2, 3]);
+
+		$response = $controller->bulkEdit([1, 2], ['categoryId' => 999]);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
 	// ── update ──────────────────────────────────────────────────────
 
 	public function testUpdateReturnsUpdatedTransaction(): void {
