@@ -496,6 +496,69 @@ class ImportServiceTest extends TestCase {
         $this->assertSame(['no-account', 'no-account'], array_column($executed['errors'], 'reason'));
     }
 
+    // Description is a required mapping, however nothing looked at the cells
+    // under it. A Nextcloud Tables export left the Description cell out of five
+    // rows in six, the reporter's rules all match on the description, and the
+    // review step showed those rows as uncategorized without saying why
+    // (#388). Numbered from 1, the way the skipped rows are.
+    public function testPreviewListsTheRowsThatWillImportWithNoDescription(): void {
+        $rows = [
+            ['2026-09-17', '19.45', 'Alkohol'],
+            ['2026-09-17', '13.70', ''],
+            ['2026-09-18', '13.80', '   '],
+        ];
+        $this->stubDescriptionPreview($rows);
+        $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+
+        $preview = $this->service->previewImport('user1', 'file.csv', ['date' => 0, 'amount' => 1, 'description' => 2], 1);
+
+        $this->assertSame(3, $preview['validTransactions']);
+        $this->assertSame([2, 3], $preview['blankDescriptionRows']);
+    }
+
+    // A "Set description" rule fills the cell in before the row is stored, so
+    // the row is judged on what the import will write, not on the raw file.
+    public function testPreviewDoesNotFlagARowWhoseDescriptionARuleFillsIn(): void {
+        $this->stubDescriptionPreview([['2026-09-17', '13.70', '']]);
+        $this->ruleApplicator->method('applyRules')->willReturnCallback(
+            fn(string $userId, array $transaction) => array_merge($transaction, ['description' => 'Groceries'])
+        );
+
+        $preview = $this->service->previewImport('user1', 'file.csv', ['date' => 0, 'amount' => 1, 'description' => 2], 1);
+
+        $this->assertArrayNotHasKey('blankDescriptionRows', $preview);
+    }
+
+    public function testPreviewSaysNothingWhenEveryRowHasADescription(): void {
+        $this->stubDescriptionPreview([['2026-09-17', '19.45', 'Alkohol']]);
+        $this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+
+        $preview = $this->service->previewImport('user1', 'file.csv', ['date' => 0, 'amount' => 1, 'description' => 2], 1);
+
+        $this->assertArrayNotHasKey('blankDescriptionRows', $preview);
+    }
+
+    /**
+     * A single-account CSV preview into account 1, the description taken
+     * straight from the row's third cell.
+     */
+    private function stubDescriptionPreview(array $rows): void {
+        $this->mockImportFile('file.csv', 'csv data');
+        $this->parserFactory->method('detectFormat')->willReturn('csv');
+        $this->parserFactory->method('parse')->willReturn($rows);
+        $this->accountMapper->method('find')->willReturn($this->makeAccount(1, 'Lohnkonto'));
+        $this->normalizer->method('mapRowToTransaction')->willReturnCallback(fn(array $row) => [
+            'date' => $row[0],
+            'amount' => (float) $row[1],
+            'description' => $row[2],
+            'type' => 'debit',
+        ]);
+        $this->normalizer->method('generateImportId')->willReturnCallback(
+            fn($fileId, $index) => 'imp_' . $index
+        );
+        $this->duplicateDetector->method('isDuplicate')->willReturn(false);
+    }
+
     // A name that is present but unresolved is still an error - the fallback is
     // for an empty cell, not for a name that would otherwise misfile the row.
     // (The normalizer is mocked to name an account the resolver never saw,

@@ -105,4 +105,72 @@ class BudgetScopeTest extends TestCase {
         $this->assertArrayHasKey(1, $excluded);
         $this->assertArrayHasKey(2, $excluded);
     }
+
+    // ── spendingBranches (#551) ─────────────────────────────────────
+
+    private function makeTyped(int $id, ?int $parentId = null, string $type = 'expense', bool $excludedFromReports = false, bool $excludedFromBudget = false): Category {
+        $category = $this->makeCategory($id, $parentId, $excludedFromBudget);
+        $category->setType($type);
+        $category->setExcludedFromReports($excludedFromReports);
+        return $category;
+    }
+
+    public function testBranchTakesInEveryUnbudgetedDescendant(): void {
+        // Housing (1, budgeted) → Rent (2) → Deposit (3); Bills (4) → Energy (5)
+        $categories = [
+            $this->makeTyped(1),
+            $this->makeTyped(2, 1),
+            $this->makeTyped(3, 2),
+            $this->makeTyped(4, 1),
+            $this->makeTyped(5, 4),
+        ];
+
+        $branches = BudgetScope::spendingBranches($categories, [1 => true]);
+
+        $this->assertSame([1, 2, 3, 4, 5], $branches[1]);
+    }
+
+    public function testBranchStopsAtADescendantWithItsOwnBudget(): void {
+        // 1 (budgeted) → 2 (budgeted) → 3; 1 → 4. 3 counts under 2 only.
+        $categories = [
+            $this->makeTyped(1),
+            $this->makeTyped(2, 1),
+            $this->makeTyped(3, 2),
+            $this->makeTyped(4, 1),
+        ];
+
+        $branches = BudgetScope::spendingBranches($categories, [1 => true, 2 => true]);
+
+        $this->assertSame([1, 4], $branches[1]);
+        $this->assertSame([2, 3], $branches[2]);
+    }
+
+    public function testBranchSkipsExcludedSubtrees(): void {
+        // 1 (budgeted) → 2 (out of reports) → 3; 1 → 4 (out of budgeting) → 5;
+        // 1 → 6 (income, a different kind of money)
+        $categories = [
+            $this->makeTyped(1),
+            $this->makeTyped(2, 1, 'expense', true),
+            $this->makeTyped(3, 2),
+            $this->makeTyped(4, 1, 'expense', false, true),
+            $this->makeTyped(5, 4),
+            $this->makeTyped(6, 1, 'income'),
+        ];
+
+        $branches = BudgetScope::spendingBranches($categories, [1 => true]);
+
+        $this->assertSame([1], $branches[1]);
+    }
+
+    public function testBranchSurvivesAParentCycle(): void {
+        // Corrupt data: 1 → 2 → 1
+        $categories = [
+            $this->makeTyped(1, 2),
+            $this->makeTyped(2, 1),
+        ];
+
+        $branches = BudgetScope::spendingBranches($categories, [1 => true]);
+
+        $this->assertSame([1, 2], $branches[1]);
+    }
 }

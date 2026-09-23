@@ -956,7 +956,35 @@ class ImportService {
             $result['directionWarnings'] = $directionWarnings;
         }
 
+        $blankDescriptionRows = $this->blankDescriptionRows($transactions);
+        if (!empty($blankDescriptionRows)) {
+            $result['blankDescriptionRows'] = $blankDescriptionRows;
+        }
+
         return $result;
+    }
+
+    /**
+     * Rows that are about to be stored with no description, numbered from 1
+     * like the skipped rows.
+     *
+     * Description is a required mapping, however nothing looked at the cells
+     * under it, and an import rule that matches on the description cannot
+     * categorize a row that has none. Judged after the rules have run, because
+     * a "Set description" action fills the cell in before the row is stored
+     * (#388).
+     *
+     * @param array[] $transactions Previewed rows, each carrying its rowIndex
+     * @return int[]
+     */
+    private function blankDescriptionRows(array $transactions): array {
+        $rows = [];
+        foreach ($transactions as $transaction) {
+            if (trim((string) ($transaction['description'] ?? '')) === '') {
+                $rows[] = $transaction['rowIndex'] + 1;
+            }
+        }
+        return $rows;
     }
 
     /**

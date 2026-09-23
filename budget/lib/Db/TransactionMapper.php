@@ -2083,8 +2083,16 @@ class TransactionMapper extends QBMapper {
      * When $excludeDeductedTransfers is true, excludes ALL linked transfers
      * (which getTransferTotals() also fully deducts), since a transfer is never
      * income or expense — including debt payments to a credit card/loan (#262).
+     *
+     * Without $userId the categories alone decide what counts, in every
+     * account: projects rely on that, so what the people a category is shared
+     * with file under it counts too. With $userId the query is held to that
+     * user's accounts, or to $visibleAccountIds (own + shared) when given, the
+     * same scope the Budget page's spent figures use (#551).
+     *
+     * @param int[]|null $visibleAccountIds
      */
-    public function getCategorySpendingBatch(array $categoryIds, string $startDate, string $endDate, string $transactionType = 'debit', ?int $accountId = null, bool $excludeDeductedTransfers = false): array {
+    public function getCategorySpendingBatch(array $categoryIds, string $startDate, string $endDate, string $transactionType = 'debit', ?int $accountId = null, bool $excludeDeductedTransfers = false, ?string $userId = null, ?array $visibleAccountIds = null): array {
         if (empty($categoryIds)) {
             return [];
         }
@@ -2101,12 +2109,7 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
 
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        } else {
-            // All-accounts batch: drop accounts flagged out of reports/budgets (#286)
-            $this->excludeReportExcludedAccounts($qb);
-        }
+        $this->scopeCategorySpendingBatch($qb, $accountId, $userId, $visibleAccountIds);
 
         if ($excludeDeductedTransfers) {
             // All linked transfers are deducted by getTransferTotals(), so keep
@@ -2132,12 +2135,32 @@ class TransactionMapper extends QBMapper {
         }
 
         foreach ($this->getSplitCategorySpendingBatch(
-            $categoryIds, $startDate, $endDate, $transactionType, $accountId, $excludeDeductedTransfers
+            $categoryIds, $startDate, $endDate, $transactionType, $accountId, $excludeDeductedTransfers,
+            $userId, $visibleAccountIds
         ) as $categoryId => $total) {
             $spending[$categoryId] = ($spending[$categoryId] ?? 0.0) + $total;
         }
 
         return $spending;
+    }
+
+    /**
+     * The account scope shared by getCategorySpendingBatch() and its split
+     * companion, so the direct and split halves can never disagree on it.
+     *
+     * @param int[]|null $visibleAccountIds
+     */
+    private function scopeCategorySpendingBatch(IQueryBuilder $qb, ?int $accountId, ?string $userId, ?array $visibleAccountIds): void {
+        if ($accountId !== null) {
+            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+        } elseif ($userId !== null) {
+            // Held to the accounts the user can see (#551); drops the
+            // report-excluded accounts as well
+            $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        } else {
+            // All-accounts batch: drop accounts flagged out of reports/budgets (#286)
+            $this->excludeReportExcludedAccounts($qb);
+        }
     }
 
     /**
@@ -2176,7 +2199,9 @@ class TransactionMapper extends QBMapper {
         string $endDate,
         string $transactionType,
         ?int $accountId,
-        bool $excludeDeductedTransfers
+        bool $excludeDeductedTransfers,
+        ?string $userId = null,
+        ?array $visibleAccountIds = null
     ): array {
         $qb = $this->db->getQueryBuilder();
 
@@ -2192,11 +2217,7 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($this->splitParentPredicate($qb));
 
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        } else {
-            $this->excludeReportExcludedAccounts($qb);
-        }
+        $this->scopeCategorySpendingBatch($qb, $accountId, $userId, $visibleAccountIds);
 
         if ($excludeDeductedTransfers) {
             $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));

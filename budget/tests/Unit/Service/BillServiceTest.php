@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Tests\Unit\Service;
 
+use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
+use OCA\Budget\Db\DismissedSuggestionMapper;
+use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Bill\RecurringBillDetector;
@@ -25,6 +28,8 @@ class BillServiceTest extends TestCase {
 	private RecurringBillDetector $recurringDetector;
 	private TransactionService $transactionService;
 	private AccountMapper $accountMapper;
+	private DismissedSuggestionMapper $dismissedMapper;
+	private RecurringIncomeMapper $incomeMapper;
 
 	protected function setUp(): void {
 		$this->mapper = $this->createMock(BillMapper::class);
@@ -43,6 +48,8 @@ class BillServiceTest extends TestCase {
 		$currencyConversion = $this->createMock(CurrencyConversionService::class);
 		$splitService = $this->createMock(TransactionSplitService::class);
 		$logger = $this->createMock(LoggerInterface::class);
+		$this->dismissedMapper = $this->createMock(DismissedSuggestionMapper::class);
+		$this->incomeMapper = $this->createMock(RecurringIncomeMapper::class);
 		$this->service = new BillService(
 			$this->mapper,
 			$this->frequencyCalculator,
@@ -52,7 +59,10 @@ class BillServiceTest extends TestCase {
 			$this->accountMapper,
 			$currencyConversion,
 			$splitService,
-			$logger
+			$logger,
+			$this->dismissedMapper,
+			null,
+			$this->incomeMapper
 		);
 	}
 
@@ -566,6 +576,108 @@ class BillServiceTest extends TestCase {
 		$this->assertEqualsWithDelta(15.99 + 321.60, $result['monthlyTotals'][8], 0.001);
 	}
 
+	// ── annual overview: projected balance (#393) ───────────────────
+	// The running balance itself is worked out and tested in BalanceProjector;
+	// these check what the overview hands it and when.
+
+	private function makeAccount(int $id, string $name, string $currency = 'CHF'): Account {
+		$account = new Account();
+		$account->setId($id);
+		$account->setUserId('user1');
+		$account->setName($name);
+		$account->setCurrency($currency);
+		return $account;
+	}
+
+	/**
+	 * With an account picked for this year, its balance today is carried
+	 * from the current month to December; the months already gone are blank.
+	 */
+	public function testAnnualOverviewProjectsTheAccountThroughThisYear(): void {
+		$this->accountMapper->method('findAll')->with('user1')->willReturn([$this->makeAccount(5, 'Current')]);
+		$this->transactionService->method('getBalanceAsOf')->with(5, date('Y-m-d'))->willReturn(1000.0);
+		$this->mapper->method('findByType')->willReturn([]);
+		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
+		$this->incomeMapper->expects($this->once())->method('findActive')->with('user1')->willReturn([]);
+
+		$result = $this->service->getAnnualOverview('user1', (int) date('Y'), false, 'active', 5);
+
+		$this->assertSame(['id' => 5, 'name' => 'Current', 'currency' => 'CHF', 'balance' => 1000.0], $result['account']);
+		$current = (int) date('n');
+		for ($month = 1; $month <= 12; $month++) {
+			if ($month < $current) {
+				$this->assertNull($result['projectedBalance'][$month], "month $month has gone");
+				$this->assertNull($result['projectedFlows'][$month]);
+			} else {
+				$this->assertEqualsWithDelta(1000.0, $result['projectedBalance'][$month], 0.001, "month $month");
+			}
+		}
+		$this->assertSame(['bills' => 0.0, 'transfersIn' => 0.0, 'income' => 0.0], $result['projectedFlows'][$current]);
+	}
+
+	/**
+	 * The money moves whatever the table shows: with transfers hidden, a
+	 * transfer into the account is still projected. Nothing has been paid,
+	 * so every month up to this one lands in this one.
+	 */
+	public function testAnnualOverviewProjectsTransfersTheTableHides(): void {
+		$year = (int) date('Y');
+		$this->accountMapper->method('findAll')->willReturn([$this->makeAccount(5, 'Current'), $this->makeAccount(7, 'Savings')]);
+		$this->transactionService->method('getBalanceAsOf')->willReturn(1000.0);
+		$topUp = $this->makeBill(['id' => 3, 'name' => 'Top-up', 'amount' => 100.0, 'accountId' => 7, 'isTransfer' => true, 'destinationAccountId' => 5, 'nextDueDate' => "$year-01-15"]);
+		$this->mapper->method('findByType')->willReturnCallback(
+			fn(string $userId, ?bool $isTransfer) => $isTransfer === false ? [] : [$topUp]
+		);
+		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
+		$this->incomeMapper->method('findActive')->willReturn([]);
+
+		$result = $this->service->getAnnualOverview('user1', $year, false, 'active', 5);
+
+		$this->assertSame([], $result['bills'], 'the table still hides it');
+		$current = (int) date('n');
+		$this->assertEqualsWithDelta(100.0 * $current, $result['projectedFlows'][$current]['transfersIn'], 0.001);
+		$this->assertEqualsWithDelta(2200.0, $result['projectedBalance'][12], 0.001);
+	}
+
+	/** Another year has no today to start from, so the account is named but nothing is projected. */
+	public function testAnnualOverviewProjectsNothingForAnotherYear(): void {
+		$this->accountMapper->method('findAll')->willReturn([$this->makeAccount(5, 'Current')]);
+		$this->transactionService->method('getBalanceAsOf')->willReturn(1000.0);
+		$this->mapper->method('findByType')->willReturn([]);
+		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
+		$this->incomeMapper->expects($this->never())->method('findActive');
+
+		$result = $this->service->getAnnualOverview('user1', (int) date('Y') + 1, false, 'active', 5);
+
+		$this->assertSame('Current', $result['account']['name']);
+		$this->assertNull($result['projectedBalance']);
+		$this->assertNull($result['projectedFlows']);
+	}
+
+	public function testAnnualOverviewWithoutAnAccountHasNoProjection(): void {
+		$this->mapper->method('findByType')->willReturn([$this->makeBill(['accountId' => 5])]);
+		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
+		$this->transactionService->expects($this->never())->method('getBalanceAsOf');
+
+		$result = $this->service->getAnnualOverview('user1', (int) date('Y'));
+
+		$this->assertNull($result['account']);
+		$this->assertNull($result['projectedBalance']);
+	}
+
+	/** An account id the user cannot see gives no balance, rather than someone else's. */
+	public function testAnnualOverviewIgnoresAnAccountTheUserCannotSee(): void {
+		$this->accountMapper->method('findAll')->willReturn([$this->makeAccount(5, 'Current')]);
+		$this->transactionService->expects($this->never())->method('getBalanceAsOf');
+		$this->mapper->method('findByType')->willReturn([]);
+		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
+
+		$result = $this->service->getAnnualOverview('user1', (int) date('Y'), false, 'active', 99);
+
+		$this->assertNull($result['account']);
+		$this->assertNull($result['projectedBalance']);
+	}
+
 	public function testCreateAutoPayRequiresAccount(): void {
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessage('Auto-pay requires an account');
@@ -738,6 +850,22 @@ class BillServiceTest extends TestCase {
 		$this->assertSame('2099-07-15', $result['bill']->getNextDueDate());
 	}
 
+	// Undoing a skip put a placeholder back for a bill that had opted out of
+	// them, so a transfer with pre-created transactions off gained a pair of
+	// scheduled legs the moment its skip was undone (#396).
+	public function testUndoSkipSkipsPlaceholderWhenOptedOut(): void {
+		$bill = $this->makeBill(['createTransaction' => false]);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$this->transactionService->expects($this->once())->method('deleteScheduledBillTransactions')->with(1);
+		$this->transactionService->expects($this->never())->method('createFromBill');
+
+		$bill = $this->service->undoSkip(1, 'user1', '2099-06-15');
+
+		$this->assertSame('2099-06-15', $bill->getNextDueDate());
+	}
+
 	// ── recording the payment vs. the ledger's placeholders (#376) ──
 
 	// "Don't create any transaction (just mark as paid)" left the placeholder
@@ -829,6 +957,77 @@ class BillServiceTest extends TestCase {
 		$this->transactionService->expects($this->never())->method('deleteScheduledBillTransactions');
 
 		$this->service->update(1, 'user1', ['createTransaction' => true]);
+	}
+
+	public function testUpdateTogglingOnWithAScheduleChangeCreatesPlaceholder(): void {
+		// The recalculation copied the updates onto the in-memory bill before
+		// the toggle compared old against new, so turning pre-booking on in
+		// the same save as a due-day change read "already on" and created
+		// nothing (#584).
+		$bill = $this->makeBill(['createTransaction' => false]);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-06-20');
+
+		$this->transactionService->expects($this->once())->method('createFromBill');
+
+		$this->service->update(1, 'user1', ['dueDay' => 20, 'createTransaction' => true]);
+	}
+
+	public function testUpdateSwitchingToStatementWithAScheduleChangeRefreshesPlaceholder(): void {
+		// Same in-memory mutation: the switch to a dynamic amount compared the
+		// bill's amount type after the recalculation had already overwritten
+		// it, so the old placeholder kept the old fixed amount (#584).
+		$bill = $this->makeBill(['isTransfer' => true, 'destinationAccountId' => 7]);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-06-20');
+		$card = new Account();
+		$card->setType('credit_card');
+		$this->accountMapper->method('findById')->willReturn($card);
+		$this->transactionService->method('getStatementAmountForAccount')->willReturn(120.0);
+
+		$this->transactionService->expects($this->once())->method('deleteScheduledBillTransactions')->with(1);
+		$this->transactionService->expects($this->once())->method('createFromBill');
+
+		$this->service->update(1, 'user1', ['dueDay' => 20, 'amountType' => 'statement']);
+	}
+
+	/**
+	 * @dataProvider paidAheadPeriods
+	 */
+	public function testUpdateKeepsADueDateAdvancedByAnEarlyPayment(int $periodsAhead): void {
+		// A monthly bill paid before its due date advances past the occurrence
+		// it paid; an unrelated edit must leave that date alone (#584).
+		$real = new FrequencyCalculator();
+		$this->frequencyCalculator->method('calculateNextDueDate')
+			->willReturnCallback(fn(...$args) => $real->calculateNextDueDate(...$args));
+
+		$due = (new \DateTime('+5 days'))->format('Y-m-d');
+		$dueDay = (int) (new \DateTime($due))->format('j');
+		$nextDue = $due;
+		for ($i = 0; $i < $periodsAhead; $i++) {
+			$nextDue = $real->calculateNextDueDate('monthly', $dueDay, null, $nextDue, null, true);
+		}
+		$bill = $this->makeBill([
+			'dueDay' => $dueDay,
+			'nextDueDate' => $nextDue,
+			'lastPaidDate' => date('Y-m-d'),
+		]);
+		$this->mapper->method('find')->willReturn($bill);
+
+		$captured = null;
+		$this->mapper->method('updateFields')
+			->willReturnCallback(function ($id, $userId, $updates) use (&$captured) {
+				$captured = $updates;
+			});
+
+		$this->service->update(1, 'user1', ['name' => 'Renamed', 'amount' => 20.0]);
+
+		$this->assertNotNull($captured);
+		$this->assertArrayNotHasKey('next_due_date', $captured, 'an edit after an early payment must not reset next due');
+	}
+
+	public static function paidAheadPeriods(): array {
+		return ['one period ahead' => [1], 'two periods ahead' => [2]];
 	}
 
 	// ── biweekly anchoring to startDate (#364) ──────────────────────
@@ -1431,6 +1630,68 @@ class BillServiceTest extends TestCase {
 
 		$this->expectException(\InvalidArgumentException::class);
 		$this->service->recordMissedPayment(7, 'user1');
+	}
+
+	// ── dismissing an unrecorded payment (#394) ─────────────────────
+
+	public function testFindUnrecordedPaymentsSkipsADismissedPayment(): void {
+		$paidDate = date('Y-m-d', strtotime('-10 days'));
+		$bill = $this->makeBill(['id' => 7, 'lastPaidDate' => $paidDate]);
+		$this->mapper->method('findAll')->willReturn([$bill]);
+		$this->transactionService->method('findRecordedBillTransactions')->willReturn([]);
+		$this->dismissedMapper->method('findHashes')
+			->with('user1', 'unrecorded')
+			->willReturn([sha1("7:{$paidDate}")]);
+
+		$this->assertSame([], $this->service->findUnrecordedPayments('user1'));
+	}
+
+	/** A dismissal covers one payment: the next one without a transaction is flagged again. */
+	public function testFindUnrecordedPaymentsFlagsTheNextPaymentAfterADismissal(): void {
+		$paidDate = date('Y-m-d', strtotime('-10 days'));
+		$earlier = date('Y-m-d', strtotime('-40 days'));
+		$bill = $this->makeBill(['id' => 7, 'lastPaidDate' => $paidDate]);
+		$this->mapper->method('findAll')->willReturn([$bill]);
+		$this->transactionService->method('findRecordedBillTransactions')->willReturn([]);
+		$this->dismissedMapper->method('findHashes')->willReturn([sha1("7:{$earlier}")]);
+
+		$result = $this->service->findUnrecordedPayments('user1');
+
+		$this->assertCount(1, $result);
+		$this->assertSame(7, $result[0]['billId']);
+	}
+
+	public function testFindUnrecordedPaymentsSaysWhetherThePaymentCanBeReverted(): void {
+		$paidDate = date('Y-m-d', strtotime('-10 days'));
+		$revertible = $this->makeBill(['id' => 7, 'lastPaidDate' => $paidDate]);
+		$revertible->setPaidUndoState(json_encode(['previousState' => ['lastPaidDate' => null]]));
+		$plain = $this->makeBill(['id' => 8, 'lastPaidDate' => $paidDate]);
+		$this->mapper->method('findAll')->willReturn([$revertible, $plain]);
+		$this->transactionService->method('findRecordedBillTransactions')->willReturn([]);
+
+		$byId = array_column($this->service->findUnrecordedPayments('user1'), null, 'billId');
+
+		$this->assertTrue($byId[7]['canMarkUnpaid']);
+		$this->assertFalse($byId[8]['canMarkUnpaid']);
+	}
+
+	public function testDismissUnrecordedPaymentRemembersTheBillAndItsPaidDate(): void {
+		$bill = $this->makeBill(['id' => 7, 'lastPaidDate' => '2026-07-25']);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->dismissedMapper->expects($this->once())
+			->method('dismiss')
+			->with('user1', 'unrecorded', sha1('7:2026-07-25'), '7:2026-07-25');
+
+		$this->service->dismissUnrecordedPayment(7, 'user1');
+	}
+
+	public function testDismissUnrecordedPaymentRefusesABillNeverMarkedPaid(): void {
+		$bill = $this->makeBill(['id' => 7, 'lastPaidDate' => null]);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->dismissedMapper->expects($this->never())->method('dismiss');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->dismissUnrecordedPayment(7, 'user1');
 	}
 
 	// ── amountType (#347) ───────────────────────────────────────────

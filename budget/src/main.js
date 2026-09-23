@@ -120,6 +120,7 @@ class BudgetApp {
         this.currentAsset = null;
         this.charts = {};
         this.settings = {};
+        this.settingsLoaded = false;
         this.options = {}; // Available options (currencies, date formats, etc.) from /api/settings/options
         this.columnVisibility = {};
         this.dashboardConfig = {
@@ -209,6 +210,8 @@ class BudgetApp {
         // pushing a second entry on top of the page-load entry.
         window.history.replaceState({ view: initialView }, '', window.location.hash || `#${initialView}`);
         this.showView(initialView, { history: false });
+
+        this.helpModule.showWhatsNewIfUpdated();
     }
 
 
@@ -793,6 +796,7 @@ class BudgetApp {
 
             if (settingsResponse.ok) {
                 this.settings = await settingsResponse.json();
+                this.settingsLoaded = true;
                 this.columnVisibility = this.parseColumnVisibility(this.settings.transaction_columns_visible);
                 this.syncColumnConfigUI();
 

@@ -1187,6 +1187,27 @@ class BillControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
+	// ── dismissing an unrecorded payment (#394) ─────────────────────
+
+	public function testDismissUnrecordedPaymentReturnsSuccess(): void {
+		$this->service->expects($this->once())
+			->method('dismissUnrecordedPayment')
+			->with(7, 'user1');
+
+		$response = $this->controller->dismissUnrecordedPayment(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testDismissUnrecordedPaymentRejectsInvalid(): void {
+		$this->service->method('dismissUnrecordedPayment')
+			->willThrowException(new \InvalidArgumentException('This bill has never been marked as paid'));
+
+		$response = $this->controller->dismissUnrecordedPayment(7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
 	// ── markPaid ────────────────────────────────────────────────────
 
 	public function testMarkPaidReturnsBill(): void {
@@ -1647,6 +1668,38 @@ class BillControllerTest extends TestCase {
 			],
 			'monthlyTotals' => array_fill(1, 12, 1200),
 		];
+	}
+
+	private function calendarDataWithBalance(): array {
+		return $this->calendarData() + [
+			'account' => ['id' => 5, 'name' => 'Current', 'currency' => 'CHF', 'balance' => 1000.0],
+			'projectedBalance' => array_replace(array_fill(1, 12, null), [2 => 800.0, 3 => -200.0]),
+		];
+	}
+
+	/** With an account picked the export carries the calendar's projected balance row: today's balance, then the balance at the end of each month (#393). */
+	public function testExportCalendarCsvCarriesTheProjectedBalanceRow(): void {
+		$this->service->method('getAnnualOverview')->willReturn($this->calendarDataWithBalance());
+
+		$csv = $this->controller->exportCalendar('csv', 2026, 'false', 'active', 5)->render();
+
+		$this->assertStringContainsString('"Projected balance","1,000.00",,,800.00,-200.00,,,,,,,,,,' . "\n", $csv);
+	}
+
+	public function testExportCalendarCsvHasNoBalanceRowWithoutAnAccount(): void {
+		$this->service->method('getAnnualOverview')->willReturn($this->calendarData());
+
+		$this->assertStringNotContainsString('Projected balance', $this->controller->exportCalendar('csv', 2026)->render());
+	}
+
+	public function testExportCalendarPdfCarriesTheProjectedBalanceRow(): void {
+		$this->requireTcpdf();
+		$this->service->method('getAnnualOverview')->willReturn($this->calendarDataWithBalance());
+
+		$text = $this->pdfText($this->controller->exportCalendar('pdf', 2026, 'false', 'active', 5)->render());
+
+		$this->assertStringContainsString('Projected balance', $text);
+		$this->assertStringContainsString('800.00', $text);
 	}
 
 	public function testExportCalendarCsvIsWrittenInTheUsersLanguage(): void {

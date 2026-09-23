@@ -472,12 +472,29 @@ class ReportAggregator {
         // category is measured by what came IN, so asking for debits reported
         // nothing against its budget; now that the figure is net (#361) it
         // would have reported a negative one. The Budget page has always split
-        // the two this way — see CategoryService::getBudgetAnalysis.
-        $categorySpending = $this->transactionMapper->getCategorySpendingBatch(
-            $expenseCategoryIds, $startDate, $endDate, 'debit', $accountId
+        // the two this way — see CategoryService::getBudgetAnalysis. Spent
+        // is held to the accounts in view, as the carryover above already
+        // is and the Budget page's spent figures are (#551).
+        // A budget measures its whole branch: spending filed under a
+        // subcategory without a budget of its own counts toward the parent,
+        // the same branches the alerts measure (#551).
+        $branches = BudgetScope::spendingBranches($categories, array_fill_keys($categoryIds, true));
+        $memberIds = static fn(array $roots): array => array_values(array_unique(array_merge(
+            [], ...array_map(fn(int $id) => $branches[$id] ?? [$id], $roots)
+        )));
+        $spendingScope = !empty($visibleAccountIds) ? $visibleAccountIds : null;
+        $memberSpending = $this->transactionMapper->getCategorySpendingBatch(
+            $memberIds($expenseCategoryIds), $startDate, $endDate, 'debit', $accountId, false, $userId, $spendingScope
         ) + $this->transactionMapper->getCategorySpendingBatch(
-            $incomeCategoryIds, $startDate, $endDate, 'credit', $accountId
+            $memberIds($incomeCategoryIds), $startDate, $endDate, 'credit', $accountId, false, $userId, $spendingScope
         );
+        $categorySpending = [];
+        foreach ($categoryIds as $catId) {
+            $categorySpending[$catId] = 0.0;
+            foreach ($branches[$catId] ?? [$catId] as $memberId) {
+                $categorySpending[$catId] += $memberSpending[$memberId] ?? 0.0;
+            }
+        }
 
         foreach ($categories as $category) {
             $categoryId = $category->getId();

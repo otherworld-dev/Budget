@@ -4,7 +4,8 @@
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
-import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { billRowDateText } from '../../utils/billDates.js';
+import { showSuccess, showError, showWarning, showInfo, showUndoNotification } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { serverErrorMessage } from '../../utils/helpers.js';
@@ -107,6 +108,10 @@ export default class BillsModule {
                         ${item.accountId
                             ? `<button class="primary unrecorded-payment-record" data-bill-id="${item.billId}">${t('budget', 'Record transaction')}</button>`
                             : `<button class="unrecorded-payment-assign" data-bill-id="${item.billId}" title="${t('budget', 'One-time bills leave the list after payment — open it here to assign an account')}">${t('budget', 'Assign an account')}</button>`}
+                        ${item.canMarkUnpaid
+                            ? `<button class="unrecorded-payment-unpaid" data-bill-id="${item.billId}" title="${t('budget', 'Revert the last payment')}">${t('budget', 'Mark Unpaid')}</button>`
+                            : ''}
+                        <button class="secondary unrecorded-payment-dismiss" data-bill-id="${item.billId}" title="${t('budget', 'Keep the bill as paid and stop listing this payment')}">${t('budget', 'Dismiss')}</button>
                     </div>
                 </div>
             `).join('');
@@ -122,9 +127,41 @@ export default class BillsModule {
                 btn.addEventListener('click', (e) => this.editBill(parseInt(e.currentTarget.dataset.billId)));
             });
 
+            // The two ways out other than recording the payment (#394): the
+            // payment never happened (revert it, same action as the list) or it
+            // did but is not meant to be in the ledger (dismiss this one).
+            list.querySelectorAll('.unrecorded-payment-unpaid').forEach(btn => {
+                btn.addEventListener('click', (e) => this.markBillUnpaid(parseInt(e.currentTarget.dataset.billId)));
+            });
+            list.querySelectorAll('.unrecorded-payment-dismiss').forEach(btn => {
+                btn.addEventListener('click', (e) => this.dismissUnrecordedPayment(parseInt(e.currentTarget.dataset.billId)));
+            });
+
             card.style.display = 'block';
         } catch (error) {
             card.style.display = 'none';
+        }
+    }
+
+    /**
+     * The missing transaction is deliberate (paid some other way, or the
+     * ledger row was removed on purpose), so stop listing it. Covers this
+     * one payment only: the bill's next unrecorded payment is flagged
+     * again (#394).
+     */
+    async dismissUnrecordedPayment(billId) {
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/dismiss-unrecorded`), {
+                method: 'POST',
+                headers: { 'requesttoken': OC.requestToken }
+            });
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
+            }
+            await this.loadUnrecordedPayments();
+        } catch (error) {
+            showError(error.message || t('budget', 'Failed to dismiss the payment'));
         }
     }
 
@@ -353,7 +390,7 @@ export default class BillsModule {
                     <div class="bill-details">
                         <div class="bill-due-date">
                             <span class="icon-calendar" aria-hidden="true"></span>
-                            ${dueDate ? formatters.formatDate(dueDate, this.settings) : t('budget', 'No due date')}
+                            ${dom.escapeHtml(billRowDateText(bill, dueDate, isPaid, this.settings))}
                         </div>
                         <div class="bill-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>
@@ -1351,7 +1388,7 @@ export default class BillsModule {
                 ? t('budget', 'Bill marked as paid. Transaction created.')
                 : t('budget', 'Bill marked as paid. Future transaction created.');
         }
-        this.showUndoNotification(message, () => this.undoMarkBillPaid(), () => {
+        showUndoNotification(message, () => this.undoMarkBillPaid(), () => {
             this._undoData = null;
         });
     }
@@ -1595,7 +1632,7 @@ export default class BillsModule {
 
             await this.loadBillsView();
 
-            this.showUndoNotification(
+            showUndoNotification(
                 t('budget', 'Payment skipped. Advanced to next due date.'),
                 () => this.undoSkipPayment(),
                 () => { this._undoData = null; }
@@ -1637,68 +1674,6 @@ export default class BillsModule {
             console.error('Failed to undo skip:', error);
             showError(t('budget', 'Failed to undo action: {message}', { message: error.message }));
         }
-    }
-
-    showUndoNotification(message, undoCallback, onExpire) {
-        const notification = document.createElement('div');
-        notification.className = 'undo-notification';
-        let expired = false;
-        notification.innerHTML = `
-            <span class="undo-message">${message}</span>
-            <button class="undo-btn">${t('budget', 'Undo')}</button>
-        `;
-
-        Object.assign(notification.style, {
-            position: 'fixed',
-            bottom: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            backgroundColor: '#333',
-            color: '#fff',
-            padding: '12px 20px',
-            borderRadius: '4px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '15px',
-            zIndex: '10000',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-            animation: 'slideUp 0.3s ease-out'
-        });
-
-        const undoBtn = notification.querySelector('.undo-btn');
-        Object.assign(undoBtn.style, {
-            backgroundColor: '#fff',
-            color: '#333',
-            border: 'none',
-            padding: '6px 12px',
-            borderRadius: '3px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '13px'
-        });
-
-        undoBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (!expired) {
-                expired = true;
-                undoCallback();
-            }
-            notification.remove();
-        });
-
-        document.body.appendChild(notification);
-
-        setTimeout(() => {
-            notification.style.animation = 'slideDown 0.3s ease-in';
-            setTimeout(() => {
-                notification.remove();
-                if (!expired && onExpire) {
-                    expired = true;
-                    onExpire();
-                }
-            }, 300);
-        }, 5000);
     }
 
     async detectBills() {

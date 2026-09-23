@@ -1,0 +1,14 @@
+[
+    {
+        "version": "2.54.0",
+        "title": "Skipping transfers and a projected balance",
+        "items": [
+            "Transfers can now be skipped the same as bills, the due date moves on one cycle and Undo puts it back.",
+            "Pick an account in the Bills Calendar's Account filter and a Projected balance row shows what it should hold at the end of each month for the rest of the year.",
+            "Paid bills show the date they were paid as well as when they are next due.",
+            "A payment marked paid with no transaction behind it can be dismissed, rather than being listed for 60 days.",
+            "The import review warns about rows with no description, since import rules cannot categorise them."
+        ],
+        "link": "https://github.com/otherworld-dev/Budget/blob/main/budget/CHANGELOG.md"
+    }
+]

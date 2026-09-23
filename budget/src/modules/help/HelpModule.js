@@ -6,6 +6,9 @@
  * one list; adding a doc page means editing HELP_TOPICS only.
  */
 import { showSuccess } from '../../utils/notifications.js';
+import { whatsNewDialog } from '../../utils/dialogs.js';
+import { entriesToShow, latestEntries, installedVersion, WHATS_NEW_SEEN_KEY } from '../../utils/whatsNew.js';
+import WHATS_NEW from '../../whatsnew.json';
 import { translate as t } from '@nextcloud/l10n';
 
 // The documentation lives in the website project, not here — this app only
@@ -76,7 +79,62 @@ export default class HelpModule {
         this.setupQuickAddUrlCopy();
         this.setupShortcutsButton();
         this.setupReportIssueButton();
+        this.setupWhatsNewButton();
         this.loadSystemInfo();
+    }
+
+    /**
+     * Pop up the release notes the user has not seen yet, once per version
+     * (src/whatsnew.json, see utils/whatsNew.js). Called after the initial
+     * data load; a failed settings load skips it rather than showing the
+     * notes on every visit.
+     */
+    async showWhatsNewIfUpdated() {
+        if (!this.app.settingsLoaded) return;
+
+        const currentVersion = installedVersion();
+        const lastSeen = this.app.settings?.[WHATS_NEW_SEEN_KEY] || '';
+        if (!currentVersion || lastSeen === currentVersion) return;
+
+        const entries = entriesToShow(WHATS_NEW, {
+            currentVersion,
+            lastSeen,
+            isNewUser: (this.app.accounts || []).length === 0,
+        });
+        if (entries.length > 0) {
+            await whatsNewDialog(entries);
+        }
+
+        // Recorded even when there was nothing to show, so a new user starts
+        // from the version they installed and a release without notes does
+        // not bring older ones back later.
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/settings/${WHATS_NEW_SEEN_KEY}`), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
+                body: JSON.stringify({ value: currentVersion }),
+            });
+            if (response.ok) {
+                this.app.settings[WHATS_NEW_SEEN_KEY] = currentVersion;
+            }
+        } catch (error) {
+            // Not worth a toast: the popup just comes back on the next load.
+            console.error('Failed to record the seen release notes:', error);
+        }
+    }
+
+    /** Header button that reopens the latest release notes; hidden when there are none. */
+    setupWhatsNewButton() {
+        const btn = document.getElementById('help-whats-new-btn');
+        if (!btn) return;
+        const entries = latestEntries(WHATS_NEW, installedVersion());
+        btn.style.display = entries.length === 0 ? 'none' : '';
+        if (btn.dataset.bound) return;
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', () => {
+            const latest = latestEntries(WHATS_NEW, installedVersion());
+            if (latest.length > 0) whatsNewDialog(latest);
+        });
     }
 
     /**

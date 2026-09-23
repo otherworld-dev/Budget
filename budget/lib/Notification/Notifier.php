@@ -47,7 +47,7 @@ class Notifier implements INotifier {
                     [
                         'bill' => [
                             'type' => 'highlight',
-                            'id' => $parameters['billId'],
+                            'id' => (string)$parameters['billId'],
                             'name' => $parameters['billName'],
                         ],
                     ]
@@ -67,7 +67,7 @@ class Notifier implements INotifier {
                     [
                         'bill' => [
                             'type' => 'highlight',
-                            'id' => $parameters['billId'],
+                            'id' => (string)$parameters['billId'],
                             'name' => $parameters['billName'],
                         ],
                         'amount' => [
@@ -100,7 +100,7 @@ class Notifier implements INotifier {
                     [
                         'bill' => [
                             'type' => 'highlight',
-                            'id' => $parameters['billId'],
+                            'id' => (string)$parameters['billId'],
                             'name' => $parameters['billName'],
                         ],
                     ]
@@ -117,7 +117,7 @@ class Notifier implements INotifier {
                     [
                         'bill' => [
                             'type' => 'highlight',
-                            'id' => $parameters['billId'],
+                            'id' => (string)$parameters['billId'],
                             'name' => $parameters['billName'],
                         ],
                         'amount' => [
@@ -150,7 +150,7 @@ class Notifier implements INotifier {
                     [
                         'bill' => [
                             'type' => 'highlight',
-                            'id' => $parameters['billId'],
+                            'id' => (string)$parameters['billId'],
                             'name' => $parameters['billName'],
                         ],
                     ]
@@ -162,7 +162,7 @@ class Notifier implements INotifier {
                     [
                         'bill' => [
                             'type' => 'highlight',
-                            'id' => $parameters['billId'],
+                            'id' => (string)$parameters['billId'],
                             'name' => $parameters['billName'],
                         ],
                         'amount' => [
@@ -173,7 +173,7 @@ class Notifier implements INotifier {
                         'nextDueDate' => [
                             'type' => 'highlight',
                             'id' => 'nextDueDate',
-                            'name' => $parameters['nextDueDate'],
+                            'name' => (string)$parameters['nextDueDate'],
                         ],
                     ]
                 );
@@ -195,7 +195,7 @@ class Notifier implements INotifier {
                     [
                         'bill' => [
                             'type' => 'highlight',
-                            'id' => $parameters['billId'],
+                            'id' => (string)$parameters['billId'],
                             'name' => $parameters['billName'],
                         ],
                     ]
@@ -207,7 +207,7 @@ class Notifier implements INotifier {
                     [
                         'bill' => [
                             'type' => 'highlight',
-                            'id' => $parameters['billId'],
+                            'id' => (string)$parameters['billId'],
                             'name' => $parameters['billName'],
                         ],
                         'amount' => [
@@ -240,7 +240,7 @@ class Notifier implements INotifier {
                     [
                         'income' => [
                             'type' => 'highlight',
-                            'id' => $parameters['incomeId'],
+                            'id' => (string)$parameters['incomeId'],
                             'name' => $parameters['incomeName'],
                         ],
                     ]
@@ -252,7 +252,7 @@ class Notifier implements INotifier {
                     [
                         'income' => [
                             'type' => 'highlight',
-                            'id' => $parameters['incomeId'],
+                            'id' => (string)$parameters['incomeId'],
                             'name' => $parameters['incomeName'],
                         ],
                         'amount' => [
@@ -263,7 +263,7 @@ class Notifier implements INotifier {
                         'nextExpectedDate' => [
                             'type' => 'highlight',
                             'id' => 'nextExpectedDate',
-                            'name' => $parameters['nextExpectedDate'],
+                            'name' => (string)$parameters['nextExpectedDate'],
                         ],
                     ]
                 );
@@ -285,7 +285,7 @@ class Notifier implements INotifier {
                     [
                         'income' => [
                             'type' => 'highlight',
-                            'id' => $parameters['incomeId'],
+                            'id' => (string)$parameters['incomeId'],
                             'name' => $parameters['incomeName'],
                         ],
                     ]
@@ -297,7 +297,7 @@ class Notifier implements INotifier {
                     [
                         'income' => [
                             'type' => 'highlight',
-                            'id' => $parameters['incomeId'],
+                            'id' => (string)$parameters['incomeId'],
                             'name' => $parameters['incomeName'],
                         ],
                         'amount' => [

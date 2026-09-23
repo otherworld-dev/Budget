@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service;
 
+use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
+use OCA\Budget\Db\DismissedSuggestionMapper;
+use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\ShareItem;
+use OCA\Budget\Enum\Currency;
+use OCA\Budget\Service\Bill\BalanceProjector;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Bill\RecurringBillDetector;
 use OCA\Budget\Service\CurrencyConversionService;
@@ -30,7 +35,9 @@ class BillService {
     private CurrencyConversionService $currencyConversion;
     private TransactionSplitService $splitService;
     private LoggerInterface $logger;
+    private DismissedSuggestionMapper $dismissedMapper;
     private ?AutoShareService $autoShareService;
+    private ?RecurringIncomeMapper $incomeMapper;
 
     public function __construct(
         BillMapper $mapper,
@@ -42,7 +49,9 @@ class BillService {
         CurrencyConversionService $currencyConversion,
         TransactionSplitService $splitService,
         LoggerInterface $logger,
-        ?AutoShareService $autoShareService = null
+        DismissedSuggestionMapper $dismissedMapper,
+        ?AutoShareService $autoShareService = null,
+        ?RecurringIncomeMapper $incomeMapper = null
     ) {
         $this->mapper = $mapper;
         $this->frequencyCalculator = $frequencyCalculator;
@@ -53,11 +62,16 @@ class BillService {
         $this->currencyConversion = $currencyConversion;
         $this->splitService = $splitService;
         $this->logger = $logger;
+        $this->dismissedMapper = $dismissedMapper;
         $this->autoShareService = $autoShareService;
+        $this->incomeMapper = $incomeMapper;
     }
 
     /** Amount types whose figure is resolved from the destination card at payment time (#347) */
     private const DYNAMIC_AMOUNT_TYPES = ['statement', 'current_balance', 'minimum_payment'];
+
+    /** suggestion_type under which dismissed unrecorded payments are stored (#394) */
+    private const UNRECORDED_DISMISS_TYPE = 'unrecorded';
 
     /**
      * @throws DoesNotExistException
@@ -146,7 +160,7 @@ class BillService {
      * the account balance out of step with the bank. This returns recent
      * occurrences (last $sinceDays days) so the Bills page can surface them.
      * Deliberate skips (Skip button) never set the last-paid date and are
-     * not flagged.
+     * not flagged, and neither is a payment dismissed from the card (#394).
      */
     public function findUnrecordedPayments(string $userId, int $sinceDays = 60): array {
         $cutoff = date('Y-m-d', strtotime("-{$sinceDays} days"));
@@ -167,10 +181,16 @@ class BillService {
             $txDatesByBill[$tx->getBillId()][] = $tx->getDate();
         }
 
+        // Payments the user has dismissed as deliberately unrecorded (#394)
+        $dismissed = array_flip($this->dismissedMapper->findHashes($userId, self::UNRECORDED_DISMISS_TYPE));
+
         $currencyMap = $this->buildCurrencyMap($userId);
         $unrecorded = [];
         foreach ($candidates as $bill) {
             if ($this->hasRecordedPayment($bill->getLastPaidDate(), $txDatesByBill[$bill->getId()] ?? [])) {
+                continue;
+            }
+            if (isset($dismissed[sha1($this->unrecordedPaymentKey($bill->getId(), $bill->getLastPaidDate()))])) {
                 continue;
             }
             $unrecorded[] = [
@@ -182,6 +202,8 @@ class BillService {
                 'currency' => $bill->getAccountId() !== null
                     ? ($currencyMap[$bill->getAccountId()] ?? null)
                     : null,
+                // Lets the card offer Mark Unpaid alongside Dismiss (#394)
+                'canMarkUnpaid' => $bill->canMarkUnpaid(),
             ];
         }
 
@@ -230,6 +252,28 @@ class BillService {
     }
 
     /**
+     * Acknowledge that a payment has no transaction on purpose, so the
+     * unrecorded-payments card stops listing it (#394). The dismissal is
+     * keyed on the paid date, so the bill's next payment without a
+     * transaction is flagged afresh.
+     */
+    public function dismissUnrecordedPayment(int $id, string $userId): void {
+        $bill = $this->find($id, $userId);
+
+        $lastPaid = $bill->getLastPaidDate();
+        if ($lastPaid === null) {
+            throw new \InvalidArgumentException($this->l->t('This bill has never been marked as paid'));
+        }
+
+        $key = $this->unrecordedPaymentKey($bill->getId(), $lastPaid);
+        $this->dismissedMapper->dismiss($userId, self::UNRECORDED_DISMISS_TYPE, sha1($key), $key);
+    }
+
+    private function unrecordedPaymentKey(int $billId, string $paidDate): string {
+        return $billId . ':' . $paidDate;
+    }
+
+    /**
      * Whether any of the given transaction dates plausibly records a payment
      * made on $paidDate. Linked payments can be dated a few days off the
      * paid date (the matching dialog offers a ±7 day window), so allow slack.
@@ -250,7 +294,14 @@ class BillService {
      * Build a map of accountId => currency for the user's accounts.
      */
     private function buildCurrencyMap(string $userId): array {
-        $accounts = $this->accountMapper->findAll($userId);
+        return $this->currencyMapFor($this->accountMapper->findAll($userId));
+    }
+
+    /**
+     * @param Account[] $accounts
+     * @return array<int, string|null> account id => currency code
+     */
+    private function currencyMapFor(array $accounts): array {
         $map = [];
         foreach ($accounts as $account) {
             $map[$account->getId()] = $account->getCurrency() ?: null;
@@ -591,42 +642,46 @@ class BillService {
         }
 
         if ($needsRecalculation) {
-            // Apply updates to get current state for calculation
+            // Apply updates to a copy to get the edited state for the
+            // calculation. Not to $bill itself: the pre-booking toggle and the
+            // amount-type switch below compare $bill's stored values against
+            // the updates, and a mutated $bill made both read "unchanged" (#584)
+            $edited = clone $bill;
             foreach ($updates as $key => $value) {
-                if (property_exists($bill, $key)) {
+                if (property_exists($edited, $key)) {
                     $setter = 'set' . ucfirst($key);
-                    $bill->$setter($value);
+                    $edited->$setter($value);
                 }
             }
 
             // A one-time bill's date is its schedule (#375): keep day and
             // month in step with it, in the entity and in what is written.
-            if ($bill->getFrequency() === 'one-time' && $bill->getStartDate()) {
-                $bill->setDueDay((int) (new \DateTime($bill->getStartDate()))->format('j'));
-                $bill->setDueMonth((int) (new \DateTime($bill->getStartDate()))->format('n'));
-                $dbUpdates['due_day'] = $bill->getDueDay();
-                $dbUpdates['due_month'] = $bill->getDueMonth();
+            if ($edited->getFrequency() === 'one-time' && $edited->getStartDate()) {
+                $edited->setDueDay((int) (new \DateTime($edited->getStartDate()))->format('j'));
+                $edited->setDueMonth((int) (new \DateTime($edited->getStartDate()))->format('n'));
+                $dbUpdates['due_day'] = $edited->getDueDay();
+                $dbUpdates['due_month'] = $edited->getDueMonth();
             }
 
             // Recalculate from today (not from the old nextDueDate) since
             // the schedule parameters changed; a startDate anchors the
             // weekly/biweekly parity (#364)
             $nextDue = $this->frequencyCalculator->calculateNextDueDate(
-                $bill->getFrequency(),
-                $bill->getDueDay(),
-                $bill->getDueMonth(),
+                $edited->getFrequency(),
+                $edited->getDueDay(),
+                $edited->getDueMonth(),
                 null, // recalculate from today
-                $bill->getCustomRecurrencePattern(),
+                $edited->getCustomRecurrencePattern(),
                 false,
-                $bill->getStartDate()
+                $edited->getStartDate()
             );
             $nextDue = $this->applyStartDateFloor(
                 $nextDue,
-                $bill->getStartDate(),
-                $bill->getFrequency(),
-                $bill->getDueDay(),
-                $bill->getDueMonth(),
-                $bill->getCustomRecurrencePattern()
+                $edited->getStartDate(),
+                $edited->getFrequency(),
+                $edited->getDueDay(),
+                $edited->getDueMonth(),
+                $edited->getCustomRecurrencePattern()
             );
             $dbUpdates['next_due_date'] = $nextDue;
         }
@@ -1121,8 +1176,10 @@ class BillService {
 
         $bill = $this->mapper->update($bill);
 
-        // Recreate scheduled transaction for the restored date
-        if ($bill->getIsActive() && $bill->getAccountId() !== null) {
+        // Recreate scheduled transaction for the restored date, unless the
+        // bill opted out of pre-created transactions - skipPayment() honours
+        // that, and undoing it must not put back what it never had (#396)
+        if (($bill->getCreateTransaction() ?? true) && $bill->getIsActive() && $bill->getAccountId() !== null) {
             try {
                 $nextTransaction = $this->transactionService->createFromBill($userId, $bill, null);
                 $this->applySplitTemplate($bill, $nextTransaction, $userId);
@@ -1534,6 +1591,58 @@ class BillService {
      * @return array Bills with monthly occurrences and totals
      */
     public function getAnnualOverview(string $userId, int $year, bool $includeTransfers = false, string $billStatus = 'active', ?int $accountId = null): array {
+        // Build currency map for conversion. The same list finds the picked
+        // account below, so an id the user cannot see finds nothing.
+        $accounts = $this->accountMapper->findAll($userId);
+        $currencyMap = $this->currencyMapFor($accounts);
+        $baseCurrency = $this->currencyConversion->getBaseCurrency($userId);
+
+        [$billsData, $monthlyTotals] = $this->calendarRows($userId, $year, $includeTransfers, $billStatus, $accountId, $currencyMap, $baseCurrency);
+
+        // With an account picked: its balance carried through the rest of
+        // this year, from today's (#393). Another year has no today to start
+        // from, so it gets no projection.
+        $accountSummary = null;
+        $projection = null;
+        $account = $accountId === null ? null : $this->accountAmong($accounts, $accountId);
+        if ($account !== null) {
+            $balance = $this->transactionService->getBalanceAsOf($account->getId(), date('Y-m-d'));
+            $accountSummary = [
+                'id' => $account->getId(),
+                'name' => $account->getName(),
+                'currency' => $account->getCurrency() ?: $baseCurrency,
+                'balance' => $balance,
+            ];
+            if ($year === (int) date('Y')) {
+                // The money moves whatever the table is set to show, so a
+                // view without transfers, or of inactive bills only, is
+                // projected from every bill that is still live
+                $projectionRows = ($includeTransfers && $billStatus !== 'inactive')
+                    ? $billsData
+                    : $this->calendarRows($userId, $year, true, 'active', $accountId, $currencyMap, $baseCurrency)[0];
+                $projection = $this->projectBalance($userId, $projectionRows, $account, $balance);
+            }
+        }
+
+        return [
+            'year' => $year,
+            'bills' => $this->groupOneTimeBillsByName($billsData),
+            'monthlyTotals' => $monthlyTotals,
+            'baseCurrency' => $baseCurrency,
+            'account' => $accountSummary,
+            'projectedBalance' => $projection['balance'] ?? null,
+            'projectedFlows' => $projection['flows'] ?? null,
+        ];
+    }
+
+    /**
+     * The calendar's rows, one per bill with anything in the year, and what
+     * each month comes to in the base currency.
+     *
+     * @param array<int, string|null> $currencyMap account id => currency code
+     * @return array{0: array[], 1: array<int, float>} ungrouped rows, monthly totals
+     */
+    private function calendarRows(string $userId, int $year, bool $includeTransfers, string $billStatus, ?int $accountId, array $currencyMap, string $baseCurrency): array {
         // Determine which bills to fetch based on status
         $bills = [];
         if ($billStatus === 'active') {
@@ -1584,10 +1693,6 @@ class BillService {
         if ($billStatus === 'active') {
             $bills = array_filter($bills, fn(Bill $bill) => $bill->getIsActive() || isset($paymentsByBill[$bill->getId()]));
         }
-
-        // Build currency map for conversion
-        $currencyMap = $this->buildCurrencyMap($userId);
-        $baseCurrency = $this->currencyConversion->getBaseCurrency($userId);
 
         // Calculate monthly occurrences for each bill
         $billsData = [];
@@ -1657,12 +1762,39 @@ class BillService {
             $billsData[] = $billData;
         }
 
-        return [
-            'year' => $year,
-            'bills' => $this->groupOneTimeBillsByName($billsData),
-            'monthlyTotals' => $monthlyTotals,
-            'baseCurrency' => $baseCurrency,
-        ];
+        return [$billsData, $monthlyTotals];
+    }
+
+    /** @param Account[] $accounts */
+    private function accountAmong(array $accounts, int $accountId): ?Account {
+        foreach ($accounts as $account) {
+            if ($account->getId() === $accountId) {
+                return $account;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The account's running balance through the rest of this year: bills
+     * out, transfers and recurring income in, carried month to month (#393).
+     *
+     * @param array[] $billsData ungrouped calendar rows
+     * @return array{balance: array<int, float|null>, flows: array<int, array{bills: float, transfersIn: float, income: float}|null>}
+     */
+    private function projectBalance(string $userId, array $billsData, Account $account, float $balance): array {
+        $scale = Currency::decimalsFor($account->getCurrency());
+        $today = date('Y-m-d');
+        $projector = new BalanceProjector($this->frequencyCalculator);
+        $incomes = $this->incomeMapper?->findActive($userId) ?? [];
+        return $projector->project(
+            $billsData,
+            $account->getId(),
+            $balance,
+            $projector->incomeByMonth($incomes, $account->getId(), $today, $scale),
+            (int) date('n'),
+            $scale
+        );
     }
 
     /**

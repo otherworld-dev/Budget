@@ -19264,6 +19264,31 @@ button.secondary.compact {
     border-top: 2px solid var(--color-border-dark);
 }
 
+/* What is left in the picked account after each month's bills (#393) */
+.bills-calendar-table .balance-after-row {
+    border-top: 1px solid var(--color-border);
+}
+
+.bills-calendar-table .balance-cell {
+    text-align: right;
+    padding-right: 8px;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--budget-color-positive);
+}
+
+.bills-calendar-table .balance-cell.negative {
+    background-color: rgba(198, 40, 40, 0.1);
+    color: var(--budget-color-negative);
+}
+
+.bills-calendar-table .balance-hint-row td {
+    padding: 6px 8px;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--color-text-maxcontrast);
+}
+
 .transfer-badge {
     display: inline-block;
     margin-left: 6px;
@@ -20587,6 +20612,51 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     outline: none;
     border-color: var(--color-primary, #0082c9);
     box-shadow: 0 0 0 2px var(--color-primary-light, #d6eaf8);
+}
+
+/* What's new popup (utils/dialogs.js whatsNewDialog). */
+.budget-dialog-panel--wide {
+    max-width: 560px;
+}
+
+.whats-new-entry + .whats-new-entry {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border, #ddd);
+}
+
+.whats-new-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 8px 0;
+    font-size: 15px;
+    font-weight: bold;
+}
+
+.whats-new-version {
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: normal;
+    color: var(--color-text-maxcontrast, #767676);
+}
+
+.whats-new-items {
+    margin: 0 0 8px 0;
+    padding-left: 20px;
+    list-style: disc;
+}
+
+.whats-new-items li {
+    margin-bottom: 4px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.whats-new-link {
+    color: var(--color-primary-element, #0082c9);
+    text-decoration: underline;
 }
 
 .budget-dialog-buttons {

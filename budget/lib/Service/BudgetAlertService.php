@@ -231,15 +231,20 @@ class BudgetAlertService {
         // carryover (a fully depleted envelope must still alert), minus the
         // ones the user's alert scope or muted list rules out (#389)
         $categoriesWithBudgets = [];
+        $budgetedIds = [];
         foreach ($categories as $category) {
             if ($category->getExcludedFromReports() || isset($notBudgeted[$category->getId()])) {
                 continue;
             }
             $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);
-            if (!$this->mayAlert($category->getId(), $resolved, $alertScope, $mutedCategories)) {
+            if (!($resolved['base'] > 0 || abs($resolved['carried']) >= 0.005)) {
                 continue;
             }
-            if ($resolved['base'] > 0 || abs($resolved['carried']) >= 0.005) {
+            // A muted budget is still a budget: it ends the parent's branch
+            // all the same, or muting it would move its spending onto the
+            // parent's alert
+            $budgetedIds[$category->getId()] = true;
+            if ($this->mayAlert($category->getId(), $resolved, $alertScope, $mutedCategories)) {
                 $categoriesWithBudgets[] = $category;
             }
         }
@@ -247,6 +252,7 @@ class BudgetAlertService {
         if (empty($categoriesWithBudgets)) {
             return [];
         }
+        $branches = BudgetScope::spendingBranches($categories, $budgetedIds);
 
         // Calculate date ranges for each period type
         $startDay = $this->getBudgetStartDay($userId);
@@ -264,10 +270,10 @@ class BudgetAlertService {
 
             $range = $periodRanges[$period];
 
-            // Get spending for this category in the current period
+            // Get spending for this category's branch in the current period
             $spent = $this->getCategorySpending(
                 $userId,
-                $category->getId(),
+                $branches[$category->getId()] ?? [$category->getId()],
                 $range['start'],
                 $range['end'],
                 $visibleAccountIds
@@ -422,6 +428,7 @@ class BudgetAlertService {
 
         // Base budget > 0, or a non-zero envelope carryover (see getAlerts)
         $categoriesWithBudgets = [];
+        $budgetedIds = [];
         foreach ($categories as $category) {
             if ($category->getExcludedFromReports() || isset($notBudgeted[$category->getId()])) {
                 continue;
@@ -429,12 +436,14 @@ class BudgetAlertService {
             $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);
             if ($resolved['base'] > 0 || abs($resolved['carried']) >= 0.005) {
                 $categoriesWithBudgets[] = $category;
+                $budgetedIds[$category->getId()] = true;
             }
         }
 
         if (empty($categoriesWithBudgets)) {
             return [];
         }
+        $branches = BudgetScope::spendingBranches($categories, $budgetedIds);
 
         $startDay = $this->getBudgetStartDay($userId);
         $periodRanges = $this->calculatePeriodRanges($startDay);
@@ -453,7 +462,7 @@ class BudgetAlertService {
 
             $spent = $this->getCategorySpending(
                 $userId,
-                $category->getId(),
+                $branches[$category->getId()] ?? [$category->getId()],
                 $range['start'],
                 $range['end'],
                 $visibleAccountIds
@@ -618,7 +627,9 @@ class BudgetAlertService {
     }
 
     /**
-     * Get NET spending for a category within a date range.
+     * Get NET spending for a budget's branch within a date range: the
+     * category and the subcategories BudgetScope::spendingBranches() puts
+     * under it (#551).
      *
      * Direct transactions and split allocations, with money that came back
      * subtracted: a refunded purchase has not been spent. The budget surfaces
@@ -626,50 +637,53 @@ class BudgetAlertService {
      * bar next to it would be worse than no alert — a category would be shouted
      * at for 216.90 while the bar showed 58.29 of a 120 budget.
      */
-    private function getCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate, ?array $visibleAccountIds = null): float {
+    private function getCategorySpending(string $userId, array $categoryIds, string $startDate, string $endDate, ?array $visibleAccountIds = null): float {
         $spend = 0.0;
 
         // 'debit' is money out and counts toward the budget; 'credit' is money
         // back and comes off it. Splits are fetched separately either way,
         // because the mapper's direct query deliberately excludes them.
         foreach (['debit' => 1.0, 'credit' => -1.0] as $type => $sign) {
-            $spend += $sign * $this->transactionMapper->getCategorySpending(
+            foreach ($categoryIds as $categoryId) {
+                $spend += $sign * $this->transactionMapper->getCategorySpending(
+                    $userId,
+                    $categoryId,
+                    $startDate,
+                    $endDate,
+                    null,
+                    $visibleAccountIds,
+                    $type
+                );
+            }
+            $splitTotals = $this->getSplitCategoryTotals(
                 $userId,
-                $categoryId,
                 $startDate,
                 $endDate,
-                null,
                 $visibleAccountIds,
                 $type
             );
-            $spend += $sign * $this->getSplitCategorySpending(
-                $userId,
-                $categoryId,
-                $startDate,
-                $endDate,
-                $visibleAccountIds,
-                $type
-            );
+            foreach ($categoryIds as $categoryId) {
+                $spend += $sign * ($splitTotals[$categoryId] ?? 0.0);
+            }
         }
 
         return $spend;
     }
 
     /**
-     * Get spending from transaction splits for a category, one direction at a
-     * time — the caller nets them.
+     * Per-category totals from transaction splits, one direction at a time —
+     * the caller nets them.
+     *
+     * @return array<int, float> categoryId => total
      */
-    private function getSplitCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate, ?array $visibleAccountIds = null, string $transactionType = 'debit'): float {
+    private function getSplitCategoryTotals(string $userId, string $startDate, string $endDate, ?array $visibleAccountIds = null, string $transactionType = 'debit'): array {
         // Get split transactions in date range
         $splitTransactionIds = $this->transactionMapper->getSplitTransactionIds($userId, $startDate, $endDate, $visibleAccountIds, $transactionType);
 
         if (empty($splitTransactionIds)) {
-            return 0.0;
+            return [];
         }
 
-        // Get category totals from those splits
-        $categoryTotals = $this->splitMapper->getCategoryTotals($splitTransactionIds);
-
-        return $categoryTotals[$categoryId] ?? 0.0;
+        return $this->splitMapper->getCategoryTotals($splitTransactionIds);
     }
 }

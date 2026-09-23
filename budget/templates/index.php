@@ -292,7 +292,7 @@ style('budget', 'budget-app');
 
 <div id="nav-backdrop" class="nav-open-backdrop"></div>
 
-<div id="app-content" class="app-content">
+<div id="app-content" class="app-content" data-app-version="<?php p($_['appVersion'] ?? ''); ?>">
     <div id="app-content-wrapper">
 <?php if (!empty($_['schemaWarning'])) { ?>
 <div class="budget-schema-warning" role="alert">
@@ -4880,6 +4880,11 @@ style('budget', 'budget-app');
             <div class="view-header">
                 <h2><?php p($l->t('Help & Docs')); ?></h2>
                 <div class="view-controls">
+                    <!-- Hidden by HelpModule when src/whatsnew.json has nothing up to this version -->
+                    <button type="button" id="help-whats-new-btn" class="secondary">
+                        <span class="icon-info" aria-hidden="true"></span>
+                        <?php p($l->t("What's new")); ?>
+                    </button>
                     <button type="button" id="help-docs-site-btn" class="secondary">
                         <span class="icon-external" aria-hidden="true"></span>
                         <?php p($l->t('Open docs site')); ?>

@@ -4,12 +4,25 @@
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
-import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { billRowDateText } from '../../utils/billDates.js';
+import { showSuccess, showError, showWarning, showUndoNotification } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { initSingleDatePicker } from '../../utils/datepicker.js';
 import { serverErrorMessage, isoWeekday } from '../../utils/helpers.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { openAccounts, pickableAccounts, accountOptionLabel } from '../../utils/accounts.js';
+
+/**
+ * The date to open the form on for a one-time transfer saved before the
+ * form had a date field (#395). Its only date is the next_due_date the
+ * server worked out from the day alone, so that is shown - the wrong year
+ * in plain view, ready to be corrected - rather than an empty required
+ * field. Recurring transfers have no fallback: their start date is optional.
+ */
+function oneTimeFallbackDate(transfer) {
+    if ((transfer.frequency || 'monthly') !== 'one-time') return '';
+    return transfer.nextDueDate || transfer.next_due_date || '';
+}
 
 export default class TransfersModule {
     constructor(app) {
@@ -201,6 +214,16 @@ export default class TransfersModule {
             }
         });
 
+        // Skip an occurrence (#396)
+        document.addEventListener('click', (e) => {
+            const skipBtn = e.target.closest('.transfer-skip-btn');
+            if (skipBtn) {
+                e.preventDefault();
+                const transferId = parseInt(skipBtn.dataset.transferId);
+                this.skipTransfer(transferId);
+            }
+        });
+
         // Mark transfer as unpaid (revert the last payment, #365)
         document.addEventListener('click', (e) => {
             const unpaidBtn = e.target.closest('.transfer-unpaid-btn');
@@ -267,7 +290,10 @@ export default class TransfersModule {
         emptyTransfers.style.display = 'none';
 
         transfersList.innerHTML = this.transfers.map(transfer => {
-            const dueDate = transfer.nextDueDate || transfer.next_due_date;
+            // A paid one-time transfer has no next occurrence, but it still
+            // has the date it was due - kept as its start date (#375, #395)
+            const dueDate = transfer.nextDueDate || transfer.next_due_date
+                || ((transfer.frequency || 'monthly') === 'one-time' ? (transfer.startDate || transfer.start_date || null) : null);
             // An inactive transfer has no next occurrence: never offer an
             // actionable Mark Paid on it — markPaid would still execute (#365)
             const isActive = transfer.isActive ?? transfer.is_active ?? true;
@@ -319,7 +345,7 @@ export default class TransfersModule {
                     <div class="bill-details">
                         <div class="bill-due-date">
                             <span class="icon-calendar" aria-hidden="true"></span>
-                            ${dueDate ? formatters.formatDate(dueDate, this.settings) : t('budget', 'No due date')}
+                            ${dom.escapeHtml(billRowDateText(transfer, dueDate, isPaid, this.settings))}
                         </div>
                         <div class="bill-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>
@@ -332,6 +358,12 @@ export default class TransfersModule {
                             <button class="bill-action-btn transfer-paid-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Mark as paid')}">
                                 <span class="icon-checkmark" aria-hidden="true"></span>
                                 ${t('budget', 'Mark Paid')}
+                            </button>
+                        ` : ''}
+                        ${!isPaid && frequency !== 'one-time' ? `
+                            <button class="bill-action-btn transfer-skip-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Skip this payment')}">
+                                <span aria-hidden="true">&#x23ED;</span>
+                                ${t('budget', 'Skip')}
                             </button>
                         ` : ''}
                         ${transfer.canMarkUnpaid ? `
@@ -503,9 +535,9 @@ export default class TransfersModule {
                                 </div>
 
                                 <div class="form-group" id="transfer-start-date-group" style="display: none;">
-                                <label for="transfer-start-date">${t('budget', 'Start Date')}</label>
+                                <label for="transfer-start-date" id="transfer-start-date-label">${t('budget', 'Start Date')}</label>
                                 <input type="date" id="transfer-start-date"
-                                value="${isEdit && transfer.startDate ? transfer.startDate : ''}">
+                                value="${isEdit ? (transfer.startDate || oneTimeFallbackDate(transfer)) : ''}">
                                 <small class="form-text" id="transfer-start-date-help"></small>
                                 </div>
                               </div>
@@ -694,17 +726,40 @@ export default class TransfersModule {
      * form: weekly/biweekly take a weekday (1-7), everything else a day of
      * month (1-31). The start date shows for every recurring frequency —
      * for weekly/biweekly it anchors the schedule (weekday + fortnight,
-     * #364), for the rest it floors the first occurrence (#268).
+     * #364), for the rest it floors the first occurrence (#268). For a
+     * one-time transfer the same field is the due date and the whole
+     * schedule, with the day of month hidden (#395, as bills since #375).
      */
     updateTransferScheduleFields() {
         const frequency = document.getElementById('transfer-frequency')?.value;
+        const dueDayGroup = document.getElementById('transfer-due-day-group');
         const dueDayLabel = document.getElementById('transfer-due-day-label');
         const dueDayInput = document.getElementById('transfer-due-day');
         const dueDayHelp = document.getElementById('transfer-due-day-help');
         const startDateInput = document.getElementById('transfer-start-date');
         const startDateGroup = document.getElementById('transfer-start-date-group');
+        const startDateLabel = document.getElementById('transfer-start-date-label');
         const startDateHelp = document.getElementById('transfer-start-date-help');
         if (!frequency || !dueDayLabel || !dueDayInput) return;
+
+        // A one-time transfer has no day of month of its own: with only a
+        // day to go on the server had to guess the month, and guessed
+        // January, so "day 28" entered in September fell due the following
+        // January. The date below is its schedule; day and month follow it
+        // on save (#395)
+        const isOneTime = frequency === 'one-time';
+        if (dueDayGroup) dueDayGroup.style.display = isOneTime ? 'none' : 'block';
+        if (startDateGroup) startDateGroup.style.display = 'block';
+        if (startDateLabel) {
+            startDateLabel.textContent = isOneTime ? t('budget', 'Due Date') : t('budget', 'Start Date');
+        }
+        if (startDateInput) startDateInput.required = isOneTime;
+        if (isOneTime) {
+            if (startDateHelp) {
+                startDateHelp.textContent = t('budget', 'The date this transfer is due. It can be in the past.');
+            }
+            return;
+        }
 
         const isAnchored = frequency === 'weekly' || frequency === 'biweekly';
         if (isAnchored) {
@@ -729,9 +784,6 @@ export default class TransfersModule {
             dueDayInput.disabled = false;
         }
 
-        if (startDateGroup) {
-            startDateGroup.style.display = frequency === 'one-time' ? 'none' : 'block';
-        }
         if (startDateHelp) {
             startDateHelp.textContent = isAnchored
                 ? t('budget', 'The transfer repeats from this date (optional)')
@@ -748,13 +800,24 @@ export default class TransfersModule {
         const frequency = document.getElementById('transfer-frequency').value;
         const fromAccountId = parseInt(document.getElementById('recurring-transfer-from-account').value);
         const toAccountId = parseInt(document.getElementById('recurring-transfer-to-account').value);
-        const dueDay = document.getElementById('transfer-due-day').value ?
-                       parseInt(document.getElementById('transfer-due-day').value) : null;
-        // The field is hidden for one-time — a stale value left over from a
-        // previous frequency choice must not be submitted (mirrors IncomeModule)
-        const startDate = frequency === 'one-time'
-            ? null
-            : (document.getElementById('transfer-start-date')?.value || null);
+        let dueDay = document.getElementById('transfer-due-day').value ?
+                     parseInt(document.getElementById('transfer-due-day').value) : null;
+        let dueMonth;
+        const startDate = document.getElementById('transfer-start-date')?.value || null;
+        // A one-time transfer's date is its whole schedule: the day and
+        // month follow it, and the hidden day-of-month input may still hold
+        // a previous frequency's value (#395, as bills since #375)
+        if (frequency === 'one-time') {
+            if (!startDate) {
+                showWarning(t('budget', 'Please enter the date the transfer is due'));
+                return false;
+            }
+            const [, month, day] = startDate.split('-').map(Number);
+            if (month && day) {
+                dueDay = day;
+                dueMonth = month;
+            }
+        }
         const transferDescriptionPattern = document.getElementById('transfer-description-pattern').value || null;
         const categoryId = document.getElementById('transfer-category')?.value ? parseInt(document.getElementById('transfer-category').value) : null;
         const tagIds = this.getSelectedTagIds();
@@ -787,6 +850,7 @@ export default class TransfersModule {
             accountId: fromAccountId,
             destinationAccountId: toAccountId,
             dueDay,
+            ...(dueMonth !== undefined ? { dueMonth } : {}),
             startDate,
             transferDescriptionPattern,
             categoryId,
@@ -921,6 +985,90 @@ export default class TransfersModule {
         } catch (error) {
             console.error('Failed to mark transfer as paid:', error);
             showError(t('budget', 'Failed to mark transfer as paid'));
+        }
+    }
+
+    /**
+     * Skip the next occurrence of a transfer (#396). The bill skip endpoint
+     * already handles a transfer - both pre-booked legs for the skipped date
+     * go, and the next pair is pre-booked - so this is the bills list's Skip
+     * with the same confirm and the same short-lived undo.
+     */
+    async skipTransfer(transferId) {
+        const transfer = this.transfers.find(tx => tx.id === transferId);
+        if (!transfer) return;
+
+        if (!await confirmDialog(t('budget', 'Skip this payment and advance to the next due date?'))) {
+            return;
+        }
+
+        try {
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${transferId}/skip`), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(serverErrorMessage(error, t('budget', 'Failed to skip transfer')));
+            }
+
+            const result = await response.json();
+            this._undoData = {
+                transferId,
+                previousNextDueDate: result.previousNextDueDate ?? null,
+                action: 'skip'
+            };
+
+            await this.loadTransfers();
+            this.renderTransfers();
+            this.updateSummary();
+
+            showUndoNotification(
+                t('budget', 'Payment skipped. Advanced to next due date.'),
+                () => this.undoSkipTransfer(),
+                () => { this._undoData = null; }
+            );
+        } catch (error) {
+            console.error('Failed to skip transfer:', error);
+            showError(error.message || t('budget', 'Failed to skip transfer'));
+        }
+    }
+
+    async undoSkipTransfer() {
+        if (!this._undoData || this._undoData.action !== 'skip') {
+            return;
+        }
+
+        try {
+            const { transferId, previousNextDueDate } = this._undoData;
+
+            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${transferId}/undo-skip`), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'requesttoken': OC.requestToken
+                },
+                body: JSON.stringify({ previousNextDueDate })
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
+            }
+
+            this._undoData = null;
+            await this.loadTransfers();
+            this.renderTransfers();
+            this.updateSummary();
+
+            showSuccess(t('budget', 'Action undone'));
+        } catch (error) {
+            console.error('Failed to undo skip:', error);
+            showError(t('budget', 'Failed to undo action: {message}', { message: error.message }));
         }
     }
 

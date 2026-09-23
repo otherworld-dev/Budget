@@ -2,11 +2,6 @@
 style('budget', 'style');
 $accounts = json_decode($_['accounts'], true);
 $categories = json_decode($_['categories'], true);
-
-// iOS web app meta tags for home screen shortcuts
-\OCP\Util::addHeader('meta', ['name' => 'apple-mobile-web-app-capable', 'content' => 'yes']);
-\OCP\Util::addHeader('meta', ['name' => 'apple-mobile-web-app-title', 'content' => $l->t('Quick Add')]);
-\OCP\Util::addHeader('meta', ['name' => 'mobile-web-app-capable', 'content' => 'yes']);
 ?>
 
 <div id="quick-add-page">
@@ -83,6 +78,25 @@ $categories = json_decode($_['categories'], true);
 <script nonce="<?php p(\OCP\Server::get(\OC\Security\CSP\ContentSecurityPolicyNonceManager::class)->getNonce()); ?>">
 (function() {
     'use strict';
+
+    // Make "Add to Home Screen" / "Install" open this page rather than
+    // Budget's main page (#530). The layout's head already carries
+    // Nextcloud's manifest and icons for the app, and those come first, so
+    // tags added through addHeader would be ignored; repoint them instead.
+    // The manifest URL is built from this page's own path so its relative
+    // start URL matches however the page was reached (with or without
+    // index.php).
+    var manifestLink = document.querySelector('link[rel="manifest"]');
+    if (manifestLink) {
+        manifestLink.href = window.location.pathname.replace(/\/+$/, '') + '/manifest';
+    }
+    document.querySelectorAll('link[rel^="apple-touch-icon"]').forEach(function(link) {
+        link.href = '<?php p($_['touchIcon']); ?>';
+    });
+    var appTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    if (appTitle) {
+        appTitle.content = '<?php p($l->t('Quick Add')); ?>';
+    }
 
     // Ensure the Nextcloud content wrapper is scrollable
     var content = document.getElementById('content');

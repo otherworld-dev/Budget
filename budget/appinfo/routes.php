@@ -7,6 +7,7 @@ return [
         // Page routes
         ['name' => 'page#index', 'url' => '/', 'verb' => 'GET'],
         ['name' => 'page#quickAdd', 'url' => '/quick-add', 'verb' => 'GET'],
+        ['name' => 'page#quickAddManifest', 'url' => '/quick-add/manifest', 'verb' => 'GET'],
         
         // Account routes
         ['name' => 'account#index', 'url' => '/api/accounts', 'verb' => 'GET'],
@@ -207,6 +208,7 @@ return [
         ['name' => 'bill#findMatchingTransactions', 'url' => '/api/bills/{id}/matching-transactions', 'verb' => 'GET'],
         ['name' => 'bill#markPaid', 'url' => '/api/bills/{id}/paid', 'verb' => 'POST'],
         ['name' => 'bill#recordMissedPayment', 'url' => '/api/bills/{id}/record-payment', 'verb' => 'POST'],
+        ['name' => 'bill#dismissUnrecordedPayment', 'url' => '/api/bills/{id}/dismiss-unrecorded', 'verb' => 'POST'],
         ['name' => 'bill#skipPayment', 'url' => '/api/bills/{id}/skip', 'verb' => 'POST'],
         ['name' => 'bill#undoSkip', 'url' => '/api/bills/{id}/undo-skip', 'verb' => 'POST'],
         ['name' => 'bill#undoPaid', 'url' => '/api/bills/{id}/undo-paid', 'verb' => 'POST'],
