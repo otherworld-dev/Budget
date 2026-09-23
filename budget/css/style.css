@@ -13,6 +13,9 @@
     --color-success: #2e7d32;
     --color-error: #b71c1c;
     --color-warning: #e65100;
+    /* Text on a success/error/warning fill. White on these dark shades; the
+       dark theme swaps both the fills and this (see the end of the file). */
+    --budget-color-on-status: white;
 }
 
 /* App Navigation Search Bar - Match Files app style */
@@ -1908,7 +1911,7 @@ button.secondary:focus {
 /* Success Button - Positive Actions */
 button.success {
     background: var(--color-success);
-    color: white;
+    color: var(--budget-color-on-status, white);
 }
 
 button.success:hover {
@@ -2092,7 +2095,7 @@ button.danger:hover {
 
 .account-actions .error {
     background-color: var(--color-error);
-    color: white;
+    color: var(--budget-color-on-status, white);
 }
 
 .account-actions .error:hover {
@@ -5926,7 +5929,7 @@ button.danger:hover {
 
 .category-delete-btn:hover {
     background: var(--color-error);
-    color: white;
+    color: var(--budget-color-on-status, white);
 }
 
 /* Per-viewer "hide from my reports" toggle on shared categories */
@@ -6671,7 +6674,7 @@ button.danger:hover {
 
 .wizard-step.completed .step-number {
     background: var(--color-success);
-    color: white;
+    color: var(--budget-color-on-status, white);
 }
 
 .step-label {
@@ -9076,7 +9079,7 @@ button.danger:hover {
 .bill-action-btn.bill-paid-btn {
     background: var(--color-success);
     border-color: var(--color-success);
-    color: white;
+    color: var(--budget-color-on-status, white);
 }
 
 .bill-action-btn.bill-paid-btn:hover {
@@ -9640,12 +9643,12 @@ button.danger:hover {
 
 .income-status.received .status-badge {
     background: var(--color-success);
-    color: white;
+    color: var(--budget-color-on-status, white);
 }
 
 .income-status.expected-soon .status-badge {
     background: var(--color-warning);
-    color: white;
+    color: var(--budget-color-on-status, white);
 }
 
 .income-status.upcoming .status-badge {
@@ -10061,12 +10064,12 @@ button.danger:hover {
 
 .detected-confidence.high {
     background: var(--color-success);
-    color: white;
+    color: var(--budget-color-on-status, white);
 }
 
 .detected-confidence.medium {
     background: var(--color-warning);
-    color: white;
+    color: var(--budget-color-on-status, white);
 }
 
 .detected-confidence.low {
@@ -12072,7 +12075,7 @@ button.danger:hover {
 .unlink-btn {
     padding: 4px 8px;
     background: var(--color-error);
-    color: white;
+    color: var(--budget-color-on-status, white);
     border: none;
     border-radius: var(--border-radius-small, 4px);
     cursor: pointer;
@@ -12541,7 +12544,7 @@ tr.pending-transaction td:first-child {
     padding: 6px 12px;
     font-size: 12px;
     background: var(--color-error);
-    color: white;
+    color: var(--budget-color-on-status, white);
     border: none;
     border-radius: var(--border-radius-small, 4px);
     cursor: pointer;
@@ -14047,7 +14050,7 @@ button.secondary.compact {
 
 .split-remove-btn:hover {
     background: var(--color-error);
-    color: white;
+    color: var(--budget-color-on-status, white);
 }
 
 .split-remove-btn:disabled {
@@ -16823,7 +16826,7 @@ button.secondary.compact {
     transition: background 0.1s, color 0.1s;
 }
 .widget-remove-btn:hover {    background: var(--color-error);
-    color: white;
+    color: var(--budget-color-on-status, white);
 }
 
 .hero-card,
@@ -17806,7 +17809,7 @@ button.secondary.compact {
 
 .budget-modal .error-message {
     background: var(--color-error);
-    color: white;
+    color: var(--budget-color-on-status, white);
     padding: 10px 12px;
     border-radius: var(--border-radius);
     margin-bottom: 16px;
@@ -19956,6 +19959,31 @@ body[data-theme-dark-highcontrast] {
     body[data-theme-default] {
         --budget-color-negative: #f28b82;
         --budget-color-positive: #81c995;
+    }
+}
+
+/* The error/success/warning overrides at the top of this file are set on
+   #app-navigation / #app-content, so they need redefining at the same level.
+   The light shades measured 2.7:1 (error) and 3.5:1 (success) on the dark
+   background; these are all above 6:1 on #171717 and #292929 (WCAG AA).
+   Being light, they take dark text when used as a fill. */
+body[data-theme-dark] #app-navigation,
+body[data-theme-dark] #app-content,
+body[data-theme-dark-highcontrast] #app-navigation,
+body[data-theme-dark-highcontrast] #app-content {
+    --color-success: #81c995;
+    --color-error: #f28b82;
+    --color-warning: #ffb74d;
+    --budget-color-on-status: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+    body[data-theme-default] #app-navigation,
+    body[data-theme-default] #app-content {
+        --color-success: #81c995;
+        --color-error: #f28b82;
+        --color-warning: #ffb74d;
+        --budget-color-on-status: #171717;
     }
 }
 
