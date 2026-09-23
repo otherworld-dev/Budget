@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Recurring income can be skipped.** Bills and transfers have a **Skip** button, however the Income page did not, so the only way past a payment that was not coming this time was to mark it received, which records a receipt that never happened. The Income page now has the same **Skip**: the expected date moves on one cycle without marking anything received or creating a transaction, and **Undo** in the notification that appears puts the old date back. Suggested by @SGiersch ([#396](https://github.com/otherworld-dev/Budget/issues/396))
+- **Import from Firefly III, YNAB, Actual Budget, Mint and Monarch Money.** Pick the app under Import Format and upload its export. Each account in the file is matched to one of yours by name or created, categories are created as needed (YNAB and Actual category groups become parent categories) and tags come across as well. Both sides of a transfer between two of your accounts are imported and linked, so they don't count as income or spending, and importing the same export again adds nothing. A CSV whose columns match one of these apps is recognised when it is uploaded, and **Switching from another app?** on the import screen says where each app keeps its export. Tab-separated `.tsv` files can be imported too, which is what YNAB exports for currencies with a comma decimal.
+- **Ready to Assign on the Budget page.** A new card shows the month's income less what the month's budgets give out, so you can see whether there is money still waiting for a budget or whether the budgets promise more than came in. It follows the month you pick. Amounts carried over by envelope budgets are left out, as that money was assigned from an earlier month's income.
+- **A getting started checklist.** A new user used to land on a dashboard of empty tiles. They now get five steps (currency, default categories, an account, a statement or bank connection, and a first budget) which tick themselves off as they go, and the tiles come back once it is finished or dismissed. Anyone who already has data never sees it.
+- **Try Budget with sample data.** An empty budget can be filled with sample accounts, transactions, bills and budgets from the checklist. A banner marks it as sample data on every page, and **Clear sample data** removes everything again while keeping your settings. `occ budget:seed-demo` uses the same data, now dated relative to today.
+- **Reordering without dragging.** Categories can be moved with Alt+Up and Alt+Down, Alt+Right makes one a subcategory of the one above and Alt+Left moves it back out a level. On the unlocked dashboard each tile has Move earlier and Move later, and the accounts tile settings have Move up and Move down.
+- **An account's transaction list works on a phone.** It shows as two-line cards like the main Transactions page, and tapping one opens it for editing.
+- **A notification when someone adds a receipt to your transaction.** A receipt photo added by someone you share an account with is saved in your Files, so you now get a Nextcloud notification saying who added it.
 
 ### Changed
 - **The sidebar matches the other Nextcloud apps.** The menu used its own taller rows, 44px high with a pill-shaped highlight, so it looked noticeably bulkier next to Files and the rest of Nextcloud and fewer pages fitted on screen before it had to scroll. It now uses Nextcloud's own sizes, 34px rows with the same spacing, text size and rounded corners, and the page you are on is shown the way Nextcloud 35 shows it, a light tint with a bar down the left side, in place of the solid blue fill. The search box and **Tools & Settings** have been brought in line as well, and the **Tools & Settings** label now lines up with the items under it.
@@ -22,7 +29,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Summary cards look the same on every page**, in the style of the dashboard's, and figures show "--" rather than "$0" until they have loaded.
 - **The help button has moved to the bottom of the sidebar**, beside **Tools & Settings**. It used to float over the bottom right of the page, where it covered the delete button of the last transaction on screen.
 - **Empty pages share one look**, and Accounts, Assets, Pensions, Savings Goals, Tags, Projects and Exchange Rates show a loading indicator instead of a blank page while their data loads.
-- **Month names follow your Nextcloud language** instead of the browser's.
+- **Month names follow your Nextcloud language** instead of the browser's, now in charts and reports as well.
+- **Only the owner of a shared account can delete it.** Anyone with write access could delete a shared account along with all of its transactions. People it is shared with no longer see the delete button.
+- **The user picker for sharing follows your Nextcloud sharing settings**, including whether users can be listed at all, limiting to your own groups and "only share with group members".
+- **Reports agree with each other.** Categories excluded from reports, or muted, were only left out when grouping by category, so the same month gave a different total grouped by month, vendor, account or tag, and in the Cash Flow, Category by Month and tag reports. Every grouping now leaves them out the same way, including the parts of split transactions filed under them, and transfers between your own accounts are left out of the category view as they are everywhere else. Income & Expenses now lists income by category, where it used to list your 15 biggest payers and leave the rest out of the total.
+- **Year over Year matches the other reports.** In the all-accounts view it counted both sides of every transfer as income and spending, along with pension payments, future scheduled transactions and excluded categories. It now uses the same figures as the Cash Flow report, and category spending has refunds taken off as the Budget page does.
+- **Budget alerts, the budget status tile and applying rules to a lot of transactions are much quicker.** The daily digest and bank sync are also spread over the cron runs one user and one bank connection at a time, so one slow bank no longer holds up everyone else.
+- **Error and success colours, badges and chart labels are readable in the dark theme.**
+- **A page that fails to load says so and offers Retry**, where it used to show an empty list with buttons that did nothing. An account whose transactions failed to load no longer says it has none.
+- **Factory reset removes everything.** It left tag sets, interest rates, recurring pension contributions, debt scenarios, import templates, saved reports, the shares you granted, bank connections and transaction tags behind. Shares other people granted to you are kept.
+- **Bank sync with SimpleFIN only connects to simplefin.org.**
 
 ### Fixed
 - **Dialogs close when you leave the page.** Going to another page with the browser's Back button left an open dialog on top of the new page. The dialogs the app builds as it goes, the duplicates finder and the transfer form among them, also ignored Escape and let the keyboard wander behind them, and most dialogs were hidden from screen readers while open.
@@ -33,6 +49,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Cards and column headers can be used from the keyboard.** Account, asset, pension and contact cards, the category tree, rule groups and sortable columns can be reached with Tab and opened with Enter, and icon buttons and fields that had no name for screen readers now have one.
 - **The Rules page no longer scrolls sideways.** The sort arrow for the rule list picked up the transactions table's styling, which placed it absolutely, so it was drawn at the far right edge of the page instead of beside its column heading and made the page 2px wider than the window.
 - **Icon buttons have names for screen readers.** Around 80 icon-only buttons (edit, delete, close and the like) were named only by their tooltip, which touch screens never show and some screen readers skip. The dashboard's tile size buttons now read Extra small, Small, Medium and Large in your language, where they were in English only.
+- **Changing a credit card's statement day now saves.** It was only stored when the account was created.
+- **Crypto balances keep all 8 decimal places** when a scheduled transaction clears or a backup is restored, where they were rounded to 2.
+- **Tags created inside a category are included in backups.** They were never recorded against their owner, so since 1.0.44 they were left out of backups and restores and survived a factory reset. The update fixes existing tags.
+- **Restoring a backup works on PostgreSQL.** It failed with "invalid input syntax for type boolean" whenever the backup held tags or other yes/no settings. A restore also keeps each account's wallet address, interest settings and last reconciled date, which were being reset, and restoring over existing data no longer leaves orphaned receipt links behind.
+- **Transaction search works on Nextcloud 30.** It used a function added in Nextcloud 31 and failed with an error.
+- **Rules with an "is between" condition made in the rule builder now match.** They never matched anything as the range was saved as text. Existing rules start working without being saved again, a range can start at 0, and a quote mark in a condition no longer breaks the rule editor.
+- **A report filtered by tags no longer counts a transaction twice** when it has two of the chosen tags.
+- **Report totals no longer show leftovers such as 0.30000000000000004.**
+- **Budget carryover no longer counts a split transaction that pays into a pension as spending.**
+- **Names containing "&" or quotes no longer show as "B&amp;Q"** in some labels and tooltips.
+- **Buttons that only appeared on mouse hover** can be reached by keyboard and on touch screens.
+- **Screen readers announce** the form fields that had no label, the transfer link in transaction lists, and budget progress including when a budget is overspent.
+- **Dates using a month name no longer garble months containing "j" or "d"**, such as French "janv.".
+- **An error during bill auto-pay no longer stops the reminder job** for everyone else.
+
+### Security
+- **Names are always shown as text.** Payees and vendors from imports and bank sync, and the names of shared categories and accounts, were put into some lists as HTML, so markup in a name was rendered.
+- **Tags in shared categories.** Someone with write access to one of your shared categories could edit or delete the tags in your other categories.
+- **Categories must belong to the ledger.** Transactions, splits, bills and recurring income accepted a category id belonging to another user, and that category's name then showed in the transaction list. Only categories the account owner can see are accepted now.
+- **The budget report could read spending from another user's account** when given its id.
+- **CSV exports can't run as spreadsheet formulas.** Text starting with =, +, - or @ is written so a spreadsheet treats it as text, and amounts stay numbers.
+- **Uploaded statements and backups.** An uploaded bank statement can only be previewed or imported by the person who uploaded it, and a backup that unpacks to more than 200 MB per file or 500 MB in total is refused instead of running the server out of memory.
 
 ## [2.54.0] - 2026-09-23
 
