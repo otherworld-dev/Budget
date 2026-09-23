@@ -637,7 +637,7 @@ class BudgetAlertService {
      * instead of two queries per category per branch member plus four split
      * queries per budget (#551's N+1).
      *
-     * @param array<int, array{period: string}> $resolvedBudgets categoryId => resolved budget
+     * @param array<int, array{period: string, ...}> $resolvedBudgets categoryId => resolved budget
      * @param array<int, int[]> $branches
      * @param array<string, array{start: string, end: string}> $periodRanges
      * @param int[]|null $visibleAccountIds

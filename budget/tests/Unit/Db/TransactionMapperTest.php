@@ -1218,66 +1218,6 @@ class TransactionMapperTest extends TestCase {
         $this->assertTrue($guardFound, 'getCategorySpendingByBucketBatch must OR eq(is_split, false) with NOT EXISTS(split parts)');
     }
 
-    // ===== getCategoryNetByMonthBatch (#288) =====
-
-    public function testGetCategoryNetByMonthBatchMapsSignedNet(): void {
-        $this->result->method('fetch')->willReturnOnConsecutiveCalls(
-            ['category_id' => 5, 'bucket' => '2026-01', 'net_total' => '-80.00'],
-            ['category_id' => 1, 'bucket' => '2026-02', 'net_total' => '3000.00'],
-            false
-        );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $out = $this->mapper->getCategoryNetByMonthBatch('user1', '2026-01-01', '2026-02-28');
-
-        $this->assertSame(-80.0, $out[5]['2026-01']);
-        $this->assertSame(3000.0, $out[1]['2026-02']);
-    }
-
-    /**
-     * Same partition-complement guard as getCategorySpendingByBucketBatch
-     * above, for the Category-by-Month report's direct side (#360).
-     */
-    public function testGetCategoryNetByMonthBatchGuardIsThePartitionComplement(): void {
-        $eqCalls = [];
-        $this->expr->method('eq')->willReturnCallback(function (string $col, $val) use (&$eqCalls) {
-            $eqCalls[] = $col;
-            return "eq($col)";
-        });
-        $orXCalls = [];
-        $orXResult = $this->createMock(ICompositeExpression::class);
-        $this->expr->method('orX')->willReturnCallback(function (...$parts) use (&$orXCalls, $orXResult) {
-            $orXCalls[] = $parts;
-            return $orXResult;
-        });
-
-        $this->result->method('fetch')->willReturn(false);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $this->mapper->getCategoryNetByMonthBatch('user1', '2026-01-01', '2026-01-31');
-
-        $guardFound = false;
-        foreach ($orXCalls as $parts) {
-            $hasIsSplitFalse = false;
-            $hasNotExists = false;
-            foreach ($parts as $part) {
-                if ($part === 'eq(t.is_split)') {
-                    $hasIsSplitFalse = true;
-                }
-                if (is_string($part) && str_contains($part, 'NOT EXISTS')) {
-                    $hasNotExists = true;
-                }
-            }
-            if ($hasIsSplitFalse && $hasNotExists) {
-                $guardFound = true;
-                break;
-            }
-        }
-        $this->assertTrue($guardFound, 'getCategoryNetByMonthBatch must OR eq(is_split, false) with NOT EXISTS(split parts)');
-    }
-
     // ===== getCategorySpendingBatch: scope and report choke point =====
 
     /**

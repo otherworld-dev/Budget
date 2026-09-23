@@ -18,6 +18,7 @@ use OCA\Budget\Enum\AccountType;
 use OCA\Budget\Enum\Currency;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use OCP\IL10N;
 
@@ -247,6 +248,9 @@ class MigrationService {
 
     private UserTableCleaner $tableCleaner;
 
+    /** @var array<string, array<string, 'bool'|'int'|'string'>|null> table => column bindings, per restore */
+    private array $bindingCache = [];
+
     public function __construct(
         private AccountMapper $accountMapper,
         private TransactionMapper $transactionMapper,
@@ -255,7 +259,8 @@ class MigrationService {
         private ImportRuleMapper $importRuleMapper,
         private SettingMapper $settingMapper,
         private IDBConnection $db,
-        private ?IL10N $l = null
+        private ?IL10N $l = null,
+        private ?SchemaProbe $schemaProbe = null,
     ) {
         $this->tableCleaner = new UserTableCleaner($db);
     }
@@ -730,9 +735,9 @@ class MigrationService {
             $category->setSortOrder($catData['sortOrder'] ?? 0);
             // Exported all along but never read back, so a restore put every
             // category back into reports and budgets (#391)
-            $category->setExcludedFromReports((bool) ($catData['excludedFromReports'] ?? false));
-            $category->setExcludedFromBudget((bool) ($catData['excludedFromBudget'] ?? false));
-            $category->setBudgetRollover((bool) ($catData['budgetRollover'] ?? false));
+            $category->setExcludedFromReports(self::flag($catData, 'excludedFromReports', false));
+            $category->setExcludedFromBudget(self::flag($catData, 'excludedFromBudget', false));
+            $category->setBudgetRollover(self::flag($catData, 'budgetRollover', false));
             $category->setRolloverStart($catData['rolloverStart'] ?? null);
             $category->setCreatedAt($catData['createdAt'] ?? date('Y-m-d H:i:s'));
 
@@ -791,52 +796,114 @@ class MigrationService {
     }
 
     /**
+     * Account properties importAccounts() sets itself rather than copying
+     * from the archive: identity, and the balance pair, which is signed
+     * through AccountType::signFor() and rebuilt from the imported ledger
+     * afterwards (importAll()).
+     */
+    private const ACCOUNT_PROPERTIES_NOT_COPIED = ['id', 'userId', 'balance', 'openingBalance', 'liabilityInCredit'];
+
+    /**
+     * Every other Account property, read off the entity itself.
+     *
+     * The export writes Account::toArrayFull(), every column. The import used
+     * to copy them back by a hand-written list, which silently fell behind:
+     * wallet address, interest settings, accrued interest and the
+     * last-reconciled date were reset by every restore. Deriving the list
+     * from the entity means a new column round-trips without anyone having to
+     * remember this method.
+     *
+     * @return string[]
+     */
+    public static function copiedAccountProperties(): array {
+        $properties = [];
+        foreach ((new \ReflectionClass(Account::class))->getProperties() as $property) {
+            $name = $property->getName();
+            if (!str_starts_with($name, '_') && !$property->isStatic()
+                && !in_array($name, self::ACCOUNT_PROPERTIES_NOT_COPIED, true)) {
+                $properties[] = $name;
+            }
+        }
+        return $properties;
+    }
+
+    /**
+     * A boolean from an archived entity. A backup can hold "false" or "0" as
+     * strings, which a bare cast (or the entity's own settype) turns true -
+     * how auto-pay came back switched on for restored bills (#335).
+     */
+    private static function flag(array $data, string $key, bool $default): bool {
+        if (!isset($data[$key])) {
+            return $default;
+        }
+        return filter_var($data[$key], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $default;
+    }
+
+    /**
      * Import accounts.
      *
      * @return array<int, int> Map of old ID => new ID
      */
     private function importAccounts(string $userId, array $accounts): array {
         $idMap = [];
+        $fieldTypes = (new Account())->getFieldTypes();
+        $now = date('Y-m-d H:i:s');
 
         foreach ($accounts as $accData) {
             $oldId = $accData['id'];
 
             $account = new Account();
             $account->setUserId($userId);
-            $account->setName($accData['name']);
-            $account->setType($accData['type']);
+
+            // Every exported column, typed by the entity. A key missing from
+            // an older archive keeps its default below.
+            foreach (self::copiedAccountProperties() as $property) {
+                if (!array_key_exists($property, $accData)) {
+                    continue;
+                }
+                $value = $accData[$property];
+                if ($value !== null && ($fieldTypes[$property] ?? null) === 'boolean') {
+                    // A backup can hold "false", which a bare cast turns true (#335)
+                    $value = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                }
+                if ($value === null && in_array($property, ['name', 'type', 'currency', 'createdAt', 'updatedAt'], true)) {
+                    continue;
+                }
+                $account->{'set' . ucfirst($property)}($value);
+            }
+
             // Sign the balance through the single authority. Exports carrying an
             // explicit in-credit declaration are honoured; legacy exports
             // (pre-1.1.0 positive liability balances, and any export predating
             // #353) fall back to "owed", which is what they meant.
             $type = (string) ($accData['type'] ?? '');
-            $declared = array_key_exists('liabilityInCredit', $accData) ? $accData['liabilityInCredit'] : null;
-            $inCredit = $declared !== null ? (bool) $declared : false;
-            $account->setBalance(AccountType::signFor($type, (float) ($accData['balance'] ?? 0), $inCredit));
+            $declared = array_key_exists('liabilityInCredit', $accData) && $accData['liabilityInCredit'] !== null
+                ? filter_var($accData['liabilityInCredit'], FILTER_VALIDATE_BOOLEAN)
+                : null;
+            $account->setBalance(AccountType::signFor($type, (float) ($accData['balance'] ?? 0), $declared ?? false));
             $account->setLiabilityInCredit(
                 AccountType::tryFrom($type)?->isLiability() ? $declared : null
             );
 
-            $account->setCurrency($accData['currency'] ?? 'USD');
-            $account->setInstitution($accData['institution'] ?? null);
-            $account->setAccountNumber($accData['accountNumber'] ?? null);
-            $account->setRoutingNumber($accData['routingNumber'] ?? null);
-            $account->setSortCode($accData['sortCode'] ?? null);
-            $account->setIban($accData['iban'] ?? null);
-            $account->setSwiftBic($accData['swiftBic'] ?? null);
-            $account->setAccountHolderName($accData['accountHolderName'] ?? null);
-            $account->setOpeningDate($accData['openingDate'] ?? null);
-            $account->setInterestRate($accData['interestRate'] ?? null);
-            $account->setCreditLimit($accData['creditLimit'] ?? null);
-            $account->setOverdraftLimit($accData['overdraftLimit'] ?? null);
-            $account->setMinimumPayment($accData['minimumPayment'] ?? null);
-            $account->setStatementDay(isset($accData['statementDay']) ? (int) $accData['statementDay'] : null);
-            // Both flags were dropped by every restore before #372 — the
-            // exclude-from-reports one had been lost since #286.
-            $account->setExcludedFromReports((bool) ($accData['excludedFromReports'] ?? false));
-            $account->setClosed((bool) ($accData['closed'] ?? false));
-            $account->setCreatedAt($accData['createdAt'] ?? date('Y-m-d H:i:s'));
-            $account->setUpdatedAt($accData['updatedAt'] ?? date('Y-m-d H:i:s'));
+            // Defaults for archives that predate a column (or hold null in a
+            // NOT NULL one)
+            if ($account->getCurrency() === '') {
+                $account->setCurrency('USD');
+            }
+            if ($account->getExcludedFromReports() === null) {
+                // Both flags were dropped by every restore before #372 — the
+                // exclude-from-reports one had been lost since #286.
+                $account->setExcludedFromReports(false);
+            }
+            if ($account->getClosed() === null) {
+                $account->setClosed(false);
+            }
+            if ($account->getCreatedAt() === null) {
+                $account->setCreatedAt($now);
+            }
+            if ($account->getUpdatedAt() === null) {
+                $account->setUpdatedAt($now);
+            }
 
             $inserted = $this->accountMapper->insert($account);
             $idMap[$oldId] = $inserted->getId();
@@ -879,11 +946,11 @@ class MigrationService {
             $transaction->setReference($txnData['reference'] ?? null);
             $transaction->setNotes($txnData['notes'] ?? null);
             $transaction->setImportId($txnData['importId'] ?? null);
-            $transaction->setReconciled($txnData['reconciled'] ?? false);
+            $transaction->setReconciled(self::flag($txnData, 'reconciled', false));
             // Restore status — dropping it turned scheduled transactions into
             // cleared ones, silently corrupting balances after a migration (#274)
             $transaction->setStatus($txnData['status'] ?? null);
-            $transaction->setExcludedFromForecast(!empty($txnData['excludedFromForecast']));
+            $transaction->setExcludedFromForecast(self::flag($txnData, 'excludedFromForecast', false));
             // Without this the imported splits exist but the transaction
             // doesn't show as split (#351)
             $transaction->setIsSplit(!empty($txnData['isSplit']));
@@ -1112,6 +1179,7 @@ class MigrationService {
     private function importTable(string $userId, string $key, array $spec, array $rows, array &$idMaps): int {
         $count = 0;
         $hasUserColumn = ($spec['scope'] ?? 'user') === 'user';
+        $bindings = $rows === [] ? null : $this->columnBindings($spec['table']);
         foreach ($rows as $row) {
             if (!is_array($row)) {
                 continue;
@@ -1132,7 +1200,13 @@ class MigrationService {
             $qb = $this->db->getQueryBuilder();
             $qb->insert($spec['table']);
             foreach ($row as $column => $value) {
-                $qb->setValue($column, $qb->createNamedParameter($value));
+                // A column this server does not have (a backup from a newer
+                // version) is left out rather than failing the whole restore
+                if ($bindings !== null && !isset($bindings[$column])) {
+                    continue;
+                }
+                [$bound, $type] = self::bindValue($value, $bindings[$column] ?? null);
+                $qb->setValue($column, $qb->createNamedParameter($bound, $type));
             }
             $qb->executeStatement();
             $count++;
@@ -1142,6 +1216,82 @@ class MigrationService {
             }
         }
         return $count;
+    }
+
+    /**
+     * The target table's column bindings, read once per table. Null when no
+     * schema probe is wired (unit tests) or the schema cannot be read, in
+     * which case values bind by their own PHP type.
+     *
+     * @return array<string, 'bool'|'int'|'string'>|null
+     */
+    private function columnBindings(string $table): ?array {
+        if ($this->schemaProbe === null) {
+            return null;
+        }
+        if (!array_key_exists($table, $this->bindingCache)) {
+            try {
+                $this->bindingCache[$table] = $this->schemaProbe->columnBindings($table);
+            } catch (\Throwable $e) {
+                $this->bindingCache[$table] = null;
+            }
+        }
+        return $this->bindingCache[$table];
+    }
+
+    /**
+     * A raw archived value and the parameter type to bind it with.
+     *
+     * Every value used to go in as a string, so a boolean false reached
+     * PostgreSQL as '' ("invalid input syntax for type boolean") and a backup
+     * holding a single tag could not be restored there. The archive does not
+     * say what type a value had either: PostgreSQL exports booleans as
+     * true/false, SQLite and MySQL as 0/1 (as numbers or strings), so the
+     * target column decides. NULL always binds as NULL.
+     *
+     * @param 'bool'|'int'|'string'|null $binding the column's binding, or null
+     *        when unknown (bind by the value's PHP type)
+     * @return array{0: mixed, 1: int|string}
+     */
+    public static function bindValue(mixed $value, ?string $binding): array {
+        if ($value === null) {
+            return [null, IQueryBuilder::PARAM_NULL];
+        }
+        $binding ??= match (true) {
+            is_bool($value) => 'bool',
+            is_int($value) => 'int',
+            default => 'string',
+        };
+
+        if ($binding === 'bool') {
+            if (is_string($value)) {
+                // PostgreSQL's own text form
+                $lower = strtolower(trim($value));
+                if ($lower === 't' || $lower === 'f') {
+                    return [$lower === 't', IQueryBuilder::PARAM_BOOL];
+                }
+            }
+            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            return $bool === null ? [null, IQueryBuilder::PARAM_NULL] : [$bool, IQueryBuilder::PARAM_BOOL];
+        }
+
+        if ($binding === 'int') {
+            if ($value === '') {
+                return [null, IQueryBuilder::PARAM_NULL];
+            }
+            if (is_bool($value) || is_numeric($value)) {
+                return [(int) $value, IQueryBuilder::PARAM_INT];
+            }
+            return [(string) $value, IQueryBuilder::PARAM_STR];
+        }
+
+        if (is_bool($value)) {
+            return [$value ? '1' : '0', IQueryBuilder::PARAM_STR];
+        }
+        if (is_array($value)) {
+            return [json_encode($value), IQueryBuilder::PARAM_STR];
+        }
+        return [$value, IQueryBuilder::PARAM_STR];
     }
 
     /**
@@ -1250,12 +1400,12 @@ class MigrationService {
             $rule->setMatchType($ruleData['matchType'] ?? 'contains');
             $rule->setVendorName($ruleData['vendorName'] ?? null);
             $rule->setPriority($ruleData['priority'] ?? 0);
-            $rule->setActive($ruleData['active'] ?? true);
+            $rule->setActive(self::flag($ruleData, 'active', true));
             $rule->setCreatedAt($ruleData['createdAt'] ?? date('Y-m-d H:i:s'));
             $rule->setUpdatedAt($ruleData['updatedAt'] ?? null);
             $rule->setSchemaVersion($ruleData['schemaVersion'] ?? 1);
-            $rule->setApplyOnImport($ruleData['applyOnImport'] ?? true);
-            $rule->setStopProcessing($ruleData['stopProcessing'] ?? true);
+            $rule->setApplyOnImport(self::flag($ruleData, 'applyOnImport', true));
+            $rule->setStopProcessing(self::flag($ruleData, 'stopProcessing', true));
 
             // Remap legacy category ID
             $oldCategoryId = $ruleData['categoryId'] ?? null;

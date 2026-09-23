@@ -182,7 +182,7 @@ class SimpleFINProvider implements BankSyncProviderInterface {
         if (!is_array($parts) || strtolower($parts['scheme'] ?? '') !== 'https') {
             return false;
         }
-        $host = strtolower(rtrim((string) ($parts['host'] ?? ''), '.'));
+        $host = strtolower(rtrim($parts['host'] ?? '', '.'));
         return $host === 'simplefin.org' || str_ends_with($host, '.simplefin.org');
     }
 

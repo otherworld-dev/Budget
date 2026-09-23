@@ -115,7 +115,7 @@ class SeedDemo extends Command {
     // ==========================================================
 
     /**
-     * @param array{accountIds: array<string,int>, categoryIds: array<string,int>, holidayGoalId: int} $ownerData
+     * @param array{accountIds: array<string,int>, categoryIds: array<string,int>, holidayGoalId: int, ...} $ownerData
      */
     private function wireSharing(OutputInterface $out, string $owner, string $recipient, array $ownerData): void {
         $share = $this->ensureAcceptedShare($owner, $recipient);

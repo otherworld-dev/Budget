@@ -5,12 +5,32 @@ declare(strict_types=1);
 namespace OCA\Budget\Db;
 
 use OCP\DB\QueryBuilder\IQueryBuilder;
+use OCP\IDBConnection;
 
 /**
  * Builds query filters for transaction queries.
  * Eliminates duplication between main queries and count queries.
  */
 class QueryFilterBuilder {
+    /**
+     * @param IDBConnection|null $db Escapes LIKE patterns. The query builder
+     *        only gained escapeLikeParameter() in Nextcloud 31, so on 30 (the
+     *        oldest server info.xml allows) calling it there made every
+     *        transaction search throw; the connection has had it throughout.
+     */
+    public function __construct(
+        private ?IDBConnection $db = null,
+    ) {
+    }
+
+    /**
+     * Escape the LIKE wildcards in user input. Without a connection (unit
+     * tests) this is the server's own implementation, which is the same on
+     * every supported version.
+     */
+    public function escapeLike(string $value): string {
+        return $this->db !== null ? $this->db->escapeLikeParameter($value) : addcslashes($value, '\\_%');
+    }
     /**
      * The ids a category filter names: a single id, or the comma-separated list
      * a chart drill-down from an aggregated top-level slice passes (#317).
@@ -206,7 +226,7 @@ class QueryFilterBuilder {
         // Text search filter
         // iLike + lowered pattern: plain LIKE is case-sensitive on PostgreSQL and SQLite
         if (!empty($filters['search'])) {
-            $searchPattern = '%' . $qb->escapeLikeParameter(mb_strtolower($filters['search'])) . '%';
+            $searchPattern = '%' . $this->escapeLike(mb_strtolower($filters['search'])) . '%';
             $qb->andWhere(
                 $qb->expr()->orX(
                     $qb->expr()->iLike("{$alias}.description", $qb->createNamedParameter($searchPattern)),

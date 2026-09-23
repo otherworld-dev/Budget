@@ -422,6 +422,10 @@ class TransactionReportQueries {
      * Get tag dimensions breakdown for spending in a category
      * Returns spending grouped by each tag set associated with the category
      *
+     * Report-scoped like getSpendingByTag() (scopeReportHalf()): a split
+     * counts the parts filed under the category, and the all-accounts view
+     * leaves transfers out.
+     *
      * @param string $userId
      * @param int $categoryId
      * @param string $startDate
@@ -437,40 +441,28 @@ class TransactionReportQueries {
         ?int $accountId = null,
         ?array $visibleAccountIds = null
     ): array {
-        $qb = $this->db->getQueryBuilder();
+        [$direct, $split] = ReportScope::fetchReportHalves(
+            $this->db, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
+            function (IQueryBuilder $qb, string $alloc) use ($categoryId): void {
+                $qb->select('ts.id as tag_set_id', 'ts.name as tag_set_name', 'tag.id as tag_id', 'tag.name as tag_name', 'tag.color')
+                    ->selectAlias($qb->func()->sum("{$alloc}.amount"), 'total')
+                    ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
+                    ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
+                    ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'))
+                    ->innerJoin('tag', 'budget_tag_sets', 'ts', $qb->expr()->eq('tag.tag_set_id', 'ts.id'))
+                    ->andWhere($qb->expr()->eq("{$alloc}.category_id", $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
+                    ->andWhere($qb->expr()->eq('ts.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
+                    ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+                    ->groupBy('ts.id', 'ts.name', 'tag.id', 'tag.name', 'tag.color');
+            }
+        );
 
-        $qb->select('ts.id as tag_set_id', 'ts.name as tag_set_name', 'tag.id as tag_id', 'tag.name as tag_name', 'tag.color')
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
-            ->from(self::TABLE, 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
-            ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'))
-            ->innerJoin('tag', 'budget_tag_sets', 'ts', $qb->expr()->eq('tag.tag_set_id', 'ts.id'));
-        ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('ts.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        ReportScope::excludeScheduledFuture($qb);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->groupBy('ts.id', 'ts.name', 'tag.id', 'tag.name', 'tag.color')
-            ->orderBy('ts.id', 'ASC')
-            ->addOrderBy('total', 'DESC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
+        $rows = ReportScope::mergeReportHalves($direct, $split, ['tag_set_id', 'tag_id'], ['total'], ['count']);
+        usort($rows, static fn(array $a, array $b) => ((int)$a['tag_set_id'] <=> (int)$b['tag_set_id']) ?: ($b['total'] <=> $a['total']));
 
         // Group by tag set
         $dimensions = [];
-        foreach ($data as $row) {
+        foreach ($rows as $row) {
             $tagSetId = (int)$row['tag_set_id'];
             if (!isset($dimensions[$tagSetId])) {
                 $dimensions[$tagSetId] = [
@@ -483,8 +475,8 @@ class TransactionReportQueries {
                 'tagId' => (int)$row['tag_id'],
                 'name' => $row['tag_name'],
                 'color' => $row['color'],
-                'total' => (float)$row['total'],
-                'count' => (int)$row['count']
+                'total' => $row['total'],
+                'count' => $row['count']
             ];
         }
 
@@ -492,13 +484,79 @@ class TransactionReportQueries {
     }
 
     /**
-     * Get spending by tag combinations (transactions with specific sets of tags)
+     * Each tagged transaction's report-scoped amount and its tags, for the
+     * tag reports that group by transaction (combinations, cross-tab).
+     *
+     * Report-scoped like the other groupings (scopeReportHalf()): excluded
+     * and muted categories never count - a split contributes only its parts
+     * in categories that do - and neither do future scheduled rows, pension
+     * legs or, in the all-accounts view, transfers. Each (transaction, tag)
+     * row carries the transaction's in-scope amount: a transaction lives in
+     * one half only, and every one of its tags sees the same parts.
+     *
+     * @param int[]|null $tagSetIds Only tags of these sets (null: any tag)
+     * @param int[]|null $visibleAccountIds
+     * @return array<int, array{amount: float, tags: list<array{id: int, name: string, color: ?string, tagSetId: int}>}>
+     *         transaction id => its amount and tags, ordered by transaction id
+     */
+    private function getTaggedTransactionAmounts(
+        string $userId,
+        string $startDate,
+        string $endDate,
+        ?int $accountId,
+        ?int $categoryId,
+        ?array $tagSetIds,
+        ?array $visibleAccountIds
+    ): array {
+        [$direct, $split] = ReportScope::fetchReportHalves(
+            $this->db, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
+            function (IQueryBuilder $qb, string $alloc) use ($categoryId, $tagSetIds): void {
+                $qb->select('t.id', 'tag.id as tag_id', 'tag.name as tag_name', 'tag.color', 'tag.tag_set_id')
+                    ->selectAlias($qb->func()->sum("{$alloc}.amount"), 'amount')
+                    ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
+                    ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'))
+                    ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+                    ->groupBy('t.id', 'tag.id', 'tag.name', 'tag.color', 'tag.tag_set_id');
+                if ($categoryId !== null) {
+                    $qb->andWhere($qb->expr()->eq("{$alloc}.category_id", $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)));
+                }
+                if ($tagSetIds !== null) {
+                    $qb->andWhere($qb->expr()->in('tag.tag_set_id', $qb->createNamedParameter($tagSetIds, IQueryBuilder::PARAM_INT_ARRAY)));
+                }
+            }
+        );
+
+        $transactions = [];
+        foreach ([$direct, $split] as $rows) {
+            foreach ($rows as $row) {
+                $txId = (int)$row['id'];
+                $transactions[$txId] ??= [
+                    'amount' => MoneyCalculator::toFloat(ReportScope::sqlMoney($row['amount'] ?? null)),
+                    'tags' => [],
+                ];
+                $transactions[$txId]['tags'][] = [
+                    'id' => (int)$row['tag_id'],
+                    'name' => (string)$row['tag_name'],
+                    'color' => $row['color'] ?? null,
+                    'tagSetId' => (int)$row['tag_set_id'],
+                ];
+            }
+        }
+        ksort($transactions);
+
+        return $transactions;
+    }
+
+    /**
+     * Get spending by tag combinations (transactions with specific sets of tags),
+     * report-scoped like the other tag reports (getTaggedTransactionAmounts()).
      *
      * @param string $userId
      * @param string $startDate
      * @param string $endDate
      * @param int|null $accountId Optional account filter
-     * @param int|null $categoryId Optional category filter
+     * @param int|null $categoryId Optional category filter (a split counts
+     *                             the parts filed under it)
      * @param int $minCombinationSize Minimum number of tags in combination (default 2)
      * @param int $limit Maximum number of combinations to return
      * @return array Array of [tagIds => int[], tagNames => string[], total, count]
@@ -513,54 +571,14 @@ class TransactionReportQueries {
         int $limit = 50,
         ?array $visibleAccountIds = null
     ): array {
-        // This requires aggregating transaction IDs with their tag sets
-        // Step 1: Get all transactions with their tags
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select('t.id', 't.amount', 'tag.id as tag_id', 'tag.name as tag_name')
-            ->from(self::TABLE, 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
-            ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'));
-        ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        ReportScope::excludeScheduledFuture($qb);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        if ($categoryId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->orderBy('t.id', 'ASC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        // Group tags by transaction
-        $transactionTags = [];
-        $transactionAmounts = [];
-        foreach ($data as $row) {
-            $txId = (int)$row['id'];
-            if (!isset($transactionTags[$txId])) {
-                $transactionTags[$txId] = [];
-                $transactionAmounts[$txId] = (float)$row['amount'];
-            }
-            $transactionTags[$txId][] = [
-                'id' => (int)$row['tag_id'],
-                'name' => $row['tag_name']
-            ];
-        }
+        $transactions = $this->getTaggedTransactionAmounts(
+            $userId, $startDate, $endDate, $accountId, $categoryId, null, $visibleAccountIds
+        );
 
         // Group by tag combination
         $combinations = [];
-        foreach ($transactionTags as $txId => $tags) {
+        foreach ($transactions as $tx) {
+            $tags = $tx['tags'];
             if (count($tags) < $minCombinationSize) {
                 continue;
             }
@@ -575,14 +593,19 @@ class TransactionReportQueries {
                 $combinations[$key] = [
                     'tagIds' => $tagIds,
                     'tagNames' => $tagNames,
-                    'total' => 0,
+                    'total' => '0',
                     'count' => 0
                 ];
             }
 
-            $combinations[$key]['total'] += $transactionAmounts[$txId];
+            $combinations[$key]['total'] = MoneyCalculator::add($combinations[$key]['total'], $tx['amount'], ReportScope::MERGE_SCALE);
             $combinations[$key]['count']++;
         }
+
+        foreach ($combinations as &$combination) {
+            $combination['total'] = MoneyCalculator::toFloat($combination['total']);
+        }
+        unset($combination);
 
         // Sort by total descending
         usort($combinations, fn($a, $b) => $b['total'] <=> $a['total']);
@@ -594,6 +617,10 @@ class TransactionReportQueries {
      * Get cross-tabulation (pivot table) of spending by two tag sets
      * Returns a matrix where rows are tags from tagSet1 and columns are tags from tagSet2
      *
+     * Report-scoped like the other tag reports (getTaggedTransactionAmounts()),
+     * over every account the viewer can see - shared ones included - that
+     * $visibleAccountIds names.
+     *
      * @param string $userId
      * @param int $tagSetId1 First tag set (rows)
      * @param int $tagSetId2 Second tag set (columns)
@@ -601,6 +628,7 @@ class TransactionReportQueries {
      * @param string $endDate
      * @param int|null $accountId Optional account filter
      * @param int|null $categoryId Optional category filter
+     * @param int[]|null $visibleAccountIds
      * @return array ['rows' => tags from set 1, 'columns' => tags from set 2, 'data' => matrix]
      */
     public function getTagCrossTabulation(
@@ -610,95 +638,48 @@ class TransactionReportQueries {
         string $startDate,
         string $endDate,
         ?int $accountId = null,
-        ?int $categoryId = null
+        ?int $categoryId = null,
+        ?array $visibleAccountIds = null
     ): array {
-        // Get all transactions with tags from both sets
-        $qb = $this->db->getQueryBuilder();
+        $transactions = $this->getTaggedTransactionAmounts(
+            $userId, $startDate, $endDate, $accountId, $categoryId, [$tagSetId1, $tagSetId2], $visibleAccountIds
+        );
 
-        $qb->select('t.id', 't.amount', 'tag.id as tag_id', 'tag.name as tag_name', 'tag.tag_set_id', 'tag.color')
-            ->from(self::TABLE, 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
-            ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->in('tag.tag_set_id', $qb->createNamedParameter([$tagSetId1, $tagSetId2], IQueryBuilder::PARAM_INT_ARRAY)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        ReportScope::excludeScheduledFuture($qb);
-        ReportScope::excludeReportExcludedAccounts($qb);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        if ($categoryId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->orderBy('t.id', 'ASC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        // Organize data by transaction
-        $transactionData = [];
         $rowTags = []; // Tags from tagSet1
         $colTags = []; // Tags from tagSet2
-
-        foreach ($data as $row) {
-            $txId = (int)$row['id'];
-            $tagId = (int)$row['tag_id'];
-            $tagSetId = (int)$row['tag_set_id'];
-
-            if (!isset($transactionData[$txId])) {
-                $transactionData[$txId] = [
-                    'amount' => (float)$row['amount'],
-                    'tag1' => null,
-                    'tag2' => null
-                ];
-            }
-
-            if ($tagSetId === $tagSetId1) {
-                $transactionData[$txId]['tag1'] = $tagId;
-                if (!isset($rowTags[$tagId])) {
-                    $rowTags[$tagId] = [
-                        'id' => $tagId,
-                        'name' => $row['tag_name'],
-                        'color' => $row['color']
-                    ];
-                }
-            } elseif ($tagSetId === $tagSetId2) {
-                $transactionData[$txId]['tag2'] = $tagId;
-                if (!isset($colTags[$tagId])) {
-                    $colTags[$tagId] = [
-                        'id' => $tagId,
-                        'name' => $row['tag_name'],
-                        'color' => $row['color']
-                    ];
-                }
-            }
-        }
-
-        // Build the matrix
         $matrix = [];
-        foreach ($transactionData as $tx) {
-            if ($tx['tag1'] !== null && $tx['tag2'] !== null) {
-                $key = $tx['tag1'] . '_' . $tx['tag2'];
-                if (!isset($matrix[$key])) {
-                    $matrix[$key] = [
-                        'rowTagId' => $tx['tag1'],
-                        'colTagId' => $tx['tag2'],
-                        'total' => 0,
-                        'count' => 0
-                    ];
+
+        foreach ($transactions as $tx) {
+            $tag1 = null;
+            $tag2 = null;
+            foreach ($tx['tags'] as $tag) {
+                $entry = ['id' => $tag['id'], 'name' => $tag['name'], 'color' => $tag['color']];
+                if ($tag['tagSetId'] === $tagSetId1) {
+                    $tag1 = $tag['id'];
+                    $rowTags[$tag['id']] ??= $entry;
+                } elseif ($tag['tagSetId'] === $tagSetId2) {
+                    $tag2 = $tag['id'];
+                    $colTags[$tag['id']] ??= $entry;
                 }
-                $matrix[$key]['total'] += $tx['amount'];
+            }
+
+            if ($tag1 !== null && $tag2 !== null) {
+                $key = $tag1 . '_' . $tag2;
+                $matrix[$key] ??= [
+                    'rowTagId' => $tag1,
+                    'colTagId' => $tag2,
+                    'total' => '0',
+                    'count' => 0
+                ];
+                $matrix[$key]['total'] = MoneyCalculator::add($matrix[$key]['total'], $tx['amount'], ReportScope::MERGE_SCALE);
                 $matrix[$key]['count']++;
             }
         }
+
+        foreach ($matrix as &$cell) {
+            $cell['total'] = MoneyCalculator::toFloat($cell['total']);
+        }
+        unset($cell);
 
         return [
             'rows' => array_values($rowTags),
@@ -708,13 +689,15 @@ class TransactionReportQueries {
     }
 
     /**
-     * Get monthly trend data for specific tags
+     * Get monthly trend data for specific tags, report-scoped like the other
+     * tag reports and over every account $visibleAccountIds names.
      *
      * @param string $userId
      * @param int[] $tagIds Tags to track
      * @param string $startDate
      * @param string $endDate
      * @param int|null $accountId Optional account filter
+     * @param int[]|null $visibleAccountIds
      * @return array Array of [month, tagId, tagName, amount]
      */
     public function getTagTrendByMonth(
@@ -722,48 +705,82 @@ class TransactionReportQueries {
         array $tagIds,
         string $startDate,
         string $endDate,
-        ?int $accountId = null
+        ?int $accountId = null,
+        ?array $visibleAccountIds = null
     ): array {
         if (empty($tagIds)) {
             return [];
         }
 
-        $qb = $this->db->getQueryBuilder();
+        [$direct, $split] = ReportScope::fetchReportHalves(
+            $this->db, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
+            function (IQueryBuilder $qb, string $alloc) use ($tagIds): void {
+                $qb->select($qb->createFunction(ReportScope::monthExpr() . ' as month'))
+                    ->addSelect('tag.id as tag_id', 'tag.name as tag_name', 'tag.color')
+                    ->selectAlias($qb->func()->sum("{$alloc}.amount"), 'total')
+                    ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
+                    ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'))
+                    ->andWhere($qb->expr()->in('tag.id', $qb->createNamedParameter(array_map('intval', $tagIds), IQueryBuilder::PARAM_INT_ARRAY)))
+                    ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+                    ->groupBy($qb->createFunction(ReportScope::monthExpr()), 'tag.id', 'tag.name', 'tag.color');
+            }
+        );
 
-        $qb->select($qb->createFunction(ReportScope::monthExpr() . ' as month'))
-            ->addSelect('tag.id as tag_id', 'tag.name as tag_name', 'tag.color')
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->from(self::TABLE, 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
-            ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->in('tag.id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        ReportScope::excludeScheduledFuture($qb);
-        ReportScope::excludeReportExcludedAccounts($qb);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->groupBy($qb->createFunction(ReportScope::monthExpr()), 'tag.id', 'tag.name', 'tag.color')
-            ->orderBy($qb->createFunction(ReportScope::monthExpr()), 'ASC')
-            ->addOrderBy('tag.id', 'ASC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
+        $rows = ReportScope::mergeReportHalves($direct, $split, ['month', 'tag_id'], ['total']);
+        usort($rows, static fn(array $a, array $b) => strcmp((string)$a['month'], (string)$b['month']) ?: ((int)$a['tag_id'] <=> (int)$b['tag_id']));
 
         return array_map(fn($row) => [
-            'month' => $row['month'],
+            'month' => (string)$row['month'],
             'tagId' => (int)$row['tag_id'],
             'tagName' => $row['tag_name'],
             'color' => $row['color'],
-            'total' => (float)$row['total']
-        ], $data);
+            'total' => $row['total']
+        ], $rows);
+    }
+
+    // ==================== Category by month ====================
+
+    /**
+     * Signed net per category per month for the Category-by-Month report
+     * (#288): credits positive, debits negative, each split part under its
+     * own category.
+     *
+     * Report-scoped like every other grouping (scopeReportHalf()): a
+     * category excluded from reports or muted by the viewer drops out whole,
+     * split parts included; future scheduled rows and pension legs never
+     * count; and the all-accounts view leaves transfers out (#349), so this
+     * report agrees with the spending and income reports for the same
+     * period. The report used to drop excluded categories in PHP after the
+     * fetch - the owner flag only, never mutes, and transfers still counted.
+     * Uncategorised money is not a row here and is left out.
+     *
+     * @param int[]|null $visibleAccountIds
+     * @return array<int, array<string, float>> categoryId => 'YYYY-MM' => net
+     */
+    public function getCategoryNetByMonth(
+        string $userId,
+        string $startDate,
+        string $endDate,
+        ?int $accountId = null,
+        ?array $visibleAccountIds = null
+    ): array {
+        [$direct, $split] = ReportScope::fetchReportHalves(
+            $this->db, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
+            function (IQueryBuilder $qb, string $alloc): void {
+                $qb->select("{$alloc}.category_id")
+                    ->addSelect($qb->createFunction(ReportScope::monthExpr() . ' as month'))
+                    ->selectAlias($qb->createFunction(ReportScope::signedAmountSum($qb, 'credit', "{$alloc}.amount")), 'net')
+                    ->andWhere($qb->expr()->isNotNull("{$alloc}.category_id"))
+                    ->groupBy("{$alloc}.category_id")
+                    ->addGroupBy($qb->createFunction(ReportScope::monthExpr()));
+            }
+        );
+
+        $totals = [];
+        foreach (ReportScope::mergeReportHalves($direct, $split, ['category_id', 'month'], ['net']) as $row) {
+            $totals[(int)$row['category_id']][substr((string)$row['month'], 0, 7)] = $row['net'];
+        }
+
+        return $totals;
     }
 }

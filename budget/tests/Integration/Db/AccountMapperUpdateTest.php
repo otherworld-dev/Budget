@@ -7,7 +7,6 @@ namespace OCA\Budget\Tests\Integration\Db;
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Tests\Integration\IntegrationTestCase;
-use PHPUnit\Framework\Attributes\Group;
 
 /**
  * AccountMapper::update() writes ~25 columns by hand (working around Entity
@@ -71,10 +70,8 @@ class AccountMapperUpdateTest extends IntegrationTestCase {
 
 	/**
 	 * Asserts one column at a time so a failure names the column that
-	 * update() drops. statement_day is missing from the set-list at the time
-	 * of writing (#347); a separate change fixes it. Drop the group then.
+	 * update() drops (statement_day was missing from the set-list, #347).
 	 */
-	#[Group('known-bug')]
 	public function testUpdatePersistsEveryColumn(): void {
 		$mapper = $this->service(AccountMapper::class);
 		$account = $this->makeAccount($this->column(0));

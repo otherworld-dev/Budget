@@ -22,6 +22,54 @@ use OCP\IDBConnection;
  * deleting those parents.
  */
 class UserTableCleaner {
+    /**
+     * The user's rows a factory reset deletes but a backup restore keeps, in
+     * clearing order (children first). None of these is in the backup, so a
+     * restore that cleared them would destroy them for good:
+     *   - shares the user GRANTED, with their items and auto-share config.
+     *     Shares granted TO the user belong to the other user and survive
+     *     both (they are matched on owner_user_id only);
+     *   - bank connections and their account mappings. Deleted as rows, the
+     *     encrypted credentials are never read, so an unreadable secret
+     *     cannot block the reset;
+     *   - API idempotency keys and the legacy forecasts table.
+     * The audit log is kept by both, for compliance.
+     *
+     * Specs use the registry's shape; 'userColumn' (or a third element on
+     * the last join) names the owner column when it is not user_id.
+     */
+    public const FACTORY_RESET_ONLY = [
+        'share_items' => [
+            'table' => 'budget_share_items',
+            'scope' => ['joins' => [['budget_shares', 'share_id', 'owner_user_id']]],
+        ],
+        'share_auto' => [
+            'table' => 'budget_share_auto',
+            'scope' => ['joins' => [['budget_shares', 'share_id', 'owner_user_id']]],
+        ],
+        'shares' => [
+            'table' => 'budget_shares',
+            'scope' => 'user',
+            'userColumn' => 'owner_user_id',
+        ],
+        'bank_mappings' => [
+            'table' => 'budget_bam',
+            'scope' => ['joins' => [['budget_bc', 'connection_id']]],
+        ],
+        'bank_connections' => [
+            'table' => 'budget_bc',
+            'scope' => 'user',
+        ],
+        'idem_keys' => [
+            'table' => 'budget_idem_keys',
+            'scope' => 'user',
+        ],
+        'forecasts' => [
+            'table' => 'budget_forecasts',
+            'scope' => 'user',
+        ],
+    ];
+
     public function __construct(
         private IDBConnection $db,
     ) {
@@ -46,8 +94,25 @@ class UserTableCleaner {
      * @return array<string, int> rows deleted per registry key
      */
     public function clearRegisteredTables(string $userId, bool $skipMissingTables = false): array {
+        return $this->clearTables($userId, self::clearOrder(), $skipMissingTables);
+    }
+
+    /**
+     * Clear the tables only a factory reset may touch (FACTORY_RESET_ONLY).
+     *
+     * @return array<string, int> rows deleted per key
+     */
+    public function clearFactoryResetOnlyTables(string $userId, bool $skipMissingTables = false): array {
+        return $this->clearTables($userId, self::FACTORY_RESET_ONLY, $skipMissingTables);
+    }
+
+    /**
+     * @param array<string, array> $specs key => spec, in clearing order
+     * @return array<string, int>
+     */
+    private function clearTables(string $userId, array $specs, bool $skipMissingTables): array {
         $counts = [];
-        foreach (self::clearOrder() as $key => $spec) {
+        foreach ($specs as $key => $spec) {
             try {
                 $counts[$key] = $this->clearTable($userId, $spec);
             } catch (\Exception $e) {
@@ -63,8 +128,9 @@ class UserTableCleaner {
 
     /**
      * Delete one table's rows for the user. A spec's scope is 'user' (the
-     * table has a user_id column) or ['joins' => [[table, localColumn], …]],
-     * a chain ending at a table with user_id.
+     * table has a user_id column, or the column 'userColumn' names) or
+     * ['joins' => [[table, localColumn], …]], a chain ending at a table with
+     * user_id (or with the column named as a third element of the last join).
      *
      * @return int rows deleted
      */
@@ -72,14 +138,14 @@ class UserTableCleaner {
         if (($spec['scope'] ?? 'user') === 'user') {
             $qb = $this->db->getQueryBuilder();
             $qb->delete($spec['table'])
-                ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+                ->where($qb->expr()->eq($spec['userColumn'] ?? 'user_id', $qb->createNamedParameter($userId)));
             return $qb->executeStatement();
         }
 
         $joins = $spec['scope']['joins'];
         // Innermost select: ids of the deepest parent owned by the user
-        [$deepTable] = $joins[count($joins) - 1];
-        $sql = 'SELECT id FROM *PREFIX*' . $deepTable . ' WHERE user_id = ?';
+        $deepest = $joins[count($joins) - 1];
+        $sql = 'SELECT id FROM *PREFIX*' . $deepest[0] . ' WHERE ' . ($deepest[2] ?? 'user_id') . ' = ?';
         // Wrap outward through the chain
         for ($i = count($joins) - 2; $i >= 0; $i--) {
             [$table] = $joins[$i];

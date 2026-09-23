@@ -6,7 +6,6 @@ namespace OCA\Budget\Tests\Integration\Db;
 
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Tests\Integration\IntegrationTestCase;
-use PHPUnit\Framework\Attributes\Group;
 
 /**
  * QueryFilterBuilder through findWithFilters(), as real SQL.
@@ -107,14 +106,12 @@ class TransactionFilterTest extends IntegrationTestCase {
 	}
 
 	/**
-	 * Also a portability check: QueryFilterBuilder (and TransactionMapper::
-	 * search()) call $qb->escapeLikeParameter(), which the query builder only
-	 * has from Nextcloud 31. On 30, the oldest version info.xml allows, every
-	 * transaction search throws "Call to undefined method" - so this fails on
-	 * the stable30 CI legs until the call moves to IDBConnection::
-	 * escapeLikeParameter(), which every supported version has.
+	 * Also a portability check: the search used to escape its pattern with
+	 * $qb->escapeLikeParameter(), which the query builder only has from
+	 * Nextcloud 31, so on 30 (the oldest version info.xml allows) every
+	 * transaction search threw. It goes through IDBConnection now, which has
+	 * it on every supported version - the stable30 CI legs prove it.
 	 */
-	#[Group('known-bug')]
 	public function testSearchFilterMatchesDescriptionRegardlessOfCase(): void {
 		$match = $this->makeTransaction($this->accountId, ['description' => 'TESCO Metro 50%']);
 		$this->makeTransaction($this->accountId, ['description' => 'Shell garage']);
@@ -123,6 +120,18 @@ class TransactionFilterTest extends IntegrationTestCase {
 
 		$this->assertSame(1, $page['total']);
 		$this->assertSame($match, $page['transactions'][0]['id']);
+	}
+
+	public function testSearchTreatsLikeWildcardsAsLiteralText(): void {
+		$match = $this->makeTransaction($this->accountId, ['description' => 'Refund 100% of_fee']);
+		$this->makeTransaction($this->accountId, ['description' => 'Refund 1000 offee']);
+
+		$page = $this->mapper->findWithFilters($this->userId, ['search' => '100% of_'], 50, 0);
+		$found = $this->mapper->search($this->userId, '100% of_');
+
+		$this->assertSame(1, $page['total']);
+		$this->assertSame($match, $page['transactions'][0]['id']);
+		$this->assertSame([$match], array_map(static fn ($t) => $t->getId(), $found));
 	}
 
 	public function testFiltersNeverReachAnotherUsersTransactions(): void {

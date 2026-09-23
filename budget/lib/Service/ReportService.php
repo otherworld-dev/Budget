@@ -312,7 +312,8 @@ class ReportService {
         string $startDate,
         string $endDate,
         ?int $accountId = null,
-        ?int $categoryId = null
+        ?int $categoryId = null,
+        ?array $visibleAccountIds = null
     ): array {
         return $this->tagReportService->getCrossTabulation(
             $userId,
@@ -321,7 +322,8 @@ class ReportService {
             $startDate,
             $endDate,
             $accountId,
-            $categoryId
+            $categoryId,
+            $visibleAccountIds
         );
     }
 
@@ -333,14 +335,16 @@ class ReportService {
         array $tagIds,
         string $startDate,
         string $endDate,
-        ?int $accountId = null
+        ?int $accountId = null,
+        ?array $visibleAccountIds = null
     ): array {
         return $this->tagReportService->getTagTrendReport(
             $userId,
             $tagIds,
             $startDate,
             $endDate,
-            $accountId
+            $accountId,
+            $visibleAccountIds
         );
     }
 
@@ -353,7 +357,8 @@ class ReportService {
         string $startDate,
         string $endDate,
         ?int $accountId = null,
-        ?int $categoryId = null
+        ?int $categoryId = null,
+        ?array $visibleAccountIds = null
     ): array {
         return $this->tagReportService->getTagSetBreakdown(
             $userId,
@@ -361,7 +366,8 @@ class ReportService {
             $startDate,
             $endDate,
             $accountId,
-            $categoryId
+            $categoryId,
+            $visibleAccountIds
         );
     }
 

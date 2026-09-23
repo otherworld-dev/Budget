@@ -9,7 +9,7 @@ use OCA\Budget\Service\MigrationService;
 use OCA\Budget\Tests\Integration\DataModel;
 use OCA\Budget\Tests\Integration\FullDataset;
 use OCA\Budget\Tests\Integration\IntegrationTestCase;
-use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * Backup export -> import, end to end against the real database.
@@ -173,12 +173,10 @@ class MigrationRoundTripTest extends IntegrationTestCase {
 	/**
 	 * importAll() wipes the user's transactions through the mapper directly
 	 * (MigrationService::clearUserData), not TransactionService::
-	 * deleteWithChildren(). Splits and transaction tags are registry tables
-	 * and get cleared first, but attachments are not in
-	 * the registry, so every attachment row is orphaned by a restore - the
-	 * exact leak #359 closed for ordinary deletes.
+	 * deleteWithChildren(). Attachments are not in the registry, so they
+	 * need their own clear or every one is orphaned by a restore - the exact
+	 * leak #359 closed for ordinary deletes.
 	 */
-	#[Group('known-bug')]
 	public function testRestoringOverExistingDataLeavesNoOrphans(): void {
 		$this->seedEveryTable($this->userId);
 
@@ -189,10 +187,77 @@ class MigrationRoundTripTest extends IntegrationTestCase {
 	}
 
 	/**
-	 * importAccounts() copies the account columns one by one and several are
-	 * missing from its list, so a restore silently resets them.
+	 * Bank connections, their mappings, shares the user granted and API
+	 * idempotency keys are not in a backup, so a restore must leave them
+	 * alone - clearing them would destroy them for good. Only a factory
+	 * reset removes them.
 	 */
-	#[Group('known-bug')]
+	public function testRestoringOverExistingDataKeepsWhatNoBackupHolds(): void {
+		$this->seedEveryTable($this->userId);
+		$kept = ['budget_bc', 'budget_bam', 'budget_shares', 'budget_share_items', 'budget_share_auto', 'budget_idem_keys'];
+		$before = array_map(fn (string $table) => $this->countUserRows($table, $this->userId), array_combine($kept, $kept));
+
+		$this->migration->importAll($this->userId, $this->migration->exportAll($this->userId)['content']);
+
+		foreach ($kept as $table) {
+			$this->assertGreaterThan(0, $before[$table], "The seed must put a row in {$table}");
+			$this->assertSame($before[$table], $this->countUserRows($table, $this->userId), "A restore deleted {$table} rows");
+		}
+	}
+
+	/**
+	 * The table-level import used to bind every value as a string, so a
+	 * boolean false reached PostgreSQL as '' and any backup holding a tag
+	 * failed to restore there. The archive also carries booleans in whatever
+	 * form the source database returned them - true/false from PostgreSQL,
+	 * 0/1 (numbers or strings) from SQLite and MySQL - and each must restore
+	 * to the same value on every database.
+	 */
+	#[DataProvider('booleanForms')]
+	public function testRestoreKeepsBooleansWhateverFormTheArchiveHoldsThem(string $form): void {
+		$food = $this->makeCategory(['name' => 'Food']);
+		$set = $this->makeTagSet($food);
+		$hiddenTag = $this->makeTag($set);
+		$this->db()->executeStatement('UPDATE *PREFIX*budget_tags SET name = ? WHERE id = ?', ['Hidden', $hiddenTag]);
+		$this->db()->executeStatement('UPDATE *PREFIX*budget_tags SET hidden = ? WHERE id = ?', [true, $hiddenTag], [\OCP\DB\QueryBuilder\IQueryBuilder::PARAM_BOOL, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT]);
+		$this->makeTag($set);
+		$this->insertRow('budget_recurring_income', [
+			'user_id' => $this->userId, 'name' => 'Old job', 'amount' => '100.00', 'frequency' => 'monthly',
+			'created_at' => $this->now(), 'is_active' => false,
+		]);
+		$target = $this->newUserId();
+
+		$archive = $this->rewriteArchiveBooleans($this->migration->exportAll($this->userId)['content'], $form);
+		$this->migration->importAll($target, $archive);
+
+		$tags = $this->db()->executeQuery(
+			'SELECT name, hidden FROM *PREFIX*budget_tags WHERE user_id = ? ORDER BY name', [$target]
+		)->fetchAll();
+		$this->assertSame(['Hidden', 'Tesco'], array_column($tags, 'name'));
+		$this->assertTrue((bool)$tags[0]['hidden']);
+		$this->assertFalse((bool)$tags[1]['hidden']);
+		$active = $this->db()->executeQuery(
+			'SELECT is_active FROM *PREFIX*budget_recurring_income WHERE user_id = ?', [$target]
+		)->fetchOne();
+		$this->assertFalse((bool)$active);
+	}
+
+	/**
+	 * @return array<string, array{0: string}>
+	 */
+	public static function booleanForms(): array {
+		return [
+			'as this database exported them' => ['native'],
+			'JSON booleans (PostgreSQL)' => ['bool'],
+			'digit strings (SQLite, MySQL)' => ['digits'],
+			'integers' => ['int'],
+		];
+	}
+
+	/**
+	 * importAccounts() used to copy the account columns one by one and
+	 * several were missing from its list, so a restore silently reset them.
+	 */
 	public function testAccountSettingsSurviveTheRoundTrip(): void {
 		$source = $this->makeAccount([
 			'name' => 'Savings',
@@ -215,6 +280,43 @@ class MigrationRoundTripTest extends IntegrationTestCase {
 			array_diff_key($source->toArrayFull(), $ignore),
 			array_diff_key($restored[0]->toArrayFull(), $ignore)
 		);
+	}
+
+	/**
+	 * Rewrite every boolean-looking value in the archive's table-level files
+	 * (the known boolean columns of the registry tables) into $form.
+	 */
+	private function rewriteArchiveBooleans(string $zipContent, string $form): string {
+		if ($form === 'native') {
+			return $zipContent;
+		}
+		$booleanColumns = ['hidden', 'is_active'];
+		$path = tempnam(sys_get_temp_dir(), 'budget-it-');
+		file_put_contents($path, $zipContent);
+		$zip = new \ZipArchive();
+		$zip->open($path);
+		foreach (['tags.json', 'recurring_income.json'] as $file) {
+			$rows = json_decode((string)$zip->getFromName($file), true);
+			foreach ($rows as &$row) {
+				foreach ($booleanColumns as $column) {
+					if (!array_key_exists($column, $row) || $row[$column] === null) {
+						continue;
+					}
+					$truthy = filter_var($row[$column], FILTER_VALIDATE_BOOLEAN);
+					$row[$column] = match ($form) {
+						'bool' => $truthy,
+						'digits' => $truthy ? '1' : '0',
+						'int' => $truthy ? 1 : 0,
+					};
+				}
+			}
+			unset($row);
+			$zip->addFromString($file, json_encode($rows));
+		}
+		$zip->close();
+		$content = (string)file_get_contents($path);
+		unlink($path);
+		return $content;
 	}
 
 	/**

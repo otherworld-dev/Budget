@@ -366,8 +366,7 @@ final class ReportScope {
         bool $excludeTransfers,
         callable $build
     ): array {
-        $halves = [];
-        foreach ([false, true] as $splitHalf) {
+        $run = static function (bool $splitHalf) use ($db, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $excludeTransfers, $build): array {
             $qb = $db->getQueryBuilder();
             $alloc = self::scopeReportHalf(
                 $qb, $splitHalf, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $excludeTransfers
@@ -375,11 +374,12 @@ final class ReportScope {
             $build($qb, $alloc);
 
             $result = $qb->executeQuery();
-            $halves[] = $result->fetchAll();
+            $rows = $result->fetchAll();
             $result->closeCursor();
-        }
+            return $rows;
+        };
 
-        return $halves;
+        return [$run(false), $run(true)];
     }
 
     /**
