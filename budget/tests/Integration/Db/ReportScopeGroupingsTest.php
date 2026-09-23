@@ -63,6 +63,21 @@ class ReportScopeGroupingsTest extends IntegrationTestCase {
 		$this->assertEqualsWithDelta(-35.0, $net[$this->food]['2026-02'], 0.001);
 	}
 
+	// ==================== Budget carryover split totals ====================
+
+	public function testSplitTotalsByBucketSkipPensionLegsAndExplicitlyUnsplitParents(): void {
+		$this->makeSplitTransaction($this->accountId, [[$this->food, '6.00']], ['date' => '2026-02-01']);
+		$this->makeSplitTransaction($this->accountId, [[$this->food, '40.00']], ['date' => '2026-02-02', 'pension_contrib_id' => 999999]);
+		$this->makeSplitTransaction($this->accountId, [[$this->food, '2.00']], ['date' => '2026-02-03', 'is_split' => null]);
+		$unsplit = $this->makeTransaction($this->accountId, ['category_id' => $this->food, 'amount' => '9.00', 'date' => '2026-02-04', 'is_split' => false]);
+		$this->makeSplit($unsplit, $this->food, '9.00');
+
+		$totals = $this->service(TransactionSplitMapper::class)
+			->getCategoryTotalsByBucket($this->userId, '2026-02-01', '2026-02-28');
+
+		$this->assertEqualsWithDelta(8.0, $totals[$this->food]['2026-02'], 0.001);
+	}
+
 	/**
 	 * A linked transfer from the current account to savings, the outgoing
 	 * leg filed under $categoryId. Returns the outgoing leg's id.

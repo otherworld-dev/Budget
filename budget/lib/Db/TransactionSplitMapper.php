@@ -39,21 +39,6 @@ class TransactionSplitMapper extends QBMapper {
     }
 
     /**
-     * The split side of the direct/split partition: a parent counts through
-     * its parts when its flag says split OR was never written (is_split
-     * predates its own default). A part whose parent is explicitly unsplit
-     * (is_split = false) is stray — the parent's own amount counts and the
-     * leftover parts do not (the policy TransactionMapper::splitParentPredicate
-     * and its directRowPredicate complement state, #356/#360).
-     */
-    private function splitParentPredicate(IQueryBuilder $qb, string $alias = 't'): \OCP\DB\QueryBuilder\ICompositeExpression {
-        return $qb->expr()->orX(
-            $qb->expr()->eq("{$alias}.is_split", $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)),
-            $qb->expr()->isNull("{$alias}.is_split")
-        );
-    }
-
-    /**
      * Find a split by ID.
      *
      * @throws DoesNotExistException
@@ -220,43 +205,36 @@ class TransactionSplitMapper extends QBMapper {
      * dimension for the budget carryover chain. Bucket is the calendar month
      * (YYYY-MM) by default, or the exact date with $byDay.
      *
+     * The companion of TransactionMapper::getCategorySpendingByBucketBatch(),
+     * scoped through the same ReportScope predicates so the two halves of the
+     * partition agree: the accounts the user can see, minus those flagged out
+     * of reports (#286, #341), split parents per splitParentPredicate()
+     * (#360), and no future scheduled rows or pension-funding legs (#304).
+     * Category exclusion is the budget's own business (BudgetScope), so it is
+     * not applied here.
+     *
      * @return array<int, array<string, float>> categoryId => bucket => total
      */
     public function getCategoryTotalsByBucket(string $userId, string $startDate, string $endDate, bool $byDay = false, ?array $visibleAccountIds = null): array {
         $qb = $this->db->getQueryBuilder();
 
-        $bucketExpr = $byDay ? 'CAST(t.date AS CHAR(10))' : 'SUBSTR(CAST(t.date AS CHAR(10)), 1, 7)';
-        $today = date('Y-m-d');
+        $bucketExpr = $byDay ? 'CAST(t.date AS CHAR(10))' : ReportScope::monthExpr();
 
         $qb->select('s.category_id')
             ->selectAlias($qb->createFunction($bucketExpr), 'bucket')
             ->selectAlias($qb->func()->sum('s.amount'), 'total')
             ->from($this->getTableName(), 's')
             ->innerJoin('s', 'budget_transactions', 't', $qb->expr()->eq('s.transaction_id', 't.id'))
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            // Scope by the accounts the user can see rather than only the ones
-            // they own — a split booked in a shared account belongs in their
-            // envelope like any other spending (#341).
-            ->where($visibleAccountIds !== null && !empty($visibleAccountIds)
-                ? $qb->expr()->in('a.id', $qb->createNamedParameter($visibleAccountIds, IQueryBuilder::PARAM_INT_ARRAY))
-                : $qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            // Exclude accounts flagged out of reports/budgets (#286)
-            ->andWhere($qb->expr()->orX(
-                $qb->expr()->isNull('a.excluded_from_reports'),
-                $qb->expr()->eq('a.excluded_from_reports', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL))
-            ))
-            ->andWhere($qb->expr()->isNotNull('s.category_id'))
+            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
+        ReportScope::applyUserScope($qb, $userId, $visibleAccountIds);
+        $qb->andWhere($qb->expr()->isNotNull('s.category_id'))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            ->andWhere($this->splitParentPredicate($qb))
-            ->andWhere($qb->expr()->orX(
-                $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
-                $qb->expr()->isNull('t.status'),
-                $qb->expr()->lte('t.date', $qb->createNamedParameter($today))
-            ))
+            ->andWhere(ReportScope::splitParentPredicate($qb))
             ->groupBy('s.category_id')
             ->addGroupBy($qb->createFunction($bucketExpr));
+        ReportScope::excludeScheduledFuture($qb);
 
         $result = $qb->executeQuery();
         $totals = [];
