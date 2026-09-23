@@ -234,9 +234,11 @@ export default class RulesModule {
         // Handle v2 nested actions format: {version: 2, actions: [{type, value}, ...]}
         if (actions.version === 2 && Array.isArray(actions.actions)) {
             for (const action of actions.actions) {
-                switch (action.type) {
+                // The builder saves set_category, add_tags and so on
+                const kind = String(action.type || '').replace(/^(set_|add_)/, '');
+                switch (kind) {
                     case 'category': {
-                        const cat = this.categories?.find(c => c.id === action.value);
+                        const cat = this.categories?.find(c => String(c.id) === String(action.value));
                         const name = cat?.name || t('budget', 'Category #{id}', { id: action.value });
                         badges.push(`<span class="action-badge category">→ ${dom.escapeHtml(name)}</span>`);
                         break;
