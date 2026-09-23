@@ -5,12 +5,9 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\BackgroundJob;
 
 use OCA\Budget\BackgroundJob\DigestJob;
-use OCA\Budget\Service\AnomalyDetectionService;
-use OCA\Budget\Service\BudgetAlertService;
-use OCA\Budget\Service\DigestService;
-use OCA\Budget\Service\Forecast\ForecastWarningService;
-use OCA\Budget\Service\SettingService;
+use OCA\Budget\BackgroundJob\Queued\UserDigestJob;
 use OCP\AppFramework\Utility\ITimeFactory;
+use OCP\BackgroundJob\IJobList;
 use OCP\DB\IResult;
 use OCP\DB\QueryBuilder\IExpressionBuilder;
 use OCP\DB\QueryBuilder\IQueryBuilder;
@@ -19,35 +16,33 @@ use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 
+/**
+ * DigestJob only fans out: one UserDigestJob per user. The per-user work is
+ * covered by UserDigestJobTest.
+ */
 class DigestJobTest extends TestCase {
 	private DigestJob $job;
 	private IDBConnection $db;
-	private DigestService $digestService;
-	private AnomalyDetectionService $anomalyService;
-	private BudgetAlertService $budgetAlertService;
-	private ForecastWarningService $forecastWarningService;
-	/** @var array<string, string> */
-	private array $settings = [];
+	private IJobList $jobList;
+	/** @var array<int, array{string, array}> jobs added, in order */
+	private array $added = [];
+	/** @var array<string, true> user ids whose job is still queued */
+	private array $pending = [];
 
 	protected function setUp(): void {
 		$this->db = $this->createMock(IDBConnection::class);
-		$this->digestService = $this->createMock(DigestService::class);
-		$this->anomalyService = $this->createMock(AnomalyDetectionService::class);
-		$this->budgetAlertService = $this->createMock(BudgetAlertService::class);
-		$this->forecastWarningService = $this->createMock(ForecastWarningService::class);
-
-		$settingService = $this->createMock(SettingService::class);
-		$settingService->method('get')
-			->willReturnCallback(fn(string $userId, string $key) => $this->settings[$key] ?? null);
+		$this->jobList = $this->createMock(IJobList::class);
+		$this->jobList->method('has')
+			->willReturnCallback(fn(string $class, $argument) => isset($this->pending[$argument['userId']]));
+		$this->jobList->method('add')
+			->willReturnCallback(function (string $class, $argument) {
+				$this->added[] = [$class, $argument];
+			});
 
 		$container = $this->createMock(ContainerInterface::class);
 		$container->method('get')->willReturnMap([
 			[IDBConnection::class, $this->db],
-			[SettingService::class, $settingService],
-			[DigestService::class, $this->digestService],
-			[AnomalyDetectionService::class, $this->anomalyService],
-			[BudgetAlertService::class, $this->budgetAlertService],
-			[ForecastWarningService::class, $this->forecastWarningService],
+			[IJobList::class, $this->jobList],
 			[LoggerInterface::class, $this->createMock(LoggerInterface::class)],
 		]);
 		\OC::$server = $container;
@@ -60,7 +55,7 @@ class DigestJobTest extends TestCase {
 	}
 
 	/**
-	 * The job runs two enumerations in order: users opted in to the digest,
+	 * The job enumerates two lists in order: users opted in to the digest,
 	 * then everyone who owns an account.
 	 */
 	private function mockUserQueries(array $digestUsers, array $accountUsers): void {
@@ -70,15 +65,17 @@ class DigestJobTest extends TestCase {
 		];
 
 		$this->db->method('getQueryBuilder')->willReturnCallback(function () use (&$resultSets) {
+			$rows = array_shift($resultSets) ?? [];
 			$result = $this->createMock(IResult::class);
-			$result->method('fetchAll')->willReturn(array_shift($resultSets) ?? []);
+			$result->method('fetch')->willReturnCallback(function () use (&$rows) {
+				return array_shift($rows) ?? false;
+			});
 			$result->method('closeCursor');
 
 			$qb = $this->createMock(IQueryBuilder::class);
-			$qb->method('selectDistinct')->willReturnSelf();
-			$qb->method('from')->willReturnSelf();
-			$qb->method('where')->willReturnSelf();
-			$qb->method('andWhere')->willReturnSelf();
+			foreach (['selectDistinct', 'from', 'where', 'andWhere'] as $fluent) {
+				$qb->method($fluent)->willReturnSelf();
+			}
 			$qb->method('expr')->willReturn($this->createMock(IExpressionBuilder::class));
 			$qb->method('createNamedParameter')->willReturn(':p');
 			$qb->method('executeQuery')->willReturn($result);
@@ -91,74 +88,38 @@ class DigestJobTest extends TestCase {
 		(new \ReflectionMethod($this->job, 'run'))->invoke($this->job, null);
 	}
 
-	public function testSendsBudgetAlertsForEveryUserByDefault(): void {
-		$this->mockUserQueries([], ['alice']);
-
-		$this->budgetAlertService->expects($this->once())
-			->method('notifyAlerts')
-			->with('alice');
+	public function testQueuesOneJobPerUserOfEitherList(): void {
+		$this->mockUserQueries(['dora', 'alice'], ['bob', 'alice']);
 
 		$this->invokeRun();
-	}
 
-	public function testSkipsBudgetAlertsWhenTheUserTurnedThemOff(): void {
-		$this->mockUserQueries([], ['alice']);
-		$this->settings['notification_budget_alert'] = 'false';
-
-		$this->budgetAlertService->expects($this->never())->method('notifyAlerts');
-
-		$this->invokeRun();
-	}
-
-	public function testSendsForecastWarningsForEveryUserByDefault(): void {
-		$this->mockUserQueries([], ['alice']);
-
-		$this->forecastWarningService->expects($this->once())
-			->method('checkAndNotify')
-			->with('alice');
-
-		$this->invokeRun();
-	}
-
-	public function testSkipsForecastWarningsWhenTheUserTurnedThemOff(): void {
-		$this->mockUserQueries([], ['alice']);
-		$this->settings['notification_forecast_warning'] = 'false';
-
-		$this->forecastWarningService->expects($this->never())->method('checkAndNotify');
-
-		$this->invokeRun();
-	}
-
-	public function testSkipsAnomalyAlertsWhenTheUserTurnedThemOff(): void {
-		$this->mockUserQueries([], ['alice']);
-		$this->settings['anomaly_alerts_enabled'] = 'false';
-
-		$this->anomalyService->expects($this->never())->method('detectAndNotify');
-
-		$this->invokeRun();
+		$this->assertSame([
+			[UserDigestJob::class, ['userId' => 'alice']],
+			[UserDigestJob::class, ['userId' => 'bob']],
+			[UserDigestJob::class, ['userId' => 'dora']],
+		], $this->added);
 	}
 
 	/**
-	 * One failing check must not cost the user the others — they are
-	 * independent notifications that happen to share a nightly run.
+	 * A job still waiting from an earlier run keeps its place: re-adding it
+	 * would move it to the back of the queue, and a backlog that never
+	 * drained would push the same users back every day.
 	 */
-	public function testAFailingBudgetAlertStillLetsTheForecastWarningRun(): void {
-		$this->mockUserQueries([], ['alice']);
-		$this->budgetAlertService->method('notifyAlerts')
-			->willThrowException(new \RuntimeException('boom'));
-
-		$this->forecastWarningService->expects($this->once())->method('checkAndNotify');
+	public function testLeavesAUsersStillQueuedJobWhereItIs(): void {
+		$this->mockUserQueries([], ['alice', 'bob']);
+		$this->pending = ['alice' => true];
 
 		$this->invokeRun();
+
+		$this->assertSame([[UserDigestJob::class, ['userId' => 'bob']]], $this->added);
 	}
 
-	public function testDigestIsSentOnlyToUsersWhoOptedIn(): void {
-		$this->mockUserQueries(['alice'], []);
-
-		$this->digestService->expects($this->once())
-			->method('sendDigest')
-			->with('alice', 'weekly');
+	public function testDoesNothingPerUserItself(): void {
+		$this->mockUserQueries(['alice'], ['alice']);
 
 		$this->invokeRun();
+
+		// Only the enumeration queries ran; the per-user work is queued
+		$this->assertCount(1, $this->added);
 	}
 }

@@ -5,35 +5,47 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\BackgroundJob;
 
 use OCA\Budget\BackgroundJob\BankSyncJob;
-use OCA\Budget\Db\BankConnection;
+use OCA\Budget\BackgroundJob\Queued\BankSyncConnectionJob;
 use OCA\Budget\Db\BankConnectionMapper;
 use OCA\Budget\Service\AdminSettingService;
-use OCA\Budget\Service\BankSync\BankSyncService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJob;
+use OCP\BackgroundJob\IJobList;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
+/**
+ * BankSyncJob only fans out: one BankSyncConnectionJob per connection. The
+ * sync itself is covered by BankSyncConnectionJobTest.
+ */
 class BankSyncJobTest extends TestCase {
     private BankSyncJob $job;
-    private ITimeFactory $timeFactory;
     private AdminSettingService $adminSettings;
-    private BankSyncService $syncService;
     private BankConnectionMapper $connectionMapper;
+    private IJobList $jobList;
     private LoggerInterface $logger;
+    /** @var array<int, array{string, array}> */
+    private array $added = [];
+    /** @var array<int, true> connection ids whose job is still queued */
+    private array $pending = [];
 
     protected function setUp(): void {
-        $this->timeFactory = $this->createMock(ITimeFactory::class);
         $this->adminSettings = $this->createMock(AdminSettingService::class);
-        $this->syncService = $this->createMock(BankSyncService::class);
         $this->connectionMapper = $this->createMock(BankConnectionMapper::class);
         $this->logger = $this->createMock(LoggerInterface::class);
+        $this->jobList = $this->createMock(IJobList::class);
+        $this->jobList->method('has')
+            ->willReturnCallback(fn(string $class, $argument) => isset($this->pending[$argument['connectionId']]));
+        $this->jobList->method('add')
+            ->willReturnCallback(function (string $class, $argument) {
+                $this->added[] = [$class, $argument];
+            });
 
         $this->job = new BankSyncJob(
-            $this->timeFactory,
+            $this->createMock(ITimeFactory::class),
             $this->adminSettings,
-            $this->syncService,
             $this->connectionMapper,
+            $this->jobList,
             $this->logger
         );
     }
@@ -56,7 +68,7 @@ class BankSyncJobTest extends TestCase {
         $this->adminSettings->method('isBankSyncEnabled')->willReturn(false);
 
         $this->connectionMapper->expects($this->never())->method('findActiveIdsForSync');
-        $this->syncService->expects($this->never())->method('sync');
+        $this->jobList->expects($this->never())->method('add');
 
         $this->invokeRun();
     }
@@ -68,84 +80,59 @@ class BankSyncJobTest extends TestCase {
         $this->logger->expects($this->once())
             ->method('info')
             ->with(
-                $this->stringContains('0 connections synced'),
+                $this->stringContains('queued 0 connections'),
                 $this->callback(fn($ctx) => $ctx['app'] === 'budget')
             );
 
         $this->invokeRun();
+
+        $this->assertSame([], $this->added);
     }
 
-    public function testRunSyncsEachActiveConnection(): void {
+    /**
+     * Each connection becomes its own queued job, so one slow provider holds
+     * up only itself instead of every sync after it in the same cron slot.
+     */
+    public function testRunQueuesOneJobPerConnection(): void {
         $this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
-
         $this->connectionMapper->method('findActiveIdsForSync')->willReturn([
             ['id' => 1, 'userId' => 'user1'],
             ['id' => 2, 'userId' => 'user2'],
         ]);
 
-        $this->syncService->expects($this->exactly(2))
-            ->method('sync')
-            ->willReturnCallback(function (string $userId, int $connId) {
-                $this->assertContains($userId, ['user1', 'user2']);
-                $this->assertContains($connId, [1, 2]);
-                return ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'accounts' => []];
-            });
-
-        $this->logger->expects($this->once())
-            ->method('info')
-            ->with(
-                $this->stringContains('2 connections synced'),
-                $this->anything()
-            );
-
         $this->invokeRun();
+
+        $this->assertSame([
+            [BankSyncConnectionJob::class, ['userId' => 'user1', 'connectionId' => 1]],
+            [BankSyncConnectionJob::class, ['userId' => 'user2', 'connectionId' => 2]],
+        ], $this->added);
     }
 
-    public function testRunContinuesOnIndividualSyncFailure(): void {
+    /**
+     * A connection whose job is still waiting keeps its place: re-adding it
+     * would move it to the back of the queue every day.
+     */
+    public function testRunLeavesAStillQueuedConnectionWhereItIs(): void {
         $this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
-
         $this->connectionMapper->method('findActiveIdsForSync')->willReturn([
             ['id' => 1, 'userId' => 'user1'],
             ['id' => 2, 'userId' => 'user2'],
         ]);
-
-        $callCount = 0;
-        $this->syncService->method('sync')
-            ->willReturnCallback(function () use (&$callCount): array {
-                $callCount++;
-                if ($callCount === 1) {
-                    throw new \RuntimeException('API timeout');
-                }
-                return ['imported' => 0, 'skipped' => 0, 'errors' => 0, 'accounts' => []];
-            });
-
-        $this->logger->expects($this->once())
-            ->method('warning')
-            ->with(
-                $this->stringContains('Bank sync failed for connection 1'),
-                $this->anything()
-            );
-
-        $this->logger->expects($this->once())
-            ->method('info')
-            ->with(
-                $this->stringContains('1 connections synced'),
-                $this->anything()
-            );
+        $this->pending = [1 => true];
 
         $this->invokeRun();
+
+        $this->assertSame([[BankSyncConnectionJob::class, ['userId' => 'user2', 'connectionId' => 2]]], $this->added);
     }
 
-    // ===== Helpers =====
+    public function testRunLogsWhenTheConnectionListFails(): void {
+        $this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+        $this->connectionMapper->method('findActiveIdsForSync')->willThrowException(new \RuntimeException('db down'));
 
-    private function makeConnection(int $id, string $userId): BankConnection {
-        $conn = new BankConnection();
-        $conn->setId($id);
-        $conn->setUserId($userId);
-        $conn->setProvider('gocardless');
-        $conn->setName('Test Bank');
-        $conn->setStatus('active');
-        return $conn;
+        $this->logger->expects($this->once())->method('error')
+            ->with($this->stringContains('db down'), $this->anything());
+
+        $this->invokeRun();
     }
 
     private function invokeRun(): void {
