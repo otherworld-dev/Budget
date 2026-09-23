@@ -3750,8 +3750,13 @@ class TransactionMapper extends QBMapper {
     // ==================== TAG-BASED REPORTING METHODS ====================
 
     /**
-     * Apply tag filtering to a query builder
-     * Joins through budget_transaction_tags and filters by tag IDs (OR logic)
+     * Apply tag filtering to a query builder: transactions carrying any of
+     * $tagIds (OR logic), plus — with $includeUntagged — those carrying no
+     * tag at all.
+     *
+     * Correlated EXISTS, never a join: joined, a transaction carrying two of
+     * the chosen tags became two rows and every SUM over it counted its money
+     * twice.
      *
      * @param IQueryBuilder $qb Query builder to modify
      * @param int[] $tagIds Array of tag IDs to filter by
@@ -3762,19 +3767,18 @@ class TransactionMapper extends QBMapper {
             return;
         }
 
+        $tagTable = $qb->getTableName('budget_transaction_tags');
+        $ids = implode(', ', array_map(
+            static fn($id) => (string)(int)$id,
+            array_values($tagIds)
+        ));
+        $tagged = "EXISTS (SELECT 1 FROM {$tagTable} btt WHERE btt.transaction_id = t.id AND btt.tag_id IN ({$ids}))";
+
         if ($includeUntagged) {
-            // Include transactions with specified tags OR no tags
-            $qb->leftJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
-                ->andWhere(
-                    $qb->expr()->orX(
-                        $qb->expr()->in('tt.tag_id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)),
-                        $qb->expr()->isNull('tt.tag_id')
-                    )
-                );
+            $untagged = "NOT EXISTS (SELECT 1 FROM {$tagTable} btu WHERE btu.transaction_id = t.id)";
+            $qb->andWhere($qb->expr()->orX($tagged, $untagged));
         } else {
-            // Only transactions with specified tags
-            $qb->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
-                ->andWhere($qb->expr()->in('tt.tag_id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)));
+            $qb->andWhere($tagged);
         }
     }
 

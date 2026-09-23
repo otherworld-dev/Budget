@@ -1848,6 +1848,40 @@ class TransactionMapperTest extends TestCase {
         $this->assertContains('s.category_id', $eqColumns);
     }
 
+    /**
+     * The tag filter is a correlated EXISTS, never a join: joined, a
+     * transaction carrying two of the chosen tags was summed twice.
+     */
+    public function testTagFilterUsesExistsNotAJoin(): void {
+        $this->qb->method('getTableName')->willReturnCallback(fn(string $t) => '*PREFIX*' . $t);
+        $tagJoins = 0;
+        $countJoin = function ($from, $table) use (&$tagJoins) {
+            if ($table === 'budget_transaction_tags') {
+                $tagJoins++;
+            }
+            return $this->qb;
+        };
+        $this->qb->method('leftJoin')->willReturnCallback($countJoin);
+        $this->qb->method('innerJoin')->willReturnCallback($countJoin);
+        $where = [];
+        $this->expr->method('orX')->willReturnCallback(function (...$parts) use (&$where) {
+            foreach ($parts as $part) {
+                if (is_string($part)) {
+                    $where[] = $part;
+                }
+            }
+            return $this->createMock(ICompositeExpression::class);
+        });
+        $this->qb->method('executeQuery')->willReturnCallback(fn() => $this->resultOf([]));
+
+        $this->mapper->getCashFlowByMonth('user1', null, '2026-01-01', '2026-01-31', [4, 9], true);
+
+        $this->assertSame(0, $tagJoins);
+        $sql = implode("\n", $where);
+        $this->assertStringContainsString('EXISTS (SELECT 1 FROM *PREFIX*budget_transaction_tags btt WHERE btt.transaction_id = t.id AND btt.tag_id IN (4, 9))', $sql);
+        $this->assertStringContainsString('NOT EXISTS (SELECT 1 FROM *PREFIX*budget_transaction_tags btu WHERE btu.transaction_id = t.id)', $sql);
+    }
+
     public function testCategorySpendingBatchCanApplyTheReportChokePoint(): void {
         $joins = [];
         $this->qb->method('leftJoin')->willReturnCallback(function ($from, $table) use (&$joins) {
