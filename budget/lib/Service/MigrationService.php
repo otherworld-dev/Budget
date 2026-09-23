@@ -43,13 +43,16 @@ class MigrationService {
      * bills (bills remap their tagIds through the tags map). POST entries
      * import after bills. Order within each phase is dependency order.
      *
+     * Restore and factory reset both clear a user's data from this list
+     * (UserTableCleaner), so a table registered here is also wiped by both.
+     *
      * Deliberately NOT exported: audit log and idempotency keys (instance
      * state), bank-sync connections/mappings (provider agreements and
      * credentials are instance-specific), shares (reference other Nextcloud
      * users), attachments (file ids do not survive), fetched exchange-rate
      * cache (manual rates ARE exported), legacy tables nothing reads.
      */
-    private const EXTRA_TABLES_PRE = [
+    public const EXTRA_TABLES_PRE = [
         'tag_sets' => [
             'table' => 'budget_tag_sets',
             'scope' => ['joins' => [['budget_categories', 'category_id']]],
@@ -64,7 +67,7 @@ class MigrationService {
         ],
     ];
 
-    private const EXTRA_TABLES_POST = [
+    public const EXTRA_TABLES_POST = [
         'transaction_tags' => [
             'table' => 'budget_transaction_tags',
             'scope' => ['joins' => [['budget_transactions', 'transaction_id'], ['budget_accounts', 'account_id']]],
@@ -232,6 +235,8 @@ class MigrationService {
         ],
     ];
 
+    private UserTableCleaner $tableCleaner;
+
     public function __construct(
         private AccountMapper $accountMapper,
         private TransactionMapper $transactionMapper,
@@ -241,6 +246,7 @@ class MigrationService {
         private SettingMapper $settingMapper,
         private IDBConnection $db
     ) {
+        $this->tableCleaner = new UserTableCleaner($db);
     }
 
     /**
@@ -539,15 +545,16 @@ class MigrationService {
         // Table-level extras first — the join-scoped ones (transaction tags,
         // splits, dismissed imports, tag sets) resolve their owner through
         // parents that are deleted further down (#351)
-        foreach (self::EXTRA_TABLES_POST + self::EXTRA_TABLES_PRE as $spec) {
-            $this->clearTable($userId, $spec);
-        }
+        $this->tableCleaner->clearRegisteredTables($userId);
 
-        // Transactions reference accounts and categories
-        $transactions = $this->transactionMapper->findAll($userId);
-        foreach ($transactions as $txn) {
-            $this->transactionMapper->delete($txn);
-        }
+        // Attachment rows are not in the registry (file ids do not survive an
+        // export), but they hang off transactions: without this every restore
+        // over existing data orphaned them. The files stay in the user's Files.
+        $this->tableCleaner->clearTable($userId, ['table' => 'budget_attachments', 'scope' => 'user']);
+
+        // Transactions reference accounts and categories. One bulk delete: the
+        // children deleteWithChildren() would cascade to are all cleared above.
+        $this->transactionMapper->deleteAll($userId);
 
         // Bills reference accounts and categories
         $bills = $this->billMapper->findAll($userId);
@@ -1098,37 +1105,6 @@ class MigrationService {
             }
         }
         return $filtered;
-    }
-
-    /**
-     * Delete one registry table's rows for the user (import is
-     * wipe-then-restore). Join-scoped tables are cleared through their
-     * parent chain and must be cleared before the parents are.
-     */
-    private function clearTable(string $userId, array $spec): void {
-        if (($spec['scope'] ?? 'user') === 'user') {
-            $qb = $this->db->getQueryBuilder();
-            $qb->delete($spec['table'])
-                ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
-            $qb->executeStatement();
-            return;
-        }
-
-        $joins = $spec['scope']['joins'];
-        // Innermost select: ids of the deepest parent owned by the user
-        [$deepTable] = $joins[count($joins) - 1];
-        $sql = 'SELECT id FROM *PREFIX*' . $deepTable . ' WHERE user_id = ?';
-        // Wrap outward through the chain
-        for ($i = count($joins) - 2; $i >= 0; $i--) {
-            [$table] = $joins[$i];
-            [, $childColumn] = $joins[$i + 1];
-            $sql = 'SELECT id FROM *PREFIX*' . $table . ' WHERE ' . $childColumn . ' IN (' . $sql . ')';
-        }
-        [, $localColumn] = $joins[0];
-        $this->db->executeStatement(
-            'DELETE FROM *PREFIX*' . $spec['table'] . ' WHERE ' . $localColumn . ' IN (' . $sql . ')',
-            [$userId]
-        );
     }
 
     /**

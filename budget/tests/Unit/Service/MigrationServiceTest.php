@@ -808,6 +808,57 @@ class MigrationServiceTest extends TestCase {
 		$this->assertLessThan(array_search('project_allocs', $keys, true), array_search('projects', $keys, true));
 	}
 
+	/**
+	 * Restoring over existing data used to delete transactions one at a time
+	 * with the bare mapper, skipping deleteWithChildren(), and never touched
+	 * budget_attachments (not in the registry) — every restore orphaned the
+	 * user's attachment rows for good.
+	 */
+	public function testImportAllClearsAttachmentRowsAndDeletesTransactionsInBulk(): void {
+		$deletedTables = [];
+		$db = $this->createMock(IDBConnection::class);
+		$db->method('getQueryBuilder')->willReturnCallback(function () use (&$deletedTables) {
+			$expr = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
+			$expr->method('eq')->willReturn('eq');
+			$qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
+			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin', 'insert', 'update', 'set', 'setValue'] as $m) {
+				$qb->method($m)->willReturnSelf();
+			}
+			$qb->method('delete')->willReturnCallback(function (string $table) use (&$deletedTables, $qb) {
+				$deletedTables[] = $table;
+				return $qb;
+			});
+			$qb->method('expr')->willReturn($expr);
+			$qb->method('createNamedParameter')->willReturn(':p');
+			$result = $this->createMock(\OCP\DB\IResult::class);
+			$result->method('fetch')->willReturn(false);
+			$qb->method('executeQuery')->willReturn($result);
+			$qb->method('executeStatement')->willReturn(0);
+			return $qb;
+		});
+		$db->method('executeStatement')->willReturn(0);
+		$service = new MigrationService(
+			$this->accountMapper, $this->transactionMapper, $this->categoryMapper,
+			$this->billMapper, $this->importRuleMapper, $this->settingMapper, $db
+		);
+
+		$this->transactionMapper->expects($this->once())->method('deleteAll')->with('user1')->willReturn(3);
+		$this->transactionMapper->expects($this->never())->method('delete');
+		$this->billMapper->method('findAll')->willReturn([]);
+		$this->importRuleMapper->method('findAll')->willReturn([]);
+		$this->accountMapper->method('findAll')->willReturn([]);
+		$this->categoryMapper->method('findAll')->willReturn([]);
+
+		$service->importAll('user1', $this->createTestZip([
+			'manifest.json' => json_encode(['version' => '1.0.0', 'appId' => 'budget']),
+			'categories.json' => json_encode([]),
+			'accounts.json' => json_encode([]),
+			'transactions.json' => json_encode([]),
+		]));
+
+		$this->assertContains('budget_attachments', $deletedTables);
+	}
+
 	private function createTestZip(array $files): string {
 		$tempFile = tempnam(sys_get_temp_dir(), 'test_zip_');
 		$zip = new \ZipArchive();
