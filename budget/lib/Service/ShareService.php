@@ -9,9 +9,11 @@ use OCA\Budget\Db\Share;
 use OCA\Budget\Db\ShareItemMapper;
 use OCA\Budget\Db\ShareMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\IGroupManager;
 use OCP\IUserManager;
 use OCP\IL10N;
 use OCP\Notification\IManager as INotificationManager;
+use OCP\Share\IManager as IShareManager;
 
 class ShareService {
     private ShareMapper $mapper;
@@ -27,7 +29,9 @@ class ShareService {
         AuditService $auditService,
         IUserManager $userManager,
         INotificationManager $notificationManager,
-        IL10N $l
+        IL10N $l,
+        private IShareManager $shareManager,
+        private IGroupManager $groupManager
     ) {
         $this->mapper = $mapper;
         $this->shareItemMapper = $shareItemMapper;
@@ -35,6 +39,22 @@ class ShareService {
         $this->userManager = $userManager;
         $this->notificationManager = $notificationManager;
         $this->l = $l;
+    }
+
+    private function mayShareWith(string $ownerUserId, \OCP\IUser $recipient): bool {
+        if (!$this->shareManager->shareWithGroupMembersOnly()) {
+            return true;
+        }
+        $owner = $this->userManager->get($ownerUserId);
+        if ($owner === null) {
+            return false;
+        }
+        $common = array_intersect(
+            $this->groupManager->getUserGroupIds($owner),
+            $this->groupManager->getUserGroupIds($recipient)
+        );
+        $excluded = $this->shareManager->shareWithGroupMembersOnlyExcludeGroupsList();
+        return array_diff($common, is_array($excluded) ? $excluded : []) !== [];
     }
 
     /**
@@ -59,6 +79,14 @@ class ShareService {
         // Verify recipient exists in Nextcloud
         $recipient = $this->userManager->get($sharedWithUserId);
         if ($recipient === null) {
+            throw new \InvalidArgumentException($this->l->t('Unable to share with this user'));
+        }
+
+        // Honour the admin's "only share with group members" setting, the way
+        // Nextcloud's own share manager does: owner and recipient must have a
+        // group in common, ignoring the groups the admin excluded from it.
+        // Same message as a missing user, so it says nothing about who exists.
+        if (!$this->mayShareWith($ownerUserId, $recipient)) {
             throw new \InvalidArgumentException($this->l->t('Unable to share with this user'));
         }
 
