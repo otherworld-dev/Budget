@@ -1,0 +1,8 @@
+/*!
+ * chartjs-chart-sankey v0.15.0
+ * https://chartjs-chart-sankey.pages.dev/
+ * (c) 2026 Jukka Kurkela
+ * Released under the MIT license
+ */
+
+/*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */
