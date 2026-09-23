@@ -167,6 +167,10 @@ class TagSetService extends AbstractCrudService {
 
         $tag = new Tag();
         $tag->setTagSetId($tagSetId);
+        // The category owner ($userId is resolved to the owner for a shared
+        // category). Backup, restore and factory reset find tags by user_id,
+        // so a tag without it was missing from every backup.
+        $tag->setUserId($userId);
         $tag->setName($name);
         $tag->setColor($color ?: $this->generateRandomColor());
         $tag->setSortOrder($sortOrder);

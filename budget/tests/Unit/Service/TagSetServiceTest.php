@@ -233,6 +233,8 @@ class TagSetServiceTest extends TestCase {
                 $this->assertEquals(1, $tag->getTagSetId());
                 $this->assertEquals('Store', $tag->getName());
                 $this->assertEquals('#00ff00', $tag->getColor());
+                // Backups and factory reset find tags by user_id
+                $this->assertSame('user1', $tag->getUserId());
                 $tag->setId(10);
                 return $tag;
             });
