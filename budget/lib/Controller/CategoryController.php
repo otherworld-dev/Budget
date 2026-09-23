@@ -587,15 +587,18 @@ class CategoryController extends Controller {
             // Same account scope the Budget view's spending call uses, so the
             // envelope carryover counts a shared account like everything else
             // on the page (#341).
+            $accountIds = $this->getEffectiveAccountIds((bool) $excludeShared);
             $budgets = $this->service->resolveEffectiveBudgets(
                 $this->userId,
                 $month,
-                $this->getEffectiveAccountIds((bool) $excludeShared)
+                $accountIds
             );
             return new DataResponse([
                 'month' => $month,
                 'hasSnapshot' => $hasSnapshot,
                 'budgets' => $budgets,
+                // The page's "Ready to assign" card, for the same month and scope
+                'readyToAssign' => $this->service->getReadyToAssign($this->userId, $month, $accountIds, $budgets),
             ]);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to retrieve effective budgets'));

@@ -1801,6 +1801,7 @@ export default class CategoriesModule {
         // month's in place.
         let budgets = null;
         let hasSnapshot = false;
+        let readyToAssign = null;
         try {
             const response = await fetch(
                 OC.generateUrl(`/apps/budget/api/budget-snapshots/${month}/budgets`),
@@ -1810,6 +1811,7 @@ export default class CategoriesModule {
                 const data = await response.json();
                 budgets = data.budgets || {};
                 hasSnapshot = data.hasSnapshot || false;
+                readyToAssign = data.readyToAssign || null;
             }
         } catch (error) {
             console.error('Failed to fetch effective budgets:', error);
@@ -1831,6 +1833,7 @@ export default class CategoriesModule {
 
         if (generation !== this._budgetsGeneration) return;
         this._effectiveBudgets = budgets;
+        this._readyToAssign = readyToAssign;
         this._currentMonthHasSnapshot = hasSnapshot;
         if (snapshotMonths !== null) {
             this._snapshotMonths = snapshotMonths;
@@ -2632,6 +2635,8 @@ export default class CategoriesModule {
                 this.aggregateParentSpending(this.categoryTree || []);
                 this.renderBudgetTree();
                 this.updateBudgetSummary();
+                // A budget change moves "Ready to assign"; not awaited
+                this.refreshReadyToAssign();
 
                 // Refresh dashboard if currently viewing it
                 if (window.location.hash === '' || window.location.hash === '#/dashboard') {
@@ -2696,6 +2701,62 @@ export default class CategoriesModule {
         if (spentEl) spentEl.textContent = this.formatCurrency(totalSpent);
         if (remainingEl) remainingEl.textContent = this.formatCurrency(totalRemaining);
         if (countEl) countEl.textContent = categoriesWithBudget;
+
+        this.renderReadyToAssign();
+    }
+
+    /**
+     * Re-read the selected month's "Ready to assign" figure after a budget
+     * edit, leaving the locally updated budgets alone.
+     */
+    async refreshReadyToAssign() {
+        const month = this.budgetMonth;
+        try {
+            const response = await fetch(
+                OC.generateUrl(`/apps/budget/api/budget-snapshots/${month}/budgets`),
+                { headers: this.app.getAuthHeaders() }
+            );
+            if (!response.ok) return;
+            const data = await response.json();
+            if (this.budgetMonth !== month) return;
+            this._readyToAssign = data.readyToAssign || null;
+            this.renderReadyToAssign();
+        } catch (error) {
+            console.error('Failed to refresh ready to assign:', error);
+        }
+    }
+
+    /**
+     * The "Ready to assign" card: the selected month's income minus its
+     * expense budgets, as the server worked it out for that month
+     * (readyToAssign on the effective-budgets response).
+     */
+    renderReadyToAssign() {
+        const valueEl = document.getElementById('budget-ready-to-assign');
+        const hintEl = document.getElementById('budget-ready-to-assign-hint');
+        if (!valueEl) return;
+
+        const figure = this._readyToAssign;
+        valueEl.classList.remove('positive', 'negative');
+        if (!figure || figure.amount == null) {
+            valueEl.textContent = '--';
+            return;
+        }
+
+        const amount = parseFloat(figure.amount) || 0;
+        valueEl.textContent = this.formatCurrency(amount);
+        if (amount > 0) valueEl.classList.add('positive');
+        if (amount < 0) valueEl.classList.add('negative');
+
+        if (hintEl) {
+            const income = this.formatCurrency(parseFloat(figure.income) || 0);
+            const budgeted = this.formatCurrency(parseFloat(figure.budgeted) || 0);
+            if (amount < 0) {
+                hintEl.textContent = t('budget', 'Over-assigned: {income} in, {budgeted} budgeted', { income, budgeted });
+            } else {
+                hintEl.textContent = t('budget', '{income} in, {budgeted} budgeted', { income, budgeted });
+            }
+        }
     }
 
     flattenCategories(categories, result = []) {

@@ -2153,6 +2153,20 @@ style('budget', 'budget-app');
 
             <!-- Budget Summary Cards -->
             <div class="budget-summary-cards">
+                <!-- Ready to assign: the month's income minus the month's
+                     expense budgets, computed server-side (readyToAssign on
+                     the effective-budgets response). -->
+                <div class="summary-card budget-ready-to-assign-card" id="budget-ready-to-assign-card"
+                     title="<?php p($l->t('Income received in your income categories this month, minus the total of this month\'s expense budgets. Positive is money you have not given a budget yet; negative means your budgets add up to more than came in. Amounts carried over from earlier months are not counted again.')); ?>">
+                    <div class="summary-icon">
+                        <span class="icon-category-office" aria-hidden="true"></span>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-value" id="budget-ready-to-assign" aria-describedby="budget-ready-to-assign-hint">--</div>
+                        <div class="summary-label"><?php p($l->t('Ready to Assign')); ?></div>
+                        <div class="summary-hint" id="budget-ready-to-assign-hint"><?php p($l->t('Income this month minus this month\'s budgets')); ?></div>
+                    </div>
+                </div>
                 <div class="summary-card">
                     <div class="summary-icon">
                         <span class="icon-quota" aria-hidden="true"></span>
