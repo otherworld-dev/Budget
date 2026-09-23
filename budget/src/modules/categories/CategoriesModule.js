@@ -6,7 +6,7 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
-import Chart from 'chart.js/auto';
+import Chart from '../../utils/chart.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
 import { expenseProgressStatus, progressBarAttrs, overBudgetText } from '../../utils/budgetProgress.js';
 import { showLoadError } from '../../utils/loading.js';

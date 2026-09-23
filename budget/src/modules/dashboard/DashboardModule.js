@@ -11,7 +11,7 @@
 
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
-import Chart from 'chart.js/auto';
+import Chart from '../../utils/chart.js';
 import { DASHBOARD_WIDGETS } from '../../config/dashboardWidgets.js';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';

@@ -3,7 +3,7 @@
  */
 import { translate as t } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
-import Chart from 'chart.js/auto';
+import Chart from '../../utils/chart.js';
 import { showError } from '../../utils/notifications.js';
 import { escapeHtml } from '../../utils/dom.js';
 import { apiFetch } from '../../utils/api.js';

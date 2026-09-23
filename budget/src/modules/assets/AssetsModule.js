@@ -7,7 +7,7 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
-import Chart from 'chart.js/auto';
+import Chart from '../../utils/chart.js';
 import { apiFetch } from '../../utils/api.js';
 import { showLoading, showLoadError } from '../../utils/loading.js';
 

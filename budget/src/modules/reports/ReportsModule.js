@@ -3,7 +3,7 @@
  */
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
-import Chart from 'chart.js/auto';
+import Chart from '../../utils/chart.js';
 import { SankeyController, Flow } from 'chartjs-chart-sankey';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { confirmDialog, promptDialog } from '../../utils/dialogs.js';

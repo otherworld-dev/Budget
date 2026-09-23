@@ -65,13 +65,8 @@ window.budgetDiagnostics = budgetDiagnostics;
 
 // Before anything that could load a chunk
 import './publicPath.js';
-import Chart from 'chart.js/auto';
+import Chart from './utils/chart.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
-
-// Curved lines are drawn monotone: a plain `tension` curve overshoots between
-// points, so a month's line could dip below zero or peak above a value that
-// never happened. Monotone curves pass through the points without that.
-Chart.defaults.elements.line.cubicInterpolationMode = 'monotone';
 
 // Utilities
 import * as formatters from './utils/formatters.js';
