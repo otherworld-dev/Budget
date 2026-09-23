@@ -180,14 +180,36 @@ class TagSetService extends AbstractCrudService {
     }
 
     /**
-     * Update a tag
+     * Load a category tag through the tag set the caller was authorised on.
+     *
+     * The controller checks access on the TAG SET's category, but the tag is
+     * otherwise found by owner alone — so without this a user with write
+     * access to one shared category could name any of the owner's tags in the
+     * URL and edit or delete it.
+     *
+     * @throws DoesNotExistException when the tag is not in that tag set
      */
-    public function updateTag(int $tagId, string $userId, array $updates): Tag {
+    private function findTagInSet(int $tagSetId, int $tagId, string $userId): Tag {
         $tag = $this->tagMapper->find($tagId, $userId);
 
         if ($tag->getTagSetId() === null) {
-            throw new \InvalidArgumentException('Use updateGlobalTag for global tags');
+            // Global tags have their own endpoints; never reachable via a set
+            throw new DoesNotExistException('Tag not found in this tag set');
         }
+        if ((int) $tag->getTagSetId() !== $tagSetId) {
+            throw new DoesNotExistException('Tag not found in this tag set');
+        }
+
+        return $tag;
+    }
+
+    /**
+     * Update a tag
+     *
+     * @throws DoesNotExistException when the tag is not in $tagSetId
+     */
+    public function updateTag(int $tagId, string $userId, array $updates, int $tagSetId): Tag {
+        $tag = $this->findTagInSet($tagSetId, $tagId, $userId);
 
         // Check for duplicate name within tag set
         if (isset($updates['name'])) {
@@ -203,13 +225,11 @@ class TagSetService extends AbstractCrudService {
 
     /**
      * Delete a tag (cascade deletes transaction_tags)
+     *
+     * @throws DoesNotExistException when the tag is not in $tagSetId
      */
-    public function deleteTag(int $tagId, string $userId): void {
-        $tag = $this->tagMapper->find($tagId, $userId);
-
-        if ($tag->getTagSetId() === null) {
-            throw new \InvalidArgumentException('Use deleteGlobalTag for global tags');
-        }
+    public function deleteTag(int $tagId, string $userId, int $tagSetId): void {
+        $tag = $this->findTagInSet($tagSetId, $tagId, $userId);
 
         // Clear tag references on savings goals linked to this tag
         $this->savingsGoalMapper->clearTagReference($tagId);
