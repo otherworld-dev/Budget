@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **The sidebar matches the other Nextcloud apps.** The menu used its own taller rows, 44px high with a pill-shaped highlight, so it looked noticeably bulkier next to Files and the rest of Nextcloud and fewer pages fitted on screen before it had to scroll. It now uses Nextcloud's own sizes, 34px rows with the same spacing, text size and rounded corners, and the page you are on is shown the way Nextcloud 35 shows it, a light tint with a bar down the left side, in place of the solid blue fill. The search box and **Tools & Settings** have been brought in line as well, and the **Tools & Settings** label now lines up with the items under it.
+
 ## [2.54.0] - 2026-09-23
 
 ### Added

@@ -45,13 +45,15 @@
 
 #app-navigation .app-navigation-search-input {
     width: 100%;
-    padding: 8px 36px 8px 44px !important;
+    padding: 0 34px 0 36px !important;
     border: 1px solid var(--color-border);
-    border-radius: 22px;
+    border-radius: var(--border-radius-element, 8px);
     background: var(--color-background-dark);
     color: var(--color-main-text);
-    font-size: 14px;
-    min-height: 44px;
+    font-size: var(--default-font-size, 15px);
+    height: var(--default-clickable-area, 34px);
+    min-height: var(--default-clickable-area, 34px);
+    margin: 0;
     box-sizing: border-box;
     transition: border-color 0.1s ease-in-out, background-color 0.1s ease-in-out;
     outline: none;
@@ -70,7 +72,7 @@
 
 .app-navigation-search-icon {
     position: absolute;
-    left: 12px;
+    left: 9px;
     width: 20px;
     height: 20px;
     opacity: 0.7;
@@ -91,9 +93,9 @@
 
 .app-navigation-search-clear {
     position: absolute;
-    right: 8px;
-    width: 32px;
-    height: 32px;
+    right: 2px;
+    width: 30px;
+    height: 30px;
     border: none;
     background: transparent;
     border-radius: 50%;
@@ -137,11 +139,20 @@
     height: 100%;
 }
 
+/* Row metrics follow NcAppNavigationItem: clickable-area rows, a grid-baseline
+ * gap, the icon centred in a clickable-area square, and the tinted active row
+ * with a stripe on its leading edge. */
+#app-navigation > ul {
+    display: flex;
+    flex-direction: column;
+    gap: var(--default-grid-baseline, 4px);
+    padding: calc(var(--default-grid-baseline, 4px) * 2);
+}
+
 #app-navigation > ul {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding-bottom: 8px;
 }
 
 #app-navigation .app-navigation-entry {
@@ -149,16 +160,17 @@
 }
 
 #app-navigation .app-navigation-entry a {
+    position: relative;
     display: flex;
     align-items: center;
-    padding: 0 16px;
+    padding: 0 calc(var(--default-grid-baseline, 4px) * 2) 0 0;
     text-decoration: none;
     color: var(--color-main-text);
-    min-height: 44px;
-    border-radius: 22px;
-    margin: 3px 8px;
-    font-size: 14px;
-    font-weight: normal;
+    min-height: var(--default-clickable-area, 34px);
+    border-radius: var(--border-radius-element, 8px);
+    margin: 0;
+    font-size: var(--default-font-size, 15px);
+    font-weight: 500;
     box-sizing: border-box;
     transition: background-color 0.1s ease-in-out;
 }
@@ -167,9 +179,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
-    height: 20px;
-    margin-right: 12px;
+    width: var(--default-clickable-area, 34px);
+    height: var(--default-clickable-area, 34px);
     flex-shrink: 0;
 }
 
@@ -184,9 +195,22 @@
 }
 
 #app-navigation .app-navigation-entry.active a {
-    background-color: var(--color-primary);
-    color: white;
-    font-weight: 600;
+    background-color: color-mix(in srgb, var(--color-primary-element) 16%, transparent);
+    color: var(--color-main-text);
+}
+
+#app-navigation .app-navigation-entry.active:hover a {
+    background-color: color-mix(in srgb, var(--color-primary-element) 22%, transparent);
+}
+
+#app-navigation .app-navigation-entry.active a::before {
+    content: "";
+    position: absolute;
+    inset-block: calc(var(--default-grid-baseline, 4px) * 2);
+    inset-inline-start: 0;
+    width: 3px;
+    background-color: var(--color-primary-element);
+    border-radius: 999px;
 }
 
 #app-navigation .app-navigation-entry.active .app-navigation-entry-icon svg {
@@ -210,16 +234,18 @@
 #app-settings-header .settings-toggle {
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     width: calc(100% - 16px);
-    padding: 0 16px;
+    padding: 0 calc(var(--default-grid-baseline, 4px) * 2) 0 0;
     background: transparent;
     border: none;
     cursor: pointer;
     color: var(--color-main-text);
-    min-height: 44px;
-    border-radius: 22px;
-    margin: 3px 8px;
-    font-size: 14px;
+    min-height: var(--default-clickable-area, 34px);
+    border-radius: var(--border-radius-element, 8px);
+    margin: calc(var(--default-grid-baseline, 4px) * 2);
+    font-size: var(--default-font-size, 15px);
+    font-weight: 500;
     text-align: left;
     box-sizing: border-box;
     transition: background-color 0.1s ease-in-out;
@@ -229,9 +255,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
-    height: 20px;
-    margin-right: 12px;
+    width: var(--default-clickable-area, 34px);
+    height: var(--default-clickable-area, 34px);
     flex-shrink: 0;
 }
 
@@ -261,7 +286,10 @@
 }
 
 #app-settings.expanded #app-settings-content {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: var(--default-grid-baseline, 4px);
+    padding: 0 calc(var(--default-grid-baseline, 4px) * 2) calc(var(--default-grid-baseline, 4px) * 2);
 }
 
 #app-content {
