@@ -239,10 +239,9 @@ class MigrationRoundTripTest extends IntegrationTestCase {
 	}
 
 	/**
-	 * importAccounts() copies the account columns one by one and several are
-	 * missing from its list, so a restore silently resets them.
+	 * importAccounts() used to copy the account columns one by one and
+	 * several were missing from its list, so a restore silently reset them.
 	 */
-	#[Group('known-bug')]
 	public function testAccountSettingsSurviveTheRoundTrip(): void {
 		$source = $this->makeAccount([
 			'name' => 'Savings',
