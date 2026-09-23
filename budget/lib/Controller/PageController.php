@@ -11,8 +11,12 @@ use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\SchemaVersionService;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Controller;
+use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Http\TemplateResponse;
+use OCP\Defaults;
+use OCP\IL10N;
 use OCP\IRequest;
+use OCP\IURLGenerator;
 use OCP\Util;
 
 class PageController extends Controller {
@@ -21,6 +25,9 @@ class PageController extends Controller {
     private GranularShareService $granularShareService;
     private SchemaVersionService $schemaVersionService;
     private IAppManager $appManager;
+    private IURLGenerator $urlGenerator;
+    private IL10N $l;
+    private Defaults $defaults;
     private ?string $userId;
 
     public function __construct(
@@ -30,6 +37,9 @@ class PageController extends Controller {
         GranularShareService $granularShareService,
         SchemaVersionService $schemaVersionService,
         IAppManager $appManager,
+        IURLGenerator $urlGenerator,
+        IL10N $l,
+        Defaults $defaults,
         // Nullable: the controller is constructed before the auth middleware
         // runs, so an unauthenticated request injects null here (the page
         // routes still require login, which the middleware enforces next).
@@ -41,6 +51,9 @@ class PageController extends Controller {
         $this->granularShareService = $granularShareService;
         $this->schemaVersionService = $schemaVersionService;
         $this->appManager = $appManager;
+        $this->urlGenerator = $urlGenerator;
+        $this->l = $l;
+        $this->defaults = $defaults;
         $this->userId = $userId;
     }
 
@@ -108,6 +121,54 @@ class PageController extends Controller {
         return new TemplateResponse(Application::APP_ID, 'quick-add', [
             'accounts' => json_encode($accountList),
             'categories' => json_encode($categoryList),
+            'touchIcon' => $this->urlGenerator->imagePath(Application::APP_ID, 'quick-add-180.png'),
         ]);
+    }
+
+    /**
+     * Web app manifest for the quick-add page, so it can be installed on a
+     * home screen or desktop and open straight to the form (#530).
+     *
+     * The page layout already links Nextcloud's own manifest for the app,
+     * whose start URL is Budget's main page, and a browser only reads the
+     * first manifest link — so the quick-add template points that link here.
+     *
+     * @NoAdminRequired
+     * @NoCSRFRequired
+     */
+    public function quickAddManifest(): JSONResponse {
+        $response = new JSONResponse($this->quickAddManifestData());
+        $response->cacheFor(3600);
+        return $response;
+    }
+
+    /** @return array<string, mixed> */
+    private function quickAddManifestData(): array {
+        $icon = fn(int $size, string $purpose) => [
+            'src' => $this->urlGenerator->imagePath(Application::APP_ID, 'quick-add-' . $size . '.png'),
+            'sizes' => $size . 'x' . $size,
+            'type' => 'image/png',
+            'purpose' => $purpose,
+        ];
+
+        return [
+            'name' => $this->l->t('Quick Add Transaction'),
+            'short_name' => $this->l->t('Quick Add'),
+            // Relative to this manifest's own URL (.../quick-add/manifest), so
+            // they resolve to the page with or without index.php in the path.
+            'start_url' => '../quick-add',
+            'scope' => '../quick-add',
+            'display' => 'standalone',
+            'theme_color' => $this->defaults->getColorPrimary(),
+            'background_color' => $this->defaults->getColorPrimary(),
+            // The icons are full-bleed with the artwork inside the maskable
+            // safe zone, so the same files serve both purposes.
+            'icons' => [
+                $icon(192, 'any'),
+                $icon(512, 'any'),
+                $icon(192, 'maskable'),
+                $icon(512, 'maskable'),
+            ],
+        ];
     }
 }

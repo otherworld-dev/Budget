@@ -38,6 +38,7 @@ docs/superpowers/
 .playwright-mcp/
 .superpowers/
 *.png
+!budget/img/*.png
 *.tar.gz
 *.zip
 export2/

@@ -10,7 +10,10 @@ use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\SchemaVersionService;
 use OCP\App\IAppManager;
+use OCP\Defaults;
+use OCP\IL10N;
 use OCP\IRequest;
+use OCP\IURLGenerator;
 use PHPUnit\Framework\TestCase;
 
 class PageControllerTest extends TestCase {
@@ -25,6 +28,14 @@ class PageControllerTest extends TestCase {
 		$schemaVersionService = $this->createMock(SchemaVersionService::class);
 		$this->appManager = $this->createMock(IAppManager::class);
 
+		$urlGenerator = $this->createMock(IURLGenerator::class);
+		$urlGenerator->method('imagePath')
+			->willReturnCallback(fn(string $app, string $image) => '/apps-extra/' . $app . '/img/' . $image);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnArgument(0);
+		$defaults = $this->createMock(Defaults::class);
+		$defaults->method('getColorPrimary')->willReturn('#00679e');
+
 		$this->controller = new PageController(
 			$request,
 			$accountMapper,
@@ -32,6 +43,9 @@ class PageControllerTest extends TestCase {
 			$granularShareService,
 			$schemaVersionService,
 			$this->appManager,
+			$urlGenerator,
+			$l,
+			$defaults,
 			'user1'
 		);
 	}
@@ -50,6 +64,9 @@ class PageControllerTest extends TestCase {
 			$this->createMock(GranularShareService::class),
 			$this->createMock(SchemaVersionService::class),
 			$this->createMock(IAppManager::class),
+			$this->createMock(IURLGenerator::class),
+			$this->createMock(IL10N::class),
+			$this->createMock(Defaults::class),
 			null
 		);
 		$this->assertInstanceOf(PageController::class, $controller);
@@ -63,5 +80,43 @@ class PageControllerTest extends TestCase {
 		$params = (new \ReflectionMethod(PageController::class, 'indexParams'))->invoke($this->controller);
 
 		$this->assertSame('2.54.0', $params['appVersion']);
+	}
+
+	public function testQuickAddManifestOpensTheQuickAddPage(): void {
+		$manifest = $this->manifest();
+
+		// Served from .../quick-add/manifest, so both resolve to .../quick-add
+		// whichever form of the URL the page was loaded under (#530).
+		$this->assertSame('../quick-add', $manifest['start_url']);
+		$this->assertSame('../quick-add', $manifest['scope']);
+		$this->assertSame('standalone', $manifest['display']);
+		$this->assertSame('Quick Add', $manifest['short_name']);
+		$this->assertSame('#00679e', $manifest['theme_color']);
+	}
+
+	public function testQuickAddManifestHasTheIconSizesBrowsersRequireToInstall(): void {
+		$manifest = $this->manifest();
+
+		$icons = [];
+		foreach ($manifest['icons'] as $icon) {
+			$icons[$icon['purpose'] . ' ' . $icon['sizes']] = $icon['src'];
+		}
+
+		$this->assertSame([
+			'any 192x192' => '/apps-extra/budget/img/quick-add-192.png',
+			'any 512x512' => '/apps-extra/budget/img/quick-add-512.png',
+			'maskable 192x192' => '/apps-extra/budget/img/quick-add-192.png',
+			'maskable 512x512' => '/apps-extra/budget/img/quick-add-512.png',
+		], $icons);
+		foreach ($icons as $src) {
+			$this->assertFileExists(__DIR__ . '/../../../img/' . basename($src));
+		}
+	}
+
+	/** @return array<string, mixed> */
+	private function manifest(): array {
+		// quickAddManifest() wraps this in a cached response, which needs a
+		// running server.
+		return (new \ReflectionMethod(PageController::class, 'quickAddManifestData'))->invoke($this->controller);
 	}
 }
