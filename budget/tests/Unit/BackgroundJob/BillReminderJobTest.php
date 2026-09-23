@@ -309,6 +309,34 @@ class BillReminderJobTest extends TestCase {
 		$this->invokeRun();
 	}
 
+	/**
+	 * A failure while looking up or paying a user's auto-pay bills is logged
+	 * and the run carries on to the reminders. The catch used to call an
+	 * undefined $logger, so the "log it" path crashed the whole job instead.
+	 */
+	public function testRunLogsAutoPayFailureAndStillSendsReminders(): void {
+		$this->mockGetAllUserIds(['user1']);
+
+		$this->billMapper->method('findDueForAutoPay')
+			->willThrowException(new \RuntimeException('Auto-pay lookup failed'));
+
+		$this->logger->expects($this->once())
+			->method('warning')
+			->with(
+				$this->logicalAnd(
+					$this->stringContains('Auto-pay processing failed for user user1'),
+					$this->stringContains('Auto-pay lookup failed')
+				),
+				$this->callback(fn ($ctx) => ($ctx['app'] ?? null) === 'budget')
+			);
+		$this->logger->expects($this->never())->method('error');
+
+		// The reminder pass for the same user still runs
+		$this->billMapper->expects($this->once())->method('findActive')->with('user1')->willReturn([]);
+
+		$this->invokeRun();
+	}
+
 	// ===== run() - Error Handling =====
 
 	public function testRunContinuesOnPerUserFailure(): void {

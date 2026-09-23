@@ -63,7 +63,7 @@ class BillReminderJob extends TimedJob {
             foreach ($userIds as $userId) {
                 try {
                     // Process auto-pay BEFORE reminders to avoid sending reminder for auto-paid bill
-                    $autoPay = $this->processAutoPayForUser($userId, $billMapper, $billService, $notificationManager, $settingService);
+                    $autoPay = $this->processAutoPayForUser($userId, $billMapper, $billService, $notificationManager, $settingService, $logger);
                     $autoPayCount += $autoPay['success'];
                     $autoPayFailedCount += $autoPay['failed'];
 
@@ -303,7 +303,8 @@ class BillReminderJob extends TimedJob {
         BillMapper $billMapper,
         BillService $billService,
         INotificationManager $notificationManager,
-        SettingService $settingService
+        SettingService $settingService,
+        LoggerInterface $logger
     ): array {
         $successCount = 0;
         $failedCount = 0;
@@ -335,7 +336,7 @@ class BillReminderJob extends TimedJob {
             }
         } catch (\Exception $e) {
             // Log but don't fail entire job
-            $logger->warning("Auto-pay processing failed for user {$userId}: " . $e->getMessage());
+            $logger->warning("Auto-pay processing failed for user {$userId}: " . $e->getMessage(), ['app' => 'budget']);
         }
 
         return ['success' => $successCount, 'failed' => $failedCount];
