@@ -3,7 +3,7 @@
  */
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
-import { CriteriaBuilder } from './components/CriteriaBuilder.js';
+import { CriteriaBuilder, patternText } from './components/CriteriaBuilder.js';
 import { ActionBuilder } from './components/ActionBuilder.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
@@ -214,7 +214,8 @@ export default class RulesModule {
         const negate = condition.negate ? t('budget', 'NOT') + ' ' : '';
         const field = condition.field || 'field';
         const matchType = matchTypeLabels[condition.matchType] || condition.matchType;
-        const pattern = condition.pattern || '';
+        // A 'between' range is stored as a {min, max} object
+        const pattern = patternText(condition.pattern);
 
         return `${negate}${field} ${matchType} "${this.escapeHtml(pattern)}"`;
     }

@@ -2,6 +2,42 @@ import './CriteriaBuilder.css';
 import { translate as t } from '@nextcloud/l10n';
 import { alertDialog } from '../../../utils/dialogs.js';
 import { formatAccountType } from '../../../utils/formatters';
+import { escapeHtml } from '../../../utils/dom.js';
+
+/**
+ * A condition's pattern as the text shown in (and typed into) its input.
+ * Patterns are usually strings, but criteria saved through the JSON editor or
+ * the API can hold a number (an amount, an account id), and 'between' ranges
+ * are stored as a {min, max} object - shown here as the JSON the user types.
+ * @param {*} pattern
+ * @returns {string}
+ */
+export function patternText(pattern) {
+	if (pattern === null || pattern === undefined) {
+		return '';
+	}
+	if (typeof pattern === 'object') {
+		return JSON.stringify(pattern);
+	}
+	return String(pattern);
+}
+
+/**
+ * Whether one bound of a 'between' range holds a value. 0 is a real bound,
+ * so this can't be a truthiness check.
+ * @param {*} bound
+ * @param {boolean} numeric Require a number (amount ranges)
+ * @returns {boolean}
+ */
+function isRangeBound(bound, numeric) {
+	if (typeof bound === 'number') {
+		return Number.isFinite(bound);
+	}
+	if (typeof bound !== 'string' || bound.trim() === '') {
+		return false;
+	}
+	return !numeric || Number.isFinite(Number(bound));
+}
 
 /**
  * CriteriaBuilder - Visual query builder for complex boolean expression trees
@@ -189,7 +225,7 @@ export class CriteriaBuilder {
 			}
 			return `<select class="condition-pattern" data-path="${pathStr}">
 				${this.accounts.map(acc =>
-					`<option value="${acc.id}" ${String(node.pattern) === String(acc.id) ? 'selected' : ''}>${this.escapeHtml(acc.name)}</option>`
+					`<option value="${escapeHtml(String(acc.id))}" ${String(node.pattern) === String(acc.id) ? 'selected' : ''}>${escapeHtml(String(acc.name ?? ''))}</option>`
 				).join('')}
 			</select>`;
 		}
@@ -201,14 +237,14 @@ export class CriteriaBuilder {
 			}
 			return `<select class="condition-pattern" data-path="${pathStr}">
 				${types.map(type =>
-					`<option value="${this.escapeHtml(type)}" ${node.pattern === type ? 'selected' : ''}>${this.escapeHtml(formatAccountType(type))}</option>`
+					`<option value="${escapeHtml(type)}" ${node.pattern === type ? 'selected' : ''}>${escapeHtml(formatAccountType(type))}</option>`
 				).join('')}
 			</select>`;
 		}
 
 		return `<input type="text" class="condition-pattern" data-path="${pathStr}"
-			value="${this.escapeHtml(node.pattern || '')}"
-			placeholder="${this.getPatternPlaceholder(node.field, node.matchType)}">`;
+			value="${escapeHtml(patternText(node.pattern))}"
+			placeholder="${escapeHtml(this.getPatternPlaceholder(node.field, node.matchType))}">`;
 	}
 
 	renderMatchTypeOptions(field, currentMatchType) {
@@ -496,24 +532,27 @@ export class CriteriaBuilder {
 			if (!node.matchType) {
 				errors.push(t('budget', 'Condition at {path} has no match type selected', { path }));
 			}
-			if (!node.pattern || node.pattern.trim() === '') {
+			const pattern = patternText(node.pattern);
+			if (pattern.trim() === '') {
 				errors.push(t('budget', 'Condition at {path} has no pattern value', { path }));
 			}
 
 			// Validate regex if match type is regex
-			if (node.matchType === 'regex' && node.pattern) {
+			if (node.matchType === 'regex' && pattern) {
 				try {
-					new RegExp(node.pattern);
+					new RegExp(pattern);
 				} catch (e) {
 					errors.push(t('budget', 'Condition at {path} has invalid regex pattern: {error}', { path, error: e.message }));
 				}
 			}
 
 			// Validate JSON for 'between' match types
-			if (node.matchType === 'between' && node.pattern) {
+			if (node.matchType === 'between' && pattern.trim() !== '') {
 				try {
-					const parsed = JSON.parse(node.pattern);
-					if (!parsed.min || !parsed.max) {
+					const parsed = typeof node.pattern === 'object' ? node.pattern : JSON.parse(pattern);
+					const numeric = node.field === 'amount';
+					if (!parsed || typeof parsed !== 'object'
+						|| !isRangeBound(parsed.min, numeric) || !isRangeBound(parsed.max, numeric)) {
 						errors.push(t('budget', "Condition at {path} 'between' pattern must have 'min' and 'max' properties", { path }));
 					}
 				} catch (e) {
@@ -521,11 +560,5 @@ export class CriteriaBuilder {
 				}
 			}
 		}
-	}
-
-	escapeHtml(text) {
-		const div = document.createElement('div');
-		div.textContent = text;
-		return div.innerHTML;
 	}
 }
