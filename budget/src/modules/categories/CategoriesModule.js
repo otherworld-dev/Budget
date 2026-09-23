@@ -2027,22 +2027,22 @@ export default class CategoriesModule {
         }
     }
 
-    confirmCreateSnapshot() {
+    async confirmCreateSnapshot() {
         const monthLabel = formatters.parseLocalDate(this.budgetMonth + '-01').toLocaleDateString(formatters.userLocale(), { month: 'long', year: 'numeric' });
 
-        OC.dialogs.confirmDestructive(
+        // Not a destructive action (earlier months keep their values), so the
+        // app's own dialog with a normal confirm button, not the deprecated
+        // OC.dialogs.confirmDestructive and its red one.
+        const confirmed = await confirmDialog(
             t('budget', 'This will save the current budget values as a new baseline from {month} onwards. Previous months will keep their existing values. You can edit the new values after confirming.', { month: monthLabel }),
-            t('budget', 'Adjust budgets from {month}?', { month: monthLabel }),
             {
-                type: OC.dialogs.YES_NO_BUTTONS,
-                confirm: t('budget', 'Confirm'),
-                cancel: t('budget', 'Cancel'),
-            },
-            async (confirmed) => {
-                if (!confirmed) return;
-                await this.createSnapshot(this.budgetMonth);
+                title: t('budget', 'Adjust budgets from {month}?', { month: monthLabel }),
+                confirmLabel: t('budget', 'Confirm'),
+                cancelLabel: t('budget', 'Cancel'),
             }
         );
+        if (!confirmed) return;
+        await this.createSnapshot(this.budgetMonth);
     }
 
     async createSnapshot(month) {

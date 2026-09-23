@@ -3640,7 +3640,7 @@ export default class AccountsModule {
         }
 
         if (!this.accountTransactions || this.accountTransactions.length === 0) {
-            OC.Notification.showTemporary(t('budget', 'No transactions to export'));
+            showWarning(t('budget', 'No transactions to export'));
             return;
         }
 
@@ -3664,7 +3664,7 @@ export default class AccountsModule {
             await downloadTransactionsCsv(params, account.name || 'account');
         } catch (error) {
             console.error('Failed to export transactions:', error);
-            OC.Notification.showTemporary(t('budget', 'Failed to export transactions'));
+            showError(t('budget', 'Failed to export transactions'));
         }
     }
 }
