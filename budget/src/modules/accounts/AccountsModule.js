@@ -6,11 +6,12 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
-import { downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES, hasSplitPortion, transactionDisplayAmount } from '../../utils/helpers.js';
+import { downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES } from '../../utils/helpers.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { openAccounts } from '../../utils/accounts.js';
 import { showLoading, clearLoading, showLoadError } from '../../utils/loading.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
+import { renderTransactionRow } from '../transactions/transactionRow.js';
 
 // Which account attributes are rendered in the accounts view (tiles + list).
 // User-configurable through the gear menu in the accounts header, stored in
@@ -1583,93 +1584,18 @@ export default class AccountsModule {
         }
 
         // Use backend-computed running balances directly
-        let balanceMap = null;
-        if (this.accountRunningBalances) {
-            balanceMap = {};
-            for (const [id, balance] of Object.entries(this.accountRunningBalances)) {
-                balanceMap[parseInt(id)] = parseFloat(balance);
-            }
-        }
+        const balances = this.accountRunningBalances || null;
+        const currency = this.currentAccount?.currency || this.getPrimaryCurrency();
 
-        tbody.innerHTML = this.accountTransactions.map(transaction => {
-            const amount = parseFloat(transaction.amount) || 0;
-            const currency = this.currentAccount?.currency || this.getPrimaryCurrency();
-            const category = this.categories?.find(c => c.id === transaction.categoryId);
-            const isScheduled = transaction.status === 'scheduled';
-            const scheduledBadge = isScheduled ? '<span class="scheduled-badge" title="' + t('budget', 'Future transaction — not counted in the current balance until it occurs') + '">' + t('budget', 'Scheduled') + '</span>' : '';
-            const pendingBadge = transaction.status === 'pending' ? '<span class="pending-badge" title="' + t('budget', 'Not yet posted by your bank') + '">' + t('budget', 'Pending') + '</span>' : '';
-
-            // Transfer badge
-            const isLinked = transaction.linkedTransactionId != null;
-            const linkedAccountName = transaction.linkedAccountName || this.app.accounts?.find(a => a.id === transaction.linkedAccountId)?.name || '';
-            const linkedDirection = transaction.type === 'debit' ? '→' : '←';
-            const linkedLabel = linkedAccountName ? t('budget', 'Transfer {direction} {account}', { direction: linkedDirection, account: dom.escapeHtml(linkedAccountName) }, undefined, { escape: false }) : t('budget', 'Transfer');
-            const linkedTitle = linkedAccountName ? t('budget', 'Click to view linked transaction in {account}', { account: dom.escapeHtml(linkedAccountName) }, undefined, { escape: false }) : t('budget', 'Linked transfer');
-            const linkedBadge = isLinked
-                ? `<button type="button" class="linked-indicator" data-transaction-id="${transaction.id}" data-linked-id="${transaction.linkedTransactionId}" data-linked-account-id="${transaction.linkedAccountId || ''}" title="${linkedTitle}"><span aria-hidden="true">&#x1F517;</span> ${linkedLabel}</button>`
-                : '';
-
-            // Split badge. Filtering the register by a category also matches a
-            // split through its parts, and the row then stands for the part
-            // that matched rather than the whole transaction (#359).
-            const isSplit = transaction.isSplit || transaction.is_split;
-            const isSplitPortion = hasSplitPortion(transaction);
-            const splitBadge = isSplit
-                ? `<span class="split-indicator" title="${isSplitPortion
-                    ? t('budget', 'Part of a split transaction. The amount shown is the part in this category.')
-                    : t('budget', 'Split transaction')}">${isSplitPortion ? t('budget', 'Split part') : t('budget', 'Split')}</span>`
-                : '';
-            const portionAmount = transactionDisplayAmount(transaction);
-            const signedPortion = transaction.type === 'credit' ? portionAmount : -portionAmount;
-            const showsWholeToo = isSplitPortion
-                && Math.abs(Math.abs(portionAmount) - Math.abs(amount)) > 0.005;
-
-            return `
-                <tr class="transaction-row${isScheduled ? ' scheduled-transaction' : ''}${isLinked ? ' is-linked' : ''}${transaction.reconciled ? ' is-reconciled' : ''}" data-transaction-id="${transaction.id}">
-                    <td class="date-column">
-                        <span class="transaction-date">${this.formatDate(transaction.date)}</span>${scheduledBadge}
-                    </td>
-                    <td class="description-column">
-                        <div class="transaction-description">
-                            <span class="description-main">${dom.escapeHtml(transaction.description) || t('budget', 'No description')}</span>
-                            ${(linkedBadge || splitBadge || pendingBadge) ? `<div class="transaction-badges">${pendingBadge}${linkedBadge}${splitBadge}</div>` : ''}
-                        </div>
-                    </td>
-                    <td class="vendor-column">${dom.escapeHtml(transaction.vendor || '')}</td>
-                    <td class="category-column">
-                        ${isSplit && transaction.splitCategories
-                            ? `<span class="category-name split-category" title="${transaction.splitCategories.map(sp => dom.escapeHtml((sp.categoryName || t('budget', 'Uncategorized')) + ': ' + this.formatCurrency(sp.amount, currency))).join('&#10;')}">${transaction.splitCategories.map(sp => '<span class="split-cat-item' + (sp.matched ? ' is-match' : '') + '">' + dom.escapeHtml(sp.categoryName || t('budget', 'Uncategorized')) + '</span>').join(' / ')}</span>`
-                            : isSplit
-                            ? `<span class="category-name split-category">${t('budget', 'Split')}</span>`
-                            : `<span class="category-name ${category ? '' : 'uncategorized'}">
-                            ${category ? dom.escapeHtml(category.name) : t('budget', 'Uncategorized')}
-                        </span>`}
-                        <div class="transaction-tags-display" data-transaction-id="${transaction.id}" style="margin-top: 4px;"></div>
-                    </td>
-                    <td class="amount-column">
-                        <span class="transaction-amount ${isSplitPortion ? (signedPortion >= 0 ? 'credit' : 'debit') : transaction.type}">
-                            ${(isSplitPortion ? signedPortion >= 0 : transaction.type === 'credit') ? '+' : '-'}${this.formatCurrency(Math.abs(portionAmount), currency)}
-                        </span>
-                        ${showsWholeToo ? `<span class="amount-whole">${t('budget', 'of {total}', { total: this.formatCurrency(Math.abs(amount), currency) })}</span>` : ''}
-                    </td>
-                    <td class="balance-column">
-                        ${balanceMap !== null && balanceMap[transaction.id] !== undefined
-                            ? `<span class="transaction-balance ${balanceMap[transaction.id] >= 0 ? 'positive' : 'negative'}${isScheduled ? ' projected' : ''}">${this.formatCurrency(balanceMap[transaction.id], currency)}</span>`
-                            : ''}
-                    </td>
-                    <td class="actions-column">
-                        <div class="transaction-actions">
-                            <button class="icon-rename edit-transaction-btn"
-                                    data-transaction-id="${transaction.id}"
-                                    title="${t('budget', 'Edit transaction')}" aria-label="${t('budget', 'Edit transaction')}"></button>
-                            <button class="icon-delete delete-transaction-btn"
-                                    data-transaction-id="${transaction.id}"
-                                    title="${t('budget', 'Delete transaction')}" aria-label="${t('budget', 'Delete transaction')}"></button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }).join('');
+        tbody.innerHTML = this.accountTransactions.map(transaction => renderTransactionRow(transaction, {
+            variant: 'register',
+            accounts: this.app.accounts,
+            categories: this.categories,
+            currency,
+            formatCurrency: (amount, cur) => this.formatCurrency(amount, cur),
+            formatDate: (date) => this.formatDate(date),
+            balance: balances && balances[transaction.id] !== undefined ? parseFloat(balances[transaction.id]) : undefined,
+        })).join('');
 
         // Add event listeners for transaction actions
         this.setupAccountTransactionActionListeners();

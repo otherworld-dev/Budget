@@ -80,7 +80,7 @@ import { initDatePickers } from './utils/datepicker.js';
 import { setupChartTheme } from './utils/chartTheme.js';
 import { setupHeaderMenus } from './utils/headerMenu.js';
 import { setupClickableCards } from './utils/clickableCards.js';
-import { hasSplitPortion, transactionDisplayAmount } from './utils/helpers.js';
+import { transactionDisplayAmount } from './utils/helpers.js';
 import { apiFetch, ApiError } from './utils/api.js';
 
 // Configuration
@@ -112,6 +112,7 @@ import SharingModule from './modules/sharing/SharingModule.js';
 import BankSyncModule from './modules/bank-sync/BankSyncModule.js';
 import HelpModule, { HELP_TOPICS, helpDocUrl, SUPPORT_LINKS } from './modules/help/HelpModule.js';
 import OnboardingModule from './modules/onboarding/OnboardingModule.js';
+import { renderTransactionRow } from './modules/transactions/transactionRow.js';
 
 class BudgetApp {
     constructor() {
@@ -1214,172 +1215,24 @@ class BudgetApp {
         if (!tbody || !this.transactions) return;
 
         // Use backend-computed running balances directly
-        let balanceMap = null;
-        if (this.runningBalances) {
-            balanceMap = {};
-            for (const [id, balance] of Object.entries(this.runningBalances)) {
-                balanceMap[parseInt(id)] = parseFloat(balance);
-            }
-        }
+        const balances = this.runningBalances || null;
 
         tbody.innerHTML = this.transactions.map(transaction => {
             const account = this.accounts?.find(a => a.id === transaction.accountId);
-            const category = this.categories?.find(c => c.id === transaction.categoryId);
-            const currency = transaction.accountCurrency || account?.currency || this.getPrimaryCurrency();
-
-            const typeClass = transaction.type === 'credit' ? 'positive' : 'negative';
-            const formattedAmount = this.formatCurrency(transaction.amount, currency);
-
-            // Filtering by a category also matches a split transaction through
-            // its parts, and the row then stands for the part that matched
-            // rather than the whole transaction (#359). A part can be negative
-            // — a receipt's discount line — which flips the row's direction, so
-            // colour it from the signed share and not from the parent's type.
-            const isSplitPortion = hasSplitPortion(transaction);
-            const portionAmount = transactionDisplayAmount(transaction);
-            const signedPortion = transaction.type === 'credit' ? portionAmount : -portionAmount;
-            const amountClass = isSplitPortion ? (signedPortion >= 0 ? 'positive' : 'negative') : typeClass;
-            // The sign is spelled out, not left to the colour, so the direction
-            // reads for colour-blind users and in dark mode alike.
-            const displayAmount = (amountClass === 'positive' ? '+' : '-') + (isSplitPortion
-                ? this.formatCurrency(Math.abs(portionAmount), currency)
-                : this.formatCurrency(Math.abs(transaction.amount), currency));
-            const showsWholeToo = isSplitPortion
-                && Math.abs(Math.abs(portionAmount) - Math.abs(transaction.amount)) > 0.005;
-
-            const isLinked = transaction.linkedTransactionId != null;
-            const linkedAccountName = transaction.linkedAccountName || this.accounts?.find(a => a.id === transaction.linkedAccountId)?.name || '';
-            const linkedDirection = transaction.type === 'debit' ? '→' : '←';
-            const linkedLabel = linkedAccountName ? `${t('budget', 'Transfer')} ${linkedDirection} ${this.escapeHtml(linkedAccountName)}` : t('budget', 'Transfer');
-            const linkedTitle = linkedAccountName ? t('budget', 'Click to view linked transaction in {account}', { account: this.escapeHtml(linkedAccountName) }, undefined, { escape: false }) : t('budget', 'Linked transfer');
-            const linkedBadge = isLinked
-                ? `<button type="button" class="linked-indicator" data-transaction-id="${transaction.id}" data-linked-id="${transaction.linkedTransactionId}" data-linked-account-id="${transaction.linkedAccountId || ''}" title="${linkedTitle}"><span aria-hidden="true">&#x1F517;</span> ${linkedLabel}</button>`
-                : '';
-            const isSplit = transaction.isSplit || transaction.is_split;
-            const splitBadge = isSplit
-                ? `<span class="split-indicator" title="${isSplitPortion
-                    ? t('budget', 'Part of a split transaction. The amount shown is the part in this category.')
-                    : t('budget', 'Split transaction')}">${isSplitPortion ? t('budget', 'Split part') : t('budget', 'Split')}</span>`
-                : '';
-            const sharedStatus = this.sharedTransactionStatuses?.[transaction.id];
-            const sharedBadge = sharedStatus === 'shared'
-                ? `<span class="shared-indicator" title="${t('budget', 'Shared expense - unsettled')}">&#x1F91D; ${t('budget', 'Shared')}</span>`
-                : sharedStatus === 'settled'
-                ? `<span class="shared-settled-indicator" title="${t('budget', 'Shared expense - settled')}">&#x2705; ${t('budget', 'Settled')}</span>`
-                : '';
-            const scheduledBadge = transaction.status === 'scheduled'
-                ? `<span class="scheduled-badge" title="${t('budget', 'Future transaction — not counted in the current balance until it occurs')}">${t('budget', 'Scheduled')}</span>`
-                : '';
-            const pendingBadge = transaction.status === 'pending'
-                ? `<span class="pending-badge" title="${t('budget', 'Not yet posted by your bank')}">${t('budget', 'Pending')}</span>`
-                : '';
-            const forecastExcludedBadge = transaction.excludedFromForecast
-                ? `<span class="forecast-excluded-badge" title="${t('budget', 'Excluded from forecast (extraordinary / one-time)')}">${t('budget', 'No forecast')}</span>`
-                : '';
-            const attachmentCount = this.attachmentCounts?.[transaction.id];
-            const attachmentBadge = attachmentCount
-                ? `<span class="attachment-indicator" title="${n('budget', '%n receipt attached', '%n receipts attached', attachmentCount)}">&#x1F4CE;${attachmentCount > 1 ? ' ' + attachmentCount : ''}</span>`
-                : '';
-            const pensionBadge = transaction.pensionContribId
-                ? `<span class="pension-indicator" title="${t('budget', 'Funds a pension contribution — excluded from spending')}">${t('budget', 'Pension')}</span>`
-                : '';
-            return `
-                <tr class="transaction-row ${isLinked ? 'is-linked' : ''}${transaction.reconciled ? ' is-reconciled' : ''}${transaction.status === 'scheduled' ? ' scheduled-transaction' : ''}${transaction.status === 'pending' ? ' pending-transaction' : ''}" data-transaction-id="${transaction.id}">
-                    <td class="select-column">
-                        <input type="checkbox" class="transaction-checkbox"
-                               aria-label="${this.escapeHtml(t('budget', 'Select {description}', { description: transaction.description || t('budget', 'No description') }, undefined, { escape: false }))}"
-                               data-transaction-id="${transaction.id}"
-                               ${this.transactionsModule.selectedTransactions?.has(transaction.id) ? 'checked' : ''}>
-                    </td>
-                    <td class="date-column editable-cell"
-                        data-field="date"
-                        data-value="${transaction.date}"
-                        data-transaction-id="${transaction.id}">
-                        <span class="cell-display">${this.formatDate(transaction.date)}</span>
-                    </td>
-                    <td class="description-column editable-cell"
-                        data-field="description"
-                        data-value="${this.escapeHtml(transaction.description)}"
-                        data-transaction-id="${transaction.id}">
-                        <div class="transaction-description">
-                            <span class="primary-text cell-display">${this.escapeHtml(transaction.description) || t('budget', 'No description')}</span>
-                            ${transaction.reference ? `<span class="secondary-text">${this.escapeHtml(transaction.reference)}</span>` : ''}
-                            ${(scheduledBadge || linkedBadge || splitBadge || sharedBadge || pendingBadge || forecastExcludedBadge || attachmentBadge || pensionBadge) ? `<div class="transaction-badges">${scheduledBadge}${pendingBadge}${forecastExcludedBadge}${attachmentBadge}${linkedBadge}${splitBadge}${sharedBadge}${pensionBadge}</div>` : ''}
-                        </div>
-                    </td>
-                    <td class="vendor-column editable-cell"
-                        data-field="vendor"
-                        data-value="${this.escapeHtml(transaction.vendor || '')}"
-                        data-transaction-id="${transaction.id}">
-                        <span class="cell-display">${this.escapeHtml(transaction.vendor) || '-'}</span>
-                    </td>
-                    <td class="category-column ${isSplit ? '' : 'editable-cell'}"
-                        data-field="categoryId"
-                        data-value="${transaction.categoryId || ''}"
-                        data-transaction-id="${transaction.id}"
-                        ${isSplit && transaction.splitCategories ? 'title="' + transaction.splitCategories.map(s => this.escapeHtml((s.categoryName || t('budget', 'Uncategorized')) + ': ' + this.formatCurrency(s.amount, currency))).join('&#10;') + '"' : ''}>
-                        ${isSplit && transaction.splitCategories
-                            ? (() => {
-                                const splitLabel = transaction.splitCategories.map(s =>
-                                    '<span class="split-cat-item' + (s.matched ? ' is-match' : '') + '">'
-                                    + this.escapeHtml(s.categoryName || t('budget', 'Uncategorized')) + '</span>'
-                                ).join(' / ');
-                                return '<span class="category-badge cell-display split-category">' + splitLabel + '</span>';
-                            })()
-                            : isSplit
-                            ? `<span class="category-badge cell-display split-category">${t('budget', 'Split')}</span>`
-                            : `<span class="category-badge cell-display ${category ? 'categorized' : 'uncategorized'}">${category && category.color ? `<span class="category-dot" style="background-color: ${this.escapeHtml(category.color)}" aria-hidden="true"></span>` : ''}${category ? this.escapeHtml(category.name) : t('budget', 'Uncategorized')}</span>`
-                        }
-                    </td>
-                    <td class="tags-column editable-cell"
-                        data-field="tags"
-                        data-value="${this.getTransactionTagIds(transaction.id).join(',')}"
-                        data-category-id="${transaction.categoryId || ''}"
-                        data-transaction-id="${transaction.id}">
-                        <span class="cell-display">
-                            ${this.renderTransactionTags(transaction.id)}
-                        </span>
-                    </td>
-                    <td class="amount-column ${isSplitPortion ? 'split-portion' : 'editable-cell'}"
-                        data-field="amount"
-                        data-value="${transaction.amount}"
-                        data-type="${transaction.type}"
-                        data-transaction-id="${transaction.id}"
-                        ${isSplitPortion ? `title="${t('budget', 'This amount is set by the transaction split. Open the split to change it.')}"` : ''}>
-                        <span class="amount cell-display ${amountClass}">${displayAmount}</span>
-                        ${showsWholeToo ? `<span class="amount-whole">${t('budget', 'of {total}', { total: formattedAmount })}</span>` : ''}
-                    </td>
-                    <td class="balance-column">
-                        ${balanceMap !== null && balanceMap[transaction.id] !== undefined
-                            ? `<span class="transaction-balance ${balanceMap[transaction.id] >= 0 ? 'positive' : 'negative'}">${this.formatCurrency(balanceMap[transaction.id], currency)}</span>`
-                            : ''}
-                    </td>
-                    <td class="account-column editable-cell"
-                        data-field="accountId"
-                        data-value="${transaction.accountId}"
-                        data-transaction-id="${transaction.id}">
-                        <span class="account-name cell-display">${account ? this.escapeHtml(account.name) : t('budget', 'Unknown Account')}</span>
-                    </td>
-                    <td class="actions-column">
-                        <div class="transaction-actions">
-                            <button class="action-btn edit-btn transaction-edit-btn"
-                                    data-transaction-id="${transaction.id}"
-                                    title="${t('budget', 'Edit transaction')}"
-                                    aria-label="${t('budget', 'Edit transaction')}">
-                                <span class="icon-rename" aria-hidden="true"></span>
-                            </button>
-                            <button class="action-btn more-actions-btn"
-                                    data-transaction-id="${transaction.id}"
-                                    title="${t('budget', 'More actions')}"
-                                    aria-label="${t('budget', 'More actions')}"
-                                    aria-haspopup="menu"
-                                    aria-expanded="false">
-                                <span aria-hidden="true">&#x22EE;</span>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `;
+            return renderTransactionRow(transaction, {
+                variant: 'ledger',
+                accounts: this.accounts,
+                categories: this.categories,
+                currency: transaction.accountCurrency || account?.currency || this.getPrimaryCurrency(),
+                formatCurrency: (amount, currency) => this.formatCurrency(amount, currency),
+                formatDate: (date) => this.formatDate(date),
+                balance: balances && balances[transaction.id] !== undefined ? parseFloat(balances[transaction.id]) : undefined,
+                sharedStatus: this.sharedTransactionStatuses?.[transaction.id],
+                attachmentCount: this.attachmentCounts?.[transaction.id],
+                selected: this.transactionsModule.selectedTransactions?.has(transaction.id),
+                tagsHtml: this.renderTransactionTags(transaction.id),
+                tagIds: this.getTransactionTagIds(transaction.id),
+            });
         }).join('');
 
         this.recoverStaleAccounts();
