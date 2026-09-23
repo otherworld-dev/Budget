@@ -2729,11 +2729,10 @@ export default class TransactionsModule {
 
         for (const pending of this._pendingAttachments) {
             try {
-                if (pending.kind === 'path') {
-                    await this.attachExistingFile(transactionId, pending.path);
-                } else {
-                    await this.uploadAttachment(transactionId, pending.file);
-                }
+                const ok = pending.kind === 'path'
+                    ? await this.attachExistingFile(transactionId, pending.path)
+                    : await this.uploadAttachment(transactionId, pending.file);
+                if (!ok) failed++;
             } catch (e) {
                 failed++;
             }
@@ -2787,8 +2786,10 @@ export default class TransactionsModule {
                 errorMessage: t('budget', 'Failed to upload receipt'),
             });
             this.app.attachmentCounts = null; // invalidate badge cache
+            return true;
         } catch (error) {
             showError(error.message || t('budget', 'Failed to upload receipt'));
+            return false;
         }
     }
 
@@ -2800,8 +2801,10 @@ export default class TransactionsModule {
                 errorMessage: t('budget', 'Failed to attach file'),
             });
             this.app.attachmentCounts = null;
+            return true;
         } catch (error) {
             showError(error.message || t('budget', 'Failed to attach file'));
+            return false;
         }
     }
 
