@@ -3331,19 +3331,19 @@ export default class TransactionsModule {
         row.innerHTML = `
             <div class="split-field split-amount-field">
                 <label>${t('budget', 'Amount')}</label>
-                <input type="number" class="inline-split-amount" step="0.01" ${minAttr} placeholder="0.00"
+                <input aria-label="${t('budget', 'Amount')}" type="number" class="inline-split-amount" step="0.01" ${minAttr} placeholder="0.00"
                        value="${existingSplit ? existingSplit.amount : ''}">
             </div>
             <div class="split-field split-category-field">
                 <label>${t('budget', 'Category')}</label>
-                <select class="inline-split-category">
+                <select aria-label="${t('budget', 'Category')}" class="inline-split-category">
                     <option value="">${t('budget', 'Uncategorized')}</option>
                     ${this.app.getCategoryOptions(existingSplit?.categoryId || null, transactionType)}
                 </select>
             </div>
             <div class="split-field split-description-field">
                 <label>${t('budget', 'Description')}</label>
-                <input type="text" class="inline-split-description" maxlength="255" placeholder="${t('budget', 'Optional note')}"
+                <input aria-label="${t('budget', 'Description')}" type="text" class="inline-split-description" maxlength="255" placeholder="${t('budget', 'Optional note')}"
                        value="${dom.escapeHtml(existingSplit?.description || '')}">
             </div>
             <div class="split-actions">
@@ -3980,19 +3980,19 @@ export default class TransactionsModule {
         row.innerHTML = `
             <div class="split-field split-amount-field">
                 <label>${t('budget', 'Amount')}</label>
-                <input type="number" class="split-amount" step="0.01" min="0.01"
+                <input aria-label="${t('budget', 'Amount')}" type="number" class="split-amount" step="0.01" min="0.01"
                        value="${split ? split.amount : ''}" placeholder="0.00" required>
             </div>
             <div class="split-field split-category-field">
                 <label>${t('budget', 'Category')}</label>
-                <select class="split-category">
+                <select aria-label="${t('budget', 'Category')}" class="split-category">
                     <option value="">${t('budget', 'Uncategorized')}</option>
                     ${this.getCategoryOptions(split?.categoryId, transactionType)}
                 </select>
             </div>
             <div class="split-field split-description-field">
                 <label>${t('budget', 'Description')}</label>
-                <input type="text" class="split-description" maxlength="255"
+                <input aria-label="${t('budget', 'Description')}" type="text" class="split-description" maxlength="255"
                        value="${dom.escapeHtml(split?.description || '')}" placeholder="${t('budget', 'Optional note')}">
             </div>
             <div class="split-actions">

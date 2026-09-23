@@ -117,7 +117,7 @@ export class CriteriaBuilder {
 		const html = `
 			<div class="criteria-group" data-path="${pathStr}">
 				<div class="group-header">
-					<select class="group-operator" data-path="${pathStr}">
+					<select class="group-operator" data-path="${pathStr}" aria-label="${t('budget', 'How conditions combine')}">
 						<option value="AND" ${node.operator === 'AND' ? 'selected' : ''}>${t('budget', 'All conditions must match (AND)')}</option>
 						<option value="OR" ${node.operator === 'OR' ? 'selected' : ''}>${t('budget', 'Any condition can match (OR)')}</option>
 					</select>
@@ -149,7 +149,7 @@ export class CriteriaBuilder {
 						<input type="checkbox" class="condition-negate" data-path="${pathStr}" ${node.negate ? 'checked' : ''}>
 						<span class="negate-label">${t('budget', 'NOT')}</span>
 					</label>
-					<select class="condition-field" data-path="${pathStr}">
+					<select class="condition-field" data-path="${pathStr}" aria-label="${t('budget', 'Field')}">
 						<option value="description" ${node.field === 'description' ? 'selected' : ''}>${t('budget', 'Description')}</option>
 						<option value="vendor" ${node.field === 'vendor' ? 'selected' : ''}>${t('budget', 'Vendor')}</option>
 						<option value="amount" ${node.field === 'amount' ? 'selected' : ''}>${t('budget', 'Amount')}</option>
@@ -161,7 +161,7 @@ export class CriteriaBuilder {
 						<option value="account_type" ${node.field === 'account_type' ? 'selected' : ''}>${t('budget', 'Account Type')}</option>
 						<option value="source" ${node.field === 'source' ? 'selected' : ''}>${t('budget', 'Import Source')}</option>
 					</select>
-					<select class="condition-match-type" data-path="${pathStr}">
+					<select class="condition-match-type" data-path="${pathStr}" aria-label="${t('budget', 'Match Type')}">
 						${this.renderMatchTypeOptions(node.field, node.matchType)}
 					</select>
 					${this.renderPatternWidget(node, pathStr)}
@@ -178,7 +178,7 @@ export class CriteriaBuilder {
 	 */
 	renderPatternWidget(node, pathStr) {
 		if (node.field === 'type') {
-			return `<select class="condition-pattern" data-path="${pathStr}">
+			return `<select class="condition-pattern" data-path="${pathStr}" aria-label="${t('budget', 'Value')}">
 				<option value="debit" ${node.pattern === 'debit' ? 'selected' : ''}>${t('budget', 'Expense')}</option>
 				<option value="credit" ${node.pattern === 'credit' ? 'selected' : ''}>${t('budget', 'Income')}</option>
 			</select>`;
@@ -188,7 +188,7 @@ export class CriteriaBuilder {
 			if (this.accounts.length === 0) {
 				return `<span class="condition-pattern-empty">${t('budget', 'No accounts available')}</span>`;
 			}
-			return `<select class="condition-pattern" data-path="${pathStr}">
+			return `<select class="condition-pattern" data-path="${pathStr}" aria-label="${t('budget', 'Value')}">
 				${this.accounts.map(acc =>
 					`<option value="${acc.id}" ${String(node.pattern) === String(acc.id) ? 'selected' : ''}>${this.escapeHtml(acc.name)}</option>`
 				).join('')}
@@ -200,7 +200,7 @@ export class CriteriaBuilder {
 			if (types.length === 0) {
 				return `<span class="condition-pattern-empty">${t('budget', 'No accounts available')}</span>`;
 			}
-			return `<select class="condition-pattern" data-path="${pathStr}">
+			return `<select class="condition-pattern" data-path="${pathStr}" aria-label="${t('budget', 'Value')}">
 				${types.map(type =>
 					`<option value="${this.escapeHtml(type)}" ${node.pattern === type ? 'selected' : ''}>${this.escapeHtml(formatAccountType(type))}</option>`
 				).join('')}
@@ -208,6 +208,7 @@ export class CriteriaBuilder {
 		}
 
 		return `<input type="text" class="condition-pattern" data-path="${pathStr}"
+			aria-label="${t('budget', 'Value')}"
 			value="${this.escapeHtml(node.pattern || '')}"
 			placeholder="${this.getPatternPlaceholder(node.field, node.matchType)}">`;
 	}

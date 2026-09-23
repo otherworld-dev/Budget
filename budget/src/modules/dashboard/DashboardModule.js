@@ -733,7 +733,7 @@ export default class DashboardModule {
         return `
                 <div class="form-group">
                     <label>${t('budget', 'Date Range')}</label>
-                    <select class="tile-setting-input" data-setting="dateRange">
+                    <select aria-label="${t('budget', 'Date Range')}" class="tile-setting-input" data-setting="dateRange">
                         ${markup}
                     </select>
                 </div>
@@ -772,7 +772,7 @@ export default class DashboardModule {
         return `
                 <div class="form-group">
                     <label>${label}</label>
-                    <select class="tile-setting-input" data-setting="${setting}">
+                    <select class="tile-setting-input" data-setting="${setting}" aria-label="${label}">
                         ${markup}
                     </select>
                 </div>
@@ -5138,7 +5138,7 @@ export default class DashboardModule {
             fields.push(`
                 <div class="form-group">
                     <label>${t('budget', 'Account')}</label>
-                    <select class="tile-setting-input" data-setting="accountId">${options}</select>
+                    <select aria-label="${t('budget', 'Account')}" class="tile-setting-input" data-setting="accountId">${options}</select>
                 </div>
             `);
         }
@@ -5198,7 +5198,7 @@ export default class DashboardModule {
             fields.push(`
                 <div class="form-group">
                     <label>${t('budget', 'Chart Type')}</label>
-                    <select class="tile-setting-input" data-setting="chartType">${options}</select>
+                    <select aria-label="${t('budget', 'Chart Type')}" class="tile-setting-input" data-setting="chartType">${options}</select>
                 </div>
             `);
         }
@@ -5209,7 +5209,7 @@ export default class DashboardModule {
             fields.push(`
                 <div class="form-group">
                     <label>${t('budget', 'Rows to show')}</label>
-                    <input type="number" class="tile-setting-input" data-setting="rowCount"
+                    <input aria-label="${t('budget', 'Rows to show')}" type="number" class="tile-setting-input" data-setting="rowCount"
                         value="${current}" min="${schema.rowCount.min || 3}" max="${schema.rowCount.max || 20}">
                 </div>
             `);
@@ -5225,7 +5225,7 @@ export default class DashboardModule {
             fields.push(`
                 <div class="form-group">
                     <label>${t('budget', 'Display Format')}</label>
-                    <select class="tile-setting-input" data-setting="displayFormat">${options}</select>
+                    <select aria-label="${t('budget', 'Display Format')}" class="tile-setting-input" data-setting="displayFormat">${options}</select>
                 </div>
             `);
         }

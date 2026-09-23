@@ -2116,7 +2116,7 @@ export default class ImportModule {
                     <span class="source-account-details">${dom.escapeHtml(details.join(' • '))}</span>
                 </div>
                 <span class="mapping-arrow">→</span>
-                <select class="destination-account-select" data-source-id="${sourceAccount.accountId}">
+                <select class="destination-account-select" data-source-id="${dom.escapeHtml(sourceAccount.accountId)}" aria-label="${t('budget', 'Budget account for {account}', { account: sourceAccount.accountId })}">
                     ${optionsHtml}
                 </select>
             `;

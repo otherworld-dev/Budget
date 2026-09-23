@@ -3158,7 +3158,7 @@ class BudgetApp {
                 return `
                     <div class="scenario-rate-item">
                         <span class="rate-label">${this.escapeHtml(debt.name)}</span>
-                        <input type="number" class="rate-override-input" data-debt-id="${debt.id}" value="${rate}" min="0" step="0.01">
+                        <input type="number" class="rate-override-input" data-debt-id="${debt.id}" value="${rate}" min="0" step="0.01" aria-label="${t('budget', 'Interest Rate')}: ${this.escapeHtml(debt.name)}">
                         <span class="rate-suffix">%</span>
                     </div>
                 `;
@@ -3868,19 +3868,19 @@ class BudgetApp {
         row.innerHTML = `
             <div class="split-field split-amount-field">
                 <label>${t('budget', 'Amount')}</label>
-                <input type="number" class="split-amount" step="0.01" min="0.01"
+                <input aria-label="${t('budget', 'Amount')}" type="number" class="split-amount" step="0.01" min="0.01"
                        value="${split ? split.amount : ''}" placeholder="0.00" required>
             </div>
             <div class="split-field split-category-field">
                 <label>${t('budget', 'Category')}</label>
-                <select class="split-category">
+                <select aria-label="${t('budget', 'Category')}" class="split-category">
                     <option value="">${t('budget', 'Uncategorized')}</option>
                     ${this.getCategoryOptions(split?.categoryId, transactionType)}
                 </select>
             </div>
             <div class="split-field split-description-field">
                 <label>${t('budget', 'Description')}</label>
-                <input type="text" class="split-description" maxlength="255"
+                <input aria-label="${t('budget', 'Description')}" type="text" class="split-description" maxlength="255"
                        value="${this.escapeHtml(split?.description || '')}" placeholder="${t('budget', 'Optional note')}">
             </div>
             <div class="split-actions">

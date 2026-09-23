@@ -86,7 +86,7 @@ export class ActionBuilder {
 					${this.renderActions()}
 				</div>
 				<div class="actions-controls">
-					<select id="add-action-type" class="add-action-select">
+					<select id="add-action-type" class="add-action-select" aria-label="${t('budget', '+ Add Action')}">
 						<option value="">${t('budget', '+ Add Action')}</option>
 						<option value="set_category">${t('budget', 'Set Category')}</option>
 						<option value="set_vendor">${t('budget', 'Set Vendor')}</option>
@@ -185,14 +185,14 @@ export class ActionBuilder {
 		return `
 			<div class="form-row">
 				<label>${t('budget', 'Category:')}</label>
-				<select class="action-value" data-index="${index}" data-field="value">
+				<select aria-label="${t('budget', 'Category:')}" class="action-value" data-index="${index}" data-field="value">
 					<option value="">${t('budget', '-- Select Category --')}</option>
 					${buildCategoryOptionsHtml(categoryTree, { selectedId: action.value })}
 				</select>
 			</div>
 			<div class="form-row">
 				<label>${t('budget', 'Behavior:')}</label>
-				<select class="action-behavior" data-index="${index}" data-field="behavior">
+				<select aria-label="${t('budget', 'Behavior:')}" class="action-behavior" data-index="${index}" data-field="behavior">
 					<option value="always" ${action.behavior === 'always' ? 'selected' : ''}>${t('budget', 'Always set')}</option>
 					<option value="if_empty" ${action.behavior === 'if_empty' ? 'selected' : ''}>${t('budget', 'Only if empty')}</option>
 				</select>
@@ -204,12 +204,12 @@ export class ActionBuilder {
 		return `
 			<div class="form-row">
 				<label>${t('budget', 'Vendor Name:')}</label>
-				<input type="text" class="action-value" data-index="${index}" data-field="value"
+				<input aria-label="${t('budget', 'Vendor Name:')}" type="text" class="action-value" data-index="${index}" data-field="value"
 					value="${this.escapeHtml(action.value || '')}" placeholder="${t('budget', 'e.g., Amazon, Starbucks')}">
 			</div>
 			<div class="form-row">
 				<label>${t('budget', 'Behavior:')}</label>
-				<select class="action-behavior" data-index="${index}" data-field="behavior">
+				<select aria-label="${t('budget', 'Behavior:')}" class="action-behavior" data-index="${index}" data-field="behavior">
 					<option value="always" ${action.behavior === 'always' ? 'selected' : ''}>${t('budget', 'Always set')}</option>
 					<option value="if_empty" ${action.behavior === 'if_empty' ? 'selected' : ''}>${t('budget', 'Only if empty')}</option>
 				</select>
@@ -221,12 +221,12 @@ export class ActionBuilder {
 		return `
 			<div class="form-row">
 				<label>${t('budget', 'Description:')}</label>
-				<input type="text" class="action-value" data-index="${index}" data-field="value"
+				<input aria-label="${t('budget', 'Description:')}" type="text" class="action-value" data-index="${index}" data-field="value"
 					value="${this.escapeHtml(action.value || '')}" placeholder="${t('budget', 'e.g., Grocery purchase, Salary')}">
 			</div>
 			<div class="form-row">
 				<label>${t('budget', 'Behavior:')}</label>
-				<select class="action-behavior" data-index="${index}" data-field="behavior">
+				<select aria-label="${t('budget', 'Behavior:')}" class="action-behavior" data-index="${index}" data-field="behavior">
 					<option value="always" ${action.behavior === 'always' ? 'selected' : ''}>${t('budget', 'Always set')}</option>
 					<option value="if_empty" ${action.behavior === 'if_empty' ? 'selected' : ''}>${t('budget', 'Only if empty')}</option>
 				</select>
@@ -238,12 +238,12 @@ export class ActionBuilder {
 		return `
 			<div class="form-row">
 				<label>${t('budget', 'Notes Text:')}</label>
-				<textarea class="action-value" data-index="${index}" data-field="value" rows="2"
+				<textarea aria-label="${t('budget', 'Notes Text:')}" class="action-value" data-index="${index}" data-field="value" rows="2"
 					placeholder="${t('budget', 'Text to add to transaction notes')}">${this.escapeHtml(action.value || '')}</textarea>
 			</div>
 			<div class="form-row">
 				<label>${t('budget', 'Behavior:')}</label>
-				<select class="action-behavior" data-index="${index}" data-field="behavior">
+				<select aria-label="${t('budget', 'Behavior:')}" class="action-behavior" data-index="${index}" data-field="behavior">
 					<option value="replace" ${action.behavior === 'replace' ? 'selected' : ''}>${t('budget', 'Replace notes')}</option>
 					<option value="append" ${action.behavior === 'append' ? 'selected' : ''}>${t('budget', 'Append to notes')}</option>
 				</select>
@@ -251,7 +251,7 @@ export class ActionBuilder {
 			${action.behavior === 'append' ? `
 			<div class="form-row">
 				<label>${t('budget', 'Separator:')}</label>
-				<input type="text" class="action-separator" data-index="${index}" data-field="separator"
+				<input aria-label="${t('budget', 'Separator:')}" type="text" class="action-separator" data-index="${index}" data-field="separator"
 					value="${this.escapeHtml(action.separator || ' | ')}" placeholder="${t('budget', 'e.g., | or -')}">
 			</div>
 			` : ''}
@@ -284,7 +284,7 @@ export class ActionBuilder {
 			</div>
 			<div class="form-row">
 				<label>${t('budget', 'Behavior:')}</label>
-				<select class="action-behavior" data-index="${index}" data-field="behavior">
+				<select aria-label="${t('budget', 'Behavior:')}" class="action-behavior" data-index="${index}" data-field="behavior">
 					<option value="merge" ${action.behavior === 'merge' ? 'selected' : ''}>${t('budget', 'Merge with existing tags')}</option>
 					<option value="replace" ${action.behavior === 'replace' ? 'selected' : ''}>${t('budget', 'Replace all tags')}</option>
 				</select>
@@ -298,7 +298,7 @@ export class ActionBuilder {
 		return `
 			<div class="form-row">
 				<label>${t('budget', 'Account:')}</label>
-				<select class="action-value" data-index="${index}" data-field="value">
+				<select aria-label="${t('budget', 'Account:')}" class="action-value" data-index="${index}" data-field="value">
 					<option value="">${t('budget', '-- Select Account --')}</option>
 					${accounts.map(account => `
 						<option value="${account.id}" ${action.value == account.id ? 'selected' : ''}>${this.escapeHtml(accountOptionLabel(account))}</option>
@@ -335,12 +335,12 @@ export class ActionBuilder {
 		return `
 			<div class="form-row">
 				<label>${t('budget', 'Reference Value:')}</label>
-				<input type="text" class="action-value" data-index="${index}" data-field="value"
+				<input aria-label="${t('budget', 'Reference Value:')}" type="text" class="action-value" data-index="${index}" data-field="value"
 					value="${this.escapeHtml(action.value || '')}" placeholder="${t('budget', 'e.g., CHECK-1234, AUTO')}">
 			</div>
 			<div class="form-row">
 				<label>${t('budget', 'Behavior:')}</label>
-				<select class="action-behavior" data-index="${index}" data-field="behavior">
+				<select aria-label="${t('budget', 'Behavior:')}" class="action-behavior" data-index="${index}" data-field="behavior">
 					<option value="always" ${action.behavior === 'always' ? 'selected' : ''}>${t('budget', 'Always set')}</option>
 					<option value="if_empty" ${action.behavior === 'if_empty' ? 'selected' : ''}>${t('budget', 'Only if empty')}</option>
 				</select>
@@ -353,7 +353,7 @@ export class ActionBuilder {
 		return `
 			<div class="form-row">
 				<label>${t('budget', 'Forecast:')}</label>
-				<select class="action-value" data-index="${index}" data-field="value">
+				<select aria-label="${t('budget', 'Forecast:')}" class="action-value" data-index="${index}" data-field="value">
 					<option value="true" ${excluded ? 'selected' : ''}>${t('budget', 'Exclude from forecast')}</option>
 					<option value="false" ${!excluded ? 'selected' : ''}>${t('budget', 'Include in forecast')}</option>
 				</select>

@@ -1353,7 +1353,7 @@ export default class TransfersModule {
                         </div>
                         <div class="detected-transfer-dest" style="margin-top: 4px;">
                             <label style="font-size: 12px; margin-right: 4px;">${t('budget', 'To:')}</label>
-                            <select class="detected-dest-account" data-index="${index}" style="font-size: 12px; padding: 2px 4px;">
+                            <select class="detected-dest-account" data-index="${index}" style="font-size: 12px; padding: 2px 4px;" aria-label="${t('budget', 'To:')}">
                                 <option value="">${t('budget', '— Select destination —')}</option>
                                 ${accountOptions}
                             </select>

@@ -830,7 +830,7 @@ export default class BankSyncModule {
                         </div>
                     </div>
                     <div class="bank-mapping-target">
-                        <select class="mapping-account-select" data-mapping-id="${mapping.id}" data-connection-id="${connectionId}">
+                        <select class="mapping-account-select" data-mapping-id="${mapping.id}" data-connection-id="${connectionId}" aria-label="${t('budget', 'Budget account for {account}', { account: mapping.externalAccountName || mapping.externalAccountId })}">
                             <option value="">${t('budget', '— Not mapped —')}</option>
                             ${accountOptions}
                         </select>

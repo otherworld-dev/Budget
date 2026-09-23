@@ -2410,6 +2410,7 @@ export default class CategoriesModule {
                     <div class="budget-input-wrapper" data-label="${t('budget', 'Budget')}">
                         <input type="number"
                                class="budget-input ${isAutoBudget ? 'auto-budget' : ''}"
+                               aria-label="${t('budget', 'Budget for {category}', { category: category.name })}"
                                data-category-id="${category.id}"
                                value="${manualBudgetAmount ? Math.round(manualBudgetAmount * 100) / 100 : ''}"
                                placeholder="${isAutoBudget ? Math.round(recurringBudgetAmount * 100) / 100 : '0.00'}"
@@ -2423,7 +2424,7 @@ export default class CategoriesModule {
                         ${hasChildren && budget > effectiveBudgetAmount ? `<span class="budget-aggregate-hint">${t('budget', 'Total')}: ${this.formatCurrency(budget)}</span>` : ''}
                     </div>
                     <div data-label="${t('budget', 'Period')}">
-                        <select class="budget-period-select" data-category-id="${category.id}">
+                        <select class="budget-period-select" data-category-id="${category.id}" aria-label="${t('budget', 'Budget period for {category}', { category: category.name })}">
                             <option value="monthly" ${effectivePeriod === 'monthly' ? 'selected' : ''}>${t('budget', 'Monthly')}</option>
                             <option value="weekly" ${effectivePeriod === 'weekly' ? 'selected' : ''}>${t('budget', 'Weekly')}</option>
                             <option value="quarterly" ${effectivePeriod === 'quarterly' ? 'selected' : ''}>${t('budget', 'Quarterly')}</option>

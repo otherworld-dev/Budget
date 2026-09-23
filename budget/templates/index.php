@@ -497,7 +497,7 @@ style('budget', 'budget-app');
                     <div class="hero-content">
                         <div class="hero-label-row">
                             <span class="hero-label"><?php p($l->t('Account Income')); ?></span>
-                            <select id="hero-account-income-select" class="hero-inline-select"></select>
+                            <select id="hero-account-income-select" class="hero-inline-select" aria-label="<?php p($l->t('Account')); ?>"></select>
                         </div>
                         <span id="hero-account-income-value" class="hero-value income">--</span>
                         <span id="hero-account-income-change" class="hero-change"></span>
@@ -513,7 +513,7 @@ style('budget', 'budget-app');
                     <div class="hero-content">
                         <div class="hero-label-row">
                             <span class="hero-label"><?php p($l->t('Account Expenses')); ?></span>
-                            <select id="hero-account-expenses-select" class="hero-inline-select"></select>
+                            <select id="hero-account-expenses-select" class="hero-inline-select" aria-label="<?php p($l->t('Account')); ?>"></select>
                         </div>
                         <span id="hero-account-expenses-value" class="hero-value expenses">--</span>
                         <span id="hero-account-expenses-change" class="hero-change"></span>
@@ -582,11 +582,11 @@ style('budget', 'budget-app');
                         <div class="card-header">
                             <h3><?php p($l->t('Income vs Expenses')); ?></h3>
                             <div class="card-header-controls">
-                                <select id="trend-account-select" class="card-select">
+                                <select id="trend-account-select" class="card-select" aria-label="<?php p($l->t('Account')); ?>">
                                     <option value=""><?php p($l->t('All Accounts')); ?></option>
                                     <!-- Populated dynamically by JS -->
                                 </select>
-                                <select id="trend-period-select" class="card-select">
+                                <select id="trend-period-select" class="card-select" aria-label="<?php p($l->t('Period')); ?>">
                                     <option value="6"><?php p($l->t('Last 6 Months')); ?></option>
                                     <option value="12"><?php p($l->t('Last 12 Months')); ?></option>
                                     <option value="3"><?php p($l->t('Last 3 Months')); ?></option>
@@ -604,7 +604,7 @@ style('budget', 'budget-app');
                         <div class="card-header">
                             <h3><?php p($l->t('Spending by Category')); ?></h3>
                             <div class="card-header-controls">
-                                <select id="spending-account-select" class="card-select">
+                                <select id="spending-account-select" class="card-select" aria-label="<?php p($l->t('Account')); ?>">
                                     <option value=""><?php p($l->t('All Accounts')); ?></option>
                                 </select>
                             </div>
@@ -622,7 +622,7 @@ style('budget', 'budget-app');
                         <div class="card-header">
                             <h3><?php p($l->t('Net Worth History')); ?></h3>
                             <div class="card-header-controls">
-                                <select id="net-worth-account-select" class="card-select">
+                                <select id="net-worth-account-select" class="card-select" aria-label="<?php p($l->t('Account')); ?>">
                                     <option value=""><?php p($l->t('All Accounts')); ?></option>
                                 </select>
                                 <div class="period-selector" id="net-worth-period-selector">
@@ -673,7 +673,7 @@ style('budget', 'budget-app');
                         <div class="card-header">
                             <h3><?php p($l->t('Recent Transactions')); ?></h3>
                             <div class="card-header-controls">
-                                <select id="recent-transactions-account-select" class="card-select">
+                                <select id="recent-transactions-account-select" class="card-select" aria-label="<?php p($l->t('Account')); ?>">
                                     <option value=""><?php p($l->t('All Accounts')); ?></option>
                                 </select>
                                 <a href="#transactions" class="card-link"><?php p($l->t('View All')); ?></a>
@@ -1091,8 +1091,8 @@ style('budget', 'budget-app');
                                 <div id="accounts-attr-list" class="accounts-attr-list"></div>
                                 <div id="accounts-attr-extras" class="accounts-attr-extras"></div>
 
-                                <h4 class="accounts-config-subhead"><?php p($l->t('Order accounts by')); ?></h4>
-                                <select id="accounts-sort-field" class="accounts-config-select">
+                                <h4 class="accounts-config-subhead" id="accounts-sort-heading"><?php p($l->t('Order accounts by')); ?></h4>
+                                <select id="accounts-sort-field" class="accounts-config-select" aria-labelledby="accounts-sort-heading">
                                     <option value="name"><?php p($l->t('Name')); ?></option>
                                     <option value="balance"><?php p($l->t('Balance')); ?></option>
                                     <option value="type"><?php p($l->t('Account type')); ?></option>
@@ -1100,7 +1100,7 @@ style('budget', 'budget-app');
                                     <option value="lastReconciled"><?php p($l->t('Last reconciled')); ?></option>
                                     <option value="created"><?php p($l->t('Date added')); ?></option>
                                 </select>
-                                <select id="accounts-sort-direction" class="accounts-config-select">
+                                <select id="accounts-sort-direction" class="accounts-config-select" aria-label="<?php p($l->t('Sort direction')); ?>">
                                     <option value="asc"><?php p($l->t('Ascending')); ?></option>
                                     <option value="desc"><?php p($l->t('Descending')); ?></option>
                                 </select>
@@ -2020,10 +2020,10 @@ style('budget', 'budget-app');
                             <div class="category-chart-header">
                                 <h5><?php p($l->t('Monthly Spending')); ?></h5>
                                 <div class="category-chart-controls">
-                                    <select id="category-chart-account" class="card-select">
+                                    <select id="category-chart-account" class="card-select" aria-label="<?php p($l->t('Account')); ?>">
                                         <option value=""><?php p($l->t('All Accounts')); ?></option>
                                     </select>
-                                    <select id="category-chart-period" class="card-select">
+                                    <select id="category-chart-period" class="card-select" aria-label="<?php p($l->t('Period')); ?>">
                                         <option value="6"><?php p($l->t('Last 6 Months')); ?></option>
                                         <option value="3"><?php p($l->t('Last 3 Months')); ?></option>
                                         <option value="12" selected><?php p($l->t('Last 12 Months')); ?></option>
@@ -2140,7 +2140,7 @@ style('budget', 'budget-app');
                 <div class="view-controls">
                     <div class="budget-period-selector">
                         <button id="budget-month-prev" class="budget-month-nav" title="<?php p($l->t('Previous month')); ?>" aria-label="<?php p($l->t('Previous month')); ?>">&#x276E;</button>
-                        <select id="budget-month">
+                        <select id="budget-month" aria-label="<?php p($l->t('Budget month')); ?>">
                             <!-- Populated dynamically -->
                         </select>
                         <button id="budget-month-next" class="budget-month-nav" title="<?php p($l->t('Next month')); ?>" aria-label="<?php p($l->t('Next month')); ?>">&#x276F;</button>
@@ -2312,7 +2312,7 @@ style('budget', 'budget-app');
 
                         <div class="csv-options" id="csv-options" style="display: none;">
                             <div class="mapping-field">
-                                <label><?php p($l->t('CSV Delimiter')); ?></label>
+                                <label for="csv-delimiter"><?php p($l->t('CSV Delimiter')); ?></label>
                                 <select id="csv-delimiter">
                                     <option value=","><?php p($l->t('Comma (,)')); ?></option>
                                     <option value=";"><?php p($l->t('Semicolon (;)')); ?></option>
@@ -2325,13 +2325,13 @@ style('budget', 'budget-app');
                         <div class="mapping-container">
                             <div class="mapping-fields">
                                 <div class="mapping-field required" data-map-field="date">
-                                    <label><?php p($l->t('Date')); ?> <span class="required">*</span></label>
+                                    <label for="map-date"><?php p($l->t('Date')); ?> <span class="required">*</span></label>
                                     <select id="map-date" required>
                                         <option value=""><?php p($l->t('Select column...')); ?></option>
                                     </select>
                                 </div>
                                 <div class="mapping-field required" data-map-field="amount">
-                                    <label><?php p($l->t('Amount')); ?> <span class="required">*</span></label>
+                                    <label for="map-amount"><?php p($l->t('Amount')); ?> <span class="required">*</span></label>
                                     <select id="map-amount">
                                         <option value=""><?php p($l->t('Select column...')); ?></option>
                                     </select>
@@ -2339,13 +2339,13 @@ style('budget', 'budget-app');
                                 </div>
                                 <div class="mapping-field-group" data-map-field="incomeExpense">
                                     <div class="mapping-field">
-                                        <label><?php p($l->t('Income Column')); ?></label>
+                                        <label for="map-income"><?php p($l->t('Income Column')); ?></label>
                                         <select id="map-income">
                                             <option value=""><?php p($l->t('Select column...')); ?></option>
                                         </select>
                                     </div>
                                     <div class="mapping-field">
-                                        <label><?php p($l->t('Expense Column')); ?></label>
+                                        <label for="map-expense"><?php p($l->t('Expense Column')); ?></label>
                                         <select id="map-expense">
                                             <option value=""><?php p($l->t('Select column...')); ?></option>
                                         </select>
@@ -2363,7 +2363,7 @@ style('budget', 'budget-app');
                                     <p class="hint"><?php p($l->t('Column stored in the transaction\'s notes field')); ?></p>
                                 </div>
                                 <div class="mapping-field" data-map-field="type">
-                                    <label><?php p($l->t('Transaction Type')); ?></label>
+                                    <label for="map-type"><?php p($l->t('Transaction Type')); ?></label>
                                     <select id="map-type">
                                         <option value=""><?php p($l->t('Auto-detect from amount')); ?></option>
                                     </select>
@@ -2377,19 +2377,19 @@ style('budget', 'budget-app');
                                     <div id="map-reference" class="custom-multiselect"></div>
                                 </div>
                                 <div class="mapping-field" data-map-field="category">
-                                    <label><?php p($l->t('Category')); ?></label>
+                                    <label for="map-category"><?php p($l->t('Category')); ?></label>
                                     <select id="map-category">
                                         <option value=""><?php p($l->t('Select column...')); ?></option>
                                     </select>
                                 </div>
                                 <div class="mapping-field" data-map-field="account">
-                                    <label><?php p($l->t('Account')); ?></label>
+                                    <label for="map-account"><?php p($l->t('Account')); ?></label>
                                     <select id="map-account">
                                         <option value=""><?php p($l->t('Select column...')); ?></option>
                                     </select>
                                 </div>
                                 <div class="mapping-field" data-map-field="currency">
-                                    <label><?php p($l->t('Currency')); ?></label>
+                                    <label for="map-currency"><?php p($l->t('Currency')); ?></label>
                                     <select id="map-currency">
                                         <option value=""><?php p($l->t('Select column...')); ?></option>
                                     </select>
@@ -4822,7 +4822,7 @@ style('budget', 'budget-app');
                         </div>
 
                         <div class="setting-item" id="setting-ocr-relay-billing" style="display: none;">
-                            <label><strong><?php p($l->t('Subscription')); ?></strong></label>
+                            <label for="setting-ocr-plan"><strong><?php p($l->t('Subscription')); ?></strong></label>
                             <div id="setting-ocr-subscribe-row">
                                 <select id="setting-ocr-plan">
                                     <option value="budget_ocr_standard_monthly"><?php p($l->t('Standard — £2.99/month (500 scans)')); ?></option>
@@ -4963,7 +4963,7 @@ style('budget', 'budget-app');
                     <h3><?php p($l->t('Quick Add Page')); ?></h3>
                     <p class="settings-description"><?php p($l->t('A minimal page for adding transactions on mobile. Bookmark this URL or add it to your home screen.')); ?></p>
                     <div class="quick-add-url-row">
-                        <input type="text" id="quick-add-url" class="quick-add-url-input" readonly
+                        <input type="text" id="quick-add-url" class="quick-add-url-input" readonly aria-label="<?php p($l->t('Quick Add Page URL')); ?>"
                             value="<?php echo \OCP\Server::get(\OCP\IURLGenerator::class)->getAbsoluteURL(\OCP\Server::get(\OCP\IURLGenerator::class)->linkToRoute('budget.page.quickAdd')); ?>">
                         <button type="button" id="copy-quick-add-url" class="secondary">
                             <?php p($l->t('Copy URL')); ?>
@@ -5004,7 +5004,7 @@ style('budget', 'budget-app');
                 <label for="global-tag-color"><?php p($l->t('Color')); ?></label>
                 <div class="color-picker-row">
                     <input type="color" id="global-tag-color" name="color" value="#4CAF50">
-                    <input type="text" id="global-tag-color-hex" maxlength="7" placeholder="#4CAF50" value="#4CAF50">
+                    <input type="text" id="global-tag-color-hex" maxlength="7" placeholder="#4CAF50" value="#4CAF50" aria-label="<?php p($l->t('Color (hex code)')); ?>">
                 </div>
             </div>
             <div class="form-group tag-hidden-group" id="global-tag-hidden-group">
@@ -5710,7 +5710,7 @@ style('budget', 'budget-app');
             <p id="manual-rate-currency" class="manual-rate-currency-name"></p>
             <div class="manual-rate-equation">
                 <span id="manual-rate-base-label" class="manual-rate-eq-label"></span>
-                <input type="number" id="manual-rate-value" step="any" min="0" class="manual-rate-eq-input" placeholder="0.00" />
+                <input type="number" id="manual-rate-value" step="any" min="0" class="manual-rate-eq-input" placeholder="0.00" aria-labelledby="manual-rate-modal-title manual-rate-currency" />
                 <span id="manual-rate-target-label" class="manual-rate-eq-label"></span>
             </div>
             <input type="hidden" id="manual-rate-currency-input" />
@@ -7444,7 +7444,7 @@ style('budget', 'budget-app');
             </div>
 
             <div class="form-group">
-                <input type="search" id="bank-sync-institution-search" placeholder="<?php p($l->t('Search banks...')); ?>" autocomplete="off">
+                <input type="search" id="bank-sync-institution-search" placeholder="<?php p($l->t('Search banks...')); ?>" aria-label="<?php p($l->t('Search banks')); ?>" autocomplete="off">
             </div>
 
             <div id="bank-sync-institutions-loading" class="bank-sync-loading" style="display: none;">
