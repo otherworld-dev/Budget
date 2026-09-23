@@ -295,6 +295,11 @@ class ApiV1TransactionController extends OCSController {
             }
 
             try {
+                // The row lands in the owner's ledger: a category the owner
+                // cannot see is refused rather than stored (its name would
+                // come back on every read)
+                $this->granularShareService->requireUsableCategory($effectiveUserId, $categoryId);
+
                 $transaction = $this->service->create(
                     $effectiveUserId,
                     $accountId,
@@ -373,6 +378,8 @@ class ApiV1TransactionController extends OCSController {
             return new DataResponse($out, Http::STATUS_CREATED);
         } catch (DoesNotExistException $e) {
             return $this->notFound($this->l->t('Account not found'));
+        } catch (\InvalidArgumentException $e) {
+            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to create transaction'));
         }

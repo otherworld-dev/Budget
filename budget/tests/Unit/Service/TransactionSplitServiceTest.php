@@ -8,6 +8,7 @@ use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionSplit;
 use OCA\Budget\Db\TransactionSplitMapper;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\TransactionSplitService;
 use PHPUnit\Framework\TestCase;
 
@@ -15,11 +16,20 @@ class TransactionSplitServiceTest extends TestCase {
     private TransactionSplitService $service;
     private TransactionSplitMapper $splitMapper;
     private TransactionMapper $transactionMapper;
+    private GranularShareService $granularShareService;
 
     protected function setUp(): void {
         $this->splitMapper = $this->createMock(TransactionSplitMapper::class);
         $this->transactionMapper = $this->createMock(TransactionMapper::class);
-        $this->service = new TransactionSplitService($this->splitMapper, $this->transactionMapper);
+        $this->granularShareService = $this->createMock(GranularShareService::class);
+        // The owner can see categories below 40; anything else belongs to someone else
+        $this->granularShareService->method('requireUsableCategory')
+            ->willReturnCallback(function (string $ownerId, ?int $categoryId): void {
+                if ($categoryId !== null && $categoryId >= 40) {
+                    throw new \InvalidArgumentException('Category not found');
+                }
+            });
+        $this->service = new TransactionSplitService($this->splitMapper, $this->transactionMapper, $this->granularShareService);
     }
 
     private function makeTransaction(float $amount, bool $isSplit = false): Transaction {
@@ -69,6 +79,58 @@ class TransactionSplitServiceTest extends TestCase {
         ];
 
         $this->service->splitTransaction(100, 'user1', $splits);
+    }
+
+    public function testSplitTransactionRejectsACategoryTheOwnerCannotSee(): void {
+        $this->transactionMapper->method('find')->willReturn($this->makeTransaction(100.00));
+        $this->splitMapper->expects($this->never())->method('deleteByTransaction');
+        $this->splitMapper->expects($this->never())->method('insert');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Category not found');
+
+        $this->service->splitTransaction(100, 'user1', [
+            ['categoryId' => 1, 'amount' => 60.00],
+            ['categoryId' => 42, 'amount' => 40.00],
+        ]);
+    }
+
+    public function testSplitTransactionChecksCategoriesAgainstTheOwner(): void {
+        $this->transactionMapper->method('find')->willReturn($this->makeTransaction(100.00));
+        $this->splitMapper->method('insert')->willReturnArgument(0);
+        $this->splitMapper->method('findByTransaction')->willReturn([]);
+        $checked = [];
+        $gss = $this->createMock(GranularShareService::class);
+        $gss->method('requireUsableCategory')->willReturnCallback(
+            function (string $ownerId, ?int $categoryId) use (&$checked): void {
+                $checked[] = [$ownerId, $categoryId];
+            }
+        );
+        $service = new TransactionSplitService($this->splitMapper, $this->transactionMapper, $gss);
+
+        $service->splitTransaction(100, 'owner', [
+            ['categoryId' => '3', 'amount' => 60.00],
+            ['categoryId' => null, 'amount' => 40.00],
+        ]);
+
+        $this->assertSame([['owner', 3], ['owner', null]], $checked);
+    }
+
+    public function testUnsplitRejectsACategoryTheOwnerCannotSee(): void {
+        $this->transactionMapper->method('find')->willReturn($this->makeTransaction(100.00, true));
+        $this->splitMapper->expects($this->never())->method('deleteByTransaction');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->service->unsplitTransaction(100, 'user1', 42);
+    }
+
+    public function testUpdateSplitRejectsACategoryTheOwnerCannotSee(): void {
+        $this->splitMapper->method('find')->willReturn($this->makeSplit(1, 50));
+        $this->transactionMapper->method('find')->willReturn($this->makeTransaction(100.00, true));
+        $this->splitMapper->expects($this->never())->method('update');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->service->updateSplit(1, 'user1', ['categoryId' => 42]);
     }
 
     public function testSplitTransactionThrowsWhenAmountsMismatch(): void {

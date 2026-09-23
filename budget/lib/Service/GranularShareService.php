@@ -125,6 +125,29 @@ class GranularShareService {
     }
 
     /**
+     * Refuse a category id the ledger owner cannot see.
+     *
+     * A category id arriving from a client was stored as-is, and the listing
+     * queries join the category name without a user filter (a category shared
+     * TO the owner is legitimately someone else's), so any id at all — another
+     * user's category included — came back with its name attached. Every write
+     * path that takes a category from the client checks it here, against the
+     * account OWNER's visible categories (own + shared to them), since the row
+     * lands in the owner's ledger. Null (uncategorised) is always fine.
+     *
+     * @throws \InvalidArgumentException
+     */
+    public function requireUsableCategory(string $ownerId, ?int $categoryId): void {
+        if ($categoryId === null) {
+            return;
+        }
+        $visible = array_map('intval', $this->getVisibleCategoryIds($ownerId));
+        if (!in_array($categoryId, $visible, true)) {
+            throw new \InvalidArgumentException($this->l->t('Category not found'));
+        }
+    }
+
+    /**
      * @return int[]
      */
     public function getVisibleBillIds(string $userId): array {

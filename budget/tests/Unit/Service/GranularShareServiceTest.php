@@ -205,6 +205,39 @@ class GranularShareServiceTest extends TestCase {
     }
 
     // =============================================
+    // requireUsableCategory
+    // =============================================
+
+    private function aliceSeesCategories(array $own, array $shared): void {
+        $this->categoryMapper->method('findAll')->with('alice')
+            ->willReturn(array_map(fn (int $id) => $this->makeEntity($id), $own));
+        $this->shareMapper->method('findByRecipient')->with('alice')
+            ->willReturn([$this->makeShare(100, 'bob', 'alice', Share::STATUS_ACCEPTED)]);
+        $this->shareItemMapper->method('findSharedEntityIds')->willReturn($shared);
+    }
+
+    public function testRequireUsableCategoryAcceptsOwnAndSharedCategories(): void {
+        $this->aliceSeesCategories([1, 2], [10]);
+
+        $this->service->requireUsableCategory('alice', 1);
+        $this->service->requireUsableCategory('alice', 10);
+        $this->service->requireUsableCategory('alice', null);
+        $this->addToAssertionCount(3);
+    }
+
+    /**
+     * Another user's category id used to be stored as-is, and the listing
+     * join then handed back that user's category name.
+     */
+    public function testRequireUsableCategoryRejectsSomeoneElsesCategory(): void {
+        $this->aliceSeesCategories([1, 2], [10]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Category not found');
+        $this->service->requireUsableCategory('alice', 999);
+    }
+
+    // =============================================
     // import rules
     // =============================================
 

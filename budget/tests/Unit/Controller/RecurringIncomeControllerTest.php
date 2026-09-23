@@ -116,6 +116,41 @@ class RecurringIncomeControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
 	}
 
+	private function controllerRefusingCategory(int $refusedCategoryId): RecurringIncomeController {
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$granularShareService->method('resolveOwner')->willReturn('user1');
+		$granularShareService->method('requireUsableCategory')->willReturnCallback(
+			function (string $ownerId, ?int $categoryId) use ($refusedCategoryId): void {
+				if ($categoryId === $refusedCategoryId) {
+					throw new \InvalidArgumentException('Category not found');
+				}
+			}
+		);
+		return new RecurringIncomeController(
+			$this->request, $this->service, $this->validationService, $granularShareService,
+			$this->l, 'user1', $this->logger
+		);
+	}
+
+	public function testCreateRejectsACategoryTheOwnerCannotSee(): void {
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controllerRefusingCategory(999)->create('Salary', 2000.0, categoryId: 999);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Category not found', $response->getData()['error']);
+	}
+
+	public function testUpdateRejectsACategoryTheOwnerCannotSee(): void {
+		$this->request->method('getParams')->willReturn(['categoryId' => 999]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerRefusingCategory(999)->update(4);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
 	public function testCreatePassesAllArguments(): void {
 		$income = $this->createMock(RecurringIncome::class);
 		$this->service->expects($this->once())

@@ -204,6 +204,13 @@ class RecurringIncomeController extends Controller {
                 $startDate = null;
             }
 
+            // A category the owner cannot see is refused, not stored: its
+            // name would otherwise come back through the listing joins
+            $this->granularShareService->requireUsableCategory(
+                $this->getEffectiveUserId(),
+                $categoryId !== null && $categoryId > 0 ? $categoryId : null
+            );
+
             $income = $this->service->create(
                 $this->getEffectiveUserId(),
                 $name,
@@ -223,6 +230,8 @@ class RecurringIncomeController extends Controller {
             );
 
             return new DataResponse($income, Http::STATUS_CREATED);
+        } catch (\InvalidArgumentException $e) {
+            return $this->handleValidationError($e);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to create recurring income'));
         }
@@ -313,8 +322,19 @@ class RecurringIncomeController extends Controller {
                 $data['excludedFromForecast'] = filter_var($data['excludedFromForecast'], FILTER_VALIDATE_BOOLEAN);
             }
 
-            $income = $this->service->update($id, $this->incomeOwner($id), $data);
+            $ownerId = $this->incomeOwner($id);
+            if (array_key_exists('categoryId', $data)) {
+                $raw = $data['categoryId'];
+                $this->granularShareService->requireUsableCategory(
+                    $ownerId,
+                    ($raw === null || $raw === '' || (int) $raw <= 0) ? null : (int) $raw
+                );
+            }
+
+            $income = $this->service->update($id, $ownerId, $data);
             return new DataResponse($income);
+        } catch (\InvalidArgumentException $e) {
+            return $this->handleValidationError($e);
         } catch (\Exception $e) {
             return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);
         }
@@ -457,11 +477,21 @@ class RecurringIncomeController extends Controller {
                 return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
             }
 
+            foreach ((array) $data['incomes'] as $item) {
+                $raw = is_array($item) ? ($item['categoryId'] ?? null) : null;
+                $this->granularShareService->requireUsableCategory(
+                    $this->getEffectiveUserId(),
+                    ($raw === null || $raw === '' || (int) $raw <= 0) ? null : (int) $raw
+                );
+            }
+
             $created = $this->service->createFromDetected($this->getEffectiveUserId(), $data['incomes']);
             return new DataResponse([
                 'created' => count($created),
                 'incomes' => $created,
             ], Http::STATUS_CREATED);
+        } catch (\InvalidArgumentException $e) {
+            return $this->handleValidationError($e);
         } catch (\Exception $e) {
             return $this->handleError($e, $this->l->t('Failed to create recurring income from detected patterns'));
         }
