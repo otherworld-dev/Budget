@@ -111,6 +111,7 @@ export default class Router {
         'categories': 'loadCategories',
         'tags': 'loadTagsView',
         'budget': 'loadBudgetView',
+        'import': 'loadImportView',
         'forecast': 'loadForecastView',
         'reports': 'loadReportsView',
         'bills': 'loadBillsView',
@@ -163,7 +164,7 @@ export default class Router {
         // Load view-specific data
         const loader = Router.VIEW_LOADERS[viewName];
         if (loader) {
-            this.app[loader]();
+            this.runLoader(loader);
         }
 
         if (history) {
@@ -212,7 +213,19 @@ export default class Router {
 
         const loader = Router.VIEW_LOADERS[viewName];
         if (loader) {
-            this.app[loader]();
+            this.runLoader(loader);
+        }
+    }
+
+    /**
+     * Call a view's loader. Some load their module on first use, and a
+     * failure there has already been reported to the user, so it must not
+     * surface again as an unhandled rejection.
+     */
+    runLoader(loader) {
+        const result = this.app[loader]();
+        if (result && typeof result.catch === 'function') {
+            result.catch((error) => console.error(`${loader} failed:`, error));
         }
     }
 }

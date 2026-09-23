@@ -8,6 +8,8 @@ import { showSuccess, showError, showWarning } from '../../utils/notifications.j
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import { computeSplit, toCents } from './splitMath.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
+import { attachUserPicker } from '../../utils/userPicker.js';
 
 export default class SharedExpensesModule {
     constructor(app) {
@@ -46,11 +48,7 @@ export default class SharedExpensesModule {
         if (!section || !list) return;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/shared/shared-with-me'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const shares = await response.json();
+            const shares = await apiFetch('/apps/budget/api/shared/shared-with-me');
 
             if (!Array.isArray(shares) || shares.length === 0) {
                 section.style.display = 'none';
@@ -88,11 +86,7 @@ export default class SharedExpensesModule {
 
     async loadBalanceSummary() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/shared/balances'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error('Failed to load balances');
-            const data = await response.json();
+            const data = await apiFetch('/apps/budget/api/shared/balances');
 
             const owedEl = document.getElementById('split-total-owed');
             if (owedEl) {
@@ -141,11 +135,7 @@ export default class SharedExpensesModule {
 
     async loadContacts() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/shared/contacts'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error('Failed to load contacts');
-            this.contacts = await response.json();
+            this.contacts = await apiFetch('/apps/budget/api/shared/contacts');
         } catch (error) {
             console.error('Failed to load contacts:', error);
             this.contacts = [];
@@ -185,11 +175,11 @@ export default class SharedExpensesModule {
                 <div class="contact-card" data-contact-id="${item.contact.id}" tabindex="0">
                     <div class="contact-card-main">
                         <div class="contact-avatar">
-                            ${this.escapeHtml(item.contact.name.charAt(0).toUpperCase())}
+                            ${dom.escapeHtml(item.contact.name.charAt(0).toUpperCase())}
                         </div>
                         <div class="contact-info">
-                            <span class="contact-name">${this.escapeHtml(item.contact.name)}</span>
-                            ${item.contact.email ? `<span class="contact-email">${this.escapeHtml(item.contact.email)}</span>` : ''}
+                            <span class="contact-name">${dom.escapeHtml(item.contact.name)}</span>
+                            ${item.contact.email ? `<span class="contact-email">${dom.escapeHtml(item.contact.email)}</span>` : ''}
                         </div>
                         <div class="contact-balance ${balanceClass}">
                             ${balanceText}
@@ -282,52 +272,33 @@ export default class SharedExpensesModule {
             document.getElementById('contact-email').value = contact.email || '';
         }
 
-        this.populateUserDropdown(contact?.nextcloudUserId || '');
-        this.setupUserSelectHandler();
+        this.setupUserPicker(contact);
         modal.style.display = 'flex';
     }
 
-    async populateUserDropdown(selectedUserId = '') {
-        const select = document.getElementById('contact-user-select');
-        if (!select) return;
+    /**
+     * The contact form's "Nextcloud user" field: type a name, id or email and
+     * pick from the matches. Picking fills the name; clearing the field
+     * leaves a manual contact.
+     */
+    setupUserPicker(contact) {
+        const input = document.getElementById('contact-user-search');
+        if (!input) return;
+        const uidField = document.getElementById('contact-nextcloud-user-id');
 
-        // Keep the manual option
-        select.innerHTML = `<option value="">${t('budget', '— None (enter details manually) —')}</option>`;
-
-        try {
-            // Fetch all users (empty query with low minimum)
-            const response = await fetch(OC.generateUrl('/apps/budget/api/shared/users/search?query=*'), {
-                headers: { 'requesttoken': OC.requestToken }
+        if (!this._userPicker) {
+            this._userPicker = attachUserPicker(input, {
+                onSelect: (user) => {
+                    uidField.value = user ? user.uid : '';
+                    if (user?.displayName) {
+                        document.getElementById('contact-name').value = user.displayName;
+                    }
+                },
             });
-            if (!response.ok) return;
-
-            const users = await response.json();
-            users.forEach(user => {
-                const option = document.createElement('option');
-                option.value = user.uid;
-                option.textContent = `${user.displayName} (${user.uid})`;
-                option.dataset.displayName = user.displayName;
-                if (user.uid === selectedUserId) option.selected = true;
-                select.appendChild(option);
-            });
-        } catch (error) {
-            console.error('Failed to load users:', error);
         }
-    }
 
-    setupUserSelectHandler() {
-        const select = document.getElementById('contact-user-select');
-        if (!select) return;
-
-        select.onchange = () => {
-            const selectedOption = select.options[select.selectedIndex];
-            const uid = select.value;
-            document.getElementById('contact-nextcloud-user-id').value = uid;
-
-            if (uid && selectedOption.dataset.displayName) {
-                document.getElementById('contact-name').value = selectedOption.dataset.displayName;
-            }
-        };
+        const linked = contact?.nextcloudUserId;
+        this._userPicker.setSelected(linked ? { uid: linked, displayName: '' } : null);
     }
 
     async saveContact() {
@@ -342,20 +313,14 @@ export default class SharedExpensesModule {
         }
 
         try {
-            const url = id
-                ? OC.generateUrl(`/apps/budget/api/shared/contacts/${id}`)
-                : OC.generateUrl('/apps/budget/api/shared/contacts');
+            const path = id
+                ? `/apps/budget/api/shared/contacts/${id}`
+                : '/apps/budget/api/shared/contacts';
 
-            const response = await fetch(url, {
+            await apiFetch(path, {
                 method: id ? 'PUT' : 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ name, email: email || null, nextcloudUserId })
+                body: { name, email: email || null, nextcloudUserId },
             });
-
-            if (!response.ok) throw new Error('Failed to save contact');
 
             this.closeModal(document.getElementById('contact-modal'));
             showSuccess(id ? t('budget', 'Contact updated') : t('budget', 'Contact added'));
@@ -380,12 +345,9 @@ export default class SharedExpensesModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/shared/contacts/${id}`), {
+            await apiFetch(`/apps/budget/api/shared/contacts/${id}`, {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
             });
-
-            if (!response.ok) throw new Error('Failed to delete contact');
 
             showSuccess(t('budget', 'Contact deleted'));
             await this.loadBalanceSummary();
@@ -398,12 +360,7 @@ export default class SharedExpensesModule {
 
     async showContactDetails(contactId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/shared/contacts/${contactId}/details`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error('Failed to load contact details');
-            const data = await response.json();
+            const data = await apiFetch(`/apps/budget/api/shared/contacts/${contactId}/details`);
 
             this.currentContactDetails = data;
 
@@ -494,8 +451,8 @@ export default class SharedExpensesModule {
 
             return `
                 <div class="share-item ${statusClass}">
-                    <div class="share-date">${this.escapeHtml(txn.date)}</div>
-                    <div class="share-desc">${this.escapeHtml(txn.description)}${origin}</div>
+                    <div class="share-date">${dom.escapeHtml(txn.date)}</div>
+                    <div class="share-desc">${dom.escapeHtml(txn.description)}${origin}</div>
                     <div class="share-amount ${share.amount >= 0 ? 'positive' : 'negative'}">
                         ${share.amount >= 0 ? '+' : ''}${this.formatCurrency(share.amount, share.currency)}
                     </div>
@@ -518,7 +475,7 @@ export default class SharedExpensesModule {
                 <div class="settlement-amount ${settlement.amount >= 0 ? 'received' : 'paid'}">
                     ${settlement.amount >= 0 ? t('budget', 'Received') : t('budget', 'Paid')} ${this.formatCurrency(Math.abs(settlement.amount), settlement.currency)}
                 </div>
-                ${settlement.notes ? `<div class="settlement-notes">${this.escapeHtml(settlement.notes)}</div>` : ''}
+                ${settlement.notes ? `<div class="settlement-notes">${dom.escapeHtml(settlement.notes)}</div>` : ''}
             </div>
         `).join('');
     }
@@ -552,11 +509,7 @@ export default class SharedExpensesModule {
         modal.style.display = 'flex';
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/shared/contacts/${contactId}/details`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error('Failed to load shares');
-            const data = await response.json();
+            const data = await apiFetch(`/apps/budget/api/shared/contacts/${contactId}/details`);
 
             // Splits the contact made with you can only be settled by them (#390)
             const unsettledShares = (data.shares || []).filter(item => !item.incoming && !item.share.isSettled);
@@ -576,7 +529,7 @@ export default class SharedExpensesModule {
                                data-amount="${share.amount}"
                                checked>
                         <span class="settlement-share-date">${txn.date}</span>
-                        <span class="settlement-share-desc">${this.escapeHtml(txn.description)}</span>
+                        <span class="settlement-share-desc">${dom.escapeHtml(txn.description)}</span>
                         <span class="settlement-share-amount ${share.amount >= 0 ? 'positive' : 'negative'}">
                             ${share.amount >= 0 ? '+' : ''}${this.formatCurrency(share.amount, share.currency)}
                         </span>
@@ -639,16 +592,10 @@ export default class SharedExpensesModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/shared/settle-selected'), {
+            await apiFetch('/apps/budget/api/shared/settle-selected', {
                 method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ shareIds, date, notes: notes || null })
+                body: { shareIds, date, notes: notes || null },
             });
-
-            if (!response.ok) throw new Error('Failed to settle expenses');
 
             this.closeModal(document.getElementById('settlement-modal'));
             showSuccess(t('budget', 'Expenses settled'));
@@ -668,16 +615,10 @@ export default class SharedExpensesModule {
 
         try {
             const date = formatters.getTodayDateString();
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/shared/contacts/${contactId}/settle`), {
+            await apiFetch(`/apps/budget/api/shared/contacts/${contactId}/settle`, {
                 method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ date })
+                body: { date },
             });
-
-            if (!response.ok) throw new Error('Failed to settle');
 
             this.closeModal(document.getElementById('contact-details-modal'));
             showSuccess(t('budget', 'All expenses settled'));
@@ -713,11 +654,7 @@ export default class SharedExpensesModule {
 
         let shares;
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/shared/transactions/${transaction.id}/shares`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error('Failed to load shares');
-            shares = await response.json();
+            shares = await apiFetch(`/apps/budget/api/shared/transactions/${transaction.id}/shares`);
         } catch (error) {
             console.error('Failed to load transaction shares:', error);
             showError(t('budget', 'Failed to load the split'));
@@ -812,7 +749,7 @@ export default class SharedExpensesModule {
             return `
                 <span class="share-person-value-wrap">
                     <input type="number" class="share-person-value" step="0.01" min="0" inputmode="decimal"
-                           value="${this.escapeHtml(values?.get(id) ?? '')}" aria-label="${label}">
+                           value="${dom.escapeHtml(values?.get(id) ?? '')}" aria-label="${label}">
                     ${s.method === 'percent' ? '<span class="share-person-unit">%</span>' : ''}
                 </span>`;
         };
@@ -820,7 +757,7 @@ export default class SharedExpensesModule {
             <div class="share-person-row${cls}" data-person="${id}">
                 <label class="share-person-name">
                     <input type="checkbox" class="share-person-check"${checked ? ' checked' : ''}${checkDisabled ? ' disabled' : ''}>
-                    <span>${this.escapeHtml(name)}</span>
+                    <span>${dom.escapeHtml(name)}</span>
                 </label>
                 ${value}
                 <span class="share-person-amount">${amount}</span>
@@ -847,7 +784,7 @@ export default class SharedExpensesModule {
                 return row(share.contactId, contact?.name || t('budget', 'Unknown'), {
                     checked: true,
                     checkDisabled: true,
-                    amount: `${this.escapeHtml(amount)} · ${t('budget', 'Settled')}`,
+                    amount: `${dom.escapeHtml(amount)} · ${t('budget', 'Settled')}`,
                     cls: ' settled',
                 });
             }),
@@ -955,18 +892,15 @@ export default class SharedExpensesModule {
         const notes = document.getElementById('share-notes').value.trim();
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/shared/transactions/${s.transactionId}/shares`), {
-                method: 'PUT',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ splits, notes: notes || null })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => null);
-                showError(errorData?.error || t('budget', 'Failed to save the split'));
+            try {
+                await apiFetch(`/apps/budget/api/shared/transactions/${s.transactionId}/shares`, {
+                    method: 'PUT',
+                    body: { splits, notes: notes || null },
+                    errorMessage: t('budget', 'Failed to save the split'),
+                });
+            } catch (error) {
+                if (!(error instanceof ApiError)) throw error;
+                showError(error.message);
                 return;
             }
 
@@ -1043,9 +977,6 @@ export default class SharedExpensesModule {
         return formatters.formatCurrency(amount, currency, this.settings);
     }
 
-    escapeHtml(text) {
-        return dom.escapeHtml(text);
-    }
 
     closeModal(modal) {
         return dom.closeModal(modal);

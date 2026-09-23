@@ -3,9 +3,19 @@
  */
 import { translate as t } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
-import Chart from 'chart.js/auto';
+import Chart from '../../utils/chart.js';
 import { showError } from '../../utils/notifications.js';
 import { escapeHtml } from '../../utils/dom.js';
+import { apiFetch } from '../../utils/api.js';
+
+/**
+ * A projection's month in the user's language. `yearMonth` (Y-m) is what the
+ * server sends for that; `month` is its English "M Y" label, kept for a
+ * forecast cached before `yearMonth` existed.
+ */
+export function projectionMonthLabel(projection) {
+    return projection.yearMonth ? formatters.formatYearMonth(projection.yearMonth) : projection.month;
+}
 
 export default class ForecastModule {
     constructor(app) {
@@ -59,15 +69,9 @@ export default class ForecastModule {
 
         try {
             const horizon = document.getElementById('forecast-horizon')?.value || 6;
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/forecast/live?forecastMonths=${horizon}`), {
-                headers: { 'requesttoken': OC.requestToken }
+            const data = await apiFetch(`/apps/budget/api/forecast/live?forecastMonths=${horizon}`, {
+                errorMessage: 'Failed to fetch forecast',
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch forecast');
-            }
-
-            const data = await response.json();
             this.forecastData = data;
             this.forecastCurrency = data.currency || this.getPrimaryCurrency();
 
@@ -197,7 +201,7 @@ export default class ForecastModule {
             this.savingsChart.destroy();
         }
 
-        const labels = monthlyProjections.map(p => p.month);
+        const labels = monthlyProjections.map(projectionMonthLabel);
         const savingsData = [];
         let cumulative = 0;
         monthlyProjections.forEach(p => {
@@ -252,7 +256,7 @@ export default class ForecastModule {
             this.balanceChart.destroy();
         }
 
-        const labels = monthlyProjections.map(p => p.month);
+        const labels = monthlyProjections.map(projectionMonthLabel);
         const balanceData = monthlyProjections.map(p => p.balance);
         const incomeData = monthlyProjections.map(p => p.income);
         const expenseData = monthlyProjections.map(p => p.expenses);

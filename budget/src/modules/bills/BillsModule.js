@@ -8,7 +8,7 @@ import { billRowDateText } from '../../utils/billDates.js';
 import { showSuccess, showError, showWarning, showInfo, showUndoNotification } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
-import { serverErrorMessage } from '../../utils/helpers.js';
+import { apiFetch } from '../../utils/api.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
@@ -48,13 +48,7 @@ export default class BillsModule {
             // active list (#333), but must stay visible to be marked unpaid
             // (#365) — filtered server-side so the payload doesn't grow
             // forever with dead bills on old installs.
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills?isTransfer=false&revertibleToo=true'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            this.bills = await response.json();
+            this.bills = await apiFetch('/apps/budget/api/bills?isTransfer=false&revertibleToo=true');
             this.renderBills(this.bills);
 
             // Populate dropdowns in bill modal
@@ -85,14 +79,11 @@ export default class BillsModule {
         if (!card || !list) return;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/unrecorded-payments'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) {
+            const data = await apiFetch('/apps/budget/api/bills/unrecorded-payments').catch(() => null);
+            if (!data) {
                 card.style.display = 'none';
                 return;
             }
-            const data = await response.json();
             const items = data.items || [];
 
             if (items.length === 0) {
@@ -156,14 +147,7 @@ export default class BillsModule {
      */
     async dismissUnrecordedPayment(billId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/dismiss-unrecorded`), {
-                method: 'POST',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
+            await apiFetch(`/apps/budget/api/bills/${billId}/dismiss-unrecorded`, { method: 'POST' });
             await this.loadUnrecordedPayments();
         } catch (error) {
             showError(error.message || t('budget', 'Failed to dismiss the payment'));
@@ -172,14 +156,7 @@ export default class BillsModule {
 
     async recordMissedPayment(billId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/record-payment`), {
-                method: 'POST',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
+            await apiFetch(`/apps/budget/api/bills/${billId}/record-payment`, { method: 'POST' });
             showSuccess(t('budget', 'Transaction recorded'));
             await this.loadBillsView();
             await this.app.loadAccounts();
@@ -198,14 +175,11 @@ export default class BillsModule {
         if (!card || !list) return;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/suggestions'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) {
+            const data = await apiFetch('/apps/budget/api/bills/suggestions').catch(() => null);
+            if (!data) {
                 card.style.display = 'none';
                 return;
             }
-            const data = await response.json();
             this._billSuggestions = data.suggestions || [];
 
             if (this._billSuggestions.length === 0) {
@@ -254,15 +228,11 @@ export default class BillsModule {
         const item = this._billSuggestions?.[index];
         if (!item) return;
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/create-from-detected'), {
+            await apiFetch('/apps/budget/api/bills/create-from-detected', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ bills: [item] })
+                body: { bills: [item] },
+                errorMessage: t('budget', 'Failed to create bill'),
             });
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to create bill')));
-            }
             showSuccess(t('budget', 'Bill "{name}" created', { name: item.suggestedName || item.description }));
             await this.loadBillsView();
         } catch (error) {
@@ -274,10 +244,9 @@ export default class BillsModule {
         const item = this._billSuggestions?.[index];
         if (!item) return;
         try {
-            await fetch(OC.generateUrl('/apps/budget/api/bills/suggestions/dismiss'), {
+            await apiFetch('/apps/budget/api/bills/suggestions/dismiss', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ patternKey: item.patternKey })
+                body: { patternKey: item.patternKey },
             });
             await this.loadBillSuggestions();
         } catch (error) {
@@ -290,10 +259,9 @@ export default class BillsModule {
         if (!await confirmDialog(t('budget', 'Dismiss all suggestions? They will not be shown again.'))) return;
         try {
             for (const item of this._billSuggestions) {
-                await fetch(OC.generateUrl('/apps/budget/api/bills/suggestions/dismiss'), {
+                await apiFetch('/apps/budget/api/bills/suggestions/dismiss', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                    body: JSON.stringify({ patternKey: item.patternKey })
+                    body: { patternKey: item.patternKey },
                 });
             }
             await this.loadBillSuggestions();
@@ -304,13 +272,7 @@ export default class BillsModule {
 
     async loadBillsSummary() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/summary'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const summary = await response.json();
+            const summary = await apiFetch('/apps/budget/api/bills/summary');
 
             // Update summary cards
             document.getElementById('bills-due-count').textContent = summary.dueThisMonth || 0;
@@ -1146,24 +1108,13 @@ export default class BillsModule {
 
         try {
             const url = isNew
-                ? OC.generateUrl('/apps/budget/api/bills')
-                : OC.generateUrl(`/apps/budget/api/bills/${billId}`);
+                ? '/apps/budget/api/bills'
+                : `/apps/budget/api/bills/${billId}`;
 
-            const response = await fetch(url, {
+            await apiFetch(url, {
                 method: isNew ? 'POST' : 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(billData)
+                body: billData,
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                const errorMessage = serverErrorMessage(error, `HTTP ${response.status}: ${response.statusText}`);
-                console.error('Server error:', error);
-                throw new Error(errorMessage);
-            }
 
             this.hideBillModal();
             showSuccess(isNew ? t('budget', 'Bill created successfully') : t('budget', 'Bill updated successfully'));
@@ -1176,13 +1127,7 @@ export default class BillsModule {
 
     async editBill(billId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const bill = await response.json();
+            const bill = await apiFetch(`/apps/budget/api/bills/${billId}`);
             this.showBillModal(bill);
         } catch (error) {
             console.error('Failed to load bill:', error);
@@ -1196,12 +1141,7 @@ export default class BillsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}`), {
-                method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            await apiFetch(`/apps/budget/api/bills/${billId}`, { method: 'DELETE' });
 
             showSuccess(t('budget', 'Bill deleted successfully'));
             await this.loadBillsView();
@@ -1218,11 +1158,7 @@ export default class BillsModule {
     async showCalendarFeedModal() {
         let feed;
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/calendar-feed'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            feed = await response.json();
+            feed = await apiFetch('/apps/budget/api/calendar-feed');
         } catch (error) {
             console.error('Failed to fetch calendar feed info:', error);
             showError(t('budget', 'Failed to get calendar feed'));
@@ -1267,12 +1203,7 @@ export default class BillsModule {
         modal.querySelector('#calendar-feed-regenerate').addEventListener('click', async () => {
             if (!await confirmDialog(t('budget', 'Regenerate the link? Existing calendar subscriptions will stop updating.'))) return;
             try {
-                const response = await fetch(OC.generateUrl('/apps/budget/api/calendar-feed/regenerate'), {
-                    method: 'POST',
-                    headers: { 'requesttoken': OC.requestToken }
-                });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const fresh = await response.json();
+                const fresh = await apiFetch('/apps/budget/api/calendar-feed/regenerate', { method: 'POST' });
                 modal.querySelector('#calendar-feed-url').value = fresh.webcalUrl;
                 showSuccess(t('budget', 'New link generated'));
             } catch (error) {
@@ -1293,13 +1224,10 @@ export default class BillsModule {
 
             // Check for existing matching transactions before creating a new one
             if (bill.accountId || bill.account_id) {
-                const matchResponse = await fetch(
-                    OC.generateUrl(`/apps/budget/api/bills/${billId}/matching-transactions`),
-                    { headers: { 'requesttoken': OC.requestToken } }
-                );
+                const candidates = await apiFetch(`/apps/budget/api/bills/${billId}/matching-transactions`)
+                    .catch(() => null);
 
-                if (matchResponse.ok) {
-                    const candidates = await matchResponse.json();
+                if (candidates) {
                     if (candidates.length > 0) {
                         // Show dialog and let user choose
                         const choice = await this._showMatchingTransactionDialog(bill, candidates);
@@ -1343,18 +1271,10 @@ export default class BillsModule {
             body.recordPayment = true;
         }
 
-        const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/paid`), {
+        const result = await apiFetch(`/apps/budget/api/bills/${billId}/paid`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'requesttoken': OC.requestToken
-            },
-            body: JSON.stringify(body)
+            body,
         });
-
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        const result = await response.json();
 
         // Store undo data from server response BEFORE reloading
         this._undoData = {
@@ -1538,19 +1458,10 @@ export default class BillsModule {
         try {
             const { billId, previousState, createdTransactionIds, hadScheduledTransaction } = this._undoData;
 
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/undo-paid`), {
+            await apiFetch(`/apps/budget/api/bills/${billId}/undo-paid`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ previousState, createdTransactionIds, hadScheduledTransaction })
+                body: { previousState, createdTransactionIds, hadScheduledTransaction },
             });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `HTTP ${response.status}`);
-            }
 
             this._undoData = null;
             await this.loadBillsView();
@@ -1585,18 +1496,10 @@ export default class BillsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/unpaid`), {
+            await apiFetch(`/apps/budget/api/bills/${billId}/unpaid`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                }
+                errorMessage: t('budget', 'Failed to mark bill as unpaid'),
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to mark bill as unpaid')));
-            }
 
             await this.loadBillsView();
             showSuccess(t('budget', 'Payment reverted — the bill is marked as unpaid.'));
@@ -1617,17 +1520,7 @@ export default class BillsModule {
                 return;
             }
 
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/skip`), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const result = await response.json();
+            const result = await apiFetch(`/apps/budget/api/bills/${billId}/skip`, { method: 'POST' });
             const previousNextDueDate = result.previousNextDueDate ?? null;
 
             this._undoData = {
@@ -1658,19 +1551,10 @@ export default class BillsModule {
         try {
             const { billId, previousNextDueDate } = this._undoData;
 
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/undo-skip`), {
+            await apiFetch(`/apps/budget/api/bills/${billId}/undo-skip`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ previousNextDueDate: previousNextDueDate })
+                body: { previousNextDueDate: previousNextDueDate },
             });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `HTTP ${response.status}`);
-            }
 
             this._undoData = null;
             await this.loadBillsView();
@@ -1688,13 +1572,7 @@ export default class BillsModule {
         detectBtn.innerHTML = `<span class="icon-loading-small" aria-hidden="true"></span> ${t('budget', 'Detecting...')}`;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/detect?months=6'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const detected = await response.json();
+            const detected = await apiFetch('/apps/budget/api/bills/detect?months=6');
 
             if (!detected || detected.length === 0) {
                 showInfo(t('budget', 'No recurring transactions detected'));
@@ -1752,18 +1630,10 @@ export default class BillsModule {
         const billsToAdd = selectedIndices.map(i => this._detectedBills[i]);
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/create-from-detected'), {
+            const result = await apiFetch('/apps/budget/api/bills/create-from-detected', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ bills: billsToAdd })
+                body: { bills: billsToAdd },
             });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const result = await response.json();
             document.getElementById('detected-bills-panel').style.display = 'none';
             showSuccess(n('budget', '%n bill added successfully', '%n bills added successfully', result.created));
             await this.loadBillsView();
@@ -1802,8 +1672,8 @@ export default class BillsModule {
         try {
             // Load global tags and category tag sets in parallel
             const [globalTagsResponse, categoryTagSets] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } }).then(r => r.ok ? r.json() : []).catch(() => []),
-                categoryId ? fetch(OC.generateUrl(`/apps/budget/api/tag-sets?categoryId=${categoryId}`), { headers: { 'requesttoken': OC.requestToken } }).then(r => r.ok ? r.json() : []).catch(() => []) : Promise.resolve([])
+                apiFetch('/apps/budget/api/tags/global').catch(() => []),
+                categoryId ? apiFetch(`/apps/budget/api/tag-sets?categoryId=${categoryId}`).catch(() => []) : Promise.resolve([])
             ]);
 
             // Get existing tag IDs if editing

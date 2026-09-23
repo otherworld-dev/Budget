@@ -2,6 +2,8 @@
  * General utility helper functions
  */
 
+import { apiFetch } from './api.js';
+
 /**
  * Debounce function calls to limit execution rate
  * @param {Function} func - Function to debounce
@@ -36,14 +38,9 @@ export async function downloadTransactionsCsv(params, filename) {
         query.set('filename', filename);
     }
 
-    const response = await fetch(
-        OC.generateUrl('/apps/budget/api/transactions/export?' + query.toString()),
-        { headers: { 'requesttoken': OC.requestToken } }
-    );
-
-    if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+    const response = await apiFetch('/apps/budget/api/transactions/export?' + query.toString(), {
+        responseType: 'response',
+    });
 
     const blob = await response.blob();
     const disposition = response.headers.get('Content-Disposition') || '';

@@ -16,7 +16,7 @@
 import { translate as t } from '@nextcloud/l10n';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
-import { serverErrorMessage } from '../../utils/helpers.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
 import { HELP_TOPICS, helpDocUrl } from '../help/HelpModule.js';
 
 /** Link to a guide only when HELP_TOPICS knows the page exists */
@@ -102,14 +102,12 @@ export default class OnboardingModule {
         const generation = ++this._generation;
         let state = null;
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/onboarding'), {
-                headers: { 'requesttoken': OC.requestToken },
-            });
-            if (response.ok) {
-                state = await response.json();
-            }
+            state = await apiFetch('/apps/budget/api/onboarding');
         } catch (error) {
-            console.error('Failed to load the getting started checklist:', error);
+            // A refused request just leaves the checklist hidden
+            if (!(error instanceof ApiError)) {
+                console.error('Failed to load the getting started checklist:', error);
+            }
         }
         if (generation !== this._generation) return;
         this.state = state;
@@ -353,11 +351,7 @@ export default class OnboardingModule {
 
     async dismiss() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/onboarding/dismiss'), {
-                method: 'POST',
-                headers: { 'requesttoken': OC.requestToken },
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            await apiFetch('/apps/budget/api/onboarding/dismiss', { method: 'POST' });
             this.state = { ...(this.state || {}), show: false };
             this.render();
         } catch (error) {
@@ -372,14 +366,10 @@ export default class OnboardingModule {
         const button = document.querySelector('#onboarding-checklist [data-action="sample"]');
         if (button) button.disabled = true;
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/onboarding/sample-data'), {
+            await apiFetch('/apps/budget/api/onboarding/sample-data', {
                 method: 'POST',
-                headers: { 'requesttoken': OC.requestToken },
+                errorMessage: t('budget', 'Failed to add the sample data'),
             });
-            if (!response.ok) {
-                const data = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(data, t('budget', 'Failed to add the sample data')));
-            }
             showSuccess(t('budget', 'Sample data added. Have a look around.'));
             await this.refreshApp();
         } catch (error) {
@@ -405,15 +395,11 @@ export default class OnboardingModule {
 
         this._busy = true;
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/onboarding/sample-data'), {
+            await apiFetch('/apps/budget/api/onboarding/sample-data', {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ confirmed: true }),
+                body: { confirmed: true },
+                errorMessage: t('budget', 'Failed to clear the sample data'),
             });
-            if (!response.ok) {
-                const data = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(data, t('budget', 'Failed to clear the sample data')));
-            }
             showSuccess(t('budget', 'Sample data cleared'));
             this._tilesShown = false;
             await this.refreshApp();

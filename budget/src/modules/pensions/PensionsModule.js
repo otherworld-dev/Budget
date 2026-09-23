@@ -7,8 +7,8 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
-import Chart from 'chart.js/auto';
-import { serverErrorMessage } from '../../utils/helpers.js';
+import Chart from '../../utils/chart.js';
+import { apiFetch } from '../../utils/api.js';
 import { openAccounts } from '../../utils/accounts.js';
 import { showLoading, showLoadError } from '../../utils/loading.js';
 
@@ -42,27 +42,21 @@ export default class PensionsModule {
     }
 
     async loadPensions() {
-        const response = await fetch(OC.generateUrl('/apps/budget/api/pensions'), {
-            headers: { 'requesttoken': OC.requestToken }
+        this.pensions = await apiFetch('/apps/budget/api/pensions', {
+            errorMessage: 'Failed to fetch pensions',
         });
-        if (!response.ok) throw new Error('Failed to fetch pensions');
-        this.pensions = await response.json();
     }
 
     async loadPensionSummary() {
-        const response = await fetch(OC.generateUrl('/apps/budget/api/pensions/summary'), {
-            headers: { 'requesttoken': OC.requestToken }
+        return await apiFetch('/apps/budget/api/pensions/summary', {
+            errorMessage: 'Failed to fetch pension summary',
         });
-        if (!response.ok) throw new Error('Failed to fetch pension summary');
-        return await response.json();
     }
 
     async loadPensionProjection() {
-        const response = await fetch(OC.generateUrl('/apps/budget/api/pensions/projection'), {
-            headers: { 'requesttoken': OC.requestToken }
+        return await apiFetch('/apps/budget/api/pensions/projection', {
+            errorMessage: 'Failed to fetch pension projection',
         });
-        if (!response.ok) throw new Error('Failed to fetch pension projection');
-        return await response.json();
     }
 
     renderPensions() {
@@ -465,22 +459,14 @@ export default class PensionsModule {
 
         try {
             const url = pensionId
-                ? OC.generateUrl(`/apps/budget/api/pensions/${pensionId}`)
-                : OC.generateUrl('/apps/budget/api/pensions');
+                ? `/apps/budget/api/pensions/${pensionId}`
+                : '/apps/budget/api/pensions';
 
-            const response = await fetch(url, {
+            await apiFetch(url, {
                 method: pensionId ? 'PUT' : 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(data)
+                body: data,
+                errorMessage: t('budget', 'Failed to save pension'),
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to save pension')));
-            }
 
             this.closePensionModal();
             await this.loadPensions();
@@ -497,15 +483,10 @@ export default class PensionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}`), {
+            await apiFetch(`/apps/budget/api/pensions/${pensionId}`, {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
+                errorMessage: t('budget', 'Failed to delete pension'),
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to delete pension')));
-            }
 
             await this.loadPensions();
             this.renderPensions();
@@ -596,16 +577,12 @@ export default class PensionsModule {
 
     async loadPensionBalanceChart(pensionId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/balance-history`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) {
+            const data = await apiFetch(`/apps/budget/api/pensions/${pensionId}/balance-history`).catch(() => null);
+            if (!data) {
                 this._setChartHint('pension-balance-chart', 'pension-balance-hint', t('budget', 'Balance history is unavailable.'));
                 return;
             }
 
-            const data = await response.json();
             if (!data.values || data.values.length < 2) {
                 this._setChartHint('pension-balance-chart', 'pension-balance-hint', t('budget', 'Add at least two balance updates to see history.'));
                 return;
@@ -623,7 +600,8 @@ export default class PensionsModule {
             this.charts.pensionBalance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: data.labels,
+                    // Snapshot dates (Y-m-d), shown in the user's date format
+                    labels: data.labels.map(date => formatters.formatDate(date, this.settings)),
                     datasets: [{
                         label: t('budget', 'Balance'),
                         data: data.values,
@@ -656,16 +634,12 @@ export default class PensionsModule {
 
     async loadPensionProjectionChart(pensionId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/projection`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) {
+            const data = await apiFetch(`/apps/budget/api/pensions/${pensionId}/projection`).catch(() => null);
+            if (!data) {
                 this._setChartHint('pension-projection-chart', 'pension-projection-hint', t('budget', 'Projection is unavailable.'));
                 return;
             }
 
-            const data = await response.json();
             this.currentProjection = data;
             this.renderProjectionSummary(data);
 
@@ -760,16 +734,13 @@ export default class PensionsModule {
         const container = document.getElementById('pension-activity-list');
         if (!container) return;
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/activity`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) {
+            let data;
+            try {
+                data = await apiFetch(`/apps/budget/api/pensions/${pensionId}/activity`);
+            } catch (e) {
                 container.innerHTML = `<div class="no-data">${t('budget', 'Activity is unavailable.')}</div>`;
                 return;
             }
-
-            const data = await response.json();
 
             if (!data || data.length === 0) {
                 container.innerHTML = `<div class="no-data">${t('budget', 'No activity yet')}</div>`;
@@ -854,18 +825,14 @@ export default class PensionsModule {
         if (!await confirmDialog(message, { destructive: true })) return;
 
         const url = isSnapshot
-            ? OC.generateUrl(`/apps/budget/api/pensions/snapshots/${id}`)
-            : OC.generateUrl(`/apps/budget/api/pensions/contributions/${id}`);
+            ? `/apps/budget/api/pensions/snapshots/${id}`
+            : `/apps/budget/api/pensions/contributions/${id}`;
 
         try {
-            const response = await fetch(url, {
+            await apiFetch(url, {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
+                errorMessage: t('budget', 'Failed to delete'),
             });
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to delete')));
-            }
             await this.loadPensions();
             this.renderPensions();
             if (this.currentPension) {
@@ -903,22 +870,14 @@ export default class PensionsModule {
         const pensionId = formData.get('pensionId');
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/snapshots`), {
+            await apiFetch(`/apps/budget/api/pensions/${pensionId}/snapshots`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     balance: parseFloat(formData.get('balance')),
                     date: formData.get('date')
-                })
+                },
+                errorMessage: t('budget', 'Failed to update balance'),
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to update balance')));
-            }
 
             this.closeBalanceModal();
             await this.loadPensions();
@@ -968,24 +927,16 @@ export default class PensionsModule {
         const sourceAccountId = formData.get('sourceAccountId');
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/contributions`), {
+            await apiFetch(`/apps/budget/api/pensions/${pensionId}/contributions`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     amount: parseFloat(formData.get('amount')),
                     date: formData.get('date'),
                     note: formData.get('note') || null,
                     sourceAccountId: sourceAccountId ? parseInt(sourceAccountId, 10) : null
-                })
+                },
+                errorMessage: t('budget', 'Failed to log contribution'),
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to log contribution')));
-            }
 
             this.closeContributionModal();
             await this.loadPensions();
@@ -1022,21 +973,16 @@ export default class PensionsModule {
         const destAccountId = formData.get('destAccountId');
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/withdrawals`), {
+            await apiFetch(`/apps/budget/api/pensions/${pensionId}/withdrawals`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({
+                body: {
                     amount: parseFloat(formData.get('amount')),
                     date: formData.get('date'),
                     note: formData.get('note') || null,
                     destAccountId: destAccountId ? parseInt(destAccountId, 10) : null
-                })
+                },
+                errorMessage: t('budget', 'Failed to record withdrawal'),
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to record withdrawal')));
-            }
 
             this.closeWithdrawalModal();
             await this.loadPensions();
@@ -1055,14 +1001,13 @@ export default class PensionsModule {
         const container = document.getElementById('pension-recurring-list');
         if (!container) return;
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/recurring`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) {
+            let schedules;
+            try {
+                schedules = await apiFetch(`/apps/budget/api/pensions/${pensionId}/recurring`);
+            } catch (e) {
                 container.innerHTML = '';
                 return;
             }
-            const schedules = await response.json();
             this.renderPensionRecurring(schedules);
         } catch (error) {
             console.error('Failed to load recurring contributions:', error);
@@ -1123,22 +1068,18 @@ export default class PensionsModule {
         const sourceAccountId = formData.get('sourceAccountId');
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/recurring`), {
+            await apiFetch(`/apps/budget/api/pensions/${pensionId}/recurring`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({
+                body: {
                     amount: parseFloat(formData.get('amount')),
                     frequency: formData.get('frequency'),
                     nextDueDate: formData.get('nextDueDate'),
                     sourceAccountId: sourceAccountId ? parseInt(sourceAccountId, 10) : null,
                     autoPostEnabled: !!form.querySelector('[name="autoPostEnabled"]')?.checked,
                     note: formData.get('note') || null
-                })
+                },
+                errorMessage: t('budget', 'Failed to save recurring contribution'),
             });
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to save recurring contribution')));
-            }
             this.closeRecurringModal();
             await this.loadPensionRecurring(parseInt(pensionId));
             showSuccess(t('budget', 'Recurring contribution saved'));
@@ -1150,11 +1091,10 @@ export default class PensionsModule {
     async deleteRecurring(recurId) {
         if (!await confirmDialog(t('budget', 'Delete this scheduled contribution?'), { destructive: true })) return;
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/recurring/${recurId}`), {
+            await apiFetch(`/apps/budget/api/pensions/recurring/${recurId}`, {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
+                errorMessage: t('budget', 'Failed to delete'),
             });
-            if (!response.ok) throw new Error(t('budget', 'Failed to delete'));
             if (this.currentPension) await this.loadPensionRecurring(this.currentPension.id);
             showSuccess(t('budget', 'Deleted'));
         } catch (error) {
@@ -1164,14 +1104,10 @@ export default class PensionsModule {
 
     async postRecurringNow(recurId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/recurring/${recurId}/post`), {
+            await apiFetch(`/apps/budget/api/pensions/recurring/${recurId}/post`, {
                 method: 'POST',
-                headers: { 'requesttoken': OC.requestToken }
+                errorMessage: t('budget', 'Failed to post contribution'),
             });
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to post contribution')));
-            }
             await this.loadPensions();
             this.renderPensions();
             if (this.currentPension) await this.showPensionDetails(this.currentPension.id);

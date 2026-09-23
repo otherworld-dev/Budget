@@ -7,7 +7,8 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo, showUndoNotification } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
-import { serverErrorMessage, isoWeekday } from '../../utils/helpers.js';
+import { isoWeekday } from '../../utils/helpers.js';
+import { apiFetch } from '../../utils/api.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
 
@@ -40,13 +41,7 @@ export default class IncomeModule {
             await this.loadIncomeSummary();
 
             // Load all recurring income
-            const response = await fetch(OC.generateUrl('/apps/budget/api/recurring-income'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            this.recurringIncome = await response.json();
+            this.recurringIncome = await apiFetch('/apps/budget/api/recurring-income');
             this.renderRecurringIncome(this.recurringIncome);
 
             // Populate dropdowns in income modal
@@ -62,13 +57,7 @@ export default class IncomeModule {
 
     async loadIncomeSummary() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/recurring-income/summary'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const summary = await response.json();
+            const summary = await apiFetch('/apps/budget/api/recurring-income/summary');
 
             // Update summary cards
             document.getElementById('income-expected-count').textContent = summary.expectedThisMonth || 0;
@@ -519,22 +508,13 @@ export default class IncomeModule {
             };
 
             const url = isNew
-                ? OC.generateUrl('/apps/budget/api/recurring-income')
-                : OC.generateUrl(`/apps/budget/api/recurring-income/${id}`);
+                ? '/apps/budget/api/recurring-income'
+                : `/apps/budget/api/recurring-income/${id}`;
 
-            const response = await fetch(url, {
+            await apiFetch(url, {
                 method: isNew ? 'POST' : 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(data)
+                body: data,
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
 
             this.hideIncomeModal();
             showSuccess(isNew ? t('budget', 'Income source created successfully') : t('budget', 'Income source updated successfully'));
@@ -551,12 +531,7 @@ export default class IncomeModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/recurring-income/${incomeId}`), {
-                method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            await apiFetch(`/apps/budget/api/recurring-income/${incomeId}`, { method: 'DELETE' });
 
             showSuccess(t('budget', 'Income source deleted successfully'));
             await this.loadIncomeView();
@@ -578,16 +553,10 @@ export default class IncomeModule {
             const currentDate = formatters.getTodayDateString();
 
             // Mark as received on the server
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/recurring-income/${incomeId}/received`), {
+            await apiFetch(`/apps/budget/api/recurring-income/${incomeId}/received`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ receivedDate: currentDate, createTransaction: true })
+                body: { receivedDate: currentDate, createTransaction: true },
             });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             // Store undo data BEFORE reloading
             this._undoData = {
@@ -638,19 +607,10 @@ export default class IncomeModule {
 
             // Use the update endpoint to restore the previous state
             // This allows us to set lastReceivedDate to null if needed
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/recurring-income/${incomeId}`), {
+            await apiFetch(`/apps/budget/api/recurring-income/${incomeId}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ lastReceivedDate: previousReceivedDate })
+                body: { lastReceivedDate: previousReceivedDate },
             });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `HTTP ${response.status}`);
-            }
 
             // Clear undo data
             this._undoData = null;
@@ -679,20 +639,10 @@ export default class IncomeModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/recurring-income/${incomeId}/skip`), {
+            const result = await apiFetch(`/apps/budget/api/recurring-income/${incomeId}/skip`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                }
+                errorMessage: t('budget', 'Failed to skip income'),
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to skip income')));
-            }
-
-            const result = await response.json();
             if (this._undoTimer) {
                 clearTimeout(this._undoTimer);
                 this._undoTimer = null;
@@ -726,19 +676,10 @@ export default class IncomeModule {
         try {
             const { incomeId, previousNextExpectedDate } = this._undoData;
 
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/recurring-income/${incomeId}/undo-skip`), {
+            await apiFetch(`/apps/budget/api/recurring-income/${incomeId}/undo-skip`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ previousNextExpectedDate })
+                body: { previousNextExpectedDate },
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
 
             this._undoData = null;
             await this.loadIncomeView();
@@ -756,13 +697,7 @@ export default class IncomeModule {
         detectBtn.innerHTML = `<span class="icon-loading-small" aria-hidden="true"></span> ${t('budget', 'Detecting...')}`;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/recurring-income/detect?months=6'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const detected = await response.json();
+            const detected = await apiFetch('/apps/budget/api/recurring-income/detect?months=6');
 
             if (detected.length === 0) {
                 showInfo(t('budget', 'No recurring income patterns found in your transactions'));
@@ -823,18 +758,10 @@ export default class IncomeModule {
         const incomeToAdd = selectedIndices.map(i => this._detectedIncome[i]);
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/recurring-income/create-from-detected'), {
+            const result = await apiFetch('/apps/budget/api/recurring-income/create-from-detected', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ incomes: incomeToAdd })
+                body: { incomes: incomeToAdd },
             });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const result = await response.json();
 
             document.getElementById('detected-income-panel').style.display = 'none';
             showSuccess(n('budget', '%n income source added successfully', '%n income sources added successfully', result.created));

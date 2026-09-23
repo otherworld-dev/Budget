@@ -10,6 +10,7 @@ import { showSuccess, showError } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import * as dom from '../../utils/dom.js';
 import { showLoading, showLoadError } from '../../utils/loading.js';
+import { apiFetch } from '../../utils/api.js';
 
 export default class ExchangeRatesModule {
     constructor(app) {
@@ -30,11 +31,7 @@ export default class ExchangeRatesModule {
 
         showLoading('exchange-rates-list');
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/exchange-rates'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            this.data = await response.json();
+            this.data = await apiFetch('/apps/budget/api/exchange-rates');
             this.renderRatesPage();
         } catch (error) {
             console.error('Failed to load exchange rates:', error);
@@ -307,18 +304,11 @@ export default class ExchangeRatesModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/exchange-rates/manual'), {
+            await apiFetch('/apps/budget/api/exchange-rates/manual', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ currency, rate })
+                body: { currency, rate },
+                errorMessage: 'Failed to save',
             });
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.error || 'Failed to save');
-            }
             showSuccess(t('budget', 'Manual rate set for {currency}', { currency }));
             this.hideManualRateModal();
             await this.loadExchangeRatesView();
@@ -336,11 +326,7 @@ export default class ExchangeRatesModule {
 
     async removeManualRate(currency) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/exchange-rates/manual/${currency}`), {
-                method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            await apiFetch(`/apps/budget/api/exchange-rates/manual/${currency}`, { method: 'DELETE' });
             showSuccess(t('budget', 'Manual rate removed for {currency}', { currency }));
             await this.loadExchangeRatesView();
         } catch (error) {
@@ -357,11 +343,7 @@ export default class ExchangeRatesModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/exchange-rates/refresh'), {
-                method: 'POST',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            await apiFetch('/apps/budget/api/exchange-rates/refresh', { method: 'POST' });
             showSuccess(t('budget', 'Exchange rates refreshed'));
             await this.loadExchangeRatesView();
         } catch (error) {

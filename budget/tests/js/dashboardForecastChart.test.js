@@ -14,7 +14,7 @@ vi.mock('@nextcloud/l10n', () => ({
 }));
 
 const chartInstances = [];
-vi.mock('chart.js/auto', () => ({
+vi.mock('../../src/utils/chart.js', () => ({
     default: class {
         constructor(ctx, config) {
             this.config = config;
@@ -26,6 +26,7 @@ vi.mock('chart.js/auto', () => ({
 }));
 
 import DashboardModule from '../../src/modules/dashboard/DashboardModule.js';
+import { formatYearMonth } from '../../src/utils/formatters.js';
 
 function makeDashboard(widgetData = {}, tileSettings = {}) {
     const mod = Object.create(DashboardModule.prototype);
@@ -82,6 +83,23 @@ describe('updateCashFlowForecastWidget', () => {
         const { data } = chartInstances[0].config;
         expect(data.labels[0]).toBe('Now');
         expect(data.labels).toHaveLength(3);
+    });
+
+    it('labels the months in the user language, not in the English the server sends', () => {
+        const dash = makeDashboard({ cashFlowForecast: {
+            currentBalance: 0,
+            monthlyProjections: [
+                { month: 'Sep 2026', yearMonth: '2026-09', balance: 1, income: 0, expenses: 0 },
+                // A forecast cached before yearMonth existed keeps its label
+                { month: 'Oct 2026', balance: 2, income: 0, expenses: 0 },
+            ],
+        } });
+
+        dash.updateCashFlowForecastWidget();
+
+        const { labels } = chartInstances[0].config.data;
+        expect(labels[1]).toBe(formatYearMonth('2026-09'));
+        expect(labels[2]).toBe('Oct 2026');
     });
 
     it('draws a line chart', () => {

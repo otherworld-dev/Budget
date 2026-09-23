@@ -6,7 +6,8 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
 import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
-import { serverErrorMessage, groupImportErrors } from '../../utils/helpers.js';
+import { groupImportErrors } from '../../utils/helpers.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
 import { openAccounts } from '../../utils/accounts.js';
 import MultiSelect from '../../utils/multiselect.js';
 
@@ -197,21 +198,13 @@ export default class ImportModule {
         formData.append('file', file);
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import/upload'), {
+            const result = await apiFetch('/apps/budget/api/import/upload', {
                 method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken
-                },
-                body: formData
+                body: formData,
+                errorMessage: t('budget', 'Upload failed'),
             });
-
-            if (response.ok) {
-                const result = await response.json();
-                this.currentImportData = result;
-                this.showImportMapping(result);
-            } else {
-                throw new Error(t('budget', 'Upload failed'));
-            }
+            this.currentImportData = result;
+            this.showImportMapping(result);
         } catch (error) {
             console.error('Failed to upload file:', error);
             showError(t('budget', 'Failed to upload file'));
@@ -220,11 +213,8 @@ export default class ImportModule {
 
     async loadPresets() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import/templates'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (response.ok) {
-                const data = await response.json();
+            const data = await apiFetch('/apps/budget/api/import/templates').catch(() => null);
+            if (data) {
                 this.presets = Object.values(data).filter(t => t.isPreset);
             }
         } catch (error) {
@@ -234,11 +224,9 @@ export default class ImportModule {
 
     async loadUserTemplates() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-templates'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (response.ok) {
-                this.userTemplates = await response.json();
+            const templates = await apiFetch('/apps/budget/api/import-templates').catch(() => null);
+            if (templates) {
+                this.userTemplates = templates;
             }
         } catch (error) {
             console.error('Failed to load import templates:', error);
@@ -599,32 +587,31 @@ export default class ImportModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-templates'), {
+            const data = await apiFetch('/apps/budget/api/import-templates', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify(requestBody)
+                body: requestBody,
+                errorMessage: t('budget', 'Failed to save import template'),
             });
-            const data = await response.json();
-            if (response.ok) {
-                showSuccess(t('budget', 'Import template saved'));
-                this.closeTemplateModal('import-save-template-modal');
-                await this.loadUserTemplates();
-                // Select the newly saved template in whichever selector is active.
-                this.selectedTemplate = data.id;
-                this.selectedPreset = null;
-                if (format === 'csv') {
-                    this.renderPresetSelector();
-                    const select = document.getElementById('import-preset');
-                    if (select) select.value = `template:${data.id}`;
-                } else {
-                    this.renderRoutingTemplateBar();
-                    const select = document.getElementById('import-routing-template');
-                    if (select) select.value = `template:${data.id}`;
-                }
+            showSuccess(t('budget', 'Import template saved'));
+            this.closeTemplateModal('import-save-template-modal');
+            await this.loadUserTemplates();
+            // Select the newly saved template in whichever selector is active.
+            this.selectedTemplate = data.id;
+            this.selectedPreset = null;
+            if (format === 'csv') {
+                this.renderPresetSelector();
+                const select = document.getElementById('import-preset');
+                if (select) select.value = `template:${data.id}`;
             } else {
-                showError(data.error || t('budget', 'Failed to save import template'));
+                this.renderRoutingTemplateBar();
+                const select = document.getElementById('import-routing-template');
+                if (select) select.value = `template:${data.id}`;
             }
         } catch (error) {
+            if (error instanceof ApiError) {
+                showError(error.message);
+                return;
+            }
             console.error('Failed to save import template:', error);
             showError(t('budget', 'Failed to save import template'));
         }
@@ -685,21 +672,20 @@ export default class ImportModule {
         if (!name || name === template.name) return;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-templates/' + id), {
+            await apiFetch('/apps/budget/api/import-templates/' + id, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ name })
+                body: { name },
+                errorMessage: t('budget', 'Failed to rename import template'),
             });
-            const data = await response.json();
-            if (response.ok) {
-                showSuccess(t('budget', 'Import template renamed'));
-                await this.loadUserTemplates();
-                this.renderManageTemplatesList();
-                this.refreshTemplateSelectors();
-            } else {
-                showError(data.error || t('budget', 'Failed to rename import template'));
-            }
+            showSuccess(t('budget', 'Import template renamed'));
+            await this.loadUserTemplates();
+            this.renderManageTemplatesList();
+            this.refreshTemplateSelectors();
         } catch (error) {
+            if (error instanceof ApiError) {
+                showError(error.message);
+                return;
+            }
             console.error('Failed to rename import template:', error);
             showError(t('budget', 'Failed to rename import template'));
         }
@@ -709,21 +695,14 @@ export default class ImportModule {
         if (!await confirmDialog(t('budget', 'Are you sure you want to delete this import template?'), { destructive: true })) return;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-templates/' + id), {
-                method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (response.ok) {
-                showSuccess(t('budget', 'Import template deleted'));
-                if (this.selectedTemplate === id) {
-                    this.selectedTemplate = null;
-                }
-                await this.loadUserTemplates();
-                this.renderManageTemplatesList();
-                this.refreshTemplateSelectors();
-            } else {
-                showError(t('budget', 'Failed to delete import template'));
+            await apiFetch('/apps/budget/api/import-templates/' + id, { method: 'DELETE' });
+            showSuccess(t('budget', 'Import template deleted'));
+            if (this.selectedTemplate === id) {
+                this.selectedTemplate = null;
             }
+            await this.loadUserTemplates();
+            this.renderManageTemplatesList();
+            this.refreshTemplateSelectors();
         } catch (error) {
             console.error('Failed to delete import template:', error);
             showError(t('budget', 'Failed to delete import template'));
@@ -1198,27 +1177,16 @@ export default class ImportModule {
         this.latestPreviewRequestId = resolvedRequestId;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import/data-preview'), {
+            const result = await apiFetch('/apps/budget/api/import/data-preview', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken,
-                },
-                body: JSON.stringify({
+                body: {
                     fileId,
                     fileName: this.currentImportData.filename || '',
                     delimiter: selectedDelimiter,
                     skipFirstRow: selectedSkipFirstRow,
                     encoding: selectedEncoding,
-                }),
+                },
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
-
-            const result = await response.json();
             if (this.latestPreviewRequestId !== resolvedRequestId) {
                 return null;
             }
@@ -1742,28 +1710,18 @@ export default class ImportModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import/preview'), {
+            const result = await apiFetch('/apps/budget/api/import/preview', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(requestBody)
+                body: requestBody,
+                errorMessage: t('budget', 'Processing failed'),
             });
-
-            if (response.ok) {
-                const result = await response.json();
-                this.processedTransactions = result.transactions;
-                this.previewTotalValid = result.validTransactions || result.transactions.length;
-                this.updateImportSummary(result);
-                const previewTable = document.getElementById('preview-table');
-                if (previewTable) previewTable.style.display = '';
-                this.showTransactionPreview(result.transactions);
-                this.filterPreviewTransactions();
-            } else {
-                const errorData = await response.json();
-                throw new Error(errorData.error || t('budget', 'Processing failed'));
-            }
+            this.processedTransactions = result.transactions;
+            this.previewTotalValid = result.validTransactions || result.transactions.length;
+            this.updateImportSummary(result);
+            const previewTable = document.getElementById('preview-table');
+            if (previewTable) previewTable.style.display = '';
+            this.showTransactionPreview(result.transactions);
+            this.filterPreviewTransactions();
         } catch (error) {
             console.error('Failed to process import data:', error);
             showError(t('budget', 'Failed to process import data: {message}', { message: error.message }));
@@ -2130,11 +2088,7 @@ export default class ImportModule {
 
     async loadAccountsForImport() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/accounts'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            const accounts = await response.json();
+            const accounts = await apiFetch('/apps/budget/api/accounts');
             this.availableAccounts = accounts;
 
             const singleAccountSection = document.getElementById('single-account-selection');
@@ -2489,13 +2443,11 @@ export default class ImportModule {
         importBtn.textContent = t('budget', 'Importing…');
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import/process'), {
+            const response = await apiFetch('/apps/budget/api/import/process', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(requestBody)
+                body: requestBody,
+                errorMessage: t('budget', 'Import failed'),
+                responseType: 'response',
             });
 
             const responseText = await response.text();
@@ -2507,46 +2459,42 @@ export default class ImportModule {
                 throw new Error(t('budget', 'Server error ({status}): Invalid response', { status: response.status }));
             }
 
-            if (response.ok) {
-                showSuccess(t('budget', 'Successfully imported {imported} transactions ({skipped} skipped)', { imported: result.imported, skipped: result.skipped }));
-                if (result.billsMarkedPaid > 0) {
-                    showSuccess(n(
-                        'budget',
-                        '%n bill was automatically marked as paid from matching transactions',
-                        '%n bills were automatically marked as paid from matching transactions',
-                        result.billsMarkedPaid
-                    ));
-                }
-                if (result.errors && result.errors.length > 0) {
-                    // Partial failure (e.g. a mapped destination account was
-                    // deleted) — must not masquerade as a full success. The
-                    // server sends a reason per row and this used to throw
-                    // them away and point at nextcloud.log, which in #333 was
-                    // a log the reporter could not read: 14 of 27 rows dropped
-                    // and no way to find out why.
-                    this.showImportErrors(result.errors);
-                    console.warn('Import errors:', result.errors);
-                }
-                if (result.transfersLinked > 0) {
-                    showInfo(n(
-                        'budget',
-                        '%n transfer between your accounts was linked',
-                        '%n transfers between your accounts were linked',
-                        result.transfersLinked
-                    ));
-                }
-                if (result.categoriesCreated && result.categoriesCreated > 0) {
-                    showInfo(n('budget', 'Import complete. %n category created — it may take a moment to appear.', 'Import complete. %n categories created — they may take a moment to appear.', result.categoriesCreated));
-                }
-                this.resetImportWizard();
-                this.loadTransactions();
-                this.app.loadAccounts();
-
-                // Auto-match transfers in the background
-                this.autoMatchTransfers();
-            } else {
-                throw new Error(result.error || t('budget', 'Import failed'));
+            showSuccess(t('budget', 'Successfully imported {imported} transactions ({skipped} skipped)', { imported: result.imported, skipped: result.skipped }));
+            if (result.billsMarkedPaid > 0) {
+                showSuccess(n(
+                    'budget',
+                    '%n bill was automatically marked as paid from matching transactions',
+                    '%n bills were automatically marked as paid from matching transactions',
+                    result.billsMarkedPaid
+                ));
             }
+            if (result.errors && result.errors.length > 0) {
+                // Partial failure (e.g. a mapped destination account was
+                // deleted) — must not masquerade as a full success. The
+                // server sends a reason per row and this used to throw
+                // them away and point at nextcloud.log, which in #333 was
+                // a log the reporter could not read: 14 of 27 rows dropped
+                // and no way to find out why.
+                this.showImportErrors(result.errors);
+                console.warn('Import errors:', result.errors);
+            }
+            if (result.transfersLinked > 0) {
+                showInfo(n(
+                    'budget',
+                    '%n transfer between your accounts was linked',
+                    '%n transfers between your accounts were linked',
+                    result.transfersLinked
+                ));
+            }
+            if (result.categoriesCreated && result.categoriesCreated > 0) {
+                showInfo(n('budget', 'Import complete. %n category created — it may take a moment to appear.', 'Import complete. %n categories created — they may take a moment to appear.', result.categoriesCreated));
+            }
+            this.resetImportWizard();
+            this.loadTransactions();
+            this.app.loadAccounts();
+
+            // Auto-match transfers in the background
+            this.autoMatchTransfers();
         } catch (error) {
             console.error('Failed to execute import:', error);
             showError(t('budget', 'Failed to import transactions: {message}', { message: error.message }));
@@ -2559,17 +2507,12 @@ export default class ImportModule {
 
     async autoMatchTransfers() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-match'), {
+            const result = await apiFetch('/apps/budget/api/transactions/bulk-match', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ dateWindow: 3 })
-            });
+                body: { dateWindow: 3 },
+            }).catch(() => null);
 
-            if (response.ok) {
-                const result = await response.json();
+            if (result) {
                 const matched = result.autoMatched?.length || 0;
                 if (matched > 0) {
                     showSuccess(t('budget', 'Auto-linked {count} transfer pairs', { count: matched }));
@@ -2657,58 +2600,48 @@ export default class ImportModule {
     // Import History Management
     async loadImportHistory() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import/history'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            const history = await response.json();
-            this.importHistory = history;
-            this.renderImportHistory(history);
+            const history = await apiFetch('/apps/budget/api/import/history');
+            this.importHistory = Array.isArray(history) ? history : [];
+            this.renderImportHistory(this.importHistory);
         } catch (error) {
             console.error('Failed to load import history:', error);
         }
     }
 
+    /**
+     * One row per import batch as the server groups them
+     * (TransactionMapper::getRecentImports): the account, when it was
+     * imported, how many transactions and the dates they span. The server
+     * keeps no file name or status for a batch, so there are none to show.
+     *
+     * @param {Array<{account_name: string, count: number|string, min_date: string, max_date: string, imported_at: string}>} history
+     */
     renderImportHistory(history) {
         const tbody = document.querySelector('#history-table tbody');
         if (!tbody) return;
 
-        tbody.innerHTML = '';
+        if (!history || history.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="empty-state-small">${t('budget', 'No recent imports')}</td></tr>`;
+            return;
+        }
 
-        history.forEach(item => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${this.formatDate(item.importDate)}</td>
-                <td>${dom.escapeHtml(item.filename)}</td>
-                <td>${dom.escapeHtml(item.accountName)}</td>
-                <td>${item.transactionCount}</td>
-                <td>
-                    <span class="status-badge status-${item.status}">
-                        ${item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-                    </span>
-                </td>
-                <td>
-                    <button class="icon-download import-download-btn" data-import-id="${item.id}" title="${t('budget', 'Download')}" aria-label="${t('budget', 'Download')}"></button>
-                    <button class="icon-delete import-rollback-btn" data-import-id="${item.id}" title="${t('budget', 'Rollback')}" aria-label="${t('budget', 'Rollback')}"></button>
-                </td>
+        const day = (value) => (value ? this.formatDate(String(value).slice(0, 10)) : '');
+
+        tbody.innerHTML = history.map(item => {
+            const first = day(item.min_date);
+            const last = day(item.max_date);
+            const range = first && last && first !== last
+                ? t('budget', '{start} to {end}', { start: first, end: last })
+                : (first || last);
+            return `
+                <tr>
+                    <td>${dom.escapeHtml(day(item.imported_at))}</td>
+                    <td>${dom.escapeHtml(item.account_name || '')}</td>
+                    <td>${parseInt(item.count, 10) || 0}</td>
+                    <td>${dom.escapeHtml(range)}</td>
+                </tr>
             `;
-            tbody.appendChild(row);
-        });
-
-        // Setup event listeners
-        document.querySelectorAll('.import-download-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const importId = parseInt(btn.dataset.importId);
-                this.downloadImport(importId);
-            });
-        });
-
-        document.querySelectorAll('.import-rollback-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const importId = parseInt(btn.dataset.importId);
-                this.rollbackImport(importId);
-            });
-        });
+        }).join('');
     }
 
     formatFileSize(bytes) {
@@ -2717,59 +2650,5 @@ export default class ImportModule {
         const sizes = [t('budget', 'Bytes'), t('budget', 'KB'), t('budget', 'MB'), t('budget', 'GB')];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    async downloadImport(importId) {
-        try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/import/download/${importId}`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `import_${importId}.csv`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-            } else {
-                throw new Error(t('budget', 'Download failed'));
-            }
-        } catch (error) {
-            console.error('Failed to download import:', error);
-            showError(t('budget', 'Failed to download import file'));
-        }
-    }
-
-    async rollbackImport(importId) {
-        if (!await confirmDialog(t('budget', 'Are you sure you want to rollback this import? All imported transactions will be deleted.'), { destructive: true })) {
-            return;
-        }
-
-        try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/import/rollback/${importId}`), {
-                method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                showSuccess(n('budget', 'Rolled back %n transaction', 'Rolled back %n transactions', result.deleted));
-                this.loadImportHistory();
-                this.loadTransactions();
-            } else {
-                const errorData = await response.json();
-                throw new Error(errorData.error || t('budget', 'Rollback failed'));
-            }
-        } catch (error) {
-            console.error('Failed to rollback import:', error);
-            showError(t('budget', 'Failed to rollback import: {message}', { message: error.message }));
-        }
     }
 }

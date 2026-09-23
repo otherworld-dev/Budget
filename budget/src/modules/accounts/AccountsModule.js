@@ -6,10 +6,12 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
-import { serverErrorMessage, downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES, hasSplitPortion, transactionDisplayAmount } from '../../utils/helpers.js';
+import { downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES } from '../../utils/helpers.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { openAccounts } from '../../utils/accounts.js';
 import { showLoading, clearLoading, showLoadError } from '../../utils/loading.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
+import { renderTransactionRow } from '../transactions/transactionRow.js';
 
 // Which account attributes are rendered in the accounts view (tiles + list).
 // User-configurable through the gear menu in the accounts header, stored in
@@ -150,20 +152,10 @@ export default class AccountsModule {
     async loadAccounts() {
         if (this.app.currentView === 'accounts') showLoading('accounts-assets-grid');
         try {
-            const [response, summaryResponse] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/accounts'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }),
-                fetch(OC.generateUrl('/apps/budget/api/reports/summary'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false }))
+            const [accounts, summary] = await Promise.all([
+                apiFetch('/apps/budget/api/accounts'),
+                apiFetch('/apps/budget/api/reports/summary').catch(() => null)
             ]);
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const accounts = await response.json();
 
             // Check if we got a CSRF error instead of accounts
             if (accounts && accounts.message === "CSRF check failed") {
@@ -174,8 +166,6 @@ export default class AccountsModule {
                 console.error('API returned non-array:', accounts);
                 throw new Error('API returned invalid data format');
             }
-
-            const summary = summaryResponse.ok ? await summaryResponse.json() : null;
 
             // Update the instance accounts array
             this.accounts = accounts;
@@ -703,13 +693,10 @@ export default class AccountsModule {
      * partway through with no way to tell what had gone.
      */
     _sendBulkAccountDelete(ids, deleteTransactions) {
-        return fetch(OC.generateUrl('/apps/budget/api/accounts/bulk-delete'), {
+        return apiFetch('/apps/budget/api/accounts/bulk-delete', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'requesttoken': OC.requestToken
-            },
-            body: JSON.stringify({ ids, deleteTransactions })
+            body: { ids, deleteTransactions },
+            errorMessage: t('budget', 'Failed to delete accounts'),
         });
     }
 
@@ -785,11 +772,8 @@ export default class AccountsModule {
         }
     }
 
-    async _readBulkResult(response) {
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            throw new Error(serverErrorMessage(body, t('budget', 'Failed to delete accounts')));
-        }
+    _readBulkResult(body) {
+        body = body || {};
         return {
             deleted: body.deleted || [],
             blocked: body.blocked || [],
@@ -1006,14 +990,9 @@ export default class AccountsModule {
                 const startDate = new Date();
                 startDate.setDate(startDate.getDate() - 7);
 
-                const response = await fetch(
-                    OC.generateUrl(`/apps/budget/api/transactions?account=${accountId}&startDate=${formatters.formatDateForAPI(startDate)}&endDate=${formatters.formatDateForAPI(endDate)}`),
-                    { headers: { 'requesttoken': OC.requestToken } }
-                );
-
-                if (!response.ok) continue;
-
-                const transactions = await response.json();
+                const transactions = await apiFetch(
+                    `/apps/budget/api/transactions?account=${accountId}&startDate=${formatters.formatDateForAPI(startDate)}&endDate=${formatters.formatDateForAPI(endDate)}`
+                ).catch(() => null);
                 if (!Array.isArray(transactions)) continue;
 
                 // Calculate daily balances
@@ -1327,15 +1306,7 @@ export default class AccountsModule {
         if (!section || !body) return;
 
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/history`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) {
-                section.style.display = 'none';
-                return;
-            }
-            const history = await response.json();
+            const history = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/history`);
             if (!Array.isArray(history) || history.length === 0) {
                 section.style.display = 'none';
                 return;
@@ -1357,12 +1328,8 @@ export default class AccountsModule {
 
     async loadInterestDetails(accountId, currency) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/interest`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) return;
-
-            const data = await response.json();
+            const data = await apiFetch(`/apps/budget/api/accounts/${accountId}/interest`).catch(() => null);
+            if (!data) return;
 
             const accruedInterestEl = document.getElementById('account-accrued-interest');
             const accruedInterestInfo = document.getElementById('accrued-interest-info');
@@ -1427,19 +1394,14 @@ export default class AccountsModule {
                 const rateId = parseInt(btn.dataset.rateId);
                 const acctId = parseInt(btn.dataset.accountId);
                 try {
-                    const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${acctId}/interest-rates/${rateId}`), {
+                    await apiFetch(`/apps/budget/api/accounts/${acctId}/interest-rates/${rateId}`, {
                         method: 'DELETE',
-                        headers: { 'requesttoken': OC.requestToken }
+                        errorMessage: t('budget', 'Failed to delete rate change'),
                     });
-                    if (response.ok) {
-                        showSuccess(t('budget', 'Rate change deleted'));
-                        this.loadInterestDetails(acctId, this.currentAccount?.currency || 'USD');
-                    } else {
-                        const error = await response.json();
-                        showError(serverErrorMessage(error, t('budget', 'Failed to delete rate change')));
-                    }
+                    showSuccess(t('budget', 'Rate change deleted'));
+                    this.loadInterestDetails(acctId, this.currentAccount?.currency || 'USD');
                 } catch (error) {
-                    showError(t('budget', 'Failed to delete rate change'));
+                    showError(error instanceof ApiError ? error.message : t('budget', 'Failed to delete rate change'));
                 }
             });
         });
@@ -1476,35 +1438,22 @@ export default class AccountsModule {
 
     async addRateChange(accountId, rate, compoundingFrequency, effectiveDate) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/interest-rates`), {
+            await apiFetch(`/apps/budget/api/accounts/${accountId}/interest-rates`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ rate, compoundingFrequency, effectiveDate })
+                body: { rate, compoundingFrequency, effectiveDate },
+                errorMessage: t('budget', 'Failed to add rate change'),
             });
-
-            if (response.ok) {
-                showSuccess(t('budget', 'Rate change added'));
-                this.loadInterestDetails(accountId, this.currentAccount?.currency || 'USD');
-            } else {
-                const error = await response.json();
-                showError(serverErrorMessage(error, t('budget', 'Failed to add rate change')));
-            }
+            showSuccess(t('budget', 'Rate change added'));
+            this.loadInterestDetails(accountId, this.currentAccount?.currency || 'USD');
         } catch (error) {
-            showError(t('budget', 'Failed to add rate change'));
+            showError(error instanceof ApiError ? error.message : t('budget', 'Failed to add rate change'));
         }
     }
 
     async loadValuation(accountId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/valuation`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) return;
-
-            const data = await response.json();
+            const data = await apiFetch(`/apps/budget/api/accounts/${accountId}/valuation`).catch(() => null);
+            if (!data) return;
             const baseCurrency = data.baseCurrency || 'GBP';
 
             const costInfo = document.getElementById('investment-cost-info');
@@ -1581,12 +1530,14 @@ export default class AccountsModule {
                 });
             }
 
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions?' + params.toString()), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
+            let result = null;
+            try {
+                result = await apiFetch('/apps/budget/api/transactions?' + params.toString());
+            } catch (error) {
+                if (!(error instanceof ApiError)) throw error;
+            }
 
-            if (response.ok) {
-                const result = await response.json();
+            if (result) {
                 this.accountTransactions = result.transactions || result; // Handle both formats
                 this.accountTotalPages = result.totalPages || 1;
                 this.accountTotal = result.total || this.accountTransactions.length;
@@ -1633,93 +1584,18 @@ export default class AccountsModule {
         }
 
         // Use backend-computed running balances directly
-        let balanceMap = null;
-        if (this.accountRunningBalances) {
-            balanceMap = {};
-            for (const [id, balance] of Object.entries(this.accountRunningBalances)) {
-                balanceMap[parseInt(id)] = parseFloat(balance);
-            }
-        }
+        const balances = this.accountRunningBalances || null;
+        const currency = this.currentAccount?.currency || this.getPrimaryCurrency();
 
-        tbody.innerHTML = this.accountTransactions.map(transaction => {
-            const amount = parseFloat(transaction.amount) || 0;
-            const currency = this.currentAccount?.currency || this.getPrimaryCurrency();
-            const category = this.categories?.find(c => c.id === transaction.categoryId);
-            const isScheduled = transaction.status === 'scheduled';
-            const scheduledBadge = isScheduled ? '<span class="scheduled-badge" title="' + t('budget', 'Future transaction — not counted in the current balance until it occurs') + '">' + t('budget', 'Scheduled') + '</span>' : '';
-            const pendingBadge = transaction.status === 'pending' ? '<span class="pending-badge" title="' + t('budget', 'Not yet posted by your bank') + '">' + t('budget', 'Pending') + '</span>' : '';
-
-            // Transfer badge
-            const isLinked = transaction.linkedTransactionId != null;
-            const linkedAccountName = transaction.linkedAccountName || this.app.accounts?.find(a => a.id === transaction.linkedAccountId)?.name || '';
-            const linkedDirection = transaction.type === 'debit' ? '→' : '←';
-            const linkedLabel = linkedAccountName ? t('budget', 'Transfer {direction} {account}', { direction: linkedDirection, account: dom.escapeHtml(linkedAccountName) }, undefined, { escape: false }) : t('budget', 'Transfer');
-            const linkedTitle = linkedAccountName ? t('budget', 'Click to view linked transaction in {account}', { account: dom.escapeHtml(linkedAccountName) }, undefined, { escape: false }) : t('budget', 'Linked transfer');
-            const linkedBadge = isLinked
-                ? `<button type="button" class="linked-indicator" data-transaction-id="${transaction.id}" data-linked-id="${transaction.linkedTransactionId}" data-linked-account-id="${transaction.linkedAccountId || ''}" title="${linkedTitle}"><span aria-hidden="true">&#x1F517;</span> ${linkedLabel}</button>`
-                : '';
-
-            // Split badge. Filtering the register by a category also matches a
-            // split through its parts, and the row then stands for the part
-            // that matched rather than the whole transaction (#359).
-            const isSplit = transaction.isSplit || transaction.is_split;
-            const isSplitPortion = hasSplitPortion(transaction);
-            const splitBadge = isSplit
-                ? `<span class="split-indicator" title="${isSplitPortion
-                    ? t('budget', 'Part of a split transaction. The amount shown is the part in this category.')
-                    : t('budget', 'Split transaction')}">${isSplitPortion ? t('budget', 'Split part') : t('budget', 'Split')}</span>`
-                : '';
-            const portionAmount = transactionDisplayAmount(transaction);
-            const signedPortion = transaction.type === 'credit' ? portionAmount : -portionAmount;
-            const showsWholeToo = isSplitPortion
-                && Math.abs(Math.abs(portionAmount) - Math.abs(amount)) > 0.005;
-
-            return `
-                <tr class="transaction-row${isScheduled ? ' scheduled-transaction' : ''}${isLinked ? ' is-linked' : ''}${transaction.reconciled ? ' is-reconciled' : ''}" data-transaction-id="${transaction.id}">
-                    <td class="date-column">
-                        <span class="transaction-date">${this.formatDate(transaction.date)}</span>${scheduledBadge}
-                    </td>
-                    <td class="description-column">
-                        <div class="transaction-description">
-                            <span class="description-main">${dom.escapeHtml(transaction.description) || t('budget', 'No description')}</span>
-                            ${(linkedBadge || splitBadge || pendingBadge) ? `<div class="transaction-badges">${pendingBadge}${linkedBadge}${splitBadge}</div>` : ''}
-                        </div>
-                    </td>
-                    <td class="vendor-column">${dom.escapeHtml(transaction.vendor || '')}</td>
-                    <td class="category-column">
-                        ${isSplit && transaction.splitCategories
-                            ? `<span class="category-name split-category" title="${transaction.splitCategories.map(sp => dom.escapeHtml((sp.categoryName || t('budget', 'Uncategorized')) + ': ' + this.formatCurrency(sp.amount, currency))).join('&#10;')}">${transaction.splitCategories.map(sp => '<span class="split-cat-item' + (sp.matched ? ' is-match' : '') + '">' + dom.escapeHtml(sp.categoryName || t('budget', 'Uncategorized')) + '</span>').join(' / ')}</span>`
-                            : isSplit
-                            ? `<span class="category-name split-category">${t('budget', 'Split')}</span>`
-                            : `<span class="category-name ${category ? '' : 'uncategorized'}">
-                            ${category ? dom.escapeHtml(category.name) : t('budget', 'Uncategorized')}
-                        </span>`}
-                        <div class="transaction-tags-display" data-transaction-id="${transaction.id}" style="margin-top: 4px;"></div>
-                    </td>
-                    <td class="amount-column">
-                        <span class="transaction-amount ${isSplitPortion ? (signedPortion >= 0 ? 'credit' : 'debit') : transaction.type}">
-                            ${(isSplitPortion ? signedPortion >= 0 : transaction.type === 'credit') ? '+' : '-'}${this.formatCurrency(Math.abs(portionAmount), currency)}
-                        </span>
-                        ${showsWholeToo ? `<span class="amount-whole">${t('budget', 'of {total}', { total: this.formatCurrency(Math.abs(amount), currency) })}</span>` : ''}
-                    </td>
-                    <td class="balance-column">
-                        ${balanceMap !== null && balanceMap[transaction.id] !== undefined
-                            ? `<span class="transaction-balance ${balanceMap[transaction.id] >= 0 ? 'positive' : 'negative'}${isScheduled ? ' projected' : ''}">${this.formatCurrency(balanceMap[transaction.id], currency)}</span>`
-                            : ''}
-                    </td>
-                    <td class="actions-column">
-                        <div class="transaction-actions">
-                            <button class="icon-rename edit-transaction-btn"
-                                    data-transaction-id="${transaction.id}"
-                                    title="${t('budget', 'Edit transaction')}" aria-label="${t('budget', 'Edit transaction')}"></button>
-                            <button class="icon-delete delete-transaction-btn"
-                                    data-transaction-id="${transaction.id}"
-                                    title="${t('budget', 'Delete transaction')}" aria-label="${t('budget', 'Delete transaction')}"></button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }).join('');
+        tbody.innerHTML = this.accountTransactions.map(transaction => renderTransactionRow(transaction, {
+            variant: 'register',
+            accounts: this.app.accounts,
+            categories: this.categories,
+            currency,
+            formatCurrency: (amount, cur) => this.formatCurrency(amount, cur),
+            formatDate: (date) => this.formatDate(date),
+            balance: balances && balances[transaction.id] !== undefined ? parseFloat(balances[transaction.id]) : undefined,
+        })).join('');
 
         // Add event listeners for transaction actions
         this.setupAccountTransactionActionListeners();
@@ -1803,16 +1679,7 @@ export default class AccountsModule {
             // from this.accountTransactions only saw one page (max
             // accountRowsPerPage rows), so the count, this-month totals and
             // average were all wrong for accounts with more than a page of data.
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/accounts/${accountId}/metrics`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-
-            if (!response.ok) {
-                throw new Error(`Metrics request failed with status ${response.status}`);
-            }
-
-            const metrics = await response.json();
+            const metrics = await apiFetch(`/apps/budget/api/accounts/${accountId}/metrics`);
             const currency = this.currentAccount?.currency || this.getPrimaryCurrency();
 
             document.getElementById('total-transactions').textContent =
@@ -1861,11 +1728,8 @@ export default class AccountsModule {
         if (account.closed) return;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills?isTransfer=true'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) return;
-            const transfers = await response.json();
+            const transfers = await apiFetch('/apps/budget/api/bills?isTransfer=true').catch(() => null);
+            if (!transfers) return;
             // The user may have navigated elsewhere while we fetched
             if (this.currentAccount?.id !== account.id) return;
             const paymentBill = transfers.find(b => b.destinationAccountId === account.id && b.isActive);
@@ -2020,17 +1884,16 @@ export default class AccountsModule {
 
     async loadAccountFilterTags() {
         try {
-            const [tagSetsResponse, globalTagsResponse] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/tag-sets'), { headers: { 'requesttoken': OC.requestToken } }),
-                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } })
+            const [tagSets, globalTags] = await Promise.all([
+                apiFetch('/apps/budget/api/tag-sets').catch(() => null),
+                apiFetch('/apps/budget/api/tags/global').catch(() => null)
             ]);
 
-            if (tagSetsResponse.ok) {
-                this.allAccountFilterTagSets = await tagSetsResponse.json();
+            if (tagSets) {
+                this.allAccountFilterTagSets = tagSets;
             }
 
-            if (globalTagsResponse.ok) {
-                const globalTags = await globalTagsResponse.json();
+            if (globalTags) {
                 if (globalTags.length > 0) {
                     this.allAccountFilterTagSets = this.allAccountFilterTagSets || [];
                     this.allAccountFilterTagSets.unshift({
@@ -2251,16 +2114,10 @@ export default class AccountsModule {
 
         // Resume an in-progress session instead of starting over
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/session`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (response.ok) {
-                const state = await response.json();
-                if (state.session && this.app.transactionsModule) {
-                    await this.app.transactionsModule.enterReconcileSession(state);
-                    return;
-                }
+            const state = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/session`);
+            if (state?.session && this.app.transactionsModule) {
+                await this.app.transactionsModule.enterReconcileSession(state);
+                return;
             }
         } catch (error) {
             // Fall through to the start panel
@@ -2303,12 +2160,7 @@ export default class AccountsModule {
         this.expandedCategories = this.expandedCategories || new Set();
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
-            const categories = await response.json();
+            const categories = await apiFetch('/apps/budget/api/categories/tree');
 
             // Update category state with fetched data
             if (Array.isArray(categories)) {
@@ -2399,44 +2251,25 @@ export default class AccountsModule {
 
             const method = transactionId ? 'PUT' : 'POST';
 
-            const response = await fetch(OC.generateUrl(url), {
+            const result = await apiFetch(url, {
                 method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(formData)
+                body: formData,
+                errorMessage: t('budget', 'Failed to save transaction'),
             });
+            const savedTransactionId = result.id || transactionId;
 
-            if (response.ok) {
-                const result = await response.json();
-                const savedTransactionId = result.id || transactionId;
+            // Save tags if any are selected
+            const selectedTagIds = this.getSelectedTransactionTags();
+            if (selectedTagIds.length > 0 && savedTransactionId) {
+                await this.saveTransactionTags(savedTransactionId, selectedTagIds);
+            }
 
-                // Save tags if any are selected
-                const selectedTagIds = this.getSelectedTransactionTags();
-                if (selectedTagIds.length > 0 && savedTransactionId) {
-                    await this.saveTransactionTags(savedTransactionId, selectedTagIds);
-                }
-
-                showSuccess(t('budget', 'Transaction saved successfully'));
-                this.hideModals();
-                this.loadTransactions();
-                // Also reload account transactions if we're on account details view
-                if (this.currentView === 'account-details' && this.currentAccount) {
-                    this.loadAccountTransactions(this.currentAccount.id);
-                }
-            } else {
-                // Try to get the actual error message from backend
-                let errorMessage = t('budget', 'Failed to save transaction');
-                try {
-                    const errorData = await response.json();
-                    if (errorData.error) {
-                        errorMessage = errorData.error;
-                    }
-                } catch (e) {
-                    // If we can't parse JSON, use default message
-                }
-                throw new Error(errorMessage);
+            showSuccess(t('budget', 'Transaction saved successfully'));
+            this.hideModals();
+            this.loadTransactions();
+            // Also reload account transactions if we're on account details view
+            if (this.currentView === 'account-details' && this.currentAccount) {
+                this.loadAccountTransactions(this.currentAccount.id);
             }
         } catch (error) {
             console.error('Failed to save transaction:', error);
@@ -2511,37 +2344,21 @@ export default class AccountsModule {
         };
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions'), {
+            await apiFetch('/apps/budget/api/transactions', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(formData)
+                body: formData,
+                errorMessage: t('budget', 'Failed to add transaction'),
             });
 
-            if (response.ok) {
-                this.showQuickAddMessage(t('budget', 'Transaction added successfully!'), 'success');
-                this.resetQuickAddForm();
-                // Reload transactions if on transactions view
-                if (this.app.currentView === 'transactions') {
-                    this.app.loadTransactions();
-                }
-                // Reload dashboard to update totals
-                if (this.app.currentView === 'dashboard') {
-                    this.app.loadDashboard();
-                }
-            } else {
-                let errorMessage = t('budget', 'Failed to add transaction');
-                try {
-                    const errorData = await response.json();
-                    if (errorData.error) {
-                        errorMessage = errorData.error;
-                    }
-                } catch (e) {
-                    // If we can't parse JSON, use default message
-                }
-                throw new Error(errorMessage);
+            this.showQuickAddMessage(t('budget', 'Transaction added successfully!'), 'success');
+            this.resetQuickAddForm();
+            // Reload transactions if on transactions view
+            if (this.app.currentView === 'transactions') {
+                this.app.loadTransactions();
+            }
+            // Reload dashboard to update totals
+            if (this.app.currentView === 'dashboard') {
+                this.app.loadDashboard();
             }
         } catch (error) {
             console.error('Failed to save quick add transaction:', error);
@@ -2761,64 +2578,32 @@ export default class AccountsModule {
 
             const method = accountId ? 'PUT' : 'POST';
 
-            const response = await fetch(OC.generateUrl(url), {
+            // No errorMessage: the toast below already says "Failed to save
+            // account: …", so a failure without a server message shows its
+            // HTTP status there.
+            await apiFetch(url, {
                 method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(formData)
+                body: formData,
             });
 
-            if (response.ok) {
-                // Try to parse response as JSON, but handle empty responses
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    const text = await response.text();
-                    if (text.trim()) {
-                        JSON.parse(text);
-                    }
-                }
+            showSuccess(t('budget', 'Account saved successfully'));
+            this.hideModals();
+            await this.loadAccounts();
+            await this.loadInitialData(); // Refresh dropdowns
 
-                showSuccess(t('budget', 'Account saved successfully'));
-                this.hideModals();
-                await this.loadAccounts();
-                await this.loadInitialData(); // Refresh dropdowns
+            // Refresh dashboard if currently viewing it
+            if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                await this.app.loadDashboard();
+            }
 
-                // Refresh dashboard if currently viewing it
-                if (window.location.hash === '' || window.location.hash === '#/dashboard') {
-                    await this.app.loadDashboard();
+            // Refresh account details view if it's currently visible
+            const detailsView = document.getElementById('account-details-view');
+            if (detailsView && detailsView.style.display !== 'none' && accountId) {
+                const updatedAccount = this.accounts.find(a => a.id === parseInt(accountId));
+                if (updatedAccount) {
+                    this.currentAccount = updatedAccount;
+                    this.populateAccountOverview(updatedAccount);
                 }
-
-                // Refresh account details view if it's currently visible
-                const detailsView = document.getElementById('account-details-view');
-                if (detailsView && detailsView.style.display !== 'none' && accountId) {
-                    const updatedAccount = this.accounts.find(a => a.id === parseInt(accountId));
-                    if (updatedAccount) {
-                        this.currentAccount = updatedAccount;
-                        this.populateAccountOverview(updatedAccount);
-                    }
-                }
-            } else {
-                // Handle error responses more safely
-                let errorMessage = t('budget', 'Failed to save account');
-                try {
-                    const contentType = response.headers.get('content-type');
-                    if (contentType && contentType.includes('application/json')) {
-                        const text = await response.text();
-                        if (text.trim()) {
-                            const errorData = JSON.parse(text);
-                            errorMessage = errorData.error || errorMessage;
-                        }
-                    } else {
-                        // Non-JSON response, get status text
-                        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-                    }
-                } catch (parseError) {
-                    console.error('Error parsing response:', parseError);
-                    errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-                }
-                throw new Error(errorMessage);
             }
         } catch (error) {
             console.error('Failed to save account:', error);
@@ -2904,12 +2689,7 @@ export default class AccountsModule {
 
     async loadAccountData(accountId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}`), {
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
-            const account = await response.json();
+            const account = await apiFetch(`/apps/budget/api/accounts/${accountId}`);
 
             document.getElementById('account-id').value = account.id;
             document.getElementById('account-name').value = account.name;
@@ -3199,11 +2979,10 @@ export default class AccountsModule {
      * server clears the account's ledger before removing it (#336).
      */
     _sendAccountDelete(id, deleteTransactions) {
-        const url = OC.generateUrl(`/apps/budget/api/accounts/${id}`)
-            + (deleteTransactions ? '?deleteTransactions=true' : '');
-        return fetch(url, {
+        return apiFetch(`/apps/budget/api/accounts/${id}`
+            + (deleteTransactions ? '?deleteTransactions=true' : ''), {
             method: 'DELETE',
-            headers: { 'requesttoken': OC.requestToken }
+            errorMessage: t('budget', 'Failed to delete account'),
         });
     }
 
@@ -3213,33 +2992,28 @@ export default class AccountsModule {
         }
 
         try {
-            let response = await this._sendAccountDelete(id, false);
-
-            // The account still has transactions — offer to delete those too
-            // rather than making the user empty the ledger by hand (#336).
-            if (response.status === 409) {
-                const body = await response.json().catch(() => ({}));
-                if (body.code !== 'has_transactions') {
-                    throw new Error(body.error || t('budget', 'Failed to delete account'));
+            let result;
+            try {
+                result = await this._sendAccountDelete(id, false);
+            } catch (error) {
+                // The account still has transactions — offer to delete those too
+                // rather than making the user empty the ledger by hand (#336).
+                if (!(error instanceof ApiError) || error.status !== 409
+                    || error.data?.code !== 'has_transactions') {
+                    throw error;
                 }
-                const count = body.transactionCount || 0;
+                const count = error.data.transactionCount || 0;
                 const question = count > 0
                     ? t('budget', 'This account still has {count} transaction(s). Delete them along with the account? This cannot be undone.', { count })
                     : t('budget', 'This account still has transactions. Delete them along with the account? This cannot be undone.');
                 if (!await confirmDialog(question, { destructive: true })) {
                     return;
                 }
-                response = await this._sendAccountDelete(id, true);
+                result = await this._sendAccountDelete(id, true);
             }
 
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to delete account')));
-            }
-
-            const result = await response.json().catch(() => ({}));
-            showSuccess(result.deletedTransactions > 0
-                ? t('budget', 'Account and its {count} transaction(s) deleted', { count: result.deletedTransactions })
+            showSuccess(result?.deletedTransactions > 0
+                ? t('budget', 'Account and its {count} transaction(s) deleted', { count: result?.deletedTransactions })
                 : t('budget', 'Account deleted successfully'));
             await this.loadAccounts();
             await this.loadInitialData(); // Refresh dropdowns
@@ -3265,10 +3039,7 @@ export default class AccountsModule {
 
         // Get banking field requirements for the selected currency
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/banking-requirements/${currency}`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            await response.json();
+            await apiFetch(`/apps/budget/api/accounts/banking-requirements/${currency}`);
         } catch (error) {
             console.warn('Failed to load banking requirements:', error);
         }
@@ -3388,10 +3159,7 @@ export default class AccountsModule {
         try {
             // Get banking institutions from backend
             if (!this.bankingInstitutions) {
-                const response = await fetch(OC.generateUrl('/apps/budget/api/accounts/banking-institutions'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                });
-                this.bankingInstitutions = await response.json();
+                this.bankingInstitutions = await apiFetch('/apps/budget/api/accounts/banking-institutions');
             }
 
             // Get currency to show relevant banks
@@ -3431,16 +3199,17 @@ export default class AccountsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/validate/${fieldType}`), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ [fieldType.replace('-', '')]: value })
-            });
-
-            const result = await response.json();
+            let result;
+            try {
+                result = await apiFetch(`/apps/budget/api/accounts/validate/${fieldType}`, {
+                    method: 'POST',
+                    body: { [fieldType.replace('-', '')]: value },
+                });
+            } catch (error) {
+                // A refused check still shows its error body as the feedback
+                if (!(error instanceof ApiError) || !error.data) throw error;
+                result = error.data;
+            }
             this.showValidationFeedback(fieldId, result);
 
             // Auto-format if validation succeeded

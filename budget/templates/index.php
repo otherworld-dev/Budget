@@ -2592,11 +2592,9 @@ style('budget', 'budget-app');
                             <thead>
                                 <tr>
                                     <th scope="col"><?php p($l->t('Date')); ?></th>
-                                    <th scope="col"><?php p($l->t('File Name')); ?></th>
                                     <th scope="col"><?php p($l->t('Account')); ?></th>
                                     <th scope="col"><?php p($l->t('Transactions')); ?></th>
-                                    <th scope="col"><?php p($l->t('Status')); ?></th>
-                                    <th scope="col"><?php p($l->t('Actions')); ?></th>
+                                    <th scope="col"><?php p($l->t('Date Range')); ?></th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -7229,11 +7227,9 @@ style('budget', 'budget-app');
                 <div class="form-col">
                   <div class="form-block">
                     <div class="form-group">
-                    <label for="contact-user-select"><?php p($l->t('Nextcloud User')); ?></label>
-                    <select id="contact-user-select">
-                    <option value=""><?php p($l->t('— None (enter details manually) —')); ?></option>
-                    </select>
-                    <small class="form-text"><?php p($l->t('Select a Nextcloud user to link this contact, or choose manual for non-Nextcloud contacts')); ?></small>
+                    <label for="contact-user-search"><?php p($l->t('Nextcloud User')); ?></label>
+                    <input type="text" id="contact-user-search" placeholder="<?php p($l->t('Type to search...')); ?>" aria-describedby="contact-user-search-hint">
+                    <small class="form-text" id="contact-user-search-hint"><?php p($l->t('Type a name, user ID or email to link a Nextcloud user, or leave it empty for someone without an account')); ?></small>
                     </div>
 
                     <div class="form-group">

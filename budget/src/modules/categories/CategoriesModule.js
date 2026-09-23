@@ -6,8 +6,8 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
-import Chart from 'chart.js/auto';
-import { serverErrorMessage } from '../../utils/helpers.js';
+import Chart from '../../utils/chart.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
 import { expenseProgressStatus, progressBarAttrs, overBudgetText } from '../../utils/budgetProgress.js';
 import { showLoadError } from '../../utils/loading.js';
 import { nextCategoryColor, distinctCategoryColors } from '../../utils/colors.js';
@@ -71,30 +71,22 @@ export default class CategoriesModule {
         return formatters.formatDate(date, this.settings);
     }
 
-    escapeHtml(text) {
-        // dom.escapeHtml also escapes quotes, so the result is safe inside an
-        // attribute value too (textContent/innerHTML leaves " alone).
-        return dom.escapeHtml(text);
-    }
 
     async loadCategories() {
         // Before any fetch (and guarded inside), so a failed first load
         // leaves the tabs and Add button working.
         this.setupCategoriesEventListeners();
         try {
-            const [treeResponse, countsResponse, mutesResponse] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
-                    headers: { 'requesttoken': OC.requestToken }
+            let treeError = null;
+            const [fullTree, counts, mutes] = await Promise.all([
+                apiFetch('/apps/budget/api/categories/tree').catch((error) => {
+                    treeError = error;
+                    return null;
                 }),
-                fetch(OC.generateUrl('/apps/budget/api/categories/transaction-counts'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }),
-                fetch(OC.generateUrl('/apps/budget/api/categories/report-mutes'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false })),
+                apiFetch('/apps/budget/api/categories/transaction-counts').catch(() => null),
+                apiFetch('/apps/budget/api/categories/report-mutes').catch(() => null),
             ]);
-            if (treeResponse.ok) {
-                const fullTree = await treeResponse.json();
+            if (!treeError) {
                 // Unmerged, for the project form's own-category picker (#391)
                 this.app.rawCategoryTree = fullTree;
                 // Merge own + shared for dropdowns and budget view
@@ -106,14 +98,14 @@ export default class CategoriesModule {
                 // that don't duplicate an own name+type, shown read-only (#306).
                 this.managementTree = this.buildManagementTree(fullTree);
             }
-            if (countsResponse.ok) {
-                this.serverTransactionCounts = await countsResponse.json();
+            if (counts) {
+                this.serverTransactionCounts = counts;
             }
-            if (mutesResponse.ok) {
+            if (mutes) {
                 // Categories this user hid from their own reports (shared ones)
-                this.reportMutedIds = new Set(await mutesResponse.json());
+                this.reportMutedIds = new Set(mutes);
             }
-            if (!treeResponse.ok) throw new Error(`HTTP ${treeResponse.status}`);
+            if (treeError) throw treeError;
             this.renderCategoriesTree();
         } catch (error) {
             console.error('Failed to load categories:', error);
@@ -127,7 +119,7 @@ export default class CategoriesModule {
     renderCategoryTree(categories, level = 0) {
         return categories.map(cat => `
             <div class="category-item" style="margin-left: ${level * 20}px" data-id="${cat.id}">
-                <span class="category-name">${this.escapeHtml(cat.name)}</span>
+                <span class="category-name">${dom.escapeHtml(cat.name)}</span>
                 ${cat.children ? this.renderCategoryTree(cat.children, level + 1) : ''}
             </div>
         `).join('');
@@ -306,7 +298,7 @@ export default class CategoriesModule {
             const shared = !!category._shared;
             const canWrite = !!category._canWrite;
             const sharedOwner = category._sharedByName || category._sharedBy || '';
-            const sharedOwnerHtml = this.escapeHtml(sharedOwner);
+            const sharedOwnerHtml = dom.escapeHtml(sharedOwner);
             const mutedForMe = shared && !!this.reportMutedIds?.has(category.id);
 
             return `
@@ -330,12 +322,12 @@ export default class CategoriesModule {
                             </button>
                         ` : '<div style="width: 20px;"></div>'}
 
-                        <div class="category-icon" style="background-color: ${this.escapeHtml(category.color || '#999')};">
-                            <span class="${this.escapeHtml(category.icon || 'icon-tag')}" aria-hidden="true"></span>
+                        <div class="category-icon" style="background-color: ${dom.escapeHtml(category.color || '#999')};">
+                            <span class="${dom.escapeHtml(category.icon || 'icon-tag')}" aria-hidden="true"></span>
                         </div>
 
                         <div class="category-content">
-                            <span class="category-name">${this.escapeHtml(category.name)}</span>
+                            <span class="category-name">${dom.escapeHtml(category.name)}</span>
                             <div class="category-meta">
                                 ${shared && canWrite
                                     ? `<span class="category-shared-badge write-shared" title="${t('budget', 'Shared by {owner} — you can edit', { owner: sharedOwner })}">${t('budget', 'Shared (editable)')} · ${sharedOwnerHtml}</span>`
@@ -429,15 +421,10 @@ export default class CategoriesModule {
                 const categoryId = parseInt(btn.dataset.categoryId);
                 const muted = btn.dataset.muted !== '1';
                 try {
-                    const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}/report-mute`), {
+                    await apiFetch(`/apps/budget/api/categories/${categoryId}/report-mute`, {
                         method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'requesttoken': OC.requestToken
-                        },
-                        body: JSON.stringify({ muted })
+                        body: { muted },
                     });
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     if (!this.reportMutedIds) this.reportMutedIds = new Set();
                     if (muted) {
                         this.reportMutedIds.add(categoryId);
@@ -618,23 +605,15 @@ export default class CategoriesModule {
             // The server renumbers the whole sibling group from (target, position)
             // so the result is deterministic — setting a single sortOrder collided
             // with a sibling and the move was silently dropped (#328).
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${draggedId}/reorder`), {
+            await apiFetch(`/apps/budget/api/categories/${draggedId}/reorder`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ targetId, position })
+                body: { targetId, position },
+                errorMessage: t('budget', 'Failed to reorder category'),
             });
 
-            if (response.ok) {
-                // Reload categories to reflect changes
-                await this.loadCategories();
-                showSuccess(t('budget', 'Category reordered successfully'));
-            } else {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to reorder category')));
-            }
+            // Reload categories to reflect changes
+            await this.loadCategories();
+            showSuccess(t('budget', 'Category reordered successfully'));
 
         } catch (error) {
             console.error('Failed to reorder category:', error);
@@ -678,11 +657,9 @@ export default class CategoriesModule {
         const isReadShared = !!category._shared && !category._canWrite;
 
         // Load data from server in parallel
-        const [detailsRes, transactionsRes] = await Promise.all([
+        const [detailsRes, transactions] = await Promise.all([
             this.fetchCategoryDetails(category.id),
-            fetch(OC.generateUrl(`/apps/budget/api/categories/${category.id}/transactions?limit=5`), {
-                headers: { 'requesttoken': OC.requestToken }
-            }),
+            apiFetch(`/apps/budget/api/categories/${category.id}/transactions?limit=5`).catch(() => null),
             this.app.renderCategoryTagSetsList(category.id, isReadShared),
         ]);
 
@@ -694,8 +671,7 @@ export default class CategoriesModule {
             this.renderCategorySpendingChartFromServer(detailsRes.monthlySpending, category.color, detailsRes.budget, detailsRes.budgetPeriod);
         }
 
-        if (transactionsRes.ok) {
-            const transactions = await transactionsRes.json();
+        if (transactions) {
             this.renderRecentTransactions(transactions);
         }
 
@@ -705,7 +681,7 @@ export default class CategoriesModule {
             const currentVal = accountSelect.value;
             accountSelect.innerHTML = `<option value="">${t('budget', 'All Accounts')}</option>`;
             this.app.accounts.forEach(acc => {
-                accountSelect.innerHTML += `<option value="${acc.id}">${this.escapeHtml(acc.name)}</option>`;
+                accountSelect.innerHTML += `<option value="${acc.id}">${dom.escapeHtml(acc.name)}</option>`;
             });
             accountSelect.value = currentVal;
             accountSelect.onchange = () => this.refreshCategoryChart();
@@ -757,12 +733,7 @@ export default class CategoriesModule {
                 url += `&accountId=${accountId}`;
             }
 
-            const response = await fetch(
-                OC.generateUrl(url),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) return null;
-            return await response.json();
+            return await apiFetch(url).catch(() => null);
         } catch (error) {
             console.error('Failed to fetch category details:', error);
             return null;
@@ -849,7 +820,7 @@ export default class CategoriesModule {
             const isInbound = signed >= 0;
             const partsTitle = isSplit && transaction.splitCategories
                 ? transaction.splitCategories
-                    .map(part => this.escapeHtml((part.categoryName || t('budget', 'Uncategorized'))
+                    .map(part => dom.escapeHtml((part.categoryName || t('budget', 'Uncategorized'))
                         + ': ' + this.formatCurrency(part.amount)))
                     .join('&#10;')
                 : '';
@@ -857,7 +828,7 @@ export default class CategoriesModule {
             return `
             <div class="transaction-item"${partsTitle ? ` title="${partsTitle}"` : ''}>
                 <div class="transaction-description">
-                    ${this.escapeHtml(transaction.description || '')}
+                    ${dom.escapeHtml(transaction.description || '')}
                     ${isSplit ? `<span class="split-indicator" title="${t('budget', 'Part of a split transaction. The amount shown is the part in this category.')}">${t('budget', 'Split part')}</span>` : ''}
                     ${showsWholeToo ? `<span class="transaction-split-whole">${t('budget', 'Split part of {total}', { total: this.formatCurrency(Math.abs(whole)) })}</span>` : ''}
                 </div>
@@ -1250,11 +1221,10 @@ export default class CategoriesModule {
      * the category's (and descendants') transactions to No Category first (#332).
      */
     _sendCategoryDelete(categoryId, reassign) {
-        const url = OC.generateUrl(`/apps/budget/api/categories/${categoryId}`)
-            + (reassign ? '?reassign=true' : '');
-        return fetch(url, {
+        return apiFetch(`/apps/budget/api/categories/${categoryId}`
+            + (reassign ? '?reassign=true' : ''), {
             method: 'DELETE',
-            headers: { 'requesttoken': OC.requestToken }
+            errorMessage: t('budget', 'Failed to delete category'),
         });
     }
 
@@ -1283,22 +1253,18 @@ export default class CategoriesModule {
             return { deleted: false, reassigned: false };
         }
 
-        let response = await this._sendCategoryDelete(categoryId, reassign);
-
-        if (!reassign && response.status === 409) {
-            const body = await response.json().catch(() => ({}));
-            if (body.code === 'has_transactions') {
-                if (!await confirmDialog(reassignPrompt, { destructive: true })) {
-                    return { deleted: false, reassigned: false };
-                }
-                reassign = true;
-                response = await this._sendCategoryDelete(categoryId, true);
+        try {
+            await this._sendCategoryDelete(categoryId, reassign);
+        } catch (error) {
+            if (reassign || !(error instanceof ApiError) || error.status !== 409
+                || error.data?.code !== 'has_transactions') {
+                throw error;
             }
-        }
-
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            throw new Error(serverErrorMessage(error, t('budget', 'Failed to delete category')));
+            if (!await confirmDialog(reassignPrompt, { destructive: true })) {
+                return { deleted: false, reassigned: false };
+            }
+            reassign = true;
+            await this._sendCategoryDelete(categoryId, true);
         }
         return { deleted: true, reassigned: reassign };
     }
@@ -1328,13 +1294,7 @@ export default class CategoriesModule {
     async _projectUsesCategoryBranch(categoryId) {
         const ids = new Set(this._selfAndDescendantIds(categoryId));
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/projects'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) {
-                return false;
-            }
-            const projects = await response.json();
+            const projects = await apiFetch('/apps/budget/api/projects');
             return Array.isArray(projects) && projects.some(project =>
                 ids.has(project.categoryId)
                 || (project.allocations || []).some(allocation => ids.has(allocation.categoryId)));
@@ -1370,21 +1330,13 @@ export default class CategoriesModule {
 
         for (const categoryId of categoryIds) {
             try {
-                const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}`), {
+                await apiFetch(`/apps/budget/api/categories/${categoryId}`, {
                     method: 'DELETE',
-                    headers: {
-                        'requesttoken': OC.requestToken
-                    }
+                    errorMessage: t('budget', 'Failed to delete'),
                 });
 
-                if (response.ok) {
-                    deleted++;
-                    this.selectedCategoryIds.delete(categoryId);
-                } else {
-                    const error = await response.json();
-                    const category = this.findCategoryById(categoryId);
-                    errors.push(`${category?.name || categoryId}: ${serverErrorMessage(error, t('budget', 'Failed to delete'))}`);
-                }
+                deleted++;
+                this.selectedCategoryIds.delete(categoryId);
             } catch (error) {
                 const category = this.findCategoryById(categoryId);
                 errors.push(`${category?.name || categoryId}: ${error.message}`);
@@ -1431,21 +1383,13 @@ export default class CategoriesModule {
         for (const [index, categoryId] of categoryIds.entries()) {
             const category = this.findCategoryById(categoryId);
             try {
-                const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}`), {
+                await apiFetch(`/apps/budget/api/categories/${categoryId}`, {
                     method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'requesttoken': OC.requestToken
-                    },
-                    body: JSON.stringify({ color: colors[index] })
+                    body: { color: colors[index] },
+                    errorMessage: t('budget', 'Failed to update category'),
                 });
 
-                if (response.ok) {
-                    recolored++;
-                } else {
-                    const error = await response.json().catch(() => ({}));
-                    errors.push(`${category?.name || categoryId}: ${serverErrorMessage(error, t('budget', 'Failed to update category'))}`);
-                }
+                recolored++;
             } catch (error) {
                 errors.push(`${category?.name || categoryId}: ${error.message}`);
             }
@@ -1584,30 +1528,21 @@ export default class CategoriesModule {
                 : '/apps/budget/api/categories';
             const method = isEdit ? 'PUT' : 'POST';
 
-            const response = await fetch(OC.generateUrl(url), {
+            const savedCategory = await apiFetch(url, {
                 method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(categoryData)
+                body: categoryData,
+                errorMessage: t('budget', 'Failed to save category'),
             });
 
-            if (response.ok) {
-                const savedCategory = await response.json();
-                showSuccess(isEdit ? t('budget', 'Category updated successfully') : t('budget', 'Category created successfully'));
-                this.app.hideModals();
-                await this.loadCategories();
-                await this.app.loadInitialData();
+            showSuccess(isEdit ? t('budget', 'Category updated successfully') : t('budget', 'Category created successfully'));
+            this.app.hideModals();
+            await this.loadCategories();
+            await this.app.loadInitialData();
 
-                // Re-select the category to update the details panel
-                const categoryIdToSelect = isEdit ? parseInt(categoryId) : savedCategory.id;
-                if (categoryIdToSelect) {
-                    this.selectCategory(categoryIdToSelect);
-                }
-            } else {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to save category')));
+            // Re-select the category to update the details panel
+            const categoryIdToSelect = isEdit ? parseInt(categoryId) : savedCategory.id;
+            if (categoryIdToSelect) {
+                this.selectCategory(categoryIdToSelect);
             }
         } catch (error) {
             console.error('Failed to save category:', error);
@@ -1623,29 +1558,15 @@ export default class CategoriesModule {
         }
         this._creatingDefaults = true;
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/setup/initialize'), {
+            await apiFetch('/apps/budget/api/setup/initialize', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({})
+                body: {},
+                errorMessage: t('budget', 'Failed to create default categories'),
             });
 
-            if (response.ok) {
-                showSuccess(t('budget', 'Default categories created successfully'));
-                await this.loadCategories();
-                await this.app.loadInitialData();
-            } else {
-                let message = t('budget', 'Failed to create default categories');
-                try {
-                    const error = await response.json();
-                    message = serverErrorMessage(error, message);
-                } catch (e) {
-                    // Response wasn't JSON (e.g. server error page)
-                }
-                throw new Error(message);
-            }
+            showSuccess(t('budget', 'Default categories created successfully'));
+            await this.loadCategories();
+            await this.app.loadInitialData();
         } catch (error) {
             console.error('Failed to create default categories:', error);
             showError(error.message || t('budget', 'Failed to create default categories'));
@@ -1661,13 +1582,10 @@ export default class CategoriesModule {
     /** Download the user's own category tree as a JSON file. */
     async exportCategories() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/categories/export'), {
-                headers: { 'requesttoken': OC.requestToken }
+            const blob = await apiFetch('/apps/budget/api/categories/export', {
+                responseType: 'blob',
+                errorMessage: t('budget', 'Failed to export categories'),
             });
-            if (!response.ok) {
-                throw new Error(t('budget', 'Failed to export categories'));
-            }
-            const blob = await response.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -1699,17 +1617,13 @@ export default class CategoriesModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/categories/import/preview'), {
+            const data = await apiFetch('/apps/budget/api/categories/import/preview', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ content })
+                body: { content },
+                errorMessage: t('budget', 'Failed to read the category file'),
             });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                throw new Error(data.error || t('budget', 'Failed to read the category file'));
-            }
             this.pendingCategoryImport = content;
-            this.showCategoryImportModal(data);
+            this.showCategoryImportModal(data || {});
         } catch (error) {
             console.error('Failed to preview category import:', error);
             showError(error.message || t('budget', 'Failed to read the category file'));
@@ -1731,7 +1645,7 @@ export default class CategoriesModule {
         const warningsEl = document.getElementById('category-import-warnings');
         if (warningsEl) {
             const warnings = Array.isArray(plan.warnings) ? plan.warnings : [];
-            warningsEl.innerHTML = warnings.map(w => `<li>${this.escapeHtml(w)}</li>`).join('');
+            warningsEl.innerHTML = warnings.map(w => `<li>${dom.escapeHtml(w)}</li>`).join('');
             warningsEl.style.display = warnings.length ? '' : 'none';
         }
 
@@ -1761,7 +1675,7 @@ export default class CategoriesModule {
                 ? `<span class="category-import-type">${node.type === 'income' ? t('budget', 'Income') : t('budget', 'Expense')}</span>`
                 : '';
             return `<div class="category-import-node" style="--depth: ${depth}">` +
-                `<span class="category-import-name">${this.escapeHtml(node.name)}</span>${type}${badge}</div>` +
+                `<span class="category-import-name">${dom.escapeHtml(node.name)}</span>${type}${badge}</div>` +
                 this.renderCategoryImportNodes(node.children || [], depth + 1);
         }).join('');
     }
@@ -1777,17 +1691,13 @@ export default class CategoriesModule {
         const confirmBtn = document.getElementById('category-import-confirm-btn');
         if (confirmBtn) confirmBtn.disabled = true;
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/categories/import'), {
+            const data = await apiFetch('/apps/budget/api/categories/import', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ content: this.pendingCategoryImport })
+                body: { content: this.pendingCategoryImport },
+                errorMessage: t('budget', 'Failed to import categories'),
             });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                throw new Error(data.error || t('budget', 'Failed to import categories'));
-            }
             this.closeCategoryImportModal();
-            showSuccess(n('budget', 'Imported %n category', 'Imported %n categories', data.created || 0));
+            showSuccess(n('budget', 'Imported %n category', 'Imported %n categories', data?.created || 0));
             await this.loadCategories();
             await this.app.loadInitialData();
         } catch (error) {
@@ -1821,18 +1731,13 @@ export default class CategoriesModule {
 
         // Always fetch fresh with shared categories for budget view
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
-                headers: this.app.getAuthHeaders()
-            });
-            if (response.ok) {
-                const rawTree = await response.json();
-                // Unmerged, for the project form's own-category picker (#391)
-                this.app.rawCategoryTree = rawTree;
-                // Merge own + shared: shared takes priority, children merged
-                const mergedTree = this.mergeCategoryTree(rawTree);
-                this.categoryTree = mergedTree;
-                this.allCategories = this.flattenCategories(mergedTree);
-            }
+            const rawTree = await apiFetch('/apps/budget/api/categories/tree');
+            // Unmerged, for the project form's own-category picker (#391)
+            this.app.rawCategoryTree = rawTree;
+            // Merge own + shared: shared takes priority, children merged
+            const mergedTree = this.mergeCategoryTree(rawTree);
+            this.categoryTree = mergedTree;
+            this.allCategories = this.flattenCategories(mergedTree);
         } catch (error) {
             console.error('Failed to load categories for budget:', error);
         }
@@ -1869,16 +1774,10 @@ export default class CategoriesModule {
         let hasSnapshot = false;
         let readyToAssign = null;
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/budget-snapshots/${month}/budgets`),
-                { headers: this.app.getAuthHeaders() }
-            );
-            if (response.ok) {
-                const data = await response.json();
-                budgets = data.budgets || {};
-                hasSnapshot = data.hasSnapshot || false;
-                readyToAssign = data.readyToAssign || null;
-            }
+            const data = await apiFetch(`/apps/budget/api/budget-snapshots/${month}/budgets`);
+            budgets = data.budgets || {};
+            hasSnapshot = data.hasSnapshot || false;
+            readyToAssign = data.readyToAssign || null;
         } catch (error) {
             console.error('Failed to fetch effective budgets:', error);
         }
@@ -1886,13 +1785,12 @@ export default class CategoriesModule {
         // Also fetch snapshot months list
         let snapshotMonths = null;
         try {
-            const response = await fetch(
-                OC.generateUrl('/apps/budget/api/budget-snapshots'),
-                { headers: this.app.getAuthHeaders() }
-            );
-            if (response.ok) {
-                snapshotMonths = await response.json();
-            }
+            // A refused request keeps the list already shown; only an
+            // unreachable server empties it.
+            snapshotMonths = await apiFetch('/apps/budget/api/budget-snapshots').catch((error) => {
+                if (error instanceof ApiError) return null;
+                throw error;
+            });
         } catch (error) {
             snapshotMonths = [];
         }
@@ -1912,16 +1810,8 @@ export default class CategoriesModule {
      */
     async fetchRecurringBudgets() {
         try {
-            const response = await fetch(
-                OC.generateUrl('/apps/budget/api/categories/recurring-budgets'),
-                { headers: this.app.getAuthHeaders() }
-            );
-            if (response.ok) {
-                const data = await response.json();
-                this._recurringBudgets = data.budgets || {};
-            } else {
-                this._recurringBudgets = {};
-            }
+            const data = await apiFetch('/apps/budget/api/categories/recurring-budgets');
+            this._recurringBudgets = data.budgets || {};
         } catch (error) {
             console.error('Failed to fetch recurring budgets:', error);
             this._recurringBudgets = {};
@@ -2050,37 +1940,29 @@ export default class CategoriesModule {
 
     async createSnapshot(month) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/budget-snapshots/${month}`), {
+            await apiFetch(`/apps/budget/api/budget-snapshots/${month}`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                }
+                errorMessage: t('budget', 'Failed to create budget adjustment'),
             });
 
-            if (response.ok) {
-                this._currentMonthHasSnapshot = true;
-                if (!this._snapshotMonths.includes(month)) {
-                    this._snapshotMonths.push(month);
-                    this._snapshotMonths.sort().reverse();
-                }
-                await this.fetchEffectiveBudgets();
-                this.renderBudgetTree();
-                this.updateBudgetSummary();
-                this.renderSnapshotControls();
-
-                const monthLabel = formatters.parseLocalDate(month + '-01').toLocaleDateString(formatters.userLocale(), { month: 'long', year: 'numeric' });
-                showSuccess(t('budget', 'Budget adjusted from {month}. You can now edit values for this month onwards.', { month: monthLabel }));
-
-                // Undo toast
-                this._showSnapshotUndo(month);
-            } else {
-                const data = await response.json().catch(() => ({}));
-                showError(data.error || t('budget', 'Failed to create budget adjustment'));
+            this._currentMonthHasSnapshot = true;
+            if (!this._snapshotMonths.includes(month)) {
+                this._snapshotMonths.push(month);
+                this._snapshotMonths.sort().reverse();
             }
+            await this.fetchEffectiveBudgets();
+            this.renderBudgetTree();
+            this.updateBudgetSummary();
+            this.renderSnapshotControls();
+
+            const monthLabel = formatters.parseLocalDate(month + '-01').toLocaleDateString(formatters.userLocale(), { month: 'long', year: 'numeric' });
+            showSuccess(t('budget', 'Budget adjusted from {month}. You can now edit values for this month onwards.', { month: monthLabel }));
+
+            // Undo toast
+            this._showSnapshotUndo(month);
         } catch (error) {
             console.error('Failed to create snapshot:', error);
-            showError(t('budget', 'Failed to create budget adjustment'));
+            showError(error instanceof ApiError ? error.message : t('budget', 'Failed to create budget adjustment'));
         }
     }
 
@@ -2113,25 +1995,17 @@ export default class CategoriesModule {
 
     async deleteSnapshot(month) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/budget-snapshots/${month}`), {
+            await apiFetch(`/apps/budget/api/budget-snapshots/${month}`, {
                 method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                }
             });
 
-            if (response.ok) {
-                this._currentMonthHasSnapshot = false;
-                this._snapshotMonths = this._snapshotMonths.filter(m => m !== month);
-                await this.fetchEffectiveBudgets();
-                this.renderBudgetTree();
-                this.updateBudgetSummary();
-                this.renderSnapshotControls();
-                showSuccess(t('budget', 'Budget adjustment removed'));
-            } else {
-                showError(t('budget', 'Failed to remove budget adjustment'));
-            }
+            this._currentMonthHasSnapshot = false;
+            this._snapshotMonths = this._snapshotMonths.filter(m => m !== month);
+            await this.fetchEffectiveBudgets();
+            this.renderBudgetTree();
+            this.updateBudgetSummary();
+            this.renderSnapshotControls();
+            showSuccess(t('budget', 'Budget adjustment removed'));
         } catch (error) {
             console.error('Failed to delete snapshot:', error);
             showError(t('budget', 'Failed to remove budget adjustment'));
@@ -2279,15 +2153,11 @@ export default class CategoriesModule {
                 const dateRange = formatters.getPeriodDateRange(period, startDay, referenceDate);
 
                 // Fetch spending for this period and transaction type
-                const response = await fetch(
-                    OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${dateRange.start}&endDate=${dateRange.end}&transactionType=${txType}`),
-                    {
-                        headers: { 'requesttoken': OC.requestToken }
-                    }
-                );
+                const spendingData = await apiFetch(
+                    `/apps/budget/api/categories/spending?startDate=${dateRange.start}&endDate=${dateRange.end}&transactionType=${txType}`
+                ).catch(() => null);
 
-                if (response.ok) {
-                    const spendingData = await response.json();
+                if (spendingData) {
                     // Map spending to categories
                     spendingData.forEach(item => {
                         if (categoryIds.includes(item.categoryId)) {
@@ -2459,8 +2329,8 @@ export default class CategoriesModule {
             return `
                 <div class="budget-category-row ${hasChildren ? 'parent-row' : ''}" data-category-id="${category.id}">
                     <div class="budget-category-name level-${level}" data-label="">
-                        <span class="category-color" style="background-color: ${this.escapeHtml(category.color || '#3b82f6')}"></span>
-                        <span class="category-label">${this.escapeHtml(category.name)}</span>
+                        <span class="category-color" style="background-color: ${dom.escapeHtml(category.color || '#3b82f6')}"></span>
+                        <span class="category-label">${dom.escapeHtml(category.name)}</span>
                         ${rolloverEligible ? `<button class="budget-rollover-toggle ${rolloverEnabled ? 'active' : ''}"
                                 data-category-id="${category.id}"
                                 data-enabled="${rolloverEnabled ? '1' : '0'}"
@@ -2565,14 +2435,10 @@ export default class CategoriesModule {
                 const enable = btn.dataset.enabled !== '1';
                 btn.disabled = true;
                 try {
-                    const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}`), {
+                    await apiFetch(`/apps/budget/api/categories/${categoryId}`, {
                         method: 'PUT',
-                        headers: { 'Content-Type': 'application/json', ...this.app.getAuthHeaders() },
-                        body: JSON.stringify({ budgetRollover: enable })
+                        body: { budgetRollover: enable },
                     });
-                    if (!response.ok) {
-                        throw new Error('Failed to update category');
-                    }
                     const category = this.findCategoryById(categoryId);
                     if (category) {
                         category.budgetRollover = enable;
@@ -2611,27 +2477,20 @@ export default class CategoriesModule {
             const txType = category?.type === 'income' ? 'credit' : 'debit';
 
             // Fetch spending for this category in the period
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${dateRange.start}&endDate=${dateRange.end}&transactionType=${txType}`),
-                {
-                    headers: { 'requesttoken': OC.requestToken }
-                }
+            const spendingData = await apiFetch(
+                `/apps/budget/api/categories/spending?startDate=${dateRange.start}&endDate=${dateRange.end}&transactionType=${txType}`
             );
 
-            if (response.ok) {
-                const spendingData = await response.json();
+            // Find this category's spending in the response
+            const categorySpending = spendingData.find(item => item.categoryId === categoryId);
+            const spent = categorySpending ? parseFloat(categorySpending.spent) || 0 : 0;
 
-                // Find this category's spending in the response
-                const categorySpending = spendingData.find(item => item.categoryId === categoryId);
-                const spent = categorySpending ? parseFloat(categorySpending.spent) || 0 : 0;
+            // Update local spending data for this category
+            this.categorySpending[categoryId] = spent;
 
-                // Update local spending data for this category
-                this.categorySpending[categoryId] = spent;
-
-                // Re-render to show updated spending
-                this.renderBudgetTree();
-                this.updateBudgetSummary();
-            }
+            // Re-render to show updated spending
+            this.renderBudgetTree();
+            this.updateBudgetSummary();
         } catch (error) {
             console.error('Failed to recalculate spending:', error);
         }
@@ -2646,85 +2505,64 @@ export default class CategoriesModule {
                 updates.budgetAmount = parseFloat(updates.budgetAmount) || 0;
             }
 
-            let response;
-
+            // No errorMessage: the toast below already says "Failed to update
+            // budget: …", so a failure without a server message shows its
+            // HTTP status there.
             if (this._currentMonthHasSnapshot) {
                 // Save to snapshot API
                 const snapshotPayload = {};
                 if ('budgetAmount' in updates) snapshotPayload.amount = updates.budgetAmount;
                 if ('budgetPeriod' in updates) snapshotPayload.period = updates.budgetPeriod;
 
-                response = await fetch(
-                    OC.generateUrl(`/apps/budget/api/budget-snapshots/${this.budgetMonth}/categories/${categoryId}`),
+                await apiFetch(
+                    `/apps/budget/api/budget-snapshots/${this.budgetMonth}/categories/${categoryId}`,
                     {
                         method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'requesttoken': OC.requestToken
-                        },
-                        body: JSON.stringify(snapshotPayload)
+                        body: snapshotPayload,
                     }
                 );
             } else {
                 // Save to category directly (default behaviour)
-                response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}`), {
+                await apiFetch(`/apps/budget/api/categories/${categoryId}`, {
                     method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'requesttoken': OC.requestToken
-                    },
-                    body: JSON.stringify(updates)
+                    body: updates,
                 });
             }
 
-            if (response.ok) {
-                // Update local data
-                const category = this.findCategoryById(parseInt(categoryId));
-                if (category) {
-                    if (!this._currentMonthHasSnapshot) {
-                        Object.assign(category, updates);
-                    }
+            // Update local data
+            const category = this.findCategoryById(parseInt(categoryId));
+            if (category) {
+                if (!this._currentMonthHasSnapshot) {
+                    Object.assign(category, updates);
                 }
-
-                // Update effective budgets cache locally
-                if (this._effectiveBudgets) {
-                    if (!this._effectiveBudgets[categoryId]) {
-                        this._effectiveBudgets[categoryId] = { amount: 0, period: 'monthly' };
-                    }
-                    if ('budgetAmount' in updates) {
-                        this._effectiveBudgets[categoryId].amount = updates.budgetAmount;
-                    }
-                    if ('budgetPeriod' in updates) {
-                        this._effectiveBudgets[categoryId].period = updates.budgetPeriod;
-                    }
-                }
-
-                // Re-aggregate parent budgets and re-render
-                this.aggregateParentSpending(this.categoryTree || []);
-                this.renderBudgetTree();
-                this.updateBudgetSummary();
-                // A budget change moves "Ready to assign"; not awaited
-                this.refreshReadyToAssign();
-
-                // Refresh dashboard if currently viewing it
-                if (window.location.hash === '' || window.location.hash === '#/dashboard') {
-                    await this.app.loadDashboard();
-                }
-
-                showSuccess(t('budget', 'Budget updated'));
-            } else {
-                // Try to get detailed error message
-                let errorMessage = t('budget', 'Failed to update budget');
-                try {
-                    const errorData = await response.json();
-                    if (errorData.error) {
-                        errorMessage = errorData.error;
-                    }
-                } catch (e) {
-                    errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-                }
-                throw new Error(errorMessage);
             }
+
+            // Update effective budgets cache locally
+            if (this._effectiveBudgets) {
+                if (!this._effectiveBudgets[categoryId]) {
+                    this._effectiveBudgets[categoryId] = { amount: 0, period: 'monthly' };
+                }
+                if ('budgetAmount' in updates) {
+                    this._effectiveBudgets[categoryId].amount = updates.budgetAmount;
+                }
+                if ('budgetPeriod' in updates) {
+                    this._effectiveBudgets[categoryId].period = updates.budgetPeriod;
+                }
+            }
+
+            // Re-aggregate parent budgets and re-render
+            this.aggregateParentSpending(this.categoryTree || []);
+            this.renderBudgetTree();
+            this.updateBudgetSummary();
+            // A budget change moves "Ready to assign"; not awaited
+            this.refreshReadyToAssign();
+
+            // Refresh dashboard if currently viewing it
+            if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                await this.app.loadDashboard();
+            }
+
+            showSuccess(t('budget', 'Budget updated'));
         } catch (error) {
             console.error('Failed to save budget:', error);
             showError(t('budget', 'Failed to update budget: {message}', { message: error.message }));
@@ -2780,12 +2618,8 @@ export default class CategoriesModule {
     async refreshReadyToAssign() {
         const month = this.budgetMonth;
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/budget-snapshots/${month}/budgets`),
-                { headers: this.app.getAuthHeaders() }
-            );
-            if (!response.ok) return;
-            const data = await response.json();
+            const data = await apiFetch(`/apps/budget/api/budget-snapshots/${month}/budgets`).catch(() => null);
+            if (!data) return;
             if (this.budgetMonth !== month) return;
             this._readyToAssign = data.readyToAssign || null;
             this.renderReadyToAssign();

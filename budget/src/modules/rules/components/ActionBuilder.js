@@ -1,5 +1,5 @@
 import './ActionBuilder.css';
-import { buildCategoryOptionsHtml, escapeHtml as domEscapeHtml } from '../../../utils/dom.js';
+import { buildCategoryOptionsHtml, escapeHtml } from '../../../utils/dom.js';
 import { offerableTagSets } from '../../../utils/tags.js';
 import { pickableAccounts, accountOptionLabel } from '../../../utils/accounts.js';
 import { translate as t } from '@nextcloud/l10n';
@@ -205,7 +205,7 @@ export class ActionBuilder {
 			<div class="form-row">
 				<label>${t('budget', 'Vendor Name:')}</label>
 				<input aria-label="${t('budget', 'Vendor Name:')}" type="text" class="action-value" data-index="${index}" data-field="value"
-					value="${this.escapeHtml(action.value || '')}" placeholder="${t('budget', 'e.g., Amazon, Starbucks')}">
+					value="${escapeHtml(action.value || '')}" placeholder="${t('budget', 'e.g., Amazon, Starbucks')}">
 			</div>
 			<div class="form-row">
 				<label>${t('budget', 'Behavior:')}</label>
@@ -222,7 +222,7 @@ export class ActionBuilder {
 			<div class="form-row">
 				<label>${t('budget', 'Description:')}</label>
 				<input aria-label="${t('budget', 'Description:')}" type="text" class="action-value" data-index="${index}" data-field="value"
-					value="${this.escapeHtml(action.value || '')}" placeholder="${t('budget', 'e.g., Grocery purchase, Salary')}">
+					value="${escapeHtml(action.value || '')}" placeholder="${t('budget', 'e.g., Grocery purchase, Salary')}">
 			</div>
 			<div class="form-row">
 				<label>${t('budget', 'Behavior:')}</label>
@@ -239,7 +239,7 @@ export class ActionBuilder {
 			<div class="form-row">
 				<label>${t('budget', 'Notes Text:')}</label>
 				<textarea aria-label="${t('budget', 'Notes Text:')}" class="action-value" data-index="${index}" data-field="value" rows="2"
-					placeholder="${t('budget', 'Text to add to transaction notes')}">${this.escapeHtml(action.value || '')}</textarea>
+					placeholder="${t('budget', 'Text to add to transaction notes')}">${escapeHtml(action.value || '')}</textarea>
 			</div>
 			<div class="form-row">
 				<label>${t('budget', 'Behavior:')}</label>
@@ -252,7 +252,7 @@ export class ActionBuilder {
 			<div class="form-row">
 				<label>${t('budget', 'Separator:')}</label>
 				<input aria-label="${t('budget', 'Separator:')}" type="text" class="action-separator" data-index="${index}" data-field="separator"
-					value="${this.escapeHtml(action.separator || ' | ')}" placeholder="${t('budget', 'e.g., | or -')}">
+					value="${escapeHtml(action.separator || ' | ')}" placeholder="${t('budget', 'e.g., | or -')}">
 			</div>
 			` : ''}
 		`;
@@ -270,12 +270,12 @@ export class ActionBuilder {
 					${tagSets.length === 0 ? `<p class="no-tags-message">${t('budget', 'No tag sets available')}</p>` : ''}
 					${tagSets.map(tagSet => `
 						<fieldset class="tag-set-group">
-							<legend>${this.escapeHtml(tagSet.name)}</legend>
+							<legend>${escapeHtml(tagSet.name)}</legend>
 							${(tagSet.tags || []).map(tag => `
 								<label class="tag-checkbox">
 									<input type="checkbox" class="tag-select" data-index="${index}"
 										data-tag-id="${tag.id}" ${selectedTagIds.includes(tag.id) ? 'checked' : ''}>
-									<span>${this.escapeHtml(tag.name)}</span>
+									<span>${escapeHtml(tag.name)}</span>
 								</label>
 							`).join('')}
 						</fieldset>
@@ -301,7 +301,7 @@ export class ActionBuilder {
 				<select aria-label="${t('budget', 'Account:')}" class="action-value" data-index="${index}" data-field="value">
 					<option value="">${t('budget', '-- Select Account --')}</option>
 					${accounts.map(account => `
-						<option value="${account.id}" ${action.value == account.id ? 'selected' : ''}>${this.escapeHtml(accountOptionLabel(account))}</option>
+						<option value="${account.id}" ${action.value == account.id ? 'selected' : ''}>${escapeHtml(accountOptionLabel(account))}</option>
 					`).join('')}
 				</select>
 			</div>
@@ -336,7 +336,7 @@ export class ActionBuilder {
 			<div class="form-row">
 				<label>${t('budget', 'Reference Value:')}</label>
 				<input aria-label="${t('budget', 'Reference Value:')}" type="text" class="action-value" data-index="${index}" data-field="value"
-					value="${this.escapeHtml(action.value || '')}" placeholder="${t('budget', 'e.g., CHECK-1234, AUTO')}">
+					value="${escapeHtml(action.value || '')}" placeholder="${t('budget', 'e.g., CHECK-1234, AUTO')}">
 			</div>
 			<div class="form-row">
 				<label>${t('budget', 'Behavior:')}</label>
@@ -580,9 +580,4 @@ export class ActionBuilder {
 		};
 	}
 
-	escapeHtml(text) {
-		// Not textContent/innerHTML: that leaves quotes alone, and these
-		// values are also written into attribute values.
-		return domEscapeHtml(text);
-	}
 }

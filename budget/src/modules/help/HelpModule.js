@@ -11,6 +11,7 @@ import { entriesToShow, latestEntries, installedVersion, WHATS_NEW_SEEN_KEY } fr
 import WHATS_NEW from '../../whatsnew.json';
 import { translate as t } from '@nextcloud/l10n';
 import { escapeHtml } from '../../utils/dom.js';
+import { apiFetch } from '../../utils/api.js';
 
 // The documentation lives in the website project, not here — this app only
 // links to the published pages. A topic's `doc` slug is the page name, so
@@ -110,14 +111,11 @@ export default class HelpModule {
         // from the version they installed and a release without notes does
         // not bring older ones back later.
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/settings/${WHATS_NEW_SEEN_KEY}`), {
+            await apiFetch(`/apps/budget/api/settings/${WHATS_NEW_SEEN_KEY}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ value: currentVersion }),
+                body: { value: currentVersion },
             });
-            if (response.ok) {
-                this.app.settings[WHATS_NEW_SEEN_KEY] = currentVersion;
-            }
+            this.app.settings[WHATS_NEW_SEEN_KEY] = currentVersion;
         } catch (error) {
             // Not worth a toast: the popup just comes back on the next load.
             console.error('Failed to record the seen release notes:', error);
@@ -201,11 +199,7 @@ export default class HelpModule {
         if (!container) return;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/setup/system-info'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error('Failed to load');
-            const info = await response.json();
+            const info = await apiFetch('/apps/budget/api/setup/system-info', { errorMessage: 'Failed to load' });
 
             const browser = `${navigator.userAgent.match(/(?:Firefox|Chrome|Safari|Edge)\/[\d.]+/)?.[0] || navigator.userAgent.substring(0, 50)}`;
             const diag = window.budgetDiagnostics || { errors: [], failedRequests: [] };

@@ -8,8 +8,8 @@ import { ActionBuilder } from './components/ActionBuilder.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
-import { serverErrorMessage } from '../../utils/helpers.js';
 import { showLoadError } from '../../utils/loading.js';
+import { apiFetch } from '../../utils/api.js';
 
 export default class RulesModule {
     constructor(app) {
@@ -64,9 +64,6 @@ export default class RulesModule {
         return formatters.formatDate(dateStr, this.settings);
     }
 
-    escapeHtml(text) {
-        return dom.escapeHtml(text);
-    }
 
     hideModals() {
         return this.app.hideModals();
@@ -82,8 +79,7 @@ export default class RulesModule {
 
         try {
             // Load global tags for the action builder
-            const resp = await fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } });
-            if (resp.ok) this.app.globalTags = await resp.json();
+            this.app.globalTags = await apiFetch('/apps/budget/api/tags/global');
         } catch (e) { /* ignore */ }
 
         try {
@@ -99,13 +95,7 @@ export default class RulesModule {
 
     async loadRules() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            this.rules = await response.json();
+            this.rules = await apiFetch('/apps/budget/api/import-rules');
             this.applyFilterAndSort();
             this.updateRulesSummary();
         } catch (error) {
@@ -130,7 +120,7 @@ export default class RulesModule {
                 'ends_with': t('budget', 'ends with'),
                 'regex': t('budget', 'matches')
             };
-            criteriaText = `${rule.field} ${matchTypeLabels[rule.matchType] || rule.matchType} "${this.escapeHtml(rule.pattern)}"`;
+            criteriaText = `${rule.field} ${matchTypeLabels[rule.matchType] || rule.matchType} "${dom.escapeHtml(rule.pattern)}"`;
         }
 
         // Shared rules: read-only unless the owner granted write. Only the owner
@@ -145,7 +135,7 @@ export default class RulesModule {
         return `
             <tr class="rule-row ${rule.active ? '' : 'inactive'}" data-rule-id="${rule.id}">
                 <td class="rules-col-priority">${rule.priority}</td>
-                <td class="rules-col-name">${this.escapeHtml(rule.name)}${sharedBadge}</td>
+                <td class="rules-col-name">${dom.escapeHtml(rule.name)}${sharedBadge}</td>
                 <td class="rules-col-status">
                     <label class="rule-toggle" title="${rule.active ? t('budget', 'Click to disable') : t('budget', 'Click to enable')}">
                         <input type="checkbox" class="rule-active-toggle" data-rule-id="${rule.id}" ${rule.active ? 'checked' : ''} ${canWrite ? '' : 'disabled'}>
@@ -221,7 +211,7 @@ export default class RulesModule {
         // A 'between' range is stored as a {min, max} object
         const pattern = patternText(condition.pattern);
 
-        return `${negate}${field} ${matchType} "${this.escapeHtml(pattern)}"`;
+        return `${negate}${field} ${matchType} "${dom.escapeHtml(pattern)}"`;
     }
 
     countConditions(node) {
@@ -248,11 +238,11 @@ export default class RulesModule {
                     case 'category': {
                         const cat = this.categories?.find(c => c.id === action.value);
                         const name = cat?.name || t('budget', 'Category #{id}', { id: action.value });
-                        badges.push(`<span class="action-badge category">→ ${this.escapeHtml(name)}</span>`);
+                        badges.push(`<span class="action-badge category">→ ${dom.escapeHtml(name)}</span>`);
                         break;
                     }
                     case 'vendor':
-                        badges.push(`<span class="action-badge vendor">${t('budget', 'Vendor:')} ${this.escapeHtml(action.value)}</span>`);
+                        badges.push(`<span class="action-badge vendor">${t('budget', 'Vendor:')} ${dom.escapeHtml(action.value)}</span>`);
                         break;
                     case 'notes':
                         badges.push(`<span class="action-badge notes">${t('budget', 'Set notes')}</span>`);
@@ -261,7 +251,7 @@ export default class RulesModule {
                         badges.push(`<span class="action-badge tags">${t('budget', 'Set tags')}</span>`);
                         break;
                     case 'type':
-                        badges.push(`<span class="action-badge type">${t('budget', 'Type:')} ${this.escapeHtml(action.value)}</span>`);
+                        badges.push(`<span class="action-badge type">${t('budget', 'Type:')} ${dom.escapeHtml(action.value)}</span>`);
                         break;
                     case 'account':
                         badges.push(`<span class="action-badge account">${t('budget', 'Move account')}</span>`);
@@ -277,12 +267,12 @@ export default class RulesModule {
             if (categoryId) {
                 const category = this.categories?.find(c => c.id === categoryId);
                 const categoryName = category?.name || t('budget', 'Category #{id}', { id: categoryId });
-                badges.push(`<span class="action-badge category">→ ${this.escapeHtml(categoryName)}</span>`);
+                badges.push(`<span class="action-badge category">→ ${dom.escapeHtml(categoryName)}</span>`);
             }
 
             const vendor = actions.vendor || rule.vendorName;
             if (vendor) {
-                badges.push(`<span class="action-badge vendor">${t('budget', 'Vendor:')} ${this.escapeHtml(vendor)}</span>`);
+                badges.push(`<span class="action-badge vendor">${t('budget', 'Vendor:')} ${dom.escapeHtml(vendor)}</span>`);
             }
 
             if (actions.notes) {
@@ -413,13 +403,13 @@ export default class RulesModule {
             const isExpanded = this.expandedGroups.has(groupName);
             const activeCount = groupRules.filter(r => r.active).length;
 
-            html += `<tr class="rules-group-header" data-group="${this.escapeHtml(groupName)}" tabindex="0">
+            html += `<tr class="rules-group-header" data-group="${dom.escapeHtml(groupName)}" tabindex="0">
                 <td colspan="6">
                     <div class="group-header-content">
                         <span class="group-toggle ${isExpanded ? 'expanded' : ''}">&#9656;</span>
-                        <span class="group-name">${this.escapeHtml(groupName)}</span>
+                        <span class="group-name">${dom.escapeHtml(groupName)}</span>
                         <span class="group-count">${groupRules.length} ${groupRules.length === 1 ? t('budget', 'rule') : t('budget', 'rules')} · ${activeCount} ${t('budget', 'active')}</span>
-                        <button class="group-run-btn" data-group="${this.escapeHtml(groupName)}" title="${t('budget', 'Run all rules in this group')}">${t('budget', 'Run Group')}</button>
+                        <button class="group-run-btn" data-group="${dom.escapeHtml(groupName)}" title="${t('budget', 'Run all rules in this group')}">${t('budget', 'Run Group')}</button>
                     </div>
                 </td>
             </tr>`;
@@ -726,14 +716,7 @@ export default class RulesModule {
 
         if (needsMigration) {
             try {
-                const response = await fetch(OC.generateUrl(`/apps/budget/api/import-rules/${rule.id}/migrate`), {
-                    method: 'POST',
-                    headers: { 'requesttoken': OC.requestToken }
-                });
-
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-                rule = await response.json();
+                rule = await apiFetch(`/apps/budget/api/import-rules/${rule.id}/migrate`, { method: 'POST' });
                 showSuccess(t('budget', 'This rule has been upgraded to the new format with advanced features'));
             } catch (error) {
                 console.error('Failed to migrate rule:', error);
@@ -859,7 +842,7 @@ export default class RulesModule {
         }
 
         datalist.innerHTML = [...groups].sort().map(g =>
-            `<option value="${this.escapeHtml(g)}">`
+            `<option value="${dom.escapeHtml(g)}">`
         ).join('');
     }
 
@@ -912,26 +895,16 @@ export default class RulesModule {
         previewCount.textContent = '...';
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules/test-unsaved'), {
+            const result = await apiFetch('/apps/budget/api/import-rules/test-unsaved', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     criteria,
                     schemaVersion: 2,
                     uncategorizedOnly: false,
                     limit: 50
-                })
+                },
+                errorMessage: 'Failed to preview rule',
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, 'Failed to preview rule'));
-            }
-
-            const result = await response.json();
             this.displayRulePreview(result);
 
         } catch (error) {
@@ -988,8 +961,8 @@ export default class RulesModule {
 
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${this.escapeHtml(this.formatDate(match.date))}</td>
-                <td>${this.escapeHtml(match.description || '')}</td>
+                <td>${dom.escapeHtml(this.formatDate(match.date))}</td>
+                <td>${dom.escapeHtml(match.description || '')}</td>
                 <td class="${match.amount >= 0 ? 'amount-positive' : 'amount-negative'}">${this.formatCurrency(match.amount)}</td>
                 <td>${categoryName}</td>
             `;
@@ -1008,12 +981,12 @@ export default class RulesModule {
      */
     _ruleCategoryLabel(row) {
         if (row.isSplit || row.is_split) {
-            return `<span class="split-category">${this.escapeHtml(t('budget', 'Split'))}</span>`;
+            return `<span class="split-category">${dom.escapeHtml(t('budget', 'Split'))}</span>`;
         }
         const category = row.categoryId ? this.categories.find(c => c.id === row.categoryId) : null;
         return category
-            ? this.escapeHtml(category.name)
-            : `<em>${this.escapeHtml(t('budget', 'Uncategorized'))}</em>`;
+            ? dom.escapeHtml(category.name)
+            : `<em>${dom.escapeHtml(t('budget', 'Uncategorized'))}</em>`;
     }
 
     async runRuleNow() {
@@ -1039,24 +1012,14 @@ export default class RulesModule {
             runBtn.textContent = t('budget', 'Running...');
             resultsSection.style.display = 'none';
 
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules/apply'), {
+            const result = await apiFetch('/apps/budget/api/import-rules/apply', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     ruleIds: [parseInt(ruleId)],
                     uncategorizedOnly: false
-                })
+                },
+                errorMessage: 'Failed to run rule',
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, 'Failed to run rule'));
-            }
-
-            const result = await response.json();
             this.displayRunResults(result);
 
             if (result.success > 0) {
@@ -1114,8 +1077,8 @@ export default class RulesModule {
         const actions = this.actionBuilder.getActions();
 
         const url = isEdit
-            ? OC.generateUrl(`/apps/budget/api/import-rules/${ruleId}`)
-            : OC.generateUrl('/apps/budget/api/import-rules');
+            ? `/apps/budget/api/import-rules/${ruleId}`
+            : '/apps/budget/api/import-rules';
 
         const requestBody = {
             name,
@@ -1129,21 +1092,11 @@ export default class RulesModule {
             stopProcessing: actions.stopProcessing
         };
 
-        const response = await fetch(url, {
+        const savedRule = await apiFetch(url, {
             method: isEdit ? 'PUT' : 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'requesttoken': OC.requestToken
-            },
-            body: JSON.stringify(requestBody)
+            body: requestBody,
+            errorMessage: 'Failed to save rule',
         });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(serverErrorMessage(error, 'Failed to save rule'));
-        }
-
-        const savedRule = await response.json();
 
         // Update the rule ID in the form (for new rules)
         if (!isEdit && savedRule.id) {
@@ -1206,8 +1159,8 @@ export default class RulesModule {
 
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${this.escapeHtml(this.formatDate(item.date))}</td>
-                <td>${this.escapeHtml(item.description || '')}</td>
+                <td>${dom.escapeHtml(this.formatDate(item.date))}</td>
+                <td>${dom.escapeHtml(item.description || '')}</td>
                 <td class="${item.amount >= 0 ? 'amount-positive' : 'amount-negative'}">${this.formatCurrency(item.amount)}</td>
                 <td>${categoryName}</td>
             `;
@@ -1233,22 +1186,14 @@ export default class RulesModule {
 
         try {
             const url = isEdit
-                ? OC.generateUrl(`/apps/budget/api/import-rules/${ruleId}`)
-                : OC.generateUrl('/apps/budget/api/import-rules');
+                ? `/apps/budget/api/import-rules/${ruleId}`
+                : '/apps/budget/api/import-rules';
 
-            const response = await fetch(url, {
+            await apiFetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(requestBody)
+                body: requestBody,
+                errorMessage: 'Failed to save rule',
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, 'Failed to save rule'));
-            }
 
             showSuccess(isEdit ? t('budget', 'Rule updated successfully') : t('budget', 'Rule created successfully'));
             this.hideModals();
@@ -1479,25 +1424,19 @@ export default class RulesModule {
             body.matchType = rule.matchType || 'contains';
         }
 
-        const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules'), {
+        const created = await apiFetch('/apps/budget/api/import-rules', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-            body: JSON.stringify(body),
+            body,
+            errorMessage: 'Failed to create rule',
         });
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            throw new Error(serverErrorMessage(error, 'Failed to create rule'));
-        }
 
         // The create endpoint always makes new rules active; restore a disabled
         // state so an exported inactive rule doesn't start running on import.
         if (rule.active === false) {
-            const created = await response.json().catch(() => null);
             if (created && created.id) {
-                await fetch(OC.generateUrl(`/apps/budget/api/import-rules/${created.id}`), {
+                await apiFetch(`/apps/budget/api/import-rules/${created.id}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                    body: JSON.stringify({ active: false }),
+                    body: { active: false },
                 }).catch(() => {});
             }
         }
@@ -1654,13 +1593,7 @@ export default class RulesModule {
 
     async editRule(ruleId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/import-rules/${ruleId}`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const rule = await response.json();
+            const rule = await apiFetch(`/apps/budget/api/import-rules/${ruleId}`);
             this.showRuleModal(rule);
         } catch (error) {
             console.error('Failed to load rule:', error);
@@ -1672,12 +1605,7 @@ export default class RulesModule {
         if (!await confirmDialog(t('budget', 'Are you sure you want to delete this rule?'), { destructive: true })) return;
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/import-rules/${ruleId}`), {
-                method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            await apiFetch(`/apps/budget/api/import-rules/${ruleId}`, { method: 'DELETE' });
 
             showSuccess(t('budget', 'Rule deleted successfully'));
             await this.loadRules();
@@ -1693,22 +1621,14 @@ export default class RulesModule {
             const rule = this.rules.find(r => r.id === ruleId);
             if (!rule) throw new Error('Rule not found');
 
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/import-rules/${ruleId}`), {
+            await apiFetch(`/apps/budget/api/import-rules/${ruleId}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     ...rule,
                     active: active
-                })
+                },
+                errorMessage: 'Failed to update rule',
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, 'Failed to update rule'));
-            }
 
             // Update local state
             rule.active = active;
@@ -1758,24 +1678,14 @@ export default class RulesModule {
         confirmBtn.textContent = t('budget', 'Running...');
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules/apply'), {
+            const result = await apiFetch('/apps/budget/api/import-rules/apply', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     ruleIds: [ruleId],
                     uncategorizedOnly
-                })
+                },
+                errorMessage: 'Failed to run rule',
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, 'Failed to run rule'));
-            }
-
-            const result = await response.json();
 
             this.hideModals();
 
@@ -1809,24 +1719,14 @@ export default class RulesModule {
 
         try {
             const ruleIds = groupRules.map(r => r.id);
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules/apply'), {
+            const result = await apiFetch('/apps/budget/api/import-rules/apply', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     ruleIds,
                     uncategorizedOnly: false
-                })
+                },
+                errorMessage: 'Failed to run group rules',
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, 'Failed to run group rules'));
-            }
-
-            const result = await response.json();
 
             if (result.success > 0) {
                 showSuccess(n('budget', 'Group applied: %n transaction updated', 'Group applied: %n transactions updated', result.success));
@@ -1912,21 +1812,13 @@ export default class RulesModule {
         executeBtn.textContent = t('budget', 'Applying...');
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules/apply'), {
+            const result = await apiFetch('/apps/budget/api/import-rules/apply', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     ruleIds,
                     ...filters
-                })
+                },
             });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const result = await response.json();
 
             // Show results summary
             document.getElementById('result-success-count').textContent = result.success;
