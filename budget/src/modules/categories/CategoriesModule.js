@@ -231,9 +231,11 @@ export default class CategoriesModule {
     }
 
     switchCategoryType(type) {
-        // Update active tab
-        document.querySelectorAll('.tab-button').forEach(btn => {
+        // Update active tab. Only this page's tabs: a bare .tab-button also
+        // matched the Bills, Budget and Transfers tabs and cleared theirs.
+        document.querySelectorAll('.categories-tabs .tab-button').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.tab === type);
+            btn.setAttribute('aria-selected', btn.dataset.tab === type ? 'true' : 'false');
         });
 
         this.currentCategoryType = type;
@@ -303,6 +305,7 @@ export default class CategoriesModule {
                 <div class="category-node" data-level="${level}">
                     <div class="category-item ${isSelected ? 'selected' : ''} ${isChecked ? 'checked' : ''} ${shared && !canWrite ? 'category-shared' : ''} ${shared && canWrite ? 'category-write-shared' : ''}"
                          data-category-id="${category.id}"
+                         tabindex="0"
                          ${shared && !canWrite ? 'data-shared="1"' : ''}${shared && canWrite ? 'data-write-shared="1"' : ''}
                          draggable="${shared ? 'false' : 'true'}">
                         ${shared ? '' : `<input type="checkbox"
@@ -311,7 +314,9 @@ export default class CategoriesModule {
                                ${isChecked ? 'checked' : ''}>`}
                         ${hasChildren ? `
                             <button class="category-toggle ${isExpanded ? 'expanded' : ''}"
-                                    data-category-id="${category.id}">
+                                    data-category-id="${category.id}"
+                                    aria-expanded="${isExpanded ? 'true' : 'false'}"
+                                    aria-label="${isExpanded ? t('budget', 'Collapse') : t('budget', 'Expand')}">
                                 <span class="icon-triangle-e" aria-hidden="true"></span>
                             </button>
                         ` : '<div style="width: 20px;"></div>'}
@@ -731,7 +736,7 @@ export default class CategoriesModule {
 
     updateAnalyticsFromServer(details) {
         const countEl = document.getElementById('total-transactions-count');
-        if (countEl) countEl.textContent = details.count.toLocaleString();
+        if (countEl) countEl.textContent = details.count.toLocaleString(formatters.userLocale());
 
         const avgEl = document.getElementById('avg-transaction-amount');
         if (avgEl) avgEl.textContent = this.formatCurrency(details.average);
@@ -850,8 +855,8 @@ export default class CategoriesModule {
             const key = formatters.shiftMonth(currentMonth, -i);
             const d = formatters.parseLocalDate(`${key}-01`);
             const label = monthCount > 12
-                ? d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' })
-                : d.toLocaleDateString(undefined, { month: 'short' });
+                ? d.toLocaleDateString(formatters.userLocale(), { month: 'short', year: '2-digit' })
+                : d.toLocaleDateString(formatters.userLocale(), { month: 'short' });
             labels.push(label);
             amounts.push(serverMap[key] || 0);
         }
@@ -1926,7 +1931,7 @@ export default class CategoriesModule {
         const container = document.getElementById('budget-snapshot-controls');
         if (!container) return;
 
-        const monthLabel = formatters.parseLocalDate(this.budgetMonth + '-01').toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+        const monthLabel = formatters.parseLocalDate(this.budgetMonth + '-01').toLocaleDateString(formatters.userLocale(), { month: 'long', year: 'numeric' });
 
         if (this._currentMonthHasSnapshot) {
             // Show notice that this month has adjusted budgets
@@ -1957,7 +1962,7 @@ export default class CategoriesModule {
     }
 
     confirmCreateSnapshot() {
-        const monthLabel = formatters.parseLocalDate(this.budgetMonth + '-01').toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+        const monthLabel = formatters.parseLocalDate(this.budgetMonth + '-01').toLocaleDateString(formatters.userLocale(), { month: 'long', year: 'numeric' });
 
         OC.dialogs.confirmDestructive(
             t('budget', 'This will save the current budget values as a new baseline from {month} onwards. Previous months will keep their existing values. You can edit the new values after confirming.', { month: monthLabel }),
@@ -1995,7 +2000,7 @@ export default class CategoriesModule {
                 this.updateBudgetSummary();
                 this.renderSnapshotControls();
 
-                const monthLabel = new Date(month + '-01').toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+                const monthLabel = formatters.parseLocalDate(month + '-01').toLocaleDateString(formatters.userLocale(), { month: 'long', year: 'numeric' });
                 showSuccess(t('budget', 'Budget adjusted from {month}. You can now edit values for this month onwards.', { month: monthLabel }));
 
                 // Undo toast
@@ -2140,7 +2145,7 @@ export default class CategoriesModule {
         for (let i = -12; i <= 3; i++) {
             const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
             const value = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
-            const label = date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+            const label = date.toLocaleDateString(formatters.userLocale(), { month: 'long', year: 'numeric' });
             options.push({ value, label });
         }
 

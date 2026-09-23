@@ -78,6 +78,7 @@ import { showSuccess, showError, showWarning } from './utils/notifications.js';
 import { confirmDialog } from './utils/dialogs.js';
 import { initDatePickers } from './utils/datepicker.js';
 import { setupHeaderMenus } from './utils/headerMenu.js';
+import { setupClickableCards } from './utils/clickableCards.js';
 import { serverErrorMessage, hasSplitPortion, transactionDisplayAmount } from './utils/helpers.js';
 
 // Configuration
@@ -672,6 +673,7 @@ class BudgetApp {
         // Help panel
         this.setupHelpPanel();
         setupHeaderMenus();
+        setupClickableCards();
 
         // Window resize handler for responsive dashboard layout
         let resizeTimeout;
@@ -1281,6 +1283,7 @@ class BudgetApp {
                 <tr class="transaction-row ${isLinked ? 'is-linked' : ''}${transaction.reconciled ? ' is-reconciled' : ''}${transaction.status === 'scheduled' ? ' scheduled-transaction' : ''}${transaction.status === 'pending' ? ' pending-transaction' : ''}" data-transaction-id="${transaction.id}">
                     <td class="select-column">
                         <input type="checkbox" class="transaction-checkbox"
+                               aria-label="${this.escapeHtml(t('budget', 'Select {description}', { description: transaction.description || t('budget', 'No description') }, undefined, { escape: false }))}"
                                data-transaction-id="${transaction.id}"
                                ${this.transactionsModule.selectedTransactions?.has(transaction.id) ? 'checked' : ''}>
                     </td>
@@ -1919,10 +1922,7 @@ class BudgetApp {
         modal.id = 'repair-data-modal';
         modal.className = 'budget-modal-overlay';
 
-        const formatCurrency = (amount) => {
-            const currency = this.settings?.default_currency || '';
-            return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD', minimumFractionDigits: 2 }).format(amount);
-        };
+        const formatCurrency = (amount) => this.formatCurrency(amount, this.getPrimaryCurrency());
 
         // Build findings HTML
         let findingsHtml = '';
@@ -2484,7 +2484,7 @@ class BudgetApp {
             // Populate preview
             document.getElementById('preview-version').textContent = result.manifest?.version || t('budget', 'Unknown');
             document.getElementById('preview-date').textContent = result.manifest?.exportedAt
-                ? new Date(result.manifest.exportedAt).toLocaleString()
+                ? new Date(result.manifest.exportedAt).toLocaleString(formatters.userLocale())
                 : t('budget', 'Unknown');
 
             document.getElementById('preview-categories').textContent = result.counts?.categories || 0;
@@ -2873,11 +2873,11 @@ class BudgetApp {
         if (dateEl) {
             if (plan.payoffDate) {
                 const date = new Date(plan.payoffDate);
-                dateEl.textContent = date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+                dateEl.textContent = date.toLocaleDateString(formatters.userLocale(), { month: 'short', year: 'numeric' });
             } else if (plan.totalMonths) {
                 const now = new Date();
                 now.setMonth(now.getMonth() + plan.totalMonths);
-                dateEl.textContent = now.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+                dateEl.textContent = now.toLocaleDateString(formatters.userLocale(), { month: 'short', year: 'numeric' });
             } else {
                 dateEl.textContent = t('budget', 'N/A');
             }
@@ -3045,7 +3045,7 @@ class BudgetApp {
             if (debt.payoffMonth) {
                 const payoffDate = new Date();
                 payoffDate.setMonth(payoffDate.getMonth() + debt.payoffMonth);
-                payoffDateStr = payoffDate.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+                payoffDateStr = payoffDate.toLocaleDateString(formatters.userLocale(), { month: 'short', year: 'numeric' });
             }
 
             return `

@@ -154,7 +154,7 @@ export default class AssetsModule {
             : '';
 
         return `
-            <div class="asset-card" data-id="${asset.id}">
+            <div class="asset-card" data-id="${asset.id}" tabindex="0">
                 <div class="asset-card-header">
                     <div class="asset-card-title">
                         <span class="asset-type-icon" style="background: ${typeInfo.color}15; color: ${typeInfo.color}">

@@ -529,7 +529,7 @@ export default class AccountsModule {
         };
 
         return `
-            <div class="account-card${account.closed ? ' is-closed' : ''}" data-type="${accountType}" data-account-id="${accountId}">
+            <div class="account-card${account.closed ? ' is-closed' : ''}" data-type="${accountType}" data-account-id="${accountId}" tabindex="0">
                 ${this.renderAccountSelectCheckbox(accountId)}
                 <div class="account-card-header">
                     <div class="account-icon" style="background-color: ${typeInfo.color};">
@@ -1800,7 +1800,7 @@ export default class AccountsModule {
             const currency = this.currentAccount?.currency || this.getPrimaryCurrency();
 
             document.getElementById('total-transactions').textContent =
-                (metrics.totalTransactions || 0).toLocaleString();
+                (metrics.totalTransactions || 0).toLocaleString(formatters.userLocale());
             document.getElementById('total-income').textContent =
                 this.formatCurrency(metrics.thisMonthIncome || 0, currency);
             document.getElementById('total-expenses').textContent =

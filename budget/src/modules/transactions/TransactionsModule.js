@@ -790,6 +790,13 @@ export default class TransactionsModule {
             currentHeader.className = `sort-indicator ${this.app.currentSort.direction}`;
         }
 
+        // Tell assistive tech which column is sorted, and which way.
+        document.querySelectorAll('#transactions-table th[data-sort]').forEach(th => {
+            th.setAttribute('aria-sort', th.dataset.sort === field
+                ? (this.app.currentSort.direction === 'asc' ? 'ascending' : 'descending')
+                : 'none');
+        });
+
         this.app.loadTransactions();
     }
 

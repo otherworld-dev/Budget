@@ -99,7 +99,7 @@ export default class SavingsModule {
 
             let targetDateText = '';
             if (targetDate) {
-                const date = new Date(targetDate);
+                const date = formatters.parseLocalDate(targetDate);
                 const today = new Date();
                 const daysLeft = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
 
@@ -110,7 +110,7 @@ export default class SavingsModule {
                 } else if (daysLeft <= 30) {
                     targetDateText = n('budget', '%n day left', '%n days left', daysLeft);
                 } else {
-                    targetDateText = t('budget', 'Target: {date}', { date: date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) });
+                    targetDateText = t('budget', 'Target: {date}', { date: formatters.formatDate(targetDate, this.settings) });
                 }
             }
 

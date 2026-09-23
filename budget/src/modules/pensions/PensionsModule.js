@@ -106,7 +106,7 @@ export default class PensionsModule {
         }
 
         return `
-            <div class="pension-card" data-id="${pension.id}">
+            <div class="pension-card" data-id="${pension.id}" tabindex="0">
                 <div class="pension-card-header">
                     <h4 class="pension-name">${dom.escapeHtml(pension.name)}</h4>
                     <span class="pension-type-badge pension-type-${pension.type}">${typeLabel}</span>

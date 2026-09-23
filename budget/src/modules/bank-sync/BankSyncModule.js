@@ -3,6 +3,7 @@ import { showSuccess, showError } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { serverErrorMessage } from '../../utils/helpers.js';
 import { pickableAccounts, accountOptionLabel } from '../../utils/accounts.js';
+import { userLocale } from '../../utils/formatters.js';
 
 /**
  * Bank Sync Module — manages bank connections, account mappings, and sync operations.
@@ -160,7 +161,7 @@ export default class BankSyncModule {
 
             const providerLabel = connection.provider === 'gocardless' ? 'GoCardless' : 'SimpleFIN';
             const lastSync = connection.lastSyncAt
-                ? t('budget', 'Last sync: {date}', { date: new Date(connection.lastSyncAt).toLocaleString() })
+                ? t('budget', 'Last sync: {date}', { date: new Date(connection.lastSyncAt).toLocaleString(userLocale()) })
                 : t('budget', 'Never synced');
             const mappedCount = mappings.filter(m => m.budgetAccountId && m.enabled).length;
             const isExpired = connection.status === 'expired';
@@ -824,7 +825,7 @@ export default class BankSyncModule {
                         <div>
                             <strong>${this.escapeHtml(mapping.externalAccountName || mapping.externalAccountId)}</strong>
                             ${balance ? `<small>${balance}</small>` : ''}
-                            ${mapping.consentExpires ? `<small class="consent-warning">${t('budget', 'Consent expires: {date}', { date: new Date(mapping.consentExpires).toLocaleDateString() })}</small>` : ''}
+                            ${mapping.consentExpires ? `<small class="consent-warning">${t('budget', 'Consent expires: {date}', { date: new Date(mapping.consentExpires).toLocaleDateString(userLocale()) })}</small>` : ''}
                         </div>
                     </div>
                     <div class="bank-mapping-target">

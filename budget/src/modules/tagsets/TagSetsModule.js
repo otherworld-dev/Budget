@@ -426,7 +426,7 @@ export default class TagSetsModule {
                                     ${dom.escapeHtml(tag.name)}
                                     ${tag.hidden ? `<span class="tag-hidden-label">${t('budget', 'Hidden')}</span>` : ''}
                                     <button type="button" class="edit-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" data-tag-name="${dom.escapeHtml(tag.name)}" data-tag-color="${tag.color || '#666666'}" data-tag-hidden="${tag.hidden ? '1' : '0'}" title="${t('budget', 'Edit tag')}">✎</button>
-                                    <button type="button" class="delete-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}">×</button>
+                                    <button type="button" class="delete-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete tag')}" aria-label="${t('budget', 'Delete tag')}">×</button>
                                 </span>
                             `).join('') : `<span style="color: #999; font-size: 12px;">${t('budget', 'No tags yet')}</span>`}
                         </div>

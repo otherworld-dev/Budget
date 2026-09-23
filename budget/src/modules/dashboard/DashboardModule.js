@@ -988,11 +988,11 @@ export default class DashboardModule {
         const msPerDay = 1000 * 60 * 60 * 24;
         const daysLeft = Math.max(0, Math.round((payoff - today) / msPerDay));
 
-        el.textContent = daysLeft.toLocaleString();
+        el.textContent = daysLeft.toLocaleString(formatters.userLocale());
 
         const changeEl = document.getElementById('hero-debt-free-change');
         if (changeEl) {
-            const payoffDisplay = payoff.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+            const payoffDisplay = payoff.toLocaleDateString(formatters.userLocale(), { month: 'short', year: 'numeric' });
             changeEl.textContent = t('budget', 'Debt free by {date}', { date: payoffDisplay });
         }
     }
@@ -1615,7 +1615,7 @@ export default class DashboardModule {
             const statsEl = document.getElementById('debt-chart-widget-stats');
             if (statsEl) {
                 const totalDebt = plan.debts.reduce((sum, d) => sum + (parseFloat(d.originalBalance) || 0), 0);
-                const payoffDate = plan.payoffDate ? new Date(plan.payoffDate).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : 'N/A';
+                const payoffDate = plan.payoffDate ? new Date(plan.payoffDate).toLocaleDateString(formatters.userLocale(), { month: 'short', year: 'numeric' }) : 'N/A';
                 statsEl.innerHTML = `
                     <div style="flex:1;"><div style="font-size:10px;color:var(--color-text-maxcontrast);">${t('budget', 'Total Debt')}</div><div style="font-size:14px;font-weight:bold;color:var(--color-error);">${this.formatCurrency(totalDebt)}</div></div>
                     <div style="flex:1;"><div style="font-size:10px;color:var(--color-text-maxcontrast);">${t('budget', 'Debt Free')}</div><div style="font-size:14px;font-weight:bold;color:var(--color-success);">${payoffDate}</div></div>
@@ -1625,7 +1625,7 @@ export default class DashboardModule {
             // End date label
             const endEl = document.getElementById('debt-chart-widget-end');
             if (endEl && plan.payoffDate) {
-                endEl.textContent = new Date(plan.payoffDate).toLocaleDateString(undefined, { year: 'numeric' });
+                endEl.textContent = new Date(plan.payoffDate).toLocaleDateString(formatters.userLocale(), { year: 'numeric' });
             }
 
             // Mini sparkline chart
@@ -1721,7 +1721,7 @@ export default class DashboardModule {
                         nextNameEl.textContent = nextDebt.name;
                         const payoffDate = new Date();
                         payoffDate.setMonth(payoffDate.getMonth() + nextDebt.payoffMonth);
-                        if (nextDateEl) nextDateEl.textContent = payoffDate.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+                        if (nextDateEl) nextDateEl.textContent = payoffDate.toLocaleDateString(formatters.userLocale(), { month: 'short', year: 'numeric' });
                     }
                 }
 
@@ -1783,7 +1783,7 @@ export default class DashboardModule {
                 statusClass = 'due-soon';
                 dueText = n('budget', 'Due in %n day', 'Due in %n days', daysUntilDue);
             } else {
-                dueText = t('budget', 'Due {date}', { date: formatters.parseLocalDate(dueDateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) });
+                dueText = t('budget', 'Due {date}', { date: formatters.parseLocalDate(dueDateStr).toLocaleDateString(formatters.userLocale(), { month: 'short', day: 'numeric' }) });
             }
 
             return `
@@ -5546,8 +5546,9 @@ export default class DashboardModule {
                         <span class="tile-name">${tile.name}</span>
                         ${sizeBadge}
                     </span>
-                    <button class="add-tile-btn" data-widget-id="${tile.key}" data-category="${tile.type}">
-                        <span class="icon-add"></span>
+                    <button class="add-tile-btn" data-widget-id="${tile.key}" data-category="${tile.type}"
+                            aria-label="${t('budget', 'Add {name}', { name: tile.name })}">
+                        <span class="icon-add" aria-hidden="true"></span>
                     </button>
                 `;
                 menuList.appendChild(item);
@@ -5579,8 +5580,9 @@ export default class DashboardModule {
                         <span class="tile-name">${tile.name}</span>
                         <span class="tile-size-badge">${this.countInstances(tile.key)}/${MAX_INSTANCES}</span>
                     </span>
-                    <button class="add-tile-btn add-another-btn" data-widget-type="${tile.key}">
-                        <span class="icon-add"></span>
+                    <button class="add-tile-btn add-another-btn" data-widget-type="${tile.key}"
+                            aria-label="${t('budget', 'Add {name}', { name: tile.name })}">
+                        <span class="icon-add" aria-hidden="true"></span>
                     </button>
                 `;
                 menuList.appendChild(item);

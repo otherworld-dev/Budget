@@ -457,7 +457,6 @@
     transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-
 /* A pension or asset card with nothing behind it would only ever read 0.
    It steps aside while the dashboard is locked, and shows again while the
    dashboard is being arranged. */
@@ -954,11 +953,6 @@
     margin-bottom: 16px;
 }
 
-.chart-empty-state .btn-small {
-    padding: 6px 12px;
-    font-size: 13px;
-}
-
 /* Net Worth Snapshot Status */
 .net-worth-status {
     padding: 10px 16px;
@@ -1027,12 +1021,6 @@
 
 .spending-legend-item:last-child {
     border-bottom: none;
-}
-
-.spending-legend-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
 }
 
 .spending-legend-color {
@@ -1129,12 +1117,6 @@
     font-variant-numeric: tabular-nums;
 }
 
-.spending-legend-percent {
-    font-size: 12px;
-    color: var(--color-text-maxcontrast);
-    margin-left: 8px;
-}
-
 .chart-legend {
     display: flex;
     justify-content: center;
@@ -1142,19 +1124,6 @@
     margin-top: 12px;
     flex-wrap: wrap;
     flex-shrink: 0;
-}
-
-.chart-legend-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-}
-
-.chart-legend-color {
-    width: 12px;
-    height: 12px;
-    border-radius: 2px;
 }
 
 /* Accounts Widget */
@@ -1237,11 +1206,6 @@
     font-size: 11px;
     color: var(--color-text-maxcontrast);
     font-variant-numeric: tabular-nums;
-}
-
-.account-widget-sparkline {
-    height: 20px;
-    margin-top: 4px;
 }
 
 /* Bills Widget */
@@ -1688,23 +1652,11 @@
     max-width: 100% !important;
 }
 
-.account-summary-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--color-border-dark);
-}
-
-.account-summary-item:last-child {
-    border-bottom: none;
-}
-
 /* Responsive Dashboard */
 @media (max-width: 1200px) {
     .dashboard-hero {
         grid-template-columns: repeat(2, 1fr);
     }
-
 
     /* Accounts Page */
     .accounts-grid {
@@ -1960,14 +1912,6 @@
     flex-wrap: wrap;
 }
 
-.forecast-results {
-    background: var(--color-main-background);
-    border: 1px solid var(--color-border);
-    border-radius: 3px;
-    padding: 20px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
 /* Reports */
 .reports-controls {
     display: flex;
@@ -2128,16 +2072,6 @@ button.secondary:focus {
     box-shadow: 0 0 0 2px var(--color-primary-light);
 }
 
-/* Tertiary Button - Subtle Actions */
-button.tertiary {
-    background: transparent;
-    color: var(--color-main-text);
-}
-
-button.tertiary:hover {
-    background: var(--color-background-hover);
-}
-
 /* Success Button - Positive Actions */
 button.success {
     background: var(--color-success);
@@ -2206,21 +2140,6 @@ button.danger:hover {
     to {
         transform: rotate(360deg);
     }
-}
-
-/* Account Summary Items */
-.account-summary-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px;
-    border-bottom: 1px solid var(--color-border);
-    min-height: 44px;
-    box-sizing: border-box;
-}
-
-.account-summary-item:last-child {
-    border-bottom: none;
 }
 
 /* Legacy styles removed - replaced with account list styles */
@@ -2339,31 +2258,6 @@ button.danger:hover {
 }
 
 /* Account List */
-.account-list-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--color-main-background);
-    border: 1px solid var(--color-border);
-    border-radius: var(--border-radius);
-    padding: 12px 16px;
-    margin-bottom: 1px;
-    transition: background-color 0.2s ease-in-out;
-}
-
-.account-list-item:hover {
-    background: var(--color-background-hover);
-}
-
-.account-list-item:first-child {
-    border-top-left-radius: var(--border-radius);
-    border-top-right-radius: var(--border-radius);
-}
-
-.account-list-item:last-child {
-    border-bottom-left-radius: var(--border-radius);
-    border-bottom-right-radius: var(--border-radius);
-}
 
 .account-info {
     display: flex;
@@ -2371,13 +2265,6 @@ button.danger:hover {
     justify-content: space-between;
     flex: 1;
     gap: 20px;
-}
-
-.account-main {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex: 1;
 }
 
 .account-name {
@@ -2773,7 +2660,7 @@ button.danger:hover {
     margin-bottom: 0;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 768px) {
     .form-extras-grid {
         grid-template-columns: 1fr;
     }
@@ -2833,7 +2720,7 @@ button.danger:hover {
 }
 
 /* Form Grid Layout for Better Organization */
-@media (min-width: 768px) {
+@media (min-width: 769px) {
     .form-section {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -2851,45 +2738,15 @@ button.danger:hover {
     }
 }
 
-/* Account Type Specific Styling */
-.account-list-item[data-type="checking"] .account-type::before {
-    content: "🏦 ";
-}
-
-.account-list-item[data-type="savings"] .account-type::before {
-    content: "💰 ";
-}
-
-.account-list-item[data-type="credit_card"] .account-type::before {
-    content: "💳 ";
-}
-
-.account-list-item[data-type="investment"] .account-type::before {
-    content: "📈 ";
-}
-
-.account-list-item[data-type="loan"] .account-type::before {
-    content: "🏠 ";
-}
-
-.account-list-item[data-type="cash"] .account-type::before {
-    content: "💵 ";
-}
-
 /* Mobile responsive styling for account list */
-@media (max-width: 767px) {
+@media (max-width: 768px) {
     .account-info {
         flex-direction: column;
         align-items: flex-start;
         gap: 8px;
     }
 
-    .account-main {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-    }
-
+    
     .account-balance {
         text-align: left;
         font-size: 15px;
@@ -2902,7 +2759,7 @@ button.danger:hover {
 }
 
 /* Improve mobile layout for account forms */
-@media (max-width: 767px) {
+@media (max-width: 768px) {
     .form-section {
         display: block;
         gap: 0;
@@ -3545,44 +3402,11 @@ button.danger:hover {
     display: none;
 }
 
-.balance-main {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-}
-
 .credit-info {
     background: var(--color-background-hover);
     padding: 12px;
     border-radius: 8px;
     margin-top: 12px;
-}
-
-.credit-label {
-    font-size: 12px;
-    color: var(--color-text-maxcontrast);
-    display: block;
-    margin-bottom: 4px;
-}
-
-.credit-amount {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-main-text);
-}
-
-.credit-usage-bar {
-    background: var(--color-border);
-    height: 6px;
-    border-radius: 3px;
-    margin-top: 8px;
-    overflow: hidden;
-}
-
-.credit-usage {
-    height: 100%;
-    background: linear-gradient(90deg, #28a745 0%, #ffc107 70%, #dc3545 90%);
-    transition: width 0.3s ease;
 }
 
 .account-actions {
@@ -3623,15 +3447,15 @@ button.danger:hover {
 }
 
 .account-action-btn.edit-btn:hover {
-    background: #e3f2fd;
-    border-color: #2196f3;
-    color: #2196f3;
+    background: color-mix(in srgb, var(--color-primary-element) 14%, transparent);
+    border-color: var(--color-primary-element);
+    color: var(--color-primary-element);
 }
 
 .account-action-btn.delete-btn:hover {
-    background: #ffebee;
-    border-color: #f44336;
-    color: #f44336;
+    background: color-mix(in srgb, var(--budget-color-negative) 14%, transparent);
+    border-color: var(--budget-color-negative);
+    color: var(--budget-color-negative);
 }
 
 /* Validation Feedback Styles */
@@ -3646,28 +3470,28 @@ button.danger:hover {
 }
 
 .field-feedback.error {
-    background: #ffebee;
+    background: color-mix(in srgb, var(--budget-color-negative) 14%, transparent);
     color: var(--budget-color-negative);
-    border: 1px solid #ffcdd2;
+    border: 1px solid color-mix(in srgb, var(--budget-color-negative) 35%, transparent);
 }
 
 .field-feedback.success {
-    background: #e8f5e8;
+    background: color-mix(in srgb, var(--budget-color-positive) 14%, transparent);
     color: var(--budget-color-positive);
-    border: 1px solid #c8e6c9;
+    border: 1px solid color-mix(in srgb, var(--budget-color-positive) 35%, transparent);
 }
 
 /* Banking Field Validation States */
 .form-group input.error,
 .form-group select.error {
-    border-color: #f44336;
-    background-color: #ffebee;
+    border-color: var(--budget-color-negative);
+    background-color: color-mix(in srgb, var(--budget-color-negative) 14%, transparent);
 }
 
 .form-group input.success,
 .form-group select.success {
-    border-color: #4caf50;
-    background-color: #e8f5e8;
+    border-color: var(--budget-color-positive);
+    background-color: color-mix(in srgb, var(--budget-color-positive) 14%, transparent);
 }
 
 .form-group input.error:focus,
@@ -3733,12 +3557,7 @@ button.danger:hover {
         min-width: auto;
     }
 
-    .balance-main {
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-    }
-
+    
     .account-actions {
         justify-content: center;
         margin-left: 0;
@@ -3800,19 +3619,6 @@ button.danger:hover {
     to {
         transform: rotate(360deg);
     }
-}
-
-/* Enhanced Form Validation */
-.form-group.has-error input,
-.form-group.has-error select {
-    border-color: var(--color-error);
-    background-color: var(--color-error-bg, #ffebee);
-}
-
-.form-group.has-success input,
-.form-group.has-success select {
-    border-color: var(--color-success);
-    background-color: var(--color-success-bg, #e8f5e8);
 }
 
 /* Autocomplete improvements */
@@ -4055,76 +3861,6 @@ button.danger:hover {
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 16px;
     align-items: end;
-}
-
-.reconcile-info-float {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: var(--color-main-background);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-    z-index: 1000;
-    min-width: 300px;
-}
-
-.reconcile-info-content {
-    padding: 20px;
-}
-
-.reconcile-info-content h4 {
-    margin: 0 0 16px 0;
-    color: var(--color-main-text);
-}
-
-.reconcile-stats {
-    margin-bottom: 16px;
-}
-
-.reconcile-stats .stat {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--color-border);
-}
-
-.reconcile-stats .stat:last-child {
-    border-bottom: none;
-}
-
-.reconcile-stats .stat.balanced .amount {
-    color: var(--budget-color-positive);
-}
-
-.reconcile-stats .stat.unbalanced .amount {
-    color: var(--color-error, #dc3545);
-}
-
-.reconcile-message {
-    font-size: 13px;
-    margin: 0 0 16px 0;
-    line-height: 1.4;
-}
-
-.reconcile-message.balanced {
-    color: #5eea92;
-}
-
-.reconcile-message.unbalanced {
-    color: var(--color-text-lighter);
-}
-
-.reconcile-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.reconcile-actions button {
-    width: 100%;
 }
 
 /* Enhanced Transaction Table */
@@ -4662,13 +4398,13 @@ button.danger:hover {
 }
 
 .action-btn.edit-btn:hover {
-    background: #e3f2fd;
-    color: #2196f3;
+    background: color-mix(in srgb, var(--color-primary-element) 14%, transparent);
+    color: var(--color-primary-element);
 }
 
 .action-btn.delete-btn:hover {
-    background: #ffebee;
-    color: #f44336;
+    background: color-mix(in srgb, var(--budget-color-negative) 14%, transparent);
+    color: var(--budget-color-negative);
 }
 
 /* More actions dropdown (fixed position to avoid table overflow clipping) */
@@ -5326,39 +5062,6 @@ button.danger:hover {
     }
 }
 
-/* Type toggle for inline edit */
-.inline-type-toggle {
-    display: flex;
-    gap: 2px;
-}
-
-.inline-type-btn {
-    padding: 4px 8px;
-    border: 1px solid var(--color-border);
-    background: var(--color-main-background);
-    cursor: pointer;
-    font-size: 12px;
-    transition: all 0.15s ease;
-}
-
-.inline-type-btn:first-child {
-    border-radius: 3px 0 0 3px;
-}
-
-.inline-type-btn:last-child {
-    border-radius: 0 3px 3px 0;
-}
-
-.inline-type-btn.active {
-    background: var(--color-primary);
-    color: var(--color-primary-text);
-    border-color: var(--color-primary);
-}
-
-.inline-type-btn:hover:not(.active) {
-    background: var(--color-background-hover);
-}
-
 /* Saving indicator */
 .cell-saving {
     opacity: 0.6;
@@ -5429,27 +5132,19 @@ button.danger:hover {
         justify-content: center;
     }
 
-    .reconcile-info-float {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: calc(100% - 20px);
-        max-width: 400px;
     }
 
-    /* Hide less important columns on mobile */
-    @media (max-width: 640px) {
-        .account-column,
-        .reconcile-column,
-        .vendor-column,
-        .tags-column {
-            display: none;
-        }
+/* Hide less important columns on mobile */
+@media (max-width: 640px) {
+    .account-column,
+    .reconcile-column,
+    .vendor-column,
+    .tags-column {
+        display: none;
+    }
 
-        .description-column {
-            min-width: 150px;
-        }
+    .description-column {
+        min-width: 150px;
     }
 }
 
@@ -5968,19 +5663,6 @@ button.danger:hover {
 }
 
 /* Autocomplete suggestions dropdown */
-.autocomplete-suggestions {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: var(--color-main-background);
-    border: 1px solid var(--color-border);
-    border-radius: 0 0 4px 4px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    z-index: 1000;
-    max-height: 200px;
-    overflow-y: auto;
-}
 
 .autocomplete-item {
     padding: 8px 12px;
@@ -6224,9 +5906,11 @@ button.danger:hover {
     transition: all 0.2s ease;
 }
 
-.tab-button.active {
+.tab-button.active,
+.view-controls .categories-tabs .tab-button.active {
     background: var(--color-main-background);
     color: var(--color-main-text);
+    border-color: transparent;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
@@ -6667,21 +6351,6 @@ button.danger:hover {
     font-size: 11px;
 }
 
-.budget-indicator {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--color-success);
-}
-
-.budget-indicator.warning {
-    background: var(--color-warning);
-}
-
-.budget-indicator.over {
-    background: var(--color-error);
-}
-
 .category-children {
     margin-left: 20px;
     border-left: 1px solid var(--color-border-dark);
@@ -6785,14 +6454,6 @@ button.danger:hover {
 }
 
 /* Budget Section */
-.budget-section h5 {
-    margin: 0 0 16px 0;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-main-text);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
 
 .budget-overview {
     display: grid;
@@ -6801,29 +6462,12 @@ button.danger:hover {
     margin-bottom: 16px;
 }
 
-.budget-item {
-    text-align: center;
-}
-
-.budget-item label {
-    display: block;
-    font-size: 11px;
-    color: var(--color-text-maxcontrast);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 4px;
-}
-
 .budget-amount,
 .spent-amount,
 .remaining-amount {
     font-size: 16px;
     font-weight: 600;
     color: var(--color-main-text);
-}
-
-.spent-amount {
-    color: var(--color-error);
 }
 
 .remaining-amount.positive {
@@ -6859,15 +6503,6 @@ button.danger:hover {
 
 .progress-fill.over {
     background: var(--color-error);
-}
-
-.progress-label {
-    text-align: center;
-}
-
-.progress-label span {
-    font-size: 12px;
-    color: var(--color-text-lighter);
 }
 
 /* Recent Transactions */
@@ -7876,46 +7511,12 @@ button.danger:hover {
     background: var(--color-background-hover);
 }
 
-.rule-tester {
-    background: var(--color-background-hover);
-    padding: 20px;
-    border-radius: 8px;
-}
-
-.rule-tester h4 {
-    margin-bottom: 15px;
-    color: var(--color-main-text);
-}
-
-.test-input {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 15px;
-}
-
-.test-input input {
-    flex: 1;
-    padding: 8px 12px;
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    background: var(--color-main-background);
-}
-
 #test-results {
     padding: 10px;
     border-radius: 4px;
     min-height: 40px;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-}
-
-.test-results-match {
-    color: var(--color-success);
-    font-weight: 500;
-}
-
-.test-results-no-match {
-    color: var(--color-text-lighter);
 }
 
 /* Import History */
@@ -8042,10 +7643,7 @@ button.danger:hover {
         gap: 15px;
     }
 
-    .test-input {
-        flex-direction: column;
     }
-}
 
 /* =============================================
    Enhanced Forecast System Styles
@@ -8483,36 +8081,6 @@ button.danger:hover {
 }
 
 /* Skeleton Loading */
-.skeleton {
-    background: linear-gradient(90deg, var(--color-background-hover) 25%, var(--color-border) 50%, var(--color-background-hover) 75%);
-    background-size: 200% 100%;
-    animation: loading 1.5s infinite;
-}
-
-.skeleton-text {
-    height: 16px;
-    border-radius: 4px;
-    margin-bottom: 8px;
-}
-
-.skeleton-text.large {
-    height: 24px;
-}
-
-.skeleton-text.small {
-    height: 12px;
-}
-
-.skeleton-card {
-    height: 120px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-}
-
-.skeleton-chart {
-    height: 300px;
-    border-radius: 8px;
-}
 
 @keyframes loading {
     0% {
@@ -8533,31 +8101,18 @@ button.danger:hover {
     text-align: center;
 }
 
-.error-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-    opacity: 0.6;
-}
-
 .error-message {
     color: var(--color-error);
     font-weight: 500;
     margin-bottom: 8px;
 }
 
-.error-details {
-    color: var(--color-text-lighter);
-    font-size: 14px;
-    margin-bottom: 20px;
-}
-
-.error-actions {
-    display: flex;
-    gap: 12px;
-}
-
 /* Empty States */
 .empty-state {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     padding: 60px 40px;
     text-align: center;
 }
@@ -8568,66 +8123,7 @@ button.danger:hover {
     opacity: 0.4;
 }
 
-.empty-title {
-    font-size: 18px;
-    font-weight: 500;
-    color: var(--color-main-text);
-    margin-bottom: 8px;
-}
-
-.empty-description {
-    color: var(--color-text-lighter);
-    margin-bottom: 24px;
-    max-width: 400px;
-    line-height: 1.5;
-}
-
-.empty-actions {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-/* Success States */
-.success-message {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 16px;
-    background: rgba(76, 175, 80, 0.1);
-    color: var(--color-success);
-    border-radius: 6px;
-    border-left: 4px solid var(--color-success);
-    margin-bottom: 16px;
-}
-
-.success-icon {
-    font-size: 18px;
-}
-
 /* Progress Indicators */
-.progress-indicator {
-    width: 100%;
-    height: 4px;
-    background: var(--color-border);
-    border-radius: 2px;
-    overflow: hidden;
-    margin-bottom: 16px;
-}
-
-.progress-bar-animated {
-    height: 100%;
-    background: var(--color-primary);
-    border-radius: 2px;
-    transition: width 0.3s ease;
-}
-
-.progress-indeterminate {
-    height: 100%;
-    background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
-    animation: progress-indeterminate 2s infinite;
-}
 
 @keyframes progress-indeterminate {
     0% {
@@ -8638,102 +8134,11 @@ button.danger:hover {
     }
 }
 
-/* Form Validation States */
-.form-field {
-    position: relative;
-    margin-bottom: 20px;
-}
-
-.form-field.loading input,
-.form-field.loading select {
-    padding-right: 40px;
-}
-
-.form-field.loading::after {
-    content: '';
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 16px;
-    height: 16px;
-    border: 2px solid var(--color-border);
-    border-radius: 50%;
-    border-top-color: var(--color-primary);
-    animation: spin 1s linear infinite;
-}
-
-.form-field.error input,
-.form-field.error select {
-    border-color: var(--color-error);
-    box-shadow: 0 0 0 2px rgba(var(--color-error-rgb), 0.2);
-}
-
-.form-field.success input,
-.form-field.success select {
-    border-color: var(--color-success);
-    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
-}
-
-.field-error {
-    color: var(--color-error);
-    font-size: 12px;
-    margin-top: 4px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.field-success {
-    color: var(--color-success);
-    font-size: 12px;
-    margin-top: 4px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-/* Button Loading States */
-.btn-loading {
-    position: relative;
-    pointer-events: none;
-    color: transparent !important;
-}
-
-.btn-loading::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 16px;
-    height: 16px;
-    border: 2px solid currentColor;
-    border-radius: 50%;
-    border-top-color: transparent;
-    animation: spin 1s linear infinite;
-    color: inherit;
-}
-
 /* Disabled States */
 .disabled {
     opacity: 0.6;
     pointer-events: none;
     cursor: not-allowed;
-}
-
-/* Hover & Focus States */
-.interactive-element {
-    transition: all 0.2s ease;
-}
-
-.interactive-element:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.interactive-element:active {
-    transform: translateY(0);
 }
 
 /* Tooltips */
@@ -8766,13 +8171,6 @@ button.danger:hover {
 }
 
 /* Notification Enhancements */
-.notification-container {
-    position: fixed;
-    top: 60px;
-    right: 20px;
-    z-index: 10000;
-    max-width: 400px;
-}
 
 .notification {
     background: var(--color-main-background);
@@ -8824,40 +8222,6 @@ button.danger:hover {
     pointer-events: none;
 }
 
-.table-actions {
-    display: flex;
-    gap: 8px;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-}
-
-.table-search {
-    position: relative;
-    max-width: 300px;
-    flex: 1;
-}
-
-.table-search input {
-    padding-left: 32px;
-}
-
-.table-search::before {
-    content: '🔍';
-    position: absolute;
-    left: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    opacity: 0.6;
-}
-
-.table-filters {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
 .table-pagination {
     display: flex;
     justify-content: space-between;
@@ -8865,11 +8229,6 @@ button.danger:hover {
     margin-top: 0;
     padding: 0;
     border-top: 1px solid var(--color-border);
-}
-
-.pagination-info {
-    color: var(--color-text-lighter);
-    font-size: 14px;
 }
 
 .pagination-controls {
@@ -8953,22 +8312,9 @@ button.danger:hover {
         padding: 30px 20px;
     }
 
-    .notification-container {
-        left: 20px;
-        right: 20px;
-        max-width: none;
-    }
-
-    .table-actions {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 12px;
-    }
-
-    .table-search {
-        max-width: none;
-    }
-
+    
+    
+    
     .table-pagination {
         flex-direction: column;
         gap: 12px;
@@ -9706,14 +9052,6 @@ button.danger:hover {
 }
 
 /* Settings actions */
-/* Footer buttons, mirroring the ones in the view header. The sections above
-   are bordered cards and already provide the separation, so no divider here. */
-.settings-actions {
-    display: flex;
-    gap: 12px;
-    justify-content: flex-start;
-    flex-wrap: wrap;
-}
 
 /* Quick Add Page section */
 .quick-add-url-row {
@@ -9800,14 +9138,8 @@ button.danger:hover {
         margin-bottom: 16px;
     }
 
-    .settings-actions {
-        flex-direction: column;
+    
     }
-
-    .settings-actions button {
-        width: 100%;
-    }
-}
 
 /* ==========================================
    Bills View Styles
@@ -10413,13 +9745,13 @@ button.danger:hover {
 }
 
 /* Responsive */
-@media screen and (max-width: 1024px) {
+@media (max-width: 1024px) {
     .exchange-rates-summary {
         grid-template-columns: repeat(3, 1fr);
     }
 }
 
-@media screen and (max-width: 768px) {
+@media (max-width: 768px) {
     .exchange-rates-summary {
         grid-template-columns: 1fr;
     }
@@ -12831,7 +12163,6 @@ button.danger:hover {
     margin-top: 20px;
 }
 
-
 /* Responsive migration styles */
 @media (max-width: 768px) {
     .migration-subsection {
@@ -12891,10 +12222,6 @@ button.danger:hover {
 .match-btn:hover {
     color: var(--color-primary-element);
     background: var(--color-primary-element-light);
-}
-
-.match-btn.has-matches {
-    color: var(--color-success);
 }
 
 /* Modal wide variant */
@@ -13983,28 +13310,28 @@ tr.pending-transaction td:first-child {
 }
 
 .pension-type-workplace {
-    background-color: #dbeafe;
-    color: #1d4ed8;
+    background-color: color-mix(in srgb, var(--color-primary-element) 14%, transparent);
+    color: var(--color-main-text);
 }
 
 .pension-type-personal {
-    background-color: #dcfce7;
-    color: #166534;
+    background-color: color-mix(in srgb, var(--budget-color-positive) 14%, transparent);
+    color: var(--color-main-text);
 }
 
 .pension-type-sipp {
-    background-color: #fef3c7;
-    color: #92400e;
+    background-color: color-mix(in srgb, var(--color-warning) 16%, transparent);
+    color: var(--color-main-text);
 }
 
 .pension-type-defined_benefit {
-    background-color: #f3e8ff;
-    color: #7c3aed;
+    background-color: color-mix(in srgb, #8b5cf6 16%, transparent);
+    color: var(--color-main-text);
 }
 
 .pension-type-state {
-    background-color: #fee2e2;
-    color: #991b1b;
+    background-color: color-mix(in srgb, var(--budget-color-negative) 14%, transparent);
+    color: var(--color-main-text);
 }
 
 .pension-card-body {
@@ -14163,11 +13490,6 @@ tr.pending-transaction td:first-child {
     align-items: center;
     justify-content: center;
     opacity: 0.7;
-}
-
-.activity-text {
-    flex: 1;
-    font-size: 13px;
 }
 
 .activity-date {
@@ -15343,10 +14665,6 @@ button.secondary.compact {
     border-left: 3px solid var(--color-warning);
 }
 
-.budget-alerts-card.has-danger {
-    border-left-color: var(--color-error);
-}
-
 .budget-alerts-widget {
     display: flex;
     flex-direction: column;
@@ -15930,27 +15248,6 @@ button.secondary.compact {
     margin-bottom: 24px;
 }
 
-.yoy-summary-card {
-    background: var(--color-main-background);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    padding: 16px;
-    text-align: center;
-}
-
-.yoy-summary-card h4 {
-    margin: 0 0 8px 0;
-    font-size: 13px;
-    color: var(--color-text-maxcontrast);
-    font-weight: 500;
-}
-
-.yoy-summary-card .summary-value {
-    font-size: 24px;
-    font-weight: 600;
-    color: var(--color-main-text);
-}
-
 .yoy-year-cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -16048,76 +15345,6 @@ button.secondary.compact {
 
 #yoy-chart {
     max-height: 300px;
-}
-
-.yoy-categories {
-    background: var(--color-main-background);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    padding: 16px;
-}
-
-.yoy-categories h4 {
-    margin: 0 0 16px 0;
-    font-size: 14px;
-    font-weight: 600;
-}
-
-.yoy-category-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.yoy-category-item {
-    display: grid;
-    grid-template-columns: 1fr repeat(var(--year-count, 2), 100px) 80px;
-    gap: 12px;
-    padding: 10px 12px;
-    background: var(--color-background-hover);
-    border-radius: 6px;
-    align-items: center;
-}
-
-.yoy-category-item.header {
-    background: var(--color-background-dark);
-    font-weight: 600;
-    font-size: 12px;
-    color: var(--color-text-maxcontrast);
-}
-
-.yoy-category-name {
-    font-weight: 500;
-}
-
-.yoy-category-year {
-    text-align: right;
-    font-size: 13px;
-}
-
-.yoy-category-change {
-    text-align: right;
-    font-size: 12px;
-    font-weight: 500;
-}
-
-.yoy-category-change.positive {
-    color: var(--budget-color-negative);
-}
-
-.yoy-category-change.negative {
-    color: var(--budget-color-positive);
-}
-
-.yoy-no-data {
-    text-align: center;
-    padding: 40px;
-    color: var(--color-text-maxcontrast);
-}
-
-.yoy-no-data p {
-    margin: 8px 0 0 0;
-    font-size: 13px;
 }
 
 /* ==========================================
@@ -16228,83 +15455,6 @@ button.secondary.compact {
     border-radius: 10px;
     padding: 2px 8px;
     font-size: 11px;
-    font-weight: 600;
-}
-
-/* Old classes kept for compat */
-.split-summary-header {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
-}
-
-.split-summary-header .summary-card {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px;
-    background: var(--color-main-background);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-}
-
-.split-summary-header .summary-icon {
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-}
-
-.split-summary-header .summary-card-owed .summary-icon {
-    background: #e8f5e8;
-    color: var(--budget-color-positive);
-}
-
-.split-summary-header .summary-card-owing .summary-icon {
-    background: #ffebee;
-    color: var(--budget-color-negative);
-}
-
-.split-summary-header .summary-card-net .summary-icon {
-    background: #e3f2fd;
-    color: #1565c0;
-}
-
-.split-summary-header .summary-content {
-    display: flex;
-    flex-direction: column;
-}
-
-.split-summary-header .summary-label {
-    font-size: 12px;
-    color: var(--color-text-maxcontrast);
-}
-
-.split-summary-header .summary-value {
-    font-size: 20px;
-    font-weight: 600;
-}
-
-.split-summary-header .summary-value.positive {
-    color: var(--budget-color-positive);
-}
-
-.split-summary-header .summary-value.negative {
-    color: var(--budget-color-negative);
-}
-
-.contacts-section,
-.recent-shares-section {
-    margin-bottom: 24px;
-}
-
-.contacts-section h3,
-.recent-shares-section h3 {
-    margin: 0 0 16px 0;
-    font-size: 16px;
     font-weight: 600;
 }
 
@@ -16564,14 +15714,14 @@ button.secondary.compact {
 }
 
 .share-item.settled .share-status {
-    background: #e8f5e8;
-    color: var(--color-success);
+    background: color-mix(in srgb, var(--budget-color-positive) 14%, transparent);
+    color: var(--budget-color-positive);
 }
 
 .share-item.owed .share-status,
 .share-item.owing .share-status {
-    background: #fff3cd;
-    color: #856404;
+    background: color-mix(in srgb, var(--color-warning) 16%, transparent);
+    color: var(--color-main-text);
 }
 
 .share-item .share-origin {
@@ -17286,43 +16436,7 @@ button.secondary.compact {
     padding: 8px;
 }
 
-.rules-selection-list .rule-checkbox {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.rules-selection-list .rule-checkbox:hover {
-    background: var(--color-background-hover);
-}
-
-.rules-selection-list .rule-checkbox input[type="checkbox"] {
-    margin: 0;
-}
-
-.rules-selection-list .rule-checkbox .rule-name {
-    flex: 1;
-    font-size: 13px;
-}
-
-.rules-selection-list .rule-checkbox .rule-priority {
-    font-size: 11px;
-    color: var(--color-text-maxcontrast);
-}
-
 /* Apply Rules Preview */
-.apply-rules-preview {
-    margin-top: 20px;
-}
-
-.apply-rules-preview h4 {
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 12px;
-}
 
 .preview-table-container {
     max-height: 300px;
@@ -17357,21 +16471,6 @@ button.secondary.compact {
 
 .preview-table tr:hover td {
     background: var(--color-background-hover);
-}
-
-.preview-table .change-arrow {
-    color: var(--color-text-maxcontrast);
-    margin: 0 6px;
-}
-
-.preview-table .old-value {
-    color: var(--color-text-maxcontrast);
-    text-decoration: line-through;
-}
-
-.preview-table .new-value {
-    color: var(--color-success);
-    font-weight: 500;
 }
 
 /* Results Summary */
@@ -18087,7 +17186,6 @@ button.secondary.compact {
     position: relative;
 }
 
-
 /* Phase 1: New Hero Tile Styles */
 .hero-savings-rate .hero-icon {
     background: rgba(76, 175, 80, 0.1);
@@ -18348,21 +17446,6 @@ button.secondary.compact {
 }
 
 /* Phase 2: Large Transactions Widget */
-.large-transaction-item {
-    padding: 10px 0;
-    border-bottom: 1px solid var(--color-border);
-}
-
-.large-transaction-item:last-child {
-    border-bottom: none;
-}
-
-.transaction-main {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 4px;
-}
 
 .transaction-description {
     font-size: 14px;
@@ -18504,87 +17587,11 @@ button.secondary.compact {
 }
 
 /* Phase 3: Rule Effectiveness Widget */
-.rule-stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 16px;
-}
-
-.rule-stat-item {
-    text-align: center;
-}
-
-.rule-stat-value {
-    font-size: 24px;
-    font-weight: 600;
-    color: var(--color-main-text);
-    margin-bottom: 4px;
-}
-
-.rule-stat-label {
-    font-size: 12px;
-    color: var(--color-text-lighter);
-}
-
-.rule-list {
-    border-top: 1px solid var(--color-border);
-    padding-top: 12px;
-}
-
-.rule-item {
-    padding: 8px 0;
-    border-bottom: 1px solid var(--color-border);
-}
-
-.rule-item:last-child {
-    border-bottom: none;
-}
 
 .rule-name {
     font-size: 13px;
     font-weight: 500;
     margin-bottom: 2px;
-}
-
-.rule-usage {
-    font-size: 12px;
-    color: var(--color-text-lighter);
-}
-
-/* Phase 3: Spending Velocity Widget */
-.velocity-display {
-    text-align: center;
-    padding: 20px 0;
-}
-
-.velocity-current {
-    font-size: 32px;
-    font-weight: 600;
-    margin-bottom: 8px;
-}
-
-.velocity-comparison {
-    font-size: 14px;
-    color: var(--color-text-lighter);
-    margin-bottom: 4px;
-}
-
-.velocity-trend {
-    font-size: 13px;
-    font-weight: 500;
-}
-
-.velocity-trend.positive {
-    color: var(--budget-color-positive);
-}
-
-.velocity-trend.negative {
-    color: var(--budget-color-negative);
-}
-
-.velocity-trend.neutral {
-    color: var(--color-text-lighter);
 }
 
 /* Phase 4: Quick Add Transaction Form */
@@ -19162,13 +18169,6 @@ button.secondary.compact {
     font-size: 14px;
 }
 
-.budget-modal .form-actions {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-    margin-top: 24px;
-}
-
 .budget-modal .budget-btn {
     padding: 10px 20px;
     border-radius: var(--border-radius);
@@ -19198,7 +18198,7 @@ button.secondary.compact {
 }
 
 /* Responsive Modal */
-@media (max-width: 600px) {
+@media (max-width: 640px) {
     .budget-modal {
         width: 95%;
         margin: 20px;
@@ -19217,17 +18217,7 @@ button.secondary.compact {
    Enhanced Transfer Modal Styles
    ============================================ */
 
-/* Larger modal for complex forms */
-.budget-modal-large {
-    max-width: 700px;
-}
-
 /* Modal header with icon */
-.modal-header-content {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
 
 .modal-icon {
     width: 48px;
@@ -19246,20 +18236,7 @@ button.secondary.compact {
     filter: brightness(0) invert(1);
 }
 
-.modal-subtitle {
-    margin: 4px 0 0 0;
-    font-size: 13px;
-    color: var(--color-text-lighter);
-    font-weight: normal;
-}
-
 /* Modal sections */
-.modal-section {
-    margin-bottom: 24px;
-    background: var(--color-background-hover);
-    border-radius: var(--border-radius-large);
-    overflow: hidden;
-}
 
 .section-header {
     display: flex;
@@ -19284,10 +18261,6 @@ button.secondary.compact {
     font-size: 18px;
 }
 
-.section-content {
-    padding: 20px;
-}
-
 /* Transfer flow layout */
 .transfer-flow {
     display: grid;
@@ -19298,25 +18271,6 @@ button.secondary.compact {
 
 .transfer-account-group {
     margin: 0;
-}
-
-.account-select-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.account-select-wrapper .icon-download,
-.account-select-wrapper .icon-upload {
-    position: absolute;
-    left: 12px;
-    color: var(--color-text-lighter);
-    font-size: 16px;
-    z-index: 1;
-}
-
-.account-select-wrapper select {
-    padding-left: 40px;
 }
 
 .transfer-arrow {
@@ -19334,61 +18288,6 @@ button.secondary.compact {
 .transfer-arrow .icon-play-next {
     font-size: 20px;
     filter: brightness(0) invert(1);
-}
-
-/* Enhanced checkbox card */
-.checkbox-card {
-    background: var(--color-main-background);
-    border: 2px solid var(--color-border);
-    border-radius: var(--border-radius);
-    padding: 16px;
-    transition: all 0.2s ease;
-}
-
-.checkbox-card:hover {
-    border-color: var(--color-primary-element);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.checkbox-card .checkbox-label {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    cursor: pointer;
-    margin: 0;
-}
-
-.checkbox-card input[type="checkbox"] {
-    margin-top: 4px;
-    flex-shrink: 0;
-}
-
-.checkbox-content {
-    flex: 1;
-}
-
-.checkbox-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-}
-
-.checkbox-title .icon-checkmark-circle {
-    color: var(--color-primary-element);
-    font-size: 18px;
-}
-
-.checkbox-title strong {
-    font-size: 14px;
-    color: var(--color-main-text);
-}
-
-.checkbox-description {
-    margin: 0;
-    font-size: 13px;
-    color: var(--color-text-lighter);
-    line-height: 1.4;
 }
 
 /* Form group enhancements */
@@ -19422,10 +18321,7 @@ button.secondary.compact {
 
 /* Responsive adjustments for enhanced modal */
 @media (max-width: 768px) {
-    .budget-modal-large {
-        max-width: 95%;
-    }
-
+    
     .transfer-flow {
         grid-template-columns: 1fr;
         gap: 12px;
@@ -19974,18 +18870,18 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 }
 
 #duplicates-modal .keep-badge {
-    background: #e8f5e9;
-    color: #2e7d32;
+    background: color-mix(in srgb, var(--budget-color-positive) 14%, transparent);
+    color: var(--budget-color-positive);
 }
 
 #duplicates-modal .bill-badge {
-    background: #e3f2fd;
-    color: #1565c0;
+    background: color-mix(in srgb, var(--color-primary-element) 14%, transparent);
+    color: var(--color-main-text);
 }
 
 #duplicates-modal .scheduled-badge {
-    background: #fff3e0;
-    color: #e65100;
+    background: color-mix(in srgb, var(--color-warning) 16%, transparent);
+    color: var(--color-main-text);
 }
 
 #duplicates-modal .empty-message {
@@ -20109,11 +19005,6 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 
 .badge-accepted {
     background: var(--color-success, #46ba61);
-    color: white;
-}
-
-.badge-declined {
-    background: var(--color-text-maxcontrast);
     color: white;
 }
 
@@ -20284,11 +19175,6 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     fill: currentColor;
 }
 
-.shared-indicator-readonly {
-    background: var(--color-background-dark, #f0f0f0);
-    color: var(--color-text-maxcontrast);
-}
-
 /* Matching Transaction Dialog */
 .matching-tx-intro {
     margin-bottom: 16px;
@@ -20395,9 +19281,6 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 }
 
 /* Repair Data Styles */
-.repair-findings {
-    margin-top: 16px;
-}
 
 .repair-category {
     border: 1px solid var(--color-border);
@@ -20447,13 +19330,6 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 
 .repair-item:last-child {
     border-bottom: none;
-}
-
-.repair-actions {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-    margin-top: 16px;
 }
 
 .repair-summary {
@@ -21218,7 +20094,7 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 }
 
 /* On a phone each row stacks, and the figures carry their own labels */
-@media (max-width: 600px) {
+@media (max-width: 640px) {
     .project-rows-header {
         display: none;
     }
@@ -21410,4 +20286,38 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 .summary-card .summary-value {
     font-size: 22px;
     font-weight: 700;
+}
+
+/* ============================================
+   Dark theme
+   The app's red and green (amounts, Spent, bars) are dark shades picked for
+   a white page; on Nextcloud's dark background they fell well short of
+   readable contrast. Lighter shades take over in the dark theme, whether
+   chosen outright (data-theme-dark) or followed from the system
+   (data-theme-default + the media query).
+   ============================================ */
+body[data-theme-dark],
+body[data-theme-dark-highcontrast] {
+    --budget-color-negative: #f28b82;
+    --budget-color-positive: #81c995;
+}
+
+@media (prefers-color-scheme: dark) {
+    body[data-theme-default] {
+        --budget-color-negative: #f28b82;
+        --budget-color-positive: #81c995;
+    }
+}
+
+/* Focus ring for the cards and headers made keyboard-reachable
+   (utils/clickableCards.js). */
+.account-card:focus-visible,
+.asset-card:focus-visible,
+.pension-card:focus-visible,
+.contact-card:focus-visible,
+.category-item:focus-visible,
+.rules-group-header:focus-visible,
+th.sortable:focus-visible {
+    outline: 2px solid var(--color-primary-element);
+    outline-offset: 2px;
 }

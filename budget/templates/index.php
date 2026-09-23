@@ -1392,10 +1392,10 @@ style('budget', 'budget-app');
                     <table class="rate-history-table">
                         <thead>
                             <tr>
-                                <th><?php p($l->t('Effective Date')); ?></th>
-                                <th><?php p($l->t('Rate (APR)')); ?></th>
-                                <th><?php p($l->t('Compounding')); ?></th>
-                                <th></th>
+                                <th scope="col"><?php p($l->t('Effective Date')); ?></th>
+                                <th scope="col"><?php p($l->t('Rate (APR)')); ?></th>
+                                <th scope="col"><?php p($l->t('Compounding')); ?></th>
+                                <th scope="col"></th>
                             </tr>
                         </thead>
                         <tbody id="rate-history-body">
@@ -1409,10 +1409,10 @@ style('budget', 'budget-app');
                     <table class="rate-history-table">
                         <thead>
                             <tr>
-                                <th><?php p($l->t('Statement Date')); ?></th>
-                                <th><?php p($l->t('Statement Balance')); ?></th>
-                                <th><?php p($l->t('Transactions')); ?></th>
-                                <th><?php p($l->t('Completed')); ?></th>
+                                <th scope="col"><?php p($l->t('Statement Date')); ?></th>
+                                <th scope="col"><?php p($l->t('Statement Balance')); ?></th>
+                                <th scope="col"><?php p($l->t('Transactions')); ?></th>
+                                <th scope="col"><?php p($l->t('Completed')); ?></th>
                             </tr>
                         </thead>
                         <tbody id="recon-history-body">
@@ -1521,19 +1521,19 @@ style('budget', 'budget-app');
                         <table id="account-transactions-table" class="transactions-table">
                             <thead>
                                 <tr>
-                                    <th class="date-column sortable" data-sort="date">
+                                    <th scope="col" class="date-column sortable" data-sort="date">
                                         <?php p($l->t('Date')); ?> <span class="sort-indicator"></span>
                                     </th>
-                                    <th class="description-column sortable" data-sort="description">
+                                    <th scope="col" class="description-column sortable" data-sort="description">
                                         <?php p($l->t('Description')); ?> <span class="sort-indicator"></span>
                                     </th>
-                                    <th class="vendor-column"><?php p($l->t('Vendor')); ?></th>
-                                    <th class="category-column"><?php p($l->t('Category')); ?></th>
-                                    <th class="amount-column sortable" data-sort="amount">
+                                    <th scope="col" class="vendor-column"><?php p($l->t('Vendor')); ?></th>
+                                    <th scope="col" class="category-column"><?php p($l->t('Category')); ?></th>
+                                    <th scope="col" class="amount-column sortable" data-sort="amount">
                                         <?php p($l->t('Amount')); ?> <span class="sort-indicator"></span>
                                     </th>
-                                    <th class="balance-column"><?php p($l->t('Balance')); ?></th>
-                                    <th class="actions-column"><?php p($l->t('Actions')); ?></th>
+                                    <th scope="col" class="balance-column"><?php p($l->t('Balance')); ?></th>
+                                    <th scope="col" class="actions-column"><?php p($l->t('Actions')); ?></th>
                                 </tr>
                             </thead>
                             <tbody id="account-transactions-body"></tbody>
@@ -1795,7 +1795,7 @@ style('budget', 'budget-app');
                                 </div>
                             </div>
                         </div>
-                        <select id="rows-per-page">
+                        <select id="rows-per-page" aria-label="<?php p($l->t('Rows per page')); ?>">
                             <option value="25"><?php p($l->t('25 per page')); ?></option>
                             <option value="50"><?php p($l->t('50 per page')); ?></option>
                             <option value="100"><?php p($l->t('100 per page')); ?></option>
@@ -1812,38 +1812,38 @@ style('budget', 'budget-app');
                 <table id="transactions-table" class="transactions-table enhanced">
                     <thead>
                         <tr>
-                            <th class="select-column">
-                                <input type="checkbox" id="select-all-transactions" title="<?php p($l->t('Select all')); ?>">
+                            <th scope="col" class="select-column">
+                                <input type="checkbox" id="select-all-transactions" title="<?php p($l->t('Select all')); ?>" aria-label="<?php p($l->t('Select all')); ?>">
                             </th>
-                            <th class="sortable date-column" data-sort="date">
+                            <th scope="col" tabindex="0" aria-sort="none" class="sortable date-column" data-sort="date">
                                 <?php p($l->t('Date')); ?>
                                 <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th class="sortable description-column" data-sort="description">
+                            <th scope="col" tabindex="0" aria-sort="none" class="sortable description-column" data-sort="description">
                                 <?php p($l->t('Description')); ?>
                                 <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th class="sortable vendor-column" data-sort="vendor">
+                            <th scope="col" tabindex="0" aria-sort="none" class="sortable vendor-column" data-sort="vendor">
                                 <?php p($l->t('Vendor')); ?>
                                 <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th class="sortable category-column" data-sort="category">
+                            <th scope="col" tabindex="0" aria-sort="none" class="sortable category-column" data-sort="category">
                                 <?php p($l->t('Category')); ?>
                                 <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th class="tags-column">
+                            <th scope="col" class="tags-column">
                                 <?php p($l->t('Tags')); ?>
                             </th>
-                            <th class="sortable amount-column" data-sort="amount">
+                            <th scope="col" tabindex="0" aria-sort="none" class="sortable amount-column" data-sort="amount">
                                 <?php p($l->t('Amount')); ?>
                                 <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th class="balance-column"><?php p($l->t('Balance')); ?></th>
-                            <th class="sortable account-column" data-sort="account">
+                            <th scope="col" class="balance-column"><?php p($l->t('Balance')); ?></th>
+                            <th scope="col" tabindex="0" aria-sort="none" class="sortable account-column" data-sort="account">
                                 <?php p($l->t('Account')); ?>
                                 <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th class="actions-column"><?php p($l->t('Actions')); ?></th>
+                            <th scope="col" class="actions-column"><?php p($l->t('Actions')); ?></th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -1862,13 +1862,11 @@ style('budget', 'budget-app');
             <div class="view-header">
                 <h2><?php p($l->t('Categories')); ?></h2>
                 <div class="view-controls">
-                    <div class="categories-tabs">
-                        <button class="tab-button active" data-tab="expense">
-                            <span class="icon-close" aria-hidden="true"></span>
+                    <div class="categories-tabs" role="tablist">
+                        <button class="tab-button active" role="tab" aria-selected="true" data-tab="expense">
                             <?php p($l->t('Expenses')); ?>
                         </button>
-                        <button class="tab-button" data-tab="income">
-                            <span class="icon-add" aria-hidden="true"></span>
+                        <button class="tab-button" role="tab" aria-selected="false" data-tab="income">
                             <?php p($l->t('Income')); ?>
                         </button>
                     </div>
@@ -1895,7 +1893,7 @@ style('budget', 'budget-app');
                 <div class="categories-panel">
                     <div class="categories-toolbar">
                         <div class="search-container">
-                            <input type="search" id="categories-search" placeholder="<?php p($l->t('Search categories...')); ?>" class="search-input" autocomplete="off">
+                            <input type="search" id="categories-search" aria-label="<?php p($l->t('Search categories...')); ?>" placeholder="<?php p($l->t('Search categories...')); ?>" class="search-input" autocomplete="off">
                             <span class="icon-search search-icon" aria-hidden="true"></span>
                         </div>
                         <div class="view-options">
@@ -2491,12 +2489,12 @@ style('budget', 'budget-app');
                                 <table id="preview-table">
                                     <thead>
                                         <tr>
-                                            <th><?php p($l->t('Date')); ?></th>
-                                            <th><?php p($l->t('Description')); ?></th>
-                                            <th id="preview-th-notes" style="display: none;"><?php p($l->t('Notes')); ?></th>
-                                            <th class="preview-col-amount"><?php p($l->t('Amount')); ?></th>
-                                            <th><?php p($l->t('Category')); ?></th>
-                                            <th><?php p($l->t('Status')); ?></th>
+                                            <th scope="col"><?php p($l->t('Date')); ?></th>
+                                            <th scope="col"><?php p($l->t('Description')); ?></th>
+                                            <th scope="col" id="preview-th-notes" style="display: none;"><?php p($l->t('Notes')); ?></th>
+                                            <th scope="col" class="preview-col-amount"><?php p($l->t('Amount')); ?></th>
+                                            <th scope="col"><?php p($l->t('Category')); ?></th>
+                                            <th scope="col"><?php p($l->t('Status')); ?></th>
                                         </tr>
                                     </thead>
                                     <tbody></tbody>
@@ -2527,12 +2525,12 @@ style('budget', 'budget-app');
                         <table id="history-table">
                             <thead>
                                 <tr>
-                                    <th><?php p($l->t('Date')); ?></th>
-                                    <th><?php p($l->t('File Name')); ?></th>
-                                    <th><?php p($l->t('Account')); ?></th>
-                                    <th><?php p($l->t('Transactions')); ?></th>
-                                    <th><?php p($l->t('Status')); ?></th>
-                                    <th><?php p($l->t('Actions')); ?></th>
+                                    <th scope="col"><?php p($l->t('Date')); ?></th>
+                                    <th scope="col"><?php p($l->t('File Name')); ?></th>
+                                    <th scope="col"><?php p($l->t('Account')); ?></th>
+                                    <th scope="col"><?php p($l->t('Transactions')); ?></th>
+                                    <th scope="col"><?php p($l->t('Status')); ?></th>
+                                    <th scope="col"><?php p($l->t('Actions')); ?></th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -2736,12 +2734,12 @@ style('budget', 'budget-app');
                 <table id="rules-table" class="rules-table">
                     <thead>
                         <tr>
-                            <th class="rules-col-priority sortable" data-sort="priority"><?php p($l->t('Pri')); ?> <span class="sort-indicator"></span></th>
-                            <th class="rules-col-name sortable" data-sort="name"><?php p($l->t('Name')); ?> <span class="sort-indicator"></span></th>
-                            <th class="rules-col-status sortable" data-sort="status"><?php p($l->t('Status')); ?> <span class="sort-indicator"></span></th>
-                            <th class="rules-col-criteria"><?php p($l->t('Criteria')); ?></th>
-                            <th class="rules-col-actions"><?php p($l->t('Actions')); ?></th>
-                            <th class="rules-col-buttons"></th>
+                            <th scope="col" tabindex="0" aria-sort="none" class="rules-col-priority sortable" data-sort="priority"><?php p($l->t('Pri')); ?> <span class="sort-indicator"></span></th>
+                            <th scope="col" tabindex="0" aria-sort="none" class="rules-col-name sortable" data-sort="name"><?php p($l->t('Name')); ?> <span class="sort-indicator"></span></th>
+                            <th scope="col" tabindex="0" aria-sort="none" class="rules-col-status sortable" data-sort="status"><?php p($l->t('Status')); ?> <span class="sort-indicator"></span></th>
+                            <th scope="col" class="rules-col-criteria"><?php p($l->t('Criteria')); ?></th>
+                            <th scope="col" class="rules-col-actions"><?php p($l->t('Actions')); ?></th>
+                            <th scope="col" class="rules-col-buttons"></th>
                         </tr>
                     </thead>
                     <tbody id="rules-list">
@@ -3258,11 +3256,11 @@ style('budget', 'budget-app');
                             <table id="report-accounts-table" class="data-table">
                                 <thead>
                                     <tr>
-                                        <th><?php p($l->t('Account')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Income')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Expenses')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Net')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Balance')); ?></th>
+                                        <th scope="col"><?php p($l->t('Account')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Income')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Expenses')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Net')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Balance')); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -3283,9 +3281,9 @@ style('budget', 'budget-app');
                                 <table id="report-income-table" class="data-table">
                                     <thead>
                                         <tr>
-                                            <th><?php p($l->t('Category')); ?></th>
-                                            <th class="text-right"><?php p($l->t('Amount')); ?></th>
-                                            <th class="text-right"><?php p($l->t('Transactions')); ?></th>
+                                            <th scope="col"><?php p($l->t('Category')); ?></th>
+                                            <th scope="col" class="text-right"><?php p($l->t('Amount')); ?></th>
+                                            <th scope="col" class="text-right"><?php p($l->t('Transactions')); ?></th>
                                         </tr>
                                     </thead>
                                     <tbody></tbody>
@@ -3301,9 +3299,9 @@ style('budget', 'budget-app');
                                 <table id="report-expenses-table" class="data-table">
                                     <thead>
                                         <tr>
-                                            <th><?php p($l->t('Category')); ?></th>
-                                            <th class="text-right"><?php p($l->t('Amount')); ?></th>
-                                            <th class="text-right"><?php p($l->t('Transactions')); ?></th>
+                                            <th scope="col"><?php p($l->t('Category')); ?></th>
+                                            <th scope="col" class="text-right"><?php p($l->t('Amount')); ?></th>
+                                            <th scope="col" class="text-right"><?php p($l->t('Transactions')); ?></th>
                                         </tr>
                                     </thead>
                                     <tbody></tbody>
@@ -3346,10 +3344,10 @@ style('budget', 'budget-app');
                                 <table id="report-categories-table" class="data-table">
                                     <thead>
                                         <tr>
-                                            <th><?php p($l->t('Category')); ?></th>
-                                            <th class="text-right"><?php p($l->t('Amount')); ?></th>
-                                            <th class="text-right"><?php p($l->t('%% of Total')); ?></th>
-                                            <th class="text-right"><?php p($l->t('Transactions')); ?></th>
+                                            <th scope="col"><?php p($l->t('Category')); ?></th>
+                                            <th scope="col" class="text-right"><?php p($l->t('Amount')); ?></th>
+                                            <th scope="col" class="text-right"><?php p($l->t('%% of Total')); ?></th>
+                                            <th scope="col" class="text-right"><?php p($l->t('Transactions')); ?></th>
                                         </tr>
                                     </thead>
                                     <tbody></tbody>
@@ -3367,9 +3365,9 @@ style('budget', 'budget-app');
                             <table id="report-vendors-table" class="data-table">
                                 <thead>
                                     <tr>
-                                        <th><?php p($l->t('Vendor')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Amount')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Transactions')); ?></th>
+                                        <th scope="col"><?php p($l->t('Vendor')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Amount')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Transactions')); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -3421,11 +3419,11 @@ style('budget', 'budget-app');
                             <table id="report-cashflow-table" class="data-table">
                                 <thead>
                                     <tr>
-                                        <th><?php p($l->t('Month')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Income')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Expenses')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Net')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Cumulative')); ?></th>
+                                        <th scope="col"><?php p($l->t('Month')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Income')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Expenses')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Net')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Cumulative')); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -3515,7 +3513,7 @@ style('budget', 'budget-app');
                             <table id="yoy-category-table" class="data-table">
                                 <thead>
                                     <tr id="yoy-category-header">
-                                        <th><?php p($l->t('Category')); ?></th>
+                                        <th scope="col"><?php p($l->t('Category')); ?></th>
                                         <!-- Year columns will be added dynamically -->
                                     </tr>
                                 </thead>
@@ -3584,19 +3582,19 @@ style('budget', 'budget-app');
                             <table id="bills-calendar-table" class="data-table bills-calendar-table">
                                 <thead>
                                     <tr>
-                                        <th class="bill-name-col"><?php p($l->t('Bill')); ?></th>
-                                        <th><?php p($l->t('Jan')); ?></th>
-                                        <th><?php p($l->t('Feb')); ?></th>
-                                        <th><?php p($l->t('Mar')); ?></th>
-                                        <th><?php p($l->t('Apr')); ?></th>
-                                        <th><?php p($l->t('May')); ?></th>
-                                        <th><?php p($l->t('Jun')); ?></th>
-                                        <th><?php p($l->t('Jul')); ?></th>
-                                        <th><?php p($l->t('Aug')); ?></th>
-                                        <th><?php p($l->t('Sep')); ?></th>
-                                        <th><?php p($l->t('Oct')); ?></th>
-                                        <th><?php p($l->t('Nov')); ?></th>
-                                        <th><?php p($l->t('Dec')); ?></th>
+                                        <th scope="col" class="bill-name-col"><?php p($l->t('Bill')); ?></th>
+                                        <th scope="col"><?php p($l->t('Jan')); ?></th>
+                                        <th scope="col"><?php p($l->t('Feb')); ?></th>
+                                        <th scope="col"><?php p($l->t('Mar')); ?></th>
+                                        <th scope="col"><?php p($l->t('Apr')); ?></th>
+                                        <th scope="col"><?php p($l->t('May')); ?></th>
+                                        <th scope="col"><?php p($l->t('Jun')); ?></th>
+                                        <th scope="col"><?php p($l->t('Jul')); ?></th>
+                                        <th scope="col"><?php p($l->t('Aug')); ?></th>
+                                        <th scope="col"><?php p($l->t('Sep')); ?></th>
+                                        <th scope="col"><?php p($l->t('Oct')); ?></th>
+                                        <th scope="col"><?php p($l->t('Nov')); ?></th>
+                                        <th scope="col"><?php p($l->t('Dec')); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody id="bills-calendar-table-body"></tbody>
@@ -6452,10 +6450,10 @@ style('budget', 'budget-app');
                     <table id="rule-preview-table" class="preview-table">
                         <thead>
                             <tr>
-                                <th><?php p($l->t('Date')); ?></th>
-                                <th><?php p($l->t('Description')); ?></th>
-                                <th><?php p($l->t('Amount')); ?></th>
-                                <th><?php p($l->t('Current Category')); ?></th>
+                                <th scope="col"><?php p($l->t('Date')); ?></th>
+                                <th scope="col"><?php p($l->t('Description')); ?></th>
+                                <th scope="col"><?php p($l->t('Amount')); ?></th>
+                                <th scope="col"><?php p($l->t('Current Category')); ?></th>
                             </tr>
                         </thead>
                         <tbody></tbody>
