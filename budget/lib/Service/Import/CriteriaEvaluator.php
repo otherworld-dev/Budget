@@ -340,12 +340,13 @@ class CriteriaEvaluator {
 				return $value < (float)$pattern;
 
 			case 'between':
-				if (!is_array($pattern) || !isset($pattern['min']) || !isset($pattern['max'])) {
+				$range = self::parseRange($pattern);
+				if ($range === null || !is_numeric($range['min']) || !is_numeric($range['max'])) {
 					$this->logger->warning('Invalid between pattern for numeric match', ['pattern' => $pattern]);
 					return false;
 				}
-				$min = (float)$pattern['min'];
-				$max = (float)$pattern['max'];
+				$min = (float)$range['min'];
+				$max = (float)$range['max'];
 				return $value >= $min && $value <= $max;
 
 			default:
@@ -398,12 +399,13 @@ class CriteriaEvaluator {
 				return $valueTime > $patternTime;
 
 			case 'between':
-				if (!is_array($pattern) || !isset($pattern['min']) || !isset($pattern['max'])) {
+				$range = self::parseRange($pattern);
+				if ($range === null) {
 					$this->logger->warning('Invalid between pattern for date match', ['pattern' => $pattern]);
 					return false;
 				}
-				$minTime = strtotime((string)$pattern['min']);
-				$maxTime = strtotime((string)$pattern['max']);
+				$minTime = strtotime((string)$range['min']);
+				$maxTime = strtotime((string)$range['max']);
 				if ($minTime === false || $maxTime === false) {
 					return false;
 				}
@@ -412,6 +414,70 @@ class CriteriaEvaluator {
 			default:
 				return false;
 		}
+	}
+
+	/**
+	 * Read a 'between' pattern as ['min' => ..., 'max' => ...].
+	 *
+	 * The canonical stored shape is an array, but the visual rule builder's
+	 * pattern box is a text input, so rules saved from it hold the JSON text
+	 * the user typed (e.g. '{"min": 10, "max": 100}'). Both are accepted, so
+	 * rules already saved that way match without a migration.
+	 *
+	 * @param mixed $pattern
+	 * @return array{min: int|float|string, max: int|float|string}|null Null when the pattern isn't a usable range
+	 */
+	public static function parseRange($pattern): ?array {
+		if (is_string($pattern)) {
+			$pattern = json_decode($pattern, true);
+		}
+		if (!is_array($pattern) || !array_key_exists('min', $pattern) || !array_key_exists('max', $pattern)) {
+			return null;
+		}
+		$min = $pattern['min'];
+		$max = $pattern['max'];
+		foreach ([$min, $max] as $bound) {
+			if (!is_int($bound) && !is_float($bound) && !(is_string($bound) && trim($bound) !== '')) {
+				return null;
+			}
+		}
+		return ['min' => $min, 'max' => $max];
+	}
+
+	/**
+	 * Rewrite a criteria tree into its canonical stored shape: every 'between'
+	 * pattern given as JSON text becomes a ['min', 'max'] array. Anything that
+	 * doesn't parse is left untouched for validate() to report.
+	 *
+	 * @param array $criteria Criteria tree ({version, root})
+	 * @return array
+	 */
+	public static function normalizeCriteria(array $criteria): array {
+		if (isset($criteria['root']) && is_array($criteria['root'])) {
+			$criteria['root'] = self::normalizeNode($criteria['root'], 0);
+		}
+		return $criteria;
+	}
+
+	private static function normalizeNode(array $node, int $depth): array {
+		if ($depth > self::MAX_DEPTH) {
+			return $node;
+		}
+		if (isset($node['conditions']) && is_array($node['conditions'])) {
+			foreach ($node['conditions'] as $i => $child) {
+				if (is_array($child)) {
+					$node['conditions'][$i] = self::normalizeNode($child, $depth + 1);
+				}
+			}
+			return $node;
+		}
+		if (($node['matchType'] ?? null) === 'between' && isset($node['pattern']) && is_string($node['pattern'])) {
+			$range = self::parseRange($node['pattern']);
+			if ($range !== null) {
+				$node['pattern'] = $range;
+			}
+		}
+		return $node;
 	}
 
 	/**
@@ -511,6 +577,18 @@ class CriteriaEvaluator {
 			if ($matchType === 'regex' && isset($node['pattern']) && is_string($node['pattern'])) {
 				if (@preg_match('/' . $node['pattern'] . '/i', '') === false) {
 					$errors[] = "Invalid regex pattern: '" . $node['pattern'] . "'";
+				}
+			}
+
+			// A 'between' range that can't be read never matches anything, so
+			// refuse it at save time rather than store an inert rule.
+			if ($matchType === 'between' && isset($node['pattern']) && ($field === 'amount' || $field === 'date')) {
+				$range = self::parseRange($node['pattern']);
+				$usable = $range !== null && ($field === 'amount'
+					? is_numeric($range['min']) && is_numeric($range['max'])
+					: strtotime((string)$range['min']) !== false && strtotime((string)$range['max']) !== false);
+				if (!$usable) {
+					$errors[] = "Invalid 'between' pattern for field '$field': expected min and max";
 				}
 			}
 		} else {

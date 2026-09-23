@@ -251,6 +251,46 @@ class ImportRuleServiceTest extends TestCase {
         $this->service->update(1, 'user1', ['priority' => 42]);
     }
 
+    // ===== between ranges are stored canonically =====
+
+    private function builderBetweenCriteria(string $field, string $pattern): array {
+        return ['version' => 2, 'root' => ['operator' => 'AND', 'conditions' => [[
+            'type' => 'condition', 'field' => $field, 'matchType' => 'between',
+            'pattern' => $pattern, 'negate' => false,
+        ]]]];
+    }
+
+    public function testCreateStoresABuilderBetweenRangeAsAnArray(): void {
+        // The visual builder posts the range as the JSON text the user typed
+        $criteria = $this->builderBetweenCriteria('amount', '{"min": 0, "max": 100}');
+        $this->criteriaEvaluator->method('validate')->willReturn(['valid' => true]);
+
+        $stored = null;
+        $this->mapper->method('insert')->willReturnCallback(function (ImportRule $r) use (&$stored) {
+            $stored = json_decode($r->getCriteria(), true);
+            $r->setId(1);
+            return $r;
+        });
+
+        $this->service->create('user1', 'Range', null, null, null, $criteria, 2);
+
+        $this->assertSame(['min' => 0, 'max' => 100], $stored['root']['conditions'][0]['pattern']);
+    }
+
+    public function testUpdateStoresABuilderBetweenRangeAsAnArray(): void {
+        $rule = $this->makeRule(['schemaVersion' => 2]);
+        $this->mapper->method('find')->willReturn($rule);
+        $this->criteriaEvaluator->method('validate')->willReturn(['valid' => true]);
+        $this->mapper->method('update')->willReturnCallback(fn ($r) => $r);
+
+        $updated = $this->service->update(1, 'user1', [
+            'criteria' => $this->builderBetweenCriteria('date', '{"min": "2026-01-01", "max": "2026-12-31"}'),
+        ]);
+
+        $stored = json_decode($updated->getCriteria(), true);
+        $this->assertSame(['min' => '2026-01-01', 'max' => '2026-12-31'], $stored['root']['conditions'][0]['pattern']);
+    }
+
     // ===== delete =====
 
     public function testDeleteFindsAndRemoves(): void {
