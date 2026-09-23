@@ -2893,11 +2893,14 @@ export default class DashboardModule {
 
         // The month in progress is only part of a month, so its drop is not a
         // real fall: draw the line into it dashed and say "so far" on hover.
-        // Labels come from the server as English "M Y" (ReportAggregator).
-        const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        // The server sends each month as Y-m (`months`), formatted here in the
+        // user's language; `labels` is its English "M Y", kept for older servers.
+        const months = Array.isArray(trends.months) && trends.months.length === trends.labels.length ? trends.months : null;
+        const labels = months ? months.map(m => formatters.formatYearMonth(m)) : trends.labels;
         const now = new Date();
+        const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         const lastIndex = trends.labels.length - 1;
-        const partialIndex = trends.labels[lastIndex] === `${MONTHS[now.getMonth()]} ${now.getFullYear()}` ? lastIndex : -1;
+        const partialIndex = months && months[lastIndex] === thisMonth ? lastIndex : -1;
         const partialSegment = {
             borderDash: (segCtx) => (partialIndex > 0 && segCtx.p1DataIndex === partialIndex ? [6, 4] : undefined),
         };
@@ -2905,7 +2908,7 @@ export default class DashboardModule {
         this.charts[instanceId] = new Chart(ctx, {
             type: isBar ? 'bar' : 'line',
             data: {
-                labels: trends.labels,
+                labels,
                 datasets: [
                     {
                         label: t('budget', 'Income'),

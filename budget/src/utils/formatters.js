@@ -18,6 +18,33 @@ export function userLocale() {
 }
 
 /**
+ * A month's name in the user's Nextcloud locale ("January", "janvier").
+ * Replaces the hand-translated month lists, which drifted from the locale
+ * and needed 24 strings translating in every language.
+ *
+ * @param {number} month 1-12
+ * @param {'long'|'short'|'narrow'} [style]
+ * @returns {string}
+ */
+export function monthName(month, style = 'long') {
+    return new Date(2000, month - 1, 1).toLocaleDateString(userLocale(), { month: style });
+}
+
+/**
+ * Format a 'YYYY-MM' month key ("Jan 2026" by default) in the user's locale.
+ * Anything that is not such a key comes back unchanged.
+ *
+ * @param {string} yearMonth
+ * @param {object} [options] Intl.DateTimeFormat options
+ * @returns {string}
+ */
+export function formatYearMonth(yearMonth, options = { month: 'short', year: 'numeric' }) {
+    const match = /^(\d{4})-(\d{2})$/.exec(String(yearMonth ?? ''));
+    if (!match) return yearMonth;
+    return new Date(Number(match[1]), Number(match[2]) - 1, 1).toLocaleDateString(userLocale(), options);
+}
+
+/**
  * Currency configuration with symbol and position metadata
  * Position: 'prefix' = symbol before amount (e.g., $500), 'suffix' = symbol after amount (e.g., 500 kr)
  * Prefix currencies have no space, suffix currencies have a space before the symbol
@@ -210,18 +237,18 @@ export function formatDate(dateStr, settings) {
     // Use user's date format preference from settings
     const format = settings?.date_format || 'Y-m-d';
 
-    // Format the date according to PHP date format codes
+    // Format the date according to PHP date format codes, in one pass: a
+    // month name put in by one code must not be read by the next ("janv."
+    // has a j in it).
     const pad = (num) => String(num).padStart(2, '0');
-    const monthNames = [t('budget', 'Jan'), t('budget', 'Feb'), t('budget', 'Mar'), t('budget', 'Apr'), t('budget', 'May'), t('budget', 'Jun'), t('budget', 'Jul'), t('budget', 'Aug'), t('budget', 'Sep'), t('budget', 'Oct'), t('budget', 'Nov'), t('budget', 'Dec')];
-    const monthName = monthNames[month - 1];
-
-    // Convert PHP date format to actual date string
-    return format
-        .replace('Y', year)
-        .replace('m', pad(month))
-        .replace('d', pad(day))
-        .replace('M', monthName)
-        .replace('j', day);
+    const tokens = {
+        Y: () => String(year),
+        m: () => pad(month),
+        d: () => pad(day),
+        M: () => monthName(month, 'short'),
+        j: () => String(day),
+    };
+    return format.replace(/[YmdMj]/g, token => tokens[token]());
 }
 
 /**

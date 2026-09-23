@@ -698,8 +698,12 @@ class ReportAggregator {
             }
         }
 
+        // `months` (Y-m) is what the web UI formats, in the user's own
+        // language; `labels` stays as the English "M Y" for anything that
+        // still reads it.
         $trends = [
             'labels' => [],
+            'months' => [],
             'income' => [],
             'expenses' => []
         ];
@@ -712,6 +716,7 @@ class ReportAggregator {
         while ($current <= $end) {
             $month = $current->format('Y-m');
             $trends['labels'][] = $current->format('M Y');
+            $trends['months'][] = $month;
 
             $monthData = $dataByMonth[$month] ?? ['income' => 0, 'expenses' => 0];
             $trends['income'][] = $monthData['income'];

@@ -2918,9 +2918,8 @@ class BudgetApp {
         // Build labels from timeline months
         const labels = plan.timeline.map(entry => {
             if (entry.date) {
-                const d = new Date(entry.date);
-                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                return `${monthNames[d.getMonth()]} '${String(d.getFullYear()).slice(2)}`;
+                // Month names in the user's Nextcloud language, not English
+                return new Date(entry.date).toLocaleDateString(formatters.userLocale(), { month: 'short', year: '2-digit' });
             }
             return `${t('budget', 'Month')} ${entry.month || ''}`;
         });
