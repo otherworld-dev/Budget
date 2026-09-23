@@ -10350,6 +10350,254 @@ button.danger:hover {
     color: var(--color-text-maxcontrast);
 }
 
+/* ============================================
+   First-run checklist + sample data banner
+   (OnboardingModule)
+   ============================================ */
+
+/* While the checklist shows, the empty tiles step back behind it. Only
+   hidden: the saved layout is untouched, and "Show the dashboard tiles"
+   brings them back. */
+#dashboard-view.onboarding-active:not(.onboarding-tiles-shown) .dashboard-hero,
+#dashboard-view.onboarding-active:not(.onboarding-tiles-shown) .dashboard-grid,
+#dashboard-view.onboarding-active:not(.onboarding-tiles-shown) .dashboard-header-hint,
+#dashboard-view.onboarding-active:not(.onboarding-tiles-shown) .dashboard-header-actions {
+    display: none !important;
+}
+
+.onboarding-checklist {
+    margin-bottom: 24px;
+}
+
+.onboarding-card {
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-large);
+    padding: 20px 24px;
+    max-width: 880px;
+}
+
+.onboarding-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.onboarding-head h3 {
+    margin: 0 0 4px;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.onboarding-intro {
+    margin: 0;
+    color: var(--color-text-maxcontrast);
+}
+
+.onboarding-dismiss {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    border: none;
+    background-color: transparent;
+    border-radius: 50%;
+    opacity: 0.7;
+}
+
+.onboarding-dismiss:hover,
+.onboarding-dismiss:focus-visible {
+    opacity: 1;
+    background-color: var(--color-background-hover);
+}
+
+.onboarding-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0 8px;
+}
+
+.onboarding-progress-bar {
+    flex: 1;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--color-background-dark);
+    overflow: hidden;
+}
+
+.onboarding-progress-fill {
+    height: 100%;
+    background: var(--color-primary-element);
+    transition: width 0.3s ease;
+}
+
+.onboarding-progress-text {
+    font-size: 0.875rem;
+    color: var(--color-text-maxcontrast);
+    white-space: nowrap;
+}
+
+.onboarding-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.onboarding-step {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.onboarding-step:last-child {
+    border-bottom: none;
+}
+
+.onboarding-step-check {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--color-border-maxcontrast);
+    box-sizing: border-box;
+}
+
+.onboarding-step.done .onboarding-step-check {
+    border-color: var(--budget-color-positive);
+    background: var(--budget-color-positive);
+    /* White tick */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
+    background-size: 14px;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.onboarding-step-body {
+    flex: 1 1 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.onboarding-step-title {
+    font-weight: 600;
+}
+
+.onboarding-step.done .onboarding-step-title {
+    color: var(--color-text-maxcontrast);
+    text-decoration: line-through;
+}
+
+.onboarding-step-text {
+    font-size: 0.875rem;
+    color: var(--color-text-maxcontrast);
+}
+
+.onboarding-step-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.onboarding-step-actions button {
+    margin: 0;
+}
+
+.onboarding-guide {
+    font-size: 0.875rem;
+    color: var(--color-primary-element);
+    text-decoration: underline;
+    padding: 0 4px;
+}
+
+.onboarding-sample {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+    padding: 12px 16px;
+    border-radius: var(--border-radius-large);
+    background: var(--color-background-hover);
+}
+
+.onboarding-sample p {
+    flex: 1 1 280px;
+    margin: 0;
+}
+
+.onboarding-sample button {
+    margin: 0;
+}
+
+.onboarding-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+    font-size: 0.875rem;
+}
+
+.onboarding-foot a {
+    color: var(--color-primary-element);
+    text-decoration: underline;
+}
+
+.onboarding-tiles-toggle {
+    margin: 0;
+    background: transparent;
+    border: none;
+    color: var(--color-text-maxcontrast);
+    text-decoration: underline;
+}
+
+.sample-data-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 0 0 16px;
+    padding: 12px 16px;
+    border-radius: var(--border-radius-large);
+    border: 1px solid var(--color-warning, #eca700);
+    background: color-mix(in srgb, var(--color-warning, #eca700) 12%, var(--color-main-background));
+}
+
+.sample-data-banner[hidden] {
+    display: none;
+}
+
+.sample-data-banner-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sample-data-banner button {
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .onboarding-card {
+        padding: 16px;
+    }
+
+    .onboarding-step-actions {
+        width: 100%;
+        padding-left: 34px;
+    }
+}
+
 /* Budget Tabs */
 /* Tabs: an underlined current tab, not a filled button, so they read as
    two views of one table rather than two actions. */

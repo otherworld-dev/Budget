@@ -109,6 +109,7 @@ import ExchangeRatesModule from './modules/exchange-rates/ExchangeRatesModule.js
 import SharingModule from './modules/sharing/SharingModule.js';
 import BankSyncModule from './modules/bank-sync/BankSyncModule.js';
 import HelpModule, { HELP_TOPICS, helpDocUrl, SUPPORT_LINKS } from './modules/help/HelpModule.js';
+import OnboardingModule from './modules/onboarding/OnboardingModule.js';
 
 class BudgetApp {
     constructor() {
@@ -189,6 +190,7 @@ class BudgetApp {
         this.sharingModule = new SharingModule(this);
         this.bankSyncModule = new BankSyncModule(this);
         this.helpModule = new HelpModule(this);
+        this.onboardingModule = new OnboardingModule(this);
 
         this.init();
     }
@@ -217,6 +219,11 @@ class BudgetApp {
         // pushing a second entry on top of the page-load entry.
         window.history.replaceState({ view: initialView }, '', window.location.hash || `#${initialView}`);
         this.showView(initialView, { history: false });
+        // The dashboard asks for the checklist itself; elsewhere only the
+        // sample-data banner needs it
+        if (initialView !== 'dashboard') {
+            this.onboardingModule.load();
+        }
 
         this.helpModule.showWhatsNewIfUpdated();
     }
@@ -928,6 +935,8 @@ class BudgetApp {
     // ============================================
 
     async loadDashboard() {
+        // First-run checklist + sample-data banner; never throws
+        this.onboardingModule.load();
         return this.dashboardModule.loadDashboard();
     }
 

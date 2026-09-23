@@ -379,6 +379,12 @@ return [
         ['name' => 'setup#repairData', 'url' => '/api/setup/repair', 'verb' => 'POST'],
         ['name' => 'setup#systemInfo', 'url' => '/api/setup/system-info', 'verb' => 'GET'],
 
+        // First-run checklist and sample data
+        ['name' => 'onboarding#state', 'url' => '/api/onboarding', 'verb' => 'GET'],
+        ['name' => 'onboarding#dismiss', 'url' => '/api/onboarding/dismiss', 'verb' => 'POST'],
+        ['name' => 'onboarding#loadSampleData', 'url' => '/api/onboarding/sample-data', 'verb' => 'POST'],
+        ['name' => 'onboarding#clearSampleData', 'url' => '/api/onboarding/sample-data', 'verb' => 'DELETE'],
+
         // Settings routes - specific paths before {key} wildcard
         ['name' => 'setting#index', 'url' => '/api/settings', 'verb' => 'GET'],
         ['name' => 'setting#update', 'url' => '/api/settings', 'verb' => 'PUT'],

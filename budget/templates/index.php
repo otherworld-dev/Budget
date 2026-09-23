@@ -316,6 +316,10 @@ style('budget', 'budget-app');
 </div>
 <?php } ?>
 
+        <!-- Sample data banner: shown on every view while sample data is
+             loaded (OnboardingModule) -->
+        <div id="sample-data-banner" class="sample-data-banner" role="status" hidden></div>
+
         <!-- Dashboard View -->
         <div id="dashboard-view" class="view active">
             <div class="dashboard-header">
@@ -349,6 +353,10 @@ style('budget', 'budget-app');
                     </button>
                 </div>
             </div>
+
+            <!-- First-run checklist (OnboardingModule). While it shows, the
+                 tiles below step back via .onboarding-active on the view. -->
+            <div id="onboarding-checklist" class="onboarding-checklist" hidden></div>
 
             <!-- Hero Section - Key Financial Metrics -->
             <div class="dashboard-hero" style="opacity: 0; transition: opacity 0.3s ease;">
