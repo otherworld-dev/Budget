@@ -59,11 +59,11 @@ export default class ProjectsModule {
         return `
             <div class="project-card" role="button" tabindex="0" data-project-id="${project.id}">
                 <div class="project-card-header">
-                    <span class="project-name">${this.escape(project.name)}</span>
+                    <span class="project-name">${dom.escapeHtml(project.name)}</span>
                     ${shared}
                     ${this.statusBadge(project.status)}
                 </div>
-                <div class="project-meta">${this.escape(project.categoryName || '')} · ${this.datesText(project)}</div>
+                <div class="project-meta">${dom.escapeHtml(project.categoryName || '')} · ${this.datesText(project)}</div>
                 ${this.summaryHtml(project)}
             </div>`;
     }
@@ -87,7 +87,7 @@ export default class ProjectsModule {
             active: t('budget', 'Active'),
             finished: t('budget', 'Finished'),
         };
-        return `<span class="project-status project-status-${this.escape(String(status))}">${labels[status] || this.escape(String(status))}</span>`;
+        return `<span class="project-status project-status-${dom.escapeHtml(String(status))}">${labels[status] || dom.escapeHtml(String(status))}</span>`;
     }
 
     datesText(project) {
@@ -126,7 +126,7 @@ export default class ProjectsModule {
 
         document.getElementById('project-details-title').textContent = project.name;
         document.getElementById('project-details-meta').innerHTML =
-            `<span>${this.escape(project.categoryName || '')} · ${this.datesText(project)}</span>${this.statusBadge(project.status)}`;
+            `<span>${dom.escapeHtml(project.categoryName || '')} · ${this.datesText(project)}</span>${this.statusBadge(project.status)}`;
         document.getElementById('project-details-summary').innerHTML = this.summaryHtml(project);
         document.getElementById('project-details-rows').innerHTML = this.breakdownHtml(project);
         document.getElementById('project-edit-btn').style.display = canWrite ? '' : 'none';
@@ -157,7 +157,7 @@ export default class ProjectsModule {
             return row(
                 entry.outsideProject ? ' outside' : '',
                 entry.depth,
-                `${this.escape(entry.name)}${note}`,
+                `${dom.escapeHtml(entry.name)}${note}`,
                 hasAmount ? this.money(entry.allocation) : '',
                 this.money(entry.spent),
                 hasAmount ? this.money(entry.remaining) : '',
@@ -266,7 +266,7 @@ export default class ProjectsModule {
                 + dom.buildCategoryOptionsHtml(ownExpenseTree(this.app.rawCategoryTree || []), { selectedId: project?.categoryId });
         } else {
             // A shared project stays on its owner's category, which the viewer's own picker cannot list
-            select.innerHTML = `<option value="${project.categoryId}" selected>${this.escape(project.categoryName || '')}</option>`;
+            select.innerHTML = `<option value="${project.categoryId}" selected>${dom.escapeHtml(project.categoryName || '')}</option>`;
         }
         select.disabled = !isOwner;
 
@@ -295,10 +295,10 @@ export default class ProjectsModule {
         document.getElementById('project-allocations-group').style.display = subcategories.length > 0 ? '' : 'none';
         document.getElementById('project-allocations').innerHTML = subcategories.map(sub => `
             <div class="project-alloc-row" style="--depth: ${sub.depth}">
-                <label for="project-alloc-${sub.id}">${this.escape(sub.name)}</label>
+                <label for="project-alloc-${sub.id}">${dom.escapeHtml(sub.name)}</label>
                 <input type="number" id="project-alloc-${sub.id}" class="project-alloc-input" data-category-id="${sub.id}"
                        step="0.01" min="0" inputmode="decimal" placeholder="${t('budget', 'No amount')}"
-                       value="${this.escape(this._allocationValues.get(sub.id) ?? '')}">
+                       value="${dom.escapeHtml(this._allocationValues.get(sub.id) ?? '')}">
             </div>`).join('');
         this.updateUnallocated();
     }
@@ -390,9 +390,6 @@ export default class ProjectsModule {
         return date ? formatters.formatDate(date, this.settings) : '';
     }
 
-    escape(text) {
-        return dom.escapeHtml(text);
-    }
 
     closeModal(modal) {
         return dom.closeModal(modal);

@@ -58,9 +58,6 @@ export default class ReportsModule {
         return formatters.getPrimaryCurrency(this.accounts, this.settings);
     }
 
-    escapeHtml(text) {
-        return dom.escapeHtml(text);
-    }
     setupReportEventListeners() {
         // Period preset change
         const presetSelect = document.getElementById('report-period-preset');
@@ -518,16 +515,16 @@ export default class ReportsModule {
 
             let html = '';
             Object.values(grouped).forEach(group => {
-                html += `<div class="tags-group-header">${this.escapeHtml(group.name)}</div>`;
+                html += `<div class="tags-group-header">${dom.escapeHtml(group.name)}</div>`;
                 group.tags.forEach(tag => {
                     const isSelected = this.selectedReportTags.has(tag.id);
                     html += `
                         <div class="tags-autocomplete-item ${isSelected ? 'selected' : ''}"
                              data-tag-id="${tag.id}">
                             <span class="tag-chip"
-                                  style="display: inline-flex; align-items: center; background-color: ${this.escapeHtml(tag.color || '#888')}; color: white;
+                                  style="display: inline-flex; align-items: center; background-color: ${dom.escapeHtml(tag.color || '#888')}; color: white;
                                          padding: 2px 6px; border-radius: 10px; font-size: 10px; line-height: 14px; margin-right: 4px;">
-                                ${this.escapeHtml(tag.name)}
+                                ${dom.escapeHtml(tag.name)}
                             </span>
                             <span class="tag-check">${isSelected ? '✓' : ''}</span>
                         </div>
@@ -799,7 +796,7 @@ export default class ReportsModule {
             const accountCurrency = account.currency || currency;
             return `
             <tr>
-                <td>${this.escapeHtml(account.name)}</td>
+                <td>${dom.escapeHtml(account.name)}</td>
                 <td class="text-right positive">${this.formatCurrency(account.income || 0, accountCurrency)}</td>
                 <td class="text-right negative">${this.formatCurrency(account.expenses || 0, accountCurrency)}</td>
                 <td class="text-right ${(account.net || 0) >= 0 ? 'positive' : 'negative'}">${this.formatCurrency(account.net || 0, accountCurrency)}</td>
@@ -921,8 +918,8 @@ export default class ReportsModule {
             const color = item.color || defaultColors[i % defaultColors.length];
             return `
                 <div class="spending-legend-item">
-                    <span class="spending-legend-color" style="background: ${this.escapeHtml(color)}"></span>
-                    <span class="spending-legend-name">${this.escapeHtml(item.name)}</span>
+                    <span class="spending-legend-color" style="background: ${dom.escapeHtml(color)}"></span>
+                    <span class="spending-legend-name">${dom.escapeHtml(item.name)}</span>
                     <span class="spending-legend-value">${this.formatCurrency(item.total)}</span>
                     <span class="spending-legend-pct">${pct}%</span>
                 </div>
@@ -941,8 +938,8 @@ export default class ReportsModule {
             return `
                 <tr>
                     <td>
-                        <span class="category-color" style="background: ${this.escapeHtml(cat.color || '#888')}"></span>
-                        ${this.escapeHtml(cat.name)}
+                        <span class="category-color" style="background: ${dom.escapeHtml(cat.color || '#888')}"></span>
+                        ${dom.escapeHtml(cat.name)}
                     </td>
                     <td class="text-right">${this.formatCurrency(cat.total, currency)}</td>
                     <td class="text-right">${pct}%</td>
@@ -972,15 +969,15 @@ export default class ReportsModule {
             const net = totals.net || 0;
             totalsBody.innerHTML = `
                 <tr>
-                    <td>${this.escapeHtml(t('budget', 'Total Income'))}</td>
+                    <td>${dom.escapeHtml(t('budget', 'Total Income'))}</td>
                     <td class="text-right">${this.formatCurrency(totals.income || 0, currency)}</td>
                 </tr>
                 <tr>
-                    <td>${this.escapeHtml(t('budget', 'Total Expenses'))}</td>
+                    <td>${dom.escapeHtml(t('budget', 'Total Expenses'))}</td>
                     <td class="text-right">${this.formatCurrency(totals.expenses || 0, currency)}</td>
                 </tr>
                 <tr class="${net < 0 ? 'negative' : 'positive'}">
-                    <td><strong>${this.escapeHtml(t('budget', 'Net'))}</strong></td>
+                    <td><strong>${dom.escapeHtml(t('budget', 'Net'))}</strong></td>
                     <td class="text-right"><strong>${this.formatCurrency(net, currency)}</strong></td>
                 </tr>
             `;
@@ -992,7 +989,7 @@ export default class ReportsModule {
         if (!tbody) return;
 
         if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3">${this.escapeHtml(t('budget', 'Nothing in this period'))}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3">${dom.escapeHtml(t('budget', 'Nothing in this period'))}</td></tr>`;
             return;
         }
 
@@ -1000,8 +997,8 @@ export default class ReportsModule {
         tbody.innerHTML = sorted.map(item => `
             <tr>
                 <td>
-                    <span class="category-color" style="background: ${this.escapeHtml(item.color || '#888')}"></span>
-                    ${this.escapeHtml(item.name || '')}
+                    <span class="category-color" style="background: ${dom.escapeHtml(item.color || '#888')}"></span>
+                    ${dom.escapeHtml(item.name || '')}
                 </td>
                 <td class="text-right">${this.formatCurrency(item.total, currency)}</td>
                 <td class="text-right">${item.count || 0}</td>
@@ -1015,7 +1012,7 @@ export default class ReportsModule {
 
         tbody.innerHTML = data.map(vendor => `
             <tr>
-                <td>${this.escapeHtml(vendor.name)}</td>
+                <td>${dom.escapeHtml(vendor.name)}</td>
                 <td class="text-right">${this.formatCurrency(vendor.total, currency)}</td>
                 <td class="text-right">${vendor.count}</td>
             </tr>
@@ -1082,15 +1079,15 @@ export default class ReportsModule {
             const val = v || 0;
             if (val === 0) return '<td class="text-right cm-zero">—</td>';
             const cls = val < 0 ? 'negative' : 'positive';
-            return `<td class="text-right ${cls}">${this.escapeHtml(this.formatCurrency(val, currency))}</td>`;
+            return `<td class="text-right ${cls}">${dom.escapeHtml(this.formatCurrency(val, currency))}</td>`;
         };
 
-        const headCells = months.map(m => `<th class="text-right">${this.escapeHtml(monthLabel(m))}</th>`).join('');
+        const headCells = months.map(m => `<th class="text-right">${dom.escapeHtml(monthLabel(m))}</th>`).join('');
         const bodyRows = rows.map(row => {
             const indent = (row.depth || 0) * 16;
             const monthCells = months.map(m => cell(row.monthly?.[m])).join('');
             return `<tr class="${row.isParent ? 'cm-parent' : ''}">
-                <td class="cm-name" style="padding-left:${8 + indent}px">${this.escapeHtml(row.name || '')}</td>
+                <td class="cm-name" style="padding-left:${8 + indent}px">${dom.escapeHtml(row.name || '')}</td>
                 ${monthCells}
                 ${cell(row.total)}
             </tr>`;
@@ -1105,7 +1102,7 @@ export default class ReportsModule {
         </tr>`;
 
         const notice = data.mixedCurrency
-            ? `<div class="report-hint cm-currency-notice">${this.escapeHtml(t('budget', 'You have accounts in more than one currency. Amounts are summed in their original currency without conversion.'))}</div>`
+            ? `<div class="report-hint cm-currency-notice">${dom.escapeHtml(t('budget', 'You have accounts in more than one currency. Amounts are summed in their original currency without conversion.'))}</div>`
             : '';
 
         container.innerHTML = `
@@ -1574,7 +1571,7 @@ export default class ReportsModule {
 
             return `
                 <tr>
-                    <td>${this.escapeHtml(cat.name)}</td>
+                    <td>${dom.escapeHtml(cat.name)}</td>
                     ${cat.years.map(y => `<td class="text-right">${this.formatCurrency(y.spending, currency)}</td>`).join('')}
                     <td class="text-right">${changeHtml}</td>
                 </tr>
@@ -1923,7 +1920,7 @@ export default class ReportsModule {
 
             return `
                 <tr>
-                    <td class="bill-name-col">${this.escapeHtml(bill.name)}${transferBadge}</td>
+                    <td class="bill-name-col">${dom.escapeHtml(bill.name)}${transferBadge}</td>
                     ${months.join('')}
                 </tr>
             `;
@@ -1983,7 +1980,7 @@ export default class ReportsModule {
                     income: money(flows.income),
                 })
                 : '';
-            cells.push(`<td class="balance-cell${balance < 0 ? ' negative' : ''}" title="${this.escapeHtml(title)}">${money(balance)}</td>`);
+            cells.push(`<td class="balance-cell${balance < 0 ? ' negative' : ''}" title="${dom.escapeHtml(title)}">${money(balance)}</td>`);
         }
 
         let title = t('budget', '{account} today: {balance}. Each month carries on from the month before, less the bills and plus the transfers and recurring income still due.', {
@@ -1997,7 +1994,7 @@ export default class ReportsModule {
             });
         }
         return `
-            <tr class="totals-row balance-after-row" title="${this.escapeHtml(title)}">
+            <tr class="totals-row balance-after-row" title="${dom.escapeHtml(title)}">
                 <td class="bill-name-col"><strong>${t('budget', 'Projected balance')}</strong></td>
                 ${cells.join('')}
             </tr>

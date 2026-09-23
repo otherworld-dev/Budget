@@ -1292,11 +1292,11 @@ class BudgetApp {
 
         return tags.map(tag => `
             <span class="tag-chip"
-                  style="display: inline-block; background-color: ${this.escapeHtml(tag.color)}; color: white;
+                  style="display: inline-block; background-color: ${dom.escapeHtml(tag.color)}; color: white;
                          padding: 2px 6px; border-radius: 10px; font-size: 10px; line-height: 14px; margin: 0 2px 2px 0;
                          vertical-align: middle;"
-                  title="${this.escapeHtml(tag.name)}">
-                ${this.escapeHtml(tag.name)}
+                  title="${dom.escapeHtml(tag.name)}">
+                ${dom.escapeHtml(tag.name)}
             </span>
         `).join('');
     }
@@ -1764,10 +1764,10 @@ class BudgetApp {
             if (dupCount > 0) {
                 const dupItems = findings.duplicateTransactions.slice(0, 20).map(d =>
                     `<div class="repair-item">
-                        <span>${this.escapeHtml(d.vendor) || t('budget', '(unnamed)')}</span>
+                        <span>${dom.escapeHtml(d.vendor) || t('budget', '(unnamed)')}</span>
                         <span>${formatCurrency(d.amount)}</span>
-                        <span>${this.escapeHtml(d.date)}</span>
-                        <span class="repair-item-note">${t('budget', 'duplicate of')} ${this.escapeHtml(d.originalDate)}</span>
+                        <span>${dom.escapeHtml(d.date)}</span>
+                        <span class="repair-item-note">${t('budget', 'duplicate of')} ${dom.escapeHtml(d.originalDate)}</span>
                     </div>`
                 ).join('');
 
@@ -1785,7 +1785,7 @@ class BudgetApp {
             if (stuckCount > 0) {
                 const stuckItems = findings.stuckBills.map(b =>
                     `<div class="repair-item">
-                        <span>${this.escapeHtml(b.name)}</span>
+                        <span>${dom.escapeHtml(b.name)}</span>
                         <span>${t('budget', 'Due: {date}', { date: b.nextDueDate })}</span>
                         <span>${t('budget', 'Paid: {date}', { date: b.lastPaidDate })}</span>
                     </div>`
@@ -1805,7 +1805,7 @@ class BudgetApp {
             if (paidOneTimeCount > 0) {
                 const paidOneTimeItems = findings.paidOneTimeBills.map(b =>
                     `<div class="repair-item">
-                        <span>${this.escapeHtml(b.name)}</span>
+                        <span>${dom.escapeHtml(b.name)}</span>
                         <span>${formatCurrency(b.amount)}</span>
                         <span>${t('budget', 'Paid: {date}', { date: b.lastPaidDate })}</span>
                     </div>`
@@ -1825,10 +1825,10 @@ class BudgetApp {
             if (futureCount > 0) {
                 const futureItems = findings.futureClearedTransactions.slice(0, 20).map(f =>
                     `<div class="repair-item">
-                        <span>${this.escapeHtml(f.description) || t('budget', '(unnamed)')}</span>
+                        <span>${dom.escapeHtml(f.description) || t('budget', '(unnamed)')}</span>
                         <span>${formatCurrency(f.amount)}</span>
-                        <span>${this.escapeHtml(f.date)}</span>
-                        <span class="repair-item-note">${this.escapeHtml(f.accountName)}</span>
+                        <span>${dom.escapeHtml(f.date)}</span>
+                        <span class="repair-item-note">${dom.escapeHtml(f.accountName)}</span>
                     </div>`
                 ).join('');
 
@@ -1850,7 +1850,7 @@ class BudgetApp {
                     `<div class="repair-item">
                         <label class="repair-item-select">
                             <input type="checkbox" class="repair-account-checkbox" data-account-id="${a.accountId}" checked>
-                            <span>${this.escapeHtml(a.accountName)}</span>
+                            <span>${dom.escapeHtml(a.accountName)}</span>
                         </label>
                         <span>${t('budget', 'Now: {amount} in credit', { amount: formatCurrency(Math.abs(a.currentBalance)) })}</span>
                         <span>${t('budget', 'After repair: {amount} owed', { amount: formatCurrency(Math.abs(a.repairedBalance)) })}</span>
@@ -1875,9 +1875,9 @@ class BudgetApp {
                 const splitCatItems = findings.splitParentCategories.slice(0, 20).map(tx => {
                     const category = this.categories?.find(c => c.id === tx.categoryId);
                     return `<div class="repair-item">
-                        <span>${this.escapeHtml(tx.description || tx.vendor || t('budget', 'Transaction'))}</span>
-                        <span>${this.escapeHtml(this.formatDate(tx.date))}</span>
-                        <span>${t('budget', 'Listed under {category}', { category: this.escapeHtml(category ? category.name : t('budget', 'Uncategorized')) }, undefined, { escape: false })}</span>
+                        <span>${dom.escapeHtml(tx.description || tx.vendor || t('budget', 'Transaction'))}</span>
+                        <span>${dom.escapeHtml(this.formatDate(tx.date))}</span>
+                        <span>${t('budget', 'Listed under {category}', { category: dom.escapeHtml(category ? category.name : t('budget', 'Uncategorized')) }, undefined, { escape: false })}</span>
                     </div>`;
                 }).join('');
 
@@ -1898,7 +1898,7 @@ class BudgetApp {
             if (driftCount > 0) {
                 const driftItems = findings.balanceDrift.map(a =>
                     `<div class="repair-item">
-                        <span>${this.escapeHtml(a.accountName)}</span>
+                        <span>${dom.escapeHtml(a.accountName)}</span>
                         <span>${t('budget', 'Stored: {amount}', { amount: formatCurrency(a.storedBalance) })}</span>
                         <span>${t('budget', 'Expected: {amount}', { amount: formatCurrency(a.expectedBalance) })}</span>
                         <span class="repair-item-note">${t('budget', 'Diff: {amount}', { amount: formatCurrency(a.difference) })}</span>
@@ -2390,7 +2390,7 @@ class BudgetApp {
                 <div class="result-error">
                     <span class="icon-error-color"></span>
                     <h5>${t('budget', 'Import Failed')}</h5>
-                    <p>${this.escapeHtml(error.message)}</p>
+                    <p>${dom.escapeHtml(error.message)}</p>
                     <p class="result-hint">${t('budget', 'Your existing data has not been modified.')}</p>
                 </div>
             `;
@@ -2734,7 +2734,7 @@ class BudgetApp {
             });
 
             return {
-                label: this.escapeHtml(debt.name),
+                label: dom.escapeHtml(debt.name),
                 data,
                 borderColor: color,
                 backgroundColor: isArea ? color + '40' : 'transparent',
@@ -2847,7 +2847,7 @@ class BudgetApp {
             return `
                 <div class="debt-card" data-debt-id="${debt.id || ''}" style="border-left-color: ${this._debtColor(index)};">
                     <div class="debt-card-header">
-                        <span class="debt-card-name">${this.escapeHtml(debt.name)}</span>
+                        <span class="debt-card-name">${dom.escapeHtml(debt.name)}</span>
                         <span class="debt-card-balance">${this.formatCurrency(balance, currency)}</span>
                     </div>
                     <div class="debt-card-meta">
@@ -2890,7 +2890,7 @@ class BudgetApp {
             return `
                 <div class="debt-scenario-card ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''}"
                      data-scenario-id="${s.id}">
-                    <div class="scenario-card-name">${this.escapeHtml(s.name)}</div>
+                    <div class="scenario-card-name">${dom.escapeHtml(s.name)}</div>
                     <div class="scenario-card-meta">${strategy} · +${this.formatCurrency(extra, this.getPrimaryCurrency())}/mo</div>
                     <div class="scenario-card-actions">
                         <button class="scenario-edit-btn" data-id="${s.id}" title="${t('budget', 'Edit')}" aria-label="${t('budget', 'Edit')}">&#9998;</button>
@@ -2933,7 +2933,7 @@ class BudgetApp {
                 return `
                     <label>
                         <input type="checkbox" value="${debt.id}" ${checked ? 'checked' : ''} class="scenario-debt-checkbox">
-                        ${this.escapeHtml(debt.name)}
+                        ${dom.escapeHtml(debt.name)}
                         <span class="debt-detail">${balance} · ${rate}%</span>
                     </label>
                 `;
@@ -2948,8 +2948,8 @@ class BudgetApp {
                 const rate = overrides[debt.id] !== undefined ? overrides[debt.id] : (parseFloat(debt.interestRate) || 0);
                 return `
                     <div class="scenario-rate-item">
-                        <span class="rate-label">${this.escapeHtml(debt.name)}</span>
-                        <input type="number" class="rate-override-input" data-debt-id="${debt.id}" value="${rate}" min="0" step="0.01" aria-label="${t('budget', 'Interest Rate')}: ${this.escapeHtml(debt.name)}">
+                        <span class="rate-label">${dom.escapeHtml(debt.name)}</span>
+                        <input type="number" class="rate-override-input" data-debt-id="${debt.id}" value="${rate}" min="0" step="0.01" aria-label="${t('budget', 'Interest Rate')}: ${dom.escapeHtml(debt.name)}">
                         <span class="rate-suffix">%</span>
                     </div>
                 `;
@@ -3102,7 +3102,7 @@ class BudgetApp {
             chartContainer.innerHTML = `
                 <div style="display: flex; gap: 16px;">
                     <div class="debt-comparison-card${rec === 'avalanche' ? ' recommended' : ''}" style="flex: 1; background: var(--color-background-dark); border-radius: 8px; padding: 16px; ${rec === 'avalanche' ? 'border: 2px solid var(--color-primary-element);' : 'border: 2px solid transparent;'}">
-                        <h4 style="margin: 0 0 12px 0;">${this.escapeHtml(avalanchePlan.strategyName || t('budget', 'Avalanche'))}</h4>
+                        <h4 style="margin: 0 0 12px 0;">${dom.escapeHtml(avalanchePlan.strategyName || t('budget', 'Avalanche'))}</h4>
                         <div style="margin-bottom: 8px;">
                             <div style="font-size: 12px; color: var(--color-text-maxcontrast);">${t('budget', 'Months to payoff')}</div>
                             <div style="font-size: 20px; font-weight: bold;">${avalanchePlan.totalMonths || 0}</div>
@@ -3113,7 +3113,7 @@ class BudgetApp {
                         </div>
                     </div>
                     <div class="debt-comparison-card${rec === 'snowball' ? ' recommended' : ''}" style="flex: 1; background: var(--color-background-dark); border-radius: 8px; padding: 16px; ${rec === 'snowball' ? 'border: 2px solid var(--color-primary-element);' : 'border: 2px solid transparent;'}">
-                        <h4 style="margin: 0 0 12px 0;">${this.escapeHtml(snowballPlan.strategyName || t('budget', 'Snowball'))}</h4>
+                        <h4 style="margin: 0 0 12px 0;">${dom.escapeHtml(snowballPlan.strategyName || t('budget', 'Snowball'))}</h4>
                         <div style="margin-bottom: 8px;">
                             <div style="font-size: 12px; color: var(--color-text-maxcontrast);">${t('budget', 'Months to payoff')}</div>
                             <div style="font-size: 20px; font-weight: bold;">${snowballPlan.totalMonths || 0}</div>
@@ -3140,7 +3140,7 @@ class BudgetApp {
                         ${c.recommendation === 'avalanche' ? t('budget', 'Avalanche Recommended') :
                           c.recommendation === 'snowball' ? t('budget', 'Snowball Recommended') : t('budget', 'Either Works')}
                     </div>
-                    <div class="recommendation-text">${this.escapeHtml(c.explanation)}</div>
+                    <div class="recommendation-text">${dom.escapeHtml(c.explanation)}</div>
                     ${c.interestSavedByAvalanche > 0 ? `<div class="recommendation-savings">${t('budget', 'Avalanche saves {amount} in interest', { amount: this.formatCurrency(c.interestSavedByAvalanche, currency) })}</div>` : ''}
                     ${c.interestSavedByAvalanche < 0 ? `<div class="recommendation-savings">${t('budget', 'Snowball saves {amount} in interest', { amount: this.formatCurrency(Math.abs(c.interestSavedByAvalanche), currency) })}</div>` : ''}
                 </div>
@@ -3300,7 +3300,7 @@ class BudgetApp {
             const candidates = (this.accounts || []).filter(a =>
                 a.id !== transaction.accountId && (a.currency || this.getPrimaryCurrency()) === currency);
             convertSelect.innerHTML = candidates.map(a =>
-                `<option value="${a.id}">${this.escapeHtml(a.name)}</option>`).join('');
+                `<option value="${a.id}">${dom.escapeHtml(a.name)}</option>`).join('');
             convertSection.style.display = candidates.length ? '' : 'none';
         }
 
@@ -3328,9 +3328,9 @@ class BudgetApp {
                 return `
                     <div class="match-item" data-match-id="${match.id}">
                         <span class="match-date">${this.formatDate(match.date)}</span>
-                        <span class="match-description">${this.escapeHtml(match.description)}</span>
+                        <span class="match-description">${dom.escapeHtml(match.description)}</span>
                         <span class="match-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
-                        <span class="match-account">${this.escapeHtml(matchAccount?.name) || t('budget', 'Unknown')}</span>
+                        <span class="match-account">${dom.escapeHtml(matchAccount?.name) || t('budget', 'Unknown')}</span>
                         <button class="link-match-btn" data-source-id="${transactionId}" data-target-id="${match.id}">
                             ${t('budget', 'Link as Transfer')}
                         </button>
@@ -3536,7 +3536,7 @@ class BudgetApp {
             </div>
             <div class="split-info-row">
                 <span class="split-info-label">${t('budget', 'Description')}:</span>
-                <span>${this.escapeHtml(transaction.description)}</span>
+                <span>${dom.escapeHtml(transaction.description)}</span>
             </div>
             <div class="split-info-row">
                 <span class="split-info-label">${t('budget', 'Total Amount')}:</span>
@@ -3613,7 +3613,7 @@ class BudgetApp {
             <div class="split-field split-description-field">
                 <label>${t('budget', 'Description')}</label>
                 <input aria-label="${t('budget', 'Description')}" type="text" class="split-description" maxlength="255"
-                       value="${this.escapeHtml(split?.description || '')}" placeholder="${t('budget', 'Optional note')}">
+                       value="${dom.escapeHtml(split?.description || '')}" placeholder="${t('budget', 'Optional note')}">
             </div>
             <div class="split-actions">
                 <button type="button" class="split-remove-btn ${isFirst ? 'disabled' : ''}"
@@ -3654,7 +3654,7 @@ class BudgetApp {
 
         return this.categories
             .filter(c => c.type === categoryType)
-            .map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${this.escapeHtml(c.name)}</option>`)
+            .map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${dom.escapeHtml(c.name)}</option>`)
             .join('');
     }
 
@@ -4254,9 +4254,6 @@ class BudgetApp {
         return formatters.formatDate(dateStr, this.settings);
     }
 
-    escapeHtml(text) {
-        return dom.escapeHtml(text);
-    }
 
     populateAccountDropdowns() {
         // Stub method - dropdowns are populated by individual modules as needed

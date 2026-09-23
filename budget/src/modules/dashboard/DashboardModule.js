@@ -158,9 +158,6 @@ export default class DashboardModule {
         return formatters.formatDate(dateStr, this.settings);
     }
 
-    escapeHtml(text) {
-        return dom.escapeHtml(text);
-    }
 
     getPrimaryCurrency() {
         return this.app.getPrimaryCurrency();
@@ -1082,7 +1079,7 @@ export default class DashboardModule {
                     <div class="account-widget-info">
                         <div class="account-widget-icon">${icon}</div>
                         <div>
-                            <div class="account-widget-name">${this.escapeHtml(account.name)}</div>
+                            <div class="account-widget-name">${dom.escapeHtml(account.name)}</div>
                             <div class="account-widget-type">${accountTypeLabels[type] || type.replace('_', ' ')}</div>
                         </div>
                     </div>
@@ -1137,7 +1134,7 @@ export default class DashboardModule {
         listEl.innerHTML = sortedAccounts.map(account => `
             <div class="tile-config-item" draggable="true" data-account-id="${account.id}">
                 <span class="tile-config-drag-handle" aria-hidden="true">&#x2630;</span>
-                <span class="tile-config-name">${this.escapeHtml(account.name)}</span>
+                <span class="tile-config-name">${dom.escapeHtml(account.name)}</span>
                 <span class="tile-config-move">
                     <button type="button" class="tile-config-move-btn" data-direction="-1" title="${t('budget', 'Move up')}" aria-label="${t('budget', 'Move up')}">&#x2191;</button>
                     <button type="button" class="tile-config-move-btn" data-direction="1" title="${t('budget', 'Move down')}" aria-label="${t('budget', 'Move down')}">&#x2193;</button>
@@ -1255,7 +1252,7 @@ export default class DashboardModule {
     _recentTransactionCategoryCell(tx) {
         const uncategorized = t('budget', 'Uncategorized');
         const colorFor = (id) => this.categories?.find(c => c.id === id)?.color || '#999';
-        const dot = (color) => `<span class="recent-transaction-category-dot" style="background: ${this.escapeHtml(color)}"></span>`;
+        const dot = (color) => `<span class="recent-transaction-category-dot" style="background: ${dom.escapeHtml(color)}"></span>`;
         const cell = (dots, label, title) =>
             `<span class="recent-transaction-category"${title ? ` title="${title}"` : ''}>`
             + `${dots}<span class="recent-transaction-category-name">${label}</span></span>`;
@@ -1274,8 +1271,8 @@ export default class DashboardModule {
 
             return cell(
                 distinct.slice(0, MAX_SPLIT_CATEGORY_DOTS).map(part => dot(colorFor(part.categoryId))).join(''),
-                distinct.map(part => this.escapeHtml(part.categoryName || uncategorized)).join(' / '),
-                parts.map(part => this.escapeHtml(
+                distinct.map(part => dom.escapeHtml(part.categoryName || uncategorized)).join(' / '),
+                parts.map(part => dom.escapeHtml(
                     (part.categoryName || uncategorized) + ': ' + this.formatCurrency(part.amount)
                 )).join('&#10;')
             );
@@ -1284,13 +1281,13 @@ export default class DashboardModule {
         if (isSplit) {
             // Split, but this payload did not carry the parts. Naming it a
             // split is at least true, where "Uncategorized" is not.
-            return cell(dot('#999'), this.escapeHtml(t('budget', 'Split')), this.escapeHtml(t('budget', 'Split transaction')));
+            return cell(dot('#999'), dom.escapeHtml(t('budget', 'Split')), dom.escapeHtml(t('budget', 'Split transaction')));
         }
 
         const category = this.categories?.find(c => c.id === tx.categoryId || c.id === tx.category_id);
         return cell(
             dot(category ? category.color : '#999'),
-            this.escapeHtml(category ? category.name : uncategorized),
+            dom.escapeHtml(category ? category.name : uncategorized),
             ''
         );
     }
@@ -1328,7 +1325,7 @@ export default class DashboardModule {
                             }
                         </div>
                         <div class="recent-transaction-details">
-                            <div class="recent-transaction-description">${this.escapeHtml(tx.description || tx.vendor || t('budget', 'Transaction'))}</div>
+                            <div class="recent-transaction-description">${dom.escapeHtml(tx.description || tx.vendor || t('budget', 'Transaction'))}</div>
                             <div class="recent-transaction-meta">
                                 <span class="recent-transaction-date">${date}</span>
                                 ${this._recentTransactionCategoryCell(tx)}
@@ -1414,7 +1411,7 @@ export default class DashboardModule {
                 <div class="budget-alert-item ${severityClass}">
                     <div class="alert-icon">${severityIcon}</div>
                     <div class="alert-content">
-                        <div class="alert-category">${this.escapeHtml(alert.categoryName)}</div>
+                        <div class="alert-category">${dom.escapeHtml(alert.categoryName)}</div>
                         <div class="alert-progress">
                             <div class="alert-progress-bar" ${progressBarAttrs(alert.percentage, alert.categoryName)}>
                                 <div class="alert-progress-fill ${severityClass}" style="width: ${Math.min(100, alert.percentage)}%"></div>
@@ -1449,7 +1446,7 @@ export default class DashboardModule {
 
             return `
                 <div class="tile-config-item tile-config-item--static" data-category-id="${status.categoryId}">
-                    <span class="tile-config-name">${this.escapeHtml(status.categoryName)}${derived}</span>
+                    <span class="tile-config-name">${dom.escapeHtml(status.categoryName)}${derived}</span>
                     <span class="tile-config-meta">${this.formatCurrency(status.budgetAmount, currency)}</span>
                     <label class="tile-config-toggle">
                         <input type="checkbox" data-category-id="${status.categoryId}"
@@ -1768,7 +1765,7 @@ export default class DashboardModule {
             return `
                 <div class="bill-widget-item ${statusClass}">
                     <div class="bill-widget-info">
-                        <div class="bill-widget-name">${this.escapeHtml(bill.name)}</div>
+                        <div class="bill-widget-name">${dom.escapeHtml(bill.name)}</div>
                         <div class="bill-widget-due ${statusClass}">${dueText}</div>
                     </div>
                     <div class="bill-widget-amount">${this.formatCurrency(bill.amount, bill.currency)}</div>
@@ -1828,7 +1825,7 @@ export default class DashboardModule {
                     <div class="budget-widget-header">
                         <div class="budget-widget-name">
                             <span class="budget-widget-color" style="background: ${color}"></span>
-                            ${this.escapeHtml(cat.categoryName || cat.name)}
+                            ${dom.escapeHtml(cat.categoryName || cat.name)}
                         </div>
                         <div class="budget-widget-amounts">
                             ${this.formatCurrency(spent)} / ${this.formatCurrency(budgeted)}
@@ -1904,7 +1901,7 @@ export default class DashboardModule {
             return `
                 <div class="savings-goal-item">
                     <div class="savings-goal-header">
-                        <div class="savings-goal-name">${this.escapeHtml(goal.name)}</div>
+                        <div class="savings-goal-name">${dom.escapeHtml(goal.name)}</div>
                         <div class="savings-goal-target">${t('budget', 'Target: {amount}', { amount: this.formatCurrency(target) })}</div>
                     </div>
                     <div class="savings-goal-progress">
@@ -1969,7 +1966,7 @@ export default class DashboardModule {
             return `
                 <div class="project-tile-item">
                     <div class="project-tile-header">
-                        <span class="project-tile-name">${this.escapeHtml(project.name)}</span>
+                        <span class="project-tile-name">${dom.escapeHtml(project.name)}</span>
                         <span class="project-tile-percent">${bar.percent}%</span>
                     </div>
                     <div class="budget-progress-bar" ${progressBarAttrs(bar.percent, project.name)}><div class="budget-progress-fill ${bar.status}" style="width: ${bar.width}%"></div></div>
@@ -2111,7 +2108,7 @@ export default class DashboardModule {
             return `
                 <div class="top-category-item">
                     <span class="category-dot" style="background: ${color}"></span>
-                    <span class="category-name">${this.escapeHtml(name)}</span>
+                    <span class="category-name">${dom.escapeHtml(name)}</span>
                     <span class="category-amount">${this.formatCurrency(Math.abs(amount))}</span>
                 </div>
             `;
@@ -2141,7 +2138,7 @@ export default class DashboardModule {
             const isPositive = change >= 0;
             return `
                 <div class="account-performance-item">
-                    <div class="account-name">${this.escapeHtml(account.name)}</div>
+                    <div class="account-name">${dom.escapeHtml(account.name)}</div>
                     <div class="account-balance">${this.formatCurrency(account.balance || 0)}</div>
                     <div class="account-change ${isPositive ? 'positive' : 'negative'}">
                         ${isPositive ? '↑' : '↓'} ${this.formatCurrency(Math.abs(change))}
@@ -2177,7 +2174,7 @@ export default class DashboardModule {
                         const remaining = budget - spent;
                         return `
                             <tr>
-                                <td>${this.escapeHtml(cat.name)}</td>
+                                <td>${dom.escapeHtml(cat.name)}</td>
                                 <td>${this.formatCurrency(budget)}</td>
                                 <td>${this.formatCurrency(spent)}</td>
                                 <td class="${remaining >= 0 ? 'positive' : 'negative'}">
@@ -2211,7 +2208,7 @@ export default class DashboardModule {
             return `
                 <div class="goal-summary-item">
                     <div class="goal-summary-header">
-                        <span class="goal-name">${this.escapeHtml(goal.name)}</span>
+                        <span class="goal-name">${dom.escapeHtml(goal.name)}</span>
                         <span class="goal-percentage">${percentage.toFixed(0)}%</span>
                     </div>
                     <div class="goal-summary-progress">
@@ -2290,7 +2287,7 @@ export default class DashboardModule {
 
         container.innerHTML = accountsToReconcile.slice(0, 5).map(account => `
             <div class="reconciliation-item">
-                <div class="reconciliation-name">${this.escapeHtml(account.name)}</div>
+                <div class="reconciliation-name">${dom.escapeHtml(account.name)}</div>
                 <div class="reconciliation-status">
                     <span class="reconciliation-badge">${t('budget', 'Up to date')}</span>
                 </div>
@@ -2327,7 +2324,7 @@ export default class DashboardModule {
         const expenseArrow = expenseChange >= 0 ? '↑' : '↓';
 
         container.innerHTML = `
-            ${data.periodLabel ? `<div class="comparison-period">${this.escapeHtml(data.periodLabel)}</div>` : ''}
+            ${data.periodLabel ? `<div class="comparison-period">${dom.escapeHtml(data.periodLabel)}</div>` : ''}
             <div class="comparison-row">
                 <span class="comparison-label">${t('budget', 'Income')}</span>
                 <span class="comparison-value">${this.formatCurrency(currentIncome)}</span>
@@ -2357,7 +2354,7 @@ export default class DashboardModule {
         container.innerHTML = sorted.slice(0, 5).map(tx => `
             <div class="widget-list-item">
                 <div class="widget-item-info">
-                    <div class="widget-item-name">${this.escapeHtml(tx.vendor || tx.description || t('budget', 'Unknown'))}</div>
+                    <div class="widget-item-name">${dom.escapeHtml(tx.vendor || tx.description || t('budget', 'Unknown'))}</div>
                     <div class="widget-item-meta">${formatters.formatDate(tx.date, this.settings)}</div>
                 </div>
                 <div class="widget-item-amount ${tx.type === 'credit' ? 'positive' : 'negative'}">${this.formatCurrency(tx.amount)}</div>
@@ -2386,7 +2383,7 @@ export default class DashboardModule {
         container.innerHTML = `
             <div class="widget-stat">
                 <div class="widget-stat-value">${this.formatCurrency(total)}</div>
-                <div class="widget-stat-label">${this.escapeHtml(spanLabel)}</div>
+                <div class="widget-stat-label">${dom.escapeHtml(spanLabel)}</div>
             </div>
             <div class="widget-stat">
                 <div class="widget-stat-value">${this.formatCurrency(avgDaily)}</div>
@@ -2435,7 +2432,7 @@ export default class DashboardModule {
         container.innerHTML = transactions.slice(0, 5).map(tx => `
             <div class="widget-list-item">
                 <div class="widget-item-info">
-                    <div class="widget-item-name">${this.escapeHtml(tx.vendor || tx.description || t('budget', 'Unknown'))}</div>
+                    <div class="widget-item-name">${dom.escapeHtml(tx.vendor || tx.description || t('budget', 'Unknown'))}</div>
                     <div class="widget-item-meta">${formatters.formatDate(tx.date, this.settings)} · ${this.formatCurrency(tx.amount)}</div>
                 </div>
             </div>
@@ -2462,7 +2459,7 @@ export default class DashboardModule {
                 <div class="widget-list-item">
                     <div class="widget-item-info">
                         <span class="category-color" style="background-color: ${cat.color || '#3b82f6'}; width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px;"></span>
-                        <div class="widget-item-name">${this.escapeHtml(cat.name)}</div>
+                        <div class="widget-item-name">${dom.escapeHtml(cat.name)}</div>
                     </div>
                     <div class="widget-item-amount">
                         ${this.formatCurrency(cat.currentTotal)}
@@ -2506,7 +2503,7 @@ export default class DashboardModule {
             return `
                 <div class="bill-widget-item ${statusClass}">
                     <div class="bill-widget-info">
-                        <div class="bill-widget-name">${this.escapeHtml(bill.name)}</div>
+                        <div class="bill-widget-name">${dom.escapeHtml(bill.name)}</div>
                         <div class="bill-widget-due ${statusClass}">${dueText}</div>
                     </div>
                     <div class="bill-widget-amount">${this.formatCurrency(bill.amount)}</div>
@@ -2559,7 +2556,7 @@ export default class DashboardModule {
         container.innerHTML = incomes.slice(0, 5).map(income => `
             <div class="widget-list-item">
                 <div class="widget-item-info">
-                    <div class="widget-item-name">${this.escapeHtml(income.name)}</div>
+                    <div class="widget-item-name">${dom.escapeHtml(income.name)}</div>
                     <div class="widget-item-meta">${income.frequency || 'monthly'}</div>
                 </div>
                 <div class="widget-item-amount positive">${this.formatCurrency(income.amount)}</div>
@@ -2585,7 +2582,7 @@ export default class DashboardModule {
             return `
                 <div class="widget-list-item">
                     <div class="widget-item-info">
-                        <div class="widget-item-name">${this.escapeHtml(accountName)}</div>
+                        <div class="widget-item-name">${dom.escapeHtml(accountName)}</div>
                         <div class="widget-item-meta">${n('budget', '%n transaction', '%n transactions', count)}${importedAt ? ` · ${importedAt}` : ''}</div>
                     </div>
                 </div>
@@ -2801,7 +2798,7 @@ export default class DashboardModule {
                             <div class="spending-breakdown-item">
                                 <div class="spending-breakdown-label">
                                     <span class="spending-dot" style="background: ${colors[index]}"></span>
-                                    <span class="spending-category-name">${this.escapeHtml(labels[index])}</span>
+                                    <span class="spending-category-name">${dom.escapeHtml(labels[index])}</span>
                                 </div>
                                 <div class="spending-breakdown-values">
                                     <span class="spending-percentage">${percentage}%</span>
@@ -5102,7 +5099,7 @@ export default class DashboardModule {
             let options = `<option value="">${t('budget', 'All Accounts')}</option>`;
             if (this.accounts) {
                 this.accounts.forEach(acc => {
-                    options += `<option value="${acc.id}" ${currentAccount == acc.id ? 'selected' : ''}>${this.escapeHtml(acc.name)}</option>`;
+                    options += `<option value="${acc.id}" ${currentAccount == acc.id ? 'selected' : ''}>${dom.escapeHtml(acc.name)}</option>`;
                 });
             }
             fields.push(`

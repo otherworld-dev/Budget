@@ -4,7 +4,7 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { apiFetch } from '../../utils/api.js';
 import { pickableAccounts, accountOptionLabel } from '../../utils/accounts.js';
 import { userLocale } from '../../utils/formatters.js';
-import { escapeHtml as domEscapeHtml } from '../../utils/dom.js';
+import { escapeHtml } from '../../utils/dom.js';
 
 /**
  * Bank Sync Module — manages bank connections, account mappings, and sync operations.
@@ -174,7 +174,7 @@ export default class BankSyncModule {
                 <div class="bank-connection-card" data-connection-id="${connection.id}">
                     <div class="bank-connection-header">
                         <div class="bank-connection-info">
-                            <strong>${this.escapeHtml(connection.name)}</strong>
+                            <strong>${escapeHtml(connection.name)}</strong>
                             <span class="bank-connection-provider">${providerLabel}</span>
                             <span class="bank-connection-status ${statusClass}">${statusLabel}</span>
                         </div>
@@ -200,7 +200,7 @@ export default class BankSyncModule {
                             <input type="checkbox" class="include-pending-checkbox" data-connection-id="${connection.id}" ${connection.includePending ? 'checked' : ''}>
                             <span>${t('budget', 'Include pending')}</span>
                         </label>` : ''}
-                        ${connection.lastError ? `<span class="bank-connection-error">${this.escapeHtml(connection.lastError)}</span>` : ''}
+                        ${connection.lastError ? `<span class="bank-connection-error">${escapeHtml(connection.lastError)}</span>` : ''}
                     </div>
                 </div>
             `;
@@ -444,9 +444,9 @@ export default class BankSyncModule {
         }
 
         grid.innerHTML = institutions.map(inst => `
-            <div class="bank-institution-tile" data-institution-id="${this.escapeHtml(inst.id)}" tabindex="0" role="button">
-                ${inst.logo ? `<img src="${this.escapeHtml(inst.logo)}" alt="" class="bank-institution-logo" loading="lazy">` : '<div class="bank-institution-logo-placeholder"></div>'}
-                <span class="bank-institution-name">${this.escapeHtml(inst.name)}</span>
+            <div class="bank-institution-tile" data-institution-id="${escapeHtml(inst.id)}" tabindex="0" role="button">
+                ${inst.logo ? `<img src="${escapeHtml(inst.logo)}" alt="" class="bank-institution-logo" loading="lazy">` : '<div class="bank-institution-logo-placeholder"></div>'}
+                <span class="bank-institution-name">${escapeHtml(inst.name)}</span>
             </div>
         `).join('');
 
@@ -740,7 +740,7 @@ export default class BankSyncModule {
         // — except one a mapping already targets (#372).
         const accounts = pickableAccounts(this.app.accounts, mappings.map(m => m.budgetAccountId));
         const accountOptions = accounts.map(a =>
-            `<option value="${a.id}">${this.escapeHtml(accountOptionLabel(a))} (${a.currency})</option>`
+            `<option value="${a.id}">${escapeHtml(accountOptionLabel(a))} (${a.currency})</option>`
         ).join('');
 
         container.innerHTML = mappings.map(mapping => {
@@ -755,7 +755,7 @@ export default class BankSyncModule {
                                    data-mapping-id="${mapping.id}" data-connection-id="${connectionId}" ${enabled}>
                         </label>
                         <div>
-                            <strong>${this.escapeHtml(mapping.externalAccountName || mapping.externalAccountId)}</strong>
+                            <strong>${escapeHtml(mapping.externalAccountName || mapping.externalAccountId)}</strong>
                             ${balance ? `<small>${balance}</small>` : ''}
                             ${mapping.consentExpires ? `<small class="consent-warning">${t('budget', 'Consent expires: {date}', { date: new Date(mapping.consentExpires).toLocaleDateString(userLocale()) })}</small>` : ''}
                         </div>
@@ -860,9 +860,4 @@ export default class BankSyncModule {
         }
     }
 
-    escapeHtml(text) {
-        // Not textContent/innerHTML: that leaves quotes alone, and these
-        // values are also written into attribute values.
-        return domEscapeHtml(text);
-    }
 }

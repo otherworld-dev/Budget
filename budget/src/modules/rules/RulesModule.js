@@ -64,9 +64,6 @@ export default class RulesModule {
         return formatters.formatDate(dateStr, this.settings);
     }
 
-    escapeHtml(text) {
-        return dom.escapeHtml(text);
-    }
 
     hideModals() {
         return this.app.hideModals();
@@ -123,7 +120,7 @@ export default class RulesModule {
                 'ends_with': t('budget', 'ends with'),
                 'regex': t('budget', 'matches')
             };
-            criteriaText = `${rule.field} ${matchTypeLabels[rule.matchType] || rule.matchType} "${this.escapeHtml(rule.pattern)}"`;
+            criteriaText = `${rule.field} ${matchTypeLabels[rule.matchType] || rule.matchType} "${dom.escapeHtml(rule.pattern)}"`;
         }
 
         // Shared rules: read-only unless the owner granted write. Only the owner
@@ -138,7 +135,7 @@ export default class RulesModule {
         return `
             <tr class="rule-row ${rule.active ? '' : 'inactive'}" data-rule-id="${rule.id}">
                 <td class="rules-col-priority">${rule.priority}</td>
-                <td class="rules-col-name">${this.escapeHtml(rule.name)}${sharedBadge}</td>
+                <td class="rules-col-name">${dom.escapeHtml(rule.name)}${sharedBadge}</td>
                 <td class="rules-col-status">
                     <label class="rule-toggle" title="${rule.active ? t('budget', 'Click to disable') : t('budget', 'Click to enable')}">
                         <input type="checkbox" class="rule-active-toggle" data-rule-id="${rule.id}" ${rule.active ? 'checked' : ''} ${canWrite ? '' : 'disabled'}>
@@ -214,7 +211,7 @@ export default class RulesModule {
         // A 'between' range is stored as a {min, max} object
         const pattern = patternText(condition.pattern);
 
-        return `${negate}${field} ${matchType} "${this.escapeHtml(pattern)}"`;
+        return `${negate}${field} ${matchType} "${dom.escapeHtml(pattern)}"`;
     }
 
     countConditions(node) {
@@ -241,11 +238,11 @@ export default class RulesModule {
                     case 'category': {
                         const cat = this.categories?.find(c => c.id === action.value);
                         const name = cat?.name || t('budget', 'Category #{id}', { id: action.value });
-                        badges.push(`<span class="action-badge category">→ ${this.escapeHtml(name)}</span>`);
+                        badges.push(`<span class="action-badge category">→ ${dom.escapeHtml(name)}</span>`);
                         break;
                     }
                     case 'vendor':
-                        badges.push(`<span class="action-badge vendor">${t('budget', 'Vendor:')} ${this.escapeHtml(action.value)}</span>`);
+                        badges.push(`<span class="action-badge vendor">${t('budget', 'Vendor:')} ${dom.escapeHtml(action.value)}</span>`);
                         break;
                     case 'notes':
                         badges.push(`<span class="action-badge notes">${t('budget', 'Set notes')}</span>`);
@@ -254,7 +251,7 @@ export default class RulesModule {
                         badges.push(`<span class="action-badge tags">${t('budget', 'Set tags')}</span>`);
                         break;
                     case 'type':
-                        badges.push(`<span class="action-badge type">${t('budget', 'Type:')} ${this.escapeHtml(action.value)}</span>`);
+                        badges.push(`<span class="action-badge type">${t('budget', 'Type:')} ${dom.escapeHtml(action.value)}</span>`);
                         break;
                     case 'account':
                         badges.push(`<span class="action-badge account">${t('budget', 'Move account')}</span>`);
@@ -270,12 +267,12 @@ export default class RulesModule {
             if (categoryId) {
                 const category = this.categories?.find(c => c.id === categoryId);
                 const categoryName = category?.name || t('budget', 'Category #{id}', { id: categoryId });
-                badges.push(`<span class="action-badge category">→ ${this.escapeHtml(categoryName)}</span>`);
+                badges.push(`<span class="action-badge category">→ ${dom.escapeHtml(categoryName)}</span>`);
             }
 
             const vendor = actions.vendor || rule.vendorName;
             if (vendor) {
-                badges.push(`<span class="action-badge vendor">${t('budget', 'Vendor:')} ${this.escapeHtml(vendor)}</span>`);
+                badges.push(`<span class="action-badge vendor">${t('budget', 'Vendor:')} ${dom.escapeHtml(vendor)}</span>`);
             }
 
             if (actions.notes) {
@@ -406,13 +403,13 @@ export default class RulesModule {
             const isExpanded = this.expandedGroups.has(groupName);
             const activeCount = groupRules.filter(r => r.active).length;
 
-            html += `<tr class="rules-group-header" data-group="${this.escapeHtml(groupName)}" tabindex="0">
+            html += `<tr class="rules-group-header" data-group="${dom.escapeHtml(groupName)}" tabindex="0">
                 <td colspan="6">
                     <div class="group-header-content">
                         <span class="group-toggle ${isExpanded ? 'expanded' : ''}">&#9656;</span>
-                        <span class="group-name">${this.escapeHtml(groupName)}</span>
+                        <span class="group-name">${dom.escapeHtml(groupName)}</span>
                         <span class="group-count">${groupRules.length} ${groupRules.length === 1 ? t('budget', 'rule') : t('budget', 'rules')} · ${activeCount} ${t('budget', 'active')}</span>
-                        <button class="group-run-btn" data-group="${this.escapeHtml(groupName)}" title="${t('budget', 'Run all rules in this group')}">${t('budget', 'Run Group')}</button>
+                        <button class="group-run-btn" data-group="${dom.escapeHtml(groupName)}" title="${t('budget', 'Run all rules in this group')}">${t('budget', 'Run Group')}</button>
                     </div>
                 </td>
             </tr>`;
@@ -845,7 +842,7 @@ export default class RulesModule {
         }
 
         datalist.innerHTML = [...groups].sort().map(g =>
-            `<option value="${this.escapeHtml(g)}">`
+            `<option value="${dom.escapeHtml(g)}">`
         ).join('');
     }
 
@@ -964,8 +961,8 @@ export default class RulesModule {
 
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${this.escapeHtml(this.formatDate(match.date))}</td>
-                <td>${this.escapeHtml(match.description || '')}</td>
+                <td>${dom.escapeHtml(this.formatDate(match.date))}</td>
+                <td>${dom.escapeHtml(match.description || '')}</td>
                 <td class="${match.amount >= 0 ? 'amount-positive' : 'amount-negative'}">${this.formatCurrency(match.amount)}</td>
                 <td>${categoryName}</td>
             `;
@@ -984,12 +981,12 @@ export default class RulesModule {
      */
     _ruleCategoryLabel(row) {
         if (row.isSplit || row.is_split) {
-            return `<span class="split-category">${this.escapeHtml(t('budget', 'Split'))}</span>`;
+            return `<span class="split-category">${dom.escapeHtml(t('budget', 'Split'))}</span>`;
         }
         const category = row.categoryId ? this.categories.find(c => c.id === row.categoryId) : null;
         return category
-            ? this.escapeHtml(category.name)
-            : `<em>${this.escapeHtml(t('budget', 'Uncategorized'))}</em>`;
+            ? dom.escapeHtml(category.name)
+            : `<em>${dom.escapeHtml(t('budget', 'Uncategorized'))}</em>`;
     }
 
     async runRuleNow() {
@@ -1162,8 +1159,8 @@ export default class RulesModule {
 
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${this.escapeHtml(this.formatDate(item.date))}</td>
-                <td>${this.escapeHtml(item.description || '')}</td>
+                <td>${dom.escapeHtml(this.formatDate(item.date))}</td>
+                <td>${dom.escapeHtml(item.description || '')}</td>
                 <td class="${item.amount >= 0 ? 'amount-positive' : 'amount-negative'}">${this.formatCurrency(item.amount)}</td>
                 <td>${categoryName}</td>
             `;

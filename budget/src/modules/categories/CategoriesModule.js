@@ -71,11 +71,6 @@ export default class CategoriesModule {
         return formatters.formatDate(date, this.settings);
     }
 
-    escapeHtml(text) {
-        // dom.escapeHtml also escapes quotes, so the result is safe inside an
-        // attribute value too (textContent/innerHTML leaves " alone).
-        return dom.escapeHtml(text);
-    }
 
     async loadCategories() {
         // Before any fetch (and guarded inside), so a failed first load
@@ -124,7 +119,7 @@ export default class CategoriesModule {
     renderCategoryTree(categories, level = 0) {
         return categories.map(cat => `
             <div class="category-item" style="margin-left: ${level * 20}px" data-id="${cat.id}">
-                <span class="category-name">${this.escapeHtml(cat.name)}</span>
+                <span class="category-name">${dom.escapeHtml(cat.name)}</span>
                 ${cat.children ? this.renderCategoryTree(cat.children, level + 1) : ''}
             </div>
         `).join('');
@@ -303,7 +298,7 @@ export default class CategoriesModule {
             const shared = !!category._shared;
             const canWrite = !!category._canWrite;
             const sharedOwner = category._sharedByName || category._sharedBy || '';
-            const sharedOwnerHtml = this.escapeHtml(sharedOwner);
+            const sharedOwnerHtml = dom.escapeHtml(sharedOwner);
             const mutedForMe = shared && !!this.reportMutedIds?.has(category.id);
 
             return `
@@ -327,12 +322,12 @@ export default class CategoriesModule {
                             </button>
                         ` : '<div style="width: 20px;"></div>'}
 
-                        <div class="category-icon" style="background-color: ${this.escapeHtml(category.color || '#999')};">
-                            <span class="${this.escapeHtml(category.icon || 'icon-tag')}" aria-hidden="true"></span>
+                        <div class="category-icon" style="background-color: ${dom.escapeHtml(category.color || '#999')};">
+                            <span class="${dom.escapeHtml(category.icon || 'icon-tag')}" aria-hidden="true"></span>
                         </div>
 
                         <div class="category-content">
-                            <span class="category-name">${this.escapeHtml(category.name)}</span>
+                            <span class="category-name">${dom.escapeHtml(category.name)}</span>
                             <div class="category-meta">
                                 ${shared && canWrite
                                     ? `<span class="category-shared-badge write-shared" title="${t('budget', 'Shared by {owner} — you can edit', { owner: sharedOwner })}">${t('budget', 'Shared (editable)')} · ${sharedOwnerHtml}</span>`
@@ -686,7 +681,7 @@ export default class CategoriesModule {
             const currentVal = accountSelect.value;
             accountSelect.innerHTML = `<option value="">${t('budget', 'All Accounts')}</option>`;
             this.app.accounts.forEach(acc => {
-                accountSelect.innerHTML += `<option value="${acc.id}">${this.escapeHtml(acc.name)}</option>`;
+                accountSelect.innerHTML += `<option value="${acc.id}">${dom.escapeHtml(acc.name)}</option>`;
             });
             accountSelect.value = currentVal;
             accountSelect.onchange = () => this.refreshCategoryChart();
@@ -825,7 +820,7 @@ export default class CategoriesModule {
             const isInbound = signed >= 0;
             const partsTitle = isSplit && transaction.splitCategories
                 ? transaction.splitCategories
-                    .map(part => this.escapeHtml((part.categoryName || t('budget', 'Uncategorized'))
+                    .map(part => dom.escapeHtml((part.categoryName || t('budget', 'Uncategorized'))
                         + ': ' + this.formatCurrency(part.amount)))
                     .join('&#10;')
                 : '';
@@ -833,7 +828,7 @@ export default class CategoriesModule {
             return `
             <div class="transaction-item"${partsTitle ? ` title="${partsTitle}"` : ''}>
                 <div class="transaction-description">
-                    ${this.escapeHtml(transaction.description || '')}
+                    ${dom.escapeHtml(transaction.description || '')}
                     ${isSplit ? `<span class="split-indicator" title="${t('budget', 'Part of a split transaction. The amount shown is the part in this category.')}">${t('budget', 'Split part')}</span>` : ''}
                     ${showsWholeToo ? `<span class="transaction-split-whole">${t('budget', 'Split part of {total}', { total: this.formatCurrency(Math.abs(whole)) })}</span>` : ''}
                 </div>
@@ -1650,7 +1645,7 @@ export default class CategoriesModule {
         const warningsEl = document.getElementById('category-import-warnings');
         if (warningsEl) {
             const warnings = Array.isArray(plan.warnings) ? plan.warnings : [];
-            warningsEl.innerHTML = warnings.map(w => `<li>${this.escapeHtml(w)}</li>`).join('');
+            warningsEl.innerHTML = warnings.map(w => `<li>${dom.escapeHtml(w)}</li>`).join('');
             warningsEl.style.display = warnings.length ? '' : 'none';
         }
 
@@ -1680,7 +1675,7 @@ export default class CategoriesModule {
                 ? `<span class="category-import-type">${node.type === 'income' ? t('budget', 'Income') : t('budget', 'Expense')}</span>`
                 : '';
             return `<div class="category-import-node" style="--depth: ${depth}">` +
-                `<span class="category-import-name">${this.escapeHtml(node.name)}</span>${type}${badge}</div>` +
+                `<span class="category-import-name">${dom.escapeHtml(node.name)}</span>${type}${badge}</div>` +
                 this.renderCategoryImportNodes(node.children || [], depth + 1);
         }).join('');
     }
@@ -2334,8 +2329,8 @@ export default class CategoriesModule {
             return `
                 <div class="budget-category-row ${hasChildren ? 'parent-row' : ''}" data-category-id="${category.id}">
                     <div class="budget-category-name level-${level}" data-label="">
-                        <span class="category-color" style="background-color: ${this.escapeHtml(category.color || '#3b82f6')}"></span>
-                        <span class="category-label">${this.escapeHtml(category.name)}</span>
+                        <span class="category-color" style="background-color: ${dom.escapeHtml(category.color || '#3b82f6')}"></span>
+                        <span class="category-label">${dom.escapeHtml(category.name)}</span>
                         ${rolloverEligible ? `<button class="budget-rollover-toggle ${rolloverEnabled ? 'active' : ''}"
                                 data-category-id="${category.id}"
                                 data-enabled="${rolloverEnabled ? '1' : '0'}"

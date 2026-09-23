@@ -77,9 +77,6 @@ export default class TransactionsModule {
         return formatters.formatDate(dateStr, this.settings);
     }
 
-    escapeHtml(text) {
-        return dom.escapeHtml(text);
-    }
 
     getPrimaryCurrency() {
         return this.app.getPrimaryCurrency();
@@ -3619,7 +3616,7 @@ export default class TransactionsModule {
             const candidates = (this.accounts || []).filter(a =>
                 a.id !== transaction.accountId && (a.currency || this.getPrimaryCurrency()) === currency);
             convertSelect.innerHTML = candidates.map(a =>
-                `<option value="${a.id}">${this.escapeHtml(a.name)}</option>`).join('');
+                `<option value="${a.id}">${dom.escapeHtml(a.name)}</option>`).join('');
             convertSection.style.display = candidates.length ? '' : 'none';
         }
 
@@ -3647,7 +3644,7 @@ export default class TransactionsModule {
                 return `
                     <div class="match-item" data-match-id="${match.id}">
                         <span class="match-date">${this.formatDate(match.date)}</span>
-                        <span class="match-description">${this.escapeHtml(match.description)}</span>
+                        <span class="match-description">${dom.escapeHtml(match.description)}</span>
                         <span class="match-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
                         <span class="match-account">${dom.escapeHtml(matchAccount?.name) || t('budget', 'Unknown')}</span>
                         <button class="link-match-btn" data-source-id="${transactionId}" data-target-id="${match.id}">
@@ -3724,7 +3721,7 @@ export default class TransactionsModule {
             </div>
             <div class="split-info-row">
                 <span class="split-info-label">${t('budget', 'Description:')}</span>
-                <span>${this.escapeHtml(transaction.description)}</span>
+                <span>${dom.escapeHtml(transaction.description)}</span>
             </div>
             <div class="split-info-row">
                 <span class="split-info-label">${t('budget', 'Total Amount:')}</span>
@@ -3829,7 +3826,7 @@ export default class TransactionsModule {
 
         return this.categories
             .filter(c => c.type === categoryType)
-            .map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${this.escapeHtml(c.name)}</option>`)
+            .map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${dom.escapeHtml(c.name)}</option>`)
             .join('');
     }
 
@@ -4159,19 +4156,19 @@ export default class TransactionsModule {
             <div class="bulk-match-pair" data-tx-id="${tx.id}" data-linked-id="${linked.id}">
                 <div class="pair-transaction">
                     <span class="pair-date">${this.formatDate(tx.date)}</span>
-                    <span class="pair-description">${this.escapeHtml(tx.description)}</span>
+                    <span class="pair-description">${dom.escapeHtml(tx.description)}</span>
                     <div class="pair-details">
                         <span class="pair-amount ${txTypeClass}">${this.formatCurrency(tx.amount, txCurrency)}</span>
-                        <span class="pair-account">${this.escapeHtml(tx.account_name)}</span>
+                        <span class="pair-account">${dom.escapeHtml(tx.account_name)}</span>
                     </div>
                 </div>
                 <span class="pair-arrow">\u2194</span>
                 <div class="pair-transaction">
                     <span class="pair-date">${this.formatDate(linked.date)}</span>
-                    <span class="pair-description">${this.escapeHtml(linked.description)}</span>
+                    <span class="pair-description">${dom.escapeHtml(linked.description)}</span>
                     <div class="pair-details">
                         <span class="pair-amount ${linkedTypeClass}">${this.formatCurrency(linked.amount, linkedCurrency)}</span>
-                        <span class="pair-account">${this.escapeHtml(linked.accountName)}</span>
+                        <span class="pair-account">${dom.escapeHtml(linked.accountName)}</span>
                     </div>
                 </div>
                 <button class="undo-match-btn" data-tx-id="${tx.id}">${t('budget', 'Undo')}</button>
@@ -4195,19 +4192,19 @@ export default class TransactionsModule {
                 <div class="pair-content">
                     <div class="pair-transaction">
                         <span class="pair-date">${this.formatDate(tx.date)}</span>
-                        <span class="pair-description">${this.escapeHtml(tx.description)}</span>
+                        <span class="pair-description">${dom.escapeHtml(tx.description)}</span>
                         <div class="pair-details">
                             <span class="pair-amount ${txTypeClass}">${this.formatCurrency(tx.amount, txCurrency)}</span>
-                            <span class="pair-account">${this.escapeHtml(tx.account_name)}</span>
+                            <span class="pair-account">${dom.escapeHtml(tx.account_name)}</span>
                         </div>
                     </div>
                     <span class="pair-arrow">\u2194</span>
                     <div class="pair-transaction">
                         <span class="pair-date">${this.formatDate(match.date)}</span>
-                        <span class="pair-description">${this.escapeHtml(match.description)}</span>
+                        <span class="pair-description">${dom.escapeHtml(match.description)}</span>
                         <div class="pair-details">
                             <span class="pair-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
-                            <span class="pair-account">${this.escapeHtml(match.accountName)}</span>
+                            <span class="pair-account">${dom.escapeHtml(match.accountName)}</span>
                         </div>
                     </div>
                 </div>
@@ -4230,10 +4227,10 @@ export default class TransactionsModule {
                     <div class="match-info">
                         <div class="match-info-main">
                             <span class="match-date">${this.formatDate(match.date)}</span>
-                            <span class="match-description">${this.escapeHtml(match.description)}</span>
+                            <span class="match-description">${dom.escapeHtml(match.description)}</span>
                         </div>
                         <span class="pair-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
-                        <span class="pair-account">${this.escapeHtml(match.accountName)}</span>
+                        <span class="pair-account">${dom.escapeHtml(match.accountName)}</span>
                     </div>
                 </label>
             `;
@@ -4244,10 +4241,10 @@ export default class TransactionsModule {
                 <div class="review-source">
                     <div class="review-source-info">
                         <span class="review-source-date">${this.formatDate(tx.date)}</span>
-                        <span class="review-source-description">${this.escapeHtml(tx.description)}</span>
+                        <span class="review-source-description">${dom.escapeHtml(tx.description)}</span>
                         <div class="review-source-details">
                             <span class="pair-amount ${txTypeClass}">${this.formatCurrency(tx.amount, txCurrency)}</span>
-                            <span class="pair-account">${this.escapeHtml(tx.account_name)}</span>
+                            <span class="pair-account">${dom.escapeHtml(tx.account_name)}</span>
                         </div>
                     </div>
                 </div>
@@ -4848,16 +4845,16 @@ export default class TransactionsModule {
 
                 let html = '';
                 Object.values(grouped).forEach(group => {
-                    html += `<div class="tags-group-header">${this.escapeHtml(group.name)}</div>`;
+                    html += `<div class="tags-group-header">${dom.escapeHtml(group.name)}</div>`;
                     group.tags.forEach(tag => {
                         const isSelected = selectedTags.has(tag.id);
                         html += `
                             <div class="tags-autocomplete-item ${isSelected ? 'selected' : ''}"
                                  data-tag-id="${tag.id}">
                                 <span class="tag-chip"
-                                      style="display: inline-flex; align-items: center; background-color: ${this.escapeHtml(tag.color)}; color: white;
+                                      style="display: inline-flex; align-items: center; background-color: ${dom.escapeHtml(tag.color)}; color: white;
                                              padding: 2px 6px; border-radius: 10px; font-size: 10px; line-height: 14px; margin-right: 4px;">
-                                    ${this.escapeHtml(tag.name)}
+                                    ${dom.escapeHtml(tag.name)}
                                 </span>
                                 <span class="tag-check">${isSelected ? '✓' : ''}</span>
                             </div>
@@ -5222,9 +5219,9 @@ export default class TransactionsModule {
             html += `
                 <div class="duplicate-group">
                     <div class="duplicate-group-header">
-                        <strong>${this.escapeHtml(first.description) || t('budget', '(no description)')}</strong>
-                        &mdash; ${amount} (${this.escapeHtml(first.type)})
-                        &mdash; ${this.escapeHtml(first.accountName)}
+                        <strong>${dom.escapeHtml(first.description) || t('budget', '(no description)')}</strong>
+                        &mdash; ${amount} (${dom.escapeHtml(first.type)})
+                        &mdash; ${dom.escapeHtml(first.accountName)}
                     </div>
                     <div class="duplicate-group-items">
             `;
@@ -5244,9 +5241,9 @@ export default class TransactionsModule {
                         <input type="checkbox" class="duplicate-checkbox"
                             data-group="${groupIdx}" data-tx-id="${tx.id}" ${checked}>
                         <span class="duplicate-item-details">
-                            <span class="duplicate-date">${this.escapeHtml(tx.date)}</span>
-                            <span class="duplicate-vendor">${this.escapeHtml(tx.vendor) || '-'}</span>
-                            <span class="duplicate-category">${(tx.isSplit || tx.is_split) ? this.escapeHtml(t('budget', 'Split')) : (this.escapeHtml(tx.categoryName) || '-')}</span>
+                            <span class="duplicate-date">${dom.escapeHtml(tx.date)}</span>
+                            <span class="duplicate-vendor">${dom.escapeHtml(tx.vendor) || '-'}</span>
+                            <span class="duplicate-category">${(tx.isSplit || tx.is_split) ? dom.escapeHtml(t('budget', 'Split')) : (dom.escapeHtml(tx.categoryName) || '-')}</span>
                             <span class="duplicate-amount">${formatters.formatCurrency(tx.amount, tx.currency, this.settings)}</span>
                             ${keepLabel}${billLabel}${statusLabel}
                         </span>

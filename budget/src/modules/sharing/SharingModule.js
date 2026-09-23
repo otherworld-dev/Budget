@@ -74,7 +74,7 @@ export default class SharingModule {
                         ${this.pendingShares.map(share => `
                             <div class="sharing-item sharing-item-pending" data-share-id="${share.id}">
                                 <div class="sharing-item-info">
-                                    <span class="sharing-item-user">${this.esc(share.ownerUserId)}</span>
+                                    <span class="sharing-item-user">${escapeHtml(share.ownerUserId)}</span>
                                     <span class="sharing-item-status badge-pending">${t('budget', 'Pending')}</span>
                                 </div>
                                 <div class="sharing-item-actions">
@@ -102,7 +102,7 @@ export default class SharingModule {
                         ${pendingOutgoing.map(share => `
                             <div class="sharing-item" data-share-id="${share.id}">
                                 <div class="sharing-item-info">
-                                    <span class="sharing-item-user">${this.esc(share.sharedWithUserId)}</span>
+                                    <span class="sharing-item-user">${escapeHtml(share.sharedWithUserId)}</span>
                                     <span class="sharing-item-status badge-pending">${t('budget', 'Pending')}</span>
                                 </div>
                                 <div class="sharing-item-actions">
@@ -119,7 +119,7 @@ export default class SharingModule {
                             <div class="sharing-item-block" data-share-id="${share.id}">
                                 <div class="sharing-item">
                                     <div class="sharing-item-info">
-                                        <span class="sharing-item-user">${this.esc(share.sharedWithUserId)}</span>
+                                        <span class="sharing-item-user">${escapeHtml(share.sharedWithUserId)}</span>
                                         <span class="sharing-item-status badge-accepted">${t('budget', 'Active')}</span>
                                     </div>
                                     <div class="sharing-item-actions">
@@ -149,7 +149,7 @@ export default class SharingModule {
                         ${acceptedIncoming.map(share => `
                             <div class="sharing-item" data-share-id="${share.id}">
                                 <div class="sharing-item-info">
-                                    <span class="sharing-item-user">${this.esc(share.ownerUserId)}</span>
+                                    <span class="sharing-item-user">${escapeHtml(share.ownerUserId)}</span>
                                     <span class="sharing-item-status badge-accepted">${t('budget', 'Active')}</span>
                                 </div>
                                 <div class="sharing-item-actions">
@@ -307,7 +307,7 @@ export default class SharingModule {
                                         <label class="share-config-item"${indent}>
                                             <input type="checkbox" data-type="${section.type}" data-entity-id="${id}"
                                                    ${checked ? 'checked' : ''} />
-                                            <span>${this.esc(name)}</span>
+                                            <span>${escapeHtml(name)}</span>
                                         </label>
                                     `;
                                 }).join('')}
@@ -472,7 +472,4 @@ export default class SharingModule {
         return result;
     }
 
-    esc(str) {
-        return escapeHtml(str);
-    }
 }

@@ -174,11 +174,11 @@ export default class SharedExpensesModule {
                 <div class="contact-card" data-contact-id="${item.contact.id}" tabindex="0">
                     <div class="contact-card-main">
                         <div class="contact-avatar">
-                            ${this.escapeHtml(item.contact.name.charAt(0).toUpperCase())}
+                            ${dom.escapeHtml(item.contact.name.charAt(0).toUpperCase())}
                         </div>
                         <div class="contact-info">
-                            <span class="contact-name">${this.escapeHtml(item.contact.name)}</span>
-                            ${item.contact.email ? `<span class="contact-email">${this.escapeHtml(item.contact.email)}</span>` : ''}
+                            <span class="contact-name">${dom.escapeHtml(item.contact.name)}</span>
+                            ${item.contact.email ? `<span class="contact-email">${dom.escapeHtml(item.contact.email)}</span>` : ''}
                         </div>
                         <div class="contact-balance ${balanceClass}">
                             ${balanceText}
@@ -466,8 +466,8 @@ export default class SharedExpensesModule {
 
             return `
                 <div class="share-item ${statusClass}">
-                    <div class="share-date">${this.escapeHtml(txn.date)}</div>
-                    <div class="share-desc">${this.escapeHtml(txn.description)}${origin}</div>
+                    <div class="share-date">${dom.escapeHtml(txn.date)}</div>
+                    <div class="share-desc">${dom.escapeHtml(txn.description)}${origin}</div>
                     <div class="share-amount ${share.amount >= 0 ? 'positive' : 'negative'}">
                         ${share.amount >= 0 ? '+' : ''}${this.formatCurrency(share.amount, share.currency)}
                     </div>
@@ -490,7 +490,7 @@ export default class SharedExpensesModule {
                 <div class="settlement-amount ${settlement.amount >= 0 ? 'received' : 'paid'}">
                     ${settlement.amount >= 0 ? t('budget', 'Received') : t('budget', 'Paid')} ${this.formatCurrency(Math.abs(settlement.amount), settlement.currency)}
                 </div>
-                ${settlement.notes ? `<div class="settlement-notes">${this.escapeHtml(settlement.notes)}</div>` : ''}
+                ${settlement.notes ? `<div class="settlement-notes">${dom.escapeHtml(settlement.notes)}</div>` : ''}
             </div>
         `).join('');
     }
@@ -544,7 +544,7 @@ export default class SharedExpensesModule {
                                data-amount="${share.amount}"
                                checked>
                         <span class="settlement-share-date">${txn.date}</span>
-                        <span class="settlement-share-desc">${this.escapeHtml(txn.description)}</span>
+                        <span class="settlement-share-desc">${dom.escapeHtml(txn.description)}</span>
                         <span class="settlement-share-amount ${share.amount >= 0 ? 'positive' : 'negative'}">
                             ${share.amount >= 0 ? '+' : ''}${this.formatCurrency(share.amount, share.currency)}
                         </span>
@@ -764,7 +764,7 @@ export default class SharedExpensesModule {
             return `
                 <span class="share-person-value-wrap">
                     <input type="number" class="share-person-value" step="0.01" min="0" inputmode="decimal"
-                           value="${this.escapeHtml(values?.get(id) ?? '')}" aria-label="${label}">
+                           value="${dom.escapeHtml(values?.get(id) ?? '')}" aria-label="${label}">
                     ${s.method === 'percent' ? '<span class="share-person-unit">%</span>' : ''}
                 </span>`;
         };
@@ -772,7 +772,7 @@ export default class SharedExpensesModule {
             <div class="share-person-row${cls}" data-person="${id}">
                 <label class="share-person-name">
                     <input type="checkbox" class="share-person-check"${checked ? ' checked' : ''}${checkDisabled ? ' disabled' : ''}>
-                    <span>${this.escapeHtml(name)}</span>
+                    <span>${dom.escapeHtml(name)}</span>
                 </label>
                 ${value}
                 <span class="share-person-amount">${amount}</span>
@@ -799,7 +799,7 @@ export default class SharedExpensesModule {
                 return row(share.contactId, contact?.name || t('budget', 'Unknown'), {
                     checked: true,
                     checkDisabled: true,
-                    amount: `${this.escapeHtml(amount)} · ${t('budget', 'Settled')}`,
+                    amount: `${dom.escapeHtml(amount)} · ${t('budget', 'Settled')}`,
                     cls: ' settled',
                 });
             }),
@@ -992,9 +992,6 @@ export default class SharedExpensesModule {
         return formatters.formatCurrency(amount, currency, this.settings);
     }
 
-    escapeHtml(text) {
-        return dom.escapeHtml(text);
-    }
 
     closeModal(modal) {
         return dom.closeModal(modal);

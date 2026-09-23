@@ -329,7 +329,7 @@ export default class TagSetsModule {
 
         return tags.map(tag => `
             <span class="tag-chip" style="background-color: ${tag.color || '#666'}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-right: 4px;">
-                ${this.escapeHtml(tag.name)}
+                ${dom.escapeHtml(tag.name)}
             </span>
         `).join('');
     }
@@ -1176,9 +1176,6 @@ export default class TagSetsModule {
     }
 
     // Delegate helper methods to app
-    escapeHtml(text) {
-        return dom.escapeHtml(text);
-    }
 
     hideModals() {
         // Hide all modals
