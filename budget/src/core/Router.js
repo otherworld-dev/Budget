@@ -1,6 +1,8 @@
 /**
  * Router - Client-side navigation and view management
  */
+import { closeAllModals } from '../utils/modals.js';
+
 export default class Router {
     constructor(app) {
         this.app = app;
@@ -14,6 +16,7 @@ export default class Router {
                 if (!href || !href.startsWith('#')) return;
 
                 e.preventDefault();
+                closeAllModals();
                 this.showView(href.substring(1));
 
                 // Close mobile navigation after selecting a view
@@ -33,8 +36,10 @@ export default class Router {
         });
 
         // Browser back / forward: re-render the view encoded in the URL without
-        // recording another history entry (that would fight the user).
+        // recording another history entry (that would fight the user). A modal
+        // left open would otherwise sit on top of the new view.
         window.addEventListener('popstate', (e) => {
+            closeAllModals();
             const view = (e.state && e.state.view) || this.viewFromHash() || 'dashboard';
             this.showView(view, { history: false });
         });

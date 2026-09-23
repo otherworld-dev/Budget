@@ -9,6 +9,7 @@ import { translate as t } from '@nextcloud/l10n';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import * as dom from '../../utils/dom.js';
+import { showLoading, clearLoading } from '../../utils/loading.js';
 
 export default class ExchangeRatesModule {
     constructor(app) {
@@ -21,6 +22,7 @@ export default class ExchangeRatesModule {
     get settings() { return this.app.settings; }
 
     async loadExchangeRatesView() {
+        showLoading('exchange-rates-list');
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/exchange-rates'), {
                 headers: { 'requesttoken': OC.requestToken }
@@ -35,6 +37,7 @@ export default class ExchangeRatesModule {
             }
         } catch (error) {
             console.error('Failed to load exchange rates:', error);
+            clearLoading('exchange-rates-list');
             showError(t('budget', 'Failed to load exchange rates'));
         }
     }

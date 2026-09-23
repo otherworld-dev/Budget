@@ -2,7 +2,20 @@
  * Formatting utilities for currency, dates, and numbers
  * All functions are pure - they accept required data as parameters
  */
-import { translate as t } from '@nextcloud/l10n';
+import { translate as t, getCanonicalLocale } from '@nextcloud/l10n';
+
+/**
+ * Locale for month and weekday names: the user's Nextcloud locale, not the
+ * browser's. Dates the user reads as figures go through formatDate() and the
+ * date-format setting instead.
+ */
+export function userLocale() {
+    try {
+        return getCanonicalLocale() || undefined;
+    } catch (e) {
+        return undefined;
+    }
+}
 
 /**
  * Currency configuration with symbol and position metadata
@@ -240,6 +253,7 @@ export function formatAccountType(type) {
  * @returns {string} Compact formatted currency string
  */
 export function formatCurrencyCompact(value, currency, settings) {
+    settings = settings || {};
     const currencyCode = currency || getPrimaryCurrency([], settings);
     const config = CURRENCY_CONFIG[currencyCode] || { symbol: currencyCode, position: 'prefix' };
     const { symbol, position } = config;
@@ -255,14 +269,19 @@ export function formatCurrencyCompact(value, currency, settings) {
     } else if (Math.abs(value) >= 1000) {
         scaledValue = value / 1000;
         suffix = 'K';
+    } else if (Number.isInteger(value)) {
+        // A round figure (an axis tick) reads better without ".00".
+        scaledValue = value;
+        suffix = '';
     } else {
         // No scaling needed, use regular formatting
         return formatCurrency(value, currency, settings);
     }
 
-    // Format the scaled number
+    // Format the scaled number: one decimal at most, and none when it is .0
+    // ("£4K", not "£4.0K").
     const absScaled = Math.abs(scaledValue);
-    const formatted = absScaled.toFixed(1);
+    const formatted = absScaled.toFixed(suffix ? 1 : 0).replace(/\.0$/, '');
     const parts = formatted.split('.');
     const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, thousandsSep);
     const decPart = parts[1] || '';
@@ -383,7 +402,7 @@ export function getPeriodDateRange(period, startDay = 1, referenceDate = null) {
             return {
                 start: formatDateForAPI(weekStart),
                 end: formatDateForAPI(weekEnd),
-                label: `Week of ${weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+                label: t('budget', 'Week of {date}', { date: weekStart.toLocaleDateString(userLocale(), { month: 'short', day: 'numeric' }) })
             };
         }
 
@@ -396,7 +415,7 @@ export function getPeriodDateRange(period, startDay = 1, referenceDate = null) {
                 return {
                     start: formatDateForAPI(monthStart),
                     end: formatDateForAPI(monthEnd),
-                    label: now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+                    label: now.toLocaleDateString(userLocale(), { month: 'long', year: 'numeric' })
                 };
             }
 
@@ -429,9 +448,9 @@ export function getPeriodDateRange(period, startDay = 1, referenceDate = null) {
                 periodEnd = new Date(thisMonthStart.getTime() - 86400000);
             }
 
-            const label = periodStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+            const label = periodStart.toLocaleDateString(userLocale(), { month: 'short', day: 'numeric' })
                 + ' \u2013 '
-                + periodEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                + periodEnd.toLocaleDateString(userLocale(), { month: 'short', day: 'numeric' });
 
             return {
                 start: formatDateForAPI(periodStart),

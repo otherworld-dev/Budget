@@ -224,7 +224,7 @@ export default class ForecastModule {
                     y: {
                         beginAtZero: true,
                         ticks: {
-                            callback: (value) => this.formatCurrency(value, currency)
+                            callback: (value) => formatters.formatCurrencyCompact(value, currency, this.settings)
                         }
                     }
                 },
@@ -304,7 +304,7 @@ export default class ForecastModule {
                         position: 'left',
                         title: { display: true, text: t('budget', 'Balance') },
                         ticks: {
-                            callback: (value) => this.formatCurrency(value, currency)
+                            callback: (value) => formatters.formatCurrencyCompact(value, currency, this.settings)
                         }
                     },
                     y1: {
@@ -314,7 +314,7 @@ export default class ForecastModule {
                         title: { display: true, text: t('budget', 'Income/Expenses') },
                         grid: { drawOnChartArea: false },
                         ticks: {
-                            callback: (value) => this.formatCurrency(value, currency)
+                            callback: (value) => formatters.formatCurrencyCompact(value, currency, this.settings)
                         }
                     }
                 },

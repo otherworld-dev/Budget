@@ -31,6 +31,8 @@ export default class SettingsModule {
             await this.populateSettings(settings);
             this.updateNumberFormatPreview();
             this.setupReceiptFolderPicker();
+            this.setupAutoSave();
+            this.setupJumpList();
             await this.loadAdminSettings();
         } catch (error) {
             console.error('Error loading settings:', error);
@@ -54,6 +56,8 @@ export default class SettingsModule {
             if (section) {
                 section.style.display = 'block';
             }
+            const jump = document.querySelector('.settings-jump-admin');
+            if (jump) jump.hidden = false;
 
             const toggle = document.getElementById('setting-bank-sync-enabled');
             if (toggle) {
@@ -312,6 +316,9 @@ export default class SettingsModule {
                 t('budget', 'Select receipts folder'),
                 (path) => {
                     input.value = String(path || '').replace(/^\/+|\/+$/g, '');
+                    // Setting the value from script fires no change event, and
+                    // settings save on change.
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
                 },
                 false,
                 'httpd/unix-directory',
@@ -320,6 +327,117 @@ export default class SettingsModule {
                 '/' + current
             );
         });
+    }
+
+    /**
+     * Each setting saves the moment it changes, as Nextcloud's own settings
+     * do. There used to be one Save button at the top of an eleven-section
+     * page, so a change made near the bottom was easy to leave unsaved.
+     * Bound once: this view's DOM is permanent.
+     */
+    setupAutoSave() {
+        const view = document.getElementById('settings-view');
+        if (!view || view.dataset.autosaveBound) return;
+        view.dataset.autosaveBound = '1';
+
+        view.addEventListener('change', (e) => {
+            const el = e.target.closest('.setting-input');
+            if (el) this.saveSetting(el);
+        });
+    }
+
+    /** Scroll to a section from the jump list at the top of the page. */
+    setupJumpList() {
+        const nav = document.querySelector('.settings-jump');
+        if (!nav || nav.dataset.bound) return;
+        nav.dataset.bound = '1';
+
+        nav.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-target]');
+            const section = btn && document.getElementById(btn.dataset.target);
+            if (!section) return;
+            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const heading = section.querySelector('h3');
+            if (heading) {
+                heading.setAttribute('tabindex', '-1');
+                heading.focus({ preventScroll: true });
+            }
+        });
+    }
+
+    /** Key and value of one setting control, as gatherSettings() reads them. */
+    settingEntry(element) {
+        const key = element.id.replace('setting-', '').replace(/-/g, '_');
+        const value = element.type === 'checkbox'
+            ? (element.checked ? 'true' : 'false')
+            : element.value;
+        return [key, value];
+    }
+
+    async saveSetting(element) {
+        const [key, value] = this.settingEntry(element);
+        const item = element.closest('.setting-item') || element.parentElement;
+
+        try {
+            const response = await fetch(OC.generateUrl('/apps/budget/api/settings'), {
+                method: 'PUT',
+                headers: {
+                    'requesttoken': OC.requestToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ [key]: value })
+            });
+
+            if (!response.ok) {
+                const data = await response.json().catch(() => null);
+                throw new Error(data?.error || t('budget', 'Failed to save settings'));
+            }
+
+            const result = await response.json().catch(() => null);
+            // The server may normalise a value (the receipts folder does).
+            const saved = result?.settings?.[key] ?? value;
+            if (element.type !== 'checkbox' && saved !== value) element.value = saved;
+
+            this.settings[key] = saved;
+            this.applySettingSideEffects({ [key]: saved });
+            this.flashSaved(item);
+        } catch (error) {
+            console.error('Error saving setting:', key, error);
+            showError(error.message || t('budget', 'Failed to save settings'));
+            // Put the control back to what is actually stored.
+            const stored = this.settings?.[key];
+            if (stored !== undefined) {
+                if (element.type === 'checkbox') {
+                    element.checked = stored === 'true' || stored === true;
+                } else {
+                    element.value = stored;
+                }
+            }
+        }
+    }
+
+    /** What a changed setting has to refresh elsewhere in the app. */
+    applySettingSideEffects(changed) {
+        this.updateAccountFormDefaults(changed);
+        if ('date_format' in changed || 'first_day_of_week' in changed) {
+            initDatePickers(this.app.settings);
+        }
+    }
+
+    /** A brief "Saved" beside the setting that was just stored. */
+    flashSaved(item) {
+        if (!item) return;
+        let note = item.querySelector(':scope > .setting-saved');
+        if (!note) {
+            note = document.createElement('span');
+            note.className = 'setting-saved';
+            note.setAttribute('role', 'status');
+            item.appendChild(note);
+        }
+        note.textContent = t('budget', 'Saved');
+        note.classList.add('visible');
+        clearTimeout(note._timer);
+        note._timer = setTimeout(() => note.classList.remove('visible'), 2000);
     }
 
     async saveSettings() {
@@ -397,6 +515,9 @@ export default class SettingsModule {
 
             const result = await response.json();
             await this.populateSettings(result.defaults);
+            // The rest of the app reads these, not the form.
+            Object.assign(this.settings, result.defaults);
+            this.applySettingSideEffects(result.defaults);
             this.updateNumberFormatPreview();
             showSuccess(t('budget', 'Settings reset to defaults'));
         } catch (error) {

@@ -456,7 +456,7 @@ export default class TransfersModule {
                 <div class="budget-modal modal-content">
                     <div class="budget-modal-header modal-head">
                         <h2>${title}</h2>
-                        <button class="close-btn" id="close-transfer-modal">×</button>
+                        <button class="close-btn" id="close-transfer-modal" aria-label="${t('budget', 'Close')}">×</button>
                     </div>
                     <form id="transfer-form" class="wide-form">
                         <div class="modal-scroll">

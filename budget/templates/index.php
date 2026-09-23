@@ -214,6 +214,7 @@ style('budget', 'budget-app');
                 </span>
                 <?php p($l->t('Tools & Settings')); ?>
             </button>
+            <button id="help-fab" class="help-fab" type="button" aria-controls="help-panel" aria-expanded="false" title="<?php p($l->t('Help')); ?>" aria-label="<?php p($l->t('Help')); ?>">?</button>
         </div>
         <ul id="app-settings-content">
             <li class="app-navigation-entry" data-id="import">
@@ -318,13 +319,14 @@ style('budget', 'budget-app');
         <!-- Dashboard View -->
         <div id="dashboard-view" class="view active">
             <div class="dashboard-header">
+                <h2 class="dashboard-title"><?php p($l->t('Dashboard')); ?></h2>
                 <div class="dashboard-header-hint" id="dashboard-hint">
                     <span class="icon-info" aria-hidden="true"></span>
                     <span><?php p($l->t('Dashboard is locked. Click unlock to reorder tiles.')); ?></span>
                 </div>
                 <div class="dashboard-header-actions">
                     <div class="add-tiles-dropdown" id="add-tiles-dropdown" style="display: none;">
-                        <button id="add-tiles-btn" class="btn btn-secondary" aria-label="<?php p($l->t('Add tiles')); ?>">
+                        <button id="add-tiles-btn" class="secondary" aria-label="<?php p($l->t('Add tiles')); ?>">
                             <span class="icon-add" aria-hidden="true"></span>
                             <?php p($l->t('Add Tiles')); ?>
                         </button>
@@ -341,7 +343,7 @@ style('budget', 'budget-app');
                         <button class="columns-btn" data-cols="3">3</button>
                         <button class="columns-btn" data-cols="4">4</button>
                     </div>
-                    <button id="toggle-dashboard-lock-btn" class="btn btn-secondary" aria-label="<?php p($l->t('Toggle dashboard lock')); ?>">
+                    <button id="toggle-dashboard-lock-btn" class="secondary" aria-label="<?php p($l->t('Toggle dashboard lock')); ?>">
                         <svg id="lock-btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                         <span id="lock-btn-text"><?php p($l->t('Unlock Dashboard')); ?></span>
                     </button>
@@ -353,7 +355,8 @@ style('budget', 'budget-app');
                 <div class="hero-card hero-net-worth" data-widget-id="netWorth" data-widget-category="hero">
                     <div class="hero-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+                            <!-- Wallet, not a dollar sign: this app is used in every currency -->
+                            <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
                         </svg>
                     </div>
                     <div class="hero-content">
@@ -637,7 +640,7 @@ style('budget', 'budget-app');
                             <div class="empty-state-content">
                                 <p class="empty-state-title"><?php p($l->t('No net worth history yet')); ?></p>
                                 <p class="empty-state-subtitle"><?php p($l->t('Snapshots are recorded automatically every day. Your first snapshot will appear within 24 hours.')); ?></p>
-                                <button id="record-net-worth-btn" class="btn btn-secondary btn-small"><?php p($l->t('Record snapshot now')); ?></button>
+                                <button id="record-net-worth-btn" class="secondary"><?php p($l->t('Record snapshot now')); ?></button>
                             </div>
                         </div>
                     </div>
@@ -1140,7 +1143,7 @@ style('budget', 'budget-app');
                 <div class="summary-card summary-card-networth">
                     <div class="summary-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+                            <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
                         </svg>
                     </div>
                     <div class="summary-content">
@@ -1200,7 +1203,7 @@ style('budget', 'budget-app');
             <div class="view-header">
                 <div class="breadcrumb">
                     <button id="back-to-accounts-btn" class="breadcrumb-back">
-                        <span class="icon-arrow-left" aria-hidden="true"></span>
+                        <span aria-hidden="true">←</span>
                         <?php p($l->t('Accounts')); ?>
                     </button>
                     <span class="breadcrumb-separator">/</span>
@@ -1313,7 +1316,7 @@ style('budget', 'budget-app');
                                 <span class="icon-add" style="color: var(--color-success);" aria-hidden="true"></span>
                             </div>
                             <div class="metric-content">
-                                <div class="metric-value" id="total-income">$0</div>
+                                <div class="metric-value" id="total-income">--</div>
                                 <div class="metric-label"><?php p($l->t('This Month Income')); ?></div>
                             </div>
                         </div>
@@ -1322,16 +1325,16 @@ style('budget', 'budget-app');
                                 <span class="icon-close" style="color: var(--color-error);" aria-hidden="true"></span>
                             </div>
                             <div class="metric-content">
-                                <div class="metric-value" id="total-expenses">$0</div>
+                                <div class="metric-value" id="total-expenses">--</div>
                                 <div class="metric-label"><?php p($l->t('This Month Expenses')); ?></div>
                             </div>
                         </div>
                         <div class="metric-card">
                             <div class="metric-icon">
-                                <span class="icon-activity" aria-hidden="true"></span>
+                                <span class="icon-history" aria-hidden="true"></span>
                             </div>
                             <div class="metric-content">
-                                <div class="metric-value" id="avg-transaction">$0</div>
+                                <div class="metric-value" id="avg-transaction">--</div>
                                 <div class="metric-label"><?php p($l->t('Avg. Transaction')); ?></div>
                             </div>
                         </div>
@@ -1381,7 +1384,7 @@ style('budget', 'budget-app');
                 <div class="account-details-section" id="interest-rate-history-section" style="display: none;">
                     <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
                         <h3><?php p($l->t('Interest Rate History')); ?></h3>
-                        <button class="btn btn-secondary btn-sm" id="add-rate-change-btn">
+                        <button class="secondary" id="add-rate-change-btn">
                             <span class="icon-add" aria-hidden="true"></span>
                             <?php p($l->t('Add Rate Change')); ?>
                         </button>
@@ -1389,10 +1392,10 @@ style('budget', 'budget-app');
                     <table class="rate-history-table">
                         <thead>
                             <tr>
-                                <th><?php p($l->t('Effective Date')); ?></th>
-                                <th><?php p($l->t('Rate (APR)')); ?></th>
-                                <th><?php p($l->t('Compounding')); ?></th>
-                                <th></th>
+                                <th scope="col"><?php p($l->t('Effective Date')); ?></th>
+                                <th scope="col"><?php p($l->t('Rate (APR)')); ?></th>
+                                <th scope="col"><?php p($l->t('Compounding')); ?></th>
+                                <th scope="col"></th>
                             </tr>
                         </thead>
                         <tbody id="rate-history-body">
@@ -1406,10 +1409,10 @@ style('budget', 'budget-app');
                     <table class="rate-history-table">
                         <thead>
                             <tr>
-                                <th><?php p($l->t('Statement Date')); ?></th>
-                                <th><?php p($l->t('Statement Balance')); ?></th>
-                                <th><?php p($l->t('Transactions')); ?></th>
-                                <th><?php p($l->t('Completed')); ?></th>
+                                <th scope="col"><?php p($l->t('Statement Date')); ?></th>
+                                <th scope="col"><?php p($l->t('Statement Balance')); ?></th>
+                                <th scope="col"><?php p($l->t('Transactions')); ?></th>
+                                <th scope="col"><?php p($l->t('Completed')); ?></th>
                             </tr>
                         </thead>
                         <tbody id="recon-history-body">
@@ -1518,19 +1521,19 @@ style('budget', 'budget-app');
                         <table id="account-transactions-table" class="transactions-table">
                             <thead>
                                 <tr>
-                                    <th class="date-column sortable" data-sort="date">
+                                    <th scope="col" class="date-column sortable" data-sort="date">
                                         <?php p($l->t('Date')); ?> <span class="sort-indicator"></span>
                                     </th>
-                                    <th class="description-column sortable" data-sort="description">
+                                    <th scope="col" class="description-column sortable" data-sort="description">
                                         <?php p($l->t('Description')); ?> <span class="sort-indicator"></span>
                                     </th>
-                                    <th class="vendor-column"><?php p($l->t('Vendor')); ?></th>
-                                    <th class="category-column"><?php p($l->t('Category')); ?></th>
-                                    <th class="amount-column sortable" data-sort="amount">
+                                    <th scope="col" class="vendor-column"><?php p($l->t('Vendor')); ?></th>
+                                    <th scope="col" class="category-column"><?php p($l->t('Category')); ?></th>
+                                    <th scope="col" class="amount-column sortable" data-sort="amount">
                                         <?php p($l->t('Amount')); ?> <span class="sort-indicator"></span>
                                     </th>
-                                    <th class="balance-column"><?php p($l->t('Balance')); ?></th>
-                                    <th class="actions-column"><?php p($l->t('Actions')); ?></th>
+                                    <th scope="col" class="balance-column"><?php p($l->t('Balance')); ?></th>
+                                    <th scope="col" class="actions-column"><?php p($l->t('Actions')); ?></th>
                                 </tr>
                             </thead>
                             <tbody id="account-transactions-body"></tbody>
@@ -1539,15 +1542,15 @@ style('budget', 'budget-app');
                         <!-- Pagination -->
                         <div id="account-transactions-pagination" class="pagination">
                             <button id="account-prev-page" class="pagination-btn" disabled>
-                                <span class="icon-arrow-left" aria-hidden="true"></span>
+                                <span aria-hidden="true">←</span>
                                 <?php p($l->t('Previous')); ?>
                             </button>
                             <div class="page-info">
-                                <span id="account-page-info">Page 1 of 1</span>
+                                <span id="account-page-info"><?php p($l->t('Page %1$s of %2$s', [1, 1])); ?></span>
                             </div>
                             <button id="account-next-page" class="pagination-btn" disabled>
                                 <?php p($l->t('Next')); ?>
-                                <span class="icon-arrow-right" aria-hidden="true"></span>
+                                <span aria-hidden="true">→</span>
                             </button>
                         </div>
                     </div>
@@ -1568,26 +1571,33 @@ style('budget', 'budget-app');
                         <span class="icon-checkmark" aria-hidden="true"></span>
                         <?php p($l->t('Bulk Actions')); ?>
                     </button>
-                    <button id="reconcile-mode-btn" class="secondary" title="<?php p($l->t('Reconciliation mode')); ?>">
-                        <span class="icon-history" aria-hidden="true"></span>
-                        <?php p($l->t('Reconcile')); ?>
-                    </button>
-                    <button id="find-duplicates-btn" class="secondary" title="<?php p($l->t('Find suspected duplicate transactions')); ?>">
-                        <span class="icon-search" aria-hidden="true"></span>
-                        <?php p($l->t('Find Duplicates')); ?>
-                    </button>
-                    <button id="bulk-match-btn" class="secondary" title="<?php p($l->t('Auto-match transfer transactions')); ?>">
-                        <span class="icon-link" aria-hidden="true"></span>
-                        <?php p($l->t('Match All')); ?>
-                    </button>
-                    <button id="transactions-export-btn" class="secondary" title="<?php p($l->t('Export every transaction matching the current filters as CSV')); ?>">
-                        <span class="icon-download" aria-hidden="true"></span>
-                        <?php p($l->t('Export')); ?>
-                    </button>
                     <button id="add-transaction-btn" class="primary" aria-label="<?php p($l->t('Add new transaction')); ?>">
                         <span class="icon-add" aria-hidden="true"></span>
                         <?php p($l->t('Add Transaction')); ?>
                     </button>
+                    <div class="header-menu">
+                        <button type="button" class="secondary header-menu-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="transactions-more-menu" title="<?php p($l->t('More actions')); ?>" aria-label="<?php p($l->t('More actions')); ?>">
+                            <span aria-hidden="true">&#x22EF;</span>
+                        </button>
+                        <div id="transactions-more-menu" class="header-menu-list" role="menu" hidden>
+                            <button id="reconcile-mode-btn" role="menuitem" title="<?php p($l->t('Reconciliation mode')); ?>">
+                                <span class="icon-history" aria-hidden="true"></span>
+                                <?php p($l->t('Reconcile')); ?>
+                            </button>
+                            <button id="find-duplicates-btn" role="menuitem" title="<?php p($l->t('Find suspected duplicate transactions')); ?>">
+                                <span class="icon-search" aria-hidden="true"></span>
+                                <?php p($l->t('Find Duplicates')); ?>
+                            </button>
+                            <button id="bulk-match-btn" role="menuitem" title="<?php p($l->t('Auto-match transfer transactions')); ?>">
+                                <span class="icon-link" aria-hidden="true"></span>
+                                <?php p($l->t('Match All')); ?>
+                            </button>
+                            <button id="transactions-export-btn" role="menuitem" title="<?php p($l->t('Export every transaction matching the current filters as CSV')); ?>">
+                                <span class="icon-download" aria-hidden="true"></span>
+                                <?php p($l->t('Export')); ?>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1785,16 +1795,16 @@ style('budget', 'budget-app');
                                 </div>
                             </div>
                         </div>
-                        <select id="rows-per-page">
+                        <select id="rows-per-page" aria-label="<?php p($l->t('Rows per page')); ?>">
                             <option value="25"><?php p($l->t('25 per page')); ?></option>
                             <option value="50"><?php p($l->t('50 per page')); ?></option>
                             <option value="100"><?php p($l->t('100 per page')); ?></option>
                             <option value="250"><?php p($l->t('250 per page')); ?></option>
                         </select>
                         <div class="pagination-controls">
-                            <button id="prev-page-btn" class="secondary" disabled>←</button>
-                            <span id="page-info">Page 1 of 1</span>
-                            <button id="next-page-btn" class="secondary" disabled>→</button>
+                            <button id="prev-page-btn" class="secondary" disabled aria-label="<?php p($l->t('Previous')); ?>" title="<?php p($l->t('Previous')); ?>">←</button>
+                            <span id="page-info"><?php p($l->t('Page %1$s of %2$s', [1, 1])); ?></span>
+                            <button id="next-page-btn" class="secondary" disabled aria-label="<?php p($l->t('Next')); ?>" title="<?php p($l->t('Next')); ?>">→</button>
                         </div>
                     </div>
                 </div>
@@ -1802,47 +1812,47 @@ style('budget', 'budget-app');
                 <table id="transactions-table" class="transactions-table enhanced">
                     <thead>
                         <tr>
-                            <th class="select-column">
-                                <input type="checkbox" id="select-all-transactions" title="<?php p($l->t('Select all')); ?>">
+                            <th scope="col" class="select-column">
+                                <input type="checkbox" id="select-all-transactions" title="<?php p($l->t('Select all')); ?>" aria-label="<?php p($l->t('Select all')); ?>">
                             </th>
-                            <th class="sortable date-column" data-sort="date">
+                            <th scope="col" tabindex="0" aria-sort="none" class="sortable date-column" data-sort="date">
                                 <?php p($l->t('Date')); ?>
                                 <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th class="sortable description-column" data-sort="description">
+                            <th scope="col" tabindex="0" aria-sort="none" class="sortable description-column" data-sort="description">
                                 <?php p($l->t('Description')); ?>
                                 <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th class="sortable vendor-column" data-sort="vendor">
+                            <th scope="col" tabindex="0" aria-sort="none" class="sortable vendor-column" data-sort="vendor">
                                 <?php p($l->t('Vendor')); ?>
                                 <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th class="sortable category-column" data-sort="category">
+                            <th scope="col" tabindex="0" aria-sort="none" class="sortable category-column" data-sort="category">
                                 <?php p($l->t('Category')); ?>
                                 <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th class="tags-column">
+                            <th scope="col" class="tags-column">
                                 <?php p($l->t('Tags')); ?>
                             </th>
-                            <th class="sortable amount-column" data-sort="amount">
+                            <th scope="col" tabindex="0" aria-sort="none" class="sortable amount-column" data-sort="amount">
                                 <?php p($l->t('Amount')); ?>
                                 <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th class="balance-column"><?php p($l->t('Balance')); ?></th>
-                            <th class="sortable account-column" data-sort="account">
+                            <th scope="col" class="balance-column"><?php p($l->t('Balance')); ?></th>
+                            <th scope="col" tabindex="0" aria-sort="none" class="sortable account-column" data-sort="account">
                                 <?php p($l->t('Account')); ?>
                                 <span class="sort-indicator" aria-hidden="true"></span>
                             </th>
-                            <th class="actions-column"><?php p($l->t('Actions')); ?></th>
+                            <th scope="col" class="actions-column"><?php p($l->t('Actions')); ?></th>
                         </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
 
                 <div class="pagination-controls pagination-bottom">
-                    <button id="prev-page-btn-bottom" class="secondary" disabled>←</button>
-                    <span id="page-info-bottom">Page 1 of 1</span>
-                    <button id="next-page-btn-bottom" class="secondary" disabled>→</button>
+                    <button id="prev-page-btn-bottom" class="secondary" disabled aria-label="<?php p($l->t('Previous')); ?>" title="<?php p($l->t('Previous')); ?>">←</button>
+                    <span id="page-info-bottom"><?php p($l->t('Page %1$s of %2$s', [1, 1])); ?></span>
+                    <button id="next-page-btn-bottom" class="secondary" disabled aria-label="<?php p($l->t('Next')); ?>" title="<?php p($l->t('Next')); ?>">→</button>
                 </div>
             </div>
         </div>
@@ -1852,13 +1862,11 @@ style('budget', 'budget-app');
             <div class="view-header">
                 <h2><?php p($l->t('Categories')); ?></h2>
                 <div class="view-controls">
-                    <div class="categories-tabs">
-                        <button class="tab-button active" data-tab="expense">
-                            <span class="icon-close" aria-hidden="true"></span>
+                    <div class="categories-tabs" role="tablist">
+                        <button class="tab-button active" role="tab" aria-selected="true" data-tab="expense">
                             <?php p($l->t('Expenses')); ?>
                         </button>
-                        <button class="tab-button" data-tab="income">
-                            <span class="icon-add" aria-hidden="true"></span>
+                        <button class="tab-button" role="tab" aria-selected="false" data-tab="income">
                             <?php p($l->t('Income')); ?>
                         </button>
                     </div>
@@ -1885,7 +1893,7 @@ style('budget', 'budget-app');
                 <div class="categories-panel">
                     <div class="categories-toolbar">
                         <div class="search-container">
-                            <input type="search" id="categories-search" placeholder="<?php p($l->t('Search categories...')); ?>" class="search-input" autocomplete="off">
+                            <input type="search" id="categories-search" aria-label="<?php p($l->t('Search categories...')); ?>" placeholder="<?php p($l->t('Search categories...')); ?>" class="search-input" autocomplete="off">
                             <span class="icon-search search-icon" aria-hidden="true"></span>
                         </div>
                         <div class="view-options">
@@ -1932,7 +1940,7 @@ style('budget', 'budget-app');
                                         <?php p($l->t('Add Category')); ?>
                                     </button>
                                     <button class="secondary" id="create-default-categories-btn">
-                                        <span class="icon-template" aria-hidden="true"></span>
+                                        <span class="icon-file" aria-hidden="true"></span>
                                         <?php p($l->t('Use Default Categories')); ?>
                                     </button>
                                 </div>
@@ -1972,7 +1980,7 @@ style('budget', 'budget-app');
                             </div>
                             <div class="category-total-spent" id="category-total-spent">
                                 <span class="total-spent-label"><?php p($l->t('Total Spent')); ?></span>
-                                <span class="total-spent-value" id="category-total-spent-value">$0</span>
+                                <span class="total-spent-value" id="category-total-spent-value">--</span>
                             </div>
                         </div>
 
@@ -1988,7 +1996,7 @@ style('budget', 'budget-app');
                                 </div>
                                 <div class="analytics-card">
                                     <div class="analytics-content">
-                                        <div class="analytics-value" id="avg-transaction-amount">$0</div>
+                                        <div class="analytics-value" id="avg-transaction-amount">--</div>
                                         <div class="analytics-label"><?php p($l->t('Average')); ?></div>
                                     </div>
                                 </div>
@@ -2000,7 +2008,7 @@ style('budget', 'budget-app');
                                 </div>
                                 <div class="analytics-card">
                                     <div class="analytics-content">
-                                        <div class="analytics-value" id="category-this-month">$0</div>
+                                        <div class="analytics-value" id="category-this-month">--</div>
                                         <div class="analytics-label"><?php p($l->t('This Month')); ?></div>
                                     </div>
                                 </div>
@@ -2150,31 +2158,31 @@ style('budget', 'budget-app');
                         <span class="icon-quota" aria-hidden="true"></span>
                     </div>
                     <div class="summary-content">
-                        <div class="summary-value" id="budget-total-budgeted">$0</div>
+                        <div class="summary-value" id="budget-total-budgeted">--</div>
                         <div class="summary-label"><?php p($l->t('Total Budgeted')); ?></div>
                     </div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-icon">
-                        <span class="icon-close" style="color: var(--color-error);" aria-hidden="true"></span>
+                        <span class="icon-category-monitoring" aria-hidden="true"></span>
                     </div>
                     <div class="summary-content">
-                        <div class="summary-value" id="budget-total-spent">$0</div>
+                        <div class="summary-value" id="budget-total-spent">--</div>
                         <div class="summary-label"><?php p($l->t('Total Spent')); ?></div>
                     </div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-icon">
-                        <span class="icon-checkmark" style="color: var(--color-success);" aria-hidden="true"></span>
+                        <span class="icon-checkmark" aria-hidden="true"></span>
                     </div>
                     <div class="summary-content">
-                        <div class="summary-value" id="budget-total-remaining">$0</div>
+                        <div class="summary-value" id="budget-total-remaining">--</div>
                         <div class="summary-label"><?php p($l->t('Remaining')); ?></div>
                     </div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-icon">
-                        <span class="icon-category-integration" aria-hidden="true"></span>
+                        <span class="icon-tag" aria-hidden="true"></span>
                     </div>
                     <div class="summary-content">
                         <div class="summary-value" id="budget-categories-count">0</div>
@@ -2184,13 +2192,13 @@ style('budget', 'budget-app');
             </div>
 
             <!-- Budget Type Tabs -->
-            <div class="budget-tabs">
-                <button class="tab-button active" data-budget-type="expense">
-                    <span class="icon-close" aria-hidden="true"></span>
+            <!-- No icons: an x on Expenses and a + on Income read as
+                 "remove" and "add", not as two views of the budget. -->
+            <div class="budget-tabs" role="tablist">
+                <button class="tab-button active" role="tab" aria-selected="true" data-budget-type="expense">
                     <?php p($l->t('Expenses')); ?>
                 </button>
-                <button class="tab-button" data-budget-type="income">
-                    <span class="icon-add" aria-hidden="true"></span>
+                <button class="tab-button" role="tab" aria-selected="false" data-budget-type="income">
                     <?php p($l->t('Income')); ?>
                 </button>
             </div>
@@ -2481,12 +2489,12 @@ style('budget', 'budget-app');
                                 <table id="preview-table">
                                     <thead>
                                         <tr>
-                                            <th><?php p($l->t('Date')); ?></th>
-                                            <th><?php p($l->t('Description')); ?></th>
-                                            <th id="preview-th-notes" style="display: none;"><?php p($l->t('Notes')); ?></th>
-                                            <th class="preview-col-amount"><?php p($l->t('Amount')); ?></th>
-                                            <th><?php p($l->t('Category')); ?></th>
-                                            <th><?php p($l->t('Status')); ?></th>
+                                            <th scope="col"><?php p($l->t('Date')); ?></th>
+                                            <th scope="col"><?php p($l->t('Description')); ?></th>
+                                            <th scope="col" id="preview-th-notes" style="display: none;"><?php p($l->t('Notes')); ?></th>
+                                            <th scope="col" class="preview-col-amount"><?php p($l->t('Amount')); ?></th>
+                                            <th scope="col"><?php p($l->t('Category')); ?></th>
+                                            <th scope="col"><?php p($l->t('Status')); ?></th>
                                         </tr>
                                     </thead>
                                     <tbody></tbody>
@@ -2517,12 +2525,12 @@ style('budget', 'budget-app');
                         <table id="history-table">
                             <thead>
                                 <tr>
-                                    <th><?php p($l->t('Date')); ?></th>
-                                    <th><?php p($l->t('File Name')); ?></th>
-                                    <th><?php p($l->t('Account')); ?></th>
-                                    <th><?php p($l->t('Transactions')); ?></th>
-                                    <th><?php p($l->t('Status')); ?></th>
-                                    <th><?php p($l->t('Actions')); ?></th>
+                                    <th scope="col"><?php p($l->t('Date')); ?></th>
+                                    <th scope="col"><?php p($l->t('File Name')); ?></th>
+                                    <th scope="col"><?php p($l->t('Account')); ?></th>
+                                    <th scope="col"><?php p($l->t('Transactions')); ?></th>
+                                    <th scope="col"><?php p($l->t('Status')); ?></th>
+                                    <th scope="col"><?php p($l->t('Actions')); ?></th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -2583,7 +2591,7 @@ style('budget', 'budget-app');
                 </div>
                 <div class="summary-card warning">
                     <div class="summary-icon">
-                        <span class="icon-alert" aria-hidden="true"></span>
+                        <span class="icon-alert-outline" aria-hidden="true"></span>
                     </div>
                     <div class="summary-content">
                         <div class="summary-value" id="bills-overdue-count">0</div>
@@ -2595,7 +2603,7 @@ style('budget', 'budget-app');
                         <span class="icon-quota" aria-hidden="true"></span>
                     </div>
                     <div class="summary-content">
-                        <div class="summary-value" id="bills-monthly-total">$0</div>
+                        <div class="summary-value" id="bills-monthly-total">--</div>
                         <div class="summary-label"><?php p($l->t('Monthly Total')); ?></div>
                     </div>
                 </div>
@@ -2726,12 +2734,12 @@ style('budget', 'budget-app');
                 <table id="rules-table" class="rules-table">
                     <thead>
                         <tr>
-                            <th class="rules-col-priority sortable" data-sort="priority"><?php p($l->t('Pri')); ?> <span class="sort-indicator"></span></th>
-                            <th class="rules-col-name sortable" data-sort="name"><?php p($l->t('Name')); ?> <span class="sort-indicator"></span></th>
-                            <th class="rules-col-status sortable" data-sort="status"><?php p($l->t('Status')); ?> <span class="sort-indicator"></span></th>
-                            <th class="rules-col-criteria"><?php p($l->t('Criteria')); ?></th>
-                            <th class="rules-col-actions"><?php p($l->t('Actions')); ?></th>
-                            <th class="rules-col-buttons"></th>
+                            <th scope="col" tabindex="0" aria-sort="none" class="rules-col-priority sortable" data-sort="priority"><?php p($l->t('Pri')); ?> <span class="sort-indicator"></span></th>
+                            <th scope="col" tabindex="0" aria-sort="none" class="rules-col-name sortable" data-sort="name"><?php p($l->t('Name')); ?> <span class="sort-indicator"></span></th>
+                            <th scope="col" tabindex="0" aria-sort="none" class="rules-col-status sortable" data-sort="status"><?php p($l->t('Status')); ?> <span class="sort-indicator"></span></th>
+                            <th scope="col" class="rules-col-criteria"><?php p($l->t('Criteria')); ?></th>
+                            <th scope="col" class="rules-col-actions"><?php p($l->t('Actions')); ?></th>
+                            <th scope="col" class="rules-col-buttons"></th>
                         </tr>
                     </thead>
                     <tbody id="rules-list">
@@ -2880,7 +2888,7 @@ style('budget', 'budget-app');
                         <span class="icon-quota" aria-hidden="true"></span>
                     </div>
                     <div class="summary-content">
-                        <div class="summary-value" id="goals-total-saved">$0</div>
+                        <div class="summary-value" id="goals-total-saved">--</div>
                         <div class="summary-label"><?php p($l->t('Total Saved')); ?></div>
                     </div>
                 </div>
@@ -2889,7 +2897,7 @@ style('budget', 'budget-app');
                         <span class="icon-category-office" aria-hidden="true"></span>
                     </div>
                     <div class="summary-content">
-                        <div class="summary-value" id="goals-total-target">$0</div>
+                        <div class="summary-value" id="goals-total-target">--</div>
                         <div class="summary-label"><?php p($l->t('Total Target')); ?></div>
                     </div>
                 </div>
@@ -3207,7 +3215,7 @@ style('budget', 'budget-app');
                         <div class="summary-card summary-card-net">
                             <div class="summary-icon">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+                                    <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
                                 </svg>
                             </div>
                             <div class="summary-content">
@@ -3248,11 +3256,11 @@ style('budget', 'budget-app');
                             <table id="report-accounts-table" class="data-table">
                                 <thead>
                                     <tr>
-                                        <th><?php p($l->t('Account')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Income')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Expenses')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Net')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Balance')); ?></th>
+                                        <th scope="col"><?php p($l->t('Account')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Income')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Expenses')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Net')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Balance')); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -3273,9 +3281,9 @@ style('budget', 'budget-app');
                                 <table id="report-income-table" class="data-table">
                                     <thead>
                                         <tr>
-                                            <th><?php p($l->t('Category')); ?></th>
-                                            <th class="text-right"><?php p($l->t('Amount')); ?></th>
-                                            <th class="text-right"><?php p($l->t('Transactions')); ?></th>
+                                            <th scope="col"><?php p($l->t('Category')); ?></th>
+                                            <th scope="col" class="text-right"><?php p($l->t('Amount')); ?></th>
+                                            <th scope="col" class="text-right"><?php p($l->t('Transactions')); ?></th>
                                         </tr>
                                     </thead>
                                     <tbody></tbody>
@@ -3291,9 +3299,9 @@ style('budget', 'budget-app');
                                 <table id="report-expenses-table" class="data-table">
                                     <thead>
                                         <tr>
-                                            <th><?php p($l->t('Category')); ?></th>
-                                            <th class="text-right"><?php p($l->t('Amount')); ?></th>
-                                            <th class="text-right"><?php p($l->t('Transactions')); ?></th>
+                                            <th scope="col"><?php p($l->t('Category')); ?></th>
+                                            <th scope="col" class="text-right"><?php p($l->t('Amount')); ?></th>
+                                            <th scope="col" class="text-right"><?php p($l->t('Transactions')); ?></th>
                                         </tr>
                                     </thead>
                                     <tbody></tbody>
@@ -3336,10 +3344,10 @@ style('budget', 'budget-app');
                                 <table id="report-categories-table" class="data-table">
                                     <thead>
                                         <tr>
-                                            <th><?php p($l->t('Category')); ?></th>
-                                            <th class="text-right"><?php p($l->t('Amount')); ?></th>
-                                            <th class="text-right"><?php p($l->t('%% of Total')); ?></th>
-                                            <th class="text-right"><?php p($l->t('Transactions')); ?></th>
+                                            <th scope="col"><?php p($l->t('Category')); ?></th>
+                                            <th scope="col" class="text-right"><?php p($l->t('Amount')); ?></th>
+                                            <th scope="col" class="text-right"><?php p($l->t('%% of Total')); ?></th>
+                                            <th scope="col" class="text-right"><?php p($l->t('Transactions')); ?></th>
                                         </tr>
                                     </thead>
                                     <tbody></tbody>
@@ -3357,9 +3365,9 @@ style('budget', 'budget-app');
                             <table id="report-vendors-table" class="data-table">
                                 <thead>
                                     <tr>
-                                        <th><?php p($l->t('Vendor')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Amount')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Transactions')); ?></th>
+                                        <th scope="col"><?php p($l->t('Vendor')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Amount')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Transactions')); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -3411,11 +3419,11 @@ style('budget', 'budget-app');
                             <table id="report-cashflow-table" class="data-table">
                                 <thead>
                                     <tr>
-                                        <th><?php p($l->t('Month')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Income')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Expenses')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Net')); ?></th>
-                                        <th class="text-right"><?php p($l->t('Cumulative')); ?></th>
+                                        <th scope="col"><?php p($l->t('Month')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Income')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Expenses')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Net')); ?></th>
+                                        <th scope="col" class="text-right"><?php p($l->t('Cumulative')); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -3505,7 +3513,7 @@ style('budget', 'budget-app');
                             <table id="yoy-category-table" class="data-table">
                                 <thead>
                                     <tr id="yoy-category-header">
-                                        <th><?php p($l->t('Category')); ?></th>
+                                        <th scope="col"><?php p($l->t('Category')); ?></th>
                                         <!-- Year columns will be added dynamically -->
                                     </tr>
                                 </thead>
@@ -3574,19 +3582,19 @@ style('budget', 'budget-app');
                             <table id="bills-calendar-table" class="data-table bills-calendar-table">
                                 <thead>
                                     <tr>
-                                        <th class="bill-name-col"><?php p($l->t('Bill')); ?></th>
-                                        <th><?php p($l->t('Jan')); ?></th>
-                                        <th><?php p($l->t('Feb')); ?></th>
-                                        <th><?php p($l->t('Mar')); ?></th>
-                                        <th><?php p($l->t('Apr')); ?></th>
-                                        <th><?php p($l->t('May')); ?></th>
-                                        <th><?php p($l->t('Jun')); ?></th>
-                                        <th><?php p($l->t('Jul')); ?></th>
-                                        <th><?php p($l->t('Aug')); ?></th>
-                                        <th><?php p($l->t('Sep')); ?></th>
-                                        <th><?php p($l->t('Oct')); ?></th>
-                                        <th><?php p($l->t('Nov')); ?></th>
-                                        <th><?php p($l->t('Dec')); ?></th>
+                                        <th scope="col" class="bill-name-col"><?php p($l->t('Bill')); ?></th>
+                                        <th scope="col"><?php p($l->t('Jan')); ?></th>
+                                        <th scope="col"><?php p($l->t('Feb')); ?></th>
+                                        <th scope="col"><?php p($l->t('Mar')); ?></th>
+                                        <th scope="col"><?php p($l->t('Apr')); ?></th>
+                                        <th scope="col"><?php p($l->t('May')); ?></th>
+                                        <th scope="col"><?php p($l->t('Jun')); ?></th>
+                                        <th scope="col"><?php p($l->t('Jul')); ?></th>
+                                        <th scope="col"><?php p($l->t('Aug')); ?></th>
+                                        <th scope="col"><?php p($l->t('Sep')); ?></th>
+                                        <th scope="col"><?php p($l->t('Oct')); ?></th>
+                                        <th scope="col"><?php p($l->t('Nov')); ?></th>
+                                        <th scope="col"><?php p($l->t('Dec')); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody id="bills-calendar-table-body"></tbody>
@@ -3928,7 +3936,7 @@ style('budget', 'budget-app');
             <div class="view-header">
                 <div class="breadcrumb">
                     <button id="back-to-assets-btn" class="breadcrumb-back">
-                        <span class="icon-arrow-left" aria-hidden="true"></span>
+                        <span aria-hidden="true">←</span>
                         <?php p($l->t('Assets')); ?>
                     </button>
                     <span class="breadcrumb-separator">/</span>
@@ -4287,11 +4295,11 @@ style('budget', 'budget-app');
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                         <h3><?php p($l->t('Bank Connections')); ?></h3>
                         <div style="display: flex; gap: 8px;">
-                            <button class="btn btn-secondary" id="sync-all-connections-btn" style="display: none;" title="<?php p($l->t('Sync all active connections')); ?>">
+                            <button class="secondary" id="sync-all-connections-btn" style="display: none;" title="<?php p($l->t('Sync all active connections')); ?>">
                                 <span class="icon-play" aria-hidden="true"></span>
                                 <?php p($l->t('Sync All')); ?>
                             </button>
-                            <button class="btn btn-primary" id="add-bank-connection-btn">
+                            <button class="primary" id="add-bank-connection-btn">
                                 <span class="icon-add" aria-hidden="true"></span>
                                 <?php p($l->t('Add Connection')); ?>
                             </button>
@@ -4306,7 +4314,7 @@ style('budget', 'budget-app');
                 <div class="settings-section" id="bank-mappings-section" style="display: none;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <h3 id="bank-mappings-title"><?php p($l->t('Account Mappings')); ?></h3>
-                        <button class="btn btn-sm" id="refresh-accounts-btn" title="<?php p($l->t('Refresh account list from bank')); ?>">
+                        <button id="refresh-accounts-btn" title="<?php p($l->t('Refresh account list from bank')); ?>">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/></svg>
                         </button>
                     </div>
@@ -4319,21 +4327,28 @@ style('budget', 'budget-app');
         <div id="settings-view" class="view">
             <div class="view-header">
                 <h2><?php p($l->t('Settings')); ?></h2>
-                <div class="view-controls">
-                    <button id="reset-settings-btn" class="secondary" title="<?php p($l->t('Reset all settings to defaults')); ?>">
-                        <span class="icon-history" aria-hidden="true"></span>
-                        <?php p($l->t('Reset All')); ?>
-                    </button>
-                    <button id="save-settings-btn" class="primary" title="<?php p($l->t('Save settings')); ?>">
-                        <span class="icon-checkmark" aria-hidden="true"></span>
-                        <?php p($l->t('Save Changes')); ?>
-                    </button>
-                </div>
             </div>
+            <p class="settings-autosave-note"><?php p($l->t('Changes are saved as you make them.')); ?></p>
+
+            <!-- Jump list. Buttons, not #links: the router reads any hash as a
+                 view name, so an in-page anchor would blank the page. -->
+            <nav class="settings-jump" aria-label="<?php p($l->t('Settings sections')); ?>">
+                <button type="button" data-target="settings-general"><?php p($l->t('General Settings')); ?></button>
+                <button type="button" data-target="settings-display"><?php p($l->t('Display Settings')); ?></button>
+                <button type="button" data-target="settings-number-format"><?php p($l->t('Number Format')); ?></button>
+                <button type="button" data-target="settings-notifications"><?php p($l->t('Notifications')); ?></button>
+                <button type="button" data-target="settings-receipts"><?php p($l->t('Receipts')); ?></button>
+                <button type="button" data-target="settings-reports"><?php p($l->t('Scheduled Reports')); ?></button>
+                <button type="button" data-target="settings-import-export"><?php p($l->t('Import & Export')); ?></button>
+                <button type="button" data-target="settings-migration"><?php p($l->t('Data Migration')); ?></button>
+                <button type="button" data-target="settings-maintenance"><?php p($l->t('Maintenance')); ?></button>
+                <button type="button" data-target="admin-settings-section" class="settings-jump-admin" hidden><?php p($l->t('Admin Settings')); ?></button>
+                <button type="button" data-target="settings-danger"><?php p($l->t('Danger Zone')); ?></button>
+            </nav>
 
             <div class="settings-container">
                 <!-- General Settings Section -->
-                <div class="settings-section">
+                <div class="settings-section" id="settings-general">
                     <h3><?php p($l->t('General Settings')); ?></h3>
 
                     <div class="settings-group">
@@ -4381,7 +4396,7 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Display Settings Section -->
-                <div class="settings-section">
+                <div class="settings-section" id="settings-display">
                     <h3><?php p($l->t('Display Settings')); ?></h3>
 
                     <div class="settings-group">
@@ -4414,7 +4429,7 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Number Format Settings Section -->
-                <div class="settings-section">
+                <div class="settings-section" id="settings-number-format">
                     <h3><?php p($l->t('Number Format')); ?></h3>
 
                     <div class="settings-group">
@@ -4462,7 +4477,7 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Notification Settings Section -->
-                <div class="settings-section">
+                <div class="settings-section" id="settings-notifications">
                     <h3><?php p($l->t('Notifications')); ?></h3>
 
                     <div class="settings-group">
@@ -4530,7 +4545,7 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Receipts Section (#352) -->
-                <div class="settings-section">
+                <div class="settings-section" id="settings-receipts">
                     <h3><?php p($l->t('Receipts')); ?></h3>
                     <p class="settings-description"><?php p($l->t('Where uploaded receipts are filed in your Files. Year and month subfolders are created underneath. Receipts already attached stay where they are.')); ?></p>
                     <div class="settings-group">
@@ -4549,7 +4564,7 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Scheduled Reports Section -->
-                <div class="settings-section">
+                <div class="settings-section" id="settings-reports">
                     <h3><?php p($l->t('Scheduled Reports')); ?></h3>
 
                     <div class="settings-group">
@@ -4576,7 +4591,7 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Import/Export Settings Section -->
-                <div class="settings-section">
+                <div class="settings-section" id="settings-import-export">
                     <h3><?php p($l->t('Import & Export')); ?></h3>
 
                     <div class="settings-group">
@@ -4615,7 +4630,7 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Data Migration Section -->
-                <div class="settings-section">
+                <div class="settings-section" id="settings-migration">
                     <h3><?php p($l->t('Data Migration')); ?></h3>
                     <p class="settings-description"><?php p($l->t('Export all your data for backup or migration to another Nextcloud instance. Import to restore or migrate data.')); ?></p>
 
@@ -4721,7 +4736,7 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Maintenance Section -->
-                <div class="settings-section">
+                <div class="settings-section" id="settings-maintenance">
                     <h3><?php p($l->t('Maintenance')); ?></h3>
                     <div class="settings-group">
                         <div class="settings-action-item">
@@ -4840,7 +4855,7 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Danger Zone Section -->
-                <div class="settings-section danger-zone">
+                <div class="settings-section danger-zone" id="settings-danger">
                     <h3><?php p($l->t('Danger Zone')); ?></h3>
                     <p class="settings-description danger-zone-description">
                         <span class="icon-error" aria-hidden="true"></span>
@@ -4848,6 +4863,17 @@ style('budget', 'budget-app');
                     </p>
 
                     <div class="settings-group">
+                        <div class="danger-zone-item">
+                            <div class="danger-zone-info">
+                                <h4><?php p($l->t('Reset All to Defaults')); ?></h4>
+                                <p><?php p($l->t('Put every setting on this page back to its default. Your accounts, transactions and other data are not touched.')); ?></p>
+                            </div>
+                            <button id="reset-settings-btn" class="secondary" type="button">
+                                <span class="icon-history" aria-hidden="true"></span>
+                                <?php p($l->t('Reset All to Defaults')); ?>
+                            </button>
+                        </div>
+
                         <div class="danger-zone-item">
                             <div class="danger-zone-info">
                                 <h4><?php p($l->t('Factory Reset')); ?></h4>
@@ -4859,18 +4885,6 @@ style('budget', 'budget-app');
                             </button>
                         </div>
                     </div>
-                </div>
-
-                <!-- Settings Actions (mirrors the buttons in the view header) -->
-                <div class="settings-actions">
-                    <button id="save-settings-btn-bottom" class="primary">
-                        <span class="icon-checkmark" aria-hidden="true"></span>
-                        <?php p($l->t('Save Changes')); ?>
-                    </button>
-                    <button id="reset-settings-btn-bottom" class="secondary">
-                        <span class="icon-history" aria-hidden="true"></span>
-                        <?php p($l->t('Reset All to Defaults')); ?>
-                    </button>
                 </div>
             </div>
         </div>
@@ -5710,41 +5724,33 @@ style('budget', 'budget-app');
 </div>
 
 <!-- Modals -->
-<div id="transaction-modal" class="modal modal-columns" style="display: none;" role="dialog" aria-labelledby="transaction-modal-title" aria-hidden="true">
+<div id="transaction-modal" class="modal modal-columns modal-columns-2" style="display: none;" role="dialog" aria-labelledby="transaction-modal-title" aria-hidden="true">
     <div class="modal-content">
-        <h3 id="transaction-modal-title"><?php p($l->t('Add/Edit Transaction')); ?></h3>
+        <h3 id="transaction-modal-title"><?php p($l->t('New transaction')); ?></h3>
         <form id="transaction-form" class="wide-form">
             <input type="hidden" id="transaction-id">
 
             <div class="modal-scroll">
-              <div class="form-columns">
+              <div class="form-columns form-columns-2">
                 <!-- Column 1 -->
                 <div class="form-col">
                   <div class="form-block">
                     <h4><?php p($l->t('Transaction')); ?></h4>
                     <div class="form-group">
-                        <label for="transaction-date"><?php p($l->t('Date')); ?> <span class="required">*</span></label>
-                        <input type="date" id="transaction-date" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="transaction-account"><?php p($l->t('Account')); ?> <span class="required">*</span></label>
-                        <select id="transaction-account" required>
-                            <option value=""><?php p($l->t('Choose an account')); ?></option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="transaction-type"><?php p($l->t('Type')); ?> <span class="required">*</span></label>
-                        <select id="transaction-type" required>
+                        <span id="transaction-type-label" class="form-label"><?php p($l->t('Type')); ?></span>
+                        <!-- Segmented control over the select below, which stays the
+                             source of truth (its change handler shows the transfer
+                             fields). TransactionsModule keeps the two in step. -->
+                        <div id="transaction-type-toggle" class="segmented-toggle" role="radiogroup" aria-labelledby="transaction-type-label">
+                            <button type="button" role="radio" data-value="debit" aria-checked="false"><?php p($l->t('Expense')); ?></button>
+                            <button type="button" role="radio" data-value="credit" aria-checked="false"><?php p($l->t('Income')); ?></button>
+                            <button type="button" role="radio" data-value="transfer" aria-checked="false"><?php p($l->t('Transfer')); ?></button>
+                        </div>
+                        <select id="transaction-type" class="visually-hidden" tabindex="-1" aria-hidden="true" required>
                             <option value=""><?php p($l->t('Choose transaction type')); ?></option>
                             <option value="debit"><?php p($l->t('Expense')); ?></option>
                             <option value="credit"><?php p($l->t('Income')); ?></option>
                             <option value="transfer"><?php p($l->t('Transfer')); ?></option>
-                        </select>
-                    </div>
-                    <div id="transfer-to-account-wrapper" class="form-group" style="display: none;">
-                        <label for="transfer-to-account"><?php p($l->t('To Account')); ?></label>
-                        <select id="transfer-to-account">
-                            <option value=""><?php p($l->t('Choose destination account')); ?></option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -5755,6 +5761,22 @@ style('budget', 'budget-app');
                         <label for="transfer-dest-amount"><span id="transfer-dest-amount-label"><?php p($l->t('Destination Amount')); ?></span></label>
                         <input type="number" id="transfer-dest-amount" step="0.01" min="0" aria-describedby="transfer-dest-amount-help">
                         <small id="transfer-dest-amount-help" class="form-text"><?php p($l->t('Auto-filled from the exchange rate, editable')); ?></small>
+                    </div>
+                    <div class="form-group">
+                        <label for="transaction-account"><?php p($l->t('Account')); ?> <span class="required">*</span></label>
+                        <select id="transaction-account" required>
+                            <option value=""><?php p($l->t('Choose an account')); ?></option>
+                        </select>
+                    </div>
+                    <div id="transfer-to-account-wrapper" class="form-group" style="display: none;">
+                        <label for="transfer-to-account"><?php p($l->t('To Account')); ?></label>
+                        <select id="transfer-to-account">
+                            <option value=""><?php p($l->t('Choose destination account')); ?></option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="transaction-date"><?php p($l->t('Date')); ?> <span class="required">*</span></label>
+                        <input type="date" id="transaction-date" required>
                     </div>
                   </div>
                 </div>
@@ -5791,56 +5813,61 @@ style('budget', 'budget-app');
                   </div>
                 </div>
 
-                <!-- Column 3 -->
-                <div class="form-col">
-                  <div class="form-block">
-                    <h4><?php p($l->t('Extras')); ?></h4>
+              </div>
 
-                    <!-- Receipt scanning (#535). Hidden unless an admin has
-                         configured an OCR provider — see ReceiptScanController. -->
-                    <div id="transaction-scan-group" class="form-group" style="display: none;">
-                        <label><?php p($l->t('Scan a receipt')); ?></label>
-                        <div id="transaction-scan-drop" class="receipt-scan-drop" tabindex="0" role="button"
-                             aria-describedby="transaction-scan-help">
-                            <span class="receipt-scan-idle">
-                                <?php p($l->t('Drop a photo here, or click to choose one')); ?>
-                            </span>
-                            <span class="receipt-scan-busy" hidden>
-                                <span class="icon-loading-small"></span>
-                                <?php p($l->t('Reading the receipt…')); ?>
-                            </span>
+              <!-- Receipts, notes and the forecast flag: open for a transaction
+                   that uses them (and when receipt scanning is available),
+                   folded away otherwise so the everyday fields come first. -->
+              <details id="transaction-extras" class="form-block form-block-full form-extras">
+                <summary><?php p($l->t('More options')); ?></summary>
+                <div class="form-extras-grid">
+                  <div class="form-extras-col">
+                        <!-- Receipt scanning (#535). Hidden unless an admin has
+                             configured an OCR provider — see ReceiptScanController. -->
+                        <div id="transaction-scan-group" class="form-group" style="display: none;">
+                            <label><?php p($l->t('Scan a receipt')); ?></label>
+                            <div id="transaction-scan-drop" class="receipt-scan-drop" tabindex="0" role="button"
+                                 aria-describedby="transaction-scan-help">
+                                <span class="receipt-scan-idle">
+                                    <?php p($l->t('Drop a photo here, or click to choose one')); ?>
+                                </span>
+                                <span class="receipt-scan-busy" hidden>
+                                    <span class="icon-loading-small"></span>
+                                    <?php p($l->t('Reading the receipt…')); ?>
+                                </span>
+                            </div>
+                            <input type="file" id="transaction-scan-input" accept="image/jpeg,image/png,image/webp" style="display: none;">
+                            <div id="transaction-scan-result" class="receipt-scan-result" hidden></div>
+                            <small id="transaction-scan-help" class="form-text"><?php p($l->t('The photo is read on your server and fills in the form for you to check. It is attached to the transaction when you save.')); ?></small>
                         </div>
-                        <input type="file" id="transaction-scan-input" accept="image/jpeg,image/png,image/webp" style="display: none;">
-                        <div id="transaction-scan-result" class="receipt-scan-result" hidden></div>
-                        <small id="transaction-scan-help" class="form-text"><?php p($l->t('The photo is read on your server and fills in the fields below for you to check. It is attached to the transaction when you save.')); ?></small>
-                    </div>
 
-                    <div id="transaction-attachments-group" class="form-group" style="display: none;">
-                        <label><?php p($l->t('Receipts')); ?></label>
-                        <div id="transaction-attachments-list" class="attachments-list"></div>
-                        <div class="attachment-actions">
-                            <button type="button" id="attachment-upload-btn" class="secondary"><?php p($l->t('Upload receipt')); ?></button>
-                            <input type="file" id="attachment-file-input" accept="image/*,application/pdf" multiple style="display: none;">
-                            <button type="button" id="attachment-pick-btn" class="secondary"><?php p($l->t('Choose from Files')); ?></button>
+                        <div id="transaction-attachments-group" class="form-group" style="display: none;">
+                            <label><?php p($l->t('Receipts')); ?></label>
+                            <div id="transaction-attachments-list" class="attachments-list"></div>
+                            <div class="attachment-actions">
+                                <button type="button" id="attachment-upload-btn" class="secondary"><?php p($l->t('Upload receipt')); ?></button>
+                                <input type="file" id="attachment-file-input" accept="image/*,application/pdf" multiple style="display: none;">
+                                <button type="button" id="attachment-pick-btn" class="secondary"><?php p($l->t('Choose from Files')); ?></button>
+                            </div>
+                            <small class="form-text"><?php p($l->t('Receipts are stored in your Files (Budget/Receipts) and linked to this transaction.')); ?></small>
                         </div>
-                        <small class="form-text"><?php p($l->t('Receipts are stored in your Files (Budget/Receipts) and linked to this transaction.')); ?></small>
-                    </div>
+                  </div>
+                  <div class="form-extras-col">
+                        <div class="form-group">
+                            <label for="transaction-notes"><?php p($l->t('Notes')); ?></label>
+                            <textarea id="transaction-notes" maxlength="500" rows="3"></textarea>
+                        </div>
 
-                    <div class="form-group">
-                        <label for="transaction-notes"><?php p($l->t('Notes')); ?></label>
-                        <textarea id="transaction-notes" maxlength="500" rows="3"></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-check">
-                            <input type="checkbox" id="transaction-excluded-from-forecast">
-                            <span><?php p($l->t('Exclude from forecast (extraordinary / one-time)')); ?></span>
-                        </label>
-                        <small class="form-text"><?php p($l->t('Keeps this one-off amount out of forecast averages. It still affects your account balance.')); ?></small>
-                    </div>
+                        <div class="form-group">
+                            <label class="form-check">
+                                <input type="checkbox" id="transaction-excluded-from-forecast">
+                                <span><?php p($l->t('Exclude from forecast (extraordinary / one-time)')); ?></span>
+                            </label>
+                            <small class="form-text"><?php p($l->t('Keeps this one-off amount out of forecast averages. It still affects your account balance.')); ?></small>
+                        </div>
                   </div>
                 </div>
-              </div>
+              </details>
 
               <!-- Inline Split Rows (hidden by default). Full width — a split row
                    is a four-column grid that doesn't fit a single form column. -->
@@ -5850,7 +5877,7 @@ style('budget', 'budget-app');
                         <span id="inline-split-remaining" class="inline-splits-remaining"></span>
                     </div>
                     <div id="inline-splits-container"></div>
-                    <button type="button" id="inline-add-split-btn" class="btn-small btn-secondary">+ <?php p($l->t('Add Row')); ?></button>
+                    <button type="button" id="inline-add-split-btn" class="secondary">+ <?php p($l->t('Add Row')); ?></button>
               </div>
             </div>
 
@@ -6423,10 +6450,10 @@ style('budget', 'budget-app');
                     <table id="rule-preview-table" class="preview-table">
                         <thead>
                             <tr>
-                                <th><?php p($l->t('Date')); ?></th>
-                                <th><?php p($l->t('Description')); ?></th>
-                                <th><?php p($l->t('Amount')); ?></th>
-                                <th><?php p($l->t('Current Category')); ?></th>
+                                <th scope="col"><?php p($l->t('Date')); ?></th>
+                                <th scope="col"><?php p($l->t('Description')); ?></th>
+                                <th scope="col"><?php p($l->t('Amount')); ?></th>
+                                <th scope="col"><?php p($l->t('Current Category')); ?></th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -7459,11 +7486,10 @@ style('budget', 'budget-app');
 </div>
 
 <!-- Help Panel -->
-<button id="help-fab" class="help-fab" title="<?php p($l->t('Help')); ?>" aria-label="<?php p($l->t('Help')); ?>">?</button>
 <div id="help-panel" class="help-panel" style="display: none;">
     <div class="help-panel-header">
         <h3><?php p($l->t('Help')); ?></h3>
-        <button id="help-panel-close" class="help-panel-close">&times;</button>
+        <button id="help-panel-close" class="help-panel-close" aria-label="<?php p($l->t('Close')); ?>">&times;</button>
     </div>
     <div id="help-panel-content" class="help-panel-content">
         <!-- Populated dynamically based on current view -->

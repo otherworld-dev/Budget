@@ -408,7 +408,7 @@ export default class RulesModule {
             const isExpanded = this.expandedGroups.has(groupName);
             const activeCount = groupRules.filter(r => r.active).length;
 
-            html += `<tr class="rules-group-header" data-group="${this.escapeHtml(groupName)}">
+            html += `<tr class="rules-group-header" data-group="${this.escapeHtml(groupName)}" tabindex="0">
                 <td colspan="6">
                     <div class="group-header-content">
                         <span class="group-toggle ${isExpanded ? 'expanded' : ''}">&#9656;</span>
@@ -427,7 +427,7 @@ export default class RulesModule {
         // Render ungrouped rules
         if (ungrouped.length > 0) {
             const isExpanded = this.expandedGroups.has('__ungrouped__');
-            html += `<tr class="rules-group-header" data-group="__ungrouped__">
+            html += `<tr class="rules-group-header" data-group="__ungrouped__" tabindex="0">
                 <td colspan="6">
                     <div class="group-header-content">
                         <span class="group-toggle ${isExpanded ? 'expanded' : ''}">&#9656;</span>
@@ -453,9 +453,11 @@ export default class RulesModule {
             if (th.dataset.sort === this.sortColumn) {
                 indicator.textContent = this.sortDirection === 'asc' ? ' ▲' : ' ▼';
                 th.classList.add('sorted');
+                th.setAttribute('aria-sort', this.sortDirection === 'asc' ? 'ascending' : 'descending');
             } else {
                 indicator.textContent = '';
                 th.classList.remove('sorted');
+                th.setAttribute('aria-sort', 'none');
             }
         });
     }

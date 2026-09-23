@@ -9,6 +9,7 @@ import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { serverErrorMessage, downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES, hasSplitPortion, transactionDisplayAmount } from '../../utils/helpers.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { openAccounts } from '../../utils/accounts.js';
+import { showLoading, clearLoading } from '../../utils/loading.js';
 
 // Which account attributes are rendered in the accounts view (tiles + list).
 // User-configurable through the gear menu in the accounts header, stored in
@@ -147,6 +148,7 @@ export default class AccountsModule {
     // ============================================
 
     async loadAccounts() {
+        if (this.app.currentView === 'accounts') showLoading('accounts-assets-grid');
         try {
             const [response, summaryResponse] = await Promise.all([
                 fetch(OC.generateUrl('/apps/budget/api/accounts'), {
@@ -189,6 +191,7 @@ export default class AccountsModule {
             this.setupAccountCardClickHandlers();
         } catch (error) {
             console.error('Failed to load accounts:', error);
+            clearLoading('accounts-assets-grid');
         }
     }
 
@@ -526,7 +529,7 @@ export default class AccountsModule {
         };
 
         return `
-            <div class="account-card${account.closed ? ' is-closed' : ''}" data-type="${accountType}" data-account-id="${accountId}">
+            <div class="account-card${account.closed ? ' is-closed' : ''}" data-type="${accountType}" data-account-id="${accountId}" tabindex="0">
                 ${this.renderAccountSelectCheckbox(accountId)}
                 <div class="account-card-header">
                     <div class="account-icon" style="background-color: ${typeInfo.color};">
@@ -1797,7 +1800,7 @@ export default class AccountsModule {
             const currency = this.currentAccount?.currency || this.getPrimaryCurrency();
 
             document.getElementById('total-transactions').textContent =
-                (metrics.totalTransactions || 0).toLocaleString();
+                (metrics.totalTransactions || 0).toLocaleString(formatters.userLocale());
             document.getElementById('total-income').textContent =
                 this.formatCurrency(metrics.thisMonthIncome || 0, currency);
             document.getElementById('total-expenses').textContent =
@@ -3532,7 +3535,7 @@ export default class AccountsModule {
                 label: t('budget', 'Credit Card')
             },
             'investment': {
-                icon: 'icon-trending',
+                icon: 'icon-category-monitoring',
                 color: '#7ED321',
                 label: t('budget', 'Investment')
             },

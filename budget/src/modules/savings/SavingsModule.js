@@ -9,6 +9,7 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { offerableTags } from '../../utils/tags.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
+import { showLoading, clearLoading } from '../../utils/loading.js';
 
 export default class SavingsModule {
     constructor(app) {
@@ -24,6 +25,7 @@ export default class SavingsModule {
     get settings() { return this.app.settings; }
 
     async loadSavingsGoalsView() {
+        showLoading('goals-list');
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/savings-goals'), {
                 headers: { 'requesttoken': OC.requestToken }
@@ -46,6 +48,7 @@ export default class SavingsModule {
             this.populateGoalTagDropdown();
         } catch (error) {
             console.error('Failed to load savings goals:', error);
+            clearLoading('goals-list');
             showError(t('budget', 'Failed to load savings goals'));
         }
     }
@@ -96,7 +99,7 @@ export default class SavingsModule {
 
             let targetDateText = '';
             if (targetDate) {
-                const date = new Date(targetDate);
+                const date = formatters.parseLocalDate(targetDate);
                 const today = new Date();
                 const daysLeft = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
 
@@ -107,7 +110,7 @@ export default class SavingsModule {
                 } else if (daysLeft <= 30) {
                     targetDateText = n('budget', '%n day left', '%n days left', daysLeft);
                 } else {
-                    targetDateText = t('budget', 'Target: {date}', { date: date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) });
+                    targetDateText = t('budget', 'Target: {date}', { date: formatters.formatDate(targetDate, this.settings) });
                 }
             }
 

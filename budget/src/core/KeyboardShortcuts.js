@@ -16,6 +16,9 @@
  * global/list layers are suppressed whenever a modal is open.
  */
 import { translate as t } from '@nextcloud/l10n';
+import {
+    MODAL_SELECTOR, topModal, closeModal, markModalOpen, markModalClosed,
+} from '../utils/modals.js';
 
 // "g" then a letter → view name. Covers every page in the sidebar; letters are
 // chosen for mnemonic where possible and are collision-free. Keep this in sync
@@ -130,18 +133,12 @@ export default class KeyboardShortcuts {
 
     /** The visible modal (last in DOM order wins if several are shown). */
     _visibleModal() {
-        let found = null;
-        document.querySelectorAll('.modal').forEach(m => {
-            if (getComputedStyle(m).display !== 'none') found = m;
-        });
-        return found;
+        return topModal();
     }
 
     /** Close a modal via its own Cancel/Close control so per-modal cleanup runs. */
     _closeModal(modal) {
-        const btn = modal.querySelector('.cancel-btn, .close-btn, .modal-close, [data-dismiss]');
-        if (btn) { btn.click(); return; }
-        if (typeof this.app.hideModals === 'function') this.app.hideModals();
+        closeModal(modal);
     }
 
     /** Enter confirms modals with no <form> (form modals submit natively). */
@@ -175,23 +172,37 @@ export default class KeyboardShortcuts {
         )).filter(el => el.offsetWidth > 0 || el.offsetHeight > 0 || el === document.activeElement);
     }
 
-    /** Watch every modal's inline style; focus its first field the moment it opens. */
+    /**
+     * Notice modals opening and closing: static ones by their inline style
+     * changing, JS-built overlays by being added to or removed from the page.
+     */
     _observeModals() {
+        const check = (el) => {
+            if (!(el instanceof Element) || !el.matches(MODAL_SELECTOR)) return;
+            const open = el.isConnected && getComputedStyle(el).display !== 'none';
+            if (open && el.dataset.kbdOpen !== '1') {
+                el.dataset.kbdOpen = '1';
+                markModalOpen(el);
+                this._onModalOpen(el);
+            } else if (!open && el.dataset.kbdOpen === '1') {
+                el.dataset.kbdOpen = '';
+                markModalClosed(el);
+                this._onModalClose();
+            }
+        };
         const obs = new MutationObserver((records) => {
             for (const rec of records) {
-                const el = rec.target;
-                if (!(el.classList && el.classList.contains('modal'))) continue;
-                const open = getComputedStyle(el).display !== 'none';
-                if (open && el.dataset.kbdOpen !== '1') {
-                    el.dataset.kbdOpen = '1';
-                    this._onModalOpen(el);
-                } else if (!open && el.dataset.kbdOpen === '1') {
-                    el.dataset.kbdOpen = '';
-                    this._onModalClose();
+                if (rec.type === 'attributes') {
+                    check(rec.target);
+                    continue;
                 }
+                rec.addedNodes.forEach(check);
+                rec.removedNodes.forEach(check);
             }
         });
-        obs.observe(document.body, { attributes: true, attributeFilter: ['style'], subtree: true });
+        obs.observe(document.body, {
+            attributes: true, attributeFilter: ['style'], childList: true, subtree: true,
+        });
     }
 
     _onModalOpen(modal) {
@@ -199,8 +210,13 @@ export default class KeyboardShortcuts {
         // Only take focus if the app hasn't already put it inside this modal, so
         // we don't fight code that focuses a specific field on open.
         if (modal.contains(document.activeElement)) return;
+        // Skip date pickers: focusing one pops its calendar open over the rest of
+        // the form, and they already hold a sensible default (usually today).
+        // Controls kept only for their value (tabindex="-1", visually hidden)
+        // are skipped too.
         const field = modal.querySelector(
-            'input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
+            'input:not([type=hidden]):not([disabled]):not(.flatpickr-input):not([tabindex="-1"]),' +
+            ' select:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]):not([tabindex="-1"])'
         ) || modal.querySelector('button.primary');
         // Defer so it wins over any focus the open handler sets synchronously.
         if (field) setTimeout(() => {
@@ -217,7 +233,7 @@ export default class KeyboardShortcuts {
         const prev = this._lastFocus;
         this._lastFocus = null;
         if (prev && document.body.contains(prev)) {
-            const inClosedModal = prev.closest && prev.closest('.modal');
+            const inClosedModal = prev.closest && prev.closest(MODAL_SELECTOR);
             if (!inClosedModal || getComputedStyle(inClosedModal).display !== 'none') {
                 try { prev.focus(); } catch (_) { /* ignore */ }
             }

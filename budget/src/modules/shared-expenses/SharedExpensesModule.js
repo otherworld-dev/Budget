@@ -182,7 +182,7 @@ export default class SharedExpensesModule {
                 ).join('<br>');
 
             return `
-                <div class="contact-card" data-contact-id="${item.contact.id}">
+                <div class="contact-card" data-contact-id="${item.contact.id}" tabindex="0">
                     <div class="contact-card-main">
                         <div class="contact-avatar">
                             ${item.contact.name.charAt(0).toUpperCase()}

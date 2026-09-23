@@ -1112,7 +1112,7 @@ export default class ReportsModule {
 
         const monthLabel = (m) => {
             const d = new Date(`${m}-01T00:00:00`);
-            return isNaN(d.getTime()) ? m : d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
+            return isNaN(d.getTime()) ? m : d.toLocaleDateString(formatters.userLocale(), { month: 'short', year: '2-digit' });
         };
         const cell = (v) => {
             const val = v || 0;
@@ -1391,7 +1391,7 @@ export default class ReportsModule {
         if (!yearMonth) return '';
         const [year, month] = yearMonth.split('-');
         const date = new Date(year, month - 1);
-        return date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+        return date.toLocaleDateString(formatters.userLocale(), { month: 'short', year: 'numeric' });
     }
 
     // ==========================================
