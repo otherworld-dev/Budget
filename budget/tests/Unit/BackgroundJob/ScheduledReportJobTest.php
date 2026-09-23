@@ -67,7 +67,17 @@ class ScheduledReportJobTest extends TestCase {
 
 	private function givenEligibleUsers(array $userIds): void {
 		$result = $this->createMock(IResult::class);
-		$result->method('fetchAll')->willReturn(array_map(static fn($id) => ['user_id' => $id], $userIds));
+		$rows = array_map(static fn($id) => ['user_id' => $id], $userIds);
+		$result->method('fetchAll')->willReturn($rows);
+		// Each run reads the rows afresh; rewind when the query is re-executed
+		$cursor = 0;
+		$result->method('fetch')->willReturnCallback(function () use (&$cursor, $rows) {
+			return $rows[$cursor++] ?? false;
+		});
+		$result->method('closeCursor')->willReturnCallback(function () use (&$cursor) {
+			$cursor = 0;
+			return true;
+		});
 
 		$qb = $this->createMock(IQueryBuilder::class);
 		$qb->method('selectDistinct')->willReturnSelf();

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Integration\Db;
 
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionReportQueries;
 use OCA\Budget\Tests\Integration\IntegrationTestCase;
 use PHPUnit\Framework\Attributes\Group;
 
@@ -19,6 +20,7 @@ use PHPUnit\Framework\Attributes\Group;
  */
 class ReportAggregatesTest extends IntegrationTestCase {
 	private TransactionMapper $mapper;
+	private TransactionReportQueries $reports;
 	private int $accountId;
 	private int $excludedAccountId;
 	private int $food;
@@ -28,6 +30,7 @@ class ReportAggregatesTest extends IntegrationTestCase {
 	protected function setUp(): void {
 		parent::setUp();
 		$this->mapper = $this->service(TransactionMapper::class);
+		$this->reports = $this->service(TransactionReportQueries::class);
 		$this->accountId = $this->makeAccount(['name' => 'Current'])->getId();
 		$this->excludedAccountId = $this->makeAccount(['name' => 'Business', 'excludedFromReports' => true])->getId();
 		$this->food = $this->makeCategory(['name' => 'Food']);
@@ -156,7 +159,7 @@ class ReportAggregatesTest extends IntegrationTestCase {
 		$this->makeTransaction($this->accountId, ['amount' => '60.00', 'date' => '2026-02-05', 'pension_contrib_id' => 999999]);
 		$this->makeTransaction($this->accountId, ['amount' => '70.00', 'status' => 'scheduled', 'date' => $this->future]);
 
-		$flow = $this->mapper->getCashFlowByMonth(
+		$flow = $this->reports->getCashFlowByMonth(
 			$this->userId, null, '2026-01-01', date('Y-m-d', strtotime('+60 days'))
 		);
 
@@ -173,7 +176,7 @@ class ReportAggregatesTest extends IntegrationTestCase {
 		$this->db()->executeStatement('UPDATE *PREFIX*budget_transactions SET linked_transaction_id = ? WHERE id = ?', [$in, $out]);
 		$this->makeTransaction($this->accountId, ['amount' => '5.00', 'date' => '2026-02-11']);
 
-		$flow = $this->mapper->getCashFlowByMonth($this->userId, null, '2026-02-01', '2026-02-28', [], true, true);
+		$flow = $this->reports->getCashFlowByMonth($this->userId, null, '2026-02-01', '2026-02-28', [], true, true);
 
 		$this->assertEqualsWithDelta(0.0, $flow[0]['income'], 0.001);
 		$this->assertEqualsWithDelta(5.0, $flow[0]['expenses'], 0.001);
@@ -184,7 +187,7 @@ class ReportAggregatesTest extends IntegrationTestCase {
 		$this->makeTransaction($this->accountId, ['category_id' => $this->hidden, 'amount' => '99.00', 'date' => '2026-02-02']);
 		$this->makeTransaction($this->accountId, ['amount' => '1.00', 'date' => '2026-02-03']);
 
-		$trend = $this->mapper->getMonthlyTrendData($this->userId, null, '2026-02-01', '2026-02-28');
+		$trend = $this->reports->getMonthlyTrendData($this->userId, null, '2026-02-01', '2026-02-28');
 
 		$this->assertEqualsWithDelta(11.0, $trend[0]['expenses'], 0.001);
 	}
@@ -202,7 +205,7 @@ class ReportAggregatesTest extends IntegrationTestCase {
 		$this->makeTransaction($this->accountId, ['category_id' => $this->food, 'amount' => '10.00', 'date' => '2026-02-01']);
 		$this->makeTransaction($this->accountId, ['category_id' => $this->hidden, 'amount' => '99.00', 'date' => '2026-02-02']);
 
-		$flow = $this->mapper->getCashFlowByMonth($this->userId, null, '2026-02-01', '2026-02-28');
+		$flow = $this->reports->getCashFlowByMonth($this->userId, null, '2026-02-01', '2026-02-28');
 
 		$this->assertEqualsWithDelta(10.0, $flow[0]['expenses'], 0.001);
 	}
