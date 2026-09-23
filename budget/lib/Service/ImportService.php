@@ -157,7 +157,7 @@ class ImportService {
         bool $skipFirstRow = true,
         ?string $encoding = null
     ): array {
-        $file = $this->getImportFile($fileId);
+        $file = $this->getImportFile($userId, $fileId);
         $format = $this->parserFactory->detectFormat($fileId);
         $delimiter ??= ',';
 
@@ -234,7 +234,7 @@ class ImportService {
         ?string $presetId = null,
         ?string $encoding = null
     ): array {
-        $file = $this->getImportFile($fileId);
+        $file = $this->getImportFile($userId, $fileId);
         $format = $this->parserFactory->detectFormat($fileId);
         $content = $this->ensureUtf8($file->getContent(), $encoding);
 
@@ -260,7 +260,7 @@ class ImportService {
         ?string $presetId = null,
         ?string $encoding = null
     ): array {
-        $file = $this->getImportFile($fileId);
+        $file = $this->getImportFile($userId, $fileId);
         $format = $this->parserFactory->detectFormat($fileId);
         $content = $this->ensureUtf8($file->getContent(), $encoding);
 
@@ -329,7 +329,7 @@ class ImportService {
     }
 
     public function validateFile(string $userId, string $fileId, ?string $encoding = null): array {
-        $file = $this->getImportFile($fileId);
+        $file = $this->getImportFile($userId, $fileId);
         $format = $this->parserFactory->detectFormat($fileId);
 
         try {
@@ -379,7 +379,16 @@ class ImportService {
         }
     }
 
-    private function getImportFile(string $fileId) {
+    /**
+     * The caller's own uploaded import file. The id arrives from the client,
+     * and every user's uploads share one app-data folder, so it must be one
+     * this user was given ("import_<uid>_<32 hex>[.ext]"); anything else —
+     * another user's file, a path — is reported exactly like a missing file.
+     */
+    private function getImportFile(string $userId, string $fileId) {
+        if (!self::isOwnImportFileId($userId, $fileId)) {
+            throw new \Exception($this->l->t('Import file not found'));
+        }
         try {
             $importsFolder = $this->appData->getFolder('imports');
             return $importsFolder->getFile($fileId);
@@ -390,6 +399,20 @@ class ImportService {
                 throw new \Exception($this->l->t('Import file not found'));
             }
         }
+    }
+
+    /**
+     * Whether $fileId has the shape processUpload() hands to $userId. The 32
+     * hex digits pin the owner exactly: without them "import_bob_" would
+     * also match user bob_x's files.
+     */
+    public static function isOwnImportFileId(string $userId, string $fileId): bool {
+        if ($userId === '' || str_contains($fileId, '/') || str_contains($fileId, '\\')
+            || str_contains($fileId, "\0") || str_contains($fileId, '..')) {
+            return false;
+        }
+        $pattern = '/^import_' . preg_quote($userId, '/') . '_[0-9a-f]{32}(?:\.[^.]+)?$/D';
+        return preg_match($pattern, $fileId) === 1;
     }
 
     private function buildUploadResponse(
