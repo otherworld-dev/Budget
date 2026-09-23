@@ -740,6 +740,65 @@ class AccountControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
 	}
 
+	// ── only the owner deletes an account ───────────────────────────
+
+	/** user1 owns 1-3; account 9 is shared to them with write access. */
+	private function controllerWithSharedAccount(): AccountController {
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$granularShareService->method('canWrite')->willReturn(true);
+		$granularShareService->method('getOwnAccountIds')->willReturn([1, 2, 3]);
+		$granularShareService->method('getVisibleAccountIds')->willReturn([1, 2, 3, 9]);
+		return new AccountController(
+			$this->request, $this->service, $this->validationService, $this->auditService,
+			$granularShareService, $this->createMock(InterestService::class),
+			$this->createMock(InvestmentService::class), $this->l, 'user1', $this->logger
+		);
+	}
+
+	/**
+	 * Write access to a shared account covers its transactions. It used to
+	 * also let the recipient delete the account and its entire ledger.
+	 */
+	public function testDestroyRefusesASharedAccountEvenWithWriteAccess(): void {
+		$this->service->expects($this->never())->method('delete');
+		$this->service->expects($this->never())->method('deleteWithTransactions');
+
+		$response = $this->controllerWithSharedAccount()->destroy(9, true);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+		$this->assertSame('Only the account owner can delete an account', $response->getData()['error']);
+	}
+
+	public function testDestroyOfAnAccountTheCallerCannotSeeIsNotFound(): void {
+		$this->service->expects($this->never())->method('delete');
+
+		$response = $this->controllerWithSharedAccount()->destroy(77);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	public function testBulkDeleteRefusesTheWholeSelectionIfAnyAccountIsShared(): void {
+		$this->service->expects($this->never())->method('bulkDelete');
+
+		$response = $this->controllerWithSharedAccount()->bulkDelete([1, 9], true);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testBulkDeleteOfOwnAccountsDeletesThemAsTheOwner(): void {
+		$this->service->method('find')->willReturnCallback(fn (int $id) => $this->makeAccount(['id' => $id]));
+		$this->service->expects($this->once())->method('bulkDelete')
+			->with('user1', [1, 2], false)
+			->willReturn(['deleted' => [1, 2], 'blocked' => [], 'errors' => [], 'deletedTransactions' => 0]);
+		$this->auditService->expects($this->exactly(2))->method('logAccountDeleted');
+
+		$response = $this->controllerWithSharedAccount()->bulkDelete([1, 2]);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame([1, 2], $response->getData()['deleted']);
+	}
+
 	// ── reveal ──────────────────────────────────────────────────────
 
 	public function testRevealReturnsFullDataWhenSensitiveDataExists(): void {

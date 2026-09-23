@@ -535,38 +535,20 @@ class AccountController extends Controller {
 
             // Checked up front for the whole selection: a refusal partway
             // through would leave the user with a half-done delete and no way
-            // to tell which half.
+            // to tell which half. Only the owner may delete an account — write
+            // access to a shared one covers its transactions, not the account
+            // and its whole ledger.
             $ids = array_map('intval', $ids);
-            foreach ($ids as $id) {
-                $this->requireWriteAccess('account', $id);
+            if (array_diff($ids, $this->ownAccountIds()) !== []) {
+                return $this->ownerOnlyDeleteResponse();
             }
 
-            // Accounts may be shared, so each is deleted as its owner — the
-            // same resolution destroy() makes (#333/#334).
             $names = [];
-            $byOwner = [];
             foreach ($ids as $id) {
-                try {
-                    $account = $this->service->find($id, $this->getEffectiveUserId());
-                } catch (DoesNotExistException $e) {
-                    $account = $this->service->findById($id);
-                }
-                $ownerId = $account->getUserId();
-                if ($ownerId === null) {
-                    continue;
-                }
-                $names[$id] = $account->getName();
-                $byOwner[$ownerId][] = $id;
+                $names[$id] = $this->service->find($id, $this->userId)->getName();
             }
 
-            $results = ['deleted' => [], 'blocked' => [], 'errors' => [], 'deletedTransactions' => 0];
-            foreach ($byOwner as $ownerId => $ownerIds) {
-                $part = $this->service->bulkDelete((string) $ownerId, $ownerIds, $deleteTransactions);
-                $results['deleted'] = array_merge($results['deleted'], $part['deleted']);
-                $results['blocked'] = array_merge($results['blocked'], $part['blocked']);
-                $results['errors'] = array_merge($results['errors'], $part['errors']);
-                $results['deletedTransactions'] += $part['deletedTransactions'];
-            }
+            $results = $this->service->bulkDelete($this->userId, $ids, $deleteTransactions);
 
             foreach ($results['deleted'] as $id) {
                 $this->auditService->logAccountDeleted($this->getEffectiveUserId(), $id, $names[$id] ?? (string) $id);
@@ -587,25 +569,36 @@ class AccountController extends Controller {
         }
     }
 
+    /** @return int[] ids of the accounts the caller owns (not shared to them) */
+    private function ownAccountIds(): array {
+        return array_map('intval', $this->granularShareService->getOwnAccountIds($this->userId));
+    }
+
+    private function ownerOnlyDeleteResponse(): DataResponse {
+        return new DataResponse(
+            ['error' => $this->l->t('Only the account owner can delete an account')],
+            Http::STATUS_FORBIDDEN
+        );
+    }
+
     /**
      * @NoAdminRequired
      */
     #[UserRateLimit(limit: 10, period: 60)]
     public function destroy(int $id, bool $deleteTransactions = false): DataResponse {
         try {
-            $this->requireWriteAccess('account', $id);
+            // Only the owner may delete an account (write access to a shared
+            // account covers its transactions, not the account and its whole
+            // ledger). An id the caller cannot see at all stays a 404.
+            if (!in_array($id, $this->ownAccountIds(), true)) {
+                if (in_array($id, array_map('intval', $this->getVisibleAccountIds()), true)) {
+                    return $this->ownerOnlyDeleteResponse();
+                }
+                throw new DoesNotExistException('Account not found');
+            }
 
-            // Get account — try current user first, fall back to ID-only for shared accounts
-            try {
-                $account = $this->service->find($id, $this->getEffectiveUserId());
-            } catch (\OCP\AppFramework\Db\DoesNotExistException $e) {
-                // May be a shared account — look up by ID only
-                $account = $this->service->findById($id);
-            }
-            $ownerId = $account->getUserId();
-            if ($ownerId === null) {
-                throw new \OCP\AppFramework\Db\DoesNotExistException('Account not found');
-            }
+            $account = $this->service->find($id, $this->userId);
+            $ownerId = $this->userId;
             $accountName = $account->getName();
 
             // deleteTransactions=true clears the account's ledger first, so an
