@@ -85,6 +85,27 @@ const SELECT_ID_TO_FIELD = Object.fromEntries(
     Object.entries(MAPPING_SELECT_IDS).map(([field, id]) => [id, field])
 );
 
+/**
+ * What each app-export preset does with the file, shown under the Import
+ * Format picker. The server's preset descriptions are English-only; these
+ * go through t(). A function, not a constant, so the strings are looked up
+ * after the translations have loaded.
+ *
+ * @param {string} presetId
+ * @returns {string|null}
+ */
+export function appPresetNote(presetId) {
+    const notes = {
+        toshl: () => t('budget', 'Reads a Toshl Finance export: each account in the file is matched by name or created, categories and tags are created as needed, and transfer rows are skipped.'),
+        'firefly-iii': () => t('budget', 'Reads a Firefly III export: each account in the file is matched by name or created in its own currency, categories and tags are created as needed, and each transfer is imported into both accounts and linked.'),
+        ynab: () => t('budget', 'Reads a YNAB register export: each account is matched by name or created, category groups become parent categories, and transfers are linked. Income assigned to "Ready to Assign" is left uncategorized.'),
+        'actual-budget': () => t('budget', 'Reads an Actual Budget export: each account is matched by name or created, category groups become parent categories, split transactions are imported as their parts, and transfers are linked.'),
+        mint: () => t('budget', 'Reads a Mint transactions.csv: each account is matched by name or created, categories are created as needed, labels become tags, and transfers and card payments are linked.'),
+        'monarch-money': () => t('budget', 'Reads a Monarch Money download: each account is matched by name or created, categories are created as needed, and transfers and card payments are linked.'),
+    };
+    return notes[presetId] ? notes[presetId]() : null;
+}
+
 export default class ImportModule {
     constructor(app) {
         this.app = app;
@@ -106,6 +127,9 @@ export default class ImportModule {
         this.presets = [];
         this.selectedPreset = null;
         this.previewTotalValid = 0;
+        // App picked under "Switching from another app?" before uploading;
+        // its preset is selected as soon as the file arrives
+        this.pendingPreset = null;
 
         // User-saved import template state
         this.userTemplates = [];
@@ -267,13 +291,14 @@ export default class ImportModule {
             <select id="import-preset">
                 <option value="">${t('budget', 'Custom CSV (manual mapping)')}</option>
                 ${csvTemplates.length ? `<optgroup label="${t('budget', 'My Templates')}">${templateOptions}</optgroup>` : ''}
-                ${this.presets.length ? `<optgroup label="${t('budget', 'Bank Presets')}">${presetOptions}</optgroup>` : ''}
+                ${this.presets.length ? `<optgroup label="${t('budget', 'Other apps')}">${presetOptions}</optgroup>` : ''}
             </select>
             <div class="import-template-actions">
                 <button type="button" class="button" id="save-template-btn">${t('budget', 'Save mapping as template…')}</button>
                 <button type="button" class="button" id="manage-templates-btn">${t('budget', 'Manage templates')}</button>
             </div>
             <p class="preset-description" id="preset-description" style="display:none;"></p>
+            <p class="preset-detected" id="preset-detected" hidden></p>
         `;
 
         const select = document.getElementById('import-preset');
@@ -288,6 +313,10 @@ export default class ImportModule {
         this.selectedPreset = null;
         this.selectedTemplate = null;
 
+        // "Detected as ..." only describes the automatic choice
+        const detected = document.getElementById('preset-detected');
+        if (detected) detected.hidden = true;
+
         const desc = document.getElementById('preset-description');
         const mappingContainer = document.querySelector('#import-step-2 .mapping-container');
         const mappingOptions = document.querySelector('#import-step-2 .mapping-options');
@@ -301,8 +330,9 @@ export default class ImportModule {
             this.selectedPreset = value.slice('preset:'.length);
             const preset = this.presets.find(p => String(p.id) === this.selectedPreset);
             if (preset && desc) {
-                desc.textContent = preset.description || '';
-                desc.style.display = preset.description ? 'block' : 'none';
+                const note = appPresetNote(this.selectedPreset) || preset.description || '';
+                desc.textContent = note;
+                desc.style.display = note ? 'block' : 'none';
             }
             setManualMappingVisible(false);
         } else if (value.startsWith('template:')) {
@@ -894,10 +924,71 @@ export default class ImportModule {
             });
         }
 
+        // "Switching from another app?": remember the app, then open the file picker
+        const switchFrom = document.getElementById('import-switch-from');
+        if (switchFrom) {
+            switchFrom.addEventListener('click', (e) => {
+                const button = e.target.closest('.import-switch-app');
+                if (button) this.choosePendingPreset(button);
+            });
+        }
+
         // Initialize import state
         this.currentImportStep = 1;
         this.currentImportData = null;
         this.importHistory = [];
+    }
+
+    /**
+     * Pick (or, clicked again, drop) the app a file is coming from.
+     *
+     * @param {HTMLElement} button The app's button in the switch-from list
+     */
+    choosePendingPreset(button) {
+        const presetId = button.dataset.preset;
+        const again = this.pendingPreset === presetId;
+        this.pendingPreset = again ? null : presetId;
+
+        document.querySelectorAll('.import-switch-app').forEach(b => {
+            b.setAttribute('aria-pressed', String(b === button && !again));
+        });
+
+        const status = document.getElementById('import-switch-selected');
+        if (status) {
+            const name = button.querySelector('strong')?.textContent || presetId;
+            status.textContent = again ? '' : t('budget', 'Now choose your {app} export file.', { app: name });
+            status.hidden = again;
+        }
+
+        if (!again) document.getElementById('import-file-input')?.click();
+    }
+
+    /**
+     * Select the app preset for a freshly uploaded CSV: the app picked under
+     * "Switching from another app?", else the one the server recognised
+     * from the header row. Never overrides a format already chosen.
+     *
+     * @param {object} uploadResult Upload response
+     */
+    async applyPresetForUpload(uploadResult) {
+        const select = document.getElementById('import-preset');
+        if (!select || select.value !== '') return;
+
+        const chosen = this.pendingPreset;
+        const presetId = chosen || uploadResult.suggestedPreset;
+        const preset = presetId ? this.presets.find(p => String(p.id) === String(presetId)) : null;
+        if (!preset) return;
+
+        select.value = `preset:${preset.id}`;
+        await this.onImportFormatChange(select.value);
+
+        if (!chosen) {
+            const detected = document.getElementById('preset-detected');
+            if (detected) {
+                detected.textContent = t('budget', 'This file looks like a {app} export, so that format has been selected. Choose Custom CSV to map the columns yourself.', { app: preset.name });
+                detected.hidden = false;
+            }
+        }
     }
 
     switchImportTab(tabName) {
@@ -994,6 +1085,7 @@ export default class ImportModule {
                 await this.loadPresets();
             }
             this.showPresetSelector();
+            await this.applyPresetForUpload(uploadResult);
         } else {
             // Presets are CSV-only. Without this an OFX/QIF upload that follows
             // a preset-driven CSV import in the same page session inherits a
@@ -1762,7 +1854,10 @@ export default class ImportModule {
                 const names = result.categoriesToCreate.map(c => c.name);
                 container.innerHTML = `<p><strong>${t('budget', 'Categories to create:')}</strong> ${dom.escapeHtml(names.join(', '))}</p>`;
                 if (result.skippedByPreset > 0) {
-                    container.innerHTML += `<p>${t('budget', '{count} transfer rows will be skipped', { count: result.skippedByPreset })}</p>`;
+                    const skippedText = this.selectedPreset === 'toshl'
+                        ? t('budget', '{count} transfer rows will be skipped', { count: result.skippedByPreset })
+                        : t('budget', '{count} split total rows will be skipped; the parts of each split are imported instead', { count: result.skippedByPreset });
+                    container.innerHTML += `<p>${skippedText}</p>`;
                 }
             }
         } else if (categoriesContainer) {
@@ -2432,6 +2527,14 @@ export default class ImportModule {
                     this.showImportErrors(result.errors);
                     console.warn('Import errors:', result.errors);
                 }
+                if (result.transfersLinked > 0) {
+                    showInfo(n(
+                        'budget',
+                        '%n transfer between your accounts was linked',
+                        '%n transfers between your accounts were linked',
+                        result.transfersLinked
+                    ));
+                }
                 if (result.categoriesCreated && result.categoriesCreated > 0) {
                     showInfo(n('budget', 'Import complete. %n category created — it may take a moment to appear.', 'Import complete. %n categories created — they may take a moment to appear.', result.categoriesCreated));
                 }
@@ -2493,8 +2596,15 @@ export default class ImportModule {
         this.selectedPreset = null;
         this.selectedTemplate = null;
         this.previewTotalValid = 0;
+        this.pendingPreset = null;
 
         this.setImportStep(1);
+
+        document.querySelectorAll('.import-switch-app').forEach(b => b.setAttribute('aria-pressed', 'false'));
+        const switchStatus = document.getElementById('import-switch-selected');
+        if (switchStatus) switchStatus.hidden = true;
+        const presetDetected = document.getElementById('preset-detected');
+        if (presetDetected) presetDetected.hidden = true;
 
         // Reset preset selector
         const presetSelect = document.getElementById('import-preset');

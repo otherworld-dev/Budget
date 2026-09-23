@@ -6771,6 +6771,76 @@ button.danger:hover {
     color: var(--color-main-text);
 }
 
+/* "Switching from another app?" on the import screen */
+.import-switch-from {
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-element, 8px);
+    padding: 12px 16px;
+    margin-bottom: 20px;
+}
+
+.import-switch-from summary {
+    cursor: pointer;
+    font-weight: bold;
+    color: var(--color-main-text);
+}
+
+.import-switch-intro {
+    margin: 12px 0;
+    color: var(--color-text-lighter);
+}
+
+.import-switch-apps {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 8px;
+}
+
+.import-switch-app {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 10px 12px;
+    text-align: start;
+    white-space: normal;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-element, 8px);
+    background: var(--color-main-background);
+    cursor: pointer;
+}
+
+.import-switch-app span {
+    font-weight: normal;
+    color: var(--color-text-lighter);
+}
+
+.import-switch-app:hover,
+.import-switch-app:focus-visible {
+    border-color: var(--color-primary-element, var(--color-primary));
+}
+
+.import-switch-app[aria-pressed="true"] {
+    border-color: var(--color-primary-element, var(--color-primary));
+    background: var(--color-primary-element-light, var(--color-background-hover));
+}
+
+.import-switch-selected {
+    margin: 12px 0 0;
+    font-weight: bold;
+}
+
+.preset-detected {
+    margin-top: 8px;
+    color: var(--color-text-lighter);
+}
+
 /* File Info */
 .import-file-info {
     background: var(--color-background-hover);

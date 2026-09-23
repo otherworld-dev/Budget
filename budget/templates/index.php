@@ -2271,8 +2271,52 @@ style('budget', 'budget-app');
                             <p><?php p($l->t('Drag and drop your bank statement here')); ?></p>
                             <p><?php p($l->t('or')); ?></p>
                             <button id="import-browse-btn" class="secondary" aria-label="<?php p($l->t('Browse for file to import')); ?>"><?php p($l->t('Browse Files')); ?></button>
-                            <input type="file" id="import-file-input" accept=".csv,.ofx,.qif,.xml" style="display: none;">
+                            <input type="file" id="import-file-input" accept=".csv,.tsv,.txt,.ofx,.qif,.xml" style="display: none;">
                         </div>
+
+                        <details class="import-switch-from" id="import-switch-from">
+                            <summary><?php p($l->t('Switching from another app?')); ?></summary>
+                            <p class="import-switch-intro"><?php p($l->t('Export your data from the app you are leaving, pick it here, then choose the file. Accounts and categories are created as needed, and transfers between your accounts are linked.')); ?></p>
+                            <ul class="import-switch-apps">
+                                <li>
+                                    <button type="button" class="import-switch-app" data-preset="firefly-iii" aria-pressed="false">
+                                        <strong>Firefly III</strong>
+                                        <span><?php p($l->t('Options > Export data, then export all transactions.')); ?></span>
+                                    </button>
+                                </li>
+                                <li>
+                                    <button type="button" class="import-switch-app" data-preset="ynab" aria-pressed="false">
+                                        <strong>YNAB</strong>
+                                        <span><?php p($l->t('Plan menu > Export Plan Data. Unzip the download and pick the file ending in "Register". YNAB 4 register exports work too.')); ?></span>
+                                    </button>
+                                </li>
+                                <li>
+                                    <button type="button" class="import-switch-app" data-preset="actual-budget" aria-pressed="false">
+                                        <strong>Actual Budget</strong>
+                                        <span><?php p($l->t('Open All accounts and choose Export from the menu above the transactions.')); ?></span>
+                                    </button>
+                                </li>
+                                <li>
+                                    <button type="button" class="import-switch-app" data-preset="mint" aria-pressed="false">
+                                        <strong>Mint</strong>
+                                        <span><?php p($l->t('Use the transactions.csv file from Mint\'s "Export all transactions".')); ?></span>
+                                    </button>
+                                </li>
+                                <li>
+                                    <button type="button" class="import-switch-app" data-preset="monarch-money" aria-pressed="false">
+                                        <strong>Monarch Money</strong>
+                                        <span><?php p($l->t('Settings > Data > Download transactions.')); ?></span>
+                                    </button>
+                                </li>
+                                <li>
+                                    <button type="button" class="import-switch-app" data-preset="toshl" aria-pressed="false">
+                                        <strong>Toshl Finance</strong>
+                                        <span><?php p($l->t('Export your entries as a CSV file, covering all accounts.')); ?></span>
+                                    </button>
+                                </li>
+                            </ul>
+                            <p class="import-switch-selected" id="import-switch-selected" role="status" hidden></p>
+                        </details>
 
                         <div class="file-formats-info">
                             <h4><?php p($l->t('Supported Formats:')); ?></h4>
