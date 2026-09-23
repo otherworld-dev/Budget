@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-23 03:25+0000\n"
+"POT-Creation-Date: 2026-09-23 11:37+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -40,7 +40,7 @@ msgstr ""
 #: /app/lib/Service/Export/TransactionCsvExporter.php:32
 #: /app/lib/Service/Report/ReportExporter.php:254
 #: /app/lib/Service/Report/ReportExporter.php:467
-#: /app/src/modules/dashboard/DashboardModule.js:5126
+#: /app/src/modules/dashboard/DashboardModule.js:5140
 #: /app/src/modules/rules/components/CriteriaBuilder.js:159
 #: /app/templates/index.php:1029 /app/templates/index.php:1610
 #: /app/templates/index.php:1729 /app/templates/index.php:1793
@@ -728,7 +728,7 @@ msgid "Failed to dismiss the payment"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:833
-#: /app/src/modules/bills/BillsModule.js:1314
+#: /app/src/modules/bills/BillsModule.js:1315
 msgid "Failed to mark bill as paid"
 msgstr ""
 
@@ -737,13 +737,13 @@ msgid "Failed to undo mark as paid"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:889
-#: /app/src/modules/bills/BillsModule.js:1592
-#: /app/src/modules/bills/BillsModule.js:1599
+#: /app/src/modules/bills/BillsModule.js:1593
+#: /app/src/modules/bills/BillsModule.js:1600
 msgid "Failed to mark bill as unpaid"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:906
-#: /app/src/modules/bills/BillsModule.js:1643
+#: /app/src/modules/bills/BillsModule.js:1644
 msgid "Failed to skip bill payment"
 msgstr ""
 
@@ -776,7 +776,7 @@ msgid "Failed to retrieve bill status"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:1009
-#: /app/src/modules/bills/BillsModule.js:1702
+#: /app/src/modules/bills/BillsModule.js:1703
 msgid "Failed to detect recurring bills"
 msgstr ""
 
@@ -934,12 +934,12 @@ msgid "Custom pattern must contain either \"months\" or \"dates\" field"
 msgstr ""
 
 #: /app/lib/Controller/CalendarFeedController.php:94
-#: /app/src/modules/bills/BillsModule.js:1222
+#: /app/src/modules/bills/BillsModule.js:1223
 msgid "Failed to get calendar feed"
 msgstr ""
 
 #: /app/lib/Controller/CalendarFeedController.php:108
-#: /app/src/modules/bills/BillsModule.js:1273
+#: /app/src/modules/bills/BillsModule.js:1274
 msgid "Failed to regenerate calendar feed token"
 msgstr ""
 
@@ -2544,7 +2544,7 @@ msgstr ""
 #: /app/src/modules/dashboard/DashboardModule.js:2886
 #: /app/src/modules/dashboard/DashboardModule.js:3212
 #: /app/src/modules/dashboard/DashboardModule.js:3275
-#: /app/src/modules/dashboard/DashboardModule.js:5514
+#: /app/src/modules/dashboard/DashboardModule.js:5528
 #: /app/src/modules/help/HelpModule.js:31
 #: /app/src/modules/reports/ReportsModule.js:763
 #: /app/src/modules/reports/ReportsModule.js:1183
@@ -2601,7 +2601,7 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:572
 #: /app/lib/Service/Report/ReportExporter.php:615
 #: /app/src/core/KeyboardShortcuts.js:350
-#: /app/src/modules/dashboard/DashboardModule.js:5513
+#: /app/src/modules/dashboard/DashboardModule.js:5527
 #: /app/src/modules/help/HelpModule.js:27 /app/templates/index.php:63
 #: /app/templates/index.php:1414 /app/templates/index.php:1564
 #: /app/templates/index.php:1994 /app/templates/index.php:2531
@@ -2913,7 +2913,7 @@ msgstr ""
 #: /app/lib/Service/AccountClosureService.php:79
 #: /app/lib/Service/Bill/BillIcsService.php:54
 #: /app/src/core/KeyboardShortcuts.js:355
-#: /app/src/modules/dashboard/DashboardModule.js:5517
+#: /app/src/modules/dashboard/DashboardModule.js:5531
 #: /app/src/modules/help/HelpModule.js:32
 #: /app/src/modules/sharing/SharingModule.js:275 /app/templates/index.php:113
 #: /app/templates/index.php:2546 /app/templates/index.php:4701
@@ -4327,7 +4327,7 @@ msgid "Dashboard"
 msgstr ""
 
 #: /app/src/core/KeyboardShortcuts.js:351
-#: /app/src/modules/dashboard/DashboardModule.js:5167
+#: /app/src/modules/dashboard/DashboardModule.js:5181
 #: /app/src/modules/help/HelpModule.js:28
 #: /app/src/modules/sharing/SharingModule.js:274 /app/templates/index.php:73
 #: /app/templates/index.php:1863 /app/templates/index.php:4689
@@ -4336,7 +4336,7 @@ msgstr ""
 
 #: /app/src/core/KeyboardShortcuts.js:352
 #: /app/src/modules/accounts/AccountsModule.js:2022
-#: /app/src/modules/bills/BillsModule.js:1823
+#: /app/src/modules/bills/BillsModule.js:1824
 #: /app/src/modules/help/HelpModule.js:29
 #: /app/src/modules/reports/ReportsModule.js:442
 #: /app/src/modules/rules/RulesModule.js:832
@@ -4443,8 +4443,8 @@ msgstr ""
 
 #: /app/src/core/KeyboardShortcuts.js:409 /app/src/main.js:2095
 #: /app/src/main.js:2102 /app/src/main.js:2106
-#: /app/src/modules/bills/BillsModule.js:1245
-#: /app/src/modules/bills/BillsModule.js:1458
+#: /app/src/modules/bills/BillsModule.js:1246
+#: /app/src/modules/bills/BillsModule.js:1459
 #: /app/src/modules/import/ImportModule.js:2299
 #: /app/src/modules/import/ImportModule.js:2312
 #: /app/src/modules/sharing/SharingModule.js:134
@@ -5858,7 +5858,7 @@ msgstr ""
 
 #: /app/src/modules/assets/AssetsModule.js:112
 #: /app/src/modules/dashboard/DashboardModule.js:2284
-#: /app/src/modules/dashboard/DashboardModule.js:5520
+#: /app/src/modules/dashboard/DashboardModule.js:5534
 #: /app/templates/index.php:5530
 msgid "Other"
 msgstr ""
@@ -6230,7 +6230,7 @@ msgid "Transaction recorded"
 msgstr ""
 
 #: /app/src/modules/bills/BillsModule.js:220
-#: /app/src/modules/bills/BillsModule.js:1726
+#: /app/src/modules/bills/BillsModule.js:1727
 #: /app/src/modules/income/IncomeModule.js:704
 #: /app/src/modules/transfers/TransfersModule.js:1339
 #, javascript-format
@@ -6454,218 +6454,218 @@ msgstr ""
 msgid "Description (optional)"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1051
+#: /app/src/modules/bills/BillsModule.js:1052
 msgid "Balanced"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1054
+#: /app/src/modules/bills/BillsModule.js:1055
 msgid "{amount} remaining"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1057
+#: /app/src/modules/bills/BillsModule.js:1058
 #: /app/src/modules/projects/ProjectsModule.js:119
 msgid "{amount} over"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1133
+#: /app/src/modules/bills/BillsModule.js:1134
 msgid "Please select at least one month for custom frequency"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1163
+#: /app/src/modules/bills/BillsModule.js:1164
 msgid "Bill created successfully"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1163
+#: /app/src/modules/bills/BillsModule.js:1164
 msgid "Bill updated successfully"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1167
+#: /app/src/modules/bills/BillsModule.js:1168
 msgid "Failed to save bill"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1183
+#: /app/src/modules/bills/BillsModule.js:1184
 msgid "Failed to load bill"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1188
+#: /app/src/modules/bills/BillsModule.js:1189
 msgid "Are you sure you want to delete this bill?"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1200
+#: /app/src/modules/bills/BillsModule.js:1201
 msgid "Bill deleted successfully"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1204
+#: /app/src/modules/bills/BillsModule.js:1205
 msgid "Failed to delete bill"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1235
+#: /app/src/modules/bills/BillsModule.js:1236
 msgid "Bills calendar subscription"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1236
+#: /app/src/modules/bills/BillsModule.js:1237
 msgid ""
 "Subscribe to this URL from any calendar app (Nextcloud Calendar, "
 "Thunderbird, your phone) to see upcoming bill due dates. Bills appear as all-"
 "day events for the next 12 months and refresh automatically."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1238
+#: /app/src/modules/bills/BillsModule.js:1239
 msgid "Subscription URL"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1241
+#: /app/src/modules/bills/BillsModule.js:1242
 msgid ""
 "Anyone with this URL can read your bill names and amounts. Regenerate the "
 "link if it leaks."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1243
+#: /app/src/modules/bills/BillsModule.js:1244
 msgid "Copy link"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1244
+#: /app/src/modules/bills/BillsModule.js:1245
 msgid "Regenerate link"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1254
+#: /app/src/modules/bills/BillsModule.js:1255
 msgid "Link copied to clipboard"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1257
+#: /app/src/modules/bills/BillsModule.js:1258
 msgid "Press Ctrl+C to copy the selected link"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1262
+#: /app/src/modules/bills/BillsModule.js:1263
 msgid ""
 "Regenerate the link? Existing calendar subscriptions will stop updating."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1271
+#: /app/src/modules/bills/BillsModule.js:1272
 msgid "New link generated"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1366
+#: /app/src/modules/bills/BillsModule.js:1367
 msgid "Bill marked as paid. Linked to existing transaction."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1370
+#: /app/src/modules/bills/BillsModule.js:1371
 msgid ""
 "No transaction was recorded for this payment — your account balance will not "
 "reflect it."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1371
+#: /app/src/modules/bills/BillsModule.js:1372
 msgid "Bill marked as paid. No transaction created."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1380
+#: /app/src/modules/bills/BillsModule.js:1381
 msgid ""
 "The bill was marked as paid, but linking the selected transaction failed. "
 "You can link it manually from the transaction."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1382
+#: /app/src/modules/bills/BillsModule.js:1383
 msgid ""
 "No transaction was recorded for this payment — your account balance will not "
 "reflect it. Assign an account to the bill, or add the transaction manually."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1384
+#: /app/src/modules/bills/BillsModule.js:1385
 msgid "Bill marked as paid — without a transaction."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1388
+#: /app/src/modules/bills/BillsModule.js:1389
 msgid "Bill marked as paid. Transaction created."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1389
+#: /app/src/modules/bills/BillsModule.js:1390
 msgid "Bill marked as paid. Future transaction created."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1417
+#: /app/src/modules/bills/BillsModule.js:1418
 msgid "Exact amount"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1418
+#: /app/src/modules/bills/BillsModule.js:1419
 msgid "Similar amount (±5%)"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1419
+#: /app/src/modules/bills/BillsModule.js:1420
 msgid "Approximate amount (±20%)"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1420
+#: /app/src/modules/bills/BillsModule.js:1421
 msgid "Vendor matches"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1421
+#: /app/src/modules/bills/BillsModule.js:1422
 msgid "Vendor partially matches"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1422
+#: /app/src/modules/bills/BillsModule.js:1423
 msgid "Description matches"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1423
+#: /app/src/modules/bills/BillsModule.js:1424
 msgid "Description partially matches"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1424
+#: /app/src/modules/bills/BillsModule.js:1425
 msgid "Same day"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1425
+#: /app/src/modules/bills/BillsModule.js:1426
 msgid "±1 day"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1426
+#: /app/src/modules/bills/BillsModule.js:1427
 msgid "±3 days"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1427
+#: /app/src/modules/bills/BillsModule.js:1428
 msgid "±7 days"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1432
+#: /app/src/modules/bills/BillsModule.js:1433
 #: /app/src/modules/transactions/TransactionsModule.js:5472
 msgid "(no description)"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1445
+#: /app/src/modules/bills/BillsModule.js:1446
 msgid "Strong match"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1457
+#: /app/src/modules/bills/BillsModule.js:1458
 msgid "Existing Transaction Found"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1461
+#: /app/src/modules/bills/BillsModule.js:1462
 msgid ""
 "We found existing transactions that may already represent this bill payment "
 "({billName}, {amount}). Would you like to link one instead of creating a new "
 "transaction?"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1462
+#: /app/src/modules/bills/BillsModule.js:1463
 msgid ""
 "Whichever you choose, the bill is marked as paid and moves on to its next "
 "due date."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1469
+#: /app/src/modules/bills/BillsModule.js:1470
 msgid "Create a new transaction instead"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1475
+#: /app/src/modules/bills/BillsModule.js:1476
 msgid "Don't create any transaction (just mark as paid)"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1476
+#: /app/src/modules/bills/BillsModule.js:1477
 msgid "Your account balance will NOT reflect this payment."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1481
+#: /app/src/modules/bills/BillsModule.js:1482
 #: /app/src/modules/categories/CategoriesModule.js:1973
 #: /app/src/modules/transfers/TransfersModule.js:164
 #: /app/src/modules/transfers/TransfersModule.js:604
@@ -6694,27 +6694,27 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1482
+#: /app/src/modules/bills/BillsModule.js:1483
 #: /app/src/modules/categories/CategoriesModule.js:1972
 #: /app/src/utils/dialogs.js:236
 msgid "Confirm"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1552
-#: /app/src/modules/bills/BillsModule.js:1672
+#: /app/src/modules/bills/BillsModule.js:1553
+#: /app/src/modules/bills/BillsModule.js:1673
 #: /app/src/modules/income/IncomeModule.js:645
 #: /app/src/modules/transfers/TransfersModule.js:1068
 msgid "Action undone"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1555
-#: /app/src/modules/bills/BillsModule.js:1675
+#: /app/src/modules/bills/BillsModule.js:1556
+#: /app/src/modules/bills/BillsModule.js:1676
 #: /app/src/modules/income/IncomeModule.js:648
 #: /app/src/modules/transfers/TransfersModule.js:1071
 msgid "Failed to undo action: {message}"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1570
+#: /app/src/modules/bills/BillsModule.js:1571
 #: /app/src/modules/transfers/TransfersModule.js:1082
 msgid ""
 "Mark this bill as unpaid? Transactions created for the payment will be "
@@ -6722,57 +6722,57 @@ msgid ""
 "schedule rolled back."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1575
+#: /app/src/modules/bills/BillsModule.js:1576
 #: /app/src/modules/transfers/TransfersModule.js:1085
 msgid ""
 "Auto-pay is on for this bill — it may pay it again on the next run. Disable "
 "auto-pay first if the payment should not recur."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1596
+#: /app/src/modules/bills/BillsModule.js:1597
 msgid "Payment reverted — the bill is marked as unpaid."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1610
+#: /app/src/modules/bills/BillsModule.js:1611
 #: /app/src/modules/transfers/TransfersModule.js:1001
 msgid "Skip this payment and advance to the next due date?"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1636
+#: /app/src/modules/bills/BillsModule.js:1637
 #: /app/src/modules/transfers/TransfersModule.js:1031
 msgid "Payment skipped. Advanced to next due date."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1682
+#: /app/src/modules/bills/BillsModule.js:1683
 #: /app/src/modules/income/IncomeModule.js:655
 #: /app/src/modules/transfers/TransfersModule.js:1288
 msgid "Detecting..."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1694
+#: /app/src/modules/bills/BillsModule.js:1695
 #: /app/src/modules/transfers/TransfersModule.js:1300
 msgid "No recurring transactions detected"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1705 /app/templates/index.php:2554
+#: /app/src/modules/bills/BillsModule.js:1706 /app/templates/index.php:2554
 msgid "Detect Bills"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1742
+#: /app/src/modules/bills/BillsModule.js:1743
 msgid "Please select at least one bill to add"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1762
+#: /app/src/modules/bills/BillsModule.js:1763
 msgid "%n bill added successfully"
 msgid_plural "%n bills added successfully"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/bills/BillsModule.js:1766
+#: /app/src/modules/bills/BillsModule.js:1767
 msgid "Failed to add selected bills"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1859
+#: /app/src/modules/bills/BillsModule.js:1860
 #: /app/src/modules/tagsets/TagSetsModule.js:706
 #: /app/src/modules/transfers/TransfersModule.js:1222
 msgid "No tags defined"
@@ -6842,7 +6842,7 @@ msgid "Category reordered successfully"
 msgstr ""
 
 #: /app/src/modules/categories/CategoriesModule.js:640
-#: /app/src/modules/dashboard/DashboardModule.js:5118
+#: /app/src/modules/dashboard/DashboardModule.js:5132
 #: /app/src/modules/reports/ReportsModule.js:206
 #: /app/src/modules/reports/ReportsModule.js:209
 #: /app/src/modules/reports/ReportsModule.js:211
@@ -7655,172 +7655,188 @@ msgstr ""
 msgid "Drag tiles to reorder your dashboard"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4956
-#: /app/src/modules/dashboard/DashboardModule.js:5048
+#: /app/src/modules/dashboard/DashboardModule.js:4935
+msgid "Extra small"
+msgstr ""
+
+#: /app/src/modules/dashboard/DashboardModule.js:4936
+msgid "Small"
+msgstr ""
+
+#: /app/src/modules/dashboard/DashboardModule.js:4937
+msgid "Medium"
+msgstr ""
+
+#: /app/src/modules/dashboard/DashboardModule.js:4938
+msgid "Large"
+msgstr ""
+
+#: /app/src/modules/dashboard/DashboardModule.js:4968
+#: /app/src/modules/dashboard/DashboardModule.js:5062
 #: /app/templates/index.php:7374
 msgid "Tile Settings"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4973
+#: /app/src/modules/dashboard/DashboardModule.js:4986
 msgid "Remove tile"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4973
+#: /app/src/modules/dashboard/DashboardModule.js:4986
 msgid "Hide tile"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5078
+#: /app/src/modules/dashboard/DashboardModule.js:5092
 msgid "Look ahead"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5081
+#: /app/src/modules/dashboard/DashboardModule.js:5095
 msgid "Next 30 days"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5082
+#: /app/src/modules/dashboard/DashboardModule.js:5096
 msgid "Next 60 days"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5083
+#: /app/src/modules/dashboard/DashboardModule.js:5097
 msgid "Next 90 days"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5092
+#: /app/src/modules/dashboard/DashboardModule.js:5106
 msgid "Forecast horizon"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5095
+#: /app/src/modules/dashboard/DashboardModule.js:5109
 msgid "Next 3 months"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5096
+#: /app/src/modules/dashboard/DashboardModule.js:5110
 msgid "Next 6 months"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5097
+#: /app/src/modules/dashboard/DashboardModule.js:5111
 msgid "Next 12 months"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5106
+#: /app/src/modules/dashboard/DashboardModule.js:5120
 msgid "Years to compare"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5109
+#: /app/src/modules/dashboard/DashboardModule.js:5123
 msgid "Last 2 years"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5110
+#: /app/src/modules/dashboard/DashboardModule.js:5124
 msgid "Last 3 years"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5111
+#: /app/src/modules/dashboard/DashboardModule.js:5125
 msgid "Last 5 years"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5142
+#: /app/src/modules/dashboard/DashboardModule.js:5156
 #: /app/templates/index.php:3158
 msgid "Exclude shared accounts"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5156
+#: /app/src/modules/dashboard/DashboardModule.js:5170
 msgid "Show legend"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5171
+#: /app/src/modules/dashboard/DashboardModule.js:5185
 msgid "Show top-level categories only"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5186
+#: /app/src/modules/dashboard/DashboardModule.js:5200
 msgid "Chart Type"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5197
+#: /app/src/modules/dashboard/DashboardModule.js:5211
 msgid "Rows to show"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5213
+#: /app/src/modules/dashboard/DashboardModule.js:5227
 msgid "Display Format"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5226
+#: /app/src/modules/dashboard/DashboardModule.js:5240
 msgid "Show change indicator"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5240
+#: /app/src/modules/dashboard/DashboardModule.js:5254
 msgid "No settings available for this tile."
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5247
+#: /app/src/modules/dashboard/DashboardModule.js:5261
 msgid "Drag to reorder. Toggle visibility for each item."
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5265
+#: /app/src/modules/dashboard/DashboardModule.js:5279
 msgid "Only categories with a budget I set"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5267
+#: /app/src/modules/dashboard/DashboardModule.js:5281
 msgid "Leaves out the budgets worked out from your bills and recurring income."
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5268
+#: /app/src/modules/dashboard/DashboardModule.js:5282
 msgid "Untick a category to stop it alerting, here and in notifications."
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5504
+#: /app/src/modules/dashboard/DashboardModule.js:5518
 msgid "All tiles are visible"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5510
+#: /app/src/modules/dashboard/DashboardModule.js:5524
 msgid "Insights & Analytics"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5511
+#: /app/src/modules/dashboard/DashboardModule.js:5525
 msgid "Budgeting"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5512
+#: /app/src/modules/dashboard/DashboardModule.js:5526
 msgid "Forecasting"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5515
+#: /app/src/modules/dashboard/DashboardModule.js:5529
 #: /app/templates/index.php:5671
 msgid "Debts"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5516
+#: /app/src/modules/dashboard/DashboardModule.js:5530
 msgid "Goals"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5518
+#: /app/src/modules/dashboard/DashboardModule.js:5532
 msgid "Alerts"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5519
+#: /app/src/modules/dashboard/DashboardModule.js:5533
 msgid "Interactive"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5541
+#: /app/src/modules/dashboard/DashboardModule.js:5555
 msgid "Hero"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5550
-#: /app/src/modules/dashboard/DashboardModule.js:5584
+#: /app/src/modules/dashboard/DashboardModule.js:5564
+#: /app/src/modules/dashboard/DashboardModule.js:5598
 msgid "Add {name}"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5572
+#: /app/src/modules/dashboard/DashboardModule.js:5586
 msgid "Add Another"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5646
+#: /app/src/modules/dashboard/DashboardModule.js:5660
 msgid "Maximum of {max} instances reached"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5716
+#: /app/src/modules/dashboard/DashboardModule.js:5730
 msgid "Tile added"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5754
+#: /app/src/modules/dashboard/DashboardModule.js:5768
 msgid "Tile removed"
 msgstr ""
 

@@ -124,14 +124,14 @@ export default class ExchangeRatesModule {
                     </div>
                     <div class="rate-actions">
                         ${curr.hasManual ? `
-                            <button class="edit-manual-rate-btn icon-button" data-currency="${curr.code}" data-rate="${currentDisplayRate}" title="${t('budget', 'Edit manual rate')}">
+                            <button class="edit-manual-rate-btn icon-button" data-currency="${curr.code}" data-rate="${currentDisplayRate}" title="${t('budget', 'Edit manual rate')}" aria-label="${t('budget', 'Edit manual rate')}">
                                 <span class="icon-rename" aria-hidden="true"></span>
                             </button>
-                            <button class="remove-manual-rate-btn icon-button" data-currency="${curr.code}" title="${t('budget', 'Remove manual rate')}">
+                            <button class="remove-manual-rate-btn icon-button" data-currency="${curr.code}" title="${t('budget', 'Remove manual rate')}" aria-label="${t('budget', 'Remove manual rate')}">
                                 <span class="icon-delete" aria-hidden="true"></span>
                             </button>
                         ` : `
-                            <button class="set-manual-rate-btn icon-button" data-currency="${curr.code}" title="${t('budget', 'Set manual rate')}">
+                            <button class="set-manual-rate-btn icon-button" data-currency="${curr.code}" title="${t('budget', 'Set manual rate')}" aria-label="${t('budget', 'Set manual rate')}">
                                 <span class="icon-rename" aria-hidden="true"></span>
                             </button>
                         `}

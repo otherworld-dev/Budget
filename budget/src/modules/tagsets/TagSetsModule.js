@@ -85,8 +85,8 @@ export default class TagSetsModule {
                     <span class="global-tag-chip-color" style="background-color: ${tag.color || '#666'};"></span>
                     <span class="global-tag-chip-name">${dom.escapeHtml(tag.name)}</span>
                     ${tag.hidden ? `<span class="tag-hidden-label">${t('budget', 'Hidden')}</span>` : ''}
-                    <button class="global-tag-chip-action edit-global-tag-btn" data-tag-id="${tag.id}" title="${t('budget', 'Edit')}">✎</button>
-                    <button class="global-tag-chip-action delete-global-tag-btn" data-tag-id="${tag.id}" title="${t('budget', 'Delete')}">&times;</button>
+                    <button class="global-tag-chip-action edit-global-tag-btn" data-tag-id="${tag.id}" title="${t('budget', 'Edit')}" aria-label="${t('budget', 'Edit')}">✎</button>
+                    <button class="global-tag-chip-action delete-global-tag-btn" data-tag-id="${tag.id}" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}">&times;</button>
                 </div>`;
         });
         html += '</div>';
@@ -411,10 +411,10 @@ export default class TagSetsModule {
                         <div class="tag-set-header">
                             <h5>${dom.escapeHtml(tagSet.name)}</h5>
                             <div class="tag-set-actions">
-                                <button type="button" class="add-tag-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Add tag')}">
+                                <button type="button" class="add-tag-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Add tag')}" aria-label="${t('budget', 'Add tag')}">
                                     <span class="icon-add" aria-hidden="true"></span>
                                 </button>
-                                <button type="button" class="delete-tag-set-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete tag set')}">
+                                <button type="button" class="delete-tag-set-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete tag set')}" aria-label="${t('budget', 'Delete tag set')}">
                                     <span class="icon-delete" aria-hidden="true"></span>
                                 </button>
                             </div>
@@ -425,7 +425,7 @@ export default class TagSetsModule {
                                 <span class="tag-badge${tag.hidden ? ' is-hidden' : ''}" style="background-color: ${tag.color || '#666'}"${tag.hidden ? ` title="${t('budget', 'Hidden: not offered when tagging new transactions')}"` : ''}>
                                     ${dom.escapeHtml(tag.name)}
                                     ${tag.hidden ? `<span class="tag-hidden-label">${t('budget', 'Hidden')}</span>` : ''}
-                                    <button type="button" class="edit-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" data-tag-name="${dom.escapeHtml(tag.name)}" data-tag-color="${tag.color || '#666666'}" data-tag-hidden="${tag.hidden ? '1' : '0'}" title="${t('budget', 'Edit tag')}">✎</button>
+                                    <button type="button" class="edit-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" data-tag-name="${dom.escapeHtml(tag.name)}" data-tag-color="${tag.color || '#666666'}" data-tag-hidden="${tag.hidden ? '1' : '0'}" title="${t('budget', 'Edit tag')}" aria-label="${t('budget', 'Edit tag')}">✎</button>
                                     <button type="button" class="delete-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete tag')}" aria-label="${t('budget', 'Delete tag')}">×</button>
                                 </span>
                             `).join('') : `<span style="color: #999; font-size: 12px;">${t('budget', 'No tags yet')}</span>`}
@@ -786,21 +786,21 @@ export default class TagSetsModule {
                                     <span class="tag-badge${tag.hidden ? ' is-hidden' : ''}" style="background-color: ${tag.color || '#666'}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;"${tag.hidden ? ` title="${t('budget', 'Hidden: not offered when tagging new transactions')}"` : ''}>
                                         ${dom.escapeHtml(tag.name)}
                                         ${tag.hidden ? `<span class="tag-hidden-label">${t('budget', 'Hidden')}</span>` : ''}
-                                        ${readOnly ? '' : `<button class="edit-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" data-tag-name="${dom.escapeHtml(tag.name)}" data-tag-color="${tag.color || '#666666'}" data-tag-hidden="${tag.hidden ? '1' : '0'}" title="${t('budget', 'Edit tag')}" style="background: none; border: none; color: white; cursor: pointer; padding: 0; font-size: 12px; line-height: 1; opacity: 0.7;">✎</button>
-                                        <button class="delete-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete tag')}" style="background: none; border: none; color: white; cursor: pointer; padding: 0; margin-left: 2px; font-size: 16px; line-height: 1; opacity: 0.7;">×</button>`}
+                                        ${readOnly ? '' : `<button class="edit-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" data-tag-name="${dom.escapeHtml(tag.name)}" data-tag-color="${tag.color || '#666666'}" data-tag-hidden="${tag.hidden ? '1' : '0'}" title="${t('budget', 'Edit tag')}" aria-label="${t('budget', 'Edit tag')}" style="background: none; border: none; color: white; cursor: pointer; padding: 0; font-size: 12px; line-height: 1; opacity: 0.7;">✎</button>
+                                        <button class="delete-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete tag')}" aria-label="${t('budget', 'Delete tag')}" style="background: none; border: none; color: white; cursor: pointer; padding: 0; margin-left: 2px; font-size: 16px; line-height: 1; opacity: 0.7;">×</button>`}
                                     </span>
                                 `).join('') : `<span class="no-tags-text" style="color: var(--color-text-maxcontrast); font-size: 12px; font-style: italic;">${t('budget', 'No tags yet')}</span>`}
                             </div>
                         </td>
                         <td class="tag-set-actions-cell" style="padding: 12px 8px; vertical-align: top; width: 120px; text-align: right;">
                             ${readOnly ? '' : `<div class="tag-set-actions" style="display: flex; gap: 4px; justify-content: flex-end;">
-                                <button class="action-btn add-tag-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Add Tag')}" style="padding: 6px 8px;">
+                                <button class="action-btn add-tag-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Add Tag')}" aria-label="${t('budget', 'Add Tag')}" style="padding: 6px 8px;">
                                     <span class="icon-add" aria-hidden="true"></span>
                                 </button>
-                                <button class="action-btn edit-tag-set-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Edit Tag Set')}" style="padding: 6px 8px;">
+                                <button class="action-btn edit-tag-set-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Edit Tag Set')}" aria-label="${t('budget', 'Edit Tag Set')}" style="padding: 6px 8px;">
                                     <span class="icon-rename" aria-hidden="true"></span>
                                 </button>
-                                <button class="action-btn delete-tag-set-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete Tag Set')}" style="padding: 6px 8px;">
+                                <button class="action-btn delete-tag-set-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete Tag Set')}" aria-label="${t('budget', 'Delete Tag Set')}" style="padding: 6px 8px;">
                                     <span class="icon-delete" aria-hidden="true"></span>
                                 </button>
                             </div>`}

@@ -15,19 +15,6 @@
     --color-warning: #e65100;
 }
 
-#app-navigation {
-    position: relative;
-    z-index: 1000;
-    background: var(--color-main-background);
-    isolation: isolate;
-}
-
-#app-content {
-    position: relative;
-    z-index: 1;
-    isolation: isolate;
-}
-
 /* App Navigation Search Bar - Match Files app style */
 .app-navigation-search {
     position: relative;
@@ -134,6 +121,10 @@
 
 /* Navigation - Exact Nextcloud Files app style */
 #app-navigation {
+    position: relative;
+    z-index: 1000;
+    background: var(--color-main-background);
+    isolation: isolate;
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -142,14 +133,12 @@
 /* Row metrics follow NcAppNavigationItem: clickable-area rows, a grid-baseline
  * gap, the icon centred in a clickable-area square, and the tinted active row
  * with a stripe on its leading edge. */
+
 #app-navigation > ul {
     display: flex;
     flex-direction: column;
     gap: var(--default-grid-baseline, 4px);
     padding: calc(var(--default-grid-baseline, 4px) * 2);
-}
-
-#app-navigation > ul {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
@@ -299,6 +288,8 @@
 }
 
 #app-content {
+    z-index: 1;
+    isolation: isolate;
     position: relative;
     width: 100%;
     overflow: auto;
@@ -426,12 +417,6 @@
     min-height: 36px;
 }
 
-.view-controls {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-}
-
 /* ============================================
    DASHBOARD STYLES - Revamped Layout
    ============================================ */
@@ -448,7 +433,7 @@
 .hero-card {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 20px;
     display: flex;
     align-items: flex-start;
@@ -480,7 +465,7 @@
 .hero-icon {
     width: 48px;
     height: 48px;
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     background: var(--color-primary-light, #e8f4fd);
     display: flex;
     align-items: center;
@@ -539,7 +524,7 @@
     font-size: 11px;
     padding: 2px 6px;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: var(--color-main-background);
     color: var(--color-text-maxcontrast);
     max-width: 120px;
@@ -646,7 +631,7 @@
 }
 .grid-stack > .grid-stack-placeholder > .placeholder-content {
     border: 2px dashed var(--color-primary-element) !important;
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     background: var(--color-primary-element-light) !important;
     opacity: 0.3;
 }
@@ -655,7 +640,7 @@
 .dashboard-card {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 20px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
@@ -708,7 +693,7 @@
     font-size: 12px;
     color: var(--color-text-maxcontrast);
     background: var(--color-background-hover);
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     padding: 2px 10px;
     white-space: nowrap;
 }
@@ -830,7 +815,7 @@
 .card-select {
     padding: 6px 10px;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: var(--color-main-background);
     font-size: 13px;
     color: var(--color-main-text);
@@ -864,11 +849,6 @@
     height: 100% !important;
 }
 
-.chart-container-doughnut {
-    max-width: 250px;
-    flex-shrink: 0;
-}
-
 /* Spending tile adapts layout to tile size */
 .dashboard-tile-s .spending-chart-wrapper {
     flex-direction: column;
@@ -886,7 +866,8 @@
 /* Chart container heights — used by all charts, flex overrides inside Gridstack */
 .chart-container-large { min-height: 280px; }
 .chart-container-medium { min-height: 220px; }
-.chart-container-doughnut { min-height: 200px; max-width: 250px; }
+.chart-container-doughnut {
+    flex-shrink: 0; min-height: 200px; max-width: 250px; }
 
 /* Period Selector Buttons */
 .period-selector {
@@ -1005,34 +986,8 @@
     overflow: hidden;
 }
 
-.spending-legend {
-    flex: 1;
-    min-width: 200px;
-    overflow-y: auto;
-}
-
-.spending-legend-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--color-border-dark);
-}
-
 .spending-legend-item:last-child {
     border-bottom: none;
-}
-
-.spending-legend-color {
-    width: 12px;
-    height: 12px;
-    border-radius: 3px;
-    flex-shrink: 0;
-}
-
-.spending-legend-name {
-    font-size: 13px;
-    color: var(--color-main-text);
 }
 
 /* Spending Breakdown List */
@@ -1108,13 +1063,6 @@
     color: var(--color-main-text);
     min-width: 70px;
     text-align: right;
-}
-
-.spending-legend-value {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-main-text);
-    font-variant-numeric: tabular-nums;
 }
 
 .chart-legend {
@@ -1425,35 +1373,6 @@
     font-variant-numeric: tabular-nums;
 }
 
-.budget-progress-bar {
-    height: 6px;
-    background: var(--color-background-dark);
-    border-radius: 3px;
-    overflow: hidden;
-}
-
-.budget-progress-fill {
-    height: 100%;
-    border-radius: 3px;
-    transition: width 0.3s ease;
-}
-
-.budget-progress-fill.good {
-    background: #2e7d32;
-}
-
-.budget-progress-fill.warning {
-    background: #f57c00;
-}
-
-.budget-progress-fill.danger {
-    background: #c62828;
-}
-
-.budget-progress-fill.over {
-    background: linear-gradient(90deg, #c62828, #b71c1c);
-}
-
 /* Savings Goals Widget */
 .savings-goals-widget {
     display: flex;
@@ -1492,7 +1411,7 @@
 .savings-goal-progress {
     height: 8px;
     background: var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     overflow: hidden;
     margin-bottom: 6px;
 }
@@ -1500,7 +1419,7 @@
 .savings-goal-fill {
     height: 100%;
     background: linear-gradient(90deg, var(--color-primary), var(--color-primary-element));
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     transition: width 0.3s ease;
 }
 
@@ -1680,7 +1599,7 @@
     .hero-card .hero-icon {
         width: 32px;
         height: 32px;
-        border-radius: 8px;
+        border-radius: var(--border-radius-element, 8px);
     }
 
     .hero-card .hero-icon svg {
@@ -1820,15 +1739,6 @@
     gap: 20px;
 }
 
-.categories-tree {
-    background: var(--color-main-background);
-    border: 1px solid var(--color-border);
-    border-radius: 3px;
-    padding: 20px;
-    min-height: 400px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
 .category-details {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
@@ -1837,54 +1747,9 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.category-item {
-    padding: 8px;
-    cursor: pointer;
-    border-radius: 3px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 44px;
-    box-sizing: border-box;
-    transition: background-color 0.1s ease-in-out;
-}
-
-.category-item:hover {
-    background: var(--color-background-hover);
-}
-
-.category-item.selected {
-    background: var(--color-primary-light);
-    color: var(--color-primary-text);
-    font-weight: bold;
-}
-
-.category-children {
-    margin-left: 20px;
-}
-
 /* Import Wizard */
 .import-wizard {
     width: 100%;
-}
-
-.import-step {
-    background: var(--color-main-background);
-    border: 1px solid var(--color-border);
-    border-radius: 3px;
-    padding: 30px;
-    margin-bottom: 20px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.import-dropzone {
-    border: 2px dashed var(--color-border);
-    border-radius: 3px;
-    padding: 60px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.1s ease-in-out;
-    background: var(--color-background-dark);
 }
 
 .import-dropzone:hover {
@@ -1897,29 +1762,7 @@
     background: var(--color-primary-light);
 }
 
-.import-dropzone .icon-upload {
-    font-size: 48px;
-    color: var(--color-text-lighter);
-    margin-bottom: 10px;
-}
-
-/* Forecast */
-.forecast-controls {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
 /* Reports */
-.reports-controls {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-    align-items: center;
-    flex-wrap: wrap;
-}
 
 #report-content {
     background: var(--color-main-background);
@@ -1965,9 +1808,6 @@
 }
 
 /* Form Styles - Nextcloud Pattern */
-.form-group {
-    margin-bottom: 15px;
-}
 
 .form-group label {
     display: block;
@@ -2014,13 +1854,6 @@
     line-height: 1.4;
 }
 
-.modal-buttons {
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-    margin-top: 20px;
-}
-
 /* Nextcloud Button System */
 button {
     display: inline-flex;
@@ -2029,7 +1862,7 @@ button {
     min-height: 44px;
     padding: 0 16px;
     margin: 0;
-    border-radius: 100px; /* $border-radius-pill */
+    border-radius: var(--border-radius-pill, 100px); /* $border-radius-pill */
     font-size: 15px;
     font-weight: bold;
     cursor: pointer;
@@ -2107,7 +1940,7 @@ button.danger:hover {
     color: var(--color-main-text);
     border: 1px solid var(--color-border);
     padding: 0 16px;
-    border-radius: 100px;
+    border-radius: var(--border-radius-pill, 100px);
     min-height: 44px;
     cursor: pointer;
     font-size: 15px;
@@ -2136,41 +1969,9 @@ button.danger:hover {
     animation: spin 0.3s linear infinite;
 }
 
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
 /* Legacy styles removed - replaced with account list styles */
 
 /* Account actions styles moved to the account list section above */
-
-/* Transaction Items */
-.transaction-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px;
-    border-bottom: 1px solid var(--color-border);
-    min-height: 44px;
-    box-sizing: border-box;
-}
-
-.transaction-item:last-child {
-    border-bottom: none;
-}
-
-.transaction-date {
-    color: var(--color-text-maxcontrast);
-    font-size: 13px;
-}
-
-.transaction-description {
-    flex: 1;
-    margin: 0 10px;
-    color: var(--color-main-text);
-}
 
 /* Responsive Design - Nextcloud Breakpoints */
 @media (max-width: 1024px) {
@@ -2182,10 +1983,7 @@ button.danger:hover {
 
 @media (max-width: 768px) {
 
-    .view-controls {
-        gap: 5px;
-    }
-
+    
     .modal-content {
         width: 95%;
         padding: 20px;
@@ -2243,20 +2041,6 @@ button.danger:hover {
     border-bottom: 1px solid var(--color-border);
 }
 
-/* Rule Modal specific adjustments */
-#rule-modal .form-section {
-    margin-right: 0;
-}
-
-.form-group.conditional {
-    display: none;
-}
-
-.required {
-    color: var(--color-error);
-    font-weight: 600;
-}
-
 /* Account List */
 
 .account-info {
@@ -2265,23 +2049,6 @@ button.danger:hover {
     justify-content: space-between;
     flex: 1;
     gap: 20px;
-}
-
-.account-name {
-    margin: 0;
-    color: var(--color-main-text);
-    font-size: 16px;
-    font-weight: 600;
-}
-
-.account-type {
-    color: var(--color-text-maxcontrast);
-    font-size: 13px;
-    text-transform: capitalize;
-    padding: 2px 8px;
-    background: var(--color-background-dark);
-    border-radius: 12px;
-    white-space: nowrap;
 }
 
 .account-balance {
@@ -2370,6 +2137,7 @@ button.danger:hover {
 
 /* Form Group Position for Autocomplete */
 .form-group {
+    margin-bottom: 15px;
     position: relative;
 }
 
@@ -2706,15 +2474,13 @@ button.danger:hover {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .wide-form .form-col:nth-child(odd) {
-        padding-left: 0;
-    }
-
+    
     .wide-form .form-col:nth-child(even) {
         padding-right: 0;
     }
 
     .wide-form .form-col:nth-child(odd) {
+        padding-left: 0;
         border-left: none;
     }
 }
@@ -2814,26 +2580,10 @@ button.danger:hover {
     margin-bottom: 24px;
 }
 
-.summary-card {
-    background: var(--color-main-background);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    padding: 20px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    transition: box-shadow 0.2s ease, transform 0.2s ease;
-}
-
-.summary-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    transform: translateY(-2px);
-}
-
 .summary-icon {
     width: 48px;
     height: 48px;
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2952,7 +2702,7 @@ button.danger:hover {
 .view-toggle {
     display: flex;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     overflow: hidden;
 }
 .view-toggle-btn {
@@ -3095,7 +2845,7 @@ button.danger:hover {
 .account-card {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 20px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
@@ -3140,8 +2890,7 @@ button.danger:hover {
     min-width: 0;
 }
 
-.account-name {
-    font-size: 16px;
+.account-name {    font-size: 16px;
     font-weight: 600;
     margin: 0 0 4px 0;
     color: var(--color-main-text);
@@ -3161,7 +2910,7 @@ button.danger:hover {
     font-size: 11px;
     font-weight: 500;
     padding: 2px 8px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: var(--color-background-dark);
     color: var(--color-text-maxcontrast);
     text-transform: capitalize;
@@ -3172,7 +2921,7 @@ button.danger:hover {
     font-size: 11px;
     font-weight: 500;
     padding: 2px 8px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: var(--color-warning, #e9a335);
     color: var(--color-primary-text, #fff);
     cursor: help;
@@ -3185,7 +2934,7 @@ button.danger:hover {
     font-size: 11px;
     font-weight: 500;
     padding: 2px 8px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: var(--color-background-dark);
     color: var(--color-text-maxcontrast);
     border: 1px solid var(--color-border);
@@ -3225,6 +2974,11 @@ button.danger:hover {
 }
 
 .account-type {
+    text-transform: capitalize;
+    padding: 2px 8px;
+    background: var(--color-background-dark);
+    border-radius: var(--border-radius-container, 12px);
+    white-space: nowrap;
     font-size: 12px;
     color: var(--color-text-maxcontrast);
     font-weight: 500;
@@ -3241,7 +2995,7 @@ button.danger:hover {
     font-family: monospace;
     background: var(--color-background-hover);
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
 }
 
 .account-reconciled {
@@ -3405,7 +3159,7 @@ button.danger:hover {
 .credit-info {
     background: var(--color-background-hover);
     padding: 12px;
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     margin-top: 12px;
 }
 
@@ -3463,7 +3217,7 @@ button.danger:hover {
     font-size: 12px;
     margin-top: 4px;
     padding: 4px 8px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     display: flex;
     align-items: center;
     gap: 4px;
@@ -3511,7 +3265,7 @@ button.danger:hover {
     gap: 1px;
     padding: 20px 0;
     background: var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     overflow: hidden;
 }
 
@@ -3615,12 +3369,6 @@ button.danger:hover {
     animation: spin 1s ease-in-out infinite;
 }
 
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
 /* Autocomplete improvements */
 .autocomplete-dropdown {
     max-height: 200px;
@@ -3650,6 +3398,7 @@ button.danger:hover {
 
 /* Account Type Conditional Fields Animation */
 .form-group.conditional {
+    display: none;
     transition: all 0.3s ease;
     overflow: hidden;
 }
@@ -3678,7 +3427,7 @@ button.danger:hover {
 .filters-panel {
     background: var(--color-background-hover);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     margin-bottom: 20px;
     padding: 16px;
     transition: all 0.3s ease;
@@ -3735,7 +3484,7 @@ button.danger:hover {
 .filter-group select {
     padding: 6px 10px;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: var(--color-main-background);
     color: var(--color-main-text);
     font-size: 13px;
@@ -3758,7 +3507,7 @@ button.danger:hover {
 
 .filters-actions button {
     padding: 8px 16px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -3768,7 +3517,7 @@ button.danger:hover {
 .bulk-panel {
     background: var(--color-background-dark);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 16px;
     margin-bottom: 16px;
     display: flex;
@@ -3786,7 +3535,7 @@ button.danger:hover {
 .select-all-matching-banner {
     background: var(--color-primary-element-light, var(--color-background-dark));
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 10px 16px;
     margin-bottom: 16px;
     display: flex;
@@ -3806,7 +3555,7 @@ button.danger:hover {
 .bulk-actions select {
     padding: 6px 12px;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: var(--color-main-background);
     min-width: 150px;
 }
@@ -3815,7 +3564,7 @@ button.danger:hover {
 .reconcile-panel {
     background: var(--color-background-dark);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 20px;
     margin-bottom: 16px;
 }
@@ -3868,7 +3617,7 @@ button.danger:hover {
     width: 100%;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     overflow-x: auto;
 }
 
@@ -3898,24 +3647,12 @@ button.danger:hover {
     color: var(--color-text-maxcontrast);
 }
 
-.table-pagination {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.pagination-controls {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
 .pagination-controls button {
     width: 32px;
     height: 32px;
     border: 1px solid var(--color-border);
     background: var(--color-main-background);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -3986,7 +3723,7 @@ button.danger:hover {
     display: flex;
     align-items: center;
     gap: 6px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
 }
 
 .accounts-attr-row[draggable="true"] {
@@ -4043,7 +3780,7 @@ button.danger:hover {
     right: 0;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     z-index: 1000;
     min-width: 200px;
@@ -4074,7 +3811,7 @@ button.danger:hover {
 
 .column-config-dropdown label:hover {
     background: var(--color-background-hover);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     padding-left: 4px;
     padding-right: 4px;
 }
@@ -4760,7 +4497,7 @@ button.danger:hover {
 .tags-notice {
     background-color: rgba(100, 116, 139, 0.08);
     border: 1px solid rgba(100, 116, 139, 0.15);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 12px 16px;
     margin: 0 0 24px;
     display: flex;
@@ -4792,7 +4529,7 @@ button.danger:hover {
     padding: 20px;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
 }
 
 .tags-summary .summary-icon {
@@ -4841,7 +4578,7 @@ button.danger:hover {
     border: 1px solid var(--color-border);
     color: var(--color-main-text);
     padding: 7px 14px;
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     font-size: 13px;
     font-weight: 500;
     cursor: default;
@@ -4940,7 +4677,7 @@ button.danger:hover {
     width: 44px;
     height: 44px;
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 2px;
     cursor: pointer;
     background: none;
@@ -5040,7 +4777,7 @@ button.danger:hover {
 .tag-option .tag-badge {
     color: white;
     padding: 4px 10px;
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     font-size: 12px;
     cursor: pointer;
     opacity: 0.5;
@@ -5081,13 +4818,8 @@ button.danger:hover {
     animation: spin 0.6s linear infinite;
 }
 
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
 /* View Controls */
-.view-controls {
-    display: flex;
+.view-controls {    display: flex;
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
@@ -5115,11 +4847,9 @@ button.danger:hover {
         justify-content: center;
     }
 
-    .table-pagination {
-        justify-content: center;
-    }
-
+    
     .view-controls {
+        gap: 5px;
         flex-wrap: wrap;
     }
 
@@ -5317,7 +5047,7 @@ button.danger:hover {
 .account-overview-card {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     padding: 16px 24px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     display: flex;
@@ -5464,7 +5194,7 @@ button.danger:hover {
 .metric-card {
     background: var(--color-background-hover);
     border: 1px solid var(--color-border-dark);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 16px;
     display: flex;
     align-items: center;
@@ -5521,7 +5251,7 @@ button.danger:hover {
 .account-details-section {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     padding: 24px;
 }
 
@@ -5562,7 +5292,7 @@ button.danger:hover {
 .bank-connection-card {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 16px;
     margin-bottom: 12px;
 }
@@ -5691,12 +5421,6 @@ button.danger:hover {
     gap: 16px;
 }
 
-.detail-item {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
 .detail-item label {
     font-size: 12px;
     font-weight: 500;
@@ -5716,22 +5440,8 @@ button.danger:hover {
 .account-transactions-section {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     padding: 24px;
-}
-
-.section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-.section-header h3 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--color-main-text);
 }
 
 .section-controls {
@@ -5896,7 +5606,7 @@ button.danger:hover {
     background: none;
     border: none;
     padding: 8px 16px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -5932,7 +5642,7 @@ button.danger:hover {
 .category-import-warnings {
     margin: 0 0 12px;
     padding: 8px 12px 8px 28px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: var(--color-warning-hover, rgba(234, 179, 8, 0.15));
     color: var(--color-main-text);
     font-size: 13px;
@@ -5942,7 +5652,7 @@ button.danger:hover {
     max-height: 50vh;
     overflow: auto;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     padding: 6px 0;
     margin-bottom: 12px;
 }
@@ -6006,7 +5716,7 @@ button.danger:hover {
 .categories-panel {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -6065,7 +5775,7 @@ button.danger:hover {
     border: none;
     width: 32px;
     height: 32px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -6087,6 +5797,11 @@ button.danger:hover {
 
 /* Categories Tree */
 .categories-tree {
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+    min-height: 400px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     position: relative;
     /* Spacing lives on .categories-tree-container; overrides the earlier
        .categories-tree block */
@@ -6100,6 +5815,8 @@ button.danger:hover {
 }
 
 .category-item {
+    gap: 8px;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     padding: 0 12px;
@@ -6110,11 +5827,11 @@ button.danger:hover {
     min-height: 40px;
 }
 
-.category-item:hover {
-    background: var(--color-background-hover);
+.category-item:hover {    background: var(--color-background-hover);
 }
 
 .category-item.selected {
+    font-weight: bold;
     background: var(--color-primary-light);
     color: var(--color-primary);
 }
@@ -6195,7 +5912,7 @@ button.danger:hover {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     opacity: 0;
     transition: all 0.2s ease;
     margin-left: auto;
@@ -6222,7 +5939,7 @@ button.danger:hover {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     opacity: 0;
     transition: all 0.2s ease;
     margin-left: auto;
@@ -6331,19 +6048,6 @@ button.danger:hover {
     justify-content: space-between;
 }
 
-.category-name {
-    font-weight: 500;
-    color: var(--color-main-text);
-}
-
-.category-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--color-text-lighter);
-}
-
 .transaction-count {
     background: var(--color-background-hover);
     padding: 2px 6px;
@@ -6351,8 +6055,7 @@ button.danger:hover {
     font-size: 11px;
 }
 
-.category-children {
-    margin-left: 20px;
+.category-children {    margin-left: 20px;
     border-left: 1px solid var(--color-border-dark);
     padding-left: 8px;
     margin-top: 4px;
@@ -6366,7 +6069,7 @@ button.danger:hover {
 .category-details-panel {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -6415,7 +6118,7 @@ button.danger:hover {
     gap: 16px;
     padding: 16px;
     background: var(--color-background-hover);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
 }
 
 .category-icon-display {
@@ -6433,6 +6136,8 @@ button.danger:hover {
 }
 
 .category-meta {
+    font-size: 12px;
+    color: var(--color-text-lighter);
     display: flex;
     align-items: center;
     gap: 12px;
@@ -6442,7 +6147,7 @@ button.danger:hover {
     background: var(--color-primary-light);
     color: var(--color-primary);
     padding: 2px 8px;
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     font-size: 11px;
     font-weight: 500;
     text-transform: uppercase;
@@ -6485,7 +6190,7 @@ button.danger:hover {
 .progress-bar {
     height: 8px;
     background: var(--color-background-hover);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     overflow: hidden;
     margin-bottom: 8px;
 }
@@ -6494,7 +6199,7 @@ button.danger:hover {
     height: 100%;
     background: var(--color-primary);
     transition: width 0.3s ease;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
 }
 
 .progress-fill.warning {
@@ -6516,6 +6221,8 @@ button.danger:hover {
 }
 
 .transaction-item {
+    min-height: 44px;
+    box-sizing: border-box;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -6523,25 +6230,12 @@ button.danger:hover {
     border-bottom: 1px solid var(--color-border-dark);
 }
 
-.transaction-item:last-child {
-    border-bottom: none;
+.transaction-item:last-child {    border-bottom: none;
 }
 
-.transaction-description {
-    flex: 1;
-    font-size: 14px;
-    color: var(--color-main-text);
-}
-
-.transaction-date {
-    font-size: 12px;
+.transaction-date {    font-size: 12px;
     color: var(--color-text-lighter);
     margin-right: 12px;
-}
-
-.transaction-amount {
-    font-weight: 600;
-    font-size: 14px;
 }
 
 .transaction-amount.credit {
@@ -6571,7 +6265,7 @@ button.danger:hover {
 .analytics-card {
     background: var(--color-background-hover);
     border: 1px solid var(--color-border-dark);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 12px 16px;
     text-align: center;
     transition: background-color 0.2s ease;
@@ -6633,7 +6327,7 @@ button.danger:hover {
 .category-chart-controls select {
     padding: 4px 8px;
     font-size: 12px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     border: 1px solid var(--color-border);
     background: var(--color-main-background);
     color: var(--color-main-text);
@@ -6993,6 +6687,11 @@ button.danger:hover {
 
 /* Import Steps */
 .import-step {
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     display: none;
     padding: 20px;
     min-height: 400px;
@@ -7019,8 +6718,9 @@ button.danger:hover {
 
 /* File Upload Styles */
 .import-dropzone {
+    background: var(--color-background-dark);
     border: 2px dashed var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 40px 20px;
     text-align: center;
     margin-bottom: 20px;
@@ -7034,8 +6734,7 @@ button.danger:hover {
     background: var(--color-background-hover);
 }
 
-.import-dropzone .icon-upload {
-    font-size: 48px;
+.import-dropzone .icon-upload {    font-size: 48px;
     color: var(--color-text-lighter);
     margin-bottom: 16px;
     display: block;
@@ -7049,7 +6748,7 @@ button.danger:hover {
 .file-formats-info {
     background: var(--color-background-hover);
     padding: 20px;
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     margin-top: 20px;
 }
 
@@ -7076,7 +6775,7 @@ button.danger:hover {
 .import-file-info {
     background: var(--color-background-hover);
     padding: 15px;
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     margin-bottom: 20px;
 }
 
@@ -7089,7 +6788,7 @@ button.danger:hover {
 .file-details span {
     padding: 4px 8px;
     background: var(--color-main-background);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     font-size: 12px;
     color: var(--color-text-lighter);
 }
@@ -7130,6 +6829,7 @@ button.danger:hover {
 }
 
 .required {
+    font-weight: 600;
     color: var(--color-error);
     margin-left: 4px;
 }
@@ -7137,7 +6837,7 @@ button.danger:hover {
 .mapping-field select {
     padding: 8px 12px;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: var(--color-main-background);
     color: var(--color-main-text);
 }
@@ -7150,13 +6850,6 @@ button.danger:hover {
 .preview-data h4 {
     margin-bottom: 15px;
     color: var(--color-main-text);
-}
-
-.preview-table-container {
-    max-height: 300px;
-    overflow: auto;
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
 }
 
 .preview-table-container table {
@@ -7190,7 +6883,7 @@ button.danger:hover {
     gap: 20px;
     padding: 15px;
     background: var(--color-background-hover);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
 }
 
 .mapping-options label {
@@ -7205,7 +6898,7 @@ button.danger:hover {
 .import-summary {
     background: var(--color-background-hover);
     padding: 20px;
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     margin-bottom: 20px;
 }
 
@@ -7268,7 +6961,7 @@ button.danger:hover {
     align-items: center;
     padding: 10px;
     background: var(--color-main-background);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
 }
 
 .stat-label {
@@ -7297,7 +6990,7 @@ button.danger:hover {
     max-width: 300px;
     padding: 8px 12px;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: var(--color-main-background);
 }
 
@@ -7306,7 +6999,7 @@ button.danger:hover {
     margin-top: 20px;
     padding: 20px;
     background: var(--color-background-dark);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
 }
 
 .account-mapping-section h4 {
@@ -7364,7 +7057,7 @@ button.danger:hover {
     width: 100%;
     padding: 8px 12px;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: var(--color-main-background);
 }
 
@@ -7381,7 +7074,7 @@ button.danger:hover {
     margin-bottom: 15px;
     padding: 10px;
     background: var(--color-background-hover);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
 }
 
 .filter-options {
@@ -7485,7 +7178,7 @@ button.danger:hover {
 
 .rules-table-container {
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     overflow: hidden;
     margin-bottom: 20px;
 }
@@ -7513,7 +7206,7 @@ button.danger:hover {
 
 #test-results {
     padding: 10px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     min-height: 40px;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
@@ -7536,7 +7229,7 @@ button.danger:hover {
 
 .history-table-container {
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     overflow: hidden;
 }
 
@@ -7559,13 +7252,6 @@ button.danger:hover {
 
 #history-table tr:hover {
     background: var(--color-background-hover);
-}
-
-.status-badge {
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 500;
 }
 
 .status-success {
@@ -7666,6 +7352,8 @@ button.danger:hover {
 }
 
 .forecast-controls {
+    margin-bottom: 20px;
+    flex-wrap: wrap;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -7728,7 +7416,7 @@ button.danger:hover {
 
 .overview-card {
     background: var(--color-background-hover);
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     padding: 24px;
     border: 1px solid var(--color-border);
 }
@@ -7778,7 +7466,7 @@ button.danger:hover {
 
 .trend-card {
     background: var(--color-background-hover);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 20px;
     border: 1px solid var(--color-border);
     display: flex;
@@ -7832,7 +7520,7 @@ button.danger:hover {
     grid-template-columns: 2fr 1fr;
     gap: 24px;
     background: var(--color-background-hover);
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     padding: 24px;
     border: 1px solid var(--color-border);
 }
@@ -7874,7 +7562,7 @@ button.danger:hover {
 .report-section .chart-container,
 .insights-section .chart-container {
     background: var(--color-background-hover);
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     padding: 20px;
     border: 1px solid var(--color-border);
     min-height: 350px;
@@ -7889,7 +7577,7 @@ button.danger:hover {
 /* Category Trends */
 .category-trends {
     background: var(--color-background-hover);
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     padding: 16px;
     border: 1px solid var(--color-border);
 }
@@ -7943,7 +7631,7 @@ button.danger:hover {
     gap: 12px;
     padding: 16px 20px;
     background: var(--color-background-hover);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     border: 1px solid var(--color-border);
 }
 
@@ -7956,7 +7644,7 @@ button.danger:hover {
     font-size: 16px;
     font-weight: bold;
     padding: 4px 12px;
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     background: var(--color-border);
 }
 
@@ -8030,15 +7718,6 @@ button.danger:hover {
    ============================================= */
 
 /* Loading Spinner */
-.loading-spinner {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--color-border);
-    border-radius: 50%;
-    border-top-color: var(--color-primary);
-    animation: spin 1s ease-in-out infinite;
-}
 
 .loading-spinner.large {
     width: 40px;
@@ -8046,21 +7725,7 @@ button.danger:hover {
     border-width: 4px;
 }
 
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
 /* Loading States */
-.loading-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px;
-    color: var(--color-text-lighter);
-}
 
 .loading-state .loading-spinner {
     margin-bottom: 16px;
@@ -8156,7 +7821,7 @@ button.danger:hover {
     background: var(--color-main-text);
     color: var(--color-main-background);
     padding: 6px 8px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     font-size: 12px;
     white-space: nowrap;
     opacity: 0;
@@ -8175,7 +7840,7 @@ button.danger:hover {
 .notification {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 16px;
     margin-bottom: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -8213,9 +7878,6 @@ button.danger:hover {
 }
 
 /* Data Table Enhancements */
-.data-table {
-    position: relative;
-}
 
 .data-table.loading {
     opacity: 0.6;
@@ -8223,6 +7885,7 @@ button.danger:hover {
 }
 
 .table-pagination {
+    gap: 12px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -8231,8 +7894,7 @@ button.danger:hover {
     border-top: 1px solid var(--color-border);
 }
 
-.pagination-controls {
-    display: flex;
+.pagination-controls {    display: flex;
     gap: 8px;
     align-items: center;
 }
@@ -8250,7 +7912,7 @@ button.danger:hover {
     border: 1px solid var(--color-border);
     background: var(--color-main-background);
     color: var(--color-main-text);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -8274,7 +7936,7 @@ button.danger:hover {
 /* Card Loading States */
 .card {
     position: relative;
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     border: 1px solid var(--color-border);
     background: var(--color-main-background);
     transition: all 0.2s ease;
@@ -8316,6 +7978,7 @@ button.danger:hover {
     
     
     .table-pagination {
+        justify-content: center;
         flex-direction: column;
         gap: 12px;
         text-align: center;
@@ -8374,11 +8037,6 @@ button.danger:hover {
     display: none;
 }
 
-/* Land a jumped-to section below the sticky jump list. */
-.settings-section {
-    scroll-margin-top: 64px;
-}
-
 /* A brief confirmation beside a setting that has just saved. */
 .setting-saved {
     align-self: flex-start;
@@ -8397,6 +8055,7 @@ button.danger:hover {
 }
 
 .settings-section {
+    scroll-margin-top: 64px;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius-large);
@@ -8477,7 +8136,7 @@ button.danger:hover {
     color: var(--color-primary-element);
     text-decoration: none;
     padding: 4px 8px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: var(--color-primary-element-light, rgba(0, 130, 201, 0.1));
 }
 .quick-add-back:hover {
@@ -8487,7 +8146,7 @@ button.danger:hover {
 .quick-add-standalone-form {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 20px;
 }
 .qa-form-group {
@@ -8743,7 +8402,7 @@ button.danger:hover {
     color: var(--color-error, #e9322d);
     background: var(--color-error-hover, #fdd);
     padding: 8px 12px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     margin-top: 8px;
     font-size: 13px;
 }
@@ -8751,7 +8410,7 @@ button.danger:hover {
     color: var(--color-success, #46ba61);
     background: var(--color-success-hover, #dfd);
     padding: 8px 12px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     margin-top: 8px;
     font-size: 13px;
 }
@@ -8783,7 +8442,7 @@ button.danger:hover {
     align-items: center;
     padding: 12px 8px;
     border: 2px solid var(--color-border, #ededed);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     cursor: pointer;
     transition: border-color 0.15s, box-shadow 0.15s;
     text-align: center;
@@ -8808,14 +8467,14 @@ button.danger:hover {
     height: 40px;
     object-fit: contain;
     margin-bottom: 6px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
 }
 .bank-institution-logo-placeholder {
     width: 40px;
     height: 40px;
     margin-bottom: 6px;
     background: var(--color-background-darker, #f0f0f0);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
 }
 .bank-institution-name {
     font-size: 12px;
@@ -8970,7 +8629,7 @@ button.danger:hover {
     color: var(--color-main-text);
     background: var(--color-background-dark);
     border: 1px solid var(--color-border-dark, var(--color-border));
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     box-shadow: 0 1px 0 var(--color-border-dark, var(--color-border));
 }
 
@@ -9160,7 +8819,7 @@ button.danger:hover {
     padding: 20px;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
 }
 
 .bills-summary .summary-card.warning {
@@ -9214,7 +8873,7 @@ button.danger:hover {
     padding: 8px 16px;
     background: transparent;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     cursor: pointer;
     color: var(--color-text-maxcontrast);
     font-weight: 500;
@@ -9250,7 +8909,7 @@ button.danger:hover {
     padding: 16px 20px;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     transition: all 0.2s;
 }
 
@@ -9366,7 +9025,7 @@ button.danger:hover {
 .bill-status .status-badge {
     display: inline-block;
     padding: 4px 10px;
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     font-size: 12px;
     font-weight: 500;
 }
@@ -9404,7 +9063,7 @@ button.danger:hover {
     padding: 6px 12px;
     border: 1px solid var(--color-border);
     background: var(--color-main-background);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     cursor: pointer;
     font-size: 13px;
     transition: all 0.2s;
@@ -9443,7 +9102,7 @@ button.danger:hover {
     padding: 20px;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
 }
 
 .exchange-rates-summary .summary-icon {
@@ -9526,7 +9185,7 @@ button.danger:hover {
     padding: 16px 20px;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     transition: box-shadow 0.2s ease;
 }
 
@@ -9603,7 +9262,7 @@ button.danger:hover {
 .rate-source .status-badge {
     display: inline-block;
     padding: 4px 10px;
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     font-size: 12px;
     font-weight: 500;
     white-space: nowrap;
@@ -9716,7 +9375,7 @@ button.danger:hover {
     text-align: center;
     font-size: 16px;
     font-weight: 600;
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     border: 2px solid var(--color-border-dark);
     padding: 8px 12px;
     background: var(--color-main-background);
@@ -9804,7 +9463,7 @@ button.danger:hover {
     padding: 20px;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
 }
 
 .income-summary .summary-card.success {
@@ -9854,7 +9513,7 @@ button.danger:hover {
     padding: 8px 16px;
     background: transparent;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     cursor: pointer;
     color: var(--color-text-maxcontrast);
     font-weight: 500;
@@ -9890,7 +9549,7 @@ button.danger:hover {
     padding: 16px 20px;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     transition: all 0.2s;
 }
 
@@ -9974,7 +9633,7 @@ button.danger:hover {
 .income-status .status-badge {
     display: inline-block;
     padding: 4px 10px;
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     font-size: 12px;
     font-weight: 500;
 }
@@ -10007,7 +9666,7 @@ button.danger:hover {
     padding: 6px 12px;
     border: 1px solid var(--color-border);
     background: var(--color-main-background);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     cursor: pointer;
     font-size: 13px;
     transition: all 0.2s;
@@ -10045,7 +9704,7 @@ button.danger:hover {
     padding: 20px;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
 }
 
 .goals-summary .summary-card.success {
@@ -10095,7 +9754,7 @@ button.danger:hover {
 .goal-card {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     padding: 24px;
     transition: all 0.2s;
     position: relative;
@@ -10149,7 +9808,7 @@ button.danger:hover {
     padding: 0;
     border: none;
     background: transparent;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -10271,7 +9930,7 @@ button.danger:hover {
     padding: 2px 8px;
     background: var(--color-primary-element-light);
     color: var(--color-primary-element);
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     font-size: 11px;
     font-weight: 500;
 }
@@ -10484,7 +10143,7 @@ button.danger:hover {
     padding: 12px;
     background: var(--color-main-background);
     border: 2px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     cursor: pointer;
     transition: all 0.15s ease-in-out;
     font-size: 14px;
@@ -10840,7 +10499,7 @@ button.danger:hover {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     background: var(--color-primary-element-light, rgba(0, 130, 201, 0.15));
     color: var(--color-primary-element, #0082c9);
     cursor: help;
@@ -11225,34 +10884,28 @@ button.danger:hover {
     gap: 8px;
 }
 
-.budget-progress-bar {
-    flex: 1;
+.budget-progress-bar {    flex: 1;
     height: 8px;
     background: var(--color-background-dark);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     overflow: hidden;
 }
 
-.budget-progress-fill {
-    height: 100%;
-    border-radius: 4px;
+.budget-progress-fill {    height: 100%;
+    border-radius: var(--border-radius-small, 4px);
     transition: width 0.3s ease;
 }
 
-.budget-progress-fill.good {
-    background: var(--budget-color-positive);
+.budget-progress-fill.good {    background: var(--budget-color-positive);
 }
 
-.budget-progress-fill.warning {
-    background: #f57c00;
+.budget-progress-fill.warning {    background: #f57c00;
 }
 
-.budget-progress-fill.danger {
-    background: var(--budget-color-negative);
+.budget-progress-fill.danger {    background: var(--budget-color-negative);
 }
 
-.budget-progress-fill.over {
-    background: var(--budget-color-negative);
+.budget-progress-fill.over {    background: var(--budget-color-negative);
 }
 
 /* Nextcloud's own `#body-user .warning` (an id and a class) outranks the
@@ -11261,7 +10914,7 @@ button.danger:hover {
 #body-user .budget-progress-fill.warning {
     margin: 0;
     padding: 0;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: #f57c00;
 }
 
@@ -11355,15 +11008,14 @@ button.danger:hover {
    Reports Page Styles
    ========================================== */
 
-.reports-controls {
-    display: flex;
+.reports-controls {    display: flex;
     gap: 16px;
     margin-bottom: 24px;
     align-items: flex-end;
     flex-wrap: wrap;
     background: var(--color-main-background);
     padding: 16px;
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     border: 1px solid var(--color-border);
 }
 
@@ -11385,7 +11037,7 @@ button.danger:hover {
     min-width: 140px;
     padding: 8px 12px;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: var(--color-main-background);
     font-size: 14px;
     height: 36px;
@@ -11428,7 +11080,7 @@ button.danger:hover {
     height: 36px;
     padding: 8px 12px;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: var(--color-main-background);
     color: var(--color-main-text);
     font-size: 14px;
@@ -11483,7 +11135,7 @@ button.danger:hover {
     align-items: center;
     gap: 8px;
     padding: 6px 8px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     font-size: 14px;
     cursor: pointer;
     white-space: nowrap;
@@ -11562,7 +11214,7 @@ button.danger:hover {
     gap: 16px;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
 }
 
 .report-summary-cards .summary-icon {
@@ -11656,6 +11308,7 @@ button.danger:hover {
 }
 
 .spending-legend {
+    overflow-y: auto;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -11664,25 +11317,30 @@ button.danger:hover {
 }
 
 .spending-legend-item {
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--color-border-dark);
     display: flex;
     align-items: center;
     gap: 8px;
     font-size: 13px;
 }
 
-.spending-legend-color {
-    width: 12px;
+.spending-legend-color {    width: 12px;
     height: 12px;
     border-radius: 2px;
     flex-shrink: 0;
 }
 
 .spending-legend-name {
+    font-size: 13px;
     flex: 1;
     color: var(--color-main-text);
 }
 
 .spending-legend-value {
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
     font-weight: 500;
     color: var(--color-main-text);
 }
@@ -11696,6 +11354,7 @@ button.danger:hover {
 
 /* Data Tables */
 .data-table {
+    position: relative;
     width: 100%;
     border-collapse: collapse;
 }
@@ -11746,8 +11405,7 @@ button.danger:hover {
 }
 
 /* Loading State */
-.loading-state {
-    display: flex;
+.loading-state {    display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
@@ -11756,6 +11414,7 @@ button.danger:hover {
 }
 
 .loading-spinner {
+    display: inline-block;
     width: 40px;
     height: 40px;
     border: 3px solid var(--color-border);
@@ -11763,10 +11422,6 @@ button.danger:hover {
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin-bottom: 16px;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
 }
 
 /* Reports View Header */
@@ -12191,7 +11846,7 @@ button.danger:hover {
     gap: 4px;
     padding: 2px 6px;
     background: var(--color-primary-element-light);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     font-size: 11px;
     color: var(--color-primary-element);
     cursor: pointer;
@@ -12214,7 +11869,7 @@ button.danger:hover {
     border: none;
     cursor: pointer;
     padding: 4px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     color: var(--color-text-maxcontrast);
     transition: color 0.2s, background 0.2s;
 }
@@ -12233,7 +11888,7 @@ button.danger:hover {
 /* Matching source transaction display */
 .matching-source {
     background: var(--color-background-dark);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 16px;
     margin-bottom: 20px;
 }
@@ -12345,7 +12000,7 @@ button.danger:hover {
     padding: 12px 16px;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -12404,7 +12059,7 @@ button.danger:hover {
     background: var(--color-error);
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     cursor: pointer;
     font-size: 11px;
     transition: background 0.2s;
@@ -12650,7 +12305,7 @@ button.receipt-scan-split-btn:disabled {
 .attachment-pending-tag {
     margin-left: auto;
     padding: 1px 6px;
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     background: var(--color-background-darker);
     color: var(--color-text-maxcontrast);
     font-size: 11px;
@@ -12670,7 +12325,7 @@ button.receipt-scan-split-btn:disabled {
     width: 32px;
     height: 32px;
     object-fit: cover;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     display: block;
 }
 
@@ -12748,7 +12403,7 @@ tr.pending-transaction td:first-child {
     margin-bottom: 24px;
     padding: 16px;
     background: var(--color-background-dark);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
 }
 
 .summary-item {
@@ -12810,7 +12465,7 @@ tr.pending-transaction td:first-child {
     padding: 12px 16px;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
 }
 
 .bulk-match-pair .pair-transaction {
@@ -12873,7 +12528,7 @@ tr.pending-transaction td:first-child {
     background: var(--color-error);
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     cursor: pointer;
     transition: background 0.2s;
 }
@@ -12887,7 +12542,7 @@ tr.pending-transaction td:first-child {
     padding: 16px;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
 }
 
 .bulk-review-item .review-source {
@@ -13074,7 +12729,7 @@ tr.pending-transaction td:first-child {
     gap: 12px;
     padding: 14px 16px;
     border: 2px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     cursor: pointer;
     transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
 }
@@ -13120,7 +12775,7 @@ tr.pending-transaction td:first-child {
     padding: 12px 16px;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
 }
 
 .review-single-match input[type="checkbox"] {
@@ -13276,7 +12931,7 @@ tr.pending-transaction td:first-child {
 .pension-card {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 16px;
     cursor: pointer;
     transition: box-shadow 0.2s, transform 0.2s;
@@ -13304,7 +12959,7 @@ tr.pending-transaction td:first-child {
 .pension-type-badge {
     font-size: 11px;
     padding: 2px 8px;
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     font-weight: 500;
     text-transform: uppercase;
 }
@@ -13367,7 +13022,7 @@ tr.pending-transaction td:first-child {
 
 .pension-card-actions .icon-button {
     padding: 6px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     opacity: 0.7;
 }
 
@@ -13419,9 +13074,12 @@ tr.pending-transaction td:first-child {
 }
 
 .detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
     background: var(--color-background-dark);
     padding: 12px;
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
 }
 
 .detail-label {
@@ -13540,7 +13198,7 @@ tr.pending-transaction td:first-child {
     font-weight: 600;
     text-transform: uppercase;
     padding: 1px 6px;
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     background: rgba(99, 102, 241, 0.15);
     color: #6366f1;
     vertical-align: middle;
@@ -13629,7 +13287,7 @@ tr.pending-transaction td:first-child {
     font-weight: 600;
     text-transform: uppercase;
     padding: 1px 6px;
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     background: var(--color-background-darker, rgba(127, 127, 127, 0.15));
     color: var(--color-text-maxcontrast);
 }
@@ -13805,7 +13463,7 @@ button.secondary.compact {
 .assets-notice {
     background-color: rgba(100, 116, 139, 0.08);
     border: 1px solid rgba(100, 116, 139, 0.15);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 12px 16px;
     margin: 0 0 24px;
     display: flex;
@@ -13841,7 +13499,7 @@ button.secondary.compact {
 .asset-card {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     padding: 24px;
     display: flex;
     flex-direction: column;
@@ -13918,7 +13576,7 @@ button.secondary.compact {
     padding: 0;
     border: none;
     background: transparent;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -13967,7 +13625,7 @@ button.secondary.compact {
     font-size: 12px;
     font-weight: 500;
     padding: 3px 10px;
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     margin-bottom: 8px;
 }
 
@@ -14043,7 +13701,7 @@ button.secondary.compact {
 .asset-overview-card {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     padding: 24px;
 }
 
@@ -14173,7 +13831,7 @@ button.secondary.compact {
 .asset-chart-section {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     padding: 20px;
 }
 
@@ -14242,7 +13900,7 @@ button.secondary.compact {
 
 .split-transaction-info {
     background: var(--color-background-dark);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 12px 16px;
     margin-bottom: 20px;
 }
@@ -14335,7 +13993,7 @@ button.secondary.compact {
     width: 100%;
     padding: 8px;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     font-size: 13px;
     background: var(--color-main-background);
 }
@@ -14364,7 +14022,7 @@ button.secondary.compact {
     border: none;
     background: transparent;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -14467,25 +14125,11 @@ button.secondary.compact {
     letter-spacing: 0.5px;
 }
 
-.shared-indicator {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
-    background: rgba(245, 127, 23, 0.12);
-    color: #f57f17;
-    border-radius: 10px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
 .settlement-shares-list {
     max-height: 260px;
     overflow-y: auto;
     border: 1px solid var(--color-border, #ededed);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     margin-top: 6px;
     background: var(--color-background-dark, #f5f5f5);
 }
@@ -14570,7 +14214,7 @@ button.secondary.compact {
     justify-content: space-between;
     align-items: center;
     background: var(--color-background-dark, #f5f5f5);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     font-weight: 600;
     font-size: 14px;
 }
@@ -14581,21 +14225,6 @@ button.secondary.compact {
 
 .settlement-total .negative {
     color: var(--color-negative, #e9322d);
-}
-
-.settlement-contact-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 14px;
-    margin-bottom: 12px;
-    background: var(--color-background-dark, #f5f5f5);
-    border-radius: 8px;
-}
-
-.settlement-contact-info .contact-name {
-    font-weight: 600;
-    font-size: 15px;
 }
 
 .settlement-contact-info .balance-amount {
@@ -14678,7 +14307,7 @@ button.secondary.compact {
     display: flex;
     gap: 12px;
     padding: 10px 12px;
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     background: var(--color-background-dark);
 }
 
@@ -14923,7 +14552,7 @@ button.secondary.compact {
 .debt-summary-card {
     flex: 1;
     background: var(--color-background-dark);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 16px;
     text-align: center;
 }
@@ -14941,7 +14570,7 @@ button.secondary.compact {
 .debt-chart-section {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 16px;
     margin-bottom: 24px;
 }
@@ -14956,7 +14585,7 @@ button.secondary.compact {
     display: flex;
     gap: 0;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     overflow: hidden;
 }
 .debt-chart-toggle .toggle-btn {
@@ -14995,7 +14624,7 @@ button.secondary.compact {
     min-width: 200px;
     background: var(--color-background-dark);
     border: 2px solid transparent;
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 12px;
     cursor: pointer;
     transition: border-color 0.15s;
@@ -15022,7 +14651,7 @@ button.secondary.compact {
 .scenario-card-actions button {
     background: none;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     padding: 2px 8px;
     cursor: pointer;
     font-size: 12px;
@@ -15046,7 +14675,7 @@ button.secondary.compact {
 }
 .debt-card {
     background: var(--color-background-dark);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 14px;
     border-left: 4px solid var(--color-primary-element);
 }
@@ -15072,7 +14701,7 @@ button.secondary.compact {
 .debt-comparison-section {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 16px;
     margin-top: 24px;
 }
@@ -15083,14 +14712,14 @@ button.secondary.compact {
 }
 .debt-recommendation {
     background: var(--color-background-dark);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 12px;
     font-size: 13px;
 }
 
 .recommendation-box {
     padding: 16px;
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     background: var(--color-background-dark);
 }
 .recommendation-box.recommend-avalanche {
@@ -15258,7 +14887,7 @@ button.secondary.compact {
 .yoy-year-card {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 16px;
 }
 
@@ -15332,7 +14961,7 @@ button.secondary.compact {
 .yoy-chart-container {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 16px;
     margin-bottom: 24px;
 }
@@ -15422,7 +15051,7 @@ button.secondary.compact {
     gap: 12px;
     padding: 10px 14px;
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     margin-bottom: 8px;
     background: var(--color-main-background);
 }
@@ -15511,7 +15140,7 @@ button.secondary.compact {
     flex-direction: column;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 16px;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -15710,7 +15339,7 @@ button.secondary.compact {
     font-size: 11px;
     text-transform: uppercase;
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
 }
 
 .share-item.settled .share-status {
@@ -15912,8 +15541,7 @@ button.secondary.compact {
 }
 
 /* Settlement Modal */
-.settlement-contact-info {
-    display: flex;
+.settlement-contact-info {    display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 12px;
@@ -15922,8 +15550,7 @@ button.secondary.compact {
     margin-bottom: 16px;
 }
 
-.settlement-contact-info .contact-name {
-    font-weight: 500;
+.settlement-contact-info .contact-name {    font-weight: 500;
     font-size: 15px;
 }
 
@@ -15951,7 +15578,7 @@ button.secondary.compact {
 .rules-summary .summary-card {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 16px;
     text-align: center;
 }
@@ -16016,7 +15643,7 @@ button.secondary.compact {
 .rules-filter-chips .filter-chip {
     padding: 4px 12px;
     border: 1px solid var(--color-border);
-    border-radius: 16px;
+    border-radius: var(--border-radius-container-large, 16px);
     background: var(--color-main-background);
     font-size: 13px;
     cursor: pointer;
@@ -16048,7 +15675,16 @@ button.secondary.compact {
     color: var(--color-primary-element);
 }
 
+/* Here the indicator is a text arrow after the heading. The transactions
+   table's .sort-indicator is an absolutely positioned CSS triangle, and with
+   no positioned header to anchor to, the arrow landed at the far right of the
+   page (and pushed it 2px wider than the window). */
 .rules-table th .sort-indicator {
+    position: static;
+    width: auto;
+    height: auto;
+    transform: none;
+    opacity: 1;
     font-size: 11px;
 }
 
@@ -16100,7 +15736,7 @@ button.secondary.compact {
     padding: 2px 10px;
     font-size: 12px;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: var(--color-main-background);
     cursor: pointer;
     transition: background-color 0.15s;
@@ -16115,7 +15751,7 @@ button.secondary.compact {
 .rules-table-wrapper {
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     overflow: hidden;
 }
 
@@ -16200,7 +15836,7 @@ button.secondary.compact {
 .rules-col-criteria code {
     background: var(--color-background-dark);
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     font-family: monospace;
     font-size: 11px;
     color: var(--color-text-maxcontrast);
@@ -16220,7 +15856,7 @@ button.secondary.compact {
     padding: 4px;
     min-height: 28px;
     width: 28px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     border: none;
     background-color: transparent;
     background-size: 16px;
@@ -16245,11 +15881,10 @@ button.secondary.compact {
 }
 
 /* Status Badges */
-.status-badge {
-    display: inline-block;
+.status-badge {    display: inline-block;
     font-size: 10px;
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     text-transform: uppercase;
     letter-spacing: 0.3px;
     font-weight: 500;
@@ -16332,7 +15967,7 @@ button.secondary.compact {
     display: inline-block;
     font-size: 10px;
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     white-space: nowrap;
     margin-right: 4px;
 }
@@ -16373,7 +16008,7 @@ button.secondary.compact {
     gap: 16px;
     padding: 16px;
     background: var(--color-background-hover);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     margin-bottom: 20px;
 }
 
@@ -16439,6 +16074,7 @@ button.secondary.compact {
 /* Apply Rules Preview */
 
 .preview-table-container {
+    overflow: auto;
     max-height: 300px;
     overflow-y: auto;
     border: 1px solid var(--color-border);
@@ -16480,7 +16116,7 @@ button.secondary.compact {
     gap: 12px;
     padding: 16px;
     background: var(--color-background-hover);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     margin-top: 16px;
 }
 
@@ -16611,8 +16247,7 @@ button.secondary.compact {
 }
 
 /* Form sections - standard app pattern */
-#rule-modal .form-section {
-    margin-bottom: 10px;
+#rule-modal .form-section {    margin-bottom: 10px;
     padding: 0 30px 0 0;
     margin-left: 0;
     margin-right: 0px;
@@ -16933,7 +16568,7 @@ button.secondary.compact {
     right: 0;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     min-width: 250px;
     max-height: 400px;
@@ -17055,7 +16690,7 @@ button.secondary.compact {
     width: 28px;
     height: 28px;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: transparent;
     color: var(--color-main-text);
     cursor: pointer;
@@ -17114,7 +16749,7 @@ button.secondary.compact {
     width: 26px;
     height: 26px;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: transparent;
     color: var(--color-text-maxcontrast);
     cursor: pointer;
@@ -17133,14 +16768,14 @@ button.secondary.compact {
 .tile-size-picker .size-btn.active {
     background: var(--color-primary-element);
     color: var(--color-primary-element-text);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
 }
 
 .tile-gear-btn {
     width: 26px;
     height: 26px;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: transparent;
     color: var(--color-text-maxcontrast);
     cursor: pointer;
@@ -17160,7 +16795,7 @@ button.secondary.compact {
     width: 26px;
     height: 26px;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: transparent;
     color: var(--color-text-maxcontrast);
     cursor: pointer;
@@ -17172,12 +16807,7 @@ button.secondary.compact {
     justify-content: center;
     transition: background 0.1s, color 0.1s;
 }
-.widget-remove-btn:hover {
-    background: var(--color-error);
-    color: white;
-}
-.widget-remove-btn:hover {
-    background: var(--color-error);
+.widget-remove-btn:hover {    background: var(--color-error);
     color: white;
 }
 
@@ -17228,6 +16858,7 @@ button.secondary.compact {
 }
 
 .category-name {
+    font-weight: 500;
     flex: 1;
     font-size: 14px;
     overflow: hidden;
@@ -17427,7 +17058,7 @@ button.secondary.compact {
 
 .reconciliation-badge {
     padding: 4px 8px;
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     font-size: 12px;
     font-weight: 500;
     background: rgba(76, 175, 80, 0.1);
@@ -17448,6 +17079,8 @@ button.secondary.compact {
 /* Phase 2: Large Transactions Widget */
 
 .transaction-description {
+    margin: 0 10px;
+    color: var(--color-main-text);
     font-size: 14px;
     font-weight: 500;
     overflow: hidden;
@@ -17457,8 +17090,7 @@ button.secondary.compact {
     margin-right: 12px;
 }
 
-.transaction-amount {
-    font-size: 14px;
+.transaction-amount {    font-size: 14px;
     font-weight: 600;
 }
 
@@ -17676,7 +17308,7 @@ button.secondary.compact {
     box-sizing: border-box;
     padding: 8px 12px;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     font-size: 14px;
     background: var(--color-main-background);
     color: var(--color-main-text);
@@ -17699,7 +17331,7 @@ button.secondary.compact {
     flex: 1;
     padding: 10px 16px;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
@@ -17727,7 +17359,7 @@ button.secondary.compact {
 
 .quick-add-message {
     padding: 10px 12px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     font-size: 13px;
     margin-top: 8px;
 }
@@ -17752,16 +17384,14 @@ button.secondary.compact {
 
 /* Responsive */
 @media (max-width: 768px) {
-    .dashboard-header {
-        margin-bottom: 12px;
-    }
-
+    
     .dashboard-header-hint {
         display: none; /* Hide drag hint on mobile */
     }
 
     /* Move dashboard actions to the right to avoid overlapping nav toggle */
     .dashboard-header {
+        margin-bottom: 12px;
         justify-content: flex-end;
     }
 }
@@ -17791,7 +17421,7 @@ button.secondary.compact {
     border-left: 4px solid var(--color-error, #e53935);
     padding: 12px 16px;
     margin: 16px 0;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     display: flex;
     align-items: start;
     gap: 12px;
@@ -17816,7 +17446,7 @@ button.secondary.compact {
     padding: 16px;
     background: var(--color-main-background, #fff);
     border: 1px solid var(--color-border, #e0e0e0);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
 }
 
 .settings-action-info h4,
@@ -17840,7 +17470,7 @@ button.secondary.compact {
     color: white;
     border: none;
     padding: 10px 20px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     font-weight: 500;
     cursor: pointer;
     display: inline-flex;
@@ -17884,7 +17514,7 @@ button.secondary.compact {
 .danger-warning {
     background: rgba(229, 57, 53, 0.05);
     border: 2px solid var(--color-error, #e53935);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     padding: 20px;
     margin: 20px 0;
 }
@@ -17915,7 +17545,7 @@ button.secondary.compact {
     cursor: pointer;
     padding: 12px;
     background: var(--color-background-hover, #f5f5f5);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     user-select: none;
 }
 
@@ -17937,7 +17567,7 @@ button.secondary.compact {
     font-weight: 600;
     letter-spacing: 0.5px;
     border: 2px solid var(--color-error, #e53935);
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     background: var(--color-main-background, #fff);
     color: var(--color-main-text, #000);
     font-family: monospace;
@@ -17975,8 +17605,7 @@ button.secondary.compact {
     font-style: italic;
 }
 
-.modal-buttons {
-    display: flex;
+.modal-buttons {    display: flex;
     justify-content: flex-end;
     gap: 12px;
     margin-top: 24px;
@@ -18239,6 +17868,8 @@ button.secondary.compact {
 /* Modal sections */
 
 .section-header {
+    justify-content: space-between;
+    margin-bottom: 20px;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -18247,8 +17878,7 @@ button.secondary.compact {
     border-bottom: 1px solid var(--color-border);
 }
 
-.section-header h3 {
-    margin: 0;
+.section-header h3 {    margin: 0;
     font-size: 15px;
     font-weight: 600;
     color: var(--color-main-text);
@@ -18495,7 +18125,7 @@ button.secondary.compact {
 
 .heatmap-month {
     padding: 20px;
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     border: 1px solid rgba(0, 0, 0, 0.1);
     text-align: center;
     transition: transform 0.2s, box-shadow 0.2s;
@@ -18785,7 +18415,7 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     margin-bottom: 16px;
     padding: 12px;
     background: var(--color-background-hover);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
 }
 
 .duplicates-summary p {
@@ -18799,7 +18429,7 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 
 .duplicate-group {
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     margin-bottom: 12px;
     overflow: hidden;
 }
@@ -18865,7 +18495,7 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 #duplicates-modal .scheduled-badge {
     font-size: 11px;
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     font-weight: 600;
 }
 
@@ -18992,7 +18622,7 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 
 .sharing-item-status {
     padding: 2px 8px;
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
@@ -19156,6 +18786,8 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 
 /* Shared entity indicator — shows on items marked as shared */
 .shared-indicator {
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -19593,7 +19225,7 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     color: var(--color-main-text);
     background: var(--color-background-dark);
     border: 1px solid var(--color-border-dark, var(--color-border));
-    border-radius: 4px;
+    border-radius: var(--border-radius-small, 4px);
     box-shadow: 0 1px 0 var(--color-border-dark, var(--color-border));
 }
 
@@ -19926,7 +19558,7 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     padding: 16px;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     cursor: pointer;
 }
 
@@ -20239,23 +19871,26 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
    behind the icon is the same tint everywhere.
    ============================================ */
 .summary-card {
+    background: var(--color-main-background);
+    border: 1px solid var(--color-border);
+    display: flex;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
     align-items: center;
     gap: 16px;
     padding: 16px 20px;
-    border-radius: 8px;
+    border-radius: var(--border-radius-element, 8px);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 /* These cards are not links; lifting on hover suggested they were. */
-.summary-card:hover {
-    transform: none;
+.summary-card:hover {    transform: none;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .summary-card .summary-icon {
     width: 48px;
     height: 48px;
-    border-radius: 12px;
+    border-radius: var(--border-radius-container, 12px);
     background: color-mix(in srgb, var(--color-primary-element) 12%, transparent);
 }
 

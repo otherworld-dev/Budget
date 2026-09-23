@@ -21,6 +21,9 @@ import { offerableTags } from '../../utils/tags.js';
 import flatpickr from 'flatpickr';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
+/** Width at which the transactions table turns into cards; keep in step with style.css. */
+const PHONE_CARD_QUERY = '(max-width: 640px)';
+
 export default class TransactionsModule {
     constructor(app) {
         this.app = app;
@@ -2798,7 +2801,7 @@ export default class TransactionsModule {
                 <span class="attachment-thumb">${p.kind === 'path' ? '🗂️' : '📄'}</span>
                 <span>${dom.escapeHtml(p.name)}</span>
                 <span class="attachment-pending-tag">${t('budget', 'on save')}</span>
-                <button type="button" class="attachment-remove" title="${t('budget', 'Remove attachment')}" data-pending-index="${i}">✕</button>
+                <button type="button" class="attachment-remove" title="${t('budget', 'Remove attachment')}" aria-label="${t('budget', 'Remove attachment')}" data-pending-index="${i}">✕</button>
             </div>`).join('');
 
         list.querySelectorAll('.attachment-remove').forEach((btn) => {
@@ -2860,7 +2863,7 @@ export default class TransactionsModule {
                     <div class="attachment-item ${a.missing ? 'attachment-missing' : ''}" data-attachment-id="${a.id}">
                         <span class="attachment-thumb">${thumb}</span>
                         ${openLink}
-                        <button type="button" class="attachment-remove" title="${t('budget', 'Remove attachment')}" data-attachment-id="${a.id}">✕</button>
+                        <button type="button" class="attachment-remove" title="${t('budget', 'Remove attachment')}" aria-label="${t('budget', 'Remove attachment')}" data-attachment-id="${a.id}">✕</button>
                     </div>`;
             }).join('') || `<span class="form-text">${t('budget', 'No receipts attached')}</span>`;
 
@@ -3345,7 +3348,7 @@ export default class TransactionsModule {
             </div>
             <div class="split-actions">
                 <button type="button" class="split-remove-btn ${isFirst ? 'disabled' : ''}"
-                        ${isFirst ? 'disabled' : ''} title="${t('budget', 'Remove')}">
+                        ${isFirst ? 'disabled' : ''} title="${t('budget', 'Remove')}" aria-label="${t('budget', 'Remove')}">
                     &times;
                 </button>
             </div>
@@ -3994,7 +3997,7 @@ export default class TransactionsModule {
             </div>
             <div class="split-actions">
                 <button type="button" class="split-remove-btn ${isFirst ? 'disabled' : ''}"
-                        ${isFirst ? 'disabled' : ''} title="${t('budget', 'Remove split')}">
+                        ${isFirst ? 'disabled' : ''} title="${t('budget', 'Remove split')}" aria-label="${t('budget', 'Remove split')}">
                     <span class="icon-delete"></span>
                 </button>
             </div>
@@ -4663,6 +4666,20 @@ export default class TransactionsModule {
         if (!transactionsTable) {
             return;
         }
+
+        // On a phone the rows are cards (see the 640px layout in style.css),
+        // and editing one small cell in place is fiddly: a tap anywhere on the
+        // card opens the full edit form instead. Runs in the capture phase so
+        // it gets there before the inline editor below. Checkboxes, buttons
+        // and links inside the card keep their own behaviour.
+        transactionsTable.addEventListener('click', (e) => {
+            if (!window.matchMedia(PHONE_CARD_QUERY).matches) return;
+            const row = e.target.closest('tr.transaction-row');
+            if (!row || e.target.closest('input, button, a, select, .linked-indicator, .cell-editing, .editing')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            this.editTransaction(parseInt(row.dataset.transactionId, 10));
+        }, true);
 
         // Handle click on editable cells
         transactionsTable.addEventListener('click', (e) => {
@@ -5386,7 +5403,7 @@ export default class TransactionsModule {
             <div class="budget-modal">
                 <div class="budget-modal-header">
                     <h2>${t('budget', 'Find Duplicate Transactions')}</h2>
-                    <button class="close-btn" title="${t('budget', 'Close')}">&times;</button>
+                    <button class="close-btn" title="${t('budget', 'Close')}" aria-label="${t('budget', 'Close')}">&times;</button>
                 </div>
                 <div class="budget-modal-body">
                     <div id="duplicates-loading" class="loading-indicator">

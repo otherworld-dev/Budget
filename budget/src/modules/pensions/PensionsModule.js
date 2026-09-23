@@ -117,13 +117,13 @@ export default class PensionsModule {
                     ${pension.monthlyContribution ? `<div class="pension-contribution">${t('budget', '{amount}/month', { amount: formatters.formatCurrency(pension.monthlyContribution, currency, this.settings) })}</div>` : ''}
                 </div>
                 <div class="pension-card-actions">
-                    <button class="pension-view-btn icon-button" title="${t('budget', 'View details')}" data-id="${pension.id}">
+                    <button class="pension-view-btn icon-button" title="${t('budget', 'View details')}" aria-label="${t('budget', 'View details')}" data-id="${pension.id}">
                         <span class="icon-info" aria-hidden="true"></span>
                     </button>
-                    <button class="pension-edit-btn icon-button" title="${t('budget', 'Edit')}" data-id="${pension.id}">
+                    <button class="pension-edit-btn icon-button" title="${t('budget', 'Edit')}" aria-label="${t('budget', 'Edit')}" data-id="${pension.id}">
                         <span class="icon-rename" aria-hidden="true"></span>
                     </button>
-                    <button class="pension-delete-btn icon-button" title="${t('budget', 'Delete')}" data-id="${pension.id}">
+                    <button class="pension-delete-btn icon-button" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}" data-id="${pension.id}">
                         <span class="icon-delete" aria-hidden="true"></span>
                     </button>
                 </div>
@@ -820,8 +820,8 @@ export default class PensionsModule {
                 // contributions/withdrawals get a delete affordance.
                 const deletable = activity.type !== 'snapshot';
                 const deleteBtn = deletable
-                    ? `<button class="icon-button activity-delete-btn" data-type="contribution" data-id="${activity.id}" title="${t('budget', 'Delete')}"><span class="icon-delete" aria-hidden="true"></span></button>`
-                    : `<button class="icon-button activity-delete-btn" data-type="snapshot" data-id="${activity.id}" title="${t('budget', 'Delete')}"><span class="icon-delete" aria-hidden="true"></span></button>`;
+                    ? `<button class="icon-button activity-delete-btn" data-type="contribution" data-id="${activity.id}" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}"><span class="icon-delete" aria-hidden="true"></span></button>`
+                    : `<button class="icon-button activity-delete-btn" data-type="snapshot" data-id="${activity.id}" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}"><span class="icon-delete" aria-hidden="true"></span></button>`;
 
                 return `
                     <div class="activity-item">
@@ -1091,8 +1091,8 @@ export default class PensionsModule {
                         <div class="recurring-sub">${t('budget', 'Next: {date}', { date: next })}</div>
                     </div>
                     <div class="recurring-actions">
-                        <button class="icon-button recurring-post-btn" data-id="${s.id}" title="${t('budget', 'Post now')}"><span class="icon-confirm" aria-hidden="true"></span></button>
-                        <button class="icon-button recurring-delete-btn" data-id="${s.id}" title="${t('budget', 'Delete')}"><span class="icon-delete" aria-hidden="true"></span></button>
+                        <button class="icon-button recurring-post-btn" data-id="${s.id}" title="${t('budget', 'Post now')}" aria-label="${t('budget', 'Post now')}"><span class="icon-confirm" aria-hidden="true"></span></button>
+                        <button class="icon-button recurring-delete-btn" data-id="${s.id}" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}"><span class="icon-delete" aria-hidden="true"></span></button>
                     </div>
                 </div>
             `;

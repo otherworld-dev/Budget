@@ -420,10 +420,10 @@ export default class BillsModule {
                                 ${t('budget', 'Mark Unpaid')}
                             </button>
                         ` : ''}
-                        <button class="bill-action-btn bill-edit-btn" data-bill-id="${bill.id}" title="${t('budget', 'Edit bill')}">
+                        <button class="bill-action-btn bill-edit-btn" data-bill-id="${bill.id}" title="${t('budget', 'Edit bill')}" aria-label="${t('budget', 'Edit bill')}">
                             <span class="icon-rename" aria-hidden="true"></span>
                         </button>
-                        <button class="bill-action-btn bill-delete-btn" data-bill-id="${bill.id}" title="${t('budget', 'Delete bill')}">
+                        <button class="bill-action-btn bill-delete-btn" data-bill-id="${bill.id}" title="${t('budget', 'Delete bill')}" aria-label="${t('budget', 'Delete bill')}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>
                     </div>
@@ -1023,6 +1023,7 @@ export default class BillsModule {
         removeBtn.className = 'bill-split-remove';
         removeBtn.textContent = '\u00d7';
         removeBtn.title = t('budget', 'Remove split');
+        removeBtn.setAttribute('aria-label', removeBtn.title);
         removeBtn.style.cssText = 'width: 28px; height: 28px; padding: 0; border: none; background: var(--color-error); color: white; border-radius: 50%; cursor: pointer; font-size: 16px; flex-shrink: 0;';
         removeBtn.addEventListener('click', () => {
             row.remove();
@@ -1455,7 +1456,7 @@ export default class BillsModule {
                 <div class="budget-modal" style="max-width: 600px;">
                     <div class="budget-modal-header">
                         <h2>${t('budget', 'Existing Transaction Found')}</h2>
-                        <button class="close-btn" title="${t('budget', 'Close')}">&times;</button>
+                        <button class="close-btn" title="${t('budget', 'Close')}" aria-label="${t('budget', 'Close')}">&times;</button>
                     </div>
                     <div class="budget-modal-body">
                         <p class="matching-tx-intro">${t('budget', 'We found existing transactions that may already represent this bill payment ({billName}, {amount}). Would you like to link one instead of creating a new transaction?', { billName: dom.escapeHtml(bill.name), amount: formatAmount(bill.amount) })}</p>
