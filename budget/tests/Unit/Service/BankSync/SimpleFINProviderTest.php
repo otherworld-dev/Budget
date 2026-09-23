@@ -72,7 +72,7 @@ class SimpleFINProviderTest extends TestCase {
 	public static function foreignUrls(): array {
 		return [
 			'other host' => ['https://evil.example/claim/abc'],
-			'internal address' => ['https://192.168.0.1/claim/abc'],
+			'internal address' => ['https://10.0.0.1/claim/abc'],
 			'look-alike suffix' => ['https://simplefin.org.evil.example/claim/abc'],
 			'look-alike prefix' => ['https://evilsimplefin.org/claim/abc'],
 			'plain http' => ['http://bridge.simplefin.org/claim/abc'],
