@@ -1,0 +1,445 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<files psalm-version="5.26.1@d747f6500b38ac4f7dfc5edbcae6e4b637d7add0">
+  <file src="lib/BackgroundJob/BillReminderJob.php">
+    <UndefinedVariable>
+      <code><![CDATA[$logger]]></code>
+    </UndefinedVariable>
+  </file>
+  <file src="lib/Controller/AccountController.php">
+    <UndefinedMagicMethod>
+      <code><![CDATA[getName]]></code>
+      <code><![CDATA[getName]]></code>
+      <code><![CDATA[getUserId]]></code>
+      <code><![CDATA[getUserId]]></code>
+    </UndefinedMagicMethod>
+  </file>
+  <file src="lib/Controller/AssetController.php">
+    <TypeDoesNotContainNull>
+      <code><![CDATA[$this->getEffectiveUserId() === null]]></code>
+    </TypeDoesNotContainNull>
+  </file>
+  <file src="lib/Controller/BankSyncController.php">
+    <RedundantCondition>
+      <code><![CDATA[$provider === 'gocardless']]></code>
+    </RedundantCondition>
+  </file>
+  <file src="lib/Controller/BillController.php">
+    <RedundantCast>
+      <code><![CDATA[(bool) $updates['autoPayEnabled']]]></code>
+    </RedundantCast>
+  </file>
+  <file src="lib/Controller/NetWorthController.php">
+    <TypeDoesNotContainNull>
+      <code><![CDATA[$this->getEffectiveUserId() === null]]></code>
+    </TypeDoesNotContainNull>
+  </file>
+  <file src="lib/Controller/PensionController.php">
+    <RedundantCast>
+      <code><![CDATA[(int) $dob->diff($now)->y]]></code>
+    </RedundantCast>
+    <TypeDoesNotContainNull>
+      <code><![CDATA[$this->getEffectiveUserId() === null]]></code>
+    </TypeDoesNotContainNull>
+  </file>
+  <file src="lib/Controller/RecurringIncomeController.php">
+    <TypeDoesNotContainType>
+      <code><![CDATA[!is_array($data)]]></code>
+    </TypeDoesNotContainType>
+  </file>
+  <file src="lib/Controller/SetupController.php">
+    <InvalidArrayOffset>
+      <code><![CDATA[$results['total']]]></code>
+    </InvalidArrayOffset>
+  </file>
+  <file src="lib/Db/AccountMapper.php">
+    <InvalidCast>
+      <code><![CDATA[$balance]]></code>
+    </InvalidCast>
+  </file>
+  <file src="lib/Db/QueryFilterBuilder.php">
+    <UndefinedInterfaceMethod>
+      <code><![CDATA[escapeLikeParameter]]></code>
+    </UndefinedInterfaceMethod>
+  </file>
+  <file src="lib/Db/TagMapper.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[$result]]></code>
+    </InvalidReturnStatement>
+    <InvalidReturnType>
+      <code><![CDATA[array<int, Tag[]>]]></code>
+    </InvalidReturnType>
+  </file>
+  <file src="lib/Db/Transaction.php">
+    <UndefinedMagicMethod>
+      <code><![CDATA[getReconSessionId]]></code>
+    </UndefinedMagicMethod>
+  </file>
+  <file src="lib/Db/TransactionMapper.php">
+    <MismatchingDocblockReturnType>
+      <code><![CDATA[float]]></code>
+    </MismatchingDocblockReturnType>
+    <RedundantFunctionCall>
+      <code><![CDATA[array_values]]></code>
+    </RedundantFunctionCall>
+    <UndefinedInterfaceMethod>
+      <code><![CDATA[escapeLikeParameter]]></code>
+    </UndefinedInterfaceMethod>
+  </file>
+  <file src="lib/Migration/Version001000011Date20260117.php">
+    <UndefinedInterfaceMethod>
+      <code><![CDATA[getConfig]]></code>
+      <code><![CDATA[getDatabaseConnection]]></code>
+    </UndefinedInterfaceMethod>
+  </file>
+  <file src="lib/Migration/Version001000012Date20260117.php">
+    <UndefinedInterfaceMethod>
+      <code><![CDATA[getConfig]]></code>
+      <code><![CDATA[getDatabaseConnection]]></code>
+    </UndefinedInterfaceMethod>
+  </file>
+  <file src="lib/Migration/Version001000015Date20260117.php">
+    <UndefinedInterfaceMethod>
+      <code><![CDATA[getConfig]]></code>
+      <code><![CDATA[getDatabaseConnection]]></code>
+    </UndefinedInterfaceMethod>
+  </file>
+  <file src="lib/Migration/Version001000016Date20260118.php">
+    <UndefinedInterfaceMethod>
+      <code><![CDATA[getConfig]]></code>
+      <code><![CDATA[getDatabaseConnection]]></code>
+    </UndefinedInterfaceMethod>
+  </file>
+  <file src="lib/Migration/Version001000018Date20260118.php">
+    <UndefinedInterfaceMethod>
+      <code><![CDATA[getConfig]]></code>
+      <code><![CDATA[getDatabaseConnection]]></code>
+    </UndefinedInterfaceMethod>
+  </file>
+  <file src="lib/Migration/Version001000028Date20260207.php">
+    <UndefinedInterfaceMethod>
+      <code><![CDATA[getConfig]]></code>
+      <code><![CDATA[getDatabaseConnection]]></code>
+    </UndefinedInterfaceMethod>
+  </file>
+  <file src="lib/Migration/Version001000065Date20260521.php">
+    <UndefinedInterfaceMethod>
+      <code><![CDATA[renameTable]]></code>
+    </UndefinedInterfaceMethod>
+  </file>
+  <file src="lib/Service/AbstractCrudService.php">
+    <UndefinedMethod>
+      <code><![CDATA[find]]></code>
+      <code><![CDATA[findAll]]></code>
+    </UndefinedMethod>
+  </file>
+  <file src="lib/Service/AccountService.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[[
+            'updated' => $updatedCount,
+            'total' => count($accounts),
+            'accounts' => $updatedAccounts,
+        ]]]></code>
+    </InvalidReturnStatement>
+    <InvalidReturnType>
+      <code><![CDATA[array{updated: int, accounts: array}]]></code>
+    </InvalidReturnType>
+    <RedundantCondition>
+      <code><![CDATA[$sharedAccountIds]]></code>
+    </RedundantCondition>
+    <TypeDoesNotContainNull>
+      <code><![CDATA[[]]]></code>
+    </TypeDoesNotContainNull>
+    <UndefinedMethod>
+      <code><![CDATA[findById]]></code>
+      <code><![CDATA[findById]]></code>
+      <code><![CDATA[findByIds]]></code>
+      <code><![CDATA[updateBalance]]></code>
+      <code><![CDATA[updateBalance]]></code>
+    </UndefinedMethod>
+  </file>
+  <file src="lib/Service/AuditService.php">
+    <RedundantCast>
+      <code><![CDATA[(string)$key]]></code>
+    </RedundantCast>
+  </file>
+  <file src="lib/Service/BankSync/BankSyncService.php">
+    <InvalidArrayOffset>
+      <code><![CDATA[$result['authorizationUrl']]]></code>
+      <code><![CDATA[$result['authorizationUrl']]]></code>
+      <code><![CDATA[$result['authorizationUrl']]]></code>
+    </InvalidArrayOffset>
+    <InvalidReturnStatement>
+      <code><![CDATA[[
+                'imported' => 0,
+                'skipped' => 0,
+                'errors' => 0,
+                'accounts' => [],
+                'discovered' => $discoveredCount,
+                'message' => $discoveredCount > 0
+                    ? $this->l->t('Found %1$s account(s). Please open Account Mappings to enable and map them, then sync again.', [$discoveredCount])
+                    : null,
+            ]]]></code>
+    </InvalidReturnStatement>
+    <InvalidReturnType>
+      <code><![CDATA[array{imported: int, skipped: int, errors: int, accounts: array}]]></code>
+    </InvalidReturnType>
+  </file>
+  <file src="lib/Service/BankSync/GoCardlessProvider.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[$data]]></code>
+      <code><![CDATA[$data]]></code>
+      <code><![CDATA[[
+                'credentials' => $credentials,
+                'accounts' => [],
+                'authorizationUrl' => $requisition['link'],
+                'requisitionId' => $requisition['id'],
+            ]]]></code>
+    </InvalidReturnStatement>
+    <InvalidReturnType>
+      <code><![CDATA[array]]></code>
+      <code><![CDATA[array]]></code>
+      <code><![CDATA[array]]></code>
+    </InvalidReturnType>
+  </file>
+  <file src="lib/Service/BankSync/ProviderFactory.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[$result]]></code>
+    </InvalidReturnStatement>
+    <InvalidReturnType>
+      <code><![CDATA[array<string, array{id: string, name: string}>]]></code>
+    </InvalidReturnType>
+  </file>
+  <file src="lib/Service/Bill/BalanceProjector.php">
+    <RedundantCondition>
+      <code><![CDATA[$out]]></code>
+    </RedundantCondition>
+    <TypeDoesNotContainType>
+      <code><![CDATA['transfersIn']]></code>
+    </TypeDoesNotContainType>
+  </file>
+  <file src="lib/Service/Bill/BillIcsService.php">
+    <RedundantCondition>
+      <code><![CDATA[$this->l10nFactory->getUserLanguage(null)]]></code>
+    </RedundantCondition>
+    <TypeDoesNotContainNull>
+      <code><![CDATA['en']]></code>
+    </TypeDoesNotContainNull>
+  </file>
+  <file src="lib/Service/BillService.php">
+    <MismatchingDocblockReturnType>
+      <code><![CDATA[Bill]]></code>
+    </MismatchingDocblockReturnType>
+    <RedundantFunctionCall>
+      <code><![CDATA[array_values]]></code>
+    </RedundantFunctionCall>
+  </file>
+  <file src="lib/Service/BudgetAlertService.php">
+    <InvalidArgument>
+      <code><![CDATA[$resolved]]></code>
+    </InvalidArgument>
+  </file>
+  <file src="lib/Service/DebtScenarioService.php">
+    <UndefinedMethod>
+      <code><![CDATA[deactivateAll]]></code>
+      <code><![CDATA[find]]></code>
+      <code><![CDATA[find]]></code>
+      <code><![CDATA[find]]></code>
+    </UndefinedMethod>
+  </file>
+  <file src="lib/Service/ExchangeRateService.php">
+    <RedundantCondition>
+      <code><![CDATA[$doc->Cube->Cube]]></code>
+    </RedundantCondition>
+    <TypeDoesNotContainType>
+      <code><![CDATA[[]]]></code>
+    </TypeDoesNotContainType>
+  </file>
+  <file src="lib/Service/GoalsService.php">
+    <InvalidArgument>
+      <code><![CDATA[$tagIds]]></code>
+    </InvalidArgument>
+  </file>
+  <file src="lib/Service/Import/FileValidator.php">
+    <InvalidOperand>
+      <code><![CDATA[$i]]></code>
+    </InvalidOperand>
+  </file>
+  <file src="lib/Service/Import/ParserFactory.php">
+    <RedundantFunctionCall>
+      <code><![CDATA[array_values]]></code>
+    </RedundantFunctionCall>
+  </file>
+  <file src="lib/Service/Import/TransactionNormalizer.php">
+    <RedundantCast>
+      <code><![CDATA[(string) $amount]]></code>
+    </RedundantCast>
+  </file>
+  <file src="lib/Service/ImportRuleService.php">
+    <UndefinedMethod>
+      <code><![CDATA[find]]></code>
+      <code><![CDATA[findActive]]></code>
+      <code><![CDATA[findActive]]></code>
+      <code><![CDATA[findActive]]></code>
+      <code><![CDATA[findActiveByIds]]></code>
+      <code><![CDATA[findAll]]></code>
+      <code><![CDATA[findGroups]]></code>
+    </UndefinedMethod>
+  </file>
+  <file src="lib/Service/ImportService.php">
+    <InvalidOperand>
+      <code><![CDATA[$index]]></code>
+      <code><![CDATA[$index]]></code>
+      <code><![CDATA[$index]]></code>
+      <code><![CDATA[$index]]></code>
+      <code><![CDATA[$index]]></code>
+      <code><![CDATA[$index]]></code>
+    </InvalidOperand>
+    <RedundantCast>
+      <code><![CDATA[(string) ($this->settingService->get($userId, 'default_currency') ?? '')]]></code>
+    </RedundantCast>
+    <RedundantCondition>
+      <code><![CDATA[$this->ruleApplicator]]></code>
+    </RedundantCondition>
+    <TypeDoesNotContainType>
+      <code><![CDATA[$accountName]]></code>
+    </TypeDoesNotContainType>
+  </file>
+  <file src="lib/Service/ImportTemplateService.php">
+    <LessSpecificImplementedReturnType>
+      <code><![CDATA[Entity]]></code>
+    </LessSpecificImplementedReturnType>
+  </file>
+  <file src="lib/Service/InvestmentService.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[[
+            'totalCost' => MoneyCalculator::toFloat(bcadd($totalCost, '0', 2)),
+            'totalProceeds' => MoneyCalculator::toFloat(bcadd($totalProceeds, '0', 2)),
+            'netInvested' => MoneyCalculator::toFloat(bcadd($netInvested, '0', 2)),
+            'currentValue' => MoneyCalculator::toFloat(bcadd($currentValue, '0', 2)),
+            'unrealisedPnL' => MoneyCalculator::toFloat($unrealisedPnL),
+            'pnlPercentage' => $pnlPercentage,
+            'baseCurrency' => $baseCurrency,
+            'conversionWarning' => $conversionFailures > 0,
+        ]]]></code>
+    </InvalidReturnStatement>
+  </file>
+  <file src="lib/Service/MigrationService.php">
+    <InvalidArrayOffset>
+      <code><![CDATA[$txResult['pensionRefs']]]></code>
+      <code><![CDATA[$txResult['reconRefs']]]></code>
+    </InvalidArrayOffset>
+    <InvalidReturnStatement>
+      <code><![CDATA[[
+            'map' => $map,
+            'links' => $links,
+            'billRefs' => $billRefs,
+            'reconRefs' => $reconRefs,
+            'pensionRefs' => $pensionRefs,
+        ]]]></code>
+    </InvalidReturnStatement>
+    <InvalidReturnType>
+      <code><![CDATA[array{map: array<int,int>, links: array<int,int>, billRefs: array<int,int>}]]></code>
+    </InvalidReturnType>
+    <RedundantCast>
+      <code><![CDATA[(int) $this->db->lastInsertId('*PREFIX*' . $spec['table'])]]></code>
+    </RedundantCast>
+  </file>
+  <file src="lib/Service/MoneyCalculator.php">
+    <RedundantCast>
+      <code><![CDATA[(string) $amount]]></code>
+    </RedundantCast>
+  </file>
+  <file src="lib/Service/Ocr/ReceiptParser.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[[
+            'merchant' => $this->findMerchant($lines),
+            'date' => $this->findDate($lines),
+            'total' => $this->findTotal($lines),
+            // The extraction service uses these to tell a receipt that
+            // reconciles perfectly well — tax added on, or savings taken off —
+            // from genuinely misread line items, and to offer per-item splits.
+            'subtotal' => $this->findLabelled($lines, self::SUBTOTAL_MARKERS),
+            'tax' => $this->findLabelled($lines, self::TAX_MARKERS),
+            // Reported positive however the receipt writes it: "-3.50",
+            // "3.50-" and "3.50" all mean the same money off.
+            'discount' => $this->absolute($this->findLabelled($lines, self::DISCOUNT_MARKERS)),
+            'lineItems' => $this->findLineItems($lines),
+        ]]]></code>
+    </InvalidReturnStatement>
+    <InvalidReturnType>
+      <code><![CDATA[array{
+     *   merchant: ?string,
+     *   date: ?string,
+     *   total: ?string,
+     *   lineItems: list<array{description: string, amount: string}>,]]></code>
+    </InvalidReturnType>
+  </file>
+  <file src="lib/Service/RecurringIncomeService.php">
+    <UndefinedMethod>
+      <code><![CDATA[findActive]]></code>
+      <code><![CDATA[findExpectedInRange]]></code>
+      <code><![CDATA[findExpectedInRange]]></code>
+      <code><![CDATA[findUpcoming]]></code>
+      <code><![CDATA[updateFields]]></code>
+    </UndefinedMethod>
+  </file>
+  <file src="lib/Service/RepairService.php">
+    <TypeDoesNotContainType>
+      <code><![CDATA[!$account]]></code>
+      <code><![CDATA[$account]]></code>
+    </TypeDoesNotContainType>
+  </file>
+  <file src="lib/Service/Report/ReportAggregator.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[[
+            'period' => ['startDate' => $startDate, 'endDate' => $endDate, 'months' => $months],
+            'sort' => $sort,
+            'baseCurrency' => $this->conversionService->getBaseCurrency($userId),
+            'mixedCurrency' => $mixedCurrency,
+            'rows' => $rows,
+            'totals' => ['monthly' => $grandMonthly, 'total' => round($grandTotal, 2)],
+        ]]]></code>
+    </InvalidReturnStatement>
+    <InvalidReturnType>
+      <code><![CDATA[array{period: array, sort: string, baseCurrency: string, rows: array, totals: array}]]></code>
+    </InvalidReturnType>
+  </file>
+  <file src="lib/Service/Report/ReportExporter.php">
+    <TypeDoesNotContainType>
+      <code><![CDATA[20.0]]></code>
+    </TypeDoesNotContainType>
+  </file>
+  <file src="lib/Service/TagSetService.php">
+    <UndefinedMethod>
+      <code><![CDATA[findByCategory]]></code>
+      <code><![CDATA[findById]]></code>
+      <code><![CDATA[nameExists]]></code>
+      <code><![CDATA[nameExists]]></code>
+    </UndefinedMethod>
+  </file>
+  <file src="lib/Service/TransactionService.php">
+    <TypeDoesNotContainType>
+      <code><![CDATA[$desc === $billNameLower]]></code>
+      <code><![CDATA[$vendor === $billNameLower]]></code>
+    </TypeDoesNotContainType>
+    <UndefinedMagicMethod>
+      <code><![CDATA[getReconSessionId]]></code>
+      <code><![CDATA[getReconSessionId]]></code>
+    </UndefinedMagicMethod>
+  </file>
+  <file src="lib/Service/TransactionTagService.php">
+    <InvalidArgument>
+      <code><![CDATA[array_values(array_unique($tagSetIds))]]></code>
+    </InvalidArgument>
+  </file>
+  <file src="lib/Service/ValidationService.php">
+    <InvalidOperand>
+      <code><![CDATA[$i]]></code>
+    </InvalidOperand>
+  </file>
+  <file src="lib/Traits/SharedAccessTrait.php">
+    <InvalidNullableReturnType>
+      <code><![CDATA[string]]></code>
+    </InvalidNullableReturnType>
+  </file>
+</files>

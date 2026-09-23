@@ -112,6 +112,9 @@ build: clean composer build-js
 	--exclude=".gitignore" \
 	--exclude=".eslintrc.js" \
 	--exclude="psalm.xml" \
+	--exclude="psalm-baseline.xml" \
+	--exclude=".php-cs-fixer.dist.php" \
+	--exclude=".php-cs-fixer.cache" \
 	--exclude="*.log" \
 	--exclude=".htaccess" \
 	./ $(build_dir)/$(app_name)
