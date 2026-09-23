@@ -19,6 +19,7 @@ use OCA\Budget\Enum\Currency;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCP\IDBConnection;
+use OCP\IL10N;
 
 /**
  * Service for exporting and importing all user data for migration between instances.
@@ -26,6 +27,15 @@ use OCP\IDBConnection;
 class MigrationService {
     private const EXPORT_VERSION = '1.2.0';
     private const APP_ID = 'budget';
+
+    /**
+     * Uncompressed size limits for a backup archive. A zip of a few KB can
+     * inflate to gigabytes, and every entry used to be read whole into
+     * memory. A real backup's largest file (transactions) is a few MB per
+     * ten thousand rows, so these leave generous room.
+     */
+    public const MAX_ENTRY_BYTES = 200 * 1024 * 1024;
+    public const MAX_TOTAL_BYTES = 500 * 1024 * 1024;
 
     /**
      * Table-level round-trip specs (#351): everything beyond the five bespoke
@@ -244,9 +254,15 @@ class MigrationService {
         private BillMapper $billMapper,
         private ImportRuleMapper $importRuleMapper,
         private SettingMapper $settingMapper,
-        private IDBConnection $db
+        private IDBConnection $db,
+        private ?IL10N $l = null
     ) {
         $this->tableCleaner = new UserTableCleaner($db);
+    }
+
+    /** Translate when a translator is wired (always, through DI). */
+    private function t(string $text, array $parameters = []): string {
+        return $this->l !== null ? $this->l->t($text, $parameters) : vsprintf($text, $parameters);
     }
 
     /**
@@ -481,9 +497,39 @@ class MigrationService {
             $files[$key] = $key . '.json';
         }
 
+        // Refuse oversized entries before reading any of them. The sizes in
+        // the zip's directory are only what the archive claims, so each read
+        // is also capped at its claimed size + 1 byte: an entry that unpacks
+        // to more than it declared is caught without inflating it further.
+        // (getFromName() allocates its length up front, so the cap must be
+        // the declared size, not the limit.)
+        $total = 0;
+        $declared = [];
+        foreach ($files as $filename) {
+            $stat = $zip->statName($filename);
+            if ($stat === false) {
+                continue;
+            }
+            $size = max(0, (int) ($stat['size'] ?? 0));
+            $declared[$filename] = $size;
+            $total += $size;
+            if ($size > static::MAX_ENTRY_BYTES || $total > static::MAX_TOTAL_BYTES) {
+                $zip->close();
+                unlink($tempFile);
+                throw new \InvalidArgumentException($this->tooLargeMessage($filename, $size > static::MAX_ENTRY_BYTES));
+            }
+        }
+
         foreach ($files as $key => $filename) {
-            $content = $zip->getFromName($filename);
+            $content = isset($declared[$filename])
+                ? $zip->getFromName($filename, $declared[$filename] + 1)
+                : false;
             if ($content !== false) {
+                if (strlen($content) > $declared[$filename]) {
+                    $zip->close();
+                    unlink($tempFile);
+                    throw new \InvalidArgumentException($this->tooLargeMessage($filename, true));
+                }
                 $decoded = json_decode($content, true);
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     $zip->close();
@@ -500,6 +546,12 @@ class MigrationService {
         unlink($tempFile);
 
         return $data;
+    }
+
+    private function tooLargeMessage(string $filename, bool $singleEntry): string {
+        return $singleEntry
+            ? $this->t('This backup cannot be imported: %1$s is larger than %2$s MB when unpacked', [$filename, (string) (static::MAX_ENTRY_BYTES / 1024 / 1024)])
+            : $this->t('This backup cannot be imported: its files add up to more than %1$s MB when unpacked', [(string) (static::MAX_TOTAL_BYTES / 1024 / 1024)]);
     }
 
     /**
