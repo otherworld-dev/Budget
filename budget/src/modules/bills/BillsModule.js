@@ -11,6 +11,7 @@ import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { serverErrorMessage } from '../../utils/helpers.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
+import { showLoadError } from '../../utils/loading.js';
 
 export default class BillsModule {
     constructor(app) {
@@ -30,6 +31,13 @@ export default class BillsModule {
     get settings() { return this.app.settings; }
 
     async loadBillsView() {
+        // Before any fetch: a failed first load must not leave the view's
+        // buttons (Add bill, filters) dead for the rest of the session.
+        if (!this._eventsSetup) {
+            this.setupBillsEventListeners();
+            this._eventsSetup = true;
+        }
+
         try {
             // Load summary first
             await this.loadBillsSummary();
@@ -49,12 +57,6 @@ export default class BillsModule {
             this.bills = await response.json();
             this.renderBills(this.bills);
 
-            // Setup event listeners (only once)
-            if (!this._eventsSetup) {
-                this.setupBillsEventListeners();
-                this._eventsSetup = true;
-            }
-
             // Populate dropdowns in bill modal
             this.populateBillModalDropdowns();
 
@@ -66,6 +68,9 @@ export default class BillsModule {
         } catch (error) {
             console.error('Failed to load bills:', error);
             showError(t('budget', 'Failed to load bills'));
+            const emptyBills = document.getElementById('empty-bills');
+            if (emptyBills) emptyBills.style.display = 'none';
+            showLoadError('bills-list', t('budget', 'Failed to load bills'), () => this.loadBillsView());
         }
     }
 

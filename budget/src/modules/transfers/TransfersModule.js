@@ -10,6 +10,7 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { initSingleDatePicker } from '../../utils/datepicker.js';
 import { serverErrorMessage, isoWeekday } from '../../utils/helpers.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
+import { showLoadError } from '../../utils/loading.js';
 import { openAccounts, pickableAccounts, accountOptionLabel } from '../../utils/accounts.js';
 
 /**
@@ -42,12 +43,21 @@ export default class TransfersModule {
     }
 
     async loadTransfersView() {
-        await this.loadTransfers();
+        const loaded = await this.loadTransfers();
         this.render();
         this.renderTransfers();
         this.updateSummary();
+        if (!loaded) {
+            // Say it failed rather than showing "No recurring transfers yet"
+            const empty = document.getElementById('empty-transfers');
+            if (empty) empty.style.display = 'none';
+            showLoadError('transfers-list', t('budget', 'Failed to load transfers'), () => this.loadTransfersView());
+        }
     }
 
+    /**
+     * @returns {Promise<boolean>} false when the fetch failed
+     */
     async loadTransfers() {
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/bills?isTransfer=true'), {
@@ -57,9 +67,11 @@ export default class TransfersModule {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             this.transfers = await response.json();
+            return true;
         } catch (error) {
             console.error('Failed to load transfers:', error);
             showError(t('budget', 'Failed to load transfers'));
+            return false;
         }
     }
 

@@ -9,7 +9,7 @@ import { translate as t } from '@nextcloud/l10n';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import * as dom from '../../utils/dom.js';
-import { showLoading, clearLoading } from '../../utils/loading.js';
+import { showLoading, showLoadError } from '../../utils/loading.js';
 
 export default class ExchangeRatesModule {
     constructor(app) {
@@ -22,6 +22,12 @@ export default class ExchangeRatesModule {
     get settings() { return this.app.settings; }
 
     async loadExchangeRatesView() {
+        // Before any fetch, so a failed first load leaves working controls.
+        if (!this._eventsSetup) {
+            this.setupEventListeners();
+            this._eventsSetup = true;
+        }
+
         showLoading('exchange-rates-list');
         try {
             const response = await fetch(OC.generateUrl('/apps/budget/api/exchange-rates'), {
@@ -30,15 +36,10 @@ export default class ExchangeRatesModule {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             this.data = await response.json();
             this.renderRatesPage();
-
-            if (!this._eventsSetup) {
-                this.setupEventListeners();
-                this._eventsSetup = true;
-            }
         } catch (error) {
             console.error('Failed to load exchange rates:', error);
-            clearLoading('exchange-rates-list');
             showError(t('budget', 'Failed to load exchange rates'));
+            showLoadError('exchange-rates-list', t('budget', 'Failed to load exchange rates'), () => this.loadExchangeRatesView());
         }
     }
 

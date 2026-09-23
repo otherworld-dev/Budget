@@ -9,6 +9,7 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { serverErrorMessage, isoWeekday } from '../../utils/helpers.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
+import { showLoadError } from '../../utils/loading.js';
 
 export default class IncomeModule {
     constructor(app) {
@@ -28,6 +29,12 @@ export default class IncomeModule {
     get settings() { return this.app.settings; }
 
     async loadIncomeView() {
+        // Before any fetch, so a failed first load leaves working buttons.
+        if (!this._eventsSetup) {
+            this.setupIncomeEventListeners();
+            this._eventsSetup = true;
+        }
+
         try {
             // Load summary first
             await this.loadIncomeSummary();
@@ -42,17 +49,14 @@ export default class IncomeModule {
             this.recurringIncome = await response.json();
             this.renderRecurringIncome(this.recurringIncome);
 
-            // Setup event listeners (only once)
-            if (!this._eventsSetup) {
-                this.setupIncomeEventListeners();
-                this._eventsSetup = true;
-            }
-
             // Populate dropdowns in income modal
             this.populateIncomeModalDropdowns();
         } catch (error) {
             console.error('Failed to load recurring income:', error);
             showError(t('budget', 'Failed to load recurring income'));
+            const emptyIncome = document.getElementById('empty-income');
+            if (emptyIncome) emptyIncome.style.display = 'none';
+            showLoadError('income-list', t('budget', 'Failed to load recurring income'), () => this.loadIncomeView());
         }
     }
 

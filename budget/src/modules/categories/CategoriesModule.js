@@ -9,6 +9,7 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import Chart from 'chart.js/auto';
 import { serverErrorMessage } from '../../utils/helpers.js';
 import { expenseProgressStatus } from '../../utils/budgetProgress.js';
+import { showLoadError } from '../../utils/loading.js';
 import { nextCategoryColor, distinctCategoryColors } from '../../utils/colors.js';
 
 export default class CategoriesModule {
@@ -77,6 +78,9 @@ export default class CategoriesModule {
     }
 
     async loadCategories() {
+        // Before any fetch (and guarded inside), so a failed first load
+        // leaves the tabs and Add button working.
+        this.setupCategoriesEventListeners();
         try {
             const [treeResponse, countsResponse, mutesResponse] = await Promise.all([
                 fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
@@ -109,11 +113,14 @@ export default class CategoriesModule {
                 // Categories this user hid from their own reports (shared ones)
                 this.reportMutedIds = new Set(await mutesResponse.json());
             }
+            if (!treeResponse.ok) throw new Error(`HTTP ${treeResponse.status}`);
             this.renderCategoriesTree();
-            this.setupCategoriesEventListeners();
         } catch (error) {
             console.error('Failed to load categories:', error);
             showError(t('budget', 'Failed to load categories'));
+            const emptyState = document.getElementById('empty-categories');
+            if (emptyState) emptyState.style.display = 'none';
+            showLoadError('categories-tree', t('budget', 'Failed to load categories'), () => this.loadCategories());
         }
     }
 

@@ -9,7 +9,7 @@ import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { serverErrorMessage, downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES, hasSplitPortion, transactionDisplayAmount } from '../../utils/helpers.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { openAccounts } from '../../utils/accounts.js';
-import { showLoading, clearLoading } from '../../utils/loading.js';
+import { showLoading, clearLoading, showLoadError } from '../../utils/loading.js';
 
 // Which account attributes are rendered in the accounts view (tiles + list).
 // User-configurable through the gear menu in the accounts header, stored in
@@ -1605,9 +1605,11 @@ export default class AccountsModule {
 
         } catch (error) {
             console.error('Failed to load account transactions:', error);
-            // Show empty state
+            // Not the "no transactions yet" empty state: that would tell the
+            // user the account is empty when the fetch simply failed.
             this.accountTransactions = [];
-            this.renderAccountTransactions();
+            showLoadError('account-transactions-body', t('budget', 'Failed to load transactions'),
+                () => this.loadAccountTransactions(accountId));
         }
     }
 

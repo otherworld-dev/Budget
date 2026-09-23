@@ -9,6 +9,7 @@ import { showSuccess, showError, showWarning, showInfo } from '../../utils/notif
 import { confirmDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { serverErrorMessage } from '../../utils/helpers.js';
+import { showLoadError } from '../../utils/loading.js';
 
 export default class RulesModule {
     constructor(app) {
@@ -90,6 +91,9 @@ export default class RulesModule {
         } catch (error) {
             console.error('Failed to load rules view:', error);
             showError(t('budget', 'Failed to load rules'));
+            const emptyRules = document.getElementById('empty-rules');
+            if (emptyRules) emptyRules.style.display = 'none';
+            showLoadError('rules-list', t('budget', 'Failed to load rules'), () => this.loadRulesView());
         }
     }
 

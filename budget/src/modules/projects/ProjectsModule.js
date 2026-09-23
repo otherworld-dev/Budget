@@ -9,7 +9,7 @@ import { showSuccess, showError, showWarning } from '../../utils/notifications.j
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import { groupProjects, progressFor, unallocated, subcategoriesOf, ownExpenseTree } from './projectMath.js';
-import { showLoading, clearLoading } from '../../utils/loading.js';
+import { showLoading, showLoadError } from '../../utils/loading.js';
 
 export default class ProjectsModule {
     constructor(app) {
@@ -34,8 +34,10 @@ export default class ProjectsModule {
             this.renderProjects(this.app.projects);
         } catch (error) {
             console.error('Failed to load projects:', error);
-            clearLoading('projects-list');
             showError(t('budget', 'Failed to load projects'));
+            const emptyState = document.getElementById('empty-projects');
+            if (emptyState) emptyState.style.display = 'none';
+            showLoadError('projects-list', t('budget', 'Failed to load projects'), () => this.loadProjectsView());
         }
     }
 

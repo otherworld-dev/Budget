@@ -19999,3 +19999,21 @@ th.sortable:focus-visible {
     outline: 2px solid var(--color-primary-element);
     outline-offset: 2px;
 }
+
+/* A view whose data failed to load (utils/loading.js showLoadError): says
+   so in place of the list, with a Retry button. */
+.budget-load-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--color-main-text);
+}
+
+.budget-load-error p {
+    margin: 0;
+    color: var(--color-error);
+    font-weight: 600;
+}
