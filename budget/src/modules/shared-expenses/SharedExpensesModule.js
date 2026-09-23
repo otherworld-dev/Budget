@@ -65,8 +65,8 @@ export default class SharedExpensesModule {
                 const date = s.transactionDate ? formatters.formatDate(s.transactionDate, this.settings) : '';
                 const amount = this.formatCurrency(s.amount, s.currency);
                 const statusBadge = s.isSettled
-                    ? `<span class="status-badge" style="background:#2e7d32;">${t('budget', 'Settled')}</span>`
-                    : `<span class="status-badge" style="background:#c9700a;">${t('budget', 'Outstanding')}</span>`;
+                    ? `<span class="status-badge badge-settled">${t('budget', 'Settled')}</span>`
+                    : `<span class="status-badge badge-outstanding">${t('budget', 'Outstanding')}</span>`;
                 return `
                     <div class="shared-with-me-item">
                         <div class="shared-with-me-main">

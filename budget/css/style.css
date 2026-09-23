@@ -6,6 +6,7 @@
 :root {
     --budget-color-negative: #b71c1c;
     --budget-color-positive: #2e7d32;
+    --budget-color-split: #6f42c1;
 }
 
 #app-navigation,
@@ -503,7 +504,7 @@
 }
 
 .hero-icon.savings svg {
-    color: #1976d2;
+    color: var(--color-primary-element);
 }
 
 .hero-content {
@@ -718,12 +719,6 @@
 }
 
 /* Tile Config Panel */
-.tile-config-panel {
-    border-top: 1px solid var(--color-border);
-    padding-top: 12px;
-    margin-top: 8px;
-}
-
 .tile-config-header {
     display: flex;
     justify-content: space-between;
@@ -1211,12 +1206,12 @@
 
 .bill-widget-item.overdue {
     background: rgba(198, 40, 40, 0.08);
-    border-left: 3px solid #c62828;
+    border-left: 3px solid var(--color-error);
 }
 
 .bill-widget-item.due-soon {
     background: rgba(245, 124, 0, 0.08);
-    border-left: 3px solid #f57c00;
+    border-left: 3px solid var(--color-warning);
 }
 
 .bill-widget-info {
@@ -1242,7 +1237,7 @@
 }
 
 .bill-widget-due.due-soon {
-    color: #f57c00;
+    color: var(--color-warning);
     font-weight: 500;
 }
 
@@ -2091,14 +2086,6 @@ button.danger:hover {
     text-align: right;
 }
 
-.account-actions {
-    display: flex;
-    gap: 8px;
-    margin-left: auto; /* Push to the right edge */
-    flex-shrink: 0; /* Prevent shrinking */
-    align-items: center;
-}
-
 /* Legacy button styling - will be overridden by .account-action-btn */
 .account-actions button:not(.account-action-btn) {
     padding: 8px;
@@ -2130,7 +2117,7 @@ button.danger:hover {
 }
 
 .account-actions .error:hover {
-    background-color: #c9302c;
+    background-color: color-mix(in srgb, var(--color-error), black 15%);
 }
 
 /* Institution Autocomplete */
@@ -2754,7 +2741,7 @@ button.danger:hover {
 }
 .view-toggle-btn.active {
     background: var(--color-primary-element, #0082c9);
-    color: #fff;
+    color: var(--color-primary-element-text, #fff);
 }
 .view-toggle-btn:hover:not(.active) {
     background: var(--color-background-hover, #f0f0f0);
@@ -3127,20 +3114,25 @@ button.danger:hover {
 }
 
 .account-status-dot.healthy {
-    background: #2e7d32;
+    background: var(--color-success);
 }
 
 .account-status-dot.warning {
-    background: #f57c00;
+    background: var(--color-warning);
 }
 
 .account-status-dot.critical {
-    background: #c62828;
+    background: var(--color-error);
 }
 
+/* The one base rule for .account-actions (three used to compete); the
+   media queries further down adjust it for small screens. */
 .account-actions {
     display: flex;
     gap: 4px;
+    margin-left: auto; /* Push to the right edge */
+    flex-shrink: 0;
+    align-items: center;
     opacity: 0;
     transition: opacity 0.2s ease;
 }
@@ -3195,13 +3187,6 @@ button.danger:hover {
     padding: 12px;
     border-radius: var(--border-radius-element, 8px);
     margin-top: 12px;
-}
-
-.account-actions {
-    display: flex;
-    gap: 4px;
-    flex-shrink: 0;
-    align-items: center;
 }
 
 .account-action-btn {
@@ -4510,7 +4495,7 @@ button.danger:hover {
 }
 
 .tags-autocomplete-item .tag-check {
-    color: #2d8c3c;
+    color: var(--color-success);
     font-weight: bold;
     font-size: 16px;
     margin-left: 8px;
@@ -4901,7 +4886,6 @@ button.danger:hover {
 /* Hide less important columns on mobile */
 @media (max-width: 640px) {
     .account-column,
-    .reconcile-column,
     .vendor-column,
     .tags-column {
         display: none;
@@ -4973,8 +4957,7 @@ button.danger:hover {
 
     #transactions-table tr.transaction-row > td.vendor-column,
     #transactions-table tr.transaction-row > td.tags-column,
-    #transactions-table tr.transaction-row > td.balance-column,
-    #transactions-table tr.transaction-row > td.reconcile-column {
+    #transactions-table tr.transaction-row > td.balance-column {
         display: none;
     }
 
@@ -7041,7 +7024,7 @@ button.danger:hover {
 .import-skipped-warning strong {
     display: block;
     margin-bottom: 4px;
-    color: #f57c00;
+    color: var(--color-warning);
 }
 
 .import-direction-warning p,
@@ -7284,13 +7267,6 @@ button.danger:hover {
     font-size: 14px;
 }
 
-.rules-table-container {
-    border: 1px solid var(--color-border);
-    border-radius: var(--border-radius-element, 8px);
-    overflow: hidden;
-    margin-bottom: 20px;
-}
-
 #rules-table {
     width: 100%;
     border-collapse: collapse;
@@ -7370,11 +7346,6 @@ button.danger:hover {
 .status-error {
     background: rgba(198, 40, 40, 0.15);
     color: var(--budget-color-negative);
-}
-
-.status-pending {
-    background: rgba(255, 152, 0, 0.1);
-    color: #ff9800;
 }
 
 /* Import Responsive Design */
@@ -7763,7 +7734,7 @@ button.danger:hover {
 
 .quality-indicator .quality-value.medium {
     background: rgba(255, 152, 0, 0.2);
-    color: #ff9800;
+    color: var(--color-warning);
 }
 
 .quality-indicator .quality-value.low {
@@ -7837,20 +7808,6 @@ button.danger:hover {
 
 .loading-state .loading-spinner {
     margin-bottom: 16px;
-}
-
-.loading-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(var(--color-main-background-rgb), 0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    backdrop-filter: blur(2px);
 }
 
 /* Skeleton Loading */
@@ -7967,7 +7924,7 @@ button.danger:hover {
 }
 
 .notification.warning {
-    border-left: 4px solid #ff9800;
+    border-left: 4px solid var(--color-warning);
 }
 
 .notification.info {
@@ -8458,7 +8415,7 @@ button.danger:hover {
 .bank-sync-warning strong {
     display: block;
     margin-bottom: 4px;
-    color: #f57c00;
+    color: var(--color-warning);
 }
 
 .bank-sync-warning p {
@@ -8593,7 +8550,7 @@ button.danger:hover {
 /* Re-authorize button */
 .btn-warning {
     background: var(--color-warning, #e9a200) !important;
-    color: #fff !important;
+    color: var(--budget-color-on-status, #fff) !important;
     border-color: var(--color-warning, #e9a200) !important;
 }
 .btn-warning:hover {
@@ -9139,18 +9096,18 @@ button.danger:hover {
 }
 
 .bill-status.overdue .status-badge {
-    background: #d32f2f;
-    color: #fff;
+    background: var(--color-error);
+    color: var(--budget-color-on-status, #fff);
 }
 
 .bill-status.due-soon .status-badge {
-    background: #ed6c02;
-    color: #fff;
+    background: var(--color-warning);
+    color: var(--budget-color-on-status, #fff);
 }
 
 .bill-status.paid .status-badge {
-    background: #2e7d32;
-    color: #fff;
+    background: var(--color-success);
+    color: var(--budget-color-on-status, #fff);
 }
 
 .bill-status.upcoming .status-badge {
@@ -9306,7 +9263,7 @@ button.danger:hover {
 }
 
 .rate-card.manual {
-    border-left: 4px solid #f59d00;
+    border-left: 4px solid var(--color-warning);
 }
 
 .rate-card.no-rate {
@@ -9378,22 +9335,22 @@ button.danger:hover {
 
 .rate-source-floatrates .status-badge {
     background: rgba(0, 130, 201, 0.12);
-    color: #0082c9;
+    color: var(--color-primary-element);
 }
 
 .rate-source-coingecko .status-badge {
     background: rgba(237, 108, 2, 0.12);
-    color: #ed6c02;
+    color: var(--color-warning);
 }
 
 .rate-source-manual .status-badge {
     background: rgba(245, 157, 0, 0.12);
-    color: #c67d00;
+    color: var(--color-warning);
 }
 
 .rate-source-ecb .status-badge {
     background: rgba(108, 117, 125, 0.12);
-    color: #6c757d;
+    color: var(--color-text-maxcontrast);
 }
 
 .rate-source-none .status-badge {
@@ -11007,7 +10964,7 @@ button.danger:hover {
 .budget-progress-fill.good {    background: var(--budget-color-positive);
 }
 
-.budget-progress-fill.warning {    background: #f57c00;
+.budget-progress-fill.warning {    background: var(--color-warning);
 }
 
 .budget-progress-fill.danger {    background: var(--budget-color-negative);
@@ -11023,7 +10980,7 @@ button.danger:hover {
     margin: 0;
     padding: 0;
     border-radius: var(--border-radius-small, 4px);
-    background: #f57c00;
+    background: var(--color-warning);
 }
 
 .budget-progress-text {
@@ -11380,7 +11337,7 @@ button.danger:hover {
 
 .summary-card-net .summary-icon {
     background: rgba(33, 150, 243, 0.1);
-    color: #2196f3;
+    color: var(--color-primary-element);
 }
 
 .summary-card-savings .summary-icon {
@@ -12189,7 +12146,7 @@ button.danger:hover {
 }
 
 .unlink-btn:hover {
-    background: #c0392b;
+    background: color-mix(in srgb, var(--color-error), black 15%);
 }
 
 /* Transaction row with linked indicator */
@@ -12657,7 +12614,7 @@ tr.pending-transaction td:first-child {
 }
 
 .bulk-match-pair .undo-match-btn:hover {
-    background: #c0392b;
+    background: color-mix(in srgb, var(--color-error), black 15%);
 }
 
 /* Needs review item */
@@ -13307,7 +13264,7 @@ tr.pending-transaction td:first-child {
 }
 
 .activity-amount.positive {
-    color: #4caf50;
+    color: var(--budget-color-positive);
 }
 
 .activity-amount.negative {
@@ -14361,7 +14318,7 @@ button.secondary.compact {
     gap: 4px;
     padding: 2px 8px;
     background: rgba(56, 142, 60, 0.12);
-    color: #388e3c;
+    color: var(--color-success);
     border-radius: 10px;
     font-size: 11px;
     font-weight: 600;
@@ -15203,7 +15160,7 @@ button.secondary.compact {
     font-weight: 600;
 }
 .shared-with-me-item .status-badge {
-    color: #fff;
+    color: var(--budget-color-on-status, #fff);
     border-radius: 10px;
     padding: 2px 8px;
     font-size: 11px;
@@ -16101,7 +16058,7 @@ button.secondary.compact {
 
 .action-badge.category {
     background: rgba(21, 101, 192, 0.12);
-    color: #1565c0;
+    color: var(--color-primary-element);
 }
 
 .action-badge.vendor {
@@ -16111,7 +16068,7 @@ button.secondary.compact {
 
 .action-badge.notes {
     background: rgba(245, 127, 23, 0.12);
-    color: #f57f17;
+    color: var(--color-warning);
 }
 
 .action-badge.none {
@@ -16343,7 +16300,7 @@ button.secondary.compact {
     padding: 8px 12px;
     border-radius: var(--border-radius, 6px);
     background: var(--color-error, #e9322d);
-    color: #fff;
+    color: var(--budget-color-on-status, #fff);
     font-size: 13px;
     white-space: pre-wrap;
 }
@@ -16950,22 +16907,22 @@ button.secondary.compact {
 /* Phase 1: New Hero Tile Styles */
 .hero-savings-rate .hero-icon {
     background: rgba(76, 175, 80, 0.1);
-    color: #4caf50;
+    color: var(--color-success);
 }
 
 .hero-cash-flow .hero-icon {
     background: rgba(33, 150, 243, 0.1);
-    color: #2196f3;
+    color: var(--color-primary-element);
 }
 
 .hero-budget-remaining .hero-icon {
     background: rgba(255, 152, 0, 0.1);
-    color: #ff9800;
+    color: var(--color-warning);
 }
 
 .hero-budget-health .hero-icon {
     background: rgba(76, 175, 80, 0.1);
-    color: #4caf50;
+    color: var(--color-success);
 }
 
 /* Phase 1: Top Categories Widget */
@@ -17199,7 +17156,7 @@ button.secondary.compact {
 /* Phase 2: Lazy-Loaded Hero Tile Styles */
 .hero-uncategorized .hero-icon {
     background: rgba(255, 152, 0, 0.1);
-    color: #ff9800;
+    color: var(--color-warning);
 }
 
 .hero-low-balance .hero-icon {
@@ -17253,7 +17210,7 @@ button.secondary.compact {
 
 .hero-debt-free .hero-icon {
     background: rgba(76, 175, 80, 0.1);
-    color: #4caf50;
+    color: var(--color-success);
 }
 
 /* Phase 3: Income Tracking Widget */
@@ -17292,7 +17249,7 @@ button.secondary.compact {
 }
 
 .income-received.warning {
-    color: #ff9800;
+    color: var(--color-warning);
 }
 
 .income-progress {
@@ -17310,7 +17267,7 @@ button.secondary.compact {
 }
 
 .income-progress-bar.warning {
-    background: #ff9800;
+    background: var(--color-warning);
 }
 
 .income-progress-bar.error {
@@ -17325,13 +17282,6 @@ button.secondary.compact {
 
 .import-item:last-child {
     border-bottom: none;
-}
-
-.import-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 4px;
 }
 
 .import-filename {
@@ -17616,7 +17566,7 @@ button.secondary.compact {
 }
 
 .danger-btn:disabled {
-    background: #ccc;
+    background: var(--color-border-dark);
     cursor: not-allowed;
     opacity: 0.6;
 }
@@ -18023,13 +17973,6 @@ button.secondary.compact {
 }
 
 /* Transfer flow layout */
-.transfer-flow {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    gap: 16px;
-    align-items: center;
-}
-
 .transfer-account-group {
     margin: 0;
 }
@@ -18082,12 +18025,6 @@ button.secondary.compact {
 
 /* Responsive adjustments for enhanced modal */
 @media (max-width: 768px) {
-    
-    .transfer-flow {
-        grid-template-columns: 1fr;
-        gap: 12px;
-    }
-
     .transfer-arrow {
         transform: rotate(90deg);
         margin: 8px auto;
@@ -18241,6 +18178,11 @@ button.secondary.compact {
     display: inline-block;
     margin-left: 6px;
     vertical-align: middle;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: var(--color-primary-element);
+    color: var(--color-primary-element-text);
+    font-size: 10px;
 }
 
 /* Heatmap View */
@@ -20158,4 +20100,45 @@ th.sortable:focus-visible {
     .widget-tile-controls {
         opacity: 1;
     }
+}
+
+/* Extra badges beside a bill, transfer or income status (split, auto-pay,
+   payments left...). Qualified by the status container so they win over its
+   .status-badge colour, which is set per status above. */
+.status-badge.badge-extra {
+    margin-left: 5px;
+}
+
+.bill-status .status-badge.badge-split,
+.status-badge.badge-split {
+    background: var(--budget-color-split, #6f42c1);
+    color: #fff;
+}
+
+.bill-status .status-badge.auto-pay,
+.income-status .status-badge.auto-create,
+.status-badge.auto-pay,
+.status-badge.auto-create {
+    background: var(--color-primary-element);
+    color: var(--color-primary-element-text);
+}
+
+.bill-status .status-badge.auto-pay-failed,
+.status-badge.auto-pay-failed {
+    background: var(--color-warning);
+    color: var(--budget-color-on-status, white);
+}
+
+.bill-status .status-badge.badge-neutral,
+.status-badge.badge-neutral {
+    background: var(--color-background-dark);
+    color: var(--color-main-text);
+}
+
+.status-badge.badge-settled {
+    background: var(--color-success);
+}
+
+.status-badge.badge-outstanding {
+    background: var(--color-warning);
 }

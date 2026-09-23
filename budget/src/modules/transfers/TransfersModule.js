@@ -361,8 +361,8 @@ export default class TransfersModule {
                         </div>
                         <div class="bill-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>
-                            ${autoPayEnabled ? `<span class="status-badge auto-pay" title="${t('budget', 'Auto-pay enabled')}" style="background: #007bff; margin-left: 5px;"><span class="icon-checkmark"></span> ${t('budget', 'Auto-pay')}</span>` : ''}
-                            ${autoPayFailed ? `<span class="status-badge auto-pay-failed" title="${t('budget', 'Auto-pay failed - disabled')}" style="background: #ffc107; color: #856404; margin-left: 5px;"><span class="icon-error"></span> ${t('budget', 'Auto-pay Failed')}</span>` : ''}
+                            ${autoPayEnabled ? `<span class="status-badge badge-extra auto-pay" title="${t('budget', 'Auto-pay enabled')}"><span class="icon-checkmark"></span> ${t('budget', 'Auto-pay')}</span>` : ''}
+                            ${autoPayFailed ? `<span class="status-badge badge-extra auto-pay-failed" title="${t('budget', 'Auto-pay failed - disabled')}"><span class="icon-error"></span> ${t('budget', 'Auto-pay Failed')}</span>` : ''}
                         </div>
                     </div>
                     <div class="bill-actions">

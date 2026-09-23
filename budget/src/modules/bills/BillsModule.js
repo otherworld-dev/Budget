@@ -399,11 +399,11 @@ export default class BillsModule {
                         </div>
                         <div class="bill-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>
-                            ${hasSplits ? `<span class="status-badge" title="${t('budget', 'Split across categories')}" style="background: #6f42c1; margin-left: 5px;">${t('budget', 'Split')}</span>` : ''}
-                            ${autoPayEnabled ? `<span class="status-badge auto-pay" title="${t('budget', 'Auto-pay enabled')}" style="background: #007bff; margin-left: 5px;"><span class="icon-checkmark"></span> ${t('budget', 'Auto-pay')}</span>` : ''}
-                            ${autoPayFailed ? `<span class="status-badge auto-pay-failed" title="${t('budget', 'Auto-pay failed - disabled')}" style="background: #ffc107; color: #856404; margin-left: 5px;"><span class="icon-error"></span> ${t('budget', 'Auto-pay Failed')}</span>` : ''}
-                            ${remainingPayments !== null ? `<span class="status-badge" title="${t('budget', 'Remaining payments')}" style="background: #6c757d; margin-left: 5px;">${t('budget', '{count} left', { count: remainingPayments })}</span>` : ''}
-                            ${endDate ? `<span class="status-badge" title="${t('budget', 'Ends {date}', { date: formatters.formatDate(endDate, this.settings) })}" style="background: #6c757d; margin-left: 5px;">${t('budget', 'Ends {date}', { date: formatters.formatDate(endDate, this.settings) })}</span>` : ''}
+                            ${hasSplits ? `<span class="status-badge badge-extra badge-split" title="${t('budget', 'Split across categories')}">${t('budget', 'Split')}</span>` : ''}
+                            ${autoPayEnabled ? `<span class="status-badge badge-extra auto-pay" title="${t('budget', 'Auto-pay enabled')}"><span class="icon-checkmark"></span> ${t('budget', 'Auto-pay')}</span>` : ''}
+                            ${autoPayFailed ? `<span class="status-badge badge-extra auto-pay-failed" title="${t('budget', 'Auto-pay failed - disabled')}"><span class="icon-error"></span> ${t('budget', 'Auto-pay Failed')}</span>` : ''}
+                            ${remainingPayments !== null ? `<span class="status-badge badge-extra badge-neutral" title="${t('budget', 'Remaining payments')}">${t('budget', '{count} left', { count: remainingPayments })}</span>` : ''}
+                            ${endDate ? `<span class="status-badge badge-extra badge-neutral" title="${t('budget', 'Ends {date}', { date: formatters.formatDate(endDate, this.settings) })}">${t('budget', 'Ends {date}', { date: formatters.formatDate(endDate, this.settings) })}</span>` : ''}
                         </div>
                     </div>
                     <div class="bill-actions">

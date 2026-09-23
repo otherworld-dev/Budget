@@ -148,7 +148,7 @@ export default class IncomeModule {
                         </div>
                         <div class="income-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>
-                            ${autoCreateEnabled ? `<span class="status-badge auto-create" title="${t('budget', 'Auto-create enabled')}" style="background: #007bff; margin-left: 5px;"><span class="icon-checkmark"></span> ${t('budget', 'Auto-create')}</span>` : ''}
+                            ${autoCreateEnabled ? `<span class="status-badge badge-extra auto-create" title="${t('budget', 'Auto-create enabled')}"><span class="icon-checkmark"></span> ${t('budget', 'Auto-create')}</span>` : ''}
                         </div>
                     </div>
                     <div class="income-actions">

@@ -1993,7 +1993,7 @@ export default class ReportsModule {
                 months.push(`<td class="month-cell ${cellClass}" title="${title}">${amount}</td>`);
             }
 
-            const transferBadge = bill.isTransfer ? ` <span class="transfer-badge" style="background: #0082c9; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px;">${t('budget', 'Transfer')}</span>` : '';
+            const transferBadge = bill.isTransfer ? ` <span class="transfer-badge">${t('budget', 'Transfer')}</span>` : '';
 
             return `
                 <tr>
