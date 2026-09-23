@@ -108,7 +108,7 @@ class AnomalyDetectionService {
 
         $categories = [];
         foreach ($this->categoryMapper->findAll($userId) as $category) {
-            if ($category->getType() === 'expense' && !($category->getExcludedFromReports() ?? false)) {
+            if ($category->getType() === 'expense') {
                 $categories[$category->getId()] = $category;
             }
         }
@@ -117,7 +117,12 @@ class AnomalyDetectionService {
         }
         $categoryIds = array_keys($categories);
 
-        $periodSpend = $this->transactionMapper->getCategorySpendingBatch($categoryIds, $spendStart, $spendEnd);
+        // Categories kept out of reports are dropped by the mapper's report
+        // choke point (#219) rather than here: they report no spending, so
+        // they never clear the minimum-spend floor below.
+        $periodSpend = $this->transactionMapper->getCategorySpendingBatch(
+            $categoryIds, $spendStart, $spendEnd, excludeReportCategories: true
+        );
 
         // The six full months before the anchor month
         $history = [];
@@ -126,7 +131,8 @@ class AnomalyDetectionService {
             $history[] = $this->transactionMapper->getCategorySpendingBatch(
                 $categoryIds,
                 $month->format('Y-m-01'),
-                $month->format('Y-m-t')
+                $month->format('Y-m-t'),
+                excludeReportCategories: true
             );
         }
 

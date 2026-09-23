@@ -520,73 +520,6 @@ class TransactionMapperTest extends TestCase {
         $this->assertSame(1, $result['billCount']);
     }
 
-    // ===== getSpendingByVendor =====
-
-    public function testGetSpendingByVendorReturnsFormattedArray(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['vendor' => 'Starbucks', 'total' => '150.00', 'count' => '10'],
-            ['vendor' => '', 'total' => '50.00', 'count' => '3'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $data = $this->mapper->getSpendingByVendor('user1', null, '2026-01-01', '2026-01-31');
-
-        $this->assertCount(2, $data);
-        $this->assertEquals('Starbucks', $data[0]['name']);
-        $this->assertEquals(150.00, $data[0]['total']);
-        $this->assertEquals(10, $data[0]['count']);
-        // Empty vendor mapped to 'Unknown'
-        $this->assertEquals('Unknown', $data[1]['name']);
-        // ... and flagged, so a consumer can label it in the user's language (#377)
-        $this->assertTrue($data[1]['unknown']);
-        $this->assertFalse($data[0]['unknown']);
-    }
-
-    // ===== getIncomeBySource =====
-
-    public function testGetIncomeBySourceReturnsFormattedArray(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['vendor' => 'Employer Inc', 'total' => '5000.00', 'count' => '1'],
-            ['vendor' => '', 'total' => '200.00', 'count' => '2'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $data = $this->mapper->getIncomeBySource('user1', null, '2026-01-01', '2026-01-31');
-
-        $this->assertCount(2, $data);
-        $this->assertEquals('Employer Inc', $data[0]['name']);
-        $this->assertEquals(5000.00, $data[0]['total']);
-        // Empty vendor mapped to 'Unknown Source'
-        $this->assertEquals('Unknown Source', $data[1]['name']);
-        // ... and flagged, so a consumer can label it in the user's language (#377)
-        $this->assertTrue($data[1]['unknown']);
-        $this->assertFalse($data[0]['unknown']);
-    }
-
-    // ===== getCashFlowByMonth =====
-
-    public function testGetCashFlowByMonthCalculatesNet(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['month' => '2026-01', 'income' => '3000.00', 'expenses' => '2000.00'],
-            ['month' => '2026-02', 'income' => '3500.00', 'expenses' => '4000.00'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $data = $this->mapper->getCashFlowByMonth('user1', null, '2026-01-01', '2026-02-28');
-
-        $this->assertCount(2, $data);
-        $this->assertEquals('2026-01', $data[0]['month']);
-        $this->assertEquals(3000.00, $data[0]['income']);
-        $this->assertEquals(2000.00, $data[0]['expenses']);
-        $this->assertEquals(1000.00, $data[0]['net']);
-
-        // Negative net
-        $this->assertEquals(-500.00, $data[1]['net']);
-    }
-
     // ===== getAccountSummaries =====
 
     public function testGetAccountSummariesReturnsIndexedByAccountId(): void {
@@ -938,37 +871,6 @@ class TransactionMapperTest extends TestCase {
         $this->assertInstanceOf(Transaction::class, $result[0]);
     }
 
-    // ===== getSpendingByAccountAggregated =====
-
-    public function testGetSpendingByAccountAggregatedReturnsFormattedArray(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['name' => 'Checking', 'total' => '1000.00', 'count' => '20'],
-            ['name' => 'Credit Card', 'total' => '500.00', 'count' => '10'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $data = $this->mapper->getSpendingByAccountAggregated('user1', '2026-01-01', '2026-01-31');
-
-        $this->assertCount(2, $data);
-        $this->assertEquals('Checking', $data[0]['name']);
-        $this->assertEquals(1000.00, $data[0]['total']);
-        $this->assertEquals(20, $data[0]['count']);
-        $this->assertEquals(50.00, $data[0]['average']); // 1000/20
-    }
-
-    public function testGetSpendingByAccountAggregatedZeroCountAverageIsZero(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['name' => 'Empty', 'total' => '0.00', 'count' => '0'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $data = $this->mapper->getSpendingByAccountAggregated('user1', '2026-01-01', '2026-01-31');
-
-        $this->assertEquals(0, $data[0]['average']);
-    }
-
     // ===== getNetChangeAll =====
 
     public function testGetNetChangeAllReturnsFloat(): void {
@@ -1112,53 +1014,6 @@ class TransactionMapperTest extends TestCase {
         $this->assertEquals(42, $linkedId);
     }
 
-    // ===== getCategorySpending (user-scoped version) =====
-
-    public function testGetCategorySpendingReturnsFloat(): void {
-        $this->result->method('fetch')->willReturn(['total' => '450.75']);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $spending = $this->mapper->getCategorySpending('user1', 5, '2026-01-01', '2026-01-31');
-
-        $this->assertEquals(450.75, $spending);
-    }
-
-    public function testGetCategorySpendingReturnsZeroForNull(): void {
-        $this->result->method('fetch')->willReturn(['total' => null]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $spending = $this->mapper->getCategorySpending('user1', 5, '2026-01-01', '2026-01-31');
-
-        $this->assertEquals(0.0, $spending);
-    }
-
-    // ===== getSplitTransactionIds =====
-
-    public function testGetSplitTransactionIdsReturnsIntArray(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['id' => '100'],
-            ['id' => '200'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $ids = $this->mapper->getSplitTransactionIds('user1', '2026-01-01', '2026-01-31');
-
-        $this->assertEquals([100, 200], $ids);
-    }
-
-    public function testGetSplitTransactionIdsReturnsEmptyArrayWhenNone(): void {
-        $this->result->method('fetchAll')->willReturn([]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $ids = $this->mapper->getSplitTransactionIds('user1', '2026-01-01', '2026-01-31');
-
-        $this->assertEmpty($ids);
-    }
-
     // ===== deleteAll =====
 
     public function testDeleteAllReturnsAffectedRows(): void {
@@ -1299,210 +1154,6 @@ class TransactionMapperTest extends TestCase {
         $this->assertContains('t.type', $eqCalls, 'gross mode still filters to the requested direction');
     }
 
-    // ===== getMonthlyTrendData =====
-
-    public function testGetMonthlyTrendDataReturnsFormattedArray(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['month' => '2026-01', 'income' => '5000.00', 'expenses' => '3000.00'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $data = $this->mapper->getMonthlyTrendData('user1', null, '2026-01-01', '2026-01-31');
-
-        $this->assertCount(1, $data);
-        $this->assertEquals('2026-01', $data[0]['month']);
-        $this->assertEquals(5000.00, $data[0]['income']);
-        $this->assertEquals(3000.00, $data[0]['expenses']);
-    }
-
-    /**
-     * The income-vs-expense trend (#219) must left-join budget_categories so it
-     * can drop transactions in excluded-from-reports categories. Guards against
-     * the exclusion wiring being silently removed (this bug regressed repeatedly
-     * when exclusion lived in scattered PHP filters instead of the query).
-     */
-    public function testGetMonthlyTrendDataLeftJoinsCategoriesForExclusion(): void {
-        $joinedTables = [];
-        $this->qb->expects($this->atLeastOnce())
-            ->method('leftJoin')
-            ->willReturnCallback(function ($from, $table, $alias, $cond = null) use (&$joinedTables) {
-                $joinedTables[] = $table;
-                return $this->qb;
-            });
-        $this->result->method('fetchAll')->willReturn([]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $this->mapper->getMonthlyTrendData('user1', null, '2026-01-01', '2026-01-31');
-
-        $this->assertContains('budget_categories', $joinedTables,
-            'getMonthlyTrendData must left-join budget_categories to exclude flagged categories (#219)');
-    }
-
-    public function testGetMonthlyTrendDataByAccountLeftJoinsCategoriesForExclusion(): void {
-        $joinedTables = [];
-        $this->qb->expects($this->atLeastOnce())
-            ->method('leftJoin')
-            ->willReturnCallback(function ($from, $table, $alias, $cond = null) use (&$joinedTables) {
-                $joinedTables[] = $table;
-                return $this->qb;
-            });
-        $this->result->method('fetchAll')->willReturn([]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $this->mapper->getMonthlyTrendDataByAccount('user1', '2026-01-01', '2026-01-31');
-
-        $this->assertContains('budget_categories', $joinedTables,
-            'getMonthlyTrendDataByAccount must left-join budget_categories to exclude flagged categories (#219)');
-    }
-
-    // ===== getTagTrendByMonth =====
-
-    public function testGetTagTrendByMonthReturnsEmptyForEmptyTagIds(): void {
-        $this->qb->expects($this->never())->method('executeQuery');
-
-        $result = $this->mapper->getTagTrendByMonth('user1', [], '2026-01-01', '2026-01-31');
-
-        $this->assertEmpty($result);
-    }
-
-    public function testGetTagTrendByMonthReturnsFormattedArray(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['month' => '2026-01', 'tag_id' => '1', 'tag_name' => 'Groceries', 'color' => '#00ff00', 'total' => '200.00'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $data = $this->mapper->getTagTrendByMonth('user1', [1], '2026-01-01', '2026-01-31');
-
-        $this->assertCount(1, $data);
-        $this->assertEquals('2026-01', $data[0]['month']);
-        $this->assertEquals(1, $data[0]['tagId']);
-        $this->assertEquals('Groceries', $data[0]['tagName']);
-        $this->assertEquals(200.00, $data[0]['total']);
-    }
-
-    // ===== getSpendingByTag =====
-
-    public function testGetSpendingByTagReturnsFormattedArray(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['id' => '1', 'name' => 'Essential', 'color' => '#ff0000', 'total' => '300.00', 'count' => '15'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $data = $this->mapper->getSpendingByTag('user1', 1, '2026-01-01', '2026-01-31');
-
-        $this->assertCount(1, $data);
-        $this->assertEquals(1, $data[0]['tagId']);
-        $this->assertEquals('Essential', $data[0]['name']);
-        $this->assertEquals(300.00, $data[0]['total']);
-        $this->assertEquals(15, $data[0]['count']);
-    }
-
-    // ===== getTagDimensionsForCategory =====
-
-    public function testGetTagDimensionsForCategoryGroupsByTagSet(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['tag_set_id' => '1', 'tag_set_name' => 'Priority', 'tag_id' => '10', 'tag_name' => 'High', 'color' => '#ff0000', 'total' => '200.00', 'count' => '5'],
-            ['tag_set_id' => '1', 'tag_set_name' => 'Priority', 'tag_id' => '11', 'tag_name' => 'Low', 'color' => '#00ff00', 'total' => '100.00', 'count' => '3'],
-            ['tag_set_id' => '2', 'tag_set_name' => 'Type', 'tag_id' => '20', 'tag_name' => 'Essential', 'color' => '#0000ff', 'total' => '150.00', 'count' => '4'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $dimensions = $this->mapper->getTagDimensionsForCategory('user1', 5, '2026-01-01', '2026-01-31');
-
-        $this->assertCount(2, $dimensions);
-
-        // First dimension: Priority
-        $this->assertEquals(1, $dimensions[0]['tagSetId']);
-        $this->assertEquals('Priority', $dimensions[0]['tagSetName']);
-        $this->assertCount(2, $dimensions[0]['tags']);
-        $this->assertEquals('High', $dimensions[0]['tags'][0]['name']);
-        $this->assertEquals('Low', $dimensions[0]['tags'][1]['name']);
-
-        // Second dimension: Type
-        $this->assertEquals(2, $dimensions[1]['tagSetId']);
-        $this->assertCount(1, $dimensions[1]['tags']);
-    }
-
-    // ===== getSpendingByTagCombination =====
-
-    public function testGetSpendingByTagCombinationGroupsByTagSet(): void {
-        $this->result->method('fetchAll')->willReturn([
-            // Transaction 1 has tags 10 and 20
-            ['id' => '1', 'amount' => '100.00', 'tag_id' => '10', 'tag_name' => 'A'],
-            ['id' => '1', 'amount' => '100.00', 'tag_id' => '20', 'tag_name' => 'B'],
-            // Transaction 2 has tags 10 and 20 (same combo)
-            ['id' => '2', 'amount' => '50.00', 'tag_id' => '10', 'tag_name' => 'A'],
-            ['id' => '2', 'amount' => '50.00', 'tag_id' => '20', 'tag_name' => 'B'],
-            // Transaction 3 has only tag 10 (filtered out by minCombinationSize)
-            ['id' => '3', 'amount' => '75.00', 'tag_id' => '10', 'tag_name' => 'A'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $combos = $this->mapper->getSpendingByTagCombination('user1', '2026-01-01', '2026-01-31');
-
-        $this->assertCount(1, $combos);
-        $this->assertEquals([10, 20], $combos[0]['tagIds']);
-        $this->assertEquals(['A', 'B'], $combos[0]['tagNames']);
-        $this->assertEquals(150.00, $combos[0]['total']);
-        $this->assertEquals(2, $combos[0]['count']);
-    }
-
-    public function testGetSpendingByTagCombinationRespectsLimit(): void {
-        // Build 3 transactions with different tag combos
-        $this->result->method('fetchAll')->willReturn([
-            ['id' => '1', 'amount' => '100.00', 'tag_id' => '10', 'tag_name' => 'A'],
-            ['id' => '1', 'amount' => '100.00', 'tag_id' => '20', 'tag_name' => 'B'],
-            ['id' => '2', 'amount' => '200.00', 'tag_id' => '30', 'tag_name' => 'C'],
-            ['id' => '2', 'amount' => '200.00', 'tag_id' => '40', 'tag_name' => 'D'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $combos = $this->mapper->getSpendingByTagCombination(
-            'user1', '2026-01-01', '2026-01-31',
-            null, null, 2, 1  // limit=1
-        );
-
-        $this->assertCount(1, $combos);
-        // Should be sorted by total DESC, so combo C+D (200) first
-        $this->assertEquals(200.00, $combos[0]['total']);
-    }
-
-    // ===== getTagCrossTabulation =====
-
-    public function testGetTagCrossTabulationBuildsMatrix(): void {
-        $this->result->method('fetchAll')->willReturn([
-            // Transaction 1: tag from set 1 (id=10) and set 2 (id=20)
-            ['id' => '1', 'amount' => '100.00', 'tag_id' => '10', 'tag_name' => 'High', 'tag_set_id' => '1', 'color' => '#ff0000'],
-            ['id' => '1', 'amount' => '100.00', 'tag_id' => '20', 'tag_name' => 'Essential', 'tag_set_id' => '2', 'color' => '#0000ff'],
-            // Transaction 2: same tag combo
-            ['id' => '2', 'amount' => '50.00', 'tag_id' => '10', 'tag_name' => 'High', 'tag_set_id' => '1', 'color' => '#ff0000'],
-            ['id' => '2', 'amount' => '50.00', 'tag_id' => '20', 'tag_name' => 'Essential', 'tag_set_id' => '2', 'color' => '#0000ff'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $result = $this->mapper->getTagCrossTabulation('user1', 1, 2, '2026-01-01', '2026-01-31');
-
-        $this->assertArrayHasKey('rows', $result);
-        $this->assertArrayHasKey('columns', $result);
-        $this->assertArrayHasKey('data', $result);
-
-        $this->assertCount(1, $result['rows']);    // One tag from set 1
-        $this->assertCount(1, $result['columns']); // One tag from set 2
-        $this->assertCount(1, $result['data']);     // One cell in matrix
-
-        $this->assertEquals(150.00, $result['data'][0]['total']);
-        $this->assertEquals(2, $result['data'][0]['count']);
-    }
-
     // ===== getCategorySpendingByBucketBatch (#360) =====
 
     public function testGetCategorySpendingByBucketBatchReturnsIndexedByCategoryAndBucket(): void {
@@ -1627,79 +1278,53 @@ class TransactionMapperTest extends TestCase {
         $this->assertTrue($guardFound, 'getCategoryNetByMonthBatch must OR eq(is_split, false) with NOT EXISTS(split parts)');
     }
 
-    // ===== report aggregates drop linked transfers in the all-accounts view (#349) =====
+    // ===== getCategorySpendingBatch: scope and report choke point =====
 
-    /** @var string[] every column passed to expr()->isNull() during the mapper call */
-    private array $isNullColumns = [];
-
-    private function trackIsNullColumns(): void {
-        $this->isNullColumns = [];
-        $this->expr->method('isNull')->willReturnCallback(function (string $column) {
-            $this->isNullColumns[] = $column;
-            return $column . ' IS NULL';
+    /**
+     * A selected account narrows the user's scope, it doesn't replace it:
+     * the id comes straight off the request, and on its own it let a budget
+     * report read any account at all.
+     */
+    public function testCategorySpendingBatchKeepsTheUserScopeWithASelectedAccount(): void {
+        $eqColumns = [];
+        $this->expr->method('eq')->willReturnCallback(function ($column, $value) use (&$eqColumns) {
+            // Parameter comparisons only, not join conditions
+            if ($value === ':param') {
+                $eqColumns[] = $column;
+            }
+            return 'eq';
         });
-        $this->result->method('fetchAll')->willReturn([]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+        $inColumns = [];
+        $this->expr->method('in')->willReturnCallback(function ($column) use (&$inColumns) {
+            $inColumns[] = $column;
+            return 'in';
+        });
+        $this->qb->method('executeQuery')->willReturnCallback(fn() => $this->resultOf([]));
+
+        $this->mapper->getCategorySpendingBatch([1], '2026-01-01', '2026-01-31', 'debit', 42, false, 'user1');
+        $this->assertSame(2, count(array_keys($eqColumns, 'a.user_id', true)), 'both halves keep the owner scope');
+        $this->assertSame(2, count(array_keys($eqColumns, 't.account_id', true)), 'both halves narrow to the account');
+
+        $eqColumns = [];
+        $this->mapper->getCategorySpendingBatch([1], '2026-01-01', '2026-01-31', 'debit', 42, false, 'user1', [42, 43]);
+        $this->assertNotContains('a.user_id', $eqColumns);
+        $this->assertSame(2, count(array_keys($inColumns, 'a.id', true)), 'both halves keep the visible-account scope');
+        $this->assertSame(2, count(array_keys($eqColumns, 't.account_id', true)));
     }
 
-    public function testGetIncomeByMonthAllAccountsExcludesLinkedTransfers(): void {
-        $this->trackIsNullColumns();
-        $this->mapper->getIncomeByMonth('user1', null, '2026-01-01', '2026-01-31');
-        $this->assertContains('t.linked_transaction_id', $this->isNullColumns);
-    }
+    public function testCategorySpendingBatchCanApplyTheReportChokePoint(): void {
+        $joins = [];
+        $this->qb->method('leftJoin')->willReturnCallback(function ($from, $table) use (&$joins) {
+            $joins[] = "{$from}->{$table}";
+            return $this->qb;
+        });
+        $this->qb->method('executeQuery')->willReturnCallback(fn() => $this->resultOf([]));
 
-    public function testGetIncomeBySourceAllAccountsExcludesLinkedTransfers(): void {
-        $this->trackIsNullColumns();
-        $this->mapper->getIncomeBySource('user1', null, '2026-01-01', '2026-01-31');
-        $this->assertContains('t.linked_transaction_id', $this->isNullColumns);
-    }
+        $this->mapper->getCategorySpendingBatch([1, 2], '2026-01-01', '2026-01-31');
+        $this->assertSame([], $joins, 'off by default: budgets count categories kept out of reports');
 
-    public function testGetSpendingByMonthAllAccountsExcludesLinkedTransfers(): void {
-        $this->trackIsNullColumns();
-        $this->mapper->getSpendingByMonth('user1', null, '2026-01-01', '2026-01-31');
-        $this->assertContains('t.linked_transaction_id', $this->isNullColumns);
-    }
-
-    public function testGetSpendingByVendorAllAccountsExcludesLinkedTransfers(): void {
-        $this->trackIsNullColumns();
-        $this->mapper->getSpendingByVendor('user1', null, '2026-01-01', '2026-01-31');
-        $this->assertContains('t.linked_transaction_id', $this->isNullColumns);
-    }
-
-    public function testGetSpendingByAccountAggregatedExcludesLinkedTransfers(): void {
-        $this->trackIsNullColumns();
-        $this->mapper->getSpendingByAccountAggregated('user1', '2026-01-01', '2026-01-31');
-        $this->assertContains('t.linked_transaction_id', $this->isNullColumns);
-    }
-
-    public function testGetIncomeByTagAllAccountsExcludesLinkedTransfers(): void {
-        $this->trackIsNullColumns();
-        $this->mapper->getIncomeByTag('user1', 3, '2026-01-01', '2026-01-31', null);
-        $this->assertContains('t.linked_transaction_id', $this->isNullColumns);
-    }
-
-    public function testGetSpendingByTagAllAccountsExcludesLinkedTransfers(): void {
-        $this->trackIsNullColumns();
-        $this->mapper->getSpendingByTag('user1', 3, '2026-01-01', '2026-01-31', null);
-        $this->assertContains('t.linked_transaction_id', $this->isNullColumns);
-    }
-
-    public function testSingleAccountReportAggregatesKeepTransferLegs(): void {
-        $this->trackIsNullColumns();
-        $calls = [
-            'getIncomeByMonth' => fn() => $this->mapper->getIncomeByMonth('user1', 5, '2026-01-01', '2026-01-31'),
-            'getIncomeBySource' => fn() => $this->mapper->getIncomeBySource('user1', 5, '2026-01-01', '2026-01-31'),
-            'getSpendingByMonth' => fn() => $this->mapper->getSpendingByMonth('user1', 5, '2026-01-01', '2026-01-31'),
-            'getSpendingByVendor' => fn() => $this->mapper->getSpendingByVendor('user1', 5, '2026-01-01', '2026-01-31'),
-            'getIncomeByTag' => fn() => $this->mapper->getIncomeByTag('user1', 3, '2026-01-01', '2026-01-31', 5),
-            'getSpendingByTag' => fn() => $this->mapper->getSpendingByTag('user1', 3, '2026-01-01', '2026-01-31', 5),
-        ];
-        foreach ($calls as $method => $call) {
-            $this->isNullColumns = [];
-            $call();
-            $this->assertNotContains('t.linked_transaction_id', $this->isNullColumns, $method);
-        }
+        $this->mapper->getCategorySpendingBatch([1, 2], '2026-01-01', '2026-01-31', excludeReportCategories: true);
+        $this->assertSame(['t->budget_categories', 's->budget_categories'], $joins);
     }
 
     // ===== findDuplicates (#333) =====

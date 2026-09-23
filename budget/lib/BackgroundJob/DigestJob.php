@@ -4,32 +4,30 @@ declare(strict_types=1);
 
 namespace OCA\Budget\BackgroundJob;
 
-use OCA\Budget\Service\AnomalyDetectionService;
-use OCA\Budget\Service\BudgetAlertService;
-use OCA\Budget\Service\DigestService;
-use OCA\Budget\Service\Forecast\ForecastWarningService;
-use OCA\Budget\Service\SettingService;
+use OCA\Budget\BackgroundJob\Queued\UserDigestJob;
+use OCA\Budget\BackgroundJob\Support\JobUsers;
 use OCP\AppFramework\Utility\ITimeFactory;
+use OCP\BackgroundJob\IJobList;
 use OCP\BackgroundJob\TimedJob;
 use OCP\IDBConnection;
 use OCP\Server;
 use Psr\Log\LoggerInterface;
 
 /**
- * Daily job for digests and the per-user alert checks.
+ * Daily fan-out of the digests and the per-user alert checks.
  *
- * Digest scheduling uses PERIOD KEYS, not timestamps: each run computes the
- * current ISO week (weekly) or month (monthly); when it differs from the
- * stored `digest_last_period`, the digest for the period that just ended is
- * sent and the key updated. Cron downtime self-heals on the next run and
- * a period is never sent twice.
+ * Visiting every user inside this one job ran a digest plus three alert
+ * checks for each of them in a single cron slot, however many users there
+ * were. Instead it queues one UserDigestJob per user — everyone who owns an
+ * account (the alert checks default on) plus anyone opted in to the digest —
+ * and cron works through that queue under its own time limits, a few users
+ * per run. See UserDigestJob for the per-user work.
  *
- * The alert checks — unusual spending, budget thresholds and negative cash
- * flow forecasts — run for every user of the app. Each DEFAULTS ON, so the
- * opt-out is an explicit 'false' rather than a missing row, and each is
- * guarded separately: one check failing must not cost the user the others.
- * Their suppression (per category per month, per category per budget period,
- * per month) lives in the services themselves.
+ * A user whose job from an earlier day is still waiting is left alone:
+ * IJobList::add() on an existing job moves it to the back of the queue, so
+ * re-adding every user daily would push the same users back each time a
+ * backlog never drained. Left alone, every queued job keeps its place and
+ * runs in turn — nobody is skipped for ever.
  */
 class DigestJob extends TimedJob {
 
@@ -41,99 +39,24 @@ class DigestJob extends TimedJob {
     }
 
     protected function run($argument): void {
-        $db = Server::get(IDBConnection::class);
-        $settingService = Server::get(SettingService::class);
-        $digestService = Server::get(DigestService::class);
-        $anomalyService = Server::get(AnomalyDetectionService::class);
-        $budgetAlertService = Server::get(BudgetAlertService::class);
-        $forecastWarningService = Server::get(ForecastWarningService::class);
-        $logger = Server::get(LoggerInterface::class);
+        $jobList = Server::get(IJobList::class);
+        $users = new JobUsers(Server::get(IDBConnection::class));
 
-        $digestsSent = 0;
-        $alertUsers = 0;
-
-        // Digests — only users who opted in are visited
-        foreach ($this->getOptedInUserIds($db, 'digest_enabled') as $userId) {
-            try {
-                $frequency = $settingService->get($userId, 'digest_frequency') === 'monthly' ? 'monthly' : 'weekly';
-                $currentPeriod = $frequency === 'monthly' ? date('Y-m') : date('o-\WW');
-
-                if ($settingService->get($userId, 'digest_last_period') === $currentPeriod) {
-                    continue;
-                }
-
-                $digestService->sendDigest($userId, $frequency);
-                $settingService->set($userId, 'digest_last_period', $currentPeriod);
-                $digestsSent++;
-            } catch (\Exception $e) {
-                $logger->warning("Digest failed for {$userId}: " . $e->getMessage(), ['app' => 'budget']);
+        $queued = 0;
+        $waiting = 0;
+        foreach (JobUsers::union($users->withSettingEnabled('digest_enabled'), $users->accountOwners()) as $userId) {
+            $jobArgument = ['userId' => $userId];
+            if ($jobList->has(UserDigestJob::class, $jobArgument)) {
+                $waiting++;
+                continue;
             }
+            $jobList->add(UserDigestJob::class, $jobArgument);
+            $queued++;
         }
 
-        // Per-user alert checks (each default on — off only on explicit 'false')
-        foreach ($this->getAlertUserIds($db) as $userId) {
-            $alertUsers++;
-
-            try {
-                if ($settingService->get($userId, 'anomaly_alerts_enabled') !== 'false') {
-                    $anomalyService->detectAndNotify($userId);
-                }
-            } catch (\Exception $e) {
-                $logger->warning("Anomaly detection failed for {$userId}: " . $e->getMessage(), ['app' => 'budget']);
-            }
-
-            try {
-                if ($settingService->get($userId, 'notification_budget_alert') !== 'false') {
-                    $budgetAlertService->notifyAlerts($userId);
-                }
-            } catch (\Exception $e) {
-                $logger->warning("Budget alerts failed for {$userId}: " . $e->getMessage(), ['app' => 'budget']);
-            }
-
-            try {
-                if ($settingService->get($userId, 'notification_forecast_warning') !== 'false') {
-                    $forecastWarningService->checkAndNotify($userId);
-                }
-            } catch (\Exception $e) {
-                $logger->warning("Forecast warning failed for {$userId}: " . $e->getMessage(), ['app' => 'budget']);
-            }
-        }
-
-        $logger->info("Digest job completed: {$digestsSent} digests sent, {$alertUsers} users checked for alerts", ['app' => 'budget']);
-    }
-
-    /**
-     * Users whose setting $key is 'true'.
-     *
-     * @return string[]
-     */
-    private function getOptedInUserIds(IDBConnection $db, string $key): array {
-        $qb = $db->getQueryBuilder();
-        $qb->selectDistinct('user_id')
-            ->from('budget_settings')
-            ->where($qb->expr()->eq('key', $qb->createNamedParameter($key)))
-            ->andWhere($qb->expr()->eq('value', $qb->createNamedParameter('true')));
-
-        $result = $qb->executeQuery();
-        $userIds = array_map(fn($row) => (string) $row['user_id'], $result->fetchAll());
-        $result->closeCursor();
-        return $userIds;
-    }
-
-    /**
-     * The alert checks default to ON, so enumerate everyone who uses the app
-     * (distinct owners of accounts); each explicit 'false' opt-out is checked
-     * per user in run().
-     *
-     * @return string[]
-     */
-    private function getAlertUserIds(IDBConnection $db): array {
-        $qb = $db->getQueryBuilder();
-        $qb->selectDistinct('user_id')->from('budget_accounts');
-
-        $result = $qb->executeQuery();
-        $userIds = array_map(fn($row) => (string) $row['user_id'], $result->fetchAll());
-        $result->closeCursor();
-        return $userIds;
+        Server::get(LoggerInterface::class)->info(
+            "Digest job queued {$queued} users" . ($waiting > 0 ? ", {$waiting} still waiting from an earlier run" : ''),
+            ['app' => 'budget']
+        );
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\BackgroundJob;
 
+use OCA\Budget\BackgroundJob\Support\JobUsers;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Service\InterestService;
 use OCP\AppFramework\Utility\ITimeFactory;
@@ -74,19 +75,12 @@ class InterestAccrualJob extends TimedJob {
         }
     }
 
+    /**
+     * Users with at least one account accruing interest.
+     *
+     * @return string[]
+     */
     private function getAllUserIds(IDBConnection $db): array {
-        $qb = $db->getQueryBuilder();
-        $qb->selectDistinct('user_id')
-            ->from('budget_accounts')
-            ->where($qb->expr()->eq('interest_enabled', $qb->createNamedParameter(true, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_BOOL)));
-
-        $result = $qb->executeQuery();
-        $userIds = [];
-        while ($row = $result->fetch()) {
-            $userIds[] = $row['user_id'];
-        }
-        $result->closeCursor();
-
-        return $userIds;
+        return (new JobUsers($db))->from('budget_accounts', ['interest_enabled' => true]);
     }
 }

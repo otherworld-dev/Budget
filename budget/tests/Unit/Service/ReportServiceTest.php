@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Tests\Unit\Service;
 
-use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Service\Report\ReportAggregator;
 use OCA\Budget\Service\Report\ReportCalculator;
 use OCA\Budget\Service\Report\ReportExporter;
@@ -18,23 +17,49 @@ class ReportServiceTest extends TestCase {
     private ReportAggregator $aggregator;
     private ReportExporter $exporter;
     private TagReportService $tagReportService;
-    private CategoryMapper $categoryMapper;
 
     protected function setUp(): void {
         $this->calculator = $this->createMock(ReportCalculator::class);
         $this->aggregator = $this->createMock(ReportAggregator::class);
         $this->exporter = $this->createMock(ReportExporter::class);
         $this->tagReportService = $this->createMock(TagReportService::class);
-        $this->categoryMapper = $this->createMock(CategoryMapper::class);
-        $this->categoryMapper->method('findAll')->willReturn([]);
 
         $this->service = new ReportService(
             $this->calculator,
             $this->aggregator,
             $this->exporter,
-            $this->tagReportService,
-            $this->categoryMapper
+            $this->tagReportService
         );
+    }
+
+    // ===== one report scope for every grouping (#219) =====
+
+    /**
+     * Excluded categories are dropped by the mapper's SQL choke point for
+     * every grouping; the service must pass the category rows through as
+     * they come rather than filter them again in PHP (per-consumer filtering
+     * is what drifted in #219).
+     */
+    public function testSpendingByCategoryPassesTheMapperRowsThrough(): void {
+        $rows = [
+            ['id' => 3, 'name' => 'Food', 'total' => 60.0, 'count' => 2],
+            ['id' => 4, 'name' => 'Rent', 'total' => 800.0, 'count' => 1],
+        ];
+        $this->calculator->method('getSpendingByCategory')->willReturn($rows);
+        $this->calculator->method('calculateTotals')->willReturn(['amount' => 860.0, 'transactions' => 3]);
+
+        $report = $this->service->getSpendingReport('user1', '2026-01-01', '2026-01-31');
+
+        $this->assertSame($rows, $report['data']);
+    }
+
+    public function testSpendingByAccountHonoursTheSelectedAccount(): void {
+        $this->calculator->expects($this->once())->method('getSpendingByAccount')
+            ->with('user1', '2026-01-01', '2026-01-31', [5, 6], 5)
+            ->willReturn([]);
+        $this->calculator->method('calculateTotals')->willReturn(['amount' => 0.0, 'transactions' => 0]);
+
+        $this->service->getSpendingReport('user1', '2026-01-01', '2026-01-31', 5, 'account', null, null, [5, 6]);
     }
 
     // ===== generateSummary =====

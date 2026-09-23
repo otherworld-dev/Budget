@@ -8,14 +8,12 @@ use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Db\TransactionMapper;
-use OCA\Budget\Db\TransactionSplitMapper;
 use OCP\Notification\IManager as INotificationManager;
 
 class BudgetAlertService {
     private CategoryMapper $categoryMapper;
     private BudgetSnapshotMapper $budgetSnapshotMapper;
     private TransactionMapper $transactionMapper;
-    private TransactionSplitMapper $splitMapper;
     private SettingService $settingService;
 
     // Alert thresholds
@@ -40,7 +38,6 @@ class BudgetAlertService {
         CategoryMapper $categoryMapper,
         BudgetSnapshotMapper $budgetSnapshotMapper,
         TransactionMapper $transactionMapper,
-        TransactionSplitMapper $splitMapper,
         SettingService $settingService,
         private RecurringBudgetService $recurringBudgetService,
         private BudgetCarryoverService $carryoverService,
@@ -50,7 +47,6 @@ class BudgetAlertService {
         $this->categoryMapper = $categoryMapper;
         $this->budgetSnapshotMapper = $budgetSnapshotMapper;
         $this->transactionMapper = $transactionMapper;
-        $this->splitMapper = $splitMapper;
         $this->settingService = $settingService;
     }
 
@@ -231,6 +227,7 @@ class BudgetAlertService {
         // carryover (a fully depleted envelope must still alert), minus the
         // ones the user's alert scope or muted list rules out (#389)
         $categoriesWithBudgets = [];
+        $resolvedBudgets = [];
         $budgetedIds = [];
         foreach ($categories as $category) {
             if ($category->getExcludedFromReports() || isset($notBudgeted[$category->getId()])) {
@@ -246,6 +243,7 @@ class BudgetAlertService {
             $budgetedIds[$category->getId()] = true;
             if ($this->mayAlert($category->getId(), $resolved, $alertScope, $mutedCategories)) {
                 $categoriesWithBudgets[] = $category;
+                $resolvedBudgets[$category->getId()] = $resolved;
             }
         }
 
@@ -259,8 +257,11 @@ class BudgetAlertService {
         $periodRanges = $this->calculatePeriodRanges($startDay);
         $alertThreshold = $this->getAlertThreshold($userId);
 
+        // Spending for every branch in its current period, one batch per period
+        $branchSpending = $this->getBranchSpending($userId, $resolvedBudgets, $branches, $periodRanges, $visibleAccountIds);
+
         foreach ($categoriesWithBudgets as $category) {
-            $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);
+            $resolved = $resolvedBudgets[$category->getId()];
             $period = $resolved['period'];
             $budget = $resolved['amount'];
 
@@ -269,15 +270,7 @@ class BudgetAlertService {
             }
 
             $range = $periodRanges[$period];
-
-            // Get spending for this category's branch in the current period
-            $spent = $this->getCategorySpending(
-                $userId,
-                $branches[$category->getId()] ?? [$category->getId()],
-                $range['start'],
-                $range['end'],
-                $visibleAccountIds
-            );
+            $spent = $branchSpending[$category->getId()] ?? 0.0;
 
             // Classify: exactly meeting the budget is "fully used", not over (#293).
             $classified = $this->classifySpending($spent, $budget, $alertThreshold);
@@ -428,6 +421,7 @@ class BudgetAlertService {
 
         // Base budget > 0, or a non-zero envelope carryover (see getAlerts)
         $categoriesWithBudgets = [];
+        $resolvedBudgets = [];
         $budgetedIds = [];
         foreach ($categories as $category) {
             if ($category->getExcludedFromReports() || isset($notBudgeted[$category->getId()])) {
@@ -436,6 +430,7 @@ class BudgetAlertService {
             $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);
             if ($resolved['base'] > 0 || abs($resolved['carried']) >= 0.005) {
                 $categoriesWithBudgets[] = $category;
+                $resolvedBudgets[$category->getId()] = $resolved;
                 $budgetedIds[$category->getId()] = true;
             }
         }
@@ -449,8 +444,11 @@ class BudgetAlertService {
         $periodRanges = $this->calculatePeriodRanges($startDay);
         $alertThreshold = $this->getAlertThreshold($userId);
 
+        // Spending for every branch in its current period, one batch per period
+        $branchSpending = $this->getBranchSpending($userId, $resolvedBudgets, $branches, $periodRanges, $visibleAccountIds);
+
         foreach ($categoriesWithBudgets as $category) {
-            $resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);
+            $resolved = $resolvedBudgets[$category->getId()];
             $period = $resolved['period'];
             $budget = $resolved['amount'];
 
@@ -459,14 +457,7 @@ class BudgetAlertService {
             }
 
             $range = $periodRanges[$period];
-
-            $spent = $this->getCategorySpending(
-                $userId,
-                $branches[$category->getId()] ?? [$category->getId()],
-                $range['start'],
-                $range['end'],
-                $visibleAccountIds
-            );
+            $spent = $branchSpending[$category->getId()] ?? 0.0;
 
             // Classify: exactly meeting the budget is "fully used", not over (#293).
             $classified = $this->classifySpending($spent, $budget, $alertThreshold);
@@ -504,15 +495,16 @@ class BudgetAlertService {
     public function getSummary(string $userId, ?array $visibleAccountIds = null): array {
         $statuses = $this->getBudgetStatus($userId, $visibleAccountIds);
 
-        $totalBudget = 0;
-        $totalSpent = 0;
+        // Running totals through MoneyCalculator, never float += (#274)
+        $budgetSum = '0';
+        $spentSum = '0';
         $overBudgetCount = 0;
         $warningCount = 0;
         $onTrackCount = 0;
 
         foreach ($statuses as $s) {
-            $totalBudget += $s['budgetAmount'];
-            $totalSpent += $s['spent'];
+            $budgetSum = MoneyCalculator::add($budgetSum, (float) $s['budgetAmount']);
+            $spentSum = MoneyCalculator::add($spentSum, (float) $s['spent']);
 
             if ($s['status'] === 'danger') {
                 $overBudgetCount++;
@@ -523,11 +515,14 @@ class BudgetAlertService {
             }
         }
 
+        $totalBudget = MoneyCalculator::toFloat($budgetSum);
+        $totalSpent = MoneyCalculator::toFloat($spentSum);
+
         return [
             'totalCategories' => count($statuses),
-            'totalBudget' => round($totalBudget, 2),
-            'totalSpent' => round($totalSpent, 2),
-            'totalRemaining' => round($totalBudget - $totalSpent, 2),
+            'totalBudget' => $totalBudget,
+            'totalSpent' => $totalSpent,
+            'totalRemaining' => MoneyCalculator::toFloat(MoneyCalculator::subtract($budgetSum, $spentSum)),
             'overallPercentage' => $totalBudget > 0 ? round(($totalSpent / $totalBudget) * 100, 1) : 0,
             'overBudgetCount' => $overBudgetCount,
             'warningCount' => $warningCount,
@@ -627,63 +622,63 @@ class BudgetAlertService {
     }
 
     /**
-     * Get NET spending for a budget's branch within a date range: the
+     * NET spending for each budget's branch in its current period: the
      * category and the subcategories BudgetScope::spendingBranches() puts
      * under it (#551).
      *
      * Direct transactions and split allocations, with money that came back
-     * subtracted: a refunded purchase has not been spent. The budget surfaces
-     * report the same net figure (#361), and an alert that disagreed with the
-     * bar next to it would be worse than no alert — a category would be shouted
-     * at for 216.90 while the bar showed 58.29 of a 120 budget.
-     */
-    private function getCategorySpending(string $userId, array $categoryIds, string $startDate, string $endDate, ?array $visibleAccountIds = null): float {
-        $spend = 0.0;
-
-        // 'debit' is money out and counts toward the budget; 'credit' is money
-        // back and comes off it. Splits are fetched separately either way,
-        // because the mapper's direct query deliberately excludes them.
-        foreach (['debit' => 1.0, 'credit' => -1.0] as $type => $sign) {
-            foreach ($categoryIds as $categoryId) {
-                $spend += $sign * $this->transactionMapper->getCategorySpending(
-                    $userId,
-                    $categoryId,
-                    $startDate,
-                    $endDate,
-                    null,
-                    $visibleAccountIds,
-                    $type
-                );
-            }
-            $splitTotals = $this->getSplitCategoryTotals(
-                $userId,
-                $startDate,
-                $endDate,
-                $visibleAccountIds,
-                $type
-            );
-            foreach ($categoryIds as $categoryId) {
-                $spend += $sign * ($splitTotals[$categoryId] ?? 0.0);
-            }
-        }
-
-        return $spend;
-    }
-
-    /**
-     * Per-category totals from transaction splits, one direction at a time —
-     * the caller nets them.
+     * subtracted: a refunded purchase has not been spent. The figure comes
+     * from TransactionMapper::getCategorySpendingBatch(), the one definition
+     * of "net spent" the Budget page and the budget report use too (#360,
+     * #361) — an alert that disagreed with the bar next to it would be worse
+     * than no alert.
      *
-     * @return array<int, float> categoryId => total
+     * One batch per distinct period covers every branch measured over it,
+     * instead of two queries per category per branch member plus four split
+     * queries per budget (#551's N+1).
+     *
+     * @param array<int, array{period: string}> $resolvedBudgets categoryId => resolved budget
+     * @param array<int, int[]> $branches
+     * @param array<string, array{start: string, end: string}> $periodRanges
+     * @param int[]|null $visibleAccountIds
+     * @return array<int, float> categoryId => net spent over its branch
      */
-    private function getSplitCategoryTotals(string $userId, string $startDate, string $endDate, ?array $visibleAccountIds = null, string $transactionType = 'debit'): array {
-        // Get split transactions in date range
-        $splitTransactionIds = $this->transactionMapper->getSplitTransactionIds($userId, $startDate, $endDate, $visibleAccountIds, $transactionType);
-
-        if (empty($splitTransactionIds)) {
-            return [];
+    private function getBranchSpending(string $userId, array $resolvedBudgets, array $branches, array $periodRanges, ?array $visibleAccountIds): array {
+        $membersByPeriod = [];
+        foreach ($resolvedBudgets as $categoryId => $resolved) {
+            if (!isset($periodRanges[$resolved['period']])) {
+                continue;
+            }
+            foreach ($branches[$categoryId] ?? [$categoryId] as $memberId) {
+                $membersByPeriod[$resolved['period']][$memberId] = true;
+            }
         }
 
-        return $this->splitMapper->getCategoryTotals($splitTransactionIds);
+        $spendingByPeriod = [];
+        foreach ($membersByPeriod as $period => $members) {
+            $spendingByPeriod[$period] = $this->transactionMapper->getCategorySpendingBatch(
+                array_keys($members),
+                $periodRanges[$period]['start'],
+                $periodRanges[$period]['end'],
+                'debit',
+                null,
+                false,
+                $userId,
+                $visibleAccountIds
+            );
+        }
+
+        $spent = [];
+        foreach ($resolvedBudgets as $categoryId => $resolved) {
+            $memberSpending = $spendingByPeriod[$resolved['period']] ?? [];
+            $total = '0';
+            foreach ($branches[$categoryId] ?? [$categoryId] as $memberId) {
+                // Through MoneyCalculator, never float += (#274)
+                $total = MoneyCalculator::add($total, (float) ($memberSpending[$memberId] ?? 0.0), 8);
+            }
+            $spent[$categoryId] = MoneyCalculator::toFloat($total);
+        }
+
+        return $spent;
     }
 }

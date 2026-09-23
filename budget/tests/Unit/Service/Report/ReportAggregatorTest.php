@@ -9,6 +9,7 @@ use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionReportQueries;
 use OCA\Budget\Service\CurrencyConversionService;
 use OCA\Budget\Service\Report\ReportAggregator;
 use OCA\Budget\Service\Report\ReportCalculator;
@@ -18,6 +19,7 @@ class ReportAggregatorTest extends TestCase {
 	private ReportAggregator $aggregator;
 	private AccountMapper $accountMapper;
 	private TransactionMapper $transactionMapper;
+	private TransactionReportQueries $reportQueries;
 	private CategoryMapper $categoryMapper;
 	private ReportCalculator $calculator;
 	private CurrencyConversionService $conversionService;
@@ -32,6 +34,7 @@ class ReportAggregatorTest extends TestCase {
 	protected function setUp(): void {
 		$this->accountMapper = $this->createMock(AccountMapper::class);
 		$this->transactionMapper = $this->createMock(TransactionMapper::class);
+		$this->reportQueries = $this->createMock(TransactionReportQueries::class);
 		$this->categoryMapper = $this->createMock(CategoryMapper::class);
 		$this->calculator = $this->createMock(ReportCalculator::class);
 		$this->conversionService = $this->createMock(CurrencyConversionService::class);
@@ -63,6 +66,7 @@ class ReportAggregatorTest extends TestCase {
 			$this->recurringBudgetService,
 			$this->carryoverService,
 			$this->splitMapper,
+			$this->reportQueries,
 			$this->granularShareService,
 			$this->categoryMuteMapper
 		);
@@ -81,7 +85,7 @@ class ReportAggregatorTest extends TestCase {
 	private function setupDefaultMocks(): void {
 		$this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
 		$this->transactionMapper->method('getSpendingSummary')->willReturn([]);
-		$this->transactionMapper->method('getMonthlyTrendData')->willReturn([]);
+		$this->reportQueries->method('getMonthlyTrendData')->willReturn([]);
 	}
 
 	// ===== Single currency (no conversion) =====
@@ -794,5 +798,66 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertEquals(1500.00, $result['totals']['currentBalance']);
 		$this->assertEquals(1500.00, $result['totals']['totalAssets']);
 		$this->assertEquals(0.0, $result['totals']['totalLiabilities']);
+	}
+
+	// ===== Money adds through MoneyCalculator (#274) =====
+
+	/**
+	 * The summary totals were float running totals: 0.10 + 0.20 of income
+	 * came back as 0.30000000000000004 and the net as a hair off zero.
+	 */
+	public function testSummaryTotalsAddWithoutFloatDrift(): void {
+		$this->accountMapper->method('findAll')->willReturn([
+			$this->makeAccount(1, 'A', 'checking', 0.10, 'GBP'),
+			$this->makeAccount(2, 'B', 'checking', 0.20, 'GBP'),
+		]);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([
+			1 => ['income' => 0.1, 'expenses' => 0.1, 'count' => 1],
+			2 => ['income' => 0.2, 'expenses' => 0.2, 'count' => 1],
+		]);
+		$this->transactionMapper->method('getTransferTotals')->willReturn(['income' => 0.0, 'expenses' => 0.0]);
+		$this->setupDefaultMocks();
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->conversionService->method('needsConversion')->willReturn(false);
+
+		$result = $this->aggregator->generateSummary('user1', null, '2026-01-01', '2026-01-31');
+
+		$this->assertSame(0.3, $result['totals']['totalIncome']);
+		$this->assertSame(0.3, $result['totals']['totalExpenses']);
+		$this->assertSame(0.0, $result['totals']['netIncome']);
+		$this->assertSame(0.3, $result['totals']['currentBalance']);
+	}
+
+	/** Totals round to the currency they are in: a crypto total keeps its 8dp. */
+	public function testSummaryTotalsKeepTheCurrencysDecimals(): void {
+		$this->accountMapper->method('findAll')->willReturn([
+			$this->makeAccount(1, 'Wallet', 'crypto', 0.5, 'BTC'),
+		]);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([
+			1 => ['income' => 0.12345678, 'expenses' => 0.00000001, 'count' => 2],
+		]);
+		$this->transactionMapper->method('getTransferTotals')->willReturn(['income' => 0.0, 'expenses' => 0.0]);
+		$this->setupDefaultMocks();
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->conversionService->method('needsConversion')->willReturn(false);
+
+		$result = $this->aggregator->generateSummary('user1', null, '2026-01-01', '2026-01-31');
+
+		$this->assertSame(0.12345678, $result['totals']['totalIncome']);
+		$this->assertSame(0.00000001, $result['totals']['totalExpenses']);
+		$this->assertSame(0.12345677, $result['totals']['netIncome']);
+	}
+
+	public function testCashFlowTotalsAddWithoutFloatDrift(): void {
+		$this->reportQueries->method('getCashFlowByMonth')->willReturn([
+			['month' => '2026-01', 'income' => 0.1, 'expenses' => 0.2, 'net' => -0.1, 'count' => 2],
+			['month' => '2026-02', 'income' => 0.2, 'expenses' => 0.1, 'net' => 0.1, 'count' => 2],
+		]);
+
+		$result = $this->aggregator->getCashFlowReport('user1', 5, '2026-01-01', '2026-02-28');
+
+		$this->assertSame(0.3, $result['totals']['income']);
+		$this->assertSame(0.3, $result['totals']['expenses']);
+		$this->assertSame(0.0, $result['totals']['net']);
 	}
 }

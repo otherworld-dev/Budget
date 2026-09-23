@@ -7,7 +7,7 @@ namespace OCA\Budget\Service;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\ReconciliationSession;
 use OCA\Budget\Db\ReconciliationSessionMapper;
-use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionReconciliationQueries;
 use OCP\IL10N;
 
 /**
@@ -31,7 +31,7 @@ class ReconciliationService {
 
     public function __construct(
         private ReconciliationSessionMapper $sessionMapper,
-        private TransactionMapper $transactionMapper,
+        private TransactionReconciliationQueries $reconciliationQueries,
         private AccountMapper $accountMapper,
         private AuditService $auditService,
         private IL10N $l,
@@ -119,9 +119,9 @@ class ReconciliationService {
         }
 
         if ($ticked) {
-            $this->transactionMapper->tickIntoSession($accountId, $transactionIds, $session->getId());
+            $this->reconciliationQueries->tickIntoSession($accountId, $transactionIds, $session->getId());
         } else {
-            $this->transactionMapper->untickFromSession($accountId, $transactionIds, $session->getId());
+            $this->reconciliationQueries->untickFromSession($accountId, $transactionIds, $session->getId());
         }
 
         return $this->sessionState($session);
@@ -139,7 +139,7 @@ class ReconciliationService {
     public function tickAllUpToStatementDate(int $accountId, string $userId): array {
         $session = $this->requireActiveSession($accountId, $userId);
 
-        $this->transactionMapper->tickAllUpTo($accountId, $session->getStatementDate(), $session->getId());
+        $this->reconciliationQueries->tickAllUpTo($accountId, $session->getStatementDate(), $session->getId());
 
         return $this->sessionState($session);
     }
@@ -160,9 +160,9 @@ class ReconciliationService {
             );
         }
 
-        $untickedBefore = $this->transactionMapper->countUntickedBefore($accountId, $session->getStatementDate());
+        $untickedBefore = $this->reconciliationQueries->countUntickedBefore($accountId, $session->getStatementDate());
 
-        $reconciledCount = $this->transactionMapper->markSessionReconciled($session->getId());
+        $reconciledCount = $this->reconciliationQueries->markSessionReconciled($session->getId());
 
         $now = date('Y-m-d H:i:s');
         $session->setStatus(ReconciliationSession::STATUS_COMPLETED);
@@ -194,7 +194,7 @@ class ReconciliationService {
     public function cancel(int $accountId, string $userId): void {
         $session = $this->requireActiveSession($accountId, $userId);
 
-        $this->transactionMapper->clearSession($session->getId());
+        $this->reconciliationQueries->clearSession($session->getId());
         $this->sessionMapper->delete($session);
     }
 
@@ -212,8 +212,8 @@ class ReconciliationService {
      * Session payload with live sums: ticked ids, ticked total, difference.
      */
     private function sessionState(ReconciliationSession $session): array {
-        $tickedSum = $this->transactionMapper->getSessionTickedSum($session->getId());
-        $tickedIds = $this->transactionMapper->getSessionTransactionIds($session->getId());
+        $tickedSum = $this->reconciliationQueries->getSessionTickedSum($session->getId());
+        $tickedIds = $this->reconciliationQueries->getSessionTransactionIds($session->getId());
 
         $cleared = MoneyCalculator::add($session->getStartingBalance(), (string) $tickedSum);
         $difference = MoneyCalculator::subtract($session->getStatementBalance(), $cleared);
@@ -225,7 +225,7 @@ class ReconciliationService {
             // What is left to tick on or before the statement date. The bar
             // offers "tick everything up to <date>" only while this is > 0,
             // and names the number so it is never a blind bulk action (#374).
-            'untickedCount' => $this->transactionMapper->countUntickedBefore(
+            'untickedCount' => $this->reconciliationQueries->countUntickedBefore(
                 $session->getAccountId(),
                 $session->getStatementDate()
             ),
@@ -250,7 +250,7 @@ class ReconciliationService {
 
         return MoneyCalculator::add(
             (string) ($openingBalance ?? 0),
-            (string) $this->transactionMapper->getReconciledNetChange($accountId)
+            (string) $this->reconciliationQueries->getReconciledNetChange($accountId)
         );
     }
 

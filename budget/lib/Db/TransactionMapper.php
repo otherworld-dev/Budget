@@ -7,7 +7,6 @@ namespace OCA\Budget\Db;
 use OCA\Budget\Service\MoneyCalculator;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\QBMapper;
-use OCP\DB\QueryBuilder\ICompositeExpression;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 
@@ -20,141 +19,6 @@ class TransactionMapper extends QBMapper {
     public function __construct(IDBConnection $db, ?QueryFilterBuilder $filterBuilder = null) {
         parent::__construct($db, 'budget_transactions', Transaction::class);
         $this->filterBuilder = $filterBuilder ?? new QueryFilterBuilder();
-    }
-
-    /**
-     * Return a SQL expression that extracts YYYY-MM from a date column.
-     * Uses CAST to VARCHAR for PostgreSQL compatibility (SUBSTR on a native
-     * date type fails without an explicit cast). VARCHAR works on all three
-     * supported databases (MySQL, PostgreSQL, SQLite).
-     */
-    private function monthExpr(string $alias = 't'): string {
-        return "SUBSTR(CAST({$alias}.date AS CHAR(10)), 1, 7)";
-    }
-
-    /**
-     * Apply user scope to a query — either by userId or by visible account IDs.
-     * Used for granular sharing where the user can see specific shared accounts.
-     *
-     * By default this ALSO excludes accounts flagged excluded_from_reports (#286)
-     * so every "all accounts" aggregation drops them automatically. The few
-     * non-aggregate callers that must still see those accounts — the transaction
-     * list/count, search, and the generic date-range fetch — pass
-     * $includeReportExcluded = true to opt out.
-     *
-     * @param int[]|null $visibleAccountIds If provided, scope by account IDs instead of userId
-     */
-    private function applyUserScope(IQueryBuilder $qb, string $userId, ?array $visibleAccountIds = null, bool $includeReportExcluded = false): void {
-        if ($visibleAccountIds !== null && !empty($visibleAccountIds)) {
-            $qb->andWhere($qb->expr()->in('a.id', $qb->createNamedParameter($visibleAccountIds, IQueryBuilder::PARAM_INT_ARRAY)));
-        } else {
-            $qb->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
-        }
-        if (!$includeReportExcluded) {
-            $this->excludeReportExcludedAccounts($qb);
-        }
-    }
-
-    /**
-     * Match the parent transactions that own split rows.
-     *
-     * is_split post-dates its own default, so rows written before it hold NULL
-     * rather than 0/1 and an eq(true) test alone hides them — the same reason
-     * QueryFilterBuilder's uncategorised branch spells this out (#356). false
-     * stays excluded: a transaction explicitly marked unsplit must not have its
-     * leftover split rows counted on top of its own category.
-     */
-    private function splitParentPredicate(IQueryBuilder $qb, string $alias = 't'): ICompositeExpression {
-        return $qb->expr()->orX(
-            $qb->expr()->eq("{$alias}.is_split", $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)),
-            $qb->expr()->isNull("{$alias}.is_split")
-        );
-    }
-
-    /**
-     * Match the transactions whose own row speaks for itself: explicitly
-     * marked unsplit, or carrying no rows in budget_tx_splits. This is the
-     * exact complement of the split side of every per-category aggregate, so
-     * the direct and split queries partition the transactions — no row lands
-     * in both, none in neither (#360).
-     *
-     * A properly split parent has category_id NULL and usually falls out of a
-     * category-scoped query on its own, but one the pre-#356 bulk edit (or
-     * any rule run until #360) stamped a category onto kept its split rows,
-     * and nothing ever repaired those — such a row was counted at its full
-     * amount AND part by part. A NULL-flag row (is_split predates its own
-     * default) that HAS parts is a split parent regardless of the flag; a row
-     * explicitly marked unsplit keeps its own amount whatever split rows
-     * still reference it, the policy QueryFilterBuilder states for the same
-     * situation (#356).
-     *
-     * NOT splitParentPredicate()'s negation via the flag alone — the whole
-     * point is that the parts table, not the flag, settles the grey states.
-     */
-    private function directRowPredicate(IQueryBuilder $qb, string $alias = 't'): ICompositeExpression {
-        return $qb->expr()->orX(
-            $qb->expr()->eq("{$alias}.is_split", $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
-            'NOT ' . $this->hasSplitPartsExpr($qb, $alias)
-        );
-    }
-
-    /**
-     * Add a condition that drops transactions belonging to accounts flagged
-     * excluded_from_reports (#286). NULL counts as not-excluded so existing
-     * accounts are unaffected. The given alias must reference budget_accounts.
-     */
-    private function excludeReportExcludedAccounts(IQueryBuilder $qb, string $alias = 'a'): void {
-        $qb->andWhere($qb->expr()->orX(
-            $qb->expr()->isNull($alias . '.excluded_from_reports'),
-            $qb->expr()->eq($alias . '.excluded_from_reports', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL))
-        ));
-    }
-
-    /**
-     * Add a condition that drops transactions whose CATEGORY is flagged
-     * excluded_from_reports (#219). NULL/unflagged categories are kept. Use this
-     * overload when budget_categories is already joined under $alias.
-     *
-     * This is the single SQL-level choke point for category exclusion: every
-     * report/insight aggregate must route through here (or its left-join
-     * companion below) so a new report can't silently re-introduce the leak the
-     * way the old per-consumer PHP filtering did.
-     */
-    private function excludeReportExcludedCategories(IQueryBuilder $qb, string $alias = 'c', ?string $viewerUserId = null): void {
-        $qb->andWhere($qb->expr()->orX(
-            $qb->expr()->isNull($alias . '.excluded_from_reports'),
-            $qb->expr()->eq($alias . '.excluded_from_reports', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL))
-        ));
-        if ($viewerUserId !== null) {
-            $this->excludeViewerMutedCategories($qb, $alias, $viewerUserId);
-        }
-    }
-
-    /**
-     * Per-viewer companion to the owner flag above: drop transactions whose
-     * category the VIEWING user muted ("hide from my reports" on a category
-     * shared with them). The owner's excluded_from_reports flag stays
-     * owner-only because it is one switch affecting every viewer's reports;
-     * this join gives each viewer their own switch (budget_cat_mutes).
-     */
-    private function excludeViewerMutedCategories(IQueryBuilder $qb, string $catAlias, string $viewerUserId): void {
-        $muteAlias = $catAlias . '_mut';
-        $qb->leftJoin($catAlias, 'budget_cat_mutes', $muteAlias, $qb->expr()->andX(
-            $qb->expr()->eq($muteAlias . '.category_id', $catAlias . '.id'),
-            $qb->expr()->eq($muteAlias . '.user_id', $qb->createNamedParameter($viewerUserId))
-        ));
-        $qb->andWhere($qb->expr()->isNull($muteAlias . '.id'));
-    }
-
-    /**
-     * Left-join budget_categories and drop transactions whose category is flagged
-     * excluded_from_reports (#219). For aggregates that don't otherwise need the
-     * category table (e.g. monthly income/expense trends). A LEFT join keeps
-     * uncategorised (NULL category) transactions, which are never "excluded".
-     */
-    private function leftJoinExcludeReportCategories(IQueryBuilder $qb, string $txAlias = 't', string $catAlias = 'exc', ?string $viewerUserId = null): void {
-        $qb->leftJoin($txAlias, 'budget_categories', $catAlias, $qb->expr()->eq($txAlias . '.category_id', $catAlias . '.id'));
-        $this->excludeReportExcludedCategories($qb, $catAlias, $viewerUserId);
     }
 
     /**
@@ -290,8 +154,8 @@ class TransactionMapper extends QBMapper {
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
             ->andWhere($qb->expr()->isNotNull('t.category_id'))
-            ->andWhere($this->splitParentPredicate($qb))
-            ->andWhere($this->hasSplitPartsExpr($qb, 't'))
+            ->andWhere(ReportScope::splitParentPredicate($qb))
+            ->andWhere(ReportScope::hasSplitPartsExpr($qb, 't'))
             ->orderBy('t.date', 'DESC');
 
         return $this->findEntities($qb);
@@ -310,152 +174,6 @@ class TransactionMapper extends QBMapper {
             ->set('reconciled', $qb->createNamedParameter($reconciled, IQueryBuilder::PARAM_BOOL))
             ->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
             ->andWhere($qb->expr()->in('id', $qb->createNamedParameter($transactionIds, IQueryBuilder::PARAM_INT_ARRAY)));
-
-        return $qb->executeStatement();
-    }
-
-    // ==================== RECONCILIATION SESSIONS ====================
-
-    /**
-     * Signed net of all already-reconciled, non-scheduled transactions —
-     * the first-session anchor: opening_balance + this = cleared balance.
-     */
-    public function getReconciledNetChange(int $accountId): float {
-        $qb = $this->db->getQueryBuilder();
-        $qb->selectAlias(
-                $qb->createFunction('COALESCE(SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE -t.amount END), 0)'),
-                'net_change'
-            )
-            ->from($this->getTableName(), 't')
-            ->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('t.reconciled', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
-            ->andWhere(
-                $qb->expr()->orX(
-                    $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
-                    $qb->expr()->isNull('t.status')
-                )
-            );
-
-        $result = $qb->executeQuery();
-        $netChange = (float) $result->fetchOne();
-        $result->closeCursor();
-
-        return $netChange;
-    }
-
-    /**
-     * Signed net of the transactions ticked into a reconciliation session.
-     */
-    public function getSessionTickedSum(int $sessionId): float {
-        $qb = $this->db->getQueryBuilder();
-        $qb->selectAlias(
-                $qb->createFunction('COALESCE(SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE -t.amount END), 0)'),
-                'net_change'
-            )
-            ->from($this->getTableName(), 't')
-            ->where($qb->expr()->eq('t.recon_session_id', $qb->createNamedParameter($sessionId, IQueryBuilder::PARAM_INT)))
-            ->andWhere(
-                $qb->expr()->orX(
-                    $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
-                    $qb->expr()->isNull('t.status')
-                )
-            );
-
-        $result = $qb->executeQuery();
-        $sum = (float) $result->fetchOne();
-        $result->closeCursor();
-
-        return $sum;
-    }
-
-    /**
-     * Ids of transactions currently ticked into a session.
-     *
-     * @return int[]
-     */
-    public function getSessionTransactionIds(int $sessionId): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('id')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('recon_session_id', $qb->createNamedParameter($sessionId, IQueryBuilder::PARAM_INT)));
-
-        $result = $qb->executeQuery();
-        $ids = array_map(fn($row) => (int) $row['id'], $result->fetchAll());
-        $result->closeCursor();
-
-        return $ids;
-    }
-
-    /**
-     * Tick transactions into a session (account-scoped; already-reconciled
-     * rows and rows belonging to another session are never grabbed).
-     */
-    public function tickIntoSession(int $accountId, array $transactionIds, int $sessionId): int {
-        if (empty($transactionIds)) {
-            return 0;
-        }
-
-        $qb = $this->db->getQueryBuilder();
-        $qb->update($this->getTableName())
-            ->set('recon_session_id', $qb->createNamedParameter($sessionId, IQueryBuilder::PARAM_INT))
-            ->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->in('id', $qb->createNamedParameter($transactionIds, IQueryBuilder::PARAM_INT_ARRAY)))
-            ->andWhere($qb->expr()->orX(
-                $qb->expr()->eq('reconciled', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
-                $qb->expr()->isNull('reconciled')
-            ))
-            ->andWhere($qb->expr()->isNull('recon_session_id'));
-
-        return $qb->executeStatement();
-    }
-
-    /**
-     * Untick transactions from a session.
-     */
-    public function untickFromSession(int $accountId, array $transactionIds, int $sessionId): int {
-        if (empty($transactionIds)) {
-            return 0;
-        }
-
-        $qb = $this->db->getQueryBuilder();
-        $qb->update($this->getTableName())
-            ->set('recon_session_id', $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
-            ->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->in('id', $qb->createNamedParameter($transactionIds, IQueryBuilder::PARAM_INT_ARRAY)))
-            ->andWhere($qb->expr()->eq('recon_session_id', $qb->createNamedParameter($sessionId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->orX(
-                $qb->expr()->eq('reconciled', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
-                $qb->expr()->isNull('reconciled')
-            ));
-
-        return $qb->executeStatement();
-    }
-
-    /**
-     * Cancel a session: release its ticked (not yet reconciled) transactions.
-     */
-    public function clearSession(int $sessionId): int {
-        $qb = $this->db->getQueryBuilder();
-        $qb->update($this->getTableName())
-            ->set('recon_session_id', $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
-            ->where($qb->expr()->eq('recon_session_id', $qb->createNamedParameter($sessionId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->orX(
-                $qb->expr()->eq('reconciled', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
-                $qb->expr()->isNull('reconciled')
-            ));
-
-        return $qb->executeStatement();
-    }
-
-    /**
-     * Complete a session: mark everything ticked into it as reconciled.
-     * The session linkage stays — permanent provenance for history.
-     */
-    public function markSessionReconciled(int $sessionId): int {
-        $qb = $this->db->getQueryBuilder();
-        $qb->update($this->getTableName())
-            ->set('reconciled', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL))
-            ->where($qb->expr()->eq('recon_session_id', $qb->createNamedParameter($sessionId, IQueryBuilder::PARAM_INT)));
 
         return $qb->executeStatement();
     }
@@ -485,64 +203,6 @@ class TransactionMapper extends QBMapper {
             ->where($qb->expr()->in('category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)));
 
         return $qb->executeStatement();
-    }
-
-    /**
-     * Unreconciled, unticked, non-scheduled transactions dated on or before
-     * the statement date — surfaced as a heads-up when completing.
-     */
-    /**
-     * Tick every transaction of an account dated on or before the statement
-     * date into a session, in one statement.
-     *
-     * Same predicate as {@see countUntickedBefore()} - already ticked, already
-     * reconciled and scheduled rows are all left alone - because the count the
-     * button offers has to be the number it then ticks. Ticking these one page
-     * at a time is what made a first reconciliation of a real ledger 35 pages
-     * of clicking (#374).
-     */
-    public function tickAllUpTo(int $accountId, string $statementDate, int $sessionId): int {
-        $qb = $this->db->getQueryBuilder();
-        $qb->update($this->getTableName())
-            ->set('recon_session_id', $qb->createNamedParameter($sessionId, IQueryBuilder::PARAM_INT))
-            ->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->lte('date', $qb->createNamedParameter($statementDate)))
-            ->andWhere($qb->expr()->isNull('recon_session_id'))
-            ->andWhere($qb->expr()->orX(
-                $qb->expr()->eq('reconciled', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
-                $qb->expr()->isNull('reconciled')
-            ))
-            ->andWhere($qb->expr()->orX(
-                $qb->expr()->neq('status', $qb->createNamedParameter('scheduled')),
-                $qb->expr()->isNull('status')
-            ));
-
-        return $qb->executeStatement();
-    }
-
-    public function countUntickedBefore(int $accountId, string $statementDate): int {
-        $qb = $this->db->getQueryBuilder();
-        $qb->selectAlias($qb->createFunction('COUNT(*)'), 'cnt')
-            ->from($this->getTableName(), 't')
-            ->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($statementDate)))
-            ->andWhere($qb->expr()->isNull('t.recon_session_id'))
-            ->andWhere($qb->expr()->orX(
-                $qb->expr()->eq('t.reconciled', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
-                $qb->expr()->isNull('t.reconciled')
-            ))
-            ->andWhere(
-                $qb->expr()->orX(
-                    $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
-                    $qb->expr()->isNull('t.status')
-                )
-            );
-
-        $result = $qb->executeQuery();
-        $count = (int) $result->fetchOne();
-        $result->closeCursor();
-
-        return $count;
     }
 
     /**
@@ -717,7 +377,7 @@ class TransactionMapper extends QBMapper {
         $qb->select('t.*')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
+        ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
         $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->orderBy('t.date', 'DESC')
@@ -743,7 +403,7 @@ class TransactionMapper extends QBMapper {
             ->orderBy('t.date', 'DESC')
             ->setMaxResults($limit);
 
-        $this->excludeScheduledFuture($qb);
+        ReportScope::excludeScheduledFuture($qb);
 
         return $this->findEntities($qb);
     }
@@ -792,10 +452,10 @@ class TransactionMapper extends QBMapper {
 
         // Leave a transaction whose parts speak for it to the companion query
         // below — the direct/split partition directRowPredicate() explains (#360).
-        $qb->andWhere($this->directRowPredicate($qb));
+        $qb->andWhere(ReportScope::directRowPredicate($qb));
 
-        $this->excludeScheduledFuture($qb);
-        $this->excludeReportExcludedAccounts($qb);
+        ReportScope::excludeScheduledFuture($qb);
+        ReportScope::excludeReportExcludedAccounts($qb);
 
         $result = $qb->executeQuery();
         $row = $result->fetch();
@@ -826,10 +486,10 @@ class TransactionMapper extends QBMapper {
 
         $qb->andWhere($qb->expr()->in('s.category_id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
             ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($this->splitParentPredicate($qb));
+            ->andWhere(ReportScope::splitParentPredicate($qb));
 
-        $this->excludeScheduledFuture($qb);
-        $this->excludeReportExcludedAccounts($qb);
+        ReportScope::excludeScheduledFuture($qb);
+        ReportScope::excludeReportExcludedAccounts($qb);
 
         $result = $qb->executeQuery();
         $row = $result->fetch();
@@ -867,7 +527,7 @@ class TransactionMapper extends QBMapper {
         // expense categories sum debits, income categories sum credits (#265).
         // ($primaryType is strictly 'credit' or 'debit' — safe to interpolate.)
         $primaryType = $categoryType === 'income' ? 'credit' : 'debit';
-        $bucketExpr = $byDay ? 'CAST(t.date AS CHAR(10))' : $this->monthExpr();
+        $bucketExpr = $byDay ? 'CAST(t.date AS CHAR(10))' : ReportScope::monthExpr();
 
         $qb = $this->db->getQueryBuilder();
         $qb->select($qb->createFunction($bucketExpr . ' as month'))
@@ -888,10 +548,10 @@ class TransactionMapper extends QBMapper {
 
         // Leave a transaction whose parts speak for it to the companion query
         // below — the direct/split partition directRowPredicate() explains (#360).
-        $qb->andWhere($this->directRowPredicate($qb));
+        $qb->andWhere(ReportScope::directRowPredicate($qb));
 
-        $this->excludeScheduledFuture($qb);
-        $this->excludeReportExcludedAccounts($qb);
+        ReportScope::excludeScheduledFuture($qb);
+        ReportScope::excludeReportExcludedAccounts($qb);
 
         $qb->groupBy($qb->createFunction($bucketExpr))
             ->orderBy($qb->createFunction($bucketExpr), 'ASC');
@@ -943,14 +603,14 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($this->splitParentPredicate($qb));
+            ->andWhere(ReportScope::splitParentPredicate($qb));
 
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
         }
 
-        $this->excludeScheduledFuture($qb);
-        $this->excludeReportExcludedAccounts($qb);
+        ReportScope::excludeScheduledFuture($qb);
+        ReportScope::excludeReportExcludedAccounts($qb);
 
         $qb->groupBy($qb->createFunction($bucketExpr));
 
@@ -1047,10 +707,10 @@ class TransactionMapper extends QBMapper {
         // AND split parts is a split parent, not a direct row, so it must not
         // be double-listed here on top of its entry in findCategorySplitRows()
         // below — the direct/split partition directRowPredicate() explains (#360).
-        $qb->andWhere($this->directRowPredicate($qb));
+        $qb->andWhere(ReportScope::directRowPredicate($qb));
 
-        $this->excludeScheduledFuture($qb);
-        $this->excludeReportExcludedAccounts($qb);
+        ReportScope::excludeScheduledFuture($qb);
+        ReportScope::excludeReportExcludedAccounts($qb);
 
         // The id tiebreaker matters: without it, which of several same-day rows
         // the panel showed was arbitrary and could change between renders.
@@ -1092,10 +752,10 @@ class TransactionMapper extends QBMapper {
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->where($qb->expr()->in('s.category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)))
             ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($this->splitParentPredicate($qb));
+            ->andWhere(ReportScope::splitParentPredicate($qb));
 
-        $this->excludeScheduledFuture($qb);
-        $this->excludeReportExcludedAccounts($qb);
+        ReportScope::excludeScheduledFuture($qb);
+        ReportScope::excludeReportExcludedAccounts($qb);
 
         // Every selected column is grouped explicitly rather than leaning on the
         // primary key's functional dependency, which PostgreSQL and MySQL's
@@ -1136,16 +796,16 @@ class TransactionMapper extends QBMapper {
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
         // Category management count keeps excluded accounts (not a report aggregate) (#286)
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, true);
+        ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, true);
         $qb->andWhere($qb->expr()->isNotNull('t.category_id'));
 
         // A transaction whose parts speak for it is counted by the companion
         // query below, never here — the same partition the spending queries
         // use (see directRowPredicate), so a row carrying both a category and
         // parts is counted once.
-        $qb->andWhere($this->directRowPredicate($qb));
+        $qb->andWhere(ReportScope::directRowPredicate($qb));
 
-        $this->excludeScheduledFuture($qb);
+        ReportScope::excludeScheduledFuture($qb);
 
         $qb->groupBy('t.category_id');
 
@@ -1189,11 +849,11 @@ class TransactionMapper extends QBMapper {
 
         // Matches the direct query: category management counts keep accounts
         // flagged out of reports, because this is not a report aggregate (#286).
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, true);
+        ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, true);
         $qb->andWhere($qb->expr()->isNotNull('s.category_id'))
-            ->andWhere($this->splitParentPredicate($qb));
+            ->andWhere(ReportScope::splitParentPredicate($qb));
 
-        $this->excludeScheduledFuture($qb);
+        ReportScope::excludeScheduledFuture($qb);
 
         $qb->groupBy('s.category_id');
 
@@ -1308,7 +968,7 @@ class TransactionMapper extends QBMapper {
             // A NULL-flag row that actually HAS parts is a split parent too;
             // listing it for categorisation is how damaged rows (category +
             // parts both set) get created (#360). See directRowPredicate.
-            ->andWhere($this->directRowPredicate($qb))
+            ->andWhere(ReportScope::directRowPredicate($qb))
             ->orderBy('t.date', 'DESC')
             ->setMaxResults($limit);
 
@@ -1331,7 +991,7 @@ class TransactionMapper extends QBMapper {
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
 
         // List/search views still show excluded accounts' transactions (#286)
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, true);
+        ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, true);
 
         $qb->andWhere(
                 $qb->expr()->orX(
@@ -1361,7 +1021,7 @@ class TransactionMapper extends QBMapper {
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
 
         // List/search views still show excluded accounts' transactions (#286)
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, true);
+        ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, true);
 
         // Apply filters using the filter builder
         $this->filterBuilder->applyTransactionFilters($qb, $filters, 't');
@@ -1372,7 +1032,7 @@ class TransactionMapper extends QBMapper {
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $countQb->expr()->eq('t.account_id', 'a.id'));
 
-        $this->applyUserScope($countQb, $userId, $visibleAccountIds, true);
+        ReportScope::applyUserScope($countQb, $userId, $visibleAccountIds, true);
 
         // Apply same filters to count query
         $this->filterBuilder->applyTransactionFilters($countQb, $filters, 't');
@@ -1457,7 +1117,7 @@ class TransactionMapper extends QBMapper {
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
 
         // List/search views still show excluded accounts' transactions (#286)
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, true);
+        ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, true);
 
         $this->filterBuilder->applyTransactionFilters($qb, $filters, 't');
 
@@ -1516,7 +1176,7 @@ class TransactionMapper extends QBMapper {
         $qb->select('c.id', 'c.name', 'c.color', 'c.icon');
         if ($netOpposite) {
             $qb->selectAlias($qb->createFunction(
-                $this->signedAmountSum($qb, $transactionType, 't.amount')
+                ReportScope::signedAmountSum($qb, $transactionType, 't.amount')
             ), 'total');
         } else {
             $qb->selectAlias($qb->func()->sum('t.amount'), 'total');
@@ -1526,7 +1186,7 @@ class TransactionMapper extends QBMapper {
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->innerJoin('t', 'budget_categories', 'c', $qb->expr()->eq('t.category_id', 'c.id'));
 
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
+        ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
 
         $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
@@ -1535,8 +1195,8 @@ class TransactionMapper extends QBMapper {
             $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)));
         }
 
-        $this->excludeScheduledFuture($qb);
-        $this->excludeReportExcludedCategories($qb, 'c', $userId);
+        ReportScope::excludeScheduledFuture($qb);
+        ReportScope::excludeReportExcludedCategories($qb, 'c', $userId);
 
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
@@ -1547,13 +1207,13 @@ class TransactionMapper extends QBMapper {
         }
 
         // Apply tag filtering if requested
-        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
+        ReportScope::applyTagFilter($qb, $tagIds, $includeUntagged);
 
         // Leave the transactions the split query below speaks for to it — the
         // direct/split partition directRowPredicate() explains (#360). The
         // join to budget_categories already drops a properly split parent
         // (category_id NULL), but not a damaged row that kept both.
-        $qb->andWhere($this->directRowPredicate($qb));
+        $qb->andWhere(ReportScope::directRowPredicate($qb));
 
         $qb->groupBy('c.id', 'c.name', 'c.color', 'c.icon')
             ->orderBy('total', 'DESC');
@@ -1597,7 +1257,7 @@ class TransactionMapper extends QBMapper {
         if ($netOpposite) {
             // The split's amount is signed by its parent's direction (#361)
             $qb->selectAlias($qb->createFunction(
-                $this->signedAmountSum($qb, $transactionType, 's.amount')
+                ReportScope::signedAmountSum($qb, $transactionType, 's.amount')
             ), 'total');
         } else {
             $qb->selectAlias($qb->func()->sum('s.amount'), 'total');
@@ -1608,18 +1268,18 @@ class TransactionMapper extends QBMapper {
             ->innerJoin('t', 'budget_tx_splits', 's', $qb->expr()->eq('s.transaction_id', 't.id'))
             ->innerJoin('s', 'budget_categories', 'c', $qb->expr()->eq('s.category_id', 'c.id'));
 
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
+        ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
 
         $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($this->splitParentPredicate($qb));
+            ->andWhere(ReportScope::splitParentPredicate($qb));
 
         if (!$netOpposite) {
             $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)));
         }
 
-        $this->excludeScheduledFuture($qb);
-        $this->excludeReportExcludedCategories($qb, 'c', $userId);
+        ReportScope::excludeScheduledFuture($qb);
+        ReportScope::excludeReportExcludedCategories($qb, 'c', $userId);
 
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
@@ -1629,7 +1289,7 @@ class TransactionMapper extends QBMapper {
             $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
         }
 
-        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
+        ReportScope::applyTagFilter($qb, $tagIds, $includeUntagged);
 
         $qb->groupBy('c.id', 'c.name', 'c.color', 'c.icon');
 
@@ -1670,213 +1330,6 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
-     * Get spending grouped by month
-     */
-    public function getSpendingByMonth(string $userId, ?int $accountId, string $startDate, string $endDate, ?array $visibleAccountIds = null): array {
-        $qb = $this->db->getQueryBuilder();
-
-        // Use SUBSTR with CAST for month extraction (compatible with SQLite, MySQL, PostgreSQL)
-        $qb->select($qb->createFunction($this->monthExpr() . ' as month'))
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->selectAlias($qb->func()->count('t.id'), 'count')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-        $this->excludeTransfersForAllAccounts($qb, $accountId);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->groupBy($qb->createFunction($this->monthExpr()))
-            ->orderBy($qb->createFunction($this->monthExpr()), 'ASC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return $data;
-    }
-
-    /**
-     * Get spending grouped by vendor
-     */
-    public function getSpendingByVendor(string $userId, ?int $accountId, string $startDate, string $endDate, int $limit = 15, ?array $visibleAccountIds = null): array {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select('t.vendor')
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->selectAlias($qb->func()->count('t.id'), 'count')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($qb->expr()->isNotNull('t.vendor'))
-            ->andWhere($qb->expr()->neq('t.vendor', $qb->createNamedParameter('')));
-
-        $this->excludeScheduledFuture($qb);
-        $this->excludeTransfersForAllAccounts($qb, $accountId);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->groupBy('t.vendor')
-            ->orderBy('total', 'DESC')
-            ->setMaxResults($limit);
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => [
-            'name' => $row['vendor'] ?: 'Unknown',
-            'unknown' => !$row['vendor'],
-            'total' => (float)$row['total'],
-            'count' => (int)$row['count']
-        ], $data);
-    }
-
-    /**
-     * Get income grouped by month
-     */
-    public function getIncomeByMonth(string $userId, ?int $accountId, string $startDate, string $endDate, ?array $visibleAccountIds = null): array {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select($qb->createFunction($this->monthExpr() . ' as month'))
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->selectAlias($qb->func()->count('t.id'), 'count')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('credit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-        $this->excludeTransfersForAllAccounts($qb, $accountId);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->groupBy($qb->createFunction($this->monthExpr()))
-            ->orderBy($qb->createFunction($this->monthExpr()), 'ASC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return $data;
-    }
-
-    /**
-     * Get income grouped by source (vendor)
-     */
-    public function getIncomeBySource(string $userId, ?int $accountId, string $startDate, string $endDate, int $limit = 15, ?array $visibleAccountIds = null): array {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select('t.vendor')
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->selectAlias($qb->func()->count('t.id'), 'count')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('credit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-        $this->excludeTransfersForAllAccounts($qb, $accountId);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->groupBy('t.vendor')
-            ->orderBy('total', 'DESC')
-            ->setMaxResults($limit);
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => [
-            'name' => $row['vendor'] ?: 'Unknown Source',
-            'unknown' => !$row['vendor'],
-            'total' => (float)$row['total'],
-            'count' => (int)$row['count']
-        ], $data);
-    }
-
-    /**
-     * Get cash flow data by month (income and expenses combined) - OPTIMIZED single query
-     * @param int[] $tagIds Optional tag filter (OR logic)
-     * @param bool $includeUntagged Include untagged transactions when filtering by tags
-     */
-    public function getCashFlowByMonth(
-        string $userId,
-        ?int $accountId,
-        string $startDate,
-        string $endDate,
-        array $tagIds = [],
-        bool $includeUntagged = true,
-        bool $excludeTransfers = false,
-        ?array $visibleAccountIds = null
-    ): array {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select($qb->createFunction($this->monthExpr() . ' as month'))
-            ->selectAlias(
-                $qb->createFunction('SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE 0 END)'),
-                'income'
-            )
-            ->selectAlias(
-                $qb->createFunction('SUM(CASE WHEN t.type = \'debit\' THEN t.amount ELSE 0 END)'),
-                'expenses'
-            )
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        if ($excludeTransfers) {
-            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
-        }
-
-        // Apply tag filtering if requested
-        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
-
-        $qb->groupBy($qb->createFunction($this->monthExpr()))
-            ->orderBy($qb->createFunction($this->monthExpr()), 'ASC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => [
-            'month' => $row['month'],
-            'income' => (float)$row['income'],
-            'expenses' => (float)$row['expenses'],
-            'net' => (float)$row['income'] - (float)$row['expenses']
-        ], $data);
-    }
-
-    /**
      * Get aggregated income/expenses per account for a date range (avoids N+1)
      * @param int[] $tagIds Optional tag filter (OR logic)
      * @param bool $includeUntagged Include untagged transactions when filtering by tags
@@ -1907,14 +1360,14 @@ class TransactionMapper extends QBMapper {
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
         // A specific (possibly report-excluded) account selected upstream must still
         // produce its summary; only the all-accounts view drops excluded ones (#309).
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $includeReportExcluded);
+        ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, $includeReportExcluded);
         $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
 
-        $this->excludeScheduledFuture($qb);
+        ReportScope::excludeScheduledFuture($qb);
 
         // Apply tag filtering if requested
-        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
+        ReportScope::applyTagFilter($qb, $tagIds, $includeUntagged);
 
         $qb->groupBy('t.account_id');
 
@@ -1967,13 +1420,13 @@ class TransactionMapper extends QBMapper {
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             // Require the linked counterpart to exist (excludes dangling links)
             ->innerJoin('t', $this->getTableName(), 'lt', $qb->expr()->eq('t.linked_transaction_id', 'lt.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        ReportScope::applyUserScope($qb, $userId, $visibleAccountIds);
         $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($qb->expr()->isNotNull('t.linked_transaction_id'));
 
-        $this->excludeScheduledFuture($qb);
-        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
+        ReportScope::excludeScheduledFuture($qb);
+        ReportScope::applyTagFilter($qb, $tagIds, $includeUntagged);
 
         $result = $qb->executeQuery();
         $row = $result->fetch();
@@ -2017,13 +1470,13 @@ class TransactionMapper extends QBMapper {
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
             ->innerJoin('t', $this->getTableName(), 'lt', $qb->expr()->eq('t.linked_transaction_id', 'lt.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
+        ReportScope::applyUserScope($qb, $userId, $visibleAccountIds);
         $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             ->andWhere($qb->expr()->isNotNull('t.linked_transaction_id'));
 
-        $this->excludeScheduledFuture($qb);
-        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
+        ReportScope::excludeScheduledFuture($qb);
+        ReportScope::applyTagFilter($qb, $tagIds, $includeUntagged);
 
         $qb->groupBy('t.account_id');
 
@@ -2076,9 +1529,7 @@ class TransactionMapper extends QBMapper {
      * still in users' databases. Such a row satisfies both queries and would
      * otherwise be counted at its full amount AND part by part.
      *
-     * Callers must not add split allocations again on top of this. Note
-     * getCategorySpending() — the single-category method — is deliberately
-     * still direct-only, because BudgetAlertService adds splits to it itself.
+     * Callers must not add split allocations again on top of this.
      *
      * When $excludeDeductedTransfers is true, excludes ALL linked transfers
      * (which getTransferTotals() also fully deducts), since a transfer is never
@@ -2090,9 +1541,16 @@ class TransactionMapper extends QBMapper {
      * user's accounts, or to $visibleAccountIds (own + shared) when given, the
      * same scope the Budget page's spent figures use (#551).
      *
+     * With $excludeReportCategories the report choke point applies as well:
+     * categories flagged excluded_from_reports (and, given $userId, the ones
+     * that user muted) report nothing, split parts included (#219). For the
+     * report-style consumers (anomaly detection, year over year); the budget
+     * surfaces leave it off, since a category can be budgeted yet kept out of
+     * reports.
+     *
      * @param int[]|null $visibleAccountIds
      */
-    public function getCategorySpendingBatch(array $categoryIds, string $startDate, string $endDate, string $transactionType = 'debit', ?int $accountId = null, bool $excludeDeductedTransfers = false, ?string $userId = null, ?array $visibleAccountIds = null): array {
+    public function getCategorySpendingBatch(array $categoryIds, string $startDate, string $endDate, string $transactionType = 'debit', ?int $accountId = null, bool $excludeDeductedTransfers = false, ?string $userId = null, ?array $visibleAccountIds = null, bool $excludeReportCategories = false): array {
         if (empty($categoryIds)) {
             return [];
         }
@@ -2101,7 +1559,7 @@ class TransactionMapper extends QBMapper {
 
         $qb->select('t.category_id')
             ->selectAlias($qb->createFunction(
-                $this->signedAmountSum($qb, $transactionType, 't.amount')
+                ReportScope::signedAmountSum($qb, $transactionType, 't.amount')
             ), 'total')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
@@ -2117,11 +1575,14 @@ class TransactionMapper extends QBMapper {
             $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
         }
 
-        $this->excludeScheduledFuture($qb);
+        ReportScope::excludeScheduledFuture($qb);
+        if ($excludeReportCategories) {
+            ReportScope::leftJoinExcludeReportCategories($qb, 't', 'exc', $userId);
+        }
 
         // Leave the transactions the companion query speaks for to it — the
         // direct/split partition directRowPredicate() explains (#360).
-        $qb->andWhere($this->directRowPredicate($qb));
+        $qb->andWhere(ReportScope::directRowPredicate($qb));
 
         $qb->groupBy('t.category_id');
 
@@ -2136,9 +1597,12 @@ class TransactionMapper extends QBMapper {
 
         foreach ($this->getSplitCategorySpendingBatch(
             $categoryIds, $startDate, $endDate, $transactionType, $accountId, $excludeDeductedTransfers,
-            $userId, $visibleAccountIds
+            $userId, $visibleAccountIds, $excludeReportCategories
         ) as $categoryId => $total) {
-            $spending[$categoryId] = ($spending[$categoryId] ?? 0.0) + $total;
+            // Money accumulates through MoneyCalculator, never float + (#274)
+            $spending[$categoryId] = MoneyCalculator::toFloat(MoneyCalculator::add(
+                ReportScope::sqlMoney($spending[$categoryId] ?? 0.0), ReportScope::sqlMoney($total), ReportScope::MERGE_SCALE
+            ));
         }
 
         return $spending;
@@ -2148,40 +1612,26 @@ class TransactionMapper extends QBMapper {
      * The account scope shared by getCategorySpendingBatch() and its split
      * companion, so the direct and split halves can never disagree on it.
      *
+     * A selected account narrows the user's scope rather than replacing it:
+     * the account id arrives straight from the request, so with the user
+     * scope dropped any account id at all — someone else's included — was
+     * read. A selected account keeps its transactions even when it is flagged
+     * out of reports, as everywhere else (#309).
+     *
      * @param int[]|null $visibleAccountIds
      */
     private function scopeCategorySpendingBatch(IQueryBuilder $qb, ?int $accountId, ?string $userId, ?array $visibleAccountIds): void {
+        if ($userId !== null) {
+            // Held to the accounts the user can see (#551); drops the
+            // report-excluded accounts as well unless one is selected
+            ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
+        } elseif ($accountId === null) {
+            // All-accounts batch: drop accounts flagged out of reports/budgets (#286)
+            ReportScope::excludeReportExcludedAccounts($qb);
+        }
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        } elseif ($userId !== null) {
-            // Held to the accounts the user can see (#551); drops the
-            // report-excluded accounts as well
-            $this->applyUserScope($qb, $userId, $visibleAccountIds);
-        } else {
-            // All-accounts batch: drop accounts flagged out of reports/budgets (#286)
-            $this->excludeReportExcludedAccounts($qb);
         }
-    }
-
-    /**
-     * Signed sum netting the opposite direction: rows of $transactionType
-     * count positive, everything else negative. The single authority for the
-     * netting CASE — the Budget page, Category Details and the budget report
-     * must all agree on what "net spent" means (#360, #361). A COUNT beside
-     * it counts BOTH directions, since no type filter accompanies this.
-     */
-    private function signedAmountSum(IQueryBuilder $qb, string $transactionType, string $amountColumn): string {
-        $primaryType = $qb->createNamedParameter($transactionType);
-        return "SUM(CASE WHEN t.type = {$primaryType} THEN {$amountColumn} ELSE -{$amountColumn} END)";
-    }
-
-    /**
-     * Correlated EXISTS testing whether a transaction has any split rows.
-     * Thin delegation to the one shared expression on QueryFilterBuilder,
-     * which carries the not-a-join rationale (#360).
-     */
-    private function hasSplitPartsExpr(IQueryBuilder $qb, string $alias): string {
-        return QueryFilterBuilder::hasSplitPartsExpr($qb, $alias);
     }
 
     /**
@@ -2201,13 +1651,14 @@ class TransactionMapper extends QBMapper {
         ?int $accountId,
         bool $excludeDeductedTransfers,
         ?string $userId = null,
-        ?array $visibleAccountIds = null
+        ?array $visibleAccountIds = null,
+        bool $excludeReportCategories = false
     ): array {
         $qb = $this->db->getQueryBuilder();
 
         $qb->select('s.category_id')
             ->selectAlias($qb->createFunction(
-                $this->signedAmountSum($qb, $transactionType, 's.amount')
+                ReportScope::signedAmountSum($qb, $transactionType, 's.amount')
             ), 'total')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
@@ -2215,7 +1666,7 @@ class TransactionMapper extends QBMapper {
             ->where($qb->expr()->in('s.category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($this->splitParentPredicate($qb));
+            ->andWhere(ReportScope::splitParentPredicate($qb));
 
         $this->scopeCategorySpendingBatch($qb, $accountId, $userId, $visibleAccountIds);
 
@@ -2223,7 +1674,10 @@ class TransactionMapper extends QBMapper {
             $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
         }
 
-        $this->excludeScheduledFuture($qb);
+        ReportScope::excludeScheduledFuture($qb);
+        if ($excludeReportCategories) {
+            ReportScope::leftJoinExcludeReportCategories($qb, 's', 'exc', $userId);
+        }
 
         $qb->groupBy('s.category_id');
 
@@ -2282,18 +1736,18 @@ class TransactionMapper extends QBMapper {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
         } else {
             // All-accounts batch: drop accounts flagged out of reports/budgets (#286)
-            $this->excludeReportExcludedAccounts($qb);
+            ReportScope::excludeReportExcludedAccounts($qb);
         }
 
         if ($excludeDeductedTransfers) {
             $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
         }
 
-        $this->excludeScheduledFuture($qb);
+        ReportScope::excludeScheduledFuture($qb);
 
         // Leave the transactions the companion query speaks for to it -- the
         // direct/split partition directRowPredicate() explains (#360).
-        $qb->andWhere($this->directRowPredicate($qb));
+        $qb->andWhere(ReportScope::directRowPredicate($qb));
 
         $qb->groupBy('t.account_id');
 
@@ -2363,19 +1817,19 @@ class TransactionMapper extends QBMapper {
             ->where($qb->expr()->in('s.category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)))
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($this->splitParentPredicate($qb));
+            ->andWhere(ReportScope::splitParentPredicate($qb));
 
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
         } else {
-            $this->excludeReportExcludedAccounts($qb);
+            ReportScope::excludeReportExcludedAccounts($qb);
         }
 
         if ($excludeDeductedTransfers) {
             $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
         }
 
-        $this->excludeScheduledFuture($qb);
+        ReportScope::excludeScheduledFuture($qb);
 
         $qb->groupBy('t.account_id');
 
@@ -2392,42 +1846,6 @@ class TransactionMapper extends QBMapper {
         }
 
         return $totals;
-    }
-
-    /**
-     * Get spending by account with aggregation in SQL (avoids N+1)
-     */
-    public function getSpendingByAccountAggregated(string $userId, string $startDate, string $endDate, ?array $visibleAccountIds = null): array {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select('a.id', 'a.name')
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->selectAlias($qb->func()->count('t.id'), 'count')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
-        $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-        // Per-account breakdown of the all-accounts expense report — no
-        // single-account variant, so transfers are always excluded (#349)
-        $this->excludeTransfersForAllAccounts($qb, null);
-
-        $qb->groupBy('a.id', 'a.name')
-            ->orderBy('total', 'DESC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => [
-            'name' => $row['name'],
-            'total' => (float)$row['total'],
-            'count' => (int)$row['count'],
-            'average' => (int)$row['count'] > 0 ? (float)$row['total'] / (int)$row['count'] : 0
-        ], $data);
     }
 
     /**
@@ -2873,7 +2291,7 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
 
-        $this->excludeScheduledFuture($qb);
+        ReportScope::excludeScheduledFuture($qb);
 
         $qb->groupBy('t.date')
             ->orderBy('t.date', 'DESC');
@@ -2936,189 +2354,6 @@ class TransactionMapper extends QBMapper {
         $result->closeCursor();
 
         return (float)($total ?? 0);
-    }
-
-    /**
-     * Get monthly aggregates for trend data (single query for all months)
-     * @param int[] $tagIds Optional tag filter (OR logic)
-     * @param bool $includeUntagged Include untagged transactions when filtering by tags
-     */
-    public function getMonthlyTrendData(
-        string $userId,
-        ?int $accountId,
-        string $startDate,
-        string $endDate,
-        array $tagIds = [],
-        bool $includeUntagged = true,
-        bool $excludeTransfers = false,
-        ?array $visibleAccountIds = null
-    ): array {
-        $qb = $this->db->getQueryBuilder();
-
-        // SQLite-compatible: dates stored as TEXT in YYYY-MM-DD format, no need for CAST
-        $qb->select($qb->createFunction($this->monthExpr() . ' as month'))
-            ->selectAlias(
-                $qb->createFunction('SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE 0 END)'),
-                'income'
-            )
-            ->selectAlias(
-                $qb->createFunction('SUM(CASE WHEN t.type = \'debit\' THEN t.amount ELSE 0 END)'),
-                'expenses'
-            )
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-        // Income-vs-expense trend must drop transactions in excluded-from-reports
-        // categories (#219); uncategorised transactions are kept.
-        $this->leftJoinExcludeReportCategories($qb, 't', 'exc', $userId);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        if ($excludeTransfers) {
-            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
-        }
-
-        // Apply tag filtering if requested
-        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
-
-        $qb->groupBy($qb->createFunction($this->monthExpr()))
-            ->orderBy($qb->createFunction($this->monthExpr()), 'ASC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => [
-            'month' => $row['month'],
-            'income' => (float)$row['income'],
-            'expenses' => (float)$row['expenses']
-        ], $data);
-    }
-
-    /**
-     * Get monthly trend data grouped by account for currency conversion.
-     * Returns per-account-per-month rows so the aggregator can convert before summing.
-     *
-     * @param int[] $tagIds Optional tag filter (OR logic)
-     * @param bool $includeUntagged Include untagged transactions when filtering by tags
-     * @return array<int, array{month: string, account_id: int, income: float, expenses: float}>
-     */
-    public function getMonthlyTrendDataByAccount(
-        string $userId,
-        string $startDate,
-        string $endDate,
-        array $tagIds = [],
-        bool $includeUntagged = true,
-        bool $excludeTransfers = false,
-        ?array $visibleAccountIds = null
-    ): array {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select('t.account_id')
-            ->addSelect($qb->createFunction($this->monthExpr() . ' as month'))
-            ->selectAlias(
-                $qb->createFunction('SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE 0 END)'),
-                'income'
-            )
-            ->selectAlias(
-                $qb->createFunction('SUM(CASE WHEN t.type = \'debit\' THEN t.amount ELSE 0 END)'),
-                'expenses'
-            )
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
-        $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-        // Income-vs-expense trend must drop transactions in excluded-from-reports
-        // categories (#219); uncategorised transactions are kept.
-        $this->leftJoinExcludeReportCategories($qb, 't', 'exc', $userId);
-
-        if ($excludeTransfers) {
-            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
-        }
-
-        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
-
-        $qb->groupBy('t.account_id', $qb->createFunction($this->monthExpr()))
-            ->orderBy($qb->createFunction($this->monthExpr()), 'ASC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => [
-            'month' => $row['month'],
-            'account_id' => (int)$row['account_id'],
-            'income' => (float)$row['income'],
-            'expenses' => (float)$row['expenses']
-        ], $data);
-    }
-
-    /**
-     * Get cash flow by month grouped by account for currency conversion.
-     * Returns per-account-per-month rows so the aggregator can convert before summing.
-     *
-     * @param int[] $tagIds Optional tag filter (OR logic)
-     * @param bool $includeUntagged Include untagged transactions when filtering by tags
-     * @return array<int, array{month: string, account_id: int, income: float, expenses: float, net: float}>
-     */
-    public function getCashFlowByMonthByAccount(
-        string $userId,
-        string $startDate,
-        string $endDate,
-        array $tagIds = [],
-        bool $includeUntagged = true,
-        bool $excludeTransfers = false,
-        ?array $visibleAccountIds = null
-    ): array {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select('t.account_id')
-            ->addSelect($qb->createFunction($this->monthExpr() . ' as month'))
-            ->selectAlias(
-                $qb->createFunction('SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE 0 END)'),
-                'income'
-            )
-            ->selectAlias(
-                $qb->createFunction('SUM(CASE WHEN t.type = \'debit\' THEN t.amount ELSE 0 END)'),
-                'expenses'
-            )
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
-        $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-
-        if ($excludeTransfers) {
-            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
-        }
-
-        $this->applyTagFilter($qb, $tagIds, $includeUntagged);
-
-        $qb->groupBy('t.account_id', $qb->createFunction($this->monthExpr()))
-            ->orderBy($qb->createFunction($this->monthExpr()), 'ASC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => [
-            'month' => $row['month'],
-            'account_id' => (int)$row['account_id'],
-            'income' => (float)$row['income'],
-            'expenses' => (float)$row['expenses'],
-            'net' => (float)$row['income'] - (float)$row['expenses']
-        ], $data);
     }
 
     /**
@@ -3418,50 +2653,6 @@ class TransactionMapper extends QBMapper {
     }
 
     /**
-     * Get spending for a single category within a date range for a user.
-     *
-     * Direct-only: split parents are left to the caller's own split-total
-     * query, the same partition getCategorySpendingBatch() applies. A row
-     * whose is_split predates the column (NULL) is only "direct" when it has
-     * no parts — one with parts is a split parent and belongs solely to the
-     * split query, or its full amount would be counted again on top of its
-     * own allocations (#360).
-     *
-     * Gross, not net — the caller nets it, because BudgetAlertService has to
-     * combine this with the split allocations it fetches separately and can
-     * only subtract once it has both (#361).
-     */
-    public function getCategorySpending(string $userId, int $categoryId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null, string $transactionType = 'debit'): float {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)))
-            ->andWhere($this->directRowPredicate($qb));
-
-        // The account list REPLACES the owner predicate rather than narrowing
-        // it. Added as an extra AND (#299), it could only ever shrink the
-        // owner's own accounts, so passing a scope that included an account
-        // shared with the user still returned nothing from it (#341).
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
-        $this->excludeScheduledFuture($qb);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $result = $qb->executeQuery();
-        $row = $result->fetch();
-        $result->closeCursor();
-
-        return (float)($row['total'] ?? 0);
-    }
-
-    /**
      * Direct (non-split) debit spending per category per bucket over a date
      * range, in one query. Bucket is the calendar month (YYYY-MM) by default,
      * or the exact date (YYYY-MM-DD) with $byDay — used by the budget
@@ -3472,7 +2663,7 @@ class TransactionMapper extends QBMapper {
     public function getCategorySpendingByBucketBatch(string $userId, string $startDate, string $endDate, bool $byDay = false, ?array $visibleAccountIds = null): array {
         $qb = $this->db->getQueryBuilder();
 
-        $bucketExpr = $byDay ? 'CAST(t.date AS CHAR(10))' : $this->monthExpr();
+        $bucketExpr = $byDay ? 'CAST(t.date AS CHAR(10))' : ReportScope::monthExpr();
 
         $qb->select('t.category_id')
             ->selectAlias($qb->createFunction($bucketExpr), 'bucket')
@@ -3485,7 +2676,7 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
             // Leave rows with split parts to the companion query — the
             // direct/split partition directRowPredicate() explains (#360).
-            ->andWhere($this->directRowPredicate($qb))
+            ->andWhere(ReportScope::directRowPredicate($qb))
             ->groupBy('t.category_id')
             ->addGroupBy($qb->createFunction($bucketExpr));
 
@@ -3494,8 +2685,8 @@ class TransactionMapper extends QBMapper {
         // everywhere except here, so a category funded out of a shared account
         // carried its whole budget forward (#341). applyUserScope also drops
         // report-excluded accounts, as the explicit call here used to.
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
-        $this->excludeScheduledFuture($qb);
+        ReportScope::applyUserScope($qb, $userId, $visibleAccountIds);
+        ReportScope::excludeScheduledFuture($qb);
 
         $result = $qb->executeQuery();
         $totals = [];
@@ -3520,7 +2711,7 @@ class TransactionMapper extends QBMapper {
     public function getCategoryNetByMonthBatch(string $userId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null): array {
         $qb = $this->db->getQueryBuilder();
 
-        $bucketExpr = $this->monthExpr();
+        $bucketExpr = ReportScope::monthExpr();
 
         $qb->select('t.category_id')
             ->selectAlias($qb->createFunction($bucketExpr), 'bucket')
@@ -3529,7 +2720,7 @@ class TransactionMapper extends QBMapper {
             ), 'net_total')
             ->from($this->getTableName(), 't')
             ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
+        ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
         if ($accountId !== null) {
             $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
         }
@@ -3538,11 +2729,11 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
             // Same partition as getCategorySpendingByBucketBatch: a NULL-flag
             // row with split parts belongs to the companion query only (#360).
-            ->andWhere($this->directRowPredicate($qb))
+            ->andWhere(ReportScope::directRowPredicate($qb))
             ->groupBy('t.category_id')
             ->addGroupBy($qb->createFunction($bucketExpr));
 
-        $this->excludeScheduledFuture($qb);
+        ReportScope::excludeScheduledFuture($qb);
 
         $result = $qb->executeQuery();
         $totals = [];
@@ -3552,42 +2743,6 @@ class TransactionMapper extends QBMapper {
         $result->closeCursor();
 
         return $totals;
-    }
-
-    /**
-     * Get IDs of split transactions within a date range for a user.
-     * Used to calculate spending from splits.
-     *
-     * @return int[]
-     */
-    public function getSplitTransactionIds(string $userId, string $startDate, string $endDate, ?array $visibleAccountIds = null, string $transactionType = 'debit', ?int $accountId = null): array {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select('t.id')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)))
-            ->andWhere($this->splitParentPredicate($qb));
-
-        // Honour a single-account scope where the caller has one, or a view
-        // filtered to one account would draw its split totals from all of
-        // them (#360).
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        // Same visible-account scope as the rest of a budget surface, so a
-        // split booked in a shared account is not silently dropped (#341).
-        $this->applyUserScope($qb, $userId, $visibleAccountIds);
-        $this->excludeScheduledFuture($qb);
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => (int)$row['id'], $data);
     }
 
     /**
@@ -3632,548 +2787,6 @@ class TransactionMapper extends QBMapper {
             ->andWhere($qb->expr()->lte('date', $qb->createNamedParameter(date('Y-m-d'))));
 
         return $this->findEntities($qb);
-    }
-
-    /**
-     * Exclude rows that must not count toward spending/income/report aggregates:
-     *  - scheduled future transactions (allows cleared, NULL status (pre-migration),
-     *    and scheduled transactions whose date has arrived); and
-     *  - bank legs that fund a pension contribution / withdrawal (#304) — the money
-     *    moved to/from a pension, so it is a transfer, never spending or income.
-     *
-     * Called by every spending/income/category/tag/trend/cash-flow aggregate (and
-     * never by balance or list queries, where the pension leg must still appear),
-     * so it is the single place both exclusions belong.
-     */
-    private function excludeScheduledFuture(IQueryBuilder $qb, string $alias = 't'): void {
-        $today = date('Y-m-d');
-        $qb->andWhere(
-            $qb->expr()->orX(
-                $qb->expr()->neq("{$alias}.status", $qb->createNamedParameter('scheduled')),
-                $qb->expr()->isNull("{$alias}.status"),
-                $qb->expr()->lte("{$alias}.date", $qb->createNamedParameter($today))
-            )
-        );
-        $qb->andWhere($qb->expr()->isNull("{$alias}.pension_contrib_id"));
-    }
-
-    /**
-     * Drop linked transfers from an all-accounts report aggregate (#349).
-     *
-     * A linked transfer is internal money movement, never income or spending,
-     * so the all-accounts view excludes both legs — the same policy the
-     * dashboard totals and cash-flow queries apply (#262). A single-account
-     * view keeps its own legs: the money really did enter or leave that
-     * account. Pass null for aggregates that have no single-account variant.
-     */
-    private function excludeTransfersForAllAccounts(IQueryBuilder $qb, ?int $accountId): void {
-        if ($accountId === null) {
-            $qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
-        }
-    }
-
-    // ==================== TAG-BASED REPORTING METHODS ====================
-
-    /**
-     * Apply tag filtering to a query builder
-     * Joins through budget_transaction_tags and filters by tag IDs (OR logic)
-     *
-     * @param IQueryBuilder $qb Query builder to modify
-     * @param int[] $tagIds Array of tag IDs to filter by
-     * @param bool $includeUntagged Include transactions without tags
-     */
-    private function applyTagFilter(IQueryBuilder $qb, array $tagIds, bool $includeUntagged = true): void {
-        if (empty($tagIds)) {
-            return;
-        }
-
-        if ($includeUntagged) {
-            // Include transactions with specified tags OR no tags
-            $qb->leftJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
-                ->andWhere(
-                    $qb->expr()->orX(
-                        $qb->expr()->in('tt.tag_id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)),
-                        $qb->expr()->isNull('tt.tag_id')
-                    )
-                );
-        } else {
-            // Only transactions with specified tags
-            $qb->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
-                ->andWhere($qb->expr()->in('tt.tag_id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)));
-        }
-    }
-
-    /**
-     * Get spending grouped by tags within a specific tag set
-     *
-     * @param string $userId
-     * @param int $tagSetId Tag set to group by
-     * @param string $startDate
-     * @param string $endDate
-     * @param int|null $accountId Optional account filter
-     * @param int|null $categoryId Optional category filter
-     * @return array Array of [tagId, tagName, color, total, count]
-     */
-    public function getSpendingByTag(
-        string $userId,
-        int $tagSetId,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        ?int $categoryId = null,
-        ?array $visibleAccountIds = null
-    ): array {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select('tag.id', 'tag.name', 'tag.color')
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
-            ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->eq('tag.tag_set_id', $qb->createNamedParameter($tagSetId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-        $this->excludeTransfersForAllAccounts($qb, $accountId);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        if ($categoryId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->groupBy('tag.id', 'tag.name', 'tag.color')
-            ->orderBy('total', 'DESC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => [
-            'tagId' => (int)$row['id'],
-            'name' => $row['name'],
-            'color' => $row['color'],
-            'total' => (float)$row['total'],
-            'count' => (int)$row['count']
-        ], $data);
-    }
-
-    /**
-     * Get income grouped by tags within a specific tag set
-     *
-     * @param string $userId
-     * @param int $tagSetId Tag set to group by
-     * @param string $startDate
-     * @param string $endDate
-     * @param int|null $accountId Optional account filter
-     * @param int|null $categoryId Optional category filter
-     * @return array Array of [tagId, tagName, color, total, count]
-     */
-    public function getIncomeByTag(
-        string $userId,
-        int $tagSetId,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        ?int $categoryId = null,
-        ?array $visibleAccountIds = null
-    ): array {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select('tag.id', 'tag.name', 'tag.color')
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
-            ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->eq('tag.tag_set_id', $qb->createNamedParameter($tagSetId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('credit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-        $this->excludeTransfersForAllAccounts($qb, $accountId);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        if ($categoryId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->groupBy('tag.id', 'tag.name', 'tag.color')
-            ->orderBy('total', 'DESC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => [
-            'tagId' => (int)$row['id'],
-            'name' => $row['name'],
-            'color' => $row['color'],
-            'total' => (float)$row['total'],
-            'count' => (int)$row['count']
-        ], $data);
-    }
-
-    /**
-     * Get tag dimensions breakdown for spending in a category
-     * Returns spending grouped by each tag set associated with the category
-     *
-     * @param string $userId
-     * @param int $categoryId
-     * @param string $startDate
-     * @param string $endDate
-     * @param int|null $accountId Optional account filter
-     * @return array Array indexed by tag set ID, containing tag breakdowns
-     */
-    public function getTagDimensionsForCategory(
-        string $userId,
-        int $categoryId,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        ?array $visibleAccountIds = null
-    ): array {
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select('ts.id as tag_set_id', 'ts.name as tag_set_name', 'tag.id as tag_id', 'tag.name as tag_name', 'tag.color')
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
-            ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'))
-            ->innerJoin('tag', 'budget_tag_sets', 'ts', $qb->expr()->eq('tag.tag_set_id', 'ts.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('ts.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->groupBy('ts.id', 'ts.name', 'tag.id', 'tag.name', 'tag.color')
-            ->orderBy('ts.id', 'ASC')
-            ->addOrderBy('total', 'DESC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        // Group by tag set
-        $dimensions = [];
-        foreach ($data as $row) {
-            $tagSetId = (int)$row['tag_set_id'];
-            if (!isset($dimensions[$tagSetId])) {
-                $dimensions[$tagSetId] = [
-                    'tagSetId' => $tagSetId,
-                    'tagSetName' => $row['tag_set_name'],
-                    'tags' => []
-                ];
-            }
-            $dimensions[$tagSetId]['tags'][] = [
-                'tagId' => (int)$row['tag_id'],
-                'name' => $row['tag_name'],
-                'color' => $row['color'],
-                'total' => (float)$row['total'],
-                'count' => (int)$row['count']
-            ];
-        }
-
-        return array_values($dimensions);
-    }
-
-    /**
-     * Get spending by tag combinations (transactions with specific sets of tags)
-     *
-     * @param string $userId
-     * @param string $startDate
-     * @param string $endDate
-     * @param int|null $accountId Optional account filter
-     * @param int|null $categoryId Optional category filter
-     * @param int $minCombinationSize Minimum number of tags in combination (default 2)
-     * @param int $limit Maximum number of combinations to return
-     * @return array Array of [tagIds => int[], tagNames => string[], total, count]
-     */
-    public function getSpendingByTagCombination(
-        string $userId,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        ?int $categoryId = null,
-        int $minCombinationSize = 2,
-        int $limit = 50,
-        ?array $visibleAccountIds = null
-    ): array {
-        // This requires aggregating transaction IDs with their tag sets
-        // Step 1: Get all transactions with their tags
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select('t.id', 't.amount', 'tag.id as tag_id', 'tag.name as tag_name')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
-            ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'));
-        $this->applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
-        $qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        if ($categoryId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->orderBy('t.id', 'ASC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        // Group tags by transaction
-        $transactionTags = [];
-        $transactionAmounts = [];
-        foreach ($data as $row) {
-            $txId = (int)$row['id'];
-            if (!isset($transactionTags[$txId])) {
-                $transactionTags[$txId] = [];
-                $transactionAmounts[$txId] = (float)$row['amount'];
-            }
-            $transactionTags[$txId][] = [
-                'id' => (int)$row['tag_id'],
-                'name' => $row['tag_name']
-            ];
-        }
-
-        // Group by tag combination
-        $combinations = [];
-        foreach ($transactionTags as $txId => $tags) {
-            if (count($tags) < $minCombinationSize) {
-                continue;
-            }
-
-            // Sort tags by ID for consistent combination key
-            usort($tags, fn($a, $b) => $a['id'] <=> $b['id']);
-            $tagIds = array_column($tags, 'id');
-            $tagNames = array_column($tags, 'name');
-            $key = implode(',', $tagIds);
-
-            if (!isset($combinations[$key])) {
-                $combinations[$key] = [
-                    'tagIds' => $tagIds,
-                    'tagNames' => $tagNames,
-                    'total' => 0,
-                    'count' => 0
-                ];
-            }
-
-            $combinations[$key]['total'] += $transactionAmounts[$txId];
-            $combinations[$key]['count']++;
-        }
-
-        // Sort by total descending
-        usort($combinations, fn($a, $b) => $b['total'] <=> $a['total']);
-
-        return array_slice($combinations, 0, $limit);
-    }
-
-    /**
-     * Get cross-tabulation (pivot table) of spending by two tag sets
-     * Returns a matrix where rows are tags from tagSet1 and columns are tags from tagSet2
-     *
-     * @param string $userId
-     * @param int $tagSetId1 First tag set (rows)
-     * @param int $tagSetId2 Second tag set (columns)
-     * @param string $startDate
-     * @param string $endDate
-     * @param int|null $accountId Optional account filter
-     * @param int|null $categoryId Optional category filter
-     * @return array ['rows' => tags from set 1, 'columns' => tags from set 2, 'data' => matrix]
-     */
-    public function getTagCrossTabulation(
-        string $userId,
-        int $tagSetId1,
-        int $tagSetId2,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        ?int $categoryId = null
-    ): array {
-        // Get all transactions with tags from both sets
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select('t.id', 't.amount', 'tag.id as tag_id', 'tag.name as tag_name', 'tag.tag_set_id', 'tag.color')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
-            ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->in('tag.tag_set_id', $qb->createNamedParameter([$tagSetId1, $tagSetId2], IQueryBuilder::PARAM_INT_ARRAY)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-        $this->excludeReportExcludedAccounts($qb);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        if ($categoryId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->orderBy('t.id', 'ASC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        // Organize data by transaction
-        $transactionData = [];
-        $rowTags = []; // Tags from tagSet1
-        $colTags = []; // Tags from tagSet2
-
-        foreach ($data as $row) {
-            $txId = (int)$row['id'];
-            $tagId = (int)$row['tag_id'];
-            $tagSetId = (int)$row['tag_set_id'];
-
-            if (!isset($transactionData[$txId])) {
-                $transactionData[$txId] = [
-                    'amount' => (float)$row['amount'],
-                    'tag1' => null,
-                    'tag2' => null
-                ];
-            }
-
-            if ($tagSetId === $tagSetId1) {
-                $transactionData[$txId]['tag1'] = $tagId;
-                if (!isset($rowTags[$tagId])) {
-                    $rowTags[$tagId] = [
-                        'id' => $tagId,
-                        'name' => $row['tag_name'],
-                        'color' => $row['color']
-                    ];
-                }
-            } elseif ($tagSetId === $tagSetId2) {
-                $transactionData[$txId]['tag2'] = $tagId;
-                if (!isset($colTags[$tagId])) {
-                    $colTags[$tagId] = [
-                        'id' => $tagId,
-                        'name' => $row['tag_name'],
-                        'color' => $row['color']
-                    ];
-                }
-            }
-        }
-
-        // Build the matrix
-        $matrix = [];
-        foreach ($transactionData as $tx) {
-            if ($tx['tag1'] !== null && $tx['tag2'] !== null) {
-                $key = $tx['tag1'] . '_' . $tx['tag2'];
-                if (!isset($matrix[$key])) {
-                    $matrix[$key] = [
-                        'rowTagId' => $tx['tag1'],
-                        'colTagId' => $tx['tag2'],
-                        'total' => 0,
-                        'count' => 0
-                    ];
-                }
-                $matrix[$key]['total'] += $tx['amount'];
-                $matrix[$key]['count']++;
-            }
-        }
-
-        return [
-            'rows' => array_values($rowTags),
-            'columns' => array_values($colTags),
-            'data' => array_values($matrix)
-        ];
-    }
-
-    /**
-     * Get monthly trend data for specific tags
-     *
-     * @param string $userId
-     * @param int[] $tagIds Tags to track
-     * @param string $startDate
-     * @param string $endDate
-     * @param int|null $accountId Optional account filter
-     * @return array Array of [month, tagId, tagName, amount]
-     */
-    public function getTagTrendByMonth(
-        string $userId,
-        array $tagIds,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null
-    ): array {
-        if (empty($tagIds)) {
-            return [];
-        }
-
-        $qb = $this->db->getQueryBuilder();
-
-        $qb->select($qb->createFunction($this->monthExpr() . ' as month'))
-            ->addSelect('tag.id as tag_id', 'tag.name as tag_name', 'tag.color')
-            ->selectAlias($qb->func()->sum('t.amount'), 'total')
-            ->from($this->getTableName(), 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->innerJoin('t', 'budget_transaction_tags', 'tt', $qb->expr()->eq('t.id', 'tt.transaction_id'))
-            ->innerJoin('tt', 'budget_tags', 'tag', $qb->expr()->eq('tt.tag_id', 'tag.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->in('tag.id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)))
-            ->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
-            ->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-        $this->excludeScheduledFuture($qb);
-        $this->excludeReportExcludedAccounts($qb);
-
-        if ($accountId !== null) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        }
-
-        $qb->groupBy($qb->createFunction($this->monthExpr()), 'tag.id', 'tag.name', 'tag.color')
-            ->orderBy($qb->createFunction($this->monthExpr()), 'ASC')
-            ->addOrderBy('tag.id', 'ASC');
-
-        $result = $qb->executeQuery();
-        $data = $result->fetchAll();
-        $result->closeCursor();
-
-        return array_map(fn($row) => [
-            'month' => $row['month'],
-            'tagId' => (int)$row['tag_id'],
-            'tagName' => $row['tag_name'],
-            'color' => $row['color'],
-            'total' => (float)$row['total']
-        ], $data);
     }
 
     /**

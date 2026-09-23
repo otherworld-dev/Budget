@@ -6,20 +6,24 @@ namespace OCA\Budget\Tests\Unit\Service\Report;
 
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionReportQueries;
 use OCA\Budget\Service\Report\ReportCalculator;
 use PHPUnit\Framework\TestCase;
 
 class ReportCalculatorTest extends TestCase {
 	private ReportCalculator $calculator;
 	private TransactionMapper $transactionMapper;
+	private TransactionReportQueries $reportQueries;
 	private AccountMapper $accountMapper;
 
 	protected function setUp(): void {
 		$this->accountMapper = $this->createMock(AccountMapper::class);
 		$this->transactionMapper = $this->createMock(TransactionMapper::class);
+		$this->reportQueries = $this->createMock(TransactionReportQueries::class);
 		$this->calculator = new ReportCalculator(
 			$this->accountMapper,
-			$this->transactionMapper
+			$this->transactionMapper,
+			$this->reportQueries
 		);
 	}
 
@@ -129,6 +133,15 @@ class ReportCalculatorTest extends TestCase {
 		$this->assertSame(18, $result['transactions']);
 	}
 
+	/** Money adds through MoneyCalculator (#274), never float += */
+	public function testCalculateTotalsAddsWithoutFloatDrift(): void {
+		$result = $this->calculator->calculateTotals([
+			['total' => 0.1, 'count' => 1],
+			['total' => 0.2, 'count' => 1],
+		]);
+		$this->assertSame(0.3, $result['amount']);
+	}
+
 	public function testCalculateTotalsEmpty(): void {
 		$result = $this->calculator->calculateTotals([]);
 		$this->assertEqualsWithDelta(0.0, $result['amount'], 0.001);
@@ -155,8 +168,44 @@ class ReportCalculatorTest extends TestCase {
 		$this->assertSame($expected, $result);
 	}
 
-	public function testGetSpendingByMonthFormatsLabels(): void {
+	/**
+	 * The category grouping leaves transfers out of the all-accounts view,
+	 * as the month, vendor, account and tag groupings do (#349), and keeps a
+	 * single account's own legs.
+	 */
+	public function testSpendingByCategoryDropsTransfersOnlyForAllAccounts(): void {
+		$calls = [];
+		$this->transactionMapper->method('getSpendingSummary')
+			->willReturnCallback(function (...$args) use (&$calls) {
+				$calls[] = $args;
+				return [];
+			});
+
+		$this->calculator->getSpendingByCategory('user1', null, '2024-01-01', '2024-03-31');
+		$this->calculator->getSpendingByCategory('user1', 5, '2024-01-01', '2024-03-31');
+
+		// excludeTransfers is the 7th argument
+		$this->assertTrue($calls[0][6]);
+		$this->assertFalse($calls[1][6]);
+	}
+
+	/**
+	 * Income by category is income per income category — not the top-15
+	 * payers it used to stand in with — and report-scoped like spending.
+	 */
+	public function testIncomeByCategoryIsTheCreditCategorySummary(): void {
+		$expected = [['id' => 9, 'name' => 'Salary', 'total' => 2000.0, 'count' => 1]];
+		$this->reportQueries->expects($this->never())->method('getIncomeBySource');
 		$this->transactionMapper->expects($this->once())
+			->method('getSpendingSummary')
+			->with('user1', '2024-01-01', '2024-03-31', null, [], true, true, [1, 2], 'credit')
+			->willReturn($expected);
+
+		$this->assertSame($expected, $this->calculator->getIncomeByCategory('user1', null, '2024-01-01', '2024-03-31', [1, 2]));
+	}
+
+	public function testGetSpendingByMonthFormatsLabels(): void {
+		$this->reportQueries->expects($this->once())
 			->method('getSpendingByMonth')
 			->willReturn([
 				['month' => '2024-01', 'total' => '500.00', 'count' => '15'],
@@ -174,7 +223,7 @@ class ReportCalculatorTest extends TestCase {
 	}
 
 	public function testGetIncomeByMonthFormatsLabels(): void {
-		$this->transactionMapper->expects($this->once())
+		$this->reportQueries->expects($this->once())
 			->method('getIncomeByMonth')
 			->willReturn([
 				['month' => '2024-03', 'total' => '3000.00', 'count' => '2'],

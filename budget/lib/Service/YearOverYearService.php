@@ -6,24 +6,31 @@ namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\CategoryMapper;
-use OCA\Budget\Db\TransactionSplitMapper;
+use OCA\Budget\Db\TransactionReportQueries;
 
 /**
  * Service for year-over-year comparison calculations.
+ *
+ * Every figure comes from the same report-scoped SQL aggregates as the
+ * Reports page (TransactionReportQueries::getCashFlowByMonth() and
+ * TransactionMapper::getCategorySpendingBatch()), so a year here agrees with the cash-flow
+ * report for the same dates: transfers between accounts are left out of the
+ * all-accounts view, pension-funding legs and scheduled future rows never
+ * count, and categories kept out of reports (or muted) stay out.
  */
 class YearOverYearService {
     private TransactionMapper $transactionMapper;
     private CategoryMapper $categoryMapper;
-    private TransactionSplitMapper $splitMapper;
+    private TransactionReportQueries $reportQueries;
 
     public function __construct(
         TransactionMapper $transactionMapper,
         CategoryMapper $categoryMapper,
-        TransactionSplitMapper $splitMapper
+        TransactionReportQueries $reportQueries
     ) {
         $this->transactionMapper = $transactionMapper;
         $this->categoryMapper = $categoryMapper;
-        $this->splitMapper = $splitMapper;
+        $this->reportQueries = $reportQueries;
     }
 
     /**
@@ -138,57 +145,53 @@ class YearOverYearService {
      */
     public function compareCategorySpending(string $userId, int $years = 2, ?int $accountId = null, ?array $visibleAccountIds = null): array {
         $currentYear = (int) date('Y');
-        $categories = $this->categoryMapper->findAll($userId);
+        $expenseCategories = array_values(array_filter(
+            $this->categoryMapper->findAll($userId),
+            static fn($category) => $category->getType() === 'expense'
+        ));
+        $categoryIds = array_map(static fn($category) => $category->getId(), $expenseCategories);
         $categoryData = [];
 
-        // Split allocations per category, once per year rather than once per
-        // category per year. A split carries no category of its own, so
-        // reading only the transaction's own category compared a year of split
-        // receipts against a year that predated splitting and called it a
-        // collapse (#360).
-        $splitTotalsByYear = [];
+        // One batch per year for every category at once — direct spending and
+        // split allocations together (#360), net of refunds like the budget
+        // surfaces (#361). Replaces a query per category per year.
+        $spendingByYear = [];
         for ($i = 0; $i < $years; $i++) {
             $year = $currentYear - $i;
             $range = $this->yearRange($year, $currentYear);
-            $splitIds = $this->transactionMapper->getSplitTransactionIds(
-                $userId, $range['start'], $range['end'], $visibleAccountIds, 'debit', $accountId
+            $spendingByYear[$year] = $categoryIds === [] ? [] : $this->transactionMapper->getCategorySpendingBatch(
+                $categoryIds,
+                $range['start'],
+                $range['end'],
+                'debit',
+                $accountId,
+                // All accounts: a transfer is money moved, not spent (#349)
+                $accountId === null,
+                $userId,
+                $visibleAccountIds,
+                // Categories kept out of reports stay out of this one (#219)
+                true
             );
-            $splitTotalsByYear[$year] = $splitIds === []
-                ? []
-                : $this->splitMapper->getCategoryTotals($splitIds);
         }
 
-        // Get spending for each category per year
-        foreach ($categories as $category) {
-            if ($category->getType() !== 'expense') {
-                continue;
-            }
-
+        foreach ($expenseCategories as $category) {
             $categoryYears = [];
+            $anySpending = false;
             for ($i = 0; $i < $years; $i++) {
                 $year = $currentYear - $i;
-                // The same window the split-totals pass above used — the two
-                // must stay in lockstep, so both go through yearRange().
-                $range = $this->yearRange($year, $currentYear);
-
-                $spending = $this->transactionMapper->getCategorySpending(
-                    $userId,
-                    $category->getId(),
-                    $range['start'],
-                    $range['end'],
-                    $accountId,
-                    $visibleAccountIds
-                );
-                // Money adds through MoneyCalculator, never `+=` on floats (#274).
-                $spending = MoneyCalculator::toFloat(MoneyCalculator::add(
-                    $spending,
-                    (float)($splitTotalsByYear[$year][$category->getId()] ?? 0)
-                ));
+                $spending = round((float)($spendingByYear[$year][$category->getId()] ?? 0), 2);
+                $anySpending = $anySpending || $spending != 0.0;
 
                 $categoryYears[] = [
                     'year' => $year,
-                    'spending' => round($spending, 2),
+                    'spending' => $spending,
                 ];
+            }
+
+            // Nothing to compare in any year — which is also how a category
+            // kept out of reports comes back — so no row.
+            if (!$anySpending) {
+                continue;
             }
 
             // Calculate change
@@ -243,11 +246,14 @@ class YearOverYearService {
 
             $maxMonth = ($year === $currentYear) ? $currentMonth : 12;
 
-            for ($month = 1; $month <= $maxMonth; $month++) {
-                $startDate = sprintf('%04d-%02d-01', $year, $month);
-                $endDate = date('Y-m-t', strtotime($startDate));
+            // The whole year in one aggregate rather than one per month
+            $lastDay = date('Y-m-t', strtotime(sprintf('%04d-%02d-01', $year, $maxMonth)));
+            $byMonth = $this->cashFlowByMonth($userId, sprintf('%04d-01-01', $year), $lastDay, $accountId, $visibleAccountIds);
 
-                $monthSummary = $this->getMonthSummary($userId, $startDate, $endDate, $accountId, $visibleAccountIds);
+            for ($month = 1; $month <= $maxMonth; $month++) {
+                $monthSummary = $this->summarise(
+                    isset($byMonth[sprintf('%04d-%02d', $year, $month)]) ? [$byMonth[sprintf('%04d-%02d', $year, $month)]] : []
+                );
                 $monthSummary['month'] = $month;
                 $monthSummary['monthName'] = date('M', mktime(0, 0, 0, $month, 1));
 
@@ -255,9 +261,9 @@ class YearOverYearService {
             }
 
             // Calculate totals
-            $yearData['totalIncome'] = array_sum(array_column($yearData['months'], 'income'));
-            $yearData['totalExpenses'] = array_sum(array_column($yearData['months'], 'expenses'));
-            $yearData['totalSavings'] = $yearData['totalIncome'] - $yearData['totalExpenses'];
+            $yearData['totalIncome'] = MoneyCalculator::toFloat(MoneyCalculator::sum(array_column($yearData['months'], 'income')));
+            $yearData['totalExpenses'] = MoneyCalculator::toFloat(MoneyCalculator::sum(array_column($yearData['months'], 'expenses')));
+            $yearData['totalSavings'] = MoneyCalculator::toFloat(MoneyCalculator::subtract($yearData['totalIncome'], $yearData['totalExpenses']));
             $yearData['avgMonthlyIncome'] = $maxMonth > 0 ? round($yearData['totalIncome'] / $maxMonth, 2) : 0;
             $yearData['avgMonthlyExpenses'] = $maxMonth > 0 ? round($yearData['totalExpenses'] / $maxMonth, 2) : 0;
 
@@ -271,69 +277,64 @@ class YearOverYearService {
     }
 
     /**
+     * Report-scoped income and expenses per month over a range, keyed by
+     * 'YYYY-MM'. The all-accounts view leaves transfers out (#349); a single
+     * account keeps its own legs, as the cash-flow report does.
+     *
+     * @param int[]|null $visibleAccountIds
+     * @return array<string, array{month: string, income: float, expenses: float, net: float, count: int}>
+     */
+    private function cashFlowByMonth(string $userId, string $startDate, string $endDate, ?int $accountId, ?array $visibleAccountIds): array {
+        $byMonth = [];
+        foreach ($this->reportQueries->getCashFlowByMonth(
+            $userId, $accountId, $startDate, $endDate, [], true, $accountId === null, $visibleAccountIds
+        ) as $row) {
+            $byMonth[$row['month']] = $row;
+        }
+        return $byMonth;
+    }
+
+    /**
+     * Totals of some months of cash flow, money added through MoneyCalculator
+     * (#274).
+     *
+     * @param array<array{income: float, expenses: float, count?: int}> $months
+     * @return array{income: float, expenses: float, savings: float, transactionCount: int}
+     */
+    private function summarise(array $months): array {
+        $income = MoneyCalculator::sum(array_column($months, 'income'));
+        $expenses = MoneyCalculator::sum(array_column($months, 'expenses'));
+
+        return [
+            'income' => MoneyCalculator::toFloat($income),
+            'expenses' => MoneyCalculator::toFloat($expenses),
+            'savings' => MoneyCalculator::toFloat(MoneyCalculator::subtract($income, $expenses)),
+            'transactionCount' => (int) array_sum(array_column($months, 'count')),
+        ];
+    }
+
+    /**
      * Get month summary data.
      */
     private function getMonthSummary(string $userId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null): array {
-        $transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate, $accountId, $visibleAccountIds);
-
-        $income = 0.0;
-        $expenses = 0.0;
-
-        foreach ($transactions as $tx) {
-            $amount = abs((float) $tx->getAmount());
-            if ($tx->getType() === 'credit') {
-                $income += $amount;
-            } else {
-                $expenses += $amount;
-            }
-        }
-
-        return [
-            'income' => round($income, 2),
-            'expenses' => round($expenses, 2),
-            'savings' => round($income - $expenses, 2),
-            'transactionCount' => count($transactions),
-        ];
+        return $this->summarise(array_values(
+            $this->cashFlowByMonth($userId, $startDate, $endDate, $accountId, $visibleAccountIds)
+        ));
     }
 
     /**
      * Get year summary data with monthly breakdowns.
      */
     private function getYearSummary(string $userId, int $year, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null): array {
-        $transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate, $accountId, $visibleAccountIds);
+        $months = array_values($this->cashFlowByMonth($userId, $startDate, $endDate, $accountId, $visibleAccountIds));
+        $summary = $this->summarise($months);
 
-        $income = 0.0;
-        $expenses = 0.0;
-        $monthlyData = [];
+        // Months with any activity, as before: an empty month is not averaged in
+        $monthCount = count(array_filter($months, static fn(array $m) => ($m['count'] ?? 0) > 0));
 
-        foreach ($transactions as $tx) {
-            $amount = abs((float) $tx->getAmount());
-            $txDate = $tx->getDate();
-            $month = (int) date('n', strtotime($txDate));
-
-            if (!isset($monthlyData[$month])) {
-                $monthlyData[$month] = ['income' => 0, 'expenses' => 0];
-            }
-
-            if ($tx->getType() === 'credit') {
-                $income += $amount;
-                $monthlyData[$month]['income'] += $amount;
-            } else {
-                $expenses += $amount;
-                $monthlyData[$month]['expenses'] += $amount;
-            }
-        }
-
-        // Calculate averages
-        $monthCount = count($monthlyData);
-
-        return [
-            'income' => round($income, 2),
-            'expenses' => round($expenses, 2),
-            'savings' => round($income - $expenses, 2),
-            'transactionCount' => count($transactions),
-            'avgMonthlyIncome' => $monthCount > 0 ? round($income / $monthCount, 2) : 0,
-            'avgMonthlyExpenses' => $monthCount > 0 ? round($expenses / $monthCount, 2) : 0,
+        return $summary + [
+            'avgMonthlyIncome' => $monthCount > 0 ? round($summary['income'] / $monthCount, 2) : 0,
+            'avgMonthlyExpenses' => $monthCount > 0 ? round($summary['expenses'] / $monthCount, 2) : 0,
             'monthsWithData' => $monthCount,
         ];
     }

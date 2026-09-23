@@ -6,6 +6,8 @@ namespace OCA\Budget\Service\Report;
 
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionReportQueries;
+use OCA\Budget\Service\MoneyCalculator;
 
 /**
  * Handles calculation of spending and income metrics.
@@ -13,17 +15,26 @@ use OCA\Budget\Db\TransactionMapper;
 class ReportCalculator {
     private AccountMapper $accountMapper;
     private TransactionMapper $transactionMapper;
+    private TransactionReportQueries $reportQueries;
 
     public function __construct(
         AccountMapper $accountMapper,
-        TransactionMapper $transactionMapper
+        TransactionMapper $transactionMapper,
+        TransactionReportQueries $reportQueries
     ) {
         $this->accountMapper = $accountMapper;
         $this->transactionMapper = $transactionMapper;
+        $this->reportQueries = $reportQueries;
     }
 
     /**
      * Get spending grouped by category.
+     *
+     * The all-accounts view leaves linked transfers out, as the report's
+     * month, vendor, account and tag groupings do (#349): a transfer filed
+     * under a category is still money that never left the household, and
+     * counting it here made the category view of a period larger than every
+     * other view of the same period.
      */
     public function getSpendingByCategory(
         string $userId,
@@ -32,7 +43,11 @@ class ReportCalculator {
         string $endDate,
         ?array $visibleAccountIds = null
     ): array {
-        return $this->transactionMapper->getSpendingSummary($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds);
+        return $this->transactionMapper->getSpendingSummary(
+            $userId, $startDate, $endDate, $accountId,
+            excludeTransfers: $accountId === null,
+            visibleAccountIds: $visibleAccountIds
+        );
     }
 
     /**
@@ -45,7 +60,7 @@ class ReportCalculator {
         string $endDate,
         ?array $visibleAccountIds = null
     ): array {
-        $data = $this->transactionMapper->getSpendingByMonth($userId, $accountId, $startDate, $endDate, $visibleAccountIds);
+        $data = $this->reportQueries->getSpendingByMonth($userId, $accountId, $startDate, $endDate, $visibleAccountIds);
         return array_map(fn($row) => [
             'name' => $this->formatMonthLabel($row['month']),
             'month' => $row['month'],
@@ -64,7 +79,7 @@ class ReportCalculator {
         string $endDate,
         ?array $visibleAccountIds = null
     ): array {
-        return $this->transactionMapper->getSpendingByVendor($userId, $accountId, $startDate, $endDate, visibleAccountIds: $visibleAccountIds);
+        return $this->reportQueries->getSpendingByVendor($userId, $accountId, $startDate, $endDate, visibleAccountIds: $visibleAccountIds);
     }
 
     /**
@@ -75,13 +90,20 @@ class ReportCalculator {
         string $userId,
         string $startDate,
         string $endDate,
-        ?array $visibleAccountIds = null
+        ?array $visibleAccountIds = null,
+        ?int $accountId = null
     ): array {
-        return $this->transactionMapper->getSpendingByAccountAggregated($userId, $startDate, $endDate, $visibleAccountIds);
+        return $this->reportQueries->getSpendingByAccountAggregated($userId, $startDate, $endDate, $visibleAccountIds, $accountId);
     }
 
     /**
-     * Get income grouped by category.
+     * Get income grouped by category: credits per income category, split
+     * parts included, report-scoped like spending by category.
+     *
+     * This used to answer with income by source (the 15 largest payers) as a
+     * stand-in, so the Income & Expenses report listed payers under a
+     * "category" heading and its income total left out every payer below the
+     * top fifteen.
      */
     public function getIncomeByCategory(
         string $userId,
@@ -90,8 +112,12 @@ class ReportCalculator {
         string $endDate,
         ?array $visibleAccountIds = null
     ): array {
-        // For income by category, use income by source as a proxy
-        return $this->getIncomeBySource($userId, $accountId, $startDate, $endDate, $visibleAccountIds);
+        return $this->transactionMapper->getSpendingSummary(
+            $userId, $startDate, $endDate, $accountId,
+            excludeTransfers: $accountId === null,
+            visibleAccountIds: $visibleAccountIds,
+            transactionType: 'credit'
+        );
     }
 
     /**
@@ -104,7 +130,7 @@ class ReportCalculator {
         string $endDate,
         ?array $visibleAccountIds = null
     ): array {
-        $data = $this->transactionMapper->getIncomeByMonth($userId, $accountId, $startDate, $endDate, $visibleAccountIds);
+        $data = $this->reportQueries->getIncomeByMonth($userId, $accountId, $startDate, $endDate, $visibleAccountIds);
         return array_map(fn($row) => [
             'name' => $this->formatMonthLabel($row['month']),
             'month' => $row['month'],
@@ -123,7 +149,7 @@ class ReportCalculator {
         string $endDate,
         ?array $visibleAccountIds = null
     ): array {
-        return $this->transactionMapper->getIncomeBySource($userId, $accountId, $startDate, $endDate, visibleAccountIds: $visibleAccountIds);
+        return $this->reportQueries->getIncomeBySource($userId, $accountId, $startDate, $endDate, visibleAccountIds: $visibleAccountIds);
     }
 
     /**
@@ -173,16 +199,18 @@ class ReportCalculator {
      * Calculate totals from report data items.
      */
     public function calculateTotals(array $data): array {
-        $amount = 0;
         $transactions = 0;
-
         foreach ($data as $item) {
-            $amount += $item['total'];
-            $transactions += $item['count'];
+            $transactions += (int) $item['count'];
         }
 
         return [
-            'amount' => $amount,
+            // Through MoneyCalculator, never float += (#274); scale 8 keeps a
+            // crypto amount whole
+            'amount' => MoneyCalculator::toFloat(MoneyCalculator::sum(
+                array_map(static fn(array $item) => (float) $item['total'], $data),
+                8
+            )),
             'transactions' => $transactions
         ];
     }
@@ -199,7 +227,7 @@ class ReportCalculator {
         ?int $categoryId = null,
         ?array $visibleAccountIds = null
     ): array {
-        return $this->transactionMapper->getSpendingByTag(
+        return $this->reportQueries->getSpendingByTag(
             $userId,
             $tagSetId,
             $startDate,
@@ -222,7 +250,7 @@ class ReportCalculator {
         ?int $categoryId = null,
         ?array $visibleAccountIds = null
     ): array {
-        return $this->transactionMapper->getIncomeByTag(
+        return $this->reportQueries->getIncomeByTag(
             $userId,
             $tagSetId,
             $startDate,

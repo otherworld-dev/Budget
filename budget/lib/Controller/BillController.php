@@ -8,6 +8,7 @@ use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\Export\CsvSafe;
 use OCA\Budget\Service\GranularShareService;
+use OCA\Budget\Service\MoneyCalculator;
 use OCA\Budget\Service\Report\MonthNames;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
@@ -1350,15 +1351,17 @@ class BillController extends Controller {
             return ['valid' => false, 'error' => $this->l->t('Split template must have at least 2 splits')];
         }
 
-        $total = 0.0;
+        // Added through MoneyCalculator, never float += (#274); scale 8 so a
+        // crypto amount is not truncated before the comparison
+        $total = '0';
         foreach ($splits as $split) {
             if (!isset($split['amount']) || !is_numeric($split['amount']) || (float) $split['amount'] <= 0) {
                 return ['valid' => false, 'error' => $this->l->t('Each split must have a positive amount')];
             }
-            $total += (float) $split['amount'];
+            $total = MoneyCalculator::add($total, (float) $split['amount'], 8);
         }
 
-        if (abs($total - $billAmount) > 0.01) {
+        if (!MoneyCalculator::equals($total, $billAmount, '0.01')) {
             return ['valid' => false, 'error' => $this->l->t('Split amounts must equal the bill amount')];
         }
 

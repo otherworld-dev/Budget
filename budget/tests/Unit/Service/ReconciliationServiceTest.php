@@ -8,7 +8,7 @@ use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\ReconciliationSession;
 use OCA\Budget\Db\ReconciliationSessionMapper;
-use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionReconciliationQueries;
 use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\ReconciliationConflictException;
 use OCA\Budget\Service\ReconciliationService;
@@ -18,7 +18,7 @@ use PHPUnit\Framework\TestCase;
 class ReconciliationServiceTest extends TestCase {
     private ReconciliationService $service;
     private ReconciliationSessionMapper $sessionMapper;
-    private TransactionMapper $transactionMapper;
+    private TransactionReconciliationQueries $reconciliationQueries;
     private AccountMapper $accountMapper;
     private AuditService $auditService;
 
@@ -27,7 +27,7 @@ class ReconciliationServiceTest extends TestCase {
 
     protected function setUp(): void {
         $this->sessionMapper = $this->createMock(ReconciliationSessionMapper::class);
-        $this->transactionMapper = $this->createMock(TransactionMapper::class);
+        $this->reconciliationQueries = $this->createMock(TransactionReconciliationQueries::class);
         $this->accountMapper = $this->createMock(AccountMapper::class);
         $this->auditService = $this->createMock(AuditService::class);
         $l = $this->createMock(IL10N::class);
@@ -41,7 +41,7 @@ class ReconciliationServiceTest extends TestCase {
 
         $this->service = new ReconciliationService(
             $this->sessionMapper,
-            $this->transactionMapper,
+            $this->reconciliationQueries,
             $this->accountMapper,
             $this->auditService,
             $l
@@ -75,10 +75,10 @@ class ReconciliationServiceTest extends TestCase {
     public function testTickAllUpToStatementDateTicksEverythingOnOrBeforeIt(): void {
         $session = $this->makeSession();
         $this->sessionMapper->method('findInProgress')->willReturn($session);
-        $this->transactionMapper->method('getSessionTickedSum')->willReturn(500.0);
-        $this->transactionMapper->method('getSessionTransactionIds')->willReturn([1, 2, 3]);
+        $this->reconciliationQueries->method('getSessionTickedSum')->willReturn(500.0);
+        $this->reconciliationQueries->method('getSessionTransactionIds')->willReturn([1, 2, 3]);
 
-        $this->transactionMapper->expects($this->once())
+        $this->reconciliationQueries->expects($this->once())
             ->method('tickAllUpTo')
             ->with(self::ACCOUNT, '2026-06-30', 11)
             ->willReturn(3);
@@ -92,7 +92,7 @@ class ReconciliationServiceTest extends TestCase {
 
     public function testTickAllUpToStatementDateNeedsASession(): void {
         $this->sessionMapper->method('findInProgress')->willReturn(null);
-        $this->transactionMapper->expects($this->never())->method('tickAllUpTo');
+        $this->reconciliationQueries->expects($this->never())->method('tickAllUpTo');
 
         $this->expectException(\InvalidArgumentException::class);
         $this->service->tickAllUpToStatementDate(self::ACCOUNT, self::USER);
@@ -103,9 +103,9 @@ class ReconciliationServiceTest extends TestCase {
     public function testSessionStateCarriesTheUntickedCountUpToTheStatementDate(): void {
         $session = $this->makeSession();
         $this->sessionMapper->method('findInProgress')->willReturn($session);
-        $this->transactionMapper->method('getSessionTickedSum')->willReturn(0.0);
-        $this->transactionMapper->method('getSessionTransactionIds')->willReturn([]);
-        $this->transactionMapper->method('countUntickedBefore')
+        $this->reconciliationQueries->method('getSessionTickedSum')->willReturn(0.0);
+        $this->reconciliationQueries->method('getSessionTransactionIds')->willReturn([]);
+        $this->reconciliationQueries->method('countUntickedBefore')
             ->with(self::ACCOUNT, '2026-06-30')
             ->willReturn(860);
 
@@ -117,13 +117,13 @@ class ReconciliationServiceTest extends TestCase {
     public function testFirstSessionAnchorIsOpeningPlusReconciledNet(): void {
         $this->sessionMapper->method('findInProgress')->willReturn(null);
         $this->sessionMapper->method('findLastCompleted')->willReturn(null);
-        $this->transactionMapper->method('getReconciledNetChange')->with(self::ACCOUNT)->willReturn(250.0);
+        $this->reconciliationQueries->method('getReconciledNetChange')->with(self::ACCOUNT)->willReturn(250.0);
         $this->sessionMapper->method('insert')->willReturnCallback(function (ReconciliationSession $s) {
             $s->setId(11);
             return $s;
         });
-        $this->transactionMapper->method('getSessionTickedSum')->willReturn(0.0);
-        $this->transactionMapper->method('getSessionTransactionIds')->willReturn([]);
+        $this->reconciliationQueries->method('getSessionTickedSum')->willReturn(0.0);
+        $this->reconciliationQueries->method('getSessionTransactionIds')->willReturn([]);
 
         $state = $this->service->startSession(self::ACCOUNT, self::USER, 1500.0, '2026-06-30');
 
@@ -138,13 +138,13 @@ class ReconciliationServiceTest extends TestCase {
         $this->sessionMapper->method('findLastCompleted')->willReturn(
             $this->makeSession(['statementBalance' => '1234.56', 'status' => ReconciliationSession::STATUS_COMPLETED])
         );
-        $this->transactionMapper->expects($this->never())->method('getReconciledNetChange');
+        $this->reconciliationQueries->expects($this->never())->method('getReconciledNetChange');
         $this->sessionMapper->method('insert')->willReturnCallback(function (ReconciliationSession $s) {
             $s->setId(12);
             return $s;
         });
-        $this->transactionMapper->method('getSessionTickedSum')->willReturn(0.0);
-        $this->transactionMapper->method('getSessionTransactionIds')->willReturn([]);
+        $this->reconciliationQueries->method('getSessionTickedSum')->willReturn(0.0);
+        $this->reconciliationQueries->method('getSessionTransactionIds')->willReturn([]);
 
         $state = $this->service->startSession(self::ACCOUNT, self::USER, 1500.0, '2026-07-31');
 
@@ -153,8 +153,8 @@ class ReconciliationServiceTest extends TestCase {
 
     public function testStartConflictsWhenSessionInProgress(): void {
         $this->sessionMapper->method('findInProgress')->willReturn($this->makeSession());
-        $this->transactionMapper->method('getSessionTickedSum')->willReturn(0.0);
-        $this->transactionMapper->method('getSessionTransactionIds')->willReturn([]);
+        $this->reconciliationQueries->method('getSessionTickedSum')->willReturn(0.0);
+        $this->reconciliationQueries->method('getSessionTransactionIds')->willReturn([]);
 
         $this->expectException(ReconciliationConflictException::class);
         $this->service->startSession(self::ACCOUNT, self::USER, 1500.0, '2026-06-30');
@@ -162,8 +162,8 @@ class ReconciliationServiceTest extends TestCase {
 
     public function testTickedSumDrivesDifference(): void {
         $this->sessionMapper->method('findInProgress')->willReturn($this->makeSession());
-        $this->transactionMapper->method('getSessionTickedSum')->willReturn(500.0);
-        $this->transactionMapper->method('getSessionTransactionIds')->willReturn([1, 2, 3]);
+        $this->reconciliationQueries->method('getSessionTickedSum')->willReturn(500.0);
+        $this->reconciliationQueries->method('getSessionTransactionIds')->willReturn([1, 2, 3]);
 
         $state = $this->service->getActiveSession(self::ACCOUNT, self::USER);
 
@@ -176,9 +176,9 @@ class ReconciliationServiceTest extends TestCase {
 
     public function testCompleteRejectsUnbalancedSession(): void {
         $this->sessionMapper->method('findInProgress')->willReturn($this->makeSession());
-        $this->transactionMapper->method('getSessionTickedSum')->willReturn(100.0); // difference 400
-        $this->transactionMapper->method('getSessionTransactionIds')->willReturn([1]);
-        $this->transactionMapper->expects($this->never())->method('markSessionReconciled');
+        $this->reconciliationQueries->method('getSessionTickedSum')->willReturn(100.0); // difference 400
+        $this->reconciliationQueries->method('getSessionTransactionIds')->willReturn([1]);
+        $this->reconciliationQueries->expects($this->never())->method('markSessionReconciled');
 
         $this->expectException(\InvalidArgumentException::class);
         $this->service->complete(self::ACCOUNT, self::USER);
@@ -187,10 +187,10 @@ class ReconciliationServiceTest extends TestCase {
     public function testCompleteMarksReconciledAndStampsAccount(): void {
         $session = $this->makeSession();
         $this->sessionMapper->method('findInProgress')->willReturn($session);
-        $this->transactionMapper->method('getSessionTickedSum')->willReturn(500.0); // balanced
-        $this->transactionMapper->method('getSessionTransactionIds')->willReturn([1, 2]);
-        $this->transactionMapper->method('countUntickedBefore')->willReturn(3);
-        $this->transactionMapper->expects($this->once())->method('markSessionReconciled')->with(11)->willReturn(2);
+        $this->reconciliationQueries->method('getSessionTickedSum')->willReturn(500.0); // balanced
+        $this->reconciliationQueries->method('getSessionTransactionIds')->willReturn([1, 2]);
+        $this->reconciliationQueries->method('countUntickedBefore')->willReturn(3);
+        $this->reconciliationQueries->expects($this->once())->method('markSessionReconciled')->with(11)->willReturn(2);
         $this->sessionMapper->expects($this->once())->method('update')
             ->willReturnCallback(function (ReconciliationSession $s) {
                 $this->assertSame(ReconciliationSession::STATUS_COMPLETED, $s->getStatus());
@@ -215,7 +215,7 @@ class ReconciliationServiceTest extends TestCase {
     public function testCancelReleasesTickedTransactions(): void {
         $session = $this->makeSession();
         $this->sessionMapper->method('findInProgress')->willReturn($session);
-        $this->transactionMapper->expects($this->once())->method('clearSession')->with(11);
+        $this->reconciliationQueries->expects($this->once())->method('clearSession')->with(11);
         $this->sessionMapper->expects($this->once())->method('delete')->with($session);
 
         $this->service->cancel(self::ACCOUNT, self::USER);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\BackgroundJob;
 
+use OCA\Budget\BackgroundJob\Support\JobUsers;
 use OCA\Budget\Service\Report\ScheduledReportService;
 use OCA\Budget\Service\SettingService;
 use OCP\AppFramework\Utility\ITimeFactory;
@@ -66,23 +67,11 @@ class ScheduledReportJob extends TimedJob {
     }
 
     /**
-     * Users with at least one report channel enabled.
+     * Users who turned on delivery to Files or by email.
      *
      * @return string[]
      */
     private function getEligibleUserIds(IDBConnection $db): array {
-        $qb = $db->getQueryBuilder();
-        $qb->selectDistinct('user_id')
-            ->from('budget_settings')
-            ->where($qb->expr()->in('key', $qb->createNamedParameter(
-                ['report_files_enabled', 'report_email_enabled'],
-                \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_STR_ARRAY
-            )))
-            ->andWhere($qb->expr()->eq('value', $qb->createNamedParameter('true')));
-
-        $result = $qb->executeQuery();
-        $userIds = array_map(fn($row) => (string) $row['user_id'], $result->fetchAll());
-        $result->closeCursor();
-        return $userIds;
+        return (new JobUsers($db))->withSettingEnabled('report_files_enabled', 'report_email_enabled');
     }
 }

@@ -7,13 +7,16 @@ namespace OCA\Budget\Service\Report;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\CategoryMuteMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionReportQueries;
 use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\BudgetSnapshotMapper;
+use OCA\Budget\Enum\Currency;
 use OCA\Budget\Service\CurrencyConversionService;
 use OCA\Budget\Service\BudgetCarryoverService;
 use OCA\Budget\Service\BudgetScope;
 use OCA\Budget\Service\GranularShareService;
+use OCA\Budget\Service\MoneyCalculator;
 use OCA\Budget\Service\RecurringBudgetService;
 
 /**
@@ -21,6 +24,13 @@ use OCA\Budget\Service\RecurringBudgetService;
  * Converts multi-currency accounts to the user's base currency for accurate totals.
  */
 class ReportAggregator {
+    /**
+     * Scale running money totals are kept at before they are rounded to the
+     * currency: wide enough for any supported currency and for converted
+     * amounts, so adding never truncates a term (bcmath truncates).
+     */
+    private const SUM_SCALE = 8;
+
     private AccountMapper $accountMapper;
     private TransactionMapper $transactionMapper;
     private CategoryMapper $categoryMapper;
@@ -38,6 +48,7 @@ class ReportAggregator {
         private RecurringBudgetService $recurringBudgetService,
         private BudgetCarryoverService $carryoverService,
         private TransactionSplitMapper $splitMapper,
+        private TransactionReportQueries $reportQueries,
         private ?GranularShareService $granularShareService = null,
         private ?CategoryMuteMapper $categoryMuteMapper = null
     ) {
@@ -159,10 +170,18 @@ class ReportAggregator {
         $today = date('Y-m-d');
         $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
 
-        $totalIncome = 0;
-        $totalExpenses = 0;
-        $totalAssets = 0;
-        $totalLiabilities = 0;
+        // Money accumulates through MoneyCalculator, never float += (#274),
+        // and the totals are rounded to the currency they are in: the base
+        // currency when accounts are converted, otherwise the accounts' own.
+        $totalsCurrency = $needsConversion || empty($accounts)
+            ? $baseCurrency
+            : ($accounts[0]->getCurrency() ?: $baseCurrency);
+        $decimals = Currency::decimalsFor($totalsCurrency);
+        $totalIncome = '0';
+        $totalExpenses = '0';
+        $totalBalance = '0';
+        $totalAssets = '0';
+        $totalLiabilities = '0';
         $liabilityTypes = ['credit_card', 'loan', 'mortgage', 'line_of_credit'];
 
         foreach ($accounts as $account) {
@@ -211,17 +230,17 @@ class ReportAggregator {
 
             $summary['accounts'][] = $accountEntry;
 
-            $summary['totals']['currentBalance'] += $currentBalance;
+            $totalBalance = MoneyCalculator::add($totalBalance, $currentBalance, self::SUM_SCALE);
             if (in_array($account->getType(), $liabilityTypes, true) && $currentBalance < 0) {
                 // Amount owed. A liability in credit (positive) is money you have,
                 // so it belongs in assets — otherwise abs() below turns a credit
                 // into a phantom debt and net worth moves the wrong way (#353).
-                $totalLiabilities += $currentBalance;
+                $totalLiabilities = MoneyCalculator::add($totalLiabilities, $currentBalance, self::SUM_SCALE);
             } else {
-                $totalAssets += $currentBalance;
+                $totalAssets = MoneyCalculator::add($totalAssets, $currentBalance, self::SUM_SCALE);
             }
-            $totalIncome += $accountIncome;
-            $totalExpenses += $accountExpenses;
+            $totalIncome = MoneyCalculator::add($totalIncome, $accountIncome, self::SUM_SCALE);
+            $totalExpenses = MoneyCalculator::add($totalExpenses, $accountExpenses, self::SUM_SCALE);
         }
 
         // Exclude transfers from aggregate totals (all-accounts view only)
@@ -233,22 +252,18 @@ class ReportAggregator {
                     $userId, $startDate, $endDate, $tagIds, $includeUntagged,
                     !empty($visibleAccountIds) ? $visibleAccountIds : null
                 );
-                $transferIncome = 0;
-                $transferExpenses = 0;
                 foreach ($transfersByAccount as $accId => $transfers) {
                     $accCurrency = $currencyMap[$accId] ?? $baseCurrency;
-                    $transferIncome += $this->conversionService->convertToBaseFloat($transfers['income'], $accCurrency, $userId);
-                    $transferExpenses += $this->conversionService->convertToBaseFloat($transfers['expenses'], $accCurrency, $userId);
+                    $totalIncome = MoneyCalculator::subtract($totalIncome, $this->conversionService->convertToBaseFloat($transfers['income'], $accCurrency, $userId), self::SUM_SCALE);
+                    $totalExpenses = MoneyCalculator::subtract($totalExpenses, $this->conversionService->convertToBaseFloat($transfers['expenses'], $accCurrency, $userId), self::SUM_SCALE);
                 }
-                $totalIncome -= $transferIncome;
-                $totalExpenses -= $transferExpenses;
             } else {
                 $transferTotals = $this->transactionMapper->getTransferTotals(
                     $userId, $startDate, $endDate, $tagIds, $includeUntagged,
                     !empty($visibleAccountIds) ? $visibleAccountIds : null
                 );
-                $totalIncome -= $transferTotals['income'];
-                $totalExpenses -= $transferTotals['expenses'];
+                $totalIncome = MoneyCalculator::subtract($totalIncome, $transferTotals['income'], self::SUM_SCALE);
+                $totalExpenses = MoneyCalculator::subtract($totalExpenses, $transferTotals['expenses'], self::SUM_SCALE);
             }
         }
 
@@ -282,27 +297,29 @@ class ReportAggregator {
                         $excludedExpenses = $this->conversionService->convertToBaseFloat($excludedExpenses, $accCurrency, $userId);
                     }
                 }
-                $totalIncome -= $excludedIncome;
-                $totalExpenses -= $excludedExpenses;
+                $totalIncome = MoneyCalculator::subtract($totalIncome, $excludedIncome, self::SUM_SCALE);
+                $totalExpenses = MoneyCalculator::subtract($totalExpenses, $excludedExpenses, self::SUM_SCALE);
             }
         }
 
-        $summary['totals']['totalIncome'] = $totalIncome;
-        $summary['totals']['totalExpenses'] = $totalExpenses;
-        $summary['totals']['netIncome'] = $totalIncome - $totalExpenses;
-        $summary['totals']['totalAssets'] = round($totalAssets, 2);
-        $summary['totals']['totalLiabilities'] = round(abs($totalLiabilities), 2);
+        $summary['totals']['currentBalance'] = round((float) $totalBalance, $decimals);
+        $summary['totals']['totalIncome'] = round((float) $totalIncome, $decimals);
+        $summary['totals']['totalExpenses'] = round((float) $totalExpenses, $decimals);
+        $summary['totals']['netIncome'] = round((float) MoneyCalculator::subtract($totalIncome, $totalExpenses, self::SUM_SCALE), $decimals);
+        $summary['totals']['totalAssets'] = round((float) $totalAssets, $decimals);
+        $summary['totals']['totalLiabilities'] = round(abs((float) $totalLiabilities), $decimals);
         $summary['unconvertedCurrencies'] = array_values(array_unique($unconvertedCurrencies));
 
         $days = $summary['period']['days'];
         if ($days > 0) {
-            $summary['totals']['averageDaily']['income'] = $totalIncome / $days;
-            $summary['totals']['averageDaily']['expenses'] = $totalExpenses / $days;
+            $summary['totals']['averageDaily']['income'] = $summary['totals']['totalIncome'] / $days;
+            $summary['totals']['averageDaily']['expenses'] = $summary['totals']['totalExpenses'] / $days;
         }
 
         $excludeTransfers = $accountId === null;
 
-        // Get spending breakdown (filter out excluded categories)
+        // Spending breakdown. Excluded and muted categories are dropped by
+        // the mapper's report choke point (#219), never filtered here.
         $spending = $this->transactionMapper->getSpendingSummary(
             $userId,
             $startDate,
@@ -313,12 +330,6 @@ class ReportAggregator {
             $excludeTransfers,
             !empty($visibleAccountIds) ? $visibleAccountIds : null
         );
-
-        if (!empty($excludedCategoryIds)) {
-            $spending = array_values(array_filter($spending, function ($item) use ($excludedCategoryIds) {
-                return !isset($excludedCategoryIds[$item['categoryId'] ?? 0]);
-            }));
-        }
         $summary['spending'] = $spending;
 
         // Generate trend data (with currency conversion for multi-account view)
@@ -397,11 +408,8 @@ class ReportAggregator {
     public function getBudgetReport(string $userId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null, ?string $snapshotMonth = null): array {
         $categories = $this->categoryMapper->findAll($userId);
         $budgetReport = [];
-        $totals = [
-            'budgeted' => 0,
-            'spent' => 0,
-            'remaining' => 0
-        ];
+        // Running totals as strings through MoneyCalculator (#274)
+        $sum = ['budgeted' => '0', 'spent' => '0', 'remaining' => '0'];
 
         // A custom cycle spans calendar months, so its budget snapshot cannot
         // be inferred from the transaction range's start date.
@@ -490,10 +498,11 @@ class ReportAggregator {
         );
         $categorySpending = [];
         foreach ($categoryIds as $catId) {
-            $categorySpending[$catId] = 0.0;
+            $spent = '0';
             foreach ($branches[$catId] ?? [$catId] as $memberId) {
-                $categorySpending[$catId] += $memberSpending[$memberId] ?? 0.0;
+                $spent = MoneyCalculator::add($spent, $memberSpending[$memberId] ?? 0.0, self::SUM_SCALE);
             }
+            $categorySpending[$catId] = round((float) $spent, 2);
         }
 
         foreach ($categories as $category) {
@@ -502,7 +511,7 @@ class ReportAggregator {
                 $spent = $categorySpending[$categoryId] ?? 0;
 
                 $budgeted = $resolvedBudgets[$categoryId];
-                $remaining = $budgeted - $spent;
+                $remaining = round((float) MoneyCalculator::subtract($budgeted, $spent, self::SUM_SCALE), 2);
                 // Depleted envelope (available <= 0): any spending is over budget
                 $percentage = $budgeted > 0 ? ($spent / $budgeted) * 100 : ($spent > 0 ? 100 : 0);
 
@@ -519,11 +528,12 @@ class ReportAggregator {
                     'color' => $category->getColor()
                 ];
 
-                $totals['budgeted'] += $budgeted;
-                $totals['spent'] += $spent;
-                $totals['remaining'] += $remaining;
+                $sum['budgeted'] = MoneyCalculator::add($sum['budgeted'], $budgeted, self::SUM_SCALE);
+                $sum['spent'] = MoneyCalculator::add($sum['spent'], $spent, self::SUM_SCALE);
+                $sum['remaining'] = MoneyCalculator::add($sum['remaining'], $remaining, self::SUM_SCALE);
             }
         }
+        $totals = array_map(static fn(string $amount) => round((float) $amount, 2), $sum);
 
         return [
             'period' => [
@@ -571,22 +581,23 @@ class ReportAggregator {
                     $userId, $startDate, $endDate, $currencyMap, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
                 );
             } else {
-                $cashFlow = $this->transactionMapper->getCashFlowByMonth(
+                $cashFlow = $this->reportQueries->getCashFlowByMonth(
                     $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
                 );
             }
         } else {
-            $cashFlow = $this->transactionMapper->getCashFlowByMonth(
+            $cashFlow = $this->reportQueries->getCashFlowByMonth(
                 $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers
             );
         }
 
-        $totals = ['income' => 0, 'expenses' => 0, 'net' => 0];
-        foreach ($cashFlow as $month) {
-            $totals['income'] += $month['income'];
-            $totals['expenses'] += $month['expenses'];
-            $totals['net'] += $month['net'];
-        }
+        // Totals through MoneyCalculator, never float += (#274). Kept at the
+        // wide scale rather than rounded: a single account may be crypto.
+        $totals = [
+            'income' => (float) MoneyCalculator::sum(array_column($cashFlow, 'income'), self::SUM_SCALE),
+            'expenses' => (float) MoneyCalculator::sum(array_column($cashFlow, 'expenses'), self::SUM_SCALE),
+            'net' => (float) MoneyCalculator::sum(array_column($cashFlow, 'net'), self::SUM_SCALE),
+        ];
 
         $monthCount = count($cashFlow);
 
@@ -617,7 +628,7 @@ class ReportAggregator {
         bool $excludeTransfers,
         ?array $visibleAccountIds = null
     ): array {
-        $perAccountData = $this->transactionMapper->getCashFlowByMonthByAccount(
+        $perAccountData = $this->reportQueries->getCashFlowByMonthByAccount(
             $userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
         );
 
@@ -632,15 +643,17 @@ class ReportAggregator {
             $expenses = $this->conversionService->convertToBaseFloat($row['expenses'], $accCurrency, $userId);
 
             if (!isset($byMonth[$month])) {
-                $byMonth[$month] = ['month' => $month, 'income' => 0, 'expenses' => 0, 'net' => 0];
+                $byMonth[$month] = ['month' => $month, 'income' => '0', 'expenses' => '0', 'net' => 0];
             }
-            $byMonth[$month]['income'] += $income;
-            $byMonth[$month]['expenses'] += $expenses;
+            $byMonth[$month]['income'] = MoneyCalculator::add($byMonth[$month]['income'], $income, self::SUM_SCALE);
+            $byMonth[$month]['expenses'] = MoneyCalculator::add($byMonth[$month]['expenses'], $expenses, self::SUM_SCALE);
         }
 
         // Recalculate net after aggregation
         foreach ($byMonth as &$monthData) {
-            $monthData['net'] = $monthData['income'] - $monthData['expenses'];
+            $monthData['net'] = (float) MoneyCalculator::subtract($monthData['income'], $monthData['expenses'], self::SUM_SCALE);
+            $monthData['income'] = (float) $monthData['income'];
+            $monthData['expenses'] = (float) $monthData['expenses'];
         }
         unset($monthData);
 
@@ -680,7 +693,7 @@ class ReportAggregator {
                     $userId, $startDate, $endDate, $currencyMap, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
                 );
             } else {
-                $monthlyData = $this->transactionMapper->getMonthlyTrendData(
+                $monthlyData = $this->reportQueries->getMonthlyTrendData(
                     $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
                 );
                 $dataByMonth = [];
@@ -689,7 +702,7 @@ class ReportAggregator {
                 }
             }
         } else {
-            $monthlyData = $this->transactionMapper->getMonthlyTrendData(
+            $monthlyData = $this->reportQueries->getMonthlyTrendData(
                 $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, false
             );
             $dataByMonth = [];
@@ -948,7 +961,7 @@ class ReportAggregator {
         bool $excludeTransfers,
         ?array $visibleAccountIds = null
     ): array {
-        $perAccountData = $this->transactionMapper->getMonthlyTrendDataByAccount(
+        $perAccountData = $this->reportQueries->getMonthlyTrendDataByAccount(
             $userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
         );
 
@@ -963,13 +976,16 @@ class ReportAggregator {
             $expenses = $this->conversionService->convertToBaseFloat($row['expenses'], $accCurrency, $userId);
 
             if (!isset($byMonth[$month])) {
-                $byMonth[$month] = ['income' => 0, 'expenses' => 0];
+                $byMonth[$month] = ['income' => '0', 'expenses' => '0'];
             }
-            $byMonth[$month]['income'] += $income;
-            $byMonth[$month]['expenses'] += $expenses;
+            $byMonth[$month]['income'] = MoneyCalculator::add($byMonth[$month]['income'], $income, self::SUM_SCALE);
+            $byMonth[$month]['expenses'] = MoneyCalculator::add($byMonth[$month]['expenses'], $expenses, self::SUM_SCALE);
         }
 
-        return $byMonth;
+        return array_map(static fn(array $m) => [
+            'income' => (float) $m['income'],
+            'expenses' => (float) $m['expenses'],
+        ], $byMonth);
     }
 
     /**
@@ -993,7 +1009,7 @@ class ReportAggregator {
     ): array {
         if ($categoryId !== null) {
             // Single category
-            $dimensions = $this->transactionMapper->getTagDimensionsForCategory(
+            $dimensions = $this->reportQueries->getTagDimensionsForCategory(
                 $userId,
                 $categoryId,
                 $startDate,
@@ -1020,7 +1036,7 @@ class ReportAggregator {
 
         foreach ($spending as $categoryData) {
             $catId = (int)$categoryData['id'];
-            $dimensions = $this->transactionMapper->getTagDimensionsForCategory(
+            $dimensions = $this->reportQueries->getTagDimensionsForCategory(
                 $userId,
                 $catId,
                 $startDate,

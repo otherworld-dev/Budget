@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service\Report;
 
-use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionReportQueries;
 use OCA\Budget\Db\TagSetMapper;
 use OCA\Budget\Db\TagMapper;
 
@@ -12,16 +12,16 @@ use OCA\Budget\Db\TagMapper;
  * Handles dedicated tag-based reporting and analysis.
  */
 class TagReportService {
-    private TransactionMapper $transactionMapper;
+    private TransactionReportQueries $reportQueries;
     private TagSetMapper $tagSetMapper;
     private TagMapper $tagMapper;
 
     public function __construct(
-        TransactionMapper $transactionMapper,
+        TransactionReportQueries $reportQueries,
         TagSetMapper $tagSetMapper,
         TagMapper $tagMapper
     ) {
-        $this->transactionMapper = $transactionMapper;
+        $this->reportQueries = $reportQueries;
         $this->tagSetMapper = $tagSetMapper;
         $this->tagMapper = $tagMapper;
     }
@@ -49,7 +49,7 @@ class TagReportService {
         int $limit = 50,
         ?array $visibleAccountIds = null
     ): array {
-        $combinations = $this->transactionMapper->getSpendingByTagCombination(
+        $combinations = $this->reportQueries->getSpendingByTagCombination(
             $userId,
             $startDate,
             $endDate,
@@ -95,7 +95,7 @@ class TagReportService {
         $tagSet2 = $this->tagSetMapper->find($tagSetId2, $userId);
 
         // Get cross-tabulation data
-        $crossTab = $this->transactionMapper->getTagCrossTabulation(
+        $crossTab = $this->reportQueries->getTagCrossTabulation(
             $userId,
             $tagSetId1,
             $tagSetId2,
@@ -184,7 +184,7 @@ class TagReportService {
         $tags = $this->tagMapper->findByIds($tagIds);
 
         // Get trend data
-        $trendData = $this->transactionMapper->getTagTrendByMonth(
+        $trendData = $this->reportQueries->getTagTrendByMonth(
             $userId,
             $tagIds,
             $startDate,
@@ -266,7 +266,7 @@ class TagReportService {
         $tagSet = $this->tagSetMapper->find($tagSetId, $userId);
 
         // Get spending by tag
-        $spending = $this->transactionMapper->getSpendingByTag(
+        $spending = $this->reportQueries->getSpendingByTag(
             $userId,
             $tagSetId,
             $startDate,

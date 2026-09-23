@@ -6,9 +6,8 @@ namespace OCA\Budget\Tests\Unit\Service;
 
 use OCA\Budget\Db\Category;
 use OCA\Budget\Db\CategoryMapper;
-use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
-use OCA\Budget\Db\TransactionSplitMapper;
+use OCA\Budget\Db\TransactionReportQueries;
 use OCA\Budget\Service\YearOverYearService;
 use PHPUnit\Framework\TestCase;
 
@@ -16,30 +15,39 @@ class YearOverYearServiceTest extends TestCase {
     private YearOverYearService $service;
     private TransactionMapper $transactionMapper;
     private CategoryMapper $categoryMapper;
-    private TransactionSplitMapper $splitMapper;
+    private TransactionReportQueries $reportQueries;
 
     protected function setUp(): void {
         $this->transactionMapper = $this->createMock(TransactionMapper::class);
         $this->categoryMapper = $this->createMock(CategoryMapper::class);
-        $this->splitMapper = $this->createMock(TransactionSplitMapper::class);
-
-        // No splits unless a test says otherwise.
-        $this->transactionMapper->method('getSplitTransactionIds')->willReturn([]);
-        $this->splitMapper->method('getCategoryTotals')->willReturn([]);
+        $this->reportQueries = $this->createMock(TransactionReportQueries::class);
 
         $this->service = new YearOverYearService(
             $this->transactionMapper,
             $this->categoryMapper,
-            $this->splitMapper
+            $this->reportQueries
         );
     }
 
-    private function makeTransaction(string $date, float $amount, string $type = 'debit'): Transaction {
-        $tx = new Transaction();
-        $tx->setDate($date);
-        $tx->setAmount($amount);
-        $tx->setType($type);
-        return $tx;
+    /** One month of report-scoped cash flow, as getCashFlowByMonth() returns it. */
+    private function month(string $month, float $income, float $expenses, int $count = 1): array {
+        return ['month' => $month, 'income' => $income, 'expenses' => $expenses, 'net' => $income - $expenses, 'count' => $count];
+    }
+
+    /**
+     * Stub getCashFlowByMonth() from a map of year => rows for that year.
+     *
+     * @param array<int, array[]> $rowsByYear
+     */
+    private function cashFlowByYear(array $rowsByYear): void {
+        $this->reportQueries->method('getCashFlowByMonth')
+            ->willReturnCallback(function (string $userId, ?int $accountId, string $start, string $end) use ($rowsByYear) {
+                $rows = $rowsByYear[(int) substr($start, 0, 4)] ?? [];
+                return array_values(array_filter(
+                    $rows,
+                    static fn(array $row) => $row['month'] >= substr($start, 0, 7) && $row['month'] <= substr($end, 0, 7)
+                ));
+            });
     }
 
     private function makeCategory(int $id, string $name, string $type = 'expense'): Category {
@@ -53,8 +61,7 @@ class YearOverYearServiceTest extends TestCase {
     // ===== compareMonth =====
 
     public function testCompareMonthReturnsMultipleYears(): void {
-        $this->transactionMapper->method('findAllByUserAndDateRange')
-            ->willReturn([]);
+        $this->cashFlowByYear([]);
 
         $result = $this->service->compareMonth('user1', 3, 3);
 
@@ -65,46 +72,25 @@ class YearOverYearServiceTest extends TestCase {
 
     public function testCompareMonthCalculatesIncomeAndExpenses(): void {
         $currentYear = (int) date('Y');
-
-        $this->transactionMapper->method('findAllByUserAndDateRange')
-            ->willReturnCallback(function ($userId, $start, $end) use ($currentYear) {
-                $year = (int) substr($start, 0, 4);
-                if ($year === $currentYear) {
-                    return [
-                        $this->makeTransaction("$currentYear-03-01", 5000.0, 'credit'),
-                        $this->makeTransaction("$currentYear-03-15", 2000.0, 'debit'),
-                    ];
-                }
-                return [
-                    $this->makeTransaction(($currentYear - 1) . '-03-01', 4000.0, 'credit'),
-                    $this->makeTransaction(($currentYear - 1) . '-03-15', 1500.0, 'debit'),
-                ];
-            });
+        $this->cashFlowByYear([
+            $currentYear => [$this->month("$currentYear-03", 5000.0, 2000.0, 2)],
+            $currentYear - 1 => [$this->month(($currentYear - 1) . '-03', 4000.0, 1500.0, 2)],
+        ]);
 
         $result = $this->service->compareMonth('user1', 3, 2);
 
         $this->assertEquals(5000.0, $result['years'][0]['income']);
         $this->assertEquals(2000.0, $result['years'][0]['expenses']);
         $this->assertEquals(3000.0, $result['years'][0]['savings']);
+        $this->assertSame(2, $result['years'][0]['transactionCount']);
     }
 
     public function testCompareMonthCalculatesPercentChanges(): void {
         $currentYear = (int) date('Y');
-
-        $this->transactionMapper->method('findAllByUserAndDateRange')
-            ->willReturnCallback(function ($userId, $start) use ($currentYear) {
-                $year = (int) substr($start, 0, 4);
-                if ($year === $currentYear) {
-                    return [
-                        $this->makeTransaction("$currentYear-03-01", 5000.0, 'credit'),
-                        $this->makeTransaction("$currentYear-03-15", 2200.0, 'debit'),
-                    ];
-                }
-                return [
-                    $this->makeTransaction(($currentYear - 1) . '-03-01', 4000.0, 'credit'),
-                    $this->makeTransaction(($currentYear - 1) . '-03-15', 2000.0, 'debit'),
-                ];
-            });
+        $this->cashFlowByYear([
+            $currentYear => [$this->month("$currentYear-03", 5000.0, 2200.0)],
+            $currentYear - 1 => [$this->month(($currentYear - 1) . '-03', 4000.0, 2000.0)],
+        ]);
 
         $result = $this->service->compareMonth('user1', 3, 2);
 
@@ -114,11 +100,50 @@ class YearOverYearServiceTest extends TestCase {
         $this->assertEquals(10.0, $result['years'][0]['expenseChange']);
     }
 
+    /**
+     * The figures come from the report-scoped aggregate, not from summing
+     * every row in PHP: the all-accounts view asks it to drop transfers —
+     * both legs of a transfer used to count as income AND spending here —
+     * while a single account keeps its own legs.
+     */
+    public function testTransfersAreLeftOutOfTheAllAccountsViewOnly(): void {
+        $excludeTransfers = [];
+        $this->reportQueries->method('getCashFlowByMonth')
+            ->willReturnCallback(function (string $u, ?int $acc, string $s, string $e, array $tags, bool $untagged, bool $exclude, ?array $visible) use (&$excludeTransfers) {
+                $excludeTransfers[] = [$acc, $exclude, $visible];
+                return [];
+            });
+
+        $this->service->compareMonth('user1', 3, 1, null, [4, 5]);
+        $this->service->compareMonth('user1', 3, 1, 4, [4, 5]);
+
+        $this->assertSame([[null, true, [4, 5]], [4, false, [4, 5]]], $excludeTransfers);
+    }
+
+    /**
+     * Money adds through MoneyCalculator (#274): 0.1 + 0.2 must not come back
+     * as 0.30000000000000004.
+     */
+    public function testMonthlyTotalsAddWithoutFloatDrift(): void {
+        $lastYear = (int) date('Y') - 1;
+        $this->cashFlowByYear([
+            $lastYear => [
+                $this->month("$lastYear-01", 0.1, 0.1),
+                $this->month("$lastYear-02", 0.2, 0.2),
+            ],
+        ]);
+
+        $result = $this->service->compareYears('user1', 2);
+
+        $this->assertSame(0.3, $result['years'][1]['income']);
+        $this->assertSame(0.3, $result['years'][1]['expenses']);
+        $this->assertSame(0.0, $result['years'][1]['savings']);
+    }
+
     // ===== compareYears =====
 
     public function testCompareYearsReturnsYearData(): void {
-        $this->transactionMapper->method('findAllByUserAndDateRange')
-            ->willReturn([]);
+        $this->cashFlowByYear([]);
 
         $result = $this->service->compareYears('user1', 2);
 
@@ -129,23 +154,13 @@ class YearOverYearServiceTest extends TestCase {
     }
 
     public function testCompareYearsCalculatesAverages(): void {
-        $currentYear = (int) date('Y');
-        $lastYear = $currentYear - 1;
-
-        // For last year, return transactions across 2 months
-        $this->transactionMapper->method('findAllByUserAndDateRange')
-            ->willReturnCallback(function ($userId, $start) use ($lastYear) {
-                $year = (int) substr($start, 0, 4);
-                if ($year === $lastYear) {
-                    return [
-                        $this->makeTransaction("$lastYear-01-15", 3000.0, 'credit'),
-                        $this->makeTransaction("$lastYear-01-20", 1000.0, 'debit'),
-                        $this->makeTransaction("$lastYear-02-15", 3000.0, 'credit'),
-                        $this->makeTransaction("$lastYear-02-20", 1500.0, 'debit'),
-                    ];
-                }
-                return [];
-            });
+        $lastYear = (int) date('Y') - 1;
+        $this->cashFlowByYear([
+            $lastYear => [
+                $this->month("$lastYear-01", 3000.0, 1000.0, 2),
+                $this->month("$lastYear-02", 3000.0, 1500.0, 2),
+            ],
+        ]);
 
         $result = $this->service->compareYears('user1', 2);
 
@@ -155,6 +170,24 @@ class YearOverYearServiceTest extends TestCase {
         $this->assertEquals(2, $lastYearData['monthsWithData']);
         $this->assertEquals(3000.0, $lastYearData['avgMonthlyIncome']);
         $this->assertEquals(1250.0, $lastYearData['avgMonthlyExpenses']);
+        $this->assertSame(4, $lastYearData['transactionCount']);
+    }
+
+    public function testCompareYearsAsksForTheYearInProgressUpToToday(): void {
+        $windows = [];
+        $this->reportQueries->method('getCashFlowByMonth')
+            ->willReturnCallback(function (string $u, ?int $acc, string $start, string $end) use (&$windows) {
+                $windows[] = [$start, $end];
+                return [];
+            });
+
+        $this->service->compareYears('user1', 2);
+
+        $lastYear = (int) date('Y') - 1;
+        $this->assertSame([
+            [date('Y') . '-01-01', date('Y-m-d')],
+            ["$lastYear-01-01", "$lastYear-12-31"],
+        ], $windows);
     }
 
     // ===== compareCategorySpending =====
@@ -164,7 +197,7 @@ class YearOverYearServiceTest extends TestCase {
         $income = $this->makeCategory(2, 'Salary', 'income');
 
         $this->categoryMapper->method('findAll')->willReturn([$expense, $income]);
-        $this->transactionMapper->method('getCategorySpending')->willReturn(500.0);
+        $this->transactionMapper->method('getCategorySpendingBatch')->willReturn([1 => 500.0, 2 => 900.0]);
 
         $result = $this->service->compareCategorySpending('user1', 2);
 
@@ -175,16 +208,11 @@ class YearOverYearServiceTest extends TestCase {
     }
 
     public function testCompareCategorySpendingCalculatesChange(): void {
-        $expense = $this->makeCategory(1, 'Food', 'expense');
-
-        $this->categoryMapper->method('findAll')->willReturn([$expense]);
+        $this->categoryMapper->method('findAll')->willReturn([$this->makeCategory(1, 'Food', 'expense')]);
 
         $currentYear = (int) date('Y');
-        $this->transactionMapper->method('getCategorySpending')
-            ->willReturnCallback(function ($userId, $catId, $start) use ($currentYear) {
-                $year = (int) substr($start, 0, 4);
-                return $year === $currentYear ? 600.0 : 500.0;
-            });
+        $this->transactionMapper->method('getCategorySpendingBatch')
+            ->willReturnCallback(fn(array $ids, string $start) => [1 => (int) substr($start, 0, 4) === $currentYear ? 600.0 : 500.0]);
 
         $result = $this->service->compareCategorySpending('user1', 2);
 
@@ -193,120 +221,81 @@ class YearOverYearServiceTest extends TestCase {
     }
 
     /**
-     * Year over Year read a category's own transactions only, so a year whose
-     * groceries came off split receipts compared as a collapse against a year
-     * that predated splitting. Everything else has counted split allocations
-     * since #359 (#360).
+     * One batch per year for every category — not a query per category per
+     * year — asking for split allocations (built into the batch, #360), the
+     * transfer exclusion of the all-accounts view (#349) and the report
+     * choke point for categories kept out of reports (#219), over the
+     * year's window: the year in progress up to today, a past year whole.
      */
-    public function testCompareCategorySpendingCountsSplitAllocations(): void {
-        $expense = $this->makeCategory(1, 'Food', 'expense');
-        $this->categoryMapper->method('findAll')->willReturn([$expense]);
-        $this->transactionMapper->method('getCategorySpending')->willReturn(100.0);
+    public function testCompareCategorySpendingRunsOneBatchPerYear(): void {
+        $this->categoryMapper->method('findAll')->willReturn([
+            $this->makeCategory(1, 'Food'),
+            $this->makeCategory(2, 'Rent'),
+            $this->makeCategory(3, 'Salary', 'income'),
+        ]);
+        $calls = [];
+        $this->transactionMapper->expects($this->exactly(2))->method('getCategorySpendingBatch')
+            ->willReturnCallback(function (...$args) use (&$calls) {
+                $calls[] = $args;
+                return [1 => 10.0];
+            });
 
-        $currentYear = (int) date('Y');
-        $splitMapper = $this->createMock(TransactionSplitMapper::class);
-        $transactionMapper = $this->createMock(TransactionMapper::class);
-        $transactionMapper->method('getCategorySpending')->willReturn(100.0);
-        $transactionMapper->method('getSplitTransactionIds')
-            ->willReturnCallback(static fn(string $u, string $start): array =>
-                (int)substr($start, 0, 4) === $currentYear ? [7, 8] : []);
-        $splitMapper->method('getCategoryTotals')->willReturn([1 => 40.0]);
+        $this->service->compareCategorySpending('user1', 2, null, [7, 8]);
 
-        $service = new YearOverYearService($transactionMapper, $this->categoryMapper, $splitMapper);
-        $result = $service->compareCategorySpending('user1', 2);
-
-        $years = $result['categories'][0]['years'];
-        // This year: 100 on the transactions themselves plus 40 through splits.
-        $this->assertEqualsWithDelta(140.0, $years[0]['spending'], 0.005);
-        // Last year had no splits, so it is untouched.
-        $this->assertEqualsWithDelta(100.0, $years[1]['spending'], 0.005);
+        $lastYear = (int) date('Y') - 1;
+        $this->assertSame(
+            [[1, 2], date('Y') . '-01-01', date('Y-m-d'), 'debit', null, true, 'user1', [7, 8], true],
+            $calls[0]
+        );
+        $this->assertSame(["$lastYear-01-01", "$lastYear-12-31"], [$calls[1][1], $calls[1][2]]);
     }
 
-    /**
-     * A split parent whose is_split flag predates the column (NULL) must not
-     * have its own amount counted on top of its parts. getCategorySpending()
-     * now partitions on the same is_split=false OR NOT hasSplitPartsExpr rule
-     * as getCategorySpendingBatch(), so a NULL-flagged row with parts is left
-     * out of the direct total entirely and answered only by the split query
-     * below — before that partition existed, the direct query took every
-     * NULL-flagged row whether or not it had parts, double-counting it (#360).
-     */
-    public function testCompareCategorySpendingExcludesNullFlagSplitParentOwnAmount(): void {
-        $expense = $this->makeCategory(1, 'Food', 'expense');
-        $this->categoryMapper->method('findAll')->willReturn([$expense]);
-
-        $currentYear = (int) date('Y');
-
-        $transactionMapper = $this->createMock(TransactionMapper::class);
-        // The (now-partitioned) direct total: just the plain £60 transaction.
-        // A NULL-flagged split parent with parts is excluded here — it is
-        // left entirely to the split query below.
-        $transactionMapper->method('getCategorySpending')
-            ->willReturnCallback(static fn(string $u, int $catId, string $start): float =>
-                (int)substr($start, 0, 4) === $currentYear ? 60.0 : 0.0);
-        $transactionMapper->method('getSplitTransactionIds')
-            ->willReturnCallback(static fn(string $u, string $start): array =>
-                (int)substr($start, 0, 4) === $currentYear ? [7] : []);
-
-        $splitMapper = $this->createMock(TransactionSplitMapper::class);
-        $splitMapper->method('getCategoryTotals')->willReturn([1 => 25.0]);
-
-        $service = new YearOverYearService($transactionMapper, $this->categoryMapper, $splitMapper);
-        $result = $service->compareCategorySpending('user1', 2);
-
-        $years = $result['categories'][0]['years'];
-        // 60 direct + 25 of the split parent's parts. If the direct query
-        // still counted the NULL-flagged parent's own amount (its bug
-        // pre-fix), this would read 60 + 40 + 25 = 125 instead.
-        $this->assertEqualsWithDelta(85.0, $years[0]['spending'], 0.005);
-        $this->assertEqualsWithDelta(0.0, $years[1]['spending'], 0.005);
-    }
-
-    /**
-     * yearRange() is the single authority for a comparison year's window.
-     * The split-totals pass and the per-category direct pass must cover the
-     * same dates — the current year capped at today, past years whole — or
-     * a category's split allocations are counted over a different window
-     * than its direct spending.
-     */
-    public function testCompareCategorySpendingUsesOneWindowForDirectAndSplitPasses(): void {
-        $expense = $this->makeCategory(1, 'Food', 'expense');
-        $this->categoryMapper->method('findAll')->willReturn([$expense]);
-
-        $splitWindows = [];
-        $directWindows = [];
-
-        $transactionMapper = $this->createMock(TransactionMapper::class);
-        $transactionMapper->method('getSplitTransactionIds')
-            ->willReturnCallback(static function (string $u, string $start, string $end, ...$rest) use (&$splitWindows): array {
-                $splitWindows[] = [$start, $end];
+    public function testCompareCategorySpendingKeepsTransfersForASingleAccount(): void {
+        $this->categoryMapper->method('findAll')->willReturn([$this->makeCategory(1, 'Food')]);
+        $calls = [];
+        $this->transactionMapper->method('getCategorySpendingBatch')
+            ->willReturnCallback(function (...$args) use (&$calls) {
+                $calls[] = $args;
                 return [];
             });
-        $transactionMapper->method('getCategorySpending')
-            ->willReturnCallback(static function (string $u, int $catId, string $start, string $end, ...$rest) use (&$directWindows): float {
-                $directWindows[] = [$start, $end];
-                return 0.0;
-            });
 
-        $splitMapper = $this->createMock(TransactionSplitMapper::class);
-        $splitMapper->method('getCategoryTotals')->willReturn([]);
+        $this->service->compareCategorySpending('user1', 1, 4);
 
-        $service = new YearOverYearService($transactionMapper, $this->categoryMapper, $splitMapper);
-        $service->compareCategorySpending('user1', 2);
+        $this->assertSame(4, $calls[0][4]);
+        $this->assertFalse($calls[0][5]);
+    }
 
-        $this->assertSame($splitWindows, $directWindows);
-        // The year in progress ends today, not on Dec 31 …
-        $this->assertSame([date('Y') . '-01-01', date('Y-m-d')], $splitWindows[0]);
-        // … and the completed year is whole.
-        $lastYear = (int) date('Y') - 1;
-        $this->assertSame(["$lastYear-01-01", "$lastYear-12-31"], $splitWindows[1]);
+    /**
+     * A category with nothing in any compared year has nothing to compare —
+     * which is also how one kept out of reports comes back from the batch —
+     * so it gets no row.
+     */
+    public function testCompareCategorySpendingLeavesOutCategoriesWithNothingToCompare(): void {
+        $this->categoryMapper->method('findAll')->willReturn([
+            $this->makeCategory(1, 'Food'),
+            $this->makeCategory(2, 'Hidden'),
+        ]);
+        $currentYear = (int) date('Y');
+        $this->transactionMapper->method('getCategorySpendingBatch')
+            ->willReturnCallback(fn(array $ids, string $start) => (int) substr($start, 0, 4) === $currentYear ? [1 => 0.0] : [1 => 40.0]);
+
+        $result = $this->service->compareCategorySpending('user1', 2);
+
+        $this->assertSame(['Food'], array_column($result['categories'], 'name'));
+        $this->assertSame([0.0, 40.0], array_column($result['categories'][0]['years'], 'spending'));
+    }
+
+    public function testCompareCategorySpendingRunsNoQueryWithoutExpenseCategories(): void {
+        $this->categoryMapper->method('findAll')->willReturn([$this->makeCategory(3, 'Salary', 'income')]);
+        $this->transactionMapper->expects($this->never())->method('getCategorySpendingBatch');
+
+        $this->assertSame([], $this->service->compareCategorySpending('user1', 2)['categories']);
     }
 
     // ===== getMonthlyTrends =====
 
     public function testGetMonthlyTrendsReturnsTrendData(): void {
-        $this->transactionMapper->method('findAllByUserAndDateRange')
-            ->willReturn([]);
+        $this->cashFlowByYear([]);
 
         $result = $this->service->getMonthlyTrends('user1', 1);
 
@@ -317,20 +306,39 @@ class YearOverYearServiceTest extends TestCase {
         $this->assertArrayHasKey('avgMonthlyIncome', $result['years'][0]);
     }
 
+    /**
+     * One aggregate per year, spread over its months: a month without
+     * activity reads zero, the others their own figures.
+     */
+    public function testGetMonthlyTrendsFillsEveryMonthFromOneQueryPerYear(): void {
+        $lastYear = (int) date('Y') - 1;
+        $this->cashFlowByYear([
+            $lastYear => [
+                $this->month("$lastYear-02", 100.0, 40.0),
+                $this->month("$lastYear-11", 50.5, 10.25),
+            ],
+        ]);
+        $this->reportQueries->expects($this->exactly(2))->method('getCashFlowByMonth');
+
+        $result = $this->service->getMonthlyTrends('user1', 2);
+
+        $past = $result['years'][1];
+        $this->assertCount(12, $past['months']);
+        $this->assertSame(0.0, $past['months'][0]['income']);
+        $this->assertSame(100.0, $past['months'][1]['income']);
+        $this->assertSame(10.25, $past['months'][10]['expenses']);
+        $this->assertSame(150.5, $past['totalIncome']);
+        $this->assertSame(50.25, $past['totalExpenses']);
+        $this->assertSame(100.25, $past['totalSavings']);
+    }
+
     // ===== calculatePercentChange edge cases =====
 
     public function testPercentChangeFromZeroPreviousReturns100(): void {
         $currentYear = (int) date('Y');
-        $lastYear = $currentYear - 1;
-
-        $this->transactionMapper->method('findAllByUserAndDateRange')
-            ->willReturnCallback(function ($userId, $start) use ($currentYear) {
-                $year = (int) substr($start, 0, 4);
-                if ($year === $currentYear) {
-                    return [$this->makeTransaction("$currentYear-03-01", 1000.0, 'credit')];
-                }
-                return []; // Zero income previous year
-            });
+        $this->cashFlowByYear([
+            $currentYear => [$this->month("$currentYear-03", 1000.0, 0.0)],
+        ]);
 
         $result = $this->service->compareMonth('user1', 3, 2);
 
@@ -339,8 +347,7 @@ class YearOverYearServiceTest extends TestCase {
     }
 
     public function testPercentChangeFromZeroToZeroReturnsNull(): void {
-        $this->transactionMapper->method('findAllByUserAndDateRange')
-            ->willReturn([]);
+        $this->cashFlowByYear([]);
 
         $result = $this->service->compareMonth('user1', 3, 2);
 
