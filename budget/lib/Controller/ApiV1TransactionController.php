@@ -340,7 +340,7 @@ class ApiV1TransactionController extends OCSController {
             $photo = $this->request->getUploadedFile('photo');
             if ($photo) {
                 try {
-                    $this->attachmentService->upload($transaction->getId(), $effectiveUserId, $photo);
+                    $this->attachmentService->upload($transaction->getId(), $effectiveUserId, $photo, $this->userId);
                 } catch (\Throwable $e) {
                     $this->logger?->warning('Receipt attach during create failed: ' . $e->getMessage(), [
                         'app' => Application::APP_ID,
@@ -489,7 +489,7 @@ class ApiV1TransactionController extends OCSController {
             try {
                 $ownerId = $this->service->findAccountById($transaction->getAccountId())->getUserId();
                 if ($this->attachmentService->listForTransaction($transaction->getId(), $ownerId) === []) {
-                    $this->attachmentService->upload($transaction->getId(), $ownerId, $photo);
+                    $this->attachmentService->upload($transaction->getId(), $ownerId, $photo, $this->userId);
                 }
             } catch (\Throwable $e) {
                 $this->logger?->warning('Receipt attach during replay failed: ' . $e->getMessage(), [

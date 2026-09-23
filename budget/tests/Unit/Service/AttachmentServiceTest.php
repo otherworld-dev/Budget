@@ -13,6 +13,10 @@ use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
+use OCP\IUser;
+use OCP\IUserManager;
+use OCP\Notification\IManager as INotificationManager;
+use OCP\Notification\INotification;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -385,5 +389,113 @@ class AttachmentServiceTest extends TestCase {
         }
 
         $this->assertSame(['Applications', 'Budget', '2026', '08'], $created);
+    }
+
+    // ===== uploads by someone other than the owner =====
+
+    /**
+     * A service whose Files accept anything, wired to a recording
+     * notification manager. Returns [service, [subject, params] of each sent notification].
+     *
+     * @return array{0: AttachmentService, 1: \ArrayObject}
+     */
+    private function serviceRecordingNotifications(): array {
+        $transaction = $this->transactionFor('2026-08-05', 'Tesco', 'x', '23.77');
+        $transaction->setId(5);
+        $this->transactionMapper->method('find')->willReturn($transaction);
+        $this->mapper->method('insert')->willReturnCallback(fn ($a) => $a);
+        $this->mapper->method('findByTransaction')->willReturn([]);
+
+        $file = $this->makeFile(321, '2026-08-05 Tesco 23.77.png');
+        $folder = $this->createMock(Folder::class);
+        $folder->method('nodeExists')->willReturn(true);
+        $folder->method('get')->willReturnSelf();
+        $folder->method('newFile')->willReturn($file);
+        $rootFolder = $this->createMock(IRootFolder::class);
+        $rootFolder->method('getUserFolder')->willReturn($folder);
+
+        $sent = new \ArrayObject();
+        $notifications = $this->createMock(INotificationManager::class);
+        $subjects = [];
+        $notifications->method('createNotification')->willReturnCallback(function () use (&$subjects) {
+            $n = $this->createMock(INotification::class);
+            $n->method('setSubject')->willReturnCallback(function (string $subject, array $params) use ($n, &$subjects) {
+                $subjects[spl_object_id($n)] = [$subject, $params];
+                return $n;
+            });
+            $n->method($this->anything())->willReturnSelf();
+            return $n;
+        });
+        $notifications->method('notify')->willReturnCallback(function (INotification $n) use ($sent, &$subjects) {
+            $sent[] = $subjects[spl_object_id($n)] ?? null;
+        });
+        $bob = $this->createMock(IUser::class);
+        $bob->method('getDisplayName')->willReturn('Bob');
+        $users = $this->createMock(IUserManager::class);
+        $users->method('get')->willReturn($bob);
+
+        $service = new AttachmentService(
+            $this->mapper, $this->transactionMapper, $rootFolder,
+            $this->createMock(LoggerInterface::class), null, $notifications, $users
+        );
+        return [$service, $sent];
+    }
+
+    private function pngUpload(): array {
+        $tmp = tempnam(sys_get_temp_dir(), 'rcpt');
+        file_put_contents($tmp, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='));
+        return ['name' => 'IMG_1.png', 'type' => 'image/png', 'tmp_name' => $tmp, 'error' => UPLOAD_ERR_OK, 'size' => 70];
+    }
+
+    /**
+     * A share recipient with write access can put a receipt on the owner's
+     * transaction, and it is stored in the OWNER's Files against their quota
+     * (the owner has to be able to open it). The owner is told.
+     */
+    public function testAnUploadBySomeoneElseNotifiesTheOwner(): void {
+        [$service, $sent] = $this->serviceRecordingNotifications();
+        $upload = $this->pngUpload();
+        try {
+            $service->upload(5, 'alice', $upload, 'bob');
+        } finally {
+            unlink($upload['tmp_name']);
+        }
+
+        $this->assertCount(1, $sent);
+        [$subject, $params] = $sent[0];
+        $this->assertSame('receipt_added_by_other', $subject);
+        $this->assertSame('bob', $params['actorUserId']);
+        $this->assertSame('Bob', $params['actorDisplayName']);
+        $this->assertSame(321, $params['fileId']);
+    }
+
+    public function testTheOwnersOwnUploadSendsNoNotification(): void {
+        [$service, $sent] = $this->serviceRecordingNotifications();
+        $upload = $this->pngUpload();
+        try {
+            $service->upload(5, 'alice', $upload, 'alice');
+            $service->upload(5, 'alice', $upload);
+        } finally {
+            unlink($upload['tmp_name']);
+        }
+
+        $this->assertCount(0, $sent);
+    }
+
+    /** The size limit is checked against the file on disk, not only the figure in the upload array. */
+    public function testUploadRejectsAnOversizedFileWhoseReportedSizeIsSmall(): void {
+        $this->ownTransaction();
+        $tmp = tempnam(sys_get_temp_dir(), 'big');
+        $handle = fopen($tmp, 'wb');
+        ftruncate($handle, AttachmentService::MAX_SIZE + 1);
+        fclose($handle);
+
+        try {
+            $this->expectException(\InvalidArgumentException::class);
+            $this->expectExceptionMessage('25 MB');
+            $this->service->upload(5, 'alice', ['error' => UPLOAD_ERR_OK, 'size' => 10, 'tmp_name' => $tmp, 'name' => 'big.png']);
+        } finally {
+            unlink($tmp);
+        }
     }
 }

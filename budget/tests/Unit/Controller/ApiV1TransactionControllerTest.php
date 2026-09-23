@@ -454,7 +454,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->service->method('create')->willReturn($this->transaction());
 		$this->attachmentService->expects($this->once())
 			->method('upload')
-			->with(10, 'user1', $this->uploads['photo']);
+			->with(10, 'user1', $this->uploads['photo'], 'user1');
 
 		$this->assertSame(Http::STATUS_CREATED, $this->controller->create()->getStatus());
 	}
@@ -473,7 +473,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->service->method('create')->willReturn($this->transaction());
 		$this->attachmentService->expects($this->once())
 			->method('upload')
-			->with(10, 'owner2', $this->uploads['photo']);
+			->with(10, 'owner2', $this->uploads['photo'], 'user1');
 
 		$response = $this->controller->create();
 
@@ -734,7 +734,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->attachmentService->method('listForTransaction')->with(10, 'user1')->willReturn([]);
 		$this->attachmentService->expects($this->once())
 			->method('upload')
-			->with(10, 'user1', $this->uploads['photo']);
+			->with(10, 'user1', $this->uploads['photo'], 'user1');
 		$this->service->expects($this->never())->method('create');
 
 		$this->assertSame(Http::STATUS_CREATED, $controller->create()->getStatus());

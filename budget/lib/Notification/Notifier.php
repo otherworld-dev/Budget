@@ -463,6 +463,48 @@ class Notifier implements INotifier {
 
                 break;
 
+            case 'receipt_added_by_other':
+                // A share recipient attached a receipt to one of the owner's
+                // transactions; the file was stored in the OWNER's Files.
+                // TRANSLATORS: {user} is replaced with the person's name. Do NOT translate {user} — keep it exactly as-is.
+                $notification->setRichSubject(
+                    $l->t('{user} added a receipt to your budget'),
+                    [
+                        'user' => [
+                            'type' => 'user',
+                            'id' => $parameters['actorUserId'],
+                            'name' => $parameters['actorDisplayName'],
+                        ],
+                    ]
+                );
+
+                // TRANSLATORS: {file} and {transaction} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
+                $notification->setRichMessage(
+                    $l->t('{file} was saved to your Files for {transaction}.'),
+                    [
+                        'file' => [
+                            'type' => 'file',
+                            'id' => (string)$parameters['fileId'],
+                            'name' => $parameters['fileName'],
+                            'path' => $parameters['fileName'],
+                            'link' => $this->urlGenerator->linkToRouteAbsolute('files.viewcontroller.showFile', ['fileid' => $parameters['fileId']]),
+                        ],
+                        'transaction' => [
+                            'type' => 'highlight',
+                            'id' => (string)$parameters['transactionId'],
+                            'name' => $parameters['description'] !== '' ? $parameters['description'] : '#' . $parameters['transactionId'],
+                        ],
+                    ]
+                );
+
+                $notification->setIcon($this->urlGenerator->getAbsoluteURL(
+                    $this->urlGenerator->imagePath(Application::APP_ID, 'app.svg')
+                ));
+
+                $notification->setLink($this->urlGenerator->linkToRouteAbsolute('files.viewcontroller.showFile', ['fileid' => $parameters['fileId']]));
+
+                break;
+
             case 'budget_alert':
                 // TRANSLATORS: {category} is replaced with the category name. Do NOT translate {category} — keep it exactly as-is.
                 $alertSubject = $l->t('Approaching your {category} budget');

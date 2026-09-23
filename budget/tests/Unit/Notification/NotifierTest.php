@@ -187,6 +187,8 @@ class NotifierTest extends TestCase {
             'report_ready' => ['report_ready', ['month' => '2026-08', 'fileId' => '123', 'fileName' => 'report.pdf']],
             'budget_alert' => ['budget_alert', ['categoryName' => 'Dining', 'severity' => 'danger', 'percentage' => '112', 'spent' => '$224.00', 'budget' => '$200.00']],
             'forecast_warning' => ['forecast_warning', ['month' => '2026-11', 'balance' => '-$150.00']],
+            // Stored as the service sends them: ids are ints in the parameters
+            'receipt_added_by_other' => ['receipt_added_by_other', ['actorUserId' => 'bob', 'actorDisplayName' => 'Bob', 'transactionId' => 42, 'description' => 'Tesco', 'fileId' => 321, 'fileName' => '2026-08-05 Tesco 23.77.jpg']],
         ];
     }
 
@@ -210,6 +212,19 @@ class NotifierTest extends TestCase {
                 }
             }
         }
+    }
+
+    public function testReceiptAddedByAnotherUserNamesThemAndTheFile(): void {
+        $this->prepare('receipt_added_by_other', [
+            'actorUserId' => 'bob', 'actorDisplayName' => 'Bob', 'transactionId' => 42,
+            'description' => '', 'fileId' => 321, 'fileName' => 'r.jpg',
+        ]);
+
+        $this->assertSame('{user} added a receipt to your budget', $this->richSubject);
+        $this->assertSame('bob', $this->richSubjectParams['user']['id']);
+        $this->assertSame('321', $this->richMessageParams['file']['id']);
+        // No description to show: fall back to the transaction number
+        $this->assertSame('#42', $this->richMessageParams['transaction']['name']);
     }
 
     public function testUnknownSubjectIsRejected(): void {
