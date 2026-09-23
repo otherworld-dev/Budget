@@ -18,7 +18,7 @@ class TransactionMapper extends QBMapper {
 
     public function __construct(IDBConnection $db, ?QueryFilterBuilder $filterBuilder = null) {
         parent::__construct($db, 'budget_transactions', Transaction::class);
-        $this->filterBuilder = $filterBuilder ?? new QueryFilterBuilder();
+        $this->filterBuilder = $filterBuilder ?? new QueryFilterBuilder($db);
     }
 
     /**
@@ -984,7 +984,7 @@ class TransactionMapper extends QBMapper {
     public function search(string $userId, string $query, int $limit = 100, int $offset = 0, ?array $visibleAccountIds = null): array {
         $qb = $this->db->getQueryBuilder();
         // iLike + lowered pattern: plain LIKE is case-sensitive on PostgreSQL and SQLite
-        $searchPattern = '%' . $qb->escapeLikeParameter(mb_strtolower($query)) . '%';
+        $searchPattern = '%' . $this->db->escapeLikeParameter(mb_strtolower($query)) . '%';
 
         $qb->select('t.*')
             ->from($this->getTableName(), 't')
