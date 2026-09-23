@@ -1,0 +1,10 @@
+Account,Date,Payee,Notes,Category_Group,Category,Amount,Split_Amount,Cleared
+Everyday Checking,2024-02-01,Starting Balance,,Income,Starting Balances,2150.75,0,Reconciled
+Everyday Checking,2024-02-03,Green Market,weekly veg,Food,Groceries,-36.20,0,Cleared
+Everyday Checking,2024-02-10,Corner Pharmacy,(SPLIT INTO 2) receipt 8841,,,0,-27.90,Cleared
+Everyday Checking,2024-02-10,Corner Pharmacy,(SPLIT 1 OF 2) prescriptions,Health,Medicine,-19.40,0,Cleared
+Everyday Checking,2024-02-10,Corner Pharmacy,(SPLIT 2 OF 2) shampoo,Home,Toiletries,-8.50,0,Cleared
+Everyday Checking,2024-02-15,,monthly saving,,,-250.00,0,Cleared
+Rainy Day Savings,2024-02-15,,monthly saving,,,250.00,0,Cleared
+Everyday Checking,2024-02-20,'-Minus Cafe,'=SUM(A1) is not a formula,Food,Eating Out,-4.10,0,Not cleared
+Everyday Checking,2024-02-28,Employer Co,February salary,Income,Salary,3100.00,0,Cleared

@@ -47,7 +47,7 @@ class PresetRegistryTest extends TestCase {
 	public function testGetAllReturnsArrayOfPresets(): void {
 		$presets = $this->registry->getAll();
 		$this->assertIsArray($presets);
-		$this->assertCount(1, $presets);
+		$this->assertCount(6, $presets);
 		$this->assertContainsOnlyInstancesOf(ImportPresetInterface::class, $presets);
 	}
 
@@ -97,5 +97,53 @@ class PresetRegistryTest extends TestCase {
 		foreach ($expectedKeys as $key) {
 			$this->assertArrayHasKey($key, $entry, "toArray entry should contain key '$key'");
 		}
+	}
+
+	// ===== App-export presets =====
+
+	public function testRegistersEveryAppExportPreset(): void {
+		foreach (['firefly-iii', 'ynab', 'actual-budget', 'mint', 'monarch-money'] as $id) {
+			$this->assertNotNull($this->registry->get($id), $id);
+			$this->assertArrayHasKey($id, $this->registry->toArray());
+		}
+	}
+
+	/**
+	 * @dataProvider fixtureHeaderProvider
+	 */
+	public function testDetectsEachAppFromItsExportHeader(string $fixture, string $delimiter, string $expected): void {
+		$content = (string) file_get_contents(__DIR__ . '/../../../../fixtures/import/' . $fixture);
+		$header = str_getcsv(strtok($content, "\r\n"), $delimiter, '"', '');
+		$this->assertSame($expected, $this->registry->detect($header));
+	}
+
+	public static function fixtureHeaderProvider(): array {
+		return [
+			'Firefly III' => ['firefly-iii-export.csv', ',', 'firefly-iii'],
+			'Firefly III 6.0' => ['firefly-iii-export-v6.0.csv', ',', 'firefly-iii'],
+			'YNAB' => ['ynab-register.csv', ',', 'ynab'],
+			'YNAB tab-separated' => ['ynab-register-tab.csv', "\t", 'ynab'],
+			'YNAB 4' => ['ynab4-register.csv', ',', 'ynab'],
+			'Actual Budget' => ['actual-budget-export.csv', ',', 'actual-budget'],
+			'Mint' => ['mint-transactions.csv', ',', 'mint'],
+			'Monarch Money' => ['monarch-transactions.csv', ',', 'monarch-money'],
+		];
+	}
+
+	public function testDetectsToshlOnlyFromItsExactEnglishHeader(): void {
+		$toshl = ['Date', 'Account', 'Category', 'Tags', 'Expense', 'Income', 'Currency', 'In Main Currency', 'Main Currency', 'Description'];
+		$this->assertSame('toshl', $this->registry->detect($toshl));
+		$this->assertSame('toshl', $this->registry->detect(array_map('strtoupper', $toshl)));
+		$this->assertNull($this->registry->detect(array_merge($toshl, ['Extra'])));
+	}
+
+	public function testDetectsNothingInAnOrdinaryBankExport(): void {
+		$this->assertNull($this->registry->detect(['Date', 'Description', 'Amount', 'Balance']));
+		$this->assertNull($this->registry->detect(['Account', 'Date', 'Payee', 'Amount']));
+		$this->assertNull($this->registry->detect([]));
+	}
+
+	public function testHeaderMatchingIgnoresCaseAndPadding(): void {
+		$this->assertSame('mint', $this->registry->detect([' date', 'DESCRIPTION', 'Original Description ', 'Amount', 'transaction type', 'Category', 'Account Name']));
 	}
 }

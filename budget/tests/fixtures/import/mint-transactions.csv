@@ -1,0 +1,7 @@
+"Date","Description","Original Description","Amount","Transaction Type","Category","Account Name","Labels","Notes"
+"1/03/2023","Blue Bottle Coffee","BLUE BOTTLE COFFEE #0123 SAN FRANCISCO CA","4.75","debit","Coffee Shops","Visa Signature","",""
+"1/13/2023","Safeway","SAFEWAY #1234 OAKLAND CA","82.16","debit","Groceries","Everyday Checking","Reimbursable","split with roommate"
+"1/15/2023","Paycheck","ACME CORP PAYROLL PPD ID: 1234567890","2450.00","credit","Paycheck","Everyday Checking","",""
+"1/20/2023","Visa Payment","ONLINE PAYMENT - THANK YOU","4.75","credit","Credit Card Payment","Visa Signature","",""
+"1/20/2023","Chase Card Payment","CHASE CREDIT CRD AUTOPAY PPD","4.75","debit","Credit Card Payment","Everyday Checking","",""
+"1/28/2023","Amazon","AMAZON.COM*AB12C34D5 AMZN.COM/BILL WA","19.99","debit","Uncategorized","Visa Signature","Tax Related, Home Office",""

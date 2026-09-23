@@ -23,7 +23,7 @@ class ParserFactory {
         $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
 
         return match ($extension) {
-            'csv', 'txt' => 'csv',
+            'csv', 'txt', 'tsv' => 'csv',
             'ofx' => 'ofx',
             'qif' => 'qif',
             // ISO 20022 camt.053/052 statements are the only XML banks export (#350)
@@ -144,6 +144,40 @@ class ParserFactory {
         }
 
         return $data;
+    }
+
+    /**
+     * Parse CSV content into raw records, header row included.
+     *
+     * Unlike parseCsv() this reads real CSV records rather than lines, so a
+     * quoted field that spans several lines (a multi-line note) stays in its
+     * row instead of breaking it into fragments that get dropped. Used by the
+     * header-mapped app-export presets, which read columns by name.
+     *
+     * @param string $content CSV file content (UTF-8)
+     * @param string $delimiter CSV delimiter character
+     * @return array<int, array<int, string>> Records in file order, blank lines skipped
+     */
+    public function parseCsvRecords(string $content, string $delimiter = ','): array {
+        $content = $this->stripBom($content);
+        $stream = fopen('php://temp', 'r+');
+        if ($stream === false) {
+            return [];
+        }
+        fwrite($stream, $content);
+        rewind($stream);
+
+        $records = [];
+        while (($record = fgetcsv($stream, null, $delimiter, '"', '')) !== false) {
+            // A blank line comes back as [null]
+            if ($record === [null]) {
+                continue;
+            }
+            $records[] = array_map(static fn($cell) => (string) $cell, $record);
+        }
+        fclose($stream);
+
+        return $records;
     }
 
     /**
