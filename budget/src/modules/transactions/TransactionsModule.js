@@ -15,7 +15,8 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
-import { serverErrorMessage, downloadTransactionsCsv } from '../../utils/helpers.js';
+import { downloadTransactionsCsv } from '../../utils/helpers.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
 import { openAccounts, pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
 import { offerableTags } from '../../utils/tags.js';
 import flatpickr from 'flatpickr';
@@ -532,18 +533,17 @@ export default class TransactionsModule {
     async loadFilterTags() {
         // Always refetch to pick up newly created tag sets and global tags
         try {
-            const [tagSetsResponse, globalTagsResponse] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/tag-sets'), { headers: { 'requesttoken': OC.requestToken } }),
-                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } })
+            const [tagSets, globalTags] = await Promise.all([
+                apiFetch('/apps/budget/api/tag-sets').catch(() => null),
+                apiFetch('/apps/budget/api/tags/global').catch(() => null)
             ]);
 
-            if (tagSetsResponse.ok) {
-                this.allFilterTagSets = await tagSetsResponse.json();
+            if (tagSets) {
+                this.allFilterTagSets = tagSets;
             }
 
             // Wrap global tags as a virtual tag set for the filter dropdown
-            if (globalTagsResponse.ok) {
-                const globalTags = await globalTagsResponse.json();
+            if (globalTags) {
                 if (globalTags.length > 0) {
                     this.allFilterTagSets = this.allFilterTagSets || [];
                     this.allFilterTagSets.unshift({
@@ -917,15 +917,7 @@ export default class TransactionsModule {
             const params = this.app.buildTransactionFilterParams();
             const url = '/apps/budget/api/transactions/ids'
                 + (params.toString() ? '?' + params.toString() : '');
-            const response = await fetch(OC.generateUrl(url), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const result = await response.json();
+            const result = await apiFetch(url);
 
             // The filter may have changed while the fetch was in flight —
             // installing the stale id set would select rows the user is no
@@ -1080,18 +1072,12 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-delete'), {
+            const result = await apiFetch('/apps/budget/api/transactions/bulk-delete', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     ids: Array.from(this.selectedTransactions)
-                })
+                }
             });
-
-            const result = await response.json();
 
             if (result.success > 0) {
                 showSuccess(n('budget', 'Successfully deleted %n transaction', 'Successfully deleted %n transactions', result.success));
@@ -1120,19 +1106,13 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-reconcile'), {
+            const result = await apiFetch('/apps/budget/api/transactions/bulk-reconcile', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     ids: Array.from(this.selectedTransactions),
                     reconciled: true
-                })
+                }
             });
-
-            const result = await response.json();
 
             if (result.success > 0) {
                 showSuccess(n('budget', 'Successfully reconciled %n transaction', 'Successfully reconciled %n transactions', result.success));
@@ -1161,19 +1141,13 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-reconcile'), {
+            const result = await apiFetch('/apps/budget/api/transactions/bulk-reconcile', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     ids: Array.from(this.selectedTransactions),
                     reconciled: false
-                })
+                }
             });
-
-            const result = await response.json();
 
             if (result.success > 0) {
                 showSuccess(n('budget', 'Successfully unreconciled %n transaction', 'Successfully unreconciled %n transactions', result.success));
@@ -1249,19 +1223,13 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-edit'), {
+            const result = await apiFetch('/apps/budget/api/transactions/bulk-edit', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     ids: Array.from(this.selectedTransactions),
                     updates: updates
-                })
+                }
             });
-
-            const result = await response.json();
 
             if (result.success > 0) {
                 showSuccess(n('budget', 'Successfully updated %n transaction', 'Successfully updated %n transactions', result.success));
@@ -1329,16 +1297,12 @@ export default class TransactionsModule {
 
         let options = { totalSelected: 0, globalTags: [], tagSets: [], unaffectedCount: 0 };
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-tag-options'), {
+            const loaded = await apiFetch('/apps/budget/api/transactions/bulk-tag-options', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ ids: Array.from(this.selectedTransactions) })
-            });
-            if (response.ok) {
-                options = await response.json();
+                body: { ids: Array.from(this.selectedTransactions) }
+            }).catch(() => null);
+            if (loaded) {
+                options = loaded;
             }
         } catch (error) {
             console.error('Failed to load bulk tag options:', error);
@@ -1438,23 +1402,22 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-tags'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
-                    ids: Array.from(this.selectedTransactions),
-                    addTagIds,
-                    removeTagIds
-                })
-            });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                showError(serverErrorMessage(result, t('budget', 'Failed to update tags')));
+            let result;
+            try {
+                result = await apiFetch('/apps/budget/api/transactions/bulk-tags', {
+                    method: 'POST',
+                    body: {
+                        ids: Array.from(this.selectedTransactions),
+                        addTagIds,
+                        removeTagIds
+                    },
+                    errorMessage: t('budget', 'Failed to update tags'),
+                });
+            } catch (error) {
+                // A refusal carries the server's reason; anything else takes
+                // the generic toast below
+                if (!(error instanceof ApiError)) throw error;
+                showError(error.message);
                 return;
             }
 
@@ -1520,18 +1483,16 @@ export default class TransactionsModule {
     }
 
     /**
-     * Read an error message from a failed response without assuming it is JSON.
-     * A 500 returns Nextcloud's HTML error page; calling response.json() on it
-     * throws an opaque parser error (on Safari/WebKit: "The string did not match
-     * the expected pattern"), which previously masked the real failure (#287).
+     * The message for a failed reconciliation step. apiFetch already prefers
+     * the server's `error` over the caller's fallback; a failure with no JSON
+     * body at all is Nextcloud's HTML error page (a 500), where pointing at the
+     * logs says more than the fallback would (#287).
      */
-    async reconcileErrorMessage(response, fallback) {
-        try {
-            const data = await response.json();
-            return data.error || fallback;
-        } catch (e) {
-            return t('budget', 'Server error ({status}) — check the Nextcloud logs', { status: response.status });
+    reconcileErrorMessage(error) {
+        if (error instanceof ApiError && error.data === null) {
+            return t('budget', 'Server error ({status}) — check the Nextcloud logs', { status: error.status });
         }
+        return error.message;
     }
 
     async startReconciliation() {
@@ -1545,34 +1506,28 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/session`), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
-                    statementBalance: parseFloat(statementBalance),
-                    statementDate: statementDate
-                })
-            });
-
-            if (response.status === 409) {
-                const data = await response.json();
+            let state;
+            try {
+                state = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/session`, {
+                    method: 'POST',
+                    body: {
+                        statementBalance: parseFloat(statementBalance),
+                        statementDate: statementDate
+                    },
+                    errorMessage: t('budget', 'Failed to start reconciliation'),
+                });
+            } catch (error) {
+                if (!(error instanceof ApiError) || error.status !== 409) throw error;
                 if (await confirmDialog(t('budget', 'A reconciliation is already in progress for this account. Resume it?'))) {
-                    await this.enterReconcileSession(data.existing);
+                    await this.enterReconcileSession(error.data.existing);
                 }
                 return;
             }
-            if (!response.ok) {
-                throw new Error(await this.reconcileErrorMessage(response, t('budget', 'Failed to start reconciliation')));
-            }
 
-            const state = await response.json();
             await this.enterReconcileSession(state);
         } catch (error) {
             console.error('Reconciliation failed:', error);
-            showError(t('budget', 'Failed to start reconciliation: {message}', { message: error.message }));
+            showError(t('budget', 'Failed to start reconciliation: {message}', { message: this.reconcileErrorMessage(error) }));
         }
     }
 
@@ -1689,15 +1644,10 @@ export default class TransactionsModule {
         const accountId = this.reconcileSession.session.accountId;
 
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/tick-all`),
-                { method: 'POST', headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) {
-                throw new Error(await this.reconcileErrorMessage(response, t('budget', 'Failed to tick transactions')));
-            }
-
-            const state = await response.json();
+            const state = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/tick-all`, {
+                method: 'POST',
+                errorMessage: t('budget', 'Failed to tick transactions'),
+            });
             this.reconcileSession = state;
             this.selectedTransactions = new Set(state.tickedIds || []);
             this._reconTickQueue.clear();
@@ -1706,7 +1656,7 @@ export default class TransactionsModule {
             await this.app.loadTransactions();
         } catch (error) {
             console.error('Tick all failed:', error);
-            showError(t('budget', 'Failed to tick transactions: {message}', { message: error.message }));
+            showError(t('budget', 'Failed to tick transactions: {message}', { message: this.reconcileErrorMessage(error) }));
         }
     }
 
@@ -1754,15 +1704,11 @@ export default class TransactionsModule {
             let state = null;
             for (const [ids, ticked] of [[ticks, true], [unticks, false]]) {
                 if (ids.length === 0) continue;
-                const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/tick`), {
+                state = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/tick`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                    body: JSON.stringify({ transactionIds: ids, ticked })
+                    body: { transactionIds: ids, ticked },
+                    errorMessage: t('budget', 'Failed to update reconciliation'),
                 });
-                if (!response.ok) {
-                    throw new Error(await this.reconcileErrorMessage(response, t('budget', 'Failed to update reconciliation')));
-                }
-                state = await response.json();
             }
             if (state && this.reconcileSession) {
                 // Server state is authoritative
@@ -1772,7 +1718,7 @@ export default class TransactionsModule {
             }
         } catch (error) {
             console.error('Reconcile tick failed:', error);
-            showError(t('budget', 'Failed to update reconciliation: {message}', { message: error.message }));
+            showError(t('budget', 'Failed to update reconciliation: {message}', { message: this.reconcileErrorMessage(error) }));
             await this.refreshReconcileSession();
         }
     }
@@ -1782,18 +1728,12 @@ export default class TransactionsModule {
         if (!this.reconcileSession) return;
         const accountId = this.reconcileSession.session.accountId;
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/session`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (response.ok) {
-                const state = await response.json();
-                if (state.session) {
-                    this.reconcileSession = state;
-                    this.selectedTransactions = new Set(state.tickedIds || []);
-                    this.renderReconcileBar();
-                    this.app.loadTransactions();
-                }
+            const state = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/session`).catch(() => null);
+            if (state?.session) {
+                this.reconcileSession = state;
+                this.selectedTransactions = new Set(state.tickedIds || []);
+                this.renderReconcileBar();
+                this.app.loadTransactions();
             }
         } catch (error) {
             console.error('Failed to refresh reconcile session:', error);
@@ -1806,12 +1746,8 @@ export default class TransactionsModule {
     async checkActiveReconcileSession(accountId) {
         if (!accountId || this.reconcileMode) return;
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/session`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) return;
-            const state = await response.json();
+            const state = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/session`).catch(() => null);
+            if (!state) return;
             if (state.session) {
                 this.showReconcileResumeBanner(state);
             }
@@ -1881,17 +1817,14 @@ export default class TransactionsModule {
         const accountId = this.reconcileSession.session.accountId;
         try {
             await this.flushReconcileTicks();
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/session`), {
+            await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/session`, {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
+                errorMessage: t('budget', 'Failed to cancel'),
             });
-            if (!response.ok) {
-                throw new Error(await this.reconcileErrorMessage(response, t('budget', 'Failed to cancel')));
-            }
             this.exitReconcileMode();
             showSuccess(t('budget', 'Reconciliation cancelled'));
         } catch (error) {
-            showError(t('budget', 'Failed to cancel reconciliation: {message}', { message: error.message }));
+            showError(t('budget', 'Failed to cancel reconciliation: {message}', { message: this.reconcileErrorMessage(error) }));
         }
     }
 
@@ -1906,16 +1839,10 @@ export default class TransactionsModule {
 
         try {
             await this.flushReconcileTicks();
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/complete`), {
+            const result = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/complete`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken }
+                errorMessage: t('budget', 'Failed to complete reconciliation'),
             });
-
-            if (!response.ok) {
-                throw new Error(await this.reconcileErrorMessage(response, t('budget', 'Failed to complete reconciliation')));
-            }
-
-            const result = await response.json();
             this.exitReconcileMode();
             this.app.loadAccounts();
             this.app.loadTransactions();
@@ -1927,7 +1854,7 @@ export default class TransactionsModule {
                     result.untickedBeforeStatementDate));
             }
         } catch (error) {
-            showError(t('budget', 'Failed to complete reconciliation: {error}', { error: error.message }));
+            showError(t('budget', 'Failed to complete reconciliation: {error}', { error: this.reconcileErrorMessage(error) }));
         }
     }
 
@@ -1937,36 +1864,26 @@ export default class TransactionsModule {
         const today = new Date().toISOString().split('T')[0];
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions'), {
+            const created = await apiFetch('/apps/budget/api/transactions', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     date: today,
                     accountId: accountId,
                     type: type,
                     amount: amount,
                     description: t('budget', 'Reconciliation Adjustment'),
                     notes: t('budget', 'Adjustment to match statement balance of {amount}', { amount: this.formatCurrency(this.reconcileSession.session.statementBalance) })
-                })
+                },
+                errorMessage: t('budget', 'Failed to create adjustment'),
             });
-
-            if (!response.ok) {
-                throw new Error(await this.reconcileErrorMessage(response, t('budget', 'Failed to create adjustment')));
-            }
-
-            const created = await response.json();
 
             // Tick the adjustment straight into the session — zeroes the difference
-            const tickResponse = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/tick`), {
+            const ticked = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/tick`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ transactionIds: [created.id], ticked: true })
-            });
-            if (tickResponse.ok) {
-                this.reconcileSession = await tickResponse.json();
+                body: { transactionIds: [created.id], ticked: true }
+            }).catch(() => null);
+            if (ticked) {
+                this.reconcileSession = ticked;
                 this.selectedTransactions = new Set(this.reconcileSession.tickedIds || []);
             }
 
@@ -1975,7 +1892,7 @@ export default class TransactionsModule {
             this.renderReconcileBar();
         } catch (error) {
             console.error('Failed to create adjustment:', error);
-            showError(t('budget', 'Failed to create adjustment: {message}', { message: error.message }));
+            showError(t('budget', 'Failed to create adjustment: {message}', { message: this.reconcileErrorMessage(error) }));
         }
     }
 
@@ -2373,10 +2290,7 @@ export default class TransactionsModule {
 
         if (this._ocrAvailable === undefined) {
             try {
-                const res = await fetch(OC.generateUrl('/apps/budget/api/receipts/ocr-status'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                });
-                this._ocrAvailable = res.ok ? !!(await res.json()).available : false;
+                this._ocrAvailable = !!(await apiFetch('/apps/budget/api/receipts/ocr-status'))?.available;
             } catch (e) {
                 this._ocrAvailable = false;
             }
@@ -2442,19 +2356,11 @@ export default class TransactionsModule {
             const body = new FormData();
             body.append('image', file);
 
-            const response = await fetch(OC.generateUrl('/apps/budget/api/receipts/extract'), {
+            const draft = await apiFetch('/apps/budget/api/receipts/extract', {
                 method: 'POST',
-                headers: { 'requesttoken': OC.requestToken },
-                body
+                body,
+                errorMessage: t('budget', 'The receipt could not be read'),
             });
-
-            if (!response.ok) {
-                let message = '';
-                try { message = (await response.json()).error || ''; } catch (e) { /* non-JSON error page */ }
-                throw new Error(message || t('budget', 'The receipt could not be read'));
-            }
-
-            const draft = await response.json();
             const filled = this.applyReceiptDraft(draft);
 
             // Keep the photo so saving attaches it — the attachment endpoint
@@ -2844,12 +2750,7 @@ export default class TransactionsModule {
         const list = document.getElementById('transaction-attachments-list');
         if (!list) return;
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/attachments`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const attachments = await response.json();
+            const attachments = await apiFetch(`/apps/budget/api/transactions/${transactionId}/attachments`);
 
             list.innerHTML = attachments.map(a => {
                 const thumb = a.isImage && !a.missing
@@ -2883,12 +2784,11 @@ export default class TransactionsModule {
         try {
             const formData = new FormData();
             formData.append('file', file);
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/attachments/upload`),
-                { method: 'POST', headers: { 'requesttoken': OC.requestToken }, body: formData }
-            );
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || t('budget', 'Failed to upload receipt'));
+            await apiFetch(`/apps/budget/api/transactions/${transactionId}/attachments/upload`, {
+                method: 'POST',
+                body: formData,
+                errorMessage: t('budget', 'Failed to upload receipt'),
+            });
             this.app.attachmentCounts = null; // invalidate badge cache
         } catch (error) {
             showError(error.message || t('budget', 'Failed to upload receipt'));
@@ -2897,16 +2797,11 @@ export default class TransactionsModule {
 
     async attachExistingFile(transactionId, path) {
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/attachments`),
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                    body: JSON.stringify({ path })
-                }
-            );
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || t('budget', 'Failed to attach file'));
+            await apiFetch(`/apps/budget/api/transactions/${transactionId}/attachments`, {
+                method: 'POST',
+                body: { path },
+                errorMessage: t('budget', 'Failed to attach file'),
+            });
             this.app.attachmentCounts = null;
         } catch (error) {
             showError(error.message || t('budget', 'Failed to attach file'));
@@ -2915,11 +2810,7 @@ export default class TransactionsModule {
 
     async detachAttachment(transactionId, attachmentId) {
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/attachments/${attachmentId}`),
-                { method: 'DELETE', headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            await apiFetch(`/apps/budget/api/transactions/${transactionId}/attachments/${attachmentId}`, { method: 'DELETE' });
             this.app.attachmentCounts = null;
         } catch (error) {
             showError(t('budget', 'Failed to remove attachment'));
@@ -2977,13 +2868,9 @@ export default class TransactionsModule {
 
             try {
                 // Step 1: Create debit transaction in FROM account
-                const debitResponse = await fetch(OC.generateUrl('/apps/budget/api/transactions'), {
+                const debitData = await apiFetch('/apps/budget/api/transactions', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'requesttoken': OC.requestToken
-                    },
-                    body: JSON.stringify({
+                    body: {
                         date,
                         accountId: accountId,
                         type: 'debit',
@@ -2992,14 +2879,9 @@ export default class TransactionsModule {
                         vendor: vendor || null,
                         categoryId: categoryId ? parseInt(categoryId) : null,
                         notes: notes || null
-                    })
+                    },
+                    errorMessage: 'Failed to create transfer debit transaction',
                 });
-
-                if (!debitResponse.ok) {
-                    const error = await debitResponse.json();
-                    throw new Error(serverErrorMessage(error, 'Failed to create transfer debit transaction'));
-                }
-                const debitData = await debitResponse.json();
                 const debitTransactionId = debitData.id;
 
                 // Step 2: Create credit transaction in TO account
@@ -3010,13 +2892,9 @@ export default class TransactionsModule {
                     ? parseFloat(destAmountInput.value)
                     : amount;
 
-                const creditResponse = await fetch(OC.generateUrl('/apps/budget/api/transactions'), {
+                const creditData = await apiFetch('/apps/budget/api/transactions', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'requesttoken': OC.requestToken
-                    },
-                    body: JSON.stringify({
+                    body: {
                         date,
                         accountId: toAccountId,
                         type: 'credit',
@@ -3025,32 +2903,16 @@ export default class TransactionsModule {
                         vendor: vendor || null,
                         categoryId: categoryId ? parseInt(categoryId) : null,
                         notes: notes || null
-                    })
+                    },
+                    errorMessage: 'Failed to create transfer credit transaction',
                 });
-
-                if (!creditResponse.ok) {
-                    const error = await creditResponse.json();
-                    throw new Error(serverErrorMessage(error, 'Failed to create transfer credit transaction'));
-                }
-                const creditData = await creditResponse.json();
                 const creditTransactionId = creditData.id;
 
                 // Step 3: Link the two transactions using existing matching API
-                const linkResponse = await fetch(
-                    OC.generateUrl(`/apps/budget/api/transactions/${debitTransactionId}/link/${creditTransactionId}`),
-                    {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'requesttoken': OC.requestToken
-                        }
-                    }
-                );
-
-                if (!linkResponse.ok) {
-                    const error = await linkResponse.json();
-                    throw new Error(serverErrorMessage(error, 'Failed to link transfer transactions'));
-                }
+                await apiFetch(`/apps/budget/api/transactions/${debitTransactionId}/link/${creditTransactionId}`, {
+                    method: 'POST',
+                    errorMessage: 'Failed to link transfer transactions',
+                });
 
                 // Success
                 showSuccess(t('budget', 'Transfer created successfully'));
@@ -3104,78 +2966,66 @@ export default class TransactionsModule {
         }
 
         try {
-            let response;
+            let created = null;
             if (id) {
                 // Update existing transaction
-                response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${id}`), {
+                await apiFetch(`/apps/budget/api/transactions/${id}`, {
                     method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'requesttoken': OC.requestToken
-                    },
-                    body: JSON.stringify(data)
+                    body: data,
+                    errorMessage: t('budget', 'Failed to save transaction'),
                 });
             } else {
                 // Create new transaction
-                response = await fetch(OC.generateUrl('/apps/budget/api/transactions'), {
+                created = await apiFetch('/apps/budget/api/transactions', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'requesttoken': OC.requestToken
-                    },
-                    body: JSON.stringify(data)
+                    body: data,
+                    errorMessage: t('budget', 'Failed to save transaction'),
                 });
             }
 
-            if (response.ok) {
-                const created = !id ? await response.json() : null;
-                const txId = created?.id || parseInt(id);
+            const txId = created?.id || parseInt(id);
 
-                // Save tags for newly created transactions
-                if (!id && selectedTagIds.length > 0 && txId) {
-                    await this.app.tagSetsModule.saveTransactionTags(txId, selectedTagIds);
+            // Save tags for newly created transactions
+            if (!id && selectedTagIds.length > 0 && txId) {
+                await this.app.tagSetsModule.saveTransactionTags(txId, selectedTagIds);
+            }
+
+            // Save inline splits if enabled
+            const splitToggle = document.getElementById('transaction-split-toggle');
+            if (splitToggle?.checked && txId) {
+                await this.saveInlineSplits(txId);
+            }
+
+            // Receipts chosen before the transaction existed — a scanned
+            // photo, or ones picked by hand — are attached now that it has
+            // an id. Failing here must not fail the save: the transaction
+            // is already recorded, and a re-submit would duplicate it.
+            if (txId) {
+                if (this._scannedReceiptFile) {
+                    this._pendingAttachments.push({
+                        kind: 'file',
+                        file: this._scannedReceiptFile,
+                        name: this._scannedReceiptFile.name,
+                    });
+                    this._scannedReceiptFile = null;
                 }
-
-                // Save inline splits if enabled
-                const splitToggle = document.getElementById('transaction-split-toggle');
-                if (splitToggle?.checked && txId) {
-                    await this.saveInlineSplits(txId);
+                const failed = await this.flushPendingAttachments(txId);
+                if (failed > 0) {
+                    showWarning(t('budget', 'The transaction was saved, but {count} receipt(s) could not be attached', { count: failed }));
                 }
+            }
 
-                // Receipts chosen before the transaction existed — a scanned
-                // photo, or ones picked by hand — are attached now that it has
-                // an id. Failing here must not fail the save: the transaction
-                // is already recorded, and a re-submit would duplicate it.
-                if (txId) {
-                    if (this._scannedReceiptFile) {
-                        this._pendingAttachments.push({
-                            kind: 'file',
-                            file: this._scannedReceiptFile,
-                            name: this._scannedReceiptFile.name,
-                        });
-                        this._scannedReceiptFile = null;
-                    }
-                    const failed = await this.flushPendingAttachments(txId);
-                    if (failed > 0) {
-                        showWarning(t('budget', 'The transaction was saved, but {count} receipt(s) could not be attached', { count: failed }));
-                    }
-                }
+            showSuccess(id ? t('budget', 'Transaction updated') : t('budget', 'Transaction created'));
+            this.app.hideModals();
+            await this.app.loadTransactions();
+            await this.app.loadAccounts(); // Refresh account balances
 
-                showSuccess(id ? t('budget', 'Transaction updated') : t('budget', 'Transaction created'));
-                this.app.hideModals();
-                await this.app.loadTransactions();
-                await this.app.loadAccounts(); // Refresh account balances
+            // Refresh account details view if currently viewing an account
+            await this.app.refreshCurrentAccountView();
 
-                // Refresh account details view if currently viewing an account
-                await this.app.refreshCurrentAccountView();
-
-                // Refresh dashboard if currently viewing it
-                if (window.location.hash === '' || window.location.hash === '#/dashboard') {
-                    await this.app.loadDashboard();
-                }
-            } else {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to save transaction')));
+            // Refresh dashboard if currently viewing it
+            if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                await this.app.loadDashboard();
             }
         } catch (error) {
             console.error('Failed to save transaction:', error);
@@ -3487,12 +3337,8 @@ export default class TransactionsModule {
         container.innerHTML = '';
 
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) return;
-            const splits = await response.json();
+            const splits = await apiFetch(`/apps/budget/api/transactions/${transactionId}/splits`).catch(() => null);
+            if (!splits) return;
 
             if (splits.length > 0) {
                 // A stored set may contain a negative part (a receipt savings
@@ -3537,30 +3383,21 @@ export default class TransactionsModule {
         if (splits.length < 2) return;
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`), {
+            await apiFetch(`/apps/budget/api/transactions/${transactionId}/splits`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ splits })
+                body: { splits }
             });
-
+        } catch (error) {
             // The result was previously ignored entirely, so a rejected set
             // left the transaction silently unsplit after telling the user it
             // had saved — the failure was invisible in the UI and in the
             // console alike. The transaction itself is fine, so this warns
             // rather than throwing.
-            if (!response.ok) {
-                let reason = '';
-                try { reason = (await response.json()).error || ''; } catch (e) { /* non-JSON error */ }
-                showWarning(reason
-                    ? t('budget', 'The transaction was saved, but not split: {reason}', { reason })
-                    : t('budget', 'The transaction was saved, but its splits could not be stored'));
-            }
-        } catch (error) {
             console.error('Failed to save inline splits:', error);
-            showWarning(t('budget', 'The transaction was saved, but its splits could not be stored'));
+            const reason = error instanceof ApiError ? (error.data?.error || '') : '';
+            showWarning(reason
+                ? t('budget', 'The transaction was saved, but not split: {reason}', { reason })
+                : t('budget', 'The transaction was saved, but its splits could not be stored'));
         }
     }
 
@@ -3598,28 +3435,29 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${id}`), {
-                method: 'DELETE',
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
+            try {
+                await apiFetch(`/apps/budget/api/transactions/${id}`, {
+                    method: 'DELETE',
+                    errorMessage: t('budget', 'Failed to delete transaction'),
+                });
+            } catch (error) {
+                // A refusal carries the server's reason; anything else takes
+                // the generic toast below
+                if (!(error instanceof ApiError)) throw error;
+                showError(error.message);
+                return;
+            }
 
-            if (response.ok) {
-                showSuccess(t('budget', 'Transaction deleted'));
-                await this.app.loadTransactions();
-                await this.app.loadAccounts(); // Refresh account balances
+            showSuccess(t('budget', 'Transaction deleted'));
+            await this.app.loadTransactions();
+            await this.app.loadAccounts(); // Refresh account balances
 
-                // Refresh account details view if currently viewing an account
-                await this.app.refreshCurrentAccountView();
+            // Refresh account details view if currently viewing an account
+            await this.app.refreshCurrentAccountView();
 
-                // Refresh dashboard if currently viewing it
-                if (window.location.hash === '' || window.location.hash === '#/dashboard') {
-                    await this.app.loadDashboard();
-                }
-            } else {
-                const error = await response.json().catch(() => ({}));
-                showError(serverErrorMessage(error, t('budget', 'Failed to delete transaction')));
+            // Refresh dashboard if currently viewing it
+            if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                await this.app.loadDashboard();
             }
         } catch (error) {
             console.error('Failed to delete transaction:', error);
@@ -3630,14 +3468,7 @@ export default class TransactionsModule {
     // Transaction matching and linking
     async findTransactionMatches(transactionId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/matches`), {
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return await response.json();
+            return await apiFetch(`/apps/budget/api/transactions/${transactionId}/matches`);
         } catch (error) {
             console.error('Failed to find matches:', error);
             throw error;
@@ -3646,18 +3477,7 @@ export default class TransactionsModule {
 
     async linkTransactions(transactionId, targetId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/link/${targetId}`), {
-                method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
-            return await response.json();
+            return await apiFetch(`/apps/budget/api/transactions/${transactionId}/link/${targetId}`, { method: 'POST' });
         } catch (error) {
             console.error('Failed to link transactions:', error);
             throw error;
@@ -3666,18 +3486,7 @@ export default class TransactionsModule {
 
     async unlinkTransaction(transactionId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/link`), {
-                method: 'DELETE',
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
-            return await response.json();
+            return await apiFetch(`/apps/budget/api/transactions/${transactionId}/link`, { method: 'DELETE' });
         } catch (error) {
             console.error('Failed to unlink transaction:', error);
             throw error;
@@ -3763,12 +3572,8 @@ export default class TransactionsModule {
         if (!sourceAccount?.currency || !destAccount?.currency) return;
 
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/exchange-rates/convert?from=${sourceAccount.currency}&to=${destAccount.currency}&amount=${sourceAmount}`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (response.ok) {
-                const data = await response.json();
+            const data = await apiFetch(`/apps/budget/api/exchange-rates/convert?from=${sourceAccount.currency}&to=${destAccount.currency}&amount=${sourceAmount}`).catch(() => null);
+            if (data) {
                 const destInput = document.getElementById('transfer-dest-amount');
                 // Only auto-fill if user hasn't manually edited it
                 if (destInput && !destInput.dataset.userEdited) {
@@ -4048,11 +3853,7 @@ export default class TransactionsModule {
     }
 
     async getTransactionSplits(transactionId) {
-        const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`), {
-            headers: { 'requesttoken': OC.requestToken }
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return await response.json();
+        return await apiFetch(`/apps/budget/api/transactions/${transactionId}/splits`);
     }
 
     async saveSplits() {
@@ -4080,19 +3881,10 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`), {
+            await apiFetch(`/apps/budget/api/transactions/${transactionId}/splits`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ splits })
+                body: { splits }
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
 
             this.hideSplitModal();
             showSuccess(t('budget', 'Transaction split successfully'));
@@ -4112,15 +3904,7 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`), {
-                method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
+            await apiFetch(`/apps/budget/api/transactions/${transactionId}/splits`, { method: 'DELETE' });
 
             this.hideSplitModal();
             showSuccess(t('budget', 'Transaction unsplit successfully'));
@@ -4141,37 +3925,14 @@ export default class TransactionsModule {
     // ===== Bulk Transfer Matching =====
 
     async scanForMatches(dateWindow = 3) {
-        const response = await fetch(
-            OC.generateUrl(`/apps/budget/api/transactions/scan-matches?dateWindow=${dateWindow}`),
-            {
-                method: 'GET',
-                headers: { 'requesttoken': OC.requestToken }
-            }
-        );
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-        }
-        return await response.json();
+        return await apiFetch(`/apps/budget/api/transactions/scan-matches?dateWindow=${dateWindow}`);
     }
 
     async bulkLinkPairs(pairs) {
-        const response = await fetch(
-            OC.generateUrl('/apps/budget/api/transactions/bulk-link'),
-            {
-                method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ pairs })
-            }
-        );
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-        }
-        return await response.json();
+        return await apiFetch('/apps/budget/api/transactions/bulk-link', {
+            method: 'POST',
+            body: { pairs }
+        });
     }
 
     showBulkMatchModal() {
@@ -5008,7 +4769,7 @@ export default class TransactionsModule {
         try {
             // Load both global tags and category tag sets
             const [globalTagsResponse, tagSets] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } }).then(r => r.ok ? r.json() : []).catch(() => []),
+                apiFetch('/apps/budget/api/tags/global').catch(() => []),
                 categoryId ? this.loadTagSetsForCategory(categoryId) : Promise.resolve([])
             ]);
 
@@ -5180,26 +4941,17 @@ export default class TransactionsModule {
         const tagIds = Array.from(selectedTags);
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/tags`), {
+            await apiFetch(`/apps/budget/api/transactions/${transactionId}/tags`, {
                 method: 'PUT',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ tagIds })
+                body: { tagIds }
             });
 
-            if (response.ok) {
-                await this.app.loadTransactionTags(transactionId);
-                this.cancelInlineEdit(cell);
+            await this.app.loadTransactionTags(transactionId);
+            this.cancelInlineEdit(cell);
 
-                const cellDisplay = cell.querySelector('.cell-display');
-                if (cellDisplay) {
-                    cellDisplay.innerHTML = this.app.renderTransactionTags(transactionId);
-                }
-            } else {
-                console.error('Failed to save tags');
-                this.cancelInlineEdit(cell);
+            const cellDisplay = cell.querySelector('.cell-display');
+            if (cellDisplay) {
+                cellDisplay.innerHTML = this.app.renderTransactionTags(transactionId);
             }
         } catch (error) {
             console.error('Failed to save tags:', error);
@@ -5209,11 +4961,7 @@ export default class TransactionsModule {
 
     async loadTagSetsForCategory(categoryId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/tag-sets?categoryId=${categoryId}`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return await response.json();
+            return await apiFetch(`/apps/budget/api/tag-sets?categoryId=${categoryId}`);
         } catch (error) {
             console.error('Failed to load tag sets:', error);
             return [];
@@ -5330,29 +5078,19 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}`), {
+            const result = await apiFetch(`/apps/budget/api/transactions/${transactionId}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(updateData)
+                body: updateData
             });
+            Object.assign(transaction, result);
 
-            if (response.ok) {
-                const result = await response.json();
-                Object.assign(transaction, result);
-
-                if (field === 'accountId') {
-                    await this.app.loadAccounts();
-                }
-
-                this.app.renderEnhancedTransactionsTable();
-                this.app.applyColumnVisibility();
-                showSuccess(t('budget', 'Transaction updated'));
-            } else {
-                throw new Error('Update failed');
+            if (field === 'accountId') {
+                await this.app.loadAccounts();
             }
+
+            this.app.renderEnhancedTransactionsTable();
+            this.app.applyColumnVisibility();
+            showSuccess(t('budget', 'Transaction updated'));
         } catch (error) {
             console.error('Failed to save inline edit:', error);
             showError(t('budget', 'Failed to update transaction'));
@@ -5440,12 +5178,7 @@ export default class TransactionsModule {
         this._duplicatesDirty = false;
 
         try {
-            const response = await fetch(
-                OC.generateUrl('/apps/budget/api/transactions/duplicates'),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) throw new Error('Failed to fetch duplicates');
-            const data = await response.json();
+            const data = await apiFetch('/apps/budget/api/transactions/duplicates');
 
             document.getElementById('duplicates-loading').style.display = 'none';
             const content = document.getElementById('duplicates-content');
@@ -5577,20 +5310,10 @@ export default class TransactionsModule {
         deleteBtn.textContent = t('budget', 'Deleting...');
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-delete'), {
+            const result = await apiFetch('/apps/budget/api/transactions/bulk-delete', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ ids })
+                body: { ids }
             });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            const result = await response.json();
 
             if (result.success > 0) {
                 showSuccess(n('budget', 'Deleted %n duplicate transaction', 'Deleted %n duplicate transactions', result.success));

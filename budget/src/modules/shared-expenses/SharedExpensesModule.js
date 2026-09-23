@@ -8,6 +8,7 @@ import { showSuccess, showError, showWarning } from '../../utils/notifications.j
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import { computeSplit, toCents } from './splitMath.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
 
 export default class SharedExpensesModule {
     constructor(app) {
@@ -46,11 +47,7 @@ export default class SharedExpensesModule {
         if (!section || !list) return;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/shared/shared-with-me'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const shares = await response.json();
+            const shares = await apiFetch('/apps/budget/api/shared/shared-with-me');
 
             if (!Array.isArray(shares) || shares.length === 0) {
                 section.style.display = 'none';
@@ -88,11 +85,7 @@ export default class SharedExpensesModule {
 
     async loadBalanceSummary() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/shared/balances'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error('Failed to load balances');
-            const data = await response.json();
+            const data = await apiFetch('/apps/budget/api/shared/balances');
 
             const owedEl = document.getElementById('split-total-owed');
             if (owedEl) {
@@ -141,11 +134,7 @@ export default class SharedExpensesModule {
 
     async loadContacts() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/shared/contacts'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error('Failed to load contacts');
-            this.contacts = await response.json();
+            this.contacts = await apiFetch('/apps/budget/api/shared/contacts');
         } catch (error) {
             console.error('Failed to load contacts:', error);
             this.contacts = [];
@@ -296,12 +285,9 @@ export default class SharedExpensesModule {
 
         try {
             // Fetch all users (empty query with low minimum)
-            const response = await fetch(OC.generateUrl('/apps/budget/api/shared/users/search?query=*'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) return;
+            const users = await apiFetch('/apps/budget/api/shared/users/search?query=*').catch(() => null);
+            if (!users) return;
 
-            const users = await response.json();
             users.forEach(user => {
                 const option = document.createElement('option');
                 option.value = user.uid;
@@ -342,20 +328,14 @@ export default class SharedExpensesModule {
         }
 
         try {
-            const url = id
-                ? OC.generateUrl(`/apps/budget/api/shared/contacts/${id}`)
-                : OC.generateUrl('/apps/budget/api/shared/contacts');
+            const path = id
+                ? `/apps/budget/api/shared/contacts/${id}`
+                : '/apps/budget/api/shared/contacts';
 
-            const response = await fetch(url, {
+            await apiFetch(path, {
                 method: id ? 'PUT' : 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ name, email: email || null, nextcloudUserId })
+                body: { name, email: email || null, nextcloudUserId },
             });
-
-            if (!response.ok) throw new Error('Failed to save contact');
 
             this.closeModal(document.getElementById('contact-modal'));
             showSuccess(id ? t('budget', 'Contact updated') : t('budget', 'Contact added'));
@@ -380,12 +360,9 @@ export default class SharedExpensesModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/shared/contacts/${id}`), {
+            await apiFetch(`/apps/budget/api/shared/contacts/${id}`, {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
             });
-
-            if (!response.ok) throw new Error('Failed to delete contact');
 
             showSuccess(t('budget', 'Contact deleted'));
             await this.loadBalanceSummary();
@@ -398,12 +375,7 @@ export default class SharedExpensesModule {
 
     async showContactDetails(contactId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/shared/contacts/${contactId}/details`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error('Failed to load contact details');
-            const data = await response.json();
+            const data = await apiFetch(`/apps/budget/api/shared/contacts/${contactId}/details`);
 
             this.currentContactDetails = data;
 
@@ -552,11 +524,7 @@ export default class SharedExpensesModule {
         modal.style.display = 'flex';
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/shared/contacts/${contactId}/details`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error('Failed to load shares');
-            const data = await response.json();
+            const data = await apiFetch(`/apps/budget/api/shared/contacts/${contactId}/details`);
 
             // Splits the contact made with you can only be settled by them (#390)
             const unsettledShares = (data.shares || []).filter(item => !item.incoming && !item.share.isSettled);
@@ -639,16 +607,10 @@ export default class SharedExpensesModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/shared/settle-selected'), {
+            await apiFetch('/apps/budget/api/shared/settle-selected', {
                 method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ shareIds, date, notes: notes || null })
+                body: { shareIds, date, notes: notes || null },
             });
-
-            if (!response.ok) throw new Error('Failed to settle expenses');
 
             this.closeModal(document.getElementById('settlement-modal'));
             showSuccess(t('budget', 'Expenses settled'));
@@ -668,16 +630,10 @@ export default class SharedExpensesModule {
 
         try {
             const date = formatters.getTodayDateString();
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/shared/contacts/${contactId}/settle`), {
+            await apiFetch(`/apps/budget/api/shared/contacts/${contactId}/settle`, {
                 method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ date })
+                body: { date },
             });
-
-            if (!response.ok) throw new Error('Failed to settle');
 
             this.closeModal(document.getElementById('contact-details-modal'));
             showSuccess(t('budget', 'All expenses settled'));
@@ -713,11 +669,7 @@ export default class SharedExpensesModule {
 
         let shares;
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/shared/transactions/${transaction.id}/shares`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error('Failed to load shares');
-            shares = await response.json();
+            shares = await apiFetch(`/apps/budget/api/shared/transactions/${transaction.id}/shares`);
         } catch (error) {
             console.error('Failed to load transaction shares:', error);
             showError(t('budget', 'Failed to load the split'));
@@ -955,18 +907,15 @@ export default class SharedExpensesModule {
         const notes = document.getElementById('share-notes').value.trim();
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/shared/transactions/${s.transactionId}/shares`), {
-                method: 'PUT',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ splits, notes: notes || null })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => null);
-                showError(errorData?.error || t('budget', 'Failed to save the split'));
+            try {
+                await apiFetch(`/apps/budget/api/shared/transactions/${s.transactionId}/shares`, {
+                    method: 'PUT',
+                    body: { splits, notes: notes || null },
+                    errorMessage: t('budget', 'Failed to save the split'),
+                });
+            } catch (error) {
+                if (!(error instanceof ApiError)) throw error;
+                showError(error.message);
                 return;
             }
 

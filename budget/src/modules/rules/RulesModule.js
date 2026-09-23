@@ -8,8 +8,8 @@ import { ActionBuilder } from './components/ActionBuilder.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
-import { serverErrorMessage } from '../../utils/helpers.js';
 import { showLoadError } from '../../utils/loading.js';
+import { apiFetch } from '../../utils/api.js';
 
 export default class RulesModule {
     constructor(app) {
@@ -82,8 +82,7 @@ export default class RulesModule {
 
         try {
             // Load global tags for the action builder
-            const resp = await fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } });
-            if (resp.ok) this.app.globalTags = await resp.json();
+            this.app.globalTags = await apiFetch('/apps/budget/api/tags/global');
         } catch (e) { /* ignore */ }
 
         try {
@@ -99,13 +98,7 @@ export default class RulesModule {
 
     async loadRules() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            this.rules = await response.json();
+            this.rules = await apiFetch('/apps/budget/api/import-rules');
             this.applyFilterAndSort();
             this.updateRulesSummary();
         } catch (error) {
@@ -726,14 +719,7 @@ export default class RulesModule {
 
         if (needsMigration) {
             try {
-                const response = await fetch(OC.generateUrl(`/apps/budget/api/import-rules/${rule.id}/migrate`), {
-                    method: 'POST',
-                    headers: { 'requesttoken': OC.requestToken }
-                });
-
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-                rule = await response.json();
+                rule = await apiFetch(`/apps/budget/api/import-rules/${rule.id}/migrate`, { method: 'POST' });
                 showSuccess(t('budget', 'This rule has been upgraded to the new format with advanced features'));
             } catch (error) {
                 console.error('Failed to migrate rule:', error);
@@ -912,26 +898,16 @@ export default class RulesModule {
         previewCount.textContent = '...';
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules/test-unsaved'), {
+            const result = await apiFetch('/apps/budget/api/import-rules/test-unsaved', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     criteria,
                     schemaVersion: 2,
                     uncategorizedOnly: false,
                     limit: 50
-                })
+                },
+                errorMessage: 'Failed to preview rule',
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, 'Failed to preview rule'));
-            }
-
-            const result = await response.json();
             this.displayRulePreview(result);
 
         } catch (error) {
@@ -1039,24 +1015,14 @@ export default class RulesModule {
             runBtn.textContent = t('budget', 'Running...');
             resultsSection.style.display = 'none';
 
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules/apply'), {
+            const result = await apiFetch('/apps/budget/api/import-rules/apply', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     ruleIds: [parseInt(ruleId)],
                     uncategorizedOnly: false
-                })
+                },
+                errorMessage: 'Failed to run rule',
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, 'Failed to run rule'));
-            }
-
-            const result = await response.json();
             this.displayRunResults(result);
 
             if (result.success > 0) {
@@ -1114,8 +1080,8 @@ export default class RulesModule {
         const actions = this.actionBuilder.getActions();
 
         const url = isEdit
-            ? OC.generateUrl(`/apps/budget/api/import-rules/${ruleId}`)
-            : OC.generateUrl('/apps/budget/api/import-rules');
+            ? `/apps/budget/api/import-rules/${ruleId}`
+            : '/apps/budget/api/import-rules';
 
         const requestBody = {
             name,
@@ -1129,21 +1095,11 @@ export default class RulesModule {
             stopProcessing: actions.stopProcessing
         };
 
-        const response = await fetch(url, {
+        const savedRule = await apiFetch(url, {
             method: isEdit ? 'PUT' : 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'requesttoken': OC.requestToken
-            },
-            body: JSON.stringify(requestBody)
+            body: requestBody,
+            errorMessage: 'Failed to save rule',
         });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(serverErrorMessage(error, 'Failed to save rule'));
-        }
-
-        const savedRule = await response.json();
 
         // Update the rule ID in the form (for new rules)
         if (!isEdit && savedRule.id) {
@@ -1233,22 +1189,14 @@ export default class RulesModule {
 
         try {
             const url = isEdit
-                ? OC.generateUrl(`/apps/budget/api/import-rules/${ruleId}`)
-                : OC.generateUrl('/apps/budget/api/import-rules');
+                ? `/apps/budget/api/import-rules/${ruleId}`
+                : '/apps/budget/api/import-rules';
 
-            const response = await fetch(url, {
+            await apiFetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(requestBody)
+                body: requestBody,
+                errorMessage: 'Failed to save rule',
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, 'Failed to save rule'));
-            }
 
             showSuccess(isEdit ? t('budget', 'Rule updated successfully') : t('budget', 'Rule created successfully'));
             this.hideModals();
@@ -1479,25 +1427,19 @@ export default class RulesModule {
             body.matchType = rule.matchType || 'contains';
         }
 
-        const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules'), {
+        const created = await apiFetch('/apps/budget/api/import-rules', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-            body: JSON.stringify(body),
+            body,
+            errorMessage: 'Failed to create rule',
         });
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            throw new Error(serverErrorMessage(error, 'Failed to create rule'));
-        }
 
         // The create endpoint always makes new rules active; restore a disabled
         // state so an exported inactive rule doesn't start running on import.
         if (rule.active === false) {
-            const created = await response.json().catch(() => null);
             if (created && created.id) {
-                await fetch(OC.generateUrl(`/apps/budget/api/import-rules/${created.id}`), {
+                await apiFetch(`/apps/budget/api/import-rules/${created.id}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                    body: JSON.stringify({ active: false }),
+                    body: { active: false },
                 }).catch(() => {});
             }
         }
@@ -1654,13 +1596,7 @@ export default class RulesModule {
 
     async editRule(ruleId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/import-rules/${ruleId}`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const rule = await response.json();
+            const rule = await apiFetch(`/apps/budget/api/import-rules/${ruleId}`);
             this.showRuleModal(rule);
         } catch (error) {
             console.error('Failed to load rule:', error);
@@ -1672,12 +1608,7 @@ export default class RulesModule {
         if (!await confirmDialog(t('budget', 'Are you sure you want to delete this rule?'), { destructive: true })) return;
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/import-rules/${ruleId}`), {
-                method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            await apiFetch(`/apps/budget/api/import-rules/${ruleId}`, { method: 'DELETE' });
 
             showSuccess(t('budget', 'Rule deleted successfully'));
             await this.loadRules();
@@ -1693,22 +1624,14 @@ export default class RulesModule {
             const rule = this.rules.find(r => r.id === ruleId);
             if (!rule) throw new Error('Rule not found');
 
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/import-rules/${ruleId}`), {
+            await apiFetch(`/apps/budget/api/import-rules/${ruleId}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     ...rule,
                     active: active
-                })
+                },
+                errorMessage: 'Failed to update rule',
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, 'Failed to update rule'));
-            }
 
             // Update local state
             rule.active = active;
@@ -1758,24 +1681,14 @@ export default class RulesModule {
         confirmBtn.textContent = t('budget', 'Running...');
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules/apply'), {
+            const result = await apiFetch('/apps/budget/api/import-rules/apply', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     ruleIds: [ruleId],
                     uncategorizedOnly
-                })
+                },
+                errorMessage: 'Failed to run rule',
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, 'Failed to run rule'));
-            }
-
-            const result = await response.json();
 
             this.hideModals();
 
@@ -1809,24 +1722,14 @@ export default class RulesModule {
 
         try {
             const ruleIds = groupRules.map(r => r.id);
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules/apply'), {
+            const result = await apiFetch('/apps/budget/api/import-rules/apply', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     ruleIds,
                     uncategorizedOnly: false
-                })
+                },
+                errorMessage: 'Failed to run group rules',
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, 'Failed to run group rules'));
-            }
-
-            const result = await response.json();
 
             if (result.success > 0) {
                 showSuccess(n('budget', 'Group applied: %n transaction updated', 'Group applied: %n transactions updated', result.success));
@@ -1912,21 +1815,13 @@ export default class RulesModule {
         executeBtn.textContent = t('budget', 'Applying...');
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-rules/apply'), {
+            const result = await apiFetch('/apps/budget/api/import-rules/apply', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     ruleIds,
                     ...filters
-                })
+                },
             });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const result = await response.json();
 
             // Show results summary
             document.getElementById('result-success-count').textContent = result.success;

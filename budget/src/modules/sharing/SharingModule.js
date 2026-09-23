@@ -9,6 +9,7 @@ import { translate as t } from '@nextcloud/l10n';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { escapeHtml } from '../../utils/dom.js';
+import { apiFetch } from '../../utils/api.js';
 
 export default class SharingModule {
     constructor(app) {
@@ -20,16 +21,7 @@ export default class SharingModule {
     }
 
     async fetchApi(url, options = {}) {
-        const { headers: extraHeaders, ...rest } = options;
-        const response = await fetch(OC.generateUrl(url), {
-            headers: { ...this.app.getAuthHeaders(), ...extraHeaders },
-            ...rest,
-        });
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            throw new Error(data.error || `HTTP ${response.status}`);
-        }
-        return response.json();
+        return apiFetch(url, options);
     }
 
     async loadSharingView() {
@@ -372,8 +364,7 @@ export default class SharingModule {
             try {
                 await this.fetchApi(`/apps/budget/api/shares/${shareId}/items/${type}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ entityIds, permission }),
+                    body: { entityIds, permission },
                 });
             } catch (e) {
                 errors.push(type);
@@ -384,8 +375,7 @@ export default class SharingModule {
             try {
                 await this.fetchApi(`/apps/budget/api/shares/${shareId}/auto-config/${type}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ enabled: !!(autoToggle && autoToggle.checked), permission }),
+                    body: { enabled: !!(autoToggle && autoToggle.checked), permission },
                 });
             } catch (e) {
                 errors.push(type + ' (auto-share)');
@@ -403,12 +393,9 @@ export default class SharingModule {
 
     async populateUserDropdown(select) {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/shared/users/search?query=*'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) return;
+            const users = await apiFetch('/apps/budget/api/shared/users/search?query=*').catch(() => null);
+            if (!users) return;
 
-            const users = await response.json();
             users.forEach(user => {
                 const option = document.createElement('option');
                 option.value = user.uid;
@@ -425,8 +412,7 @@ export default class SharingModule {
         try {
             await this.fetchApi('/apps/budget/api/shares', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sharedWithUserId: username }),
+                body: { sharedWithUserId: username },
             });
             showSuccess(t('budget', 'Invitation sent to {user}', { user: username }));
             await this.loadSharingView();

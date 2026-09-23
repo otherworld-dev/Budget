@@ -11,6 +11,7 @@ import { setDateValue } from '../../utils/datepicker.js';
 import { groupProjects, progressFor, unallocated, subcategoriesOf, ownExpenseTree } from './projectMath.js';
 import { progressBarAttrs, overBudgetText } from '../../utils/budgetProgress.js';
 import { showLoading, showLoadError } from '../../utils/loading.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
 
 export default class ProjectsModule {
     constructor(app) {
@@ -31,7 +32,7 @@ export default class ProjectsModule {
         this.ensureEventListeners();
         showLoading('projects-list');
         try {
-            this.app.projects = await this.fetchJson('/apps/budget/api/projects');
+            this.app.projects = await apiFetch('/apps/budget/api/projects');
             this.renderProjects(this.app.projects);
         } catch (error) {
             console.error('Failed to load projects:', error);
@@ -40,20 +41,6 @@ export default class ProjectsModule {
             if (emptyState) emptyState.style.display = 'none';
             showLoadError('projects-list', t('budget', 'Failed to load projects'), () => this.loadProjectsView());
         }
-    }
-
-    async fetchJson(url, options = {}) {
-        const response = await fetch(OC.generateUrl(url), {
-            ...options,
-            headers: { 'requesttoken': OC.requestToken, 'Content-Type': 'application/json' },
-        });
-        const data = await response.json().catch(() => null);
-        if (!response.ok) {
-            const error = new Error(data?.error || `HTTP ${response.status}`);
-            error.userMessage = data?.error || null;
-            throw error;
-        }
-        return data;
     }
 
     renderProjects(projects) {
@@ -128,7 +115,7 @@ export default class ProjectsModule {
         this.ensureEventListeners();
         let project;
         try {
-            project = await this.fetchJson(`/apps/budget/api/projects/${id}`);
+            project = await apiFetch(`/apps/budget/api/projects/${id}`);
         } catch (error) {
             console.error('Failed to load project:', error);
             showError(t('budget', 'Failed to load the project'));
@@ -209,12 +196,15 @@ export default class ProjectsModule {
         const question = t('budget', 'Delete the project "{name}"? Its categories and transactions are not changed.', { name: project.name });
         if (!await confirmDialog(question, { destructive: true })) return;
         try {
-            await this.fetchJson(`/apps/budget/api/projects/${project.id}`, { method: 'DELETE' });
+            await apiFetch(`/apps/budget/api/projects/${project.id}`, {
+                method: 'DELETE',
+                errorMessage: t('budget', 'Failed to delete the project'),
+            });
             this.closeModal(document.getElementById('project-details-modal'));
             showSuccess(t('budget', 'Project deleted'));
             await this.loadProjectsView();
         } catch (error) {
-            showError(error.userMessage || t('budget', 'Failed to delete the project'));
+            showError(error instanceof ApiError ? error.message : t('budget', 'Failed to delete the project'));
         }
     }
 
@@ -357,9 +347,10 @@ export default class ProjectsModule {
         }
 
         try {
-            await this.fetchJson(project ? `/apps/budget/api/projects/${project.id}` : '/apps/budget/api/projects', {
+            await apiFetch(project ? `/apps/budget/api/projects/${project.id}` : '/apps/budget/api/projects', {
                 method: project ? 'PUT' : 'POST',
-                body: JSON.stringify(body),
+                body,
+                errorMessage: t('budget', 'Failed to save the project'),
             });
             this.closeModal(document.getElementById('project-modal'));
             showSuccess(project ? t('budget', 'Project saved') : t('budget', 'Project created'));
@@ -369,7 +360,7 @@ export default class ProjectsModule {
             }
             await this.loadProjectsView();
         } catch (error) {
-            showError(error.userMessage || t('budget', 'Failed to save the project'));
+            showError(error instanceof ApiError ? error.message : t('budget', 'Failed to save the project'));
         }
     }
 

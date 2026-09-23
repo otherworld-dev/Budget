@@ -10,6 +10,7 @@ import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { offerableTags } from '../../utils/tags.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
 import { showLoading, showLoadError } from '../../utils/loading.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
 
 export default class SavingsModule {
     constructor(app) {
@@ -33,13 +34,7 @@ export default class SavingsModule {
 
         showLoading('goals-list');
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/savings-goals'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            this.savingsGoals = await response.json();
+            this.savingsGoals = await apiFetch('/apps/budget/api/savings-goals');
             this.updateGoalsSummary();
             this.renderGoals(this.savingsGoals);
 
@@ -279,13 +274,12 @@ export default class SavingsModule {
         if (!dropdown) return;
 
         try {
-            const [tagSetsResponse, globalTagsResponse] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/tag-sets'), { headers: { 'requesttoken': OC.requestToken } }),
-                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } })
+            const [tagSets, globalTags] = await Promise.all([
+                apiFetch('/apps/budget/api/tag-sets'),
+                apiFetch('/apps/budget/api/tags/global').catch(() => null)
             ]);
 
-            if (!tagSetsResponse.ok) throw new Error(`HTTP ${tagSetsResponse.status}`);
-            this._allTagSets = await tagSetsResponse.json();
+            this._allTagSets = tagSets;
 
             // Every tag by id, hidden ones included, so ensureGoalTagOption()
             // can put back the one a goal is already linked to (#373).
@@ -294,8 +288,7 @@ export default class SavingsModule {
             let html = `<option value="">${t('budget', 'No linked tag')}</option>`;
 
             // Global tags first — hidden ones are not offered for a new link
-            if (globalTagsResponse.ok) {
-                const globalTags = await globalTagsResponse.json();
+            if (globalTags) {
                 globalTags.forEach(tag => this._goalTagsById.set(tag.id, tag));
                 const offered = offerableTags(globalTags);
                 if (offered.length > 0) {
@@ -419,23 +412,20 @@ export default class SavingsModule {
         };
 
         try {
-            const url = goalId
-                ? OC.generateUrl(`/apps/budget/api/savings-goals/${goalId}`)
-                : OC.generateUrl('/apps/budget/api/savings-goals');
+            const path = goalId
+                ? `/apps/budget/api/savings-goals/${goalId}`
+                : '/apps/budget/api/savings-goals';
 
-            const response = await fetch(url, {
-                method: goalId ? 'PUT' : 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(data)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                console.error('Save goal error response:', response.status, errorData);
-                showError(errorData.error || t('budget', 'Failed to save goal'));
+            try {
+                await apiFetch(path, {
+                    method: goalId ? 'PUT' : 'POST',
+                    body: data,
+                    errorMessage: t('budget', 'Failed to save goal'),
+                });
+            } catch (error) {
+                if (!(error instanceof ApiError)) throw error;
+                console.error('Save goal error response:', error.status, error.data);
+                showError(error.message);
                 return;
             }
 
@@ -461,12 +451,7 @@ export default class SavingsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/savings-goals/${goalId}`), {
-                method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            await apiFetch(`/apps/budget/api/savings-goals/${goalId}`, { method: 'DELETE' });
 
             showSuccess(t('budget', 'Goal deleted'));
             await this.loadSavingsGoalsView();
@@ -516,16 +501,10 @@ export default class SavingsModule {
         const newAmount = currentAmount + amount;
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/savings-goals/${goalId}`), {
+            await apiFetch(`/apps/budget/api/savings-goals/${goalId}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ currentAmount: newAmount })
+                body: { currentAmount: newAmount }
             });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             document.getElementById('add-to-goal-modal').style.display = 'none';
             showSuccess(t('budget', 'Added {amount} to goal', { amount: formatters.formatCurrency(amount, null, this.settings) }));

@@ -1,7 +1,7 @@
 import { translate as t } from '@nextcloud/l10n';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
-import { serverErrorMessage } from '../../utils/helpers.js';
+import { apiFetch } from '../../utils/api.js';
 import { pickableAccounts, accountOptionLabel } from '../../utils/accounts.js';
 import { userLocale } from '../../utils/formatters.js';
 import { escapeHtml as domEscapeHtml } from '../../utils/dom.js';
@@ -43,10 +43,7 @@ export default class BankSyncModule {
 
     async checkStatus() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bank-sync/status'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            const data = await response.json();
+            const data = await apiFetch('/apps/budget/api/bank-sync/status');
             const navItem = document.getElementById('bank-sync-nav');
             if (navItem) {
                 navItem.style.display = data.enabled ? '' : 'none';
@@ -125,11 +122,7 @@ export default class BankSyncModule {
 
     async loadConnections() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bank-sync/connections'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error('Failed to fetch connections');
-            this.connections = await response.json();
+            this.connections = await apiFetch('/apps/budget/api/bank-sync/connections');
             this.renderConnections();
         } catch (error) {
             console.error('Failed to load bank connections:', error);
@@ -358,16 +351,10 @@ export default class BankSyncModule {
         btn.textContent = t('budget', 'Connecting...');
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bank-sync/connections'), {
+            await apiFetch('/apps/budget/api/bank-sync/connections', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ provider: 'simplefin', name, setupToken })
+                body: { provider: 'simplefin', name, setupToken },
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
 
             document.getElementById('bank-sync-modal').style.display = 'none';
             showSuccess(t('budget', 'Bank connected successfully'));
@@ -430,23 +417,14 @@ export default class BankSyncModule {
         const creds = this._wizardCredentials || {};
 
         try {
-            const url = OC.generateUrl('/apps/budget/api/bank-sync/providers/gocardless/institutions');
-            const response = await fetch(url, {
+            this._institutions = await apiFetch('/apps/budget/api/bank-sync/providers/gocardless/institutions', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({
+                body: {
                     country,
                     secretId: creds.secretId || '',
                     secretKey: creds.secretKey || '',
-                })
+                },
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
-
-            this._institutions = await response.json();
             this.renderInstitutions(this._institutions);
         } catch (error) {
             this._showStepError(2, t('budget', 'Failed to load banks: {error}', { error: error.message }));
@@ -520,43 +498,27 @@ export default class BankSyncModule {
             let result;
 
             if (this._reauthorizeConnectionId) {
-                const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${this._reauthorizeConnectionId}/reauthorize`), {
+                result = await apiFetch(`/apps/budget/api/bank-sync/connections/${this._reauthorizeConnectionId}/reauthorize`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                    body: JSON.stringify({
+                    body: {
                         institutionId: this._selectedInstitutionId,
                         redirectUrl,
-                    })
+                    },
                 });
-
-                if (!response.ok) {
-                    const error = await response.json().catch(() => ({}));
-                    throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-                }
-
-                result = await response.json();
                 this._wizardConnectionId = this._reauthorizeConnectionId;
             } else {
                 const creds = this._wizardCredentials;
-                const response = await fetch(OC.generateUrl('/apps/budget/api/bank-sync/connections'), {
+                result = await apiFetch('/apps/budget/api/bank-sync/connections', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                    body: JSON.stringify({
+                    body: {
                         provider: 'gocardless',
                         name: creds.name,
                         secretId: creds.secretId,
                         secretKey: creds.secretKey,
                         institutionId: this._selectedInstitutionId,
                         redirectUrl,
-                    })
+                    },
                 });
-
-                if (!response.ok) {
-                    const error = await response.json().catch(() => ({}));
-                    throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-                }
-
-                result = await response.json();
                 this._wizardConnectionId = result.connection?.id;
             }
 
@@ -601,17 +563,9 @@ export default class BankSyncModule {
         btn.textContent = t('budget', 'Checking...');
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${this._wizardConnectionId}/refresh`), {
+            const mappings = await apiFetch(`/apps/budget/api/bank-sync/connections/${this._wizardConnectionId}/refresh`, {
                 method: 'POST',
-                headers: { 'requesttoken': OC.requestToken }
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
-
-            const mappings = await response.json();
 
             if (Array.isArray(mappings) && mappings.length > 0) {
                 this._authComplete = true;
@@ -666,22 +620,10 @@ export default class BankSyncModule {
     async syncConnection(connectionId, force = false) {
         try {
             showSuccess(t('budget', force ? 'Force syncing...' : 'Syncing...'));
-            const url = OC.generateUrl(`/apps/budget/api/bank-sync/connections/${connectionId}/sync`);
-            const response = await fetch(url, {
+            const result = await apiFetch(`/apps/budget/api/bank-sync/connections/${connectionId}/sync`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ force })
+                body: { force },
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
-
-            const result = await response.json();
 
             if (result.message) {
                 showError(result.message);
@@ -720,13 +662,9 @@ export default class BankSyncModule {
             showSuccess(t('budget', 'Syncing {current} of {total}...', { current: i + 1, total: activeConnections.length }));
 
             try {
-                const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${conn.id}/sync`), {
+                const result = await apiFetch(`/apps/budget/api/bank-sync/connections/${conn.id}/sync`, {
                     method: 'POST',
-                    headers: { 'requesttoken': OC.requestToken }
                 });
-
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const result = await response.json();
                 totalImported += result.imported || 0;
                 totalSkipped += result.skipped || 0;
                 synced++;
@@ -758,11 +696,9 @@ export default class BankSyncModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${connectionId}`), {
+            await apiFetch(`/apps/budget/api/bank-sync/connections/${connectionId}`, {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
             });
-            if (!response.ok) throw new Error('Failed to disconnect');
 
             showSuccess(t('budget', 'Bank disconnected'));
             const mappingsSection = document.getElementById('bank-mappings-section');
@@ -781,12 +717,7 @@ export default class BankSyncModule {
         if (!section) return;
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${connectionId}/mappings`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error('Failed to fetch mappings');
-
-            const mappings = await response.json();
+            const mappings = await apiFetch(`/apps/budget/api/bank-sync/connections/${connectionId}/mappings`);
             section.style.display = 'block';
 
             const conn = this.connections.find(c => c.connection.id === connectionId);
@@ -871,13 +802,11 @@ export default class BankSyncModule {
             if (budgetAccountId !== null) body.budgetAccountId = budgetAccountId;
             if (enabled !== null) body.enabled = enabled;
 
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${connectionId}/mappings/${mappingId}`), {
+            await apiFetch(`/apps/budget/api/bank-sync/connections/${connectionId}/mappings/${mappingId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify(body)
+                body,
             });
 
-            if (!response.ok) throw new Error('Failed to update mapping');
             showSuccess(t('budget', 'Mapping updated'));
         } catch (error) {
             showError(t('budget', 'Failed to update mapping'));
@@ -893,17 +822,9 @@ export default class BankSyncModule {
         if (btn) btn.disabled = true;
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${this.selectedConnectionId}/refresh`), {
+            const mappings = await apiFetch(`/apps/budget/api/bank-sync/connections/${this.selectedConnectionId}/refresh`, {
                 method: 'POST',
-                headers: { 'requesttoken': OC.requestToken }
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
-
-            const mappings = await response.json();
             this.renderMappings(mappings, this.selectedConnectionId);
             showSuccess(t('budget', 'Accounts refreshed'));
         } catch (error) {
@@ -917,12 +838,10 @@ export default class BankSyncModule {
 
     async updateConnectionApplyRules(connectionId, applyRules) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${connectionId}`), {
+            await apiFetch(`/apps/budget/api/bank-sync/connections/${connectionId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ applyRules })
+                body: { applyRules },
             });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             showSuccess(t('budget', applyRules ? 'Import rules will be applied during sync' : 'Import rules disabled for this connection'));
         } catch (error) {
             showError(t('budget', 'Failed to update connection settings'));
@@ -931,12 +850,10 @@ export default class BankSyncModule {
 
     async updateConnectionIncludePending(connectionId, includePending) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${connectionId}`), {
+            await apiFetch(`/apps/budget/api/bank-sync/connections/${connectionId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ includePending })
+                body: { includePending },
             });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             showSuccess(t('budget', includePending ? 'Pending transactions will be included during sync' : 'Pending transactions excluded for this connection'));
         } catch (error) {
             showError(t('budget', 'Failed to update connection settings'));

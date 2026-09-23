@@ -8,7 +8,7 @@ import { showSuccess, showError } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import Chart from 'chart.js/auto';
-import { serverErrorMessage } from '../../utils/helpers.js';
+import { apiFetch } from '../../utils/api.js';
 import { showLoading, showLoadError } from '../../utils/loading.js';
 
 export default class AssetsModule {
@@ -41,27 +41,21 @@ export default class AssetsModule {
     }
 
     async loadAssets() {
-        const response = await fetch(OC.generateUrl('/apps/budget/api/assets'), {
-            headers: { 'requesttoken': OC.requestToken }
+        this.assets = await apiFetch('/apps/budget/api/assets', {
+            errorMessage: 'Failed to fetch assets',
         });
-        if (!response.ok) throw new Error('Failed to fetch assets');
-        this.assets = await response.json();
     }
 
     async loadAssetSummary() {
-        const response = await fetch(OC.generateUrl('/apps/budget/api/assets/summary'), {
-            headers: { 'requesttoken': OC.requestToken }
+        return await apiFetch('/apps/budget/api/assets/summary', {
+            errorMessage: 'Failed to fetch asset summary',
         });
-        if (!response.ok) throw new Error('Failed to fetch asset summary');
-        return await response.json();
     }
 
     async loadAssetProjection() {
-        const response = await fetch(OC.generateUrl('/apps/budget/api/assets/projection'), {
-            headers: { 'requesttoken': OC.requestToken }
+        return await apiFetch('/apps/budget/api/assets/projection', {
+            errorMessage: 'Failed to fetch asset projection',
         });
-        if (!response.ok) throw new Error('Failed to fetch asset projection');
-        return await response.json();
     }
 
     renderAssets() {
@@ -380,22 +374,14 @@ export default class AssetsModule {
 
         try {
             const url = assetId
-                ? OC.generateUrl(`/apps/budget/api/assets/${assetId}`)
-                : OC.generateUrl('/apps/budget/api/assets');
+                ? `/apps/budget/api/assets/${assetId}`
+                : '/apps/budget/api/assets';
 
-            const response = await fetch(url, {
+            await apiFetch(url, {
                 method: assetId ? 'PUT' : 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(data)
+                body: data,
+                errorMessage: t('budget', 'Failed to save asset'),
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to save asset')));
-            }
 
             this.closeAssetModal();
             await this.loadAssets();
@@ -412,15 +398,10 @@ export default class AssetsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/assets/${assetId}`), {
+            await apiFetch(`/apps/budget/api/assets/${assetId}`, {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
+                errorMessage: t('budget', 'Failed to delete asset'),
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to delete asset')));
-            }
 
             await this.loadAssets();
             this.renderAssets();
@@ -539,13 +520,9 @@ export default class AssetsModule {
 
     async loadAssetValueChart(assetId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/assets/${assetId}/snapshots`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
+            const snapshots = await apiFetch(`/apps/budget/api/assets/${assetId}/snapshots`).catch(() => null);
+            if (!snapshots) return [];
 
-            if (!response.ok) return [];
-
-            const snapshots = await response.json();
             const canvas = document.getElementById('asset-value-chart');
             if (!canvas) return snapshots || [];
 
@@ -604,13 +581,9 @@ export default class AssetsModule {
 
     async loadAssetProjectionChart(assetId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/assets/${assetId}/projection`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
+            const data = await apiFetch(`/apps/budget/api/assets/${assetId}/projection`).catch(() => null);
+            if (!data) return;
 
-            if (!response.ok) return;
-
-            const data = await response.json();
             const canvas = document.getElementById('asset-projection-chart');
             if (!canvas) return;
 
@@ -701,22 +674,14 @@ export default class AssetsModule {
         const assetId = formData.get('assetId');
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/assets/${assetId}/snapshots`), {
+            await apiFetch(`/apps/budget/api/assets/${assetId}/snapshots`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     value: parseFloat(formData.get('value')),
                     date: formData.get('date')
-                })
+                },
+                errorMessage: t('budget', 'Failed to update value'),
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to update value')));
-            }
 
             this.closeValueModal();
             await this.loadAssets();

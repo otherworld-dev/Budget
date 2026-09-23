@@ -5,6 +5,7 @@ import { translate as t } from '@nextcloud/l10n';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { initDatePickers } from '../../utils/datepicker.js';
+import { apiFetch } from '../../utils/api.js';
 
 export default class SettingsModule {
     constructor(app) {
@@ -17,17 +18,7 @@ export default class SettingsModule {
 
     async loadSettingsView() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/settings'), {
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(t('budget', 'Failed to load settings'));
-            }
-
-            const settings = await response.json();
+            const settings = await apiFetch('/apps/budget/api/settings');
             await this.populateSettings(settings);
             this.updateNumberFormatPreview();
             this.setupReceiptFolderPicker();
@@ -42,16 +33,12 @@ export default class SettingsModule {
 
     async loadAdminSettings() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/admin/settings'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
             // Non-admin users get a 403 — hide the section
-            if (response.status === 403 || !response.ok) {
+            const adminSettings = await apiFetch('/apps/budget/api/admin/settings').catch(() => null);
+            if (!adminSettings) {
                 return;
             }
 
-            const adminSettings = await response.json();
             const section = document.getElementById('admin-settings-section');
             if (section) {
                 section.style.display = 'block';
@@ -69,13 +56,9 @@ export default class SettingsModule {
                     this.bankSyncToggleBound = true;
                     toggle.addEventListener('change', async () => {
                         try {
-                            await fetch(OC.generateUrl('/apps/budget/api/admin/settings'), {
+                            await apiFetch('/apps/budget/api/admin/settings', {
                                 method: 'PUT',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'requesttoken': OC.requestToken
-                                },
-                                body: JSON.stringify({ bankSyncEnabled: toggle.checked })
+                                body: { bankSyncEnabled: toggle.checked },
                             });
                             showSuccess(t('budget', 'Admin settings saved'));
                             // Update bank sync nav visibility
@@ -149,13 +132,13 @@ export default class SettingsModule {
         // itself never reaches this page.
         document.getElementById('setting-ocr-portal-btn')?.addEventListener('click', async () => {
             try {
-                const response = await fetch(OC.generateUrl('/apps/budget/api/admin/settings/ocr/portal'), {
+                const failed = t('budget', 'The billing portal could not be opened. Try again shortly.');
+                const data = await apiFetch('/apps/budget/api/admin/settings/ocr/portal', {
                     method: 'POST',
-                    headers: { 'requesttoken': OC.requestToken }
+                    errorMessage: failed,
                 });
-                const data = await response.json().catch(() => ({}));
-                if (!response.ok || !data.url) {
-                    throw new Error(data.error || t('budget', 'The billing portal could not be opened. Try again shortly.'));
+                if (!data?.url) {
+                    throw new Error(data?.error || failed);
                 }
                 window.open(data.url, '_blank', 'noopener');
             } catch (error) {
@@ -241,26 +224,13 @@ export default class SettingsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/admin/settings'), {
+            // An error body is not always JSON (a maintenance-mode page, a
+            // proxy 502); apiFetch keeps the translated message for those.
+            const body = await apiFetch('/apps/budget/api/admin/settings', {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ ocr })
+                body: { ocr },
+                errorMessage: t('budget', 'Failed to save admin settings'),
             });
-
-            // Check ok before parsing: an error body is not always JSON (a
-            // maintenance-mode page, a proxy 502), and a JSON parse error
-            // must not replace the translated failure message in the toast.
-            if (!response.ok) {
-                let message = '';
-                try {
-                    message = (await response.json()).error || '';
-                } catch (parseError) {
-                    // Non-JSON error body — fall through to the generic text.
-                }
-                throw new Error(message || t('budget', 'Failed to save admin settings'));
-            }
-
-            const body = await response.json();
 
             this.ocrState = {
                 apiKeySet: !!body.ocr?.apiKeySet,
@@ -379,21 +349,11 @@ export default class SettingsModule {
         const item = element.closest('.setting-item') || element.parentElement;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/settings'), {
+            const result = await apiFetch('/apps/budget/api/settings', {
                 method: 'PUT',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ [key]: value })
+                body: { [key]: value },
+                errorMessage: t('budget', 'Failed to save settings'),
             });
-
-            if (!response.ok) {
-                const data = await response.json().catch(() => null);
-                throw new Error(data?.error || t('budget', 'Failed to save settings'));
-            }
-
-            const result = await response.json().catch(() => null);
             // The server may normalise a value (the receipts folder does).
             const saved = result?.settings?.[key] ?? value;
             if (element.type !== 'checkbox' && saved !== value) element.value = saved;
@@ -444,20 +404,7 @@ export default class SettingsModule {
         try {
             const settings = this.gatherSettings();
 
-            const response = await fetch(OC.generateUrl('/apps/budget/api/settings'), {
-                method: 'PUT',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(settings)
-            });
-
-            if (!response.ok) {
-                throw new Error(t('budget', 'Failed to save settings'));
-            }
-
-            await response.json();
+            await apiFetch('/apps/budget/api/settings', { method: 'PUT', body: settings });
             showSuccess(t('budget', 'Settings saved successfully'));
 
             // Update stored settings to apply immediately
@@ -502,18 +449,7 @@ export default class SettingsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/settings/reset'), {
-                method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(t('budget', 'Failed to reset settings'));
-            }
-
-            const result = await response.json();
+            const result = await apiFetch('/apps/budget/api/settings/reset', { method: 'POST' });
             await this.populateSettings(result.defaults);
             // The rest of the app reads these, not the form.
             Object.assign(this.settings, result.defaults);
@@ -657,22 +593,11 @@ export default class SettingsModule {
                 confirmBtn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> ' + t('budget', 'Deleting...');
             }
 
-            const response = await fetch(OC.generateUrl('/apps/budget/api/setup/factory-reset'), {
+            await apiFetch('/apps/budget/api/setup/factory-reset', {
                 method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    confirmed: true
-                })
+                body: { confirmed: true },
+                errorMessage: t('budget', 'Factory reset failed'),
             });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || t('budget', 'Factory reset failed'));
-            }
 
             // Close modal
             this.closeFactoryResetModal();

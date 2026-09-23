@@ -19,6 +19,7 @@ import { GridStack } from 'gridstack';
 import 'gridstack/dist/gridstack.min.css';
 import { groupProjects, progressFor } from '../projects/projectMath.js';
 import { progressBarAttrs, overBudgetText } from '../../utils/budgetProgress.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
 
 const GRIDSTACK_SIZE_MAP = {
     xs: { w: 1, h: 1 },
@@ -74,18 +75,10 @@ export default class DashboardModule {
                 this._saveSettingsTimer = null;
 
                 try {
-                    const response = await fetch(OC.generateUrl('/apps/budget/api/settings'), {
+                    await apiFetch('/apps/budget/api/settings', {
                         method: 'PUT',
-                        headers: {
-                            'requesttoken': OC.requestToken,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(toSave)
+                        body: toSave
                     });
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}`);
-                    }
 
                     // Update local settings cache
                     Object.assign(this.settings, toSave);
@@ -201,61 +194,38 @@ export default class DashboardModule {
             // rejects, so a failure only leaves the tile out
             const projectsRequest = this.fetchProjectsForTile();
 
+            // A failed summary, trend or transactions request draws those
+            // tiles empty and still lets the rest of the dashboard set up
+            const orEmpty = (fallback) => (error) => {
+                if (error instanceof ApiError) return fallback;
+                throw error;
+            };
+
             // Load all dashboard data in parallel for better performance
-            const [summaryResponse, trendResponse, transResponse, billsResponse, budgetResponse, goalsResponse, pensionResponse, assetResponse, netWorthResponse, alertsResponse, debtResponse, assetHistoryResponse] = await Promise.all([
+            const [summary, trendData, transactions, billsRaw, budgetDataRaw, goalsRaw, pensionRaw, assetRaw, netWorthRaw, alertsRaw, debtSummary, assetValueHistory] = await Promise.all([
                 // Current budget cycle summary for hero stats
-                fetch(OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${periodStart}&endDate=${periodEnd}&_=${cacheBuster}`), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }),
+                apiFetch(`/apps/budget/api/reports/summary?startDate=${periodStart}&endDate=${periodEnd}&_=${cacheBuster}`).catch(orEmpty({})),
                 // 6-month summary for trend charts
-                fetch(OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${sixMonthsAgo}&endDate=${endOfMonth}&_=${cacheBuster}`), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }),
-                fetch(OC.generateUrl(`/apps/budget/api/transactions?limit=${this._recentTxLimit()}`), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }),
-                fetch(OC.generateUrl('/apps/budget/api/bills/upcoming'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false })),
-                fetch(OC.generateUrl(`/apps/budget/api/reports/budget?startDate=${periodStart}&endDate=${periodEnd}&snapshotMonth=${periodMonth}`), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false })),
-                fetch(OC.generateUrl('/apps/budget/api/savings-goals'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false })),
-                fetch(OC.generateUrl('/apps/budget/api/pensions/summary'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false })),
-                fetch(OC.generateUrl('/apps/budget/api/assets/summary'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false })),
-                fetch(OC.generateUrl('/apps/budget/api/net-worth/snapshots?days=30'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false })),
-                fetch(OC.generateUrl('/apps/budget/api/alerts'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false })),
-                fetch(OC.generateUrl('/apps/budget/api/debts/summary'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false })),
-                fetch(OC.generateUrl('/apps/budget/api/assets/value-history?days=30'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false }))
+                apiFetch(`/apps/budget/api/reports/summary?startDate=${sixMonthsAgo}&endDate=${endOfMonth}&_=${cacheBuster}`).catch(orEmpty({})),
+                apiFetch(`/apps/budget/api/transactions?limit=${this._recentTxLimit()}`).catch(orEmpty([])),
+                apiFetch('/apps/budget/api/bills/upcoming').catch(() => null),
+                apiFetch(`/apps/budget/api/reports/budget?startDate=${periodStart}&endDate=${periodEnd}&snapshotMonth=${periodMonth}`).catch(() => null),
+                apiFetch('/apps/budget/api/savings-goals').catch(() => null),
+                apiFetch('/apps/budget/api/pensions/summary').catch(() => null),
+                apiFetch('/apps/budget/api/assets/summary').catch(() => null),
+                apiFetch('/apps/budget/api/net-worth/snapshots?days=30').catch(() => null),
+                apiFetch('/apps/budget/api/alerts').catch(() => null),
+                apiFetch('/apps/budget/api/debts/summary').catch(() => null),
+                apiFetch('/apps/budget/api/assets/value-history?days=30').catch(() => null)
             ]);
 
-            const summary = await summaryResponse.json();
-            const trendData = await trendResponse.json();
-            const transactions = await transResponse.json();
-            const bills = billsResponse.ok ? await billsResponse.json() : [];
-            const budgetDataRaw = budgetResponse.ok ? await budgetResponse.json() : null;
+            const bills = billsRaw ?? [];
             const budgetData = budgetDataRaw && typeof budgetDataRaw === 'object' ? budgetDataRaw : { categories: [] };
-            const savingsGoals = goalsResponse.ok ? await goalsResponse.json() : [];
-            const pensionSummary = pensionResponse.ok ? await pensionResponse.json() : { totalPensionWorth: 0, pensionCount: 0 };
-            const assetSummary = assetResponse.ok ? await assetResponse.json() : { totalAssetWorth: 0, assetCount: 0 };
-            const netWorthSnapshots = netWorthResponse.ok ? await netWorthResponse.json() : [];
-            const budgetAlerts = alertsResponse.ok ? await alertsResponse.json() : [];
-            const debtSummary = debtResponse.ok ? await debtResponse.json() : null;
-            const assetValueHistory = assetHistoryResponse.ok ? await assetHistoryResponse.json() : null;
+            const savingsGoals = goalsRaw ?? [];
+            const pensionSummary = pensionRaw ?? { totalPensionWorth: 0, pensionCount: 0 };
+            const assetSummary = assetRaw ?? { totalAssetWorth: 0, assetCount: 0 };
+            const netWorthSnapshots = netWorthRaw ?? [];
+            const budgetAlerts = alertsRaw ?? [];
 
             // Update Hero Section (current month data)
             this.updateDashboardHero(summary, pensionSummary, assetSummary);
@@ -1501,12 +1471,10 @@ export default class DashboardModule {
 
         let statuses = [];
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/alerts/status'), {
-                headers: { 'requesttoken': OC.requestToken }
+            statuses = await apiFetch('/apps/budget/api/alerts/status').catch((e) => {
+                if (e instanceof ApiError) return [];
+                throw e;
             });
-            if (response.ok) {
-                statuses = await response.json();
-            }
         } catch (e) {
             console.error('Failed to load the categories that can alert', e);
         }
@@ -1565,10 +1533,11 @@ export default class DashboardModule {
      */
     async refreshBudgetAlertsWidget() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/alerts'), {
-                headers: { 'requesttoken': OC.requestToken }
+            const alerts = await apiFetch('/apps/budget/api/alerts').catch((e) => {
+                if (e instanceof ApiError) return [];
+                throw e;
             });
-            this.updateBudgetAlertsWidget(response.ok ? await response.json() : []);
+            this.updateBudgetAlertsWidget(alerts);
         } catch (e) {
             console.error('Failed to refresh the budget alerts tile', e);
         }
@@ -1611,25 +1580,16 @@ export default class DashboardModule {
         try {
             // Try active scenario first, fall back to default plan
             let plan;
-            const scenariosRes = await fetch(OC.generateUrl('/apps/budget/api/debt-scenarios'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!scenariosRes.ok) return;
-            const scenarios = await scenariosRes.json();
+            const scenarios = await apiFetch('/apps/budget/api/debt-scenarios').catch(() => null);
+            if (!scenarios) return;
             const active = Array.isArray(scenarios) ? scenarios.find(s => s.isActive) : null;
 
             if (active) {
-                const res = await fetch(OC.generateUrl(`/apps/budget/api/debt-scenarios/${active.id}/calculate`), {
-                    headers: { 'requesttoken': OC.requestToken }
-                });
-                if (!res.ok) return;
-                plan = await res.json();
+                plan = await apiFetch(`/apps/budget/api/debt-scenarios/${active.id}/calculate`).catch(() => null);
+                if (!plan) return;
             } else {
-                const res = await fetch(OC.generateUrl('/apps/budget/api/debts/payoff-plan?strategy=avalanche'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                });
-                if (!res.ok) return;
-                plan = await res.json();
+                plan = await apiFetch('/apps/budget/api/debts/payoff-plan?strategy=avalanche').catch(() => null);
+                if (!plan) return;
             }
 
             if (!plan || !plan.debts || plan.debts.length === 0) return;
@@ -1696,13 +1656,11 @@ export default class DashboardModule {
 
     async renderDebtProgressWidget() {
         try {
-            const [progressRes, summaryRes] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/debts/progress'), { headers: { 'requesttoken': OC.requestToken } }),
-                fetch(OC.generateUrl('/apps/budget/api/debts/summary'), { headers: { 'requesttoken': OC.requestToken } }),
+            const [progress, summary] = await Promise.all([
+                apiFetch('/apps/budget/api/debts/progress').catch(() => null),
+                apiFetch('/apps/budget/api/debts/summary').catch(() => null),
             ]);
-            if (!progressRes.ok || !summaryRes.ok) return;
-            const progress = await progressRes.json();
-            const summary = await summaryRes.json();
+            if (!progress || !summary) return;
 
             if (summary.debtCount === 0) return;
 
@@ -1729,14 +1687,12 @@ export default class DashboardModule {
             // Next payoff & status
             if (progress.hasActiveScenario) {
                 // Get plan to find first unpaid debt
-                const scenariosRes = await fetch(OC.generateUrl('/apps/budget/api/debt-scenarios'), { headers: { 'requesttoken': OC.requestToken } });
-                if (!scenariosRes.ok) return;
-                const scenarios = await scenariosRes.json();
+                const scenarios = await apiFetch('/apps/budget/api/debt-scenarios').catch(() => null);
+                if (!scenarios) return;
                 const active = Array.isArray(scenarios) ? scenarios.find(s => s.isActive) : null;
                 if (active) {
-                    const planRes = await fetch(OC.generateUrl(`/apps/budget/api/debt-scenarios/${active.id}/calculate`), { headers: { 'requesttoken': OC.requestToken } });
-                    if (!planRes.ok) return;
-                    const plan = await planRes.json();
+                    const plan = await apiFetch(`/apps/budget/api/debt-scenarios/${active.id}/calculate`).catch(() => null);
+                    if (!plan) return;
                     const nextDebt = plan.debts?.find(d => d.payoffMonth);
                     const nextNameEl = document.getElementById('debt-progress-next-name');
                     const nextDateEl = document.getElementById('debt-progress-next-date');
@@ -1902,12 +1858,7 @@ export default class DashboardModule {
             if (settings.excludeShared) {
                 url += '&excludeShared=1';
             }
-            const response = await fetch(
-                OC.generateUrl(url),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) throw new Error('Failed to fetch budget data');
-            const data = await response.json();
+            const data = await apiFetch(url, { errorMessage: 'Failed to fetch budget data' });
             this.updateBudgetProgressWidget(data.categories || []);
         } catch (error) {
             console.error('Failed to refresh budget progress:', error);
@@ -1926,12 +1877,7 @@ export default class DashboardModule {
             if (settings.excludeShared) {
                 url += '&excludeShared=1';
             }
-            const response = await fetch(
-                OC.generateUrl(url),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) throw new Error('Failed to fetch spending data');
-            const data = await response.json();
+            const data = await apiFetch(url, { errorMessage: 'Failed to fetch spending data' });
             this.updateTopCategoriesWidget(data.data || []);
         } catch (error) {
             console.error('Failed to refresh top categories:', error);
@@ -1979,10 +1925,10 @@ export default class DashboardModule {
      */
     async fetchProjectsForTile() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/projects'), {
-                headers: { 'requesttoken': OC.requestToken }
+            return await apiFetch('/apps/budget/api/projects').catch((e) => {
+                if (e instanceof ApiError) return [];
+                throw e;
             });
-            return response.ok ? await response.json() : [];
         } catch (error) {
             console.error('Failed to load projects for the dashboard:', error);
             return [];
@@ -3158,12 +3104,9 @@ export default class DashboardModule {
 
     async refreshAssetValueChart(days, instanceId = 'assetValueHistory') {
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/assets/value-history?days=${days}`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) throw new Error('Failed to fetch asset value history');
-            const data = await response.json();
+            const data = await apiFetch(`/apps/budget/api/assets/value-history?days=${days}`, {
+                errorMessage: 'Failed to fetch asset value history'
+            });
             this.updateAssetValueHistoryChart(data, instanceId);
         } catch (error) {
             console.error('Failed to refresh asset value chart:', error);
@@ -3523,11 +3466,7 @@ export default class DashboardModule {
                 url += '&excludeShared=1';
             }
 
-            const response = await fetch(
-                OC.generateUrl(url),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            const data = await response.json();
+            const data = await apiFetch(url);
 
             if (data.trends) {
                 this.updateTrendChart(data.trends, instanceId);
@@ -3553,11 +3492,7 @@ export default class DashboardModule {
                 url += '&excludeShared=1';
             }
 
-            const response = await fetch(
-                OC.generateUrl(url),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            const data = await response.json();
+            const data = await apiFetch(url);
 
             if (data.data) {
                 this.updateSpendingChart(data.data, instanceId, { dateFrom: startStr, dateTo: endStr });
@@ -3570,24 +3505,23 @@ export default class DashboardModule {
     async refreshNetWorthChart(days, accountId = null, instanceId = 'netWorthHistory') {
         try {
             if (accountId) {
-                const response = await fetch(
-                    OC.generateUrl(`/apps/budget/api/accounts/${accountId}/balance-history?days=${days}`),
-                    { headers: { 'requesttoken': OC.requestToken } }
-                );
-                if (response.status === 404) {
-                    // Saved account no longer exists — fall back to all accounts
-                    return this.refreshNetWorthChart(days, null, instanceId);
+                let history;
+                try {
+                    history = await apiFetch(`/apps/budget/api/accounts/${accountId}/balance-history?days=${days}`, {
+                        errorMessage: 'Failed to fetch balance history'
+                    });
+                } catch (error) {
+                    if (error instanceof ApiError && error.status === 404) {
+                        // Saved account no longer exists — fall back to all accounts
+                        return this.refreshNetWorthChart(days, null, instanceId);
+                    }
+                    throw error;
                 }
-                if (!response.ok) throw new Error('Failed to fetch balance history');
-                const history = await response.json();
                 this.updateNetWorthHistoryChart(history, accountId, instanceId);
             } else {
-                const response = await fetch(
-                    OC.generateUrl(`/apps/budget/api/net-worth/snapshots?days=${days}`),
-                    { headers: { 'requesttoken': OC.requestToken } }
-                );
-                if (!response.ok) throw new Error('Failed to fetch net worth snapshots');
-                const snapshots = await response.json();
+                const snapshots = await apiFetch(`/apps/budget/api/net-worth/snapshots?days=${days}`, {
+                    errorMessage: 'Failed to fetch net worth snapshots'
+                });
                 this.updateNetWorthHistoryChart(snapshots, null, instanceId);
             }
         } catch (error) {
@@ -3610,12 +3544,7 @@ export default class DashboardModule {
             if (this.dashboardConfig.widgets?.tileSettings?.[instanceId]?.excludeShared) {
                 url += '&excludeShared=1';
             }
-            const response = await fetch(
-                OC.generateUrl(url),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) throw new Error('Failed to fetch recent transactions');
-            const data = await response.json();
+            const data = await apiFetch(url, { errorMessage: 'Failed to fetch recent transactions' });
             this.updateRecentTransactions(data.transactions || data, instanceId);
         } catch (error) {
             console.error('Failed to refresh recent transactions:', error);
@@ -3651,17 +3580,10 @@ export default class DashboardModule {
 
     async recordNetWorthSnapshot() {
         try {
-            const response = await fetch(
-                OC.generateUrl('/apps/budget/api/net-worth/snapshots'),
-                {
-                    method: 'POST',
-                    headers: {
-                        'requesttoken': OC.requestToken,
-                        'Content-Type': 'application/json'
-                    }
-                }
-            );
-            if (!response.ok) throw new Error('Failed to record snapshot');
+            await apiFetch('/apps/budget/api/net-worth/snapshots', {
+                method: 'POST',
+                errorMessage: 'Failed to record snapshot'
+            });
 
             showSuccess(t('budget', 'Net worth snapshot recorded'));
 
@@ -4591,11 +4513,7 @@ export default class DashboardModule {
         try {
             switch(widgetKey) {
                 case 'uncategorizedCount': {
-                    const uncatResp = await fetch(
-                        OC.generateUrl('/apps/budget/api/transactions/uncategorized?limit=100'),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    this.widgetData.uncategorizedCount = await uncatResp.json();
+                    this.widgetData.uncategorizedCount = await apiFetch('/apps/budget/api/transactions/uncategorized?limit=100');
                     break;
                 }
 
@@ -4608,20 +4526,14 @@ export default class DashboardModule {
                     const lastMonth = formatters.budgetMonthRange(formatters.shiftMonth(mcMonth, -1), mcStartDay);
 
                     const mcScope = this._tileScopeParams('monthlyComparison');
-                    const [currentResp, previousResp] = await Promise.all([
-                        fetch(
-                            OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${thisMonth.start}&endDate=${thisMonth.end}${mcScope}`),
-                            { headers: { 'requesttoken': OC.requestToken } }
-                        ),
-                        fetch(
-                            OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${lastMonth.start}&endDate=${lastMonth.end}${mcScope}`),
-                            { headers: { 'requesttoken': OC.requestToken } }
-                        )
+                    const [current, previous] = await Promise.all([
+                        apiFetch(`/apps/budget/api/reports/summary?startDate=${thisMonth.start}&endDate=${thisMonth.end}${mcScope}`),
+                        apiFetch(`/apps/budget/api/reports/summary?startDate=${lastMonth.start}&endDate=${lastMonth.end}${mcScope}`)
                     ]);
 
                     this.widgetData.monthlyComparison = {
-                        current: await currentResp.json(),
-                        previous: await previousResp.json(),
+                        current,
+                        previous,
                         periodLabel: mcStartDay > 1 ? thisMonth.label : null,
                     };
                     break;
@@ -4629,20 +4541,15 @@ export default class DashboardModule {
 
                 case 'largeTransactions': {
                     const ltRange = this._tileRangeParams(widgetKey);
-                    const ltResp = await fetch(
-                        OC.generateUrl(`/apps/budget/api/transactions?limit=10&sort=amount&dateFrom=${ltRange.startDate}&dateTo=${ltRange.endDate}${this._tileScopeParams(widgetKey)}`),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    this.widgetData.largeTransactions = await ltResp.json();
+                    this.widgetData.largeTransactions = await apiFetch(`/apps/budget/api/transactions?limit=10&sort=amount&dateFrom=${ltRange.startDate}&dateTo=${ltRange.endDate}${this._tileScopeParams(widgetKey)}`);
                     break;
                 }
 
                 case 'pensionProjection': {
-                    const pensionResp = await fetch(
-                        OC.generateUrl('/apps/budget/api/pensions/projection'),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    this.widgetData.pensionProjection = pensionResp.ok ? await pensionResp.json() : null;
+                    this.widgetData.pensionProjection = await apiFetch('/apps/budget/api/pensions/projection').catch((e) => {
+                        if (e instanceof ApiError) return null;
+                        throw e;
+                    });
                     break;
                 }
 
@@ -4651,39 +4558,23 @@ export default class DashboardModule {
                     // The endpoint takes forecastMonths; the old days=90 was not a
                     // parameter it accepts and was silently ignored.
                     const cfMonths = this._tileNumberSetting(widgetKey, 'forecastMonths', formatters.FORECAST_MONTHS, 6);
-                    const cfResp = await fetch(
-                        OC.generateUrl(`/apps/budget/api/forecast/live?forecastMonths=${cfMonths}${this._tileScopeParams(widgetKey, { account: false })}`),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    this.widgetData.cashFlowForecast = await cfResp.json();
+                    this.widgetData.cashFlowForecast = await apiFetch(`/apps/budget/api/forecast/live?forecastMonths=${cfMonths}${this._tileScopeParams(widgetKey, { account: false })}`);
                     break;
                 }
 
                 case 'yoyComparison': {
                     const yoyYears = this._tileNumberSetting(widgetKey, 'yearsToCompare', formatters.YEARS_TO_COMPARE, 2);
-                    const yoyResp = await fetch(
-                        OC.generateUrl(`/apps/budget/api/yoy/years?years=${yoyYears}${this._tileScopeParams(widgetKey)}`),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    this.widgetData.yoyComparison = await yoyResp.json();
+                    this.widgetData.yoyComparison = await apiFetch(`/apps/budget/api/yoy/years?years=${yoyYears}${this._tileScopeParams(widgetKey)}`);
                     break;
                 }
 
                 case 'incomeTracking': {
-                    const incomeResp = await fetch(
-                        OC.generateUrl('/apps/budget/api/recurring-income/summary'),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    this.widgetData.incomeTracking = await incomeResp.json();
+                    this.widgetData.incomeTracking = await apiFetch('/apps/budget/api/recurring-income/summary');
                     break;
                 }
 
                 case 'daysUntilDebtFree': {
-                    const debtResp = await fetch(
-                        OC.generateUrl('/apps/budget/api/debts/payoff-plan?strategy=avalanche'),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    this.widgetData.daysUntilDebtFree = await debtResp.json();
+                    this.widgetData.daysUntilDebtFree = await apiFetch('/apps/budget/api/debts/payoff-plan?strategy=avalanche');
                     break;
                 }
 
@@ -4698,30 +4589,21 @@ export default class DashboardModule {
                     break;
 
                 case 'recentImports': {
-                    const importsResp = await fetch(
-                        OC.generateUrl('/apps/budget/api/import/history?limit=5'),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    this.widgetData.recentImports = importsResp.ok ? await importsResp.json() : [];
+                    this.widgetData.recentImports = await apiFetch('/apps/budget/api/import/history?limit=5').catch((e) => {
+                        if (e instanceof ApiError) return [];
+                        throw e;
+                    });
                     break;
                 }
 
                 case 'ruleEffectiveness': {
-                    const rulesResp = await fetch(
-                        OC.generateUrl('/apps/budget/api/import-rules'),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    this.widgetData.ruleEffectiveness = await rulesResp.json();
+                    this.widgetData.ruleEffectiveness = await apiFetch('/apps/budget/api/import-rules');
                     break;
                 }
 
                 case 'weeklyTrend': {
                     const wtRange = this._tileRangeParams(widgetKey);
-                    const weekResp = await fetch(
-                        OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${wtRange.startDate}&endDate=${wtRange.endDate}${this._tileScopeParams(widgetKey)}`),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    const weekData = await weekResp.json();
+                    const weekData = await apiFetch(`/apps/budget/api/reports/summary?startDate=${wtRange.startDate}&endDate=${wtRange.endDate}${this._tileScopeParams(widgetKey)}`);
                     // Inclusive span, so the renderer's daily average matches the
                     // window the user picked rather than assuming a week.
                     const wtDays = formatters.daysBetweenDates(wtRange.startDate, wtRange.endDate) + 1;
@@ -4730,24 +4612,16 @@ export default class DashboardModule {
                 }
 
                 case 'unmatchedTransfers': {
-                    const unmatchedResp = await fetch(
-                        OC.generateUrl('/apps/budget/api/transactions?limit=10&unmatched=true'),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    const unmatchedData = await unmatchedResp.json();
+                    const unmatchedData = await apiFetch('/apps/budget/api/transactions?limit=10&unmatched=true');
                     this.widgetData.unmatchedTransfers = Array.isArray(unmatchedData) ? unmatchedData : [];
                     break;
                 }
 
                 case 'billsDueSoon': {
-                    const billsResp = await fetch(
-                        OC.generateUrl('/apps/budget/api/bills?isTransfer=false'),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
                     // Cached unfiltered: the horizon is applied at render time in
                     // updateBillsDueSoonWidget, so a settings change can re-render
                     // from cache instead of forcing a refetch.
-                    this.widgetData.billsDueSoon = await billsResp.json();
+                    this.widgetData.billsDueSoon = await apiFetch('/apps/budget/api/bills?isTransfer=false');
                     break;
                 }
 
@@ -4758,13 +4632,10 @@ export default class DashboardModule {
 
                     // categories/spending only supports excludeShared (no accountId param)
                     const ctScope = this._tileScopeParams('categoryTrends', { account: false });
-                    const [ctCurrentResp, ctPrevResp] = await Promise.all([
-                        fetch(OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${ctThisMonth.start}&endDate=${ctThisMonth.end}${ctScope}`), { headers: { 'requesttoken': OC.requestToken } }),
-                        fetch(OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${ctLastMonth.start}&endDate=${ctLastMonth.end}${ctScope}`), { headers: { 'requesttoken': OC.requestToken } })
+                    const [ctCurrent, ctPrev] = await Promise.all([
+                        apiFetch(`/apps/budget/api/categories/spending?startDate=${ctThisMonth.start}&endDate=${ctThisMonth.end}${ctScope}`),
+                        apiFetch(`/apps/budget/api/categories/spending?startDate=${ctLastMonth.start}&endDate=${ctLastMonth.end}${ctScope}`)
                     ]);
-
-                    const ctCurrent = await ctCurrentResp.json();
-                    const ctPrev = await ctPrevResp.json();
 
                     // Build lookup for previous month
                     const prevMap = {};
@@ -4803,11 +4674,7 @@ export default class DashboardModule {
                     const svToday = formatters.formatDateForAPI(svNow);
                     const svDayOfMonth = svNow.getDate();
 
-                    const svResp = await fetch(
-                        OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${svMonthStart}&endDate=${svToday}`),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    const svData = await svResp.json();
+                    const svData = await apiFetch(`/apps/budget/api/reports/summary?startDate=${svMonthStart}&endDate=${svToday}`);
                     const totalSpent = parseFloat(svData.totalExpenses || 0);
                     this.widgetData.spendingVelocity = {
                         dailyRate: svDayOfMonth > 0 ? totalSpent / svDayOfMonth : 0,

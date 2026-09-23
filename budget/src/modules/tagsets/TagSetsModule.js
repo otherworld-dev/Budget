@@ -7,6 +7,7 @@ import { showSuccess, showError, showInfo } from '../../utils/notifications.js';
 import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { showLoading } from '../../utils/loading.js';
+import { apiFetch } from '../../utils/api.js';
 
 export default class TagSetsModule {
     constructor(app) {
@@ -42,13 +43,7 @@ export default class TagSetsModule {
 
     async loadGlobalTags() {
         try {
-            const response = await fetch(
-                OC.generateUrl('/apps/budget/api/tags/global'),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (response.ok) {
-                this.globalTags = await response.json();
-            }
+            this.globalTags = await apiFetch('/apps/budget/api/tags/global');
         } catch (error) {
             console.error('Failed to load global tags:', error);
         }
@@ -236,22 +231,17 @@ export default class TagSetsModule {
         }
 
         try {
-            const url = tagId
-                ? OC.generateUrl(`/apps/budget/api/tags/global/${tagId}`)
-                : OC.generateUrl('/apps/budget/api/tags/global');
+            const path = tagId
+                ? `/apps/budget/api/tags/global/${tagId}`
+                : '/apps/budget/api/tags/global';
 
             // Hidden is an edit-time choice (#373): a tag is created visible.
             const payload = tagId ? { name, color, hidden } : { name, color };
-            const response = await fetch(url, {
+            await apiFetch(path, {
                 method: tagId ? 'PUT' : 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify(payload)
+                body: payload,
+                errorMessage: t('budget', 'Failed to save tag'),
             });
-
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.error || t('budget', 'Failed to save tag'));
-            }
 
             this.closeGlobalTagModal();
             await this.loadGlobalTags();
@@ -268,14 +258,10 @@ export default class TagSetsModule {
         if (!await confirmDialog(t('budget', 'Delete this tag? It will be removed from all transactions.'), { destructive: true })) return;
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/tags/global/${tagId}`), {
+            await apiFetch(`/apps/budget/api/tags/global/${tagId}`, {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
+                errorMessage: t('budget', 'Failed to delete tag'),
             });
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.error || t('budget', 'Failed to delete tag'));
-            }
             await this.loadGlobalTags();
             this.renderGlobalTagsUI();
             this.updateTagsSummary();
@@ -291,17 +277,8 @@ export default class TagSetsModule {
      */
     async loadTagSetsForCategory(categoryId) {
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/tag-sets?categoryId=${categoryId}`),
-                {
-                    headers: { 'requesttoken': OC.requestToken }
-                }
-            );
-
-            if (response.ok) {
-                this.selectedCategoryTagSets = await response.json();
-                return this.selectedCategoryTagSets;
-            }
+            this.selectedCategoryTagSets = await apiFetch(`/apps/budget/api/tag-sets?categoryId=${categoryId}`);
+            return this.selectedCategoryTagSets;
         } catch (error) {
             console.error('Failed to load tag sets:', error);
         }
@@ -314,18 +291,9 @@ export default class TagSetsModule {
     async loadTransactionTags(transactionId) {
         if (!transactionId) return [];
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/tags`),
-                {
-                    headers: { 'requesttoken': OC.requestToken }
-                }
-            );
-
-            if (response.ok) {
-                const tags = await response.json();
-                this.transactionTags[transactionId] = tags;
-                return tags;
-            }
+            const tags = await apiFetch(`/apps/budget/api/transactions/${transactionId}/tags`);
+            this.transactionTags[transactionId] = tags;
+            return tags;
         } catch (error) {
             console.error('Failed to load transaction tags:', error);
         }
@@ -337,23 +305,14 @@ export default class TagSetsModule {
      */
     async saveTransactionTags(transactionId, tagIds) {
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/tags`),
-                {
-                    method: 'PUT',
-                    headers: {
-                        'requesttoken': OC.requestToken,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ tagIds })
-                }
-            );
+            await apiFetch(`/apps/budget/api/transactions/${transactionId}/tags`, {
+                method: 'PUT',
+                body: { tagIds },
+            });
 
-            if (response.ok) {
-                // Update cache
-                await this.loadTransactionTags(transactionId);
-                return true;
-            }
+            // Update cache
+            await this.loadTransactionTags(transactionId);
+            return true;
         } catch (error) {
             console.error('Failed to save transaction tags:', error);
         }
@@ -555,40 +514,25 @@ export default class TagSetsModule {
      * Create a new tag set
      */
     async createTagSet(categoryId, name, description) {
-        const response = await fetch(OC.generateUrl('/apps/budget/api/tag-sets'), {
+        return await apiFetch('/apps/budget/api/tag-sets', {
             method: 'POST',
-            headers: {
-                'requesttoken': OC.requestToken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
+            body: {
                 categoryId: categoryId,
                 name: name,
                 description: description || null
-            })
+            },
+            errorMessage: t('budget', 'Failed to create tag set'),
         });
-
-        if (!response.ok) {
-            throw new Error(t('budget', 'Failed to create tag set'));
-        }
-
-        return await response.json();
     }
 
     /**
      * Delete a tag set
      */
     async deleteTagSet(tagSetId) {
-        const response = await fetch(OC.generateUrl(`/apps/budget/api/tag-sets/${tagSetId}`), {
+        await apiFetch(`/apps/budget/api/tag-sets/${tagSetId}`, {
             method: 'DELETE',
-            headers: {
-                'requesttoken': OC.requestToken
-            }
+            errorMessage: t('budget', 'Failed to delete tag set'),
         });
-
-        if (!response.ok) {
-            throw new Error(t('budget', 'Failed to delete tag set'));
-        }
 
         return true;
     }
@@ -597,39 +541,24 @@ export default class TagSetsModule {
      * Create a new tag
      */
     async createTag(tagSetId, name, color) {
-        const response = await fetch(OC.generateUrl(`/apps/budget/api/tag-sets/${tagSetId}/tags`), {
+        return await apiFetch(`/apps/budget/api/tag-sets/${tagSetId}/tags`, {
             method: 'POST',
-            headers: {
-                'requesttoken': OC.requestToken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
+            body: {
                 name: name,
                 color: color || '#666666'
-            })
+            },
+            errorMessage: t('budget', 'Failed to create tag'),
         });
-
-        if (!response.ok) {
-            throw new Error(t('budget', 'Failed to create tag'));
-        }
-
-        return await response.json();
     }
 
     /**
      * Delete a tag
      */
     async deleteTag(tagId, tagSetId) {
-        const response = await fetch(OC.generateUrl(`/apps/budget/api/tag-sets/${tagSetId}/tags/${tagId}`), {
+        await apiFetch(`/apps/budget/api/tag-sets/${tagSetId}/tags/${tagId}`, {
             method: 'DELETE',
-            headers: {
-                'requesttoken': OC.requestToken
-            }
+            errorMessage: t('budget', 'Failed to delete tag'),
         });
-
-        if (!response.ok) {
-            throw new Error(t('budget', 'Failed to delete tag'));
-        }
 
         return true;
     }
@@ -949,20 +878,11 @@ export default class TagSetsModule {
      * Update an existing tag set
      */
     async updateTagSet(tagSetId, name, description) {
-        const response = await fetch(OC.generateUrl(`/apps/budget/api/tag-sets/${tagSetId}`), {
+        return await apiFetch(`/apps/budget/api/tag-sets/${tagSetId}`, {
             method: 'PUT',
-            headers: {
-                'requesttoken': OC.requestToken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ name, description: description || null })
+            body: { name, description: description || null },
+            errorMessage: t('budget', 'Failed to update tag set'),
         });
-
-        if (!response.ok) {
-            throw new Error(t('budget', 'Failed to update tag set'));
-        }
-
-        return await response.json();
     }
 
     /**
@@ -1070,17 +990,8 @@ export default class TagSetsModule {
         try {
             // Load tags for each transaction
             const tagPromises = this.transactions.map(async (transaction) => {
-                const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transaction.id}/tags`), {
-                    headers: {
-                        'requesttoken': OC.requestToken
-                    }
-                });
-
-                if (response.ok) {
-                    const tags = await response.json();
-                    return { transactionId: transaction.id, tags: Array.isArray(tags) ? tags : [] };
-                }
-                return { transactionId: transaction.id, tags: [] };
+                const tags = await apiFetch(`/apps/budget/api/transactions/${transaction.id}/tags`).catch(() => null);
+                return { transactionId: transaction.id, tags: Array.isArray(tags) ? tags : [] };
             });
 
             const results = await Promise.all(tagPromises);
@@ -1170,20 +1081,11 @@ export default class TagSetsModule {
      * Update an existing tag
      */
     async updateTag(tagSetId, tagId, updates) {
-        const response = await fetch(OC.generateUrl(`/apps/budget/api/tag-sets/${tagSetId}/tags/${tagId}`), {
+        return await apiFetch(`/apps/budget/api/tag-sets/${tagSetId}/tags/${tagId}`, {
             method: 'PUT',
-            headers: {
-                'requesttoken': OC.requestToken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(updates)
+            body: updates,
+            errorMessage: t('budget', 'Failed to update tag'),
         });
-
-        if (!response.ok) {
-            throw new Error(t('budget', 'Failed to update tag'));
-        }
-
-        return await response.json();
     }
 
     /**

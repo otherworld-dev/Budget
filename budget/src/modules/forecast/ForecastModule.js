@@ -6,6 +6,7 @@ import * as formatters from '../../utils/formatters.js';
 import Chart from 'chart.js/auto';
 import { showError } from '../../utils/notifications.js';
 import { escapeHtml } from '../../utils/dom.js';
+import { apiFetch } from '../../utils/api.js';
 
 export default class ForecastModule {
     constructor(app) {
@@ -59,15 +60,9 @@ export default class ForecastModule {
 
         try {
             const horizon = document.getElementById('forecast-horizon')?.value || 6;
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/forecast/live?forecastMonths=${horizon}`), {
-                headers: { 'requesttoken': OC.requestToken }
+            const data = await apiFetch(`/apps/budget/api/forecast/live?forecastMonths=${horizon}`, {
+                errorMessage: 'Failed to fetch forecast',
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch forecast');
-            }
-
-            const data = await response.json();
             this.forecastData = data;
             this.forecastCurrency = data.currency || this.getPrimaryCurrency();
 

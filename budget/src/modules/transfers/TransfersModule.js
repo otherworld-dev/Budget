@@ -8,7 +8,8 @@ import { billRowDateText } from '../../utils/billDates.js';
 import { showSuccess, showError, showWarning, showUndoNotification } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { initSingleDatePicker } from '../../utils/datepicker.js';
-import { serverErrorMessage, isoWeekday } from '../../utils/helpers.js';
+import { isoWeekday } from '../../utils/helpers.js';
+import { apiFetch } from '../../utils/api.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { showLoadError } from '../../utils/loading.js';
 import { openAccounts, pickableAccounts, accountOptionLabel } from '../../utils/accounts.js';
@@ -60,13 +61,7 @@ export default class TransfersModule {
      */
     async loadTransfers() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills?isTransfer=true'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            this.transfers = await response.json();
+            this.transfers = await apiFetch('/apps/budget/api/bills?isTransfer=true');
             return true;
         } catch (error) {
             console.error('Failed to load transfers:', error);
@@ -876,24 +871,16 @@ export default class TransfersModule {
 
         try {
             const url = existingTransfer ?
-                OC.generateUrl(`/apps/budget/api/bills/${existingTransfer.id}`) :
-                OC.generateUrl('/apps/budget/api/bills');
+                `/apps/budget/api/bills/${existingTransfer.id}` :
+                '/apps/budget/api/bills';
 
             const method = existingTransfer ? 'PUT' : 'POST';
 
-            const response = await fetch(url, {
+            await apiFetch(url, {
                 method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(data)
+                body: data,
+                errorMessage: t('budget', 'Failed to save transfer'),
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to save transfer')));
-            }
 
             showSuccess(
                 existingTransfer ? t('budget', 'Transfer updated') : t('budget', 'Transfer added')
@@ -916,12 +903,10 @@ export default class TransfersModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${transferId}`), {
+            await apiFetch(`/apps/budget/api/bills/${transferId}`, {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
+                errorMessage: t('budget', 'Failed to delete transfer'),
             });
-
-            if (!response.ok) throw new Error(t('budget', 'Failed to delete transfer'));
 
             showSuccess(t('budget', 'Transfer deleted'));
 
@@ -939,18 +924,13 @@ export default class TransfersModule {
         if (!transfer) return;
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${transferId}`), {
+            await apiFetch(`/apps/budget/api/bills/${transferId}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     active: !transfer.isActive
-                })
+                },
+                errorMessage: t('budget', 'Failed to update transfer'),
             });
-
-            if (!response.ok) throw new Error(t('budget', 'Failed to update transfer'));
 
             showSuccess(
                 transfer.isActive ? t('budget', 'Transfer deactivated') : t('budget', 'Transfer activated')
@@ -975,19 +955,14 @@ export default class TransfersModule {
             // Use the dedicated mark-paid endpoint so the paired transfer
             // transactions are actually created. A plain PUT of lastPaidDate
             // records the date but creates no account entries (#291).
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${transferId}/paid`), {
+            await apiFetch(`/apps/budget/api/bills/${transferId}/paid`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     paidDate: formattedDate,
                     createNextTransaction: true
-                })
+                },
+                errorMessage: t('budget', 'Failed to mark transfer as paid'),
             });
-
-            if (!response.ok) throw new Error(t('budget', 'Failed to mark transfer as paid'));
 
             showSuccess(t('budget', 'Transfer marked as paid'));
 
@@ -1015,20 +990,10 @@ export default class TransfersModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${transferId}/skip`), {
+            const result = await apiFetch(`/apps/budget/api/bills/${transferId}/skip`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                }
+                errorMessage: t('budget', 'Failed to skip transfer'),
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to skip transfer')));
-            }
-
-            const result = await response.json();
             this._undoData = {
                 transferId,
                 previousNextDueDate: result.previousNextDueDate ?? null,
@@ -1058,19 +1023,10 @@ export default class TransfersModule {
         try {
             const { transferId, previousNextDueDate } = this._undoData;
 
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${transferId}/undo-skip`), {
+            await apiFetch(`/apps/budget/api/bills/${transferId}/undo-skip`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ previousNextDueDate })
+                body: { previousNextDueDate },
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
 
             this._undoData = null;
             await this.loadTransfers();
@@ -1101,18 +1057,10 @@ export default class TransfersModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${transferId}/unpaid`), {
+            await apiFetch(`/apps/budget/api/bills/${transferId}/unpaid`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                }
+                errorMessage: t('budget', 'Failed to mark transfer as unpaid'),
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to mark transfer as unpaid')));
-            }
 
             await this.loadTransfers();
             this.renderTransfers();
@@ -1171,8 +1119,8 @@ export default class TransfersModule {
         try {
             // Load global tags and category tag sets in parallel
             const [globalTagsResponse, categoryTagSets] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } }).then(r => r.ok ? r.json() : []).catch(() => []),
-                categoryId ? fetch(OC.generateUrl(`/apps/budget/api/tag-sets?categoryId=${categoryId}`), { headers: { 'requesttoken': OC.requestToken } }).then(r => r.ok ? r.json() : []).catch(() => []) : Promise.resolve([])
+                apiFetch('/apps/budget/api/tags/global').catch(() => []),
+                categoryId ? apiFetch(`/apps/budget/api/tag-sets?categoryId=${categoryId}`).catch(() => []) : Promise.resolve([])
             ]);
 
             // Get existing tag IDs if editing
@@ -1300,13 +1248,7 @@ export default class TransfersModule {
         detectBtn.innerHTML = `<span class="icon-loading-small" aria-hidden="true"></span> ${t('budget', 'Detecting...')}`;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/detect?months=6'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const detected = await response.json();
+            const detected = await apiFetch('/apps/budget/api/bills/detect?months=6');
 
             if (!detected || detected.length === 0) {
                 showWarning(t('budget', 'No recurring transactions detected'));
@@ -1400,18 +1342,10 @@ export default class TransfersModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/create-from-detected'), {
+            const result = await apiFetch('/apps/budget/api/bills/create-from-detected', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ bills: transfersToAdd })
+                body: { bills: transfersToAdd },
             });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const result = await response.json();
             document.getElementById('detected-transfers-panel').style.display = 'none';
             showSuccess(n('budget', '%n transfer added successfully', '%n transfers added successfully', result.created));
             await this.loadTransfersView();

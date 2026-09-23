@@ -11,6 +11,7 @@ import { setDateValue } from '../../utils/datepicker.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import MultiSelect from '../../utils/multiselect.js';
 import { buildMoneyFlows, CENTER_KEY } from './moneyFlow.js';
+import { apiFetch } from '../../utils/api.js';
 
 Chart.register(SankeyController, Flow);
 
@@ -277,11 +278,9 @@ export default class ReportsModule {
 
     async loadSavedReports() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/reports/saved'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) return;
-            this.savedReports = await response.json();
+            const reports = await apiFetch('/apps/budget/api/reports/saved').catch(() => null);
+            if (!reports) return;
+            this.savedReports = reports;
             this.renderSavedReportsSelect();
         } catch (e) {
             console.error('Failed to load saved reports:', e);
@@ -379,13 +378,11 @@ export default class ReportsModule {
             return;
         }
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/reports/saved'), {
+            const data = await apiFetch('/apps/budget/api/reports/saved', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ name: name.trim(), config: this.getReportConfig() })
+                body: { name: name.trim(), config: this.getReportConfig() },
+                errorMessage: t('budget', 'Failed to save report'),
             });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || t('budget', 'Failed to save report'));
             showSuccess(t('budget', 'Report saved'));
             await this.loadSavedReports();
             this.renderSavedReportsSelect(data.id);
@@ -410,11 +407,7 @@ export default class ReportsModule {
         const report = (this.savedReports || []).find(r => String(r.id) === id);
         if (!await confirmDialog(t('budget', 'Delete saved report "{name}"?', { name: report?.name || '' }), { destructive: true })) return;
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/reports/saved/${id}`), {
-                method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            await apiFetch(`/apps/budget/api/reports/saved/${id}`, { method: 'DELETE' });
             showSuccess(t('budget', 'Saved report deleted'));
             await this.loadSavedReports();
         } catch (e) {
@@ -424,17 +417,17 @@ export default class ReportsModule {
 
     async loadAllTagsForReports() {
         try {
-            const [tagSetsResponse, globalTagsResponse] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/tag-sets'), { headers: { 'requesttoken': OC.requestToken } }),
-                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } })
+            const failed = Symbol('failed');
+            const [tagSets, globalTags] = await Promise.all([
+                apiFetch('/apps/budget/api/tag-sets').catch(() => failed),
+                apiFetch('/apps/budget/api/tags/global').catch(() => failed)
             ]);
 
-            if (tagSetsResponse.ok) {
-                this.allTagSetsForReports = await tagSetsResponse.json();
+            if (tagSets !== failed) {
+                this.allTagSetsForReports = tagSets;
             }
 
-            if (globalTagsResponse.ok) {
-                const globalTags = await globalTagsResponse.json();
+            if (globalTags !== failed) {
                 if (globalTags.length > 0) {
                     this.allTagSetsForReports = this.allTagSetsForReports || [];
                     this.allTagSetsForReports.unshift({
@@ -690,13 +683,7 @@ export default class ReportsModule {
     }
 
     async generateSummaryReport(params) {
-        const response = await fetch(
-            OC.generateUrl(`/apps/budget/api/reports/summary-comparison?${params}`),
-            { headers: { 'requesttoken': OC.requestToken } }
-        );
-
-        if (!response.ok) throw new Error('Failed to fetch summary');
-        const data = await response.json();
+        const data = await apiFetch(`/apps/budget/api/reports/summary-comparison?${params}`);
 
         const section = document.getElementById('report-summary');
         if (section) section.style.display = 'block';
@@ -823,17 +810,10 @@ export default class ReportsModule {
     }
 
     async generateSpendingReport(params) {
-        const [categoryResponse, vendorResponse] = await Promise.all([
-            fetch(OC.generateUrl(`/apps/budget/api/reports/spending?${params}&groupBy=category`), {
-                headers: { 'requesttoken': OC.requestToken }
-            }),
-            fetch(OC.generateUrl(`/apps/budget/api/reports/spending?${params}&groupBy=vendor`), {
-                headers: { 'requesttoken': OC.requestToken }
-            })
+        const [categoryData, vendorData] = await Promise.all([
+            apiFetch(`/apps/budget/api/reports/spending?${params}&groupBy=category`),
+            apiFetch(`/apps/budget/api/reports/spending?${params}&groupBy=vendor`)
         ]);
-
-        const categoryData = await categoryResponse.json();
-        const vendorData = await vendorResponse.json();
 
         const section = document.getElementById('report-spending');
         if (section) section.style.display = 'block';
@@ -977,15 +957,7 @@ export default class ReportsModule {
      * a net line — the shape a club treasurer needs at year end (#344).
      */
     async generateIncomeExpenseReport(params) {
-        const response = await fetch(OC.generateUrl(`/apps/budget/api/reports/income-expense?${params}`), {
-            headers: { 'requesttoken': OC.requestToken }
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const data = await response.json();
+        const data = await apiFetch(`/apps/budget/api/reports/income-expense?${params}`);
 
         const section = document.getElementById('report-income-expense');
         if (section) section.style.display = 'block';
@@ -1051,13 +1023,7 @@ export default class ReportsModule {
     }
 
     async generateCashFlowReport(params) {
-        const response = await fetch(
-            OC.generateUrl(`/apps/budget/api/reports/cashflow?${params}`),
-            { headers: { 'requesttoken': OC.requestToken } }
-        );
-
-        if (!response.ok) throw new Error('Failed to fetch cash flow');
-        const data = await response.json();
+        const data = await apiFetch(`/apps/budget/api/reports/cashflow?${params}`);
 
         const section = document.getElementById('report-cashflow');
         if (section) section.style.display = 'block';
@@ -1083,13 +1049,7 @@ export default class ReportsModule {
 
     async generateCategoryMonthlyReport(params) {
         const sort = this.categoryMonthlySort || 'alpha';
-        const response = await fetch(
-            OC.generateUrl(`/apps/budget/api/reports/categories/monthly?${params}&sort=${sort}`),
-            { headers: { 'requesttoken': OC.requestToken } }
-        );
-
-        if (!response.ok) throw new Error('Failed to fetch category monthly report');
-        const data = await response.json();
+        const data = await apiFetch(`/apps/budget/api/reports/categories/monthly?${params}&sort=${sort}`);
 
         const section = document.getElementById('report-category-monthly');
         if (section) section.style.display = 'block';
@@ -1277,27 +1237,17 @@ export default class ReportsModule {
         const endDate = encodeURIComponent(params.get('endDate') || '');
         const excludeSharedQuery = this.excludeShared ? '&excludeShared=1' : '';
 
-        const [incomeResponse, expenseResponse, categoriesResponse] = await Promise.all([
-            fetch(OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${startDate}&endDate=${endDate}&transactionType=credit${excludeSharedQuery}`), {
-                headers: { 'requesttoken': OC.requestToken }
-            }),
-            fetch(OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${startDate}&endDate=${endDate}&transactionType=debit${excludeSharedQuery}`), {
-                headers: { 'requesttoken': OC.requestToken }
-            }),
+        const [incomeRows, expenseRows, freshCategories] = await Promise.all([
+            apiFetch(`/apps/budget/api/categories/spending?startDate=${startDate}&endDate=${endDate}&transactionType=credit${excludeSharedQuery}`),
+            apiFetch(`/apps/budget/api/categories/spending?startDate=${startDate}&endDate=${endDate}&transactionType=debit${excludeSharedQuery}`),
             // The transform filters every spending row by its category's
             // type, so a category the app-level list doesn't know yet (made
             // after page load, or by another client) would silently drop its
             // flows. Fetch the list fresh; fall back to app state on failure.
-            fetch(OC.generateUrl('/apps/budget/api/categories'), {
-                headers: { 'requesttoken': OC.requestToken }
-            })
+            apiFetch('/apps/budget/api/categories').catch(() => null)
         ]);
 
-        if (!incomeResponse.ok || !expenseResponse.ok) throw new Error('Failed to fetch money flow data');
-
-        const incomeRows = await incomeResponse.json();
-        const expenseRows = await expenseResponse.json();
-        const categories = categoriesResponse.ok ? await categoriesResponse.json() : (this.categories || []);
+        const categories = freshCategories ?? (this.categories || []);
 
         const section = document.getElementById('report-moneyflow');
         if (section) section.style.display = 'block';
@@ -1467,12 +1417,7 @@ export default class ReportsModule {
                     endpoint = `/apps/budget/api/yoy/years?years=${years}${accountParam}`;
             }
 
-            const response = await fetch(OC.generateUrl(endpoint), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error('Failed to fetch YoY data');
-            const data = await response.json();
+            const data = await apiFetch(endpoint);
 
             if (comparisonType === 'categories') {
                 this.displayYoYCategories(data);
@@ -1641,19 +1586,16 @@ export default class ReportsModule {
         const reportType = document.getElementById('report-type')?.value || 'summary';
 
         try {
-            let response;
+            let blob;
 
             if (reportType === 'yoy') {
-                response = await this.exportYoYReport(format);
+                blob = await this.exportYoYReport(format);
             } else if (reportType === 'bills-calendar') {
-                response = await this.exportBillsCalendarReport(format);
+                blob = await this.exportBillsCalendarReport(format);
             } else {
-                response = await this.exportStandardReport(format, reportType);
+                blob = await this.exportStandardReport(format, reportType);
             }
 
-            if (!response.ok) throw new Error('Export failed');
-
-            const blob = await response.blob();
             const filename = `${reportType}_report_${formatters.getTodayDateString()}.${format}`;
 
             // Trigger download
@@ -1677,20 +1619,17 @@ export default class ReportsModule {
         const startDate = document.getElementById('report-start-date')?.value;
         const endDate = document.getElementById('report-end-date')?.value;
 
-        return fetch(OC.generateUrl('/apps/budget/api/reports/export'), {
+        return apiFetch('/apps/budget/api/reports/export', {
             method: 'POST',
-            headers: {
-                'requesttoken': OC.requestToken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
+            body: {
                 type: reportType,
                 format,
                 startDate,
                 endDate,
                 accountIds: this.getSelectedReportAccountIds(), // multi-select scope (#299)
                 excludeShared: !!this.excludeShared
-            })
+            },
+            responseType: 'blob',
         });
     }
 
@@ -1699,20 +1638,17 @@ export default class ReportsModule {
         const years = document.getElementById('yoy-years')?.value || 3;
         const month = document.getElementById('yoy-month')?.value || new Date().getMonth() + 1;
 
-        return fetch(OC.generateUrl('/apps/budget/api/yoy/export'), {
+        return apiFetch('/apps/budget/api/yoy/export', {
             method: 'POST',
-            headers: {
-                'requesttoken': OC.requestToken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
+            body: {
                 comparisonType,
                 format,
                 years: parseInt(years),
                 month: parseInt(month),
                 accountIds: this.getSelectedReportAccountIds(), // multi-select scope (#299)
                 excludeShared: !!this.excludeShared
-            })
+            },
+            responseType: 'blob',
         });
     }
 
@@ -1722,19 +1658,16 @@ export default class ReportsModule {
         const includeTransfers = document.getElementById('bills-calendar-include-transfers')?.checked || false;
         const accountId = document.getElementById('bills-calendar-account')?.value || '';
 
-        return fetch(OC.generateUrl('/apps/budget/api/bills/export-calendar'), {
+        return apiFetch('/apps/budget/api/bills/export-calendar', {
             method: 'POST',
-            headers: {
-                'requesttoken': OC.requestToken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
+            body: {
                 format,
                 year: parseInt(year),
                 billStatus,
                 includeTransfers: includeTransfers.toString(),
                 ...(accountId && { accountId: parseInt(accountId) })
-            })
+            },
+            responseType: 'blob',
         });
     }
 
@@ -1851,14 +1784,7 @@ export default class ReportsModule {
                 ...(accountId && { accountId })
             });
 
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/bills/annual-overview?${params}`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-
-            if (!response.ok) throw new Error('Failed to fetch bills calendar data');
-
-            const data = await response.json();
+            const data = await apiFetch(`/apps/budget/api/bills/annual-overview?${params}`);
 
             // Render monthly totals chart
             this.renderBillsCalendarChart(data.monthlyTotals);
