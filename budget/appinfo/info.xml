@@ -14,23 +14,34 @@ Track your spending habits, manage savings, and forecast future account balances
 ## Features
 
 * **Import Bank Statements**: Support for CSV, OFX, QIF and ISO 20022 camt.053 XML formats
+* **Bank Sync**: Pull transactions in automatically through GoCardless (UK/EU) or SimpleFIN (US)
 * **Smart Categorization**: Automatic vendor matching and transaction categorization
 * **Auto-Categorization Rules**: Apply rules to existing transactions anytime with preview
 * **Split Transactions**: Allocate single transactions across multiple categories
 * **Transfer Detection**: Automatic matching of transfers between accounts
+* **Statement Reconciliation**: Tick transactions off against a bank statement until the difference reaches zero
+* **Receipt Scanning**: Attach receipt photos to transactions and, once an admin sets it up, read the amount and items from them (OCR)
+* **Quick Add and a Public API**: A fast entry page for your phone, and a REST API for scripts, automation and the Budget Companion Android app (in development)
 * **Budget Tracking**: Set spending limits with alerts when approaching or exceeding budgets
+* **Rollover Budgets**: Envelope budgeting, where unspent money (or overspending) carries into the next month
+* **Project Budgets**: One budget for a job that runs over months, such as a renovation or a wedding
 * **Balance Forecasting**: Predict future balances based on historical data
 * **Recurring Bills**: Track bills with due date monitoring and Nextcloud notifications
+* **Subscription Detection**: Spots payments that look recurring but are not tracked yet, and turns them into bills in one click
 * **Recurring Income**: Track expected income sources with receipt tracking
-* **Split Expenses**: Share expenses with contacts and track who owes whom
+* **Split Expenses**: Share expenses with one or several people and track who owes whom
 * **Debt Payoff Planner**: Plan repayment using avalanche or snowball strategies
 * **Savings Goals**: Set targets with progress tracking and achievement forecasting
 * **Pension Tracker**: Track retirement accounts with growth projections
 * **Net Worth History**: Track assets and liabilities over time
 * **Year-over-Year Reports**: Compare spending across multiple years
+* **Money Flow Report**: A Sankey diagram of where a period's money came from and went
+* **Digest and Unusual Spending Alerts**: An optional weekly or monthly summary, and a notification when a category runs well above its usual level
+* **Scheduled PDF Reports**: Last month's report saved to your Files or emailed to you automatically
 * **Multi-Account Support**: Manage multiple bank accounts and currencies
 * **Custom Categories**: Create your own category hierarchy
 * **Reports & Charts**: Visualize your financial data with interactive charts
+* **Getting Started Checklist**: A first-run checklist, with sample data to explore before adding your own
 
 ## Documentation
 
