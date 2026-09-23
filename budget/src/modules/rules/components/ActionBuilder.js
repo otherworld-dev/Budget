@@ -141,9 +141,9 @@ export class ActionBuilder {
 				<div class="action-header">
 					<span class="action-type-label">${actionTypeLabels[action.type] || action.type}</span>
 					<div class="action-controls">
-						<button class="btn-move-up" data-index="${index}" ${!canMoveUp ? 'disabled' : ''} title="${t('budget', 'Move up')}">↑</button>
-						<button class="btn-move-down" data-index="${index}" ${!canMoveDown ? 'disabled' : ''} title="${t('budget', 'Move down')}">↓</button>
-						<button class="btn-remove-action" data-index="${index}" title="${t('budget', 'Remove action')}">✕</button>
+						<button class="btn-move-up" data-index="${index}" ${!canMoveUp ? 'disabled' : ''} title="${t('budget', 'Move up')}" aria-label="${t('budget', 'Move up')}">↑</button>
+						<button class="btn-move-down" data-index="${index}" ${!canMoveDown ? 'disabled' : ''} title="${t('budget', 'Move down')}" aria-label="${t('budget', 'Move down')}">↓</button>
+						<button class="btn-remove-action" data-index="${index}" title="${t('budget', 'Remove action')}" aria-label="${t('budget', 'Remove action')}">✕</button>
 					</div>
 				</div>
 				<div class="action-config">

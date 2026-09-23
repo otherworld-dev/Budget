@@ -155,7 +155,7 @@ export default class TransfersModule {
                 <div class="detected-bills-panel" id="detected-transfers-panel" style="display: none;">
                     <div class="detected-bills-header">
                         <h3>${t('budget', 'Detected Recurring Transfers')}</h3>
-                        <button class="icon-close" id="close-detected-transfers-panel" title="${t('budget', 'Close')}"></button>
+                        <button class="icon-close" id="close-detected-transfers-panel" title="${t('budget', 'Close')}" aria-label="${t('budget', 'Close')}"></button>
                     </div>
                     <p class="detected-bills-description">${t('budget', 'These recurring transactions may be transfers between your accounts. Select the ones to add and choose the destination account.')}</p>
                     <div id="detected-transfers-list" class="detected-bills-list"></div>
@@ -372,10 +372,10 @@ export default class TransfersModule {
                                 ${t('budget', 'Mark Unpaid')}
                             </button>
                         ` : ''}
-                        <button class="bill-action-btn transfer-edit-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Edit transfer')}">
+                        <button class="bill-action-btn transfer-edit-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Edit transfer')}" aria-label="${t('budget', 'Edit transfer')}">
                             <span class="icon-rename" aria-hidden="true"></span>
                         </button>
-                        <button class="bill-action-btn transfer-delete-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Delete transfer')}">
+                        <button class="bill-action-btn transfer-delete-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Delete transfer')}" aria-label="${t('budget', 'Delete transfer')}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>
                     </div>

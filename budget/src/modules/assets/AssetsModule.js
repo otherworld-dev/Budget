@@ -166,10 +166,10 @@ export default class AssetsModule {
                         </div>
                     </div>
                     <div class="asset-card-actions">
-                        <button class="asset-edit-btn icon-button" title="${t('budget', 'Edit')}" data-id="${asset.id}">
+                        <button class="asset-edit-btn icon-button" title="${t('budget', 'Edit')}" aria-label="${t('budget', 'Edit')}" data-id="${asset.id}">
                             <span class="icon-rename" aria-hidden="true"></span>
                         </button>
-                        <button class="asset-delete-btn icon-button delete-btn" title="${t('budget', 'Delete')}" data-id="${asset.id}">
+                        <button class="asset-delete-btn icon-button delete-btn" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}" data-id="${asset.id}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>
                     </div>

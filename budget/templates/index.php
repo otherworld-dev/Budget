@@ -687,7 +687,7 @@ style('budget', 'budget-app');
                         <div class="card-header">
                             <h3><?php p($l->t('Accounts')); ?></h3>
                             <div class="card-header-actions">
-                                <button id="accounts-tile-settings-btn" class="tile-settings-btn" style="display: none;" title="<?php p($l->t('Configure accounts tile')); ?>">
+                                <button id="accounts-tile-settings-btn" class="tile-settings-btn" style="display: none;" title="<?php p($l->t('Configure accounts tile')); ?>" aria-label="<?php p($l->t('Configure accounts tile')); ?>">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                                 </button>
                                 <a href="#accounts" class="card-link"><?php p($l->t('Manage')); ?></a>
@@ -1072,15 +1072,15 @@ style('budget', 'budget-app');
                 <h2><?php p($l->t('Accounts')); ?></h2>
                 <div class="view-controls" style="display: flex; gap: 8px; align-items: center;">
                     <div class="view-toggle" id="accounts-view-toggle">
-                        <button class="view-toggle-btn active" data-view="grid" title="<?php p($l->t('Tile view')); ?>">
+                        <button class="view-toggle-btn active" data-view="grid" title="<?php p($l->t('Tile view')); ?>" aria-label="<?php p($l->t('Tile view')); ?>">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3,3H11V11H3V3M3,13H11V21H3V13M13,3H21V11H13V3M13,13H21V21H13V13Z"/></svg>
                         </button>
-                        <button class="view-toggle-btn" data-view="list" title="<?php p($l->t('List view')); ?>">
+                        <button class="view-toggle-btn" data-view="list" title="<?php p($l->t('List view')); ?>" aria-label="<?php p($l->t('List view')); ?>">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3,4H21V8H3V4M3,10H21V14H3V10M3,16H21V20H3V16Z"/></svg>
                         </button>
                     </div>
                     <div class="accounts-display-config">
-                        <button id="accounts-config-btn" class="icon-button" title="<?php p($l->t('Configure accounts display')); ?>" aria-haspopup="true" aria-expanded="false">
+                        <button id="accounts-config-btn" class="icon-button" title="<?php p($l->t('Configure accounts display')); ?>" aria-label="<?php p($l->t('Configure accounts display')); ?>" aria-haspopup="true" aria-expanded="false">
                             <span class="icon-settings" aria-hidden="true"></span>
                         </button>
                         <div id="accounts-config-dropdown" class="column-config-dropdown accounts-config-dropdown" style="display: none;">
@@ -1754,7 +1754,7 @@ style('budget', 'budget-app');
                     </div>
                     <div class="table-pagination">
                         <div class="table-column-config">
-                            <button id="column-config-btn" class="icon-button" title="<?php p($l->t('Configure columns')); ?>">
+                            <button id="column-config-btn" class="icon-button" title="<?php p($l->t('Configure columns')); ?>" aria-label="<?php p($l->t('Configure columns')); ?>">
                                 <span class="icon-settings" aria-hidden="true"></span>
                             </button>
                             <div id="column-config-dropdown" class="column-config-dropdown" style="display: none;">
@@ -1897,10 +1897,10 @@ style('budget', 'budget-app');
                             <span class="icon-search search-icon" aria-hidden="true"></span>
                         </div>
                         <div class="view-options">
-                            <button id="expand-all-btn" class="icon-button" title="<?php p($l->t('Expand all')); ?>">
+                            <button id="expand-all-btn" class="icon-button" title="<?php p($l->t('Expand all')); ?>" aria-label="<?php p($l->t('Expand all')); ?>">
                                 <span class="icon-toggle" aria-hidden="true"></span>
                             </button>
-                            <button id="collapse-all-btn" class="icon-button" title="<?php p($l->t('Collapse all')); ?>">
+                            <button id="collapse-all-btn" class="icon-button" title="<?php p($l->t('Collapse all')); ?>" aria-label="<?php p($l->t('Collapse all')); ?>">
                                 <span class="icon-triangle-s" aria-hidden="true"></span>
                             </button>
                         </div>
@@ -2650,7 +2650,7 @@ style('budget', 'budget-app');
                 <div class="panel-header">
                     <h3><?php p($l->t('Detected Recurring Transactions')); ?></h3>
                     <p><?php p($l->t('We found these potential recurring bills in your transaction history')); ?></p>
-                    <button id="close-detected-panel" class="icon-button" title="<?php p($l->t('Close')); ?>">
+                    <button id="close-detected-panel" class="icon-button" title="<?php p($l->t('Close')); ?>" aria-label="<?php p($l->t('Close')); ?>">
                         <span class="icon-close" aria-hidden="true"></span>
                     </button>
                 </div>
@@ -2848,7 +2848,7 @@ style('budget', 'budget-app');
                 <div class="panel-header">
                     <h3><?php p($l->t('Detected Recurring Income')); ?></h3>
                     <p><?php p($l->t('We found these potential recurring income sources in your transaction history')); ?></p>
-                    <button id="close-detected-income-panel" class="icon-button" title="<?php p($l->t('Close')); ?>">
+                    <button id="close-detected-income-panel" class="icon-button" title="<?php p($l->t('Close')); ?>" aria-label="<?php p($l->t('Close')); ?>">
                         <span class="icon-close" aria-hidden="true"></span>
                     </button>
                 </div>
@@ -3735,10 +3735,10 @@ style('budget', 'budget-app');
                 <div class="panel-header">
                     <h3 id="pension-detail-name"><?php p($l->t('Pension Details')); ?></h3>
                     <div class="panel-actions">
-                        <button id="pension-edit-btn" class="icon-button" title="<?php p($l->t('Edit pension')); ?>">
+                        <button id="pension-edit-btn" class="icon-button" title="<?php p($l->t('Edit pension')); ?>" aria-label="<?php p($l->t('Edit pension')); ?>">
                             <span class="icon-rename" aria-hidden="true"></span>
                         </button>
-                        <button id="pension-close-btn" class="icon-button" title="<?php p($l->t('Close')); ?>">
+                        <button id="pension-close-btn" class="icon-button" title="<?php p($l->t('Close')); ?>" aria-label="<?php p($l->t('Close')); ?>">
                             <span class="icon-close" aria-hidden="true"></span>
                         </button>
                     </div>
@@ -4314,7 +4314,7 @@ style('budget', 'budget-app');
                 <div class="settings-section" id="bank-mappings-section" style="display: none;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <h3 id="bank-mappings-title"><?php p($l->t('Account Mappings')); ?></h3>
-                        <button id="refresh-accounts-btn" title="<?php p($l->t('Refresh account list from bank')); ?>">
+                        <button id="refresh-accounts-btn" title="<?php p($l->t('Refresh account list from bank')); ?>" aria-label="<?php p($l->t('Refresh account list from bank')); ?>">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/></svg>
                         </button>
                     </div>

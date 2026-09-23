@@ -138,10 +138,10 @@ export default class SavingsModule {
                             ${sharedBadge}
                         </div>
                         <div class="goal-card-actions">
-                            ${canWrite ? `<button class="edit-goal-btn" title="${t('budget', 'Edit')}" data-goal-id="${goal.id}">
+                            ${canWrite ? `<button class="edit-goal-btn" title="${t('budget', 'Edit')}" aria-label="${t('budget', 'Edit')}" data-goal-id="${goal.id}">
                                 <span class="icon-rename"></span>
                             </button>` : ''}
-                            ${!isShared ? `<button class="delete-goal-btn delete-btn" title="${t('budget', 'Delete')}" data-goal-id="${goal.id}">
+                            ${!isShared ? `<button class="delete-goal-btn delete-btn" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}" data-goal-id="${goal.id}">
                                 <span class="icon-delete"></span>
                             </button>` : ''}
                         </div>

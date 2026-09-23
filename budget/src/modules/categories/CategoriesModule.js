@@ -341,11 +341,11 @@ export default class CategoriesModule {
                         ${shared ? `<button class="category-mute-btn ${mutedForMe ? 'muted' : ''}"
                                 data-category-id="${category.id}"
                                 data-muted="${mutedForMe ? '1' : '0'}"
-                                title="${mutedForMe ? t('budget', 'Show in my reports') : t('budget', 'Hide from my reports')}">
+                                title="${mutedForMe ? t('budget', 'Show in my reports') : t('budget', 'Hide from my reports')}" aria-label="${mutedForMe ? t('budget', 'Show in my reports') : t('budget', 'Hide from my reports')}">
                             <span class="icon-toggle" aria-hidden="true"></span>
                         </button>` : `<button class="category-delete-btn"
                                 data-category-id="${category.id}"
-                                title="${t('budget', 'Delete {name}', { name: category.name })}">
+                                title="${t('budget', 'Delete {name}', { name: category.name })}" aria-label="${t('budget', 'Delete {name}', { name: category.name })}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>`}
                     </div>
@@ -1939,7 +1939,7 @@ export default class CategoriesModule {
                 <div class="budget-snapshot-notice">
                     <span class="icon-info" aria-hidden="true"></span>
                     <span>${t('budget', 'Budgets adjusted from {month}', { month: monthLabel })}</span>
-                    <button class="budget-snapshot-remove" title="${t('budget', 'Remove adjustment')}">
+                    <button class="budget-snapshot-remove" title="${t('budget', 'Remove adjustment')}" aria-label="${t('budget', 'Remove adjustment')}">
                         <span class="icon-close" aria-hidden="true"></span>
                     </button>
                 </div>

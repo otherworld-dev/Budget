@@ -2296,7 +2296,7 @@ export default class ImportModule {
             <div class="budget-modal" style="max-width: 640px;">
                 <div class="budget-modal-header">
                     <h2>${n('budget', '%n row was not imported', '%n rows were not imported', total)}</h2>
-                    <button class="close-btn" title="${t('budget', 'Close')}">&times;</button>
+                    <button class="close-btn" title="${t('budget', 'Close')}" aria-label="${t('budget', 'Close')}">&times;</button>
                 </div>
                 <div class="budget-modal-body">
                     <ul style="margin: 0; padding-left: 1.2em;">
@@ -2578,8 +2578,8 @@ export default class ImportModule {
                     </span>
                 </td>
                 <td>
-                    <button class="icon-download import-download-btn" data-import-id="${item.id}" title="${t('budget', 'Download')}"></button>
-                    <button class="icon-delete import-rollback-btn" data-import-id="${item.id}" title="${t('budget', 'Rollback')}"></button>
+                    <button class="icon-download import-download-btn" data-import-id="${item.id}" title="${t('budget', 'Download')}" aria-label="${t('budget', 'Download')}"></button>
+                    <button class="icon-delete import-rollback-btn" data-import-id="${item.id}" title="${t('budget', 'Rollback')}" aria-label="${t('budget', 'Rollback')}"></button>
                 </td>
             `;
             tbody.appendChild(row);

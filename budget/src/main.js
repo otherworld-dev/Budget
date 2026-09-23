@@ -2092,7 +2092,7 @@ class BudgetApp {
             <div class="budget-modal" style="max-width: 700px;">
                 <div class="budget-modal-header">
                     <h2>${t('budget', 'Data Integrity Report')}</h2>
-                    <button class="close-btn" title="${t('budget', 'Close')}">&times;</button>
+                    <button class="close-btn" title="${t('budget', 'Close')}" aria-label="${t('budget', 'Close')}">&times;</button>
                 </div>
                 <div class="budget-modal-body">
                     ${findingsHtml}
@@ -3097,9 +3097,9 @@ class BudgetApp {
                     <div class="scenario-card-name">${this.escapeHtml(s.name)}</div>
                     <div class="scenario-card-meta">${strategy} · +${this.formatCurrency(extra, this.getPrimaryCurrency())}/mo</div>
                     <div class="scenario-card-actions">
-                        <button class="scenario-edit-btn" data-id="${s.id}" title="${t('budget', 'Edit')}">&#9998;</button>
-                        <button class="scenario-delete-btn" data-id="${s.id}" title="${t('budget', 'Delete')}">&times;</button>
-                        ${!isActive ? `<button class="scenario-activate-btn" data-id="${s.id}" title="${t('budget', 'Set as active')}">&#9733;</button>` : ''}
+                        <button class="scenario-edit-btn" data-id="${s.id}" title="${t('budget', 'Edit')}" aria-label="${t('budget', 'Edit')}">&#9998;</button>
+                        <button class="scenario-delete-btn" data-id="${s.id}" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}">&times;</button>
+                        ${!isActive ? `<button class="scenario-activate-btn" data-id="${s.id}" title="${t('budget', 'Set as active')}" aria-label="${t('budget', 'Set as active')}">&#9733;</button>` : ''}
                     </div>
                 </div>
             `;
@@ -3880,7 +3880,7 @@ class BudgetApp {
             </div>
             <div class="split-actions">
                 <button type="button" class="split-remove-btn ${isFirst ? 'disabled' : ''}"
-                        ${isFirst ? 'disabled' : ''} title="${t('budget', 'Remove split')}">
+                        ${isFirst ? 'disabled' : ''} title="${t('budget', 'Remove split')}" aria-label="${t('budget', 'Remove split')}">
                     <span class="icon-delete"></span>
                 </button>
             </div>

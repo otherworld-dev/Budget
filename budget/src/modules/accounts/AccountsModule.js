@@ -568,10 +568,10 @@ export default class AccountsModule {
                         <span>${healthStatus.tooltip}</span>
                     </div>` : '<div class="account-status-placeholder"></div>'}
                     <div class="account-actions">
-                        <button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit Account')}">
+                        <button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit Account')}" aria-label="${t('budget', 'Edit Account')}">
                             <span class="icon-rename" aria-hidden="true"></span>
                         </button>
-                        <button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="${t('budget', 'Delete Account')}">
+                        <button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="${t('budget', 'Delete Account')}" aria-label="${t('budget', 'Delete Account')}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>
                     </div>
@@ -616,10 +616,10 @@ export default class AccountsModule {
                 </div>
                 ${this.visibleAccountColumns(attributes, order).map(attr => cells[attr.key]()).join('')}
                 <div class="account-row-actions">
-                    <button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit')}">
+                    <button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit')}" aria-label="${t('budget', 'Edit')}">
                         <span class="icon-rename" aria-hidden="true"></span>
                     </button>
-                    <button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="${t('budget', 'Delete')}">
+                    <button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}">
                         <span class="icon-delete" aria-hidden="true"></span>
                     </button>
                 </div>
@@ -1413,7 +1413,7 @@ export default class AccountsModule {
                         <button class="action-btn delete-btn delete-rate-btn"
                                 data-rate-id="${rate.id}"
                                 data-account-id="${accountId}"
-                                title="${t('budget', 'Delete')}">
+                                title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>
                     ` : ''}
@@ -1709,10 +1709,10 @@ export default class AccountsModule {
                         <div class="transaction-actions">
                             <button class="icon-rename edit-transaction-btn"
                                     data-transaction-id="${transaction.id}"
-                                    title="${t('budget', 'Edit transaction')}"></button>
+                                    title="${t('budget', 'Edit transaction')}" aria-label="${t('budget', 'Edit transaction')}"></button>
                             <button class="icon-delete delete-transaction-btn"
                                     data-transaction-id="${transaction.id}"
-                                    title="${t('budget', 'Delete transaction')}"></button>
+                                    title="${t('budget', 'Delete transaction')}" aria-label="${t('budget', 'Delete transaction')}"></button>
                         </div>
                     </td>
                 </tr>

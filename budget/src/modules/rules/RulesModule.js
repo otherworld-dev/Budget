@@ -152,9 +152,9 @@ export default class RulesModule {
                 <td class="rules-col-criteria"><code>${criteriaText}</code></td>
                 <td class="rules-col-actions">${actionBadges}</td>
                 <td class="rules-col-buttons">
-                    <button class="icon-play rule-run-btn" data-rule-id="${rule.id}" title="${t('budget', 'Run rule')}"></button>
-                    ${canWrite ? `<button class="icon-rename rule-edit-btn" data-rule-id="${rule.id}" title="${t('budget', 'Edit rule')}"></button>` : ''}
-                    ${isShared ? '' : `<button class="icon-delete rule-delete-btn" data-rule-id="${rule.id}" title="${t('budget', 'Delete rule')}"></button>`}
+                    <button class="icon-play rule-run-btn" data-rule-id="${rule.id}" title="${t('budget', 'Run rule')}" aria-label="${t('budget', 'Run rule')}"></button>
+                    ${canWrite ? `<button class="icon-rename rule-edit-btn" data-rule-id="${rule.id}" title="${t('budget', 'Edit rule')}" aria-label="${t('budget', 'Edit rule')}"></button>` : ''}
+                    ${isShared ? '' : `<button class="icon-delete rule-delete-btn" data-rule-id="${rule.id}" title="${t('budget', 'Delete rule')}" aria-label="${t('budget', 'Delete rule')}"></button>`}
                 </td>
             </tr>
         `;
