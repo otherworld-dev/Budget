@@ -7,7 +7,6 @@ namespace OCA\Budget\Tests\Integration\Db;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionReportQueries;
 use OCA\Budget\Tests\Integration\IntegrationTestCase;
-use PHPUnit\Framework\Attributes\Group;
 
 /**
  * The report/insight aggregates in TransactionMapper, run as real SQL.
@@ -193,14 +192,10 @@ class ReportAggregatesTest extends IntegrationTestCase {
 	}
 
 	/**
-	 * The cash-flow report is the one income/expense aggregate that never
-	 * routes through the category choke point: getMonthlyTrendData (the
-	 * dashboard trend) drops a report-excluded category, getCashFlowByMonth
-	 * (Reports > Cash flow) still counts it, so the two disagree for the same
-	 * month. See #219 ("exclude reports-excluded categories from all report
-	 * queries").
+	 * The cash-flow report used to be the one income/expense aggregate that
+	 * skipped the category choke point, so it disagreed with the dashboard
+	 * trend for the same month (#219).
 	 */
-	#[Group('known-bug')]
 	public function testCashFlowByMonthDropsReportExcludedCategories(): void {
 		$this->makeTransaction($this->accountId, ['category_id' => $this->food, 'amount' => '10.00', 'date' => '2026-02-01']);
 		$this->makeTransaction($this->accountId, ['category_id' => $this->hidden, 'amount' => '99.00', 'date' => '2026-02-02']);

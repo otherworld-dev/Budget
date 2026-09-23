@@ -10,7 +10,6 @@ use OCA\Budget\Tests\Integration\DataModel;
 use OCA\Budget\Tests\Integration\FullDataset;
 use OCA\Budget\Tests\Integration\IntegrationTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Backup export -> import, end to end against the real database.
@@ -174,12 +173,10 @@ class MigrationRoundTripTest extends IntegrationTestCase {
 	/**
 	 * importAll() wipes the user's transactions through the mapper directly
 	 * (MigrationService::clearUserData), not TransactionService::
-	 * deleteWithChildren(). Splits and transaction tags are registry tables
-	 * and get cleared first, but attachments are not in
-	 * the registry, so every attachment row is orphaned by a restore - the
-	 * exact leak #359 closed for ordinary deletes.
+	 * deleteWithChildren(). Attachments are not in the registry, so they
+	 * need their own clear or every one is orphaned by a restore - the exact
+	 * leak #359 closed for ordinary deletes.
 	 */
-	#[Group('known-bug')]
 	public function testRestoringOverExistingDataLeavesNoOrphans(): void {
 		$this->seedEveryTable($this->userId);
 
