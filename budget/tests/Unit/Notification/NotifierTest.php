@@ -168,6 +168,50 @@ class NotifierTest extends TestCase {
         $this->assertSame('-$120.50', $this->richMessageParams['balance']['name']);
     }
 
+    /**
+     * Every subject, with parameters typed the way its sender builds them.
+     * Bill and income senders pass entity ids straight from getId(), so they
+     * arrive as ints.
+     */
+    public static function everySubjectProvider(): array {
+        return [
+            'bill_reminder' => ['bill_reminder', ['billId' => 7, 'billName' => 'Rent', 'amount' => '$800.00', 'daysUntilDue' => 2]],
+            'bill_overdue' => ['bill_overdue', ['billId' => 7, 'billName' => 'Rent', 'amount' => '$800.00', 'daysOverdue' => -3]],
+            'bill_auto_paid' => ['bill_auto_paid', ['billId' => 8, 'billName' => 'Netflix', 'amount' => '$10.99', 'nextDueDate' => null]],
+            'bill_auto_pay_failed' => ['bill_auto_pay_failed', ['billId' => 9, 'billName' => 'Gym', 'amount' => '$30.00', 'reason' => 'Account not found']],
+            'income_auto_created' => ['income_auto_created', ['incomeId' => 3, 'incomeName' => 'Salary', 'amount' => '$2,500.00', 'nextExpectedDate' => null]],
+            'income_auto_create_failed' => ['income_auto_create_failed', ['incomeId' => 4, 'incomeName' => 'Rental', 'amount' => '$600.00', 'reason' => 'Account closed']],
+            'share_invitation' => ['share_invitation', ['ownerUserId' => 'alice', 'ownerDisplayName' => 'Alice', 'shareId' => 5]],
+            'digest' => ['digest', ['frequency' => 'weekly', 'income' => '$1.00', 'expenses' => '$1.00', 'net' => '$0.00', 'billCount' => '2', 'anomalyCount' => '1']],
+            'spending_anomaly' => ['spending_anomaly', ['categoryName' => 'Groceries', 'percentAbove' => '45', 'amount' => '$320.00']],
+            'report_ready' => ['report_ready', ['month' => '2026-08', 'fileId' => '123', 'fileName' => 'report.pdf']],
+            'budget_alert' => ['budget_alert', ['categoryName' => 'Dining', 'severity' => 'danger', 'percentage' => '112', 'spent' => '$224.00', 'budget' => '$200.00']],
+            'forecast_warning' => ['forecast_warning', ['month' => '2026-11', 'balance' => '-$150.00']],
+        ];
+    }
+
+    /**
+     * Nextcloud's rich object validator rejects any non-string value, and a
+     * notification that fails it is dropped without a trace (#560: every bill
+     * and income notification had an int id and never showed up).
+     *
+     * @dataProvider everySubjectProvider
+     */
+    public function testEveryRichParameterValueIsAString(string $subject, array $parameters): void {
+        $this->richSubjectParams = [];
+        $this->richMessageParams = [];
+
+        $this->prepare($subject, $parameters);
+
+        foreach (['subject' => $this->richSubjectParams, 'message' => $this->richMessageParams] as $where => $objects) {
+            foreach ($objects as $placeholder => $object) {
+                foreach ($object as $key => $value) {
+                    $this->assertIsString($value, "$subject $where {{$placeholder}}.$key");
+                }
+            }
+        }
+    }
+
     public function testUnknownSubjectIsRejected(): void {
         $this->expectException(\OCP\Notification\UnknownNotificationException::class);
 
