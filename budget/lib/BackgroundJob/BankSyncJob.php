@@ -28,49 +28,49 @@ use Psr\Log\LoggerInterface;
  * same connections day after day.
  */
 class BankSyncJob extends TimedJob {
-    public function __construct(
-        ITimeFactory $time,
-        private AdminSettingService $adminSettings,
-        private BankConnectionMapper $connectionMapper,
-        private IJobList $jobList,
-        private LoggerInterface $logger
-    ) {
-        parent::__construct($time);
+	public function __construct(
+		ITimeFactory $time,
+		private AdminSettingService $adminSettings,
+		private BankConnectionMapper $connectionMapper,
+		private IJobList $jobList,
+		private LoggerInterface $logger,
+	) {
+		parent::__construct($time);
 
-        // Run once per day
-        $this->setInterval(24 * 60 * 60);
-        $this->setTimeSensitivity(\OCP\BackgroundJob\IJob::TIME_INSENSITIVE);
-    }
+		// Run once per day
+		$this->setInterval(24 * 60 * 60);
+		$this->setTimeSensitivity(\OCP\BackgroundJob\IJob::TIME_INSENSITIVE);
+	}
 
-    protected function run($argument): void {
-        if (!$this->adminSettings->isBankSyncEnabled()) {
-            return;
-        }
+	protected function run($argument): void {
+		if (!$this->adminSettings->isBankSyncEnabled()) {
+			return;
+		}
 
-        try {
-            // Only ids: credentials are decrypted by each connection's own job
-            $queued = 0;
-            $waiting = 0;
-            foreach ($this->connectionMapper->findActiveIdsForSync() as $ref) {
-                $jobArgument = ['userId' => $ref['userId'], 'connectionId' => $ref['id']];
-                if ($this->jobList->has(BankSyncConnectionJob::class, $jobArgument)) {
-                    $waiting++;
-                    continue;
-                }
-                $this->jobList->add(BankSyncConnectionJob::class, $jobArgument);
-                $queued++;
-            }
+		try {
+			// Only ids: credentials are decrypted by each connection's own job
+			$queued = 0;
+			$waiting = 0;
+			foreach ($this->connectionMapper->findActiveIdsForSync() as $ref) {
+				$jobArgument = ['userId' => $ref['userId'], 'connectionId' => $ref['id']];
+				if ($this->jobList->has(BankSyncConnectionJob::class, $jobArgument)) {
+					$waiting++;
+					continue;
+				}
+				$this->jobList->add(BankSyncConnectionJob::class, $jobArgument);
+				$queued++;
+			}
 
-            $this->logger->info(
-                "Bank sync job queued {$queued} connections" .
-                    ($waiting > 0 ? ", {$waiting} still waiting from an earlier run" : ''),
-                ['app' => 'budget']
-            );
-        } catch (\Exception $e) {
-            $this->logger->error(
-                'Bank sync job failed: ' . $e->getMessage(),
-                ['app' => 'budget', 'exception' => $e]
-            );
-        }
-    }
+			$this->logger->info(
+				"Bank sync job queued {$queued} connections"
+					. ($waiting > 0 ? ", {$waiting} still waiting from an earlier run" : ''),
+				['app' => 'budget']
+			);
+		} catch (\Exception $e) {
+			$this->logger->error(
+				'Bank sync job failed: ' . $e->getMessage(),
+				['app' => 'budget', 'exception' => $e]
+			);
+		}
+	}
 }

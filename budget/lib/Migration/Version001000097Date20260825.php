@@ -33,97 +33,97 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000097Date20260825 extends SimpleMigrationStep {
 
-    /** Child tables keyed by the column referencing budget_transactions.id */
-    private const ORPHANED_TABLES = [
-        'budget_tx_splits' => 'transaction_id',
-        'budget_attachments' => 'transaction_id',
-        'budget_transaction_tags' => 'transaction_id',
-        'budget_expense_shares' => 'transaction_id',
-    ];
+	/** Child tables keyed by the column referencing budget_transactions.id */
+	private const ORPHANED_TABLES = [
+		'budget_tx_splits' => 'transaction_id',
+		'budget_attachments' => 'transaction_id',
+		'budget_transaction_tags' => 'transaction_id',
+		'budget_expense_shares' => 'transaction_id',
+	];
 
-    public function __construct(
-        private IDBConnection $db,
-    ) {
-    }
+	public function __construct(
+		private IDBConnection $db,
+	) {
+	}
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        return null;
-    }
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		return null;
+	}
 
-    public function postSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function postSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if (!$schema->hasTable('budget_transactions')) {
-            return;
-        }
+		if (!$schema->hasTable('budget_transactions')) {
+			return;
+		}
 
-        $live = $this->liveTransactionIds();
+		$live = $this->liveTransactionIds();
 
-        foreach (self::ORPHANED_TABLES as $table => $column) {
-            if (!$schema->hasTable($table)) {
-                continue;
-            }
+		foreach (self::ORPHANED_TABLES as $table => $column) {
+			if (!$schema->hasTable($table)) {
+				continue;
+			}
 
-            $deleted = $this->deleteOrphans($table, $column, $live);
-            if ($deleted > 0) {
-                $output->info("Removed {$deleted} orphaned row(s) from {$table}");
-            }
-        }
-    }
+			$deleted = $this->deleteOrphans($table, $column, $live);
+			if ($deleted > 0) {
+				$output->info("Removed {$deleted} orphaned row(s) from {$table}");
+			}
+		}
+	}
 
-    /**
-     * @return array<int, true> live transaction ids, as a lookup
-     */
-    private function liveTransactionIds(): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('id')->from('budget_transactions');
+	/**
+	 * @return array<int, true> live transaction ids, as a lookup
+	 */
+	private function liveTransactionIds(): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('id')->from('budget_transactions');
 
-        $result = $qb->executeQuery();
-        $ids = [];
-        while ($row = $result->fetch()) {
-            $ids[(int)$row['id']] = true;
-        }
-        $result->closeCursor();
+		$result = $qb->executeQuery();
+		$ids = [];
+		while ($row = $result->fetch()) {
+			$ids[(int)$row['id']] = true;
+		}
+		$result->closeCursor();
 
-        return $ids;
-    }
+		return $ids;
+	}
 
-    /**
-     * DELETE cannot join, and a NOT IN over every transaction id would be an
-     * unbounded parameter list on a large ledger, so the orphans are found
-     * first and deleted by their own primary key in batches.
-     *
-     * @param array<int, true> $liveTransactionIds
-     */
-    private function deleteOrphans(string $table, string $column, array $liveTransactionIds): int {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('id', $column)->from($table);
+	/**
+	 * DELETE cannot join, and a NOT IN over every transaction id would be an
+	 * unbounded parameter list on a large ledger, so the orphans are found
+	 * first and deleted by their own primary key in batches.
+	 *
+	 * @param array<int, true> $liveTransactionIds
+	 */
+	private function deleteOrphans(string $table, string $column, array $liveTransactionIds): int {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('id', $column)->from($table);
 
-        $result = $qb->executeQuery();
-        $orphanIds = [];
-        while ($row = $result->fetch()) {
-            $referenced = $row[$column] === null ? null : (int)$row[$column];
-            // A NULL reference belongs to no transaction and is left alone:
-            // this migration only reclaims rows pointing at one that is gone.
-            if ($referenced !== null && !isset($liveTransactionIds[$referenced])) {
-                $orphanIds[] = (int)$row['id'];
-            }
-        }
-        $result->closeCursor();
+		$result = $qb->executeQuery();
+		$orphanIds = [];
+		while ($row = $result->fetch()) {
+			$referenced = $row[$column] === null ? null : (int)$row[$column];
+			// A NULL reference belongs to no transaction and is left alone:
+			// this migration only reclaims rows pointing at one that is gone.
+			if ($referenced !== null && !isset($liveTransactionIds[$referenced])) {
+				$orphanIds[] = (int)$row['id'];
+			}
+		}
+		$result->closeCursor();
 
-        if (empty($orphanIds)) {
-            return 0;
-        }
+		if (empty($orphanIds)) {
+			return 0;
+		}
 
-        $deleted = 0;
-        foreach (array_chunk($orphanIds, 500) as $chunk) {
-            $del = $this->db->getQueryBuilder();
-            $del->delete($table)
-                ->where($del->expr()->in('id', $del->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)));
-            $deleted += $del->executeStatement();
-        }
+		$deleted = 0;
+		foreach (array_chunk($orphanIds, 500) as $chunk) {
+			$del = $this->db->getQueryBuilder();
+			$del->delete($table)
+				->where($del->expr()->in('id', $del->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)));
+			$deleted += $del->executeStatement();
+		}
 
-        return $deleted;
-    }
+		return $deleted;
+	}
 }

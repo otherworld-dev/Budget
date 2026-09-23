@@ -22,28 +22,28 @@ use OCP\AppFramework\Db\Entity;
  * @method void setUpdatedAt(string $updatedAt)
  */
 class Share extends Entity implements JsonSerializable {
-    protected $ownerUserId;
-    protected $sharedWithUserId;
-    protected $status;
-    protected $createdAt;
-    protected $updatedAt;
+	protected $ownerUserId;
+	protected $sharedWithUserId;
+	protected $status;
+	protected $createdAt;
+	protected $updatedAt;
 
-    public const STATUS_PENDING = 'pending';
-    public const STATUS_ACCEPTED = 'accepted';
-    public const STATUS_DECLINED = 'declined';
+	public const STATUS_PENDING = 'pending';
+	public const STATUS_ACCEPTED = 'accepted';
+	public const STATUS_DECLINED = 'declined';
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'ownerUserId' => $this->getOwnerUserId(),
-            'sharedWithUserId' => $this->getSharedWithUserId(),
-            'status' => $this->getStatus(),
-            'createdAt' => $this->getCreatedAt(),
-            'updatedAt' => $this->getUpdatedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'ownerUserId' => $this->getOwnerUserId(),
+			'sharedWithUserId' => $this->getSharedWithUserId(),
+			'status' => $this->getStatus(),
+			'createdAt' => $this->getCreatedAt(),
+			'updatedAt' => $this->getUpdatedAt(),
+		];
+	}
 }

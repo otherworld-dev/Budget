@@ -18,20 +18,20 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000099Date20260828 extends SimpleMigrationStep {
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if (!$schema->hasTable('budget_bills')) {
-            return null;
-        }
-        $table = $schema->getTable('budget_bills');
-        if ($table->hasColumn('paid_undo_state')) {
-            return null;
-        }
-        $table->addColumn('paid_undo_state', Types::TEXT, [
-            'notnull' => false,
-        ]);
-        return $schema;
-    }
+		if (!$schema->hasTable('budget_bills')) {
+			return null;
+		}
+		$table = $schema->getTable('budget_bills');
+		if ($table->hasColumn('paid_undo_state')) {
+			return null;
+		}
+		$table->addColumn('paid_undo_state', Types::TEXT, [
+			'notnull' => false,
+		]);
+		return $schema;
+	}
 }

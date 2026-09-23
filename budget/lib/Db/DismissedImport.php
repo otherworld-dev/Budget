@@ -15,13 +15,13 @@ use OCP\AppFramework\Db\Entity;
  * @method void setDismissedAt(string $dismissedAt)
  */
 class DismissedImport extends Entity {
-    protected $accountId;
-    protected $importId;
-    protected $dismissedAt;
+	protected $accountId;
+	protected $importId;
+	protected $dismissedAt;
 
-    public function __construct() {
-        $this->addType('accountId', 'integer');
-        $this->addType('importId', 'string');
-        $this->addType('dismissedAt', 'string');
-    }
+	public function __construct() {
+		$this->addType('accountId', 'integer');
+		$this->addType('importId', 'string');
+		$this->addType('dismissedAt', 'string');
+	}
 }

@@ -8,99 +8,99 @@ namespace OCA\Budget\Enum;
  * Frequency enum for recurring bills and transactions.
  */
 enum Frequency: string {
-    case DAILY = 'daily';
-    case WEEKLY = 'weekly';
-    case BIWEEKLY = 'biweekly';
-    case SEMI_MONTHLY = 'semi-monthly';
-    case MONTHLY = 'monthly';
-    case QUARTERLY = 'quarterly';
-    case SEMI_ANNUALLY = 'semi-annually';
-    case YEARLY = 'yearly';
-    case ONE_TIME = 'one-time';
-    case CUSTOM = 'custom';
+	case DAILY = 'daily';
+	case WEEKLY = 'weekly';
+	case BIWEEKLY = 'biweekly';
+	case SEMI_MONTHLY = 'semi-monthly';
+	case MONTHLY = 'monthly';
+	case QUARTERLY = 'quarterly';
+	case SEMI_ANNUALLY = 'semi-annually';
+	case YEARLY = 'yearly';
+	case ONE_TIME = 'one-time';
+	case CUSTOM = 'custom';
 
-    /**
-     * Get the number of occurrences per year.
-     * For CUSTOM frequency, returns 0 (must be calculated from pattern).
-     */
-    public function occurrencesPerYear(): int {
-        return match ($this) {
-            self::DAILY => 365,
-            self::WEEKLY => 52,
-            self::BIWEEKLY => 26,
-            self::SEMI_MONTHLY => 24,
-            self::MONTHLY => 12,
-            self::QUARTERLY => 4,
-            self::SEMI_ANNUALLY => 2,
-            self::YEARLY => 1,
-            self::ONE_TIME => 1,
-            self::CUSTOM => 0, // Must be calculated from custom pattern
-        };
-    }
+	/**
+	 * Get the number of occurrences per year.
+	 * For CUSTOM frequency, returns 0 (must be calculated from pattern).
+	 */
+	public function occurrencesPerYear(): int {
+		return match ($this) {
+			self::DAILY => 365,
+			self::WEEKLY => 52,
+			self::BIWEEKLY => 26,
+			self::SEMI_MONTHLY => 24,
+			self::MONTHLY => 12,
+			self::QUARTERLY => 4,
+			self::SEMI_ANNUALLY => 2,
+			self::YEARLY => 1,
+			self::ONE_TIME => 1,
+			self::CUSTOM => 0, // Must be calculated from custom pattern
+		};
+	}
 
-    /**
-     * Get the monthly equivalent multiplier.
-     * Used to normalize amounts to monthly values.
-     * For CUSTOM frequency, returns 0 (must be calculated from pattern).
-     */
-    public function monthlyMultiplier(): float {
-        return match ($this) {
-            self::DAILY => 365 / 12,
-            self::WEEKLY => 52 / 12,
-            self::BIWEEKLY => 26 / 12,
-            self::SEMI_MONTHLY => 2,
-            self::MONTHLY => 1,
-            self::QUARTERLY => 1 / 3,
-            self::SEMI_ANNUALLY => 1 / 6,
-            self::YEARLY => 1 / 12,
-            self::ONE_TIME => 1 / 12,
-            self::CUSTOM => 0, // Must be calculated from custom pattern
-        };
-    }
+	/**
+	 * Get the monthly equivalent multiplier.
+	 * Used to normalize amounts to monthly values.
+	 * For CUSTOM frequency, returns 0 (must be calculated from pattern).
+	 */
+	public function monthlyMultiplier(): float {
+		return match ($this) {
+			self::DAILY => 365 / 12,
+			self::WEEKLY => 52 / 12,
+			self::BIWEEKLY => 26 / 12,
+			self::SEMI_MONTHLY => 2,
+			self::MONTHLY => 1,
+			self::QUARTERLY => 1 / 3,
+			self::SEMI_ANNUALLY => 1 / 6,
+			self::YEARLY => 1 / 12,
+			self::ONE_TIME => 1 / 12,
+			self::CUSTOM => 0, // Must be calculated from custom pattern
+		};
+	}
 
-    /**
-     * Convert an amount to its monthly equivalent.
-     */
-    public function toMonthlyAmount(float $amount): float {
-        return $amount * $this->monthlyMultiplier();
-    }
+	/**
+	 * Convert an amount to its monthly equivalent.
+	 */
+	public function toMonthlyAmount(float $amount): float {
+		return $amount * $this->monthlyMultiplier();
+	}
 
-    /**
-     * Get human-readable label.
-     */
-    public function label(): string {
-        return match ($this) {
-            self::DAILY => 'Daily',
-            self::WEEKLY => 'Weekly',
-            self::BIWEEKLY => 'Bi-weekly',
-            self::SEMI_MONTHLY => 'Semi-Monthly',
-            self::MONTHLY => 'Monthly',
-            self::QUARTERLY => 'Quarterly',
-            self::SEMI_ANNUALLY => 'Semi-Annually',
-            self::YEARLY => 'Yearly',
-            self::ONE_TIME => 'One-Time',
-            self::CUSTOM => 'Custom',
-        };
-    }
+	/**
+	 * Get human-readable label.
+	 */
+	public function label(): string {
+		return match ($this) {
+			self::DAILY => 'Daily',
+			self::WEEKLY => 'Weekly',
+			self::BIWEEKLY => 'Bi-weekly',
+			self::SEMI_MONTHLY => 'Semi-Monthly',
+			self::MONTHLY => 'Monthly',
+			self::QUARTERLY => 'Quarterly',
+			self::SEMI_ANNUALLY => 'Semi-Annually',
+			self::YEARLY => 'Yearly',
+			self::ONE_TIME => 'One-Time',
+			self::CUSTOM => 'Custom',
+		};
+	}
 
-    /**
-     * Get all valid frequency values as strings.
-     */
-    public static function values(): array {
-        return array_map(fn(self $f) => $f->value, self::cases());
-    }
+	/**
+	 * Get all valid frequency values as strings.
+	 */
+	public static function values(): array {
+		return array_map(fn (self $f) => $f->value, self::cases());
+	}
 
-    /**
-     * Check if a string is a valid frequency.
-     */
-    public static function isValid(string $value): bool {
-        return in_array($value, self::values(), true);
-    }
+	/**
+	 * Check if a string is a valid frequency.
+	 */
+	public static function isValid(string $value): bool {
+		return in_array($value, self::values(), true);
+	}
 
-    /**
-     * Try to create from string, returns null if invalid.
-     */
-    public static function tryFromString(string $value): ?self {
-        return self::tryFrom(strtolower($value));
-    }
+	/**
+	 * Try to create from string, returns null if invalid.
+	 */
+	public static function tryFromString(string $value): ?self {
+		return self::tryFrom(strtolower($value));
+	}
 }

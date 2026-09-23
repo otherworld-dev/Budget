@@ -14,23 +14,23 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000007Date20260115 extends SimpleMigrationStep {
 
-    public function changeSchema(IOutput $output, \Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, \Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if ($schema->hasTable('budget_transactions')) {
-            $table = $schema->getTable('budget_transactions');
+		if ($schema->hasTable('budget_transactions')) {
+			$table = $schema->getTable('budget_transactions');
 
-            if (!$table->hasColumn('linked_transaction_id')) {
-                $table->addColumn('linked_transaction_id', Types::BIGINT, [
-                    'notnull' => false,
-                    'unsigned' => true,
-                ]);
+			if (!$table->hasColumn('linked_transaction_id')) {
+				$table->addColumn('linked_transaction_id', Types::BIGINT, [
+					'notnull' => false,
+					'unsigned' => true,
+				]);
 
-                $table->addIndex(['linked_transaction_id'], 'bgt_tx_linked');
-            }
-        }
+				$table->addIndex(['linked_transaction_id'], 'bgt_tx_linked');
+			}
+		}
 
-        return $schema;
-    }
+		return $schema;
+	}
 }

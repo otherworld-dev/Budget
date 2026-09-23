@@ -20,640 +20,640 @@ use Psr\Log\LoggerInterface;
  * managing account mappings, and coordinating with providers.
  */
 class BankSyncService {
-    public function __construct(
-        private BankConnectionMapper $connectionMapper,
-        private BankAccountMappingMapper $mappingMapper,
-        private ProviderFactory $providerFactory,
-        private TransactionService $transactionService,
-        private AuditService $auditService,
-        private AdminSettingService $adminSettings,
-        private AccountMapper $accountMapper,
-        private \OCA\Budget\Db\DismissedImportMapper $dismissedImportMapper,
-        private \OCA\Budget\Service\Import\ImportRuleApplicator $ruleApplicator,
-        private \OCA\Budget\Service\TransactionTagService $transactionTagService,
-        private \OCA\Budget\Service\BillService $billService,
-        private IL10N $l,
-        private LoggerInterface $logger
-    ) {
-    }
-
-    /**
-     * Create a new bank connection.
-     */
-    public function connect(string $userId, string $providerName, array $params, string $name): array {
-        $this->requireEnabled();
-
-        $provider = $this->providerFactory->getProvider($providerName);
-        $result = $provider->initializeConnection($params);
-        $now = date('Y-m-d H:i:s');
-
-        // Create connection record
-        $connection = new BankConnection();
-        $connection->setUserId($userId);
-        $connection->setProvider($providerName);
-        $connection->setName($name);
-        $connection->setCredentials($result['credentials']);
-        $hasAuthUrl = !empty($result['authorizationUrl']);
-        $connection->setStatus($hasAuthUrl ? 'pending_auth' : 'active');
-        $connection->setCreatedAt($now);
-        $connection->setUpdatedAt($now);
-        $connection = $this->connectionMapper->insert($connection);
-
-        // Create account mappings for discovered accounts
-        foreach ($result['accounts'] as $account) {
-            $mapping = new BankAccountMapping();
-            $mapping->setConnectionId($connection->getId());
-            $mapping->setExternalAccountId($account['id']);
-            $mapping->setExternalAccountName($account['name']);
-            $mapping->setEnabled(false);
-            $mapping->setLastBalance($account['balance'] ?? null);
-            $mapping->setLastCurrency($account['currency'] ?? null);
-            $mapping->setCreatedAt($now);
-            $mapping->setUpdatedAt($now);
-            $this->mappingMapper->insert($mapping);
-        }
-
-        $this->auditService->log($userId, 'bank_connected', 'bank_connection', $connection->getId(), [
-            'provider' => $providerName,
-            'name' => $name,
-            'accountCount' => count($result['accounts']),
-        ]);
-
-        return [
-            'connection' => $connection,
-            'mappings' => $this->mappingMapper->findByConnection($connection->getId()),
-            'authorizationUrl' => $result['authorizationUrl'] ?? null,
-        ];
-    }
-
-    /**
-     * Disconnect and delete a bank connection.
-     */
-    public function disconnect(string $userId, int $connectionId): void {
-        $connection = $this->connectionMapper->find($connectionId, $userId);
-
-        // Revoke access at the provider (best-effort, won't throw)
-        try {
-            $provider = $this->providerFactory->getProvider($connection->getProvider());
-            $provider->revokeConnection($connection->getCredentials());
-        } catch (\Exception $e) {
-            $this->logger->warning('Failed to revoke provider connection: ' . $e->getMessage(), ['app' => 'budget']);
-        }
-
-        $this->mappingMapper->deleteByConnection($connectionId);
-        $this->connectionMapper->delete($connection);
-
-        $this->auditService->log($userId, 'bank_disconnected', 'bank_connection', $connectionId, [
-            'provider' => $connection->getProvider(),
-            'name' => $connection->getName(),
-        ]);
-    }
-
-    /**
-     * Sync transactions from a bank connection.
-     *
-     * @return array{imported: int, skipped: int, errors: int, accounts: array}
-     */
-    public function sync(string $userId, int $connectionId, bool $force = false): array {
-        $this->requireEnabled();
-
-        $connection = $this->connectionMapper->find($connectionId, $userId);
-        // 'error' is retryable: it marks a failed fetch (bridge outage, lapsed
-        // subscription, transient network), and blocking it here would leave the
-        // connection permanently stuck — a successful sync is the only path back
-        // to 'active'. Only 'expired' stays blocked (needs re-authorization).
-        if (!in_array($connection->getStatus(), ['active', 'pending_auth', 'error'], true)) {
-            throw new \Exception(
-                $connection->getStatus() === 'expired'
-                    ? 'Bank authorization has expired. Please reconnect.'
-                    : 'Connection is not active'
-            );
-        }
-
-        $provider = $this->providerFactory->getProvider($connection->getProvider());
-
-        // Check if re-authorization is needed
-        if ($provider->requiresReauthorization($connection->getCredentials())) {
-            $connection->setStatus('expired');
-            $connection->setLastError('Bank authorization has expired. Please re-authorize.');
-            $connection->setUpdatedAt(date('Y-m-d H:i:s'));
-            $this->connectionMapper->update($connection);
-            throw new \Exception('Bank authorization has expired. Please reconnect.');
-        }
-
-        // Fetch accounts and transactions from provider
-        $includePending = (bool) $connection->getIncludePending();
-        try {
-            $data = $provider->fetchAccounts($connection->getCredentials(), [
-                'includePending' => $includePending,
-            ]);
-        } catch (\Exception $e) {
-            $connection->setStatus('error');
-            $connection->setLastError($e->getMessage());
-            $connection->setUpdatedAt(date('Y-m-d H:i:s'));
-            $this->connectionMapper->update($connection);
-
-            $this->auditService->log($userId, 'bank_sync_failed', 'bank_connection', $connectionId, [
-                'error' => $e->getMessage(),
-            ]);
-            throw $e;
-        }
-
-        // Persist refreshed credentials if the provider returned them (e.g. GoCardless token refresh)
-        if (isset($data['updatedCredentials'])) {
-            $connection->setCredentials($data['updatedCredentials']);
-            $connection->setUpdatedAt(date('Y-m-d H:i:s'));
-            $this->connectionMapper->update($connection);
-        }
-
-        // Auto-discover accounts if none have been mapped yet
-        $allMappings = $this->mappingMapper->findByConnection($connectionId);
-        if (empty($allMappings)) {
-            $this->refreshAccounts($userId, $connectionId);
-        }
-
-        $enabledMappings = $this->mappingMapper->findEnabledByConnection($connectionId);
-        if (empty($enabledMappings)) {
-            // Return early with a helpful message — mappings exist but none are enabled/mapped
-            $allMappings = $this->mappingMapper->findByConnection($connectionId);
-            $discoveredCount = count($allMappings);
-
-            // Update connection sync timestamp
-            $connection->setLastSyncAt(date('Y-m-d H:i:s'));
-            $connection->setLastError($discoveredCount > 0
-                ? $this->l->t('No accounts are enabled for sync. Open Account Mappings to enable and map your accounts.')
-                : null);
-            $connection->setUpdatedAt(date('Y-m-d H:i:s'));
-            $this->connectionMapper->update($connection);
-
-            return [
-                'imported' => 0,
-                'skipped' => 0,
-                'errors' => 0,
-                'accounts' => [],
-                'discovered' => $discoveredCount,
-                'message' => $discoveredCount > 0
-                    ? $this->l->t('Found %1$s account(s). Please open Account Mappings to enable and map them, then sync again.', [$discoveredCount])
-                    : null,
-            ];
-        }
-
-        $mappingsByExternalId = [];
-        $createdForBillMatch = [];
-        foreach ($enabledMappings as $m) {
-            $mappingsByExternalId[$m->getExternalAccountId()] = $m;
-        }
-
-        $totalImported = 0;
-        $totalSkipped = 0;
-        $totalErrors = 0;
-        $accountResults = [];
-
-        foreach ($data['accounts'] as $externalAccount) {
-            $txCount = count($externalAccount['transactions'] ?? []);
-            $this->logger->info("Bank sync: external account '{$externalAccount['name']}' (id: {$externalAccount['id']}) has {$txCount} transactions", ['app' => 'budget']);
-
-            $mapping = $mappingsByExternalId[$externalAccount['id']] ?? null;
-            if (!$mapping) {
-                $this->logger->info("Bank sync: no mapping found for external account '{$externalAccount['id']}', skipping", ['app' => 'budget']);
-                continue; // Account not mapped or not enabled
-            }
-
-            $budgetAccountId = $mapping->getBudgetAccountId();
-            if (!$budgetAccountId) {
-                continue;
-            }
-
-            // Verify the budget account exists and belongs to this user
-            try {
-                $this->accountMapper->find($budgetAccountId, $userId);
-            } catch (\Exception $e) {
-                $totalErrors++;
-                continue;
-            }
-
-            $imported = 0;
-            $transferLinkIds = [];
-            $skipped = 0;
-            $createdAny = false;
-
-            // Load existing pending bank-sync holds on this account so we can
-            // reconcile them against their posted versions (issue #257).
-            $importPrefix = $connection->getProvider() . ':';
-            $existingPending = $includePending
-                ? $this->transactionService->findPendingImported($budgetAccountId, $importPrefix)
-                : [];
-            $seenPendingIds = [];
-
-            foreach ($externalAccount['transactions'] as $tx) {
-                $importId = $connection->getProvider() . ':' . $tx['id'];
-                $isPending = !empty($tx['pending']);
-
-                // Already imported under this exact import ID?
-                $existing = $this->transactionService->findByImportId($budgetAccountId, $importId);
-                if ($existing !== null) {
-                    // A previously-pending hold has now posted (same ID): clear it.
-                    if (!$isPending && ($existing->getStatus() ?? 'cleared') === 'pending') {
-                        $this->transactionService->reconcilePendingToPosted($existing, null, $tx['date']);
-                    }
-                    $seenPendingIds[$existing->getId()] = true;
-                    $skipped++;
-                    continue;
-                }
-
-                // Check dismissed imports (skip check when force re-sync)
-                if (!$force && $this->dismissedImportMapper->isDismissed($budgetAccountId, $importId)) {
-                    $skipped++;
-                    continue;
-                }
-
-                // A posted transaction with a NEW id may be the posted version of a
-                // pending hold whose id changed. Reconcile it instead of duplicating.
-                if (!$isPending && $includePending) {
-                    $match = $this->matchPendingHold($existingPending, $seenPendingIds, $tx);
-                    if ($match !== null) {
-                        $this->transactionService->reconcilePendingToPosted($match, $importId, $tx['date']);
-                        $seenPendingIds[$match->getId()] = true;
-                        $imported++;
-                        continue;
-                    }
-                }
-
-                // Determine type: negative amount = debit (outflow), positive = credit (inflow)
-                $amount = (float) $tx['amount'];
-                $type = $amount < 0 ? 'debit' : 'credit';
-                $absAmount = abs($amount);
-
-                try {
-                    // Build transaction array for rule matching
-                    $txData = [
-                        'date' => $tx['date'],
-                        'description' => $tx['description'] ?? '',
-                        'amount' => $absAmount,
-                        'type' => $type,
-                        'vendor' => $tx['vendor'] ?? null,
-                        'categoryId' => null,
-                        'notes' => null,
-                        'source' => 'Bank Sync',
-                    ];
-
-                    // Apply import rules if enabled for this connection
-                    if ($connection->getApplyRules()) {
-                        $txData = $this->ruleApplicator->applyRules($userId, $txData);
-                    }
-
-                    $createdTx = $this->transactionService->create(
-                        userId: $userId,
-                        accountId: $budgetAccountId,
-                        date: $txData['date'],
-                        description: $txData['description'],
-                        amount: $txData['amount'],
-                        type: $txData['type'],
-                        categoryId: $txData['categoryId'] ?? null,
-                        vendor: $txData['vendor'] ?? null,
-                        notes: $txData['notes'] ?? null,
-                        importId: $importId,
-                        status: $isPending ? 'pending' : 'cleared',
-                        excludedFromForecast: !empty($txData['excludedFromForecast']),
-                        deferBalanceUpdate: true
-                    );
-                    // Set immediately after create: a later failure (e.g. tag
-                    // application) is swallowed by the catch below, and the
-                    // persisted row must still get its balance recompute.
-                    $createdAny = true;
-                    $createdForBillMatch[] = $createdTx;
-
-                    // Apply deferred tag actions from import rules
-                    if (!empty($txData['_deferred_tags'])) {
-                        $finalTagIds = [];
-                        foreach ($txData['_deferred_tags'] as $tagAction) {
-                            $newTagIds = $tagAction['tagIds'] ?? [];
-                            if (($tagAction['behavior'] ?? 'merge') === 'merge') {
-                                $finalTagIds = array_values(array_unique(array_merge($finalTagIds, $newTagIds)));
-                            } else {
-                                $finalTagIds = $newTagIds;
-                            }
-                        }
-                        if (!empty($finalTagIds)) {
-                            $this->transactionTagService->setTransactionTags($createdTx->getId(), $userId, $finalTagIds);
-                        }
-                    }
-
-                    if (!empty($txData['_deferred_link_transfer'])) {
-                        $transferLinkIds[] = $createdTx->getId();
-                    }
-
-                    $imported++;
-                } catch (\Exception $e) {
-                    $this->logger->warning("Bank sync: failed to create transaction: " . $e->getMessage(), [
-                        'app' => 'budget',
-                        'importId' => $importId,
-                    ]);
-                    $totalErrors++;
-                }
-            }
-
-            // Balance updates were deferred per-row; recompute once for this account
-            if ($createdAny) {
-                $this->transactionService->recalculateAccountBalance($budgetAccountId, $userId);
-            }
-
-            // Process deferred transfer linking for this account's batch
-            foreach ($transferLinkIds as $txId) {
-                try {
-                    $matches = $this->transactionService->findPotentialMatches($txId, $userId, 3);
-                    if (!empty($matches)) {
-                        $this->transactionService->linkTransactions($txId, $matches[0]->getId(), $userId);
-                    }
-                } catch (\Exception $e) {
-                    // Silently skip
-                }
-            }
-
-            // Clean up pending holds that dropped off the feed without posting
-            // (e.g. a canceled authorization). Only remove ones not seen this
-            // sync and older than a few days, to avoid deleting a hold the
-            // provider momentarily omitted. Non-dismissing so a re-appearing
-            // hold can still be re-imported.
-            if ($includePending) {
-                $staleCutoff = date('Y-m-d', strtotime('-5 days'));
-                foreach ($existingPending as $pendingTx) {
-                    if (isset($seenPendingIds[$pendingTx->getId()])) {
-                        continue;
-                    }
-                    if ($pendingTx->getDate() > $staleCutoff) {
-                        continue;
-                    }
-                    try {
-                        $this->transactionService->delete($pendingTx->getId(), $userId, false);
-                    } catch (\Exception $e) {
-                        // Best-effort cleanup; ignore failures
-                    }
-                }
-            }
-
-            $this->logger->info("Bank sync: account '{$externalAccount['name']}' result: {$imported} imported, {$skipped} duplicates skipped, mapped to budget account {$budgetAccountId}", ['app' => 'budget']);
-
-            // Update mapping balance
-            $mapping->setLastBalance($externalAccount['balance'] ?? null);
-            $mapping->setLastCurrency($externalAccount['currency'] ?? null);
-            $mapping->setUpdatedAt(date('Y-m-d H:i:s'));
-            $this->mappingMapper->update($mapping);
-
-            $totalImported += $imported;
-            $totalSkipped += $skipped;
-            $accountResults[] = [
-                'externalAccountId' => $externalAccount['id'],
-                'name' => $externalAccount['name'],
-                'imported' => $imported,
-                'skipped' => $skipped,
-            ];
-        }
-
-        // Auto-mark bills paid from matching synced transactions (#274).
-        // Best-effort: a matching failure must never fail the sync.
-        if (!empty($createdForBillMatch)) {
-            try {
-                $this->billService->autoMatchPaidFromImport($userId, $createdForBillMatch);
-            } catch (\Exception $e) {
-                $this->logger->warning('Bill auto-match after sync failed: ' . $e->getMessage(), ['app' => 'budget']);
-            }
-        }
-
-        // Update connection sync status
-        $connection->setLastSyncAt(date('Y-m-d H:i:s'));
-        $connection->setLastError($totalErrors > 0 ? $this->l->t('Sync completed with %1$s error(s)', [$totalErrors]) : null);
-        $connection->setStatus('active');
-        $connection->setUpdatedAt(date('Y-m-d H:i:s'));
-        $this->connectionMapper->update($connection);
-
-        $this->auditService->log($userId, 'bank_sync_completed', 'bank_connection', $connectionId, [
-            'imported' => $totalImported,
-            'skipped' => $totalSkipped,
-            'errors' => $totalErrors,
-        ]);
-
-        return [
-            'imported' => $totalImported,
-            'skipped' => $totalSkipped,
-            'errors' => $totalErrors,
-            'accounts' => $accountResults,
-        ];
-    }
-
-    /**
-     * Get a single connection by ID (verified ownership).
-     */
-    public function getConnection(string $userId, int $connectionId): BankConnection {
-        return $this->connectionMapper->find($connectionId, $userId);
-    }
-
-    /**
-     * Update a connection entity directly.
-     */
-    public function updateConnectionEntity(BankConnection $connection): void {
-        $this->connectionMapper->update($connection);
-    }
-
-    /**
-     * Get all connections for a user with their mappings.
-     */
-    public function getConnections(string $userId): array {
-        $connections = $this->connectionMapper->findAll($userId);
-        $result = [];
-
-        foreach ($connections as $conn) {
-            $result[] = [
-                'connection' => $conn,
-                'mappings' => $this->mappingMapper->findByConnection($conn->getId()),
-            ];
-        }
-
-        return $result;
-    }
-
-    /**
-     * Update an account mapping (map external → Budget account, enable/disable).
-     */
-    public function updateMapping(string $userId, int $connectionId, int $mappingId, ?int $budgetAccountId, bool $clearBudgetAccount, ?bool $enabled): BankAccountMapping {
-        // Verify connection ownership
-        $this->connectionMapper->find($connectionId, $userId);
-
-        $mapping = $this->mappingMapper->find($mappingId);
-        if ($mapping->getConnectionId() !== $connectionId) {
-            throw new \Exception('Mapping does not belong to this connection');
-        }
-
-        $oldBudgetAccountId = $mapping->getBudgetAccountId();
-
-        if ($clearBudgetAccount) {
-            $mapping->setBudgetAccountId(null);
-        } elseif ($budgetAccountId !== null) {
-            // Verify the budget account belongs to this user
-            $this->accountMapper->find($budgetAccountId, $userId);
-            $mapping->setBudgetAccountId($budgetAccountId);
-        }
-
-        // Clear dismissed imports when mapping changes so re-sync can re-import
-        if ($oldBudgetAccountId !== null && $mapping->getBudgetAccountId() !== $oldBudgetAccountId) {
-            $this->dismissedImportMapper->deleteByAccount($oldBudgetAccountId);
-        }
-
-        if ($enabled !== null) {
-            $mapping->setEnabled($enabled);
-        }
-
-        $mapping->setUpdatedAt(date('Y-m-d H:i:s'));
-        return $this->mappingMapper->update($mapping);
-    }
-
-    /**
-     * Refresh the account list from the provider (does NOT import transactions).
-     */
-    public function refreshAccounts(string $userId, int $connectionId): array {
-        $this->requireEnabled();
-
-        $connection = $this->connectionMapper->find($connectionId, $userId);
-        $provider = $this->providerFactory->getProvider($connection->getProvider());
-        $data = $provider->fetchAccountList($connection->getCredentials());
-        $now = date('Y-m-d H:i:s');
-
-        // If accounts were fetched successfully and connection was pending auth,
-        // promote to active — the user has completed bank authorization
-        if (!empty($data['accounts']) && $connection->getStatus() === 'pending_auth') {
-            $connection->setStatus('active');
-            $connection->setUpdatedAt($now);
-            $this->connectionMapper->update($connection);
-        }
-
-        // Persist refreshed credentials if the provider returned them
-        if (isset($data['updatedCredentials'])) {
-            $connection->setCredentials($data['updatedCredentials']);
-            $connection->setUpdatedAt($now);
-            $this->connectionMapper->update($connection);
-        }
-
-        // Add any new accounts that don't exist yet
-        $newMappings = [];
-        foreach ($data['accounts'] as $account) {
-            $existing = $this->mappingMapper->findByExternalId($connectionId, $account['id']);
-            if (!$existing) {
-                $mapping = new BankAccountMapping();
-                $mapping->setConnectionId($connectionId);
-                $mapping->setExternalAccountId($account['id']);
-                $mapping->setExternalAccountName($account['name']);
-                $mapping->setEnabled(false);
-                $mapping->setLastBalance($account['balance'] ?? null);
-                $mapping->setLastCurrency($account['currency'] ?? null);
-                $mapping->setCreatedAt($now);
-                $mapping->setUpdatedAt($now);
-                $newMappings[] = $this->mappingMapper->insert($mapping);
-            } else {
-                // Update balance
-                $existing->setLastBalance($account['balance'] ?? null);
-                $existing->setLastCurrency($account['currency'] ?? null);
-                $existing->setUpdatedAt($now);
-                $this->mappingMapper->update($existing);
-            }
-        }
-
-        return $this->mappingMapper->findByConnection($connectionId);
-    }
-
-    /**
-     * Re-authorize an expired GoCardless connection with a new requisition.
-     *
-     * @return array{authorizationUrl: string}
-     */
-    public function reauthorize(string $userId, int $connectionId, string $institutionId, string $redirectUrl): array {
-        $this->requireEnabled();
-
-        $connection = $this->connectionMapper->find($connectionId, $userId);
-
-        if ($connection->getProvider() !== 'gocardless') {
-            throw new \Exception('Re-authorization is only supported for GoCardless connections');
-        }
-
-        $provider = $this->providerFactory->getProvider('gocardless');
-        $creds = json_decode($connection->getCredentials(), true);
-
-        if (!$creds || !isset($creds['secretId'], $creds['secretKey'])) {
-            throw new \Exception('Stored credentials are incomplete');
-        }
-
-        // Re-initialize with institution to create a new requisition
-        $result = $provider->initializeConnection([
-            'secretId' => $creds['secretId'],
-            'secretKey' => $creds['secretKey'],
-            'institutionId' => $institutionId,
-            'redirectUrl' => $redirectUrl,
-        ]);
-
-        // Update connection with new credentials (new requisitionId, fresh token)
-        // Status stays pending until user completes bank authorization
-        $connection->setCredentials($result['credentials']);
-        $connection->setStatus('pending_auth');
-        $connection->setLastError(null);
-        $connection->setUpdatedAt(date('Y-m-d H:i:s'));
-        $this->connectionMapper->update($connection);
-
-        $this->auditService->log($userId, 'bank_reauthorized', 'bank_connection', $connectionId, [
-            'provider' => 'gocardless',
-        ]);
-
-        return [
-            'authorizationUrl' => $result['authorizationUrl'] ?? null,
-        ];
-    }
-
-    /**
-     * Find an existing pending hold that matches a newly-posted transaction whose
-     * provider id changed when it posted. Matches on type + amount and a date
-     * within a few days. Returns the matched (still-pending, not-yet-seen)
-     * transaction, or null.
-     *
-     * @param \OCA\Budget\Db\Transaction[] $existingPending
-     * @param array<int,bool> $seenPendingIds
-     * @param array $tx Normalized incoming transaction
-     */
-    private function matchPendingHold(array $existingPending, array $seenPendingIds, array $tx): ?\OCA\Budget\Db\Transaction {
-        $amount = (float) $tx['amount'];
-        $incomingType = $amount < 0 ? 'debit' : 'credit';
-        $incomingAbs = abs($amount);
-        $incomingTs = strtotime($tx['date']);
-
-        $best = null;
-        $bestDiff = null;
-        foreach ($existingPending as $pendingTx) {
-            if (isset($seenPendingIds[$pendingTx->getId()])) {
-                continue;
-            }
-            if (($pendingTx->getStatus() ?? '') !== 'pending') {
-                continue; // already reconciled this sync
-            }
-            if ($pendingTx->getType() !== $incomingType) {
-                continue;
-            }
-            if (abs((float) $pendingTx->getAmount() - $incomingAbs) > 0.001) {
-                continue;
-            }
-            $dayDiff = abs(($incomingTs - strtotime($pendingTx->getDate())) / 86400);
-            if ($dayDiff > 5) {
-                continue;
-            }
-            // Prefer the closest date among candidates.
-            if ($bestDiff === null || $dayDiff < $bestDiff) {
-                $best = $pendingTx;
-                $bestDiff = $dayDiff;
-            }
-        }
-
-        return $best;
-    }
-
-    private function requireEnabled(): void {
-        if (!$this->adminSettings->isBankSyncEnabled()) {
-            throw new \Exception('Bank sync is disabled by the administrator');
-        }
-    }
+	public function __construct(
+		private BankConnectionMapper $connectionMapper,
+		private BankAccountMappingMapper $mappingMapper,
+		private ProviderFactory $providerFactory,
+		private TransactionService $transactionService,
+		private AuditService $auditService,
+		private AdminSettingService $adminSettings,
+		private AccountMapper $accountMapper,
+		private \OCA\Budget\Db\DismissedImportMapper $dismissedImportMapper,
+		private \OCA\Budget\Service\Import\ImportRuleApplicator $ruleApplicator,
+		private \OCA\Budget\Service\TransactionTagService $transactionTagService,
+		private \OCA\Budget\Service\BillService $billService,
+		private IL10N $l,
+		private LoggerInterface $logger,
+	) {
+	}
+
+	/**
+	 * Create a new bank connection.
+	 */
+	public function connect(string $userId, string $providerName, array $params, string $name): array {
+		$this->requireEnabled();
+
+		$provider = $this->providerFactory->getProvider($providerName);
+		$result = $provider->initializeConnection($params);
+		$now = date('Y-m-d H:i:s');
+
+		// Create connection record
+		$connection = new BankConnection();
+		$connection->setUserId($userId);
+		$connection->setProvider($providerName);
+		$connection->setName($name);
+		$connection->setCredentials($result['credentials']);
+		$hasAuthUrl = !empty($result['authorizationUrl']);
+		$connection->setStatus($hasAuthUrl ? 'pending_auth' : 'active');
+		$connection->setCreatedAt($now);
+		$connection->setUpdatedAt($now);
+		$connection = $this->connectionMapper->insert($connection);
+
+		// Create account mappings for discovered accounts
+		foreach ($result['accounts'] as $account) {
+			$mapping = new BankAccountMapping();
+			$mapping->setConnectionId($connection->getId());
+			$mapping->setExternalAccountId($account['id']);
+			$mapping->setExternalAccountName($account['name']);
+			$mapping->setEnabled(false);
+			$mapping->setLastBalance($account['balance'] ?? null);
+			$mapping->setLastCurrency($account['currency'] ?? null);
+			$mapping->setCreatedAt($now);
+			$mapping->setUpdatedAt($now);
+			$this->mappingMapper->insert($mapping);
+		}
+
+		$this->auditService->log($userId, 'bank_connected', 'bank_connection', $connection->getId(), [
+			'provider' => $providerName,
+			'name' => $name,
+			'accountCount' => count($result['accounts']),
+		]);
+
+		return [
+			'connection' => $connection,
+			'mappings' => $this->mappingMapper->findByConnection($connection->getId()),
+			'authorizationUrl' => $result['authorizationUrl'] ?? null,
+		];
+	}
+
+	/**
+	 * Disconnect and delete a bank connection.
+	 */
+	public function disconnect(string $userId, int $connectionId): void {
+		$connection = $this->connectionMapper->find($connectionId, $userId);
+
+		// Revoke access at the provider (best-effort, won't throw)
+		try {
+			$provider = $this->providerFactory->getProvider($connection->getProvider());
+			$provider->revokeConnection($connection->getCredentials());
+		} catch (\Exception $e) {
+			$this->logger->warning('Failed to revoke provider connection: ' . $e->getMessage(), ['app' => 'budget']);
+		}
+
+		$this->mappingMapper->deleteByConnection($connectionId);
+		$this->connectionMapper->delete($connection);
+
+		$this->auditService->log($userId, 'bank_disconnected', 'bank_connection', $connectionId, [
+			'provider' => $connection->getProvider(),
+			'name' => $connection->getName(),
+		]);
+	}
+
+	/**
+	 * Sync transactions from a bank connection.
+	 *
+	 * @return array{imported: int, skipped: int, errors: int, accounts: array}
+	 */
+	public function sync(string $userId, int $connectionId, bool $force = false): array {
+		$this->requireEnabled();
+
+		$connection = $this->connectionMapper->find($connectionId, $userId);
+		// 'error' is retryable: it marks a failed fetch (bridge outage, lapsed
+		// subscription, transient network), and blocking it here would leave the
+		// connection permanently stuck — a successful sync is the only path back
+		// to 'active'. Only 'expired' stays blocked (needs re-authorization).
+		if (!in_array($connection->getStatus(), ['active', 'pending_auth', 'error'], true)) {
+			throw new \Exception(
+				$connection->getStatus() === 'expired'
+					? 'Bank authorization has expired. Please reconnect.'
+					: 'Connection is not active'
+			);
+		}
+
+		$provider = $this->providerFactory->getProvider($connection->getProvider());
+
+		// Check if re-authorization is needed
+		if ($provider->requiresReauthorization($connection->getCredentials())) {
+			$connection->setStatus('expired');
+			$connection->setLastError('Bank authorization has expired. Please re-authorize.');
+			$connection->setUpdatedAt(date('Y-m-d H:i:s'));
+			$this->connectionMapper->update($connection);
+			throw new \Exception('Bank authorization has expired. Please reconnect.');
+		}
+
+		// Fetch accounts and transactions from provider
+		$includePending = (bool)$connection->getIncludePending();
+		try {
+			$data = $provider->fetchAccounts($connection->getCredentials(), [
+				'includePending' => $includePending,
+			]);
+		} catch (\Exception $e) {
+			$connection->setStatus('error');
+			$connection->setLastError($e->getMessage());
+			$connection->setUpdatedAt(date('Y-m-d H:i:s'));
+			$this->connectionMapper->update($connection);
+
+			$this->auditService->log($userId, 'bank_sync_failed', 'bank_connection', $connectionId, [
+				'error' => $e->getMessage(),
+			]);
+			throw $e;
+		}
+
+		// Persist refreshed credentials if the provider returned them (e.g. GoCardless token refresh)
+		if (isset($data['updatedCredentials'])) {
+			$connection->setCredentials($data['updatedCredentials']);
+			$connection->setUpdatedAt(date('Y-m-d H:i:s'));
+			$this->connectionMapper->update($connection);
+		}
+
+		// Auto-discover accounts if none have been mapped yet
+		$allMappings = $this->mappingMapper->findByConnection($connectionId);
+		if (empty($allMappings)) {
+			$this->refreshAccounts($userId, $connectionId);
+		}
+
+		$enabledMappings = $this->mappingMapper->findEnabledByConnection($connectionId);
+		if (empty($enabledMappings)) {
+			// Return early with a helpful message — mappings exist but none are enabled/mapped
+			$allMappings = $this->mappingMapper->findByConnection($connectionId);
+			$discoveredCount = count($allMappings);
+
+			// Update connection sync timestamp
+			$connection->setLastSyncAt(date('Y-m-d H:i:s'));
+			$connection->setLastError($discoveredCount > 0
+				? $this->l->t('No accounts are enabled for sync. Open Account Mappings to enable and map your accounts.')
+				: null);
+			$connection->setUpdatedAt(date('Y-m-d H:i:s'));
+			$this->connectionMapper->update($connection);
+
+			return [
+				'imported' => 0,
+				'skipped' => 0,
+				'errors' => 0,
+				'accounts' => [],
+				'discovered' => $discoveredCount,
+				'message' => $discoveredCount > 0
+					? $this->l->t('Found %1$s account(s). Please open Account Mappings to enable and map them, then sync again.', [$discoveredCount])
+					: null,
+			];
+		}
+
+		$mappingsByExternalId = [];
+		$createdForBillMatch = [];
+		foreach ($enabledMappings as $m) {
+			$mappingsByExternalId[$m->getExternalAccountId()] = $m;
+		}
+
+		$totalImported = 0;
+		$totalSkipped = 0;
+		$totalErrors = 0;
+		$accountResults = [];
+
+		foreach ($data['accounts'] as $externalAccount) {
+			$txCount = count($externalAccount['transactions'] ?? []);
+			$this->logger->info("Bank sync: external account '{$externalAccount['name']}' (id: {$externalAccount['id']}) has {$txCount} transactions", ['app' => 'budget']);
+
+			$mapping = $mappingsByExternalId[$externalAccount['id']] ?? null;
+			if (!$mapping) {
+				$this->logger->info("Bank sync: no mapping found for external account '{$externalAccount['id']}', skipping", ['app' => 'budget']);
+				continue; // Account not mapped or not enabled
+			}
+
+			$budgetAccountId = $mapping->getBudgetAccountId();
+			if (!$budgetAccountId) {
+				continue;
+			}
+
+			// Verify the budget account exists and belongs to this user
+			try {
+				$this->accountMapper->find($budgetAccountId, $userId);
+			} catch (\Exception $e) {
+				$totalErrors++;
+				continue;
+			}
+
+			$imported = 0;
+			$transferLinkIds = [];
+			$skipped = 0;
+			$createdAny = false;
+
+			// Load existing pending bank-sync holds on this account so we can
+			// reconcile them against their posted versions (issue #257).
+			$importPrefix = $connection->getProvider() . ':';
+			$existingPending = $includePending
+				? $this->transactionService->findPendingImported($budgetAccountId, $importPrefix)
+				: [];
+			$seenPendingIds = [];
+
+			foreach ($externalAccount['transactions'] as $tx) {
+				$importId = $connection->getProvider() . ':' . $tx['id'];
+				$isPending = !empty($tx['pending']);
+
+				// Already imported under this exact import ID?
+				$existing = $this->transactionService->findByImportId($budgetAccountId, $importId);
+				if ($existing !== null) {
+					// A previously-pending hold has now posted (same ID): clear it.
+					if (!$isPending && ($existing->getStatus() ?? 'cleared') === 'pending') {
+						$this->transactionService->reconcilePendingToPosted($existing, null, $tx['date']);
+					}
+					$seenPendingIds[$existing->getId()] = true;
+					$skipped++;
+					continue;
+				}
+
+				// Check dismissed imports (skip check when force re-sync)
+				if (!$force && $this->dismissedImportMapper->isDismissed($budgetAccountId, $importId)) {
+					$skipped++;
+					continue;
+				}
+
+				// A posted transaction with a NEW id may be the posted version of a
+				// pending hold whose id changed. Reconcile it instead of duplicating.
+				if (!$isPending && $includePending) {
+					$match = $this->matchPendingHold($existingPending, $seenPendingIds, $tx);
+					if ($match !== null) {
+						$this->transactionService->reconcilePendingToPosted($match, $importId, $tx['date']);
+						$seenPendingIds[$match->getId()] = true;
+						$imported++;
+						continue;
+					}
+				}
+
+				// Determine type: negative amount = debit (outflow), positive = credit (inflow)
+				$amount = (float)$tx['amount'];
+				$type = $amount < 0 ? 'debit' : 'credit';
+				$absAmount = abs($amount);
+
+				try {
+					// Build transaction array for rule matching
+					$txData = [
+						'date' => $tx['date'],
+						'description' => $tx['description'] ?? '',
+						'amount' => $absAmount,
+						'type' => $type,
+						'vendor' => $tx['vendor'] ?? null,
+						'categoryId' => null,
+						'notes' => null,
+						'source' => 'Bank Sync',
+					];
+
+					// Apply import rules if enabled for this connection
+					if ($connection->getApplyRules()) {
+						$txData = $this->ruleApplicator->applyRules($userId, $txData);
+					}
+
+					$createdTx = $this->transactionService->create(
+						userId: $userId,
+						accountId: $budgetAccountId,
+						date: $txData['date'],
+						description: $txData['description'],
+						amount: $txData['amount'],
+						type: $txData['type'],
+						categoryId: $txData['categoryId'] ?? null,
+						vendor: $txData['vendor'] ?? null,
+						notes: $txData['notes'] ?? null,
+						importId: $importId,
+						status: $isPending ? 'pending' : 'cleared',
+						excludedFromForecast: !empty($txData['excludedFromForecast']),
+						deferBalanceUpdate: true
+					);
+					// Set immediately after create: a later failure (e.g. tag
+					// application) is swallowed by the catch below, and the
+					// persisted row must still get its balance recompute.
+					$createdAny = true;
+					$createdForBillMatch[] = $createdTx;
+
+					// Apply deferred tag actions from import rules
+					if (!empty($txData['_deferred_tags'])) {
+						$finalTagIds = [];
+						foreach ($txData['_deferred_tags'] as $tagAction) {
+							$newTagIds = $tagAction['tagIds'] ?? [];
+							if (($tagAction['behavior'] ?? 'merge') === 'merge') {
+								$finalTagIds = array_values(array_unique(array_merge($finalTagIds, $newTagIds)));
+							} else {
+								$finalTagIds = $newTagIds;
+							}
+						}
+						if (!empty($finalTagIds)) {
+							$this->transactionTagService->setTransactionTags($createdTx->getId(), $userId, $finalTagIds);
+						}
+					}
+
+					if (!empty($txData['_deferred_link_transfer'])) {
+						$transferLinkIds[] = $createdTx->getId();
+					}
+
+					$imported++;
+				} catch (\Exception $e) {
+					$this->logger->warning('Bank sync: failed to create transaction: ' . $e->getMessage(), [
+						'app' => 'budget',
+						'importId' => $importId,
+					]);
+					$totalErrors++;
+				}
+			}
+
+			// Balance updates were deferred per-row; recompute once for this account
+			if ($createdAny) {
+				$this->transactionService->recalculateAccountBalance($budgetAccountId, $userId);
+			}
+
+			// Process deferred transfer linking for this account's batch
+			foreach ($transferLinkIds as $txId) {
+				try {
+					$matches = $this->transactionService->findPotentialMatches($txId, $userId, 3);
+					if (!empty($matches)) {
+						$this->transactionService->linkTransactions($txId, $matches[0]->getId(), $userId);
+					}
+				} catch (\Exception $e) {
+					// Silently skip
+				}
+			}
+
+			// Clean up pending holds that dropped off the feed without posting
+			// (e.g. a canceled authorization). Only remove ones not seen this
+			// sync and older than a few days, to avoid deleting a hold the
+			// provider momentarily omitted. Non-dismissing so a re-appearing
+			// hold can still be re-imported.
+			if ($includePending) {
+				$staleCutoff = date('Y-m-d', strtotime('-5 days'));
+				foreach ($existingPending as $pendingTx) {
+					if (isset($seenPendingIds[$pendingTx->getId()])) {
+						continue;
+					}
+					if ($pendingTx->getDate() > $staleCutoff) {
+						continue;
+					}
+					try {
+						$this->transactionService->delete($pendingTx->getId(), $userId, false);
+					} catch (\Exception $e) {
+						// Best-effort cleanup; ignore failures
+					}
+				}
+			}
+
+			$this->logger->info("Bank sync: account '{$externalAccount['name']}' result: {$imported} imported, {$skipped} duplicates skipped, mapped to budget account {$budgetAccountId}", ['app' => 'budget']);
+
+			// Update mapping balance
+			$mapping->setLastBalance($externalAccount['balance'] ?? null);
+			$mapping->setLastCurrency($externalAccount['currency'] ?? null);
+			$mapping->setUpdatedAt(date('Y-m-d H:i:s'));
+			$this->mappingMapper->update($mapping);
+
+			$totalImported += $imported;
+			$totalSkipped += $skipped;
+			$accountResults[] = [
+				'externalAccountId' => $externalAccount['id'],
+				'name' => $externalAccount['name'],
+				'imported' => $imported,
+				'skipped' => $skipped,
+			];
+		}
+
+		// Auto-mark bills paid from matching synced transactions (#274).
+		// Best-effort: a matching failure must never fail the sync.
+		if (!empty($createdForBillMatch)) {
+			try {
+				$this->billService->autoMatchPaidFromImport($userId, $createdForBillMatch);
+			} catch (\Exception $e) {
+				$this->logger->warning('Bill auto-match after sync failed: ' . $e->getMessage(), ['app' => 'budget']);
+			}
+		}
+
+		// Update connection sync status
+		$connection->setLastSyncAt(date('Y-m-d H:i:s'));
+		$connection->setLastError($totalErrors > 0 ? $this->l->t('Sync completed with %1$s error(s)', [$totalErrors]) : null);
+		$connection->setStatus('active');
+		$connection->setUpdatedAt(date('Y-m-d H:i:s'));
+		$this->connectionMapper->update($connection);
+
+		$this->auditService->log($userId, 'bank_sync_completed', 'bank_connection', $connectionId, [
+			'imported' => $totalImported,
+			'skipped' => $totalSkipped,
+			'errors' => $totalErrors,
+		]);
+
+		return [
+			'imported' => $totalImported,
+			'skipped' => $totalSkipped,
+			'errors' => $totalErrors,
+			'accounts' => $accountResults,
+		];
+	}
+
+	/**
+	 * Get a single connection by ID (verified ownership).
+	 */
+	public function getConnection(string $userId, int $connectionId): BankConnection {
+		return $this->connectionMapper->find($connectionId, $userId);
+	}
+
+	/**
+	 * Update a connection entity directly.
+	 */
+	public function updateConnectionEntity(BankConnection $connection): void {
+		$this->connectionMapper->update($connection);
+	}
+
+	/**
+	 * Get all connections for a user with their mappings.
+	 */
+	public function getConnections(string $userId): array {
+		$connections = $this->connectionMapper->findAll($userId);
+		$result = [];
+
+		foreach ($connections as $conn) {
+			$result[] = [
+				'connection' => $conn,
+				'mappings' => $this->mappingMapper->findByConnection($conn->getId()),
+			];
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Update an account mapping (map external → Budget account, enable/disable).
+	 */
+	public function updateMapping(string $userId, int $connectionId, int $mappingId, ?int $budgetAccountId, bool $clearBudgetAccount, ?bool $enabled): BankAccountMapping {
+		// Verify connection ownership
+		$this->connectionMapper->find($connectionId, $userId);
+
+		$mapping = $this->mappingMapper->find($mappingId);
+		if ($mapping->getConnectionId() !== $connectionId) {
+			throw new \Exception('Mapping does not belong to this connection');
+		}
+
+		$oldBudgetAccountId = $mapping->getBudgetAccountId();
+
+		if ($clearBudgetAccount) {
+			$mapping->setBudgetAccountId(null);
+		} elseif ($budgetAccountId !== null) {
+			// Verify the budget account belongs to this user
+			$this->accountMapper->find($budgetAccountId, $userId);
+			$mapping->setBudgetAccountId($budgetAccountId);
+		}
+
+		// Clear dismissed imports when mapping changes so re-sync can re-import
+		if ($oldBudgetAccountId !== null && $mapping->getBudgetAccountId() !== $oldBudgetAccountId) {
+			$this->dismissedImportMapper->deleteByAccount($oldBudgetAccountId);
+		}
+
+		if ($enabled !== null) {
+			$mapping->setEnabled($enabled);
+		}
+
+		$mapping->setUpdatedAt(date('Y-m-d H:i:s'));
+		return $this->mappingMapper->update($mapping);
+	}
+
+	/**
+	 * Refresh the account list from the provider (does NOT import transactions).
+	 */
+	public function refreshAccounts(string $userId, int $connectionId): array {
+		$this->requireEnabled();
+
+		$connection = $this->connectionMapper->find($connectionId, $userId);
+		$provider = $this->providerFactory->getProvider($connection->getProvider());
+		$data = $provider->fetchAccountList($connection->getCredentials());
+		$now = date('Y-m-d H:i:s');
+
+		// If accounts were fetched successfully and connection was pending auth,
+		// promote to active — the user has completed bank authorization
+		if (!empty($data['accounts']) && $connection->getStatus() === 'pending_auth') {
+			$connection->setStatus('active');
+			$connection->setUpdatedAt($now);
+			$this->connectionMapper->update($connection);
+		}
+
+		// Persist refreshed credentials if the provider returned them
+		if (isset($data['updatedCredentials'])) {
+			$connection->setCredentials($data['updatedCredentials']);
+			$connection->setUpdatedAt($now);
+			$this->connectionMapper->update($connection);
+		}
+
+		// Add any new accounts that don't exist yet
+		$newMappings = [];
+		foreach ($data['accounts'] as $account) {
+			$existing = $this->mappingMapper->findByExternalId($connectionId, $account['id']);
+			if (!$existing) {
+				$mapping = new BankAccountMapping();
+				$mapping->setConnectionId($connectionId);
+				$mapping->setExternalAccountId($account['id']);
+				$mapping->setExternalAccountName($account['name']);
+				$mapping->setEnabled(false);
+				$mapping->setLastBalance($account['balance'] ?? null);
+				$mapping->setLastCurrency($account['currency'] ?? null);
+				$mapping->setCreatedAt($now);
+				$mapping->setUpdatedAt($now);
+				$newMappings[] = $this->mappingMapper->insert($mapping);
+			} else {
+				// Update balance
+				$existing->setLastBalance($account['balance'] ?? null);
+				$existing->setLastCurrency($account['currency'] ?? null);
+				$existing->setUpdatedAt($now);
+				$this->mappingMapper->update($existing);
+			}
+		}
+
+		return $this->mappingMapper->findByConnection($connectionId);
+	}
+
+	/**
+	 * Re-authorize an expired GoCardless connection with a new requisition.
+	 *
+	 * @return array{authorizationUrl: string}
+	 */
+	public function reauthorize(string $userId, int $connectionId, string $institutionId, string $redirectUrl): array {
+		$this->requireEnabled();
+
+		$connection = $this->connectionMapper->find($connectionId, $userId);
+
+		if ($connection->getProvider() !== 'gocardless') {
+			throw new \Exception('Re-authorization is only supported for GoCardless connections');
+		}
+
+		$provider = $this->providerFactory->getProvider('gocardless');
+		$creds = json_decode($connection->getCredentials(), true);
+
+		if (!$creds || !isset($creds['secretId'], $creds['secretKey'])) {
+			throw new \Exception('Stored credentials are incomplete');
+		}
+
+		// Re-initialize with institution to create a new requisition
+		$result = $provider->initializeConnection([
+			'secretId' => $creds['secretId'],
+			'secretKey' => $creds['secretKey'],
+			'institutionId' => $institutionId,
+			'redirectUrl' => $redirectUrl,
+		]);
+
+		// Update connection with new credentials (new requisitionId, fresh token)
+		// Status stays pending until user completes bank authorization
+		$connection->setCredentials($result['credentials']);
+		$connection->setStatus('pending_auth');
+		$connection->setLastError(null);
+		$connection->setUpdatedAt(date('Y-m-d H:i:s'));
+		$this->connectionMapper->update($connection);
+
+		$this->auditService->log($userId, 'bank_reauthorized', 'bank_connection', $connectionId, [
+			'provider' => 'gocardless',
+		]);
+
+		return [
+			'authorizationUrl' => $result['authorizationUrl'] ?? null,
+		];
+	}
+
+	/**
+	 * Find an existing pending hold that matches a newly-posted transaction whose
+	 * provider id changed when it posted. Matches on type + amount and a date
+	 * within a few days. Returns the matched (still-pending, not-yet-seen)
+	 * transaction, or null.
+	 *
+	 * @param \OCA\Budget\Db\Transaction[] $existingPending
+	 * @param array<int,bool> $seenPendingIds
+	 * @param array $tx Normalized incoming transaction
+	 */
+	private function matchPendingHold(array $existingPending, array $seenPendingIds, array $tx): ?\OCA\Budget\Db\Transaction {
+		$amount = (float)$tx['amount'];
+		$incomingType = $amount < 0 ? 'debit' : 'credit';
+		$incomingAbs = abs($amount);
+		$incomingTs = strtotime($tx['date']);
+
+		$best = null;
+		$bestDiff = null;
+		foreach ($existingPending as $pendingTx) {
+			if (isset($seenPendingIds[$pendingTx->getId()])) {
+				continue;
+			}
+			if (($pendingTx->getStatus() ?? '') !== 'pending') {
+				continue; // already reconciled this sync
+			}
+			if ($pendingTx->getType() !== $incomingType) {
+				continue;
+			}
+			if (abs((float)$pendingTx->getAmount() - $incomingAbs) > 0.001) {
+				continue;
+			}
+			$dayDiff = abs(($incomingTs - strtotime($pendingTx->getDate())) / 86400);
+			if ($dayDiff > 5) {
+				continue;
+			}
+			// Prefer the closest date among candidates.
+			if ($bestDiff === null || $dayDiff < $bestDiff) {
+				$best = $pendingTx;
+				$bestDiff = $dayDiff;
+			}
+		}
+
+		return $best;
+	}
+
+	private function requireEnabled(): void {
+		if (!$this->adminSettings->isBankSyncEnabled()) {
+			throw new \Exception('Bank sync is disabled by the administrator');
+		}
+	}
 }

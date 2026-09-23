@@ -19,376 +19,386 @@ use OCP\AppFramework\Db\Entity;
  * @extends AbstractCrudService<TagSet>
  */
 class TagSetService extends AbstractCrudService {
-    private TagMapper $tagMapper;
-    private CategoryMapper $categoryMapper;
-    private TransactionTagMapper $transactionTagMapper;
-    private SavingsGoalMapper $savingsGoalMapper;
+	private TagMapper $tagMapper;
+	private CategoryMapper $categoryMapper;
+	private TransactionTagMapper $transactionTagMapper;
+	private SavingsGoalMapper $savingsGoalMapper;
 
-    public function __construct(
-        TagSetMapper $mapper,
-        TagMapper $tagMapper,
-        CategoryMapper $categoryMapper,
-        TransactionTagMapper $transactionTagMapper,
-        SavingsGoalMapper $savingsGoalMapper
-    ) {
-        $this->mapper = $mapper;
-        $this->tagMapper = $tagMapper;
-        $this->categoryMapper = $categoryMapper;
-        $this->transactionTagMapper = $transactionTagMapper;
-        $this->savingsGoalMapper = $savingsGoalMapper;
-    }
+	public function __construct(
+		TagSetMapper $mapper,
+		TagMapper $tagMapper,
+		CategoryMapper $categoryMapper,
+		TransactionTagMapper $transactionTagMapper,
+		SavingsGoalMapper $savingsGoalMapper,
+	) {
+		$this->mapper = $mapper;
+		$this->tagMapper = $tagMapper;
+		$this->categoryMapper = $categoryMapper;
+		$this->transactionTagMapper = $transactionTagMapper;
+		$this->savingsGoalMapper = $savingsGoalMapper;
+	}
 
-    /**
-     * Create a new tag set for a category
-     */
-    public function create(
-        string $userId,
-        int $categoryId,
-        string $name,
-        ?string $description = null,
-        int $sortOrder = 0
-    ): TagSet {
-        // Validate category exists and belongs to user
-        $this->categoryMapper->find($categoryId, $userId);
+	/**
+	 * Create a new tag set for a category
+	 */
+	public function create(
+		string $userId,
+		int $categoryId,
+		string $name,
+		?string $description = null,
+		int $sortOrder = 0,
+	): TagSet {
+		// Validate category exists and belongs to user
+		$this->categoryMapper->find($categoryId, $userId);
 
-        // Check for duplicate name within category
-        if ($this->mapper->nameExists($categoryId, $name)) {
-            throw new \InvalidArgumentException("A tag set named '$name' already exists in this category");
-        }
+		// Check for duplicate name within category
+		if ($this->mapper->nameExists($categoryId, $name)) {
+			throw new \InvalidArgumentException("A tag set named '$name' already exists in this category");
+		}
 
-        $tagSet = new TagSet();
-        $tagSet->setCategoryId($categoryId);
-        $tagSet->setName($name);
-        $tagSet->setDescription($description);
-        $tagSet->setSortOrder($sortOrder);
-        $this->setTimestamps($tagSet, true);
+		$tagSet = new TagSet();
+		$tagSet->setCategoryId($categoryId);
+		$tagSet->setName($name);
+		$tagSet->setDescription($description);
+		$tagSet->setSortOrder($sortOrder);
+		$this->setTimestamps($tagSet, true);
 
-        return $this->mapper->insert($tagSet);
-    }
+		return $this->mapper->insert($tagSet);
+	}
 
-    /**
-     * Find tag sets by category
-     *
-     * @return TagSet[]
-     */
-    /**
-     * The category a tag set belongs to, resolved without user scoping so the
-     * controller can determine the owner of a shared category (#328). Returns
-     * null if the tag set does not exist.
-     */
-    public function getTagSetCategoryId(int $tagSetId): ?int {
-        try {
-            return $this->mapper->findById($tagSetId)->getCategoryId();
-        } catch (DoesNotExistException $e) {
-            return null;
-        }
-    }
+	/**
+	 * Find tag sets by category
+	 *
+	 * @return TagSet[]
+	 */
+	/**
+	 * The category a tag set belongs to, resolved without user scoping so the
+	 * controller can determine the owner of a shared category (#328). Returns
+	 * null if the tag set does not exist.
+	 */
+	public function getTagSetCategoryId(int $tagSetId): ?int {
+		try {
+			return $this->mapper->findById($tagSetId)->getCategoryId();
+		} catch (DoesNotExistException $e) {
+			return null;
+		}
+	}
 
-    public function findByCategory(int $categoryId, string $userId): array {
-        return $this->mapper->findByCategory($categoryId, $userId);
-    }
+	public function findByCategory(int $categoryId, string $userId): array {
+		return $this->mapper->findByCategory($categoryId, $userId);
+	}
 
-    /**
-     * Get tag sets with all their tags loaded
-     *
-     * @return TagSet[]
-     */
-    public function getCategoryTagSetsWithTags(int $categoryId, string $userId): array {
-        $tagSets = $this->findByCategory($categoryId, $userId);
+	/**
+	 * Get tag sets with all their tags loaded
+	 *
+	 * @return TagSet[]
+	 */
+	public function getCategoryTagSetsWithTags(int $categoryId, string $userId): array {
+		$tagSets = $this->findByCategory($categoryId, $userId);
 
-        if (empty($tagSets)) {
-            return [];
-        }
+		if (empty($tagSets)) {
+			return [];
+		}
 
-        // Batch load all tags for these tag sets
-        $tagSetIds = array_map(fn($ts) => $ts->getId(), $tagSets);
-        $tagsGrouped = $this->tagMapper->findByTagSets($tagSetIds);
+		// Batch load all tags for these tag sets
+		$tagSetIds = array_map(fn ($ts) => $ts->getId(), $tagSets);
+		$tagsGrouped = $this->tagMapper->findByTagSets($tagSetIds);
 
-        // Populate tags on each tag set
-        foreach ($tagSets as $tagSet) {
-            $tagSet->setTags($tagsGrouped[$tagSet->getId()] ?? []);
-        }
+		// Populate tags on each tag set
+		foreach ($tagSets as $tagSet) {
+			$tagSet->setTags($tagsGrouped[$tagSet->getId()] ?? []);
+		}
 
-        return $tagSets;
-    }
+		return $tagSets;
+	}
 
-    /**
-     * Get all tag sets with their tags loaded (for reports filtering)
-     *
-     * @return TagSet[]
-     */
-    public function getAllTagSetsWithTags(string $userId): array {
-        $tagSets = $this->findAll($userId);
+	/**
+	 * Get all tag sets with their tags loaded (for reports filtering)
+	 *
+	 * @return TagSet[]
+	 */
+	public function getAllTagSetsWithTags(string $userId): array {
+		$tagSets = $this->findAll($userId);
 
-        if (empty($tagSets)) {
-            return [];
-        }
+		if (empty($tagSets)) {
+			return [];
+		}
 
-        // Batch load all tags for these tag sets
-        $tagSetIds = array_map(fn($ts) => $ts->getId(), $tagSets);
-        $tagsGrouped = $this->tagMapper->findByTagSets($tagSetIds);
+		// Batch load all tags for these tag sets
+		$tagSetIds = array_map(fn ($ts) => $ts->getId(), $tagSets);
+		$tagsGrouped = $this->tagMapper->findByTagSets($tagSetIds);
 
-        // Populate tags on each tag set
-        foreach ($tagSets as $tagSet) {
-            $tagSet->setTags($tagsGrouped[$tagSet->getId()] ?? []);
-        }
+		// Populate tags on each tag set
+		foreach ($tagSets as $tagSet) {
+			$tagSet->setTags($tagsGrouped[$tagSet->getId()] ?? []);
+		}
 
-        return $tagSets;
-    }
+		return $tagSets;
+	}
 
-    /**
-     * Get a single tag set with its tags loaded
-     */
-    public function getTagSetWithTags(int $tagSetId, string $userId): TagSet {
-        $tagSet = $this->find($tagSetId, $userId);
-        $tags = $this->tagMapper->findByTagSet($tagSetId);
-        $tagSet->setTags($tags);
+	/**
+	 * Get a single tag set with its tags loaded
+	 */
+	public function getTagSetWithTags(int $tagSetId, string $userId): TagSet {
+		$tagSet = $this->find($tagSetId, $userId);
+		$tags = $this->tagMapper->findByTagSet($tagSetId);
+		$tagSet->setTags($tags);
 
-        return $tagSet;
-    }
+		return $tagSet;
+	}
 
-    /**
-     * Create a new tag within a tag set
-     */
-    public function createTag(
-        int $tagSetId,
-        string $userId,
-        string $name,
-        ?string $color = null,
-        int $sortOrder = 0
-    ): Tag {
-        // Validate tag set exists and belongs to user
-        $this->find($tagSetId, $userId);
+	/**
+	 * Create a new tag within a tag set
+	 */
+	public function createTag(
+		int $tagSetId,
+		string $userId,
+		string $name,
+		?string $color = null,
+		int $sortOrder = 0,
+	): Tag {
+		// Validate tag set exists and belongs to user
+		$this->find($tagSetId, $userId);
 
-        // Check for duplicate name within tag set
-        if ($this->tagMapper->nameExists($tagSetId, $name)) {
-            throw new \InvalidArgumentException("A tag named '$name' already exists in this tag set");
-        }
+		// Check for duplicate name within tag set
+		if ($this->tagMapper->nameExists($tagSetId, $name)) {
+			throw new \InvalidArgumentException("A tag named '$name' already exists in this tag set");
+		}
 
-        $tag = new Tag();
-        $tag->setTagSetId($tagSetId);
-        // The category owner ($userId is resolved to the owner for a shared
-        // category). Backup, restore and factory reset find tags by user_id,
-        // so a tag without it was missing from every backup.
-        $tag->setUserId($userId);
-        $tag->setName($name);
-        $tag->setColor($color ?: $this->generateRandomColor());
-        $tag->setSortOrder($sortOrder);
-        $tag->setCreatedAt(date('Y-m-d H:i:s'));
+		$tag = new Tag();
+		$tag->setTagSetId($tagSetId);
+		// The category owner ($userId is resolved to the owner for a shared
+		// category). Backup, restore and factory reset find tags by user_id,
+		// so a tag without it was missing from every backup.
+		$tag->setUserId($userId);
+		$tag->setName($name);
+		$tag->setColor($color ?: $this->generateRandomColor());
+		$tag->setSortOrder($sortOrder);
+		$tag->setCreatedAt(date('Y-m-d H:i:s'));
 
-        return $this->tagMapper->insert($tag);
-    }
+		return $this->tagMapper->insert($tag);
+	}
 
-    /**
-     * Load a category tag through the tag set the caller was authorised on.
-     *
-     * The controller checks access on the TAG SET's category, but the tag is
-     * otherwise found by owner alone — so without this a user with write
-     * access to one shared category could name any of the owner's tags in the
-     * URL and edit or delete it.
-     *
-     * @throws DoesNotExistException when the tag is not in that tag set
-     */
-    private function findTagInSet(int $tagSetId, int $tagId, string $userId): Tag {
-        $tag = $this->tagMapper->find($tagId, $userId);
+	/**
+	 * Load a category tag through the tag set the caller was authorised on.
+	 *
+	 * The controller checks access on the TAG SET's category, but the tag is
+	 * otherwise found by owner alone — so without this a user with write
+	 * access to one shared category could name any of the owner's tags in the
+	 * URL and edit or delete it.
+	 *
+	 * @throws DoesNotExistException when the tag is not in that tag set
+	 */
+	private function findTagInSet(int $tagSetId, int $tagId, string $userId): Tag {
+		$tag = $this->tagMapper->find($tagId, $userId);
 
-        if ($tag->getTagSetId() === null) {
-            // Global tags have their own endpoints; never reachable via a set
-            throw new DoesNotExistException('Tag not found in this tag set');
-        }
-        if ((int) $tag->getTagSetId() !== $tagSetId) {
-            throw new DoesNotExistException('Tag not found in this tag set');
-        }
+		if ($tag->getTagSetId() === null) {
+			// Global tags have their own endpoints; never reachable via a set
+			throw new DoesNotExistException('Tag not found in this tag set');
+		}
+		if ((int)$tag->getTagSetId() !== $tagSetId) {
+			throw new DoesNotExistException('Tag not found in this tag set');
+		}
 
-        return $tag;
-    }
+		return $tag;
+	}
 
-    /**
-     * Update a tag
-     *
-     * @throws DoesNotExistException when the tag is not in $tagSetId
-     */
-    public function updateTag(int $tagId, string $userId, array $updates, int $tagSetId): Tag {
-        $tag = $this->findTagInSet($tagSetId, $tagId, $userId);
+	/**
+	 * Update a tag
+	 *
+	 * @throws DoesNotExistException when the tag is not in $tagSetId
+	 */
+	public function updateTag(int $tagId, string $userId, array $updates, int $tagSetId): Tag {
+		$tag = $this->findTagInSet($tagSetId, $tagId, $userId);
 
-        // Check for duplicate name within tag set
-        if (isset($updates['name'])) {
-            if ($this->tagMapper->nameExists($tag->getTagSetId(), $updates['name'], $tag->getId())) {
-                throw new \InvalidArgumentException("A tag named '{$updates['name']}' already exists in this tag set");
-            }
-        }
+		// Check for duplicate name within tag set
+		if (isset($updates['name'])) {
+			if ($this->tagMapper->nameExists($tag->getTagSetId(), $updates['name'], $tag->getId())) {
+				throw new \InvalidArgumentException("A tag named '{$updates['name']}' already exists in this tag set");
+			}
+		}
 
-        $this->applyUpdates($tag, $updates);
+		$this->applyUpdates($tag, $updates);
 
-        return $this->tagMapper->update($tag);
-    }
+		return $this->tagMapper->update($tag);
+	}
 
-    /**
-     * Delete a tag (cascade deletes transaction_tags)
-     *
-     * @throws DoesNotExistException when the tag is not in $tagSetId
-     */
-    public function deleteTag(int $tagId, string $userId, int $tagSetId): void {
-        $tag = $this->findTagInSet($tagSetId, $tagId, $userId);
+	/**
+	 * Delete a tag (cascade deletes transaction_tags)
+	 *
+	 * @throws DoesNotExistException when the tag is not in $tagSetId
+	 */
+	public function deleteTag(int $tagId, string $userId, int $tagSetId): void {
+		$tag = $this->findTagInSet($tagSetId, $tagId, $userId);
 
-        // Clear tag references on savings goals linked to this tag
-        $this->savingsGoalMapper->clearTagReference($tagId);
+		// Clear tag references on savings goals linked to this tag
+		$this->savingsGoalMapper->clearTagReference($tagId);
 
-        // Delete associated transaction tags first (cascade delete)
-        $this->transactionTagMapper->deleteByTag($tagId);
+		// Delete associated transaction tags first (cascade delete)
+		$this->transactionTagMapper->deleteByTag($tagId);
 
-        $this->tagMapper->delete($tag);
-    }
+		$this->tagMapper->delete($tag);
+	}
 
-    /**
-     * @inheritDoc
-     */
-    protected function beforeUpdate(Entity $entity, array $updates, string $userId): void {
-        // Validate new category if being updated
-        if (isset($updates['categoryId'])) {
-            $this->categoryMapper->find($updates['categoryId'], $userId);
-        }
+	/**
+	 * @inheritDoc
+	 */
+	protected function beforeUpdate(Entity $entity, array $updates, string $userId): void {
+		// Validate new category if being updated
+		if (isset($updates['categoryId'])) {
+			$this->categoryMapper->find($updates['categoryId'], $userId);
+		}
 
-        // Check for duplicate name within category
-        if (isset($updates['name'])) {
-            /** @var TagSet $entity */
-            $categoryId = $updates['categoryId'] ?? $entity->getCategoryId();
-            if ($this->mapper->nameExists($categoryId, $updates['name'], $entity->getId())) {
-                throw new \InvalidArgumentException("A tag set named '{$updates['name']}' already exists in this category");
-            }
-        }
-    }
+		// Check for duplicate name within category
+		if (isset($updates['name'])) {
+			/** @var TagSet $entity */
+			$categoryId = $updates['categoryId'] ?? $entity->getCategoryId();
+			if ($this->mapper->nameExists($categoryId, $updates['name'], $entity->getId())) {
+				throw new \InvalidArgumentException("A tag set named '{$updates['name']}' already exists in this category");
+			}
+		}
+	}
 
-    /**
-     * @inheritDoc
-     */
-    protected function beforeDelete(Entity $entity, string $userId): void {
-        /** @var TagSet $entity */
-        // Cascade delete: Delete all tags in this tag set
-        $tags = $this->tagMapper->findByTagSet($entity->getId());
-        foreach ($tags as $tag) {
-            // Clear savings goal references to this tag
-            $this->savingsGoalMapper->clearTagReference($tag->getId());
-            // Delete associated transaction tags first
-            $this->transactionTagMapper->deleteByTag($tag->getId());
-            // Then delete the tag itself
-            $this->tagMapper->delete($tag);
-        }
-    }
+	/**
+	 * @inheritDoc
+	 */
+	protected function beforeDelete(Entity $entity, string $userId): void {
+		/** @var TagSet $entity */
+		// Cascade delete: Delete all tags in this tag set
+		$tags = $this->tagMapper->findByTagSet($entity->getId());
+		foreach ($tags as $tag) {
+			// Clear savings goal references to this tag
+			$this->savingsGoalMapper->clearTagReference($tag->getId());
+			// Delete associated transaction tags first
+			$this->transactionTagMapper->deleteByTag($tag->getId());
+			// Then delete the tag itself
+			$this->tagMapper->delete($tag);
+		}
+	}
 
-    // ============================================
-    // Global Tags (flat, no tag set)
-    // ============================================
+	// ============================================
+	// Global Tags (flat, no tag set)
+	// ============================================
 
-    /**
-     * Get all global tags for a user
-     *
-     * @return Tag[]
-     */
-    public function getGlobalTags(string $userId): array {
-        return $this->tagMapper->findGlobal($userId);
-    }
+	/**
+	 * Get all global tags for a user
+	 *
+	 * @return Tag[]
+	 */
+	public function getGlobalTags(string $userId): array {
+		return $this->tagMapper->findGlobal($userId);
+	}
 
-    /**
-     * Create a new global tag (not bound to any tag set or category)
-     */
-    public function createGlobalTag(string $userId, string $name, ?string $color = null): Tag {
-        if ($this->tagMapper->globalNameExists($userId, $name)) {
-            throw new \InvalidArgumentException("A global tag named '$name' already exists");
-        }
+	/**
+	 * Create a new global tag (not bound to any tag set or category)
+	 */
+	public function createGlobalTag(string $userId, string $name, ?string $color = null): Tag {
+		if ($this->tagMapper->globalNameExists($userId, $name)) {
+			throw new \InvalidArgumentException("A global tag named '$name' already exists");
+		}
 
-        $tag = new Tag();
-        $tag->setTagSetId(null);
-        $tag->setUserId($userId);
-        $tag->setName($name);
-        $tag->setColor($color ?: $this->generateRandomColor());
-        $tag->setSortOrder(0);
-        $tag->setCreatedAt(date('Y-m-d H:i:s'));
+		$tag = new Tag();
+		$tag->setTagSetId(null);
+		$tag->setUserId($userId);
+		$tag->setName($name);
+		$tag->setColor($color ?: $this->generateRandomColor());
+		$tag->setSortOrder(0);
+		$tag->setCreatedAt(date('Y-m-d H:i:s'));
 
-        return $this->tagMapper->insert($tag);
-    }
+		return $this->tagMapper->insert($tag);
+	}
 
-    /**
-     * Update a global tag
-     */
-    public function updateGlobalTag(int $tagId, string $userId, array $updates): Tag {
-        $tag = $this->tagMapper->find($tagId, $userId);
+	/**
+	 * Update a global tag
+	 */
+	public function updateGlobalTag(int $tagId, string $userId, array $updates): Tag {
+		$tag = $this->tagMapper->find($tagId, $userId);
 
-        if ($tag->getTagSetId() !== null) {
-            throw new \InvalidArgumentException('This is not a global tag');
-        }
+		if ($tag->getTagSetId() !== null) {
+			throw new \InvalidArgumentException('This is not a global tag');
+		}
 
-        // Whitelist allowed fields
-        $updates = array_intersect_key($updates, array_flip(['name', 'color', 'sortOrder', 'hidden']));
+		// Whitelist allowed fields
+		$updates = array_intersect_key($updates, array_flip(['name', 'color', 'sortOrder', 'hidden']));
 
-        if (isset($updates['name'])) {
-            if ($this->tagMapper->globalNameExists($userId, $updates['name'], $tag->getId())) {
-                throw new \InvalidArgumentException("A global tag named '{$updates['name']}' already exists");
-            }
-        }
+		if (isset($updates['name'])) {
+			if ($this->tagMapper->globalNameExists($userId, $updates['name'], $tag->getId())) {
+				throw new \InvalidArgumentException("A global tag named '{$updates['name']}' already exists");
+			}
+		}
 
-        $this->applyUpdates($tag, $updates);
+		$this->applyUpdates($tag, $updates);
 
-        return $this->tagMapper->update($tag);
-    }
+		return $this->tagMapper->update($tag);
+	}
 
-    /**
-     * Delete a global tag (cascade deletes transaction_tags)
-     */
-    public function deleteGlobalTag(int $tagId, string $userId): void {
-        $tag = $this->tagMapper->find($tagId, $userId);
+	/**
+	 * Delete a global tag (cascade deletes transaction_tags)
+	 */
+	public function deleteGlobalTag(int $tagId, string $userId): void {
+		$tag = $this->tagMapper->find($tagId, $userId);
 
-        if ($tag->getTagSetId() !== null) {
-            throw new \InvalidArgumentException('This is not a global tag');
-        }
+		if ($tag->getTagSetId() !== null) {
+			throw new \InvalidArgumentException('This is not a global tag');
+		}
 
-        $this->savingsGoalMapper->clearTagReference($tagId);
-        $this->transactionTagMapper->deleteByTag($tagId);
-        $this->tagMapper->delete($tag);
-    }
+		$this->savingsGoalMapper->clearTagReference($tagId);
+		$this->transactionTagMapper->deleteByTag($tagId);
+		$this->tagMapper->delete($tag);
+	}
 
-    /**
-     * Generate a random HSL color
-     */
-    private function generateRandomColor(): string {
-        $hue = rand(0, 360);
-        $saturation = rand(65, 85);
-        $lightness = rand(55, 65);
+	/**
+	 * Generate a random HSL color
+	 */
+	private function generateRandomColor(): string {
+		$hue = rand(0, 360);
+		$saturation = rand(65, 85);
+		$lightness = rand(55, 65);
 
-        return $this->hslToHex($hue, $saturation, $lightness);
-    }
+		return $this->hslToHex($hue, $saturation, $lightness);
+	}
 
-    /**
-     * Convert HSL to hex color
-     */
-    private function hslToHex(int $h, int $s, int $l): string {
-        $h = $h / 360;
-        $s = $s / 100;
-        $l = $l / 100;
+	/**
+	 * Convert HSL to hex color
+	 */
+	private function hslToHex(int $h, int $s, int $l): string {
+		$h = $h / 360;
+		$s = $s / 100;
+		$l = $l / 100;
 
-        if ($s == 0) {
-            $r = $g = $b = $l;
-        } else {
-            $q = $l < 0.5 ? $l * (1 + $s) : $l + $s - $l * $s;
-            $p = 2 * $l - $q;
-            $r = $this->hue2rgb($p, $q, $h + 1/3);
-            $g = $this->hue2rgb($p, $q, $h);
-            $b = $this->hue2rgb($p, $q, $h - 1/3);
-        }
+		if ($s == 0) {
+			$r = $g = $b = $l;
+		} else {
+			$q = $l < 0.5 ? $l * (1 + $s) : $l + $s - $l * $s;
+			$p = 2 * $l - $q;
+			$r = $this->hue2rgb($p, $q, $h + 1 / 3);
+			$g = $this->hue2rgb($p, $q, $h);
+			$b = $this->hue2rgb($p, $q, $h - 1 / 3);
+		}
 
-        return sprintf('#%02x%02x%02x',
-            round($r * 255),
-            round($g * 255),
-            round($b * 255)
-        );
-    }
+		return sprintf('#%02x%02x%02x',
+			round($r * 255),
+			round($g * 255),
+			round($b * 255)
+		);
+	}
 
-    private function hue2rgb(float $p, float $q, float $t): float {
-        if ($t < 0) $t += 1;
-        if ($t > 1) $t -= 1;
-        if ($t < 1/6) return $p + ($q - $p) * 6 * $t;
-        if ($t < 1/2) return $q;
-        if ($t < 2/3) return $p + ($q - $p) * (2/3 - $t) * 6;
-        return $p;
-    }
+	private function hue2rgb(float $p, float $q, float $t): float {
+		if ($t < 0) {
+			$t += 1;
+		}
+		if ($t > 1) {
+			$t -= 1;
+		}
+		if ($t < 1 / 6) {
+			return $p + ($q - $p) * 6 * $t;
+		}
+		if ($t < 1 / 2) {
+			return $q;
+		}
+		if ($t < 2 / 3) {
+			return $p + ($q - $p) * (2 / 3 - $t) * 6;
+		}
+		return $p;
+	}
 }

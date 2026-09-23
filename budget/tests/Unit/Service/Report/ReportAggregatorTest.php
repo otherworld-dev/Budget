@@ -46,7 +46,7 @@ class ReportAggregatorTest extends TestCase {
 		$this->currentBudgetMonth = date('Y-m');
 		$this->carryoverService = $this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class);
 		$this->carryoverService->method('currentBudgetMonth')
-			->willReturnCallback(fn() => $this->currentBudgetMonth);
+			->willReturnCallback(fn () => $this->currentBudgetMonth);
 
 		// createMock auto-stubs array-returning methods to [], so shared/muted
 		// categories default to none; individual tests override as needed
@@ -290,9 +290,9 @@ class ReportAggregatorTest extends TestCase {
 		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
 		$this->conversionService->method('needsConversion')->willReturn(true);
 		$this->conversionService->method('canConvert')
-			->willReturnCallback(fn($currency) => $currency !== 'XYZ');
+			->willReturnCallback(fn ($currency) => $currency !== 'XYZ');
 		$this->conversionService->method('getAccountCurrencyMap')->willReturn([1 => 'GBP', 2 => 'XYZ']);
-		$this->conversionService->method('convertToBaseFloat')->willReturnCallback(fn($a) => (float)$a);
+		$this->conversionService->method('convertToBaseFloat')->willReturnCallback(fn ($a) => (float)$a);
 
 		$this->transactionMapper->method('getTransferTotalsByAccount')->willReturn([]);
 
@@ -423,7 +423,7 @@ class ReportAggregatorTest extends TestCase {
 		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
 		$this->conversionService->method('needsConversion')->willReturn(true);
 		$this->conversionService->method('getAccountCurrencyMap')->willReturn([1 => 'GBP', 2 => 'EUR']);
-		$this->conversionService->method('convertToBaseFloat')->willReturnCallback(fn($a) => (float)$a);
+		$this->conversionService->method('convertToBaseFloat')->willReturnCallback(fn ($a) => (float)$a);
 		$this->transactionMapper->method('getTransferTotalsByAccount')->willReturn([]);
 
 		$result = $this->aggregator->generateSummary('user1', null, '2026-01-01', '2026-01-31');
@@ -687,7 +687,7 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertSame(['2026-01', '2026-02'], $r['period']['months']);
 
 		// Alphabetical roots: Housing before Salary; Housing's children indented under it
-		$names = array_map(fn($row) => $row['name'], $r['rows']);
+		$names = array_map(fn ($row) => $row['name'], $r['rows']);
 		$this->assertSame(['Housing', 'Rent', 'Utilities', 'Salary'], $names);
 
 		$housing = $r['rows'][0];
@@ -716,7 +716,7 @@ class ReportAggregatorTest extends TestCase {
 		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-01-01', '2026-02-28', null, 'total');
 
 		// By |total| desc at root: Salary (6000) before Housing (2250); children by |total|: Rent (2000) before Utilities (250)
-		$names = array_map(fn($row) => $row['name'], $r['rows']);
+		$names = array_map(fn ($row) => $row['name'], $r['rows']);
 		$this->assertSame(['Salary', 'Housing', 'Rent', 'Utilities'], $names);
 		$this->assertSame('total', $r['sort']);
 	}
@@ -757,7 +757,7 @@ class ReportAggregatorTest extends TestCase {
 
 		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-01-01', '2026-01-31');
 
-		$names = array_map(fn($row) => $row['name'], $r['rows']);
+		$names = array_map(fn ($row) => $row['name'], $r['rows']);
 		$this->assertNotContains('Housing', $names);          // excluded row hidden
 		$this->assertContains('Rent', $names);                // child kept
 		$rent = $r['rows'][array_search('Rent', $names)];
@@ -781,7 +781,7 @@ class ReportAggregatorTest extends TestCase {
 
 		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-01-01', '2026-01-31');
 
-		$names = array_map(fn($row) => $row['name'], $r['rows']);
+		$names = array_map(fn ($row) => $row['name'], $r['rows']);
 		$this->assertSame(['Books', 'Salary'], $names);
 		$this->assertSame(0, $r['rows'][0]['depth']);
 	}

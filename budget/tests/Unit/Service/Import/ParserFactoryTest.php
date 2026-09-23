@@ -10,314 +10,314 @@ use OCA\Budget\Service\Parser\QifParser;
 use PHPUnit\Framework\TestCase;
 
 class ParserFactoryTest extends TestCase {
-    private ParserFactory $factory;
+	private ParserFactory $factory;
 
-    protected function setUp(): void {
-        $this->factory = new ParserFactory();
-    }
+	protected function setUp(): void {
+		$this->factory = new ParserFactory();
+	}
 
-    // ===== detectFormat =====
+	// ===== detectFormat =====
 
-    public function testDetectFormatCsv(): void {
-        $this->assertEquals('csv', $this->factory->detectFormat('data.csv'));
-    }
+	public function testDetectFormatCsv(): void {
+		$this->assertEquals('csv', $this->factory->detectFormat('data.csv'));
+	}
 
-    public function testDetectFormatCsvUpperCase(): void {
-        $this->assertEquals('csv', $this->factory->detectFormat('DATA.CSV'));
-    }
+	public function testDetectFormatCsvUpperCase(): void {
+		$this->assertEquals('csv', $this->factory->detectFormat('DATA.CSV'));
+	}
 
-    public function testDetectFormatTxt(): void {
-        $this->assertEquals('csv', $this->factory->detectFormat('data.txt'));
-    }
+	public function testDetectFormatTxt(): void {
+		$this->assertEquals('csv', $this->factory->detectFormat('data.txt'));
+	}
 
-    public function testDetectFormatOfx(): void {
-        $this->assertEquals('ofx', $this->factory->detectFormat('bank.ofx'));
-    }
+	public function testDetectFormatOfx(): void {
+		$this->assertEquals('ofx', $this->factory->detectFormat('bank.ofx'));
+	}
 
-    public function testDetectFormatQif(): void {
-        $this->assertEquals('qif', $this->factory->detectFormat('export.qif'));
-    }
+	public function testDetectFormatQif(): void {
+		$this->assertEquals('qif', $this->factory->detectFormat('export.qif'));
+	}
 
-    public function testDetectFormatUnknownDefaultsCsv(): void {
-        $this->assertEquals('csv', $this->factory->detectFormat('data.xlsx'));
-    }
+	public function testDetectFormatUnknownDefaultsCsv(): void {
+		$this->assertEquals('csv', $this->factory->detectFormat('data.xlsx'));
+	}
 
-    // ===== getOfxParser / getQifParser =====
+	// ===== getOfxParser / getQifParser =====
 
-    public function testGetOfxParserReturnsSameInstance(): void {
-        $parser1 = $this->factory->getOfxParser();
-        $parser2 = $this->factory->getOfxParser();
+	public function testGetOfxParserReturnsSameInstance(): void {
+		$parser1 = $this->factory->getOfxParser();
+		$parser2 = $this->factory->getOfxParser();
 
-        $this->assertInstanceOf(OfxParser::class, $parser1);
-        $this->assertSame($parser1, $parser2);
-    }
+		$this->assertInstanceOf(OfxParser::class, $parser1);
+		$this->assertSame($parser1, $parser2);
+	}
 
-    public function testGetQifParserReturnsSameInstance(): void {
-        $parser1 = $this->factory->getQifParser();
-        $parser2 = $this->factory->getQifParser();
+	public function testGetQifParserReturnsSameInstance(): void {
+		$parser1 = $this->factory->getQifParser();
+		$parser2 = $this->factory->getQifParser();
 
-        $this->assertInstanceOf(QifParser::class, $parser1);
-        $this->assertSame($parser1, $parser2);
-    }
+		$this->assertInstanceOf(QifParser::class, $parser1);
+		$this->assertSame($parser1, $parser2);
+	}
 
-    // ===== parse CSV =====
+	// ===== parse CSV =====
 
-    public function testParseCsvBasic(): void {
-        $csv = "Date,Amount,Description\n2026-01-01,100.00,Groceries\n2026-01-02,50.00,Gas\n";
+	public function testParseCsvBasic(): void {
+		$csv = "Date,Amount,Description\n2026-01-01,100.00,Groceries\n2026-01-02,50.00,Gas\n";
 
-        $result = $this->factory->parse($csv, 'csv');
+		$result = $this->factory->parse($csv, 'csv');
 
-        $this->assertCount(2, $result);
-        $this->assertEquals('2026-01-01', $result[0][0]);
-        $this->assertEquals('100.00', $result[0][1]);
-        $this->assertEquals('Groceries', $result[0][2]);
-    }
+		$this->assertCount(2, $result);
+		$this->assertEquals('2026-01-01', $result[0][0]);
+		$this->assertEquals('100.00', $result[0][1]);
+		$this->assertEquals('Groceries', $result[0][2]);
+	}
 
-    public function testParseCsvWithLimit(): void {
-        $csv = "Date,Amount\n2026-01-01,10\n2026-01-02,20\n2026-01-03,30\n";
+	public function testParseCsvWithLimit(): void {
+		$csv = "Date,Amount\n2026-01-01,10\n2026-01-02,20\n2026-01-03,30\n";
 
-        $result = $this->factory->parse($csv, 'csv', 2);
+		$result = $this->factory->parse($csv, 'csv', 2);
 
-        $this->assertCount(2, $result);
-    }
+		$this->assertCount(2, $result);
+	}
 
-    public function testParseCsvWithSemicolonDelimiter(): void {
-        $csv = "Date;Amount;Description\n2026-01-01;100.00;Groceries\n";
+	public function testParseCsvWithSemicolonDelimiter(): void {
+		$csv = "Date;Amount;Description\n2026-01-01;100.00;Groceries\n";
 
-        $result = $this->factory->parse($csv, 'csv', null, ';');
+		$result = $this->factory->parse($csv, 'csv', null, ';');
 
-        $this->assertCount(1, $result);
-        $this->assertEquals('100.00', $result[0][1]);
-    }
+		$this->assertCount(1, $result);
+		$this->assertEquals('100.00', $result[0][1]);
+	}
 
-    public function testParseCsvStripsUtf8Bom(): void {
-        $csv = "\xEF\xBB\xBFDate,Amount\n2026-01-01,100\n";
+	public function testParseCsvStripsUtf8Bom(): void {
+		$csv = "\xEF\xBB\xBFDate,Amount\n2026-01-01,100\n";
 
-        $result = $this->factory->parse($csv, 'csv');
+		$result = $this->factory->parse($csv, 'csv');
 
-        $this->assertCount(1, $result);
-        $this->assertArrayHasKey(0, $result[0]);
-    }
+		$this->assertCount(1, $result);
+		$this->assertArrayHasKey(0, $result[0]);
+	}
 
-    public function testParseCsvSkipsMetadataPreamble(): void {
-        // Swiss-style export with metadata before actual CSV
-        $csv = "Bank: UBS\nDate: 2026-01-01\n\nDate,Amount,Description\n2026-01-01,100.00,Groceries\n2026-01-02,50.00,Gas\n";
+	public function testParseCsvSkipsMetadataPreamble(): void {
+		// Swiss-style export with metadata before actual CSV
+		$csv = "Bank: UBS\nDate: 2026-01-01\n\nDate,Amount,Description\n2026-01-01,100.00,Groceries\n2026-01-02,50.00,Gas\n";
 
-        $result = $this->factory->parse($csv, 'csv');
+		$result = $this->factory->parse($csv, 'csv');
 
-        $this->assertCount(2, $result);
-        $this->assertEquals('Groceries', $result[0][2]);
-    }
+		$this->assertCount(2, $result);
+		$this->assertEquals('Groceries', $result[0][2]);
+	}
 
-    public function testParseCsvEmptyContentReturnsEmpty(): void {
-        $result = $this->factory->parse('', 'csv');
-
-        $this->assertEmpty($result);
-    }
+	public function testParseCsvEmptyContentReturnsEmpty(): void {
+		$result = $this->factory->parse('', 'csv');
+
+		$this->assertEmpty($result);
+	}
 
-    public function testParseCsvOnlyHeadersReturnsEmpty(): void {
-        $csv = "Date,Amount,Description\n";
+	public function testParseCsvOnlyHeadersReturnsEmpty(): void {
+		$csv = "Date,Amount,Description\n";
 
-        $result = $this->factory->parse($csv, 'csv');
+		$result = $this->factory->parse($csv, 'csv');
 
-        $this->assertEmpty($result);
-    }
+		$this->assertEmpty($result);
+	}
 
-    // ===== stripBom =====
+	// ===== stripBom =====
 
-    public function testStripBomRemovesUtf8Bom(): void {
-        $content = "\xEF\xBB\xBFHello World";
-        $this->assertEquals('Hello World', $this->factory->stripBom($content));
-    }
+	public function testStripBomRemovesUtf8Bom(): void {
+		$content = "\xEF\xBB\xBFHello World";
+		$this->assertEquals('Hello World', $this->factory->stripBom($content));
+	}
 
-    public function testStripBomNoOpWithoutBom(): void {
-        $content = 'Hello World';
-        $this->assertEquals('Hello World', $this->factory->stripBom($content));
-    }
+	public function testStripBomNoOpWithoutBom(): void {
+		$content = 'Hello World';
+		$this->assertEquals('Hello World', $this->factory->stripBom($content));
+	}
 
-    public function testStripBomEmptyString(): void {
-        $this->assertEquals('', $this->factory->stripBom(''));
-    }
+	public function testStripBomEmptyString(): void {
+		$this->assertEquals('', $this->factory->stripBom(''));
+	}
 
-    // ===== parse CSV with BOM + quoted values (DKB format) =====
+	// ===== parse CSV with BOM + quoted values (DKB format) =====
 
-    public function testParseCsvBomWithQuotedSemicolonDelimited(): void {
-        // DKB exports: UTF-8 BOM + quoted values + semicolons + 2-digit years
-        $csv = "\xEF\xBB\xBF\"Buchungsdatum\";\"Wertstellung\";\"Status\";\"Zahlungspflichtige*r\";\"Zahlungsempfänger*in\";\"Verwendungszweck\";\"Umsatztyp\";\"Betrag (€)\"\n"
-             . "\"25.03.26\";\"25.03.26\";\"Gebucht\";\"Max Mustermann\";\"Lidl\";\"VISA Debitkartenumsatz\";\"Ausgang\";\"-57,68\"\n"
-             . "\"24.03.26\";\"24.03.26\";\"Gebucht\";\"Max Mustermann\";\"REWE\";\"VISA Debitkartenumsatz\";\"Ausgang\";\"-23,45\"\n";
+	public function testParseCsvBomWithQuotedSemicolonDelimited(): void {
+		// DKB exports: UTF-8 BOM + quoted values + semicolons + 2-digit years
+		$csv = "\xEF\xBB\xBF\"Buchungsdatum\";\"Wertstellung\";\"Status\";\"Zahlungspflichtige*r\";\"Zahlungsempfänger*in\";\"Verwendungszweck\";\"Umsatztyp\";\"Betrag (€)\"\n"
+			 . "\"25.03.26\";\"25.03.26\";\"Gebucht\";\"Max Mustermann\";\"Lidl\";\"VISA Debitkartenumsatz\";\"Ausgang\";\"-57,68\"\n"
+			 . "\"24.03.26\";\"24.03.26\";\"Gebucht\";\"Max Mustermann\";\"REWE\";\"VISA Debitkartenumsatz\";\"Ausgang\";\"-23,45\"\n";
 
-        $result = $this->factory->parse($csv, 'csv', null, ';');
+		$result = $this->factory->parse($csv, 'csv', null, ';');
 
-        $this->assertCount(2, $result);
-        // Headers are no longer used as row keys — rows are always index-keyed
-        $this->assertEquals('25.03.26', $result[0][0]);
-        $this->assertEquals('-57,68', $result[0][7]);
-        $this->assertEquals('Lidl', $result[0][4]);
-    }
+		$this->assertCount(2, $result);
+		// Headers are no longer used as row keys — rows are always index-keyed
+		$this->assertEquals('25.03.26', $result[0][0]);
+		$this->assertEquals('-57,68', $result[0][7]);
+		$this->assertEquals('Lidl', $result[0][4]);
+	}
 
-    public function testParseCsvBomWithQuotedValuesHeadersMatchColumnNames(): void {
-        // Verify BOM/quote stripping no longer depends on the header row at all,
-        // since rows are parsed by position (the original bug predates that)
-        $csv = "\xEF\xBB\xBF\"Date\";\"Amount\";\"Description\"\n\"2026-01-01\";\"100.00\";\"Groceries\"\n";
+	public function testParseCsvBomWithQuotedValuesHeadersMatchColumnNames(): void {
+		// Verify BOM/quote stripping no longer depends on the header row at all,
+		// since rows are parsed by position (the original bug predates that)
+		$csv = "\xEF\xBB\xBF\"Date\";\"Amount\";\"Description\"\n\"2026-01-01\";\"100.00\";\"Groceries\"\n";
 
-        $result = $this->factory->parse($csv, 'csv', null, ';');
+		$result = $this->factory->parse($csv, 'csv', null, ';');
 
-        $this->assertCount(1, $result);
-        $this->assertEquals('100.00', $result[0][1]);
-    }
+		$this->assertCount(1, $result);
+		$this->assertEquals('100.00', $result[0][1]);
+	}
 
-    // ===== detectDataWidth =====
+	// ===== detectDataWidth =====
 
-    public function testDetectDataWidthSkipsPreambleRows(): void {
-        // DKB-style CSV with metadata preamble (2 columns) before data (11 columns)
-        $lines = [
-            '"1. Girokonto";"DE000000000000006543"',
-            '"Zeitraum:";"25.03.2026 - 25.03.2026"',
-            '"Kontostand vom 25.03.2026:";"1.807,02 €"',
-            '',
-            '"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz"',
-            '"25.03.26";"25.03.26";"Gebucht";"ISSUER";"Lidl";"VISA Debitkartenumsatz";"Ausgang";"DE000000000000000000";"-57,68";"";""',
-        ];
+	public function testDetectDataWidthSkipsPreambleRows(): void {
+		// DKB-style CSV with metadata preamble (2 columns) before data (11 columns)
+		$lines = [
+			'"1. Girokonto";"DE000000000000006543"',
+			'"Zeitraum:";"25.03.2026 - 25.03.2026"',
+			'"Kontostand vom 25.03.2026:";"1.807,02 €"',
+			'',
+			'"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz"',
+			'"25.03.26";"25.03.26";"Gebucht";"ISSUER";"Lidl";"VISA Debitkartenumsatz";"Ausgang";"DE000000000000000000";"-57,68";"";""',
+		];
 
-        $width = $this->factory->detectDataWidth($lines, ';');
+		$width = $this->factory->detectDataWidth($lines, ';');
 
-        // Should detect 11 columns (header + data), not 2 (preamble)
-        $this->assertEquals(11, $width);
-    }
+		// Should detect 11 columns (header + data), not 2 (preamble)
+		$this->assertEquals(11, $width);
+	}
 
-    public function testParseCsvDkbFullFormatWithPreamble(): void {
-        // Full DKB export: BOM + preamble metadata + quoted semicolon-delimited data
-        $csv = "\xEF\xBB\xBF\"1. Girokonto\";\"DE000000000000006543\"\n"
-             . "\"Zeitraum:\";\"25.03.2026 - 25.03.2026\"\n"
-             . "\"Kontostand vom 25.03.2026:\";\"1.807,02 €\"\n"
-             . "\n"
-             . "\"Buchungsdatum\";\"Wertstellung\";\"Status\";\"Zahlungspflichtige*r\";\"Zahlungsempfänger*in\";\"Verwendungszweck\";\"Umsatztyp\";\"IBAN\";\"Betrag (€)\";\"Gläubiger-ID\";\"Mandatsreferenz\"\n"
-             . "\"25.03.26\";\"25.03.26\";\"Gebucht\";\"ISSUER\";\"Lidl\";\"VISA Debitkartenumsatz\";\"Ausgang\";\"DE000000000000000000\";\"-57,68\";\"\";\"\"\n";
+	public function testParseCsvDkbFullFormatWithPreamble(): void {
+		// Full DKB export: BOM + preamble metadata + quoted semicolon-delimited data
+		$csv = "\xEF\xBB\xBF\"1. Girokonto\";\"DE000000000000006543\"\n"
+			 . "\"Zeitraum:\";\"25.03.2026 - 25.03.2026\"\n"
+			 . "\"Kontostand vom 25.03.2026:\";\"1.807,02 €\"\n"
+			 . "\n"
+			 . "\"Buchungsdatum\";\"Wertstellung\";\"Status\";\"Zahlungspflichtige*r\";\"Zahlungsempfänger*in\";\"Verwendungszweck\";\"Umsatztyp\";\"IBAN\";\"Betrag (€)\";\"Gläubiger-ID\";\"Mandatsreferenz\"\n"
+			 . "\"25.03.26\";\"25.03.26\";\"Gebucht\";\"ISSUER\";\"Lidl\";\"VISA Debitkartenumsatz\";\"Ausgang\";\"DE000000000000000000\";\"-57,68\";\"\";\"\"\n";
 
-        $result = $this->factory->parse($csv, 'csv', null, ';');
+		$result = $this->factory->parse($csv, 'csv', null, ';');
 
-        $this->assertCount(1, $result);
-        // Should use actual data rows, not preamble, keyed by position
-        $this->assertEquals('25.03.26', $result[0][0]);
-        $this->assertEquals('Lidl', $result[0][4]);
-        $this->assertEquals('-57,68', $result[0][8]);
-    }
+		$this->assertCount(1, $result);
+		// Should use actual data rows, not preamble, keyed by position
+		$this->assertEquals('25.03.26', $result[0][0]);
+		$this->assertEquals('Lidl', $result[0][4]);
+		$this->assertEquals('-57,68', $result[0][8]);
+	}
 
-    // ===== parse unsupported format =====
+	// ===== parse unsupported format =====
 
-    public function testParseUnsupportedFormatThrows(): void {
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('Unsupported format');
+	public function testParseUnsupportedFormatThrows(): void {
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('Unsupported format');
 
-        $this->factory->parse('data', 'xml');
-    }
+		$this->factory->parse('data', 'xml');
+	}
 
-    // ===== countRows =====
+	// ===== countRows =====
 
-    public function testCountRowsCsv(): void {
-        $csv = "Date,Amount\n2026-01-01,10\n2026-01-02,20\n2026-01-03,30\n";
+	public function testCountRowsCsv(): void {
+		$csv = "Date,Amount\n2026-01-01,10\n2026-01-02,20\n2026-01-03,30\n";
 
-        $count = $this->factory->countRows($csv, 'csv');
+		$count = $this->factory->countRows($csv, 'csv');
 
-        $this->assertEquals(3, $count);
-    }
+		$this->assertEquals(3, $count);
+	}
 
-    public function testCountRowsCsvEmptyContent(): void {
-        $count = $this->factory->countRows('', 'csv');
+	public function testCountRowsCsvEmptyContent(): void {
+		$count = $this->factory->countRows('', 'csv');
 
-        $this->assertEquals(0, $count);
-    }
+		$this->assertEquals(0, $count);
+	}
 
-    public function testCountRowsCsvHeaderOnly(): void {
-        $csv = "Date,Amount,Description\n";
+	public function testCountRowsCsvHeaderOnly(): void {
+		$csv = "Date,Amount,Description\n";
 
-        $count = $this->factory->countRows($csv, 'csv');
+		$count = $this->factory->countRows($csv, 'csv');
 
-        $this->assertEquals(0, $count);
-    }
+		$this->assertEquals(0, $count);
+	}
 
-    // ===== skipFirstRow (header-less CSV) =====
+	// ===== skipFirstRow (header-less CSV) =====
 
-    public function testParseCsvSkipFirstRowFalseTreatsEveryLineAsData(): void {
-        $csv = "2026-01-01,100.00,Groceries\n2026-01-02,50.00,Gas\n";
+	public function testParseCsvSkipFirstRowFalseTreatsEveryLineAsData(): void {
+		$csv = "2026-01-01,100.00,Groceries\n2026-01-02,50.00,Gas\n";
 
-        $result = $this->factory->parse($csv, 'csv', null, ',', false);
+		$result = $this->factory->parse($csv, 'csv', null, ',', false);
 
-        $this->assertCount(2, $result);
-        $this->assertEquals('2026-01-01', $result[0][0]);
-        $this->assertEquals('100.00', $result[0][1]);
-        $this->assertEquals('Groceries', $result[0][2]);
-        $this->assertEquals('2026-01-02', $result[1][0]);
-    }
+		$this->assertCount(2, $result);
+		$this->assertEquals('2026-01-01', $result[0][0]);
+		$this->assertEquals('100.00', $result[0][1]);
+		$this->assertEquals('Groceries', $result[0][2]);
+		$this->assertEquals('2026-01-02', $result[1][0]);
+	}
 
-    public function testParseCsvSkipFirstRowDefaultsTrue(): void {
-        $csv = "Date,Amount,Description\n2026-01-01,100.00,Groceries\n";
+	public function testParseCsvSkipFirstRowDefaultsTrue(): void {
+		$csv = "Date,Amount,Description\n2026-01-01,100.00,Groceries\n";
 
-        $result = $this->factory->parse($csv, 'csv');
+		$result = $this->factory->parse($csv, 'csv');
 
-        $this->assertCount(1, $result);
-        $this->assertEquals('2026-01-01', $result[0][0]);
-    }
+		$this->assertCount(1, $result);
+		$this->assertEquals('2026-01-01', $result[0][0]);
+	}
 
-    public function testCountRowsSkipFirstRowFalseCountsEveryLine(): void {
-        $csv = "2026-01-01,100.00\n2026-01-02,50.00\n2026-01-03,30.00\n";
+	public function testCountRowsSkipFirstRowFalseCountsEveryLine(): void {
+		$csv = "2026-01-01,100.00\n2026-01-02,50.00\n2026-01-03,30.00\n";
 
-        $count = $this->factory->countRows($csv, 'csv', ',', false);
+		$count = $this->factory->countRows($csv, 'csv', ',', false);
 
-        $this->assertEquals(3, $count);
-    }
+		$this->assertEquals(3, $count);
+	}
 
-    // ===== getSupportedFormats =====
+	// ===== getSupportedFormats =====
 
-    public function testGetSupportedFormats(): void {
-        $formats = $this->factory->getSupportedFormats();
+	public function testGetSupportedFormats(): void {
+		$formats = $this->factory->getSupportedFormats();
 
-        $this->assertEquals(['csv', 'ofx', 'qif'], $formats);
-    }
+		$this->assertEquals(['csv', 'ofx', 'qif'], $formats);
+	}
 
-    // ===== parseFull =====
+	// ===== parseFull =====
 
-    public function testParseFullCsvReturnsDefaultStructure(): void {
-        $csv = "Date,Amount\n2026-01-01,100\n";
+	public function testParseFullCsvReturnsDefaultStructure(): void {
+		$csv = "Date,Amount\n2026-01-01,100\n";
 
-        $result = $this->factory->parseFull($csv, 'csv');
+		$result = $this->factory->parseFull($csv, 'csv');
 
-        $this->assertArrayHasKey('accounts', $result);
-        $this->assertArrayHasKey('transactions', $result);
-        $this->assertEmpty($result['accounts']);
-        $this->assertCount(1, $result['transactions']);
-    }
+		$this->assertArrayHasKey('accounts', $result);
+		$this->assertArrayHasKey('transactions', $result);
+		$this->assertEmpty($result['accounts']);
+		$this->assertCount(1, $result['transactions']);
+	}
 
-    // ===== camt.053 (#350) =====
+	// ===== camt.053 (#350) =====
 
-    public function testDetectFormatXmlIsCamt(): void {
-        $this->assertEquals('camt', $this->factory->detectFormat('CAMT_053_CH21_2026-07-01.xml'));
-    }
+	public function testDetectFormatXmlIsCamt(): void {
+		$this->assertEquals('camt', $this->factory->detectFormat('CAMT_053_CH21_2026-07-01.xml'));
+	}
 
-    public function testParseFullDispatchesCamt(): void {
-        $xml = file_get_contents(__DIR__ . '/../Parser/fixtures/camt053-wir-sample.xml');
-        $parsed = $this->factory->parseFull($xml, 'camt');
-        $this->assertSame('CH21212121212121', $parsed['accounts'][0]['accountId']);
-        $this->assertCount(1, $this->factory->parse($xml, 'camt'));
-        $this->assertSame(1, $this->factory->countRows($xml, 'camt'));
-    }
+	public function testParseFullDispatchesCamt(): void {
+		$xml = file_get_contents(__DIR__ . '/../Parser/fixtures/camt053-wir-sample.xml');
+		$parsed = $this->factory->parseFull($xml, 'camt');
+		$this->assertSame('CH21212121212121', $parsed['accounts'][0]['accountId']);
+		$this->assertCount(1, $this->factory->parse($xml, 'camt'));
+		$this->assertSame(1, $this->factory->countRows($xml, 'camt'));
+	}
 
-    // ===== parseCsvRecords (app-export presets) =====
+	// ===== parseCsvRecords (app-export presets) =====
 
-    public function testParseCsvRecordsKeepsAQuotedMultiLineFieldInItsRow(): void {
-        $csv = "\xEF\xBB\xBFa,b\r\n1,\"two\r\nlines\"\r\n\r\n3,4\r\n";
+	public function testParseCsvRecordsKeepsAQuotedMultiLineFieldInItsRow(): void {
+		$csv = "\xEF\xBB\xBFa,b\r\n1,\"two\r\nlines\"\r\n\r\n3,4\r\n";
 
-        $records = $this->factory->parseCsvRecords($csv);
+		$records = $this->factory->parseCsvRecords($csv);
 
-        $this->assertSame([['a', 'b'], ['1', "two\r\nlines"], ['3', '4']], $records);
-    }
+		$this->assertSame([['a', 'b'], ['1', "two\r\nlines"], ['3', '4']], $records);
+	}
 
-    public function testParseCsvRecordsHonoursTheDelimiter(): void {
-        $this->assertSame([['a', 'b,c'], ['1', '2']], $this->factory->parseCsvRecords("a\tb,c\n1\t2\n", "\t"));
-    }
+	public function testParseCsvRecordsHonoursTheDelimiter(): void {
+		$this->assertSame([['a', 'b,c'], ['1', '2']], $this->factory->parseCsvRecords("a\tb,c\n1\t2\n", "\t"));
+	}
 
-    public function testDetectFormatTsvIsCsv(): void {
-        $this->assertEquals('csv', $this->factory->detectFormat('Plan - Register.tsv'));
-    }
+	public function testDetectFormatTsvIsCsv(): void {
+		$this->assertEquals('csv', $this->factory->detectFormat('Plan - Register.tsv'));
+	}
 }

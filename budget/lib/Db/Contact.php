@@ -22,24 +22,24 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCreatedAt(string $createdAt)
  */
 class Contact extends Entity implements JsonSerializable {
-    protected $userId;
-    protected $name;
-    protected $email;
-    protected $nextcloudUserId;
-    protected $createdAt;
+	protected $userId;
+	protected $name;
+	protected $email;
+	protected $nextcloudUserId;
+	protected $createdAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'userId' => $this->getUserId(),
-            'name' => $this->getName(),
-            'email' => $this->getEmail(),
-            'nextcloudUserId' => $this->getNextcloudUserId(),
-            'createdAt' => $this->getCreatedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'userId' => $this->getUserId(),
+			'name' => $this->getName(),
+			'email' => $this->getEmail(),
+			'nextcloudUserId' => $this->getNextcloudUserId(),
+			'createdAt' => $this->getCreatedAt(),
+		];
+	}
 }

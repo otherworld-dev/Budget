@@ -30,7 +30,7 @@ class PageControllerTest extends TestCase {
 
 		$urlGenerator = $this->createMock(IURLGenerator::class);
 		$urlGenerator->method('imagePath')
-			->willReturnCallback(fn(string $app, string $image) => '/apps-extra/' . $app . '/img/' . $image);
+			->willReturnCallback(fn (string $app, string $image) => '/apps-extra/' . $app . '/img/' . $image);
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnArgument(0);
 		$defaults = $this->createMock(Defaults::class);

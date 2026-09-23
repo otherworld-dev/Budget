@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
-use OCA\Budget\Service\ReportService;
 use OCA\Budget\Service\GranularShareService;
+use OCA\Budget\Service\ReportService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
-use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataDownloadResponse;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IL10N;
@@ -18,543 +17,543 @@ use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
 class ReportController extends Controller {
-    use ApiErrorHandlerTrait;
-    use SharedAccessTrait;
+	use ApiErrorHandlerTrait;
+	use SharedAccessTrait;
 
-    private ReportService $service;
-    private IL10N $l;
-    private string $userId;
+	private ReportService $service;
+	private IL10N $l;
+	private string $userId;
 
-    public function __construct(
-        IRequest $request,
-        ReportService $service,
-        GranularShareService $granularShareService,
-        IL10N $l,
-        string $userId,
-        LoggerInterface $logger
-    ) {
-        parent::__construct(Application::APP_ID, $request);
-        $this->service = $service;
-        $this->l = $l;
-        $this->userId = $userId;
-        $this->setLogger($logger);
-        $this->setGranularShareService($granularShareService);
-    }
+	public function __construct(
+		IRequest $request,
+		ReportService $service,
+		GranularShareService $granularShareService,
+		IL10N $l,
+		string $userId,
+		LoggerInterface $logger,
+	) {
+		parent::__construct(Application::APP_ID, $request);
+		$this->service = $service;
+		$this->l = $l;
+		$this->userId = $userId;
+		$this->setLogger($logger);
+		$this->setGranularShareService($granularShareService);
+	}
 
-    /**
-     * @NoAdminRequired
-     */
-    public function summary(
-        ?int $accountId = null,
-        ?string $startDate = null,
-        ?string $endDate = null,
-        ?array $tagIds = null,
-        ?bool $includeUntagged = null,
-        ?array $accountIds = null,
-        ?bool $excludeShared = null
-    ): DataResponse {
-        try {
-            if (!$startDate) {
-                $startDate = date('Y-m-01', strtotime('-12 months'));
-            }
-            if (!$endDate) {
-                $endDate = date('Y-m-d');
-            }
+	/**
+	 * @NoAdminRequired
+	 */
+	public function summary(
+		?int $accountId = null,
+		?string $startDate = null,
+		?string $endDate = null,
+		?array $tagIds = null,
+		?bool $includeUntagged = null,
+		?array $accountIds = null,
+		?bool $excludeShared = null,
+	): DataResponse {
+		try {
+			if (!$startDate) {
+				$startDate = date('Y-m-01', strtotime('-12 months'));
+			}
+			if (!$endDate) {
+				$endDate = date('Y-m-d');
+			}
 
-            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
-            $summary = $this->service->generateSummary(
-                $this->getEffectiveUserId(),
-                $startDate,
-                $endDate,
-                $accountId,
-                $tagIds ?? [],
-                $includeUntagged ?? true,
-                $visibleAccountIds
-            );
-            return new DataResponse($summary);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to generate summary report'));
-        }
-    }
+			[$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
+			$summary = $this->service->generateSummary(
+				$this->getEffectiveUserId(),
+				$startDate,
+				$endDate,
+				$accountId,
+				$tagIds ?? [],
+				$includeUntagged ?? true,
+				$visibleAccountIds
+			);
+			return new DataResponse($summary);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to generate summary report'));
+		}
+	}
 
-    /**
-     * @NoAdminRequired
-     */
-    public function spending(
-        ?int $accountId = null,
-        ?string $startDate = null,
-        ?string $endDate = null,
-        string $groupBy = 'category',
-        ?int $tagSetId = null,
-        ?int $categoryId = null,
-        ?array $accountIds = null,
-        ?bool $excludeShared = null
-    ): DataResponse {
-        try {
-            if (!$startDate) {
-                $startDate = date('Y-m-01', strtotime('-12 months'));
-            }
-            if (!$endDate) {
-                $endDate = date('Y-m-d');
-            }
+	/**
+	 * @NoAdminRequired
+	 */
+	public function spending(
+		?int $accountId = null,
+		?string $startDate = null,
+		?string $endDate = null,
+		string $groupBy = 'category',
+		?int $tagSetId = null,
+		?int $categoryId = null,
+		?array $accountIds = null,
+		?bool $excludeShared = null,
+	): DataResponse {
+		try {
+			if (!$startDate) {
+				$startDate = date('Y-m-01', strtotime('-12 months'));
+			}
+			if (!$endDate) {
+				$endDate = date('Y-m-d');
+			}
 
-            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
-            $spending = $this->service->getSpendingReport(
-                $this->getEffectiveUserId(),
-                $startDate,
-                $endDate,
-                $accountId,
-                $groupBy,
-                $tagSetId,
-                $categoryId,
-                $visibleAccountIds
-            );
-            return new DataResponse($spending);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to generate spending report'));
-        }
-    }
+			[$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
+			$spending = $this->service->getSpendingReport(
+				$this->getEffectiveUserId(),
+				$startDate,
+				$endDate,
+				$accountId,
+				$groupBy,
+				$tagSetId,
+				$categoryId,
+				$visibleAccountIds
+			);
+			return new DataResponse($spending);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to generate spending report'));
+		}
+	}
 
-    /**
-     * @NoAdminRequired
-     */
-    public function income(
-        ?int $accountId = null,
-        ?string $startDate = null,
-        ?string $endDate = null,
-        string $groupBy = 'month',
-        ?int $tagSetId = null,
-        ?int $categoryId = null,
-        ?array $accountIds = null,
-        ?bool $excludeShared = null
-    ): DataResponse {
-        try {
-            if (!$startDate) {
-                $startDate = date('Y-m-01', strtotime('-12 months'));
-            }
-            if (!$endDate) {
-                $endDate = date('Y-m-d');
-            }
+	/**
+	 * @NoAdminRequired
+	 */
+	public function income(
+		?int $accountId = null,
+		?string $startDate = null,
+		?string $endDate = null,
+		string $groupBy = 'month',
+		?int $tagSetId = null,
+		?int $categoryId = null,
+		?array $accountIds = null,
+		?bool $excludeShared = null,
+	): DataResponse {
+		try {
+			if (!$startDate) {
+				$startDate = date('Y-m-01', strtotime('-12 months'));
+			}
+			if (!$endDate) {
+				$endDate = date('Y-m-d');
+			}
 
-            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
-            $income = $this->service->getIncomeReport(
-                $this->getEffectiveUserId(),
-                $startDate,
-                $endDate,
-                $accountId,
-                $groupBy,
-                $tagSetId,
-                $categoryId,
-                $visibleAccountIds
-            );
-            return new DataResponse($income);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to generate income report'));
-        }
-    }
+			[$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
+			$income = $this->service->getIncomeReport(
+				$this->getEffectiveUserId(),
+				$startDate,
+				$endDate,
+				$accountId,
+				$groupBy,
+				$tagSetId,
+				$categoryId,
+				$visibleAccountIds
+			);
+			return new DataResponse($income);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to generate income report'));
+		}
+	}
 
-    /**
-     * Income and expenses for a period, each broken down by category (#344).
-     *
-     * @NoAdminRequired
-     */
-    public function incomeExpense(
-        ?int $accountId = null,
-        ?string $startDate = null,
-        ?string $endDate = null,
-        ?array $accountIds = null,
-        ?bool $excludeShared = null
-    ): DataResponse {
-        try {
-            if (!$startDate) {
-                $startDate = date('Y-01-01');
-            }
-            if (!$endDate) {
-                $endDate = date('Y-m-d');
-            }
+	/**
+	 * Income and expenses for a period, each broken down by category (#344).
+	 *
+	 * @NoAdminRequired
+	 */
+	public function incomeExpense(
+		?int $accountId = null,
+		?string $startDate = null,
+		?string $endDate = null,
+		?array $accountIds = null,
+		?bool $excludeShared = null,
+	): DataResponse {
+		try {
+			if (!$startDate) {
+				$startDate = date('Y-01-01');
+			}
+			if (!$endDate) {
+				$endDate = date('Y-m-d');
+			}
 
-            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
-            $report = $this->service->getIncomeExpenseReport(
-                $this->getEffectiveUserId(),
-                $startDate,
-                $endDate,
-                $accountId,
-                $visibleAccountIds
-            );
-            return new DataResponse($report);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to generate income and expenses report'));
-        }
-    }
+			[$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
+			$report = $this->service->getIncomeExpenseReport(
+				$this->getEffectiveUserId(),
+				$startDate,
+				$endDate,
+				$accountId,
+				$visibleAccountIds
+			);
+			return new DataResponse($report);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to generate income and expenses report'));
+		}
+	}
 
-    /**
-     * @NoAdminRequired
-     */
-    public function export(
-        string $type,
-        string $format = 'csv',
-        ?int $accountId = null,
-        ?string $startDate = null,
-        ?string $endDate = null,
-        ?array $accountIds = null,
-        ?bool $excludeShared = null
-    ): DataDownloadResponse|DataResponse {
-        try {
-            if (!$startDate) {
-                $startDate = date('Y-m-01', strtotime('-12 months'));
-            }
-            if (!$endDate) {
-                $endDate = date('Y-m-d');
-            }
+	/**
+	 * @NoAdminRequired
+	 */
+	public function export(
+		string $type,
+		string $format = 'csv',
+		?int $accountId = null,
+		?string $startDate = null,
+		?string $endDate = null,
+		?array $accountIds = null,
+		?bool $excludeShared = null,
+	): DataDownloadResponse|DataResponse {
+		try {
+			if (!$startDate) {
+				$startDate = date('Y-m-01', strtotime('-12 months'));
+			}
+			if (!$endDate) {
+				$endDate = date('Y-m-d');
+			}
 
-            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
-            $export = $this->service->exportReport(
-                $this->getEffectiveUserId(),
-                $type,
-                $format,
-                $startDate,
-                $endDate,
-                $accountId,
-                $visibleAccountIds
-            );
+			[$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
+			$export = $this->service->exportReport(
+				$this->getEffectiveUserId(),
+				$type,
+				$format,
+				$startDate,
+				$endDate,
+				$accountId,
+				$visibleAccountIds
+			);
 
-            return new DataDownloadResponse(
-                $export['stream'],
-                $export['filename'],
-                $export['contentType']
-            );
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to export report'));
-        }
-    }
+			return new DataDownloadResponse(
+				$export['stream'],
+				$export['filename'],
+				$export['contentType']
+			);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to export report'));
+		}
+	}
 
-    /**
-     * @NoAdminRequired
-     */
-    public function budget(
-        ?string $startDate = null,
-        ?string $endDate = null,
-        ?int $accountId = null,
-        ?bool $excludeShared = null,
-        ?string $snapshotMonth = null
-    ): DataResponse {
-        try {
-            if (!$startDate) {
-                $startDate = date('Y-m-01');
-            }
-            if (!$endDate) {
-                $endDate = date('Y-m-d');
-            }
+	/**
+	 * @NoAdminRequired
+	 */
+	public function budget(
+		?string $startDate = null,
+		?string $endDate = null,
+		?int $accountId = null,
+		?bool $excludeShared = null,
+		?string $snapshotMonth = null,
+	): DataResponse {
+		try {
+			if (!$startDate) {
+				$startDate = date('Y-m-01');
+			}
+			if (!$endDate) {
+				$endDate = date('Y-m-d');
+			}
 
-            $budget = $this->service->getBudgetReport(
-                $this->getEffectiveUserId(),
-                $startDate,
-                $endDate,
-                $accountId,
-                // The dashboard's Budget Progress tile can be set to exclude
-                // shared accounts; honour it here or the carryover would pull
-                // them back in behind the tile's own setting.
-                $this->getEffectiveAccountIds((bool) $excludeShared),
-                $snapshotMonth
-            );
-            return new DataResponse($budget);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to generate budget report'));
-        }
-    }
+			$budget = $this->service->getBudgetReport(
+				$this->getEffectiveUserId(),
+				$startDate,
+				$endDate,
+				$accountId,
+				// The dashboard's Budget Progress tile can be set to exclude
+				// shared accounts; honour it here or the carryover would pull
+				// them back in behind the tile's own setting.
+				$this->getEffectiveAccountIds((bool)$excludeShared),
+				$snapshotMonth
+			);
+			return new DataResponse($budget);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to generate budget report'));
+		}
+	}
 
-    /**
-     * @NoAdminRequired
-     */
-    public function summaryWithComparison(
-        ?int $accountId = null,
-        ?string $startDate = null,
-        ?string $endDate = null,
-        ?array $tagIds = null,
-        ?bool $includeUntagged = null,
-        ?array $accountIds = null,
-        ?bool $excludeShared = null
-    ): DataResponse {
-        try {
-            if (!$startDate) {
-                $startDate = date('Y-m-01');
-            }
-            if (!$endDate) {
-                $endDate = date('Y-m-d');
-            }
+	/**
+	 * @NoAdminRequired
+	 */
+	public function summaryWithComparison(
+		?int $accountId = null,
+		?string $startDate = null,
+		?string $endDate = null,
+		?array $tagIds = null,
+		?bool $includeUntagged = null,
+		?array $accountIds = null,
+		?bool $excludeShared = null,
+	): DataResponse {
+		try {
+			if (!$startDate) {
+				$startDate = date('Y-m-01');
+			}
+			if (!$endDate) {
+				$endDate = date('Y-m-d');
+			}
 
-            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
-            $summary = $this->service->generateSummaryWithComparison(
-                $this->getEffectiveUserId(),
-                $startDate,
-                $endDate,
-                $accountId,
-                $tagIds ?? [],
-                $includeUntagged ?? true,
-                $visibleAccountIds
-            );
-            return new DataResponse($summary);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to generate comparison report'));
-        }
-    }
+			[$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
+			$summary = $this->service->generateSummaryWithComparison(
+				$this->getEffectiveUserId(),
+				$startDate,
+				$endDate,
+				$accountId,
+				$tagIds ?? [],
+				$includeUntagged ?? true,
+				$visibleAccountIds
+			);
+			return new DataResponse($summary);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to generate comparison report'));
+		}
+	}
 
-    /**
-     * @NoAdminRequired
-     */
-    public function cashflow(
-        ?int $accountId = null,
-        ?string $startDate = null,
-        ?string $endDate = null,
-        ?array $tagIds = null,
-        ?bool $includeUntagged = null,
-        ?array $accountIds = null,
-        ?bool $excludeShared = null
-    ): DataResponse {
-        try {
-            if (!$startDate) {
-                $startDate = date('Y-m-01', strtotime('-12 months'));
-            }
-            if (!$endDate) {
-                $endDate = date('Y-m-d');
-            }
+	/**
+	 * @NoAdminRequired
+	 */
+	public function cashflow(
+		?int $accountId = null,
+		?string $startDate = null,
+		?string $endDate = null,
+		?array $tagIds = null,
+		?bool $includeUntagged = null,
+		?array $accountIds = null,
+		?bool $excludeShared = null,
+	): DataResponse {
+		try {
+			if (!$startDate) {
+				$startDate = date('Y-m-01', strtotime('-12 months'));
+			}
+			if (!$endDate) {
+				$endDate = date('Y-m-d');
+			}
 
-            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
-            $cashflow = $this->service->getCashFlowReport(
-                $this->getEffectiveUserId(),
-                $startDate,
-                $endDate,
-                $accountId,
-                $tagIds ?? [],
-                $includeUntagged ?? true,
-                $visibleAccountIds
-            );
-            return new DataResponse($cashflow);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to generate cash flow report'));
-        }
-    }
+			[$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
+			$cashflow = $this->service->getCashFlowReport(
+				$this->getEffectiveUserId(),
+				$startDate,
+				$endDate,
+				$accountId,
+				$tagIds ?? [],
+				$includeUntagged ?? true,
+				$visibleAccountIds
+			);
+			return new DataResponse($cashflow);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to generate cash flow report'));
+		}
+	}
 
-    /**
-     * @NoAdminRequired
-     * Get tag dimensions for spending across categories
-     */
-    public function tagDimensions(
-        ?string $startDate = null,
-        ?string $endDate = null,
-        ?int $accountId = null,
-        ?int $categoryId = null,
-        ?array $accountIds = null,
-        ?bool $excludeShared = null
-    ): DataResponse {
-        try {
-            if (!$startDate) {
-                $startDate = date('Y-m-01', strtotime('-12 months'));
-            }
-            if (!$endDate) {
-                $endDate = date('Y-m-d');
-            }
+	/**
+	 * @NoAdminRequired
+	 * Get tag dimensions for spending across categories
+	 */
+	public function tagDimensions(
+		?string $startDate = null,
+		?string $endDate = null,
+		?int $accountId = null,
+		?int $categoryId = null,
+		?array $accountIds = null,
+		?bool $excludeShared = null,
+	): DataResponse {
+		try {
+			if (!$startDate) {
+				$startDate = date('Y-m-01', strtotime('-12 months'));
+			}
+			if (!$endDate) {
+				$endDate = date('Y-m-d');
+			}
 
-            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
-            $dimensions = $this->service->getTagDimensions(
-                $this->getEffectiveUserId(),
-                $startDate,
-                $endDate,
-                $accountId,
-                $categoryId,
-                $visibleAccountIds
-            );
-            return new DataResponse($dimensions);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to generate tag dimensions'));
-        }
-    }
+			[$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
+			$dimensions = $this->service->getTagDimensions(
+				$this->getEffectiveUserId(),
+				$startDate,
+				$endDate,
+				$accountId,
+				$categoryId,
+				$visibleAccountIds
+			);
+			return new DataResponse($dimensions);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to generate tag dimensions'));
+		}
+	}
 
-    /**
-     * @NoAdminRequired
-     * Get tag combination report
-     */
-    public function tagCombinations(
-        ?string $startDate = null,
-        ?string $endDate = null,
-        ?int $accountId = null,
-        ?int $categoryId = null,
-        int $minCombinationSize = 2,
-        int $limit = 50,
-        ?array $accountIds = null,
-        ?bool $excludeShared = null
-    ): DataResponse {
-        try {
-            if (!$startDate) {
-                $startDate = date('Y-m-01', strtotime('-12 months'));
-            }
-            if (!$endDate) {
-                $endDate = date('Y-m-d');
-            }
+	/**
+	 * @NoAdminRequired
+	 * Get tag combination report
+	 */
+	public function tagCombinations(
+		?string $startDate = null,
+		?string $endDate = null,
+		?int $accountId = null,
+		?int $categoryId = null,
+		int $minCombinationSize = 2,
+		int $limit = 50,
+		?array $accountIds = null,
+		?bool $excludeShared = null,
+	): DataResponse {
+		try {
+			if (!$startDate) {
+				$startDate = date('Y-m-01', strtotime('-12 months'));
+			}
+			if (!$endDate) {
+				$endDate = date('Y-m-d');
+			}
 
-            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
-            $combinations = $this->service->getTagCombinationReport(
-                $this->getEffectiveUserId(),
-                $startDate,
-                $endDate,
-                $accountId,
-                $categoryId,
-                $minCombinationSize,
-                $limit,
-                $visibleAccountIds
-            );
-            return new DataResponse($combinations);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to generate tag combination report'));
-        }
-    }
+			[$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
+			$combinations = $this->service->getTagCombinationReport(
+				$this->getEffectiveUserId(),
+				$startDate,
+				$endDate,
+				$accountId,
+				$categoryId,
+				$minCombinationSize,
+				$limit,
+				$visibleAccountIds
+			);
+			return new DataResponse($combinations);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to generate tag combination report'));
+		}
+	}
 
-    /**
-     * @NoAdminRequired
-     * Get cross-tabulation (pivot table) of two tag sets
-     */
-    public function tagCrossTab(
-        int $tagSetId1,
-        int $tagSetId2,
-        ?string $startDate = null,
-        ?string $endDate = null,
-        ?int $accountId = null,
-        ?int $categoryId = null,
-        ?array $accountIds = null,
-        ?bool $excludeShared = null
-    ): DataResponse {
-        try {
-            if (!$startDate) {
-                $startDate = date('Y-m-01', strtotime('-12 months'));
-            }
-            if (!$endDate) {
-                $endDate = date('Y-m-d');
-            }
+	/**
+	 * @NoAdminRequired
+	 * Get cross-tabulation (pivot table) of two tag sets
+	 */
+	public function tagCrossTab(
+		int $tagSetId1,
+		int $tagSetId2,
+		?string $startDate = null,
+		?string $endDate = null,
+		?int $accountId = null,
+		?int $categoryId = null,
+		?array $accountIds = null,
+		?bool $excludeShared = null,
+	): DataResponse {
+		try {
+			if (!$startDate) {
+				$startDate = date('Y-m-01', strtotime('-12 months'));
+			}
+			if (!$endDate) {
+				$endDate = date('Y-m-d');
+			}
 
-            // Every account the viewer can see, shared ones included, like
-            // the other reports - it used to count the viewer's own only
-            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
-            $crossTab = $this->service->getTagCrossTabulation(
-                $this->getEffectiveUserId(),
-                $tagSetId1,
-                $tagSetId2,
-                $startDate,
-                $endDate,
-                $accountId,
-                $categoryId,
-                $visibleAccountIds
-            );
-            return new DataResponse($crossTab);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to generate cross-tabulation'));
-        }
-    }
+			// Every account the viewer can see, shared ones included, like
+			// the other reports - it used to count the viewer's own only
+			[$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
+			$crossTab = $this->service->getTagCrossTabulation(
+				$this->getEffectiveUserId(),
+				$tagSetId1,
+				$tagSetId2,
+				$startDate,
+				$endDate,
+				$accountId,
+				$categoryId,
+				$visibleAccountIds
+			);
+			return new DataResponse($crossTab);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to generate cross-tabulation'));
+		}
+	}
 
-    /**
-     * @NoAdminRequired
-     * Get monthly trend for specific tags
-     */
-    public function tagTrends(
-        ?array $tagIds = null,
-        ?string $startDate = null,
-        ?string $endDate = null,
-        ?int $accountId = null,
-        ?array $accountIds = null,
-        ?bool $excludeShared = null
-    ): DataResponse {
-        try {
-            if (!$startDate) {
-                $startDate = date('Y-m-01', strtotime('-12 months'));
-            }
-            if (!$endDate) {
-                $endDate = date('Y-m-d');
-            }
+	/**
+	 * @NoAdminRequired
+	 * Get monthly trend for specific tags
+	 */
+	public function tagTrends(
+		?array $tagIds = null,
+		?string $startDate = null,
+		?string $endDate = null,
+		?int $accountId = null,
+		?array $accountIds = null,
+		?bool $excludeShared = null,
+	): DataResponse {
+		try {
+			if (!$startDate) {
+				$startDate = date('Y-m-01', strtotime('-12 months'));
+			}
+			if (!$endDate) {
+				$endDate = date('Y-m-d');
+			}
 
-            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
-            $trends = $this->service->getTagTrendReport(
-                $this->getEffectiveUserId(),
-                $tagIds ?? [],
-                $startDate,
-                $endDate,
-                $accountId,
-                $visibleAccountIds
-            );
-            return new DataResponse($trends);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to generate tag trend report'));
-        }
-    }
+			[$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
+			$trends = $this->service->getTagTrendReport(
+				$this->getEffectiveUserId(),
+				$tagIds ?? [],
+				$startDate,
+				$endDate,
+				$accountId,
+				$visibleAccountIds
+			);
+			return new DataResponse($trends);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to generate tag trend report'));
+		}
+	}
 
-    /**
-     * @NoAdminRequired
-     * Get spending breakdown by a specific tag set
-     */
-    public function tagSetBreakdown(
-        int $tagSetId,
-        ?string $startDate = null,
-        ?string $endDate = null,
-        ?int $accountId = null,
-        ?int $categoryId = null,
-        ?array $accountIds = null,
-        ?bool $excludeShared = null
-    ): DataResponse {
-        try {
-            if (!$startDate) {
-                $startDate = date('Y-m-01', strtotime('-12 months'));
-            }
-            if (!$endDate) {
-                $endDate = date('Y-m-d');
-            }
+	/**
+	 * @NoAdminRequired
+	 * Get spending breakdown by a specific tag set
+	 */
+	public function tagSetBreakdown(
+		int $tagSetId,
+		?string $startDate = null,
+		?string $endDate = null,
+		?int $accountId = null,
+		?int $categoryId = null,
+		?array $accountIds = null,
+		?bool $excludeShared = null,
+	): DataResponse {
+		try {
+			if (!$startDate) {
+				$startDate = date('Y-m-01', strtotime('-12 months'));
+			}
+			if (!$endDate) {
+				$endDate = date('Y-m-d');
+			}
 
-            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
-            $breakdown = $this->service->getTagSetBreakdown(
-                $this->getEffectiveUserId(),
-                $tagSetId,
-                $startDate,
-                $endDate,
-                $accountId,
-                $categoryId,
-                $visibleAccountIds
-            );
-            return new DataResponse($breakdown);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to generate tag set breakdown'));
-        }
-    }
+			[$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
+			$breakdown = $this->service->getTagSetBreakdown(
+				$this->getEffectiveUserId(),
+				$tagSetId,
+				$startDate,
+				$endDate,
+				$accountId,
+				$categoryId,
+				$visibleAccountIds
+			);
+			return new DataResponse($breakdown);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to generate tag set breakdown'));
+		}
+	}
 
-    /**
-     * Category-by-month matrix report (income & expenses per category broken down
-     * by month), defaulting to year-to-date (#288).
-     * @NoAdminRequired
-     */
-    public function categoryMonthly(
-        ?int $accountId = null,
-        ?string $startDate = null,
-        ?string $endDate = null,
-        string $sort = 'alpha',
-        ?array $accountIds = null,
-        ?bool $excludeShared = null
-    ): DataResponse {
-        try {
-            if (!$startDate) {
-                $startDate = date('Y-01-01');
-            }
-            if (!$endDate) {
-                $endDate = date('Y-m-d');
-            }
+	/**
+	 * Category-by-month matrix report (income & expenses per category broken down
+	 * by month), defaulting to year-to-date (#288).
+	 * @NoAdminRequired
+	 */
+	public function categoryMonthly(
+		?int $accountId = null,
+		?string $startDate = null,
+		?string $endDate = null,
+		string $sort = 'alpha',
+		?array $accountIds = null,
+		?bool $excludeShared = null,
+	): DataResponse {
+		try {
+			if (!$startDate) {
+				$startDate = date('Y-01-01');
+			}
+			if (!$endDate) {
+				$endDate = date('Y-m-d');
+			}
 
-            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
-            $report = $this->service->getCategoryMonthlyReport(
-                $this->getEffectiveUserId(),
-                $startDate,
-                $endDate,
-                $accountId,
-                $sort,
-                $visibleAccountIds
-            );
-            return new DataResponse($report);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to generate category monthly report'));
-        }
-    }
+			[$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
+			$report = $this->service->getCategoryMonthlyReport(
+				$this->getEffectiveUserId(),
+				$startDate,
+				$endDate,
+				$accountId,
+				$sort,
+				$visibleAccountIds
+			);
+			return new DataResponse($report);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to generate category monthly report'));
+		}
+	}
 }

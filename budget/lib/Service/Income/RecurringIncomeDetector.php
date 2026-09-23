@@ -18,7 +18,7 @@ class RecurringIncomeDetector {
 	public function __construct(
 		TransactionMapper $transactionMapper,
 		FrequencyCalculator $frequencyCalculator,
-		float $minAmount = 10.0
+		float $minAmount = 10.0,
 	) {
 		$this->transactionMapper = $transactionMapper;
 		$this->frequencyCalculator = $frequencyCalculator;
@@ -168,7 +168,7 @@ class RecurringIncomeDetector {
 			}
 
 			// Detect typical expected day
-			$expectedDays = array_map(fn($ts) => (int)date('j', $ts), $dates);
+			$expectedDays = array_map(fn ($ts) => (int)date('j', $ts), $dates);
 			$avgExpectedDay = (int)round(array_sum($expectedDays) / count($expectedDays));
 
 			$detected[] = [
@@ -190,7 +190,7 @@ class RecurringIncomeDetector {
 		}
 
 		// Sort by confidence descending
-		usort($detected, fn($a, $b) => $b['confidence'] <=> $a['confidence']);
+		usort($detected, fn ($a, $b) => $b['confidence'] <=> $a['confidence']);
 
 		// If debug mode, add rejected patterns info
 		if ($debug && count($debugRejected) > 0) {
@@ -284,7 +284,7 @@ class RecurringIncomeDetector {
 
 		// Take first few meaningful words
 		$words = explode(' ', $pattern);
-		$words = array_filter($words, fn($w) => strlen($w) > 2);
+		$words = array_filter($words, fn ($w) => strlen($w) > 2);
 		$words = array_slice($words, 0, 3);
 
 		return implode(' ', $words);
@@ -302,7 +302,7 @@ class RecurringIncomeDetector {
 			return 0;
 		}
 		$mean = array_sum($values) / $count;
-		$squaredDiffs = array_map(fn($v) => pow($v - $mean, 2), $values);
+		$squaredDiffs = array_map(fn ($v) => pow($v - $mean, 2), $values);
 		return sqrt(array_sum($squaredDiffs) / $count);
 	}
 }

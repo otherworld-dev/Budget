@@ -36,7 +36,7 @@ class ScheduledReportJobTest extends TestCase {
 
 		$this->settingService = $this->createMock(SettingService::class);
 		$this->settingService->method('get')
-			->willReturnCallback(fn(string $userId, string $key) => $this->settings[$userId][$key] ?? null);
+			->willReturnCallback(fn (string $userId, string $key) => $this->settings[$userId][$key] ?? null);
 		$this->settingService->method('set')
 			->willReturnCallback(function (string $userId, string $key, string $value) {
 				$this->writes[] = [$userId, $key, $value];
@@ -67,7 +67,7 @@ class ScheduledReportJobTest extends TestCase {
 
 	private function givenEligibleUsers(array $userIds): void {
 		$result = $this->createMock(IResult::class);
-		$rows = array_map(static fn($id) => ['user_id' => $id], $userIds);
+		$rows = array_map(static fn ($id) => ['user_id' => $id], $userIds);
 		$result->method('fetchAll')->willReturn($rows);
 		// Each run reads the rows afresh; rewind when the query is re-executed
 		$cursor = 0;
@@ -309,7 +309,7 @@ class ScheduledReportJobTest extends TestCase {
 		$this->settings['bob'] = ['report_files_enabled' => 'true', 'report_last_month' => self::lastMonth()];
 		$this->settings['carol'] = ['report_email_enabled' => 'true'];
 		$this->reportService->method('deliverMonthlyReport')
-			->willReturnCallback(fn(string $userId) => $userId === 'alice');
+			->willReturnCallback(fn (string $userId) => $userId === 'alice');
 		$this->logger->expects($this->once())
 			->method('info')
 			->with($this->stringContains('1 reports delivered for ' . self::lastMonth()));

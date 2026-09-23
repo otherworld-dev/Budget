@@ -40,93 +40,93 @@ use OCP\AppFramework\Db\Entity;
  * @method void setUpdatedAt(string $updatedAt)
  */
 class PensionAccount extends Entity implements JsonSerializable {
-    public const TYPE_WORKPLACE = 'workplace';
-    public const TYPE_PERSONAL = 'personal';
-    public const TYPE_SIPP = 'sipp';
-    public const TYPE_DEFINED_BENEFIT = 'defined_benefit';
-    public const TYPE_STATE = 'state';
+	public const TYPE_WORKPLACE = 'workplace';
+	public const TYPE_PERSONAL = 'personal';
+	public const TYPE_SIPP = 'sipp';
+	public const TYPE_DEFINED_BENEFIT = 'defined_benefit';
+	public const TYPE_STATE = 'state';
 
-    public const VALID_TYPES = [
-        self::TYPE_WORKPLACE,
-        self::TYPE_PERSONAL,
-        self::TYPE_SIPP,
-        self::TYPE_DEFINED_BENEFIT,
-        self::TYPE_STATE,
-    ];
+	public const VALID_TYPES = [
+		self::TYPE_WORKPLACE,
+		self::TYPE_PERSONAL,
+		self::TYPE_SIPP,
+		self::TYPE_DEFINED_BENEFIT,
+		self::TYPE_STATE,
+	];
 
-    public const DC_TYPES = [
-        self::TYPE_WORKPLACE,
-        self::TYPE_PERSONAL,
-        self::TYPE_SIPP,
-    ];
+	public const DC_TYPES = [
+		self::TYPE_WORKPLACE,
+		self::TYPE_PERSONAL,
+		self::TYPE_SIPP,
+	];
 
-    protected $userId;
-    protected $name;
-    protected $provider;
-    protected $type;
-    protected $currency;
-    protected $currentBalance;
-    protected $monthlyContribution;
-    protected $expectedReturnRate;
-    protected $retirementAge;
-    protected $annualIncome;
-    protected $transferValue;
-    protected $projectionTarget;
-    protected $createdAt;
-    protected $updatedAt;
+	protected $userId;
+	protected $name;
+	protected $provider;
+	protected $type;
+	protected $currency;
+	protected $currentBalance;
+	protected $monthlyContribution;
+	protected $expectedReturnRate;
+	protected $retirementAge;
+	protected $annualIncome;
+	protected $transferValue;
+	protected $projectionTarget;
+	protected $createdAt;
+	protected $updatedAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('currentBalance', 'float');
-        $this->addType('monthlyContribution', 'float');
-        $this->addType('expectedReturnRate', 'float');
-        $this->addType('retirementAge', 'integer');
-        $this->addType('annualIncome', 'float');
-        $this->addType('transferValue', 'float');
-        $this->addType('projectionTarget', 'float');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('currentBalance', 'float');
+		$this->addType('monthlyContribution', 'float');
+		$this->addType('expectedReturnRate', 'float');
+		$this->addType('retirementAge', 'integer');
+		$this->addType('annualIncome', 'float');
+		$this->addType('transferValue', 'float');
+		$this->addType('projectionTarget', 'float');
+	}
 
-    /**
-     * Check if this is a defined contribution pension type.
-     */
-    public function isDefinedContribution(): bool {
-        return in_array($this->getType(), self::DC_TYPES, true);
-    }
+	/**
+	 * Check if this is a defined contribution pension type.
+	 */
+	public function isDefinedContribution(): bool {
+		return in_array($this->getType(), self::DC_TYPES, true);
+	}
 
-    /**
-     * Check if this is a defined benefit pension type.
-     */
-    public function isDefinedBenefit(): bool {
-        return $this->getType() === self::TYPE_DEFINED_BENEFIT;
-    }
+	/**
+	 * Check if this is a defined benefit pension type.
+	 */
+	public function isDefinedBenefit(): bool {
+		return $this->getType() === self::TYPE_DEFINED_BENEFIT;
+	}
 
-    /**
-     * Check if this is the state pension.
-     */
-    public function isStatePension(): bool {
-        return $this->getType() === self::TYPE_STATE;
-    }
+	/**
+	 * Check if this is the state pension.
+	 */
+	public function isStatePension(): bool {
+		return $this->getType() === self::TYPE_STATE;
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'userId' => $this->getUserId(),
-            'name' => $this->getName(),
-            'provider' => $this->getProvider(),
-            'type' => $this->getType(),
-            'currency' => $this->getCurrency(),
-            'currentBalance' => $this->getCurrentBalance(),
-            'monthlyContribution' => $this->getMonthlyContribution(),
-            'expectedReturnRate' => $this->getExpectedReturnRate(),
-            'retirementAge' => $this->getRetirementAge(),
-            'annualIncome' => $this->getAnnualIncome(),
-            'transferValue' => $this->getTransferValue(),
-            'projectionTarget' => $this->getProjectionTarget(),
-            'createdAt' => $this->getCreatedAt(),
-            'updatedAt' => $this->getUpdatedAt(),
-            'isDefinedContribution' => $this->isDefinedContribution(),
-            'isDefinedBenefit' => $this->isDefinedBenefit(),
-            'isStatePension' => $this->isStatePension(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'userId' => $this->getUserId(),
+			'name' => $this->getName(),
+			'provider' => $this->getProvider(),
+			'type' => $this->getType(),
+			'currency' => $this->getCurrency(),
+			'currentBalance' => $this->getCurrentBalance(),
+			'monthlyContribution' => $this->getMonthlyContribution(),
+			'expectedReturnRate' => $this->getExpectedReturnRate(),
+			'retirementAge' => $this->getRetirementAge(),
+			'annualIncome' => $this->getAnnualIncome(),
+			'transferValue' => $this->getTransferValue(),
+			'projectionTarget' => $this->getProjectionTarget(),
+			'createdAt' => $this->getCreatedAt(),
+			'updatedAt' => $this->getUpdatedAt(),
+			'isDefinedContribution' => $this->isDefinedContribution(),
+			'isDefinedBenefit' => $this->isDefinedBenefit(),
+			'isStatePension' => $this->isStatePension(),
+		];
+	}
 }

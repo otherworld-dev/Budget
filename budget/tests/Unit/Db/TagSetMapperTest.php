@@ -14,157 +14,157 @@ use OCP\IDBConnection;
 use PHPUnit\Framework\TestCase;
 
 class TagSetMapperTest extends TestCase {
-    private TagSetMapper $mapper;
-    private IDBConnection $db;
-    private IQueryBuilder $qb;
-    private IExpressionBuilder $expr;
-    private IResult $result;
+	private TagSetMapper $mapper;
+	private IDBConnection $db;
+	private IQueryBuilder $qb;
+	private IExpressionBuilder $expr;
+	private IResult $result;
 
-    protected function setUp(): void {
-        $this->db = $this->createMock(IDBConnection::class);
-        $this->qb = $this->createMock(IQueryBuilder::class);
-        $this->expr = $this->createMock(IExpressionBuilder::class);
-        $this->result = $this->createMock(IResult::class);
+	protected function setUp(): void {
+		$this->db = $this->createMock(IDBConnection::class);
+		$this->qb = $this->createMock(IQueryBuilder::class);
+		$this->expr = $this->createMock(IExpressionBuilder::class);
+		$this->result = $this->createMock(IResult::class);
 
-        $this->db->method('getQueryBuilder')->willReturn($this->qb);
-        $this->qb->method('expr')->willReturn($this->expr);
-        $this->qb->method('getSQL')->willReturn('');
-        $this->qb->method('createNamedParameter')->willReturn(':param');
+		$this->db->method('getQueryBuilder')->willReturn($this->qb);
+		$this->qb->method('expr')->willReturn($this->expr);
+		$this->qb->method('getSQL')->willReturn('');
+		$this->qb->method('createNamedParameter')->willReturn(':param');
 
-        foreach (['select', 'from', 'where', 'andWhere', 'orderBy',
-                   'addOrderBy', 'innerJoin', 'delete'] as $method) {
-            $this->qb->method($method)->willReturnSelf();
-        }
+		foreach (['select', 'from', 'where', 'andWhere', 'orderBy',
+			'addOrderBy', 'innerJoin', 'delete'] as $method) {
+			$this->qb->method($method)->willReturnSelf();
+		}
 
-        $this->mapper = new TagSetMapper($this->db);
-    }
+		$this->mapper = new TagSetMapper($this->db);
+	}
 
-    private function makeTagSetRow(array $overrides = []): array {
-        return array_merge([
-            'id' => 1,
-            'category_id' => 5,
-            'name' => 'Priority',
-            'description' => 'Priority level',
-            'sort_order' => 0,
-            'created_at' => '2026-01-01 00:00:00',
-            'updated_at' => '2026-01-01 00:00:00',
-        ], $overrides);
-    }
+	private function makeTagSetRow(array $overrides = []): array {
+		return array_merge([
+			'id' => 1,
+			'category_id' => 5,
+			'name' => 'Priority',
+			'description' => 'Priority level',
+			'sort_order' => 0,
+			'created_at' => '2026-01-01 00:00:00',
+			'updated_at' => '2026-01-01 00:00:00',
+		], $overrides);
+	}
 
-    // ===== getTableName =====
+	// ===== getTableName =====
 
-    public function testTableNameIsCorrect(): void {
-        $this->assertEquals('budget_tag_sets', $this->mapper->getTableName());
-    }
+	public function testTableNameIsCorrect(): void {
+		$this->assertEquals('budget_tag_sets', $this->mapper->getTableName());
+	}
 
-    // ===== find =====
+	// ===== find =====
 
-    public function testFindReturnsTagSet(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls($this->makeTagSetRow(), false);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindReturnsTagSet(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls($this->makeTagSetRow(), false);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $tagSet = $this->mapper->find(1, 'user1');
+		$tagSet = $this->mapper->find(1, 'user1');
 
-        $this->assertInstanceOf(TagSet::class, $tagSet);
-        $this->assertEquals('Priority', $tagSet->getName());
-        $this->assertEquals(5, $tagSet->getCategoryId());
-    }
+		$this->assertInstanceOf(TagSet::class, $tagSet);
+		$this->assertEquals('Priority', $tagSet->getName());
+		$this->assertEquals(5, $tagSet->getCategoryId());
+	}
 
-    public function testFindThrowsWhenNotFound(): void {
-        $this->result->method('fetch')->willReturn(false);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindThrowsWhenNotFound(): void {
+		$this->result->method('fetch')->willReturn(false);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $this->expectException(DoesNotExistException::class);
+		$this->expectException(DoesNotExistException::class);
 
-        $this->mapper->find(999, 'user1');
-    }
+		$this->mapper->find(999, 'user1');
+	}
 
-    // ===== findByCategory =====
+	// ===== findByCategory =====
 
-    public function testFindByCategoryReturnsTagSets(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeTagSetRow(['id' => 1, 'name' => 'Priority']),
-                $this->makeTagSetRow(['id' => 2, 'name' => 'Location']),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindByCategoryReturnsTagSets(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeTagSetRow(['id' => 1, 'name' => 'Priority']),
+				$this->makeTagSetRow(['id' => 2, 'name' => 'Location']),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $tagSets = $this->mapper->findByCategory(5, 'user1');
+		$tagSets = $this->mapper->findByCategory(5, 'user1');
 
-        $this->assertCount(2, $tagSets);
-        $this->assertEquals('Priority', $tagSets[0]->getName());
-    }
+		$this->assertCount(2, $tagSets);
+		$this->assertEquals('Priority', $tagSets[0]->getName());
+	}
 
-    // ===== findAll =====
+	// ===== findAll =====
 
-    public function testFindAllReturnsTagSets(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeTagSetRow(['id' => 1]),
-                $this->makeTagSetRow(['id' => 2]),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindAllReturnsTagSets(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeTagSetRow(['id' => 1]),
+				$this->makeTagSetRow(['id' => 2]),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $tagSets = $this->mapper->findAll('user1');
+		$tagSets = $this->mapper->findAll('user1');
 
-        $this->assertCount(2, $tagSets);
-    }
+		$this->assertCount(2, $tagSets);
+	}
 
-    // ===== findByIds =====
+	// ===== findByIds =====
 
-    public function testFindByIdsReturnsEmptyForEmptyInput(): void {
-        $this->qb->expects($this->never())->method('executeQuery');
+	public function testFindByIdsReturnsEmptyForEmptyInput(): void {
+		$this->qb->expects($this->never())->method('executeQuery');
 
-        $result = $this->mapper->findByIds([], 'user1');
+		$result = $this->mapper->findByIds([], 'user1');
 
-        $this->assertEmpty($result);
-    }
+		$this->assertEmpty($result);
+	}
 
-    public function testFindByIdsReturnsIndexedById(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeTagSetRow(['id' => 5, 'name' => 'Priority']),
-                $this->makeTagSetRow(['id' => 10, 'name' => 'Location']),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindByIdsReturnsIndexedById(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeTagSetRow(['id' => 5, 'name' => 'Priority']),
+				$this->makeTagSetRow(['id' => 10, 'name' => 'Location']),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $result = $this->mapper->findByIds([5, 10], 'user1');
+		$result = $this->mapper->findByIds([5, 10], 'user1');
 
-        $this->assertArrayHasKey(5, $result);
-        $this->assertArrayHasKey(10, $result);
-        $this->assertEquals('Priority', $result[5]->getName());
-        $this->assertEquals('Location', $result[10]->getName());
-    }
+		$this->assertArrayHasKey(5, $result);
+		$this->assertArrayHasKey(10, $result);
+		$this->assertEquals('Priority', $result[5]->getName());
+		$this->assertEquals('Location', $result[10]->getName());
+	}
 
-    // ===== deleteAll =====
+	// ===== deleteAll =====
 
-    public function testDeleteAllReturnsZeroWhenNoTagSets(): void {
-        $this->result->method('fetchAll')->willReturn([]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testDeleteAllReturnsZeroWhenNoTagSets(): void {
+		$this->result->method('fetchAll')->willReturn([]);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $count = $this->mapper->deleteAll('user1');
+		$count = $this->mapper->deleteAll('user1');
 
-        $this->assertEquals(0, $count);
-    }
+		$this->assertEquals(0, $count);
+	}
 
-    public function testDeleteAllReturnsAffectedRows(): void {
-        $this->result->method('fetchAll')->willReturn(['1', '2', '3']);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-        $this->qb->method('executeStatement')->willReturn(3);
+	public function testDeleteAllReturnsAffectedRows(): void {
+		$this->result->method('fetchAll')->willReturn(['1', '2', '3']);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+		$this->qb->method('executeStatement')->willReturn(3);
 
-        $count = $this->mapper->deleteAll('user1');
+		$count = $this->mapper->deleteAll('user1');
 
-        $this->assertEquals(3, $count);
-    }
+		$this->assertEquals(3, $count);
+	}
 }

@@ -50,60 +50,60 @@ use OCP\AppFramework\Db\Entity;
  * @method void setExcludedFromForecast(bool $excludedFromForecast)
  */
 class RecurringIncome extends Entity implements JsonSerializable {
-    protected $userId;
-    protected $name;
-    protected $description;
-    protected $amount;
-    protected $frequency;        // monthly, weekly, yearly, quarterly, biweekly
-    protected $expectedDay;      // Day of month (1-31) or day of week (1-7) for weekly
-    protected $expectedMonth;    // Month (1-12) for yearly income
-    protected $categoryId;
-    protected $accountId;
-    protected $source;           // Income source (employer name, dividend source, etc.)
-    protected $autoDetectPattern;
-    protected $isActive;
-    protected $autoCreateEnabled;
-    protected $lastReceivedDate;
-    protected $nextExpectedDate;
-    protected $startDate;        // Recurrence anchor: weekly/biweekly occurrences fall on startDate + n*interval (#363)
-    protected $notes;
-    protected $createdAt;
-    protected $excludedFromForecast;   // Extraordinary recurring item: keep its transactions out of the forecast
+	protected $userId;
+	protected $name;
+	protected $description;
+	protected $amount;
+	protected $frequency;        // monthly, weekly, yearly, quarterly, biweekly
+	protected $expectedDay;      // Day of month (1-31) or day of week (1-7) for weekly
+	protected $expectedMonth;    // Month (1-12) for yearly income
+	protected $categoryId;
+	protected $accountId;
+	protected $source;           // Income source (employer name, dividend source, etc.)
+	protected $autoDetectPattern;
+	protected $isActive;
+	protected $autoCreateEnabled;
+	protected $lastReceivedDate;
+	protected $nextExpectedDate;
+	protected $startDate;        // Recurrence anchor: weekly/biweekly occurrences fall on startDate + n*interval (#363)
+	protected $notes;
+	protected $createdAt;
+	protected $excludedFromForecast;   // Extraordinary recurring item: keep its transactions out of the forecast
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('amount', 'float');
-        $this->addType('expectedDay', 'integer');
-        $this->addType('expectedMonth', 'integer');
-        $this->addType('categoryId', 'integer');
-        $this->addType('accountId', 'integer');
-        $this->addType('isActive', 'boolean');
-        $this->addType('autoCreateEnabled', 'boolean');
-        $this->addType('excludedFromForecast', 'boolean');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('amount', 'float');
+		$this->addType('expectedDay', 'integer');
+		$this->addType('expectedMonth', 'integer');
+		$this->addType('categoryId', 'integer');
+		$this->addType('accountId', 'integer');
+		$this->addType('isActive', 'boolean');
+		$this->addType('autoCreateEnabled', 'boolean');
+		$this->addType('excludedFromForecast', 'boolean');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'userId' => $this->getUserId(),
-            'name' => $this->getName(),
-            'description' => $this->getDescription(),
-            'amount' => $this->getAmount(),
-            'frequency' => $this->getFrequency(),
-            'expectedDay' => $this->getExpectedDay(),
-            'expectedMonth' => $this->getExpectedMonth(),
-            'categoryId' => $this->getCategoryId(),
-            'accountId' => $this->getAccountId(),
-            'source' => $this->getSource(),
-            'autoDetectPattern' => $this->getAutoDetectPattern(),
-            'isActive' => $this->getIsActive(),
-            'autoCreateEnabled' => $this->getAutoCreateEnabled(),
-            'lastReceivedDate' => $this->getLastReceivedDate(),
-            'nextExpectedDate' => $this->getNextExpectedDate(),
-            'startDate' => $this->getStartDate(),
-            'notes' => $this->getNotes(),
-            'createdAt' => $this->getCreatedAt(),
-            'excludedFromForecast' => $this->getExcludedFromForecast() ?? false,
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'userId' => $this->getUserId(),
+			'name' => $this->getName(),
+			'description' => $this->getDescription(),
+			'amount' => $this->getAmount(),
+			'frequency' => $this->getFrequency(),
+			'expectedDay' => $this->getExpectedDay(),
+			'expectedMonth' => $this->getExpectedMonth(),
+			'categoryId' => $this->getCategoryId(),
+			'accountId' => $this->getAccountId(),
+			'source' => $this->getSource(),
+			'autoDetectPattern' => $this->getAutoDetectPattern(),
+			'isActive' => $this->getIsActive(),
+			'autoCreateEnabled' => $this->getAutoCreateEnabled(),
+			'lastReceivedDate' => $this->getLastReceivedDate(),
+			'nextExpectedDate' => $this->getNextExpectedDate(),
+			'startDate' => $this->getStartDate(),
+			'notes' => $this->getNotes(),
+			'createdAt' => $this->getCreatedAt(),
+			'excludedFromForecast' => $this->getExcludedFromForecast() ?? false,
+		];
+	}
 }

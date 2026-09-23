@@ -122,14 +122,14 @@ class NetWorthSnapshotJobTest extends TestCase {
 			->method('error')
 			->with(
 				$this->stringContains('DB down'),
-				$this->callback(fn($ctx) => $ctx['app'] === 'budget')
+				$this->callback(fn ($ctx) => $ctx['app'] === 'budget')
 			);
 
 		$this->invokeRun();
 	}
 
 	private function mockGetAllUserIds(array $userIds): void {
-		$rows = array_map(fn($id) => ['user_id' => $id], $userIds);
+		$rows = array_map(fn ($id) => ['user_id' => $id], $userIds);
 		$currentIndex = 0;
 
 		$result = $this->createMock(\OCP\DB\IResult::class);

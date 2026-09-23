@@ -21,37 +21,37 @@ use OCP\SetupCheck\SetupResult;
  * at any moment (#333), not just a cosmetic issue.
  */
 class BudgetSchemaCheck implements ISetupCheck {
-    public function __construct(
-        private SchemaVersionService $schemaVersionService,
-        private IL10N $l,
-    ) {
-    }
+	public function __construct(
+		private SchemaVersionService $schemaVersionService,
+		private IL10N $l,
+	) {
+	}
 
-    public function getCategory(): string {
-        return 'database';
-    }
+	public function getCategory(): string {
+		return 'database';
+	}
 
-    public function getName(): string {
-        return $this->l->t('Budget database migrations');
-    }
+	public function getName(): string {
+		return $this->l->t('Budget database migrations');
+	}
 
-    public function run(): SetupResult {
-        $warning = $this->schemaVersionService->getWarning();
-        if ($warning === null) {
-            return SetupResult::success($this->l->t('Budget\'s database schema is up to date.'));
-        }
+	public function run(): SetupResult {
+		$warning = $this->schemaVersionService->getWarning();
+		if ($warning === null) {
+			return SetupResult::success($this->l->t('Budget\'s database schema is up to date.'));
+		}
 
-        // The overview is the one place the administrator who can run occ
-        // actually looks, so it carries what is missing and the fix, not
-        // just the headline (#333).
-        $lines = [$warning['message']];
-        foreach ($warning['details'] ?? [] as $detail) {
-            $lines[] = '- ' . $detail;
-        }
-        if (($warning['command'] ?? '') !== '') {
-            $lines[] = $this->l->t('An administrator can finish it by running: %1$s', [$warning['command']]);
-        }
+		// The overview is the one place the administrator who can run occ
+		// actually looks, so it carries what is missing and the fix, not
+		// just the headline (#333).
+		$lines = [$warning['message']];
+		foreach ($warning['details'] ?? [] as $detail) {
+			$lines[] = '- ' . $detail;
+		}
+		if (($warning['command'] ?? '') !== '') {
+			$lines[] = $this->l->t('An administrator can finish it by running: %1$s', [$warning['command']]);
+		}
 
-        return SetupResult::error(implode("\n", $lines));
-    }
+		return SetupResult::error(implode("\n", $lines));
+	}
 }

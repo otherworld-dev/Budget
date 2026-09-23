@@ -26,7 +26,7 @@ class BillSplitTemplateValidationTest extends TestCase {
 	}
 
 	private function validate(array $amounts, float $billAmount): array {
-		$splits = array_map(static fn($amount) => ['amount' => $amount, 'categoryId' => 1], $amounts);
+		$splits = array_map(static fn ($amount) => ['amount' => $amount, 'categoryId' => 1], $amounts);
 		return (new \ReflectionMethod($this->controller, 'validateSplitTemplate'))
 			->invoke($this->controller, $splits, $billAmount);
 	}

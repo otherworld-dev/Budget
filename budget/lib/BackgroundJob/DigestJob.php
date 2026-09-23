@@ -31,32 +31,32 @@ use Psr\Log\LoggerInterface;
  */
 class DigestJob extends TimedJob {
 
-    public function __construct(ITimeFactory $time) {
-        parent::__construct($time);
+	public function __construct(ITimeFactory $time) {
+		parent::__construct($time);
 
-        $this->setInterval(24 * 60 * 60);
-        $this->setTimeSensitivity(\OCP\BackgroundJob\IJob::TIME_INSENSITIVE);
-    }
+		$this->setInterval(24 * 60 * 60);
+		$this->setTimeSensitivity(\OCP\BackgroundJob\IJob::TIME_INSENSITIVE);
+	}
 
-    protected function run($argument): void {
-        $jobList = Server::get(IJobList::class);
-        $users = new JobUsers(Server::get(IDBConnection::class));
+	protected function run($argument): void {
+		$jobList = Server::get(IJobList::class);
+		$users = new JobUsers(Server::get(IDBConnection::class));
 
-        $queued = 0;
-        $waiting = 0;
-        foreach (JobUsers::union($users->withSettingEnabled('digest_enabled'), $users->accountOwners()) as $userId) {
-            $jobArgument = ['userId' => $userId];
-            if ($jobList->has(UserDigestJob::class, $jobArgument)) {
-                $waiting++;
-                continue;
-            }
-            $jobList->add(UserDigestJob::class, $jobArgument);
-            $queued++;
-        }
+		$queued = 0;
+		$waiting = 0;
+		foreach (JobUsers::union($users->withSettingEnabled('digest_enabled'), $users->accountOwners()) as $userId) {
+			$jobArgument = ['userId' => $userId];
+			if ($jobList->has(UserDigestJob::class, $jobArgument)) {
+				$waiting++;
+				continue;
+			}
+			$jobList->add(UserDigestJob::class, $jobArgument);
+			$queued++;
+		}
 
-        Server::get(LoggerInterface::class)->info(
-            "Digest job queued {$queued} users" . ($waiting > 0 ? ", {$waiting} still waiting from an earlier run" : ''),
-            ['app' => 'budget']
-        );
-    }
+		Server::get(LoggerInterface::class)->info(
+			"Digest job queued {$queued} users" . ($waiting > 0 ? ", {$waiting} still waiting from an earlier run" : ''),
+			['app' => 'budget']
+		);
+	}
 }

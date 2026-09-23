@@ -30,43 +30,43 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCreatedAt(string $createdAt)
  */
 class PensionContribution extends Entity implements JsonSerializable {
-    public const KIND_CONTRIBUTION = 'contribution';
-    public const KIND_WITHDRAWAL = 'withdrawal';
+	public const KIND_CONTRIBUTION = 'contribution';
+	public const KIND_WITHDRAWAL = 'withdrawal';
 
-    protected $userId;
-    protected $pensionId;
-    protected $amount;
-    protected $date;
-    protected $note;
-    protected $transactionId;
-    protected $sourceAccountId;
-    protected $kind;
-    protected $createdAt;
+	protected $userId;
+	protected $pensionId;
+	protected $amount;
+	protected $date;
+	protected $note;
+	protected $transactionId;
+	protected $sourceAccountId;
+	protected $kind;
+	protected $createdAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('pensionId', 'integer');
-        $this->addType('amount', 'float');
-        $this->addType('transactionId', 'integer');
-        $this->addType('sourceAccountId', 'integer');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('pensionId', 'integer');
+		$this->addType('amount', 'float');
+		$this->addType('transactionId', 'integer');
+		$this->addType('sourceAccountId', 'integer');
+	}
 
-    public function isWithdrawal(): bool {
-        return $this->getKind() === self::KIND_WITHDRAWAL;
-    }
+	public function isWithdrawal(): bool {
+		return $this->getKind() === self::KIND_WITHDRAWAL;
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'userId' => $this->getUserId(),
-            'pensionId' => $this->getPensionId(),
-            'amount' => $this->getAmount(),
-            'date' => $this->getDate(),
-            'note' => $this->getNote(),
-            'transactionId' => $this->getTransactionId(),
-            'sourceAccountId' => $this->getSourceAccountId(),
-            'kind' => $this->getKind() ?? self::KIND_CONTRIBUTION,
-            'createdAt' => $this->getCreatedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'userId' => $this->getUserId(),
+			'pensionId' => $this->getPensionId(),
+			'amount' => $this->getAmount(),
+			'date' => $this->getDate(),
+			'note' => $this->getNote(),
+			'transactionId' => $this->getTransactionId(),
+			'sourceAccountId' => $this->getSourceAccountId(),
+			'kind' => $this->getKind() ?? self::KIND_CONTRIBUTION,
+			'createdAt' => $this->getCreatedAt(),
+		];
+	}
 }

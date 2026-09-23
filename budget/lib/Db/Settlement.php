@@ -26,30 +26,30 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCurrency(?string $currency)
  */
 class Settlement extends Entity implements JsonSerializable {
-    protected $userId;
-    protected $contactId;
-    protected $amount;
-    protected $date;
-    protected $notes;
-    protected $createdAt;
-    protected $currency;
+	protected $userId;
+	protected $contactId;
+	protected $amount;
+	protected $date;
+	protected $notes;
+	protected $createdAt;
+	protected $currency;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('contactId', 'integer');
-        $this->addType('amount', 'float');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('contactId', 'integer');
+		$this->addType('amount', 'float');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'userId' => $this->getUserId(),
-            'contactId' => $this->getContactId(),
-            'amount' => $this->getAmount(),
-            'date' => $this->getDate(),
-            'notes' => $this->getNotes(),
-            'createdAt' => $this->getCreatedAt(),
-            'currency' => $this->getCurrency(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'userId' => $this->getUserId(),
+			'contactId' => $this->getContactId(),
+			'amount' => $this->getAmount(),
+			'date' => $this->getDate(),
+			'notes' => $this->getNotes(),
+			'createdAt' => $this->getCreatedAt(),
+			'currency' => $this->getCurrency(),
+		];
+	}
 }

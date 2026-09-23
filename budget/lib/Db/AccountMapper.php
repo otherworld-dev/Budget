@@ -18,284 +18,284 @@ use OCP\IDBConnection;
  * @template-extends QBMapper<Account>
  */
 class AccountMapper extends QBMapper {
-    use EncryptedFieldsTrait;
+	use EncryptedFieldsTrait;
 
-    public function __construct(IDBConnection $db, EncryptionService $encryptionService) {
-        parent::__construct($db, 'budget_accounts', Account::class);
-        $this->initializeEncryption($encryptionService, Account::class);
-    }
+	public function __construct(IDBConnection $db, EncryptionService $encryptionService) {
+		parent::__construct($db, 'budget_accounts', Account::class);
+		$this->initializeEncryption($encryptionService, Account::class);
+	}
 
-    /**
-     * @throws DoesNotExistException
-     */
-    public function find(int $id, string $userId): Account {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+	/**
+	 * @throws DoesNotExistException
+	 */
+	public function find(int $id, string $userId): Account {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
 
-        $account = $this->findEntity($qb);
-        return $this->decryptEntity($account);
-    }
+		$account = $this->findEntity($qb);
+		return $this->decryptEntity($account);
+	}
 
-    /**
-     * Find an account by ID without user scoping.
-     * Only for trusted system-level operations (e.g. background jobs).
-     *
-     * @throws DoesNotExistException
-     */
-    public function findById(int $id): Account {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
+	/**
+	 * Find an account by ID without user scoping.
+	 * Only for trusted system-level operations (e.g. background jobs).
+	 *
+	 * @throws DoesNotExistException
+	 */
+	public function findById(int $id): Account {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
 
-        $account = $this->findEntity($qb);
-        return $this->decryptEntity($account);
-    }
+		$account = $this->findEntity($qb);
+		return $this->decryptEntity($account);
+	}
 
-    /**
-     * @return Account[]
-     */
-    public function findAll(string $userId): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->orderBy('name', 'ASC');
+	/**
+	 * @return Account[]
+	 */
+	public function findAll(string $userId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->orderBy('name', 'ASC');
 
-        $accounts = $this->findEntities($qb);
-        return $this->decryptEntities($accounts);
-    }
+		$accounts = $this->findEntities($qb);
+		return $this->decryptEntities($accounts);
+	}
 
-    /**
-     * The user's accounts that are not closed (#372). This is what every
-     * server-side "pick an account for new activity" list reads — the
-     * standalone quick-add page, import auto-matching — while findAll()
-     * stays the listing for history, totals and the accounts page.
-     *
-     * @return Account[]
-     */
-    public function findOpen(string $userId): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($this->openPredicate($qb))
-            ->orderBy('name', 'ASC');
+	/**
+	 * The user's accounts that are not closed (#372). This is what every
+	 * server-side "pick an account for new activity" list reads — the
+	 * standalone quick-add page, import auto-matching — while findAll()
+	 * stays the listing for history, totals and the accounts page.
+	 *
+	 * @return Account[]
+	 */
+	public function findOpen(string $userId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($this->openPredicate($qb))
+			->orderBy('name', 'ASC');
 
-        return $this->decryptEntities($this->findEntities($qb));
-    }
+		return $this->decryptEntities($this->findEntities($qb));
+	}
 
-    /**
-     * Rows not flagged closed. NULL counts as open: the column post-dates
-     * most rows, exactly like excluded_from_reports.
-     */
-    private function openPredicate(IQueryBuilder $qb): ICompositeExpression {
-        return $qb->expr()->orX(
-            $qb->expr()->isNull('closed'),
-            $qb->expr()->eq('closed', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL))
-        );
-    }
+	/**
+	 * Rows not flagged closed. NULL counts as open: the column post-dates
+	 * most rows, exactly like excluded_from_reports.
+	 */
+	private function openPredicate(IQueryBuilder $qb): ICompositeExpression {
+		return $qb->expr()->orX(
+			$qb->expr()->isNull('closed'),
+			$qb->expr()->eq('closed', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL))
+		);
+	}
 
-    /**
-     * Find multiple accounts by IDs without user scoping.
-     * IDs are pre-authorized by GranularShareService.
-     *
-     * @param int[] $ids
-     * @return Account[]
-     */
-    public function findByIds(array $ids): array {
-        if (empty($ids)) {
-            return [];
-        }
+	/**
+	 * Find multiple accounts by IDs without user scoping.
+	 * IDs are pre-authorized by GranularShareService.
+	 *
+	 * @param int[] $ids
+	 * @return Account[]
+	 */
+	public function findByIds(array $ids): array {
+		if (empty($ids)) {
+			return [];
+		}
 
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->in('id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)));
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->in('id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)));
 
-        return $this->decryptEntities($this->findEntities($qb));
-    }
+		return $this->decryptEntities($this->findEntities($qb));
+	}
 
-    /**
-     * Calculate total balance for user across all accounts
-     */
-    public function getTotalBalance(string $userId, ?string $currency = null): float {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select($qb->func()->sum('balance'))
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            // Accounts flagged out of reports don't count toward the total (#286)
-            ->andWhere($qb->expr()->orX(
-                $qb->expr()->isNull('excluded_from_reports'),
-                $qb->expr()->eq('excluded_from_reports', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL))
-            ));
+	/**
+	 * Calculate total balance for user across all accounts
+	 */
+	public function getTotalBalance(string $userId, ?string $currency = null): float {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select($qb->func()->sum('balance'))
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			// Accounts flagged out of reports don't count toward the total (#286)
+			->andWhere($qb->expr()->orX(
+				$qb->expr()->isNull('excluded_from_reports'),
+				$qb->expr()->eq('excluded_from_reports', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL))
+			));
 
-        if ($currency !== null) {
-            $qb->andWhere($qb->expr()->eq('currency', $qb->createNamedParameter($currency)));
-        }
+		if ($currency !== null) {
+			$qb->andWhere($qb->expr()->eq('currency', $qb->createNamedParameter($currency)));
+		}
 
-        $result = $qb->executeQuery();
-        $sum = $result->fetchOne();
-        $result->closeCursor();
+		$result = $qb->executeQuery();
+		$sum = $result->fetchOne();
+		$result->closeCursor();
 
-        return (float) ($sum ?? 0);
-    }
+		return (float)($sum ?? 0);
+	}
 
-    public function updateBalance(int $accountId, float|string $newBalance, string $userId): Account {
-        // Normalize to string for database precision
-        $balanceStr = is_string($newBalance) ? $newBalance : sprintf('%.2f', $newBalance);
+	public function updateBalance(int $accountId, float|string $newBalance, string $userId): Account {
+		// Normalize to string for database precision
+		$balanceStr = is_string($newBalance) ? $newBalance : sprintf('%.2f', $newBalance);
 
-        $qb = $this->db->getQueryBuilder();
-        $qb->update($this->getTableName())
-            ->set('balance', $qb->createNamedParameter($balanceStr))
-            ->set('updated_at', $qb->createNamedParameter(date('Y-m-d H:i:s')))
-            ->where($qb->expr()->eq('id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+		$qb = $this->db->getQueryBuilder();
+		$qb->update($this->getTableName())
+			->set('balance', $qb->createNamedParameter($balanceStr))
+			->set('updated_at', $qb->createNamedParameter(date('Y-m-d H:i:s')))
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
 
-        $qb->executeStatement();
+		$qb->executeStatement();
 
-        return $this->find($accountId, $userId);
-    }
+		return $this->find($accountId, $userId);
+	}
 
-    /**
-     * Override insert to encrypt sensitive fields before storing.
-     */
-    public function insert(Entity $entity): Entity {
-        if ($entity instanceof Account) {
-            $this->encryptEntity($entity);
-        }
-        $inserted = parent::insert($entity);
-        if ($inserted instanceof Account) {
-            return $this->decryptEntity($inserted);
-        }
-        return $inserted;
-    }
+	/**
+	 * Override insert to encrypt sensitive fields before storing.
+	 */
+	public function insert(Entity $entity): Entity {
+		if ($entity instanceof Account) {
+			$this->encryptEntity($entity);
+		}
+		$inserted = parent::insert($entity);
+		if ($inserted instanceof Account) {
+			return $this->decryptEntity($inserted);
+		}
+		return $inserted;
+	}
 
-    /**
-     * Override update to ensure all fields are persisted correctly with encryption.
-     * This works around an issue where Entity setters don't always mark fields as updated.
-     */
-    public function update(Entity $entity): Entity {
-        if (!($entity instanceof Account)) {
-            return parent::update($entity);
-        }
+	/**
+	 * Override update to ensure all fields are persisted correctly with encryption.
+	 * This works around an issue where Entity setters don't always mark fields as updated.
+	 */
+	public function update(Entity $entity): Entity {
+		if (!($entity instanceof Account)) {
+			return parent::update($entity);
+		}
 
-        /** @var Account $entity */
-        // Normalize balance to string at the account currency's precision so a
-        // crypto balance keeps its 8dp instead of being rounded to 2 (#331).
-        $dp = Currency::decimalsFor($entity->getCurrency());
-        $balance = $entity->getBalance();
-        $balanceStr = is_float($balance) ? sprintf('%.' . $dp . 'f', $balance) : (string) $balance;
+		/** @var Account $entity */
+		// Normalize balance to string at the account currency's precision so a
+		// crypto balance keeps its 8dp instead of being rounded to 2 (#331).
+		$dp = Currency::decimalsFor($entity->getCurrency());
+		$balance = $entity->getBalance();
+		$balanceStr = is_float($balance) ? sprintf('%.' . $dp . 'f', $balance) : (string)$balance;
 
-        $qb = $this->db->getQueryBuilder();
-        $qb->update($this->getTableName())
-            ->set('name', $qb->createNamedParameter($entity->getName()))
-            ->set('type', $qb->createNamedParameter($entity->getType()))
-            ->set('balance', $qb->createNamedParameter($balanceStr))
-            ->set('currency', $qb->createNamedParameter($entity->getCurrency()))
-            ->set('institution', $qb->createNamedParameter($entity->getInstitution()))
-            ->set('account_number', $qb->createNamedParameter($this->getEncryptedValue($entity, 'accountNumber')))
-            ->set('routing_number', $qb->createNamedParameter($this->getEncryptedValue($entity, 'routingNumber')))
-            ->set('sort_code', $qb->createNamedParameter($this->getEncryptedValue($entity, 'sortCode')))
-            ->set('iban', $qb->createNamedParameter($this->getEncryptedValue($entity, 'iban')))
-            ->set('swift_bic', $qb->createNamedParameter($this->getEncryptedValue($entity, 'swiftBic')))
-            ->set('account_holder_name', $qb->createNamedParameter($entity->getAccountHolderName()))
-            ->set('opening_date', $qb->createNamedParameter($entity->getOpeningDate()))
-            ->set('opening_balance', $qb->createNamedParameter(
-                $entity->getOpeningBalance() !== null ? sprintf('%.' . $dp . 'f', $entity->getOpeningBalance()) : null
-            ))
-            ->set('interest_rate', $qb->createNamedParameter($entity->getInterestRate()))
-            ->set('credit_limit', $qb->createNamedParameter($entity->getCreditLimit()))
-            ->set('overdraft_limit', $qb->createNamedParameter($entity->getOverdraftLimit()))
-            ->set('minimum_payment', $qb->createNamedParameter($entity->getMinimumPayment()))
-            ->set('statement_day', $entity->getStatementDay() === null
-                ? $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL)
-                : $qb->createNamedParameter($entity->getStatementDay(), IQueryBuilder::PARAM_INT))
-            ->set('interest_enabled', $qb->createNamedParameter($entity->getInterestEnabled(), IQueryBuilder::PARAM_BOOL))
-            ->set('compounding_frequency', $qb->createNamedParameter($entity->getCompoundingFrequency()))
-            ->set('accrued_interest', $qb->createNamedParameter(
-                $entity->getAccruedInterest() !== null ? sprintf('%.' . $dp . 'f', $entity->getAccruedInterest()) : sprintf('%.' . $dp . 'f', 0)
-            ))
-            ->set('wallet_address', $qb->createNamedParameter($this->getEncryptedValue($entity, 'walletAddress')))
-            ->set('last_reconciled', $qb->createNamedParameter($entity->getLastReconciled()))
-            ->set('excluded_from_reports', $qb->createNamedParameter($entity->getExcludedFromReports() ?? false, IQueryBuilder::PARAM_BOOL))
-            ->set('closed', $qb->createNamedParameter($entity->getClosed() ?? false, IQueryBuilder::PARAM_BOOL))
-            ->set('liability_in_credit', $entity->getLiabilityInCredit() === null
-                ? $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL)
-                : $qb->createNamedParameter($entity->getLiabilityInCredit(), IQueryBuilder::PARAM_BOOL))
-            ->set('updated_at', $qb->createNamedParameter($entity->getUpdatedAt()))
-            ->where($qb->expr()->eq('id', $qb->createNamedParameter($entity->getId(), IQueryBuilder::PARAM_INT)));
+		$qb = $this->db->getQueryBuilder();
+		$qb->update($this->getTableName())
+			->set('name', $qb->createNamedParameter($entity->getName()))
+			->set('type', $qb->createNamedParameter($entity->getType()))
+			->set('balance', $qb->createNamedParameter($balanceStr))
+			->set('currency', $qb->createNamedParameter($entity->getCurrency()))
+			->set('institution', $qb->createNamedParameter($entity->getInstitution()))
+			->set('account_number', $qb->createNamedParameter($this->getEncryptedValue($entity, 'accountNumber')))
+			->set('routing_number', $qb->createNamedParameter($this->getEncryptedValue($entity, 'routingNumber')))
+			->set('sort_code', $qb->createNamedParameter($this->getEncryptedValue($entity, 'sortCode')))
+			->set('iban', $qb->createNamedParameter($this->getEncryptedValue($entity, 'iban')))
+			->set('swift_bic', $qb->createNamedParameter($this->getEncryptedValue($entity, 'swiftBic')))
+			->set('account_holder_name', $qb->createNamedParameter($entity->getAccountHolderName()))
+			->set('opening_date', $qb->createNamedParameter($entity->getOpeningDate()))
+			->set('opening_balance', $qb->createNamedParameter(
+				$entity->getOpeningBalance() !== null ? sprintf('%.' . $dp . 'f', $entity->getOpeningBalance()) : null
+			))
+			->set('interest_rate', $qb->createNamedParameter($entity->getInterestRate()))
+			->set('credit_limit', $qb->createNamedParameter($entity->getCreditLimit()))
+			->set('overdraft_limit', $qb->createNamedParameter($entity->getOverdraftLimit()))
+			->set('minimum_payment', $qb->createNamedParameter($entity->getMinimumPayment()))
+			->set('statement_day', $entity->getStatementDay() === null
+				? $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL)
+				: $qb->createNamedParameter($entity->getStatementDay(), IQueryBuilder::PARAM_INT))
+			->set('interest_enabled', $qb->createNamedParameter($entity->getInterestEnabled(), IQueryBuilder::PARAM_BOOL))
+			->set('compounding_frequency', $qb->createNamedParameter($entity->getCompoundingFrequency()))
+			->set('accrued_interest', $qb->createNamedParameter(
+				$entity->getAccruedInterest() !== null ? sprintf('%.' . $dp . 'f', $entity->getAccruedInterest()) : sprintf('%.' . $dp . 'f', 0)
+			))
+			->set('wallet_address', $qb->createNamedParameter($this->getEncryptedValue($entity, 'walletAddress')))
+			->set('last_reconciled', $qb->createNamedParameter($entity->getLastReconciled()))
+			->set('excluded_from_reports', $qb->createNamedParameter($entity->getExcludedFromReports() ?? false, IQueryBuilder::PARAM_BOOL))
+			->set('closed', $qb->createNamedParameter($entity->getClosed() ?? false, IQueryBuilder::PARAM_BOOL))
+			->set('liability_in_credit', $entity->getLiabilityInCredit() === null
+				? $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL)
+				: $qb->createNamedParameter($entity->getLiabilityInCredit(), IQueryBuilder::PARAM_BOOL))
+			->set('updated_at', $qb->createNamedParameter($entity->getUpdatedAt()))
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($entity->getId(), IQueryBuilder::PARAM_INT)));
 
-        $qb->executeStatement();
+		$qb->executeStatement();
 
-        // Reload the entity from database to ensure we return the persisted state (decrypted)
-        return $this->find($entity->getId(), $entity->getUserId());
-    }
+		// Reload the entity from database to ensure we return the persisted state (decrypted)
+		return $this->find($entity->getId(), $entity->getUserId());
+	}
 
-    /**
-     * Find all accounts with interest tracking enabled for a user.
-     *
-     * @return Account[]
-     */
-    public function findWithInterestEnabled(string $userId): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('interest_enabled', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
-            // A closed account accrues nothing (#372)
-            ->andWhere($this->openPredicate($qb));
+	/**
+	 * Find all accounts with interest tracking enabled for a user.
+	 *
+	 * @return Account[]
+	 */
+	public function findWithInterestEnabled(string $userId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('interest_enabled', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+			// A closed account accrues nothing (#372)
+			->andWhere($this->openPredicate($qb));
 
-        return $this->findEntities($qb);
-    }
+		return $this->findEntities($qb);
+	}
 
-    /**
-     * Update only the cached accrued_interest value (used by background job).
-     */
-    public function updateAccruedInterest(int $accountId, string $amount): void {
-        $qb = $this->db->getQueryBuilder();
-        $qb->update($this->getTableName())
-            ->set('accrued_interest', $qb->createNamedParameter($amount))
-            ->set('updated_at', $qb->createNamedParameter(date('Y-m-d H:i:s')))
-            ->where($qb->expr()->eq('id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
-        $qb->executeStatement();
-    }
+	/**
+	 * Update only the cached accrued_interest value (used by background job).
+	 */
+	public function updateAccruedInterest(int $accountId, string $amount): void {
+		$qb = $this->db->getQueryBuilder();
+		$qb->update($this->getTableName())
+			->set('accrued_interest', $qb->createNamedParameter($amount))
+			->set('updated_at', $qb->createNamedParameter(date('Y-m-d H:i:s')))
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+		$qb->executeStatement();
+	}
 
-    /**
-     * Find an account by name for a user.
-     *
-     * @return Account|null
-     */
-    public function findByName(string $userId, string $name): ?Account {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('name', $qb->createNamedParameter($name)));
+	/**
+	 * Find an account by name for a user.
+	 *
+	 * @return Account|null
+	 */
+	public function findByName(string $userId, string $name): ?Account {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('name', $qb->createNamedParameter($name)));
 
-        try {
-            $entity = $this->findEntity($qb);
-            return $this->decryptEntity($entity);
-        } catch (DoesNotExistException $e) {
-            return null;
-        }
-    }
+		try {
+			$entity = $this->findEntity($qb);
+			return $this->decryptEntity($entity);
+		} catch (DoesNotExistException $e) {
+			return null;
+		}
+	}
 
-    /**
-     * Delete all accounts for a user
-     *
-     * @param string $userId
-     * @return int Number of deleted rows
-     */
-    public function deleteAll(string $userId): int {
-        $qb = $this->db->getQueryBuilder();
+	/**
+	 * Delete all accounts for a user
+	 *
+	 * @param string $userId
+	 * @return int Number of deleted rows
+	 */
+	public function deleteAll(string $userId): int {
+		$qb = $this->db->getQueryBuilder();
 
-        $qb->delete($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
+		$qb->delete($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
 
-        return $qb->executeStatement();
-    }
+		return $qb->executeStatement();
+	}
 }

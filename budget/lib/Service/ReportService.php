@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service;
 
-use OCA\Budget\Service\Report\ReportCalculator;
 use OCA\Budget\Service\Report\ReportAggregator;
+use OCA\Budget\Service\Report\ReportCalculator;
 use OCA\Budget\Service\Report\ReportExporter;
 use OCA\Budget\Service\Report\TagReportService;
 
@@ -13,426 +13,426 @@ use OCA\Budget\Service\Report\TagReportService;
  * Orchestrates report generation by delegating to specialized services.
  */
 class ReportService {
-    private ReportCalculator $calculator;
-    private ReportAggregator $aggregator;
-    private ReportExporter $exporter;
-    private TagReportService $tagReportService;
+	private ReportCalculator $calculator;
+	private ReportAggregator $aggregator;
+	private ReportExporter $exporter;
+	private TagReportService $tagReportService;
 
-    public function __construct(
-        ReportCalculator $calculator,
-        ReportAggregator $aggregator,
-        ReportExporter $exporter,
-        TagReportService $tagReportService
-    ) {
-        $this->calculator = $calculator;
-        $this->aggregator = $aggregator;
-        $this->exporter = $exporter;
-        $this->tagReportService = $tagReportService;
-    }
+	public function __construct(
+		ReportCalculator $calculator,
+		ReportAggregator $aggregator,
+		ReportExporter $exporter,
+		TagReportService $tagReportService,
+	) {
+		$this->calculator = $calculator;
+		$this->aggregator = $aggregator;
+		$this->exporter = $exporter;
+		$this->tagReportService = $tagReportService;
+	}
 
-    /**
-     * Generate a comprehensive financial summary.
-     * @param int[] $tagIds Optional tag filter (OR logic)
-     * @param bool $includeUntagged Include untagged transactions
-     */
-    public function generateSummary(
-        string $userId,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        array $tagIds = [],
-        bool $includeUntagged = true,
-        array $visibleAccountIds = []
-    ): array {
-        return $this->aggregator->generateSummary(
-            $userId,
-            $accountId,
-            $startDate,
-            $endDate,
-            $tagIds,
-            $includeUntagged,
-            $visibleAccountIds
-        );
-    }
+	/**
+	 * Generate a comprehensive financial summary.
+	 * @param int[] $tagIds Optional tag filter (OR logic)
+	 * @param bool $includeUntagged Include untagged transactions
+	 */
+	public function generateSummary(
+		string $userId,
+		string $startDate,
+		string $endDate,
+		?int $accountId = null,
+		array $tagIds = [],
+		bool $includeUntagged = true,
+		array $visibleAccountIds = [],
+	): array {
+		return $this->aggregator->generateSummary(
+			$userId,
+			$accountId,
+			$startDate,
+			$endDate,
+			$tagIds,
+			$includeUntagged,
+			$visibleAccountIds
+		);
+	}
 
-    /**
-     * Generate summary with comparison to previous period.
-     * @param int[] $tagIds Optional tag filter (OR logic)
-     * @param bool $includeUntagged Include untagged transactions
-     */
-    public function generateSummaryWithComparison(
-        string $userId,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        array $tagIds = [],
-        bool $includeUntagged = true,
-        array $visibleAccountIds = []
-    ): array {
-        return $this->aggregator->generateSummaryWithComparison(
-            $userId,
-            $accountId,
-            $startDate,
-            $endDate,
-            $tagIds,
-            $includeUntagged,
-            $visibleAccountIds
-        );
-    }
+	/**
+	 * Generate summary with comparison to previous period.
+	 * @param int[] $tagIds Optional tag filter (OR logic)
+	 * @param bool $includeUntagged Include untagged transactions
+	 */
+	public function generateSummaryWithComparison(
+		string $userId,
+		string $startDate,
+		string $endDate,
+		?int $accountId = null,
+		array $tagIds = [],
+		bool $includeUntagged = true,
+		array $visibleAccountIds = [],
+	): array {
+		return $this->aggregator->generateSummaryWithComparison(
+			$userId,
+			$accountId,
+			$startDate,
+			$endDate,
+			$tagIds,
+			$includeUntagged,
+			$visibleAccountIds
+		);
+	}
 
-    /**
-     * Generate a spending report grouped by the specified dimension.
-     *
-     * Every grouping reads the same rows — excluded-from-reports and muted
-     * categories are dropped in SQL by the mapper's report scope, split parts
-     * included (#219) — so the groupings that cover every transaction
-     * (category, month, account) total the same for one period. Vendor lists
-     * the largest named vendors and tag only tagged transactions, so those
-     * two can total less.
-     *
-     * @param int|null $tagSetId Tag set ID when groupBy='tag'
-     * @param int|null $categoryId Category filter when groupBy='tag'
-     */
-    public function getSpendingReport(
-        string $userId,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        string $groupBy = 'category',
-        ?int $tagSetId = null,
-        ?int $categoryId = null,
-        ?array $visibleAccountIds = null
-    ): array {
-        $report = [
-            'period' => [
-                'startDate' => $startDate,
-                'endDate' => $endDate
-            ],
-            'groupBy' => $groupBy,
-            'data' => [],
-            'totals' => [
-                'amount' => 0,
-                'transactions' => 0
-            ]
-        ];
+	/**
+	 * Generate a spending report grouped by the specified dimension.
+	 *
+	 * Every grouping reads the same rows — excluded-from-reports and muted
+	 * categories are dropped in SQL by the mapper's report scope, split parts
+	 * included (#219) — so the groupings that cover every transaction
+	 * (category, month, account) total the same for one period. Vendor lists
+	 * the largest named vendors and tag only tagged transactions, so those
+	 * two can total less.
+	 *
+	 * @param int|null $tagSetId Tag set ID when groupBy='tag'
+	 * @param int|null $categoryId Category filter when groupBy='tag'
+	 */
+	public function getSpendingReport(
+		string $userId,
+		string $startDate,
+		string $endDate,
+		?int $accountId = null,
+		string $groupBy = 'category',
+		?int $tagSetId = null,
+		?int $categoryId = null,
+		?array $visibleAccountIds = null,
+	): array {
+		$report = [
+			'period' => [
+				'startDate' => $startDate,
+				'endDate' => $endDate
+			],
+			'groupBy' => $groupBy,
+			'data' => [],
+			'totals' => [
+				'amount' => 0,
+				'transactions' => 0
+			]
+		];
 
-        $report['data'] = match ($groupBy) {
-            'category' => $this->calculator->getSpendingByCategory($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
-            'month' => $this->calculator->getSpendingByMonth($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
-            'vendor' => $this->calculator->getSpendingByVendor($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
-            'account' => $this->calculator->getSpendingByAccount($userId, $startDate, $endDate, $visibleAccountIds, $accountId),
-            'tag' => $tagSetId !== null
-                ? $this->calculator->getSpendingByTag($userId, $tagSetId, $startDate, $endDate, $accountId, $categoryId, $visibleAccountIds)
-                : [],
-            default => [],
-        };
+		$report['data'] = match ($groupBy) {
+			'category' => $this->calculator->getSpendingByCategory($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
+			'month' => $this->calculator->getSpendingByMonth($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
+			'vendor' => $this->calculator->getSpendingByVendor($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
+			'account' => $this->calculator->getSpendingByAccount($userId, $startDate, $endDate, $visibleAccountIds, $accountId),
+			'tag' => $tagSetId !== null
+				? $this->calculator->getSpendingByTag($userId, $tagSetId, $startDate, $endDate, $accountId, $categoryId, $visibleAccountIds)
+				: [],
+			default => [],
+		};
 
-        if ($groupBy === 'tag' && $tagSetId !== null) {
-            $report['tagSetId'] = $tagSetId;
-        }
+		if ($groupBy === 'tag' && $tagSetId !== null) {
+			$report['tagSetId'] = $tagSetId;
+		}
 
-        $report['totals'] = $this->calculator->calculateTotals($report['data']);
+		$report['totals'] = $this->calculator->calculateTotals($report['data']);
 
-        return $report;
-    }
+		return $report;
+	}
 
-    /**
-     * Generate an income report grouped by the specified dimension.
-     * @param int|null $tagSetId Tag set ID when groupBy='tag'
-     * @param int|null $categoryId Category filter when groupBy='tag'
-     */
-    public function getIncomeReport(
-        string $userId,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        string $groupBy = 'month',
-        ?int $tagSetId = null,
-        ?int $categoryId = null,
-        ?array $visibleAccountIds = null
-    ): array {
-        $report = [
-            'period' => [
-                'startDate' => $startDate,
-                'endDate' => $endDate
-            ],
-            'groupBy' => $groupBy,
-            'data' => [],
-            'totals' => [
-                'amount' => 0,
-                'transactions' => 0
-            ]
-        ];
+	/**
+	 * Generate an income report grouped by the specified dimension.
+	 * @param int|null $tagSetId Tag set ID when groupBy='tag'
+	 * @param int|null $categoryId Category filter when groupBy='tag'
+	 */
+	public function getIncomeReport(
+		string $userId,
+		string $startDate,
+		string $endDate,
+		?int $accountId = null,
+		string $groupBy = 'month',
+		?int $tagSetId = null,
+		?int $categoryId = null,
+		?array $visibleAccountIds = null,
+	): array {
+		$report = [
+			'period' => [
+				'startDate' => $startDate,
+				'endDate' => $endDate
+			],
+			'groupBy' => $groupBy,
+			'data' => [],
+			'totals' => [
+				'amount' => 0,
+				'transactions' => 0
+			]
+		];
 
-        $report['data'] = match ($groupBy) {
-            'category' => $this->calculator->getIncomeByCategory($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
-            'month' => $this->calculator->getIncomeByMonth($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
-            'source' => $this->calculator->getIncomeBySource($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
-            'tag' => $tagSetId !== null
-                ? $this->calculator->getIncomeByTag($userId, $tagSetId, $startDate, $endDate, $accountId, $categoryId, $visibleAccountIds)
-                : [],
-            default => [],
-        };
+		$report['data'] = match ($groupBy) {
+			'category' => $this->calculator->getIncomeByCategory($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
+			'month' => $this->calculator->getIncomeByMonth($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
+			'source' => $this->calculator->getIncomeBySource($userId, $accountId, $startDate, $endDate, $visibleAccountIds),
+			'tag' => $tagSetId !== null
+				? $this->calculator->getIncomeByTag($userId, $tagSetId, $startDate, $endDate, $accountId, $categoryId, $visibleAccountIds)
+				: [],
+			default => [],
+		};
 
-        if ($groupBy === 'tag' && $tagSetId !== null) {
-            $report['tagSetId'] = $tagSetId;
-        }
+		if ($groupBy === 'tag' && $tagSetId !== null) {
+			$report['tagSetId'] = $tagSetId;
+		}
 
-        $report['totals'] = $this->calculator->calculateTotals($report['data']);
+		$report['totals'] = $this->calculator->calculateTotals($report['data']);
 
-        return $report;
-    }
+		return $report;
+	}
 
-    /**
-     * Income and expenses side by side, each broken down by category, for the
-     * year-end job of showing what came in and what went out (#344).
-     *
-     * Both halves come from the category reports, so the report scope they
-     * share (excluded and muted categories, transfers in the all-accounts
-     * view) holds here too.
-     *
-     * @param int[]|null $visibleAccountIds
-     * @return array{period: array{startDate: string, endDate: string}, income: array, expenses: array, totals: array{income: float, expenses: float, net: float}}
-     */
-    public function getIncomeExpenseReport(
-        string $userId,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        ?array $visibleAccountIds = null
-    ): array {
-        $income = $this->getIncomeReport($userId, $startDate, $endDate, $accountId, 'category', null, null, $visibleAccountIds);
-        $expenses = $this->getSpendingReport($userId, $startDate, $endDate, $accountId, 'category', null, null, $visibleAccountIds);
+	/**
+	 * Income and expenses side by side, each broken down by category, for the
+	 * year-end job of showing what came in and what went out (#344).
+	 *
+	 * Both halves come from the category reports, so the report scope they
+	 * share (excluded and muted categories, transfers in the all-accounts
+	 * view) holds here too.
+	 *
+	 * @param int[]|null $visibleAccountIds
+	 * @return array{period: array{startDate: string, endDate: string}, income: array, expenses: array, totals: array{income: float, expenses: float, net: float}}
+	 */
+	public function getIncomeExpenseReport(
+		string $userId,
+		string $startDate,
+		string $endDate,
+		?int $accountId = null,
+		?array $visibleAccountIds = null,
+	): array {
+		$income = $this->getIncomeReport($userId, $startDate, $endDate, $accountId, 'category', null, null, $visibleAccountIds);
+		$expenses = $this->getSpendingReport($userId, $startDate, $endDate, $accountId, 'category', null, null, $visibleAccountIds);
 
-        $totalIncome = (float)($income['totals']['amount'] ?? 0);
-        $totalExpenses = (float)($expenses['totals']['amount'] ?? 0);
-        // Through MoneyCalculator, never a float subtraction (#274)
-        $net = MoneyCalculator::toFloat(MoneyCalculator::subtract($totalIncome, $totalExpenses, 8));
+		$totalIncome = (float)($income['totals']['amount'] ?? 0);
+		$totalExpenses = (float)($expenses['totals']['amount'] ?? 0);
+		// Through MoneyCalculator, never a float subtraction (#274)
+		$net = MoneyCalculator::toFloat(MoneyCalculator::subtract($totalIncome, $totalExpenses, 8));
 
-        return [
-            'period' => [
-                'startDate' => $startDate,
-                'endDate' => $endDate,
-            ],
-            'income' => $income,
-            'expenses' => $expenses,
-            'totals' => [
-                'income' => $totalIncome,
-                'expenses' => $totalExpenses,
-                'net' => $net,
-            ],
-        ];
-    }
+		return [
+			'period' => [
+				'startDate' => $startDate,
+				'endDate' => $endDate,
+			],
+			'income' => $income,
+			'expenses' => $expenses,
+			'totals' => [
+				'income' => $totalIncome,
+				'expenses' => $totalExpenses,
+				'net' => $net,
+			],
+		];
+	}
 
-    /**
-     * Generate a budget report with category-by-category breakdown.
-     */
-    public function getBudgetReport(string $userId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null, ?string $snapshotMonth = null): array {
-        return $this->aggregator->getBudgetReport($userId, $startDate, $endDate, $accountId, $visibleAccountIds, $snapshotMonth);
-    }
+	/**
+	 * Generate a budget report with category-by-category breakdown.
+	 */
+	public function getBudgetReport(string $userId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null, ?string $snapshotMonth = null): array {
+		return $this->aggregator->getBudgetReport($userId, $startDate, $endDate, $accountId, $visibleAccountIds, $snapshotMonth);
+	}
 
-    /**
-     * Generate a cash flow report by month.
-     * @param int[] $tagIds Optional tag filter (OR logic)
-     * @param bool $includeUntagged Include untagged transactions
-     */
-    public function getCashFlowReport(
-        string $userId,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        array $tagIds = [],
-        bool $includeUntagged = true,
-        ?array $visibleAccountIds = null
-    ): array {
-        return $this->aggregator->getCashFlowReport(
-            $userId,
-            $accountId,
-            $startDate,
-            $endDate,
-            $tagIds,
-            $includeUntagged,
-            $visibleAccountIds
-        );
-    }
+	/**
+	 * Generate a cash flow report by month.
+	 * @param int[] $tagIds Optional tag filter (OR logic)
+	 * @param bool $includeUntagged Include untagged transactions
+	 */
+	public function getCashFlowReport(
+		string $userId,
+		string $startDate,
+		string $endDate,
+		?int $accountId = null,
+		array $tagIds = [],
+		bool $includeUntagged = true,
+		?array $visibleAccountIds = null,
+	): array {
+		return $this->aggregator->getCashFlowReport(
+			$userId,
+			$accountId,
+			$startDate,
+			$endDate,
+			$tagIds,
+			$includeUntagged,
+			$visibleAccountIds
+		);
+	}
 
-    /**
-     * Get tag dimensions for spending across categories.
-     */
-    public function getTagDimensions(
-        string $userId,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        ?int $categoryId = null,
-        ?array $visibleAccountIds = null
-    ): array {
-        return $this->aggregator->getTagDimensions(
-            $userId,
-            $startDate,
-            $endDate,
-            $accountId,
-            $categoryId,
-            $visibleAccountIds
-        );
-    }
+	/**
+	 * Get tag dimensions for spending across categories.
+	 */
+	public function getTagDimensions(
+		string $userId,
+		string $startDate,
+		string $endDate,
+		?int $accountId = null,
+		?int $categoryId = null,
+		?array $visibleAccountIds = null,
+	): array {
+		return $this->aggregator->getTagDimensions(
+			$userId,
+			$startDate,
+			$endDate,
+			$accountId,
+			$categoryId,
+			$visibleAccountIds
+		);
+	}
 
-    /**
-     * Get tag combination report.
-     */
-    public function getTagCombinationReport(
-        string $userId,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        ?int $categoryId = null,
-        int $minCombinationSize = 2,
-        int $limit = 50,
-        ?array $visibleAccountIds = null
-    ): array {
-        return $this->tagReportService->getTagCombinationReport(
-            $userId,
-            $startDate,
-            $endDate,
-            $accountId,
-            $categoryId,
-            $minCombinationSize,
-            $limit,
-            $visibleAccountIds
-        );
-    }
+	/**
+	 * Get tag combination report.
+	 */
+	public function getTagCombinationReport(
+		string $userId,
+		string $startDate,
+		string $endDate,
+		?int $accountId = null,
+		?int $categoryId = null,
+		int $minCombinationSize = 2,
+		int $limit = 50,
+		?array $visibleAccountIds = null,
+	): array {
+		return $this->tagReportService->getTagCombinationReport(
+			$userId,
+			$startDate,
+			$endDate,
+			$accountId,
+			$categoryId,
+			$minCombinationSize,
+			$limit,
+			$visibleAccountIds
+		);
+	}
 
-    /**
-     * Get cross-tabulation (pivot table) of two tag sets.
-     */
-    public function getTagCrossTabulation(
-        string $userId,
-        int $tagSetId1,
-        int $tagSetId2,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        ?int $categoryId = null,
-        ?array $visibleAccountIds = null
-    ): array {
-        return $this->tagReportService->getCrossTabulation(
-            $userId,
-            $tagSetId1,
-            $tagSetId2,
-            $startDate,
-            $endDate,
-            $accountId,
-            $categoryId,
-            $visibleAccountIds
-        );
-    }
+	/**
+	 * Get cross-tabulation (pivot table) of two tag sets.
+	 */
+	public function getTagCrossTabulation(
+		string $userId,
+		int $tagSetId1,
+		int $tagSetId2,
+		string $startDate,
+		string $endDate,
+		?int $accountId = null,
+		?int $categoryId = null,
+		?array $visibleAccountIds = null,
+	): array {
+		return $this->tagReportService->getCrossTabulation(
+			$userId,
+			$tagSetId1,
+			$tagSetId2,
+			$startDate,
+			$endDate,
+			$accountId,
+			$categoryId,
+			$visibleAccountIds
+		);
+	}
 
-    /**
-     * Get monthly trend for specific tags.
-     */
-    public function getTagTrendReport(
-        string $userId,
-        array $tagIds,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        ?array $visibleAccountIds = null
-    ): array {
-        return $this->tagReportService->getTagTrendReport(
-            $userId,
-            $tagIds,
-            $startDate,
-            $endDate,
-            $accountId,
-            $visibleAccountIds
-        );
-    }
+	/**
+	 * Get monthly trend for specific tags.
+	 */
+	public function getTagTrendReport(
+		string $userId,
+		array $tagIds,
+		string $startDate,
+		string $endDate,
+		?int $accountId = null,
+		?array $visibleAccountIds = null,
+	): array {
+		return $this->tagReportService->getTagTrendReport(
+			$userId,
+			$tagIds,
+			$startDate,
+			$endDate,
+			$accountId,
+			$visibleAccountIds
+		);
+	}
 
-    /**
-     * Get spending breakdown by a specific tag set.
-     */
-    public function getTagSetBreakdown(
-        string $userId,
-        int $tagSetId,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        ?int $categoryId = null,
-        ?array $visibleAccountIds = null
-    ): array {
-        return $this->tagReportService->getTagSetBreakdown(
-            $userId,
-            $tagSetId,
-            $startDate,
-            $endDate,
-            $accountId,
-            $categoryId,
-            $visibleAccountIds
-        );
-    }
+	/**
+	 * Get spending breakdown by a specific tag set.
+	 */
+	public function getTagSetBreakdown(
+		string $userId,
+		int $tagSetId,
+		string $startDate,
+		string $endDate,
+		?int $accountId = null,
+		?int $categoryId = null,
+		?array $visibleAccountIds = null,
+	): array {
+		return $this->tagReportService->getTagSetBreakdown(
+			$userId,
+			$tagSetId,
+			$startDate,
+			$endDate,
+			$accountId,
+			$categoryId,
+			$visibleAccountIds
+		);
+	}
 
-    /**
-     * Category-by-month matrix report (#288): one signed-net row per category
-     * (alphabetical or by total, parents summing their children) with a column
-     * per month and an overall total.
-     *
-     * @param string $sort 'alpha' or 'total'
-     * @param int[]|null $visibleAccountIds
-     */
-    public function getCategoryMonthlyReport(
-        string $userId,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        string $sort = 'alpha',
-        ?array $visibleAccountIds = null
-    ): array {
-        return $this->aggregator->getCategoryMonthlyReport(
-            $userId,
-            $startDate,
-            $endDate,
-            $accountId,
-            $sort,
-            $visibleAccountIds ?? []
-        );
-    }
+	/**
+	 * Category-by-month matrix report (#288): one signed-net row per category
+	 * (alphabetical or by total, parents summing their children) with a column
+	 * per month and an overall total.
+	 *
+	 * @param string $sort 'alpha' or 'total'
+	 * @param int[]|null $visibleAccountIds
+	 */
+	public function getCategoryMonthlyReport(
+		string $userId,
+		string $startDate,
+		string $endDate,
+		?int $accountId = null,
+		string $sort = 'alpha',
+		?array $visibleAccountIds = null,
+	): array {
+		return $this->aggregator->getCategoryMonthlyReport(
+			$userId,
+			$startDate,
+			$endDate,
+			$accountId,
+			$sort,
+			$visibleAccountIds ?? []
+		);
+	}
 
-    /**
-     * Export a report to the specified format.
-     *
-     * @param string $userId User ID
-     * @param string $type Report type (summary, spending, income, cashflow, budget)
-     * @param string $format Export format (csv, json, pdf)
-     * @param int|null $accountId Optional account filter
-     * @param string $startDate Start date
-     * @param string $endDate End date
-     * @param string|null $lang Language for the labels; null resolves to the
-     *                          session user's. A background job has no session
-     *                          and names the recipient's instead (#377).
-     * @return array{stream: string, contentType: string, filename: string}
-     */
-    public function exportReport(
-        string $userId,
-        string $type,
-        string $format,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        ?array $visibleAccountIds = null,
-        ?string $lang = null
-    ): array {
-        // Generate the report data
-        $data = match ($type) {
-            'summary' => $this->generateSummaryWithComparison($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds ?? []),
-            'spending' => $this->getSpendingReport($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds),
-            'income' => $this->getIncomeReport($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds),
-            'cashflow' => $this->getCashFlowReport($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds),
-            'budget' => $this->getBudgetReport($userId, $startDate, $endDate, $accountId, $visibleAccountIds),
-            'category-monthly' => $this->getCategoryMonthlyReport($userId, $startDate, $endDate, $accountId, 'alpha', $visibleAccountIds),
-            'income-expense' => $this->getIncomeExpenseReport($userId, $startDate, $endDate, $accountId, $visibleAccountIds),
-            default => throw new \InvalidArgumentException('Unknown report type: ' . $type),
-        };
+	/**
+	 * Export a report to the specified format.
+	 *
+	 * @param string $userId User ID
+	 * @param string $type Report type (summary, spending, income, cashflow, budget)
+	 * @param string $format Export format (csv, json, pdf)
+	 * @param int|null $accountId Optional account filter
+	 * @param string $startDate Start date
+	 * @param string $endDate End date
+	 * @param string|null $lang Language for the labels; null resolves to the
+	 *                          session user's. A background job has no session
+	 *                          and names the recipient's instead (#377).
+	 * @return array{stream: string, contentType: string, filename: string}
+	 */
+	public function exportReport(
+		string $userId,
+		string $type,
+		string $format,
+		string $startDate,
+		string $endDate,
+		?int $accountId = null,
+		?array $visibleAccountIds = null,
+		?string $lang = null,
+	): array {
+		// Generate the report data
+		$data = match ($type) {
+			'summary' => $this->generateSummaryWithComparison($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds ?? []),
+			'spending' => $this->getSpendingReport($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds),
+			'income' => $this->getIncomeReport($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds),
+			'cashflow' => $this->getCashFlowReport($userId, $startDate, $endDate, $accountId, visibleAccountIds: $visibleAccountIds),
+			'budget' => $this->getBudgetReport($userId, $startDate, $endDate, $accountId, $visibleAccountIds),
+			'category-monthly' => $this->getCategoryMonthlyReport($userId, $startDate, $endDate, $accountId, 'alpha', $visibleAccountIds),
+			'income-expense' => $this->getIncomeExpenseReport($userId, $startDate, $endDate, $accountId, $visibleAccountIds),
+			default => throw new \InvalidArgumentException('Unknown report type: ' . $type),
+		};
 
-        return $this->exporter->export($data, $type, $format, $lang);
-    }
+		return $this->exporter->export($data, $type, $format, $lang);
+	}
 }

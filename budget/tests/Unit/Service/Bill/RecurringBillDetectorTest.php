@@ -384,8 +384,8 @@ class RecurringBillDetectorTest extends TestCase {
 			->method('findAllByUserAndDateRange')
 			->with(
 				'user1',
-				$this->callback(fn($d) => strtotime($d) !== false),
-				$this->callback(fn($d) => strtotime($d) !== false)
+				$this->callback(fn ($d) => strtotime($d) !== false),
+				$this->callback(fn ($d) => strtotime($d) !== false)
 			)
 			->willReturn([]);
 

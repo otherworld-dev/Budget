@@ -24,49 +24,49 @@ use OCP\AppFramework\Db\Entity;
  * @method void setUpdatedAt(string $updatedAt)
  */
 class ShareItem extends Entity implements JsonSerializable {
-    protected $shareId;
-    protected $entityType;
-    protected $entityId;
-    protected $permission;
-    protected $createdAt;
-    protected $updatedAt;
+	protected $shareId;
+	protected $entityType;
+	protected $entityId;
+	protected $permission;
+	protected $createdAt;
+	protected $updatedAt;
 
-    public const PERMISSION_READ = 'read';
-    public const PERMISSION_WRITE = 'write';
+	public const PERMISSION_READ = 'read';
+	public const PERMISSION_WRITE = 'write';
 
-    public const TYPE_ACCOUNT = 'account';
-    public const TYPE_CATEGORY = 'category';
-    public const TYPE_BILL = 'bill';
-    public const TYPE_RECURRING_INCOME = 'recurring_income';
-    public const TYPE_SAVINGS_GOAL = 'savings_goal';
-    public const TYPE_IMPORT_RULE = 'import_rule';
-    public const TYPE_PROJECT = 'project';
+	public const TYPE_ACCOUNT = 'account';
+	public const TYPE_CATEGORY = 'category';
+	public const TYPE_BILL = 'bill';
+	public const TYPE_RECURRING_INCOME = 'recurring_income';
+	public const TYPE_SAVINGS_GOAL = 'savings_goal';
+	public const TYPE_IMPORT_RULE = 'import_rule';
+	public const TYPE_PROJECT = 'project';
 
-    public const VALID_TYPES = [
-        self::TYPE_ACCOUNT,
-        self::TYPE_CATEGORY,
-        self::TYPE_BILL,
-        self::TYPE_RECURRING_INCOME,
-        self::TYPE_SAVINGS_GOAL,
-        self::TYPE_IMPORT_RULE,
-        self::TYPE_PROJECT,
-    ];
+	public const VALID_TYPES = [
+		self::TYPE_ACCOUNT,
+		self::TYPE_CATEGORY,
+		self::TYPE_BILL,
+		self::TYPE_RECURRING_INCOME,
+		self::TYPE_SAVINGS_GOAL,
+		self::TYPE_IMPORT_RULE,
+		self::TYPE_PROJECT,
+	];
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('shareId', 'integer');
-        $this->addType('entityId', 'integer');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('shareId', 'integer');
+		$this->addType('entityId', 'integer');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'shareId' => $this->getShareId(),
-            'entityType' => $this->getEntityType(),
-            'entityId' => $this->getEntityId(),
-            'permission' => $this->getPermission(),
-            'createdAt' => $this->getCreatedAt(),
-            'updatedAt' => $this->getUpdatedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'shareId' => $this->getShareId(),
+			'entityType' => $this->getEntityType(),
+			'entityId' => $this->getEntityId(),
+			'permission' => $this->getPermission(),
+			'createdAt' => $this->getCreatedAt(),
+			'updatedAt' => $this->getUpdatedAt(),
+		];
+	}
 }

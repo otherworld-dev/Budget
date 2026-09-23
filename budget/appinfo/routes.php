@@ -3,478 +3,478 @@
 declare(strict_types=1);
 
 return [
-    'routes' => [
-        // Page routes
-        ['name' => 'page#index', 'url' => '/', 'verb' => 'GET'],
-        ['name' => 'page#quickAdd', 'url' => '/quick-add', 'verb' => 'GET'],
-        ['name' => 'page#quickAddManifest', 'url' => '/quick-add/manifest', 'verb' => 'GET'],
-        
-        // Account routes
-        ['name' => 'account#index', 'url' => '/api/accounts', 'verb' => 'GET'],
-        ['name' => 'account#show', 'url' => '/api/accounts/{id}', 'verb' => 'GET'],
-        ['name' => 'account#create', 'url' => '/api/accounts', 'verb' => 'POST'],
-        ['name' => 'account#update', 'url' => '/api/accounts/{id}', 'verb' => 'PUT'],
-        ['name' => 'account#destroy', 'url' => '/api/accounts/{id}', 'verb' => 'DELETE'],
-        ['name' => 'account#bulkDelete', 'url' => '/api/accounts/bulk-delete', 'verb' => 'POST'],
-        ['name' => 'account#summary', 'url' => '/api/accounts/summary', 'verb' => 'GET'],
-        ['name' => 'account#getBalanceHistory', 'url' => '/api/accounts/{id}/balance-history', 'verb' => 'GET'],
-        ['name' => 'account#getMetrics', 'url' => '/api/accounts/{id}/metrics', 'verb' => 'GET'],
-        ['name' => 'account#reconcile', 'url' => '/api/accounts/{id}/reconcile', 'verb' => 'POST'],
-        ['name' => 'account#completeReconciliation', 'url' => '/api/accounts/{id}/reconcile/complete', 'verb' => 'POST'],
+	'routes' => [
+		// Page routes
+		['name' => 'page#index', 'url' => '/', 'verb' => 'GET'],
+		['name' => 'page#quickAdd', 'url' => '/quick-add', 'verb' => 'GET'],
+		['name' => 'page#quickAddManifest', 'url' => '/quick-add/manifest', 'verb' => 'GET'],
 
-        // Statement reconciliation sessions
-        ['name' => 'reconciliation#getSession', 'url' => '/api/accounts/{id}/reconciliation/session', 'verb' => 'GET'],
-        ['name' => 'reconciliation#start', 'url' => '/api/accounts/{id}/reconciliation/session', 'verb' => 'POST'],
-        ['name' => 'reconciliation#update', 'url' => '/api/accounts/{id}/reconciliation/session', 'verb' => 'PUT'],
-        ['name' => 'reconciliation#cancel', 'url' => '/api/accounts/{id}/reconciliation/session', 'verb' => 'DELETE'],
-        ['name' => 'reconciliation#tick', 'url' => '/api/accounts/{id}/reconciliation/tick', 'verb' => 'POST'],
-        ['name' => 'reconciliation#tickAll', 'url' => '/api/accounts/{id}/reconciliation/tick-all', 'verb' => 'POST'],
-        ['name' => 'reconciliation#complete', 'url' => '/api/accounts/{id}/reconciliation/complete', 'verb' => 'POST'],
-        ['name' => 'reconciliation#history', 'url' => '/api/accounts/{id}/reconciliation/history', 'verb' => 'GET'],
-        ['name' => 'account#reveal', 'url' => '/api/accounts/{id}/reveal', 'verb' => 'GET'],
+		// Account routes
+		['name' => 'account#index', 'url' => '/api/accounts', 'verb' => 'GET'],
+		['name' => 'account#show', 'url' => '/api/accounts/{id}', 'verb' => 'GET'],
+		['name' => 'account#create', 'url' => '/api/accounts', 'verb' => 'POST'],
+		['name' => 'account#update', 'url' => '/api/accounts/{id}', 'verb' => 'PUT'],
+		['name' => 'account#destroy', 'url' => '/api/accounts/{id}', 'verb' => 'DELETE'],
+		['name' => 'account#bulkDelete', 'url' => '/api/accounts/bulk-delete', 'verb' => 'POST'],
+		['name' => 'account#summary', 'url' => '/api/accounts/summary', 'verb' => 'GET'],
+		['name' => 'account#getBalanceHistory', 'url' => '/api/accounts/{id}/balance-history', 'verb' => 'GET'],
+		['name' => 'account#getMetrics', 'url' => '/api/accounts/{id}/metrics', 'verb' => 'GET'],
+		['name' => 'account#reconcile', 'url' => '/api/accounts/{id}/reconcile', 'verb' => 'POST'],
+		['name' => 'account#completeReconciliation', 'url' => '/api/accounts/{id}/reconcile/complete', 'verb' => 'POST'],
 
-        // Interest accrual routes
-        ['name' => 'account#getInterestDetails', 'url' => '/api/accounts/{id}/interest', 'verb' => 'GET'],
-        ['name' => 'account#getInterestRates', 'url' => '/api/accounts/{id}/interest-rates', 'verb' => 'GET'],
-        ['name' => 'account#addInterestRate', 'url' => '/api/accounts/{id}/interest-rates', 'verb' => 'POST'],
-        ['name' => 'account#deleteInterestRate', 'url' => '/api/accounts/{id}/interest-rates/{rateId}', 'verb' => 'DELETE'],
+		// Statement reconciliation sessions
+		['name' => 'reconciliation#getSession', 'url' => '/api/accounts/{id}/reconciliation/session', 'verb' => 'GET'],
+		['name' => 'reconciliation#start', 'url' => '/api/accounts/{id}/reconciliation/session', 'verb' => 'POST'],
+		['name' => 'reconciliation#update', 'url' => '/api/accounts/{id}/reconciliation/session', 'verb' => 'PUT'],
+		['name' => 'reconciliation#cancel', 'url' => '/api/accounts/{id}/reconciliation/session', 'verb' => 'DELETE'],
+		['name' => 'reconciliation#tick', 'url' => '/api/accounts/{id}/reconciliation/tick', 'verb' => 'POST'],
+		['name' => 'reconciliation#tickAll', 'url' => '/api/accounts/{id}/reconciliation/tick-all', 'verb' => 'POST'],
+		['name' => 'reconciliation#complete', 'url' => '/api/accounts/{id}/reconciliation/complete', 'verb' => 'POST'],
+		['name' => 'reconciliation#history', 'url' => '/api/accounts/{id}/reconciliation/history', 'verb' => 'GET'],
+		['name' => 'account#reveal', 'url' => '/api/accounts/{id}/reveal', 'verb' => 'GET'],
 
-        // Investment valuation routes
-        ['name' => 'account#getValuation', 'url' => '/api/accounts/{id}/valuation', 'verb' => 'GET'],
+		// Interest accrual routes
+		['name' => 'account#getInterestDetails', 'url' => '/api/accounts/{id}/interest', 'verb' => 'GET'],
+		['name' => 'account#getInterestRates', 'url' => '/api/accounts/{id}/interest-rates', 'verb' => 'GET'],
+		['name' => 'account#addInterestRate', 'url' => '/api/accounts/{id}/interest-rates', 'verb' => 'POST'],
+		['name' => 'account#deleteInterestRate', 'url' => '/api/accounts/{id}/interest-rates/{rateId}', 'verb' => 'DELETE'],
 
-        // Account validation routes
-        ['name' => 'account#validateIban', 'url' => '/api/accounts/validate/iban', 'verb' => 'POST'],
-        ['name' => 'account#validateRoutingNumber', 'url' => '/api/accounts/validate/routing-number', 'verb' => 'POST'],
-        ['name' => 'account#validateSortCode', 'url' => '/api/accounts/validate/sort-code', 'verb' => 'POST'],
-        ['name' => 'account#validateSwiftBic', 'url' => '/api/accounts/validate/swift-bic', 'verb' => 'POST'],
-        ['name' => 'account#getBankingInstitutions', 'url' => '/api/accounts/banking-institutions', 'verb' => 'GET'],
-        ['name' => 'account#getBankingFieldRequirements', 'url' => '/api/accounts/banking-requirements/{currency}', 'verb' => 'GET'],
-        
-        // Transaction routes
-        // Note: Specific routes MUST come before generic {id} routes to avoid mismatched routing
-        ['name' => 'transaction#index', 'url' => '/api/transactions', 'verb' => 'GET'],
-        ['name' => 'transaction#create', 'url' => '/api/transactions', 'verb' => 'POST'],
-        ['name' => 'transaction#search', 'url' => '/api/transactions/search', 'verb' => 'GET'],
-        ['name' => 'transaction#ids', 'url' => '/api/transactions/ids', 'verb' => 'GET'],
-        ['name' => 'transaction#export', 'url' => '/api/transactions/export', 'verb' => 'GET'],
-        ['name' => 'transaction#uncategorized', 'url' => '/api/transactions/uncategorized', 'verb' => 'GET'],
-        ['name' => 'transaction#bulkCategorize', 'url' => '/api/transactions/bulk-categorize', 'verb' => 'POST'],
-        ['name' => 'transaction#bulkMatch', 'url' => '/api/transactions/bulk-match', 'verb' => 'POST'],
-        ['name' => 'transaction#scanMatches', 'url' => '/api/transactions/scan-matches', 'verb' => 'GET'],
-        ['name' => 'transaction#bulkLink', 'url' => '/api/transactions/bulk-link', 'verb' => 'POST'],
-        ['name' => 'transaction#bulkDelete', 'url' => '/api/transactions/bulk-delete', 'verb' => 'POST'],
-        ['name' => 'transaction#bulkReconcile', 'url' => '/api/transactions/bulk-reconcile', 'verb' => 'POST'],
-        ['name' => 'transaction#bulkEdit', 'url' => '/api/transactions/bulk-edit', 'verb' => 'POST'],
-        ['name' => 'transaction#bulkTags', 'url' => '/api/transactions/bulk-tags', 'verb' => 'POST'],
-        ['name' => 'transaction#bulkTagOptions', 'url' => '/api/transactions/bulk-tag-options', 'verb' => 'POST'],
-        ['name' => 'transaction#duplicates', 'url' => '/api/transactions/duplicates', 'verb' => 'GET'],
-        ['name' => 'transaction#show', 'url' => '/api/transactions/{id}', 'verb' => 'GET'],
-        ['name' => 'transaction#update', 'url' => '/api/transactions/{id}', 'verb' => 'PUT'],
-        ['name' => 'transaction#destroy', 'url' => '/api/transactions/{id}', 'verb' => 'DELETE'],
-        ['name' => 'transaction#getMatches', 'url' => '/api/transactions/{id}/matches', 'verb' => 'GET'],
-        ['name' => 'transaction#link', 'url' => '/api/transactions/{id}/link/{targetId}', 'verb' => 'POST'],
-        ['name' => 'transaction#unlink', 'url' => '/api/transactions/{id}/link', 'verb' => 'DELETE'],
-        ['name' => 'transaction#convertToTransfer', 'url' => '/api/transactions/{id}/convert-to-transfer', 'verb' => 'POST'],
-        ['name' => 'transaction#getSplits', 'url' => '/api/transactions/{id}/splits', 'verb' => 'GET'],
-        ['name' => 'transaction#split', 'url' => '/api/transactions/{id}/splits', 'verb' => 'POST'],
-        ['name' => 'transaction#unsplit', 'url' => '/api/transactions/{id}/splits', 'verb' => 'DELETE'],
-        ['name' => 'transaction#updateSplit', 'url' => '/api/transactions/{id}/splits/{splitId}', 'verb' => 'PUT'],
+		// Investment valuation routes
+		['name' => 'account#getValuation', 'url' => '/api/accounts/{id}/valuation', 'verb' => 'GET'],
 
-        // Transaction tag routes
-        ['name' => 'transaction#getTags', 'url' => '/api/transactions/{id}/tags', 'verb' => 'GET'],
-        ['name' => 'transaction#setTags', 'url' => '/api/transactions/{id}/tags', 'verb' => 'PUT'],
-        ['name' => 'transaction#clearTags', 'url' => '/api/transactions/{id}/tags', 'verb' => 'DELETE'],
+		// Account validation routes
+		['name' => 'account#validateIban', 'url' => '/api/accounts/validate/iban', 'verb' => 'POST'],
+		['name' => 'account#validateRoutingNumber', 'url' => '/api/accounts/validate/routing-number', 'verb' => 'POST'],
+		['name' => 'account#validateSortCode', 'url' => '/api/accounts/validate/sort-code', 'verb' => 'POST'],
+		['name' => 'account#validateSwiftBic', 'url' => '/api/accounts/validate/swift-bic', 'verb' => 'POST'],
+		['name' => 'account#getBankingInstitutions', 'url' => '/api/accounts/banking-institutions', 'verb' => 'GET'],
+		['name' => 'account#getBankingFieldRequirements', 'url' => '/api/accounts/banking-requirements/{currency}', 'verb' => 'GET'],
 
-        // Receipt scanning for the web UI (#535). Separate from the public
-        // v1 endpoint on purpose — see ReceiptScanController.
-        ['name' => 'receiptScan#status', 'url' => '/api/receipts/ocr-status', 'verb' => 'GET'],
-        ['name' => 'receiptScan#extract', 'url' => '/api/receipts/extract', 'verb' => 'POST'],
+		// Transaction routes
+		// Note: Specific routes MUST come before generic {id} routes to avoid mismatched routing
+		['name' => 'transaction#index', 'url' => '/api/transactions', 'verb' => 'GET'],
+		['name' => 'transaction#create', 'url' => '/api/transactions', 'verb' => 'POST'],
+		['name' => 'transaction#search', 'url' => '/api/transactions/search', 'verb' => 'GET'],
+		['name' => 'transaction#ids', 'url' => '/api/transactions/ids', 'verb' => 'GET'],
+		['name' => 'transaction#export', 'url' => '/api/transactions/export', 'verb' => 'GET'],
+		['name' => 'transaction#uncategorized', 'url' => '/api/transactions/uncategorized', 'verb' => 'GET'],
+		['name' => 'transaction#bulkCategorize', 'url' => '/api/transactions/bulk-categorize', 'verb' => 'POST'],
+		['name' => 'transaction#bulkMatch', 'url' => '/api/transactions/bulk-match', 'verb' => 'POST'],
+		['name' => 'transaction#scanMatches', 'url' => '/api/transactions/scan-matches', 'verb' => 'GET'],
+		['name' => 'transaction#bulkLink', 'url' => '/api/transactions/bulk-link', 'verb' => 'POST'],
+		['name' => 'transaction#bulkDelete', 'url' => '/api/transactions/bulk-delete', 'verb' => 'POST'],
+		['name' => 'transaction#bulkReconcile', 'url' => '/api/transactions/bulk-reconcile', 'verb' => 'POST'],
+		['name' => 'transaction#bulkEdit', 'url' => '/api/transactions/bulk-edit', 'verb' => 'POST'],
+		['name' => 'transaction#bulkTags', 'url' => '/api/transactions/bulk-tags', 'verb' => 'POST'],
+		['name' => 'transaction#bulkTagOptions', 'url' => '/api/transactions/bulk-tag-options', 'verb' => 'POST'],
+		['name' => 'transaction#duplicates', 'url' => '/api/transactions/duplicates', 'verb' => 'GET'],
+		['name' => 'transaction#show', 'url' => '/api/transactions/{id}', 'verb' => 'GET'],
+		['name' => 'transaction#update', 'url' => '/api/transactions/{id}', 'verb' => 'PUT'],
+		['name' => 'transaction#destroy', 'url' => '/api/transactions/{id}', 'verb' => 'DELETE'],
+		['name' => 'transaction#getMatches', 'url' => '/api/transactions/{id}/matches', 'verb' => 'GET'],
+		['name' => 'transaction#link', 'url' => '/api/transactions/{id}/link/{targetId}', 'verb' => 'POST'],
+		['name' => 'transaction#unlink', 'url' => '/api/transactions/{id}/link', 'verb' => 'DELETE'],
+		['name' => 'transaction#convertToTransfer', 'url' => '/api/transactions/{id}/convert-to-transfer', 'verb' => 'POST'],
+		['name' => 'transaction#getSplits', 'url' => '/api/transactions/{id}/splits', 'verb' => 'GET'],
+		['name' => 'transaction#split', 'url' => '/api/transactions/{id}/splits', 'verb' => 'POST'],
+		['name' => 'transaction#unsplit', 'url' => '/api/transactions/{id}/splits', 'verb' => 'DELETE'],
+		['name' => 'transaction#updateSplit', 'url' => '/api/transactions/{id}/splits/{splitId}', 'verb' => 'PUT'],
 
-        // Transaction receipt attachments
-        ['name' => 'attachment#counts', 'url' => '/api/attachments/transaction-ids', 'verb' => 'GET'],
-        ['name' => 'attachment#index', 'url' => '/api/transactions/{id}/attachments', 'verb' => 'GET'],
-        ['name' => 'attachment#attach', 'url' => '/api/transactions/{id}/attachments', 'verb' => 'POST'],
-        ['name' => 'attachment#upload', 'url' => '/api/transactions/{id}/attachments/upload', 'verb' => 'POST'],
-        ['name' => 'attachment#detach', 'url' => '/api/transactions/{id}/attachments/{attachmentId}', 'verb' => 'DELETE'],
+		// Transaction tag routes
+		['name' => 'transaction#getTags', 'url' => '/api/transactions/{id}/tags', 'verb' => 'GET'],
+		['name' => 'transaction#setTags', 'url' => '/api/transactions/{id}/tags', 'verb' => 'PUT'],
+		['name' => 'transaction#clearTags', 'url' => '/api/transactions/{id}/tags', 'verb' => 'DELETE'],
 
-        // Category routes - specific paths before {id} wildcard
-        ['name' => 'category#index', 'url' => '/api/categories', 'verb' => 'GET'],
-        ['name' => 'category#tree', 'url' => '/api/categories/tree', 'verb' => 'GET'],
-        ['name' => 'category#allSpending', 'url' => '/api/categories/spending', 'verb' => 'GET'],
-        ['name' => 'category#transactionCounts', 'url' => '/api/categories/transaction-counts', 'verb' => 'GET'],
-        ['name' => 'category#recurringBudgets', 'url' => '/api/categories/recurring-budgets', 'verb' => 'GET'],
-        ['name' => 'category#reportMutes', 'url' => '/api/categories/report-mutes', 'verb' => 'GET'],
-        // Category tree as a file (#354) - also before the {id} wildcard
-        ['name' => 'categoryTransfer#export', 'url' => '/api/categories/export', 'verb' => 'GET'],
-        ['name' => 'categoryTransfer#preview', 'url' => '/api/categories/import/preview', 'verb' => 'POST'],
-        ['name' => 'categoryTransfer#import', 'url' => '/api/categories/import', 'verb' => 'POST'],
-        ['name' => 'category#setReportMute', 'url' => '/api/categories/{id}/report-mute', 'verb' => 'PUT'],
-        ['name' => 'category#create', 'url' => '/api/categories', 'verb' => 'POST'],
-        ['name' => 'category#reorder', 'url' => '/api/categories/{id}/reorder', 'verb' => 'POST'],
-        ['name' => 'category#details', 'url' => '/api/categories/{id}/details', 'verb' => 'GET'],
-        ['name' => 'category#transactions', 'url' => '/api/categories/{id}/transactions', 'verb' => 'GET'],
-        ['name' => 'category#show', 'url' => '/api/categories/{id}', 'verb' => 'GET'],
-        ['name' => 'category#update', 'url' => '/api/categories/{id}', 'verb' => 'PUT'],
-        ['name' => 'category#destroy', 'url' => '/api/categories/{id}', 'verb' => 'DELETE'],
+		// Receipt scanning for the web UI (#535). Separate from the public
+		// v1 endpoint on purpose — see ReceiptScanController.
+		['name' => 'receiptScan#status', 'url' => '/api/receipts/ocr-status', 'verb' => 'GET'],
+		['name' => 'receiptScan#extract', 'url' => '/api/receipts/extract', 'verb' => 'POST'],
 
-        // Budget snapshot routes
-        ['name' => 'category#snapshotMonths', 'url' => '/api/budget-snapshots', 'verb' => 'GET'],
-        ['name' => 'category#effectiveBudgets', 'url' => '/api/budget-snapshots/{month}/budgets', 'verb' => 'GET'],
-        ['name' => 'category#createSnapshot', 'url' => '/api/budget-snapshots/{month}', 'verb' => 'POST'],
-        ['name' => 'category#deleteSnapshot', 'url' => '/api/budget-snapshots/{month}', 'verb' => 'DELETE'],
-        ['name' => 'category#updateSnapshotBudget', 'url' => '/api/budget-snapshots/{month}/categories/{categoryId}', 'verb' => 'PUT'],
+		// Transaction receipt attachments
+		['name' => 'attachment#counts', 'url' => '/api/attachments/transaction-ids', 'verb' => 'GET'],
+		['name' => 'attachment#index', 'url' => '/api/transactions/{id}/attachments', 'verb' => 'GET'],
+		['name' => 'attachment#attach', 'url' => '/api/transactions/{id}/attachments', 'verb' => 'POST'],
+		['name' => 'attachment#upload', 'url' => '/api/transactions/{id}/attachments/upload', 'verb' => 'POST'],
+		['name' => 'attachment#detach', 'url' => '/api/transactions/{id}/attachments/{attachmentId}', 'verb' => 'DELETE'],
 
-        // Tag Set routes
-        ['name' => 'tagSet#index', 'url' => '/api/tag-sets', 'verb' => 'GET'],
-        ['name' => 'tagSet#create', 'url' => '/api/tag-sets', 'verb' => 'POST'],
-        ['name' => 'tagSet#show', 'url' => '/api/tag-sets/{id}', 'verb' => 'GET'],
-        ['name' => 'tagSet#update', 'url' => '/api/tag-sets/{id}', 'verb' => 'PUT'],
-        ['name' => 'tagSet#destroy', 'url' => '/api/tag-sets/{id}', 'verb' => 'DELETE'],
+		// Category routes - specific paths before {id} wildcard
+		['name' => 'category#index', 'url' => '/api/categories', 'verb' => 'GET'],
+		['name' => 'category#tree', 'url' => '/api/categories/tree', 'verb' => 'GET'],
+		['name' => 'category#allSpending', 'url' => '/api/categories/spending', 'verb' => 'GET'],
+		['name' => 'category#transactionCounts', 'url' => '/api/categories/transaction-counts', 'verb' => 'GET'],
+		['name' => 'category#recurringBudgets', 'url' => '/api/categories/recurring-budgets', 'verb' => 'GET'],
+		['name' => 'category#reportMutes', 'url' => '/api/categories/report-mutes', 'verb' => 'GET'],
+		// Category tree as a file (#354) - also before the {id} wildcard
+		['name' => 'categoryTransfer#export', 'url' => '/api/categories/export', 'verb' => 'GET'],
+		['name' => 'categoryTransfer#preview', 'url' => '/api/categories/import/preview', 'verb' => 'POST'],
+		['name' => 'categoryTransfer#import', 'url' => '/api/categories/import', 'verb' => 'POST'],
+		['name' => 'category#setReportMute', 'url' => '/api/categories/{id}/report-mute', 'verb' => 'PUT'],
+		['name' => 'category#create', 'url' => '/api/categories', 'verb' => 'POST'],
+		['name' => 'category#reorder', 'url' => '/api/categories/{id}/reorder', 'verb' => 'POST'],
+		['name' => 'category#details', 'url' => '/api/categories/{id}/details', 'verb' => 'GET'],
+		['name' => 'category#transactions', 'url' => '/api/categories/{id}/transactions', 'verb' => 'GET'],
+		['name' => 'category#show', 'url' => '/api/categories/{id}', 'verb' => 'GET'],
+		['name' => 'category#update', 'url' => '/api/categories/{id}', 'verb' => 'PUT'],
+		['name' => 'category#destroy', 'url' => '/api/categories/{id}', 'verb' => 'DELETE'],
 
-        // Tag routes (nested under tag sets)
-        ['name' => 'tagSet#getTags', 'url' => '/api/tag-sets/{tagSetId}/tags', 'verb' => 'GET'],
-        ['name' => 'tagSet#createTag', 'url' => '/api/tag-sets/{tagSetId}/tags', 'verb' => 'POST'],
-        ['name' => 'tagSet#updateTag', 'url' => '/api/tag-sets/{tagSetId}/tags/{tagId}', 'verb' => 'PUT'],
-        ['name' => 'tagSet#destroyTag', 'url' => '/api/tag-sets/{tagSetId}/tags/{tagId}', 'verb' => 'DELETE'],
+		// Budget snapshot routes
+		['name' => 'category#snapshotMonths', 'url' => '/api/budget-snapshots', 'verb' => 'GET'],
+		['name' => 'category#effectiveBudgets', 'url' => '/api/budget-snapshots/{month}/budgets', 'verb' => 'GET'],
+		['name' => 'category#createSnapshot', 'url' => '/api/budget-snapshots/{month}', 'verb' => 'POST'],
+		['name' => 'category#deleteSnapshot', 'url' => '/api/budget-snapshots/{month}', 'verb' => 'DELETE'],
+		['name' => 'category#updateSnapshotBudget', 'url' => '/api/budget-snapshots/{month}/categories/{categoryId}', 'verb' => 'PUT'],
 
-        // Global tag routes (flat tags, not bound to tag sets)
-        ['name' => 'tagSet#getGlobalTags', 'url' => '/api/tags/global', 'verb' => 'GET'],
-        ['name' => 'tagSet#createGlobalTag', 'url' => '/api/tags/global', 'verb' => 'POST'],
-        ['name' => 'tagSet#updateGlobalTag', 'url' => '/api/tags/global/{tagId}', 'verb' => 'PUT'],
-        ['name' => 'tagSet#destroyGlobalTag', 'url' => '/api/tags/global/{tagId}', 'verb' => 'DELETE'],
+		// Tag Set routes
+		['name' => 'tagSet#index', 'url' => '/api/tag-sets', 'verb' => 'GET'],
+		['name' => 'tagSet#create', 'url' => '/api/tag-sets', 'verb' => 'POST'],
+		['name' => 'tagSet#show', 'url' => '/api/tag-sets/{id}', 'verb' => 'GET'],
+		['name' => 'tagSet#update', 'url' => '/api/tag-sets/{id}', 'verb' => 'PUT'],
+		['name' => 'tagSet#destroy', 'url' => '/api/tag-sets/{id}', 'verb' => 'DELETE'],
 
-        // Import routes
-        ['name' => 'import#upload', 'url' => '/api/import/upload', 'verb' => 'POST'],
-        ['name' => 'import#preview', 'url' => '/api/import/preview', 'verb' => 'POST'],
-        ['name' => 'import#dataPreview', 'url' => '/api/import/data-preview', 'verb' => 'POST'],
-        ['name' => 'import#process', 'url' => '/api/import/process', 'verb' => 'POST'],
-        ['name' => 'import#execute', 'url' => '/api/import/execute', 'verb' => 'POST'],
-        ['name' => 'import#history', 'url' => '/api/import/history', 'verb' => 'GET'],
-        ['name' => 'import#templates', 'url' => '/api/import/templates', 'verb' => 'GET'],
+		// Tag routes (nested under tag sets)
+		['name' => 'tagSet#getTags', 'url' => '/api/tag-sets/{tagSetId}/tags', 'verb' => 'GET'],
+		['name' => 'tagSet#createTag', 'url' => '/api/tag-sets/{tagSetId}/tags', 'verb' => 'POST'],
+		['name' => 'tagSet#updateTag', 'url' => '/api/tag-sets/{tagSetId}/tags/{tagId}', 'verb' => 'PUT'],
+		['name' => 'tagSet#destroyTag', 'url' => '/api/tag-sets/{tagSetId}/tags/{tagId}', 'verb' => 'DELETE'],
 
-        // User-saved import template routes (reusable CSV column mappings)
-        ['name' => 'importTemplate#index', 'url' => '/api/import-templates', 'verb' => 'GET'],
-        ['name' => 'importTemplate#show', 'url' => '/api/import-templates/{id}', 'verb' => 'GET'],
-        ['name' => 'importTemplate#create', 'url' => '/api/import-templates', 'verb' => 'POST'],
-        ['name' => 'importTemplate#update', 'url' => '/api/import-templates/{id}', 'verb' => 'PUT'],
-        ['name' => 'importTemplate#destroy', 'url' => '/api/import-templates/{id}', 'verb' => 'DELETE'],
+		// Global tag routes (flat tags, not bound to tag sets)
+		['name' => 'tagSet#getGlobalTags', 'url' => '/api/tags/global', 'verb' => 'GET'],
+		['name' => 'tagSet#createGlobalTag', 'url' => '/api/tags/global', 'verb' => 'POST'],
+		['name' => 'tagSet#updateGlobalTag', 'url' => '/api/tags/global/{tagId}', 'verb' => 'PUT'],
+		['name' => 'tagSet#destroyGlobalTag', 'url' => '/api/tags/global/{tagId}', 'verb' => 'DELETE'],
 
-        // Import rules routes (also used as general categorization rules)
-        ['name' => 'importRule#index', 'url' => '/api/import-rules', 'verb' => 'GET'],
-        ['name' => 'importRule#show', 'url' => '/api/import-rules/{id}', 'verb' => 'GET'],
-        ['name' => 'importRule#create', 'url' => '/api/import-rules', 'verb' => 'POST'],
-        ['name' => 'importRule#update', 'url' => '/api/import-rules/{id}', 'verb' => 'PUT'],
-        ['name' => 'importRule#destroy', 'url' => '/api/import-rules/{id}', 'verb' => 'DELETE'],
-        ['name' => 'importRule#test', 'url' => '/api/import-rules/test', 'verb' => 'POST'],
-        ['name' => 'importRule#testUnsaved', 'url' => '/api/import-rules/test-unsaved', 'verb' => 'POST'],
-        ['name' => 'importRule#preview', 'url' => '/api/import-rules/preview', 'verb' => 'POST'],
-        ['name' => 'importRule#apply', 'url' => '/api/import-rules/apply', 'verb' => 'POST'],
-        ['name' => 'importRule#migrate', 'url' => '/api/import-rules/{id}/migrate', 'verb' => 'POST'],
-        ['name' => 'importRule#migrateAll', 'url' => '/api/import-rules/migrate-all', 'verb' => 'POST'],
-        ['name' => 'importRule#validateCriteria', 'url' => '/api/import-rules/validate-criteria', 'verb' => 'POST'],
+		// Import routes
+		['name' => 'import#upload', 'url' => '/api/import/upload', 'verb' => 'POST'],
+		['name' => 'import#preview', 'url' => '/api/import/preview', 'verb' => 'POST'],
+		['name' => 'import#dataPreview', 'url' => '/api/import/data-preview', 'verb' => 'POST'],
+		['name' => 'import#process', 'url' => '/api/import/process', 'verb' => 'POST'],
+		['name' => 'import#execute', 'url' => '/api/import/execute', 'verb' => 'POST'],
+		['name' => 'import#history', 'url' => '/api/import/history', 'verb' => 'GET'],
+		['name' => 'import#templates', 'url' => '/api/import/templates', 'verb' => 'GET'],
 
-        // Forecast routes
-        ['name' => 'forecast#live', 'url' => '/api/forecast/live', 'verb' => 'GET'],
-        ['name' => 'forecast#generate', 'url' => '/api/forecast/generate', 'verb' => 'POST'],
-        ['name' => 'forecast#enhanced', 'url' => '/api/forecast/enhanced', 'verb' => 'POST'],
-        ['name' => 'forecast#export', 'url' => '/api/forecast/export', 'verb' => 'POST'],
-        ['name' => 'forecast#cashflow', 'url' => '/api/forecast/cashflow', 'verb' => 'GET'],
-        ['name' => 'forecast#trends', 'url' => '/api/forecast/trends', 'verb' => 'GET'],
+		// User-saved import template routes (reusable CSV column mappings)
+		['name' => 'importTemplate#index', 'url' => '/api/import-templates', 'verb' => 'GET'],
+		['name' => 'importTemplate#show', 'url' => '/api/import-templates/{id}', 'verb' => 'GET'],
+		['name' => 'importTemplate#create', 'url' => '/api/import-templates', 'verb' => 'POST'],
+		['name' => 'importTemplate#update', 'url' => '/api/import-templates/{id}', 'verb' => 'PUT'],
+		['name' => 'importTemplate#destroy', 'url' => '/api/import-templates/{id}', 'verb' => 'DELETE'],
 
-        // Bills routes - specific paths before {id} wildcard
-        ['name' => 'bill#index', 'url' => '/api/bills', 'verb' => 'GET'],
-        ['name' => 'bill#create', 'url' => '/api/bills', 'verb' => 'POST'],
-        ['name' => 'bill#upcoming', 'url' => '/api/bills/upcoming', 'verb' => 'GET'],
-        ['name' => 'bill#dueThisMonth', 'url' => '/api/bills/due-this-month', 'verb' => 'GET'],
-        ['name' => 'bill#overdue', 'url' => '/api/bills/overdue', 'verb' => 'GET'],
-        ['name' => 'bill#summary', 'url' => '/api/bills/summary', 'verb' => 'GET'],
-        ['name' => 'bill#statusForMonth', 'url' => '/api/bills/status', 'verb' => 'GET'],
-        ['name' => 'bill#detect', 'url' => '/api/bills/detect', 'verb' => 'GET'],
-        ['name' => 'bill#suggestions', 'url' => '/api/bills/suggestions', 'verb' => 'GET'],
-        ['name' => 'bill#dismissSuggestion', 'url' => '/api/bills/suggestions/dismiss', 'verb' => 'POST'],
-        ['name' => 'bill#createFromDetected', 'url' => '/api/bills/create-from-detected', 'verb' => 'POST'],
-        ['name' => 'bill#annualOverview', 'url' => '/api/bills/annual-overview', 'verb' => 'GET'],
-        ['name' => 'bill#unrecordedPayments', 'url' => '/api/bills/unrecorded-payments', 'verb' => 'GET'],
-        ['name' => 'bill#exportCalendar', 'url' => '/api/bills/export-calendar', 'verb' => 'POST'],
+		// Import rules routes (also used as general categorization rules)
+		['name' => 'importRule#index', 'url' => '/api/import-rules', 'verb' => 'GET'],
+		['name' => 'importRule#show', 'url' => '/api/import-rules/{id}', 'verb' => 'GET'],
+		['name' => 'importRule#create', 'url' => '/api/import-rules', 'verb' => 'POST'],
+		['name' => 'importRule#update', 'url' => '/api/import-rules/{id}', 'verb' => 'PUT'],
+		['name' => 'importRule#destroy', 'url' => '/api/import-rules/{id}', 'verb' => 'DELETE'],
+		['name' => 'importRule#test', 'url' => '/api/import-rules/test', 'verb' => 'POST'],
+		['name' => 'importRule#testUnsaved', 'url' => '/api/import-rules/test-unsaved', 'verb' => 'POST'],
+		['name' => 'importRule#preview', 'url' => '/api/import-rules/preview', 'verb' => 'POST'],
+		['name' => 'importRule#apply', 'url' => '/api/import-rules/apply', 'verb' => 'POST'],
+		['name' => 'importRule#migrate', 'url' => '/api/import-rules/{id}/migrate', 'verb' => 'POST'],
+		['name' => 'importRule#migrateAll', 'url' => '/api/import-rules/migrate-all', 'verb' => 'POST'],
+		['name' => 'importRule#validateCriteria', 'url' => '/api/import-rules/validate-criteria', 'verb' => 'POST'],
 
-        // Bills calendar feed (ICS): public token-authenticated feed + token management
-        ['name' => 'calendarFeed#billsIcs', 'url' => '/feed/bills.ics', 'verb' => 'GET'],
-        ['name' => 'calendarFeed#info', 'url' => '/api/calendar-feed', 'verb' => 'GET'],
-        ['name' => 'calendarFeed#regenerate', 'url' => '/api/calendar-feed/regenerate', 'verb' => 'POST'],
-        ['name' => 'bill#show', 'url' => '/api/bills/{id}', 'verb' => 'GET'],
-        ['name' => 'bill#update', 'url' => '/api/bills/{id}', 'verb' => 'PUT'],
-        ['name' => 'bill#destroy', 'url' => '/api/bills/{id}', 'verb' => 'DELETE'],
-        ['name' => 'bill#findMatchingTransactions', 'url' => '/api/bills/{id}/matching-transactions', 'verb' => 'GET'],
-        ['name' => 'bill#markPaid', 'url' => '/api/bills/{id}/paid', 'verb' => 'POST'],
-        ['name' => 'bill#recordMissedPayment', 'url' => '/api/bills/{id}/record-payment', 'verb' => 'POST'],
-        ['name' => 'bill#dismissUnrecordedPayment', 'url' => '/api/bills/{id}/dismiss-unrecorded', 'verb' => 'POST'],
-        ['name' => 'bill#skipPayment', 'url' => '/api/bills/{id}/skip', 'verb' => 'POST'],
-        ['name' => 'bill#undoSkip', 'url' => '/api/bills/{id}/undo-skip', 'verb' => 'POST'],
-        ['name' => 'bill#undoPaid', 'url' => '/api/bills/{id}/undo-paid', 'verb' => 'POST'],
-        ['name' => 'bill#markUnpaid', 'url' => '/api/bills/{id}/unpaid', 'verb' => 'POST'],
+		// Forecast routes
+		['name' => 'forecast#live', 'url' => '/api/forecast/live', 'verb' => 'GET'],
+		['name' => 'forecast#generate', 'url' => '/api/forecast/generate', 'verb' => 'POST'],
+		['name' => 'forecast#enhanced', 'url' => '/api/forecast/enhanced', 'verb' => 'POST'],
+		['name' => 'forecast#export', 'url' => '/api/forecast/export', 'verb' => 'POST'],
+		['name' => 'forecast#cashflow', 'url' => '/api/forecast/cashflow', 'verb' => 'GET'],
+		['name' => 'forecast#trends', 'url' => '/api/forecast/trends', 'verb' => 'GET'],
 
-        // Savings Goals routes
-        ['name' => 'goals#index', 'url' => '/api/savings-goals', 'verb' => 'GET'],
-        ['name' => 'goals#show', 'url' => '/api/savings-goals/{id}', 'verb' => 'GET'],
-        ['name' => 'goals#create', 'url' => '/api/savings-goals', 'verb' => 'POST'],
-        ['name' => 'goals#update', 'url' => '/api/savings-goals/{id}', 'verb' => 'PUT'],
-        ['name' => 'goals#destroy', 'url' => '/api/savings-goals/{id}', 'verb' => 'DELETE'],
-        ['name' => 'goals#progress', 'url' => '/api/savings-goals/{id}/progress', 'verb' => 'GET'],
-        ['name' => 'goals#forecast', 'url' => '/api/savings-goals/{id}/forecast', 'verb' => 'GET'],
+		// Bills routes - specific paths before {id} wildcard
+		['name' => 'bill#index', 'url' => '/api/bills', 'verb' => 'GET'],
+		['name' => 'bill#create', 'url' => '/api/bills', 'verb' => 'POST'],
+		['name' => 'bill#upcoming', 'url' => '/api/bills/upcoming', 'verb' => 'GET'],
+		['name' => 'bill#dueThisMonth', 'url' => '/api/bills/due-this-month', 'verb' => 'GET'],
+		['name' => 'bill#overdue', 'url' => '/api/bills/overdue', 'verb' => 'GET'],
+		['name' => 'bill#summary', 'url' => '/api/bills/summary', 'verb' => 'GET'],
+		['name' => 'bill#statusForMonth', 'url' => '/api/bills/status', 'verb' => 'GET'],
+		['name' => 'bill#detect', 'url' => '/api/bills/detect', 'verb' => 'GET'],
+		['name' => 'bill#suggestions', 'url' => '/api/bills/suggestions', 'verb' => 'GET'],
+		['name' => 'bill#dismissSuggestion', 'url' => '/api/bills/suggestions/dismiss', 'verb' => 'POST'],
+		['name' => 'bill#createFromDetected', 'url' => '/api/bills/create-from-detected', 'verb' => 'POST'],
+		['name' => 'bill#annualOverview', 'url' => '/api/bills/annual-overview', 'verb' => 'GET'],
+		['name' => 'bill#unrecordedPayments', 'url' => '/api/bills/unrecorded-payments', 'verb' => 'GET'],
+		['name' => 'bill#exportCalendar', 'url' => '/api/bills/export-calendar', 'verb' => 'POST'],
 
-        // Project budgets (#391)
-        ['name' => 'project#index', 'url' => '/api/projects', 'verb' => 'GET'],
-        ['name' => 'project#show', 'url' => '/api/projects/{id}', 'verb' => 'GET'],
-        ['name' => 'project#create', 'url' => '/api/projects', 'verb' => 'POST'],
-        ['name' => 'project#update', 'url' => '/api/projects/{id}', 'verb' => 'PUT'],
-        ['name' => 'project#destroy', 'url' => '/api/projects/{id}', 'verb' => 'DELETE'],
+		// Bills calendar feed (ICS): public token-authenticated feed + token management
+		['name' => 'calendarFeed#billsIcs', 'url' => '/feed/bills.ics', 'verb' => 'GET'],
+		['name' => 'calendarFeed#info', 'url' => '/api/calendar-feed', 'verb' => 'GET'],
+		['name' => 'calendarFeed#regenerate', 'url' => '/api/calendar-feed/regenerate', 'verb' => 'POST'],
+		['name' => 'bill#show', 'url' => '/api/bills/{id}', 'verb' => 'GET'],
+		['name' => 'bill#update', 'url' => '/api/bills/{id}', 'verb' => 'PUT'],
+		['name' => 'bill#destroy', 'url' => '/api/bills/{id}', 'verb' => 'DELETE'],
+		['name' => 'bill#findMatchingTransactions', 'url' => '/api/bills/{id}/matching-transactions', 'verb' => 'GET'],
+		['name' => 'bill#markPaid', 'url' => '/api/bills/{id}/paid', 'verb' => 'POST'],
+		['name' => 'bill#recordMissedPayment', 'url' => '/api/bills/{id}/record-payment', 'verb' => 'POST'],
+		['name' => 'bill#dismissUnrecordedPayment', 'url' => '/api/bills/{id}/dismiss-unrecorded', 'verb' => 'POST'],
+		['name' => 'bill#skipPayment', 'url' => '/api/bills/{id}/skip', 'verb' => 'POST'],
+		['name' => 'bill#undoSkip', 'url' => '/api/bills/{id}/undo-skip', 'verb' => 'POST'],
+		['name' => 'bill#undoPaid', 'url' => '/api/bills/{id}/undo-paid', 'verb' => 'POST'],
+		['name' => 'bill#markUnpaid', 'url' => '/api/bills/{id}/unpaid', 'verb' => 'POST'],
 
-        // Net Worth routes
-        ['name' => 'netWorth#current', 'url' => '/api/net-worth/current', 'verb' => 'GET'],
-        ['name' => 'netWorth#snapshots', 'url' => '/api/net-worth/snapshots', 'verb' => 'GET'],
-        ['name' => 'netWorth#createSnapshot', 'url' => '/api/net-worth/snapshots', 'verb' => 'POST'],
-        ['name' => 'netWorth#destroySnapshot', 'url' => '/api/net-worth/snapshots/{id}', 'verb' => 'DELETE'],
+		// Savings Goals routes
+		['name' => 'goals#index', 'url' => '/api/savings-goals', 'verb' => 'GET'],
+		['name' => 'goals#show', 'url' => '/api/savings-goals/{id}', 'verb' => 'GET'],
+		['name' => 'goals#create', 'url' => '/api/savings-goals', 'verb' => 'POST'],
+		['name' => 'goals#update', 'url' => '/api/savings-goals/{id}', 'verb' => 'PUT'],
+		['name' => 'goals#destroy', 'url' => '/api/savings-goals/{id}', 'verb' => 'DELETE'],
+		['name' => 'goals#progress', 'url' => '/api/savings-goals/{id}/progress', 'verb' => 'GET'],
+		['name' => 'goals#forecast', 'url' => '/api/savings-goals/{id}/forecast', 'verb' => 'GET'],
 
-        // Recurring Income routes - specific paths before {id} wildcard
-        ['name' => 'recurringIncome#index', 'url' => '/api/recurring-income', 'verb' => 'GET'],
-        ['name' => 'recurringIncome#create', 'url' => '/api/recurring-income', 'verb' => 'POST'],
-        ['name' => 'recurringIncome#upcoming', 'url' => '/api/recurring-income/upcoming', 'verb' => 'GET'],
-        ['name' => 'recurringIncome#expectedThisMonth', 'url' => '/api/recurring-income/this-month', 'verb' => 'GET'],
-        ['name' => 'recurringIncome#summary', 'url' => '/api/recurring-income/summary', 'verb' => 'GET'],
-        ['name' => 'recurringIncome#detect', 'url' => '/api/recurring-income/detect', 'verb' => 'GET'],
-        ['name' => 'recurringIncome#createFromDetected', 'url' => '/api/recurring-income/create-from-detected', 'verb' => 'POST'],
-        ['name' => 'recurringIncome#show', 'url' => '/api/recurring-income/{id}', 'verb' => 'GET'],
-        ['name' => 'recurringIncome#update', 'url' => '/api/recurring-income/{id}', 'verb' => 'PUT'],
-        ['name' => 'recurringIncome#destroy', 'url' => '/api/recurring-income/{id}', 'verb' => 'DELETE'],
-        ['name' => 'recurringIncome#markReceived', 'url' => '/api/recurring-income/{id}/received', 'verb' => 'POST'],
-        ['name' => 'recurringIncome#skipPayment', 'url' => '/api/recurring-income/{id}/skip', 'verb' => 'POST'],
-        ['name' => 'recurringIncome#undoSkip', 'url' => '/api/recurring-income/{id}/undo-skip', 'verb' => 'POST'],
+		// Project budgets (#391)
+		['name' => 'project#index', 'url' => '/api/projects', 'verb' => 'GET'],
+		['name' => 'project#show', 'url' => '/api/projects/{id}', 'verb' => 'GET'],
+		['name' => 'project#create', 'url' => '/api/projects', 'verb' => 'POST'],
+		['name' => 'project#update', 'url' => '/api/projects/{id}', 'verb' => 'PUT'],
+		['name' => 'project#destroy', 'url' => '/api/projects/{id}', 'verb' => 'DELETE'],
 
-        // Pension routes - specific paths before {id} wildcard
-        ['name' => 'pension#index', 'url' => '/api/pensions', 'verb' => 'GET'],
-        ['name' => 'pension#create', 'url' => '/api/pensions', 'verb' => 'POST'],
-        ['name' => 'pension#summary', 'url' => '/api/pensions/summary', 'verb' => 'GET'],
-        ['name' => 'pension#combinedProjection', 'url' => '/api/pensions/projection', 'verb' => 'GET'],
-        ['name' => 'pension#show', 'url' => '/api/pensions/{id}', 'verb' => 'GET'],
-        ['name' => 'pension#update', 'url' => '/api/pensions/{id}', 'verb' => 'PUT'],
-        ['name' => 'pension#destroy', 'url' => '/api/pensions/{id}', 'verb' => 'DELETE'],
-        ['name' => 'pension#snapshots', 'url' => '/api/pensions/{id}/snapshots', 'verb' => 'GET'],
-        ['name' => 'pension#createSnapshot', 'url' => '/api/pensions/{id}/snapshots', 'verb' => 'POST'],
-        ['name' => 'pension#contributions', 'url' => '/api/pensions/{id}/contributions', 'verb' => 'GET'],
-        ['name' => 'pension#createContribution', 'url' => '/api/pensions/{id}/contributions', 'verb' => 'POST'],
-        ['name' => 'pension#createWithdrawal', 'url' => '/api/pensions/{id}/withdrawals', 'verb' => 'POST'],
-        ['name' => 'pension#balanceHistory', 'url' => '/api/pensions/{id}/balance-history', 'verb' => 'GET'],
-        ['name' => 'pension#activity', 'url' => '/api/pensions/{id}/activity', 'verb' => 'GET'],
-        ['name' => 'pension#recurring', 'url' => '/api/pensions/{id}/recurring', 'verb' => 'GET'],
-        ['name' => 'pension#createRecurring', 'url' => '/api/pensions/{id}/recurring', 'verb' => 'POST'],
-        ['name' => 'pension#projection', 'url' => '/api/pensions/{id}/projection', 'verb' => 'GET'],
-        ['name' => 'pension#destroySnapshot', 'url' => '/api/pensions/snapshots/{snapshotId}', 'verb' => 'DELETE'],
-        ['name' => 'pension#destroyContribution', 'url' => '/api/pensions/contributions/{contributionId}', 'verb' => 'DELETE'],
-        ['name' => 'pension#updateRecurring', 'url' => '/api/pensions/recurring/{recurId}', 'verb' => 'PUT'],
-        ['name' => 'pension#destroyRecurring', 'url' => '/api/pensions/recurring/{recurId}', 'verb' => 'DELETE'],
-        ['name' => 'pension#postRecurring', 'url' => '/api/pensions/recurring/{recurId}/post', 'verb' => 'POST'],
+		// Net Worth routes
+		['name' => 'netWorth#current', 'url' => '/api/net-worth/current', 'verb' => 'GET'],
+		['name' => 'netWorth#snapshots', 'url' => '/api/net-worth/snapshots', 'verb' => 'GET'],
+		['name' => 'netWorth#createSnapshot', 'url' => '/api/net-worth/snapshots', 'verb' => 'POST'],
+		['name' => 'netWorth#destroySnapshot', 'url' => '/api/net-worth/snapshots/{id}', 'verb' => 'DELETE'],
 
-        // Asset routes - specific paths before {id} wildcard
-        ['name' => 'asset#index', 'url' => '/api/assets', 'verb' => 'GET'],
-        ['name' => 'asset#create', 'url' => '/api/assets', 'verb' => 'POST'],
-        ['name' => 'asset#summary', 'url' => '/api/assets/summary', 'verb' => 'GET'],
-        ['name' => 'asset#combinedProjection', 'url' => '/api/assets/projection', 'verb' => 'GET'],
-        ['name' => 'asset#valueHistory', 'url' => '/api/assets/value-history', 'verb' => 'GET'],
-        ['name' => 'asset#show', 'url' => '/api/assets/{id}', 'verb' => 'GET'],
-        ['name' => 'asset#update', 'url' => '/api/assets/{id}', 'verb' => 'PUT'],
-        ['name' => 'asset#destroy', 'url' => '/api/assets/{id}', 'verb' => 'DELETE'],
-        ['name' => 'asset#snapshots', 'url' => '/api/assets/{id}/snapshots', 'verb' => 'GET'],
-        ['name' => 'asset#createSnapshot', 'url' => '/api/assets/{id}/snapshots', 'verb' => 'POST'],
-        ['name' => 'asset#projection', 'url' => '/api/assets/{id}/projection', 'verb' => 'GET'],
-        ['name' => 'asset#destroySnapshot', 'url' => '/api/assets/snapshots/{snapshotId}', 'verb' => 'DELETE'],
+		// Recurring Income routes - specific paths before {id} wildcard
+		['name' => 'recurringIncome#index', 'url' => '/api/recurring-income', 'verb' => 'GET'],
+		['name' => 'recurringIncome#create', 'url' => '/api/recurring-income', 'verb' => 'POST'],
+		['name' => 'recurringIncome#upcoming', 'url' => '/api/recurring-income/upcoming', 'verb' => 'GET'],
+		['name' => 'recurringIncome#expectedThisMonth', 'url' => '/api/recurring-income/this-month', 'verb' => 'GET'],
+		['name' => 'recurringIncome#summary', 'url' => '/api/recurring-income/summary', 'verb' => 'GET'],
+		['name' => 'recurringIncome#detect', 'url' => '/api/recurring-income/detect', 'verb' => 'GET'],
+		['name' => 'recurringIncome#createFromDetected', 'url' => '/api/recurring-income/create-from-detected', 'verb' => 'POST'],
+		['name' => 'recurringIncome#show', 'url' => '/api/recurring-income/{id}', 'verb' => 'GET'],
+		['name' => 'recurringIncome#update', 'url' => '/api/recurring-income/{id}', 'verb' => 'PUT'],
+		['name' => 'recurringIncome#destroy', 'url' => '/api/recurring-income/{id}', 'verb' => 'DELETE'],
+		['name' => 'recurringIncome#markReceived', 'url' => '/api/recurring-income/{id}/received', 'verb' => 'POST'],
+		['name' => 'recurringIncome#skipPayment', 'url' => '/api/recurring-income/{id}/skip', 'verb' => 'POST'],
+		['name' => 'recurringIncome#undoSkip', 'url' => '/api/recurring-income/{id}/undo-skip', 'verb' => 'POST'],
 
-        // Budget Alert routes
-        ['name' => 'alert#index', 'url' => '/api/alerts', 'verb' => 'GET'],
-        ['name' => 'alert#status', 'url' => '/api/alerts/status', 'verb' => 'GET'],
-        ['name' => 'alert#summary', 'url' => '/api/alerts/summary', 'verb' => 'GET'],
+		// Pension routes - specific paths before {id} wildcard
+		['name' => 'pension#index', 'url' => '/api/pensions', 'verb' => 'GET'],
+		['name' => 'pension#create', 'url' => '/api/pensions', 'verb' => 'POST'],
+		['name' => 'pension#summary', 'url' => '/api/pensions/summary', 'verb' => 'GET'],
+		['name' => 'pension#combinedProjection', 'url' => '/api/pensions/projection', 'verb' => 'GET'],
+		['name' => 'pension#show', 'url' => '/api/pensions/{id}', 'verb' => 'GET'],
+		['name' => 'pension#update', 'url' => '/api/pensions/{id}', 'verb' => 'PUT'],
+		['name' => 'pension#destroy', 'url' => '/api/pensions/{id}', 'verb' => 'DELETE'],
+		['name' => 'pension#snapshots', 'url' => '/api/pensions/{id}/snapshots', 'verb' => 'GET'],
+		['name' => 'pension#createSnapshot', 'url' => '/api/pensions/{id}/snapshots', 'verb' => 'POST'],
+		['name' => 'pension#contributions', 'url' => '/api/pensions/{id}/contributions', 'verb' => 'GET'],
+		['name' => 'pension#createContribution', 'url' => '/api/pensions/{id}/contributions', 'verb' => 'POST'],
+		['name' => 'pension#createWithdrawal', 'url' => '/api/pensions/{id}/withdrawals', 'verb' => 'POST'],
+		['name' => 'pension#balanceHistory', 'url' => '/api/pensions/{id}/balance-history', 'verb' => 'GET'],
+		['name' => 'pension#activity', 'url' => '/api/pensions/{id}/activity', 'verb' => 'GET'],
+		['name' => 'pension#recurring', 'url' => '/api/pensions/{id}/recurring', 'verb' => 'GET'],
+		['name' => 'pension#createRecurring', 'url' => '/api/pensions/{id}/recurring', 'verb' => 'POST'],
+		['name' => 'pension#projection', 'url' => '/api/pensions/{id}/projection', 'verb' => 'GET'],
+		['name' => 'pension#destroySnapshot', 'url' => '/api/pensions/snapshots/{snapshotId}', 'verb' => 'DELETE'],
+		['name' => 'pension#destroyContribution', 'url' => '/api/pensions/contributions/{contributionId}', 'verb' => 'DELETE'],
+		['name' => 'pension#updateRecurring', 'url' => '/api/pensions/recurring/{recurId}', 'verb' => 'PUT'],
+		['name' => 'pension#destroyRecurring', 'url' => '/api/pensions/recurring/{recurId}', 'verb' => 'DELETE'],
+		['name' => 'pension#postRecurring', 'url' => '/api/pensions/recurring/{recurId}/post', 'verb' => 'POST'],
 
-        // Debt Payoff routes
-        ['name' => 'debt#index', 'url' => '/api/debts', 'verb' => 'GET'],
-        ['name' => 'debt#summary', 'url' => '/api/debts/summary', 'verb' => 'GET'],
-        ['name' => 'debt#payoffPlan', 'url' => '/api/debts/payoff-plan', 'verb' => 'GET'],
-        ['name' => 'debt#compare', 'url' => '/api/debts/compare', 'verb' => 'GET'],
-        ['name' => 'debt#progress', 'url' => '/api/debts/progress', 'verb' => 'GET'],
+		// Asset routes - specific paths before {id} wildcard
+		['name' => 'asset#index', 'url' => '/api/assets', 'verb' => 'GET'],
+		['name' => 'asset#create', 'url' => '/api/assets', 'verb' => 'POST'],
+		['name' => 'asset#summary', 'url' => '/api/assets/summary', 'verb' => 'GET'],
+		['name' => 'asset#combinedProjection', 'url' => '/api/assets/projection', 'verb' => 'GET'],
+		['name' => 'asset#valueHistory', 'url' => '/api/assets/value-history', 'verb' => 'GET'],
+		['name' => 'asset#show', 'url' => '/api/assets/{id}', 'verb' => 'GET'],
+		['name' => 'asset#update', 'url' => '/api/assets/{id}', 'verb' => 'PUT'],
+		['name' => 'asset#destroy', 'url' => '/api/assets/{id}', 'verb' => 'DELETE'],
+		['name' => 'asset#snapshots', 'url' => '/api/assets/{id}/snapshots', 'verb' => 'GET'],
+		['name' => 'asset#createSnapshot', 'url' => '/api/assets/{id}/snapshots', 'verb' => 'POST'],
+		['name' => 'asset#projection', 'url' => '/api/assets/{id}/projection', 'verb' => 'GET'],
+		['name' => 'asset#destroySnapshot', 'url' => '/api/assets/snapshots/{snapshotId}', 'verb' => 'DELETE'],
 
-        // Debt Scenario routes (specific routes before {id} routes)
-        ['name' => 'debt_scenario#index', 'url' => '/api/debt-scenarios', 'verb' => 'GET'],
-        ['name' => 'debt_scenario#create', 'url' => '/api/debt-scenarios', 'verb' => 'POST'],
-        ['name' => 'debt_scenario#compare', 'url' => '/api/debt-scenarios/compare', 'verb' => 'GET'],
-        ['name' => 'debt_scenario#update', 'url' => '/api/debt-scenarios/{id}', 'verb' => 'PUT'],
-        ['name' => 'debt_scenario#destroy', 'url' => '/api/debt-scenarios/{id}', 'verb' => 'DELETE'],
-        ['name' => 'debt_scenario#activate', 'url' => '/api/debt-scenarios/{id}/activate', 'verb' => 'POST'],
-        ['name' => 'debt_scenario#calculate', 'url' => '/api/debt-scenarios/{id}/calculate', 'verb' => 'GET'],
+		// Budget Alert routes
+		['name' => 'alert#index', 'url' => '/api/alerts', 'verb' => 'GET'],
+		['name' => 'alert#status', 'url' => '/api/alerts/status', 'verb' => 'GET'],
+		['name' => 'alert#summary', 'url' => '/api/alerts/summary', 'verb' => 'GET'],
 
-        // Year-over-Year Comparison routes
-        ['name' => 'yearOverYear#compareMonth', 'url' => '/api/yoy/month', 'verb' => 'GET'],
-        ['name' => 'yearOverYear#compareYears', 'url' => '/api/yoy/years', 'verb' => 'GET'],
-        ['name' => 'yearOverYear#compareCategories', 'url' => '/api/yoy/categories', 'verb' => 'GET'],
-        ['name' => 'yearOverYear#monthlyTrends', 'url' => '/api/yoy/trends', 'verb' => 'GET'],
-        ['name' => 'yearOverYear#export', 'url' => '/api/yoy/export', 'verb' => 'POST'],
+		// Debt Payoff routes
+		['name' => 'debt#index', 'url' => '/api/debts', 'verb' => 'GET'],
+		['name' => 'debt#summary', 'url' => '/api/debts/summary', 'verb' => 'GET'],
+		['name' => 'debt#payoffPlan', 'url' => '/api/debts/payoff-plan', 'verb' => 'GET'],
+		['name' => 'debt#compare', 'url' => '/api/debts/compare', 'verb' => 'GET'],
+		['name' => 'debt#progress', 'url' => '/api/debts/progress', 'verb' => 'GET'],
 
-        // Shared Expense routes - user search
-        ['name' => 'sharedExpense#searchUsers', 'url' => '/api/shared/users/search', 'verb' => 'GET'],
-        // Shared Expense routes - contacts
-        ['name' => 'sharedExpense#contacts', 'url' => '/api/shared/contacts', 'verb' => 'GET'],
-        ['name' => 'sharedExpense#createContact', 'url' => '/api/shared/contacts', 'verb' => 'POST'],
-        ['name' => 'sharedExpense#updateContact', 'url' => '/api/shared/contacts/{id}', 'verb' => 'PUT'],
-        ['name' => 'sharedExpense#destroyContact', 'url' => '/api/shared/contacts/{id}', 'verb' => 'DELETE'],
-        ['name' => 'sharedExpense#contactDetails', 'url' => '/api/shared/contacts/{id}/details', 'verb' => 'GET'],
-        // Shared Expense routes - balances
-        ['name' => 'sharedExpense#balances', 'url' => '/api/shared/balances', 'verb' => 'GET'],
-        ['name' => 'sharedExpense#sharedWithMe', 'url' => '/api/shared/shared-with-me', 'verb' => 'GET'],
-        ['name' => 'sharedExpense#sharedTransactionIds', 'url' => '/api/shared/transaction-ids', 'verb' => 'GET'],
-        // Shared Expense routes - expense shares
-        ['name' => 'sharedExpense#shareExpense', 'url' => '/api/shared/shares', 'verb' => 'POST'],
-        ['name' => 'sharedExpense#splitFiftyFifty', 'url' => '/api/shared/shares/split', 'verb' => 'POST'],
-        ['name' => 'sharedExpense#transactionShares', 'url' => '/api/shared/transactions/{transactionId}/shares', 'verb' => 'GET'],
-        ['name' => 'sharedExpense#setTransactionShares', 'url' => '/api/shared/transactions/{transactionId}/shares', 'verb' => 'PUT'],
-        ['name' => 'sharedExpense#updateShare', 'url' => '/api/shared/shares/{id}', 'verb' => 'PUT'],
-        ['name' => 'sharedExpense#markSettled', 'url' => '/api/shared/shares/{id}/settle', 'verb' => 'POST'],
-        ['name' => 'sharedExpense#destroyShare', 'url' => '/api/shared/shares/{id}', 'verb' => 'DELETE'],
-        // Shared Expense routes - settlements
-        ['name' => 'sharedExpense#settlements', 'url' => '/api/shared/settlements', 'verb' => 'GET'],
-        ['name' => 'sharedExpense#settleSelected', 'url' => '/api/shared/settle-selected', 'verb' => 'POST'],
-        ['name' => 'sharedExpense#recordSettlement', 'url' => '/api/shared/settlements', 'verb' => 'POST'],
-        ['name' => 'sharedExpense#settleWithContact', 'url' => '/api/shared/contacts/{contactId}/settle', 'verb' => 'POST'],
-        ['name' => 'sharedExpense#destroySettlement', 'url' => '/api/shared/settlements/{id}', 'verb' => 'DELETE'],
+		// Debt Scenario routes (specific routes before {id} routes)
+		['name' => 'debt_scenario#index', 'url' => '/api/debt-scenarios', 'verb' => 'GET'],
+		['name' => 'debt_scenario#create', 'url' => '/api/debt-scenarios', 'verb' => 'POST'],
+		['name' => 'debt_scenario#compare', 'url' => '/api/debt-scenarios/compare', 'verb' => 'GET'],
+		['name' => 'debt_scenario#update', 'url' => '/api/debt-scenarios/{id}', 'verb' => 'PUT'],
+		['name' => 'debt_scenario#destroy', 'url' => '/api/debt-scenarios/{id}', 'verb' => 'DELETE'],
+		['name' => 'debt_scenario#activate', 'url' => '/api/debt-scenarios/{id}/activate', 'verb' => 'POST'],
+		['name' => 'debt_scenario#calculate', 'url' => '/api/debt-scenarios/{id}/calculate', 'verb' => 'GET'],
 
-        // Report routes
-        ['name' => 'report#summary', 'url' => '/api/reports/summary', 'verb' => 'GET'],
-        ['name' => 'report#summaryWithComparison', 'url' => '/api/reports/summary-comparison', 'verb' => 'GET'],
-        ['name' => 'report#spending', 'url' => '/api/reports/spending', 'verb' => 'GET'],
-        ['name' => 'report#income', 'url' => '/api/reports/income', 'verb' => 'GET'],
-        ['name' => 'report#incomeExpense', 'url' => '/api/reports/income-expense', 'verb' => 'GET'],
-        ['name' => 'report#cashflow', 'url' => '/api/reports/cashflow', 'verb' => 'GET'],
-        ['name' => 'report#budget', 'url' => '/api/reports/budget', 'verb' => 'GET'],
-        ['name' => 'report#categoryMonthly', 'url' => '/api/reports/categories/monthly', 'verb' => 'GET'],
-        ['name' => 'report#export', 'url' => '/api/reports/export', 'verb' => 'POST'],
+		// Year-over-Year Comparison routes
+		['name' => 'yearOverYear#compareMonth', 'url' => '/api/yoy/month', 'verb' => 'GET'],
+		['name' => 'yearOverYear#compareYears', 'url' => '/api/yoy/years', 'verb' => 'GET'],
+		['name' => 'yearOverYear#compareCategories', 'url' => '/api/yoy/categories', 'verb' => 'GET'],
+		['name' => 'yearOverYear#monthlyTrends', 'url' => '/api/yoy/trends', 'verb' => 'GET'],
+		['name' => 'yearOverYear#export', 'url' => '/api/yoy/export', 'verb' => 'POST'],
 
-        // Saved reports (#299)
-        ['name' => 'savedReport#index', 'url' => '/api/reports/saved', 'verb' => 'GET'],
-        ['name' => 'savedReport#create', 'url' => '/api/reports/saved', 'verb' => 'POST'],
-        ['name' => 'savedReport#update', 'url' => '/api/reports/saved/{id}', 'verb' => 'PUT'],
-        ['name' => 'savedReport#destroy', 'url' => '/api/reports/saved/{id}', 'verb' => 'DELETE'],
+		// Shared Expense routes - user search
+		['name' => 'sharedExpense#searchUsers', 'url' => '/api/shared/users/search', 'verb' => 'GET'],
+		// Shared Expense routes - contacts
+		['name' => 'sharedExpense#contacts', 'url' => '/api/shared/contacts', 'verb' => 'GET'],
+		['name' => 'sharedExpense#createContact', 'url' => '/api/shared/contacts', 'verb' => 'POST'],
+		['name' => 'sharedExpense#updateContact', 'url' => '/api/shared/contacts/{id}', 'verb' => 'PUT'],
+		['name' => 'sharedExpense#destroyContact', 'url' => '/api/shared/contacts/{id}', 'verb' => 'DELETE'],
+		['name' => 'sharedExpense#contactDetails', 'url' => '/api/shared/contacts/{id}/details', 'verb' => 'GET'],
+		// Shared Expense routes - balances
+		['name' => 'sharedExpense#balances', 'url' => '/api/shared/balances', 'verb' => 'GET'],
+		['name' => 'sharedExpense#sharedWithMe', 'url' => '/api/shared/shared-with-me', 'verb' => 'GET'],
+		['name' => 'sharedExpense#sharedTransactionIds', 'url' => '/api/shared/transaction-ids', 'verb' => 'GET'],
+		// Shared Expense routes - expense shares
+		['name' => 'sharedExpense#shareExpense', 'url' => '/api/shared/shares', 'verb' => 'POST'],
+		['name' => 'sharedExpense#splitFiftyFifty', 'url' => '/api/shared/shares/split', 'verb' => 'POST'],
+		['name' => 'sharedExpense#transactionShares', 'url' => '/api/shared/transactions/{transactionId}/shares', 'verb' => 'GET'],
+		['name' => 'sharedExpense#setTransactionShares', 'url' => '/api/shared/transactions/{transactionId}/shares', 'verb' => 'PUT'],
+		['name' => 'sharedExpense#updateShare', 'url' => '/api/shared/shares/{id}', 'verb' => 'PUT'],
+		['name' => 'sharedExpense#markSettled', 'url' => '/api/shared/shares/{id}/settle', 'verb' => 'POST'],
+		['name' => 'sharedExpense#destroyShare', 'url' => '/api/shared/shares/{id}', 'verb' => 'DELETE'],
+		// Shared Expense routes - settlements
+		['name' => 'sharedExpense#settlements', 'url' => '/api/shared/settlements', 'verb' => 'GET'],
+		['name' => 'sharedExpense#settleSelected', 'url' => '/api/shared/settle-selected', 'verb' => 'POST'],
+		['name' => 'sharedExpense#recordSettlement', 'url' => '/api/shared/settlements', 'verb' => 'POST'],
+		['name' => 'sharedExpense#settleWithContact', 'url' => '/api/shared/contacts/{contactId}/settle', 'verb' => 'POST'],
+		['name' => 'sharedExpense#destroySettlement', 'url' => '/api/shared/settlements/{id}', 'verb' => 'DELETE'],
 
-        // Tag Report routes
-        ['name' => 'report#tagDimensions', 'url' => '/api/reports/tags/dimensions', 'verb' => 'GET'],
-        ['name' => 'report#tagCombinations', 'url' => '/api/reports/tags/combinations', 'verb' => 'GET'],
-        ['name' => 'report#tagCrossTab', 'url' => '/api/reports/tags/crosstab', 'verb' => 'GET'],
-        ['name' => 'report#tagTrends', 'url' => '/api/reports/tags/trends', 'verb' => 'GET'],
-        ['name' => 'report#tagSetBreakdown', 'url' => '/api/reports/tags/breakdown', 'verb' => 'GET'],
+		// Report routes
+		['name' => 'report#summary', 'url' => '/api/reports/summary', 'verb' => 'GET'],
+		['name' => 'report#summaryWithComparison', 'url' => '/api/reports/summary-comparison', 'verb' => 'GET'],
+		['name' => 'report#spending', 'url' => '/api/reports/spending', 'verb' => 'GET'],
+		['name' => 'report#income', 'url' => '/api/reports/income', 'verb' => 'GET'],
+		['name' => 'report#incomeExpense', 'url' => '/api/reports/income-expense', 'verb' => 'GET'],
+		['name' => 'report#cashflow', 'url' => '/api/reports/cashflow', 'verb' => 'GET'],
+		['name' => 'report#budget', 'url' => '/api/reports/budget', 'verb' => 'GET'],
+		['name' => 'report#categoryMonthly', 'url' => '/api/reports/categories/monthly', 'verb' => 'GET'],
+		['name' => 'report#export', 'url' => '/api/reports/export', 'verb' => 'POST'],
 
-        // Setup routes
-        ['name' => 'setup#initialize', 'url' => '/api/setup/initialize', 'verb' => 'POST'],
-        ['name' => 'setup#status', 'url' => '/api/setup/status', 'verb' => 'GET'],
-        ['name' => 'setup#removeDuplicateCategories', 'url' => '/api/setup/remove-duplicate-categories', 'verb' => 'POST'],
-        ['name' => 'setup#resetCategories', 'url' => '/api/setup/reset-categories', 'verb' => 'POST'],
-        ['name' => 'setup#factoryReset', 'url' => '/api/setup/factory-reset', 'verb' => 'POST'],
-        ['name' => 'setup#recalculateBalances', 'url' => '/api/setup/recalculate-balances', 'verb' => 'POST'],
-        ['name' => 'setup#diagnoseData', 'url' => '/api/setup/diagnose', 'verb' => 'GET'],
-        ['name' => 'setup#repairData', 'url' => '/api/setup/repair', 'verb' => 'POST'],
-        ['name' => 'setup#systemInfo', 'url' => '/api/setup/system-info', 'verb' => 'GET'],
+		// Saved reports (#299)
+		['name' => 'savedReport#index', 'url' => '/api/reports/saved', 'verb' => 'GET'],
+		['name' => 'savedReport#create', 'url' => '/api/reports/saved', 'verb' => 'POST'],
+		['name' => 'savedReport#update', 'url' => '/api/reports/saved/{id}', 'verb' => 'PUT'],
+		['name' => 'savedReport#destroy', 'url' => '/api/reports/saved/{id}', 'verb' => 'DELETE'],
 
-        // First-run checklist and sample data
-        ['name' => 'onboarding#state', 'url' => '/api/onboarding', 'verb' => 'GET'],
-        ['name' => 'onboarding#dismiss', 'url' => '/api/onboarding/dismiss', 'verb' => 'POST'],
-        ['name' => 'onboarding#loadSampleData', 'url' => '/api/onboarding/sample-data', 'verb' => 'POST'],
-        ['name' => 'onboarding#clearSampleData', 'url' => '/api/onboarding/sample-data', 'verb' => 'DELETE'],
+		// Tag Report routes
+		['name' => 'report#tagDimensions', 'url' => '/api/reports/tags/dimensions', 'verb' => 'GET'],
+		['name' => 'report#tagCombinations', 'url' => '/api/reports/tags/combinations', 'verb' => 'GET'],
+		['name' => 'report#tagCrossTab', 'url' => '/api/reports/tags/crosstab', 'verb' => 'GET'],
+		['name' => 'report#tagTrends', 'url' => '/api/reports/tags/trends', 'verb' => 'GET'],
+		['name' => 'report#tagSetBreakdown', 'url' => '/api/reports/tags/breakdown', 'verb' => 'GET'],
 
-        // Settings routes - specific paths before {key} wildcard
-        ['name' => 'setting#index', 'url' => '/api/settings', 'verb' => 'GET'],
-        ['name' => 'setting#update', 'url' => '/api/settings', 'verb' => 'PUT'],
-        ['name' => 'setting#reset', 'url' => '/api/settings/reset', 'verb' => 'POST'],
-        ['name' => 'setting#options', 'url' => '/api/settings/options', 'verb' => 'GET'],
-        ['name' => 'setting#show', 'url' => '/api/settings/{key}', 'verb' => 'GET'],
-        ['name' => 'setting#updateKey', 'url' => '/api/settings/{key}', 'verb' => 'PUT'],
-        ['name' => 'setting#destroy', 'url' => '/api/settings/{key}', 'verb' => 'DELETE'],
+		// Setup routes
+		['name' => 'setup#initialize', 'url' => '/api/setup/initialize', 'verb' => 'POST'],
+		['name' => 'setup#status', 'url' => '/api/setup/status', 'verb' => 'GET'],
+		['name' => 'setup#removeDuplicateCategories', 'url' => '/api/setup/remove-duplicate-categories', 'verb' => 'POST'],
+		['name' => 'setup#resetCategories', 'url' => '/api/setup/reset-categories', 'verb' => 'POST'],
+		['name' => 'setup#factoryReset', 'url' => '/api/setup/factory-reset', 'verb' => 'POST'],
+		['name' => 'setup#recalculateBalances', 'url' => '/api/setup/recalculate-balances', 'verb' => 'POST'],
+		['name' => 'setup#diagnoseData', 'url' => '/api/setup/diagnose', 'verb' => 'GET'],
+		['name' => 'setup#repairData', 'url' => '/api/setup/repair', 'verb' => 'POST'],
+		['name' => 'setup#systemInfo', 'url' => '/api/setup/system-info', 'verb' => 'GET'],
 
-        // Migration routes (data export/import)
-        ['name' => 'migration#export', 'url' => '/api/migration/export', 'verb' => 'GET'],
-        ['name' => 'migration#preview', 'url' => '/api/migration/preview', 'verb' => 'POST'],
-        ['name' => 'migration#import', 'url' => '/api/migration/import', 'verb' => 'POST'],
+		// First-run checklist and sample data
+		['name' => 'onboarding#state', 'url' => '/api/onboarding', 'verb' => 'GET'],
+		['name' => 'onboarding#dismiss', 'url' => '/api/onboarding/dismiss', 'verb' => 'POST'],
+		['name' => 'onboarding#loadSampleData', 'url' => '/api/onboarding/sample-data', 'verb' => 'POST'],
+		['name' => 'onboarding#clearSampleData', 'url' => '/api/onboarding/sample-data', 'verb' => 'DELETE'],
 
-        // Budget sharing routes
-        ['name' => 'share#outgoing', 'url' => '/api/shares/outgoing', 'verb' => 'GET'],
-        ['name' => 'share#incoming', 'url' => '/api/shares/incoming', 'verb' => 'GET'],
-        ['name' => 'share#pending', 'url' => '/api/shares/pending', 'verb' => 'GET'],
-        ['name' => 'share#create', 'url' => '/api/shares', 'verb' => 'POST'],
-        ['name' => 'share#accept', 'url' => '/api/shares/{id}/accept', 'verb' => 'POST'],
-        ['name' => 'share#decline', 'url' => '/api/shares/{id}/decline', 'verb' => 'POST'],
-        ['name' => 'share#revoke', 'url' => '/api/shares/{id}', 'verb' => 'DELETE'],
-        ['name' => 'share#leave', 'url' => '/api/shares/{id}/leave', 'verb' => 'POST'],
-        ['name' => 'share#getConfig', 'url' => '/api/shares/{id}/items', 'verb' => 'GET'],
-        ['name' => 'share#updateTypeItems', 'url' => '/api/shares/{id}/items/{type}', 'verb' => 'PUT'],
-        ['name' => 'share#getAutoConfig', 'url' => '/api/shares/{id}/auto-config', 'verb' => 'GET'],
-        ['name' => 'share#updateAutoConfig', 'url' => '/api/shares/{id}/auto-config/{type}', 'verb' => 'PUT'],
+		// Settings routes - specific paths before {key} wildcard
+		['name' => 'setting#index', 'url' => '/api/settings', 'verb' => 'GET'],
+		['name' => 'setting#update', 'url' => '/api/settings', 'verb' => 'PUT'],
+		['name' => 'setting#reset', 'url' => '/api/settings/reset', 'verb' => 'POST'],
+		['name' => 'setting#options', 'url' => '/api/settings/options', 'verb' => 'GET'],
+		['name' => 'setting#show', 'url' => '/api/settings/{key}', 'verb' => 'GET'],
+		['name' => 'setting#updateKey', 'url' => '/api/settings/{key}', 'verb' => 'PUT'],
+		['name' => 'setting#destroy', 'url' => '/api/settings/{key}', 'verb' => 'DELETE'],
 
-        // Exchange rate routes
-        ['name' => 'exchangeRate#index', 'url' => '/api/exchange-rates', 'verb' => 'GET'],
-        ['name' => 'exchangeRate#convert', 'url' => '/api/exchange-rates/convert', 'verb' => 'GET'],
-        ['name' => 'exchangeRate#latest', 'url' => '/api/exchange-rates/latest', 'verb' => 'GET'],
-        ['name' => 'exchangeRate#refresh', 'url' => '/api/exchange-rates/refresh', 'verb' => 'POST'],
-        ['name' => 'exchangeRate#setManualRate', 'url' => '/api/exchange-rates/manual', 'verb' => 'POST'],
-        ['name' => 'exchangeRate#removeManualRate', 'url' => '/api/exchange-rates/manual/{currency}', 'verb' => 'DELETE'],
+		// Migration routes (data export/import)
+		['name' => 'migration#export', 'url' => '/api/migration/export', 'verb' => 'GET'],
+		['name' => 'migration#preview', 'url' => '/api/migration/preview', 'verb' => 'POST'],
+		['name' => 'migration#import', 'url' => '/api/migration/import', 'verb' => 'POST'],
 
-        // Bank Sync routes
-        ['name' => 'bankSync#status', 'url' => '/api/bank-sync/status', 'verb' => 'GET'],
-        ['name' => 'bankSync#providers', 'url' => '/api/bank-sync/providers', 'verb' => 'GET'],
-        ['name' => 'bankSync#institutions', 'url' => '/api/bank-sync/providers/{provider}/institutions', 'verb' => 'POST'],
-        ['name' => 'bankSync#connections', 'url' => '/api/bank-sync/connections', 'verb' => 'GET'],
-        ['name' => 'bankSync#connect', 'url' => '/api/bank-sync/connections', 'verb' => 'POST'],
-        ['name' => 'bankSync#updateConnection', 'url' => '/api/bank-sync/connections/{id}', 'verb' => 'PUT'],
-        ['name' => 'bankSync#disconnect', 'url' => '/api/bank-sync/connections/{id}', 'verb' => 'DELETE'],
-        ['name' => 'bankSync#sync', 'url' => '/api/bank-sync/connections/{id}/sync', 'verb' => 'POST'],
-        ['name' => 'bankSync#mappings', 'url' => '/api/bank-sync/connections/{id}/mappings', 'verb' => 'GET'],
-        ['name' => 'bankSync#updateMapping', 'url' => '/api/bank-sync/connections/{id}/mappings/{mappingId}', 'verb' => 'PUT'],
-        ['name' => 'bankSync#refreshAccounts', 'url' => '/api/bank-sync/connections/{id}/refresh', 'verb' => 'POST'],
-        ['name' => 'bankSync#reauthorize', 'url' => '/api/bank-sync/connections/{id}/reauthorize', 'verb' => 'POST'],
+		// Budget sharing routes
+		['name' => 'share#outgoing', 'url' => '/api/shares/outgoing', 'verb' => 'GET'],
+		['name' => 'share#incoming', 'url' => '/api/shares/incoming', 'verb' => 'GET'],
+		['name' => 'share#pending', 'url' => '/api/shares/pending', 'verb' => 'GET'],
+		['name' => 'share#create', 'url' => '/api/shares', 'verb' => 'POST'],
+		['name' => 'share#accept', 'url' => '/api/shares/{id}/accept', 'verb' => 'POST'],
+		['name' => 'share#decline', 'url' => '/api/shares/{id}/decline', 'verb' => 'POST'],
+		['name' => 'share#revoke', 'url' => '/api/shares/{id}', 'verb' => 'DELETE'],
+		['name' => 'share#leave', 'url' => '/api/shares/{id}/leave', 'verb' => 'POST'],
+		['name' => 'share#getConfig', 'url' => '/api/shares/{id}/items', 'verb' => 'GET'],
+		['name' => 'share#updateTypeItems', 'url' => '/api/shares/{id}/items/{type}', 'verb' => 'PUT'],
+		['name' => 'share#getAutoConfig', 'url' => '/api/shares/{id}/auto-config', 'verb' => 'GET'],
+		['name' => 'share#updateAutoConfig', 'url' => '/api/shares/{id}/auto-config/{type}', 'verb' => 'PUT'],
 
-        // Admin settings routes
-        ['name' => 'adminSetting#index', 'url' => '/api/admin/settings', 'verb' => 'GET'],
-        ['name' => 'adminSetting#update', 'url' => '/api/admin/settings', 'verb' => 'PUT'],
-        ['name' => 'adminSetting#ocrPortal', 'url' => '/api/admin/settings/ocr/portal', 'verb' => 'POST'],
-    ],
+		// Exchange rate routes
+		['name' => 'exchangeRate#index', 'url' => '/api/exchange-rates', 'verb' => 'GET'],
+		['name' => 'exchangeRate#convert', 'url' => '/api/exchange-rates/convert', 'verb' => 'GET'],
+		['name' => 'exchangeRate#latest', 'url' => '/api/exchange-rates/latest', 'verb' => 'GET'],
+		['name' => 'exchangeRate#refresh', 'url' => '/api/exchange-rates/refresh', 'verb' => 'POST'],
+		['name' => 'exchangeRate#setManualRate', 'url' => '/api/exchange-rates/manual', 'verb' => 'POST'],
+		['name' => 'exchangeRate#removeManualRate', 'url' => '/api/exchange-rates/manual/{currency}', 'verb' => 'DELETE'],
 
-    /*
-     * Public REST API (v1), served at /ocs/v2.php/apps/budget/api/v1/...
-     *
-     * The 'routes' block above is the web UI's own back end: session + CSRF
-     * only, and its shapes follow the database. These OCS routes are the
-     * documented, versioned surface for outside clients — the Android capture
-     * app, scripts, automation tooling — which authenticate with a Nextcloud
-     * app password (or a Login flow v2 token) and send `OCS-APIRequest: true`.
-     *
-     * Anything added here is a contract. See openapi.json here, and the REST
-     * API guide at https://budget.otherworld.dev/docs/api.html (its source
-     * lives in the website project, not this repo).
-     */
-    'ocs' => [
-        ['name' => 'apiV1#info', 'url' => '/api/v1', 'verb' => 'GET'],
-        // The capture app's minimal discovery call (its handoff contract).
-        ['name' => 'apiV1#capabilities', 'url' => '/api/v1/capabilities', 'verb' => 'GET'],
+		// Bank Sync routes
+		['name' => 'bankSync#status', 'url' => '/api/bank-sync/status', 'verb' => 'GET'],
+		['name' => 'bankSync#providers', 'url' => '/api/bank-sync/providers', 'verb' => 'GET'],
+		['name' => 'bankSync#institutions', 'url' => '/api/bank-sync/providers/{provider}/institutions', 'verb' => 'POST'],
+		['name' => 'bankSync#connections', 'url' => '/api/bank-sync/connections', 'verb' => 'GET'],
+		['name' => 'bankSync#connect', 'url' => '/api/bank-sync/connections', 'verb' => 'POST'],
+		['name' => 'bankSync#updateConnection', 'url' => '/api/bank-sync/connections/{id}', 'verb' => 'PUT'],
+		['name' => 'bankSync#disconnect', 'url' => '/api/bank-sync/connections/{id}', 'verb' => 'DELETE'],
+		['name' => 'bankSync#sync', 'url' => '/api/bank-sync/connections/{id}/sync', 'verb' => 'POST'],
+		['name' => 'bankSync#mappings', 'url' => '/api/bank-sync/connections/{id}/mappings', 'verb' => 'GET'],
+		['name' => 'bankSync#updateMapping', 'url' => '/api/bank-sync/connections/{id}/mappings/{mappingId}', 'verb' => 'PUT'],
+		['name' => 'bankSync#refreshAccounts', 'url' => '/api/bank-sync/connections/{id}/refresh', 'verb' => 'POST'],
+		['name' => 'bankSync#reauthorize', 'url' => '/api/bank-sync/connections/{id}/reauthorize', 'verb' => 'POST'],
 
-        ['name' => 'apiV1Account#index', 'url' => '/api/v1/accounts', 'verb' => 'GET'],
+		// Admin settings routes
+		['name' => 'adminSetting#index', 'url' => '/api/admin/settings', 'verb' => 'GET'],
+		['name' => 'adminSetting#update', 'url' => '/api/admin/settings', 'verb' => 'PUT'],
+		['name' => 'adminSetting#ocrPortal', 'url' => '/api/admin/settings/ocr/portal', 'verb' => 'POST'],
+	],
 
-        ['name' => 'apiV1Category#index', 'url' => '/api/v1/categories', 'verb' => 'GET'],
+	/*
+	 * Public REST API (v1), served at /ocs/v2.php/apps/budget/api/v1/...
+	 *
+	 * The 'routes' block above is the web UI's own back end: session + CSRF
+	 * only, and its shapes follow the database. These OCS routes are the
+	 * documented, versioned surface for outside clients — the Android capture
+	 * app, scripts, automation tooling — which authenticate with a Nextcloud
+	 * app password (or a Login flow v2 token) and send `OCS-APIRequest: true`.
+	 *
+	 * Anything added here is a contract. See openapi.json here, and the REST
+	 * API guide at https://budget.otherworld.dev/docs/api.html (its source
+	 * lives in the website project, not this repo).
+	 */
+	'ocs' => [
+		['name' => 'apiV1#info', 'url' => '/api/v1', 'verb' => 'GET'],
+		// The capture app's minimal discovery call (its handoff contract).
+		['name' => 'apiV1#capabilities', 'url' => '/api/v1/capabilities', 'verb' => 'GET'],
 
-        ['name' => 'apiV1Transaction#index', 'url' => '/api/v1/transactions', 'verb' => 'GET'],
-        ['name' => 'apiV1Transaction#create', 'url' => '/api/v1/transactions', 'verb' => 'POST'],
-        // Specific before {id}, as everywhere else in this file.
-        ['name' => 'apiV1Transaction#recent', 'url' => '/api/v1/transactions/recent', 'verb' => 'GET'],
-        ['name' => 'apiV1Transaction#show', 'url' => '/api/v1/transactions/{id}', 'verb' => 'GET'],
-        // Per-item splits, for capture apps that read a receipt and let the
-        // user categorise each line. Additive to v1.
-        ['name' => 'apiV1Transaction#createSplits', 'url' => '/api/v1/transactions/{id}/splits', 'verb' => 'POST'],
-        ['name' => 'apiV1Transaction#receipts', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'GET'],
-        ['name' => 'apiV1Transaction#uploadReceipt', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'POST'],
+		['name' => 'apiV1Account#index', 'url' => '/api/v1/accounts', 'verb' => 'GET'],
 
-        // Receipt extraction (#533): image in, draft transaction out. No
-        // side effects — the client records the draft via POST /transactions.
-        ['name' => 'apiV1Receipt#extract', 'url' => '/api/v1/ocr/extract', 'verb' => 'POST'],
-    ],
+		['name' => 'apiV1Category#index', 'url' => '/api/v1/categories', 'verb' => 'GET'],
+
+		['name' => 'apiV1Transaction#index', 'url' => '/api/v1/transactions', 'verb' => 'GET'],
+		['name' => 'apiV1Transaction#create', 'url' => '/api/v1/transactions', 'verb' => 'POST'],
+		// Specific before {id}, as everywhere else in this file.
+		['name' => 'apiV1Transaction#recent', 'url' => '/api/v1/transactions/recent', 'verb' => 'GET'],
+		['name' => 'apiV1Transaction#show', 'url' => '/api/v1/transactions/{id}', 'verb' => 'GET'],
+		// Per-item splits, for capture apps that read a receipt and let the
+		// user categorise each line. Additive to v1.
+		['name' => 'apiV1Transaction#createSplits', 'url' => '/api/v1/transactions/{id}/splits', 'verb' => 'POST'],
+		['name' => 'apiV1Transaction#receipts', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'GET'],
+		['name' => 'apiV1Transaction#uploadReceipt', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'POST'],
+
+		// Receipt extraction (#533): image in, draft transaction out. No
+		// side effects — the client records the draft via POST /transactions.
+		['name' => 'apiV1Receipt#extract', 'url' => '/api/v1/ocr/extract', 'verb' => 'POST'],
+	],
 ];

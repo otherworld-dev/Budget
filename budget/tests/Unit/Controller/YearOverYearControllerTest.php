@@ -7,9 +7,9 @@ namespace OCA\Budget\Tests\Unit\Controller;
 use OCA\Budget\Controller\YearOverYearController;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\YearOverYearService;
+use OCA\Budget\Tests\Unit\Support\ReadsPdfText;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataDownloadResponse;
-use OCA\Budget\Tests\Unit\Support\ReadsPdfText;
 use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
@@ -68,7 +68,7 @@ class YearOverYearControllerTest extends TestCase {
 	}
 
 	public function testCompareMonthDefaultsMonthAbove12(): void {
-		$currentMonth = (int) date('n');
+		$currentMonth = (int)date('n');
 		$this->service->expects($this->once())
 			->method('compareMonth')
 			->with('user1', $currentMonth, 3, null)
@@ -80,7 +80,7 @@ class YearOverYearControllerTest extends TestCase {
 	}
 
 	public function testCompareMonthDefaultsNegativeMonth(): void {
-		$currentMonth = (int) date('n');
+		$currentMonth = (int)date('n');
 		$this->service->expects($this->once())
 			->method('compareMonth')
 			->with('user1', $currentMonth, 3, null)
@@ -420,7 +420,7 @@ class YearOverYearControllerTest extends TestCase {
 	}
 
 	public function testExportMonthDefaultsInvalidMonthToCurrent(): void {
-		$currentMonth = (int) date('n');
+		$currentMonth = (int)date('n');
 		$this->service->expects($this->once())
 			->method('compareMonth')
 			->with('user1', $currentMonth, 3, null)
@@ -473,7 +473,7 @@ class YearOverYearControllerTest extends TestCase {
 	private function controllerTranslating(array $dictionary): YearOverYearController {
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnCallback(
-			fn(string $text, array $params = []) => vsprintf($dictionary[$text] ?? $text, $params)
+			fn (string $text, array $params = []) => vsprintf($dictionary[$text] ?? $text, $params)
 		);
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn(true);

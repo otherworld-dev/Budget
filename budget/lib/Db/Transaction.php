@@ -50,68 +50,68 @@ use OCP\AppFramework\Db\Entity;
  * @method void setPensionContribId(?int $pensionContribId)
  */
 class Transaction extends Entity implements JsonSerializable {
-    protected $accountId;
-    protected $categoryId;
-    protected $date;
-    protected $description;
-    protected $vendor;
-    protected $amount;
-    protected $type;
-    protected $reference;
-    protected $notes;
-    protected $importId;
-    protected $reconciled;
-    protected $createdAt;
-    protected $updatedAt;
-    protected $linkedTransactionId;
-    protected $isSplit;
-    protected $billId;
-    protected $status;
-    protected $excludedFromForecast;
-    protected $reconSessionId;   // reconciliation session this row was ticked into
-    protected $pensionContribId; // pension contribution this bank leg funds (#304); excluded from spending
+	protected $accountId;
+	protected $categoryId;
+	protected $date;
+	protected $description;
+	protected $vendor;
+	protected $amount;
+	protected $type;
+	protected $reference;
+	protected $notes;
+	protected $importId;
+	protected $reconciled;
+	protected $createdAt;
+	protected $updatedAt;
+	protected $linkedTransactionId;
+	protected $isSplit;
+	protected $billId;
+	protected $status;
+	protected $excludedFromForecast;
+	protected $reconSessionId;   // reconciliation session this row was ticked into
+	protected $pensionContribId; // pension contribution this bank leg funds (#304); excluded from spending
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('accountId', 'integer');
-        $this->addType('categoryId', 'integer');
-        $this->addType('amount', 'float');
-        $this->addType('reconciled', 'boolean');
-        $this->addType('linkedTransactionId', 'integer');
-        $this->addType('isSplit', 'boolean');
-        $this->addType('billId', 'integer');
-        $this->addType('excludedFromForecast', 'boolean');
-        $this->addType('reconSessionId', 'integer');
-        $this->addType('pensionContribId', 'integer');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('accountId', 'integer');
+		$this->addType('categoryId', 'integer');
+		$this->addType('amount', 'float');
+		$this->addType('reconciled', 'boolean');
+		$this->addType('linkedTransactionId', 'integer');
+		$this->addType('isSplit', 'boolean');
+		$this->addType('billId', 'integer');
+		$this->addType('excludedFromForecast', 'boolean');
+		$this->addType('reconSessionId', 'integer');
+		$this->addType('pensionContribId', 'integer');
+	}
 
-    /**
-     * Serialize the transaction to JSON format
-     * Returns all fields in camelCase format for frontend consumption
-     */
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'accountId' => $this->getAccountId(),
-            'categoryId' => $this->getCategoryId(),
-            'date' => $this->getDate(),
-            'description' => $this->getDescription(),
-            'vendor' => $this->getVendor(),
-            'amount' => $this->getAmount(),
-            'type' => $this->getType(),
-            'reference' => $this->getReference(),
-            'notes' => $this->getNotes(),
-            'importId' => $this->getImportId(),
-            'reconciled' => $this->getReconciled(),
-            'createdAt' => $this->getCreatedAt(),
-            'updatedAt' => $this->getUpdatedAt(),
-            'linkedTransactionId' => $this->getLinkedTransactionId(),
-            'isSplit' => $this->getIsSplit() ?? false,
-            'billId' => $this->getBillId(),
-            'status' => $this->getStatus() ?? 'cleared',
-            'excludedFromForecast' => $this->getExcludedFromForecast() ?? false,
-            'reconSessionId' => $this->getReconSessionId(),
-            'pensionContribId' => $this->getPensionContribId(),
-        ];
-    }
+	/**
+	 * Serialize the transaction to JSON format
+	 * Returns all fields in camelCase format for frontend consumption
+	 */
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'accountId' => $this->getAccountId(),
+			'categoryId' => $this->getCategoryId(),
+			'date' => $this->getDate(),
+			'description' => $this->getDescription(),
+			'vendor' => $this->getVendor(),
+			'amount' => $this->getAmount(),
+			'type' => $this->getType(),
+			'reference' => $this->getReference(),
+			'notes' => $this->getNotes(),
+			'importId' => $this->getImportId(),
+			'reconciled' => $this->getReconciled(),
+			'createdAt' => $this->getCreatedAt(),
+			'updatedAt' => $this->getUpdatedAt(),
+			'linkedTransactionId' => $this->getLinkedTransactionId(),
+			'isSplit' => $this->getIsSplit() ?? false,
+			'billId' => $this->getBillId(),
+			'status' => $this->getStatus() ?? 'cleared',
+			'excludedFromForecast' => $this->getExcludedFromForecast() ?? false,
+			'reconSessionId' => $this->getReconSessionId(),
+			'pensionContribId' => $this->getPensionContribId(),
+		];
+	}
 }

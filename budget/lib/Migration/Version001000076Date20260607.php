@@ -19,23 +19,23 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000076Date20260607 extends SimpleMigrationStep {
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        foreach (['budget_transactions', 'budget_bills', 'budget_recurring_income'] as $tableName) {
-            if (!$schema->hasTable($tableName)) {
-                continue;
-            }
-            $table = $schema->getTable($tableName);
-            if (!$table->hasColumn('excluded_from_forecast')) {
-                $table->addColumn('excluded_from_forecast', Types::BOOLEAN, [
-                    'notnull' => false,
-                    'default' => false,
-                ]);
-            }
-        }
+		foreach (['budget_transactions', 'budget_bills', 'budget_recurring_income'] as $tableName) {
+			if (!$schema->hasTable($tableName)) {
+				continue;
+			}
+			$table = $schema->getTable($tableName);
+			if (!$table->hasColumn('excluded_from_forecast')) {
+				$table->addColumn('excluded_from_forecast', Types::BOOLEAN, [
+					'notnull' => false,
+					'default' => false,
+				]);
+			}
+		}
 
-        return $schema;
-    }
+		return $schema;
+	}
 }

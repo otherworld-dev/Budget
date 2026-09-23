@@ -27,166 +27,166 @@ use ReflectionProperty;
  * ```
  */
 trait EncryptedFieldsTrait {
-    private EncryptionService $encryptionService;
+	private EncryptionService $encryptionService;
 
-    /** @var array<string, ReflectionProperty> Cached encrypted properties */
-    private array $encryptedProperties = [];
+	/** @var array<string, ReflectionProperty> Cached encrypted properties */
+	private array $encryptedProperties = [];
 
-    /** @var bool Whether encryption has been initialized */
-    private bool $encryptionInitialized = false;
+	/** @var bool Whether encryption has been initialized */
+	private bool $encryptionInitialized = false;
 
-    /**
-     * Initialize encryption for this mapper.
-     *
-     * @param EncryptionService $encryptionService The encryption service
-     * @param string $entityClass The entity class to scan for encrypted properties
-     */
-    protected function initializeEncryption(EncryptionService $encryptionService, string $entityClass): void {
-        $this->encryptionService = $encryptionService;
-        $this->encryptedProperties = $this->discoverEncryptedProperties($entityClass);
-        $this->encryptionInitialized = true;
-    }
+	/**
+	 * Initialize encryption for this mapper.
+	 *
+	 * @param EncryptionService $encryptionService The encryption service
+	 * @param string $entityClass The entity class to scan for encrypted properties
+	 */
+	protected function initializeEncryption(EncryptionService $encryptionService, string $entityClass): void {
+		$this->encryptionService = $encryptionService;
+		$this->encryptedProperties = $this->discoverEncryptedProperties($entityClass);
+		$this->encryptionInitialized = true;
+	}
 
-    /**
-     * Discover properties marked with #[Encrypted] attribute.
-     *
-     * @param string $entityClass The entity class to scan
-     * @return array<string, ReflectionProperty>
-     */
-    private function discoverEncryptedProperties(string $entityClass): array {
-        $properties = [];
-        $reflection = new ReflectionClass($entityClass);
+	/**
+	 * Discover properties marked with #[Encrypted] attribute.
+	 *
+	 * @param string $entityClass The entity class to scan
+	 * @return array<string, ReflectionProperty>
+	 */
+	private function discoverEncryptedProperties(string $entityClass): array {
+		$properties = [];
+		$reflection = new ReflectionClass($entityClass);
 
-        foreach ($reflection->getProperties() as $property) {
-            $attributes = $property->getAttributes(Encrypted::class);
-            if (!empty($attributes)) {
-                $property->setAccessible(true);
-                $properties[$property->getName()] = $property;
-            }
-        }
+		foreach ($reflection->getProperties() as $property) {
+			$attributes = $property->getAttributes(Encrypted::class);
+			if (!empty($attributes)) {
+				$property->setAccessible(true);
+				$properties[$property->getName()] = $property;
+			}
+		}
 
-        return $properties;
-    }
+		return $properties;
+	}
 
-    /**
-     * Get the list of encrypted property names.
-     *
-     * @return array<string>
-     */
-    protected function getEncryptedPropertyNames(): array {
-        return array_keys($this->encryptedProperties);
-    }
+	/**
+	 * Get the list of encrypted property names.
+	 *
+	 * @return array<string>
+	 */
+	protected function getEncryptedPropertyNames(): array {
+		return array_keys($this->encryptedProperties);
+	}
 
-    /**
-     * Encrypt all marked fields on an entity.
-     *
-     * @param Entity $entity The entity to encrypt
-     * @return Entity The same entity with encrypted fields
-     */
-    protected function encryptEntity(Entity $entity): Entity {
-        if (!$this->encryptionInitialized || empty($this->encryptedProperties)) {
-            return $entity;
-        }
+	/**
+	 * Encrypt all marked fields on an entity.
+	 *
+	 * @param Entity $entity The entity to encrypt
+	 * @return Entity The same entity with encrypted fields
+	 */
+	protected function encryptEntity(Entity $entity): Entity {
+		if (!$this->encryptionInitialized || empty($this->encryptedProperties)) {
+			return $entity;
+		}
 
-        foreach ($this->encryptedProperties as $propertyName => $property) {
-            $value = $property->getValue($entity);
-            if ($value !== null && is_string($value)) {
-                $encrypted = $this->encryptionService->encrypt($value);
-                $setter = 'set' . ucfirst($propertyName);
-                $entity->$setter($encrypted);
-            }
-        }
+		foreach ($this->encryptedProperties as $propertyName => $property) {
+			$value = $property->getValue($entity);
+			if ($value !== null && is_string($value)) {
+				$encrypted = $this->encryptionService->encrypt($value);
+				$setter = 'set' . ucfirst($propertyName);
+				$entity->$setter($encrypted);
+			}
+		}
 
-        return $entity;
-    }
+		return $entity;
+	}
 
-    /**
-     * Decrypt all marked fields on an entity.
-     *
-     * @param Entity $entity The entity to decrypt
-     * @return Entity The same entity with decrypted fields
-     */
-    protected function decryptEntity(Entity $entity): Entity {
-        if (!$this->encryptionInitialized || empty($this->encryptedProperties)) {
-            return $entity;
-        }
+	/**
+	 * Decrypt all marked fields on an entity.
+	 *
+	 * @param Entity $entity The entity to decrypt
+	 * @return Entity The same entity with decrypted fields
+	 */
+	protected function decryptEntity(Entity $entity): Entity {
+		if (!$this->encryptionInitialized || empty($this->encryptedProperties)) {
+			return $entity;
+		}
 
-        foreach ($this->encryptedProperties as $propertyName => $property) {
-            $value = $property->getValue($entity);
-            if ($value !== null && is_string($value)) {
-                $decrypted = $this->encryptionService->decrypt($value);
+		foreach ($this->encryptedProperties as $propertyName => $property) {
+			$value = $property->getValue($entity);
+			if ($value !== null && is_string($value)) {
+				$decrypted = $this->encryptionService->decrypt($value);
 
-                // Update via setter
-                $setter = 'set' . ucfirst($propertyName);
-                $entity->$setter($decrypted);
+				// Update via setter
+				$setter = 'set' . ucfirst($propertyName);
+				$entity->$setter($decrypted);
 
-                // Also update the raw property directly to ensure consistency
-                // This is critical when decryption fails and returns null
-                $property->setValue($entity, $decrypted);
-            }
-        }
+				// Also update the raw property directly to ensure consistency
+				// This is critical when decryption fails and returns null
+				$property->setValue($entity, $decrypted);
+			}
+		}
 
-        return $entity;
-    }
+		return $entity;
+	}
 
-    /**
-     * Decrypt an array of entities.
-     *
-     * @param array<Entity> $entities The entities to decrypt
-     * @return array<Entity> The decrypted entities
-     */
-    protected function decryptEntities(array $entities): array {
-        return array_map(fn($entity) => $this->decryptEntity($entity), $entities);
-    }
+	/**
+	 * Decrypt an array of entities.
+	 *
+	 * @param array<Entity> $entities The entities to decrypt
+	 * @return array<Entity> The decrypted entities
+	 */
+	protected function decryptEntities(array $entities): array {
+		return array_map(fn ($entity) => $this->decryptEntity($entity), $entities);
+	}
 
-    /**
-     * Get encrypted value for a specific property.
-     * Useful when building update queries manually.
-     *
-     * @param Entity $entity The entity
-     * @param string $propertyName The property name
-     * @return string|null The encrypted value; the raw value (as a string) for a
-     *                     property that isn't encrypted; null for an unknown property
-     */
-    protected function getEncryptedValue(Entity $entity, string $propertyName): ?string {
-        if (!isset($this->encryptedProperties[$propertyName])) {
-            // Not an encrypted property, return raw value. Entity getters are
-            // magic (__call), so method_exists() can't see them: check the
-            // backing field instead.
-            if (!property_exists($entity, $propertyName)) {
-                return null;
-            }
-            $getter = 'get' . ucfirst($propertyName);
-            $value = $entity->$getter();
-            if ($value === null || is_string($value)) {
-                return $value;
-            }
-            return is_scalar($value) ? (string)$value : null;
-        }
+	/**
+	 * Get encrypted value for a specific property.
+	 * Useful when building update queries manually.
+	 *
+	 * @param Entity $entity The entity
+	 * @param string $propertyName The property name
+	 * @return string|null The encrypted value; the raw value (as a string) for a
+	 *                     property that isn't encrypted; null for an unknown property
+	 */
+	protected function getEncryptedValue(Entity $entity, string $propertyName): ?string {
+		if (!isset($this->encryptedProperties[$propertyName])) {
+			// Not an encrypted property, return raw value. Entity getters are
+			// magic (__call), so method_exists() can't see them: check the
+			// backing field instead.
+			if (!property_exists($entity, $propertyName)) {
+				return null;
+			}
+			$getter = 'get' . ucfirst($propertyName);
+			$value = $entity->$getter();
+			if ($value === null || is_string($value)) {
+				return $value;
+			}
+			return is_scalar($value) ? (string)$value : null;
+		}
 
-        $property = $this->encryptedProperties[$propertyName];
-        $value = $property->getValue($entity);
+		$property = $this->encryptedProperties[$propertyName];
+		$value = $property->getValue($entity);
 
-        if ($value === null || $value === '') {
-            return $value;
-        }
+		if ($value === null || $value === '') {
+			return $value;
+		}
 
-        // If value still has encryption prefix, decryption must have failed
-        // Return null to avoid persisting broken encrypted data
-        if ($this->encryptionService->isEncrypted($value)) {
-            return null;
-        }
+		// If value still has encryption prefix, decryption must have failed
+		// Return null to avoid persisting broken encrypted data
+		if ($this->encryptionService->isEncrypted($value)) {
+			return null;
+		}
 
-        return $this->encryptionService->encrypt($value);
-    }
+		return $this->encryptionService->encrypt($value);
+	}
 
-    /**
-     * Check if a property is marked as encrypted.
-     *
-     * @param string $propertyName The property name
-     * @return bool
-     */
-    protected function isEncryptedProperty(string $propertyName): bool {
-        return isset($this->encryptedProperties[$propertyName]);
-    }
+	/**
+	 * Check if a property is marked as encrypted.
+	 *
+	 * @param string $propertyName The property name
+	 * @return bool
+	 */
+	protected function isEncryptedProperty(string $propertyName): bool {
+		return isset($this->encryptedProperties[$propertyName]);
+	}
 }

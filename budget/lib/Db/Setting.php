@@ -22,24 +22,24 @@ use OCP\AppFramework\Db\Entity;
  * @method void setUpdatedAt(string $updatedAt)
  */
 class Setting extends Entity implements JsonSerializable {
-    protected $userId;
-    protected $key;
-    protected $value;
-    protected $createdAt;
-    protected $updatedAt;
+	protected $userId;
+	protected $key;
+	protected $value;
+	protected $createdAt;
+	protected $updatedAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'userId' => $this->getUserId(),
-            'key' => $this->getKey(),
-            'value' => $this->getValue(),
-            'createdAt' => $this->getCreatedAt(),
-            'updatedAt' => $this->getUpdatedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'userId' => $this->getUserId(),
+			'key' => $this->getKey(),
+			'value' => $this->getValue(),
+			'createdAt' => $this->getCreatedAt(),
+			'updatedAt' => $this->getUpdatedAt(),
+		];
+	}
 }

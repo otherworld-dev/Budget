@@ -14,67 +14,67 @@ use OCP\Migration\SimpleMigrationStep;
  * Create budget_bank_connections table for external bank integrations.
  */
 class Version001000050Date20260418 extends SimpleMigrationStep {
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        // Use short name to avoid index name length issues on MariaDB
-        // Migration 056 handles renaming for users who already ran this with the old name
-        if (!$schema->hasTable('budget_bc') && !$schema->hasTable('budget_bank_connections')) {
-            $table = $schema->createTable('budget_bc');
+		// Use short name to avoid index name length issues on MariaDB
+		// Migration 056 handles renaming for users who already ran this with the old name
+		if (!$schema->hasTable('budget_bc') && !$schema->hasTable('budget_bank_connections')) {
+			$table = $schema->createTable('budget_bc');
 
-            $table->addColumn('id', Types::BIGINT, [
-                'autoincrement' => true,
-                'notnull' => true,
-                'unsigned' => true,
-            ]);
+			$table->addColumn('id', Types::BIGINT, [
+				'autoincrement' => true,
+				'notnull' => true,
+				'unsigned' => true,
+			]);
 
-            $table->addColumn('user_id', Types::STRING, [
-                'notnull' => true,
-                'length' => 64,
-            ]);
+			$table->addColumn('user_id', Types::STRING, [
+				'notnull' => true,
+				'length' => 64,
+			]);
 
-            $table->addColumn('provider', Types::STRING, [
-                'notnull' => true,
-                'length' => 32,
-            ]);
+			$table->addColumn('provider', Types::STRING, [
+				'notnull' => true,
+				'length' => 32,
+			]);
 
-            $table->addColumn('name', Types::STRING, [
-                'notnull' => true,
-                'length' => 255,
-            ]);
+			$table->addColumn('name', Types::STRING, [
+				'notnull' => true,
+				'length' => 255,
+			]);
 
-            $table->addColumn('credentials', Types::TEXT, [
-                'notnull' => true,
-            ]);
+			$table->addColumn('credentials', Types::TEXT, [
+				'notnull' => true,
+			]);
 
-            $table->addColumn('status', Types::STRING, [
-                'notnull' => true,
-                'length' => 16,
-                'default' => 'active',
-            ]);
+			$table->addColumn('status', Types::STRING, [
+				'notnull' => true,
+				'length' => 16,
+				'default' => 'active',
+			]);
 
-            $table->addColumn('last_sync_at', Types::DATETIME, [
-                'notnull' => false,
-            ]);
+			$table->addColumn('last_sync_at', Types::DATETIME, [
+				'notnull' => false,
+			]);
 
-            $table->addColumn('last_error', Types::TEXT, [
-                'notnull' => false,
-            ]);
+			$table->addColumn('last_error', Types::TEXT, [
+				'notnull' => false,
+			]);
 
-            $table->addColumn('created_at', Types::DATETIME, [
-                'notnull' => true,
-            ]);
+			$table->addColumn('created_at', Types::DATETIME, [
+				'notnull' => true,
+			]);
 
-            $table->addColumn('updated_at', Types::DATETIME, [
-                'notnull' => true,
-            ]);
+			$table->addColumn('updated_at', Types::DATETIME, [
+				'notnull' => true,
+			]);
 
-            $table->setPrimaryKey(['id']);
-            $table->addIndex(['user_id'], 'bc_user_idx');
-            $table->addIndex(['user_id', 'provider'], 'bc_user_prov_idx');
-        }
+			$table->setPrimaryKey(['id']);
+			$table->addIndex(['user_id'], 'bc_user_idx');
+			$table->addIndex(['user_id', 'provider'], 'bc_user_prov_idx');
+		}
 
-        return $schema;
-    }
+		return $schema;
+	}
 }

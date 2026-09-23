@@ -16,65 +16,65 @@ use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
 class AlertController extends Controller {
-    use ApiErrorHandlerTrait;
-    use SharedAccessTrait;
+	use ApiErrorHandlerTrait;
+	use SharedAccessTrait;
 
-    private BudgetAlertService $alertService;
-    private IL10N $l;
-    private string $userId;
+	private BudgetAlertService $alertService;
+	private IL10N $l;
+	private string $userId;
 
-    public function __construct(
-        IRequest $request,
-        BudgetAlertService $alertService,
-        GranularShareService $granularShareService,
-        IL10N $l,
-        string $userId,
-        LoggerInterface $logger
-    ) {
-        parent::__construct(Application::APP_ID, $request);
-        $this->alertService = $alertService;
-        $this->l = $l;
-        $this->userId = $userId;
-        $this->setLogger($logger);
-        $this->setGranularShareService($granularShareService);
-    }
+	public function __construct(
+		IRequest $request,
+		BudgetAlertService $alertService,
+		GranularShareService $granularShareService,
+		IL10N $l,
+		string $userId,
+		LoggerInterface $logger,
+	) {
+		parent::__construct(Application::APP_ID, $request);
+		$this->alertService = $alertService;
+		$this->l = $l;
+		$this->userId = $userId;
+		$this->setLogger($logger);
+		$this->setGranularShareService($granularShareService);
+	}
 
-    /**
-     * Get all budget alerts (categories at or above warning threshold)
-     * @NoAdminRequired
-     */
-    public function index(): DataResponse {
-        try {
-            $alerts = $this->alertService->getAlerts($this->getEffectiveUserId(), $this->getEffectiveAccountIds());
-            return new DataResponse($alerts);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to retrieve budget alerts'));
-        }
-    }
+	/**
+	 * Get all budget alerts (categories at or above warning threshold)
+	 * @NoAdminRequired
+	 */
+	public function index(): DataResponse {
+		try {
+			$alerts = $this->alertService->getAlerts($this->getEffectiveUserId(), $this->getEffectiveAccountIds());
+			return new DataResponse($alerts);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to retrieve budget alerts'));
+		}
+	}
 
-    /**
-     * Get full budget status for all categories with budgets
-     * @NoAdminRequired
-     */
-    public function status(): DataResponse {
-        try {
-            $status = $this->alertService->getBudgetStatus($this->getEffectiveUserId(), $this->getEffectiveAccountIds());
-            return new DataResponse($status);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to retrieve budget status'));
-        }
-    }
+	/**
+	 * Get full budget status for all categories with budgets
+	 * @NoAdminRequired
+	 */
+	public function status(): DataResponse {
+		try {
+			$status = $this->alertService->getBudgetStatus($this->getEffectiveUserId(), $this->getEffectiveAccountIds());
+			return new DataResponse($status);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to retrieve budget status'));
+		}
+	}
 
-    /**
-     * Get summary statistics for budget alerts
-     * @NoAdminRequired
-     */
-    public function summary(): DataResponse {
-        try {
-            $summary = $this->alertService->getSummary($this->getEffectiveUserId());
-            return new DataResponse($summary);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to retrieve budget summary'));
-        }
-    }
+	/**
+	 * Get summary statistics for budget alerts
+	 * @NoAdminRequired
+	 */
+	public function summary(): DataResponse {
+		try {
+			$summary = $this->alertService->getSummary($this->getEffectiveUserId());
+			return new DataResponse($summary);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to retrieve budget summary'));
+		}
+	}
 }

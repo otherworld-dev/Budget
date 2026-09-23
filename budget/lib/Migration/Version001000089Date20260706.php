@@ -20,24 +20,24 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000089Date20260706 extends SimpleMigrationStep {
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if (!$schema->hasTable('budget_bills')) {
-            return null;
-        }
+		if (!$schema->hasTable('budget_bills')) {
+			return null;
+		}
 
-        $table = $schema->getTable('budget_bills');
-        if ($table->hasColumn('create_transaction')) {
-            return null;
-        }
+		$table = $schema->getTable('budget_bills');
+		if ($table->hasColumn('create_transaction')) {
+			return null;
+		}
 
-        $table->addColumn('create_transaction', Types::BOOLEAN, [
-            'notnull' => false,
-            'default' => true,
-        ]);
+		$table->addColumn('create_transaction', Types::BOOLEAN, [
+			'notnull' => false,
+			'default' => true,
+		]);
 
-        return $schema;
-    }
+		return $schema;
+	}
 }

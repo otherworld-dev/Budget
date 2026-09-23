@@ -16,545 +16,545 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 class RecurringIncomeServiceTest extends TestCase {
-    private RecurringIncomeService $service;
-    private RecurringIncomeMapper $mapper;
-    private FrequencyCalculator $frequencyCalculator;
-    private RecurringIncomeDetector $recurringDetector;
-    private TransactionService $transactionService;
-
-    protected function setUp(): void {
-        $this->mapper = $this->createMock(RecurringIncomeMapper::class);
-        $this->frequencyCalculator = $this->createMock(FrequencyCalculator::class);
-        // Monthly-equivalent math now delegates to the calculator — back the
-        // mock with the real (pure) implementation so summaries compute
-        $this->frequencyCalculator->method('getMonthlyEquivalentFromValues')
-            ->willReturnCallback(fn(float $amount, string $frequency) => (new FrequencyCalculator())->getMonthlyEquivalentFromValues($amount, $frequency));
-        $this->recurringDetector = $this->createMock(RecurringIncomeDetector::class);
-        $this->transactionService = $this->createMock(TransactionService::class);
-        $logger = $this->createMock(LoggerInterface::class);
-        $l = $this->createMock(IL10N::class);
-        $l->method('t')->willReturnCallback(fn($text, $params = []) => vsprintf($text, $params));
-
-        $this->service = new RecurringIncomeService(
-            $this->mapper,
-            $this->frequencyCalculator,
-            $this->recurringDetector,
-            $this->transactionService,
-            $logger,
-            $l
-        );
-    }
-
-    private function makeIncome(array $overrides = []): RecurringIncome {
-        $income = new RecurringIncome();
-        $defaults = [
-            'id' => 1,
-            'userId' => 'user1',
-            'name' => 'Salary',
-            'amount' => 3000.0,
-            'frequency' => 'monthly',
-            'expectedDay' => 25,
-            'isActive' => true,
-            'autoDetectPattern' => null,
-            'lastReceivedDate' => null,
-            'nextExpectedDate' => '2026-04-25',
-            'accountId' => null,
-            'categoryId' => null,
-        ];
-        $data = array_merge($defaults, $overrides);
-
-        $income->setId($data['id']);
-        $income->setUserId($data['userId']);
-        $income->setName($data['name']);
-        $income->setAmount($data['amount']);
-        $income->setFrequency($data['frequency']);
-        $income->setExpectedDay($data['expectedDay']);
-        $income->setIsActive($data['isActive']);
-        $income->setAutoDetectPattern($data['autoDetectPattern']);
-        $income->setLastReceivedDate($data['lastReceivedDate']);
-        $income->setNextExpectedDate($data['nextExpectedDate']);
-        $income->setAccountId($data['accountId']);
-        $income->setCategoryId($data['categoryId']);
-
-        return $income;
-    }
-
-    // ===== CRUD =====
-
-    public function testFindDelegatesToMapper(): void {
-        $income = $this->makeIncome();
-        $this->mapper->method('find')->with(1, 'user1')->willReturn($income);
-
-        $this->assertSame($income, $this->service->find(1, 'user1'));
-    }
-
-    public function testFindAllDelegatesToMapper(): void {
-        $this->mapper->method('findAll')->with('user1')->willReturn([]);
-        $this->assertEquals([], $this->service->findAll('user1'));
-    }
-
-    public function testCreateSetsFieldsAndCalculatesNextDate(): void {
-        $this->frequencyCalculator->expects($this->once())->method('calculateNextDueDate')
-            ->with('monthly', 25, null)
-            ->willReturn('2026-04-25');
-
-        $this->mapper->expects($this->once())->method('insert')
-            ->willReturnCallback(function (RecurringIncome $i) {
-                $this->assertEquals('user1', $i->getUserId());
-                $this->assertEquals('Salary', $i->getName());
-                $this->assertEquals(3000.0, $i->getAmount());
-                $this->assertEquals('monthly', $i->getFrequency());
-                $this->assertEquals(25, $i->getExpectedDay());
-                $this->assertEquals('2026-04-25', $i->getNextExpectedDate());
-                $this->assertTrue($i->getIsActive());
-                $i->setId(1);
-                return $i;
-            });
-
-        $result = $this->service->create('user1', 'Salary', 3000.0, 'monthly', 25);
-        $this->assertEquals('Salary', $result->getName());
-    }
-
-    public function testCreatePersistsDescription(): void {
-        $this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-04-25');
-
-        $this->mapper->expects($this->once())->method('insert')
-            ->willReturnCallback(function (RecurringIncome $i) {
-                // Description must be persisted on create (#263)
-                $this->assertEquals('Monthly paycheck', $i->getDescription());
-                $i->setId(1);
-                return $i;
-            });
-
-        $this->service->create(
-            'user1', 'Salary', 3000.0, 'monthly', 25,
-            null, null, null, null, null, null, false, 'Monthly paycheck'
-        );
-    }
-
-    public function testDeleteRemovesIncome(): void {
-        $income = $this->makeIncome();
-        $this->mapper->method('find')->willReturn($income);
-        $this->mapper->expects($this->once())->method('delete')->with($income);
-
-        $this->service->delete(1, 'user1');
-    }
-
-    // ===== markReceived =====
-
-    public function testMarkReceivedUpdatesDateAndAdvances(): void {
-        $income = $this->makeIncome();
-        $this->mapper->method('find')->willReturn($income);
-
-        $this->frequencyCalculator->expects($this->once())->method('calculateNextDueDate')
-            ->with('monthly', 25, null, '2026-03-25')
-            ->willReturn('2026-04-25');
-
-        $this->mapper->expects($this->once())->method('update')
-            ->willReturnCallback(function (RecurringIncome $i) {
-                $this->assertEquals('2026-03-25', $i->getLastReceivedDate());
-                $this->assertEquals('2026-04-25', $i->getNextExpectedDate());
-                return $i;
-            });
-
-        $this->service->markReceived(1, 'user1', '2026-03-25');
-    }
-
-    public function testMarkReceivedCreatesTransactionWhenRequested(): void {
-        $income = $this->makeIncome(['accountId' => 10, 'categoryId' => 5, 'nextExpectedDate' => '2026-03-25']);
-        $this->mapper->method('find')->willReturn($income);
-        $this->mapper->method('update')->willReturnArgument(0);
-
-        $this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-04-25');
-
-        $tx = new Transaction();
-        $tx->setId(1);
-        $this->transactionService->expects($this->once())
-            ->method('createFromIncome')
-            ->with('user1', $income, '2026-03-25', 'cleared')
-            ->willReturn($tx);
-
-        $this->service->markReceived(1, 'user1', '2026-03-25', true);
-    }
-
-    public function testMarkReceivedDoesNotCreateTransactionByDefault(): void {
-        $income = $this->makeIncome(['accountId' => 10]);
-        $this->mapper->method('find')->willReturn($income);
-        $this->mapper->method('update')->willReturnArgument(0);
-        $this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-04-25');
-
-        $this->transactionService->expects($this->never())->method('createFromIncome');
-
-        $this->service->markReceived(1, 'user1', '2026-03-25');
-    }
-
-    public function testMarkReceivedSkipsTransactionWhenNoAccount(): void {
-        $income = $this->makeIncome(['accountId' => null]);
-        $this->mapper->method('find')->willReturn($income);
-        $this->mapper->method('update')->willReturnArgument(0);
-        $this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-04-25');
-
-        $this->transactionService->expects($this->never())->method('createFromIncome');
-
-        $this->service->markReceived(1, 'user1', '2026-03-25', true);
-    }
+	private RecurringIncomeService $service;
+	private RecurringIncomeMapper $mapper;
+	private FrequencyCalculator $frequencyCalculator;
+	private RecurringIncomeDetector $recurringDetector;
+	private TransactionService $transactionService;
+
+	protected function setUp(): void {
+		$this->mapper = $this->createMock(RecurringIncomeMapper::class);
+		$this->frequencyCalculator = $this->createMock(FrequencyCalculator::class);
+		// Monthly-equivalent math now delegates to the calculator — back the
+		// mock with the real (pure) implementation so summaries compute
+		$this->frequencyCalculator->method('getMonthlyEquivalentFromValues')
+			->willReturnCallback(fn (float $amount, string $frequency) => (new FrequencyCalculator())->getMonthlyEquivalentFromValues($amount, $frequency));
+		$this->recurringDetector = $this->createMock(RecurringIncomeDetector::class);
+		$this->transactionService = $this->createMock(TransactionService::class);
+		$logger = $this->createMock(LoggerInterface::class);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(fn ($text, $params = []) => vsprintf($text, $params));
+
+		$this->service = new RecurringIncomeService(
+			$this->mapper,
+			$this->frequencyCalculator,
+			$this->recurringDetector,
+			$this->transactionService,
+			$logger,
+			$l
+		);
+	}
+
+	private function makeIncome(array $overrides = []): RecurringIncome {
+		$income = new RecurringIncome();
+		$defaults = [
+			'id' => 1,
+			'userId' => 'user1',
+			'name' => 'Salary',
+			'amount' => 3000.0,
+			'frequency' => 'monthly',
+			'expectedDay' => 25,
+			'isActive' => true,
+			'autoDetectPattern' => null,
+			'lastReceivedDate' => null,
+			'nextExpectedDate' => '2026-04-25',
+			'accountId' => null,
+			'categoryId' => null,
+		];
+		$data = array_merge($defaults, $overrides);
+
+		$income->setId($data['id']);
+		$income->setUserId($data['userId']);
+		$income->setName($data['name']);
+		$income->setAmount($data['amount']);
+		$income->setFrequency($data['frequency']);
+		$income->setExpectedDay($data['expectedDay']);
+		$income->setIsActive($data['isActive']);
+		$income->setAutoDetectPattern($data['autoDetectPattern']);
+		$income->setLastReceivedDate($data['lastReceivedDate']);
+		$income->setNextExpectedDate($data['nextExpectedDate']);
+		$income->setAccountId($data['accountId']);
+		$income->setCategoryId($data['categoryId']);
+
+		return $income;
+	}
+
+	// ===== CRUD =====
+
+	public function testFindDelegatesToMapper(): void {
+		$income = $this->makeIncome();
+		$this->mapper->method('find')->with(1, 'user1')->willReturn($income);
+
+		$this->assertSame($income, $this->service->find(1, 'user1'));
+	}
+
+	public function testFindAllDelegatesToMapper(): void {
+		$this->mapper->method('findAll')->with('user1')->willReturn([]);
+		$this->assertEquals([], $this->service->findAll('user1'));
+	}
+
+	public function testCreateSetsFieldsAndCalculatesNextDate(): void {
+		$this->frequencyCalculator->expects($this->once())->method('calculateNextDueDate')
+			->with('monthly', 25, null)
+			->willReturn('2026-04-25');
+
+		$this->mapper->expects($this->once())->method('insert')
+			->willReturnCallback(function (RecurringIncome $i) {
+				$this->assertEquals('user1', $i->getUserId());
+				$this->assertEquals('Salary', $i->getName());
+				$this->assertEquals(3000.0, $i->getAmount());
+				$this->assertEquals('monthly', $i->getFrequency());
+				$this->assertEquals(25, $i->getExpectedDay());
+				$this->assertEquals('2026-04-25', $i->getNextExpectedDate());
+				$this->assertTrue($i->getIsActive());
+				$i->setId(1);
+				return $i;
+			});
+
+		$result = $this->service->create('user1', 'Salary', 3000.0, 'monthly', 25);
+		$this->assertEquals('Salary', $result->getName());
+	}
+
+	public function testCreatePersistsDescription(): void {
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-04-25');
+
+		$this->mapper->expects($this->once())->method('insert')
+			->willReturnCallback(function (RecurringIncome $i) {
+				// Description must be persisted on create (#263)
+				$this->assertEquals('Monthly paycheck', $i->getDescription());
+				$i->setId(1);
+				return $i;
+			});
+
+		$this->service->create(
+			'user1', 'Salary', 3000.0, 'monthly', 25,
+			null, null, null, null, null, null, false, 'Monthly paycheck'
+		);
+	}
+
+	public function testDeleteRemovesIncome(): void {
+		$income = $this->makeIncome();
+		$this->mapper->method('find')->willReturn($income);
+		$this->mapper->expects($this->once())->method('delete')->with($income);
+
+		$this->service->delete(1, 'user1');
+	}
+
+	// ===== markReceived =====
+
+	public function testMarkReceivedUpdatesDateAndAdvances(): void {
+		$income = $this->makeIncome();
+		$this->mapper->method('find')->willReturn($income);
+
+		$this->frequencyCalculator->expects($this->once())->method('calculateNextDueDate')
+			->with('monthly', 25, null, '2026-03-25')
+			->willReturn('2026-04-25');
+
+		$this->mapper->expects($this->once())->method('update')
+			->willReturnCallback(function (RecurringIncome $i) {
+				$this->assertEquals('2026-03-25', $i->getLastReceivedDate());
+				$this->assertEquals('2026-04-25', $i->getNextExpectedDate());
+				return $i;
+			});
+
+		$this->service->markReceived(1, 'user1', '2026-03-25');
+	}
+
+	public function testMarkReceivedCreatesTransactionWhenRequested(): void {
+		$income = $this->makeIncome(['accountId' => 10, 'categoryId' => 5, 'nextExpectedDate' => '2026-03-25']);
+		$this->mapper->method('find')->willReturn($income);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-04-25');
+
+		$tx = new Transaction();
+		$tx->setId(1);
+		$this->transactionService->expects($this->once())
+			->method('createFromIncome')
+			->with('user1', $income, '2026-03-25', 'cleared')
+			->willReturn($tx);
+
+		$this->service->markReceived(1, 'user1', '2026-03-25', true);
+	}
+
+	public function testMarkReceivedDoesNotCreateTransactionByDefault(): void {
+		$income = $this->makeIncome(['accountId' => 10]);
+		$this->mapper->method('find')->willReturn($income);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-04-25');
+
+		$this->transactionService->expects($this->never())->method('createFromIncome');
+
+		$this->service->markReceived(1, 'user1', '2026-03-25');
+	}
+
+	public function testMarkReceivedSkipsTransactionWhenNoAccount(): void {
+		$income = $this->makeIncome(['accountId' => null]);
+		$this->mapper->method('find')->willReturn($income);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-04-25');
+
+		$this->transactionService->expects($this->never())->method('createFromIncome');
+
+		$this->service->markReceived(1, 'user1', '2026-03-25', true);
+	}
 
-    public function testMarkReceivedStillSucceedsIfTransactionCreationFails(): void {
-        $income = $this->makeIncome(['accountId' => 10, 'nextExpectedDate' => '2026-03-25']);
-        $this->mapper->method('find')->willReturn($income);
-        $this->mapper->method('update')->willReturnArgument(0);
-        $this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-04-25');
-
-        $this->transactionService->method('createFromIncome')
-            ->willThrowException(new \Exception('DB error'));
-
-        // Should not throw - markReceived should succeed despite transaction failure
-        $result = $this->service->markReceived(1, 'user1', '2026-03-25', true);
-        $this->assertEquals('2026-03-25', $result->getLastReceivedDate());
-        $this->assertEquals('2026-04-25', $result->getNextExpectedDate());
-    }
-
-    // ===== skipPayment / undoSkip (#396) =====
+	public function testMarkReceivedStillSucceedsIfTransactionCreationFails(): void {
+		$income = $this->makeIncome(['accountId' => 10, 'nextExpectedDate' => '2026-03-25']);
+		$this->mapper->method('find')->willReturn($income);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-04-25');
+
+		$this->transactionService->method('createFromIncome')
+			->willThrowException(new \Exception('DB error'));
+
+		// Should not throw - markReceived should succeed despite transaction failure
+		$result = $this->service->markReceived(1, 'user1', '2026-03-25', true);
+		$this->assertEquals('2026-03-25', $result->getLastReceivedDate());
+		$this->assertEquals('2026-04-25', $result->getNextExpectedDate());
+	}
+
+	// ===== skipPayment / undoSkip (#396) =====
 
-    public function testSkipPaymentAdvancesOneCycleWithoutRecordingReceipt(): void {
-        $income = $this->makeIncome(['lastReceivedDate' => '2026-03-25', 'nextExpectedDate' => '2026-04-25']);
-        $income->setStartDate(null);
-        $this->mapper->method('find')->willReturn($income);
+	public function testSkipPaymentAdvancesOneCycleWithoutRecordingReceipt(): void {
+		$income = $this->makeIncome(['lastReceivedDate' => '2026-03-25', 'nextExpectedDate' => '2026-04-25']);
+		$income->setStartDate(null);
+		$this->mapper->method('find')->willReturn($income);
 
-        $this->frequencyCalculator->expects($this->once())->method('calculateNextDueDate')
-            ->with('monthly', 25, null, '2026-04-25', null, true, null)
-            ->willReturn('2026-05-25');
+		$this->frequencyCalculator->expects($this->once())->method('calculateNextDueDate')
+			->with('monthly', 25, null, '2026-04-25', null, true, null)
+			->willReturn('2026-05-25');
 
-        $this->mapper->expects($this->once())->method('update')
-            ->willReturnCallback(function (RecurringIncome $i) {
-                $this->assertSame('2026-05-25', $i->getNextExpectedDate());
-                $this->assertSame('2026-03-25', $i->getLastReceivedDate());
-                return $i;
-            });
-        $this->transactionService->expects($this->never())->method('createFromIncome');
+		$this->mapper->expects($this->once())->method('update')
+			->willReturnCallback(function (RecurringIncome $i) {
+				$this->assertSame('2026-05-25', $i->getNextExpectedDate());
+				$this->assertSame('2026-03-25', $i->getLastReceivedDate());
+				return $i;
+			});
+		$this->transactionService->expects($this->never())->method('createFromIncome');
 
-        $result = $this->service->skipPayment(1, 'user1');
+		$result = $this->service->skipPayment(1, 'user1');
 
-        $this->assertSame('2026-04-25', $result['previousNextExpectedDate']);
-        $this->assertSame('2026-05-25', $result['income']->getNextExpectedDate());
-    }
+		$this->assertSame('2026-04-25', $result['previousNextExpectedDate']);
+		$this->assertSame('2026-05-25', $result['income']->getNextExpectedDate());
+	}
 
-    public function testSkipPaymentKeepsTheStartDateAnchor(): void {
-        $income = $this->makeIncome(['frequency' => 'biweekly', 'expectedDay' => 5, 'nextExpectedDate' => '2026-04-24']);
-        $income->setStartDate('2026-01-02');
-        $this->mapper->method('find')->willReturn($income);
-        $this->mapper->method('update')->willReturnArgument(0);
+	public function testSkipPaymentKeepsTheStartDateAnchor(): void {
+		$income = $this->makeIncome(['frequency' => 'biweekly', 'expectedDay' => 5, 'nextExpectedDate' => '2026-04-24']);
+		$income->setStartDate('2026-01-02');
+		$this->mapper->method('find')->willReturn($income);
+		$this->mapper->method('update')->willReturnArgument(0);
 
-        $this->frequencyCalculator->expects($this->once())->method('calculateNextDueDate')
-            ->with('biweekly', 5, null, '2026-04-24', null, true, '2026-01-02')
-            ->willReturn('2026-05-08');
+		$this->frequencyCalculator->expects($this->once())->method('calculateNextDueDate')
+			->with('biweekly', 5, null, '2026-04-24', null, true, '2026-01-02')
+			->willReturn('2026-05-08');
 
-        $result = $this->service->skipPayment(1, 'user1');
+		$result = $this->service->skipPayment(1, 'user1');
 
-        $this->assertSame('2026-05-08', $result['income']->getNextExpectedDate());
-    }
+		$this->assertSame('2026-05-08', $result['income']->getNextExpectedDate());
+	}
 
-    public function testSkipPaymentRefusesOneTimeIncome(): void {
-        $this->mapper->method('find')->willReturn($this->makeIncome(['frequency' => 'one-time']));
-        $this->mapper->expects($this->never())->method('update');
+	public function testSkipPaymentRefusesOneTimeIncome(): void {
+		$this->mapper->method('find')->willReturn($this->makeIncome(['frequency' => 'one-time']));
+		$this->mapper->expects($this->never())->method('update');
 
-        $this->expectException(\InvalidArgumentException::class);
-        $this->service->skipPayment(1, 'user1');
-    }
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->skipPayment(1, 'user1');
+	}
 
-    public function testSkipPaymentRefusesInactiveIncome(): void {
-        $this->mapper->method('find')->willReturn($this->makeIncome(['isActive' => false]));
-        $this->mapper->expects($this->never())->method('update');
+	public function testSkipPaymentRefusesInactiveIncome(): void {
+		$this->mapper->method('find')->willReturn($this->makeIncome(['isActive' => false]));
+		$this->mapper->expects($this->never())->method('update');
 
-        $this->expectException(\InvalidArgumentException::class);
-        $this->service->skipPayment(1, 'user1');
-    }
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->skipPayment(1, 'user1');
+	}
 
-    public function testSkipPaymentRefusesIncomeWithNoExpectedDate(): void {
-        $this->mapper->method('find')->willReturn($this->makeIncome(['nextExpectedDate' => null]));
-        $this->mapper->expects($this->never())->method('update');
+	public function testSkipPaymentRefusesIncomeWithNoExpectedDate(): void {
+		$this->mapper->method('find')->willReturn($this->makeIncome(['nextExpectedDate' => null]));
+		$this->mapper->expects($this->never())->method('update');
 
-        $this->expectException(\InvalidArgumentException::class);
-        $this->service->skipPayment(1, 'user1');
-    }
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->skipPayment(1, 'user1');
+	}
 
-    public function testUndoSkipRestoresThePreviousExpectedDate(): void {
-        $this->mapper->method('find')->willReturn($this->makeIncome(['nextExpectedDate' => '2026-05-25']));
-        $this->frequencyCalculator->expects($this->never())->method('calculateNextDueDate');
-        $this->mapper->expects($this->once())->method('update')->willReturnArgument(0);
+	public function testUndoSkipRestoresThePreviousExpectedDate(): void {
+		$this->mapper->method('find')->willReturn($this->makeIncome(['nextExpectedDate' => '2026-05-25']));
+		$this->frequencyCalculator->expects($this->never())->method('calculateNextDueDate');
+		$this->mapper->expects($this->once())->method('update')->willReturnArgument(0);
 
-        $result = $this->service->undoSkip(1, 'user1', '2026-04-25');
+		$result = $this->service->undoSkip(1, 'user1', '2026-04-25');
 
-        $this->assertSame('2026-04-25', $result->getNextExpectedDate());
-    }
+		$this->assertSame('2026-04-25', $result->getNextExpectedDate());
+	}
 
-    // ===== getMonthlySummary =====
+	// ===== getMonthlySummary =====
 
-    public function testGetMonthlySummaryCalculatesFrequencyBreakdown(): void {
-        $monthly = $this->makeIncome(['id' => 1, 'amount' => 3000.0, 'frequency' => 'monthly']);
-        $weekly = $this->makeIncome(['id' => 2, 'amount' => 200.0, 'frequency' => 'weekly']);
+	public function testGetMonthlySummaryCalculatesFrequencyBreakdown(): void {
+		$monthly = $this->makeIncome(['id' => 1, 'amount' => 3000.0, 'frequency' => 'monthly']);
+		$weekly = $this->makeIncome(['id' => 2, 'amount' => 200.0, 'frequency' => 'weekly']);
 
-        $this->mapper->method('findActive')->willReturn([$monthly, $weekly]);
+		$this->mapper->method('findActive')->willReturn([$monthly, $weekly]);
 
-        $result = $this->service->getMonthlySummary('user1');
+		$result = $this->service->getMonthlySummary('user1');
 
-        $this->assertEquals(2, $result['activeCount']);
-        // Monthly: 3000, Weekly: 200 * 52/12 ≈ 866.67
-        $this->assertEqualsWithDelta(3866.67, $result['monthlyTotal'], 0.01);
-        $this->assertEquals(1, $result['byFrequency']['monthly']['count']);
-        $this->assertEquals(1, $result['byFrequency']['weekly']['count']);
-    }
+		$this->assertEquals(2, $result['activeCount']);
+		// Monthly: 3000, Weekly: 200 * 52/12 ≈ 866.67
+		$this->assertEqualsWithDelta(3866.67, $result['monthlyTotal'], 0.01);
+		$this->assertEquals(1, $result['byFrequency']['monthly']['count']);
+		$this->assertEquals(1, $result['byFrequency']['weekly']['count']);
+	}
 
-    public function testGetMonthlySummaryOneTimeIncomeNotCountedMonthly(): void {
-        // One-time income is not a recurring monthly commitment — the old map
-        // counted it at full value every month until received
-        $oneTime = $this->makeIncome(['id' => 1, 'amount' => 5000.0, 'frequency' => 'one-time']);
-        $monthly = $this->makeIncome(['id' => 2, 'amount' => 3000.0, 'frequency' => 'monthly']);
+	public function testGetMonthlySummaryOneTimeIncomeNotCountedMonthly(): void {
+		// One-time income is not a recurring monthly commitment — the old map
+		// counted it at full value every month until received
+		$oneTime = $this->makeIncome(['id' => 1, 'amount' => 5000.0, 'frequency' => 'one-time']);
+		$monthly = $this->makeIncome(['id' => 2, 'amount' => 3000.0, 'frequency' => 'monthly']);
 
-        $this->mapper->method('findActive')->willReturn([$oneTime, $monthly]);
+		$this->mapper->method('findActive')->willReturn([$oneTime, $monthly]);
 
-        $result = $this->service->getMonthlySummary('user1');
+		$result = $this->service->getMonthlySummary('user1');
 
-        $this->assertEqualsWithDelta(3000.0, $result['monthlyTotal'], 0.01);
-    }
+		$this->assertEqualsWithDelta(3000.0, $result['monthlyTotal'], 0.01);
+	}
 
-    public function testGetMonthlySummarySemiMonthlyCountedTwice(): void {
-        $semiMonthly = $this->makeIncome(['id' => 1, 'amount' => 1500.0, 'frequency' => 'semi-monthly']);
+	public function testGetMonthlySummarySemiMonthlyCountedTwice(): void {
+		$semiMonthly = $this->makeIncome(['id' => 1, 'amount' => 1500.0, 'frequency' => 'semi-monthly']);
 
-        $this->mapper->method('findActive')->willReturn([$semiMonthly]);
+		$this->mapper->method('findActive')->willReturn([$semiMonthly]);
 
-        $result = $this->service->getMonthlySummary('user1');
+		$result = $this->service->getMonthlySummary('user1');
 
-        $this->assertEqualsWithDelta(3000.0, $result['monthlyTotal'], 0.01);
-    }
+		$this->assertEqualsWithDelta(3000.0, $result['monthlyTotal'], 0.01);
+	}
 
-    public function testGetMonthlySummaryWithNoIncomes(): void {
-        $this->mapper->method('findActive')->willReturn([]);
+	public function testGetMonthlySummaryWithNoIncomes(): void {
+		$this->mapper->method('findActive')->willReturn([]);
 
-        $result = $this->service->getMonthlySummary('user1');
+		$result = $this->service->getMonthlySummary('user1');
 
-        $this->assertEquals(0, $result['activeCount']);
-        $this->assertEquals(0.0, $result['monthlyTotal']);
-    }
+		$this->assertEquals(0, $result['activeCount']);
+		$this->assertEquals(0.0, $result['monthlyTotal']);
+	}
 
-    // ===== getIncomeForMonth =====
+	// ===== getIncomeForMonth =====
 
-    public function testGetIncomeForMonthSumsTotals(): void {
-        $i1 = $this->makeIncome(['id' => 1, 'amount' => 3000.0]);
-        $i2 = $this->makeIncome(['id' => 2, 'amount' => 500.0]);
+	public function testGetIncomeForMonthSumsTotals(): void {
+		$i1 = $this->makeIncome(['id' => 1, 'amount' => 3000.0]);
+		$i2 = $this->makeIncome(['id' => 2, 'amount' => 500.0]);
 
-        $this->mapper->method('findExpectedInRange')->willReturn([$i1, $i2]);
+		$this->mapper->method('findExpectedInRange')->willReturn([$i1, $i2]);
 
-        $result = $this->service->getIncomeForMonth('user1', 2026, 3);
+		$result = $this->service->getIncomeForMonth('user1', 2026, 3);
 
-        $this->assertEquals(3500.0, $result['total']);
-        $this->assertEquals(2, $result['count']);
-    }
+		$this->assertEquals(3500.0, $result['total']);
+		$this->assertEquals(2, $result['count']);
+	}
 
-    // ===== matchTransactionToIncome =====
+	// ===== matchTransactionToIncome =====
 
-    public function testMatchTransactionToIncomeMatchesPattern(): void {
-        $income = $this->makeIncome(['autoDetectPattern' => 'ACME CORP', 'amount' => 3000.0]);
-        $this->mapper->method('findActive')->willReturn([$income]);
+	public function testMatchTransactionToIncomeMatchesPattern(): void {
+		$income = $this->makeIncome(['autoDetectPattern' => 'ACME CORP', 'amount' => 3000.0]);
+		$this->mapper->method('findActive')->willReturn([$income]);
 
-        $result = $this->service->matchTransactionToIncome('user1', 'Payment from ACME CORP LTD', 3100.0);
+		$result = $this->service->matchTransactionToIncome('user1', 'Payment from ACME CORP LTD', 3100.0);
 
-        $this->assertNotNull($result);
-        $this->assertEquals(1, $result->getId());
-    }
+		$this->assertNotNull($result);
+		$this->assertEquals(1, $result->getId());
+	}
 
-    public function testMatchTransactionToIncomeRejectsLargeVariance(): void {
-        $income = $this->makeIncome(['autoDetectPattern' => 'ACME CORP', 'amount' => 3000.0]);
-        $this->mapper->method('findActive')->willReturn([$income]);
+	public function testMatchTransactionToIncomeRejectsLargeVariance(): void {
+		$income = $this->makeIncome(['autoDetectPattern' => 'ACME CORP', 'amount' => 3000.0]);
+		$this->mapper->method('findActive')->willReturn([$income]);
 
-        // 25% variance > 20% allowed
-        $result = $this->service->matchTransactionToIncome('user1', 'Payment from ACME CORP', 3750.0);
+		// 25% variance > 20% allowed
+		$result = $this->service->matchTransactionToIncome('user1', 'Payment from ACME CORP', 3750.0);
 
-        $this->assertNull($result);
-    }
+		$this->assertNull($result);
+	}
 
-    public function testMatchTransactionToIncomeSkipsEmptyPatterns(): void {
-        $income = $this->makeIncome(['autoDetectPattern' => null]);
-        $this->mapper->method('findActive')->willReturn([$income]);
+	public function testMatchTransactionToIncomeSkipsEmptyPatterns(): void {
+		$income = $this->makeIncome(['autoDetectPattern' => null]);
+		$this->mapper->method('findActive')->willReturn([$income]);
 
-        $result = $this->service->matchTransactionToIncome('user1', 'Payment', 3000.0);
+		$result = $this->service->matchTransactionToIncome('user1', 'Payment', 3000.0);
 
-        $this->assertNull($result);
-    }
+		$this->assertNull($result);
+	}
 
-    // ===== detectRecurringIncome =====
+	// ===== detectRecurringIncome =====
 
-    public function testDetectRecurringIncomeDelegatesToDetector(): void {
-        $detected = [['description' => 'Salary', 'amount' => 3000.0]];
-        $this->recurringDetector->expects($this->once())->method('detectRecurringIncome')
-            ->with('user1', 6, false)->willReturn($detected);
+	public function testDetectRecurringIncomeDelegatesToDetector(): void {
+		$detected = [['description' => 'Salary', 'amount' => 3000.0]];
+		$this->recurringDetector->expects($this->once())->method('detectRecurringIncome')
+			->with('user1', 6, false)->willReturn($detected);
 
-        $result = $this->service->detectRecurringIncome('user1');
-        $this->assertSame($detected, $result);
-    }
+		$result = $this->service->detectRecurringIncome('user1');
+		$this->assertSame($detected, $result);
+	}
 
-    // ===== createFromDetected =====
+	// ===== createFromDetected =====
 
-    public function testCreateFromDetectedCreatesMultiple(): void {
-        $detected = [
-            ['suggestedName' => 'Salary', 'amount' => 3000.0, 'frequency' => 'monthly', 'expectedDay' => 25],
-            ['description' => 'Freelance', 'amount' => 500.0, 'frequency' => 'monthly'],
-        ];
+	public function testCreateFromDetectedCreatesMultiple(): void {
+		$detected = [
+			['suggestedName' => 'Salary', 'amount' => 3000.0, 'frequency' => 'monthly', 'expectedDay' => 25],
+			['description' => 'Freelance', 'amount' => 500.0, 'frequency' => 'monthly'],
+		];
 
-        $this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-04-01');
-        $this->mapper->expects($this->exactly(2))->method('insert')
-            ->willReturnCallback(function (RecurringIncome $i) {
-                static $id = 0;
-                $i->setId(++$id);
-                return $i;
-            });
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2026-04-01');
+		$this->mapper->expects($this->exactly(2))->method('insert')
+			->willReturnCallback(function (RecurringIncome $i) {
+				static $id = 0;
+				$i->setId(++$id);
+				return $i;
+			});
 
-        $result = $this->service->createFromDetected('user1', $detected);
+		$result = $this->service->createFromDetected('user1', $detected);
 
-        $this->assertCount(2, $result);
-        $this->assertEquals('Salary', $result[0]->getName());
-        $this->assertEquals('Freelance', $result[1]->getName());
-    }
+		$this->assertCount(2, $result);
+		$this->assertEquals('Salary', $result[0]->getName());
+		$this->assertEquals('Freelance', $result[1]->getName());
+	}
 
-    // ===== startDate anchor (#363) =====
+	// ===== startDate anchor (#363) =====
 
-    public function testCreateWithStartDatePassesAnchorToCalculator(): void {
-        $this->frequencyCalculator->expects($this->once())->method('calculateNextDueDate')
-            ->with('biweekly', 5, null, null, null, false, '2026-08-14')
-            ->willReturn('2026-09-11');
+	public function testCreateWithStartDatePassesAnchorToCalculator(): void {
+		$this->frequencyCalculator->expects($this->once())->method('calculateNextDueDate')
+			->with('biweekly', 5, null, null, null, false, '2026-08-14')
+			->willReturn('2026-09-11');
 
-        $this->mapper->expects($this->once())->method('insert')
-            ->willReturnCallback(function (RecurringIncome $i) {
-                $this->assertSame('2026-08-14', $i->getStartDate());
-                $this->assertSame('2026-09-11', $i->getNextExpectedDate());
-                $this->assertSame('2026-08-14', $i->jsonSerialize()['startDate']);
-                $i->setId(1);
-                return $i;
-            });
+		$this->mapper->expects($this->once())->method('insert')
+			->willReturnCallback(function (RecurringIncome $i) {
+				$this->assertSame('2026-08-14', $i->getStartDate());
+				$this->assertSame('2026-09-11', $i->getNextExpectedDate());
+				$this->assertSame('2026-08-14', $i->jsonSerialize()['startDate']);
+				$i->setId(1);
+				return $i;
+			});
 
-        $this->service->create('user1', 'Wages', 900.0, 'biweekly', 5, startDate: '2026-08-14');
-    }
+		$this->service->create('user1', 'Wages', 900.0, 'biweekly', 5, startDate: '2026-08-14');
+	}
 
-    public function testUpdateStartDateTriggersRecalcWithAnchor(): void {
-        $income = $this->makeIncome(['frequency' => 'biweekly', 'expectedDay' => 5]);
-        $this->mapper->method('find')->willReturn($income);
-        $this->mapper->method('update')->willReturnArgument(0);
+	public function testUpdateStartDateTriggersRecalcWithAnchor(): void {
+		$income = $this->makeIncome(['frequency' => 'biweekly', 'expectedDay' => 5]);
+		$this->mapper->method('find')->willReturn($income);
+		$this->mapper->method('update')->willReturnArgument(0);
 
-        $this->frequencyCalculator->expects($this->once())->method('calculateNextDueDate')
-            ->with('biweekly', 5, null, null, null, false, '2026-08-14')
-            ->willReturn('2026-09-11');
-
-        $result = $this->service->update(1, 'user1', ['startDate' => '2026-08-14']);
-
-        $this->assertSame('2026-08-14', $result->getStartDate());
-        $this->assertSame('2026-09-11', $result->getNextExpectedDate());
-    }
-
-    public function testMarkReceivedPassesAnchorForParity(): void {
-        // With an anchor the calculator recomputes from it (first occurrence
-        // after the received date) — parity survives an early/late receipt.
-        $income = $this->makeIncome([
-            'frequency' => 'biweekly',
-            'expectedDay' => 5,
-            'nextExpectedDate' => '2026-03-27',
-        ]);
-        $income->setStartDate('2026-01-02');
-        $this->mapper->method('find')->willReturn($income);
-        $this->mapper->method('update')->willReturnArgument(0);
-
-        $this->frequencyCalculator->expects($this->once())->method('calculateNextDueDate')
-            ->with('biweekly', 5, null, '2026-03-25', null, false, '2026-01-02')
-            ->willReturn('2026-04-10');
-
-        $result = $this->service->markReceived(1, 'user1', '2026-03-25');
-
-        $this->assertSame('2026-04-10', $result->getNextExpectedDate());
-    }
-
-    public function testUpdateAnchorSetOnPaydayIsDueToday(): void {
-        // Setting First payment date = today on an income last received weeks
-        // ago must yield TODAY, not today+interval: a receipt in the past
-        // cannot mean "advance strictly past today" (#363 review).
-        $this->frequencyCalculator->method('calculateNextDueDate')
-            ->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
-
-        $today = date('Y-m-d');
-        $income = $this->makeIncome([
-            'frequency' => 'biweekly',
-            'expectedDay' => null,
-            'lastReceivedDate' => (new \DateTime('-21 days'))->format('Y-m-d'),
-        ]);
-        $this->mapper->method('find')->willReturn($income);
-        $this->mapper->method('update')->willReturnArgument(0);
-
-        $result = $this->service->update(1, 'user1', ['startDate' => $today]);
-
-        $this->assertSame($today, $result->getNextExpectedDate());
-    }
-
-    public function testUpdateAnchorAfterTodaysReceiptAdvancesPastIt(): void {
-        // Received TODAY: the anchor set to today is already covered by that
-        // receipt, so the next expectation is one interval later.
-        $this->frequencyCalculator->method('calculateNextDueDate')
-            ->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
-
-        $today = date('Y-m-d');
-        $income = $this->makeIncome([
-            'frequency' => 'biweekly',
-            'expectedDay' => null,
-            'lastReceivedDate' => $today,
-        ]);
-        $this->mapper->method('find')->willReturn($income);
-        $this->mapper->method('update')->willReturnArgument(0);
-
-        $result = $this->service->update(1, 'user1', ['startDate' => $today]);
-
-        $this->assertSame((new \DateTime('+14 days'))->format('Y-m-d'), $result->getNextExpectedDate());
-    }
-
-    public function testUpdatePersistsNonNullChangesWhenRequestAlsoContainsNullFields(): void {
-        $income = $this->makeIncome([
-            'expectedDay' => 25,
-            'expectedMonth' => 6,
-            'nextExpectedDate' => '2026-04-25',
-        ]);
-
-        $savedIncome = null;
-
-        $this->mapper->expects($this->exactly(2))
-            ->method('find')
-            ->with(1, 'user1')
-            ->willReturnCallback(function () use ($income, &$savedIncome) {
-                return $savedIncome ?? $income;
-            });
-
-        $this->frequencyCalculator->expects($this->once())
-            ->method('calculateNextDueDate')
-            ->with('monthly', 15, null, null)
-            ->willReturn('2026-04-15');
-
-        $this->mapper->expects($this->once())
-            ->method('updateFields')
-            ->with(1, 'user1', ['expected_month' => null]);
-
-        $this->mapper->expects($this->once())
-            ->method('update')
-            ->willReturnCallback(function (RecurringIncome $i) use (&$savedIncome) {
-                $this->assertSame(15, $i->getExpectedDay());
-                $this->assertNull($i->getExpectedMonth());
-                $this->assertSame('2026-04-15', $i->getNextExpectedDate());
-
-                $savedIncome = $i;
-                return $i;
-            });
-
-        $result = $this->service->update(1, 'user1', [
-            'expectedDay' => 15,
-            'expectedMonth' => null,
-        ]);
-
-        $this->assertSame(15, $result->getExpectedDay());
-        $this->assertNull($result->getExpectedMonth());
-        $this->assertSame('2026-04-15', $result->getNextExpectedDate());
-    }
+		$this->frequencyCalculator->expects($this->once())->method('calculateNextDueDate')
+			->with('biweekly', 5, null, null, null, false, '2026-08-14')
+			->willReturn('2026-09-11');
+
+		$result = $this->service->update(1, 'user1', ['startDate' => '2026-08-14']);
+
+		$this->assertSame('2026-08-14', $result->getStartDate());
+		$this->assertSame('2026-09-11', $result->getNextExpectedDate());
+	}
+
+	public function testMarkReceivedPassesAnchorForParity(): void {
+		// With an anchor the calculator recomputes from it (first occurrence
+		// after the received date) — parity survives an early/late receipt.
+		$income = $this->makeIncome([
+			'frequency' => 'biweekly',
+			'expectedDay' => 5,
+			'nextExpectedDate' => '2026-03-27',
+		]);
+		$income->setStartDate('2026-01-02');
+		$this->mapper->method('find')->willReturn($income);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$this->frequencyCalculator->expects($this->once())->method('calculateNextDueDate')
+			->with('biweekly', 5, null, '2026-03-25', null, false, '2026-01-02')
+			->willReturn('2026-04-10');
+
+		$result = $this->service->markReceived(1, 'user1', '2026-03-25');
+
+		$this->assertSame('2026-04-10', $result->getNextExpectedDate());
+	}
+
+	public function testUpdateAnchorSetOnPaydayIsDueToday(): void {
+		// Setting First payment date = today on an income last received weeks
+		// ago must yield TODAY, not today+interval: a receipt in the past
+		// cannot mean "advance strictly past today" (#363 review).
+		$this->frequencyCalculator->method('calculateNextDueDate')
+			->willReturnCallback(fn (...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+
+		$today = date('Y-m-d');
+		$income = $this->makeIncome([
+			'frequency' => 'biweekly',
+			'expectedDay' => null,
+			'lastReceivedDate' => (new \DateTime('-21 days'))->format('Y-m-d'),
+		]);
+		$this->mapper->method('find')->willReturn($income);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$result = $this->service->update(1, 'user1', ['startDate' => $today]);
+
+		$this->assertSame($today, $result->getNextExpectedDate());
+	}
+
+	public function testUpdateAnchorAfterTodaysReceiptAdvancesPastIt(): void {
+		// Received TODAY: the anchor set to today is already covered by that
+		// receipt, so the next expectation is one interval later.
+		$this->frequencyCalculator->method('calculateNextDueDate')
+			->willReturnCallback(fn (...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+
+		$today = date('Y-m-d');
+		$income = $this->makeIncome([
+			'frequency' => 'biweekly',
+			'expectedDay' => null,
+			'lastReceivedDate' => $today,
+		]);
+		$this->mapper->method('find')->willReturn($income);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$result = $this->service->update(1, 'user1', ['startDate' => $today]);
+
+		$this->assertSame((new \DateTime('+14 days'))->format('Y-m-d'), $result->getNextExpectedDate());
+	}
+
+	public function testUpdatePersistsNonNullChangesWhenRequestAlsoContainsNullFields(): void {
+		$income = $this->makeIncome([
+			'expectedDay' => 25,
+			'expectedMonth' => 6,
+			'nextExpectedDate' => '2026-04-25',
+		]);
+
+		$savedIncome = null;
+
+		$this->mapper->expects($this->exactly(2))
+			->method('find')
+			->with(1, 'user1')
+			->willReturnCallback(function () use ($income, &$savedIncome) {
+				return $savedIncome ?? $income;
+			});
+
+		$this->frequencyCalculator->expects($this->once())
+			->method('calculateNextDueDate')
+			->with('monthly', 15, null, null)
+			->willReturn('2026-04-15');
+
+		$this->mapper->expects($this->once())
+			->method('updateFields')
+			->with(1, 'user1', ['expected_month' => null]);
+
+		$this->mapper->expects($this->once())
+			->method('update')
+			->willReturnCallback(function (RecurringIncome $i) use (&$savedIncome) {
+				$this->assertSame(15, $i->getExpectedDay());
+				$this->assertNull($i->getExpectedMonth());
+				$this->assertSame('2026-04-15', $i->getNextExpectedDate());
+
+				$savedIncome = $i;
+				return $i;
+			});
+
+		$result = $this->service->update(1, 'user1', [
+			'expectedDay' => 15,
+			'expectedMonth' => null,
+		]);
+
+		$this->assertSame(15, $result->getExpectedDay());
+		$this->assertNull($result->getExpectedMonth());
+		$this->assertSame('2026-04-15', $result->getNextExpectedDate());
+	}
 }

@@ -19,34 +19,34 @@ use Psr\Log\LoggerInterface;
  * added with, and BankSyncJob adds it.
  */
 class BankSyncConnectionJob extends QueuedJob {
-    public function __construct(
-        ITimeFactory $time,
-        private AdminSettingService $adminSettings,
-        private BankSyncService $syncService,
-        private LoggerInterface $logger
-    ) {
-        parent::__construct($time);
-    }
+	public function __construct(
+		ITimeFactory $time,
+		private AdminSettingService $adminSettings,
+		private BankSyncService $syncService,
+		private LoggerInterface $logger,
+	) {
+		parent::__construct($time);
+	}
 
-    protected function run($argument): void {
-        $userId = is_array($argument) ? (string)($argument['userId'] ?? '') : '';
-        $connectionId = is_array($argument) ? (int)($argument['connectionId'] ?? 0) : 0;
-        if ($userId === '' || $connectionId <= 0) {
-            return;
-        }
+	protected function run($argument): void {
+		$userId = is_array($argument) ? (string)($argument['userId'] ?? '') : '';
+		$connectionId = is_array($argument) ? (int)($argument['connectionId'] ?? 0) : 0;
+		if ($userId === '' || $connectionId <= 0) {
+			return;
+		}
 
-        // The admin may have switched bank sync off since this was queued
-        if (!$this->adminSettings->isBankSyncEnabled()) {
-            return;
-        }
+		// The admin may have switched bank sync off since this was queued
+		if (!$this->adminSettings->isBankSyncEnabled()) {
+			return;
+		}
 
-        try {
-            $this->syncService->sync($userId, $connectionId);
-        } catch (\Exception $e) {
-            $this->logger->warning(
-                "Bank sync failed for connection {$connectionId}: " . $e->getMessage(),
-                ['app' => 'budget', 'userId' => $userId, 'connectionId' => $connectionId]
-            );
-        }
-    }
+		try {
+			$this->syncService->sync($userId, $connectionId);
+		} catch (\Exception $e) {
+			$this->logger->warning(
+				"Bank sync failed for connection {$connectionId}: " . $e->getMessage(),
+				['app' => 'budget', 'userId' => $userId, 'connectionId' => $connectionId]
+			);
+		}
+	}
 }

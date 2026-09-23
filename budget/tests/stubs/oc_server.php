@@ -10,8 +10,8 @@ declare(strict_types=1);
  * that tests can set to a mock PSR container.
  */
 if (!class_exists(\OC::class)) {
-    class OC {
-        /** @var \Psr\Container\ContainerInterface|null */
-        public static $server = null;
-    }
+	class OC {
+		/** @var \Psr\Container\ContainerInterface|null */
+		public static $server = null;
+	}
 }

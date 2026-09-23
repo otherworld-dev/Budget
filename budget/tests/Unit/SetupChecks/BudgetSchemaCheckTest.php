@@ -18,85 +18,85 @@ use PHPUnit\Framework\TestCase;
  * > Overview like any other admin-facing health signal.
  */
 class BudgetSchemaCheckTest extends TestCase {
-    private SchemaVersionService $schemaVersionService;
-    private IL10N $l;
-    private BudgetSchemaCheck $check;
+	private SchemaVersionService $schemaVersionService;
+	private IL10N $l;
+	private BudgetSchemaCheck $check;
 
-    protected function setUp(): void {
-        $this->schemaVersionService = $this->createMock(SchemaVersionService::class);
-        $this->l = $this->createMock(IL10N::class);
-        $this->l->method('t')->willReturnCallback(
-            static fn(string $text, $parameters = []): string => vsprintf($text, (array)$parameters)
-        );
+	protected function setUp(): void {
+		$this->schemaVersionService = $this->createMock(SchemaVersionService::class);
+		$this->l = $this->createMock(IL10N::class);
+		$this->l->method('t')->willReturnCallback(
+			static fn (string $text, $parameters = []): string => vsprintf($text, (array)$parameters)
+		);
 
-        $this->check = new BudgetSchemaCheck($this->schemaVersionService, $this->l);
-    }
+		$this->check = new BudgetSchemaCheck($this->schemaVersionService, $this->l);
+	}
 
-    public function testGetCategoryIsDatabase(): void {
-        $this->assertSame('database', $this->check->getCategory());
-    }
+	public function testGetCategoryIsDatabase(): void {
+		$this->assertSame('database', $this->check->getCategory());
+	}
 
-    public function testGetNameIsANonEmptyTranslatedString(): void {
-        $this->assertIsString($this->check->getName());
-        $this->assertNotSame('', $this->check->getName());
-    }
+	public function testGetNameIsANonEmptyTranslatedString(): void {
+		$this->assertIsString($this->check->getName());
+		$this->assertNotSame('', $this->check->getName());
+	}
 
-    public function testRunSucceedsWhenNoWarning(): void {
-        $this->schemaVersionService->method('getWarning')->willReturn(null);
+	public function testRunSucceedsWhenNoWarning(): void {
+		$this->schemaVersionService->method('getWarning')->willReturn(null);
 
-        $result = $this->check->run();
+		$result = $this->check->run();
 
-        $this->assertSame(SetupResult::SUCCESS, $result->getSeverity());
-    }
+		$this->assertSame(SetupResult::SUCCESS, $result->getSeverity());
+	}
 
-    /**
-     * Missing migrations break saves (#333), so a pending schema is an error,
-     * not a mere warning — same severity family as other setup checks that
-     * flag something actively broken.
-     */
-    public function testRunReportsErrorCarryingTheMessageWhenMigrationsArePending(): void {
-        $this->schemaVersionService->method('getWarning')->willReturn([
-            'message' => 'A database update that came with this version of Budget was never applied (1 change is missing). Saving may fail until it is finished.',
-            'command' => 'occ app:disable budget && occ app:enable budget',
-        ]);
+	/**
+	 * Missing migrations break saves (#333), so a pending schema is an error,
+	 * not a mere warning — same severity family as other setup checks that
+	 * flag something actively broken.
+	 */
+	public function testRunReportsErrorCarryingTheMessageWhenMigrationsArePending(): void {
+		$this->schemaVersionService->method('getWarning')->willReturn([
+			'message' => 'A database update that came with this version of Budget was never applied (1 change is missing). Saving may fail until it is finished.',
+			'command' => 'occ app:disable budget && occ app:enable budget',
+		]);
 
-        $result = $this->check->run();
+		$result = $this->check->run();
 
-        $this->assertNotSame(SetupResult::SUCCESS, $result->getSeverity());
-        $this->assertStringContainsString(
-            'A database update that came with this version of Budget was never applied (1 change is missing). Saving may fail until it is finished.',
-            $result->getDescription()
-        );
-        // The overview is where the person who can run occ looks, so the
-        // command travels with the headline (#333).
-        $this->assertStringContainsString('occ app:disable budget && occ app:enable budget', $result->getDescription());
-    }
+		$this->assertNotSame(SetupResult::SUCCESS, $result->getSeverity());
+		$this->assertStringContainsString(
+			'A database update that came with this version of Budget was never applied (1 change is missing). Saving may fail until it is finished.',
+			$result->getDescription()
+		);
+		// The overview is where the person who can run occ looks, so the
+		// command travels with the headline (#333).
+		$this->assertStringContainsString('occ app:disable budget && occ app:enable budget', $result->getDescription());
+	}
 
-    public function testRunListsWhatIsMissing(): void {
-        $this->schemaVersionService->method('getWarning')->willReturn([
-            'message' => 'The database is missing 1 column this version of Budget writes to. Saving will fail until it is added.',
-            'command' => 'occ migrations:execute budget 001000094Date20260819',
-            'details' => ['budget_bills.amount_type'],
-        ]);
+	public function testRunListsWhatIsMissing(): void {
+		$this->schemaVersionService->method('getWarning')->willReturn([
+			'message' => 'The database is missing 1 column this version of Budget writes to. Saving will fail until it is added.',
+			'command' => 'occ migrations:execute budget 001000094Date20260819',
+			'details' => ['budget_bills.amount_type'],
+		]);
 
-        $description = $this->check->run()->getDescription();
+		$description = $this->check->run()->getDescription();
 
-        $this->assertStringContainsString('budget_bills.amount_type', $description);
-        $this->assertStringContainsString('migrations:execute budget 001000094Date20260819', $description);
-    }
+		$this->assertStringContainsString('budget_bills.amount_type', $description);
+		$this->assertStringContainsString('migrations:execute budget 001000094Date20260819', $description);
+	}
 
-    /**
-     * Companion to BackgroundJobRegistrationTest's approach: a setup check
-     * class that exists but is never registered with the bootstrap context
-     * just silently never runs.
-     */
-    public function testIsRegisteredInApplicationBootstrap(): void {
-        $appPhp = file_get_contents(__DIR__ . '/../../../lib/AppInfo/Application.php');
+	/**
+	 * Companion to BackgroundJobRegistrationTest's approach: a setup check
+	 * class that exists but is never registered with the bootstrap context
+	 * just silently never runs.
+	 */
+	public function testIsRegisteredInApplicationBootstrap(): void {
+		$appPhp = file_get_contents(__DIR__ . '/../../../lib/AppInfo/Application.php');
 
-        $this->assertStringContainsString(
-            'registerSetupCheck(BudgetSchemaCheck::class)',
-            $appPhp,
-            'BudgetSchemaCheck must be registered via $context->registerSetupCheck() in Application::register()'
-        );
-    }
+		$this->assertStringContainsString(
+			'registerSetupCheck(BudgetSchemaCheck::class)',
+			$appPhp,
+			'BudgetSchemaCheck must be registered via $context->registerSetupCheck() in Application::register()'
+		);
+	}
 }

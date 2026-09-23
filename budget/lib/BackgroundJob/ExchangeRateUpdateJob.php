@@ -15,29 +15,29 @@ use Psr\Log\LoggerInterface;
  * Runs once per day.
  */
 class ExchangeRateUpdateJob extends TimedJob {
-    public function __construct(ITimeFactory $time) {
-        parent::__construct($time);
+	public function __construct(ITimeFactory $time) {
+		parent::__construct($time);
 
-        // Run once per day
-        $this->setInterval(24 * 60 * 60);
-        $this->setTimeSensitivity(\OCP\BackgroundJob\IJob::TIME_INSENSITIVE);
-    }
+		// Run once per day
+		$this->setInterval(24 * 60 * 60);
+		$this->setTimeSensitivity(\OCP\BackgroundJob\IJob::TIME_INSENSITIVE);
+	}
 
-    protected function run($argument): void {
-        $exchangeRateService = Server::get(ExchangeRateService::class);
-        $logger = Server::get(LoggerInterface::class);
+	protected function run($argument): void {
+		$exchangeRateService = Server::get(ExchangeRateService::class);
+		$logger = Server::get(LoggerInterface::class);
 
-        try {
-            $exchangeRateService->fetchLatestRates();
-            $logger->info(
-                'Exchange rate update job completed successfully',
-                ['app' => 'budget']
-            );
-        } catch (\Exception $e) {
-            $logger->error(
-                'Exchange rate update job failed: ' . $e->getMessage(),
-                ['app' => 'budget', 'exception' => $e]
-            );
-        }
-    }
+		try {
+			$exchangeRateService->fetchLatestRates();
+			$logger->info(
+				'Exchange rate update job completed successfully',
+				['app' => 'budget']
+			);
+		} catch (\Exception $e) {
+			$logger->error(
+				'Exchange rate update job failed: ' . $e->getMessage(),
+				['app' => 'budget', 'exception' => $e]
+			);
+		}
+	}
 }

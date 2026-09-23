@@ -24,14 +24,14 @@ use OCP\AppFramework\Db\Entity;
  * @method void setUpdatedAt(string $updatedAt)
  */
 class ImportAccountLink extends Entity {
-    protected $userId;
-    protected $format;
-    protected $sourceKey;
-    protected $budgetAccountId;
-    protected $updatedAt;
+	protected $userId;
+	protected $format;
+	protected $sourceKey;
+	protected $budgetAccountId;
+	protected $updatedAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('budgetAccountId', 'integer');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('budgetAccountId', 'integer');
+	}
 }

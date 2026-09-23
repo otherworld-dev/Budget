@@ -20,21 +20,21 @@ use OCP\AppFramework\Db\Entity;
  * @method void setUpdatedAt(string $updatedAt)
  */
 class ManualExchangeRate extends Entity implements JsonSerializable {
-    protected $userId;
-    protected $currency;
-    protected $ratePerEur;
-    protected $updatedAt;
+	protected $userId;
+	protected $currency;
+	protected $ratePerEur;
+	protected $updatedAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'currency' => $this->getCurrency(),
-            'ratePerEur' => $this->getRatePerEur(),
-            'updatedAt' => $this->getUpdatedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'currency' => $this->getCurrency(),
+			'ratePerEur' => $this->getRatePerEur(),
+			'updatedAt' => $this->getUpdatedAt(),
+		];
+	}
 }

@@ -72,7 +72,7 @@ class DuplicateDetectorTest extends TestCase {
 		$result = $this->detector->filterDuplicates(
 			1,
 			$transactions,
-			fn($t) => $t['id']
+			fn ($t) => $t['id']
 		);
 
 		$this->assertCount(2, $result['unique']);
@@ -89,7 +89,7 @@ class DuplicateDetectorTest extends TestCase {
 			['id' => 'new-2'],
 		];
 
-		$result = $this->detector->filterDuplicates(1, $transactions, fn($t) => $t['id']);
+		$result = $this->detector->filterDuplicates(1, $transactions, fn ($t) => $t['id']);
 
 		$this->assertCount(2, $result['unique']);
 		$this->assertEmpty($result['duplicates']);
@@ -103,14 +103,14 @@ class DuplicateDetectorTest extends TestCase {
 			['id' => 'dup-2'],
 		];
 
-		$result = $this->detector->filterDuplicates(1, $transactions, fn($t) => $t['id']);
+		$result = $this->detector->filterDuplicates(1, $transactions, fn ($t) => $t['id']);
 
 		$this->assertEmpty($result['unique']);
 		$this->assertCount(2, $result['duplicates']);
 	}
 
 	public function testFilterDuplicatesEmptyInput(): void {
-		$result = $this->detector->filterDuplicates(1, [], fn($t) => $t['id']);
+		$result = $this->detector->filterDuplicates(1, [], fn ($t) => $t['id']);
 
 		$this->assertEmpty($result['unique']);
 		$this->assertEmpty($result['duplicates']);

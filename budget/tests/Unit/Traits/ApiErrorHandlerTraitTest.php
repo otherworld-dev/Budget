@@ -61,7 +61,7 @@ class ApiErrorHandlerTraitTest extends TestCase {
 	 */
 	public function testMissingColumnAddsAHintNamingTheFix(): void {
 		$response = $this->subject->callHandleError(
-			new DbException("An exception occurred while executing a query: "
+			new DbException('An exception occurred while executing a query: '
 				. "SQLSTATE[42S22]: Column not found: 1054 Unknown column 'amount_type' in 'INSERT INTO'"),
 			'Failed to create bill'
 		);
@@ -76,7 +76,7 @@ class ApiErrorHandlerTraitTest extends TestCase {
 
 	public function testMissingTableAlsoGetsTheHint(): void {
 		$response = $this->subject->callHandleError(
-			new DbException("SQLSTATE[42S02]: Base table or view not found: 1146 "
+			new DbException('SQLSTATE[42S02]: Base table or view not found: 1146 '
 				. "Table 'nextcloud.oc_budget_idem_keys' doesn't exist"),
 			'Failed to save'
 		);
@@ -116,7 +116,7 @@ class ApiErrorHandlerTraitTest extends TestCase {
 
 	public function testAnOrdinaryDatabaseErrorGetsNoHint(): void {
 		$response = $this->subject->callHandleError(
-			new DbException("SQLSTATE[23000]: Integrity constraint violation: 1048 "
+			new DbException('SQLSTATE[23000]: Integrity constraint violation: 1048 '
 				. "Column 'status' cannot be null"),
 			'Failed to create transaction'
 		);
@@ -134,8 +134,8 @@ class ApiErrorHandlerTraitTest extends TestCase {
 	// ── database errors surface a sanitised detail ─────────────────
 
 	public function testDatabaseErrorAddsDetail(): void {
-		$dbMessage = "An exception occurred while executing a query: "
-			. "SQLSTATE[42S22]: Column not found: 1054 Unknown column "
+		$dbMessage = 'An exception occurred while executing a query: '
+			. 'SQLSTATE[42S22]: Column not found: 1054 Unknown column '
 			. "'excluded_from_forecast' in 'field list'";
 		$response = $this->subject->callHandleError(
 			new DbException($dbMessage),
@@ -213,7 +213,7 @@ class ApiErrorHandlerTraitTest extends TestCase {
 
 	public function testHandleNotFoundErrorOnDbExceptionStillAddsDetail(): void {
 		$response = $this->subject->callHandleNotFoundError(
-			new DbException("SQLSTATE[42S02]: Base table or view not found"),
+			new DbException('SQLSTATE[42S02]: Base table or view not found'),
 			'Transaction'
 		);
 
@@ -249,7 +249,7 @@ class ApiErrorHandlerTraitTestClass {
 		\Throwable $e,
 		string $genericMessage = 'An error occurred',
 		int $statusCode = Http::STATUS_BAD_REQUEST,
-		array $context = []
+		array $context = [],
 	): \OCP\AppFramework\Http\DataResponse {
 		return $this->handleError($e, $genericMessage, $statusCode, $context);
 	}
@@ -257,14 +257,14 @@ class ApiErrorHandlerTraitTestClass {
 	public function callHandleNotFoundError(
 		\Throwable $e,
 		string $entityType = 'Resource',
-		array $context = []
+		array $context = [],
 	): \OCP\AppFramework\Http\DataResponse {
 		return $this->handleNotFoundError($e, $entityType, $context);
 	}
 
 	public function callHandleValidationError(
 		\Throwable $e,
-		array $context = []
+		array $context = [],
 	): \OCP\AppFramework\Http\DataResponse {
 		return $this->handleValidationError($e, $context);
 	}

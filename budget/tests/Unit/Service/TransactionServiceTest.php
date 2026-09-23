@@ -5,1998 +5,2002 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Service;
 
 use OCA\Budget\Db\Account;
+use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\DismissedImportMapper;
+use OCA\Budget\Db\ExpenseShareMapper;
 use OCA\Budget\Db\RecurringIncome;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionTagMapper;
-use OCA\Budget\Db\AccountMapper;
-use OCA\Budget\Db\ExpenseShareMapper;
 use OCA\Budget\Service\TransactionService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use PHPUnit\Framework\TestCase;
 
 class TransactionServiceTest extends TestCase {
-    private TransactionService $service;
-    private \OCA\Budget\Service\UserClock $userClock;
-    private TransactionMapper $mapper;
-    private AccountMapper $accountMapper;
-    private TransactionTagMapper $transactionTagMapper;
-    private ExpenseShareMapper $expenseShareMapper;
-    private \OCA\Budget\Db\AttachmentMapper $attachmentMapper;
-    /** @var \OCA\Budget\Db\TransactionSplitMapper&\PHPUnit\Framework\MockObject\MockObject */
-    private $splitMapper;
-    /** @var array<int, Account> per-test accounts served by the findById stub */
-    private array $accountById = [];
-    /** @var array<int, array<int, array<string, mixed>>> per-test split parts served by findByTransactionIds */
-    private array $splitsByTransactionId = [];
-
-    protected function setUp(): void {
-        $this->mapper = $this->createMock(TransactionMapper::class);
-        $this->accountMapper = $this->createMock(AccountMapper::class);
-        // createFromBill()/clearScheduledBillTransaction() resolve the account
-        // owner via findById() (owner-agnostic). Default to a user1-owned account;
-        // tests needing a specific account seed $this->accountById[$id].
-        $this->accountMapper->method('findById')->willReturnCallback(
-            fn(int $id) => $this->accountById[$id] ?? $this->makeAccount()
-        );
-        $this->transactionTagMapper = $this->createMock(TransactionTagMapper::class);
-        $this->splitsByTransactionId = [];
-        $splitMapper = $this->createMock(\OCA\Budget\Db\TransactionSplitMapper::class);
-        // Seeded map rather than a fixed return: a stub set here cannot be
-        // replaced from a test, so tests fill $this->splitsByTransactionId.
-        $splitMapper->method('findByTransactionIds')->willReturnCallback(
-            fn(array $ids) => array_intersect_key($this->splitsByTransactionId, array_flip($ids))
-        );
-        $this->splitMapper = $splitMapper;
-        $this->expenseShareMapper = $this->createMock(ExpenseShareMapper::class);
-        $dismissedImportMapper = $this->createMock(DismissedImportMapper::class);
-        $this->attachmentMapper = $this->createMock(\OCA\Budget\Db\AttachmentMapper::class);
-        $auditService = $this->createMock(\OCA\Budget\Service\AuditService::class);
-        $pensionContributionMapper = $this->createMock(\OCA\Budget\Db\PensionContributionMapper::class);
-        // Real UserClock over a config that stores no timezone: "today" is
-        // the server's, which is what these tests have always assumed.
-        // TransactionServiceTimezoneTest covers the user-timezone behaviour.
-        $this->userClock = new \OCA\Budget\Service\UserClock($this->createMock(\OCP\IConfig::class));
-
-        $this->service = new TransactionService(
-            $this->mapper,
-            $this->accountMapper,
-            $this->transactionTagMapper,
-            $splitMapper,
-            $this->expenseShareMapper,
-            $dismissedImportMapper,
-            $this->attachmentMapper,
-            $auditService,
-            $pensionContributionMapper,
-            $this->userClock
-        );
-    }
-
-    private function makeTransaction(array $overrides = []): Transaction {
-        $tx = new Transaction();
-        $defaults = [
-            'id' => 1,
-            'accountId' => 10,
-            'date' => '2026-01-15',
-            'description' => 'Test transaction',
-            'amount' => 50.00,
-            'type' => 'debit',
-            'categoryId' => null,
-            'vendor' => null,
-            'reference' => null,
-            'notes' => null,
-            'importId' => null,
-            'reconciled' => false,
-            'linkedTransactionId' => null,
-            'billId' => null,
-        ];
-        $data = array_merge($defaults, $overrides);
-
-        $tx->setId($data['id']);
-        $tx->setAccountId($data['accountId']);
-        $tx->setDate($data['date']);
-        $tx->setDescription($data['description']);
-        $tx->setAmount($data['amount']);
-        $tx->setType($data['type']);
-        $tx->setCategoryId($data['categoryId']);
-        $tx->setVendor($data['vendor']);
-        $tx->setReference($data['reference']);
-        $tx->setNotes($data['notes']);
-        $tx->setImportId($data['importId']);
-        $tx->setReconciled($data['reconciled']);
-        $tx->setLinkedTransactionId($data['linkedTransactionId']);
-        $tx->setBillId($data['billId']);
-        $tx->setCreatedAt('2026-01-15 10:00:00');
-        $tx->setUpdatedAt('2026-01-15 10:00:00');
-        return $tx;
-    }
-
-    private function makeAccount(array $overrides = []): Account {
-        $account = new Account();
-        $defaults = [
-            'id' => 10,
-            'userId' => 'user1',
-            'name' => 'Checking',
-            'type' => 'checking',
-            'balance' => 1000.00,
-            'openingBalance' => null,
-            'currency' => 'USD',
-        ];
-        $data = array_merge($defaults, $overrides);
-
-        $account->setId($data['id']);
-        $account->setUserId($data['userId']);
-        $account->setName($data['name']);
-        $account->setType($data['type']);
-        $account->setBalance($data['balance']);
-        $account->setOpeningBalance($data['openingBalance']);
-        $account->setCurrency($data['currency']);
-        return $account;
-    }
-
-    private function makeBill(array $overrides = []): Bill {
-        $bill = new Bill();
-        $defaults = [
-            'id' => 1,
-            'userId' => 'user1',
-            'name' => 'Rent',
-            'amount' => 500.00,
-            'accountId' => 10,
-            'categoryId' => 5,
-            'nextDueDate' => '2026-02-01',
-            'isTransfer' => false,
-            'destinationAccountId' => null,
-            'tagIds' => null,
-        ];
-        $data = array_merge($defaults, $overrides);
-
-        $bill->setId($data['id']);
-        $bill->setUserId($data['userId']);
-        $bill->setName($data['name']);
-        $bill->setAmount($data['amount']);
-        $bill->setAccountId($data['accountId']);
-        $bill->setCategoryId($data['categoryId']);
-        $bill->setNextDueDate($data['nextDueDate']);
-        $bill->setIsTransfer($data['isTransfer']);
-        $bill->setDestinationAccountId($data['destinationAccountId']);
-        $bill->setTagIds($data['tagIds']);
-        return $bill;
-    }
-
-    // ===== find() =====
-
-    public function testFindDelegatesToMapper(): void {
-        $tx = $this->makeTransaction();
-        $this->mapper->expects($this->once())
-            ->method('find')
-            ->with(1, 'user1')
-            ->willReturn($tx);
-
-        $result = $this->service->find(1, 'user1');
-        $this->assertSame($tx, $result);
-    }
-
-    public function testFindThrowsWhenNotFound(): void {
-        $this->mapper->method('find')
-            ->willThrowException(new DoesNotExistException(''));
-
-        $this->expectException(DoesNotExistException::class);
-        $this->service->find(999, 'user1');
-    }
-
-    // ===== findByAccount() =====
-
-    public function testFindByAccountDelegatesToMapper(): void {
-        $this->mapper->expects($this->once())
-            ->method('findByAccount')
-            ->with(10, 'user1', 100, 0)
-            ->willReturn([]);
-
-        $this->service->findByAccount('user1', 10);
-    }
-
-    // ===== create() =====
-
-    public function testCreateRecalculatesBalanceFromLedger(): void {
-        // Balance is recomputed as opening_balance + ledger net after insert —
-        // not adjusted by a hand-computed delta (#274 root cause).
-        $account = $this->makeAccount(['openingBalance' => 100.00]);
-        $this->accountMapper->method('find')->willReturn($account);
-        $this->mapper->method('existsByImportId')->willReturn(false);
-        $this->mapper->method('getNetChangeAll')->with(10)->willReturn(850.00);
-
-        $this->mapper->expects($this->once())
-            ->method('insert')
-            ->willReturnCallback(function (Transaction $tx) {
-                $this->assertEquals(10, $tx->getAccountId());
-                $this->assertEquals('2026-01-15', $tx->getDate());
-                $this->assertEquals('Groceries', $tx->getDescription());
-                $this->assertEquals(50.00, $tx->getAmount());
-                $this->assertEquals('debit', $tx->getType());
-                $this->assertFalse($tx->getReconciled());
-                $tx->setId(1);
-                return $tx;
-            });
-
-        // opening 100 + net 850 = 950
-        $this->accountMapper->expects($this->once())
-            ->method('updateBalance')
-            ->with(10, '950.00', 'user1');
-
-        $result = $this->service->create(
-            'user1', 10, '2026-01-15', 'Groceries', 50.00, 'debit'
-        );
-
-        $this->assertEquals(1, $result->getId());
-    }
-
-    public function testCreateWithDeferSkipsBalanceUpdate(): void {
-        // Bulk callers (imports, bank sync) defer the recompute and run it
-        // once per account after their loop.
-        $account = $this->makeAccount();
-        $this->accountMapper->method('find')->willReturn($account);
-        $this->mapper->method('existsByImportId')->willReturn(false);
-        $this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) {
-            $tx->setId(2);
-            return $tx;
-        });
-
-        $this->accountMapper->expects($this->never())->method('updateBalance');
-
-        $this->service->create(
-            'user1', 10, '2026-01-15', 'Salary', 50.00, 'credit',
-            deferBalanceUpdate: true
-        );
-    }
-
-    public function testRecalculateAccountBalanceUsesOpeningPlusNet(): void {
-        $account = $this->makeAccount(['openingBalance' => -2905.79]);
-        $this->accountMapper->method('find')->willReturn($account);
-        $this->mapper->method('getNetChangeAll')->with(10)->willReturn(2393.37);
-
-        // -2905.79 + 2393.37 = -512.42
-        $this->accountMapper->expects($this->once())
-            ->method('updateBalance')
-            ->with(10, '-512.42', 'user1');
-
-        $this->service->recalculateAccountBalance(10, 'user1');
-    }
-
-    public function testCreateRejectsDuplicateImportId(): void {
-        $account = $this->makeAccount();
-        $this->accountMapper->method('find')->willReturn($account);
-        $this->mapper->method('existsByImportId')
-            ->with(10, 'import-123')
-            ->willReturn(true);
-
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('import ID already exists');
-
-        $this->service->create(
-            'user1', 10, '2026-01-15', 'Dup', 10.00, 'debit',
-            null, null, null, null, 'import-123'
-        );
-    }
-
-    public function testCreateSetsAllOptionalFields(): void {
-        $account = $this->makeAccount();
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $this->mapper->expects($this->once())
-            ->method('insert')
-            ->willReturnCallback(function (Transaction $tx) {
-                $this->assertEquals(5, $tx->getCategoryId());
-                $this->assertEquals('Amazon', $tx->getVendor());
-                $this->assertEquals('REF-001', $tx->getReference());
-                $this->assertEquals('Online purchase', $tx->getNotes());
-                $this->assertEquals('imp-1', $tx->getImportId());
-                $this->assertEquals(3, $tx->getBillId());
-                $tx->setId(1);
-                return $tx;
-            });
-
-        $this->accountMapper->method('updateBalance')->willReturn($account);
-
-        $this->service->create(
-            'user1', 10, '2026-01-15', 'Amazon Order', 99.99, 'debit',
-            5, 'Amazon', 'REF-001', 'Online purchase', 'imp-1', 3
-        );
-    }
-
-    // ===== update() =====
-
-    public function testUpdateAppliesFieldChanges(): void {
-        $tx = $this->makeTransaction(['amount' => 50.00, 'type' => 'debit']);
-        $this->mapper->method('find')->willReturn($tx);
-
-        $this->mapper->expects($this->once())
-            ->method('update')
-            ->willReturnArgument(0);
-
-        $result = $this->service->update(1, 'user1', ['description' => 'Updated']);
-
-        $this->assertEquals('Updated', $result->getDescription());
-    }
-
-    public function testUpdateClearsCategoryWhenIdIsNull(): void {
-        // Bulk "No Category" (#332) relies on update() applying an explicit null
-        // categoryId to clear it, rather than treating null as "leave unchanged".
-        $tx = $this->makeTransaction(['categoryId' => 5]);
-        $this->mapper->method('find')->willReturn($tx);
-        $this->mapper->method('update')->willReturnArgument(0);
-
-        $result = $this->service->update(1, 'user1', ['categoryId' => null]);
-
-        $this->assertNull($result->getCategoryId());
-    }
-
-    /**
-     * A split parent's category is deliberately null — the categories live on
-     * its split rows. Bulk Edit reached update() through a blind setter loop
-     * with no is_split guard, so "filter by Uncategorized, select all, set a
-     * category" wrote a category onto every split parent and double-counted
-     * it against its own splits (#356).
-     */
-    public function testUpdateIgnoresCategoryChangeOnSplitParent(): void {
-        $tx = $this->makeTransaction(['categoryId' => null]);
-        $tx->setIsSplit(true);
-        $this->mapper->method('find')->willReturn($tx);
-        $this->mapper->method('update')->willReturnArgument(0);
-        $this->splitMapper->method('hasParts')->with(1)->willReturn(true);
-
-        $result = $this->service->update(1, 'user1', ['categoryId' => 7]);
-
-        $this->assertNull($result->getCategoryId());
-    }
-
-    /**
-     * Only the category is protected — the rest of a split parent's fields
-     * stay editable, so a bulk vendor or note change still applies.
-     */
-    public function testUpdateStillAppliesOtherFieldsOnSplitParent(): void {
-        $tx = $this->makeTransaction(['categoryId' => null]);
-        $tx->setIsSplit(true);
-        $this->mapper->method('find')->willReturn($tx);
-        $this->mapper->method('update')->willReturnArgument(0);
-        $this->splitMapper->method('hasParts')->with(1)->willReturn(true);
-
-        $result = $this->service->update(1, 'user1', [
-            'categoryId' => 7,
-            'description' => 'Weekly shop',
-        ]);
-
-        $this->assertNull($result->getCategoryId());
-        $this->assertEquals('Weekly shop', $result->getDescription());
-    }
-
-    /**
-     * The flag alone is not proof of a split. Restores from archives made
-     * while the splits table was missing from the backup registry (#351)
-     * manufactured rows whose flag says split but which have no rows in
-     * budget_tx_splits — the read side lists such a row as uncategorized,
-     * so discarding the category here meant the user assigned one, the save
-     * "succeeded", and the category silently vanished, forever (#360).
-     * Parts are the truth: no parts, keep the category, and correct the
-     * lying flag on the same write.
-     */
-    public function testUpdateKeepsCategoryOnAFlagTrueRowWithNoParts(): void {
-        $tx = $this->makeTransaction(['categoryId' => null]);
-        $tx->setIsSplit(true);
-        $this->mapper->method('find')->willReturn($tx);
-        $this->mapper->method('update')->willReturnArgument(0);
-        $this->splitMapper->method('hasParts')->with(1)->willReturn(false);
-
-        $result = $this->service->update(1, 'user1', ['categoryId' => 7]);
-
-        $this->assertEquals(7, $result->getCategoryId());
-        $this->assertFalse($result->getIsSplit(), 'the stray-true flag is corrected on the same update');
-    }
-
-    public function testUpdateRecalculatesBalanceFromLedger(): void {
-        // Balance-affecting updates recompute from the ledger — amount/type/
-        // status/account edits all flow through the same recompute instead of
-        // separate delta branches.
-        $tx = $this->makeTransaction(['amount' => 50.00, 'type' => 'debit']);
-        $this->mapper->method('find')->willReturn($tx);
-        $this->mapper->method('update')->willReturnArgument(0);
-        $this->mapper->method('getNetChangeAll')->with(10)->willReturn(-75.00);
-
-        $account = $this->makeAccount(['openingBalance' => 1000.00]);
-        $this->accountMapper->method('find')->willReturn($account);
-
-        // opening 1000 + net -75 = 925
-        $this->accountMapper->expects($this->once())
-            ->method('updateBalance')
-            ->with(10, '925.00', 'user1');
-
-        $this->service->update(1, 'user1', ['amount' => 75.00]);
-    }
-
-    public function testUpdateMetadataOnlySkipsBalanceRecalc(): void {
-        // Category/vendor/notes/reconciled/date edits can't move a balance
-        // (it's a function of amount, type, status and account only — see
-        // getNetChangeAll()), so a cross-page bulk reconcile/edit must not run
-        // one full-ledger SUM per row.
-        $tx = $this->makeTransaction();
-        $this->mapper->method('find')->willReturn($tx);
-        $this->mapper->method('update')->willReturnArgument(0);
-
-        $this->mapper->expects($this->never())->method('getNetChangeAll');
-        $this->accountMapper->expects($this->never())->method('updateBalance');
-
-        $this->service->update(1, 'user1', ['reconciled' => true, 'categoryId' => 5, 'vendor' => 'Shop']);
-    }
-
-    public function testUpdateDateOnScheduledRowStillRecalculates(): void {
-        // Moving a scheduled row's date to today auto-clears it — that status
-        // flip changes the balance, so the recompute must still run even
-        // though the caller only sent a date.
-        $tx = $this->makeTransaction();
-        $tx->setStatus('scheduled');
-        $this->mapper->method('find')->willReturn($tx);
-        $this->mapper->method('update')->willReturnArgument(0);
-        $this->mapper->method('getNetChangeAll')->willReturn(0.0);
-        $this->accountMapper->method('find')->willReturn($this->makeAccount(['openingBalance' => 0.0]));
-
-        $this->accountMapper->expects($this->once())->method('updateBalance');
-
-        $this->service->update(1, 'user1', ['date' => '2020-01-01']);
-    }
-
-    public function testRecalculateUsesAccountCurrencyPrecision(): void {
-        // A crypto account's balance must keep 8dp, not be rounded to 2 (#331).
-        $tx = $this->makeTransaction(['amount' => 0.00012345, 'type' => 'debit']);
-        $this->mapper->method('find')->willReturn($tx);
-        $this->mapper->method('update')->willReturnArgument(0);
-        $this->mapper->method('getNetChangeAll')->with(10)->willReturn(-0.00012345);
-
-        $account = $this->makeAccount(['openingBalance' => 0.5, 'currency' => 'BTC']);
-        $this->accountMapper->method('find')->willReturn($account);
-
-        // 0.5 + (-0.00012345) = 0.49987655 (8dp, not rounded to 0.50)
-        $this->accountMapper->expects($this->once())
-            ->method('updateBalance')
-            ->with(10, '0.49987655', 'user1');
-
-        $this->service->update(1, 'user1', ['amount' => 0.00012345]);
-    }
-
-    public function testUpdateRescalesSplitsWhenAmountChanges(): void {
-        // A split transaction's parts must keep summing to the (new) amount.
-        $tx = $this->makeTransaction(['amount' => 1000.00, 'type' => 'debit']);
-        $tx->setIsSplit(true);
-        $this->mapper->method('find')->willReturn($tx);
-        $this->mapper->method('update')->willReturnArgument(0);
-        $this->mapper->method('getNetChangeAll')->willReturn(0.0);
-        $this->accountMapper->method('find')->willReturn($this->makeAccount(['openingBalance' => 0.0]));
-
-        $mk = function (int $id, string $amount) {
-            $s = new \OCA\Budget\Db\TransactionSplit();
-            $s->setId($id);
-            $s->setTransactionId(1);
-            $s->setAmount($amount);
-            return $s;
-        };
-        $s1 = $mk(1, '850');
-        $s2 = $mk(2, '100');
-        $s3 = $mk(3, '50');
-        $this->splitMapper->method('findByTransaction')->with(1)->willReturn([$s1, $s2, $s3]);
-        $this->splitMapper->expects($this->exactly(3))->method('update');
-
-        $this->service->update(1, 'user1', ['amount' => 1100.00]);
-
-        // Proportional rescale to 1100 (×1.1); last split absorbs the remainder.
-        $this->assertEquals('935', $s1->getAmount());
-        $this->assertEquals('110', $s2->getAmount());
-        $this->assertEquals('55', $s3->getAmount());
-    }
-
-    public function testUpdateDoesNotRescaleNonSplitTransaction(): void {
-        $tx = $this->makeTransaction(['amount' => 1000.00, 'type' => 'debit']); // not a split
-        $this->mapper->method('find')->willReturn($tx);
-        $this->mapper->method('update')->willReturnArgument(0);
-        $this->mapper->method('getNetChangeAll')->willReturn(0.0);
-        $this->accountMapper->method('find')->willReturn($this->makeAccount(['openingBalance' => 0.0]));
-
-        $this->splitMapper->expects($this->never())->method('findByTransaction');
-
-        $this->service->update(1, 'user1', ['amount' => 1100.00]);
-    }
-
-    public function testUpdateAccountMoveRecalculatesBothAccounts(): void {
-        $tx = $this->makeTransaction(['amount' => 50.00, 'type' => 'debit', 'accountId' => 10]);
-        $this->mapper->method('find')->willReturn($tx);
-        $this->mapper->method('update')->willReturnArgument(0);
-        $this->mapper->method('getNetChangeAll')->willReturnMap([
-            [11, 100.00],
-            [10, -25.00],
-        ]);
-
-        $oldAccount = $this->makeAccount(['id' => 10, 'openingBalance' => 0.0]);
-        $newAccount = $this->makeAccount(['id' => 11, 'openingBalance' => 0.0]);
-        $this->accountMapper->method('find')->willReturnCallback(
-            fn($id) => $id === 11 ? $newAccount : $oldAccount
-        );
-
-        $updatedBalances = [];
-        $this->accountMapper->expects($this->exactly(2))
-            ->method('updateBalance')
-            ->willReturnCallback(function ($accountId, $balance) use (&$updatedBalances, $oldAccount, $newAccount) {
-                $updatedBalances[$accountId] = $balance;
-                return $accountId === 11 ? $newAccount : $oldAccount;
-            });
-
-        $this->service->update(1, 'user1', ['accountId' => 11]);
-
-        $this->assertSame('100.00', $updatedBalances[11]);
-        $this->assertSame('-25.00', $updatedBalances[10]);
-    }
-
-    // ===== delete() =====
-
-    public function testDeleteRecalculatesBalanceFromLedger(): void {
-        $tx = $this->makeTransaction(['amount' => 100.00, 'type' => 'debit']);
-        $this->mapper->method('find')->willReturn($tx);
-        // Ledger net after the row is gone
-        $this->mapper->method('getNetChangeAll')->with(10)->willReturn(1000.00);
-
-        $account = $this->makeAccount(['openingBalance' => 0.0]);
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $this->accountMapper->expects($this->once())
-            ->method('updateBalance')
-            ->with(10, '1000.00', 'user1');
-
-        $this->transactionTagMapper->expects($this->once())
-            ->method('deleteByTransaction')
-            ->with(1);
-
-        $this->attachmentMapper->expects($this->once())
-            ->method('deleteByTransaction')
-            ->with(1, 'user1');
-
-        $deleteHappenedBeforeRecalc = false;
-        $this->mapper->expects($this->once())
-            ->method('delete')
-            ->willReturnCallback(function ($arg) use (&$deleteHappenedBeforeRecalc) {
-                $deleteHappenedBeforeRecalc = true;
-                return $arg;
-            });
-
-        $this->service->delete(1, 'user1');
-
-        $this->assertTrue($deleteHappenedBeforeRecalc);
-    }
-
-    // ===== deleteAsAccountOwner() / unlinkBillAsAccountOwner() (#334, #365 review) =====
-
-    public function testDeleteAsAccountOwnerScopesTheDeleteToTheAccountOwner(): void {
-        // markPaid creates a shared-account bill's transactions under the
-        // ACCOUNT owner (#334); the revert must delete under that same owner,
-        // not the acting user, or the owner-scoped find never sees the row.
-        $tx = $this->makeTransaction(['id' => 55, 'accountId' => 10]);
-        $this->accountById[10] = $this->makeAccount(['id' => 10, 'userId' => 'account-owner']);
-        $this->mapper->method('findById')->with(55)->willReturn($tx);
-        $this->mapper->expects($this->once())->method('find')->with(55, 'account-owner')->willReturn($tx);
-        $this->mapper->method('getNetChangeAll')->willReturn(0.0);
-        $this->accountMapper->method('find')->willReturn($this->makeAccount(['id' => 10, 'userId' => 'account-owner']));
-        $this->mapper->expects($this->once())->method('delete');
-
-        $this->assertTrue($this->service->deleteAsAccountOwner(55));
-    }
-
-    public function testDeleteAsAccountOwnerLeavesMaterialisedPlaceholderAlone(): void {
-        // A scheduled placeholder tracked in a payment snapshot may have
-        // become a real (possibly reconciled) ledger row months later — with
-        // $onlyIfScheduled it must be left untouched.
-        $tx = $this->makeTransaction(['id' => 56, 'accountId' => 10]);
-        $tx->setStatus('cleared');
-        $this->mapper->method('findById')->with(56)->willReturn($tx);
-        $this->mapper->expects($this->never())->method('delete');
-
-        $this->assertFalse($this->service->deleteAsAccountOwner(56, true));
-    }
-
-    public function testDeleteAsAccountOwnerDeletesAStillScheduledPlaceholder(): void {
-        $tx = $this->makeTransaction(['id' => 56, 'accountId' => 10]);
-        $tx->setStatus('scheduled');
-        $this->mapper->method('findById')->with(56)->willReturn($tx);
-        $this->mapper->method('find')->willReturn($tx);
-        $this->mapper->method('getNetChangeAll')->willReturn(0.0);
-        $this->accountMapper->method('find')->willReturn($this->makeAccount());
-        $this->mapper->expects($this->once())->method('delete');
-
-        $this->assertTrue($this->service->deleteAsAccountOwner(56, true));
-    }
-
-    public function testDeleteAsAccountOwnerThrowsWhenRowIsGone(): void {
-        $this->mapper->method('findById')->willReturn(null);
-
-        $this->expectException(DoesNotExistException::class);
-
-        $this->service->deleteAsAccountOwner(999);
-    }
-
-    public function testUnlinkBillAsAccountOwnerClearsTheBillLink(): void {
-        // Reverting a payment that LINKED an imported transaction must not
-        // delete the row — it predates the payment. Only the linkage goes.
-        $tx = $this->makeTransaction(['id' => 77, 'accountId' => 10, 'billId' => 9]);
-        $this->accountById[10] = $this->makeAccount(['id' => 10, 'userId' => 'account-owner']);
-        $this->mapper->method('findById')->with(77)->willReturn($tx);
-        $this->mapper->expects($this->once())->method('find')->with(77, 'account-owner')->willReturn($tx);
-        $this->mapper->expects($this->once())->method('update')
-            ->willReturnCallback(function (Transaction $updated) {
-                $this->assertNull($updated->getBillId());
-                return $updated;
-            });
-
-        $this->service->unlinkBillAsAccountOwner(77);
-    }
-
-    public function testUnlinkBillAsAccountOwnerIgnoresAMissingRow(): void {
-        $this->mapper->method('findById')->willReturn(null);
-        $this->mapper->expects($this->never())->method('update');
-
-        $this->service->unlinkBillAsAccountOwner(999);
-    }
-
-    // ===== createFromBill() =====
-
-    public function testCreateFromBillCreatesDebitForRegularBill(): void {
-        $bill = $this->makeBill();
-        $account = $this->makeAccount();
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $insertCount = 0;
-        $this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) use (&$insertCount) {
-            $insertCount++;
-            $tx->setId($insertCount);
-            return $tx;
-        });
-        $this->accountMapper->method('updateBalance')->willReturn($account);
-
-        $result = $this->service->createFromBill('user1', $bill);
-
-        $this->assertEquals(1, $insertCount);
-        $this->assertEquals('', $result->getDescription());
-        $this->assertEquals('Rent', $result->getVendor());
-        $this->assertEquals('debit', $result->getType());
-        $this->assertEquals(500.00, $result->getAmount());
-    }
-
-    public function testCreateFromBillCreatesTransferPair(): void {
-        $bill = $this->makeBill([
-            'isTransfer' => true,
-            'destinationAccountId' => 20,
-        ]);
-
-        $sourceAccount = $this->makeAccount(['id' => 10, 'balance' => 2000.00]);
-        $destAccount = $this->makeAccount(['id' => 20, 'balance' => 500.00]);
-
-        $this->accountMapper->method('find')->willReturnCallback(
-            function (int $id) use ($sourceAccount, $destAccount) {
-                return $id === 10 ? $sourceAccount : $destAccount;
-            }
-        );
-
-        $insertedTransactions = [];
-        $this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) use (&$insertedTransactions) {
-            $tx->setId(count($insertedTransactions) + 1);
-            $insertedTransactions[] = clone $tx;
-            return $tx;
-        });
-
-        // linkTransactions() internally calls find() on the mapper, so we need to
-        // return Transaction objects with different accountIds for validation to pass
-        $this->mapper->method('find')->willReturnCallback(function (int $id) use (&$insertedTransactions) {
-            foreach ($insertedTransactions as $tx) {
-                if ($tx->getId() === $id) {
-                    return $tx;
-                }
-            }
-            return $insertedTransactions[0];
-        });
-
-        $this->mapper->expects($this->once())
-            ->method('linkTransactions')
-            ->with(1, 2);
-
-        $this->accountMapper->method('updateBalance')->willReturn($sourceAccount);
-
-        $result = $this->service->createFromBill('user1', $bill);
-
-        $this->assertCount(2, $insertedTransactions);
-        $this->assertEquals('debit', $insertedTransactions[0]->getType());
-        $this->assertEquals(10, $insertedTransactions[0]->getAccountId());
-        $this->assertEquals('credit', $insertedTransactions[1]->getType());
-        $this->assertEquals(20, $insertedTransactions[1]->getAccountId());
-    }
-
-    public function testCreateFromBillAppliesTagsToRegularBill(): void {
-        $bill = $this->makeBill(['tagIds' => '[1,2,3]']);
-        $account = $this->makeAccount();
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) {
-            $tx->setId(1);
-            return $tx;
-        });
-        $this->accountMapper->method('updateBalance')->willReturn($account);
-
-        $this->transactionTagMapper->expects($this->exactly(3))->method('insert');
-
-        $this->service->createFromBill('user1', $bill);
-    }
-
-    public function testCreateFromBillThrowsWithoutAccount(): void {
-        $bill = $this->makeBill(['accountId' => null]);
-
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('must have an account');
-
-        $this->service->createFromBill('user1', $bill);
-    }
-
-    public function testCreateFromBillThrowsForTransferWithoutDestination(): void {
-        $bill = $this->makeBill([
-            'isTransfer' => true,
-            'destinationAccountId' => null,
-        ]);
-
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('destination account');
-
-        $this->service->createFromBill('user1', $bill);
-    }
-
-    public function testCreateFromBillUsesOverrideDate(): void {
-        $bill = $this->makeBill(['nextDueDate' => '2026-02-01']);
-        $account = $this->makeAccount();
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $this->mapper->expects($this->once())
-            ->method('insert')
-            ->willReturnCallback(function (Transaction $tx) {
-                $this->assertEquals('2026-03-15', $tx->getDate());
-                $tx->setId(1);
-                return $tx;
-            });
-        $this->accountMapper->method('updateBalance')->willReturn($account);
-
-        $this->service->createFromBill('user1', $bill, '2026-03-15');
-    }
-
-    public function testCreateFromBillWithoutDateIsScheduledEvenWhenOverdue(): void {
-        // A next-occurrence placeholder (no explicit date) must always be
-        // scheduled — a past due date used to fall through to 'cleared' and
-        // the placeholder was counted in the balance immediately
-        $bill = $this->makeBill(['nextDueDate' => '2020-01-01']);
-        $account = $this->makeAccount();
-        $this->accountMapper->method('find')->willReturn($account);
-        $this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) {
-            $tx->setId(1);
-            return $tx;
-        });
-        $this->accountMapper->method('updateBalance')->willReturn($account);
-
-        $result = $this->service->createFromBill('user1', $bill);
-
-        $this->assertEquals('scheduled', $result->getStatus());
-    }
-
-    public function testCreateFromBillWithExplicitPastDateIsCleared(): void {
-        // Explicit dates keep the heuristic: recording an actual (past)
-        // payment stays cleared
-        $bill = $this->makeBill(['nextDueDate' => '2020-01-01']);
-        $account = $this->makeAccount();
-        $this->accountMapper->method('find')->willReturn($account);
-        $this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) {
-            $tx->setId(1);
-            return $tx;
-        });
-        $this->accountMapper->method('updateBalance')->willReturn($account);
-
-        $result = $this->service->createFromBill('user1', $bill, '2020-01-01');
-
-        $this->assertEquals('cleared', $result->getStatus());
-    }
-
-    public function testCreateFromBillRecordsUnderAccountOwnerNotActingUser(): void {
-        // A bill can point at a shared account owned by another user. When a share
-        // recipient triggers the payment, the transaction must be created under the
-        // ACCOUNT owner — create()'s account lookup is owner-scoped, so scoping to
-        // the acting user throws DoesNotExistException and the payment fails (#334).
-        $bill = $this->makeBill(['accountId' => 10]);
-        // findById() (owner-agnostic, stubbed in setUp) resolves the owner: 'user1'.
-        $ownerAccount = $this->makeAccount(['id' => 10]);
-
-        $this->accountMapper->method('find')->willReturnCallback(
-            function (int $id, string $userId) use ($ownerAccount) {
-                $this->assertSame(10, $id);
-                $this->assertSame('user1', $userId, 'payment must be scoped to the account owner, not the acting user');
-                return $ownerAccount;
-            }
-        );
-        $this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) {
-            $tx->setId(1);
-            return $tx;
-        });
-        $this->accountMapper->method('updateBalance')->willReturn($ownerAccount);
-
-        // Acting user is a share recipient, NOT the account owner.
-        $result = $this->service->createFromBill('share-recipient', $bill);
-
-        $this->assertEquals(10, $result->getAccountId());
-    }
-
-    // ===== findBillPaymentCandidates() =====
-
-    public function testFindBillPaymentCandidatesRejectsDateOnlyMatches(): void {
-        // A same-day debit with unrelated amount and name must NOT be offered
-        // as a match — junk candidates steered users into marking bills paid
-        // without recording the payment (#274)
-        $tx = $this->makeTransaction([
-            'amount' => 18.00,
-            'description' => 'Zigaretten',
-            'date' => '2026-06-28',
-        ]);
-        $this->mapper->method('findBillPaymentCandidates')->willReturn([$tx]);
-
-        $result = $this->service->findBillPaymentCandidates(10, 'Hypothek', 2912.00, '2026-06-28');
-
-        $this->assertSame([], $result);
-    }
-
-    public function testFindBillPaymentCandidatesKeepsAmountMatch(): void {
-        $tx = $this->makeTransaction([
-            'amount' => 2912.00,
-            'description' => 'Unrelated text',
-            'date' => '2026-06-28',
-        ]);
-        $this->mapper->method('findBillPaymentCandidates')->willReturn([$tx]);
-
-        $result = $this->service->findBillPaymentCandidates(10, 'Hypothek', 2912.00, '2026-06-28');
-
-        $this->assertCount(1, $result);
-        $this->assertContains('exact_amount', $result[0]['matchReasons']);
-    }
-
-    public function testFindBillPaymentCandidatesKeepsNameMatch(): void {
-        $tx = $this->makeTransaction([
-            'amount' => 5.00,
-            'description' => 'Hypothek Zins',
-            'date' => '2026-06-28',
-        ]);
-        $this->mapper->method('findBillPaymentCandidates')->willReturn([$tx]);
-
-        $result = $this->service->findBillPaymentCandidates(10, 'Hypothek', 2912.00, '2026-06-28');
-
-        $this->assertCount(1, $result);
-        $this->assertContains('partial_description', $result[0]['matchReasons']);
-    }
-
-    // ===== createFromIncome() =====
-
-    private function makeIncome(array $overrides = []): RecurringIncome {
-        $income = new RecurringIncome();
-        $defaults = [
-            'id' => 1,
-            'userId' => 'user1',
-            'name' => 'Salary',
-            'amount' => 3000.00,
-            'accountId' => 10,
-            'categoryId' => 5,
-            'nextExpectedDate' => '2026-03-25',
-        ];
-        $data = array_merge($defaults, $overrides);
-
-        $income->setId($data['id']);
-        $income->setUserId($data['userId']);
-        $income->setName($data['name']);
-        $income->setAmount($data['amount']);
-        $income->setAccountId($data['accountId']);
-        $income->setCategoryId($data['categoryId']);
-        $income->setNextExpectedDate($data['nextExpectedDate']);
-        return $income;
-    }
-
-    public function testCreateFromIncomeCreatesCreditTransaction(): void {
-        $income = $this->makeIncome();
-        $account = $this->makeAccount();
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $this->mapper->expects($this->once())
-            ->method('insert')
-            ->willReturnCallback(function (Transaction $tx) {
-                $this->assertEquals('', $tx->getDescription());
-                $this->assertEquals('Salary', $tx->getVendor());
-                $this->assertEquals('credit', $tx->getType());
-                $this->assertEquals(3000.00, $tx->getAmount());
-                $this->assertEquals(10, $tx->getAccountId());
-                $this->assertEquals(5, $tx->getCategoryId());
-                $this->assertEquals('2026-03-25', $tx->getDate());
-                $this->assertStringContainsString('Auto-generated from income', $tx->getNotes());
-                $tx->setId(1);
-                return $tx;
-            });
-        $this->accountMapper->method('updateBalance')->willReturn($account);
-
-        $result = $this->service->createFromIncome('user1', $income);
-
-        $this->assertEquals('credit', $result->getType());
-        $this->assertEquals(3000.00, $result->getAmount());
-    }
-
-    public function testCreateFromIncomeThrowsWithoutAccount(): void {
-        $income = $this->makeIncome(['accountId' => null]);
-
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('must have an account');
-
-        $this->service->createFromIncome('user1', $income);
-    }
-
-    public function testCreateFromIncomeUsesOverrideDate(): void {
-        $income = $this->makeIncome(['nextExpectedDate' => '2026-03-25']);
-        $account = $this->makeAccount();
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $this->mapper->expects($this->once())
-            ->method('insert')
-            ->willReturnCallback(function (Transaction $tx) {
-                $this->assertEquals('2026-04-01', $tx->getDate());
-                $tx->setId(1);
-                return $tx;
-            });
-        $this->accountMapper->method('updateBalance')->willReturn($account);
-
-        $this->service->createFromIncome('user1', $income, '2026-04-01');
-    }
-
-    public function testCreateFromIncomeUsesScheduledStatusForFutureDate(): void {
-        $income = $this->makeIncome(['nextExpectedDate' => '2099-12-31']);
-        $account = $this->makeAccount();
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $this->mapper->expects($this->once())
-            ->method('insert')
-            ->willReturnCallback(function (Transaction $tx) {
-                $this->assertEquals('scheduled', $tx->getStatus());
-                $tx->setId(1);
-                return $tx;
-            });
-        $this->accountMapper->method('updateBalance')->willReturn($account);
-
-        $this->service->createFromIncome('user1', $income);
-    }
-
-    // ===== linkTransactions() =====
-
-    public function testLinkTransactionsSuccess(): void {
-        $tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.00, 'type' => 'debit']);
-        $tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.00, 'type' => 'credit']);
-
-        $this->mapper->method('find')->willReturnCallback(
-            function (int $id) use ($tx1, $tx2) {
-                return $id === 1 ? $tx1 : $tx2;
-            }
-        );
-
-        $this->mapper->expects($this->once())
-            ->method('linkTransactions')
-            ->with(1, 2);
-
-        $result = $this->service->linkTransactions(1, 2, 'user1');
-
-        $this->assertArrayHasKey('transaction', $result);
-        $this->assertArrayHasKey('linkedTransaction', $result);
-    }
-
-    public function testLinkTransactionsRejectsSameAccount(): void {
-        $tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.00, 'type' => 'debit']);
-        $tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 10, 'amount' => 100.00, 'type' => 'credit']);
-
-        $this->mapper->method('find')->willReturnCallback(
-            function (int $id) use ($tx1, $tx2) {
-                return $id === 1 ? $tx1 : $tx2;
-            }
-        );
-
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('same account');
-
-        $this->service->linkTransactions(1, 2, 'user1');
-    }
-
-    public function testLinkTransactionsRejectsDifferentAmounts(): void {
-        $tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.00, 'type' => 'debit']);
-        $tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 200.00, 'type' => 'credit']);
-
-        $this->mapper->method('find')->willReturnCallback(
-            function (int $id) use ($tx1, $tx2) {
-                return $id === 1 ? $tx1 : $tx2;
-            }
-        );
-
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('different amounts');
-
-        $this->service->linkTransactions(1, 2, 'user1');
-    }
-
-    public function testLinkTransactionsRejectsSameType(): void {
-        $tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.00, 'type' => 'debit']);
-        $tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.00, 'type' => 'debit']);
-
-        $this->mapper->method('find')->willReturnCallback(
-            function (int $id) use ($tx1, $tx2) {
-                return $id === 1 ? $tx1 : $tx2;
-            }
-        );
-
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('same type');
-
-        $this->service->linkTransactions(1, 2, 'user1');
-    }
-
-    public function testLinkTransactionsRejectsAlreadyLinked(): void {
-        $tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.00, 'type' => 'debit', 'linkedTransactionId' => 99]);
-        $tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.00, 'type' => 'credit']);
-
-        $this->mapper->method('find')->willReturnCallback(
-            function (int $id) use ($tx1, $tx2) {
-                return $id === 1 ? $tx1 : $tx2;
-            }
-        );
-
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('already linked');
-
-        $this->service->linkTransactions(1, 2, 'user1');
-    }
-
-    // ===== convertToTransfer() =====
-
-    public function testConvertToTransferCreatesOppositeLegAndLinks(): void {
-        $source = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 75.00, 'type' => 'debit', 'vendor' => 'Bank']);
-        $counterpart = null;
-
-        $this->mapper->method('find')->willReturnCallback(
-            function (int $id) use ($source, &$counterpart) {
-                return $id === 1 ? $source : $counterpart;
-            }
-        );
-        $this->mapper->method('insert')->willReturnCallback(
-            function (Transaction $tx) use (&$counterpart) {
-                $tx->setId(2);
-                $counterpart = $tx;
-                return $tx;
-            }
-        );
-        $this->accountMapper->method('find')->willReturnCallback(
-            fn (int $id) => $this->makeAccount(['id' => $id, 'currency' => 'USD'])
-        );
-
-        $this->mapper->expects($this->once())
-            ->method('linkTransactions')
-            ->with(1, 2);
-
-        $result = $this->service->convertToTransfer(1, 20, 'user1');
-
-        $this->assertArrayHasKey('transaction', $result);
-        $this->assertArrayHasKey('linkedTransaction', $result);
-        $this->assertSame(20, $counterpart->getAccountId());
-        $this->assertSame('credit', $counterpart->getType());
-        $this->assertSame(75.00, $counterpart->getAmount());
-        $this->assertSame($source->getDate(), $counterpart->getDate());
-    }
-
-    public function testConvertToTransferRejectsSameAccount(): void {
-        $source = $this->makeTransaction(['id' => 1, 'accountId' => 10]);
-        $this->mapper->method('find')->willReturn($source);
-        $this->mapper->expects($this->never())->method('insert');
-
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('same account');
-
-        $this->service->convertToTransfer(1, 10, 'user1');
-    }
-
-    public function testConvertToTransferRejectsAlreadyLinked(): void {
-        $source = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'linkedTransactionId' => 99]);
-        $this->mapper->method('find')->willReturn($source);
-        $this->mapper->expects($this->never())->method('insert');
-
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('already linked');
-
-        $this->service->convertToTransfer(1, 20, 'user1');
-    }
-
-    public function testConvertToTransferRejectsCurrencyMismatch(): void {
-        $source = $this->makeTransaction(['id' => 1, 'accountId' => 10]);
-        $this->mapper->method('find')->willReturn($source);
-        $this->accountMapper->method('find')->willReturnCallback(
-            fn (int $id) => $this->makeAccount(['id' => $id, 'currency' => $id === 10 ? 'USD' : 'EUR'])
-        );
-        $this->mapper->expects($this->never())->method('insert');
-
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('same currency');
-
-        $this->service->convertToTransfer(1, 20, 'user1');
-    }
-
-    // ===== unlinkTransaction() =====
-
-    public function testUnlinkTransactionSuccess(): void {
-        $tx = $this->makeTransaction(['id' => 1, 'linkedTransactionId' => 2]);
-        $unlinkedTx = $this->makeTransaction(['id' => 1, 'linkedTransactionId' => null]);
-
-        $this->mapper->method('find')->willReturnOnConsecutiveCalls($tx, $unlinkedTx);
-        $this->mapper->method('unlinkTransaction')
-            ->with(1)
-            ->willReturn(2);
-
-        $result = $this->service->unlinkTransaction(1, 'user1');
-
-        $this->assertEquals(2, $result['unlinkedTransactionId']);
-    }
-
-    public function testUnlinkTransactionThrowsWhenNotLinked(): void {
-        $tx = $this->makeTransaction(['linkedTransactionId' => null]);
-        $this->mapper->method('find')->willReturn($tx);
-
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('not linked');
-
-        $this->service->unlinkTransaction(1, 'user1');
-    }
-
-    // ===== findPotentialMatches() =====
-
-    public function testFindPotentialMatchesReturnsEmptyWhenAlreadyLinked(): void {
-        $tx = $this->makeTransaction(['linkedTransactionId' => 99]);
-        $this->mapper->method('find')->willReturn($tx);
-
-        $this->mapper->expects($this->never())->method('findPotentialMatches');
-
-        $result = $this->service->findPotentialMatches(1, 'user1');
-        $this->assertEmpty($result);
-    }
-
-    public function testFindPotentialMatchesDelegatesToMapper(): void {
-        $tx = $this->makeTransaction(['linkedTransactionId' => null]);
-        $account = $this->makeAccount(['id' => 10, 'currency' => 'USD']);
-        $this->mapper->method('find')->willReturn($tx);
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $matches = [$this->makeTransaction(['id' => 2])];
-        $this->mapper->expects($this->once())
-            ->method('findPotentialMatches')
-            ->with('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'USD', 3, false)
-            ->willReturn($matches);
-
-        $result = $this->service->findPotentialMatches(1, 'user1');
-        $this->assertCount(1, $result);
-    }
-
-    public function testFindPotentialMatchesPassesCrossCurrencyFlag(): void {
-        $tx = $this->makeTransaction(['linkedTransactionId' => null]);
-        $account = $this->makeAccount(['id' => 10, 'currency' => 'USD']);
-        $this->mapper->method('find')->willReturn($tx);
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $this->mapper->expects($this->once())
-            ->method('findPotentialMatches')
-            ->with('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'USD', 3, true)
-            ->willReturn([]);
-
-        $this->service->findPotentialMatches(1, 'user1', 3, true);
-    }
-
-    // ===== bulkCategorize() =====
-
-    public function testBulkCategorizeCountsSuccessesAndFailures(): void {
-        $tx = $this->makeTransaction();
-        $callCount = 0;
-
-        $this->mapper->method('find')->willReturnCallback(function () use ($tx, &$callCount) {
-            $callCount++;
-            if ($callCount === 2) {
-                throw new DoesNotExistException('');
-            }
-            return $tx;
-        });
-
-        $this->mapper->method('update')->willReturnArgument(0);
-
-        $result = $this->service->bulkCategorize('user1', [
-            ['id' => 1, 'categoryId' => 5],
-            ['id' => 999, 'categoryId' => 5],  // This will fail
-            ['id' => 3, 'categoryId' => 5],
-        ]);
-
-        $this->assertEquals(2, $result['success']);
-        $this->assertEquals(1, $result['failed']);
-    }
-
-    // ===== bulkDelete() =====
-
-    public function testBulkDeleteTracksErrorDetails(): void {
-        $tx = $this->makeTransaction();
-        $account = $this->makeAccount();
-
-        $callCount = 0;
-        $this->mapper->method('find')->willReturnCallback(function () use ($tx, &$callCount) {
-            $callCount++;
-            if ($callCount === 2) {
-                throw new DoesNotExistException('Not found');
-            }
-            return $tx;
-        });
-
-        $this->accountMapper->method('find')->willReturn($account);
-        $this->accountMapper->method('updateBalance')->willReturn($account);
-        $this->mapper->method('delete')->willReturn($tx);
-        $this->transactionTagMapper->method('deleteByTransaction')->willReturn(0);
-
-        $result = $this->service->bulkDelete('user1', [1, 999]);
-
-        $this->assertEquals(1, $result['success']);
-        $this->assertEquals(1, $result['failed']);
-        $this->assertCount(1, $result['errors']);
-        $this->assertEquals(999, $result['errors'][0]['id']);
-    }
-
-    public function testBulkDeleteRecalculatesOncePerAffectedAccount(): void {
-        $this->mapper->method('find')->willReturnCallback(function (int $id) {
-            return $this->makeTransaction([
-                'id' => $id,
-                'accountId' => $id === 3 ? 20 : 10,
-            ]);
-        });
-        $this->mapper->method('delete')->willReturnArgument(0);
-        $this->accountMapper->method('find')->willReturnCallback(
-            fn (int $accountId) => $this->makeAccount(['id' => $accountId])
-        );
-
-        // Three rows across two accounts → exactly two ledger SUMs, not
-        // one per deleted row ("select all matching" deletes whole imports)
-        $this->mapper->expects($this->exactly(2))
-            ->method('getNetChangeAll')
-            ->willReturn(0.0);
-        $this->accountMapper->expects($this->exactly(2))
-            ->method('updateBalance');
-
-        $result = $this->service->bulkDelete('user1', [1, 2, 3]);
-
-        $this->assertEquals(3, $result['success']);
-        $this->assertEquals(0, $result['failed']);
-    }
-
-    public function testBulkDeleteSkipsRecalcForFailedRowsAccount(): void {
-        $this->mapper->method('find')->willReturnCallback(function (int $id) {
-            if ($id === 999) {
-                throw new DoesNotExistException('Not found');
-            }
-            return $this->makeTransaction(['id' => $id]);
-        });
-        $this->mapper->method('delete')->willReturnArgument(0);
-        $this->accountMapper->method('find')->willReturn($this->makeAccount());
-
-        // Only tx 1's account (10) gets recalculated; the failed id touches none
-        $this->mapper->expects($this->once())
-            ->method('getNetChangeAll')
-            ->with(10)
-            ->willReturn(0.0);
-        $this->accountMapper->expects($this->once())->method('updateBalance');
-
-        $result = $this->service->bulkDelete('user1', [1, 999]);
-
-        $this->assertEquals(1, $result['success']);
-        $this->assertEquals(1, $result['failed']);
-    }
-
-    // ===== findIdsWithFilters() =====
-
-    public function testFindIdsWithFiltersDelegatesToMapper(): void {
-        $filters = ['accountId' => 10, 'type' => 'debit'];
-        $this->mapper->expects($this->once())
-            ->method('findIdsWithFilters')
-            ->with('user1', $filters, [10, 20])
-            ->willReturn(['ids' => [1, 2, 3], 'billCount' => 1]);
-
-        $result = $this->service->findIdsWithFilters('user1', $filters, [10, 20]);
-
-        $this->assertSame([1, 2, 3], $result['ids']);
-        $this->assertSame(1, $result['billCount']);
-    }
-
-    // ===== bulkReconcile() =====
-
-    public function testBulkReconcileUpdatesStatus(): void {
-        $tx = $this->makeTransaction();
-        $this->mapper->method('find')->willReturn($tx);
-        $this->mapper->method('update')->willReturnArgument(0);
-
-        $result = $this->service->bulkReconcile('user1', [1, 2, 3], true);
-
-        $this->assertEquals(3, $result['success']);
-        $this->assertEquals(0, $result['failed']);
-    }
-
-    // ===== bulkFindAndMatch() =====
-
-    public function testBulkFindAndMatchAutoLinksUniqueMatches(): void {
-        // linkTransactions() calls find() which needs proper transaction objects
-        $tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.00, 'type' => 'debit', 'linkedTransactionId' => null]);
-        $tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.00, 'type' => 'credit', 'linkedTransactionId' => null]);
-        $this->mapper->method('find')->willReturnMap([
-            [1, 'user1', $tx1],
-            [2, 'user1', $tx2],
-        ]);
-        $this->mapper->method('update')->willReturnArgument(0);
-
-        $this->mapper->method('findUnlinkedWithMatches')
-            ->willReturn([
-                'transactions' => [
-                    [
-                        'transaction' => ['id' => 1],
-                        'matches' => [['id' => 2]],
-                    ],
-                ],
-                'total' => 1,
-            ]);
-
-        $this->mapper->expects($this->once())
-            ->method('linkTransactions')
-            ->with(1, 2);
-
-        $result = $this->service->bulkFindAndMatch('user1');
-
-        $this->assertCount(1, $result['autoMatched']);
-        $this->assertCount(0, $result['needsReview']);
-        $this->assertEquals(1, $result['stats']['autoMatchedCount']);
-    }
-
-    public function testBulkFindAndMatchFlagsMultipleMatchesForReview(): void {
-        $this->mapper->method('findUnlinkedWithMatches')
-            ->willReturn([
-                'transactions' => [
-                    [
-                        'transaction' => ['id' => 1],
-                        'matches' => [['id' => 2], ['id' => 3]],
-                    ],
-                ],
-                'total' => 1,
-            ]);
-
-        $this->mapper->expects($this->never())->method('linkTransactions');
-
-        $result = $this->service->bulkFindAndMatch('user1');
-
-        $this->assertCount(0, $result['autoMatched']);
-        $this->assertCount(1, $result['needsReview']);
-        $this->assertEquals(2, $result['needsReview'][0]['matchCount']);
-    }
-
-    public function testBulkFindAndMatchSkipsAlreadyProcessedIds(): void {
-        // linkTransactions() calls find() which needs proper transaction objects
-        $tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.00, 'type' => 'debit', 'linkedTransactionId' => null]);
-        $tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.00, 'type' => 'credit', 'linkedTransactionId' => null]);
-        $this->mapper->method('find')->willReturnMap([
-            [1, 'user1', $tx1],
-            [2, 'user1', $tx2],
-        ]);
-        $this->mapper->method('update')->willReturnArgument(0);
-
-        $this->mapper->method('findUnlinkedWithMatches')
-            ->willReturn([
-                'transactions' => [
-                    [
-                        'transaction' => ['id' => 1],
-                        'matches' => [['id' => 2]],
-                    ],
-                    [
-                        'transaction' => ['id' => 2], // Already matched above
-                        'matches' => [['id' => 1]],
-                    ],
-                ],
-                'total' => 2,
-            ]);
-
-        // Should only link once (1 ↔ 2), not try again for 2 ↔ 1
-        $this->mapper->expects($this->once())
-            ->method('linkTransactions')
-            ->with(1, 2);
-
-        $result = $this->service->bulkFindAndMatch('user1');
-
-        $this->assertCount(1, $result['autoMatched']);
-    }
-
-    // ===== scanForMatches() =====
-
-    public function testScanForMatchesReturnsWithoutLinking(): void {
-        $this->mapper->method('findUnlinkedWithMatches')
-            ->willReturn([
-                'transactions' => [
-                    [
-                        'transaction' => ['id' => 1],
-                        'matches' => [['id' => 2]],
-                    ],
-                ],
-                'total' => 1,
-            ]);
-
-        $this->mapper->expects($this->never())->method('linkTransactions');
-
-        $result = $this->service->scanForMatches('user1');
-
-        $this->assertCount(1, $result['candidates']);
-        $this->assertEquals(1, $result['stats']['singleMatchCount']);
-        $this->assertEquals(0, $result['stats']['multiMatchCount']);
-        $this->assertEquals(1, $result['stats']['totalCandidates']);
-    }
-
-    public function testScanForMatchesCategorizesSingleAndMulti(): void {
-        $this->mapper->method('findUnlinkedWithMatches')
-            ->willReturn([
-                'transactions' => [
-                    [
-                        'transaction' => ['id' => 1],
-                        'matches' => [['id' => 2]],
-                    ],
-                    [
-                        'transaction' => ['id' => 3],
-                        'matches' => [['id' => 4], ['id' => 5]],
-                    ],
-                ],
-                'total' => 2,
-            ]);
-
-        $result = $this->service->scanForMatches('user1');
-
-        $this->assertCount(2, $result['candidates']);
-        $this->assertEquals(1, $result['stats']['singleMatchCount']);
-        $this->assertEquals(1, $result['stats']['multiMatchCount']);
-        $this->assertEquals(2, $result['stats']['totalCandidates']);
-    }
-
-    public function testScanForMatchesDeduplicatesMirrorPairs(): void {
-        $this->mapper->method('findUnlinkedWithMatches')
-            ->willReturn([
-                'transactions' => [
-                    [
-                        'transaction' => ['id' => 1],
-                        'matches' => [['id' => 2]],
-                    ],
-                    [
-                        'transaction' => ['id' => 2],
-                        'matches' => [['id' => 1]],
-                    ],
-                ],
-                'total' => 2,
-            ]);
-
-        $result = $this->service->scanForMatches('user1');
-
-        // Should only return one candidate, not both mirror pairs
-        $this->assertCount(1, $result['candidates']);
-        $this->assertEquals(1, $result['stats']['totalCandidates']);
-    }
-
-    // ===== bulkLinkTransactions() =====
-
-    public function testBulkLinkTransactionsSuccess(): void {
-        $tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.0, 'type' => 'debit', 'linkedTransactionId' => null]);
-        $tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.0, 'type' => 'credit', 'linkedTransactionId' => null]);
-
-        $findCallCount = 0;
-        $this->mapper->method('find')->willReturnCallback(function ($id) use ($tx1, $tx2, &$findCallCount) {
-            $findCallCount++;
-            // First two calls: validation finds (pair 1)
-            // Next two calls: post-link re-fetches (pair 1)
-            if ($id === 1) return $tx1;
-            if ($id === 2) return $tx2;
-            return $tx1;
-        });
-
-        $this->mapper->expects($this->once())->method('linkTransactions')->with(1, 2);
-
-        $result = $this->service->bulkLinkTransactions('user1', [
-            ['sourceId' => 1, 'targetId' => 2],
-        ]);
-
-        $this->assertCount(1, $result['linked']);
-        $this->assertCount(0, $result['failed']);
-        $this->assertEquals(1, $result['stats']['linkedCount']);
-        $this->assertEquals(0, $result['stats']['failedCount']);
-    }
-
-    public function testBulkLinkTransactionsPartialFailure(): void {
-        $tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.0, 'type' => 'debit', 'linkedTransactionId' => null]);
-        $tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.0, 'type' => 'credit', 'linkedTransactionId' => null]);
-        // Same account as tx3 - will cause validation failure
-        $tx3 = $this->makeTransaction(['id' => 3, 'accountId' => 10, 'amount' => 50.0, 'type' => 'debit', 'linkedTransactionId' => null]);
-        $tx4 = $this->makeTransaction(['id' => 4, 'accountId' => 10, 'amount' => 50.0, 'type' => 'credit', 'linkedTransactionId' => null]);
-
-        $this->mapper->method('find')->willReturnCallback(function ($id) use ($tx1, $tx2, $tx3, $tx4) {
-            return match ($id) {
-                1 => $tx1,
-                2 => $tx2,
-                3 => $tx3,
-                4 => $tx4,
-                default => throw new DoesNotExistException('')
-            };
-        });
-
-        $result = $this->service->bulkLinkTransactions('user1', [
-            ['sourceId' => 1, 'targetId' => 2],  // Valid
-            ['sourceId' => 3, 'targetId' => 4],  // Same account - will fail
-        ]);
-
-        $this->assertEquals(1, $result['stats']['linkedCount']);
-        $this->assertEquals(1, $result['stats']['failedCount']);
-        $this->assertCount(1, $result['failed']);
-        $this->assertStringContainsString('same account', $result['failed'][0]['error']);
-    }
-
-    public function testBulkLinkTransactionsEmptyArray(): void {
-        $result = $this->service->bulkLinkTransactions('user1', []);
-
-        $this->assertCount(0, $result['linked']);
-        $this->assertCount(0, $result['failed']);
-        $this->assertEquals(0, $result['stats']['linkedCount']);
-        $this->assertEquals(0, $result['stats']['failedCount']);
-    }
-
-    public function testBulkLinkTransactionsInvalidIds(): void {
-        $result = $this->service->bulkLinkTransactions('user1', [
-            ['sourceId' => 0, 'targetId' => 2],
-        ]);
-
-        $this->assertCount(0, $result['linked']);
-        $this->assertCount(1, $result['failed']);
-        $this->assertStringContainsString('Invalid', $result['failed'][0]['error']);
-    }
-
-    // ===== existsByImportId() =====
-
-    public function testExistsByImportIdDelegatesToMapper(): void {
-        $this->mapper->expects($this->once())
-            ->method('existsByImportId')
-            ->with(10, 'import-1')
-            ->willReturn(true);
-
-        $this->assertTrue($this->service->existsByImportId(10, 'import-1'));
-    }
-
-    // ── getStatementAmountForAccount (#347) ─────────────────────────
-
-    public function testStatementAmountIsOwedBalanceAsOfBoundary(): void {
-        // Card owes 520 today, of which 80 was charged after the due date:
-        // the statement covers what was owed at the due date, 440.
-        $this->accountById[20] = $this->makeAccount([
-            'id' => 20, 'type' => 'credit_card', 'balance' => -520.00, 'currency' => 'GBP',
-        ]);
-        $this->mapper->method('getNetChangeAfterDate')
-            ->with(20, '2026-08-15')
-            ->willReturn(-80.0);
-
-        $amount = $this->service->getStatementAmountForAccount(20, '2026-08-15');
-
-        $this->assertEqualsWithDelta(440.0, $amount, 0.001);
-    }
-
-    public function testStatementAmountZeroWhenNothingOwed(): void {
-        $this->accountById[20] = $this->makeAccount([
-            'id' => 20, 'type' => 'credit_card', 'balance' => 25.00,
-        ]);
-        $this->mapper->method('getNetChangeAfterDate')->willReturn(0.0);
-
-        $this->assertSame(0.0, $this->service->getStatementAmountForAccount(20, '2026-08-15'));
-    }
-
-    // ── getBalanceAsOf (#393) ───────────────────────────────────────
-
-    /** The balance on a date is the stored balance with everything dated after it taken back out. */
-    public function testBalanceAsOfTakesLaterActivityBackOut(): void {
-        $this->accountById[20] = $this->makeAccount(['id' => 20, 'balance' => 1000.00, 'currency' => 'CHF']);
-        // 150 leaves the account after the date, and the stored balance already shows it gone
-        $this->mapper->method('getNetChangeAfterDate')->with(20, '2026-09-22')->willReturn(-150.0);
-
-        $this->assertEqualsWithDelta(1150.0, $this->service->getBalanceAsOf(20, '2026-09-22'), 0.001);
-    }
-
-    // ── clearScheduledBillTransaction transfer pairs (#347) ─────────
-
-    private function makeScheduledPair(): array {
-        $withdrawal = $this->makeTransaction([
-            'id' => 101, 'accountId' => 10, 'type' => 'debit',
-            'billId' => 7, 'linkedTransactionId' => 102, 'amount' => 300.00,
-        ]);
-        $withdrawal->setStatus('scheduled');
-        $deposit = $this->makeTransaction([
-            'id' => 102, 'accountId' => 20, 'type' => 'credit',
-            'billId' => 7, 'linkedTransactionId' => 101, 'amount' => 300.00,
-        ]);
-        $deposit->setStatus('scheduled');
-        return [$withdrawal, $deposit];
-    }
-
-    public function testClearScheduledTransferPairClearsBothLegs(): void {
-        [$withdrawal, $deposit] = $this->makeScheduledPair();
-        $this->mapper->method('findAllScheduledByBillId')->with(7)->willReturn([$withdrawal, $deposit]);
-        $this->mapper->method('find')->willReturnCallback(
-            fn($id) => $id === 101 ? $withdrawal : $deposit
-        );
-        $this->mapper->method('update')->willReturnArgument(0);
-        $this->mapper->expects($this->never())->method('delete');
-
-        $cleared = $this->service->clearScheduledBillTransaction('user1', 7, '2026-08-15');
-
-        $this->assertSame(101, $cleared->getId());
-        $this->assertSame('cleared', $withdrawal->getStatus());
-        $this->assertSame('cleared', $deposit->getStatus());
-        $this->assertSame('2026-08-15', $deposit->getDate());
-    }
-
-    public function testClearScheduledPairAppliesResolvedAmountToBothLegs(): void {
-        [$withdrawal, $deposit] = $this->makeScheduledPair();
-        $this->mapper->method('findAllScheduledByBillId')->with(7)->willReturn([$withdrawal, $deposit]);
-        $this->mapper->method('find')->willReturnCallback(
-            fn($id) => $id === 101 ? $withdrawal : $deposit
-        );
-        $this->mapper->method('update')->willReturnArgument(0);
-
-        $this->service->clearScheduledBillTransaction('user1', 7, '2026-08-15', 440.0);
-
-        $this->assertEqualsWithDelta(440.0, $withdrawal->getAmount(), 0.001);
-        $this->assertEqualsWithDelta(440.0, $deposit->getAmount(), 0.001);
-    }
-
-    public function testClearScheduledStillDeletesUnlinkedDuplicates(): void {
-        [$withdrawal, $deposit] = $this->makeScheduledPair();
-        $stray = $this->makeTransaction(['id' => 103, 'accountId' => 10, 'billId' => 7]);
-        $stray->setStatus('scheduled');
-        $this->mapper->method('findAllScheduledByBillId')->with(7)
-            ->willReturn([$withdrawal, $deposit, $stray]);
-        $this->mapper->method('find')->willReturnCallback(
-            fn($id) => $id === 101 ? $withdrawal : $deposit
-        );
-        $this->mapper->method('update')->willReturnArgument(0);
-        $this->mapper->expects($this->once())->method('delete')->with($stray);
-
-        $this->service->clearScheduledBillTransaction('user1', 7, '2026-08-15');
-    }
-
-    // ===== split shares under a category filter (#359) =====
-
-    /**
-     * @param array<string, mixed> $filters
-     * @return array<string, mixed> the single returned row
-     */
-    private function findOneWithFilters(array $filters, array $row): array {
-        $this->mapper->method('findWithFilters')->willReturn([
-            'transactions' => [$row],
-            'total' => 1,
-        ]);
-
-        $result = $this->service->findWithFilters('user1', $filters, 25, 0);
-
-        return $result['transactions'][0];
-    }
-
-    private function splitRow(): array {
-        return ['id' => 7, 'accountId' => 10, 'isSplit' => true, 'amount' => 82.40, 'type' => 'debit'];
-    }
-
-    public function testCategoryFilterAttachesTheShareBelongingToThatCategory(): void {
-        $this->splitsByTransactionId[7] = [
-            ['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 12.40],
-            ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 70.00],
-        ];
-
-        $row = $this->findOneWithFilters(['category' => '3'], $this->splitRow());
-
-        $this->assertSame(12.40, $row['matchedSplitAmount']);
-        $this->assertSame('Groceries', $row['matchedSplitCategoryName']);
-        $this->assertSame(82.40, $row['amount'], 'the row is still the whole transaction');
-        $this->assertTrue($row['splitCategories'][0]['matched']);
-        $this->assertFalse($row['splitCategories'][1]['matched']);
-    }
-
-    public function testTwoPartsInTheFilteredCategoryAreSummedOnce(): void {
-        // A receipt with two grocery lines is one row, at one figure — the
-        // predicate is an EXISTS precisely so it cannot become two.
-        $this->splitsByTransactionId[7] = [
-            ['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 12.40],
-            ['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 5.60],
-            ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 64.40],
-        ];
-
-        $row = $this->findOneWithFilters(['category' => '3'], $this->splitRow());
-
-        $this->assertSame(18.0, $row['matchedSplitAmount']);
-        $this->assertSame('Groceries', $row['matchedSplitCategoryName']);
-    }
-
-    public function testCommaIdListMatchesAPartInAnyListedCategory(): void {
-        // A pie-chart drill-down from an aggregated slice passes the parent plus
-        // its subcategories (#317).
-        $this->splitsByTransactionId[7] = [
-            ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 70.00],
-            ['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 12.40],
-        ];
-
-        $row = $this->findOneWithFilters(['category' => '3,4,5'], $this->splitRow());
-
-        $this->assertSame(12.40, $row['matchedSplitAmount']);
-    }
-
-    public function testNegativeSplitPartKeepsItsSign(): void {
-        // A receipt's discount line is a negative part of an expense.
-        $this->splitsByTransactionId[7] = [
-            ['categoryId' => 3, 'categoryName' => 'Savings', 'amount' => -3.50],
-            ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 85.90],
-        ];
-
-        $row = $this->findOneWithFilters(['category' => '3'], $this->splitRow());
-
-        $this->assertSame(-3.50, $row['matchedSplitAmount']);
-    }
-
-    public function testZeroShareIsReportedRatherThanTreatedAsNoMatch(): void {
-        $this->splitsByTransactionId[7] = [
-            ['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 0.0],
-            ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 82.40],
-        ];
-
-        $row = $this->findOneWithFilters(['category' => '3'], $this->splitRow());
-
-        $this->assertArrayHasKey('matchedSplitAmount', $row);
-        $this->assertSame(0.0, $row['matchedSplitAmount']);
-    }
-
-    public function testNoShareWhenNoPartIsInTheFilteredCategory(): void {
-        $this->splitsByTransactionId[7] = [
-            ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 82.40],
-        ];
-
-        $row = $this->findOneWithFilters(['category' => '3'], $this->splitRow());
-
-        $this->assertArrayNotHasKey('matchedSplitAmount', $row);
-        $this->assertFalse($row['splitCategories'][0]['matched']);
-    }
-
-    public function testUnfilteredListCarriesTheSplitPartsButNoShare(): void {
-        $this->splitsByTransactionId[7] = [
-            ['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 12.40],
-            ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 70.00],
-        ];
-
-        $row = $this->findOneWithFilters([], $this->splitRow());
-
-        $this->assertArrayNotHasKey('matchedSplitAmount', $row);
-        $this->assertCount(2, $row['splitCategories']);
-        $this->assertArrayNotHasKey('matched', $row['splitCategories'][0]);
-    }
-
-    public function testUncategorizedFilterAttachesNoShare(): void {
-        $this->splitsByTransactionId[7] = [
-            ['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 12.40],
-        ];
-
-        $row = $this->findOneWithFilters(['category' => 'uncategorized'], $this->splitRow());
-
-        $this->assertArrayNotHasKey('matchedSplitAmount', $row);
-    }
-
-    public function testUnsplitRowIsUntouchedByACategoryFilter(): void {
-        $row = $this->findOneWithFilters(
-            ['category' => '3'],
-            ['id' => 8, 'accountId' => 10, 'isSplit' => false, 'amount' => 20.0, 'type' => 'debit']
-        );
-
-        $this->assertArrayNotHasKey('matchedSplitAmount', $row);
-        $this->assertArrayNotHasKey('splitCategories', $row);
-    }
-
-    // ===== tri-state isSplit resolved to a real boolean (#360) =====
-
-    public function testNullFlagRowWithPartsResolvesToSplitWithCategoriesAttached(): void {
-        // A pre-#351 import carries NULL rather than false/true; it must
-        // still surface as a split once its parts actually come back.
-        $this->splitsByTransactionId[7] = [
-            ['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 12.40],
-            ['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 70.00],
-        ];
-
-        $row = $this->findOneWithFilters(
-            [],
-            ['id' => 7, 'accountId' => 10, 'isSplit' => null, 'amount' => 82.40, 'type' => 'debit']
-        );
-
-        $this->assertTrue($row['isSplit']);
-        $this->assertCount(2, $row['splitCategories']);
-    }
-
-    public function testNullFlagRowWithNoPartsResolvesToNotSplit(): void {
-        // No parts come back for this id — a NULL flag is not, on its own,
-        // enough to call the row a split.
-        $row = $this->findOneWithFilters(
-            [],
-            ['id' => 9, 'accountId' => 10, 'isSplit' => null, 'amount' => 20.0, 'type' => 'debit']
-        );
-
-        $this->assertFalse($row['isSplit']);
-        $this->assertArrayNotHasKey('splitCategories', $row);
-    }
-
-    public function testPartWithNoCategoryNeverMatches(): void {
-        $this->splitsByTransactionId[7] = [
-            ['categoryId' => null, 'categoryName' => null, 'amount' => 12.40],
-            ['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 70.00],
-        ];
-
-        $row = $this->findOneWithFilters(['category' => '3'], $this->splitRow());
-
-        $this->assertSame(70.00, $row['matchedSplitAmount']);
-        $this->assertFalse($row['splitCategories'][0]['matched']);
-    }
-
-    // ===== delete cascades to splits (#359) =====
-
-    /**
-     * None of these tables has a foreign key, and every cleanup query — factory
-     * reset included — finds its rows by joining back through
-     * budget_transactions. A row left behind has no transaction to join to, so
-     * it survives everything and is unreachable forever. The cascade is the
-     * only thing standing between a delete and a permanent leak.
-     */
-    public function testDeleteRemovesTheTransactionsSplitRows(): void {
-        $tx = $this->makeTransaction(['id' => 7]);
-        $this->mapper->method('find')->willReturn($tx);
-        $this->mapper->method('getNetChangeAll')->willReturn(0.0);
-        $this->accountMapper->method('find')->willReturn($this->makeAccount());
-
-        $this->splitMapper->expects($this->once())
-            ->method('deleteByTransaction')
-            ->with(7);
-
-        $this->service->delete(7, 'user1');
-    }
-
-    public function testDeleteRemovesSplitRowsBeforeTheTransactionItself(): void {
-        // Reversed, the lookup would have nothing left to find.
-        $tx = $this->makeTransaction(['id' => 7]);
-        $this->mapper->method('find')->willReturn($tx);
-        $this->mapper->method('getNetChangeAll')->willReturn(0.0);
-        $this->accountMapper->method('find')->willReturn($this->makeAccount());
-
-        $order = [];
-        $this->splitMapper->method('deleteByTransaction')
-            ->willReturnCallback(function () use (&$order) {
-                $order[] = 'splits';
-            });
-        $this->mapper->method('delete')->willReturnCallback(function ($arg) use (&$order) {
-            $order[] = 'transaction';
-            return $arg;
-        });
-
-        $this->service->delete(7, 'user1');
-
-        $this->assertSame(['splits', 'transaction'], $order);
-    }
-
-    /**
-     * A bill with a split template puts real split rows on every placeholder it
-     * generates, and this path went straight to the mapper and cascaded
-     * nothing at all.
-     */
-    public function testDeletingABillsScheduledTransactionsTakesTheirSplits(): void {
-        $first = $this->makeTransaction(['id' => 11, 'status' => 'scheduled']);
-        $second = $this->makeTransaction(['id' => 12, 'status' => 'scheduled']);
-        $this->mapper->method('findAllScheduledByBillId')->willReturn([$first, $second]);
-
-        $deleted = [];
-        $this->splitMapper->method('deleteByTransaction')
-            ->willReturnCallback(function (int $id) use (&$deleted) {
-                $deleted[] = $id;
-            });
-
-        $this->service->deleteScheduledBillTransactions(44);
-
-        $this->assertSame([11, 12], $deleted);
-    }
-
-    public function testDeletingABillsScheduledTransactionsTakesTheirTagsAndAttachments(): void {
-        $tx = $this->makeTransaction(['id' => 11, 'status' => 'scheduled']);
-        $this->mapper->method('findAllScheduledByBillId')->willReturn([$tx]);
-
-        $this->transactionTagMapper->expects($this->once())
-            ->method('deleteByTransaction')
-            ->with(11);
-        $this->attachmentMapper->expects($this->once())
-            ->method('deleteByTransaction')
-            ->with(11, 'user1');
-
-        $this->service->deleteScheduledBillTransactions(44);
-    }
-
-    // ===== transfer matching across shared accounts (#378) =====
-
-    public function testFindPotentialMatchesResolvesASourceInASharedAccount(): void {
-        // The source leg belongs to the account's OWNER, so the own-scoped
-        // lookups would find neither the transaction nor its account.
-        $tx = $this->makeTransaction(['linkedTransactionId' => null]);
-        $account = $this->makeAccount(['id' => 10, 'currency' => 'USD']);
-        $this->mapper->expects($this->never())->method('find');
-        $this->accountMapper->expects($this->never())->method('find');
-        $this->mapper->expects($this->once())->method('findForAccounts')
-            ->with(1, [10, 20])->willReturn($tx);
-        $this->accountMapper->expects($this->once())->method('findById')
-            ->with(10)->willReturn($account);
-        $this->mapper->method('findPotentialMatches')->willReturn([]);
-
-        $this->service->findPotentialMatches(1, 'user1', 3, false, [10, 20]);
-    }
-
-    public function testFindPotentialMatchesSearchesEveryGivenAccount(): void {
-        $tx = $this->makeTransaction(['linkedTransactionId' => null]);
-        $account = $this->makeAccount(['id' => 10, 'currency' => 'USD']);
-        $this->mapper->method('findForAccounts')->willReturn($tx);
-        $this->accountMapper->method('findById')->willReturn($account);
-
-        $this->mapper->expects($this->once())
-            ->method('findPotentialMatches')
-            ->with('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'USD', 3, false, [10, 20])
-            ->willReturn([]);
-
-        $this->service->findPotentialMatches(1, 'user1', 3, false, [10, 20]);
-    }
-
-    public function testFindPotentialMatchesRefusesASourceOutsideTheGivenAccounts(): void {
-        $this->mapper->method('findForAccounts')->willThrowException(
-            new \OCP\AppFramework\Db\DoesNotExistException('nope')
-        );
-        $this->mapper->expects($this->never())->method('findPotentialMatches');
-
-        $this->expectException(\OCP\AppFramework\Db\DoesNotExistException::class);
-        $this->service->findPotentialMatches(1, 'user1', 3, false, [10, 20]);
-    }
-
-    public function testScanForMatchesSearchesEveryGivenAccount(): void {
-        $this->mapper->expects($this->once())
-            ->method('findUnlinkedWithMatches')
-            ->with('user1', 3, 100, 0, [10, 20])
-            ->willReturn(['transactions' => [], 'total' => 0]);
-
-        $this->service->scanForMatches('user1', 3, 100, [10, 20]);
-    }
-
-    public function testBulkLinkTransactionsScopesEachPairToTheGivenAccounts(): void {
-        $tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.0, 'type' => 'debit', 'linkedTransactionId' => null]);
-        $tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.0, 'type' => 'credit', 'linkedTransactionId' => null]);
-
-        $this->mapper->expects($this->never())->method('find');
-        $this->mapper->method('findForAccounts')->willReturnCallback(
-            fn(int $id, array $ids) => $id === 1 ? $tx1 : $tx2
-        );
-        $this->accountMapper->method('findById')->willReturnCallback(
-            fn(int $id) => $this->makeAccount(['id' => $id, 'currency' => 'USD'])
-        );
-        $this->mapper->expects($this->once())->method('linkTransactions')->with(1, 2);
-
-        $result = $this->service->bulkLinkTransactions('user1', [
-            ['sourceId' => 1, 'targetId' => 2],
-        ], [10, 20]);
-
-        $this->assertCount(1, $result['linked']);
-    }
+	private TransactionService $service;
+	private \OCA\Budget\Service\UserClock $userClock;
+	private TransactionMapper $mapper;
+	private AccountMapper $accountMapper;
+	private TransactionTagMapper $transactionTagMapper;
+	private ExpenseShareMapper $expenseShareMapper;
+	private \OCA\Budget\Db\AttachmentMapper $attachmentMapper;
+	/** @var \OCA\Budget\Db\TransactionSplitMapper&\PHPUnit\Framework\MockObject\MockObject */
+	private $splitMapper;
+	/** @var array<int, Account> per-test accounts served by the findById stub */
+	private array $accountById = [];
+	/** @var array<int, array<int, array<string, mixed>>> per-test split parts served by findByTransactionIds */
+	private array $splitsByTransactionId = [];
+
+	protected function setUp(): void {
+		$this->mapper = $this->createMock(TransactionMapper::class);
+		$this->accountMapper = $this->createMock(AccountMapper::class);
+		// createFromBill()/clearScheduledBillTransaction() resolve the account
+		// owner via findById() (owner-agnostic). Default to a user1-owned account;
+		// tests needing a specific account seed $this->accountById[$id].
+		$this->accountMapper->method('findById')->willReturnCallback(
+			fn (int $id) => $this->accountById[$id] ?? $this->makeAccount()
+		);
+		$this->transactionTagMapper = $this->createMock(TransactionTagMapper::class);
+		$this->splitsByTransactionId = [];
+		$splitMapper = $this->createMock(\OCA\Budget\Db\TransactionSplitMapper::class);
+		// Seeded map rather than a fixed return: a stub set here cannot be
+		// replaced from a test, so tests fill $this->splitsByTransactionId.
+		$splitMapper->method('findByTransactionIds')->willReturnCallback(
+			fn (array $ids) => array_intersect_key($this->splitsByTransactionId, array_flip($ids))
+		);
+		$this->splitMapper = $splitMapper;
+		$this->expenseShareMapper = $this->createMock(ExpenseShareMapper::class);
+		$dismissedImportMapper = $this->createMock(DismissedImportMapper::class);
+		$this->attachmentMapper = $this->createMock(\OCA\Budget\Db\AttachmentMapper::class);
+		$auditService = $this->createMock(\OCA\Budget\Service\AuditService::class);
+		$pensionContributionMapper = $this->createMock(\OCA\Budget\Db\PensionContributionMapper::class);
+		// Real UserClock over a config that stores no timezone: "today" is
+		// the server's, which is what these tests have always assumed.
+		// TransactionServiceTimezoneTest covers the user-timezone behaviour.
+		$this->userClock = new \OCA\Budget\Service\UserClock($this->createMock(\OCP\IConfig::class));
+
+		$this->service = new TransactionService(
+			$this->mapper,
+			$this->accountMapper,
+			$this->transactionTagMapper,
+			$splitMapper,
+			$this->expenseShareMapper,
+			$dismissedImportMapper,
+			$this->attachmentMapper,
+			$auditService,
+			$pensionContributionMapper,
+			$this->userClock
+		);
+	}
+
+	private function makeTransaction(array $overrides = []): Transaction {
+		$tx = new Transaction();
+		$defaults = [
+			'id' => 1,
+			'accountId' => 10,
+			'date' => '2026-01-15',
+			'description' => 'Test transaction',
+			'amount' => 50.00,
+			'type' => 'debit',
+			'categoryId' => null,
+			'vendor' => null,
+			'reference' => null,
+			'notes' => null,
+			'importId' => null,
+			'reconciled' => false,
+			'linkedTransactionId' => null,
+			'billId' => null,
+		];
+		$data = array_merge($defaults, $overrides);
+
+		$tx->setId($data['id']);
+		$tx->setAccountId($data['accountId']);
+		$tx->setDate($data['date']);
+		$tx->setDescription($data['description']);
+		$tx->setAmount($data['amount']);
+		$tx->setType($data['type']);
+		$tx->setCategoryId($data['categoryId']);
+		$tx->setVendor($data['vendor']);
+		$tx->setReference($data['reference']);
+		$tx->setNotes($data['notes']);
+		$tx->setImportId($data['importId']);
+		$tx->setReconciled($data['reconciled']);
+		$tx->setLinkedTransactionId($data['linkedTransactionId']);
+		$tx->setBillId($data['billId']);
+		$tx->setCreatedAt('2026-01-15 10:00:00');
+		$tx->setUpdatedAt('2026-01-15 10:00:00');
+		return $tx;
+	}
+
+	private function makeAccount(array $overrides = []): Account {
+		$account = new Account();
+		$defaults = [
+			'id' => 10,
+			'userId' => 'user1',
+			'name' => 'Checking',
+			'type' => 'checking',
+			'balance' => 1000.00,
+			'openingBalance' => null,
+			'currency' => 'USD',
+		];
+		$data = array_merge($defaults, $overrides);
+
+		$account->setId($data['id']);
+		$account->setUserId($data['userId']);
+		$account->setName($data['name']);
+		$account->setType($data['type']);
+		$account->setBalance($data['balance']);
+		$account->setOpeningBalance($data['openingBalance']);
+		$account->setCurrency($data['currency']);
+		return $account;
+	}
+
+	private function makeBill(array $overrides = []): Bill {
+		$bill = new Bill();
+		$defaults = [
+			'id' => 1,
+			'userId' => 'user1',
+			'name' => 'Rent',
+			'amount' => 500.00,
+			'accountId' => 10,
+			'categoryId' => 5,
+			'nextDueDate' => '2026-02-01',
+			'isTransfer' => false,
+			'destinationAccountId' => null,
+			'tagIds' => null,
+		];
+		$data = array_merge($defaults, $overrides);
+
+		$bill->setId($data['id']);
+		$bill->setUserId($data['userId']);
+		$bill->setName($data['name']);
+		$bill->setAmount($data['amount']);
+		$bill->setAccountId($data['accountId']);
+		$bill->setCategoryId($data['categoryId']);
+		$bill->setNextDueDate($data['nextDueDate']);
+		$bill->setIsTransfer($data['isTransfer']);
+		$bill->setDestinationAccountId($data['destinationAccountId']);
+		$bill->setTagIds($data['tagIds']);
+		return $bill;
+	}
+
+	// ===== find() =====
+
+	public function testFindDelegatesToMapper(): void {
+		$tx = $this->makeTransaction();
+		$this->mapper->expects($this->once())
+			->method('find')
+			->with(1, 'user1')
+			->willReturn($tx);
+
+		$result = $this->service->find(1, 'user1');
+		$this->assertSame($tx, $result);
+	}
+
+	public function testFindThrowsWhenNotFound(): void {
+		$this->mapper->method('find')
+			->willThrowException(new DoesNotExistException(''));
+
+		$this->expectException(DoesNotExistException::class);
+		$this->service->find(999, 'user1');
+	}
+
+	// ===== findByAccount() =====
+
+	public function testFindByAccountDelegatesToMapper(): void {
+		$this->mapper->expects($this->once())
+			->method('findByAccount')
+			->with(10, 'user1', 100, 0)
+			->willReturn([]);
+
+		$this->service->findByAccount('user1', 10);
+	}
+
+	// ===== create() =====
+
+	public function testCreateRecalculatesBalanceFromLedger(): void {
+		// Balance is recomputed as opening_balance + ledger net after insert —
+		// not adjusted by a hand-computed delta (#274 root cause).
+		$account = $this->makeAccount(['openingBalance' => 100.00]);
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->mapper->method('existsByImportId')->willReturn(false);
+		$this->mapper->method('getNetChangeAll')->with(10)->willReturn(850.00);
+
+		$this->mapper->expects($this->once())
+			->method('insert')
+			->willReturnCallback(function (Transaction $tx) {
+				$this->assertEquals(10, $tx->getAccountId());
+				$this->assertEquals('2026-01-15', $tx->getDate());
+				$this->assertEquals('Groceries', $tx->getDescription());
+				$this->assertEquals(50.00, $tx->getAmount());
+				$this->assertEquals('debit', $tx->getType());
+				$this->assertFalse($tx->getReconciled());
+				$tx->setId(1);
+				return $tx;
+			});
+
+		// opening 100 + net 850 = 950
+		$this->accountMapper->expects($this->once())
+			->method('updateBalance')
+			->with(10, '950.00', 'user1');
+
+		$result = $this->service->create(
+			'user1', 10, '2026-01-15', 'Groceries', 50.00, 'debit'
+		);
+
+		$this->assertEquals(1, $result->getId());
+	}
+
+	public function testCreateWithDeferSkipsBalanceUpdate(): void {
+		// Bulk callers (imports, bank sync) defer the recompute and run it
+		// once per account after their loop.
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->mapper->method('existsByImportId')->willReturn(false);
+		$this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) {
+			$tx->setId(2);
+			return $tx;
+		});
+
+		$this->accountMapper->expects($this->never())->method('updateBalance');
+
+		$this->service->create(
+			'user1', 10, '2026-01-15', 'Salary', 50.00, 'credit',
+			deferBalanceUpdate: true
+		);
+	}
+
+	public function testRecalculateAccountBalanceUsesOpeningPlusNet(): void {
+		$account = $this->makeAccount(['openingBalance' => -2905.79]);
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->mapper->method('getNetChangeAll')->with(10)->willReturn(2393.37);
+
+		// -2905.79 + 2393.37 = -512.42
+		$this->accountMapper->expects($this->once())
+			->method('updateBalance')
+			->with(10, '-512.42', 'user1');
+
+		$this->service->recalculateAccountBalance(10, 'user1');
+	}
+
+	public function testCreateRejectsDuplicateImportId(): void {
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->mapper->method('existsByImportId')
+			->with(10, 'import-123')
+			->willReturn(true);
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('import ID already exists');
+
+		$this->service->create(
+			'user1', 10, '2026-01-15', 'Dup', 10.00, 'debit',
+			null, null, null, null, 'import-123'
+		);
+	}
+
+	public function testCreateSetsAllOptionalFields(): void {
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$this->mapper->expects($this->once())
+			->method('insert')
+			->willReturnCallback(function (Transaction $tx) {
+				$this->assertEquals(5, $tx->getCategoryId());
+				$this->assertEquals('Amazon', $tx->getVendor());
+				$this->assertEquals('REF-001', $tx->getReference());
+				$this->assertEquals('Online purchase', $tx->getNotes());
+				$this->assertEquals('imp-1', $tx->getImportId());
+				$this->assertEquals(3, $tx->getBillId());
+				$tx->setId(1);
+				return $tx;
+			});
+
+		$this->accountMapper->method('updateBalance')->willReturn($account);
+
+		$this->service->create(
+			'user1', 10, '2026-01-15', 'Amazon Order', 99.99, 'debit',
+			5, 'Amazon', 'REF-001', 'Online purchase', 'imp-1', 3
+		);
+	}
+
+	// ===== update() =====
+
+	public function testUpdateAppliesFieldChanges(): void {
+		$tx = $this->makeTransaction(['amount' => 50.00, 'type' => 'debit']);
+		$this->mapper->method('find')->willReturn($tx);
+
+		$this->mapper->expects($this->once())
+			->method('update')
+			->willReturnArgument(0);
+
+		$result = $this->service->update(1, 'user1', ['description' => 'Updated']);
+
+		$this->assertEquals('Updated', $result->getDescription());
+	}
+
+	public function testUpdateClearsCategoryWhenIdIsNull(): void {
+		// Bulk "No Category" (#332) relies on update() applying an explicit null
+		// categoryId to clear it, rather than treating null as "leave unchanged".
+		$tx = $this->makeTransaction(['categoryId' => 5]);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$result = $this->service->update(1, 'user1', ['categoryId' => null]);
+
+		$this->assertNull($result->getCategoryId());
+	}
+
+	/**
+	 * A split parent's category is deliberately null — the categories live on
+	 * its split rows. Bulk Edit reached update() through a blind setter loop
+	 * with no is_split guard, so "filter by Uncategorized, select all, set a
+	 * category" wrote a category onto every split parent and double-counted
+	 * it against its own splits (#356).
+	 */
+	public function testUpdateIgnoresCategoryChangeOnSplitParent(): void {
+		$tx = $this->makeTransaction(['categoryId' => null]);
+		$tx->setIsSplit(true);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->splitMapper->method('hasParts')->with(1)->willReturn(true);
+
+		$result = $this->service->update(1, 'user1', ['categoryId' => 7]);
+
+		$this->assertNull($result->getCategoryId());
+	}
+
+	/**
+	 * Only the category is protected — the rest of a split parent's fields
+	 * stay editable, so a bulk vendor or note change still applies.
+	 */
+	public function testUpdateStillAppliesOtherFieldsOnSplitParent(): void {
+		$tx = $this->makeTransaction(['categoryId' => null]);
+		$tx->setIsSplit(true);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->splitMapper->method('hasParts')->with(1)->willReturn(true);
+
+		$result = $this->service->update(1, 'user1', [
+			'categoryId' => 7,
+			'description' => 'Weekly shop',
+		]);
+
+		$this->assertNull($result->getCategoryId());
+		$this->assertEquals('Weekly shop', $result->getDescription());
+	}
+
+	/**
+	 * The flag alone is not proof of a split. Restores from archives made
+	 * while the splits table was missing from the backup registry (#351)
+	 * manufactured rows whose flag says split but which have no rows in
+	 * budget_tx_splits — the read side lists such a row as uncategorized,
+	 * so discarding the category here meant the user assigned one, the save
+	 * "succeeded", and the category silently vanished, forever (#360).
+	 * Parts are the truth: no parts, keep the category, and correct the
+	 * lying flag on the same write.
+	 */
+	public function testUpdateKeepsCategoryOnAFlagTrueRowWithNoParts(): void {
+		$tx = $this->makeTransaction(['categoryId' => null]);
+		$tx->setIsSplit(true);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->splitMapper->method('hasParts')->with(1)->willReturn(false);
+
+		$result = $this->service->update(1, 'user1', ['categoryId' => 7]);
+
+		$this->assertEquals(7, $result->getCategoryId());
+		$this->assertFalse($result->getIsSplit(), 'the stray-true flag is corrected on the same update');
+	}
+
+	public function testUpdateRecalculatesBalanceFromLedger(): void {
+		// Balance-affecting updates recompute from the ledger — amount/type/
+		// status/account edits all flow through the same recompute instead of
+		// separate delta branches.
+		$tx = $this->makeTransaction(['amount' => 50.00, 'type' => 'debit']);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->method('getNetChangeAll')->with(10)->willReturn(-75.00);
+
+		$account = $this->makeAccount(['openingBalance' => 1000.00]);
+		$this->accountMapper->method('find')->willReturn($account);
+
+		// opening 1000 + net -75 = 925
+		$this->accountMapper->expects($this->once())
+			->method('updateBalance')
+			->with(10, '925.00', 'user1');
+
+		$this->service->update(1, 'user1', ['amount' => 75.00]);
+	}
+
+	public function testUpdateMetadataOnlySkipsBalanceRecalc(): void {
+		// Category/vendor/notes/reconciled/date edits can't move a balance
+		// (it's a function of amount, type, status and account only — see
+		// getNetChangeAll()), so a cross-page bulk reconcile/edit must not run
+		// one full-ledger SUM per row.
+		$tx = $this->makeTransaction();
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$this->mapper->expects($this->never())->method('getNetChangeAll');
+		$this->accountMapper->expects($this->never())->method('updateBalance');
+
+		$this->service->update(1, 'user1', ['reconciled' => true, 'categoryId' => 5, 'vendor' => 'Shop']);
+	}
+
+	public function testUpdateDateOnScheduledRowStillRecalculates(): void {
+		// Moving a scheduled row's date to today auto-clears it — that status
+		// flip changes the balance, so the recompute must still run even
+		// though the caller only sent a date.
+		$tx = $this->makeTransaction();
+		$tx->setStatus('scheduled');
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(['openingBalance' => 0.0]));
+
+		$this->accountMapper->expects($this->once())->method('updateBalance');
+
+		$this->service->update(1, 'user1', ['date' => '2020-01-01']);
+	}
+
+	public function testRecalculateUsesAccountCurrencyPrecision(): void {
+		// A crypto account's balance must keep 8dp, not be rounded to 2 (#331).
+		$tx = $this->makeTransaction(['amount' => 0.00012345, 'type' => 'debit']);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->method('getNetChangeAll')->with(10)->willReturn(-0.00012345);
+
+		$account = $this->makeAccount(['openingBalance' => 0.5, 'currency' => 'BTC']);
+		$this->accountMapper->method('find')->willReturn($account);
+
+		// 0.5 + (-0.00012345) = 0.49987655 (8dp, not rounded to 0.50)
+		$this->accountMapper->expects($this->once())
+			->method('updateBalance')
+			->with(10, '0.49987655', 'user1');
+
+		$this->service->update(1, 'user1', ['amount' => 0.00012345]);
+	}
+
+	public function testUpdateRescalesSplitsWhenAmountChanges(): void {
+		// A split transaction's parts must keep summing to the (new) amount.
+		$tx = $this->makeTransaction(['amount' => 1000.00, 'type' => 'debit']);
+		$tx->setIsSplit(true);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(['openingBalance' => 0.0]));
+
+		$mk = function (int $id, string $amount) {
+			$s = new \OCA\Budget\Db\TransactionSplit();
+			$s->setId($id);
+			$s->setTransactionId(1);
+			$s->setAmount($amount);
+			return $s;
+		};
+		$s1 = $mk(1, '850');
+		$s2 = $mk(2, '100');
+		$s3 = $mk(3, '50');
+		$this->splitMapper->method('findByTransaction')->with(1)->willReturn([$s1, $s2, $s3]);
+		$this->splitMapper->expects($this->exactly(3))->method('update');
+
+		$this->service->update(1, 'user1', ['amount' => 1100.00]);
+
+		// Proportional rescale to 1100 (×1.1); last split absorbs the remainder.
+		$this->assertEquals('935', $s1->getAmount());
+		$this->assertEquals('110', $s2->getAmount());
+		$this->assertEquals('55', $s3->getAmount());
+	}
+
+	public function testUpdateDoesNotRescaleNonSplitTransaction(): void {
+		$tx = $this->makeTransaction(['amount' => 1000.00, 'type' => 'debit']); // not a split
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(['openingBalance' => 0.0]));
+
+		$this->splitMapper->expects($this->never())->method('findByTransaction');
+
+		$this->service->update(1, 'user1', ['amount' => 1100.00]);
+	}
+
+	public function testUpdateAccountMoveRecalculatesBothAccounts(): void {
+		$tx = $this->makeTransaction(['amount' => 50.00, 'type' => 'debit', 'accountId' => 10]);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->method('getNetChangeAll')->willReturnMap([
+			[11, 100.00],
+			[10, -25.00],
+		]);
+
+		$oldAccount = $this->makeAccount(['id' => 10, 'openingBalance' => 0.0]);
+		$newAccount = $this->makeAccount(['id' => 11, 'openingBalance' => 0.0]);
+		$this->accountMapper->method('find')->willReturnCallback(
+			fn ($id) => $id === 11 ? $newAccount : $oldAccount
+		);
+
+		$updatedBalances = [];
+		$this->accountMapper->expects($this->exactly(2))
+			->method('updateBalance')
+			->willReturnCallback(function ($accountId, $balance) use (&$updatedBalances, $oldAccount, $newAccount) {
+				$updatedBalances[$accountId] = $balance;
+				return $accountId === 11 ? $newAccount : $oldAccount;
+			});
+
+		$this->service->update(1, 'user1', ['accountId' => 11]);
+
+		$this->assertSame('100.00', $updatedBalances[11]);
+		$this->assertSame('-25.00', $updatedBalances[10]);
+	}
+
+	// ===== delete() =====
+
+	public function testDeleteRecalculatesBalanceFromLedger(): void {
+		$tx = $this->makeTransaction(['amount' => 100.00, 'type' => 'debit']);
+		$this->mapper->method('find')->willReturn($tx);
+		// Ledger net after the row is gone
+		$this->mapper->method('getNetChangeAll')->with(10)->willReturn(1000.00);
+
+		$account = $this->makeAccount(['openingBalance' => 0.0]);
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$this->accountMapper->expects($this->once())
+			->method('updateBalance')
+			->with(10, '1000.00', 'user1');
+
+		$this->transactionTagMapper->expects($this->once())
+			->method('deleteByTransaction')
+			->with(1);
+
+		$this->attachmentMapper->expects($this->once())
+			->method('deleteByTransaction')
+			->with(1, 'user1');
+
+		$deleteHappenedBeforeRecalc = false;
+		$this->mapper->expects($this->once())
+			->method('delete')
+			->willReturnCallback(function ($arg) use (&$deleteHappenedBeforeRecalc) {
+				$deleteHappenedBeforeRecalc = true;
+				return $arg;
+			});
+
+		$this->service->delete(1, 'user1');
+
+		$this->assertTrue($deleteHappenedBeforeRecalc);
+	}
+
+	// ===== deleteAsAccountOwner() / unlinkBillAsAccountOwner() (#334, #365 review) =====
+
+	public function testDeleteAsAccountOwnerScopesTheDeleteToTheAccountOwner(): void {
+		// markPaid creates a shared-account bill's transactions under the
+		// ACCOUNT owner (#334); the revert must delete under that same owner,
+		// not the acting user, or the owner-scoped find never sees the row.
+		$tx = $this->makeTransaction(['id' => 55, 'accountId' => 10]);
+		$this->accountById[10] = $this->makeAccount(['id' => 10, 'userId' => 'account-owner']);
+		$this->mapper->method('findById')->with(55)->willReturn($tx);
+		$this->mapper->expects($this->once())->method('find')->with(55, 'account-owner')->willReturn($tx);
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(['id' => 10, 'userId' => 'account-owner']));
+		$this->mapper->expects($this->once())->method('delete');
+
+		$this->assertTrue($this->service->deleteAsAccountOwner(55));
+	}
+
+	public function testDeleteAsAccountOwnerLeavesMaterialisedPlaceholderAlone(): void {
+		// A scheduled placeholder tracked in a payment snapshot may have
+		// become a real (possibly reconciled) ledger row months later — with
+		// $onlyIfScheduled it must be left untouched.
+		$tx = $this->makeTransaction(['id' => 56, 'accountId' => 10]);
+		$tx->setStatus('cleared');
+		$this->mapper->method('findById')->with(56)->willReturn($tx);
+		$this->mapper->expects($this->never())->method('delete');
+
+		$this->assertFalse($this->service->deleteAsAccountOwner(56, true));
+	}
+
+	public function testDeleteAsAccountOwnerDeletesAStillScheduledPlaceholder(): void {
+		$tx = $this->makeTransaction(['id' => 56, 'accountId' => 10]);
+		$tx->setStatus('scheduled');
+		$this->mapper->method('findById')->with(56)->willReturn($tx);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		$this->mapper->expects($this->once())->method('delete');
+
+		$this->assertTrue($this->service->deleteAsAccountOwner(56, true));
+	}
+
+	public function testDeleteAsAccountOwnerThrowsWhenRowIsGone(): void {
+		$this->mapper->method('findById')->willReturn(null);
+
+		$this->expectException(DoesNotExistException::class);
+
+		$this->service->deleteAsAccountOwner(999);
+	}
+
+	public function testUnlinkBillAsAccountOwnerClearsTheBillLink(): void {
+		// Reverting a payment that LINKED an imported transaction must not
+		// delete the row — it predates the payment. Only the linkage goes.
+		$tx = $this->makeTransaction(['id' => 77, 'accountId' => 10, 'billId' => 9]);
+		$this->accountById[10] = $this->makeAccount(['id' => 10, 'userId' => 'account-owner']);
+		$this->mapper->method('findById')->with(77)->willReturn($tx);
+		$this->mapper->expects($this->once())->method('find')->with(77, 'account-owner')->willReturn($tx);
+		$this->mapper->expects($this->once())->method('update')
+			->willReturnCallback(function (Transaction $updated) {
+				$this->assertNull($updated->getBillId());
+				return $updated;
+			});
+
+		$this->service->unlinkBillAsAccountOwner(77);
+	}
+
+	public function testUnlinkBillAsAccountOwnerIgnoresAMissingRow(): void {
+		$this->mapper->method('findById')->willReturn(null);
+		$this->mapper->expects($this->never())->method('update');
+
+		$this->service->unlinkBillAsAccountOwner(999);
+	}
+
+	// ===== createFromBill() =====
+
+	public function testCreateFromBillCreatesDebitForRegularBill(): void {
+		$bill = $this->makeBill();
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$insertCount = 0;
+		$this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) use (&$insertCount) {
+			$insertCount++;
+			$tx->setId($insertCount);
+			return $tx;
+		});
+		$this->accountMapper->method('updateBalance')->willReturn($account);
+
+		$result = $this->service->createFromBill('user1', $bill);
+
+		$this->assertEquals(1, $insertCount);
+		$this->assertEquals('', $result->getDescription());
+		$this->assertEquals('Rent', $result->getVendor());
+		$this->assertEquals('debit', $result->getType());
+		$this->assertEquals(500.00, $result->getAmount());
+	}
+
+	public function testCreateFromBillCreatesTransferPair(): void {
+		$bill = $this->makeBill([
+			'isTransfer' => true,
+			'destinationAccountId' => 20,
+		]);
+
+		$sourceAccount = $this->makeAccount(['id' => 10, 'balance' => 2000.00]);
+		$destAccount = $this->makeAccount(['id' => 20, 'balance' => 500.00]);
+
+		$this->accountMapper->method('find')->willReturnCallback(
+			function (int $id) use ($sourceAccount, $destAccount) {
+				return $id === 10 ? $sourceAccount : $destAccount;
+			}
+		);
+
+		$insertedTransactions = [];
+		$this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) use (&$insertedTransactions) {
+			$tx->setId(count($insertedTransactions) + 1);
+			$insertedTransactions[] = clone $tx;
+			return $tx;
+		});
+
+		// linkTransactions() internally calls find() on the mapper, so we need to
+		// return Transaction objects with different accountIds for validation to pass
+		$this->mapper->method('find')->willReturnCallback(function (int $id) use (&$insertedTransactions) {
+			foreach ($insertedTransactions as $tx) {
+				if ($tx->getId() === $id) {
+					return $tx;
+				}
+			}
+			return $insertedTransactions[0];
+		});
+
+		$this->mapper->expects($this->once())
+			->method('linkTransactions')
+			->with(1, 2);
+
+		$this->accountMapper->method('updateBalance')->willReturn($sourceAccount);
+
+		$result = $this->service->createFromBill('user1', $bill);
+
+		$this->assertCount(2, $insertedTransactions);
+		$this->assertEquals('debit', $insertedTransactions[0]->getType());
+		$this->assertEquals(10, $insertedTransactions[0]->getAccountId());
+		$this->assertEquals('credit', $insertedTransactions[1]->getType());
+		$this->assertEquals(20, $insertedTransactions[1]->getAccountId());
+	}
+
+	public function testCreateFromBillAppliesTagsToRegularBill(): void {
+		$bill = $this->makeBill(['tagIds' => '[1,2,3]']);
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) {
+			$tx->setId(1);
+			return $tx;
+		});
+		$this->accountMapper->method('updateBalance')->willReturn($account);
+
+		$this->transactionTagMapper->expects($this->exactly(3))->method('insert');
+
+		$this->service->createFromBill('user1', $bill);
+	}
+
+	public function testCreateFromBillThrowsWithoutAccount(): void {
+		$bill = $this->makeBill(['accountId' => null]);
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('must have an account');
+
+		$this->service->createFromBill('user1', $bill);
+	}
+
+	public function testCreateFromBillThrowsForTransferWithoutDestination(): void {
+		$bill = $this->makeBill([
+			'isTransfer' => true,
+			'destinationAccountId' => null,
+		]);
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('destination account');
+
+		$this->service->createFromBill('user1', $bill);
+	}
+
+	public function testCreateFromBillUsesOverrideDate(): void {
+		$bill = $this->makeBill(['nextDueDate' => '2026-02-01']);
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$this->mapper->expects($this->once())
+			->method('insert')
+			->willReturnCallback(function (Transaction $tx) {
+				$this->assertEquals('2026-03-15', $tx->getDate());
+				$tx->setId(1);
+				return $tx;
+			});
+		$this->accountMapper->method('updateBalance')->willReturn($account);
+
+		$this->service->createFromBill('user1', $bill, '2026-03-15');
+	}
+
+	public function testCreateFromBillWithoutDateIsScheduledEvenWhenOverdue(): void {
+		// A next-occurrence placeholder (no explicit date) must always be
+		// scheduled — a past due date used to fall through to 'cleared' and
+		// the placeholder was counted in the balance immediately
+		$bill = $this->makeBill(['nextDueDate' => '2020-01-01']);
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) {
+			$tx->setId(1);
+			return $tx;
+		});
+		$this->accountMapper->method('updateBalance')->willReturn($account);
+
+		$result = $this->service->createFromBill('user1', $bill);
+
+		$this->assertEquals('scheduled', $result->getStatus());
+	}
+
+	public function testCreateFromBillWithExplicitPastDateIsCleared(): void {
+		// Explicit dates keep the heuristic: recording an actual (past)
+		// payment stays cleared
+		$bill = $this->makeBill(['nextDueDate' => '2020-01-01']);
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) {
+			$tx->setId(1);
+			return $tx;
+		});
+		$this->accountMapper->method('updateBalance')->willReturn($account);
+
+		$result = $this->service->createFromBill('user1', $bill, '2020-01-01');
+
+		$this->assertEquals('cleared', $result->getStatus());
+	}
+
+	public function testCreateFromBillRecordsUnderAccountOwnerNotActingUser(): void {
+		// A bill can point at a shared account owned by another user. When a share
+		// recipient triggers the payment, the transaction must be created under the
+		// ACCOUNT owner — create()'s account lookup is owner-scoped, so scoping to
+		// the acting user throws DoesNotExistException and the payment fails (#334).
+		$bill = $this->makeBill(['accountId' => 10]);
+		// findById() (owner-agnostic, stubbed in setUp) resolves the owner: 'user1'.
+		$ownerAccount = $this->makeAccount(['id' => 10]);
+
+		$this->accountMapper->method('find')->willReturnCallback(
+			function (int $id, string $userId) use ($ownerAccount) {
+				$this->assertSame(10, $id);
+				$this->assertSame('user1', $userId, 'payment must be scoped to the account owner, not the acting user');
+				return $ownerAccount;
+			}
+		);
+		$this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) {
+			$tx->setId(1);
+			return $tx;
+		});
+		$this->accountMapper->method('updateBalance')->willReturn($ownerAccount);
+
+		// Acting user is a share recipient, NOT the account owner.
+		$result = $this->service->createFromBill('share-recipient', $bill);
+
+		$this->assertEquals(10, $result->getAccountId());
+	}
+
+	// ===== findBillPaymentCandidates() =====
+
+	public function testFindBillPaymentCandidatesRejectsDateOnlyMatches(): void {
+		// A same-day debit with unrelated amount and name must NOT be offered
+		// as a match — junk candidates steered users into marking bills paid
+		// without recording the payment (#274)
+		$tx = $this->makeTransaction([
+			'amount' => 18.00,
+			'description' => 'Zigaretten',
+			'date' => '2026-06-28',
+		]);
+		$this->mapper->method('findBillPaymentCandidates')->willReturn([$tx]);
+
+		$result = $this->service->findBillPaymentCandidates(10, 'Hypothek', 2912.00, '2026-06-28');
+
+		$this->assertSame([], $result);
+	}
+
+	public function testFindBillPaymentCandidatesKeepsAmountMatch(): void {
+		$tx = $this->makeTransaction([
+			'amount' => 2912.00,
+			'description' => 'Unrelated text',
+			'date' => '2026-06-28',
+		]);
+		$this->mapper->method('findBillPaymentCandidates')->willReturn([$tx]);
+
+		$result = $this->service->findBillPaymentCandidates(10, 'Hypothek', 2912.00, '2026-06-28');
+
+		$this->assertCount(1, $result);
+		$this->assertContains('exact_amount', $result[0]['matchReasons']);
+	}
+
+	public function testFindBillPaymentCandidatesKeepsNameMatch(): void {
+		$tx = $this->makeTransaction([
+			'amount' => 5.00,
+			'description' => 'Hypothek Zins',
+			'date' => '2026-06-28',
+		]);
+		$this->mapper->method('findBillPaymentCandidates')->willReturn([$tx]);
+
+		$result = $this->service->findBillPaymentCandidates(10, 'Hypothek', 2912.00, '2026-06-28');
+
+		$this->assertCount(1, $result);
+		$this->assertContains('partial_description', $result[0]['matchReasons']);
+	}
+
+	// ===== createFromIncome() =====
+
+	private function makeIncome(array $overrides = []): RecurringIncome {
+		$income = new RecurringIncome();
+		$defaults = [
+			'id' => 1,
+			'userId' => 'user1',
+			'name' => 'Salary',
+			'amount' => 3000.00,
+			'accountId' => 10,
+			'categoryId' => 5,
+			'nextExpectedDate' => '2026-03-25',
+		];
+		$data = array_merge($defaults, $overrides);
+
+		$income->setId($data['id']);
+		$income->setUserId($data['userId']);
+		$income->setName($data['name']);
+		$income->setAmount($data['amount']);
+		$income->setAccountId($data['accountId']);
+		$income->setCategoryId($data['categoryId']);
+		$income->setNextExpectedDate($data['nextExpectedDate']);
+		return $income;
+	}
+
+	public function testCreateFromIncomeCreatesCreditTransaction(): void {
+		$income = $this->makeIncome();
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$this->mapper->expects($this->once())
+			->method('insert')
+			->willReturnCallback(function (Transaction $tx) {
+				$this->assertEquals('', $tx->getDescription());
+				$this->assertEquals('Salary', $tx->getVendor());
+				$this->assertEquals('credit', $tx->getType());
+				$this->assertEquals(3000.00, $tx->getAmount());
+				$this->assertEquals(10, $tx->getAccountId());
+				$this->assertEquals(5, $tx->getCategoryId());
+				$this->assertEquals('2026-03-25', $tx->getDate());
+				$this->assertStringContainsString('Auto-generated from income', $tx->getNotes());
+				$tx->setId(1);
+				return $tx;
+			});
+		$this->accountMapper->method('updateBalance')->willReturn($account);
+
+		$result = $this->service->createFromIncome('user1', $income);
+
+		$this->assertEquals('credit', $result->getType());
+		$this->assertEquals(3000.00, $result->getAmount());
+	}
+
+	public function testCreateFromIncomeThrowsWithoutAccount(): void {
+		$income = $this->makeIncome(['accountId' => null]);
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('must have an account');
+
+		$this->service->createFromIncome('user1', $income);
+	}
+
+	public function testCreateFromIncomeUsesOverrideDate(): void {
+		$income = $this->makeIncome(['nextExpectedDate' => '2026-03-25']);
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$this->mapper->expects($this->once())
+			->method('insert')
+			->willReturnCallback(function (Transaction $tx) {
+				$this->assertEquals('2026-04-01', $tx->getDate());
+				$tx->setId(1);
+				return $tx;
+			});
+		$this->accountMapper->method('updateBalance')->willReturn($account);
+
+		$this->service->createFromIncome('user1', $income, '2026-04-01');
+	}
+
+	public function testCreateFromIncomeUsesScheduledStatusForFutureDate(): void {
+		$income = $this->makeIncome(['nextExpectedDate' => '2099-12-31']);
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$this->mapper->expects($this->once())
+			->method('insert')
+			->willReturnCallback(function (Transaction $tx) {
+				$this->assertEquals('scheduled', $tx->getStatus());
+				$tx->setId(1);
+				return $tx;
+			});
+		$this->accountMapper->method('updateBalance')->willReturn($account);
+
+		$this->service->createFromIncome('user1', $income);
+	}
+
+	// ===== linkTransactions() =====
+
+	public function testLinkTransactionsSuccess(): void {
+		$tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.00, 'type' => 'debit']);
+		$tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.00, 'type' => 'credit']);
+
+		$this->mapper->method('find')->willReturnCallback(
+			function (int $id) use ($tx1, $tx2) {
+				return $id === 1 ? $tx1 : $tx2;
+			}
+		);
+
+		$this->mapper->expects($this->once())
+			->method('linkTransactions')
+			->with(1, 2);
+
+		$result = $this->service->linkTransactions(1, 2, 'user1');
+
+		$this->assertArrayHasKey('transaction', $result);
+		$this->assertArrayHasKey('linkedTransaction', $result);
+	}
+
+	public function testLinkTransactionsRejectsSameAccount(): void {
+		$tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.00, 'type' => 'debit']);
+		$tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 10, 'amount' => 100.00, 'type' => 'credit']);
+
+		$this->mapper->method('find')->willReturnCallback(
+			function (int $id) use ($tx1, $tx2) {
+				return $id === 1 ? $tx1 : $tx2;
+			}
+		);
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('same account');
+
+		$this->service->linkTransactions(1, 2, 'user1');
+	}
+
+	public function testLinkTransactionsRejectsDifferentAmounts(): void {
+		$tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.00, 'type' => 'debit']);
+		$tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 200.00, 'type' => 'credit']);
+
+		$this->mapper->method('find')->willReturnCallback(
+			function (int $id) use ($tx1, $tx2) {
+				return $id === 1 ? $tx1 : $tx2;
+			}
+		);
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('different amounts');
+
+		$this->service->linkTransactions(1, 2, 'user1');
+	}
+
+	public function testLinkTransactionsRejectsSameType(): void {
+		$tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.00, 'type' => 'debit']);
+		$tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.00, 'type' => 'debit']);
+
+		$this->mapper->method('find')->willReturnCallback(
+			function (int $id) use ($tx1, $tx2) {
+				return $id === 1 ? $tx1 : $tx2;
+			}
+		);
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('same type');
+
+		$this->service->linkTransactions(1, 2, 'user1');
+	}
+
+	public function testLinkTransactionsRejectsAlreadyLinked(): void {
+		$tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.00, 'type' => 'debit', 'linkedTransactionId' => 99]);
+		$tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.00, 'type' => 'credit']);
+
+		$this->mapper->method('find')->willReturnCallback(
+			function (int $id) use ($tx1, $tx2) {
+				return $id === 1 ? $tx1 : $tx2;
+			}
+		);
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('already linked');
+
+		$this->service->linkTransactions(1, 2, 'user1');
+	}
+
+	// ===== convertToTransfer() =====
+
+	public function testConvertToTransferCreatesOppositeLegAndLinks(): void {
+		$source = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 75.00, 'type' => 'debit', 'vendor' => 'Bank']);
+		$counterpart = null;
+
+		$this->mapper->method('find')->willReturnCallback(
+			function (int $id) use ($source, &$counterpart) {
+				return $id === 1 ? $source : $counterpart;
+			}
+		);
+		$this->mapper->method('insert')->willReturnCallback(
+			function (Transaction $tx) use (&$counterpart) {
+				$tx->setId(2);
+				$counterpart = $tx;
+				return $tx;
+			}
+		);
+		$this->accountMapper->method('find')->willReturnCallback(
+			fn (int $id) => $this->makeAccount(['id' => $id, 'currency' => 'USD'])
+		);
+
+		$this->mapper->expects($this->once())
+			->method('linkTransactions')
+			->with(1, 2);
+
+		$result = $this->service->convertToTransfer(1, 20, 'user1');
+
+		$this->assertArrayHasKey('transaction', $result);
+		$this->assertArrayHasKey('linkedTransaction', $result);
+		$this->assertSame(20, $counterpart->getAccountId());
+		$this->assertSame('credit', $counterpart->getType());
+		$this->assertSame(75.00, $counterpart->getAmount());
+		$this->assertSame($source->getDate(), $counterpart->getDate());
+	}
+
+	public function testConvertToTransferRejectsSameAccount(): void {
+		$source = $this->makeTransaction(['id' => 1, 'accountId' => 10]);
+		$this->mapper->method('find')->willReturn($source);
+		$this->mapper->expects($this->never())->method('insert');
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('same account');
+
+		$this->service->convertToTransfer(1, 10, 'user1');
+	}
+
+	public function testConvertToTransferRejectsAlreadyLinked(): void {
+		$source = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'linkedTransactionId' => 99]);
+		$this->mapper->method('find')->willReturn($source);
+		$this->mapper->expects($this->never())->method('insert');
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('already linked');
+
+		$this->service->convertToTransfer(1, 20, 'user1');
+	}
+
+	public function testConvertToTransferRejectsCurrencyMismatch(): void {
+		$source = $this->makeTransaction(['id' => 1, 'accountId' => 10]);
+		$this->mapper->method('find')->willReturn($source);
+		$this->accountMapper->method('find')->willReturnCallback(
+			fn (int $id) => $this->makeAccount(['id' => $id, 'currency' => $id === 10 ? 'USD' : 'EUR'])
+		);
+		$this->mapper->expects($this->never())->method('insert');
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('same currency');
+
+		$this->service->convertToTransfer(1, 20, 'user1');
+	}
+
+	// ===== unlinkTransaction() =====
+
+	public function testUnlinkTransactionSuccess(): void {
+		$tx = $this->makeTransaction(['id' => 1, 'linkedTransactionId' => 2]);
+		$unlinkedTx = $this->makeTransaction(['id' => 1, 'linkedTransactionId' => null]);
+
+		$this->mapper->method('find')->willReturnOnConsecutiveCalls($tx, $unlinkedTx);
+		$this->mapper->method('unlinkTransaction')
+			->with(1)
+			->willReturn(2);
+
+		$result = $this->service->unlinkTransaction(1, 'user1');
+
+		$this->assertEquals(2, $result['unlinkedTransactionId']);
+	}
+
+	public function testUnlinkTransactionThrowsWhenNotLinked(): void {
+		$tx = $this->makeTransaction(['linkedTransactionId' => null]);
+		$this->mapper->method('find')->willReturn($tx);
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('not linked');
+
+		$this->service->unlinkTransaction(1, 'user1');
+	}
+
+	// ===== findPotentialMatches() =====
+
+	public function testFindPotentialMatchesReturnsEmptyWhenAlreadyLinked(): void {
+		$tx = $this->makeTransaction(['linkedTransactionId' => 99]);
+		$this->mapper->method('find')->willReturn($tx);
+
+		$this->mapper->expects($this->never())->method('findPotentialMatches');
+
+		$result = $this->service->findPotentialMatches(1, 'user1');
+		$this->assertEmpty($result);
+	}
+
+	public function testFindPotentialMatchesDelegatesToMapper(): void {
+		$tx = $this->makeTransaction(['linkedTransactionId' => null]);
+		$account = $this->makeAccount(['id' => 10, 'currency' => 'USD']);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$matches = [$this->makeTransaction(['id' => 2])];
+		$this->mapper->expects($this->once())
+			->method('findPotentialMatches')
+			->with('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'USD', 3, false)
+			->willReturn($matches);
+
+		$result = $this->service->findPotentialMatches(1, 'user1');
+		$this->assertCount(1, $result);
+	}
+
+	public function testFindPotentialMatchesPassesCrossCurrencyFlag(): void {
+		$tx = $this->makeTransaction(['linkedTransactionId' => null]);
+		$account = $this->makeAccount(['id' => 10, 'currency' => 'USD']);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$this->mapper->expects($this->once())
+			->method('findPotentialMatches')
+			->with('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'USD', 3, true)
+			->willReturn([]);
+
+		$this->service->findPotentialMatches(1, 'user1', 3, true);
+	}
+
+	// ===== bulkCategorize() =====
+
+	public function testBulkCategorizeCountsSuccessesAndFailures(): void {
+		$tx = $this->makeTransaction();
+		$callCount = 0;
+
+		$this->mapper->method('find')->willReturnCallback(function () use ($tx, &$callCount) {
+			$callCount++;
+			if ($callCount === 2) {
+				throw new DoesNotExistException('');
+			}
+			return $tx;
+		});
+
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$result = $this->service->bulkCategorize('user1', [
+			['id' => 1, 'categoryId' => 5],
+			['id' => 999, 'categoryId' => 5],  // This will fail
+			['id' => 3, 'categoryId' => 5],
+		]);
+
+		$this->assertEquals(2, $result['success']);
+		$this->assertEquals(1, $result['failed']);
+	}
+
+	// ===== bulkDelete() =====
+
+	public function testBulkDeleteTracksErrorDetails(): void {
+		$tx = $this->makeTransaction();
+		$account = $this->makeAccount();
+
+		$callCount = 0;
+		$this->mapper->method('find')->willReturnCallback(function () use ($tx, &$callCount) {
+			$callCount++;
+			if ($callCount === 2) {
+				throw new DoesNotExistException('Not found');
+			}
+			return $tx;
+		});
+
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->accountMapper->method('updateBalance')->willReturn($account);
+		$this->mapper->method('delete')->willReturn($tx);
+		$this->transactionTagMapper->method('deleteByTransaction')->willReturn(0);
+
+		$result = $this->service->bulkDelete('user1', [1, 999]);
+
+		$this->assertEquals(1, $result['success']);
+		$this->assertEquals(1, $result['failed']);
+		$this->assertCount(1, $result['errors']);
+		$this->assertEquals(999, $result['errors'][0]['id']);
+	}
+
+	public function testBulkDeleteRecalculatesOncePerAffectedAccount(): void {
+		$this->mapper->method('find')->willReturnCallback(function (int $id) {
+			return $this->makeTransaction([
+				'id' => $id,
+				'accountId' => $id === 3 ? 20 : 10,
+			]);
+		});
+		$this->mapper->method('delete')->willReturnArgument(0);
+		$this->accountMapper->method('find')->willReturnCallback(
+			fn (int $accountId) => $this->makeAccount(['id' => $accountId])
+		);
+
+		// Three rows across two accounts → exactly two ledger SUMs, not
+		// one per deleted row ("select all matching" deletes whole imports)
+		$this->mapper->expects($this->exactly(2))
+			->method('getNetChangeAll')
+			->willReturn(0.0);
+		$this->accountMapper->expects($this->exactly(2))
+			->method('updateBalance');
+
+		$result = $this->service->bulkDelete('user1', [1, 2, 3]);
+
+		$this->assertEquals(3, $result['success']);
+		$this->assertEquals(0, $result['failed']);
+	}
+
+	public function testBulkDeleteSkipsRecalcForFailedRowsAccount(): void {
+		$this->mapper->method('find')->willReturnCallback(function (int $id) {
+			if ($id === 999) {
+				throw new DoesNotExistException('Not found');
+			}
+			return $this->makeTransaction(['id' => $id]);
+		});
+		$this->mapper->method('delete')->willReturnArgument(0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+
+		// Only tx 1's account (10) gets recalculated; the failed id touches none
+		$this->mapper->expects($this->once())
+			->method('getNetChangeAll')
+			->with(10)
+			->willReturn(0.0);
+		$this->accountMapper->expects($this->once())->method('updateBalance');
+
+		$result = $this->service->bulkDelete('user1', [1, 999]);
+
+		$this->assertEquals(1, $result['success']);
+		$this->assertEquals(1, $result['failed']);
+	}
+
+	// ===== findIdsWithFilters() =====
+
+	public function testFindIdsWithFiltersDelegatesToMapper(): void {
+		$filters = ['accountId' => 10, 'type' => 'debit'];
+		$this->mapper->expects($this->once())
+			->method('findIdsWithFilters')
+			->with('user1', $filters, [10, 20])
+			->willReturn(['ids' => [1, 2, 3], 'billCount' => 1]);
+
+		$result = $this->service->findIdsWithFilters('user1', $filters, [10, 20]);
+
+		$this->assertSame([1, 2, 3], $result['ids']);
+		$this->assertSame(1, $result['billCount']);
+	}
+
+	// ===== bulkReconcile() =====
+
+	public function testBulkReconcileUpdatesStatus(): void {
+		$tx = $this->makeTransaction();
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$result = $this->service->bulkReconcile('user1', [1, 2, 3], true);
+
+		$this->assertEquals(3, $result['success']);
+		$this->assertEquals(0, $result['failed']);
+	}
+
+	// ===== bulkFindAndMatch() =====
+
+	public function testBulkFindAndMatchAutoLinksUniqueMatches(): void {
+		// linkTransactions() calls find() which needs proper transaction objects
+		$tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.00, 'type' => 'debit', 'linkedTransactionId' => null]);
+		$tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.00, 'type' => 'credit', 'linkedTransactionId' => null]);
+		$this->mapper->method('find')->willReturnMap([
+			[1, 'user1', $tx1],
+			[2, 'user1', $tx2],
+		]);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$this->mapper->method('findUnlinkedWithMatches')
+			->willReturn([
+				'transactions' => [
+					[
+						'transaction' => ['id' => 1],
+						'matches' => [['id' => 2]],
+					],
+				],
+				'total' => 1,
+			]);
+
+		$this->mapper->expects($this->once())
+			->method('linkTransactions')
+			->with(1, 2);
+
+		$result = $this->service->bulkFindAndMatch('user1');
+
+		$this->assertCount(1, $result['autoMatched']);
+		$this->assertCount(0, $result['needsReview']);
+		$this->assertEquals(1, $result['stats']['autoMatchedCount']);
+	}
+
+	public function testBulkFindAndMatchFlagsMultipleMatchesForReview(): void {
+		$this->mapper->method('findUnlinkedWithMatches')
+			->willReturn([
+				'transactions' => [
+					[
+						'transaction' => ['id' => 1],
+						'matches' => [['id' => 2], ['id' => 3]],
+					],
+				],
+				'total' => 1,
+			]);
+
+		$this->mapper->expects($this->never())->method('linkTransactions');
+
+		$result = $this->service->bulkFindAndMatch('user1');
+
+		$this->assertCount(0, $result['autoMatched']);
+		$this->assertCount(1, $result['needsReview']);
+		$this->assertEquals(2, $result['needsReview'][0]['matchCount']);
+	}
+
+	public function testBulkFindAndMatchSkipsAlreadyProcessedIds(): void {
+		// linkTransactions() calls find() which needs proper transaction objects
+		$tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.00, 'type' => 'debit', 'linkedTransactionId' => null]);
+		$tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.00, 'type' => 'credit', 'linkedTransactionId' => null]);
+		$this->mapper->method('find')->willReturnMap([
+			[1, 'user1', $tx1],
+			[2, 'user1', $tx2],
+		]);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$this->mapper->method('findUnlinkedWithMatches')
+			->willReturn([
+				'transactions' => [
+					[
+						'transaction' => ['id' => 1],
+						'matches' => [['id' => 2]],
+					],
+					[
+						'transaction' => ['id' => 2], // Already matched above
+						'matches' => [['id' => 1]],
+					],
+				],
+				'total' => 2,
+			]);
+
+		// Should only link once (1 ↔ 2), not try again for 2 ↔ 1
+		$this->mapper->expects($this->once())
+			->method('linkTransactions')
+			->with(1, 2);
+
+		$result = $this->service->bulkFindAndMatch('user1');
+
+		$this->assertCount(1, $result['autoMatched']);
+	}
+
+	// ===== scanForMatches() =====
+
+	public function testScanForMatchesReturnsWithoutLinking(): void {
+		$this->mapper->method('findUnlinkedWithMatches')
+			->willReturn([
+				'transactions' => [
+					[
+						'transaction' => ['id' => 1],
+						'matches' => [['id' => 2]],
+					],
+				],
+				'total' => 1,
+			]);
+
+		$this->mapper->expects($this->never())->method('linkTransactions');
+
+		$result = $this->service->scanForMatches('user1');
+
+		$this->assertCount(1, $result['candidates']);
+		$this->assertEquals(1, $result['stats']['singleMatchCount']);
+		$this->assertEquals(0, $result['stats']['multiMatchCount']);
+		$this->assertEquals(1, $result['stats']['totalCandidates']);
+	}
+
+	public function testScanForMatchesCategorizesSingleAndMulti(): void {
+		$this->mapper->method('findUnlinkedWithMatches')
+			->willReturn([
+				'transactions' => [
+					[
+						'transaction' => ['id' => 1],
+						'matches' => [['id' => 2]],
+					],
+					[
+						'transaction' => ['id' => 3],
+						'matches' => [['id' => 4], ['id' => 5]],
+					],
+				],
+				'total' => 2,
+			]);
+
+		$result = $this->service->scanForMatches('user1');
+
+		$this->assertCount(2, $result['candidates']);
+		$this->assertEquals(1, $result['stats']['singleMatchCount']);
+		$this->assertEquals(1, $result['stats']['multiMatchCount']);
+		$this->assertEquals(2, $result['stats']['totalCandidates']);
+	}
+
+	public function testScanForMatchesDeduplicatesMirrorPairs(): void {
+		$this->mapper->method('findUnlinkedWithMatches')
+			->willReturn([
+				'transactions' => [
+					[
+						'transaction' => ['id' => 1],
+						'matches' => [['id' => 2]],
+					],
+					[
+						'transaction' => ['id' => 2],
+						'matches' => [['id' => 1]],
+					],
+				],
+				'total' => 2,
+			]);
+
+		$result = $this->service->scanForMatches('user1');
+
+		// Should only return one candidate, not both mirror pairs
+		$this->assertCount(1, $result['candidates']);
+		$this->assertEquals(1, $result['stats']['totalCandidates']);
+	}
+
+	// ===== bulkLinkTransactions() =====
+
+	public function testBulkLinkTransactionsSuccess(): void {
+		$tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.0, 'type' => 'debit', 'linkedTransactionId' => null]);
+		$tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.0, 'type' => 'credit', 'linkedTransactionId' => null]);
+
+		$findCallCount = 0;
+		$this->mapper->method('find')->willReturnCallback(function ($id) use ($tx1, $tx2, &$findCallCount) {
+			$findCallCount++;
+			// First two calls: validation finds (pair 1)
+			// Next two calls: post-link re-fetches (pair 1)
+			if ($id === 1) {
+				return $tx1;
+			}
+			if ($id === 2) {
+				return $tx2;
+			}
+			return $tx1;
+		});
+
+		$this->mapper->expects($this->once())->method('linkTransactions')->with(1, 2);
+
+		$result = $this->service->bulkLinkTransactions('user1', [
+			['sourceId' => 1, 'targetId' => 2],
+		]);
+
+		$this->assertCount(1, $result['linked']);
+		$this->assertCount(0, $result['failed']);
+		$this->assertEquals(1, $result['stats']['linkedCount']);
+		$this->assertEquals(0, $result['stats']['failedCount']);
+	}
+
+	public function testBulkLinkTransactionsPartialFailure(): void {
+		$tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.0, 'type' => 'debit', 'linkedTransactionId' => null]);
+		$tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.0, 'type' => 'credit', 'linkedTransactionId' => null]);
+		// Same account as tx3 - will cause validation failure
+		$tx3 = $this->makeTransaction(['id' => 3, 'accountId' => 10, 'amount' => 50.0, 'type' => 'debit', 'linkedTransactionId' => null]);
+		$tx4 = $this->makeTransaction(['id' => 4, 'accountId' => 10, 'amount' => 50.0, 'type' => 'credit', 'linkedTransactionId' => null]);
+
+		$this->mapper->method('find')->willReturnCallback(function ($id) use ($tx1, $tx2, $tx3, $tx4) {
+			return match ($id) {
+				1 => $tx1,
+				2 => $tx2,
+				3 => $tx3,
+				4 => $tx4,
+				default => throw new DoesNotExistException('')
+			};
+		});
+
+		$result = $this->service->bulkLinkTransactions('user1', [
+			['sourceId' => 1, 'targetId' => 2],  // Valid
+			['sourceId' => 3, 'targetId' => 4],  // Same account - will fail
+		]);
+
+		$this->assertEquals(1, $result['stats']['linkedCount']);
+		$this->assertEquals(1, $result['stats']['failedCount']);
+		$this->assertCount(1, $result['failed']);
+		$this->assertStringContainsString('same account', $result['failed'][0]['error']);
+	}
+
+	public function testBulkLinkTransactionsEmptyArray(): void {
+		$result = $this->service->bulkLinkTransactions('user1', []);
+
+		$this->assertCount(0, $result['linked']);
+		$this->assertCount(0, $result['failed']);
+		$this->assertEquals(0, $result['stats']['linkedCount']);
+		$this->assertEquals(0, $result['stats']['failedCount']);
+	}
+
+	public function testBulkLinkTransactionsInvalidIds(): void {
+		$result = $this->service->bulkLinkTransactions('user1', [
+			['sourceId' => 0, 'targetId' => 2],
+		]);
+
+		$this->assertCount(0, $result['linked']);
+		$this->assertCount(1, $result['failed']);
+		$this->assertStringContainsString('Invalid', $result['failed'][0]['error']);
+	}
+
+	// ===== existsByImportId() =====
+
+	public function testExistsByImportIdDelegatesToMapper(): void {
+		$this->mapper->expects($this->once())
+			->method('existsByImportId')
+			->with(10, 'import-1')
+			->willReturn(true);
+
+		$this->assertTrue($this->service->existsByImportId(10, 'import-1'));
+	}
+
+	// ── getStatementAmountForAccount (#347) ─────────────────────────
+
+	public function testStatementAmountIsOwedBalanceAsOfBoundary(): void {
+		// Card owes 520 today, of which 80 was charged after the due date:
+		// the statement covers what was owed at the due date, 440.
+		$this->accountById[20] = $this->makeAccount([
+			'id' => 20, 'type' => 'credit_card', 'balance' => -520.00, 'currency' => 'GBP',
+		]);
+		$this->mapper->method('getNetChangeAfterDate')
+			->with(20, '2026-08-15')
+			->willReturn(-80.0);
+
+		$amount = $this->service->getStatementAmountForAccount(20, '2026-08-15');
+
+		$this->assertEqualsWithDelta(440.0, $amount, 0.001);
+	}
+
+	public function testStatementAmountZeroWhenNothingOwed(): void {
+		$this->accountById[20] = $this->makeAccount([
+			'id' => 20, 'type' => 'credit_card', 'balance' => 25.00,
+		]);
+		$this->mapper->method('getNetChangeAfterDate')->willReturn(0.0);
+
+		$this->assertSame(0.0, $this->service->getStatementAmountForAccount(20, '2026-08-15'));
+	}
+
+	// ── getBalanceAsOf (#393) ───────────────────────────────────────
+
+	/** The balance on a date is the stored balance with everything dated after it taken back out. */
+	public function testBalanceAsOfTakesLaterActivityBackOut(): void {
+		$this->accountById[20] = $this->makeAccount(['id' => 20, 'balance' => 1000.00, 'currency' => 'CHF']);
+		// 150 leaves the account after the date, and the stored balance already shows it gone
+		$this->mapper->method('getNetChangeAfterDate')->with(20, '2026-09-22')->willReturn(-150.0);
+
+		$this->assertEqualsWithDelta(1150.0, $this->service->getBalanceAsOf(20, '2026-09-22'), 0.001);
+	}
+
+	// ── clearScheduledBillTransaction transfer pairs (#347) ─────────
+
+	private function makeScheduledPair(): array {
+		$withdrawal = $this->makeTransaction([
+			'id' => 101, 'accountId' => 10, 'type' => 'debit',
+			'billId' => 7, 'linkedTransactionId' => 102, 'amount' => 300.00,
+		]);
+		$withdrawal->setStatus('scheduled');
+		$deposit = $this->makeTransaction([
+			'id' => 102, 'accountId' => 20, 'type' => 'credit',
+			'billId' => 7, 'linkedTransactionId' => 101, 'amount' => 300.00,
+		]);
+		$deposit->setStatus('scheduled');
+		return [$withdrawal, $deposit];
+	}
+
+	public function testClearScheduledTransferPairClearsBothLegs(): void {
+		[$withdrawal, $deposit] = $this->makeScheduledPair();
+		$this->mapper->method('findAllScheduledByBillId')->with(7)->willReturn([$withdrawal, $deposit]);
+		$this->mapper->method('find')->willReturnCallback(
+			fn ($id) => $id === 101 ? $withdrawal : $deposit
+		);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->expects($this->never())->method('delete');
+
+		$cleared = $this->service->clearScheduledBillTransaction('user1', 7, '2026-08-15');
+
+		$this->assertSame(101, $cleared->getId());
+		$this->assertSame('cleared', $withdrawal->getStatus());
+		$this->assertSame('cleared', $deposit->getStatus());
+		$this->assertSame('2026-08-15', $deposit->getDate());
+	}
+
+	public function testClearScheduledPairAppliesResolvedAmountToBothLegs(): void {
+		[$withdrawal, $deposit] = $this->makeScheduledPair();
+		$this->mapper->method('findAllScheduledByBillId')->with(7)->willReturn([$withdrawal, $deposit]);
+		$this->mapper->method('find')->willReturnCallback(
+			fn ($id) => $id === 101 ? $withdrawal : $deposit
+		);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$this->service->clearScheduledBillTransaction('user1', 7, '2026-08-15', 440.0);
+
+		$this->assertEqualsWithDelta(440.0, $withdrawal->getAmount(), 0.001);
+		$this->assertEqualsWithDelta(440.0, $deposit->getAmount(), 0.001);
+	}
+
+	public function testClearScheduledStillDeletesUnlinkedDuplicates(): void {
+		[$withdrawal, $deposit] = $this->makeScheduledPair();
+		$stray = $this->makeTransaction(['id' => 103, 'accountId' => 10, 'billId' => 7]);
+		$stray->setStatus('scheduled');
+		$this->mapper->method('findAllScheduledByBillId')->with(7)
+			->willReturn([$withdrawal, $deposit, $stray]);
+		$this->mapper->method('find')->willReturnCallback(
+			fn ($id) => $id === 101 ? $withdrawal : $deposit
+		);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->expects($this->once())->method('delete')->with($stray);
+
+		$this->service->clearScheduledBillTransaction('user1', 7, '2026-08-15');
+	}
+
+	// ===== split shares under a category filter (#359) =====
+
+	/**
+	 * @param array<string, mixed> $filters
+	 * @return array<string, mixed> the single returned row
+	 */
+	private function findOneWithFilters(array $filters, array $row): array {
+		$this->mapper->method('findWithFilters')->willReturn([
+			'transactions' => [$row],
+			'total' => 1,
+		]);
+
+		$result = $this->service->findWithFilters('user1', $filters, 25, 0);
+
+		return $result['transactions'][0];
+	}
+
+	private function splitRow(): array {
+		return ['id' => 7, 'accountId' => 10, 'isSplit' => true, 'amount' => 82.40, 'type' => 'debit'];
+	}
+
+	public function testCategoryFilterAttachesTheShareBelongingToThatCategory(): void {
+		$this->splitsByTransactionId[7] = [
+			['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 12.40],
+			['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 70.00],
+		];
+
+		$row = $this->findOneWithFilters(['category' => '3'], $this->splitRow());
+
+		$this->assertSame(12.40, $row['matchedSplitAmount']);
+		$this->assertSame('Groceries', $row['matchedSplitCategoryName']);
+		$this->assertSame(82.40, $row['amount'], 'the row is still the whole transaction');
+		$this->assertTrue($row['splitCategories'][0]['matched']);
+		$this->assertFalse($row['splitCategories'][1]['matched']);
+	}
+
+	public function testTwoPartsInTheFilteredCategoryAreSummedOnce(): void {
+		// A receipt with two grocery lines is one row, at one figure — the
+		// predicate is an EXISTS precisely so it cannot become two.
+		$this->splitsByTransactionId[7] = [
+			['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 12.40],
+			['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 5.60],
+			['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 64.40],
+		];
+
+		$row = $this->findOneWithFilters(['category' => '3'], $this->splitRow());
+
+		$this->assertSame(18.0, $row['matchedSplitAmount']);
+		$this->assertSame('Groceries', $row['matchedSplitCategoryName']);
+	}
+
+	public function testCommaIdListMatchesAPartInAnyListedCategory(): void {
+		// A pie-chart drill-down from an aggregated slice passes the parent plus
+		// its subcategories (#317).
+		$this->splitsByTransactionId[7] = [
+			['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 70.00],
+			['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 12.40],
+		];
+
+		$row = $this->findOneWithFilters(['category' => '3,4,5'], $this->splitRow());
+
+		$this->assertSame(12.40, $row['matchedSplitAmount']);
+	}
+
+	public function testNegativeSplitPartKeepsItsSign(): void {
+		// A receipt's discount line is a negative part of an expense.
+		$this->splitsByTransactionId[7] = [
+			['categoryId' => 3, 'categoryName' => 'Savings', 'amount' => -3.50],
+			['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 85.90],
+		];
+
+		$row = $this->findOneWithFilters(['category' => '3'], $this->splitRow());
+
+		$this->assertSame(-3.50, $row['matchedSplitAmount']);
+	}
+
+	public function testZeroShareIsReportedRatherThanTreatedAsNoMatch(): void {
+		$this->splitsByTransactionId[7] = [
+			['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 0.0],
+			['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 82.40],
+		];
+
+		$row = $this->findOneWithFilters(['category' => '3'], $this->splitRow());
+
+		$this->assertArrayHasKey('matchedSplitAmount', $row);
+		$this->assertSame(0.0, $row['matchedSplitAmount']);
+	}
+
+	public function testNoShareWhenNoPartIsInTheFilteredCategory(): void {
+		$this->splitsByTransactionId[7] = [
+			['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 82.40],
+		];
+
+		$row = $this->findOneWithFilters(['category' => '3'], $this->splitRow());
+
+		$this->assertArrayNotHasKey('matchedSplitAmount', $row);
+		$this->assertFalse($row['splitCategories'][0]['matched']);
+	}
+
+	public function testUnfilteredListCarriesTheSplitPartsButNoShare(): void {
+		$this->splitsByTransactionId[7] = [
+			['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 12.40],
+			['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 70.00],
+		];
+
+		$row = $this->findOneWithFilters([], $this->splitRow());
+
+		$this->assertArrayNotHasKey('matchedSplitAmount', $row);
+		$this->assertCount(2, $row['splitCategories']);
+		$this->assertArrayNotHasKey('matched', $row['splitCategories'][0]);
+	}
+
+	public function testUncategorizedFilterAttachesNoShare(): void {
+		$this->splitsByTransactionId[7] = [
+			['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 12.40],
+		];
+
+		$row = $this->findOneWithFilters(['category' => 'uncategorized'], $this->splitRow());
+
+		$this->assertArrayNotHasKey('matchedSplitAmount', $row);
+	}
+
+	public function testUnsplitRowIsUntouchedByACategoryFilter(): void {
+		$row = $this->findOneWithFilters(
+			['category' => '3'],
+			['id' => 8, 'accountId' => 10, 'isSplit' => false, 'amount' => 20.0, 'type' => 'debit']
+		);
+
+		$this->assertArrayNotHasKey('matchedSplitAmount', $row);
+		$this->assertArrayNotHasKey('splitCategories', $row);
+	}
+
+	// ===== tri-state isSplit resolved to a real boolean (#360) =====
+
+	public function testNullFlagRowWithPartsResolvesToSplitWithCategoriesAttached(): void {
+		// A pre-#351 import carries NULL rather than false/true; it must
+		// still surface as a split once its parts actually come back.
+		$this->splitsByTransactionId[7] = [
+			['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 12.40],
+			['categoryId' => 9, 'categoryName' => 'Household', 'amount' => 70.00],
+		];
+
+		$row = $this->findOneWithFilters(
+			[],
+			['id' => 7, 'accountId' => 10, 'isSplit' => null, 'amount' => 82.40, 'type' => 'debit']
+		);
+
+		$this->assertTrue($row['isSplit']);
+		$this->assertCount(2, $row['splitCategories']);
+	}
+
+	public function testNullFlagRowWithNoPartsResolvesToNotSplit(): void {
+		// No parts come back for this id — a NULL flag is not, on its own,
+		// enough to call the row a split.
+		$row = $this->findOneWithFilters(
+			[],
+			['id' => 9, 'accountId' => 10, 'isSplit' => null, 'amount' => 20.0, 'type' => 'debit']
+		);
+
+		$this->assertFalse($row['isSplit']);
+		$this->assertArrayNotHasKey('splitCategories', $row);
+	}
+
+	public function testPartWithNoCategoryNeverMatches(): void {
+		$this->splitsByTransactionId[7] = [
+			['categoryId' => null, 'categoryName' => null, 'amount' => 12.40],
+			['categoryId' => 3, 'categoryName' => 'Groceries', 'amount' => 70.00],
+		];
+
+		$row = $this->findOneWithFilters(['category' => '3'], $this->splitRow());
+
+		$this->assertSame(70.00, $row['matchedSplitAmount']);
+		$this->assertFalse($row['splitCategories'][0]['matched']);
+	}
+
+	// ===== delete cascades to splits (#359) =====
+
+	/**
+	 * None of these tables has a foreign key, and every cleanup query — factory
+	 * reset included — finds its rows by joining back through
+	 * budget_transactions. A row left behind has no transaction to join to, so
+	 * it survives everything and is unreachable forever. The cascade is the
+	 * only thing standing between a delete and a permanent leak.
+	 */
+	public function testDeleteRemovesTheTransactionsSplitRows(): void {
+		$tx = $this->makeTransaction(['id' => 7]);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+
+		$this->splitMapper->expects($this->once())
+			->method('deleteByTransaction')
+			->with(7);
+
+		$this->service->delete(7, 'user1');
+	}
+
+	public function testDeleteRemovesSplitRowsBeforeTheTransactionItself(): void {
+		// Reversed, the lookup would have nothing left to find.
+		$tx = $this->makeTransaction(['id' => 7]);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+
+		$order = [];
+		$this->splitMapper->method('deleteByTransaction')
+			->willReturnCallback(function () use (&$order) {
+				$order[] = 'splits';
+			});
+		$this->mapper->method('delete')->willReturnCallback(function ($arg) use (&$order) {
+			$order[] = 'transaction';
+			return $arg;
+		});
+
+		$this->service->delete(7, 'user1');
+
+		$this->assertSame(['splits', 'transaction'], $order);
+	}
+
+	/**
+	 * A bill with a split template puts real split rows on every placeholder it
+	 * generates, and this path went straight to the mapper and cascaded
+	 * nothing at all.
+	 */
+	public function testDeletingABillsScheduledTransactionsTakesTheirSplits(): void {
+		$first = $this->makeTransaction(['id' => 11, 'status' => 'scheduled']);
+		$second = $this->makeTransaction(['id' => 12, 'status' => 'scheduled']);
+		$this->mapper->method('findAllScheduledByBillId')->willReturn([$first, $second]);
+
+		$deleted = [];
+		$this->splitMapper->method('deleteByTransaction')
+			->willReturnCallback(function (int $id) use (&$deleted) {
+				$deleted[] = $id;
+			});
+
+		$this->service->deleteScheduledBillTransactions(44);
+
+		$this->assertSame([11, 12], $deleted);
+	}
+
+	public function testDeletingABillsScheduledTransactionsTakesTheirTagsAndAttachments(): void {
+		$tx = $this->makeTransaction(['id' => 11, 'status' => 'scheduled']);
+		$this->mapper->method('findAllScheduledByBillId')->willReturn([$tx]);
+
+		$this->transactionTagMapper->expects($this->once())
+			->method('deleteByTransaction')
+			->with(11);
+		$this->attachmentMapper->expects($this->once())
+			->method('deleteByTransaction')
+			->with(11, 'user1');
+
+		$this->service->deleteScheduledBillTransactions(44);
+	}
+
+	// ===== transfer matching across shared accounts (#378) =====
+
+	public function testFindPotentialMatchesResolvesASourceInASharedAccount(): void {
+		// The source leg belongs to the account's OWNER, so the own-scoped
+		// lookups would find neither the transaction nor its account.
+		$tx = $this->makeTransaction(['linkedTransactionId' => null]);
+		$account = $this->makeAccount(['id' => 10, 'currency' => 'USD']);
+		$this->mapper->expects($this->never())->method('find');
+		$this->accountMapper->expects($this->never())->method('find');
+		$this->mapper->expects($this->once())->method('findForAccounts')
+			->with(1, [10, 20])->willReturn($tx);
+		$this->accountMapper->expects($this->once())->method('findById')
+			->with(10)->willReturn($account);
+		$this->mapper->method('findPotentialMatches')->willReturn([]);
+
+		$this->service->findPotentialMatches(1, 'user1', 3, false, [10, 20]);
+	}
+
+	public function testFindPotentialMatchesSearchesEveryGivenAccount(): void {
+		$tx = $this->makeTransaction(['linkedTransactionId' => null]);
+		$account = $this->makeAccount(['id' => 10, 'currency' => 'USD']);
+		$this->mapper->method('findForAccounts')->willReturn($tx);
+		$this->accountMapper->method('findById')->willReturn($account);
+
+		$this->mapper->expects($this->once())
+			->method('findPotentialMatches')
+			->with('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'USD', 3, false, [10, 20])
+			->willReturn([]);
+
+		$this->service->findPotentialMatches(1, 'user1', 3, false, [10, 20]);
+	}
+
+	public function testFindPotentialMatchesRefusesASourceOutsideTheGivenAccounts(): void {
+		$this->mapper->method('findForAccounts')->willThrowException(
+			new \OCP\AppFramework\Db\DoesNotExistException('nope')
+		);
+		$this->mapper->expects($this->never())->method('findPotentialMatches');
+
+		$this->expectException(\OCP\AppFramework\Db\DoesNotExistException::class);
+		$this->service->findPotentialMatches(1, 'user1', 3, false, [10, 20]);
+	}
+
+	public function testScanForMatchesSearchesEveryGivenAccount(): void {
+		$this->mapper->expects($this->once())
+			->method('findUnlinkedWithMatches')
+			->with('user1', 3, 100, 0, [10, 20])
+			->willReturn(['transactions' => [], 'total' => 0]);
+
+		$this->service->scanForMatches('user1', 3, 100, [10, 20]);
+	}
+
+	public function testBulkLinkTransactionsScopesEachPairToTheGivenAccounts(): void {
+		$tx1 = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 100.0, 'type' => 'debit', 'linkedTransactionId' => null]);
+		$tx2 = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 100.0, 'type' => 'credit', 'linkedTransactionId' => null]);
+
+		$this->mapper->expects($this->never())->method('find');
+		$this->mapper->method('findForAccounts')->willReturnCallback(
+			fn (int $id, array $ids) => $id === 1 ? $tx1 : $tx2
+		);
+		$this->accountMapper->method('findById')->willReturnCallback(
+			fn (int $id) => $this->makeAccount(['id' => $id, 'currency' => 'USD'])
+		);
+		$this->mapper->expects($this->once())->method('linkTransactions')->with(1, 2);
+
+		$result = $this->service->bulkLinkTransactions('user1', [
+			['sourceId' => 1, 'targetId' => 2],
+		], [10, 20]);
+
+		$this->assertCount(1, $result['linked']);
+	}
 }

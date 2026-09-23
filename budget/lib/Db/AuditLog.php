@@ -28,31 +28,31 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCreatedAt(string $createdAt)
  */
 class AuditLog extends Entity implements JsonSerializable {
-    protected $userId;
-    protected $action;
-    protected $entityType;
-    protected $entityId;
-    protected $ipAddress;
-    protected $userAgent;
-    protected $details;
-    protected $createdAt;
+	protected $userId;
+	protected $action;
+	protected $entityType;
+	protected $entityId;
+	protected $ipAddress;
+	protected $userAgent;
+	protected $details;
+	protected $createdAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('entityId', 'integer');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('entityId', 'integer');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'userId' => $this->getUserId(),
-            'action' => $this->getAction(),
-            'entityType' => $this->getEntityType(),
-            'entityId' => $this->getEntityId(),
-            'ipAddress' => $this->getIpAddress(),
-            'userAgent' => $this->getUserAgent(),
-            'details' => $this->getDetails() ? json_decode($this->getDetails(), true) : null,
-            'createdAt' => $this->getCreatedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'userId' => $this->getUserId(),
+			'action' => $this->getAction(),
+			'entityType' => $this->getEntityType(),
+			'entityId' => $this->getEntityId(),
+			'ipAddress' => $this->getIpAddress(),
+			'userAgent' => $this->getUserAgent(),
+			'details' => $this->getDetails() ? json_decode($this->getDetails(), true) : null,
+			'createdAt' => $this->getCreatedAt(),
+		];
+	}
 }

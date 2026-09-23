@@ -9,9 +9,9 @@ use OCA\Budget\Db\Bill;
 use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ValidationService;
+use OCA\Budget\Tests\Unit\Support\ReadsPdfText;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataDownloadResponse;
-use OCA\Budget\Tests\Unit\Support\ReadsPdfText;
 use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
@@ -1691,7 +1691,7 @@ class BillControllerTest extends TestCase {
 	private function controllerTranslating(array $dictionary): BillController {
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnCallback(
-			fn(string $text, array $params = []) => vsprintf($dictionary[$text] ?? $text, $params)
+			fn (string $text, array $params = []) => vsprintf($dictionary[$text] ?? $text, $params)
 		);
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn(true);

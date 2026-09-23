@@ -28,79 +28,79 @@ use OCA\Budget\Db\OnboardingProbe;
  */
 class OnboardingService {
 
-    public const STATE_KEY = 'onboarding_state';
-    public const STATE_ACTIVE = 'active';
-    public const STATE_DISMISSED = 'dismissed';
-    public const STATE_DONE = 'done';
+	public const STATE_KEY = 'onboarding_state';
+	public const STATE_ACTIVE = 'active';
+	public const STATE_DISMISSED = 'dismissed';
+	public const STATE_DONE = 'done';
 
-    public function __construct(
-        private OnboardingProbe $probe,
-        private SettingService $settingService,
-        private SampleDataService $sampleDataService,
-    ) {
-    }
+	public function __construct(
+		private OnboardingProbe $probe,
+		private SettingService $settingService,
+		private SampleDataService $sampleDataService,
+	) {
+	}
 
-    /**
-     * @return array{show: bool, sampleData: bool, canLoadSampleData: bool, steps: array<string, bool>|null}
-     */
-    public function getState(string $userId): array {
-        $sampleData = $this->sampleDataService->isLoaded($userId);
-        $state = $this->settingService->get($userId, self::STATE_KEY);
+	/**
+	 * @return array{show: bool, sampleData: bool, canLoadSampleData: bool, steps: array<string, bool>|null}
+	 */
+	public function getState(string $userId): array {
+		$sampleData = $this->sampleDataService->isLoaded($userId);
+		$state = $this->settingService->get($userId, self::STATE_KEY);
 
-        // Settled for good: two setting reads and nothing else
-        if (!$sampleData && ($state === self::STATE_DISMISSED || $state === self::STATE_DONE)) {
-            return ['show' => false, 'sampleData' => false, 'canLoadSampleData' => false, 'steps' => null];
-        }
+		// Settled for good: two setting reads and nothing else
+		if (!$sampleData && ($state === self::STATE_DISMISSED || $state === self::STATE_DONE)) {
+			return ['show' => false, 'sampleData' => false, 'canLoadSampleData' => false, 'steps' => null];
+		}
 
-        $hasAccounts = $this->probe->hasAccounts($userId);
-        $hasTransactions = $this->probe->hasTransactions($userId);
+		$hasAccounts = $this->probe->hasAccounts($userId);
+		$hasTransactions = $this->probe->hasTransactions($userId);
 
-        $steps = [
-            'currency' => $this->settingService->get($userId, 'default_currency') !== null,
-            'categories' => $this->probe->hasCategories($userId),
-            'account' => $hasAccounts,
-            'transactions' => $hasTransactions || $this->probe->hasBankConnection($userId),
-            'budget' => $this->probe->hasBudget($userId),
-        ];
+		$steps = [
+			'currency' => $this->settingService->get($userId, 'default_currency') !== null,
+			'categories' => $this->probe->hasCategories($userId),
+			'account' => $hasAccounts,
+			'transactions' => $hasTransactions || $this->probe->hasBankConnection($userId),
+			'budget' => $this->probe->hasBudget($userId),
+		];
 
-        return [
-            'show' => $this->decideShow($userId, $state, $steps, $sampleData, $hasAccounts || $hasTransactions),
-            'sampleData' => $sampleData,
-            'canLoadSampleData' => !$sampleData && !$hasAccounts && !$hasTransactions,
-            'steps' => $steps,
-        ];
-    }
+		return [
+			'show' => $this->decideShow($userId, $state, $steps, $sampleData, $hasAccounts || $hasTransactions),
+			'sampleData' => $sampleData,
+			'canLoadSampleData' => !$sampleData && !$hasAccounts && !$hasTransactions,
+			'steps' => $steps,
+		];
+	}
 
-    public function dismiss(string $userId): void {
-        $this->settingService->set($userId, self::STATE_KEY, self::STATE_DISMISSED);
-    }
+	public function dismiss(string $userId): void {
+		$this->settingService->set($userId, self::STATE_KEY, self::STATE_DISMISSED);
+	}
 
-    /**
-     * @param array<string, bool> $steps
-     */
-    private function decideShow(string $userId, ?string $state, array $steps, bool $sampleData, bool $hasOwnData): bool {
-        if ($sampleData) {
-            return false;
-        }
+	/**
+	 * @param array<string, bool> $steps
+	 */
+	private function decideShow(string $userId, ?string $state, array $steps, bool $sampleData, bool $hasOwnData): bool {
+		if ($sampleData) {
+			return false;
+		}
 
-        $allDone = !in_array(false, $steps, true);
+		$allDone = !in_array(false, $steps, true);
 
-        if ($state === null) {
-            // Only a user with nothing yet starts the checklist; anyone else
-            // is settled as done so later loads skip the probes
-            if ($allDone || $hasOwnData || $this->probe->hasIncomingShare($userId)) {
-                $this->settingService->set($userId, self::STATE_KEY, self::STATE_DONE);
-                return false;
-            }
-            $this->settingService->set($userId, self::STATE_KEY, self::STATE_ACTIVE);
-            return true;
-        }
+		if ($state === null) {
+			// Only a user with nothing yet starts the checklist; anyone else
+			// is settled as done so later loads skip the probes
+			if ($allDone || $hasOwnData || $this->probe->hasIncomingShare($userId)) {
+				$this->settingService->set($userId, self::STATE_KEY, self::STATE_DONE);
+				return false;
+			}
+			$this->settingService->set($userId, self::STATE_KEY, self::STATE_ACTIVE);
+			return true;
+		}
 
-        if ($allDone) {
-            $this->settingService->set($userId, self::STATE_KEY, self::STATE_DONE);
-            return false;
-        }
+		if ($allDone) {
+			$this->settingService->set($userId, self::STATE_KEY, self::STATE_DONE);
+			return false;
+		}
 
-        return true;
-    }
+		return true;
+	}
 }

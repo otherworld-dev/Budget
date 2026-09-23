@@ -36,36 +36,36 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCompletedAt(?string $completedAt)
  */
 class ReconciliationSession extends Entity implements JsonSerializable {
-    public const STATUS_IN_PROGRESS = 'in_progress';
-    public const STATUS_COMPLETED = 'completed';
+	public const STATUS_IN_PROGRESS = 'in_progress';
+	public const STATUS_COMPLETED = 'completed';
 
-    protected $accountId;
-    protected $userId;
-    protected $statementDate;
-    protected $statementBalance;
-    protected $startingBalance;
-    protected $status;
-    protected $reconciledCount;
-    protected $completedAt;
-    protected $createdAt;
+	protected $accountId;
+	protected $userId;
+	protected $statementDate;
+	protected $statementBalance;
+	protected $startingBalance;
+	protected $status;
+	protected $reconciledCount;
+	protected $completedAt;
+	protected $createdAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('accountId', 'integer');
-        $this->addType('reconciledCount', 'integer');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('accountId', 'integer');
+		$this->addType('reconciledCount', 'integer');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'accountId' => $this->getAccountId(),
-            'statementDate' => $this->getStatementDate(),
-            'statementBalance' => (float) $this->getStatementBalance(),
-            'startingBalance' => (float) $this->getStartingBalance(),
-            'status' => $this->getStatus(),
-            'reconciledCount' => $this->getReconciledCount(),
-            'createdAt' => $this->getCreatedAt(),
-            'completedAt' => $this->getCompletedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'accountId' => $this->getAccountId(),
+			'statementDate' => $this->getStatementDate(),
+			'statementBalance' => (float)$this->getStatementBalance(),
+			'startingBalance' => (float)$this->getStartingBalance(),
+			'status' => $this->getStatus(),
+			'reconciledCount' => $this->getReconciledCount(),
+			'createdAt' => $this->getCreatedAt(),
+			'completedAt' => $this->getCompletedAt(),
+		];
+	}
 }

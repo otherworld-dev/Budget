@@ -14,20 +14,20 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000008Date20260116 extends SimpleMigrationStep {
 
-    public function changeSchema(IOutput $output, \Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, \Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if ($schema->hasTable('budget_categories')) {
-            $table = $schema->getTable('budget_categories');
+		if ($schema->hasTable('budget_categories')) {
+			$table = $schema->getTable('budget_categories');
 
-            if (!$table->hasColumn('updated_at')) {
-                $table->addColumn('updated_at', Types::DATETIME, [
-                    'notnull' => false,
-                ]);
-            }
-        }
+			if (!$table->hasColumn('updated_at')) {
+				$table->addColumn('updated_at', Types::DATETIME, [
+					'notnull' => false,
+				]);
+			}
+		}
 
-        return $schema;
-    }
+		return $schema;
+	}
 }

@@ -13,15 +13,15 @@ use OCP\Migration\SimpleMigrationStep;
  * Drop budget_auth table — password protection feature removed.
  */
 class Version001000067Date20260527 extends SimpleMigrationStep {
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if ($schema->hasTable('budget_auth')) {
-            $schema->dropTable('budget_auth');
-            return $schema;
-        }
+		if ($schema->hasTable('budget_auth')) {
+			$schema->dropTable('budget_auth');
+			return $schema;
+		}
 
-        return null;
-    }
+		return null;
+	}
 }

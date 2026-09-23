@@ -21,48 +21,48 @@ namespace OCA\Budget\Service\Export;
  * Every CSV this app writes goes through put().
  */
 final class CsvSafe {
-    private const FORMULA_TRIGGERS = ['=', '+', '-', '@', "\t", "\r"];
+	private const FORMULA_TRIGGERS = ['=', '+', '-', '@', "\t", "\r"];
 
-    /** A plain number: optional sign, digits with , or . separators, optional exponent or %. */
-    private const NUMERIC = '/^[+-]?\d+(?:[.,]\d+)*(?:[eE][+-]?\d+)?%?$/';
+	/** A plain number: optional sign, digits with , or . separators, optional exponent or %. */
+	private const NUMERIC = '/^[+-]?\d+(?:[.,]\d+)*(?:[eE][+-]?\d+)?%?$/';
 
-    private function __construct() {
-    }
+	private function __construct() {
+	}
 
-    /**
-     * Neutralise one cell. Non-strings (ints, floats, null, bools) pass
-     * through untouched.
-     */
-    public static function cell(mixed $value): mixed {
-        // A lone '-' is the "no value" placeholder in several exports and
-        // cannot form a formula on its own
-        if (!is_string($value) || $value === '' || $value === '-') {
-            return $value;
-        }
-        if (!in_array($value[0], self::FORMULA_TRIGGERS, true)) {
-            return $value;
-        }
-        if (preg_match(self::NUMERIC, $value) === 1) {
-            return $value;
-        }
-        return "'" . $value;
-    }
+	/**
+	 * Neutralise one cell. Non-strings (ints, floats, null, bools) pass
+	 * through untouched.
+	 */
+	public static function cell(mixed $value): mixed {
+		// A lone '-' is the "no value" placeholder in several exports and
+		// cannot form a formula on its own
+		if (!is_string($value) || $value === '' || $value === '-') {
+			return $value;
+		}
+		if (!in_array($value[0], self::FORMULA_TRIGGERS, true)) {
+			return $value;
+		}
+		if (preg_match(self::NUMERIC, $value) === 1) {
+			return $value;
+		}
+		return "'" . $value;
+	}
 
-    /**
-     * @param array<int|string, mixed> $row
-     * @return array<int|string, mixed>
-     */
-    public static function row(array $row): array {
-        return array_map([self::class, 'cell'], $row);
-    }
+	/**
+	 * @param array<int|string, mixed> $row
+	 * @return array<int|string, mixed>
+	 */
+	public static function row(array $row): array {
+		return array_map([self::class, 'cell'], $row);
+	}
 
-    /**
-     * fputcsv() with every cell neutralised.
-     *
-     * @param resource $handle
-     * @param array<int|string, mixed> $row
-     */
-    public static function put($handle, array $row): void {
-        fputcsv($handle, self::row($row));
-    }
+	/**
+	 * fputcsv() with every cell neutralised.
+	 *
+	 * @param resource $handle
+	 * @param array<int|string, mixed> $row
+	 */
+	public static function put($handle, array $row): void {
+		fputcsv($handle, self::row($row));
+	}
 }

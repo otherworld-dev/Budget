@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace OCA\Budget\Service\Report;
 
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\BudgetSnapshotMapper;
+use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\CategoryMuteMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionReportQueries;
-use OCA\Budget\Db\CategoryMapper;
-use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Enum\Currency;
-use OCA\Budget\Service\CurrencyConversionService;
 use OCA\Budget\Service\BudgetCarryoverService;
 use OCA\Budget\Service\BudgetScope;
+use OCA\Budget\Service\CurrencyConversionService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\MoneyCalculator;
 use OCA\Budget\Service\RecurringBudgetService;
@@ -23,1035 +23,1035 @@ use OCA\Budget\Service\RecurringBudgetService;
  * Converts multi-currency accounts to the user's base currency for accurate totals.
  */
 class ReportAggregator {
-    /**
-     * Scale running money totals are kept at before they are rounded to the
-     * currency: wide enough for any supported currency and for converted
-     * amounts, so adding never truncates a term (bcmath truncates).
-     */
-    private const SUM_SCALE = 8;
-
-    private AccountMapper $accountMapper;
-    private TransactionMapper $transactionMapper;
-    private CategoryMapper $categoryMapper;
-    private BudgetSnapshotMapper $budgetSnapshotMapper;
-    private ReportCalculator $calculator;
-    private CurrencyConversionService $conversionService;
-
-    public function __construct(
-        AccountMapper $accountMapper,
-        TransactionMapper $transactionMapper,
-        CategoryMapper $categoryMapper,
-        BudgetSnapshotMapper $budgetSnapshotMapper,
-        ReportCalculator $calculator,
-        CurrencyConversionService $conversionService,
-        private RecurringBudgetService $recurringBudgetService,
-        private BudgetCarryoverService $carryoverService,
-        private TransactionReportQueries $reportQueries,
-        private ?GranularShareService $granularShareService = null,
-        private ?CategoryMuteMapper $categoryMuteMapper = null
-    ) {
-        $this->accountMapper = $accountMapper;
-        $this->transactionMapper = $transactionMapper;
-        $this->categoryMapper = $categoryMapper;
-        $this->budgetSnapshotMapper = $budgetSnapshotMapper;
-        $this->calculator = $calculator;
-        $this->conversionService = $conversionService;
-    }
-
-    /**
-     * Generate a comprehensive financial summary.
-     * OPTIMIZED: Uses single aggregated query instead of N+1 pattern.
-     * Multi-currency accounts are converted to the user's base currency for totals.
-     * @param int[] $tagIds Optional tag filter (OR logic)
-     * @param bool $includeUntagged Include untagged transactions when filtering by tags
-     */
-    public function generateSummary(
-        string $userId,
-        ?int $accountId,
-        string $startDate,
-        string $endDate,
-        array $tagIds = [],
-        bool $includeUntagged = true,
-        array $visibleAccountIds = []
-    ): array {
-        if ($accountId) {
-            $accounts = [$this->accountMapper->find($accountId, $userId)];
-        } elseif (!empty($visibleAccountIds)) {
-            $accounts = $this->accountMapper->findByIds($visibleAccountIds);
-        } else {
-            $accounts = $this->accountMapper->findAll($userId);
-        }
-
-        // In the "all accounts" summary, drop accounts the user flagged out of
-        // reports (#286). When a specific account is explicitly selected we keep
-        // it — the transaction aggregates are already filtered at the query layer.
-        if ($accountId === null) {
-            $accounts = array_values(array_filter($accounts, static fn($a) => !$a->getExcludedFromReports()));
-        }
-
-        $baseCurrency = $this->conversionService->getBaseCurrency($userId);
-        $needsConversion = $accountId === null && $this->conversionService->needsConversion($accounts);
-        $unconvertedCurrencies = [];
-
-        // Build account → currency map for conversion
-        $currencyMap = [];
-        if ($needsConversion) {
-            $currencyMap = $this->conversionService->getAccountCurrencyMap($accounts);
-        }
-
-        $summary = [
-            'period' => [
-                'startDate' => $startDate,
-                'endDate' => $endDate,
-                'days' => (strtotime($endDate) - strtotime($startDate)) / (24 * 60 * 60)
-            ],
-            'accounts' => [],
-            'totals' => [
-                'currentBalance' => 0,
-                'totalIncome' => 0,
-                'totalExpenses' => 0,
-                'netIncome' => 0,
-                'averageDaily' => [
-                    'income' => 0,
-                    'expenses' => 0
-                ]
-            ],
-            'spending' => [],
-            'trends' => [],
-            'baseCurrency' => $baseCurrency,
-            'currencyConverted' => $needsConversion,
-            'unconvertedCurrencies' => []
-        ];
-
-        // Single aggregated query for all account summaries (replaces N+1 pattern).
-        // When a specific account is selected — even one flagged out of reports —
-        // include it so its summary isn't blank (#309).
-        $accountSummaries = $this->transactionMapper->getAccountSummaries(
-            $userId,
-            $startDate,
-            $endDate,
-            $tagIds,
-            $includeUntagged,
-            !empty($visibleAccountIds) ? $visibleAccountIds : null,
-            $accountId !== null
-        );
-
-        // Build excluded category ID set (used for totals and spending breakdown)
-        $allCategories = $this->categoryMapper->findAll($userId);
-        $excludedCategoryIds = [];
-        foreach ($allCategories as $cat) {
-            if ($cat->getExcludedFromReports()) {
-                $excludedCategoryIds[$cat->getId()] = true;
-            }
-        }
-
-        // Categories SHARED with this user keep their owner's exclude-from-reports
-        // flag. findAll() only returns own categories, so without this a share
-        // recipient saw the owner's excluded transactions (e.g. internal
-        // transfer legs) counted in their income/expense totals (#326)
-        $sharedCategoryIds = $this->granularShareService?->getSharedCategoryIds($userId) ?? [];
-        if (!empty($sharedCategoryIds)) {
-            foreach ($this->categoryMapper->findByIdsUnscoped($sharedCategoryIds) as $cat) {
-                if ($cat->getExcludedFromReports()) {
-                    $excludedCategoryIds[$cat->getId()] = true;
-                }
-            }
-        }
-
-        // Per-viewer report mutes ("hide from my reports" on a shared category)
-        // apply to these totals the same way as the owner flag
-        foreach ($this->categoryMuteMapper?->findMutedCategoryIds($userId) ?? [] as $mutedId) {
-            $excludedCategoryIds[$mutedId] = true;
-        }
-
-        // Get future transaction adjustments to calculate balance as of today
-        $today = date('Y-m-d');
-        $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
-
-        // Money accumulates through MoneyCalculator, never float += (#274),
-        // and the totals are rounded to the currency they are in: the base
-        // currency when accounts are converted, otherwise the accounts' own.
-        $totalsCurrency = $needsConversion || empty($accounts)
-            ? $baseCurrency
-            : ($accounts[0]->getCurrency() ?: $baseCurrency);
-        $decimals = Currency::decimalsFor($totalsCurrency);
-        $totalIncome = '0';
-        $totalExpenses = '0';
-        $totalBalance = '0';
-        $totalAssets = '0';
-        $totalLiabilities = '0';
-        $liabilityTypes = ['credit_card', 'loan', 'mortgage', 'line_of_credit'];
-
-        foreach ($accounts as $account) {
-            $currentAccountId = $account->getId();
-            $accountData = $accountSummaries[$currentAccountId] ?? ['income' => 0, 'expenses' => 0, 'count' => 0];
-
-            $accountIncome = $accountData['income'];
-            $accountExpenses = $accountData['expenses'];
-
-            // Calculate balance as of today (stored balance minus future transactions)
-            $storedBalance = $account->getBalance();
-            $futureChange = $futureChanges[$currentAccountId] ?? 0;
-            $currentBalance = $storedBalance - $futureChange;
-
-            $accountEntry = [
-                'id' => $currentAccountId,
-                'name' => $account->getName(),
-                'balance' => $currentBalance,
-                'currency' => $account->getCurrency(),
-                'income' => $accountIncome,
-                'expenses' => $accountExpenses,
-                'net' => $accountIncome - $accountExpenses,
-                'transactionCount' => $accountData['count']
-            ];
-
-            // Convert to base currency for aggregation if needed
-            if ($needsConversion) {
-                $accountCurrency = $account->getCurrency() ?: 'USD';
-                if ($accountCurrency !== $baseCurrency) {
-                    // Check if conversion is possible before attempting it
-                    if (!$this->conversionService->canConvert($accountCurrency, $userId)) {
-                        $unconvertedCurrencies[] = $accountCurrency;
-                        $summary['accounts'][] = $accountEntry;
-                        continue;
-                    }
-
-                    $currentBalance = $this->conversionService->convertToBaseFloat($currentBalance, $accountCurrency, $userId);
-                    $accountIncome = $this->conversionService->convertToBaseFloat($accountIncome, $accountCurrency, $userId);
-                    $accountExpenses = $this->conversionService->convertToBaseFloat($accountExpenses, $accountCurrency, $userId);
-
-                    // Include fiat equivalent for frontend display
-                    $accountEntry['convertedBalance'] = $currentBalance;
-                    $accountEntry['baseCurrency'] = $baseCurrency;
-                }
-            }
-
-            $summary['accounts'][] = $accountEntry;
-
-            $totalBalance = MoneyCalculator::add($totalBalance, $currentBalance, self::SUM_SCALE);
-            if (in_array($account->getType(), $liabilityTypes, true) && $currentBalance < 0) {
-                // Amount owed. A liability in credit (positive) is money you have,
-                // so it belongs in assets — otherwise abs() below turns a credit
-                // into a phantom debt and net worth moves the wrong way (#353).
-                $totalLiabilities = MoneyCalculator::add($totalLiabilities, $currentBalance, self::SUM_SCALE);
-            } else {
-                $totalAssets = MoneyCalculator::add($totalAssets, $currentBalance, self::SUM_SCALE);
-            }
-            $totalIncome = MoneyCalculator::add($totalIncome, $accountIncome, self::SUM_SCALE);
-            $totalExpenses = MoneyCalculator::add($totalExpenses, $accountExpenses, self::SUM_SCALE);
-        }
-
-        // Exclude transfers from aggregate totals (all-accounts view only)
-        // Transfers are zero-sum across accounts and should not inflate income/expenses
-        if ($accountId === null) {
-            if ($needsConversion) {
-                // Per-account transfer totals so we can convert each account's transfers
-                $transfersByAccount = $this->transactionMapper->getTransferTotalsByAccount(
-                    $userId, $startDate, $endDate, $tagIds, $includeUntagged,
-                    !empty($visibleAccountIds) ? $visibleAccountIds : null
-                );
-                foreach ($transfersByAccount as $accId => $transfers) {
-                    $accCurrency = $currencyMap[$accId] ?? $baseCurrency;
-                    $totalIncome = MoneyCalculator::subtract($totalIncome, $this->conversionService->convertToBaseFloat($transfers['income'], $accCurrency, $userId), self::SUM_SCALE);
-                    $totalExpenses = MoneyCalculator::subtract($totalExpenses, $this->conversionService->convertToBaseFloat($transfers['expenses'], $accCurrency, $userId), self::SUM_SCALE);
-                }
-            } else {
-                $transferTotals = $this->transactionMapper->getTransferTotals(
-                    $userId, $startDate, $endDate, $tagIds, $includeUntagged,
-                    !empty($visibleAccountIds) ? $visibleAccountIds : null
-                );
-                $totalIncome = MoneyCalculator::subtract($totalIncome, $transferTotals['income'], self::SUM_SCALE);
-                $totalExpenses = MoneyCalculator::subtract($totalExpenses, $transferTotals['expenses'], self::SUM_SCALE);
-            }
-        }
-
-        // Exclude transactions in excluded-from-reports categories from totals.
-        // In all-accounts view, transfers were already subtracted above, so skip
-        // all linked transfers here to avoid double-subtraction. Grouped by
-        // account so each account's amounts get the same currency conversion as
-        // the income/expense totals they are deducted from, and so a selected
-        // account only has its own excluded transactions deducted (#326).
-        if (!empty($excludedCategoryIds)) {
-            $excludedIds = array_keys($excludedCategoryIds);
-            $excludedByAccount = $this->transactionMapper->getCategoryTotalsByAccount(
-                $excludedIds,
-                $startDate,
-                $endDate,
-                $accountId,
-                $accountId === null
-            );
-            foreach ($excludedByAccount as $accId => $excluded) {
-                $excludedIncome = $excluded['income'];
-                $excludedExpenses = $excluded['expenses'];
-                if ($needsConversion) {
-                    $accCurrency = $currencyMap[$accId] ?? $baseCurrency;
-                    if ($accCurrency !== $baseCurrency) {
-                        // Accounts whose currency cannot be converted never made
-                        // it into the totals, so there is nothing to deduct
-                        if (!$this->conversionService->canConvert($accCurrency, $userId)) {
-                            continue;
-                        }
-                        $excludedIncome = $this->conversionService->convertToBaseFloat($excludedIncome, $accCurrency, $userId);
-                        $excludedExpenses = $this->conversionService->convertToBaseFloat($excludedExpenses, $accCurrency, $userId);
-                    }
-                }
-                $totalIncome = MoneyCalculator::subtract($totalIncome, $excludedIncome, self::SUM_SCALE);
-                $totalExpenses = MoneyCalculator::subtract($totalExpenses, $excludedExpenses, self::SUM_SCALE);
-            }
-        }
-
-        $summary['totals']['currentBalance'] = round((float) $totalBalance, $decimals);
-        $summary['totals']['totalIncome'] = round((float) $totalIncome, $decimals);
-        $summary['totals']['totalExpenses'] = round((float) $totalExpenses, $decimals);
-        $summary['totals']['netIncome'] = round((float) MoneyCalculator::subtract($totalIncome, $totalExpenses, self::SUM_SCALE), $decimals);
-        $summary['totals']['totalAssets'] = round((float) $totalAssets, $decimals);
-        $summary['totals']['totalLiabilities'] = round(abs((float) $totalLiabilities), $decimals);
-        $summary['unconvertedCurrencies'] = array_values(array_unique($unconvertedCurrencies));
-
-        $days = $summary['period']['days'];
-        if ($days > 0) {
-            $summary['totals']['averageDaily']['income'] = $summary['totals']['totalIncome'] / $days;
-            $summary['totals']['averageDaily']['expenses'] = $summary['totals']['totalExpenses'] / $days;
-        }
-
-        $excludeTransfers = $accountId === null;
-
-        // Spending breakdown. Excluded and muted categories are dropped by
-        // the mapper's report choke point (#219), never filtered here.
-        $spending = $this->transactionMapper->getSpendingSummary(
-            $userId,
-            $startDate,
-            $endDate,
-            $accountId,
-            $tagIds,
-            $includeUntagged,
-            $excludeTransfers,
-            !empty($visibleAccountIds) ? $visibleAccountIds : null
-        );
-        $summary['spending'] = $spending;
-
-        // Generate trend data (with currency conversion for multi-account view)
-        $summary['trends'] = $this->generateTrendData($userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, !empty($visibleAccountIds) ? $visibleAccountIds : null);
-
-        return $summary;
-    }
-
-    /**
-     * Generate summary with comparison to previous period.
-     * @param int[] $tagIds Optional tag filter (OR logic)
-     * @param bool $includeUntagged Include untagged transactions when filtering by tags
-     */
-    public function generateSummaryWithComparison(
-        string $userId,
-        ?int $accountId,
-        string $startDate,
-        string $endDate,
-        array $tagIds = [],
-        bool $includeUntagged = true,
-        array $visibleAccountIds = []
-    ): array {
-        // Current period
-        $current = $this->generateSummary($userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $visibleAccountIds);
-
-        // Calculate previous period (same duration)
-        $start = new \DateTime($startDate);
-        $end = new \DateTime($endDate);
-        $interval = $start->diff($end);
-
-        $prevEnd = clone $start;
-        $prevEnd->modify('-1 day');
-        $prevStart = clone $prevEnd;
-        $prevStart->sub($interval);
-
-        $previous = $this->generateSummary(
-            $userId,
-            $accountId,
-            $prevStart->format('Y-m-d'),
-            $prevEnd->format('Y-m-d'),
-            $tagIds,
-            $includeUntagged,
-            $visibleAccountIds
-        );
-
-        // Calculate changes
-        $current['comparison'] = [
-            'previousPeriod' => [
-                'startDate' => $prevStart->format('Y-m-d'),
-                'endDate' => $prevEnd->format('Y-m-d')
-            ],
-            'changes' => [
-                'income' => $this->calculator->calculatePercentChange(
-                    $previous['totals']['totalIncome'] ?? 0,
-                    $current['totals']['totalIncome'] ?? 0
-                ),
-                'expenses' => $this->calculator->calculatePercentChange(
-                    $previous['totals']['totalExpenses'] ?? 0,
-                    $current['totals']['totalExpenses'] ?? 0
-                ),
-                'netIncome' => $this->calculator->calculatePercentChange(
-                    $previous['totals']['netIncome'] ?? 0,
-                    $current['totals']['netIncome'] ?? 0
-                )
-            ],
-            'previousTotals' => $previous['totals'] ?? []
-        ];
-
-        return $current;
-    }
-
-    /**
-     * Generate budget report with category-by-category breakdown.
-     * OPTIMIZED: Uses single batch query instead of N queries for N categories.
-     */
-    public function getBudgetReport(string $userId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null, ?string $snapshotMonth = null): array {
-        $categories = $this->categoryMapper->findAll($userId);
-        $budgetReport = [];
-        // Running totals as strings through MoneyCalculator (#274)
-        $sum = ['budgeted' => '0', 'spent' => '0', 'remaining' => '0'];
-
-        // A custom cycle spans calendar months, so its budget snapshot cannot
-        // be inferred from the transaction range's start date.
-        $reportMonth = $snapshotMonth ?? substr($startDate, 0, 7);
-        if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/D', $reportMonth)) {
-            throw new \InvalidArgumentException('Invalid snapshot month');
-        }
-        $snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $reportMonth);
-
-        // Auto-derived recurring budgets (#269) apply to current/future months
-        // only — they reflect today's bills and must not rewrite history.
-        // Mirrors the Budget view's rule so both surfaces agree.
-        $recurringBudgets = $reportMonth >= $this->carryoverService->currentBudgetMonth($userId)
-            ? $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId)
-            : [];
-
-        // Envelope carryover is a monthly concept: apply it only when the
-        // requested range is exactly one month - a calendar month, or the
-        // user's budget period for the report month, which is what the
-        // dashboard asks for with a custom start day (#386). Arbitrary ranges
-        // get base budgets.
-        $isSingleMonth = ($startDate === $reportMonth . '-01'
-                && $endDate === date('Y-m-t', strtotime($startDate)))
-            || [$startDate, $endDate] === $this->carryoverService->budgetMonthRange($userId, $reportMonth);
-        $carryovers = $isSingleMonth
-            ? $this->carryoverService->getCarryovers($userId, $reportMonth, $categories, $visibleAccountIds)
-            : [];
-
-        // Collect category IDs that have budgets (considering snapshots and
-        // envelope carryover, skipping categories excluded from reports and
-        // those the user doesn't budget against). A non-zero carryover keeps
-        // the category in the report even when its base is 0 — a depleted
-        // envelope must show as over budget, not vanish.
-        $categoryIds = [];
-        $expenseCategoryIds = [];
-        $incomeCategoryIds = [];
-        $resolvedBudgets = [];
-        $resolvedBases = [];
-        $notBudgeted = BudgetScope::excludedCategoryIds($categories);
-        foreach ($categories as $category) {
-            if ($category->getExcludedFromReports() || isset($notBudgeted[$category->getId()])) {
-                continue;
-            }
-            $catId = $category->getId();
-            $budgeted = isset($snapshotOverrides[$catId])
-                ? (float) ($snapshotOverrides[$catId]['amount'] ?? 0)
-                : (float) ($category->getBudgetAmount() ?? 0);
-            if ($budgeted <= 0 && isset($recurringBudgets[$catId])) {
-                $budgeted = $this->recurringBudgetService->convertMonthlyToPeriod(
-                    (float) $recurringBudgets[$catId],
-                    $category->getBudgetPeriod() ?? 'monthly'
-                );
-            }
-            $carried = (float) ($carryovers[$catId] ?? 0);
-            if ($budgeted > 0 || abs($carried) >= 0.005) {
-                $categoryIds[] = $catId;
-                if ($category->getType() === 'income') {
-                    $incomeCategoryIds[] = $catId;
-                } else {
-                    $expenseCategoryIds[] = $catId;
-                }
-                $resolvedBases[$catId] = $budgeted;
-                $resolvedBudgets[$catId] = round($budgeted + $carried, 2);
-            }
-        }
-
-        // One batch query per direction, replacing an N+1 pattern. An income
-        // category is measured by what came IN, so asking for debits reported
-        // nothing against its budget; now that the figure is net (#361) it
-        // would have reported a negative one. The Budget page has always split
-        // the two this way — see CategoryService::getBudgetAnalysis. Spent
-        // is held to the accounts in view, as the carryover above already
-        // is and the Budget page's spent figures are (#551).
-        // A budget measures its whole branch: spending filed under a
-        // subcategory without a budget of its own counts toward the parent,
-        // the same branches the alerts measure (#551).
-        $branches = BudgetScope::spendingBranches($categories, array_fill_keys($categoryIds, true));
-        $memberIds = static fn(array $roots): array => array_values(array_unique(array_merge(
-            [], ...array_map(fn(int $id) => $branches[$id] ?? [$id], $roots)
-        )));
-        $spendingScope = !empty($visibleAccountIds) ? $visibleAccountIds : null;
-        $memberSpending = $this->transactionMapper->getCategorySpendingBatch(
-            $memberIds($expenseCategoryIds), $startDate, $endDate, 'debit', $accountId, false, $userId, $spendingScope
-        ) + $this->transactionMapper->getCategorySpendingBatch(
-            $memberIds($incomeCategoryIds), $startDate, $endDate, 'credit', $accountId, false, $userId, $spendingScope
-        );
-        $categorySpending = [];
-        foreach ($categoryIds as $catId) {
-            $spent = '0';
-            foreach ($branches[$catId] ?? [$catId] as $memberId) {
-                $spent = MoneyCalculator::add($spent, $memberSpending[$memberId] ?? 0.0, self::SUM_SCALE);
-            }
-            $categorySpending[$catId] = round((float) $spent, 2);
-        }
-
-        foreach ($categories as $category) {
-            $categoryId = $category->getId();
-            if (isset($resolvedBudgets[$categoryId])) {
-                $spent = $categorySpending[$categoryId] ?? 0;
-
-                $budgeted = $resolvedBudgets[$categoryId];
-                $remaining = round((float) MoneyCalculator::subtract($budgeted, $spent, self::SUM_SCALE), 2);
-                // Depleted envelope (available <= 0): any spending is over budget
-                $percentage = $budgeted > 0 ? ($spent / $budgeted) * 100 : ($spent > 0 ? 100 : 0);
-
-                $budgetReport[] = [
-                    'categoryId' => $categoryId,
-                    'categoryName' => $category->getName(),
-                    'budgeted' => $budgeted,
-                    'baseBudget' => $resolvedBases[$categoryId],
-                    'carried' => round($budgeted - $resolvedBases[$categoryId], 2),
-                    'spent' => $spent,
-                    'remaining' => $remaining,
-                    'percentage' => $percentage,
-                    'status' => $this->calculator->getBudgetStatus($percentage),
-                    'color' => $category->getColor()
-                ];
-
-                $sum['budgeted'] = MoneyCalculator::add($sum['budgeted'], $budgeted, self::SUM_SCALE);
-                $sum['spent'] = MoneyCalculator::add($sum['spent'], $spent, self::SUM_SCALE);
-                $sum['remaining'] = MoneyCalculator::add($sum['remaining'], $remaining, self::SUM_SCALE);
-            }
-        }
-        $totals = array_map(static fn(string $amount) => round((float) $amount, 2), $sum);
-
-        return [
-            'period' => [
-                'startDate' => $startDate,
-                'endDate' => $endDate
-            ],
-            'categories' => $budgetReport,
-            'totals' => $totals,
-            'overallStatus' => $this->calculator->getBudgetStatus(
-                $totals['budgeted'] > 0 ? ($totals['spent'] / $totals['budgeted']) * 100 : 0
-            )
-        ];
-    }
-
-    /**
-     * Generate cash flow report by month.
-     * Multi-currency accounts are converted to base currency in all-accounts view.
-     * @param int[] $tagIds Optional tag filter (OR logic)
-     * @param bool $includeUntagged Include untagged transactions when filtering by tags
-     */
-    public function getCashFlowReport(
-        string $userId,
-        ?int $accountId,
-        string $startDate,
-        string $endDate,
-        array $tagIds = [],
-        bool $includeUntagged = true,
-        ?array $visibleAccountIds = null
-    ): array {
-        $excludeTransfers = $accountId === null;
-
-        // Check if multi-currency conversion is needed
-        if ($accountId === null) {
-            $accounts = !empty($visibleAccountIds)
-                ? $this->accountMapper->findByIds($visibleAccountIds)
-                : $this->accountMapper->findAll($userId);
-            // Excluded accounts contribute no transactions, so keep them out of
-            // the currency-conversion setup too (#286)
-            $accounts = array_values(array_filter($accounts, static fn($a) => !$a->getExcludedFromReports()));
-            $needsConversion = $this->conversionService->needsConversion($accounts);
-
-            if ($needsConversion) {
-                $currencyMap = $this->conversionService->getAccountCurrencyMap($accounts);
-                $cashFlow = $this->convertCashFlowByAccount(
-                    $userId, $startDate, $endDate, $currencyMap, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
-                );
-            } else {
-                $cashFlow = $this->reportQueries->getCashFlowByMonth(
-                    $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
-                );
-            }
-        } else {
-            $cashFlow = $this->reportQueries->getCashFlowByMonth(
-                $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers
-            );
-        }
-
-        // Totals through MoneyCalculator, never float += (#274). Kept at the
-        // wide scale rather than rounded: a single account may be crypto.
-        $totals = [
-            'income' => (float) MoneyCalculator::sum(array_column($cashFlow, 'income'), self::SUM_SCALE),
-            'expenses' => (float) MoneyCalculator::sum(array_column($cashFlow, 'expenses'), self::SUM_SCALE),
-            'net' => (float) MoneyCalculator::sum(array_column($cashFlow, 'net'), self::SUM_SCALE),
-        ];
-
-        $monthCount = count($cashFlow);
-
-        return [
-            'period' => ['startDate' => $startDate, 'endDate' => $endDate],
-            'data' => $cashFlow,
-            'totals' => $totals,
-            'averageMonthly' => [
-                'income' => $monthCount > 0 ? $totals['income'] / $monthCount : 0,
-                'expenses' => $monthCount > 0 ? $totals['expenses'] / $monthCount : 0,
-                'net' => $monthCount > 0 ? $totals['net'] / $monthCount : 0
-            ]
-        ];
-    }
-
-    /**
-     * Convert per-account-per-month cash flow data to base currency and aggregate by month.
-     *
-     * @param array<int, string> $currencyMap accountId → currency code
-     */
-    private function convertCashFlowByAccount(
-        string $userId,
-        string $startDate,
-        string $endDate,
-        array $currencyMap,
-        array $tagIds,
-        bool $includeUntagged,
-        bool $excludeTransfers,
-        ?array $visibleAccountIds = null
-    ): array {
-        $perAccountData = $this->reportQueries->getCashFlowByMonthByAccount(
-            $userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
-        );
-
-        $baseCurrency = $this->conversionService->getBaseCurrency($userId);
-        $byMonth = [];
-
-        foreach ($perAccountData as $row) {
-            $month = $row['month'];
-            $accCurrency = $currencyMap[$row['account_id']] ?? $baseCurrency;
-
-            $income = $this->conversionService->convertToBaseFloat($row['income'], $accCurrency, $userId);
-            $expenses = $this->conversionService->convertToBaseFloat($row['expenses'], $accCurrency, $userId);
-
-            if (!isset($byMonth[$month])) {
-                $byMonth[$month] = ['month' => $month, 'income' => '0', 'expenses' => '0', 'net' => 0];
-            }
-            $byMonth[$month]['income'] = MoneyCalculator::add($byMonth[$month]['income'], $income, self::SUM_SCALE);
-            $byMonth[$month]['expenses'] = MoneyCalculator::add($byMonth[$month]['expenses'], $expenses, self::SUM_SCALE);
-        }
-
-        // Recalculate net after aggregation
-        foreach ($byMonth as &$monthData) {
-            $monthData['net'] = (float) MoneyCalculator::subtract($monthData['income'], $monthData['expenses'], self::SUM_SCALE);
-            $monthData['income'] = (float) $monthData['income'];
-            $monthData['expenses'] = (float) $monthData['expenses'];
-        }
-        unset($monthData);
-
-        ksort($byMonth);
-        return array_values($byMonth);
-    }
-
-    /**
-     * Generate monthly trend data for charts.
-     * Multi-currency accounts are converted to base currency in all-accounts view.
-     * @param int[] $tagIds Optional tag filter (OR logic)
-     * @param bool $includeUntagged Include untagged transactions when filtering by tags
-     */
-    public function generateTrendData(
-        string $userId,
-        ?int $accountId,
-        string $startDate,
-        string $endDate,
-        array $tagIds = [],
-        bool $includeUntagged = true,
-        ?array $visibleAccountIds = null
-    ): array {
-        $excludeTransfers = $accountId === null;
-
-        // Check if multi-currency conversion is needed
-        if ($accountId === null) {
-            $accounts = !empty($visibleAccountIds)
-                ? $this->accountMapper->findByIds($visibleAccountIds)
-                : $this->accountMapper->findAll($userId);
-            // Keep excluded accounts out of the conversion setup (#286)
-            $accounts = array_values(array_filter($accounts, static fn($a) => !$a->getExcludedFromReports()));
-            $needsConversion = $this->conversionService->needsConversion($accounts);
-
-            if ($needsConversion) {
-                $currencyMap = $this->conversionService->getAccountCurrencyMap($accounts);
-                $dataByMonth = $this->convertTrendDataByAccount(
-                    $userId, $startDate, $endDate, $currencyMap, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
-                );
-            } else {
-                $monthlyData = $this->reportQueries->getMonthlyTrendData(
-                    $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
-                );
-                $dataByMonth = [];
-                foreach ($monthlyData as $row) {
-                    $dataByMonth[$row['month']] = $row;
-                }
-            }
-        } else {
-            $monthlyData = $this->reportQueries->getMonthlyTrendData(
-                $userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, false
-            );
-            $dataByMonth = [];
-            foreach ($monthlyData as $row) {
-                $dataByMonth[$row['month']] = $row;
-            }
-        }
-
-        // `months` (Y-m) is what the web UI formats, in the user's own
-        // language; `labels` stays as the English "M Y" for anything that
-        // still reads it.
-        $trends = [
-            'labels' => [],
-            'months' => [],
-            'income' => [],
-            'expenses' => []
-        ];
-
-        $start = new \DateTime($startDate);
-        $end = new \DateTime($endDate);
-        $interval = new \DateInterval('P1M');
-
-        $current = clone $start;
-        while ($current <= $end) {
-            $month = $current->format('Y-m');
-            $trends['labels'][] = $current->format('M Y');
-            $trends['months'][] = $month;
-
-            $monthData = $dataByMonth[$month] ?? ['income' => 0, 'expenses' => 0];
-            $trends['income'][] = $monthData['income'];
-            $trends['expenses'][] = $monthData['expenses'];
-
-            $current->add($interval);
-        }
-
-        return $trends;
-    }
-
-    /**
-     * Category-by-month matrix report (#288). One row per category, ordered
-     * alphabetically (or by total) with children indented under their parents;
-     * columns are each calendar month in the range. Cell value is the signed net
-     * for that category and month — income positive, expense negative — including
-     * split allocations. Parent rows include the totals of all their descendants.
-     *
-     * The money is report-scoped in SQL like every other grouping
-     * (TransactionReportQueries::getCategoryNetByMonth()): report-excluded
-     * accounts and categories, categories the viewer muted, future scheduled
-     * rows, pension legs and - in the all-accounts view - transfers never
-     * count. This method only shapes the rows.
-     *
-     * Amounts are summed in their stored currency; for a single-currency budget
-     * this is exact. (Multi-currency conversion is not applied here.)
-     *
-     * @param string $sort 'alpha' (default) or 'total'
-     * @param int[] $visibleAccountIds
-     * @return array{period: array, sort: string, baseCurrency: string, rows: array, totals: array}
-     */
-    public function getCategoryMonthlyReport(
-        string $userId,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        string $sort = 'alpha',
-        array $visibleAccountIds = []
-    ): array {
-        $sort = $sort === 'total' ? 'total' : 'alpha';
-        $vis = !empty($visibleAccountIds) ? $visibleAccountIds : null;
-        $months = $this->buildMonthList($startDate, $endDate);
-
-        // Signed net per category per month: each category's OWN amounts
-        // (direct + split parts), already report-scoped in SQL
-        $own = $this->reportQueries->getCategoryNetByMonth($userId, $startDate, $endDate, $accountId, $vis);
-
-        // Rows: a category excluded from reports, or muted by this viewer,
-        // carries no money (the query dropped it) and is not shown either;
-        // its non-excluded children are promoted to the nearest shown
-        // ancestor (or to the root). Orphans (parent missing) are roots.
-        $categories = $this->categoryMapper->findAll($userId);
-        $excluded = [];
-        $parentOf = [];
-        foreach ($categories as $c) {
-            $parentOf[$c->getId()] = $c->getParentId();
-            if ($c->getExcludedFromReports()) {
-                $excluded[$c->getId()] = true;
-            }
-        }
-        foreach ($this->categoryMuteMapper?->findMutedCategoryIds($userId) ?? [] as $mutedId) {
-            $excluded[(int) $mutedId] = true;
-        }
-        // Walk up to the nearest non-excluded ancestor (null => becomes a root)
-        $effectiveParent = function (?int $pid) use ($parentOf, $excluded): ?int {
-            $guard = 0;
-            while ($pid !== null && isset($excluded[$pid]) && $guard < 100) {
-                $pid = $parentOf[$pid] ?? null;
-                $guard++;
-            }
-            return $pid;
-        };
-
-        $byId = [];
-        foreach ($categories as $c) {
-            if (!isset($excluded[$c->getId()])) {
-                $byId[$c->getId()] = $c;
-            }
-        }
-        $childrenOf = [];
-        $rootIds = [];
-        foreach ($categories as $c) {
-            if (isset($excluded[$c->getId()])) {
-                continue;
-            }
-            $pid = $effectiveParent($c->getParentId());
-            if ($pid !== null && isset($byId[$pid])) {
-                $childrenOf[$pid][] = $c->getId();
-            } else {
-                $rootIds[] = $c->getId();
-            }
-        }
-
-        // Roll each category's descendants up into it (post-order)
-        $rolled = [];
-        $rollup = function (int $catId) use (&$rollup, &$rolled, $own, $childrenOf): array {
-            $acc = $own[$catId] ?? [];
-            foreach ($childrenOf[$catId] ?? [] as $childId) {
-                foreach ($rollup($childId) as $m => $v) {
-                    $acc[$m] = ($acc[$m] ?? 0.0) + $v;
-                }
-            }
-            $rolled[$catId] = $acc;
-            return $acc;
-        };
-        foreach ($rootIds as $rid) {
-            $rollup($rid);
-        }
-
-        // Emit rows depth-first: each node, then its (sorted) children
-        $rows = [];
-        $emit = function (int $catId, int $depth) use (&$emit, &$rows, $byId, $childrenOf, $rolled, $months, $sort): void {
-            $c = $byId[$catId];
-            $monthly = [];
-            $total = 0.0;
-            foreach ($months as $m) {
-                $val = round($rolled[$catId][$m] ?? 0.0, 2);
-                $monthly[$m] = $val;
-                $total += $val;
-            }
-            $kids = $childrenOf[$catId] ?? [];
-            $rows[] = [
-                'categoryId' => $catId,
-                'name' => $c->getName(),
-                'type' => $c->getType(),
-                'color' => $c->getColor(),
-                'depth' => $depth,
-                'isParent' => !empty($kids),
-                'monthly' => $monthly,
-                'total' => round($total, 2),
-            ];
-            foreach ($this->sortCategoryIds($kids, $byId, $rolled, $sort) as $kid) {
-                $emit($kid, $depth + 1);
-            }
-        };
-        foreach ($this->sortCategoryIds($rootIds, $byId, $rolled, $sort) as $rid) {
-            $emit($rid, 0);
-        }
-
-        // Grand totals per month + overall: sum each category's OWN net (avoids
-        // double-counting the rolled-up parent rows).
-        $grandMonthly = [];
-        $grandTotal = 0.0;
-        foreach ($months as $m) {
-            $s = 0.0;
-            foreach ($own as $monthMap) {
-                $s += $monthMap[$m] ?? 0.0;
-            }
-            $grandMonthly[$m] = round($s, 2);
-            $grandTotal += $grandMonthly[$m];
-        }
-
-        // Amounts are summed in their stored currency (no conversion here); flag
-        // when the user has accounts in more than one currency so the UI can warn.
-        $reportAccounts = !empty($visibleAccountIds)
-            ? $this->accountMapper->findByIds($visibleAccountIds)
-            : $this->accountMapper->findAll($userId);
-        $reportAccounts = array_values(array_filter($reportAccounts, static fn($a) => !$a->getExcludedFromReports()));
-        $mixedCurrency = $this->conversionService->needsConversion($reportAccounts);
-
-        return [
-            'period' => ['startDate' => $startDate, 'endDate' => $endDate, 'months' => $months],
-            'sort' => $sort,
-            'baseCurrency' => $this->conversionService->getBaseCurrency($userId),
-            'mixedCurrency' => $mixedCurrency,
-            'rows' => $rows,
-            'totals' => ['monthly' => $grandMonthly, 'total' => round($grandTotal, 2)],
-        ];
-    }
-
-    /**
-     * List of 'YYYY-MM' month keys from startDate to endDate inclusive.
-     *
-     * @return string[]
-     */
-    private function buildMonthList(string $startDate, string $endDate): array {
-        $months = [];
-        $cur = strtotime(substr($startDate, 0, 7) . '-01');
-        $end = strtotime(substr($endDate, 0, 7) . '-01');
-        // Guard against pathological ranges
-        $guard = 0;
-        while ($cur !== false && $cur <= $end && $guard < 600) {
-            $months[] = date('Y-m', $cur);
-            $cur = strtotime('+1 month', $cur);
-            $guard++;
-        }
-        return $months;
-    }
-
-    /**
-     * Sort category IDs alphabetically by name, or by absolute rolled-up total
-     * (largest magnitude first) when $sort === 'total'.
-     *
-     * @param int[] $ids
-     * @param array<int, \OCA\Budget\Db\Category> $byId
-     * @param array<int, array<string, float>> $rolled
-     * @return int[]
-     */
-    private function sortCategoryIds(array $ids, array $byId, array $rolled, string $sort): array {
-        usort($ids, function (int $a, int $b) use ($byId, $rolled, $sort) {
-            if ($sort === 'total') {
-                $ta = array_sum($rolled[$a] ?? []);
-                $tb = array_sum($rolled[$b] ?? []);
-                $cmp = abs($tb) <=> abs($ta);
-                if ($cmp !== 0) {
-                    return $cmp;
-                }
-            }
-            return strcasecmp($byId[$a]->getName(), $byId[$b]->getName());
-        });
-        return $ids;
-    }
-
-    /**
-     * Convert per-account-per-month trend data to base currency and aggregate by month.
-     *
-     * @param array<int, string> $currencyMap accountId → currency code
-     * @return array<string, array{income: float, expenses: float}> month → totals
-     */
-    private function convertTrendDataByAccount(
-        string $userId,
-        string $startDate,
-        string $endDate,
-        array $currencyMap,
-        array $tagIds,
-        bool $includeUntagged,
-        bool $excludeTransfers,
-        ?array $visibleAccountIds = null
-    ): array {
-        $perAccountData = $this->reportQueries->getMonthlyTrendDataByAccount(
-            $userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
-        );
-
-        $baseCurrency = $this->conversionService->getBaseCurrency($userId);
-        $byMonth = [];
-
-        foreach ($perAccountData as $row) {
-            $month = $row['month'];
-            $accCurrency = $currencyMap[$row['account_id']] ?? $baseCurrency;
-
-            $income = $this->conversionService->convertToBaseFloat($row['income'], $accCurrency, $userId);
-            $expenses = $this->conversionService->convertToBaseFloat($row['expenses'], $accCurrency, $userId);
-
-            if (!isset($byMonth[$month])) {
-                $byMonth[$month] = ['income' => '0', 'expenses' => '0'];
-            }
-            $byMonth[$month]['income'] = MoneyCalculator::add($byMonth[$month]['income'], $income, self::SUM_SCALE);
-            $byMonth[$month]['expenses'] = MoneyCalculator::add($byMonth[$month]['expenses'], $expenses, self::SUM_SCALE);
-        }
-
-        return array_map(static fn(array $m) => [
-            'income' => (float) $m['income'],
-            'expenses' => (float) $m['expenses'],
-        ], $byMonth);
-    }
-
-    /**
-     * Get tag dimensions for spending across categories.
-     * Returns tag breakdown for each category that has tag sets.
-     *
-     * @param string $userId
-     * @param string $startDate
-     * @param string $endDate
-     * @param int|null $accountId Optional account filter
-     * @param int|null $categoryId Optional single category filter
-     * @return array Array of category data with tag dimensions
-     */
-    public function getTagDimensions(
-        string $userId,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        ?int $categoryId = null,
-        ?array $visibleAccountIds = null
-    ): array {
-        if ($categoryId !== null) {
-            // Single category
-            $dimensions = $this->reportQueries->getTagDimensionsForCategory(
-                $userId,
-                $categoryId,
-                $startDate,
-                $endDate,
-                $accountId,
-                $visibleAccountIds
-            );
-
-            $category = $this->categoryMapper->find($categoryId, $userId);
-
-            return [
-                'categories' => [[
-                    'categoryId' => $categoryId,
-                    'categoryName' => $category->getName(),
-                    'categoryColor' => $category->getColor(),
-                    'tagDimensions' => $dimensions
-                ]]
-            ];
-        }
-
-        // All categories with spending
-        $spending = $this->transactionMapper->getSpendingSummary($userId, $startDate, $endDate, visibleAccountIds: $visibleAccountIds);
-        $result = [];
-
-        foreach ($spending as $categoryData) {
-            $catId = (int)$categoryData['id'];
-            $dimensions = $this->reportQueries->getTagDimensionsForCategory(
-                $userId,
-                $catId,
-                $startDate,
-                $endDate,
-                $accountId,
-                $visibleAccountIds
-            );
-
-            if (!empty($dimensions)) {
-                $result[] = [
-                    'categoryId' => $catId,
-                    'categoryName' => $categoryData['name'],
-                    'categoryColor' => $categoryData['color'],
-                    'categoryTotal' => (float)$categoryData['total'],
-                    'tagDimensions' => $dimensions
-                ];
-            }
-        }
-
-        return ['categories' => $result];
-    }
+	/**
+	 * Scale running money totals are kept at before they are rounded to the
+	 * currency: wide enough for any supported currency and for converted
+	 * amounts, so adding never truncates a term (bcmath truncates).
+	 */
+	private const SUM_SCALE = 8;
+
+	private AccountMapper $accountMapper;
+	private TransactionMapper $transactionMapper;
+	private CategoryMapper $categoryMapper;
+	private BudgetSnapshotMapper $budgetSnapshotMapper;
+	private ReportCalculator $calculator;
+	private CurrencyConversionService $conversionService;
+
+	public function __construct(
+		AccountMapper $accountMapper,
+		TransactionMapper $transactionMapper,
+		CategoryMapper $categoryMapper,
+		BudgetSnapshotMapper $budgetSnapshotMapper,
+		ReportCalculator $calculator,
+		CurrencyConversionService $conversionService,
+		private RecurringBudgetService $recurringBudgetService,
+		private BudgetCarryoverService $carryoverService,
+		private TransactionReportQueries $reportQueries,
+		private ?GranularShareService $granularShareService = null,
+		private ?CategoryMuteMapper $categoryMuteMapper = null,
+	) {
+		$this->accountMapper = $accountMapper;
+		$this->transactionMapper = $transactionMapper;
+		$this->categoryMapper = $categoryMapper;
+		$this->budgetSnapshotMapper = $budgetSnapshotMapper;
+		$this->calculator = $calculator;
+		$this->conversionService = $conversionService;
+	}
+
+	/**
+	 * Generate a comprehensive financial summary.
+	 * OPTIMIZED: Uses single aggregated query instead of N+1 pattern.
+	 * Multi-currency accounts are converted to the user's base currency for totals.
+	 * @param int[] $tagIds Optional tag filter (OR logic)
+	 * @param bool $includeUntagged Include untagged transactions when filtering by tags
+	 */
+	public function generateSummary(
+		string $userId,
+		?int $accountId,
+		string $startDate,
+		string $endDate,
+		array $tagIds = [],
+		bool $includeUntagged = true,
+		array $visibleAccountIds = [],
+	): array {
+		if ($accountId) {
+			$accounts = [$this->accountMapper->find($accountId, $userId)];
+		} elseif (!empty($visibleAccountIds)) {
+			$accounts = $this->accountMapper->findByIds($visibleAccountIds);
+		} else {
+			$accounts = $this->accountMapper->findAll($userId);
+		}
+
+		// In the "all accounts" summary, drop accounts the user flagged out of
+		// reports (#286). When a specific account is explicitly selected we keep
+		// it — the transaction aggregates are already filtered at the query layer.
+		if ($accountId === null) {
+			$accounts = array_values(array_filter($accounts, static fn ($a) => !$a->getExcludedFromReports()));
+		}
+
+		$baseCurrency = $this->conversionService->getBaseCurrency($userId);
+		$needsConversion = $accountId === null && $this->conversionService->needsConversion($accounts);
+		$unconvertedCurrencies = [];
+
+		// Build account → currency map for conversion
+		$currencyMap = [];
+		if ($needsConversion) {
+			$currencyMap = $this->conversionService->getAccountCurrencyMap($accounts);
+		}
+
+		$summary = [
+			'period' => [
+				'startDate' => $startDate,
+				'endDate' => $endDate,
+				'days' => (strtotime($endDate) - strtotime($startDate)) / (24 * 60 * 60)
+			],
+			'accounts' => [],
+			'totals' => [
+				'currentBalance' => 0,
+				'totalIncome' => 0,
+				'totalExpenses' => 0,
+				'netIncome' => 0,
+				'averageDaily' => [
+					'income' => 0,
+					'expenses' => 0
+				]
+			],
+			'spending' => [],
+			'trends' => [],
+			'baseCurrency' => $baseCurrency,
+			'currencyConverted' => $needsConversion,
+			'unconvertedCurrencies' => []
+		];
+
+		// Single aggregated query for all account summaries (replaces N+1 pattern).
+		// When a specific account is selected — even one flagged out of reports —
+		// include it so its summary isn't blank (#309).
+		$accountSummaries = $this->transactionMapper->getAccountSummaries(
+			$userId,
+			$startDate,
+			$endDate,
+			$tagIds,
+			$includeUntagged,
+			!empty($visibleAccountIds) ? $visibleAccountIds : null,
+			$accountId !== null
+		);
+
+		// Build excluded category ID set (used for totals and spending breakdown)
+		$allCategories = $this->categoryMapper->findAll($userId);
+		$excludedCategoryIds = [];
+		foreach ($allCategories as $cat) {
+			if ($cat->getExcludedFromReports()) {
+				$excludedCategoryIds[$cat->getId()] = true;
+			}
+		}
+
+		// Categories SHARED with this user keep their owner's exclude-from-reports
+		// flag. findAll() only returns own categories, so without this a share
+		// recipient saw the owner's excluded transactions (e.g. internal
+		// transfer legs) counted in their income/expense totals (#326)
+		$sharedCategoryIds = $this->granularShareService?->getSharedCategoryIds($userId) ?? [];
+		if (!empty($sharedCategoryIds)) {
+			foreach ($this->categoryMapper->findByIdsUnscoped($sharedCategoryIds) as $cat) {
+				if ($cat->getExcludedFromReports()) {
+					$excludedCategoryIds[$cat->getId()] = true;
+				}
+			}
+		}
+
+		// Per-viewer report mutes ("hide from my reports" on a shared category)
+		// apply to these totals the same way as the owner flag
+		foreach ($this->categoryMuteMapper?->findMutedCategoryIds($userId) ?? [] as $mutedId) {
+			$excludedCategoryIds[$mutedId] = true;
+		}
+
+		// Get future transaction adjustments to calculate balance as of today
+		$today = date('Y-m-d');
+		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+
+		// Money accumulates through MoneyCalculator, never float += (#274),
+		// and the totals are rounded to the currency they are in: the base
+		// currency when accounts are converted, otherwise the accounts' own.
+		$totalsCurrency = $needsConversion || empty($accounts)
+			? $baseCurrency
+			: ($accounts[0]->getCurrency() ?: $baseCurrency);
+		$decimals = Currency::decimalsFor($totalsCurrency);
+		$totalIncome = '0';
+		$totalExpenses = '0';
+		$totalBalance = '0';
+		$totalAssets = '0';
+		$totalLiabilities = '0';
+		$liabilityTypes = ['credit_card', 'loan', 'mortgage', 'line_of_credit'];
+
+		foreach ($accounts as $account) {
+			$currentAccountId = $account->getId();
+			$accountData = $accountSummaries[$currentAccountId] ?? ['income' => 0, 'expenses' => 0, 'count' => 0];
+
+			$accountIncome = $accountData['income'];
+			$accountExpenses = $accountData['expenses'];
+
+			// Calculate balance as of today (stored balance minus future transactions)
+			$storedBalance = $account->getBalance();
+			$futureChange = $futureChanges[$currentAccountId] ?? 0;
+			$currentBalance = $storedBalance - $futureChange;
+
+			$accountEntry = [
+				'id' => $currentAccountId,
+				'name' => $account->getName(),
+				'balance' => $currentBalance,
+				'currency' => $account->getCurrency(),
+				'income' => $accountIncome,
+				'expenses' => $accountExpenses,
+				'net' => $accountIncome - $accountExpenses,
+				'transactionCount' => $accountData['count']
+			];
+
+			// Convert to base currency for aggregation if needed
+			if ($needsConversion) {
+				$accountCurrency = $account->getCurrency() ?: 'USD';
+				if ($accountCurrency !== $baseCurrency) {
+					// Check if conversion is possible before attempting it
+					if (!$this->conversionService->canConvert($accountCurrency, $userId)) {
+						$unconvertedCurrencies[] = $accountCurrency;
+						$summary['accounts'][] = $accountEntry;
+						continue;
+					}
+
+					$currentBalance = $this->conversionService->convertToBaseFloat($currentBalance, $accountCurrency, $userId);
+					$accountIncome = $this->conversionService->convertToBaseFloat($accountIncome, $accountCurrency, $userId);
+					$accountExpenses = $this->conversionService->convertToBaseFloat($accountExpenses, $accountCurrency, $userId);
+
+					// Include fiat equivalent for frontend display
+					$accountEntry['convertedBalance'] = $currentBalance;
+					$accountEntry['baseCurrency'] = $baseCurrency;
+				}
+			}
+
+			$summary['accounts'][] = $accountEntry;
+
+			$totalBalance = MoneyCalculator::add($totalBalance, $currentBalance, self::SUM_SCALE);
+			if (in_array($account->getType(), $liabilityTypes, true) && $currentBalance < 0) {
+				// Amount owed. A liability in credit (positive) is money you have,
+				// so it belongs in assets — otherwise abs() below turns a credit
+				// into a phantom debt and net worth moves the wrong way (#353).
+				$totalLiabilities = MoneyCalculator::add($totalLiabilities, $currentBalance, self::SUM_SCALE);
+			} else {
+				$totalAssets = MoneyCalculator::add($totalAssets, $currentBalance, self::SUM_SCALE);
+			}
+			$totalIncome = MoneyCalculator::add($totalIncome, $accountIncome, self::SUM_SCALE);
+			$totalExpenses = MoneyCalculator::add($totalExpenses, $accountExpenses, self::SUM_SCALE);
+		}
+
+		// Exclude transfers from aggregate totals (all-accounts view only)
+		// Transfers are zero-sum across accounts and should not inflate income/expenses
+		if ($accountId === null) {
+			if ($needsConversion) {
+				// Per-account transfer totals so we can convert each account's transfers
+				$transfersByAccount = $this->transactionMapper->getTransferTotalsByAccount(
+					$userId, $startDate, $endDate, $tagIds, $includeUntagged,
+					!empty($visibleAccountIds) ? $visibleAccountIds : null
+				);
+				foreach ($transfersByAccount as $accId => $transfers) {
+					$accCurrency = $currencyMap[$accId] ?? $baseCurrency;
+					$totalIncome = MoneyCalculator::subtract($totalIncome, $this->conversionService->convertToBaseFloat($transfers['income'], $accCurrency, $userId), self::SUM_SCALE);
+					$totalExpenses = MoneyCalculator::subtract($totalExpenses, $this->conversionService->convertToBaseFloat($transfers['expenses'], $accCurrency, $userId), self::SUM_SCALE);
+				}
+			} else {
+				$transferTotals = $this->transactionMapper->getTransferTotals(
+					$userId, $startDate, $endDate, $tagIds, $includeUntagged,
+					!empty($visibleAccountIds) ? $visibleAccountIds : null
+				);
+				$totalIncome = MoneyCalculator::subtract($totalIncome, $transferTotals['income'], self::SUM_SCALE);
+				$totalExpenses = MoneyCalculator::subtract($totalExpenses, $transferTotals['expenses'], self::SUM_SCALE);
+			}
+		}
+
+		// Exclude transactions in excluded-from-reports categories from totals.
+		// In all-accounts view, transfers were already subtracted above, so skip
+		// all linked transfers here to avoid double-subtraction. Grouped by
+		// account so each account's amounts get the same currency conversion as
+		// the income/expense totals they are deducted from, and so a selected
+		// account only has its own excluded transactions deducted (#326).
+		if (!empty($excludedCategoryIds)) {
+			$excludedIds = array_keys($excludedCategoryIds);
+			$excludedByAccount = $this->transactionMapper->getCategoryTotalsByAccount(
+				$excludedIds,
+				$startDate,
+				$endDate,
+				$accountId,
+				$accountId === null
+			);
+			foreach ($excludedByAccount as $accId => $excluded) {
+				$excludedIncome = $excluded['income'];
+				$excludedExpenses = $excluded['expenses'];
+				if ($needsConversion) {
+					$accCurrency = $currencyMap[$accId] ?? $baseCurrency;
+					if ($accCurrency !== $baseCurrency) {
+						// Accounts whose currency cannot be converted never made
+						// it into the totals, so there is nothing to deduct
+						if (!$this->conversionService->canConvert($accCurrency, $userId)) {
+							continue;
+						}
+						$excludedIncome = $this->conversionService->convertToBaseFloat($excludedIncome, $accCurrency, $userId);
+						$excludedExpenses = $this->conversionService->convertToBaseFloat($excludedExpenses, $accCurrency, $userId);
+					}
+				}
+				$totalIncome = MoneyCalculator::subtract($totalIncome, $excludedIncome, self::SUM_SCALE);
+				$totalExpenses = MoneyCalculator::subtract($totalExpenses, $excludedExpenses, self::SUM_SCALE);
+			}
+		}
+
+		$summary['totals']['currentBalance'] = round((float)$totalBalance, $decimals);
+		$summary['totals']['totalIncome'] = round((float)$totalIncome, $decimals);
+		$summary['totals']['totalExpenses'] = round((float)$totalExpenses, $decimals);
+		$summary['totals']['netIncome'] = round((float)MoneyCalculator::subtract($totalIncome, $totalExpenses, self::SUM_SCALE), $decimals);
+		$summary['totals']['totalAssets'] = round((float)$totalAssets, $decimals);
+		$summary['totals']['totalLiabilities'] = round(abs((float)$totalLiabilities), $decimals);
+		$summary['unconvertedCurrencies'] = array_values(array_unique($unconvertedCurrencies));
+
+		$days = $summary['period']['days'];
+		if ($days > 0) {
+			$summary['totals']['averageDaily']['income'] = $summary['totals']['totalIncome'] / $days;
+			$summary['totals']['averageDaily']['expenses'] = $summary['totals']['totalExpenses'] / $days;
+		}
+
+		$excludeTransfers = $accountId === null;
+
+		// Spending breakdown. Excluded and muted categories are dropped by
+		// the mapper's report choke point (#219), never filtered here.
+		$spending = $this->transactionMapper->getSpendingSummary(
+			$userId,
+			$startDate,
+			$endDate,
+			$accountId,
+			$tagIds,
+			$includeUntagged,
+			$excludeTransfers,
+			!empty($visibleAccountIds) ? $visibleAccountIds : null
+		);
+		$summary['spending'] = $spending;
+
+		// Generate trend data (with currency conversion for multi-account view)
+		$summary['trends'] = $this->generateTrendData($userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, !empty($visibleAccountIds) ? $visibleAccountIds : null);
+
+		return $summary;
+	}
+
+	/**
+	 * Generate summary with comparison to previous period.
+	 * @param int[] $tagIds Optional tag filter (OR logic)
+	 * @param bool $includeUntagged Include untagged transactions when filtering by tags
+	 */
+	public function generateSummaryWithComparison(
+		string $userId,
+		?int $accountId,
+		string $startDate,
+		string $endDate,
+		array $tagIds = [],
+		bool $includeUntagged = true,
+		array $visibleAccountIds = [],
+	): array {
+		// Current period
+		$current = $this->generateSummary($userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $visibleAccountIds);
+
+		// Calculate previous period (same duration)
+		$start = new \DateTime($startDate);
+		$end = new \DateTime($endDate);
+		$interval = $start->diff($end);
+
+		$prevEnd = clone $start;
+		$prevEnd->modify('-1 day');
+		$prevStart = clone $prevEnd;
+		$prevStart->sub($interval);
+
+		$previous = $this->generateSummary(
+			$userId,
+			$accountId,
+			$prevStart->format('Y-m-d'),
+			$prevEnd->format('Y-m-d'),
+			$tagIds,
+			$includeUntagged,
+			$visibleAccountIds
+		);
+
+		// Calculate changes
+		$current['comparison'] = [
+			'previousPeriod' => [
+				'startDate' => $prevStart->format('Y-m-d'),
+				'endDate' => $prevEnd->format('Y-m-d')
+			],
+			'changes' => [
+				'income' => $this->calculator->calculatePercentChange(
+					$previous['totals']['totalIncome'] ?? 0,
+					$current['totals']['totalIncome'] ?? 0
+				),
+				'expenses' => $this->calculator->calculatePercentChange(
+					$previous['totals']['totalExpenses'] ?? 0,
+					$current['totals']['totalExpenses'] ?? 0
+				),
+				'netIncome' => $this->calculator->calculatePercentChange(
+					$previous['totals']['netIncome'] ?? 0,
+					$current['totals']['netIncome'] ?? 0
+				)
+			],
+			'previousTotals' => $previous['totals'] ?? []
+		];
+
+		return $current;
+	}
+
+	/**
+	 * Generate budget report with category-by-category breakdown.
+	 * OPTIMIZED: Uses single batch query instead of N queries for N categories.
+	 */
+	public function getBudgetReport(string $userId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null, ?string $snapshotMonth = null): array {
+		$categories = $this->categoryMapper->findAll($userId);
+		$budgetReport = [];
+		// Running totals as strings through MoneyCalculator (#274)
+		$sum = ['budgeted' => '0', 'spent' => '0', 'remaining' => '0'];
+
+		// A custom cycle spans calendar months, so its budget snapshot cannot
+		// be inferred from the transaction range's start date.
+		$reportMonth = $snapshotMonth ?? substr($startDate, 0, 7);
+		if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/D', $reportMonth)) {
+			throw new \InvalidArgumentException('Invalid snapshot month');
+		}
+		$snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $reportMonth);
+
+		// Auto-derived recurring budgets (#269) apply to current/future months
+		// only — they reflect today's bills and must not rewrite history.
+		// Mirrors the Budget view's rule so both surfaces agree.
+		$recurringBudgets = $reportMonth >= $this->carryoverService->currentBudgetMonth($userId)
+			? $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId)
+			: [];
+
+		// Envelope carryover is a monthly concept: apply it only when the
+		// requested range is exactly one month - a calendar month, or the
+		// user's budget period for the report month, which is what the
+		// dashboard asks for with a custom start day (#386). Arbitrary ranges
+		// get base budgets.
+		$isSingleMonth = ($startDate === $reportMonth . '-01'
+				&& $endDate === date('Y-m-t', strtotime($startDate)))
+			|| [$startDate, $endDate] === $this->carryoverService->budgetMonthRange($userId, $reportMonth);
+		$carryovers = $isSingleMonth
+			? $this->carryoverService->getCarryovers($userId, $reportMonth, $categories, $visibleAccountIds)
+			: [];
+
+		// Collect category IDs that have budgets (considering snapshots and
+		// envelope carryover, skipping categories excluded from reports and
+		// those the user doesn't budget against). A non-zero carryover keeps
+		// the category in the report even when its base is 0 — a depleted
+		// envelope must show as over budget, not vanish.
+		$categoryIds = [];
+		$expenseCategoryIds = [];
+		$incomeCategoryIds = [];
+		$resolvedBudgets = [];
+		$resolvedBases = [];
+		$notBudgeted = BudgetScope::excludedCategoryIds($categories);
+		foreach ($categories as $category) {
+			if ($category->getExcludedFromReports() || isset($notBudgeted[$category->getId()])) {
+				continue;
+			}
+			$catId = $category->getId();
+			$budgeted = isset($snapshotOverrides[$catId])
+				? (float)($snapshotOverrides[$catId]['amount'] ?? 0)
+				: (float)($category->getBudgetAmount() ?? 0);
+			if ($budgeted <= 0 && isset($recurringBudgets[$catId])) {
+				$budgeted = $this->recurringBudgetService->convertMonthlyToPeriod(
+					(float)$recurringBudgets[$catId],
+					$category->getBudgetPeriod() ?? 'monthly'
+				);
+			}
+			$carried = (float)($carryovers[$catId] ?? 0);
+			if ($budgeted > 0 || abs($carried) >= 0.005) {
+				$categoryIds[] = $catId;
+				if ($category->getType() === 'income') {
+					$incomeCategoryIds[] = $catId;
+				} else {
+					$expenseCategoryIds[] = $catId;
+				}
+				$resolvedBases[$catId] = $budgeted;
+				$resolvedBudgets[$catId] = round($budgeted + $carried, 2);
+			}
+		}
+
+		// One batch query per direction, replacing an N+1 pattern. An income
+		// category is measured by what came IN, so asking for debits reported
+		// nothing against its budget; now that the figure is net (#361) it
+		// would have reported a negative one. The Budget page has always split
+		// the two this way — see CategoryService::getBudgetAnalysis. Spent
+		// is held to the accounts in view, as the carryover above already
+		// is and the Budget page's spent figures are (#551).
+		// A budget measures its whole branch: spending filed under a
+		// subcategory without a budget of its own counts toward the parent,
+		// the same branches the alerts measure (#551).
+		$branches = BudgetScope::spendingBranches($categories, array_fill_keys($categoryIds, true));
+		$memberIds = static fn (array $roots): array => array_values(array_unique(array_merge(
+			[], ...array_map(fn (int $id) => $branches[$id] ?? [$id], $roots)
+		)));
+		$spendingScope = !empty($visibleAccountIds) ? $visibleAccountIds : null;
+		$memberSpending = $this->transactionMapper->getCategorySpendingBatch(
+			$memberIds($expenseCategoryIds), $startDate, $endDate, 'debit', $accountId, false, $userId, $spendingScope
+		) + $this->transactionMapper->getCategorySpendingBatch(
+			$memberIds($incomeCategoryIds), $startDate, $endDate, 'credit', $accountId, false, $userId, $spendingScope
+		);
+		$categorySpending = [];
+		foreach ($categoryIds as $catId) {
+			$spent = '0';
+			foreach ($branches[$catId] ?? [$catId] as $memberId) {
+				$spent = MoneyCalculator::add($spent, $memberSpending[$memberId] ?? 0.0, self::SUM_SCALE);
+			}
+			$categorySpending[$catId] = round((float)$spent, 2);
+		}
+
+		foreach ($categories as $category) {
+			$categoryId = $category->getId();
+			if (isset($resolvedBudgets[$categoryId])) {
+				$spent = $categorySpending[$categoryId] ?? 0;
+
+				$budgeted = $resolvedBudgets[$categoryId];
+				$remaining = round((float)MoneyCalculator::subtract($budgeted, $spent, self::SUM_SCALE), 2);
+				// Depleted envelope (available <= 0): any spending is over budget
+				$percentage = $budgeted > 0 ? ($spent / $budgeted) * 100 : ($spent > 0 ? 100 : 0);
+
+				$budgetReport[] = [
+					'categoryId' => $categoryId,
+					'categoryName' => $category->getName(),
+					'budgeted' => $budgeted,
+					'baseBudget' => $resolvedBases[$categoryId],
+					'carried' => round($budgeted - $resolvedBases[$categoryId], 2),
+					'spent' => $spent,
+					'remaining' => $remaining,
+					'percentage' => $percentage,
+					'status' => $this->calculator->getBudgetStatus($percentage),
+					'color' => $category->getColor()
+				];
+
+				$sum['budgeted'] = MoneyCalculator::add($sum['budgeted'], $budgeted, self::SUM_SCALE);
+				$sum['spent'] = MoneyCalculator::add($sum['spent'], $spent, self::SUM_SCALE);
+				$sum['remaining'] = MoneyCalculator::add($sum['remaining'], $remaining, self::SUM_SCALE);
+			}
+		}
+		$totals = array_map(static fn (string $amount) => round((float)$amount, 2), $sum);
+
+		return [
+			'period' => [
+				'startDate' => $startDate,
+				'endDate' => $endDate
+			],
+			'categories' => $budgetReport,
+			'totals' => $totals,
+			'overallStatus' => $this->calculator->getBudgetStatus(
+				$totals['budgeted'] > 0 ? ($totals['spent'] / $totals['budgeted']) * 100 : 0
+			)
+		];
+	}
+
+	/**
+	 * Generate cash flow report by month.
+	 * Multi-currency accounts are converted to base currency in all-accounts view.
+	 * @param int[] $tagIds Optional tag filter (OR logic)
+	 * @param bool $includeUntagged Include untagged transactions when filtering by tags
+	 */
+	public function getCashFlowReport(
+		string $userId,
+		?int $accountId,
+		string $startDate,
+		string $endDate,
+		array $tagIds = [],
+		bool $includeUntagged = true,
+		?array $visibleAccountIds = null,
+	): array {
+		$excludeTransfers = $accountId === null;
+
+		// Check if multi-currency conversion is needed
+		if ($accountId === null) {
+			$accounts = !empty($visibleAccountIds)
+				? $this->accountMapper->findByIds($visibleAccountIds)
+				: $this->accountMapper->findAll($userId);
+			// Excluded accounts contribute no transactions, so keep them out of
+			// the currency-conversion setup too (#286)
+			$accounts = array_values(array_filter($accounts, static fn ($a) => !$a->getExcludedFromReports()));
+			$needsConversion = $this->conversionService->needsConversion($accounts);
+
+			if ($needsConversion) {
+				$currencyMap = $this->conversionService->getAccountCurrencyMap($accounts);
+				$cashFlow = $this->convertCashFlowByAccount(
+					$userId, $startDate, $endDate, $currencyMap, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
+				);
+			} else {
+				$cashFlow = $this->reportQueries->getCashFlowByMonth(
+					$userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
+				);
+			}
+		} else {
+			$cashFlow = $this->reportQueries->getCashFlowByMonth(
+				$userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers
+			);
+		}
+
+		// Totals through MoneyCalculator, never float += (#274). Kept at the
+		// wide scale rather than rounded: a single account may be crypto.
+		$totals = [
+			'income' => (float)MoneyCalculator::sum(array_column($cashFlow, 'income'), self::SUM_SCALE),
+			'expenses' => (float)MoneyCalculator::sum(array_column($cashFlow, 'expenses'), self::SUM_SCALE),
+			'net' => (float)MoneyCalculator::sum(array_column($cashFlow, 'net'), self::SUM_SCALE),
+		];
+
+		$monthCount = count($cashFlow);
+
+		return [
+			'period' => ['startDate' => $startDate, 'endDate' => $endDate],
+			'data' => $cashFlow,
+			'totals' => $totals,
+			'averageMonthly' => [
+				'income' => $monthCount > 0 ? $totals['income'] / $monthCount : 0,
+				'expenses' => $monthCount > 0 ? $totals['expenses'] / $monthCount : 0,
+				'net' => $monthCount > 0 ? $totals['net'] / $monthCount : 0
+			]
+		];
+	}
+
+	/**
+	 * Convert per-account-per-month cash flow data to base currency and aggregate by month.
+	 *
+	 * @param array<int, string> $currencyMap accountId → currency code
+	 */
+	private function convertCashFlowByAccount(
+		string $userId,
+		string $startDate,
+		string $endDate,
+		array $currencyMap,
+		array $tagIds,
+		bool $includeUntagged,
+		bool $excludeTransfers,
+		?array $visibleAccountIds = null,
+	): array {
+		$perAccountData = $this->reportQueries->getCashFlowByMonthByAccount(
+			$userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
+		);
+
+		$baseCurrency = $this->conversionService->getBaseCurrency($userId);
+		$byMonth = [];
+
+		foreach ($perAccountData as $row) {
+			$month = $row['month'];
+			$accCurrency = $currencyMap[$row['account_id']] ?? $baseCurrency;
+
+			$income = $this->conversionService->convertToBaseFloat($row['income'], $accCurrency, $userId);
+			$expenses = $this->conversionService->convertToBaseFloat($row['expenses'], $accCurrency, $userId);
+
+			if (!isset($byMonth[$month])) {
+				$byMonth[$month] = ['month' => $month, 'income' => '0', 'expenses' => '0', 'net' => 0];
+			}
+			$byMonth[$month]['income'] = MoneyCalculator::add($byMonth[$month]['income'], $income, self::SUM_SCALE);
+			$byMonth[$month]['expenses'] = MoneyCalculator::add($byMonth[$month]['expenses'], $expenses, self::SUM_SCALE);
+		}
+
+		// Recalculate net after aggregation
+		foreach ($byMonth as &$monthData) {
+			$monthData['net'] = (float)MoneyCalculator::subtract($monthData['income'], $monthData['expenses'], self::SUM_SCALE);
+			$monthData['income'] = (float)$monthData['income'];
+			$monthData['expenses'] = (float)$monthData['expenses'];
+		}
+		unset($monthData);
+
+		ksort($byMonth);
+		return array_values($byMonth);
+	}
+
+	/**
+	 * Generate monthly trend data for charts.
+	 * Multi-currency accounts are converted to base currency in all-accounts view.
+	 * @param int[] $tagIds Optional tag filter (OR logic)
+	 * @param bool $includeUntagged Include untagged transactions when filtering by tags
+	 */
+	public function generateTrendData(
+		string $userId,
+		?int $accountId,
+		string $startDate,
+		string $endDate,
+		array $tagIds = [],
+		bool $includeUntagged = true,
+		?array $visibleAccountIds = null,
+	): array {
+		$excludeTransfers = $accountId === null;
+
+		// Check if multi-currency conversion is needed
+		if ($accountId === null) {
+			$accounts = !empty($visibleAccountIds)
+				? $this->accountMapper->findByIds($visibleAccountIds)
+				: $this->accountMapper->findAll($userId);
+			// Keep excluded accounts out of the conversion setup (#286)
+			$accounts = array_values(array_filter($accounts, static fn ($a) => !$a->getExcludedFromReports()));
+			$needsConversion = $this->conversionService->needsConversion($accounts);
+
+			if ($needsConversion) {
+				$currencyMap = $this->conversionService->getAccountCurrencyMap($accounts);
+				$dataByMonth = $this->convertTrendDataByAccount(
+					$userId, $startDate, $endDate, $currencyMap, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
+				);
+			} else {
+				$monthlyData = $this->reportQueries->getMonthlyTrendData(
+					$userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
+				);
+				$dataByMonth = [];
+				foreach ($monthlyData as $row) {
+					$dataByMonth[$row['month']] = $row;
+				}
+			}
+		} else {
+			$monthlyData = $this->reportQueries->getMonthlyTrendData(
+				$userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, false
+			);
+			$dataByMonth = [];
+			foreach ($monthlyData as $row) {
+				$dataByMonth[$row['month']] = $row;
+			}
+		}
+
+		// `months` (Y-m) is what the web UI formats, in the user's own
+		// language; `labels` stays as the English "M Y" for anything that
+		// still reads it.
+		$trends = [
+			'labels' => [],
+			'months' => [],
+			'income' => [],
+			'expenses' => []
+		];
+
+		$start = new \DateTime($startDate);
+		$end = new \DateTime($endDate);
+		$interval = new \DateInterval('P1M');
+
+		$current = clone $start;
+		while ($current <= $end) {
+			$month = $current->format('Y-m');
+			$trends['labels'][] = $current->format('M Y');
+			$trends['months'][] = $month;
+
+			$monthData = $dataByMonth[$month] ?? ['income' => 0, 'expenses' => 0];
+			$trends['income'][] = $monthData['income'];
+			$trends['expenses'][] = $monthData['expenses'];
+
+			$current->add($interval);
+		}
+
+		return $trends;
+	}
+
+	/**
+	 * Category-by-month matrix report (#288). One row per category, ordered
+	 * alphabetically (or by total) with children indented under their parents;
+	 * columns are each calendar month in the range. Cell value is the signed net
+	 * for that category and month — income positive, expense negative — including
+	 * split allocations. Parent rows include the totals of all their descendants.
+	 *
+	 * The money is report-scoped in SQL like every other grouping
+	 * (TransactionReportQueries::getCategoryNetByMonth()): report-excluded
+	 * accounts and categories, categories the viewer muted, future scheduled
+	 * rows, pension legs and - in the all-accounts view - transfers never
+	 * count. This method only shapes the rows.
+	 *
+	 * Amounts are summed in their stored currency; for a single-currency budget
+	 * this is exact. (Multi-currency conversion is not applied here.)
+	 *
+	 * @param string $sort 'alpha' (default) or 'total'
+	 * @param int[] $visibleAccountIds
+	 * @return array{period: array, sort: string, baseCurrency: string, rows: array, totals: array}
+	 */
+	public function getCategoryMonthlyReport(
+		string $userId,
+		string $startDate,
+		string $endDate,
+		?int $accountId = null,
+		string $sort = 'alpha',
+		array $visibleAccountIds = [],
+	): array {
+		$sort = $sort === 'total' ? 'total' : 'alpha';
+		$vis = !empty($visibleAccountIds) ? $visibleAccountIds : null;
+		$months = $this->buildMonthList($startDate, $endDate);
+
+		// Signed net per category per month: each category's OWN amounts
+		// (direct + split parts), already report-scoped in SQL
+		$own = $this->reportQueries->getCategoryNetByMonth($userId, $startDate, $endDate, $accountId, $vis);
+
+		// Rows: a category excluded from reports, or muted by this viewer,
+		// carries no money (the query dropped it) and is not shown either;
+		// its non-excluded children are promoted to the nearest shown
+		// ancestor (or to the root). Orphans (parent missing) are roots.
+		$categories = $this->categoryMapper->findAll($userId);
+		$excluded = [];
+		$parentOf = [];
+		foreach ($categories as $c) {
+			$parentOf[$c->getId()] = $c->getParentId();
+			if ($c->getExcludedFromReports()) {
+				$excluded[$c->getId()] = true;
+			}
+		}
+		foreach ($this->categoryMuteMapper?->findMutedCategoryIds($userId) ?? [] as $mutedId) {
+			$excluded[(int)$mutedId] = true;
+		}
+		// Walk up to the nearest non-excluded ancestor (null => becomes a root)
+		$effectiveParent = function (?int $pid) use ($parentOf, $excluded): ?int {
+			$guard = 0;
+			while ($pid !== null && isset($excluded[$pid]) && $guard < 100) {
+				$pid = $parentOf[$pid] ?? null;
+				$guard++;
+			}
+			return $pid;
+		};
+
+		$byId = [];
+		foreach ($categories as $c) {
+			if (!isset($excluded[$c->getId()])) {
+				$byId[$c->getId()] = $c;
+			}
+		}
+		$childrenOf = [];
+		$rootIds = [];
+		foreach ($categories as $c) {
+			if (isset($excluded[$c->getId()])) {
+				continue;
+			}
+			$pid = $effectiveParent($c->getParentId());
+			if ($pid !== null && isset($byId[$pid])) {
+				$childrenOf[$pid][] = $c->getId();
+			} else {
+				$rootIds[] = $c->getId();
+			}
+		}
+
+		// Roll each category's descendants up into it (post-order)
+		$rolled = [];
+		$rollup = function (int $catId) use (&$rollup, &$rolled, $own, $childrenOf): array {
+			$acc = $own[$catId] ?? [];
+			foreach ($childrenOf[$catId] ?? [] as $childId) {
+				foreach ($rollup($childId) as $m => $v) {
+					$acc[$m] = ($acc[$m] ?? 0.0) + $v;
+				}
+			}
+			$rolled[$catId] = $acc;
+			return $acc;
+		};
+		foreach ($rootIds as $rid) {
+			$rollup($rid);
+		}
+
+		// Emit rows depth-first: each node, then its (sorted) children
+		$rows = [];
+		$emit = function (int $catId, int $depth) use (&$emit, &$rows, $byId, $childrenOf, $rolled, $months, $sort): void {
+			$c = $byId[$catId];
+			$monthly = [];
+			$total = 0.0;
+			foreach ($months as $m) {
+				$val = round($rolled[$catId][$m] ?? 0.0, 2);
+				$monthly[$m] = $val;
+				$total += $val;
+			}
+			$kids = $childrenOf[$catId] ?? [];
+			$rows[] = [
+				'categoryId' => $catId,
+				'name' => $c->getName(),
+				'type' => $c->getType(),
+				'color' => $c->getColor(),
+				'depth' => $depth,
+				'isParent' => !empty($kids),
+				'monthly' => $monthly,
+				'total' => round($total, 2),
+			];
+			foreach ($this->sortCategoryIds($kids, $byId, $rolled, $sort) as $kid) {
+				$emit($kid, $depth + 1);
+			}
+		};
+		foreach ($this->sortCategoryIds($rootIds, $byId, $rolled, $sort) as $rid) {
+			$emit($rid, 0);
+		}
+
+		// Grand totals per month + overall: sum each category's OWN net (avoids
+		// double-counting the rolled-up parent rows).
+		$grandMonthly = [];
+		$grandTotal = 0.0;
+		foreach ($months as $m) {
+			$s = 0.0;
+			foreach ($own as $monthMap) {
+				$s += $monthMap[$m] ?? 0.0;
+			}
+			$grandMonthly[$m] = round($s, 2);
+			$grandTotal += $grandMonthly[$m];
+		}
+
+		// Amounts are summed in their stored currency (no conversion here); flag
+		// when the user has accounts in more than one currency so the UI can warn.
+		$reportAccounts = !empty($visibleAccountIds)
+			? $this->accountMapper->findByIds($visibleAccountIds)
+			: $this->accountMapper->findAll($userId);
+		$reportAccounts = array_values(array_filter($reportAccounts, static fn ($a) => !$a->getExcludedFromReports()));
+		$mixedCurrency = $this->conversionService->needsConversion($reportAccounts);
+
+		return [
+			'period' => ['startDate' => $startDate, 'endDate' => $endDate, 'months' => $months],
+			'sort' => $sort,
+			'baseCurrency' => $this->conversionService->getBaseCurrency($userId),
+			'mixedCurrency' => $mixedCurrency,
+			'rows' => $rows,
+			'totals' => ['monthly' => $grandMonthly, 'total' => round($grandTotal, 2)],
+		];
+	}
+
+	/**
+	 * List of 'YYYY-MM' month keys from startDate to endDate inclusive.
+	 *
+	 * @return string[]
+	 */
+	private function buildMonthList(string $startDate, string $endDate): array {
+		$months = [];
+		$cur = strtotime(substr($startDate, 0, 7) . '-01');
+		$end = strtotime(substr($endDate, 0, 7) . '-01');
+		// Guard against pathological ranges
+		$guard = 0;
+		while ($cur !== false && $cur <= $end && $guard < 600) {
+			$months[] = date('Y-m', $cur);
+			$cur = strtotime('+1 month', $cur);
+			$guard++;
+		}
+		return $months;
+	}
+
+	/**
+	 * Sort category IDs alphabetically by name, or by absolute rolled-up total
+	 * (largest magnitude first) when $sort === 'total'.
+	 *
+	 * @param int[] $ids
+	 * @param array<int, \OCA\Budget\Db\Category> $byId
+	 * @param array<int, array<string, float>> $rolled
+	 * @return int[]
+	 */
+	private function sortCategoryIds(array $ids, array $byId, array $rolled, string $sort): array {
+		usort($ids, function (int $a, int $b) use ($byId, $rolled, $sort) {
+			if ($sort === 'total') {
+				$ta = array_sum($rolled[$a] ?? []);
+				$tb = array_sum($rolled[$b] ?? []);
+				$cmp = abs($tb) <=> abs($ta);
+				if ($cmp !== 0) {
+					return $cmp;
+				}
+			}
+			return strcasecmp($byId[$a]->getName(), $byId[$b]->getName());
+		});
+		return $ids;
+	}
+
+	/**
+	 * Convert per-account-per-month trend data to base currency and aggregate by month.
+	 *
+	 * @param array<int, string> $currencyMap accountId → currency code
+	 * @return array<string, array{income: float, expenses: float}> month → totals
+	 */
+	private function convertTrendDataByAccount(
+		string $userId,
+		string $startDate,
+		string $endDate,
+		array $currencyMap,
+		array $tagIds,
+		bool $includeUntagged,
+		bool $excludeTransfers,
+		?array $visibleAccountIds = null,
+	): array {
+		$perAccountData = $this->reportQueries->getMonthlyTrendDataByAccount(
+			$userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
+		);
+
+		$baseCurrency = $this->conversionService->getBaseCurrency($userId);
+		$byMonth = [];
+
+		foreach ($perAccountData as $row) {
+			$month = $row['month'];
+			$accCurrency = $currencyMap[$row['account_id']] ?? $baseCurrency;
+
+			$income = $this->conversionService->convertToBaseFloat($row['income'], $accCurrency, $userId);
+			$expenses = $this->conversionService->convertToBaseFloat($row['expenses'], $accCurrency, $userId);
+
+			if (!isset($byMonth[$month])) {
+				$byMonth[$month] = ['income' => '0', 'expenses' => '0'];
+			}
+			$byMonth[$month]['income'] = MoneyCalculator::add($byMonth[$month]['income'], $income, self::SUM_SCALE);
+			$byMonth[$month]['expenses'] = MoneyCalculator::add($byMonth[$month]['expenses'], $expenses, self::SUM_SCALE);
+		}
+
+		return array_map(static fn (array $m) => [
+			'income' => (float)$m['income'],
+			'expenses' => (float)$m['expenses'],
+		], $byMonth);
+	}
+
+	/**
+	 * Get tag dimensions for spending across categories.
+	 * Returns tag breakdown for each category that has tag sets.
+	 *
+	 * @param string $userId
+	 * @param string $startDate
+	 * @param string $endDate
+	 * @param int|null $accountId Optional account filter
+	 * @param int|null $categoryId Optional single category filter
+	 * @return array Array of category data with tag dimensions
+	 */
+	public function getTagDimensions(
+		string $userId,
+		string $startDate,
+		string $endDate,
+		?int $accountId = null,
+		?int $categoryId = null,
+		?array $visibleAccountIds = null,
+	): array {
+		if ($categoryId !== null) {
+			// Single category
+			$dimensions = $this->reportQueries->getTagDimensionsForCategory(
+				$userId,
+				$categoryId,
+				$startDate,
+				$endDate,
+				$accountId,
+				$visibleAccountIds
+			);
+
+			$category = $this->categoryMapper->find($categoryId, $userId);
+
+			return [
+				'categories' => [[
+					'categoryId' => $categoryId,
+					'categoryName' => $category->getName(),
+					'categoryColor' => $category->getColor(),
+					'tagDimensions' => $dimensions
+				]]
+			];
+		}
+
+		// All categories with spending
+		$spending = $this->transactionMapper->getSpendingSummary($userId, $startDate, $endDate, visibleAccountIds: $visibleAccountIds);
+		$result = [];
+
+		foreach ($spending as $categoryData) {
+			$catId = (int)$categoryData['id'];
+			$dimensions = $this->reportQueries->getTagDimensionsForCategory(
+				$userId,
+				$catId,
+				$startDate,
+				$endDate,
+				$accountId,
+				$visibleAccountIds
+			);
+
+			if (!empty($dimensions)) {
+				$result[] = [
+					'categoryId' => $catId,
+					'categoryName' => $categoryData['name'],
+					'categoryColor' => $categoryData['color'],
+					'categoryTotal' => (float)$categoryData['total'],
+					'tagDimensions' => $dimensions
+				];
+			}
+		}
+
+		return ['categories' => $result];
+	}
 }

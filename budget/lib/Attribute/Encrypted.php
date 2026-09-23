@@ -21,11 +21,11 @@ use Attribute;
  */
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class Encrypted {
-    /**
-     * @param bool $nullable Whether null values are allowed (skip encryption)
-     */
-    public function __construct(
-        public readonly bool $nullable = true
-    ) {
-    }
+	/**
+	 * @param bool $nullable Whether null values are allowed (skip encryption)
+	 */
+	public function __construct(
+		public readonly bool $nullable = true,
+	) {
+	}
 }

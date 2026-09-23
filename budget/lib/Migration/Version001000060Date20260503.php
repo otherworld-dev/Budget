@@ -15,28 +15,28 @@ use OCP\Migration\SimpleMigrationStep;
  * Used as the transaction description when auto-generating transactions.
  */
 class Version001000060Date20260503 extends SimpleMigrationStep {
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        $billsTable = $schema->getTable('budget_bills');
-        if (!$billsTable->hasColumn('description')) {
-            $billsTable->addColumn('description', Types::STRING, [
-                'notnull' => false,
-                'length' => 255,
-                'default' => null,
-            ]);
-        }
+		$billsTable = $schema->getTable('budget_bills');
+		if (!$billsTable->hasColumn('description')) {
+			$billsTable->addColumn('description', Types::STRING, [
+				'notnull' => false,
+				'length' => 255,
+				'default' => null,
+			]);
+		}
 
-        $incomeTable = $schema->getTable('budget_recurring_income');
-        if (!$incomeTable->hasColumn('description')) {
-            $incomeTable->addColumn('description', Types::STRING, [
-                'notnull' => false,
-                'length' => 255,
-                'default' => null,
-            ]);
-        }
+		$incomeTable = $schema->getTable('budget_recurring_income');
+		if (!$incomeTable->hasColumn('description')) {
+			$incomeTable->addColumn('description', Types::STRING, [
+				'notnull' => false,
+				'length' => 255,
+				'default' => null,
+			]);
+		}
 
-        return $schema;
-    }
+		return $schema;
+	}
 }

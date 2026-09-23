@@ -6,9 +6,9 @@ namespace OCA\Budget\Service\Import;
 
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Db\Transaction;
-use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\TransactionTagService;
 use Psr\Log\LoggerInterface;
@@ -39,7 +39,7 @@ class RuleActionApplicator {
 		CategoryMapper $categoryMapper,
 		AccountMapper $accountMapper,
 		GranularShareService $granularShareService,
-		LoggerInterface $logger
+		LoggerInterface $logger,
 	) {
 		$this->transactionTagService = $transactionTagService;
 		$this->categoryMapper = $categoryMapper;
@@ -174,7 +174,7 @@ class RuleActionApplicator {
 		array $actionList,
 		string $userId,
 		array &$appliedActions,
-		array &$changes
+		array &$changes,
 	): void {
 		// Sort actions by priority (higher first)
 		usort($actionList, function ($a, $b) {
@@ -209,7 +209,7 @@ class RuleActionApplicator {
 		array $action,
 		string $userId,
 		array &$appliedActions,
-		array &$changes
+		array &$changes,
 	): void {
 		$type = $action['type'] ?? null;
 		$value = $action['value'] ?? null;

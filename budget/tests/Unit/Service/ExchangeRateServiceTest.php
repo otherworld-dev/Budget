@@ -236,11 +236,11 @@ XML;
 		$this->assertEquals(ExchangeRate::SOURCE_COINGECKO, $upsertedRates['BTC']['source']);
 
 		// BTC: 1 / 50000 = 0.00002 BTC per 1 EUR
-		$btcRate = (float) $upsertedRates['BTC']['rate'];
+		$btcRate = (float)$upsertedRates['BTC']['rate'];
 		$this->assertEqualsWithDelta(0.00002, $btcRate, 0.000001);
 
 		// ETH: 1 / 2500 = 0.0004 ETH per 1 EUR
-		$ethRate = (float) $upsertedRates['ETH']['rate'];
+		$ethRate = (float)$upsertedRates['ETH']['rate'];
 		$this->assertEqualsWithDelta(0.0004, $ethRate, 0.00001);
 	}
 
@@ -293,7 +293,7 @@ XML;
 					'date' => $date,
 					'source' => $source,
 				];
-				return $this->makeRateEntity($currency, (string) $rate, $date);
+				return $this->makeRateEntity($currency, (string)$rate, $date);
 			});
 
 		$this->service->fetchFloatRates();
@@ -302,8 +302,8 @@ XML;
 		$this->assertArrayHasKey('GBP', $upsertedRates);
 		$this->assertArrayHasKey('ARS', $upsertedRates);
 		$this->assertEquals(ExchangeRate::SOURCE_FLOATRATES, $upsertedRates['USD']['source']);
-		$this->assertEqualsWithDelta(1.08, (float) $upsertedRates['USD']['rate'], 0.001);
-		$this->assertEqualsWithDelta(1234.5, (float) $upsertedRates['ARS']['rate'], 0.1);
+		$this->assertEqualsWithDelta(1.08, (float)$upsertedRates['USD']['rate'], 0.001);
+		$this->assertEqualsWithDelta(1234.5, (float)$upsertedRates['ARS']['rate'], 0.1);
 	}
 
 	public function testFetchFloatRatesFiltersToEnumCurrencies(): void {
@@ -321,7 +321,7 @@ XML;
 		$this->mapper->method('upsert')
 			->willReturnCallback(function ($currency, $rate, $date, $source) use (&$upsertedRates) {
 				$upsertedRates[$currency] = $rate;
-				return $this->makeRateEntity($currency, (string) $rate, $date);
+				return $this->makeRateEntity($currency, (string)$rate, $date);
 			});
 
 		$this->service->fetchFloatRates();
@@ -345,7 +345,7 @@ XML;
 		$this->mapper->method('upsert')
 			->willReturnCallback(function ($currency, $rate, $date, $source) use (&$upsertedRates) {
 				$upsertedRates[$currency] = $rate;
-				return $this->makeRateEntity($currency, (string) $rate, $date);
+				return $this->makeRateEntity($currency, (string)$rate, $date);
 			});
 
 		$this->service->fetchFloatRates();

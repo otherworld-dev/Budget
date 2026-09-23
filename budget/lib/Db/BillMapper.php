@@ -13,262 +13,262 @@ use OCP\IDBConnection;
  * @template-extends QBMapper<Bill>
  */
 class BillMapper extends QBMapper {
-    public function __construct(IDBConnection $db) {
-        parent::__construct($db, 'budget_bills', Bill::class);
-    }
+	public function __construct(IDBConnection $db) {
+		parent::__construct($db, 'budget_bills', Bill::class);
+	}
 
-    /**
-     * @throws DoesNotExistException
-     */
-    public function find(int $id, string $userId): Bill {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+	/**
+	 * @throws DoesNotExistException
+	 */
+	public function find(int $id, string $userId): Bill {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
 
-        return $this->findEntity($qb);
-    }
+		return $this->findEntity($qb);
+	}
 
-    /**
-     * @return Bill[]
-     */
-    public function findAll(string $userId): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->orderBy('next_due_date', 'ASC')
-            ->addOrderBy('name', 'ASC');
+	/**
+	 * @return Bill[]
+	 */
+	public function findAll(string $userId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->orderBy('next_due_date', 'ASC')
+			->addOrderBy('name', 'ASC');
 
-        return $this->findEntities($qb);
-    }
+		return $this->findEntities($qb);
+	}
 
-    /**
-     * Find multiple bills by IDs without user scoping.
-     * IDs are pre-authorized by GranularShareService.
-     *
-     * @param int[] $ids
-     * @return Bill[]
-     */
-    public function findByIds(array $ids): array {
-        if (empty($ids)) {
-            return [];
-        }
+	/**
+	 * Find multiple bills by IDs without user scoping.
+	 * IDs are pre-authorized by GranularShareService.
+	 *
+	 * @param int[] $ids
+	 * @return Bill[]
+	 */
+	public function findByIds(array $ids): array {
+		if (empty($ids)) {
+			return [];
+		}
 
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->in('id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)));
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->in('id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)));
 
-        return $this->findEntities($qb);
-    }
+		return $this->findEntities($qb);
+	}
 
-    /**
-     * @return Bill[]
-     */
-    public function findActive(string $userId): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
-            ->orderBy('next_due_date', 'ASC')
-            ->addOrderBy('name', 'ASC');
+	/**
+	 * @return Bill[]
+	 */
+	public function findActive(string $userId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+			->orderBy('next_due_date', 'ASC')
+			->addOrderBy('name', 'ASC');
 
-        return $this->findEntities($qb);
-    }
+		return $this->findEntities($qb);
+	}
 
-    /**
-     * Find bills due within a date range
-     * @return Bill[]
-     */
-    public function findDueInRange(string $userId, string $startDate, string $endDate): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
-            ->andWhere($qb->expr()->gte('next_due_date', $qb->createNamedParameter($startDate)))
-            ->andWhere($qb->expr()->lte('next_due_date', $qb->createNamedParameter($endDate)))
-            ->orderBy('next_due_date', 'ASC');
+	/**
+	 * Find bills due within a date range
+	 * @return Bill[]
+	 */
+	public function findDueInRange(string $userId, string $startDate, string $endDate): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+			->andWhere($qb->expr()->gte('next_due_date', $qb->createNamedParameter($startDate)))
+			->andWhere($qb->expr()->lte('next_due_date', $qb->createNamedParameter($endDate)))
+			->orderBy('next_due_date', 'ASC');
 
-        return $this->findEntities($qb);
-    }
+		return $this->findEntities($qb);
+	}
 
-    /**
-     * Find bills by category
-     * @return Bill[]
-     */
-    public function findByCategory(string $userId, int $categoryId): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
-            ->orderBy('name', 'ASC');
+	/**
+	 * Find bills by category
+	 * @return Bill[]
+	 */
+	public function findByCategory(string $userId, int $categoryId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
+			->orderBy('name', 'ASC');
 
-        return $this->findEntities($qb);
-    }
+		return $this->findEntities($qb);
+	}
 
-    /**
-     * Find bills by frequency
-     * @return Bill[]
-     */
-    public function findByFrequency(string $userId, string $frequency): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('frequency', $qb->createNamedParameter($frequency)))
-            ->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
-            ->orderBy('next_due_date', 'ASC');
+	/**
+	 * Find bills by frequency
+	 * @return Bill[]
+	 */
+	public function findByFrequency(string $userId, string $frequency): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('frequency', $qb->createNamedParameter($frequency)))
+			->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+			->orderBy('next_due_date', 'ASC');
 
-        return $this->findEntities($qb);
-    }
+		return $this->findEntities($qb);
+	}
 
-    /**
-     * Find bills or transfers based on type
-     * @param string $userId
-     * @param bool|null $isTransfer null = all, true = only transfers, false = only bills
-     * @param bool|null $isActive null = all, true = only active, false = only inactive
-     * @param bool $activeOrRevertible When $isActive is null, additionally restrict to
-     *   active bills PLUS inactive ones that still hold a stored payment
-     *   snapshot (paid_undo_state), so the client no longer has to fetch every
-     *   dead bill just to keep the handful offering "Mark Unpaid" (#365 follow-up).
-     *   Ignored when $isActive is explicit — that filter always wins.
-     * @return Bill[]
-     */
-    public function findByType(string $userId, ?bool $isTransfer = null, ?bool $isActive = null, bool $activeOrRevertible = false): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+	/**
+	 * Find bills or transfers based on type
+	 * @param string $userId
+	 * @param bool|null $isTransfer null = all, true = only transfers, false = only bills
+	 * @param bool|null $isActive null = all, true = only active, false = only inactive
+	 * @param bool $activeOrRevertible When $isActive is null, additionally restrict to
+	 *                                 active bills PLUS inactive ones that still hold a stored payment
+	 *                                 snapshot (paid_undo_state), so the client no longer has to fetch every
+	 *                                 dead bill just to keep the handful offering "Mark Unpaid" (#365 follow-up).
+	 *                                 Ignored when $isActive is explicit — that filter always wins.
+	 * @return Bill[]
+	 */
+	public function findByType(string $userId, ?bool $isTransfer = null, ?bool $isActive = null, bool $activeOrRevertible = false): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
 
-        if ($isTransfer !== null) {
-            $qb->andWhere($qb->expr()->eq('is_transfer', $qb->createNamedParameter($isTransfer, IQueryBuilder::PARAM_BOOL)));
-        }
+		if ($isTransfer !== null) {
+			$qb->andWhere($qb->expr()->eq('is_transfer', $qb->createNamedParameter($isTransfer, IQueryBuilder::PARAM_BOOL)));
+		}
 
-        if ($isActive !== null) {
-            $qb->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter($isActive, IQueryBuilder::PARAM_BOOL)));
-        } elseif ($activeOrRevertible) {
-            $qb->andWhere($qb->expr()->orX(
-                $qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)),
-                $qb->expr()->isNotNull('paid_undo_state')
-            ));
-        }
+		if ($isActive !== null) {
+			$qb->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter($isActive, IQueryBuilder::PARAM_BOOL)));
+		} elseif ($activeOrRevertible) {
+			$qb->andWhere($qb->expr()->orX(
+				$qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)),
+				$qb->expr()->isNotNull('paid_undo_state')
+			));
+		}
 
-        $qb->orderBy('next_due_date', 'ASC')
-            ->addOrderBy('name', 'ASC');
+		$qb->orderBy('next_due_date', 'ASC')
+			->addOrderBy('name', 'ASC');
 
-        return $this->findEntities($qb);
-    }
+		return $this->findEntities($qb);
+	}
 
-    /**
-     * Find overdue bills (next_due_date < today)
-     * @return Bill[]
-     */
-    public function findOverdue(string $userId): array {
-        $today = date('Y-m-d');
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
-            ->andWhere($qb->expr()->lt('next_due_date', $qb->createNamedParameter($today)))
-            ->orderBy('next_due_date', 'ASC');
+	/**
+	 * Find overdue bills (next_due_date < today)
+	 * @return Bill[]
+	 */
+	public function findOverdue(string $userId): array {
+		$today = date('Y-m-d');
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+			->andWhere($qb->expr()->lt('next_due_date', $qb->createNamedParameter($today)))
+			->orderBy('next_due_date', 'ASC');
 
-        return $this->findEntities($qb);
-    }
+		return $this->findEntities($qb);
+	}
 
-    /**
-     * Find bills that are due for auto-payment today or earlier.
-     * Returns only active bills with auto-pay enabled, valid account,
-     * not already paid this month, and not in failed state.
-     *
-     * @return Bill[]
-     */
-    public function findDueForAutoPay(string $userId): array {
-        $today = date('Y-m-d');
-        $startOfMonth = date('Y-m-01');
+	/**
+	 * Find bills that are due for auto-payment today or earlier.
+	 * Returns only active bills with auto-pay enabled, valid account,
+	 * not already paid this month, and not in failed state.
+	 *
+	 * @return Bill[]
+	 */
+	public function findDueForAutoPay(string $userId): array {
+		$today = date('Y-m-d');
+		$startOfMonth = date('Y-m-01');
 
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
-            ->andWhere($qb->expr()->eq('auto_pay_enabled', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
-            ->andWhere($qb->expr()->eq('auto_pay_failed', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)))
-            ->andWhere($qb->expr()->isNotNull('account_id'))
-            ->andWhere($qb->expr()->isNotNull('next_due_date'))
-            ->andWhere($qb->expr()->lte('next_due_date', $qb->createNamedParameter($today)))
-            // Exclude bills already paid this month
-            ->andWhere(
-                $qb->expr()->orX(
-                    $qb->expr()->isNull('last_paid_date'),
-                    $qb->expr()->lt('last_paid_date', $qb->createNamedParameter($startOfMonth))
-                )
-            )
-            ->orderBy('next_due_date', 'ASC');
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+			->andWhere($qb->expr()->eq('auto_pay_enabled', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+			->andWhere($qb->expr()->eq('auto_pay_failed', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)))
+			->andWhere($qb->expr()->isNotNull('account_id'))
+			->andWhere($qb->expr()->isNotNull('next_due_date'))
+			->andWhere($qb->expr()->lte('next_due_date', $qb->createNamedParameter($today)))
+			// Exclude bills already paid this month
+			->andWhere(
+				$qb->expr()->orX(
+					$qb->expr()->isNull('last_paid_date'),
+					$qb->expr()->lt('last_paid_date', $qb->createNamedParameter($startOfMonth))
+				)
+			)
+			->orderBy('next_due_date', 'ASC');
 
-        return $this->findEntities($qb);
-    }
+		return $this->findEntities($qb);
+	}
 
-    /**
-     * Update specific fields directly using query builder.
-     * This is useful for setting fields to null where Entity change detection may not work.
-     *
-     * @param int $id
-     * @param string $userId
-     * @param array $fields Associative array of column_name => value
-     * @return void
-     */
-    private const UPDATABLE_COLUMNS = [
-        'name', 'description', 'amount', 'amount_type', 'frequency', 'due_day', 'due_month',
-        'category_id', 'account_id', 'auto_detect_pattern', 'is_active',
-        'last_paid_date', 'next_due_date', 'notes', 'reminder_days',
-        'last_reminder_sent', 'custom_recurrence_pattern', 'auto_pay_enabled',
-        'auto_pay_failed', 'is_transfer', 'destination_account_id',
-        'transfer_description_pattern', 'tag_ids', 'start_date', 'end_date',
-        'remaining_payments', 'split_template', 'excluded_from_forecast',
-        'create_transaction', 'paid_undo_state',
-    ];
+	/**
+	 * Update specific fields directly using query builder.
+	 * This is useful for setting fields to null where Entity change detection may not work.
+	 *
+	 * @param int $id
+	 * @param string $userId
+	 * @param array $fields Associative array of column_name => value
+	 * @return void
+	 */
+	private const UPDATABLE_COLUMNS = [
+		'name', 'description', 'amount', 'amount_type', 'frequency', 'due_day', 'due_month',
+		'category_id', 'account_id', 'auto_detect_pattern', 'is_active',
+		'last_paid_date', 'next_due_date', 'notes', 'reminder_days',
+		'last_reminder_sent', 'custom_recurrence_pattern', 'auto_pay_enabled',
+		'auto_pay_failed', 'is_transfer', 'destination_account_id',
+		'transfer_description_pattern', 'tag_ids', 'start_date', 'end_date',
+		'remaining_payments', 'split_template', 'excluded_from_forecast',
+		'create_transaction', 'paid_undo_state',
+	];
 
-    public function updateFields(int $id, string $userId, array $fields): void {
-        $qb = $this->db->getQueryBuilder();
-        $qb->update($this->getTableName())
-            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+	public function updateFields(int $id, string $userId, array $fields): void {
+		$qb = $this->db->getQueryBuilder();
+		$qb->update($this->getTableName())
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
 
-        foreach ($fields as $column => $value) {
-            if (!in_array($column, self::UPDATABLE_COLUMNS, true)) {
-                throw new \InvalidArgumentException("Column '$column' is not updatable");
-            }
-            if ($value === null) {
-                $qb->set($column, $qb->createNamedParameter($value, IQueryBuilder::PARAM_NULL));
-            } else {
-                // Auto-detect parameter type
-                $type = is_int($value) ? IQueryBuilder::PARAM_INT :
-                       (is_bool($value) ? IQueryBuilder::PARAM_BOOL : IQueryBuilder::PARAM_STR);
-                $qb->set($column, $qb->createNamedParameter($value, $type));
-            }
-        }
+		foreach ($fields as $column => $value) {
+			if (!in_array($column, self::UPDATABLE_COLUMNS, true)) {
+				throw new \InvalidArgumentException("Column '$column' is not updatable");
+			}
+			if ($value === null) {
+				$qb->set($column, $qb->createNamedParameter($value, IQueryBuilder::PARAM_NULL));
+			} else {
+				// Auto-detect parameter type
+				$type = is_int($value) ? IQueryBuilder::PARAM_INT
+					   : (is_bool($value) ? IQueryBuilder::PARAM_BOOL : IQueryBuilder::PARAM_STR);
+				$qb->set($column, $qb->createNamedParameter($value, $type));
+			}
+		}
 
-        $qb->executeStatement();
-    }
+		$qb->executeStatement();
+	}
 
-    /**
-     * Delete all bills for a user
-     *
-     * @param string $userId
-     * @return int Number of deleted rows
-     */
-    public function deleteAll(string $userId): int {
-        $qb = $this->db->getQueryBuilder();
+	/**
+	 * Delete all bills for a user
+	 *
+	 * @param string $userId
+	 * @return int Number of deleted rows
+	 */
+	public function deleteAll(string $userId): int {
+		$qb = $this->db->getQueryBuilder();
 
-        $qb->delete($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
+		$qb->delete($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
 
-        return $qb->executeStatement();
-    }
+		return $qb->executeStatement();
+	}
 }

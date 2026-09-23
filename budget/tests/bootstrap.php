@@ -25,6 +25,6 @@ $autoloader->addPsr4('OCA\\Budget\\Tests\\', __DIR__);
 // Register the OCP stub namespace from nextcloud/ocp dev dependency
 $ocpPath = __DIR__ . '/../vendor/nextcloud/ocp';
 if (is_dir($ocpPath)) {
-    $autoloader->addPsr4('OCP\\', $ocpPath . '/OCP');
-    $autoloader->addPsr4('OC\\', $ocpPath . '/OC');
+	$autoloader->addPsr4('OCP\\', $ocpPath . '/OCP');
+	$autoloader->addPsr4('OC\\', $ocpPath . '/OC');
 }

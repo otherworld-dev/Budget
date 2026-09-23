@@ -40,43 +40,43 @@ use OCP\AppFramework\Db\Entity;
  * @method void setUpdatedAt(string $updatedAt)
  */
 class PensionRecurringContribution extends Entity implements JsonSerializable {
-    protected $userId;
-    protected $pensionId;
-    protected $amount;
-    protected $frequency;
-    protected $sourceAccountId;
-    protected $autoPostEnabled;
-    protected $nextDueDate;
-    protected $lastPostedDate;
-    protected $isActive;
-    protected $note;
-    protected $createdAt;
-    protected $updatedAt;
+	protected $userId;
+	protected $pensionId;
+	protected $amount;
+	protected $frequency;
+	protected $sourceAccountId;
+	protected $autoPostEnabled;
+	protected $nextDueDate;
+	protected $lastPostedDate;
+	protected $isActive;
+	protected $note;
+	protected $createdAt;
+	protected $updatedAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('pensionId', 'integer');
-        $this->addType('amount', 'float');
-        $this->addType('sourceAccountId', 'integer');
-        $this->addType('autoPostEnabled', 'boolean');
-        $this->addType('isActive', 'boolean');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('pensionId', 'integer');
+		$this->addType('amount', 'float');
+		$this->addType('sourceAccountId', 'integer');
+		$this->addType('autoPostEnabled', 'boolean');
+		$this->addType('isActive', 'boolean');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'userId' => $this->getUserId(),
-            'pensionId' => $this->getPensionId(),
-            'amount' => $this->getAmount(),
-            'frequency' => $this->getFrequency(),
-            'sourceAccountId' => $this->getSourceAccountId(),
-            'autoPostEnabled' => $this->getAutoPostEnabled() ?? false,
-            'nextDueDate' => $this->getNextDueDate(),
-            'lastPostedDate' => $this->getLastPostedDate(),
-            'isActive' => $this->getIsActive() ?? true,
-            'note' => $this->getNote(),
-            'createdAt' => $this->getCreatedAt(),
-            'updatedAt' => $this->getUpdatedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'userId' => $this->getUserId(),
+			'pensionId' => $this->getPensionId(),
+			'amount' => $this->getAmount(),
+			'frequency' => $this->getFrequency(),
+			'sourceAccountId' => $this->getSourceAccountId(),
+			'autoPostEnabled' => $this->getAutoPostEnabled() ?? false,
+			'nextDueDate' => $this->getNextDueDate(),
+			'lastPostedDate' => $this->getLastPostedDate(),
+			'isActive' => $this->getIsActive() ?? true,
+			'note' => $this->getNote(),
+			'createdAt' => $this->getCreatedAt(),
+			'updatedAt' => $this->getUpdatedAt(),
+		];
+	}
 }

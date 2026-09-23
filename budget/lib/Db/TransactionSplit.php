@@ -22,40 +22,40 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCreatedAt(string $createdAt)
  */
 class TransactionSplit extends Entity implements JsonSerializable {
-    protected int $transactionId = 0;
-    protected ?int $categoryId = null;
-    protected string $amount = '0';
-    protected ?string $description = null;
-    protected string $createdAt = '';
+	protected int $transactionId = 0;
+	protected ?int $categoryId = null;
+	protected string $amount = '0';
+	protected ?string $description = null;
+	protected string $createdAt = '';
 
-    // Non-persisted fields for convenience
-    protected ?string $categoryName = null;
+	// Non-persisted fields for convenience
+	protected ?string $categoryName = null;
 
-    public function __construct() {
-        $this->addType('transactionId', 'integer');
-        $this->addType('categoryId', 'integer');
-        $this->addType('amount', 'string');
-        $this->addType('description', 'string');
-        $this->addType('createdAt', 'string');
-    }
+	public function __construct() {
+		$this->addType('transactionId', 'integer');
+		$this->addType('categoryId', 'integer');
+		$this->addType('amount', 'string');
+		$this->addType('description', 'string');
+		$this->addType('createdAt', 'string');
+	}
 
-    public function getCategoryName(): ?string {
-        return $this->categoryName;
-    }
+	public function getCategoryName(): ?string {
+		return $this->categoryName;
+	}
 
-    public function setCategoryName(?string $categoryName): void {
-        $this->categoryName = $categoryName;
-    }
+	public function setCategoryName(?string $categoryName): void {
+		$this->categoryName = $categoryName;
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'transactionId' => $this->getTransactionId(),
-            'categoryId' => $this->getCategoryId(),
-            'categoryName' => $this->getCategoryName(),
-            'amount' => (float) $this->getAmount(),
-            'description' => $this->getDescription(),
-            'createdAt' => $this->getCreatedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'transactionId' => $this->getTransactionId(),
+			'categoryId' => $this->getCategoryId(),
+			'categoryName' => $this->getCategoryName(),
+			'amount' => (float)$this->getAmount(),
+			'description' => $this->getDescription(),
+			'createdAt' => $this->getCreatedAt(),
+		];
+	}
 }

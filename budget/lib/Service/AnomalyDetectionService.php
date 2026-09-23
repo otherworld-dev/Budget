@@ -25,243 +25,243 @@ use OCP\Notification\IManager as INotificationManager;
  */
 class AnomalyDetectionService {
 
-    private const BASELINE_MONTHS = 6;
-    private const MIN_HISTORY_MONTHS = 3;
-    private const MIN_DAY_OF_MONTH = 10;
-    private const SUPPRESSION_KEY = 'anomaly_notified';
+	private const BASELINE_MONTHS = 6;
+	private const MIN_HISTORY_MONTHS = 3;
+	private const MIN_DAY_OF_MONTH = 10;
+	private const SUPPRESSION_KEY = 'anomaly_notified';
 
-    public function __construct(
-        private CategoryMapper $categoryMapper,
-        private TransactionMapper $transactionMapper,
-        private SettingService $settingService,
-        private AmountFormatter $amountFormatter,
-        private INotificationManager $notificationManager,
-    ) {
-    }
+	public function __construct(
+		private CategoryMapper $categoryMapper,
+		private TransactionMapper $transactionMapper,
+		private SettingService $settingService,
+		private AmountFormatter $amountFormatter,
+		private INotificationManager $notificationManager,
+	) {
+	}
 
-    /**
-     * Active anomalies for a user, month-to-date (no notification side
-     * effects). Partial month, so the baseline is pro-rated by how far
-     * through the month we are and the early-month guard applies.
-     *
-     * @return array[] [{categoryId, categoryName, mtdSpend, baseline, percentAbove}]
-     */
-    public function detect(string $userId): array {
-        $now = $this->getNow();
-        $dayOfMonth = (int) $now->format('j');
-        if ($dayOfMonth < self::MIN_DAY_OF_MONTH) {
-            return [];
-        }
+	/**
+	 * Active anomalies for a user, month-to-date (no notification side
+	 * effects). Partial month, so the baseline is pro-rated by how far
+	 * through the month we are and the early-month guard applies.
+	 *
+	 * @return array[] [{categoryId, categoryName, mtdSpend, baseline, percentAbove}]
+	 */
+	public function detect(string $userId): array {
+		$now = $this->getNow();
+		$dayOfMonth = (int)$now->format('j');
+		if ($dayOfMonth < self::MIN_DAY_OF_MONTH) {
+			return [];
+		}
 
-        return $this->compareAgainstBaseline(
-            $userId,
-            $now->format('Y-m-01'),
-            $now->format('Y-m-d'),
-            $now->modify('first day of this month'),
-            $dayOfMonth / (int) $now->format('t')
-        );
-    }
+		return $this->compareAgainstBaseline(
+			$userId,
+			$now->format('Y-m-01'),
+			$now->format('Y-m-d'),
+			$now->modify('first day of this month'),
+			$dayOfMonth / (int)$now->format('t')
+		);
+	}
 
-    /**
-     * Anomalies for a COMPLETED period (a digest's week or month), compared
-     * against the same 6-month median baseline scaled to the period's
-     * length — 1.0 for a full calendar month, ~7/30 for a week.
-     *
-     * No early-month guard: that guard exists only because detect() judges a
-     * partial month, and a finished period is not partial. Without this the
-     * monthly digest — sent on the 1st — could never report an anomaly.
-     *
-     * @return array[] same shape as detect()
-     */
-    public function detectForPeriod(string $userId, string $periodStart, string $periodEnd): array {
-        $start = new \DateTimeImmutable($periodStart);
-        $end = new \DateTimeImmutable($periodEnd);
-        $periodDays = (int) $start->diff($end)->days + 1;
+	/**
+	 * Anomalies for a COMPLETED period (a digest's week or month), compared
+	 * against the same 6-month median baseline scaled to the period's
+	 * length — 1.0 for a full calendar month, ~7/30 for a week.
+	 *
+	 * No early-month guard: that guard exists only because detect() judges a
+	 * partial month, and a finished period is not partial. Without this the
+	 * monthly digest — sent on the 1st — could never report an anomaly.
+	 *
+	 * @return array[] same shape as detect()
+	 */
+	public function detectForPeriod(string $userId, string $periodStart, string $periodEnd): array {
+		$start = new \DateTimeImmutable($periodStart);
+		$end = new \DateTimeImmutable($periodEnd);
+		$periodDays = (int)$start->diff($end)->days + 1;
 
-        return $this->compareAgainstBaseline(
-            $userId,
-            $periodStart,
-            $periodEnd,
-            $start->modify('first day of this month'),
-            $periodDays / (int) $start->format('t')
-        );
-    }
+		return $this->compareAgainstBaseline(
+			$userId,
+			$periodStart,
+			$periodEnd,
+			$start->modify('first day of this month'),
+			$periodDays / (int)$start->format('t')
+		);
+	}
 
-    /**
-     * Shared comparison: spend over [$spendStart, $spendEnd] against the
-     * median of the six full months preceding $baselineAnchor's month,
-     * scaled by $proRate.
-     *
-     * @param \DateTimeImmutable $baselineAnchor first day of the month the
-     *                                           baseline counts back from
-     * @return array[]
-     */
-    private function compareAgainstBaseline(
-        string $userId,
-        string $spendStart,
-        string $spendEnd,
-        \DateTimeImmutable $baselineAnchor,
-        float $proRate
-    ): array {
-        $threshold = $this->getFloatSetting($userId, 'anomaly_threshold_percent', 30.0);
-        $minAmount = $this->getFloatSetting($userId, 'anomaly_min_amount', 50.0);
+	/**
+	 * Shared comparison: spend over [$spendStart, $spendEnd] against the
+	 * median of the six full months preceding $baselineAnchor's month,
+	 * scaled by $proRate.
+	 *
+	 * @param \DateTimeImmutable $baselineAnchor first day of the month the
+	 *                                           baseline counts back from
+	 * @return array[]
+	 */
+	private function compareAgainstBaseline(
+		string $userId,
+		string $spendStart,
+		string $spendEnd,
+		\DateTimeImmutable $baselineAnchor,
+		float $proRate,
+	): array {
+		$threshold = $this->getFloatSetting($userId, 'anomaly_threshold_percent', 30.0);
+		$minAmount = $this->getFloatSetting($userId, 'anomaly_min_amount', 50.0);
 
-        $categories = [];
-        foreach ($this->categoryMapper->findAll($userId) as $category) {
-            if ($category->getType() === 'expense') {
-                $categories[$category->getId()] = $category;
-            }
-        }
-        if (empty($categories)) {
-            return [];
-        }
-        $categoryIds = array_keys($categories);
+		$categories = [];
+		foreach ($this->categoryMapper->findAll($userId) as $category) {
+			if ($category->getType() === 'expense') {
+				$categories[$category->getId()] = $category;
+			}
+		}
+		if (empty($categories)) {
+			return [];
+		}
+		$categoryIds = array_keys($categories);
 
-        // Categories kept out of reports are dropped by the mapper's report
-        // choke point (#219) rather than here: they report no spending, so
-        // they never clear the minimum-spend floor below.
-        $periodSpend = $this->transactionMapper->getCategorySpendingBatch(
-            $categoryIds, $spendStart, $spendEnd, excludeReportCategories: true
-        );
+		// Categories kept out of reports are dropped by the mapper's report
+		// choke point (#219) rather than here: they report no spending, so
+		// they never clear the minimum-spend floor below.
+		$periodSpend = $this->transactionMapper->getCategorySpendingBatch(
+			$categoryIds, $spendStart, $spendEnd, excludeReportCategories: true
+		);
 
-        // The six full months before the anchor month
-        $history = [];
-        for ($i = 1; $i <= self::BASELINE_MONTHS; $i++) {
-            $month = $baselineAnchor->modify("-{$i} months");
-            $history[] = $this->transactionMapper->getCategorySpendingBatch(
-                $categoryIds,
-                $month->format('Y-m-01'),
-                $month->format('Y-m-t'),
-                excludeReportCategories: true
-            );
-        }
+		// The six full months before the anchor month
+		$history = [];
+		for ($i = 1; $i <= self::BASELINE_MONTHS; $i++) {
+			$month = $baselineAnchor->modify("-{$i} months");
+			$history[] = $this->transactionMapper->getCategorySpendingBatch(
+				$categoryIds,
+				$month->format('Y-m-01'),
+				$month->format('Y-m-t'),
+				excludeReportCategories: true
+			);
+		}
 
-        $anomalies = [];
-        foreach ($categories as $catId => $category) {
-            $spend = (float) ($periodSpend[$catId] ?? 0);
-            if ($spend < $minAmount) {
-                continue;
-            }
+		$anomalies = [];
+		foreach ($categories as $catId => $category) {
+			$spend = (float)($periodSpend[$catId] ?? 0);
+			if ($spend < $minAmount) {
+				continue;
+			}
 
-            $nonZeroMonths = [];
-            foreach ($history as $monthTotals) {
-                $value = (float) ($monthTotals[$catId] ?? 0);
-                if ($value > 0) {
-                    $nonZeroMonths[] = $value;
-                }
-            }
-            if (count($nonZeroMonths) < self::MIN_HISTORY_MONTHS) {
-                continue;
-            }
+			$nonZeroMonths = [];
+			foreach ($history as $monthTotals) {
+				$value = (float)($monthTotals[$catId] ?? 0);
+				if ($value > 0) {
+					$nonZeroMonths[] = $value;
+				}
+			}
+			if (count($nonZeroMonths) < self::MIN_HISTORY_MONTHS) {
+				continue;
+			}
 
-            $baseline = $this->median($nonZeroMonths);
-            $expected = $baseline * $proRate;
-            $limit = $expected * (1 + $threshold / 100);
+			$baseline = $this->median($nonZeroMonths);
+			$expected = $baseline * $proRate;
+			$limit = $expected * (1 + $threshold / 100);
 
-            if ($spend > $limit && $expected > 0) {
-                $anomalies[] = [
-                    'categoryId' => $catId,
-                    'categoryName' => $category->getName(),
-                    'mtdSpend' => round($spend, 2),
-                    'baseline' => round($baseline, 2),
-                    'percentAbove' => (int) round(($spend / $expected - 1) * 100),
-                ];
-            }
-        }
+			if ($spend > $limit && $expected > 0) {
+				$anomalies[] = [
+					'categoryId' => $catId,
+					'categoryName' => $category->getName(),
+					'mtdSpend' => round($spend, 2),
+					'baseline' => round($baseline, 2),
+					'percentAbove' => (int)round(($spend / $expected - 1) * 100),
+				];
+			}
+		}
 
-        usort($anomalies, fn($a, $b) => $b['percentAbove'] <=> $a['percentAbove']);
-        return $anomalies;
-    }
+		usort($anomalies, fn ($a, $b) => $b['percentAbove'] <=> $a['percentAbove']);
+		return $anomalies;
+	}
 
-    /**
-     * Detect and send notifications, suppressed to one per category per
-     * month. Returns ALL active anomalies (including suppressed ones) for
-     * embedding in the digest.
-     *
-     * @return array[]
-     */
-    public function detectAndNotify(string $userId): array {
-        $anomalies = $this->detect($userId);
-        if (empty($anomalies)) {
-            return [];
-        }
+	/**
+	 * Detect and send notifications, suppressed to one per category per
+	 * month. Returns ALL active anomalies (including suppressed ones) for
+	 * embedding in the digest.
+	 *
+	 * @return array[]
+	 */
+	public function detectAndNotify(string $userId): array {
+		$anomalies = $this->detect($userId);
+		if (empty($anomalies)) {
+			return [];
+		}
 
-        $month = $this->getNow()->format('Y-m');
-        $notified = $this->getNotifiedMap($userId);
-        $changed = false;
+		$month = $this->getNow()->format('Y-m');
+		$notified = $this->getNotifiedMap($userId);
+		$changed = false;
 
-        foreach ($anomalies as $anomaly) {
-            $catKey = (string) $anomaly['categoryId'];
-            if (($notified[$catKey] ?? null) === $month) {
-                continue; // already notified this month
-            }
+		foreach ($anomalies as $anomaly) {
+			$catKey = (string)$anomaly['categoryId'];
+			if (($notified[$catKey] ?? null) === $month) {
+				continue; // already notified this month
+			}
 
-            $this->sendNotification($userId, $anomaly);
-            $notified[$catKey] = $month;
-            $changed = true;
-        }
+			$this->sendNotification($userId, $anomaly);
+			$notified[$catKey] = $month;
+			$changed = true;
+		}
 
-        if ($changed) {
-            // Prune stale entries while writing
-            $notified = array_filter($notified, fn($m) => $m >= $this->getNow()->modify('-2 months')->format('Y-m'));
-            $this->settingService->set($userId, self::SUPPRESSION_KEY, json_encode($notified));
-        }
+		if ($changed) {
+			// Prune stale entries while writing
+			$notified = array_filter($notified, fn ($m) => $m >= $this->getNow()->modify('-2 months')->format('Y-m'));
+			$this->settingService->set($userId, self::SUPPRESSION_KEY, json_encode($notified));
+		}
 
-        return $anomalies;
-    }
+		return $anomalies;
+	}
 
-    private function sendNotification(string $userId, array $anomaly): void {
-        $notification = $this->notificationManager->createNotification();
-        $notification->setApp(Application::APP_ID)
-            ->setUser($userId)
-            ->setDateTime(new \DateTime())
-            ->setObject('anomaly', (string) $anomaly['categoryId'])
-            ->setSubject('spending_anomaly', [
-                'categoryName' => $anomaly['categoryName'],
-                'percentAbove' => (string) $anomaly['percentAbove'],
-                'amount' => $this->amountFormatter->formatForUser($userId, (float) $anomaly['mtdSpend']),
-            ]);
-        $this->notificationManager->notify($notification);
-    }
+	private function sendNotification(string $userId, array $anomaly): void {
+		$notification = $this->notificationManager->createNotification();
+		$notification->setApp(Application::APP_ID)
+			->setUser($userId)
+			->setDateTime(new \DateTime())
+			->setObject('anomaly', (string)$anomaly['categoryId'])
+			->setSubject('spending_anomaly', [
+				'categoryName' => $anomaly['categoryName'],
+				'percentAbove' => (string)$anomaly['percentAbove'],
+				'amount' => $this->amountFormatter->formatForUser($userId, (float)$anomaly['mtdSpend']),
+			]);
+		$this->notificationManager->notify($notification);
+	}
 
-    /**
-     * @return array<string, string> categoryId => YYYY-MM last notified
-     */
-    private function getNotifiedMap(string $userId): array {
-        try {
-            $raw = $this->settingService->get($userId, self::SUPPRESSION_KEY);
-            $map = $raw !== null ? json_decode($raw, true) : null;
-            return is_array($map) ? $map : [];
-        } catch (\Exception $e) {
-            return [];
-        }
-    }
+	/**
+	 * @return array<string, string> categoryId => YYYY-MM last notified
+	 */
+	private function getNotifiedMap(string $userId): array {
+		try {
+			$raw = $this->settingService->get($userId, self::SUPPRESSION_KEY);
+			$map = $raw !== null ? json_decode($raw, true) : null;
+			return is_array($map) ? $map : [];
+		} catch (\Exception $e) {
+			return [];
+		}
+	}
 
-    private function getFloatSetting(string $userId, string $key, float $default): float {
-        try {
-            $value = $this->settingService->get($userId, $key);
-            return $value !== null && is_numeric($value) ? (float) $value : $default;
-        } catch (\Exception $e) {
-            return $default;
-        }
-    }
+	private function getFloatSetting(string $userId, string $key, float $default): float {
+		try {
+			$value = $this->settingService->get($userId, $key);
+			return $value !== null && is_numeric($value) ? (float)$value : $default;
+		} catch (\Exception $e) {
+			return $default;
+		}
+	}
 
-    /**
-     * @param float[] $values non-empty
-     */
-    private function median(array $values): float {
-        sort($values);
-        $count = count($values);
-        $middle = intdiv($count, 2);
-        return $count % 2 === 0
-            ? ($values[$middle - 1] + $values[$middle]) / 2
-            : $values[$middle];
-    }
+	/**
+	 * @param float[] $values non-empty
+	 */
+	private function median(array $values): float {
+		sort($values);
+		$count = count($values);
+		$middle = intdiv($count, 2);
+		return $count % 2 === 0
+			? ($values[$middle - 1] + $values[$middle]) / 2
+			: $values[$middle];
+	}
 
-    /**
-     * Overridable in tests.
-     */
-    protected function getNow(): \DateTimeImmutable {
-        return new \DateTimeImmutable();
-    }
+	/**
+	 * Overridable in tests.
+	 */
+	protected function getNow(): \DateTimeImmutable {
+		return new \DateTimeImmutable();
+	}
 }

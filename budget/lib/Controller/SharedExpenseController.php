@@ -21,611 +21,611 @@ use OCP\Share\IShare;
 use Psr\Log\LoggerInterface;
 
 class SharedExpenseController extends Controller {
-    use SharedAccessTrait;
+	use SharedAccessTrait;
 
-    private SharedExpenseService $service;
-    private IUserManager $userManager;
-    private IL10N $l;
-    private string $userId;
-    private LoggerInterface $logger;
+	private SharedExpenseService $service;
+	private IUserManager $userManager;
+	private IL10N $l;
+	private string $userId;
+	private LoggerInterface $logger;
 
-    public function __construct(
-        IRequest $request,
-        SharedExpenseService $service,
-        GranularShareService $granularShareService,
-        IUserManager $userManager,
-        IL10N $l,
-        string $userId,
-        LoggerInterface $logger,
-        private ISearch $collaboratorSearch
-    ) {
-        parent::__construct(Application::APP_ID, $request);
-        $this->service = $service;
-        $this->userManager = $userManager;
-        $this->l = $l;
-        $this->userId = $userId;
-        $this->logger = $logger;
-        $this->setGranularShareService($granularShareService);
-    }
+	public function __construct(
+		IRequest $request,
+		SharedExpenseService $service,
+		GranularShareService $granularShareService,
+		IUserManager $userManager,
+		IL10N $l,
+		string $userId,
+		LoggerInterface $logger,
+		private ISearch $collaboratorSearch,
+	) {
+		parent::__construct(Application::APP_ID, $request);
+		$this->service = $service;
+		$this->userManager = $userManager;
+		$this->l = $l;
+		$this->userId = $userId;
+		$this->logger = $logger;
+		$this->setGranularShareService($granularShareService);
+	}
 
-    // ==================== Contact Endpoints ====================
+	// ==================== Contact Endpoints ====================
 
-    /**
-     * Get all contacts.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function contacts(): DataResponse {
-        try {
-            $contacts = $this->service->getContacts($this->getEffectiveUserId());
-            return new DataResponse(array_map(fn($c) => $c->jsonSerialize(), $contacts));
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to get contacts', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to get contacts')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+	/**
+	 * Get all contacts.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function contacts(): DataResponse {
+		try {
+			$contacts = $this->service->getContacts($this->getEffectiveUserId());
+			return new DataResponse(array_map(fn ($c) => $c->jsonSerialize(), $contacts));
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to get contacts', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to get contacts')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Create a new contact.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function createContact(string $name, ?string $email = null): DataResponse {
-        try {
-            $params = $this->request->getParams();
-            $nextcloudUserId = $params['nextcloudUserId'] ?? null;
+	/**
+	 * Create a new contact.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function createContact(string $name, ?string $email = null): DataResponse {
+		try {
+			$params = $this->request->getParams();
+			$nextcloudUserId = $params['nextcloudUserId'] ?? null;
 
-            // If linking to a Nextcloud user, validate they exist and auto-fill name
-            if ($nextcloudUserId) {
-                $ncUser = $this->userManager->get($nextcloudUserId);
-                if ($ncUser === null) {
-                    return new DataResponse(
-                        ['error' => $this->l->t('Nextcloud user not found')],
-                        Http::STATUS_BAD_REQUEST
-                    );
-                }
-                // Use display name if no name provided
-                if (empty($name) || $name === $nextcloudUserId) {
-                    $name = $ncUser->getDisplayName() ?: $nextcloudUserId;
-                }
-            }
+			// If linking to a Nextcloud user, validate they exist and auto-fill name
+			if ($nextcloudUserId) {
+				$ncUser = $this->userManager->get($nextcloudUserId);
+				if ($ncUser === null) {
+					return new DataResponse(
+						['error' => $this->l->t('Nextcloud user not found')],
+						Http::STATUS_BAD_REQUEST
+					);
+				}
+				// Use display name if no name provided
+				if (empty($name) || $name === $nextcloudUserId) {
+					$name = $ncUser->getDisplayName() ?: $nextcloudUserId;
+				}
+			}
 
-            $contact = $this->service->createContact($this->getEffectiveUserId(), $name, $email, $nextcloudUserId);
-            return new DataResponse($contact->jsonSerialize(), Http::STATUS_CREATED);
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to create contact', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to create contact')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+			$contact = $this->service->createContact($this->getEffectiveUserId(), $name, $email, $nextcloudUserId);
+			return new DataResponse($contact->jsonSerialize(), Http::STATUS_CREATED);
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to create contact', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to create contact')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Search Nextcloud users by display name or username.
-     *
-     * Goes through Nextcloud's own sharee search (the one the Files share
-     * dialog uses), so the admin's sharing settings apply here too: user
-     * enumeration off, enumeration limited to the caller's groups or phone
-     * book, and "only share with group members". A direct user-manager search
-     * ignored all of them — `query=*` listed up to 50 accounts on any server.
-     * With enumeration off only an exact match on the user id, display name
-     * or email comes back, exactly as in the share dialog.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function searchUsers(string $query = ''): DataResponse {
-        // '*' lists whoever the admin's settings allow; otherwise 2+ chars
-        $searchQuery = ($query === '*') ? '' : $query;
-        if ($query !== '*' && mb_strlen($query) < 2) {
-            return new DataResponse([]);
-        }
+	/**
+	 * Search Nextcloud users by display name or username.
+	 *
+	 * Goes through Nextcloud's own sharee search (the one the Files share
+	 * dialog uses), so the admin's sharing settings apply here too: user
+	 * enumeration off, enumeration limited to the caller's groups or phone
+	 * book, and "only share with group members". A direct user-manager search
+	 * ignored all of them — `query=*` listed up to 50 accounts on any server.
+	 * With enumeration off only an exact match on the user id, display name
+	 * or email comes back, exactly as in the share dialog.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function searchUsers(string $query = ''): DataResponse {
+		// '*' lists whoever the admin's settings allow; otherwise 2+ chars
+		$searchQuery = ($query === '*') ? '' : $query;
+		if ($query !== '*' && mb_strlen($query) < 2) {
+			return new DataResponse([]);
+		}
 
-        try {
-            [$found] = $this->collaboratorSearch->search($searchQuery, [IShare::TYPE_USER], false, 50, 0);
-        } catch (\Exception $e) {
-            $this->logger->error('User search failed', ['exception' => $e]);
-            return new DataResponse([]);
-        }
+		try {
+			[$found] = $this->collaboratorSearch->search($searchQuery, [IShare::TYPE_USER], false, 50, 0);
+		} catch (\Exception $e) {
+			$this->logger->error('User search failed', ['exception' => $e]);
+			return new DataResponse([]);
+		}
 
-        $currentUserId = $this->getEffectiveUserId();
-        $results = [];
-        $seen = [];
-        foreach (array_merge($found['exact']['users'] ?? [], $found['users'] ?? []) as $entry) {
-            $uid = $entry['value']['shareWith'] ?? null;
-            if (!is_string($uid) || $uid === '' || $uid === $currentUserId || isset($seen[$uid])) {
-                continue;
-            }
-            $seen[$uid] = true;
-            $results[] = [
-                'uid' => $uid,
-                'displayName' => (string) ($entry['label'] ?? $uid),
-            ];
-        }
+		$currentUserId = $this->getEffectiveUserId();
+		$results = [];
+		$seen = [];
+		foreach (array_merge($found['exact']['users'] ?? [], $found['users'] ?? []) as $entry) {
+			$uid = $entry['value']['shareWith'] ?? null;
+			if (!is_string($uid) || $uid === '' || $uid === $currentUserId || isset($seen[$uid])) {
+				continue;
+			}
+			$seen[$uid] = true;
+			$results[] = [
+				'uid' => $uid,
+				'displayName' => (string)($entry['label'] ?? $uid),
+			];
+		}
 
-        return new DataResponse($results);
-    }
+		return new DataResponse($results);
+	}
 
-    /**
-     * Update a contact.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function updateContact(int $id, string $name, ?string $email = null): DataResponse {
-        try {
-            $contact = $this->service->updateContact($id, $this->getEffectiveUserId(), $name, $email);
-            return new DataResponse($contact->jsonSerialize());
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to update contact', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to update contact')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+	/**
+	 * Update a contact.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function updateContact(int $id, string $name, ?string $email = null): DataResponse {
+		try {
+			$contact = $this->service->updateContact($id, $this->getEffectiveUserId(), $name, $email);
+			return new DataResponse($contact->jsonSerialize());
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to update contact', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to update contact')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Delete a contact.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function destroyContact(int $id): DataResponse {
-        try {
-            $this->service->deleteContact($id, $this->getEffectiveUserId());
-            return new DataResponse(['status' => 'deleted']);
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to delete contact', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to delete contact')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+	/**
+	 * Delete a contact.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function destroyContact(int $id): DataResponse {
+		try {
+			$this->service->deleteContact($id, $this->getEffectiveUserId());
+			return new DataResponse(['status' => 'deleted']);
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to delete contact', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to delete contact')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Get detailed information for a contact.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function contactDetails(int $id): DataResponse {
-        try {
-            $details = $this->service->getContactDetails($id, $this->getEffectiveUserId());
-            return new DataResponse($details);
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to get contact details', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to get contact details')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+	/**
+	 * Get detailed information for a contact.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function contactDetails(int $id): DataResponse {
+		try {
+			$details = $this->service->getContactDetails($id, $this->getEffectiveUserId());
+			return new DataResponse($details);
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to get contact details', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to get contact details')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    // ==================== Balance Endpoints ====================
+	// ==================== Balance Endpoints ====================
 
-    /**
-     * Get balance summary for all contacts.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function balances(): DataResponse {
-        try {
-            $summary = $this->service->getBalanceSummary($this->getEffectiveUserId());
-            return new DataResponse($summary);
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to get balances', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to get balances')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+	/**
+	 * Get balance summary for all contacts.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function balances(): DataResponse {
+		try {
+			$summary = $this->service->getBalanceSummary($this->getEffectiveUserId());
+			return new DataResponse($summary);
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to get balances', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to get balances')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Get expenses that other users have shared with the current user.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function sharedWithMe(): DataResponse {
-        try {
-            $shares = $this->service->getExpensesSharedWithMe($this->getEffectiveUserId());
-            return new DataResponse($shares);
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to get expenses shared with me', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to get shared expenses')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+	/**
+	 * Get expenses that other users have shared with the current user.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function sharedWithMe(): DataResponse {
+		try {
+			$shares = $this->service->getExpensesSharedWithMe($this->getEffectiveUserId());
+			return new DataResponse($shares);
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to get expenses shared with me', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to get shared expenses')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Get transaction IDs that have been shared with contacts.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function sharedTransactionIds(): DataResponse {
-        try {
-            $statuses = $this->service->getSharedTransactionStatuses($this->getEffectiveUserId());
-            return new DataResponse($statuses);
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to get shared transaction statuses', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to get shared transactions')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+	/**
+	 * Get transaction IDs that have been shared with contacts.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function sharedTransactionIds(): DataResponse {
+		try {
+			$statuses = $this->service->getSharedTransactionStatuses($this->getEffectiveUserId());
+			return new DataResponse($statuses);
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to get shared transaction statuses', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to get shared transactions')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    // ==================== Expense Share Endpoints ====================
+	// ==================== Expense Share Endpoints ====================
 
-    /**
-     * Share an expense with a contact.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function shareExpense(
-        int $transactionId,
-        int $contactId,
-        float $amount,
-        ?string $notes = null
-    ): DataResponse {
-        try {
-            $share = $this->service->shareExpense(
-                $this->getEffectiveUserId(),
-                $transactionId,
-                $contactId,
-                $amount,
-                $notes,
-                $this->getVisibleAccountIds()
-            );
-            return new DataResponse($share->jsonSerialize(), Http::STATUS_CREATED);
-        } catch (\InvalidArgumentException $e) {
-            return new DataResponse(
-                ['error' => $this->l->t('This transaction is already shared with this contact')],
-                Http::STATUS_BAD_REQUEST
-            );
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to share expense', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to share expense')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+	/**
+	 * Share an expense with a contact.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function shareExpense(
+		int $transactionId,
+		int $contactId,
+		float $amount,
+		?string $notes = null,
+	): DataResponse {
+		try {
+			$share = $this->service->shareExpense(
+				$this->getEffectiveUserId(),
+				$transactionId,
+				$contactId,
+				$amount,
+				$notes,
+				$this->getVisibleAccountIds()
+			);
+			return new DataResponse($share->jsonSerialize(), Http::STATUS_CREATED);
+		} catch (\InvalidArgumentException $e) {
+			return new DataResponse(
+				['error' => $this->l->t('This transaction is already shared with this contact')],
+				Http::STATUS_BAD_REQUEST
+			);
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to share expense', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to share expense')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Split a transaction 50/50 with a contact.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function splitFiftyFifty(int $transactionId, int $contactId, ?string $notes = null): DataResponse {
-        try {
-            $share = $this->service->splitFiftyFifty($this->getEffectiveUserId(), $transactionId, $contactId, $notes, $this->getVisibleAccountIds());
-            return new DataResponse($share->jsonSerialize(), Http::STATUS_CREATED);
-        } catch (\InvalidArgumentException $e) {
-            return new DataResponse(
-                ['error' => $this->l->t('This transaction is already shared with this contact')],
-                Http::STATUS_BAD_REQUEST
-            );
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to split 50/50', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to split expense')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+	/**
+	 * Split a transaction 50/50 with a contact.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function splitFiftyFifty(int $transactionId, int $contactId, ?string $notes = null): DataResponse {
+		try {
+			$share = $this->service->splitFiftyFifty($this->getEffectiveUserId(), $transactionId, $contactId, $notes, $this->getVisibleAccountIds());
+			return new DataResponse($share->jsonSerialize(), Http::STATUS_CREATED);
+		} catch (\InvalidArgumentException $e) {
+			return new DataResponse(
+				['error' => $this->l->t('This transaction is already shared with this contact')],
+				Http::STATUS_BAD_REQUEST
+			);
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to split 50/50', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to split expense')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Set everyone a transaction is split with in one go (#391). $splits is
-     * the complete list of open splits, [{contactId, amount}]; see
-     * SharedExpenseService::setTransactionShares().
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function setTransactionShares(int $transactionId, array $splits = [], ?string $notes = null): DataResponse {
-        try {
-            $shares = $this->service->setTransactionShares(
-                $this->getEffectiveUserId(),
-                $transactionId,
-                $splits,
-                $notes,
-                $this->getVisibleAccountIds()
-            );
-            return new DataResponse(array_map(fn($s) => $s->jsonSerialize(), $shares));
-        } catch (\InvalidArgumentException $e) {
-            $message = match ($e->getCode()) {
-                SharedExpenseService::SPLIT_ERR_DUPLICATE => $this->l->t('Each person can only be in a split once'),
-                SharedExpenseService::SPLIT_ERR_SETTLED => $this->l->t('A split that has been settled cannot be changed'),
-                SharedExpenseService::SPLIT_ERR_AMOUNT => $this->l->t('Every split needs an amount'),
-                SharedExpenseService::SPLIT_ERR_OVER_TOTAL => $this->l->t('The splits add up to more than the transaction'),
-                default => $this->l->t('Failed to save the split'),
-            };
-            return new DataResponse(['error' => $message], Http::STATUS_BAD_REQUEST);
-        } catch (DoesNotExistException $e) {
-            return new DataResponse(
-                ['error' => $this->l->t('Transaction or contact not found')],
-                Http::STATUS_NOT_FOUND
-            );
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to set transaction shares', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to save the split')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+	/**
+	 * Set everyone a transaction is split with in one go (#391). $splits is
+	 * the complete list of open splits, [{contactId, amount}]; see
+	 * SharedExpenseService::setTransactionShares().
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function setTransactionShares(int $transactionId, array $splits = [], ?string $notes = null): DataResponse {
+		try {
+			$shares = $this->service->setTransactionShares(
+				$this->getEffectiveUserId(),
+				$transactionId,
+				$splits,
+				$notes,
+				$this->getVisibleAccountIds()
+			);
+			return new DataResponse(array_map(fn ($s) => $s->jsonSerialize(), $shares));
+		} catch (\InvalidArgumentException $e) {
+			$message = match ($e->getCode()) {
+				SharedExpenseService::SPLIT_ERR_DUPLICATE => $this->l->t('Each person can only be in a split once'),
+				SharedExpenseService::SPLIT_ERR_SETTLED => $this->l->t('A split that has been settled cannot be changed'),
+				SharedExpenseService::SPLIT_ERR_AMOUNT => $this->l->t('Every split needs an amount'),
+				SharedExpenseService::SPLIT_ERR_OVER_TOTAL => $this->l->t('The splits add up to more than the transaction'),
+				default => $this->l->t('Failed to save the split'),
+			};
+			return new DataResponse(['error' => $message], Http::STATUS_BAD_REQUEST);
+		} catch (DoesNotExistException $e) {
+			return new DataResponse(
+				['error' => $this->l->t('Transaction or contact not found')],
+				Http::STATUS_NOT_FOUND
+			);
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to set transaction shares', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to save the split')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Get shares for a transaction.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function transactionShares(int $transactionId): DataResponse {
-        try {
-            $shares = $this->service->getSharesByTransaction($transactionId, $this->getEffectiveUserId());
-            return new DataResponse(array_map(fn($s) => $s->jsonSerialize(), $shares));
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to get transaction shares', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to get shares')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+	/**
+	 * Get shares for a transaction.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function transactionShares(int $transactionId): DataResponse {
+		try {
+			$shares = $this->service->getSharesByTransaction($transactionId, $this->getEffectiveUserId());
+			return new DataResponse(array_map(fn ($s) => $s->jsonSerialize(), $shares));
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to get transaction shares', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to get shares')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Update an expense share.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function updateShare(int $id, float $amount, ?string $notes = null): DataResponse {
-        try {
-            $share = $this->service->updateExpenseShare($id, $this->getEffectiveUserId(), $amount, $notes);
-            return new DataResponse($share->jsonSerialize());
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to update share', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to update share')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+	/**
+	 * Update an expense share.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function updateShare(int $id, float $amount, ?string $notes = null): DataResponse {
+		try {
+			$share = $this->service->updateExpenseShare($id, $this->getEffectiveUserId(), $amount, $notes);
+			return new DataResponse($share->jsonSerialize());
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to update share', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to update share')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Mark a share as settled.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function markSettled(int $id): DataResponse {
-        try {
-            $share = $this->service->markShareSettled($id, $this->getEffectiveUserId());
-            return new DataResponse($share->jsonSerialize());
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to mark share settled', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to mark settled')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+	/**
+	 * Mark a share as settled.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function markSettled(int $id): DataResponse {
+		try {
+			$share = $this->service->markShareSettled($id, $this->getEffectiveUserId());
+			return new DataResponse($share->jsonSerialize());
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to mark share settled', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to mark settled')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Delete an expense share.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function destroyShare(int $id): DataResponse {
-        try {
-            $this->service->deleteExpenseShare($id, $this->getEffectiveUserId());
-            return new DataResponse(['status' => 'deleted']);
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to delete share', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to delete share')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+	/**
+	 * Delete an expense share.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function destroyShare(int $id): DataResponse {
+		try {
+			$this->service->deleteExpenseShare($id, $this->getEffectiveUserId());
+			return new DataResponse(['status' => 'deleted']);
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to delete share', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to delete share')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    // ==================== Settlement Endpoints ====================
+	// ==================== Settlement Endpoints ====================
 
-    /**
-     * Settle selected expense shares.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function settleSelected(array $shareIds, string $date, ?string $notes = null): DataResponse {
-        try {
-            if (empty($shareIds)) {
-                return new DataResponse(
-                    ['error' => $this->l->t('Please select at least one expense to settle')],
-                    Http::STATUS_BAD_REQUEST
-                );
-            }
-            $settlements = $this->service->settleSelectedShares($this->getEffectiveUserId(), $shareIds, $date, $notes);
-            return new DataResponse(
-                array_map(fn($s) => $s->jsonSerialize(), $settlements),
-                Http::STATUS_CREATED
-            );
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to settle selected shares', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to settle expenses')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+	/**
+	 * Settle selected expense shares.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function settleSelected(array $shareIds, string $date, ?string $notes = null): DataResponse {
+		try {
+			if (empty($shareIds)) {
+				return new DataResponse(
+					['error' => $this->l->t('Please select at least one expense to settle')],
+					Http::STATUS_BAD_REQUEST
+				);
+			}
+			$settlements = $this->service->settleSelectedShares($this->getEffectiveUserId(), $shareIds, $date, $notes);
+			return new DataResponse(
+				array_map(fn ($s) => $s->jsonSerialize(), $settlements),
+				Http::STATUS_CREATED
+			);
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to settle selected shares', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to settle expenses')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Record a settlement.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function recordSettlement(
-        int $contactId,
-        float $amount,
-        string $date,
-        ?string $notes = null,
-        ?string $currency = null
-    ): DataResponse {
-        try {
-            $settlement = $this->service->recordSettlement(
-                $this->getEffectiveUserId(),
-                $contactId,
-                $amount,
-                $date,
-                $notes,
-                $currency
-            );
-            return new DataResponse($settlement->jsonSerialize(), Http::STATUS_CREATED);
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to record settlement', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to record settlement')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+	/**
+	 * Record a settlement.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function recordSettlement(
+		int $contactId,
+		float $amount,
+		string $date,
+		?string $notes = null,
+		?string $currency = null,
+	): DataResponse {
+		try {
+			$settlement = $this->service->recordSettlement(
+				$this->getEffectiveUserId(),
+				$contactId,
+				$amount,
+				$date,
+				$notes,
+				$currency
+			);
+			return new DataResponse($settlement->jsonSerialize(), Http::STATUS_CREATED);
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to record settlement', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to record settlement')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Settle all with a contact (mark all unsettled shares as settled).
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function settleWithContact(int $contactId, string $date, ?string $notes = null): DataResponse {
-        try {
-            $settlements = $this->service->settleWithContact($this->getEffectiveUserId(), $contactId, $date, $notes);
-            return new DataResponse(
-                array_map(fn($s) => $s->jsonSerialize(), $settlements),
-                Http::STATUS_CREATED
-            );
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to settle with contact', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to settle')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+	/**
+	 * Settle all with a contact (mark all unsettled shares as settled).
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function settleWithContact(int $contactId, string $date, ?string $notes = null): DataResponse {
+		try {
+			$settlements = $this->service->settleWithContact($this->getEffectiveUserId(), $contactId, $date, $notes);
+			return new DataResponse(
+				array_map(fn ($s) => $s->jsonSerialize(), $settlements),
+				Http::STATUS_CREATED
+			);
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to settle with contact', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to settle')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Get all settlements.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function settlements(): DataResponse {
-        try {
-            $settlements = $this->service->getSettlements($this->getEffectiveUserId());
-            return new DataResponse(array_map(fn($s) => $s->jsonSerialize(), $settlements));
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to get settlements', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to get settlements')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+	/**
+	 * Get all settlements.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function settlements(): DataResponse {
+		try {
+			$settlements = $this->service->getSettlements($this->getEffectiveUserId());
+			return new DataResponse(array_map(fn ($s) => $s->jsonSerialize(), $settlements));
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to get settlements', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to get settlements')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Delete a settlement.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function destroySettlement(int $id): DataResponse {
-        try {
-            $this->service->deleteSettlement($id, $this->getEffectiveUserId());
-            return new DataResponse(['status' => 'deleted']);
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to delete settlement', [
-                'exception' => $e,
-                'userId' => $this->getEffectiveUserId(),
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to delete settlement')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+	/**
+	 * Delete a settlement.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function destroySettlement(int $id): DataResponse {
+		try {
+			$this->service->deleteSettlement($id, $this->getEffectiveUserId());
+			return new DataResponse(['status' => 'deleted']);
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to delete settlement', [
+				'exception' => $e,
+				'userId' => $this->getEffectiveUserId(),
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to delete settlement')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 }

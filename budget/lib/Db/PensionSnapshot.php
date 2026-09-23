@@ -22,26 +22,26 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCreatedAt(string $createdAt)
  */
 class PensionSnapshot extends Entity implements JsonSerializable {
-    protected $userId;
-    protected $pensionId;
-    protected $balance;
-    protected $date;
-    protected $createdAt;
+	protected $userId;
+	protected $pensionId;
+	protected $balance;
+	protected $date;
+	protected $createdAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('pensionId', 'integer');
-        $this->addType('balance', 'float');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('pensionId', 'integer');
+		$this->addType('balance', 'float');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'userId' => $this->getUserId(),
-            'pensionId' => $this->getPensionId(),
-            'balance' => $this->getBalance(),
-            'date' => $this->getDate(),
-            'createdAt' => $this->getCreatedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'userId' => $this->getUserId(),
+			'pensionId' => $this->getPensionId(),
+			'balance' => $this->getBalance(),
+			'date' => $this->getDate(),
+			'createdAt' => $this->getCreatedAt(),
+		];
+	}
 }

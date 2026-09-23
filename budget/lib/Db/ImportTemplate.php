@@ -44,96 +44,96 @@ use OCP\AppFramework\Db\Entity;
  * @method void setUpdatedAt(?string $updatedAt)
  */
 class ImportTemplate extends Entity implements JsonSerializable {
-    protected $userId;
-    protected $name;
-    protected $format;
-    protected $mapping;
-    protected $accountMapping;
-    protected $delimiter;
-    protected $encoding;
-    protected $skipFirstRow;
-    protected $skipDuplicates;
-    protected $applyRules;
-    protected $accountId;
-    protected $createdAt;
-    protected $updatedAt;
+	protected $userId;
+	protected $name;
+	protected $format;
+	protected $mapping;
+	protected $accountMapping;
+	protected $delimiter;
+	protected $encoding;
+	protected $skipFirstRow;
+	protected $skipDuplicates;
+	protected $applyRules;
+	protected $accountId;
+	protected $createdAt;
+	protected $updatedAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('skipFirstRow', 'boolean');
-        $this->addType('skipDuplicates', 'boolean');
-        $this->addType('applyRules', 'boolean');
-        $this->addType('accountId', 'integer');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('skipFirstRow', 'boolean');
+		$this->addType('skipDuplicates', 'boolean');
+		$this->addType('applyRules', 'boolean');
+		$this->addType('accountId', 'integer');
+	}
 
-    /**
-     * Serialize the template to JSON format for frontend consumption.
-     */
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'userId' => $this->getUserId(),
-            'name' => $this->getName(),
-            'format' => $this->getFormat() ?? 'csv',
-            'mapping' => $this->getParsedMapping(),
-            'accountMapping' => $this->getParsedAccountMapping(),
-            'delimiter' => $this->getDelimiter() ?? ',',
-            'encoding' => $this->getEncoding(),
-            'skipFirstRow' => $this->getSkipFirstRow() ?? false,
-            'skipDuplicates' => $this->getSkipDuplicates() ?? true,
-            'applyRules' => $this->getApplyRules() ?? false,
-            'accountId' => $this->getAccountId(),
-            'createdAt' => $this->getCreatedAt(),
-            'updatedAt' => $this->getUpdatedAt(),
-        ];
-    }
+	/**
+	 * Serialize the template to JSON format for frontend consumption.
+	 */
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'userId' => $this->getUserId(),
+			'name' => $this->getName(),
+			'format' => $this->getFormat() ?? 'csv',
+			'mapping' => $this->getParsedMapping(),
+			'accountMapping' => $this->getParsedAccountMapping(),
+			'delimiter' => $this->getDelimiter() ?? ',',
+			'encoding' => $this->getEncoding(),
+			'skipFirstRow' => $this->getSkipFirstRow() ?? false,
+			'skipDuplicates' => $this->getSkipDuplicates() ?? true,
+			'applyRules' => $this->getApplyRules() ?? false,
+			'accountId' => $this->getAccountId(),
+			'createdAt' => $this->getCreatedAt(),
+			'updatedAt' => $this->getUpdatedAt(),
+		];
+	}
 
-    /**
-     * Get the column mapping decoded from its stored JSON string.
-     *
-     * @return array<string, mixed>
-     */
-    public function getParsedMapping(): array {
-        return $this->decodeJsonColumn($this->getMapping());
-    }
+	/**
+	 * Get the column mapping decoded from its stored JSON string.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function getParsedMapping(): array {
+		return $this->decodeJsonColumn($this->getMapping());
+	}
 
-    /**
-     * Set the column mapping from an array (stored as a JSON string).
-     *
-     * @param array<string, mixed> $mapping
-     */
-    public function setMappingFromArray(array $mapping): void {
-        $this->setMapping(json_encode($mapping));
-    }
+	/**
+	 * Set the column mapping from an array (stored as a JSON string).
+	 *
+	 * @param array<string, mixed> $mapping
+	 */
+	public function setMappingFromArray(array $mapping): void {
+		$this->setMapping(json_encode($mapping));
+	}
 
-    /**
-     * Get the account routing map (source account key -> budget account id).
-     *
-     * @return array<string, int>
-     */
-    public function getParsedAccountMapping(): array {
-        return $this->decodeJsonColumn($this->getAccountMapping());
-    }
+	/**
+	 * Get the account routing map (source account key -> budget account id).
+	 *
+	 * @return array<string, int>
+	 */
+	public function getParsedAccountMapping(): array {
+		return $this->decodeJsonColumn($this->getAccountMapping());
+	}
 
-    /**
-     * Set the account routing map from an array (stored as a JSON string).
-     *
-     * @param array<string, int> $accountMapping
-     */
-    public function setAccountMappingFromArray(array $accountMapping): void {
-        $this->setAccountMapping(json_encode($accountMapping));
-    }
+	/**
+	 * Set the account routing map from an array (stored as a JSON string).
+	 *
+	 * @param array<string, int> $accountMapping
+	 */
+	public function setAccountMappingFromArray(array $accountMapping): void {
+		$this->setAccountMapping(json_encode($accountMapping));
+	}
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function decodeJsonColumn(?string $json): array {
-        if ($json) {
-            $decoded = json_decode($json, true);
-            if (is_array($decoded)) {
-                return $decoded;
-            }
-        }
-        return [];
-    }
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function decodeJsonColumn(?string $json): array {
+		if ($json) {
+			$decoded = json_decode($json, true);
+			if (is_array($decoded)) {
+				return $decoded;
+			}
+		}
+		return [];
+	}
 }

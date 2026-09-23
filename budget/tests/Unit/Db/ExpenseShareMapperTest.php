@@ -16,241 +16,241 @@ use OCP\IDBConnection;
 use PHPUnit\Framework\TestCase;
 
 class ExpenseShareMapperTest extends TestCase {
-    private ExpenseShareMapper $mapper;
-    private IDBConnection $db;
-    private IQueryBuilder $qb;
-    private IExpressionBuilder $expr;
-    private IResult $result;
-    private IFunctionBuilder $func;
+	private ExpenseShareMapper $mapper;
+	private IDBConnection $db;
+	private IQueryBuilder $qb;
+	private IExpressionBuilder $expr;
+	private IResult $result;
+	private IFunctionBuilder $func;
 
-    protected function setUp(): void {
-        $this->db = $this->createMock(IDBConnection::class);
-        $this->qb = $this->createMock(IQueryBuilder::class);
-        $this->expr = $this->createMock(IExpressionBuilder::class);
-        $this->result = $this->createMock(IResult::class);
-        $this->func = $this->createMock(IFunctionBuilder::class);
+	protected function setUp(): void {
+		$this->db = $this->createMock(IDBConnection::class);
+		$this->qb = $this->createMock(IQueryBuilder::class);
+		$this->expr = $this->createMock(IExpressionBuilder::class);
+		$this->result = $this->createMock(IResult::class);
+		$this->func = $this->createMock(IFunctionBuilder::class);
 
-        $this->db->method('getQueryBuilder')->willReturn($this->qb);
-        $this->qb->method('expr')->willReturn($this->expr);
-        $this->qb->method('func')->willReturn($this->func);
-        $this->qb->method('getSQL')->willReturn('');
-        $this->qb->method('createNamedParameter')->willReturn(':param');
+		$this->db->method('getQueryBuilder')->willReturn($this->qb);
+		$this->qb->method('expr')->willReturn($this->expr);
+		$this->qb->method('func')->willReturn($this->func);
+		$this->qb->method('getSQL')->willReturn('');
+		$this->qb->method('createNamedParameter')->willReturn(':param');
 
-        $sumFunc = $this->createMock(IQueryFunction::class);
-        $this->func->method('sum')->willReturn($sumFunc);
+		$sumFunc = $this->createMock(IQueryFunction::class);
+		$this->func->method('sum')->willReturn($sumFunc);
 
-        foreach (['select', 'selectAlias', 'from', 'where', 'andWhere',
-                   'orderBy', 'delete', 'groupBy', 'innerJoin', 'leftJoin'] as $method) {
-            $this->qb->method($method)->willReturnSelf();
-        }
+		foreach (['select', 'selectAlias', 'from', 'where', 'andWhere',
+			'orderBy', 'delete', 'groupBy', 'innerJoin', 'leftJoin'] as $method) {
+			$this->qb->method($method)->willReturnSelf();
+		}
 
-        $this->mapper = new ExpenseShareMapper($this->db);
-    }
+		$this->mapper = new ExpenseShareMapper($this->db);
+	}
 
-    private function makeShareRow(array $overrides = []): array {
-        return array_merge([
-            'id' => 1,
-            'user_id' => 'user1',
-            'transaction_id' => 100,
-            'contact_id' => 5,
-            'amount' => 25.50,
-            'is_settled' => 0,
-            'notes' => null,
-            'created_at' => '2026-01-15 12:00:00',
-        ], $overrides);
-    }
+	private function makeShareRow(array $overrides = []): array {
+		return array_merge([
+			'id' => 1,
+			'user_id' => 'user1',
+			'transaction_id' => 100,
+			'contact_id' => 5,
+			'amount' => 25.50,
+			'is_settled' => 0,
+			'notes' => null,
+			'created_at' => '2026-01-15 12:00:00',
+		], $overrides);
+	}
 
-    // ===== getTableName =====
+	// ===== getTableName =====
 
-    public function testTableNameIsCorrect(): void {
-        $this->assertEquals('budget_expense_shares', $this->mapper->getTableName());
-    }
+	public function testTableNameIsCorrect(): void {
+		$this->assertEquals('budget_expense_shares', $this->mapper->getTableName());
+	}
 
-    // ===== find =====
+	// ===== find =====
 
-    public function testFindReturnsShare(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls($this->makeShareRow(), false);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindReturnsShare(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls($this->makeShareRow(), false);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $share = $this->mapper->find(1, 'user1');
+		$share = $this->mapper->find(1, 'user1');
 
-        $this->assertInstanceOf(ExpenseShare::class, $share);
-        $this->assertEquals(25.50, $share->getAmount());
-        $this->assertEquals(100, $share->getTransactionId());
-        $this->assertEquals(5, $share->getContactId());
-    }
+		$this->assertInstanceOf(ExpenseShare::class, $share);
+		$this->assertEquals(25.50, $share->getAmount());
+		$this->assertEquals(100, $share->getTransactionId());
+		$this->assertEquals(5, $share->getContactId());
+	}
 
-    public function testFindThrowsWhenNotFound(): void {
-        $this->result->method('fetch')->willReturn(false);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindThrowsWhenNotFound(): void {
+		$this->result->method('fetch')->willReturn(false);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $this->expectException(DoesNotExistException::class);
+		$this->expectException(DoesNotExistException::class);
 
-        $this->mapper->find(999, 'user1');
-    }
+		$this->mapper->find(999, 'user1');
+	}
 
-    // ===== findAll =====
+	// ===== findAll =====
 
-    public function testFindAllReturnsShares(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeShareRow(['id' => 1]),
-                $this->makeShareRow(['id' => 2]),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindAllReturnsShares(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeShareRow(['id' => 1]),
+				$this->makeShareRow(['id' => 2]),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $shares = $this->mapper->findAll('user1');
+		$shares = $this->mapper->findAll('user1');
 
-        $this->assertCount(2, $shares);
-    }
+		$this->assertCount(2, $shares);
+	}
 
-    // ===== findByTransaction =====
+	// ===== findByTransaction =====
 
-    public function testFindByTransactionReturnsShares(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeShareRow(['contact_id' => 5]),
-                $this->makeShareRow(['contact_id' => 6]),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindByTransactionReturnsShares(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeShareRow(['contact_id' => 5]),
+				$this->makeShareRow(['contact_id' => 6]),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $shares = $this->mapper->findByTransaction(100, 'user1');
+		$shares = $this->mapper->findByTransaction(100, 'user1');
 
-        $this->assertCount(2, $shares);
-    }
+		$this->assertCount(2, $shares);
+	}
 
-    // ===== findByContact =====
+	// ===== findByContact =====
 
-    public function testFindByContactReturnsShares(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeShareRow(['transaction_id' => 100]),
-                $this->makeShareRow(['transaction_id' => 101]),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindByContactReturnsShares(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeShareRow(['transaction_id' => 100]),
+				$this->makeShareRow(['transaction_id' => 101]),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $shares = $this->mapper->findByContact(5, 'user1');
+		$shares = $this->mapper->findByContact(5, 'user1');
 
-        $this->assertCount(2, $shares);
-    }
+		$this->assertCount(2, $shares);
+	}
 
-    // ===== findUnsettled =====
+	// ===== findUnsettled =====
 
-    public function testFindUnsettledReturnsUnsettledShares(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeShareRow(['is_settled' => 0]),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindUnsettledReturnsUnsettledShares(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeShareRow(['is_settled' => 0]),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $shares = $this->mapper->findUnsettled('user1');
+		$shares = $this->mapper->findUnsettled('user1');
 
-        $this->assertCount(1, $shares);
-    }
+		$this->assertCount(1, $shares);
+	}
 
-    public function testFindUnsettledReturnsEmpty(): void {
-        $this->result->method('fetch')->willReturn(false);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindUnsettledReturnsEmpty(): void {
+		$this->result->method('fetch')->willReturn(false);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $shares = $this->mapper->findUnsettled('user1');
+		$shares = $this->mapper->findUnsettled('user1');
 
-        $this->assertEmpty($shares);
-    }
+		$this->assertEmpty($shares);
+	}
 
-    // ===== findUnsettledByContact =====
+	// ===== findUnsettledByContact =====
 
-    public function testFindUnsettledByContactReturnsShares(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeShareRow(['is_settled' => 0, 'contact_id' => 5]),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindUnsettledByContactReturnsShares(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeShareRow(['is_settled' => 0, 'contact_id' => 5]),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $shares = $this->mapper->findUnsettledByContact(5, 'user1');
+		$shares = $this->mapper->findUnsettledByContact(5, 'user1');
 
-        $this->assertCount(1, $shares);
-    }
+		$this->assertCount(1, $shares);
+	}
 
-    // ===== deleteByTransaction =====
+	// ===== deleteByTransaction =====
 
-    public function testDeleteByTransactionExecutesStatement(): void {
-        $this->qb->expects($this->once())->method('executeStatement');
+	public function testDeleteByTransactionExecutesStatement(): void {
+		$this->qb->expects($this->once())->method('executeStatement');
 
-        $this->mapper->deleteByTransaction(100, 'user1');
-    }
+		$this->mapper->deleteByTransaction(100, 'user1');
+	}
 
-    // ===== getBalancesByContact =====
+	// ===== getBalancesByContact =====
 
-    public function testGetBalancesByContactReturnsBalances(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                ['contact_id' => '5', 'currency' => 'USD', 'balance' => '75.50'],
-                ['contact_id' => '8', 'currency' => 'USD', 'balance' => '-30.00'],
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testGetBalancesByContactReturnsBalances(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				['contact_id' => '5', 'currency' => 'USD', 'balance' => '75.50'],
+				['contact_id' => '8', 'currency' => 'USD', 'balance' => '-30.00'],
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $balances = $this->mapper->getBalancesByContact('user1');
+		$balances = $this->mapper->getBalancesByContact('user1');
 
-        $this->assertArrayHasKey(5, $balances);
-        $this->assertArrayHasKey(8, $balances);
-        $this->assertEquals(75.50, $balances[5]['USD']);
-        $this->assertEquals(-30.00, $balances[8]['USD']);
-    }
+		$this->assertArrayHasKey(5, $balances);
+		$this->assertArrayHasKey(8, $balances);
+		$this->assertEquals(75.50, $balances[5]['USD']);
+		$this->assertEquals(-30.00, $balances[8]['USD']);
+	}
 
-    public function testGetBalancesByContactReturnsEmptyWhenNone(): void {
-        $this->result->method('fetch')->willReturn(false);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testGetBalancesByContactReturnsEmptyWhenNone(): void {
+		$this->result->method('fetch')->willReturn(false);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $balances = $this->mapper->getBalancesByContact('user1');
+		$balances = $this->mapper->getBalancesByContact('user1');
 
-        $this->assertEmpty($balances);
-    }
+		$this->assertEmpty($balances);
+	}
 
-    // ===== getIncomingBalancesByOwner =====
+	// ===== getIncomingBalancesByOwner =====
 
-    public function testGetIncomingBalancesByOwnerKeysByOwnerAndCurrency(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                ['owner_user_id' => 'alice', 'currency' => 'GBP', 'balance' => '60.00'],
-                ['owner_user_id' => 'alice', 'currency' => null, 'balance' => '5.00'],
-                ['owner_user_id' => 'carol', 'currency' => 'EUR', 'balance' => '-12.50'],
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testGetIncomingBalancesByOwnerKeysByOwnerAndCurrency(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				['owner_user_id' => 'alice', 'currency' => 'GBP', 'balance' => '60.00'],
+				['owner_user_id' => 'alice', 'currency' => null, 'balance' => '5.00'],
+				['owner_user_id' => 'carol', 'currency' => 'EUR', 'balance' => '-12.50'],
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $balances = $this->mapper->getIncomingBalancesByOwner('bob');
+		$balances = $this->mapper->getIncomingBalancesByOwner('bob');
 
-        $this->assertEquals([
-            'alice' => ['GBP' => 60.0, 'USD' => 5.0],
-            'carol' => ['EUR' => -12.5],
-        ], $balances);
-    }
+		$this->assertEquals([
+			'alice' => ['GBP' => 60.0, 'USD' => 5.0],
+			'carol' => ['EUR' => -12.5],
+		], $balances);
+	}
 
-    // ===== deleteAll =====
+	// ===== deleteAll =====
 
-    public function testDeleteAllReturnsAffectedRows(): void {
-        $this->qb->method('executeStatement')->willReturn(7);
+	public function testDeleteAllReturnsAffectedRows(): void {
+		$this->qb->method('executeStatement')->willReturn(7);
 
-        $count = $this->mapper->deleteAll('user1');
+		$count = $this->mapper->deleteAll('user1');
 
-        $this->assertEquals(7, $count);
-    }
+		$this->assertEquals(7, $count);
+	}
 }

@@ -21,79 +21,79 @@ use OCP\IDBConnection;
  * save has already failed on a missing column.
  */
 class SchemaProbe {
-    private ?object $schema = null;
+	private ?object $schema = null;
 
-    public function __construct(
-        private IDBConnection $db,
-        private IConfig $config,
-    ) {
-    }
+	public function __construct(
+		private IDBConnection $db,
+		private IConfig $config,
+	) {
+	}
 
-    /**
-     * The column names a table actually has, or null when the table itself is
-     * not there. Names are lowercased so a case-preserving driver compares
-     * equal to the snake_case the entities derive.
-     *
-     * @param string $table Unprefixed name, e.g. 'budget_bills'
-     * @return string[]|null
-     * @throws \Throwable whatever the driver throws - the caller decides
-     *         whether not knowing is worth a warning (it is not)
-     */
-    public function tableColumns(string $table): ?array {
-        $this->schema ??= $this->db->createSchema();
-        $name = $this->config->getSystemValueString('dbtableprefix', 'oc_') . $table;
+	/**
+	 * The column names a table actually has, or null when the table itself is
+	 * not there. Names are lowercased so a case-preserving driver compares
+	 * equal to the snake_case the entities derive.
+	 *
+	 * @param string $table Unprefixed name, e.g. 'budget_bills'
+	 * @return string[]|null
+	 * @throws \Throwable whatever the driver throws - the caller decides
+	 *                    whether not knowing is worth a warning (it is not)
+	 */
+	public function tableColumns(string $table): ?array {
+		$this->schema ??= $this->db->createSchema();
+		$name = $this->config->getSystemValueString('dbtableprefix', 'oc_') . $table;
 
-        if (!$this->schema->hasTable($name)) {
-            return null;
-        }
+		if (!$this->schema->hasTable($name)) {
+			return null;
+		}
 
-        $columns = [];
-        foreach ($this->schema->getTable($name)->getColumns() as $column) {
-            $columns[] = strtolower($column->getName());
-        }
+		$columns = [];
+		foreach ($this->schema->getTable($name)->getColumns() as $column) {
+			$columns[] = strtolower($column->getName());
+		}
 
-        return $columns;
-    }
+		return $columns;
+	}
 
-    /**
-     * How each column of a table binds: 'bool', 'int' or 'string', keyed by
-     * lowercased column name, or null when the table is not there.
-     *
-     * For writers that build rows from untyped data (the backup restore's
-     * table-level import): PostgreSQL refuses '' or '0' for a boolean column
-     * and a string for an integer one, so the value's own PHP type is not
-     * enough - a backup written on SQLite or MySQL holds booleans as 0/1.
-     * Doctrine's type classes are checked by name because the app's vendor
-     * directory does not ship Doctrine; the server does.
-     *
-     * @param string $table Unprefixed name, e.g. 'budget_tags'
-     * @return array<string, 'bool'|'int'|'string'>|null
-     */
-    public function columnBindings(string $table): ?array {
-        $this->schema ??= $this->db->createSchema();
-        $name = $this->config->getSystemValueString('dbtableprefix', 'oc_') . $table;
+	/**
+	 * How each column of a table binds: 'bool', 'int' or 'string', keyed by
+	 * lowercased column name, or null when the table is not there.
+	 *
+	 * For writers that build rows from untyped data (the backup restore's
+	 * table-level import): PostgreSQL refuses '' or '0' for a boolean column
+	 * and a string for an integer one, so the value's own PHP type is not
+	 * enough - a backup written on SQLite or MySQL holds booleans as 0/1.
+	 * Doctrine's type classes are checked by name because the app's vendor
+	 * directory does not ship Doctrine; the server does.
+	 *
+	 * @param string $table Unprefixed name, e.g. 'budget_tags'
+	 * @return array<string, 'bool'|'int'|'string'>|null
+	 */
+	public function columnBindings(string $table): ?array {
+		$this->schema ??= $this->db->createSchema();
+		$name = $this->config->getSystemValueString('dbtableprefix', 'oc_') . $table;
 
-        if (!$this->schema->hasTable($name)) {
-            return null;
-        }
+		if (!$this->schema->hasTable($name)) {
+			return null;
+		}
 
-        $bindings = [];
-        foreach ($this->schema->getTable($name)->getColumns() as $column) {
-            $type = $column->getType();
-            $bindings[strtolower($column->getName())] = match (true) {
-                $type instanceof \Doctrine\DBAL\Types\BooleanType => 'bool',
-                $type instanceof \Doctrine\DBAL\Types\IntegerType,
-                $type instanceof \Doctrine\DBAL\Types\BigIntType,
-                $type instanceof \Doctrine\DBAL\Types\SmallIntType => 'int',
-                default => 'string',
-            };
-        }
+		$bindings = [];
+		foreach ($this->schema->getTable($name)->getColumns() as $column) {
+			$type = $column->getType();
+			$bindings[strtolower($column->getName())] = match (true) {
+				$type instanceof \Doctrine\DBAL\Types\BooleanType => 'bool',
+				$type instanceof \Doctrine\DBAL\Types\IntegerType,
+				$type instanceof \Doctrine\DBAL\Types\BigIntType,
+				$type instanceof \Doctrine\DBAL\Types\SmallIntType => 'int',
+				default => 'string',
+			};
+		}
 
-        return $bindings;
-    }
+		return $bindings;
+	}
 
-    /** Drop the snapshot, so the next question reads the database again. */
-    public function reset(): void {
-        $this->schema = null;
-    }
+	/** Drop the snapshot, so the next question reads the database again. */
+	public function reset(): void {
+		$this->schema = null;
+	}
 }

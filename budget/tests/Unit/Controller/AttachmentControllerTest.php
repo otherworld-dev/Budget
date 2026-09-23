@@ -26,7 +26,7 @@ class AttachmentControllerTest extends TestCase {
 		$this->service = $this->createMock(AttachmentService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
 		$l = $this->createMock(IL10N::class);
-		$l->method('t')->willReturnCallback(fn($text, $params = []) => vsprintf($text, $params));
+		$l->method('t')->willReturnCallback(fn ($text, $params = []) => vsprintf($text, $params));
 
 		$this->controller = new AttachmentController(
 			$this->request,

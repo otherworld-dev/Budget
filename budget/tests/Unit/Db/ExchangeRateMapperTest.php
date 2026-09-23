@@ -6,7 +6,6 @@ namespace OCA\Budget\Tests\Unit\Db;
 
 use OCA\Budget\Db\ExchangeRate;
 use OCA\Budget\Db\ExchangeRateMapper;
-use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\DB\IResult;
 use OCP\DB\QueryBuilder\IExpressionBuilder;
 use OCP\DB\QueryBuilder\IQueryBuilder;
@@ -33,8 +32,8 @@ class ExchangeRateMapperTest extends TestCase {
 		$this->qb->method('createFunction')->willReturn(':func');
 
 		foreach (['select', 'from', 'where', 'andWhere', 'orderBy',
-				   'insert', 'delete', 'update', 'set', 'setValue',
-				   'setMaxResults'] as $method) {
+			'insert', 'delete', 'update', 'set', 'setValue',
+			'setMaxResults'] as $method) {
 			$this->qb->method($method)->willReturnSelf();
 		}
 

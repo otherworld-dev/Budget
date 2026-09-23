@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service;
 
-use OCA\Budget\Service\Import\TransactionNormalizer;
-use OCA\Budget\Service\Import\EncodingNormalizer;
 use OCA\Budget\Db\ImportTemplate;
 use OCA\Budget\Db\ImportTemplateMapper;
+use OCA\Budget\Service\Import\EncodingNormalizer;
+use OCA\Budget\Service\Import\TransactionNormalizer;
 use OCP\AppFramework\Db\Entity;
 
 /**
@@ -21,305 +21,305 @@ use OCP\AppFramework\Db\Entity;
  * @extends AbstractCrudService<ImportTemplate>
  */
 class ImportTemplateService extends AbstractCrudService {
-    public const FORMATS = ['csv', 'ofx', 'qif'];
+	public const FORMATS = ['csv', 'ofx', 'qif'];
 
-    /**
-     * Mapping keys that hold a CSV column reference.
-     */
-    private const COLUMN_FIELDS = [
-        'date', 'amount', 'incomeColumn', 'expenseColumn', 'description',
-        'notes', 'type', 'vendor', 'reference', 'category', 'account', 'currency',
-    ];
+	/**
+	 * Mapping keys that hold a CSV column reference.
+	 */
+	private const COLUMN_FIELDS = [
+		'date', 'amount', 'incomeColumn', 'expenseColumn', 'description',
+		'notes', 'type', 'vendor', 'reference', 'category', 'account', 'currency',
+	];
 
-    /**
-     * The subset an OFX/QIF template may carry.
-     *
-     * Date, amount and type are structural in those formats and they have no
-     * per-row account, currency or dual-amount columns, so only the four text
-     * targets are worth storing — the same set the mapping step offers for
-     * them (MAPPABLE_FIELDS in ImportModule.js).
-     */
-    private const OFX_COLUMN_FIELDS = ['description', 'notes', 'vendor', 'reference'];
+	/**
+	 * The subset an OFX/QIF template may carry.
+	 *
+	 * Date, amount and type are structural in those formats and they have no
+	 * per-row account, currency or dual-amount columns, so only the four text
+	 * targets are worth storing — the same set the mapping step offers for
+	 * them (MAPPABLE_FIELDS in ImportModule.js).
+	 */
+	private const OFX_COLUMN_FIELDS = ['description', 'notes', 'vendor', 'reference'];
 
-    /**
-     * Mapping keys that hold a boolean option.
-     */
-    private const BOOLEAN_FIELDS = ['skipFirstRow', 'applyRules'];
+	/**
+	 * Mapping keys that hold a boolean option.
+	 */
+	private const BOOLEAN_FIELDS = ['skipFirstRow', 'applyRules'];
 
-    public function __construct(ImportTemplateMapper $mapper) {
-        $this->mapper = $mapper;
-    }
+	public function __construct(ImportTemplateMapper $mapper) {
+		$this->mapper = $mapper;
+	}
 
-    /**
-     * @return ImportTemplate[]
-     */
-    public function findAllByFormat(string $userId, string $format): array {
-        $this->assertValidFormat($format);
-        /** @var ImportTemplateMapper $mapper */
-        $mapper = $this->mapper;
-        return $mapper->findAllByFormat($userId, $format);
-    }
+	/**
+	 * @return ImportTemplate[]
+	 */
+	public function findAllByFormat(string $userId, string $format): array {
+		$this->assertValidFormat($format);
+		/** @var ImportTemplateMapper $mapper */
+		$mapper = $this->mapper;
+		return $mapper->findAllByFormat($userId, $format);
+	}
 
-    /**
-     * @param array<string, mixed> $mapping        CSV column mapping (csv only)
-     * @param array<string, int> $accountMapping    Source key -> account id (ofx/qif only)
-     */
-    public function create(
-        string $userId,
-        string $name,
-        string $format = 'csv',
-        array $mapping = [],
-        array $accountMapping = [],
-        string $delimiter = ',',
-        bool $skipFirstRow = true,
-        bool $skipDuplicates = true,
-        bool $applyRules = false,
-        ?int $accountId = null,
-        ?string $encoding = null
-    ): ImportTemplate {
-        $this->assertValidFormat($format);
-        $name = $this->normalizeName($name);
-        $this->assertNameAvailable($name, $userId);
+	/**
+	 * @param array<string, mixed> $mapping CSV column mapping (csv only)
+	 * @param array<string, int> $accountMapping Source key -> account id (ofx/qif only)
+	 */
+	public function create(
+		string $userId,
+		string $name,
+		string $format = 'csv',
+		array $mapping = [],
+		array $accountMapping = [],
+		string $delimiter = ',',
+		bool $skipFirstRow = true,
+		bool $skipDuplicates = true,
+		bool $applyRules = false,
+		?int $accountId = null,
+		?string $encoding = null,
+	): ImportTemplate {
+		$this->assertValidFormat($format);
+		$name = $this->normalizeName($name);
+		$this->assertNameAvailable($name, $userId);
 
-        $template = new ImportTemplate();
-        $template->setUserId($userId);
-        $template->setName($name);
-        $template->setFormat($format);
+		$template = new ImportTemplate();
+		$template->setUserId($userId);
+		$template->setName($name);
+		$template->setFormat($format);
 
-        if ($format === 'csv') {
-            $mapping = $this->sanitizeMapping($mapping);
-            $this->assertMappingValid($mapping);
-            $template->setMappingFromArray($mapping);
-            $template->setAccountMappingFromArray([]);
-        } else {
-            $accountMapping = $this->sanitizeAccountMapping($accountMapping);
-            $this->assertAccountMappingValid($accountMapping);
-            $template->setAccountMappingFromArray($accountMapping);
-            // The routing is the point of an OFX/QIF template, but since #338
-            // made the four text targets mappable for those formats too, a
-            // non-default choice has to be stored or it is silently reset to
-            // the format defaults on every later import (#340).
-            $template->setMappingFromArray($this->sanitizeMapping($mapping, self::OFX_COLUMN_FIELDS));
-        }
+		if ($format === 'csv') {
+			$mapping = $this->sanitizeMapping($mapping);
+			$this->assertMappingValid($mapping);
+			$template->setMappingFromArray($mapping);
+			$template->setAccountMappingFromArray([]);
+		} else {
+			$accountMapping = $this->sanitizeAccountMapping($accountMapping);
+			$this->assertAccountMappingValid($accountMapping);
+			$template->setAccountMappingFromArray($accountMapping);
+			// The routing is the point of an OFX/QIF template, but since #338
+			// made the four text targets mappable for those formats too, a
+			// non-default choice has to be stored or it is silently reset to
+			// the format defaults on every later import (#340).
+			$template->setMappingFromArray($this->sanitizeMapping($mapping, self::OFX_COLUMN_FIELDS));
+		}
 
-        $template->setDelimiter($delimiter !== '' ? $delimiter : ',');
-        $template->setEncoding($this->normalizeEncoding($encoding));
-        $template->setSkipFirstRow($skipFirstRow);
-        $template->setSkipDuplicates($skipDuplicates);
-        $template->setApplyRules($applyRules);
-        $template->setAccountId($accountId);
-        $template->setCreatedAt(date('Y-m-d H:i:s'));
+		$template->setDelimiter($delimiter !== '' ? $delimiter : ',');
+		$template->setEncoding($this->normalizeEncoding($encoding));
+		$template->setSkipFirstRow($skipFirstRow);
+		$template->setSkipDuplicates($skipDuplicates);
+		$template->setApplyRules($applyRules);
+		$template->setAccountId($accountId);
+		$template->setCreatedAt(date('Y-m-d H:i:s'));
 
-        /** @var ImportTemplateMapper $mapper */
-        $mapper = $this->mapper;
-        return $mapper->insert($template);
-    }
+		/** @var ImportTemplateMapper $mapper */
+		$mapper = $this->mapper;
+		return $mapper->insert($template);
+	}
 
-    /**
-     * Update a template. The format is immutable; the mapping/account-mapping
-     * payloads are stored as JSON and validated against the template's format.
-     *
-     * @param array<string, mixed> $updates
-     */
-    public function update(int $id, string $userId, array $updates): Entity {
-        // Format is fixed at creation time.
-        unset($updates['format']);
+	/**
+	 * Update a template. The format is immutable; the mapping/account-mapping
+	 * payloads are stored as JSON and validated against the template's format.
+	 *
+	 * @param array<string, mixed> $updates
+	 */
+	public function update(int $id, string $userId, array $updates): Entity {
+		// Format is fixed at creation time.
+		unset($updates['format']);
 
-        if (isset($updates['name'])) {
-            $updates['name'] = $this->normalizeName($updates['name']);
-            $this->assertNameAvailable($updates['name'], $userId, $id);
-        }
+		if (isset($updates['name'])) {
+			$updates['name'] = $this->normalizeName($updates['name']);
+			$this->assertNameAvailable($updates['name'], $userId, $id);
+		}
 
-        if (isset($updates['delimiter']) && $updates['delimiter'] === '') {
-            $updates['delimiter'] = ',';
-        }
-        if (isset($updates['encoding'])) {
-            $updates['encoding'] = $this->normalizeEncoding((string) $updates['encoding']);
-        }
+		if (isset($updates['delimiter']) && $updates['delimiter'] === '') {
+			$updates['delimiter'] = ',';
+		}
+		if (isset($updates['encoding'])) {
+			$updates['encoding'] = $this->normalizeEncoding((string)$updates['encoding']);
+		}
 
-        $hasMapping = array_key_exists('mapping', $updates);
-        $hasAccountMapping = array_key_exists('accountMapping', $updates);
+		$hasMapping = array_key_exists('mapping', $updates);
+		$hasAccountMapping = array_key_exists('accountMapping', $updates);
 
-        if (!$hasMapping && !$hasAccountMapping) {
-            return parent::update($id, $userId, $updates);
-        }
+		if (!$hasMapping && !$hasAccountMapping) {
+			return parent::update($id, $userId, $updates);
+		}
 
-        // The JSON payloads need bespoke handling (array -> JSON string), so
-        // resolve the entity and apply everything ourselves.
-        $entity = $this->find($id, $userId);
+		// The JSON payloads need bespoke handling (array -> JSON string), so
+		// resolve the entity and apply everything ourselves.
+		$entity = $this->find($id, $userId);
 
-        if ($hasMapping) {
-            // OFX/QIF templates carry only the text targets, and none of them
-            // is required — the CSV date/amount/description rules would reject
-            // every one of them.
-            if (($entity->getFormat() ?? 'csv') === 'csv') {
-                $mapping = $this->sanitizeMapping((array) $updates['mapping']);
-                $this->assertMappingValid($mapping);
-            } else {
-                $mapping = $this->sanitizeMapping((array) $updates['mapping'], self::OFX_COLUMN_FIELDS);
-            }
-            $entity->setMappingFromArray($mapping);
-            unset($updates['mapping']);
-        }
-        if ($hasAccountMapping) {
-            $accountMapping = $this->sanitizeAccountMapping((array) $updates['accountMapping']);
-            $this->assertAccountMappingValid($accountMapping);
-            $entity->setAccountMappingFromArray($accountMapping);
-            unset($updates['accountMapping']);
-        }
+		if ($hasMapping) {
+			// OFX/QIF templates carry only the text targets, and none of them
+			// is required — the CSV date/amount/description rules would reject
+			// every one of them.
+			if (($entity->getFormat() ?? 'csv') === 'csv') {
+				$mapping = $this->sanitizeMapping((array)$updates['mapping']);
+				$this->assertMappingValid($mapping);
+			} else {
+				$mapping = $this->sanitizeMapping((array)$updates['mapping'], self::OFX_COLUMN_FIELDS);
+			}
+			$entity->setMappingFromArray($mapping);
+			unset($updates['mapping']);
+		}
+		if ($hasAccountMapping) {
+			$accountMapping = $this->sanitizeAccountMapping((array)$updates['accountMapping']);
+			$this->assertAccountMappingValid($accountMapping);
+			$entity->setAccountMappingFromArray($accountMapping);
+			unset($updates['accountMapping']);
+		}
 
-        $this->applyUpdates($entity, $updates);
-        $this->setTimestamps($entity, false);
+		$this->applyUpdates($entity, $updates);
+		$this->setTimestamps($entity, false);
 
-        /** @var ImportTemplateMapper $mapper */
-        $mapper = $this->mapper;
-        return $mapper->update($entity);
-    }
+		/** @var ImportTemplateMapper $mapper */
+		$mapper = $this->mapper;
+		return $mapper->update($entity);
+	}
 
-    private function assertValidFormat(string $format): void {
-        if (!in_array($format, self::FORMATS, true)) {
-            throw new \InvalidArgumentException('Unsupported import format: ' . $format);
-        }
-    }
+	private function assertValidFormat(string $format): void {
+		if (!in_array($format, self::FORMATS, true)) {
+			throw new \InvalidArgumentException('Unsupported import format: ' . $format);
+		}
+	}
 
-    private function normalizeEncoding(?string $encoding): ?string {
-        if ($encoding === null || trim($encoding) === '') {
-            return null;
-        }
-        $encoding = trim($encoding);
-        if (!(new EncodingNormalizer())->isSupported($encoding)) {
-            throw new \InvalidArgumentException('Unsupported character encoding: ' . $encoding);
-        }
-        return $encoding;
-    }
+	private function normalizeEncoding(?string $encoding): ?string {
+		if ($encoding === null || trim($encoding) === '') {
+			return null;
+		}
+		$encoding = trim($encoding);
+		if (!(new EncodingNormalizer())->isSupported($encoding)) {
+			throw new \InvalidArgumentException('Unsupported character encoding: ' . $encoding);
+		}
+		return $encoding;
+	}
 
-    private function normalizeName(string $name): string {
-        $name = trim($name);
-        if ($name === '') {
-            throw new \InvalidArgumentException('Template name is required');
-        }
-        if (mb_strlen($name) > 255) {
-            $name = mb_substr($name, 0, 255);
-        }
-        return $name;
-    }
+	private function normalizeName(string $name): string {
+		$name = trim($name);
+		if ($name === '') {
+			throw new \InvalidArgumentException('Template name is required');
+		}
+		if (mb_strlen($name) > 255) {
+			$name = mb_substr($name, 0, 255);
+		}
+		return $name;
+	}
 
-    private function assertNameAvailable(string $name, string $userId, ?int $excludeId = null): void {
-        /** @var ImportTemplateMapper $mapper */
-        $mapper = $this->mapper;
-        if ($mapper->nameExists($name, $userId, $excludeId)) {
-            throw new \InvalidArgumentException('A template with this name already exists');
-        }
-    }
+	private function assertNameAvailable(string $name, string $userId, ?int $excludeId = null): void {
+		/** @var ImportTemplateMapper $mapper */
+		$mapper = $this->mapper;
+		if ($mapper->nameExists($name, $userId, $excludeId)) {
+			throw new \InvalidArgumentException('A template with this name already exists');
+		}
+	}
 
-    /**
-     * Keep only recognised mapping keys and coerce their value types.
-     *
-     * @param array<string, mixed> $mapping
-     * @param string[]|null $columnFields Column keys to keep (all CSV keys by default)
-     * @return array<string, mixed>
-     */
-    private function sanitizeMapping(array $mapping, ?array $columnFields = null): array {
-        $clean = [];
-        $cleanScalar = static function (mixed $value): mixed {
-            if (is_int($value)) {
-                return $value;
-            }
+	/**
+	 * Keep only recognised mapping keys and coerce their value types.
+	 *
+	 * @param array<string, mixed> $mapping
+	 * @param string[]|null $columnFields Column keys to keep (all CSV keys by default)
+	 * @return array<string, mixed>
+	 */
+	private function sanitizeMapping(array $mapping, ?array $columnFields = null): array {
+		$clean = [];
+		$cleanScalar = static function (mixed $value): mixed {
+			if (is_int($value)) {
+				return $value;
+			}
 
-            $value = trim((string) $value);
-            return $value === '' ? null : $value;
-        };
+			$value = trim((string)$value);
+			return $value === '' ? null : $value;
+		};
 
-        // Lists (several columns joined into one text field) are only kept on
-        // the text targets, trimmed and deduplicated, and a one-column list is
-        // stored as the plain column it is — so a template saved through the
-        // checklist is byte-identical to one saved before lists existed.
-        $mapping = TransactionNormalizer::normalizeMapping($mapping);
-        foreach ($columnFields ?? self::COLUMN_FIELDS as $field) {
-            if (!isset($mapping[$field]) || $mapping[$field] === '' || $mapping[$field] === null) {
-                continue;
-            }
+		// Lists (several columns joined into one text field) are only kept on
+		// the text targets, trimmed and deduplicated, and a one-column list is
+		// stored as the plain column it is — so a template saved through the
+		// checklist is byte-identical to one saved before lists existed.
+		$mapping = TransactionNormalizer::normalizeMapping($mapping);
+		foreach ($columnFields ?? self::COLUMN_FIELDS as $field) {
+			if (!isset($mapping[$field]) || $mapping[$field] === '' || $mapping[$field] === null) {
+				continue;
+			}
 
-            if (is_array($mapping[$field])) {
-                $clean[$field] = array_values(array_filter(
-                    array_map($cleanScalar, $mapping[$field]),
-                    static fn (mixed $value): bool => $value !== null
-                ));
-                continue;
-            }
+			if (is_array($mapping[$field])) {
+				$clean[$field] = array_values(array_filter(
+					array_map($cleanScalar, $mapping[$field]),
+					static fn (mixed $value): bool => $value !== null
+				));
+				continue;
+			}
 
-            $val = $cleanScalar($mapping[$field]);
-            if ($val !== null) {
-                $clean[$field] = $val;
-            }
-        }
+			$val = $cleanScalar($mapping[$field]);
+			if ($val !== null) {
+				$clean[$field] = $val;
+			}
+		}
 
-        // Only on the full CSV mapping. The booleans are CSV import options,
-        // and keeping them on a restricted mapping would leave an OFX template
-        // with no text targets holding a non-empty mapping — which is exactly
-        // what ImportController::applyTemplate tests to decide whether the
-        // template has a mapping to apply at all.
-        if ($columnFields === null) {
-            foreach (self::BOOLEAN_FIELDS as $field) {
-                if (isset($mapping[$field])) {
-                    $clean[$field] = (bool) $mapping[$field];
-                }
-            }
-        }
+		// Only on the full CSV mapping. The booleans are CSV import options,
+		// and keeping them on a restricted mapping would leave an OFX template
+		// with no text targets holding a non-empty mapping — which is exactly
+		// what ImportController::applyTemplate tests to decide whether the
+		// template has a mapping to apply at all.
+		if ($columnFields === null) {
+			foreach (self::BOOLEAN_FIELDS as $field) {
+				if (isset($mapping[$field])) {
+					$clean[$field] = (bool)$mapping[$field];
+				}
+			}
+		}
 
-        return $clean;
-    }
+		return $clean;
+	}
 
-    /**
-     * Keep only valid source-key -> positive-account-id pairs.
-     *
-     * @param array<string, mixed> $accountMapping
-     * @return array<string, int>
-     */
-    private function sanitizeAccountMapping(array $accountMapping): array {
-        $clean = [];
-        foreach ($accountMapping as $sourceKey => $destId) {
-            $key = trim((string) $sourceKey);
-            $id = (int) $destId;
-            if ($key !== '' && $id > 0) {
-                $clean[$key] = $id;
-            }
-        }
-        return $clean;
-    }
+	/**
+	 * Keep only valid source-key -> positive-account-id pairs.
+	 *
+	 * @param array<string, mixed> $accountMapping
+	 * @return array<string, int>
+	 */
+	private function sanitizeAccountMapping(array $accountMapping): array {
+		$clean = [];
+		foreach ($accountMapping as $sourceKey => $destId) {
+			$key = trim((string)$sourceKey);
+			$id = (int)$destId;
+			if ($key !== '' && $id > 0) {
+				$clean[$key] = $id;
+			}
+		}
+		return $clean;
+	}
 
-    /**
-     * Enforce the same minimum requirements as the import mapping step:
-     * a date column, a description column, and exactly one amount strategy
-     * (single amount column XOR separate income/expense columns).
-     *
-     * @param array<string, mixed> $mapping
-     */
-    private function assertMappingValid(array $mapping): void {
-        $hasDate = TransactionNormalizer::mapsColumn($mapping, 'date');
-        $hasDescription = TransactionNormalizer::mapsColumn($mapping, 'description');
-        $hasAmount = TransactionNormalizer::mapsColumn($mapping, 'amount');
-        $hasDualColumns = TransactionNormalizer::mapsColumn($mapping, 'incomeColumn') || TransactionNormalizer::mapsColumn($mapping, 'expenseColumn');
+	/**
+	 * Enforce the same minimum requirements as the import mapping step:
+	 * a date column, a description column, and exactly one amount strategy
+	 * (single amount column XOR separate income/expense columns).
+	 *
+	 * @param array<string, mixed> $mapping
+	 */
+	private function assertMappingValid(array $mapping): void {
+		$hasDate = TransactionNormalizer::mapsColumn($mapping, 'date');
+		$hasDescription = TransactionNormalizer::mapsColumn($mapping, 'description');
+		$hasAmount = TransactionNormalizer::mapsColumn($mapping, 'amount');
+		$hasDualColumns = TransactionNormalizer::mapsColumn($mapping, 'incomeColumn') || TransactionNormalizer::mapsColumn($mapping, 'expenseColumn');
 
-        if (!$hasDate) {
-            throw new \InvalidArgumentException('A date column mapping is required');
-        }
-        if (!$hasDescription) {
-            throw new \InvalidArgumentException('A description column mapping is required');
-        }
-        if ($hasAmount === $hasDualColumns) {
-            throw new \InvalidArgumentException(
-                'Map either an amount column or separate income/expense columns, but not both'
-            );
-        }
-    }
+		if (!$hasDate) {
+			throw new \InvalidArgumentException('A date column mapping is required');
+		}
+		if (!$hasDescription) {
+			throw new \InvalidArgumentException('A description column mapping is required');
+		}
+		if ($hasAmount === $hasDualColumns) {
+			throw new \InvalidArgumentException(
+				'Map either an amount column or separate income/expense columns, but not both'
+			);
+		}
+	}
 
-    /**
-     * @param array<string, int> $accountMapping
-     */
-    private function assertAccountMappingValid(array $accountMapping): void {
-        if (empty($accountMapping)) {
-            throw new \InvalidArgumentException('Map at least one source account to one of your accounts');
-        }
-    }
+	/**
+	 * @param array<string, int> $accountMapping
+	 */
+	private function assertAccountMappingValid(array $accountMapping): void {
+		if (empty($accountMapping)) {
+			throw new \InvalidArgumentException('Map at least one source account to one of your accounts');
+		}
+	}
 }

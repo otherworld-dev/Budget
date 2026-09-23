@@ -26,25 +26,25 @@ use OCP\AppFramework\Db\Entity;
  * @method void setUpdatedAt(string $updatedAt)
  */
 class ShareAutoConfig extends Entity implements JsonSerializable {
-    protected $shareId;
-    protected $entityType;
-    protected $permission;
-    protected $createdAt;
-    protected $updatedAt;
+	protected $shareId;
+	protected $entityType;
+	protected $permission;
+	protected $createdAt;
+	protected $updatedAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('shareId', 'integer');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('shareId', 'integer');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'shareId' => $this->getShareId(),
-            'entityType' => $this->getEntityType(),
-            'permission' => $this->getPermission(),
-            'createdAt' => $this->getCreatedAt(),
-            'updatedAt' => $this->getUpdatedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'shareId' => $this->getShareId(),
+			'entityType' => $this->getEntityType(),
+			'permission' => $this->getPermission(),
+			'createdAt' => $this->getCreatedAt(),
+			'updatedAt' => $this->getUpdatedAt(),
+		];
+	}
 }

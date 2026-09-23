@@ -22,92 +22,92 @@ use Psr\Log\LoggerInterface;
  * ever instantiated the controller.
  */
 class ReconciliationControllerTest extends TestCase {
-    private ReconciliationController $controller;
-    private ReconciliationService $service;
-    private GranularShareService $granularShareService;
+	private ReconciliationController $controller;
+	private ReconciliationService $service;
+	private GranularShareService $granularShareService;
 
-    private const USER = 'alice';
+	private const USER = 'alice';
 
-    protected function setUp(): void {
-        $this->service = $this->createMock(ReconciliationService::class);
-        $this->granularShareService = $this->createMock(GranularShareService::class);
-        $l = $this->createMock(IL10N::class);
-        $l->method('t')->willReturnArgument(0);
+	protected function setUp(): void {
+		$this->service = $this->createMock(ReconciliationService::class);
+		$this->granularShareService = $this->createMock(GranularShareService::class);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnArgument(0);
 
-        $this->controller = new ReconciliationController(
-            $this->createMock(IRequest::class),
-            $this->service,
-            $this->createMock(ValidationService::class),
-            $this->granularShareService,
-            $l,
-            self::USER,
-            $this->createMock(LoggerInterface::class)
-        );
-    }
+		$this->controller = new ReconciliationController(
+			$this->createMock(IRequest::class),
+			$this->service,
+			$this->createMock(ValidationService::class),
+			$this->granularShareService,
+			$l,
+			self::USER,
+			$this->createMock(LoggerInterface::class)
+		);
+	}
 
-    public function testConstructs(): void {
-        // If the trait wiring is wrong the constructor throws (the #283 bug)
-        $this->assertInstanceOf(ReconciliationController::class, $this->controller);
-    }
+	public function testConstructs(): void {
+		// If the trait wiring is wrong the constructor throws (the #283 bug)
+		$this->assertInstanceOf(ReconciliationController::class, $this->controller);
+	}
 
-    public function testHistoryReturnsServiceData(): void {
-        $rows = [['id' => 1, 'statementBalance' => 100.0]];
-        $this->service->expects($this->once())
-            ->method('getHistory')
-            ->with(7, self::USER, 20, 0)
-            ->willReturn($rows);
+	public function testHistoryReturnsServiceData(): void {
+		$rows = [['id' => 1, 'statementBalance' => 100.0]];
+		$this->service->expects($this->once())
+			->method('getHistory')
+			->with(7, self::USER, 20, 0)
+			->willReturn($rows);
 
-        $response = $this->controller->history(7);
+		$response = $this->controller->history(7);
 
-        $this->assertSame(Http::STATUS_OK, $response->getStatus());
-        $this->assertSame($rows, $response->getData());
-    }
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame($rows, $response->getData());
+	}
 
-    public function testGetSessionReturnsNullSessionWhenNone(): void {
-        $this->service->method('getActiveSession')->with(7, self::USER)->willReturn(null);
+	public function testGetSessionReturnsNullSessionWhenNone(): void {
+		$this->service->method('getActiveSession')->with(7, self::USER)->willReturn(null);
 
-        $response = $this->controller->getSession(7);
+		$response = $this->controller->getSession(7);
 
-        $this->assertSame(['session' => null], $response->getData());
-    }
+		$this->assertSame(['session' => null], $response->getData());
+	}
 
-    public function testStartReturns409OnConflict(): void {
-        $existing = ['session' => ['id' => 3], 'difference' => 10.0];
-        $this->service->method('startSession')
-            ->willThrowException(new ReconciliationConflictException($existing));
+	public function testStartReturns409OnConflict(): void {
+		$existing = ['session' => ['id' => 3], 'difference' => 10.0];
+		$this->service->method('startSession')
+			->willThrowException(new ReconciliationConflictException($existing));
 
-        $response = $this->controller->start(7, 100.0, '2026-06-30');
+		$response = $this->controller->start(7, 100.0, '2026-06-30');
 
-        $this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
-        $this->assertSame($existing, $response->getData()['existing']);
-    }
+		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame($existing, $response->getData()['existing']);
+	}
 
-    public function testTickAllReturnsTheUpdatedSessionState(): void {
-        $state = ['tickedCount' => 860, 'untickedCount' => 0, 'isBalanced' => true];
-        $this->service->method('tickAllUpToStatementDate')->with(7, self::USER)->willReturn($state);
+	public function testTickAllReturnsTheUpdatedSessionState(): void {
+		$state = ['tickedCount' => 860, 'untickedCount' => 0, 'isBalanced' => true];
+		$this->service->method('tickAllUpToStatementDate')->with(7, self::USER)->willReturn($state);
 
-        $response = $this->controller->tickAll(7);
+		$response = $this->controller->tickAll(7);
 
-        $this->assertSame(Http::STATUS_OK, $response->getStatus());
-        $this->assertSame($state, $response->getData());
-    }
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame($state, $response->getData());
+	}
 
-    public function testTickAllWithoutASessionIsAValidationError(): void {
-        $this->service->method('tickAllUpToStatementDate')
-            ->willThrowException(new \InvalidArgumentException('No reconciliation in progress for this account'));
+	public function testTickAllWithoutASessionIsAValidationError(): void {
+		$this->service->method('tickAllUpToStatementDate')
+			->willThrowException(new \InvalidArgumentException('No reconciliation in progress for this account'));
 
-        $response = $this->controller->tickAll(7);
+		$response = $this->controller->tickAll(7);
 
-        $this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
-    }
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
 
-    public function testCompleteReturnsServiceResult(): void {
-        $result = ['reconciledCount' => 4, 'untickedBeforeStatementDate' => 1];
-        $this->service->method('complete')->with(7, self::USER)->willReturn($result);
+	public function testCompleteReturnsServiceResult(): void {
+		$result = ['reconciledCount' => 4, 'untickedBeforeStatementDate' => 1];
+		$this->service->method('complete')->with(7, self::USER)->willReturn($result);
 
-        $response = $this->controller->complete(7);
+		$response = $this->controller->complete(7);
 
-        $this->assertSame(Http::STATUS_OK, $response->getStatus());
-        $this->assertSame($result, $response->getData());
-    }
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame($result, $response->getData());
+	}
 }

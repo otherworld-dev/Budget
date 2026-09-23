@@ -6,490 +6,490 @@ namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\TransactionMapper;
-use OCA\Budget\Service\Forecast\PatternAnalyzer;
-use OCA\Budget\Service\Forecast\TrendCalculator;
-use OCA\Budget\Service\Forecast\ScenarioBuilder;
 use OCA\Budget\Service\Forecast\ForecastProjector;
-use OCP\ICacheFactory;
+use OCA\Budget\Service\Forecast\PatternAnalyzer;
+use OCA\Budget\Service\Forecast\ScenarioBuilder;
+use OCA\Budget\Service\Forecast\TrendCalculator;
 use OCP\ICache;
+use OCP\ICacheFactory;
 
 /**
  * Orchestrates forecast generation by delegating to specialized services.
  * OPTIMIZED: Includes caching layer for expensive calculations.
  */
 class ForecastService {
-    private const CACHE_PREFIX = 'budget_forecast_';
-    private const CACHE_TTL = 300; // 5 minutes
+	private const CACHE_PREFIX = 'budget_forecast_';
+	private const CACHE_TTL = 300; // 5 minutes
 
-    private AccountMapper $accountMapper;
-    private TransactionMapper $transactionMapper;
-    private PatternAnalyzer $patternAnalyzer;
-    private TrendCalculator $trendCalculator;
-    private ScenarioBuilder $scenarioBuilder;
-    private ForecastProjector $projector;
-    private ?ICache $cache = null;
+	private AccountMapper $accountMapper;
+	private TransactionMapper $transactionMapper;
+	private PatternAnalyzer $patternAnalyzer;
+	private TrendCalculator $trendCalculator;
+	private ScenarioBuilder $scenarioBuilder;
+	private ForecastProjector $projector;
+	private ?ICache $cache = null;
 
-    public function __construct(
-        AccountMapper $accountMapper,
-        TransactionMapper $transactionMapper,
-        PatternAnalyzer $patternAnalyzer,
-        TrendCalculator $trendCalculator,
-        ScenarioBuilder $scenarioBuilder,
-        ForecastProjector $projector,
-        ?ICacheFactory $cacheFactory = null
-    ) {
-        $this->accountMapper = $accountMapper;
-        $this->transactionMapper = $transactionMapper;
-        $this->patternAnalyzer = $patternAnalyzer;
-        $this->trendCalculator = $trendCalculator;
-        $this->scenarioBuilder = $scenarioBuilder;
-        $this->projector = $projector;
+	public function __construct(
+		AccountMapper $accountMapper,
+		TransactionMapper $transactionMapper,
+		PatternAnalyzer $patternAnalyzer,
+		TrendCalculator $trendCalculator,
+		ScenarioBuilder $scenarioBuilder,
+		ForecastProjector $projector,
+		?ICacheFactory $cacheFactory = null,
+	) {
+		$this->accountMapper = $accountMapper;
+		$this->transactionMapper = $transactionMapper;
+		$this->patternAnalyzer = $patternAnalyzer;
+		$this->trendCalculator = $trendCalculator;
+		$this->scenarioBuilder = $scenarioBuilder;
+		$this->projector = $projector;
 
-        // Initialize cache if available
-        if ($cacheFactory !== null) {
-            $this->cache = $cacheFactory->createDistributed(self::CACHE_PREFIX);
-        }
-    }
+		// Initialize cache if available
+		if ($cacheFactory !== null) {
+			$this->cache = $cacheFactory->createDistributed(self::CACHE_PREFIX);
+		}
+	}
 
-    /**
-     * Invalidate all forecast cache entries for a user.
-     * Call this when transactions are modified.
-     */
-    public function invalidateCache(string $userId): void {
-        if ($this->cache === null) {
-            return;
-        }
+	/**
+	 * Invalidate all forecast cache entries for a user.
+	 * Call this when transactions are modified.
+	 */
+	public function invalidateCache(string $userId): void {
+		if ($this->cache === null) {
+			return;
+		}
 
-        // Prefix-clear: live keys carry horizon + visibility suffixes, so a
-        // plain remove() of the bare key never matched anything and toggles
-        // (e.g. exclude-from-forecast) appeared to do nothing for 5 minutes.
-        $this->cache->clear("live_{$userId}_");
-        $this->cache->remove("forecast_{$userId}_all");
-    }
+		// Prefix-clear: live keys carry horizon + visibility suffixes, so a
+		// plain remove() of the bare key never matched anything and toggles
+		// (e.g. exclude-from-forecast) appeared to do nothing for 5 minutes.
+		$this->cache->clear("live_{$userId}_");
+		$this->cache->remove("forecast_{$userId}_all");
+	}
 
-    /**
-     * Generate a full forecast for accounts.
-     */
-    public function generateForecast(
-        string $userId,
-        ?int $accountId = null,
-        int $basedOnMonths = 3,
-        int $forecastMonths = 6,
-        ?array $visibleAccountIds = null
-    ): array {
-        if ($accountId) {
-            $accounts = [$this->accountMapper->find($accountId, $userId)];
-        } else {
-            $accounts = !empty($visibleAccountIds)
-                ? $this->accountMapper->findByIds($visibleAccountIds)
-                : $this->accountMapper->findAll($userId);
-            // The all-accounts forecast skips accounts flagged out of reports (#286)
-            $accounts = array_values(array_filter($accounts, static fn($a) => !$a->getExcludedFromReports()));
-        }
+	/**
+	 * Generate a full forecast for accounts.
+	 */
+	public function generateForecast(
+		string $userId,
+		?int $accountId = null,
+		int $basedOnMonths = 3,
+		int $forecastMonths = 6,
+		?array $visibleAccountIds = null,
+	): array {
+		if ($accountId) {
+			$accounts = [$this->accountMapper->find($accountId, $userId)];
+		} else {
+			$accounts = !empty($visibleAccountIds)
+				? $this->accountMapper->findByIds($visibleAccountIds)
+				: $this->accountMapper->findAll($userId);
+			// The all-accounts forecast skips accounts flagged out of reports (#286)
+			$accounts = array_values(array_filter($accounts, static fn ($a) => !$a->getExcludedFromReports()));
+		}
 
-        // Get future transaction adjustments to calculate balance as of today
-        $today = date('Y-m-d');
-        $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+		// Get future transaction adjustments to calculate balance as of today
+		$today = date('Y-m-d');
+		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
 
-        $forecast = [
-            'summary' => [],
-            'monthlyProjections' => [],
-            'categoryForecasts' => [],
-            'scenarios' => []
-        ];
+		$forecast = [
+			'summary' => [],
+			'monthlyProjections' => [],
+			'categoryForecasts' => [],
+			'scenarios' => []
+		];
 
-        foreach ($accounts as $account) {
-            // Calculate balance as of today (stored balance minus future transactions)
-            $storedBalance = $account->getBalance();
-            $futureChange = $futureChanges[$account->getId()] ?? 0;
-            $currentBalance = $storedBalance - $futureChange;
+		foreach ($accounts as $account) {
+			// Calculate balance as of today (stored balance minus future transactions)
+			$storedBalance = $account->getBalance();
+			$futureChange = $futureChanges[$account->getId()] ?? 0;
+			$currentBalance = $storedBalance - $futureChange;
 
-            $accountForecast = $this->generateAccountForecast(
-                $userId,
-                $account,
-                $currentBalance,
-                $basedOnMonths,
-                $forecastMonths
-            );
+			$accountForecast = $this->generateAccountForecast(
+				$userId,
+				$account,
+				$currentBalance,
+				$basedOnMonths,
+				$forecastMonths
+			);
 
-            $forecast['summary'][] = [
-                'accountId' => $account->getId(),
-                'accountName' => $account->getName(),
-                'currentBalance' => $currentBalance,
-                'projectedBalance' => $accountForecast['projectedBalance'],
-                'projectedChange' => $accountForecast['projectedBalance'] - $currentBalance,
-                'confidence' => $accountForecast['confidence']
-            ];
+			$forecast['summary'][] = [
+				'accountId' => $account->getId(),
+				'accountName' => $account->getName(),
+				'currentBalance' => $currentBalance,
+				'projectedBalance' => $accountForecast['projectedBalance'],
+				'projectedChange' => $accountForecast['projectedBalance'] - $currentBalance,
+				'confidence' => $accountForecast['confidence']
+			];
 
-            if ($accountId === null || $accountId === $account->getId()) {
-                $forecast['monthlyProjections'] = $accountForecast['monthlyProjections'];
-                $forecast['categoryForecasts'] = $accountForecast['categoryForecasts'];
-            }
-        }
+			if ($accountId === null || $accountId === $account->getId()) {
+				$forecast['monthlyProjections'] = $accountForecast['monthlyProjections'];
+				$forecast['categoryForecasts'] = $accountForecast['categoryForecasts'];
+			}
+		}
 
-        $forecast['scenarios'] = $this->scenarioBuilder->generateScenarios($userId, $accounts, $forecastMonths);
+		$forecast['scenarios'] = $this->scenarioBuilder->generateScenarios($userId, $accounts, $forecastMonths);
 
-        return $forecast;
-    }
+		return $forecast;
+	}
 
-    /**
-     * Get live forecast data for dashboard display.
-     * OPTIMIZED: Results are cached for 5 minutes.
-     */
-    public function getLiveForecast(string $userId, int $forecastMonths = 6, ?array $visibleAccountIds = null): array {
-        // Key includes account visibility: a share-restricted viewer and the
-        // owner must never share a cache entry (the owner's totals would leak
-        // across the visibility boundary for up to the TTL).
-        $cacheKey = "live_{$userId}_{$forecastMonths}_" . md5(json_encode($visibleAccountIds ?? []));
+	/**
+	 * Get live forecast data for dashboard display.
+	 * OPTIMIZED: Results are cached for 5 minutes.
+	 */
+	public function getLiveForecast(string $userId, int $forecastMonths = 6, ?array $visibleAccountIds = null): array {
+		// Key includes account visibility: a share-restricted viewer and the
+		// owner must never share a cache entry (the owner's totals would leak
+		// across the visibility boundary for up to the TTL).
+		$cacheKey = "live_{$userId}_{$forecastMonths}_" . md5(json_encode($visibleAccountIds ?? []));
 
-        // Try to get from cache
-        if ($this->cache !== null) {
-            $cached = $this->cache->get($cacheKey);
-            if ($cached !== null) {
-                return $cached;
-            }
-        }
+		// Try to get from cache
+		if ($this->cache !== null) {
+			$cached = $this->cache->get($cacheKey);
+			if ($cached !== null) {
+				return $cached;
+			}
+		}
 
-        $accounts = !empty($visibleAccountIds)
-            ? $this->accountMapper->findByIds($visibleAccountIds)
-            : $this->accountMapper->findAll($userId);
+		$accounts = !empty($visibleAccountIds)
+			? $this->accountMapper->findByIds($visibleAccountIds)
+			: $this->accountMapper->findAll($userId);
 
-        // The live (all-accounts) forecast skips accounts flagged out of reports (#286)
-        $accounts = array_values(array_filter($accounts, static fn($a) => !$a->getExcludedFromReports()));
+		// The live (all-accounts) forecast skips accounts flagged out of reports (#286)
+		$accounts = array_values(array_filter($accounts, static fn ($a) => !$a->getExcludedFromReports()));
 
-        // Get future transaction adjustments to calculate balance as of today
-        $today = date('Y-m-d');
-        $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+		// Get future transaction adjustments to calculate balance as of today
+		$today = date('Y-m-d');
+		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
 
-        $currentBalance = 0.0;
-        $currencyCounts = [];
+		$currentBalance = 0.0;
+		$currencyCounts = [];
 
-        foreach ($accounts as $account) {
-            // Calculate balance as of today (stored balance minus future transactions)
-            $storedBalance = $account->getBalance();
-            $futureChange = $futureChanges[$account->getId()] ?? 0;
-            $accountBalance = $storedBalance - $futureChange;
+		foreach ($accounts as $account) {
+			// Calculate balance as of today (stored balance minus future transactions)
+			$storedBalance = $account->getBalance();
+			$futureChange = $futureChanges[$account->getId()] ?? 0;
+			$accountBalance = $storedBalance - $futureChange;
 
-            $currentBalance += $accountBalance;
-            $currency = $account->getCurrency() ?? 'USD';
-            $currencyCounts[$currency] = ($currencyCounts[$currency] ?? 0) + abs($accountBalance);
-        }
+			$currentBalance += $accountBalance;
+			$currency = $account->getCurrency() ?? 'USD';
+			$currencyCounts[$currency] = ($currencyCounts[$currency] ?? 0) + abs($accountBalance);
+		}
 
-        // Determine primary currency
-        $primaryCurrency = 'USD';
-        if (!empty($currencyCounts)) {
-            arsort($currencyCounts);
-            $primaryCurrency = array_key_first($currencyCounts);
-        }
+		// Determine primary currency
+		$primaryCurrency = 'USD';
+		if (!empty($currencyCounts)) {
+			arsort($currencyCounts);
+			$primaryCurrency = array_key_first($currencyCounts);
+		}
 
-        // Get historical transactions
-        $endDate = date('Y-m-d');
-        $startDate = date('Y-m-d', strtotime('-12 months'));
-        $transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate, null, $visibleAccountIds);
+		// Get historical transactions
+		$endDate = date('Y-m-d');
+		$startDate = date('Y-m-d', strtotime('-12 months'));
+		$transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate, null, $visibleAccountIds);
 
-        // Drop extraordinary/one-time transactions so they don't skew the
-        // projection averages. They still affect the real (current) balance
-        // above — we only exclude them from the historical pattern (#270).
-        $transactions = $this->filterForecastTransactions($transactions);
+		// Drop extraordinary/one-time transactions so they don't skew the
+		// projection averages. They still affect the real (current) balance
+		// above — we only exclude them from the historical pattern (#270).
+		$transactions = $this->filterForecastTransactions($transactions);
 
-        // Analyze patterns
-        $monthlyData = $this->patternAnalyzer->aggregateMonthlyData($transactions);
-        $months = count($monthlyData);
+		// Analyze patterns
+		$monthlyData = $this->patternAnalyzer->aggregateMonthlyData($transactions);
+		$months = count($monthlyData);
 
-        // Calculate averages and trends
-        $incomeValues = array_column($monthlyData, 'income');
-        $expenseValues = array_column($monthlyData, 'expenses');
-        $savingsValues = array_map(fn($m) => $m['income'] - $m['expenses'], $monthlyData);
+		// Calculate averages and trends
+		$incomeValues = array_column($monthlyData, 'income');
+		$expenseValues = array_column($monthlyData, 'expenses');
+		$savingsValues = array_map(fn ($m) => $m['income'] - $m['expenses'], $monthlyData);
 
-        $avgIncome = $months > 0 ? array_sum($incomeValues) / $months : 0;
-        $avgExpenses = $months > 0 ? array_sum($expenseValues) / $months : 0;
-        $avgSavings = $avgIncome - $avgExpenses;
+		$avgIncome = $months > 0 ? array_sum($incomeValues) / $months : 0;
+		$avgExpenses = $months > 0 ? array_sum($expenseValues) / $months : 0;
+		$avgSavings = $avgIncome - $avgExpenses;
 
-        $incomeTrend = $this->trendCalculator->calculateTrend($incomeValues);
-        $expenseTrend = $this->trendCalculator->calculateTrend($expenseValues);
-        $savingsTrend = $this->trendCalculator->calculateTrend($savingsValues);
+		$incomeTrend = $this->trendCalculator->calculateTrend($incomeValues);
+		$expenseTrend = $this->trendCalculator->calculateTrend($expenseValues);
+		$savingsTrend = $this->trendCalculator->calculateTrend($savingsValues);
 
-        // Generate monthly projections
-        $monthlyProjections = [];
-        $projectedBalance = $currentBalance;
-        $cumulativeSavings = 0;
-        $savingsMonthlyData = [];
+		// Generate monthly projections
+		$monthlyProjections = [];
+		$projectedBalance = $currentBalance;
+		$cumulativeSavings = 0;
+		$savingsMonthlyData = [];
 
-        for ($i = 1; $i <= $forecastMonths; $i++) {
-            $projectionDate = strtotime("+{$i} months");
-            $monthLabel = date('M Y', $projectionDate);
+		for ($i = 1; $i <= $forecastMonths; $i++) {
+			$projectionDate = strtotime("+{$i} months");
+			$monthLabel = date('M Y', $projectionDate);
 
-            $projectedIncome = max(0, $avgIncome + ($incomeTrend * $i));
-            $projectedExpenses = max(0, $avgExpenses + ($expenseTrend * $i));
-            $monthlySavings = $projectedIncome - $projectedExpenses;
+			$projectedIncome = max(0, $avgIncome + ($incomeTrend * $i));
+			$projectedExpenses = max(0, $avgExpenses + ($expenseTrend * $i));
+			$monthlySavings = $projectedIncome - $projectedExpenses;
 
-            $projectedBalance += $monthlySavings;
-            $cumulativeSavings += $monthlySavings;
-            $savingsMonthlyData[] = $cumulativeSavings;
+			$projectedBalance += $monthlySavings;
+			$cumulativeSavings += $monthlySavings;
+			$savingsMonthlyData[] = $cumulativeSavings;
 
-            $monthlyProjections[] = [
-                // `yearMonth` (Y-m) is what the web UI formats in the user's
-                // own language; `month` stays the English "M Y" label for the
-                // forecast-warning notification and anything else reading it.
-                'month' => $monthLabel,
-                'yearMonth' => date('Y-m', $projectionDate),
-                'balance' => round($projectedBalance, 2),
-                'income' => round($projectedIncome, 2),
-                'expenses' => round($projectedExpenses, 2),
-                'savings' => round($monthlySavings, 2)
-            ];
-        }
+			$monthlyProjections[] = [
+				// `yearMonth` (Y-m) is what the web UI formats in the user's
+				// own language; `month` stays the English "M Y" label for the
+				// forecast-warning notification and anything else reading it.
+				'month' => $monthLabel,
+				'yearMonth' => date('Y-m', $projectionDate),
+				'balance' => round($projectedBalance, 2),
+				'income' => round($projectedIncome, 2),
+				'expenses' => round($projectedExpenses, 2),
+				'savings' => round($monthlySavings, 2)
+			];
+		}
 
-        $savingsRate = $avgIncome > 0 ? ($avgSavings / $avgIncome) * 100 : 0;
-        $categoryBreakdown = $this->patternAnalyzer->getCategoryBreakdown($userId, $transactions);
-        $transactionCount = count($transactions);
-        $confidence = $this->projector->calculateDataConfidence($months, $transactionCount, $incomeValues, $expenseValues);
+		$savingsRate = $avgIncome > 0 ? ($avgSavings / $avgIncome) * 100 : 0;
+		$categoryBreakdown = $this->patternAnalyzer->getCategoryBreakdown($userId, $transactions);
+		$transactionCount = count($transactions);
+		$confidence = $this->projector->calculateDataConfidence($months, $transactionCount, $incomeValues, $expenseValues);
 
-        $result = [
-            'currency' => $primaryCurrency,
-            'currentBalance' => round($currentBalance, 2),
-            'projectedBalance' => round($projectedBalance, 2),
-            'monthlyProjections' => $monthlyProjections,
-            'trends' => [
-                'avgMonthlyIncome' => round($avgIncome, 2),
-                'avgMonthlyExpenses' => round($avgExpenses, 2),
-                'avgMonthlySavings' => round($avgSavings, 2),
-                'incomeDirection' => $this->trendCalculator->getTrendDirection($incomeTrend, $avgIncome),
-                'expenseDirection' => $this->trendCalculator->getTrendDirection($expenseTrend, $avgExpenses),
-                'savingsDirection' => $this->trendCalculator->getTrendDirection($savingsTrend, $avgSavings),
-            ],
-            'savingsProjection' => [
-                'currentMonthlySavings' => round($avgSavings, 2),
-                'projectedTotalSavings' => round($cumulativeSavings, 2),
-                'savingsRate' => round($savingsRate, 1),
-                'monthlyData' => $savingsMonthlyData
-            ],
-            'categoryBreakdown' => $categoryBreakdown,
-            'confidence' => round($confidence, 0),
-            'dataQuality' => [
-                'monthsOfData' => $months,
-                'transactionCount' => $transactionCount,
-                'isReliable' => $months >= 3 && $transactionCount >= 10
-            ]
-        ];
+		$result = [
+			'currency' => $primaryCurrency,
+			'currentBalance' => round($currentBalance, 2),
+			'projectedBalance' => round($projectedBalance, 2),
+			'monthlyProjections' => $monthlyProjections,
+			'trends' => [
+				'avgMonthlyIncome' => round($avgIncome, 2),
+				'avgMonthlyExpenses' => round($avgExpenses, 2),
+				'avgMonthlySavings' => round($avgSavings, 2),
+				'incomeDirection' => $this->trendCalculator->getTrendDirection($incomeTrend, $avgIncome),
+				'expenseDirection' => $this->trendCalculator->getTrendDirection($expenseTrend, $avgExpenses),
+				'savingsDirection' => $this->trendCalculator->getTrendDirection($savingsTrend, $avgSavings),
+			],
+			'savingsProjection' => [
+				'currentMonthlySavings' => round($avgSavings, 2),
+				'projectedTotalSavings' => round($cumulativeSavings, 2),
+				'savingsRate' => round($savingsRate, 1),
+				'monthlyData' => $savingsMonthlyData
+			],
+			'categoryBreakdown' => $categoryBreakdown,
+			'confidence' => round($confidence, 0),
+			'dataQuality' => [
+				'monthsOfData' => $months,
+				'transactionCount' => $transactionCount,
+				'isReliable' => $months >= 3 && $transactionCount >= 10
+			]
+		];
 
-        // Store in cache
-        if ($this->cache !== null) {
-            $this->cache->set($cacheKey, $result, self::CACHE_TTL);
-        }
+		// Store in cache
+		if ($this->cache !== null) {
+			$this->cache->set($cacheKey, $result, self::CACHE_TTL);
+		}
 
-        return $result;
-    }
+		return $result;
+	}
 
-    /**
-     * Remove transactions flagged as excluded-from-forecast (#270).
-     * Re-indexes the array so downstream consumers can rely on sequential keys.
-     *
-     * @param array $transactions Transaction entities
-     * @return array Filtered transactions
-     */
-    private function filterForecastTransactions(array $transactions): array {
-        return array_values(array_filter(
-            $transactions,
-            fn($t) => !($t->getExcludedFromForecast() ?? false)
-        ));
-    }
+	/**
+	 * Remove transactions flagged as excluded-from-forecast (#270).
+	 * Re-indexes the array so downstream consumers can rely on sequential keys.
+	 *
+	 * @param array $transactions Transaction entities
+	 * @return array Filtered transactions
+	 */
+	private function filterForecastTransactions(array $transactions): array {
+		return array_values(array_filter(
+			$transactions,
+			fn ($t) => !($t->getExcludedFromForecast() ?? false)
+		));
+	}
 
-    /**
-     * Generate forecast for a single account.
-     */
-    private function generateAccountForecast(
-        string $userId,
-        $account,
-        float $currentBalance,
-        int $basedOnMonths,
-        int $forecastMonths
-    ): array {
-        $accountId = $account->getId();
+	/**
+	 * Generate forecast for a single account.
+	 */
+	private function generateAccountForecast(
+		string $userId,
+		$account,
+		float $currentBalance,
+		int $basedOnMonths,
+		int $forecastMonths,
+	): array {
+		$accountId = $account->getId();
 
-        // Get historical data
-        $endDate = date('Y-m-d');
-        $startDate = date('Y-m-d', strtotime("-{$basedOnMonths} months"));
-        $transactions = $this->transactionMapper->findByDateRange($accountId, $startDate, $endDate);
+		// Get historical data
+		$endDate = date('Y-m-d');
+		$startDate = date('Y-m-d', strtotime("-{$basedOnMonths} months"));
+		$transactions = $this->transactionMapper->findByDateRange($accountId, $startDate, $endDate);
 
-        // Exclude extraordinary/one-time transactions from the pattern (#270).
-        $transactions = $this->filterForecastTransactions($transactions);
+		// Exclude extraordinary/one-time transactions from the pattern (#270).
+		$transactions = $this->filterForecastTransactions($transactions);
 
-        // Analyze patterns
-        $patterns = $this->patternAnalyzer->analyzeTransactionPatterns($transactions, $basedOnMonths);
+		// Analyze patterns
+		$patterns = $this->patternAnalyzer->analyzeTransactionPatterns($transactions, $basedOnMonths);
 
-        // Generate monthly projections
-        $monthlyProjections = $this->projector->generateMonthlyProjections(
-            $currentBalance,
-            $patterns,
-            $forecastMonths
-        );
+		// Generate monthly projections
+		$monthlyProjections = $this->projector->generateMonthlyProjections(
+			$currentBalance,
+			$patterns,
+			$forecastMonths
+		);
 
-        // Calculate final projected balance
-        $projectedBalance = !empty($monthlyProjections)
-            ? $monthlyProjections[count($monthlyProjections) - 1]['endingBalance']
-            : $currentBalance;
+		// Calculate final projected balance
+		$projectedBalance = !empty($monthlyProjections)
+			? $monthlyProjections[count($monthlyProjections) - 1]['endingBalance']
+			: $currentBalance;
 
-        // Category-level forecasts
-        $categoryForecasts = $this->projector->generateCategoryForecasts($userId, $patterns, $forecastMonths);
+		// Category-level forecasts
+		$categoryForecasts = $this->projector->generateCategoryForecasts($userId, $patterns, $forecastMonths);
 
-        return [
-            'projectedBalance' => $projectedBalance,
-            'monthlyProjections' => $monthlyProjections,
-            'categoryForecasts' => $categoryForecasts,
-            'confidence' => $this->projector->calculateOverallConfidence($patterns, $forecastMonths)
-        ];
-    }
+		return [
+			'projectedBalance' => $projectedBalance,
+			'monthlyProjections' => $monthlyProjections,
+			'categoryForecasts' => $categoryForecasts,
+			'confidence' => $this->projector->calculateOverallConfidence($patterns, $forecastMonths)
+		];
+	}
 
-    /**
-     * Get cash flow forecast.
-     */
-    public function getCashFlowForecast(
-        string $userId,
-        string $startDate,
-        string $endDate,
-        ?int $accountId = null,
-        ?array $visibleAccountIds = null
-    ): array {
-        return [
-            'periods' => [],
-            'cumulativeFlow' => [],
-            'insights' => []
-        ];
-    }
+	/**
+	 * Get cash flow forecast.
+	 */
+	public function getCashFlowForecast(
+		string $userId,
+		string $startDate,
+		string $endDate,
+		?int $accountId = null,
+		?array $visibleAccountIds = null,
+	): array {
+		return [
+			'periods' => [],
+			'cumulativeFlow' => [],
+			'insights' => []
+		];
+	}
 
-    /**
-     * Get spending trends analysis.
-     */
-    public function getSpendingTrends(
-        string $userId,
-        ?int $accountId = null,
-        int $months = 12,
-        ?array $visibleAccountIds = null
-    ): array {
-        return [
-            'monthlyTrends' => [],
-            'categoryTrends' => [],
-            'insights' => []
-        ];
-    }
+	/**
+	 * Get spending trends analysis.
+	 */
+	public function getSpendingTrends(
+		string $userId,
+		?int $accountId = null,
+		int $months = 12,
+		?array $visibleAccountIds = null,
+	): array {
+		return [
+			'monthlyTrends' => [],
+			'categoryTrends' => [],
+			'insights' => []
+		];
+	}
 
-    /**
-     * Run scenario analysis.
-     */
-    public function runScenarios(
-        string $userId,
-        ?int $accountId = null,
-        array $scenarios = [],
-        ?array $visibleAccountIds = null
-    ): array {
-        return $this->scenarioBuilder->runScenarios($userId, $accountId, $scenarios);
-    }
+	/**
+	 * Run scenario analysis.
+	 */
+	public function runScenarios(
+		string $userId,
+		?int $accountId = null,
+		array $scenarios = [],
+		?array $visibleAccountIds = null,
+	): array {
+		return $this->scenarioBuilder->runScenarios($userId, $accountId, $scenarios);
+	}
 
-    /**
-     * Generate enhanced forecast with scenarios and charts.
-     */
-    public function generateEnhancedForecast(
-        string $userId,
-        ?int $accountId = null,
-        int $historicalPeriod = 6,
-        int $forecastHorizon = 6,
-        int $confidenceLevel = 90,
-        ?array $visibleAccountIds = null
-    ): array {
-        $baseForecast = $this->generateForecast($userId, $accountId, $historicalPeriod, $forecastHorizon, $visibleAccountIds);
+	/**
+	 * Generate enhanced forecast with scenarios and charts.
+	 */
+	public function generateEnhancedForecast(
+		string $userId,
+		?int $accountId = null,
+		int $historicalPeriod = 6,
+		int $forecastHorizon = 6,
+		int $confidenceLevel = 90,
+		?array $visibleAccountIds = null,
+	): array {
+		$baseForecast = $this->generateForecast($userId, $accountId, $historicalPeriod, $forecastHorizon, $visibleAccountIds);
 
-        $intelligence = [
-            'confidence' => $confidenceLevel,
-            'trendAnalysis' => 'Based on ' . $historicalPeriod . ' months of data, spending trends show moderate growth',
-            'seasonalityInsight' => 'No significant seasonal patterns detected in current data',
-            'volatilityAssessment' => 'Spending volatility is within normal ranges'
-        ];
+		$intelligence = [
+			'confidence' => $confidenceLevel,
+			'trendAnalysis' => 'Based on ' . $historicalPeriod . ' months of data, spending trends show moderate growth',
+			'seasonalityInsight' => 'No significant seasonal patterns detected in current data',
+			'volatilityAssessment' => 'Spending volatility is within normal ranges'
+		];
 
-        $scenarios = [
-            'conservative' => [
-                'projectedBalance' => $this->scenarioBuilder->calculateScenarioBalance($userId, $accountId, -0.05, 0.08),
-                'assumptions' => [
-                    'Income growth: -5% to +2%',
-                    'Expense increase: +3% to +8%',
-                    'Emergency buffer: 20%'
-                ]
-            ],
-            'base' => [
-                'projectedBalance' => $this->scenarioBuilder->calculateScenarioBalance($userId, $accountId, 0.02, 0.03),
-                'assumptions' => [
-                    'Income growth: Current trend',
-                    'Expense growth: Historical average',
-                    'No major changes expected'
-                ]
-            ],
-            'optimistic' => [
-                'projectedBalance' => $this->scenarioBuilder->calculateScenarioBalance($userId, $accountId, 0.10, -0.02),
-                'assumptions' => [
-                    'Income growth: +5% to +15%',
-                    'Expense reduction: -2% to +3%',
-                    'Favorable market conditions'
-                ]
-            ]
-        ];
+		$scenarios = [
+			'conservative' => [
+				'projectedBalance' => $this->scenarioBuilder->calculateScenarioBalance($userId, $accountId, -0.05, 0.08),
+				'assumptions' => [
+					'Income growth: -5% to +2%',
+					'Expense increase: +3% to +8%',
+					'Emergency buffer: 20%'
+				]
+			],
+			'base' => [
+				'projectedBalance' => $this->scenarioBuilder->calculateScenarioBalance($userId, $accountId, 0.02, 0.03),
+				'assumptions' => [
+					'Income growth: Current trend',
+					'Expense growth: Historical average',
+					'No major changes expected'
+				]
+			],
+			'optimistic' => [
+				'projectedBalance' => $this->scenarioBuilder->calculateScenarioBalance($userId, $accountId, 0.10, -0.02),
+				'assumptions' => [
+					'Income growth: +5% to +15%',
+					'Expense reduction: -2% to +3%',
+					'Favorable market conditions'
+				]
+			]
+		];
 
-        $chartData = [
-            'labels' => $this->scenarioBuilder->generateMonthLabels($historicalPeriod, $forecastHorizon),
-            'historical' => $this->scenarioBuilder->getHistoricalBalances($userId, $accountId, $historicalPeriod),
-            'forecast' => [
-                'base' => $this->scenarioBuilder->generateForecastBalances($scenarios['base'], $forecastHorizon),
-                'conservative' => $this->scenarioBuilder->generateForecastBalances($scenarios['conservative'], $forecastHorizon),
-                'optimistic' => $this->scenarioBuilder->generateForecastBalances($scenarios['optimistic'], $forecastHorizon)
-            ]
-        ];
+		$chartData = [
+			'labels' => $this->scenarioBuilder->generateMonthLabels($historicalPeriod, $forecastHorizon),
+			'historical' => $this->scenarioBuilder->getHistoricalBalances($userId, $accountId, $historicalPeriod),
+			'forecast' => [
+				'base' => $this->scenarioBuilder->generateForecastBalances($scenarios['base'], $forecastHorizon),
+				'conservative' => $this->scenarioBuilder->generateForecastBalances($scenarios['conservative'], $forecastHorizon),
+				'optimistic' => $this->scenarioBuilder->generateForecastBalances($scenarios['optimistic'], $forecastHorizon)
+			]
+		];
 
-        $metrics = [
-            'avgIncome' => 5000.0,
-            'avgExpenses' => 3500.0,
-            'netCashflow' => 1500.0,
-            'savingsRate' => 30.0,
-            'incomeTrend' => 1,
-            'expenseTrend' => 1,
-            'cashflowTrend' => 1,
-            'savingsTrend' => 1,
-            'incomeChange' => '+5.2%',
-            'expenseChange' => '+2.8%',
-            'cashflowChange' => '+12.4%',
-            'savingsChange' => '+3.1%'
-        ];
+		$metrics = [
+			'avgIncome' => 5000.0,
+			'avgExpenses' => 3500.0,
+			'netCashflow' => 1500.0,
+			'savingsRate' => 30.0,
+			'incomeTrend' => 1,
+			'expenseTrend' => 1,
+			'cashflowTrend' => 1,
+			'savingsTrend' => 1,
+			'incomeChange' => '+5.2%',
+			'expenseChange' => '+2.8%',
+			'cashflowChange' => '+12.4%',
+			'savingsChange' => '+3.1%'
+		];
 
-        $goalProjections = [
-            'monthlySavings' => 1500.0,
-            'projectedGrowth' => 0.05
-        ];
+		$goalProjections = [
+			'monthlySavings' => 1500.0,
+			'projectedGrowth' => 0.05
+		];
 
-        $recommendations = [
-            'high' => 'Consider increasing emergency fund by $500/month',
-            'medium' => 'Optimize spending in dining category for better savings',
-            'low' => 'Set up automated transfers to savings account'
-        ];
+		$recommendations = [
+			'high' => 'Consider increasing emergency fund by $500/month',
+			'medium' => 'Optimize spending in dining category for better savings',
+			'low' => 'Set up automated transfers to savings account'
+		];
 
-        return [
-            'intelligence' => $intelligence,
-            'scenarios' => $scenarios,
-            'chartData' => $chartData,
-            'metrics' => $metrics,
-            'goalProjections' => $goalProjections,
-            'recommendations' => $recommendations
-        ];
-    }
+		return [
+			'intelligence' => $intelligence,
+			'scenarios' => $scenarios,
+			'chartData' => $chartData,
+			'metrics' => $metrics,
+			'goalProjections' => $goalProjections,
+			'recommendations' => $recommendations
+		];
+	}
 
-    /**
-     * Export forecast data.
-     */
-    public function exportForecast(string $userId, array $forecastData): array {
-        return [
-            'exportId' => uniqid(),
-            'timestamp' => date('Y-m-d H:i:s'),
-            'userId' => $userId,
-            'data' => $forecastData,
-            'format' => 'json',
-            'version' => '1.0'
-        ];
-    }
+	/**
+	 * Export forecast data.
+	 */
+	public function exportForecast(string $userId, array $forecastData): array {
+		return [
+			'exportId' => uniqid(),
+			'timestamp' => date('Y-m-d H:i:s'),
+			'userId' => $userId,
+			'data' => $forecastData,
+			'format' => 'json',
+			'version' => '1.0'
+		];
+	}
 }

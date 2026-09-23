@@ -15,7 +15,7 @@ class FileValidatorTest extends TestCase {
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnCallback(function (string $text, array $params = []) {
 			foreach ($params as $i => $param) {
-				$text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
+				$text = str_replace('%' . ($i + 1) . '$s', (string)$param, $text);
 			}
 			return $text;
 		});
@@ -418,32 +418,32 @@ class FileValidatorTest extends TestCase {
 		}
 	}
 
-    // ===== camt.053 XML (#350) =====
+	// ===== camt.053 XML (#350) =====
 
-    public function testXmlExtensionIsAllowed(): void {
-        $this->assertSame('xml', $this->validator->validateExtension('statement.xml'));
-    }
+	public function testXmlExtensionIsAllowed(): void {
+		$this->assertSame('xml', $this->validator->validateExtension('statement.xml'));
+	}
 
-    public function testCamtContentIsAccepted(): void {
-        $tmp = tempnam(sys_get_temp_dir(), 'camt');
-        file_put_contents($tmp, file_get_contents(__DIR__ . '/../Parser/fixtures/camt053-wir-sample.xml'));
-        try {
-            $this->validator->validateContent($tmp, 'xml');
-            $this->addToAssertionCount(1);
-        } finally {
-            unlink($tmp);
-        }
-    }
+	public function testCamtContentIsAccepted(): void {
+		$tmp = tempnam(sys_get_temp_dir(), 'camt');
+		file_put_contents($tmp, file_get_contents(__DIR__ . '/../Parser/fixtures/camt053-wir-sample.xml'));
+		try {
+			$this->validator->validateContent($tmp, 'xml');
+			$this->addToAssertionCount(1);
+		} finally {
+			unlink($tmp);
+		}
+	}
 
-    public function testArbitraryXmlIsRejected(): void {
-        $tmp = tempnam(sys_get_temp_dir(), 'camt');
-        file_put_contents($tmp, '<?xml version="1.0"?><note><to>Tove</to></note>');
-        try {
-            $this->expectException(\Exception::class);
-            $this->expectExceptionMessage('camt');
-            $this->validator->validateContent($tmp, 'xml');
-        } finally {
-            unlink($tmp);
-        }
-    }
+	public function testArbitraryXmlIsRejected(): void {
+		$tmp = tempnam(sys_get_temp_dir(), 'camt');
+		file_put_contents($tmp, '<?xml version="1.0"?><note><to>Tove</to></note>');
+		try {
+			$this->expectException(\Exception::class);
+			$this->expectExceptionMessage('camt');
+			$this->validator->validateContent($tmp, 'xml');
+		} finally {
+			unlink($tmp);
+		}
+	}
 }

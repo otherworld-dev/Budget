@@ -23,7 +23,7 @@ class SavedReportControllerTest extends TestCase {
 		$this->service = $this->createMock(SavedReportService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
 		$l = $this->createMock(IL10N::class);
-		$l->method('t')->willReturnCallback(fn($text, $params = []) => vsprintf($text, $params));
+		$l->method('t')->willReturnCallback(fn ($text, $params = []) => vsprintf($text, $params));
 
 		$this->controller = new SavedReportController(
 			$this->createMock(IRequest::class),

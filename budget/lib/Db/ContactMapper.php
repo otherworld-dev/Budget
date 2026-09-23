@@ -13,77 +13,77 @@ use OCP\IDBConnection;
  * @template-extends QBMapper<Contact>
  */
 class ContactMapper extends QBMapper {
-    public function __construct(IDBConnection $db) {
-        parent::__construct($db, 'budget_contacts', Contact::class);
-    }
+	public function __construct(IDBConnection $db) {
+		parent::__construct($db, 'budget_contacts', Contact::class);
+	}
 
-    /**
-     * @throws DoesNotExistException
-     */
-    public function find(int $id, string $userId): Contact {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+	/**
+	 * @throws DoesNotExistException
+	 */
+	public function find(int $id, string $userId): Contact {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
 
-        return $this->findEntity($qb);
-    }
+		return $this->findEntity($qb);
+	}
 
-    /**
-     * @return Contact[]
-     */
-    public function findAll(string $userId): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->orderBy('name', 'ASC');
+	/**
+	 * @return Contact[]
+	 */
+	public function findAll(string $userId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->orderBy('name', 'ASC');
 
-        return $this->findEntities($qb);
-    }
+		return $this->findEntities($qb);
+	}
 
-    /**
-     * Find contact by name for a user.
-     *
-     * @throws DoesNotExistException
-     */
-    public function findByName(string $name, string $userId): Contact {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('name', $qb->createNamedParameter($name)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+	/**
+	 * Find contact by name for a user.
+	 *
+	 * @throws DoesNotExistException
+	 */
+	public function findByName(string $name, string $userId): Contact {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('name', $qb->createNamedParameter($name)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
 
-        return $this->findEntity($qb);
-    }
+		return $this->findEntity($qb);
+	}
 
-    /**
-     * Find contact linked to a Nextcloud user.
-     */
-    public function findByNextcloudUserId(string $nextcloudUserId, string $userId): ?Contact {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('nextcloud_user_id', $qb->createNamedParameter($nextcloudUserId)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+	/**
+	 * Find contact linked to a Nextcloud user.
+	 */
+	public function findByNextcloudUserId(string $nextcloudUserId, string $userId): ?Contact {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('nextcloud_user_id', $qb->createNamedParameter($nextcloudUserId)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
 
-        $entities = $this->findEntities($qb);
-        return $entities[0] ?? null;
-    }
+		$entities = $this->findEntities($qb);
+		return $entities[0] ?? null;
+	}
 
-    /**
-     * Delete all contacts for a user
-     *
-     * @param string $userId
-     * @return int Number of deleted rows
-     */
-    public function deleteAll(string $userId): int {
-        $qb = $this->db->getQueryBuilder();
+	/**
+	 * Delete all contacts for a user
+	 *
+	 * @param string $userId
+	 * @return int Number of deleted rows
+	 */
+	public function deleteAll(string $userId): int {
+		$qb = $this->db->getQueryBuilder();
 
-        $qb->delete($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
+		$qb->delete($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
 
-        return $qb->executeStatement();
-    }
+		return $qb->executeStatement();
+	}
 }

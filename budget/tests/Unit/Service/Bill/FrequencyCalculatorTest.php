@@ -103,7 +103,7 @@ class FrequencyCalculatorTest extends TestCase {
 	/** Without a date the old behaviour stands: a past day/month rolls to next year on creation. */
 	public function testOneTimeWithoutADateStillRollsAPastMonthForward(): void {
 		$lastMonth = (new \DateTime('first day of last month'));
-		$result = $this->calculator->calculateNextDueDate('one-time', 1, (int) $lastMonth->format('n'), null);
+		$result = $this->calculator->calculateNextDueDate('one-time', 1, (int)$lastMonth->format('n'), null);
 
 		$this->assertGreaterThan(date('Y-m-d'), $result);
 	}
@@ -115,7 +115,7 @@ class FrequencyCalculatorTest extends TestCase {
 
 	public function testCalculateNextDueDateCustomMonthsPattern(): void {
 		// Custom patterns use $today internally, so assert on current-year future month
-		$currentYear = (int) date('Y');
+		$currentYear = (int)date('Y');
 		$pattern = json_encode(['months' => [12]]);
 		$result = $this->calculator->calculateNextDueDate('custom', 25, null, '2099-01-01', $pattern);
 		// Should find December 25th of the current year (or next year if past)
@@ -128,7 +128,7 @@ class FrequencyCalculatorTest extends TestCase {
 	}
 
 	public function testCalculateNextDueDateCustomDatesPattern(): void {
-		$currentYear = (int) date('Y');
+		$currentYear = (int)date('Y');
 		$pattern = json_encode(['dates' => [['month' => 12, 'day' => 25]]]);
 		$result = $this->calculator->calculateNextDueDate('custom', null, null, '2099-01-01', $pattern);
 		$expected = new \DateTime();

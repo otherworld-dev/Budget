@@ -98,7 +98,7 @@ class AutoShareServiceTest extends TestCase {
 					$this->stringContains('bill #7'),
 					$this->stringContains('db down')
 				),
-				$this->callback(fn(array $ctx) => ($ctx['app'] ?? null) === 'budget' && $ctx['exception'] instanceof \RuntimeException)
+				$this->callback(fn (array $ctx) => ($ctx['app'] ?? null) === 'budget' && $ctx['exception'] instanceof \RuntimeException)
 			);
 
 		$this->service->autoShareNewEntity('alice', ShareItem::TYPE_BILL, 7);
@@ -222,7 +222,7 @@ class AutoShareServiceTest extends TestCase {
 	}
 
 	public static function validTypes(): array {
-		return array_combine(ShareItem::VALID_TYPES, array_map(fn($t) => [$t], ShareItem::VALID_TYPES));
+		return array_combine(ShareItem::VALID_TYPES, array_map(fn ($t) => [$t], ShareItem::VALID_TYPES));
 	}
 
 	public function testSetConfigRefusesSomeoneElsesShareBeforeValidatingAnything(): void {

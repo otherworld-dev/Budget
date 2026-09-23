@@ -18,21 +18,21 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000098Date20260828 extends SimpleMigrationStep {
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if (!$schema->hasTable('budget_recurring_income')) {
-            return null;
-        }
+		if (!$schema->hasTable('budget_recurring_income')) {
+			return null;
+		}
 
-        $table = $schema->getTable('budget_recurring_income');
-        if (!$table->hasColumn('start_date')) {
-            $table->addColumn('start_date', Types::DATE, [
-                'notnull' => false,
-            ]);
-        }
+		$table = $schema->getTable('budget_recurring_income');
+		if (!$table->hasColumn('start_date')) {
+			$table->addColumn('start_date', Types::DATE, [
+				'notnull' => false,
+			]);
+		}
 
-        return $schema;
-    }
+		return $schema;
+	}
 }

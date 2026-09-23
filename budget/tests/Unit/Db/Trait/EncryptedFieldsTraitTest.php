@@ -28,7 +28,7 @@ class EncryptedFieldsTraitTest extends TestCase {
 		// Reversible stand-in for AES: easy to recognise, impossible to confuse
 		// with the plaintext, and it fails loudly on anything it didn't produce.
 		$this->crypto->method('encrypt')
-			->willReturnCallback(fn(string $plain) => 'CIPHER[' . base64_encode(strrev($plain)) . ']');
+			->willReturnCallback(fn (string $plain) => 'CIPHER[' . base64_encode(strrev($plain)) . ']');
 		$this->crypto->method('decrypt')
 			->willReturnCallback(function (string $cipher) {
 				if (!preg_match('/^CIPHER\[(.*)\]$/', $cipher, $m)) {

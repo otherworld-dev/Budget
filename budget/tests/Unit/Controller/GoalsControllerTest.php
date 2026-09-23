@@ -37,7 +37,7 @@ class GoalsControllerTest extends TestCase {
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnCallback(function (string $text, array $params = []) {
 			foreach ($params as $i => $param) {
-				$text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
+				$text = str_replace('%' . ($i + 1) . '$s', (string)$param, $text);
 			}
 			return $text;
 		});
@@ -47,12 +47,12 @@ class GoalsControllerTest extends TestCase {
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn(true);
 		$granularShareService->method('resolveOwner')->willReturnCallback(
-			fn($u, $t, $id) => in_array($id, $this->inaccessibleIds, true)
+			fn ($u, $t, $id) => in_array($id, $this->inaccessibleIds, true)
 				? null
 				: ($this->ownerMap[$id] ?? 'user1')
 		);
 		$granularShareService->method('canWrite')->willReturnCallback(
-			fn($u, $t, $id) => !in_array($id, $this->readOnlyWriteIds, true)
+			fn ($u, $t, $id) => !in_array($id, $this->readOnlyWriteIds, true)
 		);
 		$granularShareService->method('requireWriteAccess')->willReturnCallback(function ($u, $t, $id): void {
 			if (in_array($id, $this->readOnlyIds, true)) {
@@ -60,7 +60,7 @@ class GoalsControllerTest extends TestCase {
 			}
 		});
 		$granularShareService->method('getSharedSavingsGoalIds')->willReturnCallback(
-			fn($u) => $this->sharedIds
+			fn ($u) => $this->sharedIds
 		);
 
 		$this->controller = new GoalsController(

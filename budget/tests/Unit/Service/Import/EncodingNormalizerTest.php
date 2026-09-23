@@ -33,7 +33,7 @@ class EncodingNormalizerTest extends TestCase {
 	public function testDeclaredWindows1251IsNotDecodedAsLatin1(): void {
 		$text = "Пятёрочка;100,00\n";
 		$content = "<?xml version=\"1.0\" encoding=\"windows-1251\"?>\n<doc>"
-			. mb_convert_encoding($text, 'Windows-1251', 'UTF-8') . "</doc>";
+			. mb_convert_encoding($text, 'Windows-1251', 'UTF-8') . '</doc>';
 
 		$result = $this->normalizer->toUtf8($content);
 
@@ -43,7 +43,7 @@ class EncodingNormalizerTest extends TestCase {
 
 	public function testXmlDeclarationIsRetaggedToUtf8(): void {
 		$content = "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n<doc>"
-			. mb_convert_encoding("Coût\n", 'ISO-8859-1', 'UTF-8') . "</doc>";
+			. mb_convert_encoding("Coût\n", 'ISO-8859-1', 'UTF-8') . '</doc>';
 
 		$result = $this->normalizer->toUtf8($content);
 
@@ -108,7 +108,7 @@ class EncodingNormalizerTest extends TestCase {
 
 	public function testExplicitEncodingWinsOverAValidDeclaration(): void {
 		// A file can declare the wrong thing; the picker exists to overrule it
-		$content = "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?><doc>"
+		$content = '<?xml version="1.0" encoding="ISO-8859-1"?><doc>'
 			. mb_convert_encoding('Пятёрочка', 'Windows-1251', 'UTF-8') . '</doc>';
 
 		$this->assertStringContainsString('Пятёрочка', $this->normalizer->toUtf8($content, 'Windows-1251'));

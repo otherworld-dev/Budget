@@ -12,7 +12,7 @@
   </file>
   <file src="lib/Controller/BillController.php">
     <RedundantCast>
-      <code><![CDATA[(bool) $updates['autoPayEnabled']]]></code>
+      <code><![CDATA[(bool)$updates['autoPayEnabled']]]></code>
     </RedundantCast>
   </file>
   <file src="lib/Controller/NetWorthController.php">
@@ -22,7 +22,7 @@
   </file>
   <file src="lib/Controller/PensionController.php">
     <RedundantCast>
-      <code><![CDATA[(int) $dob->diff($now)->y]]></code>
+      <code><![CDATA[(int)$dob->diff($now)->y]]></code>
     </RedundantCast>
     <TypeDoesNotContainNull>
       <code><![CDATA[$this->getEffectiveUserId() === null]]></code>
@@ -114,10 +114,10 @@
   <file src="lib/Service/AccountService.php">
     <InvalidReturnStatement>
       <code><![CDATA[[
-            'updated' => $updatedCount,
-            'total' => count($accounts),
-            'accounts' => $updatedAccounts,
-        ]]]></code>
+			'updated' => $updatedCount,
+			'total' => count($accounts),
+			'accounts' => $updatedAccounts,
+		]]]></code>
     </InvalidReturnStatement>
     <InvalidReturnType>
       <code><![CDATA[array{updated: int, accounts: array}]]></code>
@@ -149,15 +149,15 @@
     </InvalidArrayOffset>
     <InvalidReturnStatement>
       <code><![CDATA[[
-                'imported' => 0,
-                'skipped' => 0,
-                'errors' => 0,
-                'accounts' => [],
-                'discovered' => $discoveredCount,
-                'message' => $discoveredCount > 0
-                    ? $this->l->t('Found %1$s account(s). Please open Account Mappings to enable and map them, then sync again.', [$discoveredCount])
-                    : null,
-            ]]]></code>
+				'imported' => 0,
+				'skipped' => 0,
+				'errors' => 0,
+				'accounts' => [],
+				'discovered' => $discoveredCount,
+				'message' => $discoveredCount > 0
+					? $this->l->t('Found %1$s account(s). Please open Account Mappings to enable and map them, then sync again.', [$discoveredCount])
+					: null,
+			]]]></code>
     </InvalidReturnStatement>
     <InvalidReturnType>
       <code><![CDATA[array{imported: int, skipped: int, errors: int, accounts: array}]]></code>
@@ -168,11 +168,11 @@
       <code><![CDATA[$data]]></code>
       <code><![CDATA[$data]]></code>
       <code><![CDATA[[
-                'credentials' => $credentials,
-                'accounts' => [],
-                'authorizationUrl' => $requisition['link'],
-                'requisitionId' => $requisition['id'],
-            ]]]></code>
+				'credentials' => $credentials,
+				'accounts' => [],
+				'authorizationUrl' => $requisition['link'],
+				'requisitionId' => $requisition['id'],
+			]]]></code>
     </InvalidReturnStatement>
     <InvalidReturnType>
       <code><![CDATA[array]]></code>
@@ -250,7 +250,7 @@
   </file>
   <file src="lib/Service/Import/TransactionNormalizer.php">
     <RedundantCast>
-      <code><![CDATA[(string) $amount]]></code>
+      <code><![CDATA[(string)$amount]]></code>
     </RedundantCast>
   </file>
   <file src="lib/Service/ImportRuleService.php">
@@ -274,7 +274,7 @@
       <code><![CDATA[$index]]></code>
     </InvalidOperand>
     <RedundantCast>
-      <code><![CDATA[(string) ($this->settingService->get($userId, 'default_currency') ?? '')]]></code>
+      <code><![CDATA[(string)($this->settingService->get($userId, 'default_currency') ?? '')]]></code>
     </RedundantCast>
     <RedundantCondition>
       <code><![CDATA[$this->ruleApplicator]]></code>
@@ -291,15 +291,15 @@
   <file src="lib/Service/InvestmentService.php">
     <InvalidReturnStatement>
       <code><![CDATA[[
-            'totalCost' => MoneyCalculator::toFloat(bcadd($totalCost, '0', 2)),
-            'totalProceeds' => MoneyCalculator::toFloat(bcadd($totalProceeds, '0', 2)),
-            'netInvested' => MoneyCalculator::toFloat(bcadd($netInvested, '0', 2)),
-            'currentValue' => MoneyCalculator::toFloat(bcadd($currentValue, '0', 2)),
-            'unrealisedPnL' => MoneyCalculator::toFloat($unrealisedPnL),
-            'pnlPercentage' => $pnlPercentage,
-            'baseCurrency' => $baseCurrency,
-            'conversionWarning' => $conversionFailures > 0,
-        ]]]></code>
+			'totalCost' => MoneyCalculator::toFloat(bcadd($totalCost, '0', 2)),
+			'totalProceeds' => MoneyCalculator::toFloat(bcadd($totalProceeds, '0', 2)),
+			'netInvested' => MoneyCalculator::toFloat(bcadd($netInvested, '0', 2)),
+			'currentValue' => MoneyCalculator::toFloat(bcadd($currentValue, '0', 2)),
+			'unrealisedPnL' => MoneyCalculator::toFloat($unrealisedPnL),
+			'pnlPercentage' => $pnlPercentage,
+			'baseCurrency' => $baseCurrency,
+			'conversionWarning' => $conversionFailures > 0,
+		]]]></code>
     </InvalidReturnStatement>
   </file>
   <file src="lib/Service/MigrationService.php">
@@ -309,48 +309,49 @@
     </InvalidArrayOffset>
     <InvalidReturnStatement>
       <code><![CDATA[[
-            'map' => $map,
-            'links' => $links,
-            'billRefs' => $billRefs,
-            'reconRefs' => $reconRefs,
-            'pensionRefs' => $pensionRefs,
-        ]]]></code>
+			'map' => $map,
+			'links' => $links,
+			'billRefs' => $billRefs,
+			'reconRefs' => $reconRefs,
+			'pensionRefs' => $pensionRefs,
+		]]]></code>
     </InvalidReturnStatement>
     <InvalidReturnType>
       <code><![CDATA[array{map: array<int,int>, links: array<int,int>, billRefs: array<int,int>}]]></code>
     </InvalidReturnType>
     <RedundantCast>
-      <code><![CDATA[(int) $this->db->lastInsertId('*PREFIX*' . $spec['table'])]]></code>
+      <code><![CDATA[(int)$this->db->lastInsertId('*PREFIX*' . $spec['table'])]]></code>
     </RedundantCast>
   </file>
   <file src="lib/Service/MoneyCalculator.php">
     <RedundantCast>
-      <code><![CDATA[(string) $amount]]></code>
+      <code><![CDATA[(string)$amount]]></code>
     </RedundantCast>
   </file>
   <file src="lib/Service/Ocr/ReceiptParser.php">
     <InvalidReturnStatement>
       <code><![CDATA[[
-            'merchant' => $this->findMerchant($lines),
-            'date' => $this->findDate($lines),
-            'total' => $this->findTotal($lines),
-            // The extraction service uses these to tell a receipt that
-            // reconciles perfectly well — tax added on, or savings taken off —
-            // from genuinely misread line items, and to offer per-item splits.
-            'subtotal' => $this->findLabelled($lines, self::SUBTOTAL_MARKERS),
-            'tax' => $this->findLabelled($lines, self::TAX_MARKERS),
-            // Reported positive however the receipt writes it: "-3.50",
-            // "3.50-" and "3.50" all mean the same money off.
-            'discount' => $this->absolute($this->findLabelled($lines, self::DISCOUNT_MARKERS)),
-            'lineItems' => $this->findLineItems($lines),
-        ]]]></code>
+			'merchant' => $this->findMerchant($lines),
+			'date' => $this->findDate($lines),
+			'total' => $this->findTotal($lines),
+			// The extraction service uses these to tell a receipt that
+			// reconciles perfectly well — tax added on, or savings taken off —
+			// from genuinely misread line items, and to offer per-item splits.
+			'subtotal' => $this->findLabelled($lines, self::SUBTOTAL_MARKERS),
+			'tax' => $this->findLabelled($lines, self::TAX_MARKERS),
+			// Reported positive however the receipt writes it: "-3.50",
+			// "3.50-" and "3.50" all mean the same money off.
+			'discount' => $this->absolute($this->findLabelled($lines, self::DISCOUNT_MARKERS)),
+			'lineItems' => $this->findLineItems($lines),
+		]]]></code>
     </InvalidReturnStatement>
     <InvalidReturnType>
       <code><![CDATA[array{
-     *   merchant: ?string,
-     *   date: ?string,
-     *   total: ?string,
-     *   lineItems: list<array{description: string, amount: string}>,]]></code>
+	 *   merchant: ?string,
+	 *   date: ?string,
+	 *   total: ?string,
+	 *   lineItems: list<array{description: string, amount: string}>,
+	 * }]]></code>
     </InvalidReturnType>
   </file>
   <file src="lib/Service/RecurringIncomeService.php">
@@ -371,13 +372,13 @@
   <file src="lib/Service/Report/ReportAggregator.php">
     <InvalidReturnStatement>
       <code><![CDATA[[
-            'period' => ['startDate' => $startDate, 'endDate' => $endDate, 'months' => $months],
-            'sort' => $sort,
-            'baseCurrency' => $this->conversionService->getBaseCurrency($userId),
-            'mixedCurrency' => $mixedCurrency,
-            'rows' => $rows,
-            'totals' => ['monthly' => $grandMonthly, 'total' => round($grandTotal, 2)],
-        ]]]></code>
+			'period' => ['startDate' => $startDate, 'endDate' => $endDate, 'months' => $months],
+			'sort' => $sort,
+			'baseCurrency' => $this->conversionService->getBaseCurrency($userId),
+			'mixedCurrency' => $mixedCurrency,
+			'rows' => $rows,
+			'totals' => ['monthly' => $grandMonthly, 'total' => round($grandTotal, 2)],
+		]]]></code>
     </InvalidReturnStatement>
     <InvalidReturnType>
       <code><![CDATA[array{period: array, sort: string, baseCurrency: string, rows: array, totals: array}]]></code>

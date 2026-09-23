@@ -941,7 +941,7 @@ class BankSyncServiceTest extends TestCase {
 		int $connectionId,
 		string $externalAccountId,
 		?int $budgetAccountId = null,
-		bool $enabled = false
+		bool $enabled = false,
 	): BankAccountMapping {
 		$m = new BankAccountMapping();
 		$m->setId($id);

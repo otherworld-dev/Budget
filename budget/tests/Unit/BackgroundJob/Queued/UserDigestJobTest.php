@@ -34,7 +34,7 @@ class UserDigestJobTest extends TestCase {
 
 		$settingService = $this->createMock(SettingService::class);
 		$settingService->method('get')
-			->willReturnCallback(fn(string $userId, string $key) => $this->settings[$key] ?? null);
+			->willReturnCallback(fn (string $userId, string $key) => $this->settings[$key] ?? null);
 		$settingService->method('set')
 			->willReturnCallback(function (string $userId, string $key, string $value) {
 				$this->written[$key] = $value;

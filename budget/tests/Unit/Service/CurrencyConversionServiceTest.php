@@ -53,7 +53,7 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convert('100', 'USD', 'GBP');
-		$resultFloat = round((float) $result, 2);
+		$resultFloat = round((float)$result, 2);
 		$this->assertEqualsWithDelta(78.70, $resultFloat, 0.01);
 	}
 
@@ -65,7 +65,7 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convert('100', 'GBP', 'EUR');
-		$resultFloat = round((float) $result, 2);
+		$resultFloat = round((float)$result, 2);
 		$this->assertEqualsWithDelta(117.65, $resultFloat, 0.01);
 	}
 
@@ -78,7 +78,7 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convert('200', 'USD', 'GBP', $date);
-		$resultFloat = round((float) $result, 2);
+		$resultFloat = round((float)$result, 2);
 		$this->assertEqualsWithDelta(156.36, $resultFloat, 0.01);
 	}
 
@@ -112,7 +112,7 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convert(100.50, 'USD', 'GBP');
-		$resultFloat = (float) $result;
+		$resultFloat = (float)$result;
 		$this->assertGreaterThan(0, $resultFloat);
 	}
 
@@ -128,7 +128,7 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convertLocal('100', 'USD', 'GBP');
-		$this->assertGreaterThan(0, (float) $result);
+		$this->assertGreaterThan(0, (float)$result);
 	}
 
 	// ===== convertToBase() with manual rates =====
@@ -157,7 +157,7 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convertToBase('1000', 'ARS', 'user1');
-		$resultFloat = round((float) $result, 2);
+		$resultFloat = round((float)$result, 2);
 		// ARS→GBP: 1000 * (0.85 / 1048.9) ≈ 0.81
 		$this->assertEqualsWithDelta(0.81, $resultFloat, 0.01);
 	}
@@ -177,7 +177,7 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convertToBase('100', 'USD', 'user1');
-		$resultFloat = round((float) $result, 2);
+		$resultFloat = round((float)$result, 2);
 		$this->assertEqualsWithDelta(78.70, $resultFloat, 0.01);
 	}
 
@@ -192,7 +192,9 @@ class CurrencyConversionServiceTest extends TestCase {
 
 		$this->manualRateMapper->method('findByUserAndCurrency')
 			->willReturnCallback(function ($userId, $currency) use ($manualGbp) {
-				if ($currency === 'GBP') return $manualGbp;
+				if ($currency === 'GBP') {
+					return $manualGbp;
+				}
 				return null;
 			});
 
@@ -202,7 +204,7 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convertToBase('100', 'USD', 'user1');
-		$resultFloat = round((float) $result, 2);
+		$resultFloat = round((float)$result, 2);
 		// USD→GBP: 100 * (0.90 / 1.08) ≈ 83.33
 		$this->assertEqualsWithDelta(83.33, $resultFloat, 0.01);
 	}
@@ -230,7 +232,7 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convertToBase('100', 'USD', 'user1');
-		$resultFloat = round((float) $result, 2);
+		$resultFloat = round((float)$result, 2);
 		$this->assertEqualsWithDelta(78.70, $resultFloat, 0.01);
 	}
 
@@ -248,7 +250,7 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convertToBase('100', 'USD', 'user1');
-		$resultFloat = round((float) $result, 2);
+		$resultFloat = round((float)$result, 2);
 		// USD→GBP: 100 * (0.85/1.08) ≈ 78.70
 		$this->assertEqualsWithDelta(78.70, $resultFloat, 0.01);
 	}

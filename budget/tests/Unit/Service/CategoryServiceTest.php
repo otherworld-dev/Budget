@@ -25,1189 +25,1189 @@ use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
 
 class CategoryServiceTest extends TestCase {
-    private CategoryService $service;
-    private CategoryMapper $categoryMapper;
-    private TransactionMapper $transactionMapper;
-    private TagSetMapper $tagSetMapper;
-    private TagMapper $tagMapper;
-    private TransactionTagMapper $transactionTagMapper;
-    private TransactionSplitMapper $splitMapper;
-    /** The budget month the mocked carryover service reports as current */
-    private string $currentBudgetMonth;
-    /** @var array<int, float> recurring budgets the mock returns */
-    private array $recurring = [];
-    /** The budget start day the mocked carryover service reports */
-    private int $budgetStartDay = 1;
-    /** @var string[] users whose start day was asked for */
-    private array $startDayAskedFor = [];
-
-    protected function setUp(): void {
-        $this->categoryMapper = $this->createMock(CategoryMapper::class);
-        $this->transactionMapper = $this->createMock(TransactionMapper::class);
-        $this->tagSetMapper = $this->createMock(TagSetMapper::class);
-        $this->tagMapper = $this->createMock(TagMapper::class);
-        $this->transactionTagMapper = $this->createMock(TransactionTagMapper::class);
-        $this->splitMapper = $this->createMock(TransactionSplitMapper::class);
-
-        $l = $this->createMock(IL10N::class);
-        $l->method('t')->willReturnCallback(function (string $text, array $params = []) {
-            foreach ($params as $i => $param) {
-                $text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
-            }
-            return $text;
-        });
-        $budgetSnapshotMapper = $this->createMock(BudgetSnapshotMapper::class);
-
-        $this->currentBudgetMonth = date('Y-m');
-        $carryoverService = $this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class);
-        $carryoverService->method('getCarryovers')->willReturn([]);
-        $carryoverService->method('currentBudgetMonth')
-            ->willReturnCallback(fn() => $this->currentBudgetMonth);
-        $carryoverService->method('budgetStartDay')
-            ->willReturnCallback(function (string $userId): int {
-                $this->startDayAskedFor[] = $userId;
-                return $this->budgetStartDay;
-            });
-        $recurringBudgetService = $this->createMock(\OCA\Budget\Service\RecurringBudgetService::class);
-        $recurringBudgetService->method('getMonthlyBudgetsByCategory')
-            ->willReturnCallback(fn() => $this->recurring);
-        $recurringBudgetService->method('convertMonthlyToPeriod')
-            ->willReturnCallback(fn(float $monthly) => $monthly);
-
-        $this->service = new CategoryService(
-            $this->categoryMapper,
-            $this->transactionMapper,
-            $budgetSnapshotMapper,
-            $this->tagSetMapper,
-            $this->tagMapper,
-            $this->transactionTagMapper,
-            $l,
-            $carryoverService,
-            $recurringBudgetService,
-            null,
-            null,
-            $this->splitMapper
-        );
-    }
-
-    private function makeCategory(array $overrides = []): Category {
-        $category = new Category();
-        $defaults = [
-            'id' => 1,
-            'userId' => 'user1',
-            'name' => 'Food',
-            'type' => 'expense',
-            'parentId' => null,
-            'icon' => 'icon-food',
-            'color' => '#ff0000',
-            'budgetAmount' => null,
-            'sortOrder' => 0,
-        ];
-        $data = array_merge($defaults, $overrides);
-
-        $category->setId($data['id']);
-        $category->setUserId($data['userId']);
-        $category->setName($data['name']);
-        $category->setType($data['type']);
-        $category->setParentId($data['parentId']);
-        $category->setIcon($data['icon']);
-        $category->setColor($data['color']);
-        $category->setBudgetAmount($data['budgetAmount']);
-        $category->setSortOrder($data['sortOrder']);
-        $category->setExcludedFromBudget($data['excludedFromBudget'] ?? false);
-        $category->setExcludedFromReports($data['excludedFromReports'] ?? false);
-        $category->setCreatedAt('2026-01-01 00:00:00');
-        $category->setUpdatedAt('2026-01-01 00:00:00');
-        return $category;
-    }
-
-    private function makeTagSet(int $id, int $categoryId): TagSet {
-        $ts = new TagSet();
-        $ts->setId($id);
-        $ts->setCategoryId($categoryId);
-        $ts->setName('TagSet ' . $id);
-        return $ts;
-    }
-
-    private function makeTag(int $id, int $tagSetId): Tag {
-        $tag = new Tag();
-        $tag->setId($id);
-        $tag->setTagSetId($tagSetId);
-        $tag->setName('Tag ' . $id);
-        return $tag;
-    }
-
-    // ===== create() =====
-
-    public function testCreateBasicCategory(): void {
-        $this->categoryMapper->expects($this->once())
-            ->method('insert')
-            ->willReturnCallback(function (Category $cat) {
-                $this->assertEquals('user1', $cat->getUserId());
-                $this->assertEquals('Food', $cat->getName());
-                $this->assertEquals('expense', $cat->getType());
-                $this->assertNull($cat->getParentId());
-                $cat->setId(1);
-                return $cat;
-            });
-
-        $result = $this->service->create('user1', 'Food', 'expense');
-        $this->assertEquals('Food', $result->getName());
-    }
-
-    public function testCreateWithParentValidatesOwnership(): void {
-        $parent = $this->makeCategory(['id' => 10]);
-        $this->categoryMapper->expects($this->once())
-            ->method('find')
-            ->with(10, 'user1')
-            ->willReturn($parent);
-
-        $this->categoryMapper->method('insert')->willReturnCallback(function (Category $cat) {
-            $this->assertEquals(10, $cat->getParentId());
-            $cat->setId(2);
-            return $cat;
-        });
-
-        $this->service->create('user1', 'Groceries', 'expense', 10);
-    }
-
-    public function testCreateWithParentThrowsIfParentNotFound(): void {
-        $this->categoryMapper->method('find')
-            ->willThrowException(new DoesNotExistException(''));
-
-        $this->expectException(DoesNotExistException::class);
-        $this->service->create('user1', 'Child', 'expense', 999);
-    }
-
-    public function testCreateGeneratesColorWhenNotProvided(): void {
-        $this->categoryMapper->expects($this->once())
-            ->method('insert')
-            ->willReturnCallback(function (Category $cat) {
-                // Color should be set (randomly generated)
-                $this->assertNotNull($cat->getColor());
-                $this->assertMatchesRegularExpression('/^#[0-9a-f]{6}$/i', $cat->getColor());
-                $cat->setId(1);
-                return $cat;
-            });
-
-        $this->service->create('user1', 'No Color', 'expense', null, null, null);
-    }
-
-    public function testCreateUsesProvidedColor(): void {
-        $this->categoryMapper->expects($this->once())
-            ->method('insert')
-            ->willReturnCallback(function (Category $cat) {
-                $this->assertEquals('#abcdef', $cat->getColor());
-                $cat->setId(1);
-                return $cat;
-            });
-
-        $this->service->create('user1', 'Custom Color', 'expense', null, null, '#abcdef');
-    }
-
-    // ===== beforeUpdate() =====
-
-    public function testUpdateRejectsSelfReferentialParent(): void {
-        $category = $this->makeCategory(['id' => 5]);
-        $this->categoryMapper->method('find')->willReturn($category);
-
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('its own parent');
-
-        $this->service->update(5, 'user1', ['parentId' => 5]);
-    }
-
-    public function testUpdateValidatesNewParent(): void {
-        $category = $this->makeCategory(['id' => 5]);
-        $parent = $this->makeCategory(['id' => 10]);
-
-        // First call returns the category being updated, second validates parent
-        $this->categoryMapper->method('find')
-            ->willReturnCallback(function (int $id) use ($category, $parent) {
-                return $id === 5 ? $category : $parent;
-            });
-
-        $this->categoryMapper->method('update')->willReturnArgument(0);
-
-        $result = $this->service->update(5, 'user1', ['parentId' => 10]);
-        $this->assertEquals(10, $result->getParentId());
-    }
-
-    // ===== current budget month (custom start day) =====
-
-    public function testEnablingRolloverAnchorsAtTheCurrentBudgetMonth(): void {
-        // Start day 28 on 29 Sep: the running period is October's
-        $this->currentBudgetMonth = '2026-10';
-        $category = $this->makeCategory(['id' => 5]);
-        $category->setBudgetRollover(false);
-        $this->categoryMapper->method('find')->willReturn($category);
-        $this->categoryMapper->method('update')->willReturnArgument(0);
-
-        $result = $this->service->update(5, 'user1', ['budgetRollover' => true]);
-
-        $this->assertSame('2026-10', $result->getRolloverStart());
-    }
-
-    public function testRecurringFallbackSkipsBudgetMonthsBeforeTheCurrentOne(): void {
-        $this->currentBudgetMonth = '2026-10';
-        $this->recurring = [1 => 80.0];
-        $this->categoryMapper->method('findAll')->willReturn([
-            $this->makeCategory(['id' => 1, 'budgetAmount' => 0.0]),
-        ]);
-
-        $september = $this->service->resolveEffectiveBudgets('user1', '2026-09');
-        $october = $this->service->resolveEffectiveBudgets('user1', '2026-10');
-
-        $this->assertSame(0.0, $september[1]['available']);
-        $this->assertSame(80.0, $october[1]['available']);
-    }
-
-    // ===== beforeDelete() =====
-
-    public function testDeleteCascadesChildrenFirst(): void {
-        $parent = $this->makeCategory(['id' => 1]);
-        $child = $this->makeCategory(['id' => 2, 'parentId' => 1]);
-
-        // find() returns parent when called from delete()
-        $this->categoryMapper->method('find')
-            ->willReturnCallback(function (int $id) use ($parent, $child) {
-                return $id === 1 ? $parent : $child;
-            });
-
-        // Parent has one child, child has no children
-        $this->categoryMapper->method('findChildren')
-            ->willReturnCallback(function (string $userId, int $parentId) use ($child) {
-                return $parentId === 1 ? [$child] : [];
-            });
-
-        // No transactions on either
-        $this->transactionMapper->method('findByCategory')->willReturn([]);
-        $this->tagSetMapper->method('findByCategory')->willReturn([]);
-
-        // Should delete child first, then parent
-        $deleteOrder = [];
-        $this->categoryMapper->method('delete')
-            ->willReturnCallback(function (Category $cat) use (&$deleteOrder) {
-                $deleteOrder[] = $cat->getId();
-                return $cat;
-            });
-
-        $this->service->delete(1, 'user1');
-
-        $this->assertEquals([2, 1], $deleteOrder);
-    }
-
-    public function testDeleteRejectsWhenTransactionsExist(): void {
-        $category = $this->makeCategory();
-        $this->categoryMapper->method('find')->willReturn($category);
-        $this->categoryMapper->method('findChildren')->willReturn([]);
-
-        $this->transactionMapper->method('findByCategory')
-            ->willReturn([['id' => 1]]);
-
-        // Typed so the controller can offer to reassign and retry (#332).
-        $this->expectException(\OCA\Budget\Exception\CategoryInUseException::class);
-        $this->expectExceptionMessage('has transactions assigned');
-
-        $this->service->delete(1, 'user1');
-    }
-
-    public function testDeleteWithReassignClearsTransactionsThenDeletes(): void {
-        $category = $this->makeCategory(['id' => 1]);
-        $this->categoryMapper->method('find')->willReturn($category);
-        $this->categoryMapper->method('findChildren')->willReturn([]);
-        $this->tagSetMapper->method('findByCategory')->willReturn([]);
-        // After reassignment no transactions remain, so beforeDelete()'s guard passes.
-        $this->transactionMapper->method('findByCategory')->willReturn([]);
-
-        $this->transactionMapper->expects($this->once())
-            ->method('clearCategory')
-            ->with([1])
-            ->willReturn(3);
-
-        $this->categoryMapper->expects($this->once())->method('delete');
-
-        $this->service->deleteWithReassign(1, 'user1');
-    }
-
-    public function testDeleteWithReassignReassignsDescendantTransactions(): void {
-        // Deleting a parent reassigns its own AND its children's transactions (#332).
-        $parent = $this->makeCategory(['id' => 1]);
-        $child = $this->makeCategory(['id' => 2, 'parentId' => 1]);
-        $this->categoryMapper->method('find')
-            ->willReturnCallback(fn (int $id) => $id === 1 ? $parent : $child);
-        $this->categoryMapper->method('findChildren')
-            ->willReturnCallback(fn (string $u, int $pid) => $pid === 1 ? [$child] : []);
-        $this->transactionMapper->method('findByCategory')->willReturn([]);
-        $this->tagSetMapper->method('findByCategory')->willReturn([]);
-
-        $this->transactionMapper->expects($this->once())
-            ->method('clearCategory')
-            ->with([1, 2])
-            ->willReturn(5);
-
-        $this->categoryMapper->method('delete')->willReturnArgument(0);
-
-        $this->service->deleteWithReassign(1, 'user1');
-    }
-
-    /**
-     * findByCategory() is deliberately split-blind, so a category referenced
-     * only by split parts sails through the guard silently -- but the split
-     * rows must still degrade to uncategorized, not dangle on a deleted
-     * category id (#360).
-     */
-    public function testDeleteClearsSplitCategoryReferencesWhenOnlySplitsUseIt(): void {
-        $category = $this->makeCategory(['id' => 1]);
-        $this->categoryMapper->method('find')->willReturn($category);
-        $this->categoryMapper->method('findChildren')->willReturn([]);
-        $this->transactionMapper->method('findByCategory')->willReturn([]);
-        $this->tagSetMapper->method('findByCategory')->willReturn([]);
-
-        $this->splitMapper->expects($this->once())
-            ->method('clearCategory')
-            ->with([1]);
-
-        $this->service->delete(1, 'user1');
-    }
-
-    public function testDeleteWithReassignClearsSplitCategoryReferences(): void {
-        $category = $this->makeCategory(['id' => 1]);
-        $this->categoryMapper->method('find')->willReturn($category);
-        $this->categoryMapper->method('findChildren')->willReturn([]);
-        $this->transactionMapper->method('findByCategory')->willReturn([]);
-        $this->tagSetMapper->method('findByCategory')->willReturn([]);
-
-        $this->splitMapper->expects($this->once())
-            ->method('clearCategory')
-            ->with([1]);
-
-        $this->service->deleteWithReassign(1, 'user1');
-    }
-
-    public function testDeleteWithReassignClearsSplitCategoryReferencesForDescendantsToo(): void {
-        $parent = $this->makeCategory(['id' => 1]);
-        $child = $this->makeCategory(['id' => 2, 'parentId' => 1]);
-        $this->categoryMapper->method('find')
-            ->willReturnCallback(fn (int $id) => $id === 1 ? $parent : $child);
-        $this->categoryMapper->method('findChildren')
-            ->willReturnCallback(fn (string $u, int $pid) => $pid === 1 ? [$child] : []);
-        $this->transactionMapper->method('findByCategory')->willReturn([]);
-        $this->tagSetMapper->method('findByCategory')->willReturn([]);
-
-        $cleared = [];
-        $this->splitMapper->method('clearCategory')
-            ->willReturnCallback(function (array $ids) use (&$cleared) {
-                $cleared = array_merge($cleared, $ids);
-                return 0;
-            });
-
-        $this->service->deleteWithReassign(1, 'user1');
-
-        sort($cleared);
-        $this->assertSame([1, 2], $cleared);
-    }
-
-    public function testDeleteCascadesTagSetsAndTags(): void {
-        $category = $this->makeCategory();
-        $this->categoryMapper->method('find')->willReturn($category);
-        $this->categoryMapper->method('findChildren')->willReturn([]);
-        $this->transactionMapper->method('findByCategory')->willReturn([]);
-
-        $tagSet = $this->makeTagSet(10, 1);
-        $tag = $this->makeTag(20, 10);
-
-        $this->tagSetMapper->method('findByCategory')->willReturn([$tagSet]);
-        $this->tagMapper->method('findByTagSet')->willReturn([$tag]);
-
-        $this->transactionTagMapper->expects($this->once())
-            ->method('deleteByTag')
-            ->with(20);
-
-        $this->tagMapper->expects($this->once())
-            ->method('delete')
-            ->with($tag);
-
-        $this->tagSetMapper->expects($this->once())
-            ->method('delete')
-            ->with($tagSet);
-
-        $this->categoryMapper->expects($this->once())->method('delete');
-
-        $this->service->delete(1, 'user1');
-    }
-
-    // ===== reorderCategory() =====
-
-    public function testReorderCategoryRenumbersSiblingsDeterministically(): void {
-        // Moving C above A must renumber the whole group (C,A,B → 0,1,2), not set
-        // one colliding sortOrder that the tiebreak then ignores (#328).
-        $a = $this->makeCategory(['id' => 1, 'sortOrder' => 0]);
-        $b = $this->makeCategory(['id' => 2, 'sortOrder' => 1]);
-        $c = $this->makeCategory(['id' => 3, 'sortOrder' => 2]);
-        $this->categoryMapper->method('find')->willReturnCallback(
-            fn (int $id) => [1 => $a, 2 => $b, 3 => $c][$id]
-        );
-        $this->categoryMapper->method('findRootCategories')->willReturn([$a, $b, $c]);
-
-        $saved = [];
-        $this->categoryMapper->method('update')->willReturnCallback(function (Category $cat) use (&$saved) {
-            $saved[$cat->getId()] = $cat->getSortOrder();
-            return $cat;
-        });
-
-        // Move C (id 3) above A (id 1).
-        $this->service->reorderCategory(3, 'user1', 1, 'above');
-
-        $this->assertSame(0, $saved[3]); // C first
-        $this->assertSame(1, $saved[1]); // A second
-        $this->assertSame(2, $saved[2]); // B third
-    }
-
-    // ===== findByType() =====
-
-    public function testFindByTypeDelegatesToMapper(): void {
-        $categories = [$this->makeCategory()];
-        $this->categoryMapper->expects($this->once())
-            ->method('findByType')
-            ->with('user1', 'expense')
-            ->willReturn($categories);
-
-        $result = $this->service->findByType('user1', 'expense');
-        $this->assertCount(1, $result);
-    }
-
-    // ===== getCategoryTree() =====
-
-    public function testGetCategoryTreeBuildsHierarchy(): void {
-        $parent = $this->makeCategory(['id' => 1, 'name' => 'Food', 'parentId' => null]);
-        $child1 = $this->makeCategory(['id' => 2, 'name' => 'Groceries', 'parentId' => 1]);
-        $child2 = $this->makeCategory(['id' => 3, 'name' => 'Dining Out', 'parentId' => 1]);
-
-        $this->categoryMapper->method('findAll')->willReturn([$parent, $child1, $child2]);
-
-        $tree = $this->service->getCategoryTree('user1');
-
-        $this->assertCount(1, $tree);
-        $this->assertEquals('Food', $tree[0]['name']);
-        $this->assertCount(2, $tree[0]['children']);
-        $this->assertEquals('Groceries', $tree[0]['children'][0]['name']);
-        $this->assertEquals('Dining Out', $tree[0]['children'][1]['name']);
-    }
-
-    public function testGetCategoryTreeMultipleRoots(): void {
-        $cat1 = $this->makeCategory(['id' => 1, 'name' => 'Food', 'parentId' => null]);
-        $cat2 = $this->makeCategory(['id' => 2, 'name' => 'Transport', 'parentId' => null]);
-
-        $this->categoryMapper->method('findAll')->willReturn([$cat1, $cat2]);
-
-        $tree = $this->service->getCategoryTree('user1');
-
-        $this->assertCount(2, $tree);
-    }
-
-    public function testGetCategoryTreeEmpty(): void {
-        $this->categoryMapper->method('findAll')->willReturn([]);
-
-        $tree = $this->service->getCategoryTree('user1');
-        $this->assertEmpty($tree);
-    }
-
-    public function testGetCategoryTreeNestedChildren(): void {
-        $root = $this->makeCategory(['id' => 1, 'name' => 'Root', 'parentId' => null]);
-        $mid = $this->makeCategory(['id' => 2, 'name' => 'Middle', 'parentId' => 1]);
-        $leaf = $this->makeCategory(['id' => 3, 'name' => 'Leaf', 'parentId' => 2]);
-
-        $this->categoryMapper->method('findAll')->willReturn([$root, $mid, $leaf]);
-
-        $tree = $this->service->getCategoryTree('user1');
-
-        $this->assertCount(1, $tree);
-        $this->assertCount(1, $tree[0]['children']);
-        $this->assertCount(1, $tree[0]['children'][0]['children']);
-        $this->assertEquals('Leaf', $tree[0]['children'][0]['children'][0]['name']);
-    }
-
-    // ===== getCategorySpending() =====
-
-    public function testGetCategorySpendingVerifiesOwnership(): void {
-        $category = $this->makeCategory();
-        $this->categoryMapper->expects($this->once())
-            ->method('find')
-            ->with(1, 'user1')
-            ->willReturn($category);
-
-        $this->categoryMapper->method('getCategorySpending')->willReturn(250.0);
-
-        $result = $this->service->getCategorySpending(1, 'user1', '2026-01-01', '2026-01-31');
-        $this->assertEquals(250.0, $result);
-    }
-
-    // ===== getAllCategorySpending() =====
-
-    public function testGetAllCategorySpendingTransformsData(): void {
-        $this->transactionMapper->method('getSpendingSummary')
-            ->willReturn([
-                ['id' => 1, 'total' => 150.50, 'name' => 'Food', 'color' => '#ff0000', 'count' => 10],
-                ['id' => 2, 'total' => 80.00, 'name' => 'Transport', 'color' => '#00ff00', 'count' => 5],
-            ]);
-
-        $result = $this->service->getAllCategorySpending('user1', '2026-01-01', '2026-01-31');
-
-        $this->assertCount(2, $result);
-        $this->assertEquals(1, $result[0]['categoryId']);
-        $this->assertEquals(150.50, $result[0]['spent']);
-        $this->assertEquals('Food', $result[0]['name']);
-        $this->assertEquals(10, $result[0]['count']);
-    }
-
-    public function testGetAllCategorySpendingKeepsNetNegativeSpending(): void {
-        // A month where refunds exceed the spending must come through
-        // negative, not flipped to look like money spent (#361).
-        $this->transactionMapper->method('getSpendingSummary')
-            ->willReturn([
-                ['id' => 5, 'total' => -79.32, 'name' => 'Phone', 'color' => null, 'count' => 4],
-            ]);
-
-        $result = $this->service->getAllCategorySpending('user1', '2026-08-01', '2026-08-31');
-
-        $this->assertEqualsWithDelta(-79.32, $result[0]['spent'], 0.001);
-    }
-
-    public function testGetAllCategorySpendingRequestsNettedTotals(): void {
-        // The Budget page's Spent figure must net refund credits against the
-        // debits — the same netting every other budget surface got in #361 —
-        // so the mapper is asked for netted totals, not a one-direction sum.
-        $this->transactionMapper->expects($this->once())
-            ->method('getSpendingSummary')
-            ->with('user1', '2026-08-01', '2026-08-31', null, [], true, false, null, 'debit', true)
-            ->willReturn([]);
-
-        $this->service->getAllCategorySpending('user1', '2026-08-01', '2026-08-31');
-    }
-
-    // ===== getBudgetAnalysis() =====
-
-    public function testGetBudgetAnalysisCalculatesCorrectly(): void {
-        $categories = [
-            $this->makeCategory(['id' => 1, 'name' => 'Food', 'budgetAmount' => 500.00]),
-            $this->makeCategory(['id' => 2, 'name' => 'Transport', 'budgetAmount' => 200.00]),
-            $this->makeCategory(['id' => 3, 'name' => 'No Budget', 'budgetAmount' => null]),
-        ];
-        $this->categoryMapper->method('findAll')->willReturn($categories);
-
-        $this->transactionMapper->method('getCategorySpendingBatch')
-            ->willReturn([
-                1 => 250.0,   // 50% of 500
-                2 => 180.0,   // 90% of 200
-            ]);
-
-        $result = $this->service->getBudgetAnalysis('user1', '2026-01');
-
-        // Should only include budgeted categories
-        $this->assertCount(2, $result);
-
-        // Food: 250/500 = 50% -> good
-        $this->assertEquals(500.0, $result[0]['budget']);
-        $this->assertEquals(250.0, $result[0]['spent']);
-        $this->assertEquals(250.0, $result[0]['remaining']);
-        $this->assertEquals(50.0, $result[0]['percentage']);
-        $this->assertEquals('good', $result[0]['status']);
-
-        // Transport: 180/200 = 90% -> danger
-        $this->assertEquals(90.0, $result[1]['percentage']);
-        $this->assertEquals('danger', $result[1]['status']);
-    }
-
-    public function testGetBudgetAnalysisStatusThresholds(): void {
-        $categories = [
-            $this->makeCategory(['id' => 1, 'budgetAmount' => 100.00]),
-            $this->makeCategory(['id' => 2, 'budgetAmount' => 100.00]),
-            $this->makeCategory(['id' => 3, 'budgetAmount' => 100.00]),
-            $this->makeCategory(['id' => 4, 'budgetAmount' => 100.00]),
-        ];
-        $this->categoryMapper->method('findAll')->willReturn($categories);
-
-        $this->transactionMapper->method('getCategorySpendingBatch')
-            ->willReturn([
-                1 => 40.0,    // 40% -> good
-                2 => 60.0,    // 60% -> warning
-                3 => 95.0,    // 95% -> danger
-                4 => 120.0,   // 120% -> over
-            ]);
-
-        $result = $this->service->getBudgetAnalysis('user1');
-
-        $this->assertEquals('good', $result[0]['status']);
-        $this->assertEquals('warning', $result[1]['status']);
-        $this->assertEquals('danger', $result[2]['status']);
-        $this->assertEquals('over', $result[3]['status']);
-    }
-
-    public function testGetBudgetAnalysisSkipsCategoriesExcludedFromBudget(): void {
-        // 2 is flagged, 3 is its child — neither may reach the budget analysis
-        $categories = [
-            $this->makeCategory(['id' => 1, 'name' => 'Food', 'budgetAmount' => 500.00]),
-            $this->makeCategory(['id' => 2, 'name' => 'Gifts', 'budgetAmount' => 200.00, 'excludedFromBudget' => true]),
-            $this->makeCategory(['id' => 3, 'name' => 'Presents', 'parentId' => 2, 'budgetAmount' => 100.00]),
-        ];
-        $this->categoryMapper->method('findAll')->willReturn($categories);
-
-        $this->transactionMapper->method('getCategorySpendingBatch')
-            ->willReturn([1 => 250.0, 2 => 400.0, 3 => 90.0]);
-
-        $result = $this->service->getBudgetAnalysis('user1', '2026-01');
-
-        $this->assertCount(1, $result);
-        $this->assertSame(1, $result[0]['category']->getId());
-    }
-
-    public function testResolveEffectiveBudgetsOmitsCategoriesExcludedFromBudget(): void {
-        $categories = [
-            $this->makeCategory(['id' => 1, 'budgetAmount' => 500.00]),
-            $this->makeCategory(['id' => 2, 'budgetAmount' => 200.00, 'excludedFromBudget' => true]),
-            $this->makeCategory(['id' => 3, 'parentId' => 2, 'budgetAmount' => 100.00]),
-        ];
-        $this->categoryMapper->method('findAll')->willReturn($categories);
-
-        $budgets = $this->service->resolveEffectiveBudgets('user1', '2026-01');
-
-        $this->assertSame([1], array_keys($budgets));
-    }
-
-    public function testGetBudgetAnalysisDefaultsToCurrentMonth(): void {
-        $this->categoryMapper->method('findAll')->willReturn([]);
-        $this->transactionMapper->method('getCategorySpendingBatch')->willReturn([]);
-
-        // Should not throw
-        $result = $this->service->getBudgetAnalysis('user1');
-        $this->assertIsArray($result);
-    }
-
-    // ===== removeDuplicates() =====
-
-    public function testRemoveDuplicatesDeletesSafeDuplicates(): void {
-        $original = $this->makeCategory(['id' => 1, 'name' => 'Food', 'type' => 'expense']);
-        $duplicate = $this->makeCategory(['id' => 2, 'name' => 'Food', 'type' => 'expense']);
-
-        $this->categoryMapper->method('findAll')->willReturn([$original, $duplicate]);
-
-        // Duplicate has no transactions and no children
-        $this->transactionMapper->method('findByCategory')->willReturn([]);
-        $this->categoryMapper->method('findChildren')->willReturn([]);
-
-        $this->categoryMapper->expects($this->once())
-            ->method('delete')
-            ->with($duplicate);
-
-        $result = $this->service->removeDuplicates('user1');
-
-        $this->assertContains('Food', $result);
-    }
-
-    public function testRemoveDuplicatesKeepsDuplicateWithTransactions(): void {
-        $original = $this->makeCategory(['id' => 1, 'name' => 'Food', 'type' => 'expense']);
-        $duplicate = $this->makeCategory(['id' => 2, 'name' => 'Food', 'type' => 'expense']);
-
-        $this->categoryMapper->method('findAll')->willReturn([$original, $duplicate]);
-
-        // Duplicate has transactions
-        $this->transactionMapper->method('findByCategory')
-            ->willReturn([['id' => 1]]);
-
-        $this->categoryMapper->expects($this->never())->method('delete');
-
-        $result = $this->service->removeDuplicates('user1');
-        $this->assertEmpty($result);
-    }
-
-    // ===== deleteAll() =====
-
-    public function testDeleteAllDeletesChildrenBeforeParents(): void {
-        $parent = $this->makeCategory(['id' => 1, 'parentId' => null]);
-        $child = $this->makeCategory(['id' => 2, 'parentId' => 1]);
-
-        $this->categoryMapper->method('findAll')->willReturn([$parent, $child]);
-        $this->transactionMapper->method('findByCategory')->willReturn([]);
-        $this->categoryMapper->method('findChildren')->willReturn([]);
-
-        $deleteOrder = [];
-        $this->categoryMapper->method('delete')
-            ->willReturnCallback(function (Category $cat) use (&$deleteOrder) {
-                $deleteOrder[] = $cat->getId();
-                return $cat;
-            });
-
-        $count = $this->service->deleteAll('user1');
-
-        $this->assertEquals(2, $count);
-        $this->assertEquals([2, 1], $deleteOrder);
-    }
-
-    public function testDeleteAllSkipsCategoriesWithTransactions(): void {
-        $cat1 = $this->makeCategory(['id' => 1, 'parentId' => null]);
-        $cat2 = $this->makeCategory(['id' => 2, 'parentId' => null]);
-
-        $this->categoryMapper->method('findAll')->willReturn([$cat1, $cat2]);
-        $this->categoryMapper->method('findChildren')->willReturn([]);
-
-        $this->transactionMapper->method('findByCategory')
-            ->willReturnCallback(function (int $id) {
-                return $id === 1 ? [['id' => 1]] : [];
-            });
-
-        $count = $this->service->deleteAll('user1');
-        $this->assertEquals(1, $count);
-    }
-
-    // ===== getSuggestedBudgetPercentages() =====
-
-    public function testGetSuggestedBudgetPercentagesReturnsMappings(): void {
-        $result = $this->service->getSuggestedBudgetPercentages();
-
-        $this->assertArrayHasKey('Housing', $result);
-        $this->assertEquals(30, $result['Housing']);
-        $this->assertArrayHasKey('Savings', $result);
-        $this->assertEquals(20, $result['Savings']);
-    }
-
-    // ===== createDefaultCategories() =====
-
-    /**
-     * Wire the mocked mapper to behave like a real table seeded with $existing
-     * (keyed by "name|type|parentId"), so createDefaultCategories can be tested
-     * against partial pre-existing state (#348).
-     */
-    private function setUpDefaultCategoriesWorld(array $existing): void {
-        $store = ['byKey' => [], 'byId' => []];
-        foreach ($existing as $category) {
-            $key = $category->getName() . '|' . $category->getType() . '|' . ($category->getParentId() ?? '');
-            $store['byKey'][$key] = $category;
-            $store['byId'][$category->getId()] = $category;
-        }
-        $this->defaultsStore = $store;
-
-        $this->categoryMapper->method('findByName')
-            ->willReturnCallback(function (string $userId, string $name, string $type, ?int $parentId = null) {
-                $key = $name . '|' . $type . '|' . ($parentId ?? '');
-                return $this->defaultsStore['byKey'][$key] ?? null;
-            });
-        $this->categoryMapper->method('existsDuplicate')
-            ->willReturnCallback(function (string $userId, string $name, string $type, ?int $parentId, ?int $excludeId = null) {
-                $key = $name . '|' . $type . '|' . ($parentId ?? '');
-                return isset($this->defaultsStore['byKey'][$key]);
-            });
-        $this->categoryMapper->method('find')
-            ->willReturnCallback(function (int $id, string $userId) {
-                if (!isset($this->defaultsStore['byId'][$id])) {
-                    throw new DoesNotExistException('not found');
-                }
-                return $this->defaultsStore['byId'][$id];
-            });
-        $nextId = 100;
-        $this->categoryMapper->method('insert')
-            ->willReturnCallback(function (Category $category) use (&$nextId) {
-                $category->setId(++$nextId);
-                $key = $category->getName() . '|' . $category->getType() . '|' . ($category->getParentId() ?? '');
-                $this->defaultsStore['byKey'][$key] = $category;
-                $this->defaultsStore['byId'][$category->getId()] = $category;
-                return $category;
-            });
-        $this->categoryMapper->method('update')
-            ->willReturnCallback(fn (Category $category) => $category);
-    }
-
-    private array $defaultsStore = [];
-
-    public function testCreateDefaultCategoriesReusesExistingRoot(): void {
-        // The reporter's state in #348: only the Income tree's root remains.
-        $income = $this->makeCategory(['id' => 50, 'name' => 'Income', 'type' => 'income', 'color' => '#4ade80']);
-        $this->setUpDefaultCategoriesWorld([$income]);
-
-        $created = $this->service->createDefaultCategories('user1');
-
-        $names = array_map(fn (Category $c) => $c->getName() . '|' . $c->getType(), $created);
-        $this->assertNotContains('Income|income', $names, 'existing root must be reused, not recreated');
-        $this->assertContains('Salary|income', $names, 'missing children of an existing root must still be created');
-        $this->assertContains('Housing|expense', $names, 'missing roots must still be created');
-        $this->assertCount(43, $created, 'all 44 defaults minus the 1 pre-existing');
-
-        $salary = $this->defaultsStore['byKey']['Salary|income|50'] ?? null;
-        $this->assertNotNull($salary, 'Salary must be parented under the existing Income root');
-    }
-
-    public function testCreateDefaultCategoriesIsIdempotentWhenAllExist(): void {
-        $existing = [];
-        $id = 10;
-        foreach ($this->service->getDefaultCategoryDefinitions() as $rootData) {
-            $root = $this->makeCategory(['id' => ++$id, 'name' => $rootData['name'], 'type' => $rootData['type']]);
-            $existing[] = $root;
-            foreach ($rootData['children'] ?? [] as $childData) {
-                $existing[] = $this->makeCategory([
-                    'id' => ++$id,
-                    'name' => $childData['name'],
-                    'type' => $rootData['type'],
-                    'parentId' => $root->getId(),
-                ]);
-            }
-        }
-        $this->setUpDefaultCategoriesWorld($existing);
-        $this->categoryMapper->expects($this->never())->method('insert');
-
-        $created = $this->service->createDefaultCategories('user1');
-
-        $this->assertCount(0, $created, 'a fully-seeded account must create nothing');
-    }
-
-    // ===== Category Details scope (#359) =====
-
-    /**
-     * A tree of Food(1) > Groceries(2) > Fruit(3), plus Household(4) under
-     * Food and an unrelated top-level Transport(9).
-     *
-     * @return Category[]
-     */
-    private function detailTree(array $overrides = []): array {
-        return [
-            $this->makeCategory(['id' => 1, 'name' => 'Food', 'parentId' => null]),
-            $this->makeCategory(array_merge(['id' => 2, 'name' => 'Groceries', 'parentId' => 1], $overrides[2] ?? [])),
-            $this->makeCategory(array_merge(['id' => 3, 'name' => 'Fruit', 'parentId' => 2], $overrides[3] ?? [])),
-            $this->makeCategory(array_merge(['id' => 4, 'name' => 'Household', 'parentId' => 1], $overrides[4] ?? [])),
-            $this->makeCategory(['id' => 9, 'name' => 'Transport', 'parentId' => null]),
-        ];
-    }
-
-    /**
-     * @return int[] the category ids getCategorySummary was asked about
-     */
-    private function captureDetailScope(array $tree, int $selectedId = 1): array {
-        $this->categoryMapper->method('findAll')->willReturn($tree);
-        $this->categoryMapper->method('find')->willReturnCallback(
-            function (int $id) use ($tree) {
-                foreach ($tree as $category) {
-                    if ($category->getId() === $id) {
-                        return $category;
-                    }
-                }
-                throw new DoesNotExistException('missing');
-            }
-        );
-
-        $captured = [];
-        $this->transactionMapper->method('getCategorySummary')
-            ->willReturnCallback(function (string $userId, int $categoryId, ?array $ids) use (&$captured) {
-                $captured = $ids ?? [];
-                return ['count' => 0, 'total' => 0.0];
-            });
-        $this->transactionMapper->method('getCategoryMonthlySpending')->willReturn([]);
-
-        $this->service->getCategoryDetails($selectedId, 'user1');
-
-        return $captured;
-    }
-
-    /**
-     * The count used to roll up direct children only, so a grandchild's
-     * spending was in neither the figures nor the list (#359).
-     */
-    public function testDetailScopeCoversTheWholeSubtree(): void {
-        $ids = $this->captureDetailScope($this->detailTree());
-
-        sort($ids);
-        $this->assertSame([1, 2, 3, 4], $ids);
-    }
-
-    public function testDetailScopeExcludesDescendantsFlaggedOutOfReports(): void {
-        $ids = $this->captureDetailScope($this->detailTree([4 => ['excludedFromReports' => true]]));
-
-        sort($ids);
-        $this->assertSame([1, 2, 3], $ids);
-        $this->assertNotContains(9, $ids, 'an unrelated top-level category is never in scope');
-    }
-
-    public function testDetailScopeKeepsTheSelectedCategoryEvenWhenItIsFlagged(): void {
-        // The user asked for this one; hiding it would show an empty panel with
-        // no explanation.
-        $tree = $this->detailTree();
-        $tree[0]->setExcludedFromReports(true);
-
-        $ids = $this->captureDetailScope($tree);
-
-        $this->assertContains(1, $ids);
-    }
-
-    public function testDetailScopeStopsAtAnExcludedBranch(): void {
-        // Groceries is out, so Fruit under it goes with it.
-        $ids = $this->captureDetailScope($this->detailTree([2 => ['excludedFromReports' => true]]));
-
-        sort($ids);
-        $this->assertSame([1, 4], $ids);
-    }
-
-    public function testDetailsReportsTheScopeItUsed(): void {
-        $tree = $this->detailTree();
-        $this->categoryMapper->method('findAll')->willReturn($tree);
-        $this->categoryMapper->method('find')->willReturn($tree[0]);
-        $this->transactionMapper->method('getCategorySummary')->willReturn(['count' => 3, 'total' => 30.0]);
-        $this->transactionMapper->method('getCategoryMonthlySpending')->willReturn([
-            ['month' => '2026-01', 'total' => 30.0, 'count' => 3, 'splitCount' => 2],
-        ]);
-
-        $details = $this->service->getCategoryDetails(1, 'user1');
-
-        $this->assertTrue($details['scope']['includesSubcategories']);
-        $this->assertSame('expense', $details['scope']['type']);
-        $this->assertSame(2, $details['scope']['splitCount']);
-        $this->assertContains(2, $details['scope']['categoryIds']);
-    }
-
-    // ── details follow budget months (custom start day) ──────────────
-
-    /**
-     * With start day 25, 24 August is in the August period and 25 August in
-     * the September one, so the chart, "this month" and the trend all have to
-     * be counted per period, not per calendar month.
-     */
-    public function testDetailsCountBudgetMonthsWithAStartDay(): void {
-        $this->budgetStartDay = 25;
-        $this->currentBudgetMonth = '2026-09';
-        $tree = $this->detailTree();
-        $this->categoryMapper->method('findAll')->willReturn($tree);
-        $this->categoryMapper->method('find')->willReturn($tree[0]);
-        $this->transactionMapper->method('getCategorySummary')->willReturn(['count' => 4, 'total' => 180.0]);
-        $byDayAsked = [];
-        $this->transactionMapper->method('getCategoryMonthlySpending')
-            ->willReturnCallback(function (...$args) use (&$byDayAsked) {
-                $byDayAsked[] = $args[8] ?? false;
-                return [
-                    ['month' => '2026-08-24', 'total' => 40.0, 'count' => 1, 'splitCount' => 0],
-                    ['month' => '2026-08-25', 'total' => 60.0, 'count' => 1, 'splitCount' => 0],
-                    ['month' => '2026-09-10', 'total' => 80.0, 'count' => 2, 'splitCount' => 1],
-                ];
-            });
-
-        $details = $this->service->getCategoryDetails(1, 'user1', '2026-07-25', '2026-09-17');
-
-        $this->assertSame([true], $byDayAsked);
-        $this->assertSame([
-            ['month' => '2026-08', 'total' => 40.0, 'count' => 1, 'splitCount' => 0],
-            ['month' => '2026-09', 'total' => 140.0, 'count' => 3, 'splitCount' => 1],
-        ], $details['monthlySpending']);
-        $this->assertSame(140.0, $details['thisMonth']);
-        $this->assertSame('increasing', $details['trend']);
-        $this->assertSame(1, $details['scope']['splitCount']);
-    }
-
-    public function testDetailsKeepCalendarMonthsWithoutAStartDay(): void {
-        $tree = $this->detailTree();
-        $this->categoryMapper->method('findAll')->willReturn($tree);
-        $this->categoryMapper->method('find')->willReturn($tree[0]);
-        $this->transactionMapper->method('getCategorySummary')->willReturn(['count' => 0, 'total' => 0.0]);
-        $byDayAsked = [];
-        $this->transactionMapper->method('getCategoryMonthlySpending')
-            ->willReturnCallback(function (...$args) use (&$byDayAsked) {
-                $byDayAsked[] = $args[8] ?? false;
-                return [['month' => $this->currentBudgetMonth, 'total' => 25.0, 'count' => 1, 'splitCount' => 0]];
-            });
-
-        $details = $this->service->getCategoryDetails(1, 'user1');
-
-        $this->assertSame([false], $byDayAsked);
-        $this->assertSame(25.0, $details['thisMonth']);
-    }
-
-    public function testDetailsFollowTheViewersStartDay(): void {
-        $tree = $this->detailTree();
-        $this->categoryMapper->method('findAll')->willReturn($tree);
-        $this->categoryMapper->method('find')->willReturn($tree[0]);
-        $this->transactionMapper->method('getCategorySummary')->willReturn(['count' => 0, 'total' => 0.0]);
-        $this->transactionMapper->method('getCategoryMonthlySpending')->willReturn([]);
-
-        $this->service->getCategoryDetails(1, 'owner1', null, null, null, 'viewer1');
-        $this->service->getCategoryDetails(1, 'owner1');
-
-        $this->assertSame(['viewer1', 'owner1'], $this->startDayAskedFor);
-    }
-
-    /**
-     * The panel's figures and its transaction list have to cover the same
-     * categories, or it reports more transactions than it can show — which is
-     * what #359 was reported as.
-     */
-    public function testTransactionsUseTheSameScopeAsTheFigures(): void {
-        $tree = $this->detailTree();
-        $this->categoryMapper->method('findAll')->willReturn($tree);
-        $this->categoryMapper->method('find')->willReturn($tree[0]);
-
-        $summaryIds = [];
-        $this->transactionMapper->method('getCategorySummary')
-            ->willReturnCallback(function (string $userId, int $categoryId, ?array $ids) use (&$summaryIds) {
-                $summaryIds = $ids ?? [];
-                return ['count' => 0, 'total' => 0.0];
-            });
-        $this->transactionMapper->method('getCategoryMonthlySpending')->willReturn([]);
-
-        $listIds = [];
-        $this->transactionMapper->method('findCategoryTransactionRows')
-            ->willReturnCallback(function (string $userId, array $ids, int $limit) use (&$listIds) {
-                $listIds = $ids;
-                return [];
-            });
-
-        $this->service->getCategoryDetails(1, 'user1');
-        $this->service->getCategoryTransactions(1, 'user1', 5);
-
-        sort($summaryIds);
-        sort($listIds);
-        $this->assertSame($summaryIds, $listIds);
-    }
-
-    public function testCategoryTransactionsMarkTheInScopePartsOfASplit(): void {
-        $tree = $this->detailTree();
-        $this->categoryMapper->method('findAll')->willReturn($tree);
-        $this->categoryMapper->method('find')->willReturn($tree[0]);
-        $this->transactionMapper->method('findCategoryTransactionRows')->willReturn([
-            ['id' => 7, 'isSplit' => true, 'amount' => 12.40, 'transactionAmount' => 82.40],
-            ['id' => 8, 'isSplit' => false, 'amount' => 5.00, 'transactionAmount' => 5.00],
-        ]);
-
-        $splitMapper = $this->createMock(\OCA\Budget\Db\TransactionSplitMapper::class);
-        $splitMapper->method('findByTransactionIds')->willReturn([
-            7 => [
-                ['categoryId' => 2, 'categoryName' => 'Groceries', 'amount' => 12.40],
-                ['categoryId' => 9, 'categoryName' => 'Transport', 'amount' => 70.00],
-            ],
-        ]);
-        $service = $this->serviceWithSplitMapper($splitMapper);
-
-        $rows = $service->getCategoryTransactions(1, 'user1', 5);
-
-        $this->assertTrue($rows[0]['splitCategories'][0]['inCategory']);
-        $this->assertFalse($rows[0]['splitCategories'][1]['inCategory']);
-        $this->assertArrayNotHasKey('splitCategories', $rows[1]);
-    }
-
-    private function serviceWithSplitMapper($splitMapper): CategoryService {
-        $l = $this->createMock(IL10N::class);
-        $l->method('t')->willReturnCallback(fn(string $text, array $params = []) => $text);
-        $carryoverService = $this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class);
-        $recurringBudgetService = $this->createMock(\OCA\Budget\Service\RecurringBudgetService::class);
-
-        return new CategoryService(
-            $this->categoryMapper,
-            $this->transactionMapper,
-            $this->createMock(BudgetSnapshotMapper::class),
-            $this->tagSetMapper,
-            $this->tagMapper,
-            $this->transactionTagMapper,
-            $l,
-            $carryoverService,
-            $recurringBudgetService,
-            null,
-            null,
-            $splitMapper
-        );
-    }
-
-    private function serviceWithProjects(ProjectMapper $projects, ProjectAllocationMapper $allocations): CategoryService {
-        $l = $this->createMock(IL10N::class);
-        $l->method('t')->willReturnCallback(function (string $text, array $params = []) {
-            foreach ($params as $i => $param) {
-                $text = str_replace('%' . ($i + 1) . '$s', (string)$param, $text);
-            }
-            return $text;
-        });
-
-        return new CategoryService(
-            $this->categoryMapper,
-            $this->transactionMapper,
-            $this->createMock(BudgetSnapshotMapper::class),
-            $this->tagSetMapper,
-            $this->tagMapper,
-            $this->transactionTagMapper,
-            $l,
-            $this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class),
-            $this->createMock(\OCA\Budget\Service\RecurringBudgetService::class),
-            null,
-            null,
-            $this->splitMapper,
-            $projects,
-            $allocations
-        );
-    }
-
-    private function namedProject(int $id, string $name): Project {
-        $project = new Project();
-        $project->setId($id);
-        $project->setName($name);
-        return $project;
-    }
-
-    public function testDeleteRefusesACategoryAProjectIsBuiltOn(): void {
-        $this->categoryMapper->method('find')->willReturn($this->makeCategory(['id' => 1]));
-        $this->categoryMapper->method('findChildren')->willReturn([]);
-        $projects = $this->createMock(ProjectMapper::class);
-        $projects->method('findByCategoryIds')->with([1], 'user1')->willReturn([$this->namedProject(10, 'House renovation')]);
-        $allocations = $this->createMock(ProjectAllocationMapper::class);
-        $allocations->method('findByCategoryIds')->willReturn([]);
-        $this->categoryMapper->expects($this->never())->method('delete');
-
-        try {
-            $this->serviceWithProjects($projects, $allocations)->delete(1, 'user1');
-            $this->fail('The delete should have been refused');
-        } catch (\InvalidArgumentException $e) {
-            $this->assertStringContainsString('"House renovation"', $e->getMessage());
-            $this->assertNotInstanceOf(CategoryInUseException::class, $e);
-        }
-    }
-
-    public function testDeleteRefusesBeforeTouchingASubcategoryAProjectAmountUses(): void {
-        $parent = $this->makeCategory(['id' => 1]);
-        $child = $this->makeCategory(['id' => 2, 'parentId' => 1]);
-        $this->categoryMapper->method('find')->willReturnCallback(fn (int $id) => $id === 1 ? $parent : $child);
-        $this->categoryMapper->method('findChildren')
-            ->willReturnCallback(fn (string $userId, int $parentId) => $parentId === 1 ? [$child] : []);
-        $allocation = new ProjectAllocation();
-        $allocation->setProjectId(10);
-        $allocation->setCategoryId(2);
-        $allocations = $this->createMock(ProjectAllocationMapper::class);
-        $allocations->method('findByCategoryIds')->with([1, 2], 'user1')->willReturn([$allocation]);
-        $projects = $this->createMock(ProjectMapper::class);
-        $projects->method('findByCategoryIds')->willReturn([]);
-        $projects->method('findByIds')->with([10])->willReturn([$this->namedProject(10, 'Wedding')]);
-        // Refused before the cascade deletes the child
-        $this->categoryMapper->expects($this->never())->method('delete');
-
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('"Wedding"');
-        $this->serviceWithProjects($projects, $allocations)->delete(1, 'user1');
-    }
-
-    public function testDeleteWithReassignChecksProjectsBeforeMovingTransactions(): void {
-        $this->categoryMapper->method('find')->willReturn($this->makeCategory(['id' => 1]));
-        $this->categoryMapper->method('findChildren')->willReturn([]);
-        $projects = $this->createMock(ProjectMapper::class);
-        $projects->method('findByCategoryIds')->willReturn([$this->namedProject(10, 'House renovation')]);
-        $allocations = $this->createMock(ProjectAllocationMapper::class);
-        $allocations->method('findByCategoryIds')->willReturn([]);
-        $this->transactionMapper->expects($this->never())->method('clearCategory');
-
-        $this->expectException(\InvalidArgumentException::class);
-        $this->serviceWithProjects($projects, $allocations)->deleteWithReassign(1, 'user1');
-    }
-
-    public function testDeleteGoesAheadWhenNoProjectUsesTheCategory(): void {
-        $category = $this->makeCategory(['id' => 1]);
-        $this->categoryMapper->method('find')->willReturn($category);
-        $this->categoryMapper->method('findChildren')->willReturn([]);
-        $this->transactionMapper->method('findByCategory')->willReturn([]);
-        $this->tagSetMapper->method('findByCategory')->willReturn([]);
-        $projects = $this->createMock(ProjectMapper::class);
-        $projects->method('findByCategoryIds')->willReturn([]);
-        $allocations = $this->createMock(ProjectAllocationMapper::class);
-        $allocations->method('findByCategoryIds')->willReturn([]);
-        $this->categoryMapper->expects($this->once())->method('delete')->with($category)->willReturn($category);
-
-        $this->serviceWithProjects($projects, $allocations)->delete(1, 'user1');
-    }
+	private CategoryService $service;
+	private CategoryMapper $categoryMapper;
+	private TransactionMapper $transactionMapper;
+	private TagSetMapper $tagSetMapper;
+	private TagMapper $tagMapper;
+	private TransactionTagMapper $transactionTagMapper;
+	private TransactionSplitMapper $splitMapper;
+	/** The budget month the mocked carryover service reports as current */
+	private string $currentBudgetMonth;
+	/** @var array<int, float> recurring budgets the mock returns */
+	private array $recurring = [];
+	/** The budget start day the mocked carryover service reports */
+	private int $budgetStartDay = 1;
+	/** @var string[] users whose start day was asked for */
+	private array $startDayAskedFor = [];
+
+	protected function setUp(): void {
+		$this->categoryMapper = $this->createMock(CategoryMapper::class);
+		$this->transactionMapper = $this->createMock(TransactionMapper::class);
+		$this->tagSetMapper = $this->createMock(TagSetMapper::class);
+		$this->tagMapper = $this->createMock(TagMapper::class);
+		$this->transactionTagMapper = $this->createMock(TransactionTagMapper::class);
+		$this->splitMapper = $this->createMock(TransactionSplitMapper::class);
+
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function (string $text, array $params = []) {
+			foreach ($params as $i => $param) {
+				$text = str_replace('%' . ($i + 1) . '$s', (string)$param, $text);
+			}
+			return $text;
+		});
+		$budgetSnapshotMapper = $this->createMock(BudgetSnapshotMapper::class);
+
+		$this->currentBudgetMonth = date('Y-m');
+		$carryoverService = $this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class);
+		$carryoverService->method('getCarryovers')->willReturn([]);
+		$carryoverService->method('currentBudgetMonth')
+			->willReturnCallback(fn () => $this->currentBudgetMonth);
+		$carryoverService->method('budgetStartDay')
+			->willReturnCallback(function (string $userId): int {
+				$this->startDayAskedFor[] = $userId;
+				return $this->budgetStartDay;
+			});
+		$recurringBudgetService = $this->createMock(\OCA\Budget\Service\RecurringBudgetService::class);
+		$recurringBudgetService->method('getMonthlyBudgetsByCategory')
+			->willReturnCallback(fn () => $this->recurring);
+		$recurringBudgetService->method('convertMonthlyToPeriod')
+			->willReturnCallback(fn (float $monthly) => $monthly);
+
+		$this->service = new CategoryService(
+			$this->categoryMapper,
+			$this->transactionMapper,
+			$budgetSnapshotMapper,
+			$this->tagSetMapper,
+			$this->tagMapper,
+			$this->transactionTagMapper,
+			$l,
+			$carryoverService,
+			$recurringBudgetService,
+			null,
+			null,
+			$this->splitMapper
+		);
+	}
+
+	private function makeCategory(array $overrides = []): Category {
+		$category = new Category();
+		$defaults = [
+			'id' => 1,
+			'userId' => 'user1',
+			'name' => 'Food',
+			'type' => 'expense',
+			'parentId' => null,
+			'icon' => 'icon-food',
+			'color' => '#ff0000',
+			'budgetAmount' => null,
+			'sortOrder' => 0,
+		];
+		$data = array_merge($defaults, $overrides);
+
+		$category->setId($data['id']);
+		$category->setUserId($data['userId']);
+		$category->setName($data['name']);
+		$category->setType($data['type']);
+		$category->setParentId($data['parentId']);
+		$category->setIcon($data['icon']);
+		$category->setColor($data['color']);
+		$category->setBudgetAmount($data['budgetAmount']);
+		$category->setSortOrder($data['sortOrder']);
+		$category->setExcludedFromBudget($data['excludedFromBudget'] ?? false);
+		$category->setExcludedFromReports($data['excludedFromReports'] ?? false);
+		$category->setCreatedAt('2026-01-01 00:00:00');
+		$category->setUpdatedAt('2026-01-01 00:00:00');
+		return $category;
+	}
+
+	private function makeTagSet(int $id, int $categoryId): TagSet {
+		$ts = new TagSet();
+		$ts->setId($id);
+		$ts->setCategoryId($categoryId);
+		$ts->setName('TagSet ' . $id);
+		return $ts;
+	}
+
+	private function makeTag(int $id, int $tagSetId): Tag {
+		$tag = new Tag();
+		$tag->setId($id);
+		$tag->setTagSetId($tagSetId);
+		$tag->setName('Tag ' . $id);
+		return $tag;
+	}
+
+	// ===== create() =====
+
+	public function testCreateBasicCategory(): void {
+		$this->categoryMapper->expects($this->once())
+			->method('insert')
+			->willReturnCallback(function (Category $cat) {
+				$this->assertEquals('user1', $cat->getUserId());
+				$this->assertEquals('Food', $cat->getName());
+				$this->assertEquals('expense', $cat->getType());
+				$this->assertNull($cat->getParentId());
+				$cat->setId(1);
+				return $cat;
+			});
+
+		$result = $this->service->create('user1', 'Food', 'expense');
+		$this->assertEquals('Food', $result->getName());
+	}
+
+	public function testCreateWithParentValidatesOwnership(): void {
+		$parent = $this->makeCategory(['id' => 10]);
+		$this->categoryMapper->expects($this->once())
+			->method('find')
+			->with(10, 'user1')
+			->willReturn($parent);
+
+		$this->categoryMapper->method('insert')->willReturnCallback(function (Category $cat) {
+			$this->assertEquals(10, $cat->getParentId());
+			$cat->setId(2);
+			return $cat;
+		});
+
+		$this->service->create('user1', 'Groceries', 'expense', 10);
+	}
+
+	public function testCreateWithParentThrowsIfParentNotFound(): void {
+		$this->categoryMapper->method('find')
+			->willThrowException(new DoesNotExistException(''));
+
+		$this->expectException(DoesNotExistException::class);
+		$this->service->create('user1', 'Child', 'expense', 999);
+	}
+
+	public function testCreateGeneratesColorWhenNotProvided(): void {
+		$this->categoryMapper->expects($this->once())
+			->method('insert')
+			->willReturnCallback(function (Category $cat) {
+				// Color should be set (randomly generated)
+				$this->assertNotNull($cat->getColor());
+				$this->assertMatchesRegularExpression('/^#[0-9a-f]{6}$/i', $cat->getColor());
+				$cat->setId(1);
+				return $cat;
+			});
+
+		$this->service->create('user1', 'No Color', 'expense', null, null, null);
+	}
+
+	public function testCreateUsesProvidedColor(): void {
+		$this->categoryMapper->expects($this->once())
+			->method('insert')
+			->willReturnCallback(function (Category $cat) {
+				$this->assertEquals('#abcdef', $cat->getColor());
+				$cat->setId(1);
+				return $cat;
+			});
+
+		$this->service->create('user1', 'Custom Color', 'expense', null, null, '#abcdef');
+	}
+
+	// ===== beforeUpdate() =====
+
+	public function testUpdateRejectsSelfReferentialParent(): void {
+		$category = $this->makeCategory(['id' => 5]);
+		$this->categoryMapper->method('find')->willReturn($category);
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('its own parent');
+
+		$this->service->update(5, 'user1', ['parentId' => 5]);
+	}
+
+	public function testUpdateValidatesNewParent(): void {
+		$category = $this->makeCategory(['id' => 5]);
+		$parent = $this->makeCategory(['id' => 10]);
+
+		// First call returns the category being updated, second validates parent
+		$this->categoryMapper->method('find')
+			->willReturnCallback(function (int $id) use ($category, $parent) {
+				return $id === 5 ? $category : $parent;
+			});
+
+		$this->categoryMapper->method('update')->willReturnArgument(0);
+
+		$result = $this->service->update(5, 'user1', ['parentId' => 10]);
+		$this->assertEquals(10, $result->getParentId());
+	}
+
+	// ===== current budget month (custom start day) =====
+
+	public function testEnablingRolloverAnchorsAtTheCurrentBudgetMonth(): void {
+		// Start day 28 on 29 Sep: the running period is October's
+		$this->currentBudgetMonth = '2026-10';
+		$category = $this->makeCategory(['id' => 5]);
+		$category->setBudgetRollover(false);
+		$this->categoryMapper->method('find')->willReturn($category);
+		$this->categoryMapper->method('update')->willReturnArgument(0);
+
+		$result = $this->service->update(5, 'user1', ['budgetRollover' => true]);
+
+		$this->assertSame('2026-10', $result->getRolloverStart());
+	}
+
+	public function testRecurringFallbackSkipsBudgetMonthsBeforeTheCurrentOne(): void {
+		$this->currentBudgetMonth = '2026-10';
+		$this->recurring = [1 => 80.0];
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(['id' => 1, 'budgetAmount' => 0.0]),
+		]);
+
+		$september = $this->service->resolveEffectiveBudgets('user1', '2026-09');
+		$october = $this->service->resolveEffectiveBudgets('user1', '2026-10');
+
+		$this->assertSame(0.0, $september[1]['available']);
+		$this->assertSame(80.0, $october[1]['available']);
+	}
+
+	// ===== beforeDelete() =====
+
+	public function testDeleteCascadesChildrenFirst(): void {
+		$parent = $this->makeCategory(['id' => 1]);
+		$child = $this->makeCategory(['id' => 2, 'parentId' => 1]);
+
+		// find() returns parent when called from delete()
+		$this->categoryMapper->method('find')
+			->willReturnCallback(function (int $id) use ($parent, $child) {
+				return $id === 1 ? $parent : $child;
+			});
+
+		// Parent has one child, child has no children
+		$this->categoryMapper->method('findChildren')
+			->willReturnCallback(function (string $userId, int $parentId) use ($child) {
+				return $parentId === 1 ? [$child] : [];
+			});
+
+		// No transactions on either
+		$this->transactionMapper->method('findByCategory')->willReturn([]);
+		$this->tagSetMapper->method('findByCategory')->willReturn([]);
+
+		// Should delete child first, then parent
+		$deleteOrder = [];
+		$this->categoryMapper->method('delete')
+			->willReturnCallback(function (Category $cat) use (&$deleteOrder) {
+				$deleteOrder[] = $cat->getId();
+				return $cat;
+			});
+
+		$this->service->delete(1, 'user1');
+
+		$this->assertEquals([2, 1], $deleteOrder);
+	}
+
+	public function testDeleteRejectsWhenTransactionsExist(): void {
+		$category = $this->makeCategory();
+		$this->categoryMapper->method('find')->willReturn($category);
+		$this->categoryMapper->method('findChildren')->willReturn([]);
+
+		$this->transactionMapper->method('findByCategory')
+			->willReturn([['id' => 1]]);
+
+		// Typed so the controller can offer to reassign and retry (#332).
+		$this->expectException(\OCA\Budget\Exception\CategoryInUseException::class);
+		$this->expectExceptionMessage('has transactions assigned');
+
+		$this->service->delete(1, 'user1');
+	}
+
+	public function testDeleteWithReassignClearsTransactionsThenDeletes(): void {
+		$category = $this->makeCategory(['id' => 1]);
+		$this->categoryMapper->method('find')->willReturn($category);
+		$this->categoryMapper->method('findChildren')->willReturn([]);
+		$this->tagSetMapper->method('findByCategory')->willReturn([]);
+		// After reassignment no transactions remain, so beforeDelete()'s guard passes.
+		$this->transactionMapper->method('findByCategory')->willReturn([]);
+
+		$this->transactionMapper->expects($this->once())
+			->method('clearCategory')
+			->with([1])
+			->willReturn(3);
+
+		$this->categoryMapper->expects($this->once())->method('delete');
+
+		$this->service->deleteWithReassign(1, 'user1');
+	}
+
+	public function testDeleteWithReassignReassignsDescendantTransactions(): void {
+		// Deleting a parent reassigns its own AND its children's transactions (#332).
+		$parent = $this->makeCategory(['id' => 1]);
+		$child = $this->makeCategory(['id' => 2, 'parentId' => 1]);
+		$this->categoryMapper->method('find')
+			->willReturnCallback(fn (int $id) => $id === 1 ? $parent : $child);
+		$this->categoryMapper->method('findChildren')
+			->willReturnCallback(fn (string $u, int $pid) => $pid === 1 ? [$child] : []);
+		$this->transactionMapper->method('findByCategory')->willReturn([]);
+		$this->tagSetMapper->method('findByCategory')->willReturn([]);
+
+		$this->transactionMapper->expects($this->once())
+			->method('clearCategory')
+			->with([1, 2])
+			->willReturn(5);
+
+		$this->categoryMapper->method('delete')->willReturnArgument(0);
+
+		$this->service->deleteWithReassign(1, 'user1');
+	}
+
+	/**
+	 * findByCategory() is deliberately split-blind, so a category referenced
+	 * only by split parts sails through the guard silently -- but the split
+	 * rows must still degrade to uncategorized, not dangle on a deleted
+	 * category id (#360).
+	 */
+	public function testDeleteClearsSplitCategoryReferencesWhenOnlySplitsUseIt(): void {
+		$category = $this->makeCategory(['id' => 1]);
+		$this->categoryMapper->method('find')->willReturn($category);
+		$this->categoryMapper->method('findChildren')->willReturn([]);
+		$this->transactionMapper->method('findByCategory')->willReturn([]);
+		$this->tagSetMapper->method('findByCategory')->willReturn([]);
+
+		$this->splitMapper->expects($this->once())
+			->method('clearCategory')
+			->with([1]);
+
+		$this->service->delete(1, 'user1');
+	}
+
+	public function testDeleteWithReassignClearsSplitCategoryReferences(): void {
+		$category = $this->makeCategory(['id' => 1]);
+		$this->categoryMapper->method('find')->willReturn($category);
+		$this->categoryMapper->method('findChildren')->willReturn([]);
+		$this->transactionMapper->method('findByCategory')->willReturn([]);
+		$this->tagSetMapper->method('findByCategory')->willReturn([]);
+
+		$this->splitMapper->expects($this->once())
+			->method('clearCategory')
+			->with([1]);
+
+		$this->service->deleteWithReassign(1, 'user1');
+	}
+
+	public function testDeleteWithReassignClearsSplitCategoryReferencesForDescendantsToo(): void {
+		$parent = $this->makeCategory(['id' => 1]);
+		$child = $this->makeCategory(['id' => 2, 'parentId' => 1]);
+		$this->categoryMapper->method('find')
+			->willReturnCallback(fn (int $id) => $id === 1 ? $parent : $child);
+		$this->categoryMapper->method('findChildren')
+			->willReturnCallback(fn (string $u, int $pid) => $pid === 1 ? [$child] : []);
+		$this->transactionMapper->method('findByCategory')->willReturn([]);
+		$this->tagSetMapper->method('findByCategory')->willReturn([]);
+
+		$cleared = [];
+		$this->splitMapper->method('clearCategory')
+			->willReturnCallback(function (array $ids) use (&$cleared) {
+				$cleared = array_merge($cleared, $ids);
+				return 0;
+			});
+
+		$this->service->deleteWithReassign(1, 'user1');
+
+		sort($cleared);
+		$this->assertSame([1, 2], $cleared);
+	}
+
+	public function testDeleteCascadesTagSetsAndTags(): void {
+		$category = $this->makeCategory();
+		$this->categoryMapper->method('find')->willReturn($category);
+		$this->categoryMapper->method('findChildren')->willReturn([]);
+		$this->transactionMapper->method('findByCategory')->willReturn([]);
+
+		$tagSet = $this->makeTagSet(10, 1);
+		$tag = $this->makeTag(20, 10);
+
+		$this->tagSetMapper->method('findByCategory')->willReturn([$tagSet]);
+		$this->tagMapper->method('findByTagSet')->willReturn([$tag]);
+
+		$this->transactionTagMapper->expects($this->once())
+			->method('deleteByTag')
+			->with(20);
+
+		$this->tagMapper->expects($this->once())
+			->method('delete')
+			->with($tag);
+
+		$this->tagSetMapper->expects($this->once())
+			->method('delete')
+			->with($tagSet);
+
+		$this->categoryMapper->expects($this->once())->method('delete');
+
+		$this->service->delete(1, 'user1');
+	}
+
+	// ===== reorderCategory() =====
+
+	public function testReorderCategoryRenumbersSiblingsDeterministically(): void {
+		// Moving C above A must renumber the whole group (C,A,B → 0,1,2), not set
+		// one colliding sortOrder that the tiebreak then ignores (#328).
+		$a = $this->makeCategory(['id' => 1, 'sortOrder' => 0]);
+		$b = $this->makeCategory(['id' => 2, 'sortOrder' => 1]);
+		$c = $this->makeCategory(['id' => 3, 'sortOrder' => 2]);
+		$this->categoryMapper->method('find')->willReturnCallback(
+			fn (int $id) => [1 => $a, 2 => $b, 3 => $c][$id]
+		);
+		$this->categoryMapper->method('findRootCategories')->willReturn([$a, $b, $c]);
+
+		$saved = [];
+		$this->categoryMapper->method('update')->willReturnCallback(function (Category $cat) use (&$saved) {
+			$saved[$cat->getId()] = $cat->getSortOrder();
+			return $cat;
+		});
+
+		// Move C (id 3) above A (id 1).
+		$this->service->reorderCategory(3, 'user1', 1, 'above');
+
+		$this->assertSame(0, $saved[3]); // C first
+		$this->assertSame(1, $saved[1]); // A second
+		$this->assertSame(2, $saved[2]); // B third
+	}
+
+	// ===== findByType() =====
+
+	public function testFindByTypeDelegatesToMapper(): void {
+		$categories = [$this->makeCategory()];
+		$this->categoryMapper->expects($this->once())
+			->method('findByType')
+			->with('user1', 'expense')
+			->willReturn($categories);
+
+		$result = $this->service->findByType('user1', 'expense');
+		$this->assertCount(1, $result);
+	}
+
+	// ===== getCategoryTree() =====
+
+	public function testGetCategoryTreeBuildsHierarchy(): void {
+		$parent = $this->makeCategory(['id' => 1, 'name' => 'Food', 'parentId' => null]);
+		$child1 = $this->makeCategory(['id' => 2, 'name' => 'Groceries', 'parentId' => 1]);
+		$child2 = $this->makeCategory(['id' => 3, 'name' => 'Dining Out', 'parentId' => 1]);
+
+		$this->categoryMapper->method('findAll')->willReturn([$parent, $child1, $child2]);
+
+		$tree = $this->service->getCategoryTree('user1');
+
+		$this->assertCount(1, $tree);
+		$this->assertEquals('Food', $tree[0]['name']);
+		$this->assertCount(2, $tree[0]['children']);
+		$this->assertEquals('Groceries', $tree[0]['children'][0]['name']);
+		$this->assertEquals('Dining Out', $tree[0]['children'][1]['name']);
+	}
+
+	public function testGetCategoryTreeMultipleRoots(): void {
+		$cat1 = $this->makeCategory(['id' => 1, 'name' => 'Food', 'parentId' => null]);
+		$cat2 = $this->makeCategory(['id' => 2, 'name' => 'Transport', 'parentId' => null]);
+
+		$this->categoryMapper->method('findAll')->willReturn([$cat1, $cat2]);
+
+		$tree = $this->service->getCategoryTree('user1');
+
+		$this->assertCount(2, $tree);
+	}
+
+	public function testGetCategoryTreeEmpty(): void {
+		$this->categoryMapper->method('findAll')->willReturn([]);
+
+		$tree = $this->service->getCategoryTree('user1');
+		$this->assertEmpty($tree);
+	}
+
+	public function testGetCategoryTreeNestedChildren(): void {
+		$root = $this->makeCategory(['id' => 1, 'name' => 'Root', 'parentId' => null]);
+		$mid = $this->makeCategory(['id' => 2, 'name' => 'Middle', 'parentId' => 1]);
+		$leaf = $this->makeCategory(['id' => 3, 'name' => 'Leaf', 'parentId' => 2]);
+
+		$this->categoryMapper->method('findAll')->willReturn([$root, $mid, $leaf]);
+
+		$tree = $this->service->getCategoryTree('user1');
+
+		$this->assertCount(1, $tree);
+		$this->assertCount(1, $tree[0]['children']);
+		$this->assertCount(1, $tree[0]['children'][0]['children']);
+		$this->assertEquals('Leaf', $tree[0]['children'][0]['children'][0]['name']);
+	}
+
+	// ===== getCategorySpending() =====
+
+	public function testGetCategorySpendingVerifiesOwnership(): void {
+		$category = $this->makeCategory();
+		$this->categoryMapper->expects($this->once())
+			->method('find')
+			->with(1, 'user1')
+			->willReturn($category);
+
+		$this->categoryMapper->method('getCategorySpending')->willReturn(250.0);
+
+		$result = $this->service->getCategorySpending(1, 'user1', '2026-01-01', '2026-01-31');
+		$this->assertEquals(250.0, $result);
+	}
+
+	// ===== getAllCategorySpending() =====
+
+	public function testGetAllCategorySpendingTransformsData(): void {
+		$this->transactionMapper->method('getSpendingSummary')
+			->willReturn([
+				['id' => 1, 'total' => 150.50, 'name' => 'Food', 'color' => '#ff0000', 'count' => 10],
+				['id' => 2, 'total' => 80.00, 'name' => 'Transport', 'color' => '#00ff00', 'count' => 5],
+			]);
+
+		$result = $this->service->getAllCategorySpending('user1', '2026-01-01', '2026-01-31');
+
+		$this->assertCount(2, $result);
+		$this->assertEquals(1, $result[0]['categoryId']);
+		$this->assertEquals(150.50, $result[0]['spent']);
+		$this->assertEquals('Food', $result[0]['name']);
+		$this->assertEquals(10, $result[0]['count']);
+	}
+
+	public function testGetAllCategorySpendingKeepsNetNegativeSpending(): void {
+		// A month where refunds exceed the spending must come through
+		// negative, not flipped to look like money spent (#361).
+		$this->transactionMapper->method('getSpendingSummary')
+			->willReturn([
+				['id' => 5, 'total' => -79.32, 'name' => 'Phone', 'color' => null, 'count' => 4],
+			]);
+
+		$result = $this->service->getAllCategorySpending('user1', '2026-08-01', '2026-08-31');
+
+		$this->assertEqualsWithDelta(-79.32, $result[0]['spent'], 0.001);
+	}
+
+	public function testGetAllCategorySpendingRequestsNettedTotals(): void {
+		// The Budget page's Spent figure must net refund credits against the
+		// debits — the same netting every other budget surface got in #361 —
+		// so the mapper is asked for netted totals, not a one-direction sum.
+		$this->transactionMapper->expects($this->once())
+			->method('getSpendingSummary')
+			->with('user1', '2026-08-01', '2026-08-31', null, [], true, false, null, 'debit', true)
+			->willReturn([]);
+
+		$this->service->getAllCategorySpending('user1', '2026-08-01', '2026-08-31');
+	}
+
+	// ===== getBudgetAnalysis() =====
+
+	public function testGetBudgetAnalysisCalculatesCorrectly(): void {
+		$categories = [
+			$this->makeCategory(['id' => 1, 'name' => 'Food', 'budgetAmount' => 500.00]),
+			$this->makeCategory(['id' => 2, 'name' => 'Transport', 'budgetAmount' => 200.00]),
+			$this->makeCategory(['id' => 3, 'name' => 'No Budget', 'budgetAmount' => null]),
+		];
+		$this->categoryMapper->method('findAll')->willReturn($categories);
+
+		$this->transactionMapper->method('getCategorySpendingBatch')
+			->willReturn([
+				1 => 250.0,   // 50% of 500
+				2 => 180.0,   // 90% of 200
+			]);
+
+		$result = $this->service->getBudgetAnalysis('user1', '2026-01');
+
+		// Should only include budgeted categories
+		$this->assertCount(2, $result);
+
+		// Food: 250/500 = 50% -> good
+		$this->assertEquals(500.0, $result[0]['budget']);
+		$this->assertEquals(250.0, $result[0]['spent']);
+		$this->assertEquals(250.0, $result[0]['remaining']);
+		$this->assertEquals(50.0, $result[0]['percentage']);
+		$this->assertEquals('good', $result[0]['status']);
+
+		// Transport: 180/200 = 90% -> danger
+		$this->assertEquals(90.0, $result[1]['percentage']);
+		$this->assertEquals('danger', $result[1]['status']);
+	}
+
+	public function testGetBudgetAnalysisStatusThresholds(): void {
+		$categories = [
+			$this->makeCategory(['id' => 1, 'budgetAmount' => 100.00]),
+			$this->makeCategory(['id' => 2, 'budgetAmount' => 100.00]),
+			$this->makeCategory(['id' => 3, 'budgetAmount' => 100.00]),
+			$this->makeCategory(['id' => 4, 'budgetAmount' => 100.00]),
+		];
+		$this->categoryMapper->method('findAll')->willReturn($categories);
+
+		$this->transactionMapper->method('getCategorySpendingBatch')
+			->willReturn([
+				1 => 40.0,    // 40% -> good
+				2 => 60.0,    // 60% -> warning
+				3 => 95.0,    // 95% -> danger
+				4 => 120.0,   // 120% -> over
+			]);
+
+		$result = $this->service->getBudgetAnalysis('user1');
+
+		$this->assertEquals('good', $result[0]['status']);
+		$this->assertEquals('warning', $result[1]['status']);
+		$this->assertEquals('danger', $result[2]['status']);
+		$this->assertEquals('over', $result[3]['status']);
+	}
+
+	public function testGetBudgetAnalysisSkipsCategoriesExcludedFromBudget(): void {
+		// 2 is flagged, 3 is its child — neither may reach the budget analysis
+		$categories = [
+			$this->makeCategory(['id' => 1, 'name' => 'Food', 'budgetAmount' => 500.00]),
+			$this->makeCategory(['id' => 2, 'name' => 'Gifts', 'budgetAmount' => 200.00, 'excludedFromBudget' => true]),
+			$this->makeCategory(['id' => 3, 'name' => 'Presents', 'parentId' => 2, 'budgetAmount' => 100.00]),
+		];
+		$this->categoryMapper->method('findAll')->willReturn($categories);
+
+		$this->transactionMapper->method('getCategorySpendingBatch')
+			->willReturn([1 => 250.0, 2 => 400.0, 3 => 90.0]);
+
+		$result = $this->service->getBudgetAnalysis('user1', '2026-01');
+
+		$this->assertCount(1, $result);
+		$this->assertSame(1, $result[0]['category']->getId());
+	}
+
+	public function testResolveEffectiveBudgetsOmitsCategoriesExcludedFromBudget(): void {
+		$categories = [
+			$this->makeCategory(['id' => 1, 'budgetAmount' => 500.00]),
+			$this->makeCategory(['id' => 2, 'budgetAmount' => 200.00, 'excludedFromBudget' => true]),
+			$this->makeCategory(['id' => 3, 'parentId' => 2, 'budgetAmount' => 100.00]),
+		];
+		$this->categoryMapper->method('findAll')->willReturn($categories);
+
+		$budgets = $this->service->resolveEffectiveBudgets('user1', '2026-01');
+
+		$this->assertSame([1], array_keys($budgets));
+	}
+
+	public function testGetBudgetAnalysisDefaultsToCurrentMonth(): void {
+		$this->categoryMapper->method('findAll')->willReturn([]);
+		$this->transactionMapper->method('getCategorySpendingBatch')->willReturn([]);
+
+		// Should not throw
+		$result = $this->service->getBudgetAnalysis('user1');
+		$this->assertIsArray($result);
+	}
+
+	// ===== removeDuplicates() =====
+
+	public function testRemoveDuplicatesDeletesSafeDuplicates(): void {
+		$original = $this->makeCategory(['id' => 1, 'name' => 'Food', 'type' => 'expense']);
+		$duplicate = $this->makeCategory(['id' => 2, 'name' => 'Food', 'type' => 'expense']);
+
+		$this->categoryMapper->method('findAll')->willReturn([$original, $duplicate]);
+
+		// Duplicate has no transactions and no children
+		$this->transactionMapper->method('findByCategory')->willReturn([]);
+		$this->categoryMapper->method('findChildren')->willReturn([]);
+
+		$this->categoryMapper->expects($this->once())
+			->method('delete')
+			->with($duplicate);
+
+		$result = $this->service->removeDuplicates('user1');
+
+		$this->assertContains('Food', $result);
+	}
+
+	public function testRemoveDuplicatesKeepsDuplicateWithTransactions(): void {
+		$original = $this->makeCategory(['id' => 1, 'name' => 'Food', 'type' => 'expense']);
+		$duplicate = $this->makeCategory(['id' => 2, 'name' => 'Food', 'type' => 'expense']);
+
+		$this->categoryMapper->method('findAll')->willReturn([$original, $duplicate]);
+
+		// Duplicate has transactions
+		$this->transactionMapper->method('findByCategory')
+			->willReturn([['id' => 1]]);
+
+		$this->categoryMapper->expects($this->never())->method('delete');
+
+		$result = $this->service->removeDuplicates('user1');
+		$this->assertEmpty($result);
+	}
+
+	// ===== deleteAll() =====
+
+	public function testDeleteAllDeletesChildrenBeforeParents(): void {
+		$parent = $this->makeCategory(['id' => 1, 'parentId' => null]);
+		$child = $this->makeCategory(['id' => 2, 'parentId' => 1]);
+
+		$this->categoryMapper->method('findAll')->willReturn([$parent, $child]);
+		$this->transactionMapper->method('findByCategory')->willReturn([]);
+		$this->categoryMapper->method('findChildren')->willReturn([]);
+
+		$deleteOrder = [];
+		$this->categoryMapper->method('delete')
+			->willReturnCallback(function (Category $cat) use (&$deleteOrder) {
+				$deleteOrder[] = $cat->getId();
+				return $cat;
+			});
+
+		$count = $this->service->deleteAll('user1');
+
+		$this->assertEquals(2, $count);
+		$this->assertEquals([2, 1], $deleteOrder);
+	}
+
+	public function testDeleteAllSkipsCategoriesWithTransactions(): void {
+		$cat1 = $this->makeCategory(['id' => 1, 'parentId' => null]);
+		$cat2 = $this->makeCategory(['id' => 2, 'parentId' => null]);
+
+		$this->categoryMapper->method('findAll')->willReturn([$cat1, $cat2]);
+		$this->categoryMapper->method('findChildren')->willReturn([]);
+
+		$this->transactionMapper->method('findByCategory')
+			->willReturnCallback(function (int $id) {
+				return $id === 1 ? [['id' => 1]] : [];
+			});
+
+		$count = $this->service->deleteAll('user1');
+		$this->assertEquals(1, $count);
+	}
+
+	// ===== getSuggestedBudgetPercentages() =====
+
+	public function testGetSuggestedBudgetPercentagesReturnsMappings(): void {
+		$result = $this->service->getSuggestedBudgetPercentages();
+
+		$this->assertArrayHasKey('Housing', $result);
+		$this->assertEquals(30, $result['Housing']);
+		$this->assertArrayHasKey('Savings', $result);
+		$this->assertEquals(20, $result['Savings']);
+	}
+
+	// ===== createDefaultCategories() =====
+
+	/**
+	 * Wire the mocked mapper to behave like a real table seeded with $existing
+	 * (keyed by "name|type|parentId"), so createDefaultCategories can be tested
+	 * against partial pre-existing state (#348).
+	 */
+	private function setUpDefaultCategoriesWorld(array $existing): void {
+		$store = ['byKey' => [], 'byId' => []];
+		foreach ($existing as $category) {
+			$key = $category->getName() . '|' . $category->getType() . '|' . ($category->getParentId() ?? '');
+			$store['byKey'][$key] = $category;
+			$store['byId'][$category->getId()] = $category;
+		}
+		$this->defaultsStore = $store;
+
+		$this->categoryMapper->method('findByName')
+			->willReturnCallback(function (string $userId, string $name, string $type, ?int $parentId = null) {
+				$key = $name . '|' . $type . '|' . ($parentId ?? '');
+				return $this->defaultsStore['byKey'][$key] ?? null;
+			});
+		$this->categoryMapper->method('existsDuplicate')
+			->willReturnCallback(function (string $userId, string $name, string $type, ?int $parentId, ?int $excludeId = null) {
+				$key = $name . '|' . $type . '|' . ($parentId ?? '');
+				return isset($this->defaultsStore['byKey'][$key]);
+			});
+		$this->categoryMapper->method('find')
+			->willReturnCallback(function (int $id, string $userId) {
+				if (!isset($this->defaultsStore['byId'][$id])) {
+					throw new DoesNotExistException('not found');
+				}
+				return $this->defaultsStore['byId'][$id];
+			});
+		$nextId = 100;
+		$this->categoryMapper->method('insert')
+			->willReturnCallback(function (Category $category) use (&$nextId) {
+				$category->setId(++$nextId);
+				$key = $category->getName() . '|' . $category->getType() . '|' . ($category->getParentId() ?? '');
+				$this->defaultsStore['byKey'][$key] = $category;
+				$this->defaultsStore['byId'][$category->getId()] = $category;
+				return $category;
+			});
+		$this->categoryMapper->method('update')
+			->willReturnCallback(fn (Category $category) => $category);
+	}
+
+	private array $defaultsStore = [];
+
+	public function testCreateDefaultCategoriesReusesExistingRoot(): void {
+		// The reporter's state in #348: only the Income tree's root remains.
+		$income = $this->makeCategory(['id' => 50, 'name' => 'Income', 'type' => 'income', 'color' => '#4ade80']);
+		$this->setUpDefaultCategoriesWorld([$income]);
+
+		$created = $this->service->createDefaultCategories('user1');
+
+		$names = array_map(fn (Category $c) => $c->getName() . '|' . $c->getType(), $created);
+		$this->assertNotContains('Income|income', $names, 'existing root must be reused, not recreated');
+		$this->assertContains('Salary|income', $names, 'missing children of an existing root must still be created');
+		$this->assertContains('Housing|expense', $names, 'missing roots must still be created');
+		$this->assertCount(43, $created, 'all 44 defaults minus the 1 pre-existing');
+
+		$salary = $this->defaultsStore['byKey']['Salary|income|50'] ?? null;
+		$this->assertNotNull($salary, 'Salary must be parented under the existing Income root');
+	}
+
+	public function testCreateDefaultCategoriesIsIdempotentWhenAllExist(): void {
+		$existing = [];
+		$id = 10;
+		foreach ($this->service->getDefaultCategoryDefinitions() as $rootData) {
+			$root = $this->makeCategory(['id' => ++$id, 'name' => $rootData['name'], 'type' => $rootData['type']]);
+			$existing[] = $root;
+			foreach ($rootData['children'] ?? [] as $childData) {
+				$existing[] = $this->makeCategory([
+					'id' => ++$id,
+					'name' => $childData['name'],
+					'type' => $rootData['type'],
+					'parentId' => $root->getId(),
+				]);
+			}
+		}
+		$this->setUpDefaultCategoriesWorld($existing);
+		$this->categoryMapper->expects($this->never())->method('insert');
+
+		$created = $this->service->createDefaultCategories('user1');
+
+		$this->assertCount(0, $created, 'a fully-seeded account must create nothing');
+	}
+
+	// ===== Category Details scope (#359) =====
+
+	/**
+	 * A tree of Food(1) > Groceries(2) > Fruit(3), plus Household(4) under
+	 * Food and an unrelated top-level Transport(9).
+	 *
+	 * @return Category[]
+	 */
+	private function detailTree(array $overrides = []): array {
+		return [
+			$this->makeCategory(['id' => 1, 'name' => 'Food', 'parentId' => null]),
+			$this->makeCategory(array_merge(['id' => 2, 'name' => 'Groceries', 'parentId' => 1], $overrides[2] ?? [])),
+			$this->makeCategory(array_merge(['id' => 3, 'name' => 'Fruit', 'parentId' => 2], $overrides[3] ?? [])),
+			$this->makeCategory(array_merge(['id' => 4, 'name' => 'Household', 'parentId' => 1], $overrides[4] ?? [])),
+			$this->makeCategory(['id' => 9, 'name' => 'Transport', 'parentId' => null]),
+		];
+	}
+
+	/**
+	 * @return int[] the category ids getCategorySummary was asked about
+	 */
+	private function captureDetailScope(array $tree, int $selectedId = 1): array {
+		$this->categoryMapper->method('findAll')->willReturn($tree);
+		$this->categoryMapper->method('find')->willReturnCallback(
+			function (int $id) use ($tree) {
+				foreach ($tree as $category) {
+					if ($category->getId() === $id) {
+						return $category;
+					}
+				}
+				throw new DoesNotExistException('missing');
+			}
+		);
+
+		$captured = [];
+		$this->transactionMapper->method('getCategorySummary')
+			->willReturnCallback(function (string $userId, int $categoryId, ?array $ids) use (&$captured) {
+				$captured = $ids ?? [];
+				return ['count' => 0, 'total' => 0.0];
+			});
+		$this->transactionMapper->method('getCategoryMonthlySpending')->willReturn([]);
+
+		$this->service->getCategoryDetails($selectedId, 'user1');
+
+		return $captured;
+	}
+
+	/**
+	 * The count used to roll up direct children only, so a grandchild's
+	 * spending was in neither the figures nor the list (#359).
+	 */
+	public function testDetailScopeCoversTheWholeSubtree(): void {
+		$ids = $this->captureDetailScope($this->detailTree());
+
+		sort($ids);
+		$this->assertSame([1, 2, 3, 4], $ids);
+	}
+
+	public function testDetailScopeExcludesDescendantsFlaggedOutOfReports(): void {
+		$ids = $this->captureDetailScope($this->detailTree([4 => ['excludedFromReports' => true]]));
+
+		sort($ids);
+		$this->assertSame([1, 2, 3], $ids);
+		$this->assertNotContains(9, $ids, 'an unrelated top-level category is never in scope');
+	}
+
+	public function testDetailScopeKeepsTheSelectedCategoryEvenWhenItIsFlagged(): void {
+		// The user asked for this one; hiding it would show an empty panel with
+		// no explanation.
+		$tree = $this->detailTree();
+		$tree[0]->setExcludedFromReports(true);
+
+		$ids = $this->captureDetailScope($tree);
+
+		$this->assertContains(1, $ids);
+	}
+
+	public function testDetailScopeStopsAtAnExcludedBranch(): void {
+		// Groceries is out, so Fruit under it goes with it.
+		$ids = $this->captureDetailScope($this->detailTree([2 => ['excludedFromReports' => true]]));
+
+		sort($ids);
+		$this->assertSame([1, 4], $ids);
+	}
+
+	public function testDetailsReportsTheScopeItUsed(): void {
+		$tree = $this->detailTree();
+		$this->categoryMapper->method('findAll')->willReturn($tree);
+		$this->categoryMapper->method('find')->willReturn($tree[0]);
+		$this->transactionMapper->method('getCategorySummary')->willReturn(['count' => 3, 'total' => 30.0]);
+		$this->transactionMapper->method('getCategoryMonthlySpending')->willReturn([
+			['month' => '2026-01', 'total' => 30.0, 'count' => 3, 'splitCount' => 2],
+		]);
+
+		$details = $this->service->getCategoryDetails(1, 'user1');
+
+		$this->assertTrue($details['scope']['includesSubcategories']);
+		$this->assertSame('expense', $details['scope']['type']);
+		$this->assertSame(2, $details['scope']['splitCount']);
+		$this->assertContains(2, $details['scope']['categoryIds']);
+	}
+
+	// ── details follow budget months (custom start day) ──────────────
+
+	/**
+	 * With start day 25, 24 August is in the August period and 25 August in
+	 * the September one, so the chart, "this month" and the trend all have to
+	 * be counted per period, not per calendar month.
+	 */
+	public function testDetailsCountBudgetMonthsWithAStartDay(): void {
+		$this->budgetStartDay = 25;
+		$this->currentBudgetMonth = '2026-09';
+		$tree = $this->detailTree();
+		$this->categoryMapper->method('findAll')->willReturn($tree);
+		$this->categoryMapper->method('find')->willReturn($tree[0]);
+		$this->transactionMapper->method('getCategorySummary')->willReturn(['count' => 4, 'total' => 180.0]);
+		$byDayAsked = [];
+		$this->transactionMapper->method('getCategoryMonthlySpending')
+			->willReturnCallback(function (...$args) use (&$byDayAsked) {
+				$byDayAsked[] = $args[8] ?? false;
+				return [
+					['month' => '2026-08-24', 'total' => 40.0, 'count' => 1, 'splitCount' => 0],
+					['month' => '2026-08-25', 'total' => 60.0, 'count' => 1, 'splitCount' => 0],
+					['month' => '2026-09-10', 'total' => 80.0, 'count' => 2, 'splitCount' => 1],
+				];
+			});
+
+		$details = $this->service->getCategoryDetails(1, 'user1', '2026-07-25', '2026-09-17');
+
+		$this->assertSame([true], $byDayAsked);
+		$this->assertSame([
+			['month' => '2026-08', 'total' => 40.0, 'count' => 1, 'splitCount' => 0],
+			['month' => '2026-09', 'total' => 140.0, 'count' => 3, 'splitCount' => 1],
+		], $details['monthlySpending']);
+		$this->assertSame(140.0, $details['thisMonth']);
+		$this->assertSame('increasing', $details['trend']);
+		$this->assertSame(1, $details['scope']['splitCount']);
+	}
+
+	public function testDetailsKeepCalendarMonthsWithoutAStartDay(): void {
+		$tree = $this->detailTree();
+		$this->categoryMapper->method('findAll')->willReturn($tree);
+		$this->categoryMapper->method('find')->willReturn($tree[0]);
+		$this->transactionMapper->method('getCategorySummary')->willReturn(['count' => 0, 'total' => 0.0]);
+		$byDayAsked = [];
+		$this->transactionMapper->method('getCategoryMonthlySpending')
+			->willReturnCallback(function (...$args) use (&$byDayAsked) {
+				$byDayAsked[] = $args[8] ?? false;
+				return [['month' => $this->currentBudgetMonth, 'total' => 25.0, 'count' => 1, 'splitCount' => 0]];
+			});
+
+		$details = $this->service->getCategoryDetails(1, 'user1');
+
+		$this->assertSame([false], $byDayAsked);
+		$this->assertSame(25.0, $details['thisMonth']);
+	}
+
+	public function testDetailsFollowTheViewersStartDay(): void {
+		$tree = $this->detailTree();
+		$this->categoryMapper->method('findAll')->willReturn($tree);
+		$this->categoryMapper->method('find')->willReturn($tree[0]);
+		$this->transactionMapper->method('getCategorySummary')->willReturn(['count' => 0, 'total' => 0.0]);
+		$this->transactionMapper->method('getCategoryMonthlySpending')->willReturn([]);
+
+		$this->service->getCategoryDetails(1, 'owner1', null, null, null, 'viewer1');
+		$this->service->getCategoryDetails(1, 'owner1');
+
+		$this->assertSame(['viewer1', 'owner1'], $this->startDayAskedFor);
+	}
+
+	/**
+	 * The panel's figures and its transaction list have to cover the same
+	 * categories, or it reports more transactions than it can show — which is
+	 * what #359 was reported as.
+	 */
+	public function testTransactionsUseTheSameScopeAsTheFigures(): void {
+		$tree = $this->detailTree();
+		$this->categoryMapper->method('findAll')->willReturn($tree);
+		$this->categoryMapper->method('find')->willReturn($tree[0]);
+
+		$summaryIds = [];
+		$this->transactionMapper->method('getCategorySummary')
+			->willReturnCallback(function (string $userId, int $categoryId, ?array $ids) use (&$summaryIds) {
+				$summaryIds = $ids ?? [];
+				return ['count' => 0, 'total' => 0.0];
+			});
+		$this->transactionMapper->method('getCategoryMonthlySpending')->willReturn([]);
+
+		$listIds = [];
+		$this->transactionMapper->method('findCategoryTransactionRows')
+			->willReturnCallback(function (string $userId, array $ids, int $limit) use (&$listIds) {
+				$listIds = $ids;
+				return [];
+			});
+
+		$this->service->getCategoryDetails(1, 'user1');
+		$this->service->getCategoryTransactions(1, 'user1', 5);
+
+		sort($summaryIds);
+		sort($listIds);
+		$this->assertSame($summaryIds, $listIds);
+	}
+
+	public function testCategoryTransactionsMarkTheInScopePartsOfASplit(): void {
+		$tree = $this->detailTree();
+		$this->categoryMapper->method('findAll')->willReturn($tree);
+		$this->categoryMapper->method('find')->willReturn($tree[0]);
+		$this->transactionMapper->method('findCategoryTransactionRows')->willReturn([
+			['id' => 7, 'isSplit' => true, 'amount' => 12.40, 'transactionAmount' => 82.40],
+			['id' => 8, 'isSplit' => false, 'amount' => 5.00, 'transactionAmount' => 5.00],
+		]);
+
+		$splitMapper = $this->createMock(\OCA\Budget\Db\TransactionSplitMapper::class);
+		$splitMapper->method('findByTransactionIds')->willReturn([
+			7 => [
+				['categoryId' => 2, 'categoryName' => 'Groceries', 'amount' => 12.40],
+				['categoryId' => 9, 'categoryName' => 'Transport', 'amount' => 70.00],
+			],
+		]);
+		$service = $this->serviceWithSplitMapper($splitMapper);
+
+		$rows = $service->getCategoryTransactions(1, 'user1', 5);
+
+		$this->assertTrue($rows[0]['splitCategories'][0]['inCategory']);
+		$this->assertFalse($rows[0]['splitCategories'][1]['inCategory']);
+		$this->assertArrayNotHasKey('splitCategories', $rows[1]);
+	}
+
+	private function serviceWithSplitMapper($splitMapper): CategoryService {
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(fn (string $text, array $params = []) => $text);
+		$carryoverService = $this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class);
+		$recurringBudgetService = $this->createMock(\OCA\Budget\Service\RecurringBudgetService::class);
+
+		return new CategoryService(
+			$this->categoryMapper,
+			$this->transactionMapper,
+			$this->createMock(BudgetSnapshotMapper::class),
+			$this->tagSetMapper,
+			$this->tagMapper,
+			$this->transactionTagMapper,
+			$l,
+			$carryoverService,
+			$recurringBudgetService,
+			null,
+			null,
+			$splitMapper
+		);
+	}
+
+	private function serviceWithProjects(ProjectMapper $projects, ProjectAllocationMapper $allocations): CategoryService {
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function (string $text, array $params = []) {
+			foreach ($params as $i => $param) {
+				$text = str_replace('%' . ($i + 1) . '$s', (string)$param, $text);
+			}
+			return $text;
+		});
+
+		return new CategoryService(
+			$this->categoryMapper,
+			$this->transactionMapper,
+			$this->createMock(BudgetSnapshotMapper::class),
+			$this->tagSetMapper,
+			$this->tagMapper,
+			$this->transactionTagMapper,
+			$l,
+			$this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class),
+			$this->createMock(\OCA\Budget\Service\RecurringBudgetService::class),
+			null,
+			null,
+			$this->splitMapper,
+			$projects,
+			$allocations
+		);
+	}
+
+	private function namedProject(int $id, string $name): Project {
+		$project = new Project();
+		$project->setId($id);
+		$project->setName($name);
+		return $project;
+	}
+
+	public function testDeleteRefusesACategoryAProjectIsBuiltOn(): void {
+		$this->categoryMapper->method('find')->willReturn($this->makeCategory(['id' => 1]));
+		$this->categoryMapper->method('findChildren')->willReturn([]);
+		$projects = $this->createMock(ProjectMapper::class);
+		$projects->method('findByCategoryIds')->with([1], 'user1')->willReturn([$this->namedProject(10, 'House renovation')]);
+		$allocations = $this->createMock(ProjectAllocationMapper::class);
+		$allocations->method('findByCategoryIds')->willReturn([]);
+		$this->categoryMapper->expects($this->never())->method('delete');
+
+		try {
+			$this->serviceWithProjects($projects, $allocations)->delete(1, 'user1');
+			$this->fail('The delete should have been refused');
+		} catch (\InvalidArgumentException $e) {
+			$this->assertStringContainsString('"House renovation"', $e->getMessage());
+			$this->assertNotInstanceOf(CategoryInUseException::class, $e);
+		}
+	}
+
+	public function testDeleteRefusesBeforeTouchingASubcategoryAProjectAmountUses(): void {
+		$parent = $this->makeCategory(['id' => 1]);
+		$child = $this->makeCategory(['id' => 2, 'parentId' => 1]);
+		$this->categoryMapper->method('find')->willReturnCallback(fn (int $id) => $id === 1 ? $parent : $child);
+		$this->categoryMapper->method('findChildren')
+			->willReturnCallback(fn (string $userId, int $parentId) => $parentId === 1 ? [$child] : []);
+		$allocation = new ProjectAllocation();
+		$allocation->setProjectId(10);
+		$allocation->setCategoryId(2);
+		$allocations = $this->createMock(ProjectAllocationMapper::class);
+		$allocations->method('findByCategoryIds')->with([1, 2], 'user1')->willReturn([$allocation]);
+		$projects = $this->createMock(ProjectMapper::class);
+		$projects->method('findByCategoryIds')->willReturn([]);
+		$projects->method('findByIds')->with([10])->willReturn([$this->namedProject(10, 'Wedding')]);
+		// Refused before the cascade deletes the child
+		$this->categoryMapper->expects($this->never())->method('delete');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('"Wedding"');
+		$this->serviceWithProjects($projects, $allocations)->delete(1, 'user1');
+	}
+
+	public function testDeleteWithReassignChecksProjectsBeforeMovingTransactions(): void {
+		$this->categoryMapper->method('find')->willReturn($this->makeCategory(['id' => 1]));
+		$this->categoryMapper->method('findChildren')->willReturn([]);
+		$projects = $this->createMock(ProjectMapper::class);
+		$projects->method('findByCategoryIds')->willReturn([$this->namedProject(10, 'House renovation')]);
+		$allocations = $this->createMock(ProjectAllocationMapper::class);
+		$allocations->method('findByCategoryIds')->willReturn([]);
+		$this->transactionMapper->expects($this->never())->method('clearCategory');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->serviceWithProjects($projects, $allocations)->deleteWithReassign(1, 'user1');
+	}
+
+	public function testDeleteGoesAheadWhenNoProjectUsesTheCategory(): void {
+		$category = $this->makeCategory(['id' => 1]);
+		$this->categoryMapper->method('find')->willReturn($category);
+		$this->categoryMapper->method('findChildren')->willReturn([]);
+		$this->transactionMapper->method('findByCategory')->willReturn([]);
+		$this->tagSetMapper->method('findByCategory')->willReturn([]);
+		$projects = $this->createMock(ProjectMapper::class);
+		$projects->method('findByCategoryIds')->willReturn([]);
+		$allocations = $this->createMock(ProjectAllocationMapper::class);
+		$allocations->method('findByCategoryIds')->willReturn([]);
+		$this->categoryMapper->expects($this->once())->method('delete')->with($category)->willReturn($category);
+
+		$this->serviceWithProjects($projects, $allocations)->delete(1, 'user1');
+	}
 }

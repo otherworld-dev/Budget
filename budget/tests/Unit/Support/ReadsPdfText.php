@@ -14,19 +14,19 @@ namespace OCA\Budget\Tests\Unit\Support;
  * ASCII-only labels.
  */
 trait ReadsPdfText {
-    private function pdfText(string $pdf): string {
-        $text = '';
-        preg_match_all('/stream\r?\n(.*?)\r?\nendstream/s', $pdf, $matches);
-        foreach ($matches[1] as $stream) {
-            $inflated = @gzuncompress($stream);
-            $text .= $inflated === false ? $stream : $inflated;
-        }
-        return str_replace("\0", '', $text);
-    }
+	private function pdfText(string $pdf): string {
+		$text = '';
+		preg_match_all('/stream\r?\n(.*?)\r?\nendstream/s', $pdf, $matches);
+		foreach ($matches[1] as $stream) {
+			$inflated = @gzuncompress($stream);
+			$text .= $inflated === false ? $stream : $inflated;
+		}
+		return str_replace("\0", '', $text);
+	}
 
-    private function requireTcpdf(): void {
-        if (!class_exists('TCPDF')) {
-            $this->markTestSkipped('TCPDF is not loaded');
-        }
-    }
+	private function requireTcpdf(): void {
+		if (!class_exists('TCPDF')) {
+			$this->markTestSkipped('TCPDF is not loaded');
+		}
+	}
 }

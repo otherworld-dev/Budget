@@ -42,54 +42,54 @@ use OCP\AppFramework\Db\Entity;
  * @method void setRolloverStart(?string $rolloverStart)
  */
 class Category extends Entity implements JsonSerializable {
-    protected $userId;
-    protected $name;
-    protected $type;
-    protected $parentId;
-    protected $icon;
-    protected $color;
-    protected $budgetAmount;
-    protected $budgetPeriod;  // monthly, weekly, yearly, quarterly
-    protected $sortOrder;
-    protected $excludedFromReports;
-    protected $excludedFromBudget;  // still counts everywhere else, just not budgeted against
-    protected $budgetRollover;   // envelope budgeting: unspent budget carries to next month
-    protected $rolloverStart;    // YYYY-MM the carryover chain starts from
-    protected $createdAt;
-    protected $updatedAt;
+	protected $userId;
+	protected $name;
+	protected $type;
+	protected $parentId;
+	protected $icon;
+	protected $color;
+	protected $budgetAmount;
+	protected $budgetPeriod;  // monthly, weekly, yearly, quarterly
+	protected $sortOrder;
+	protected $excludedFromReports;
+	protected $excludedFromBudget;  // still counts everywhere else, just not budgeted against
+	protected $budgetRollover;   // envelope budgeting: unspent budget carries to next month
+	protected $rolloverStart;    // YYYY-MM the carryover chain starts from
+	protected $createdAt;
+	protected $updatedAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('parentId', 'integer');
-        $this->addType('budgetAmount', 'float');
-        $this->addType('sortOrder', 'integer');
-        $this->addType('excludedFromReports', 'boolean');
-        $this->addType('excludedFromBudget', 'boolean');
-        $this->addType('budgetRollover', 'boolean');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('parentId', 'integer');
+		$this->addType('budgetAmount', 'float');
+		$this->addType('sortOrder', 'integer');
+		$this->addType('excludedFromReports', 'boolean');
+		$this->addType('excludedFromBudget', 'boolean');
+		$this->addType('budgetRollover', 'boolean');
+	}
 
-    /**
-     * Serialize the category to JSON format
-     * Returns all fields in camelCase format for frontend consumption
-     */
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'userId' => $this->getUserId(),
-            'name' => $this->getName(),
-            'type' => $this->getType(),
-            'parentId' => $this->getParentId(),
-            'icon' => $this->getIcon(),
-            'color' => $this->getColor(),
-            'budgetAmount' => $this->getBudgetAmount(),
-            'budgetPeriod' => $this->getBudgetPeriod() ?? 'monthly',
-            'sortOrder' => $this->getSortOrder(),
-            'excludedFromReports' => $this->getExcludedFromReports() ?? false,
-            'excludedFromBudget' => $this->getExcludedFromBudget() ?? false,
-            'budgetRollover' => $this->getBudgetRollover() ?? false,
-            'rolloverStart' => $this->getRolloverStart(),
-            'createdAt' => $this->getCreatedAt(),
-            'updatedAt' => $this->getUpdatedAt(),
-        ];
-    }
+	/**
+	 * Serialize the category to JSON format
+	 * Returns all fields in camelCase format for frontend consumption
+	 */
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'userId' => $this->getUserId(),
+			'name' => $this->getName(),
+			'type' => $this->getType(),
+			'parentId' => $this->getParentId(),
+			'icon' => $this->getIcon(),
+			'color' => $this->getColor(),
+			'budgetAmount' => $this->getBudgetAmount(),
+			'budgetPeriod' => $this->getBudgetPeriod() ?? 'monthly',
+			'sortOrder' => $this->getSortOrder(),
+			'excludedFromReports' => $this->getExcludedFromReports() ?? false,
+			'excludedFromBudget' => $this->getExcludedFromBudget() ?? false,
+			'budgetRollover' => $this->getBudgetRollover() ?? false,
+			'rolloverStart' => $this->getRolloverStart(),
+			'createdAt' => $this->getCreatedAt(),
+			'updatedAt' => $this->getUpdatedAt(),
+		];
+	}
 }

@@ -6,7 +6,6 @@ namespace OCA\Budget\Tests\Unit\Db;
 
 use OCA\Budget\Db\ManualExchangeRate;
 use OCA\Budget\Db\ManualExchangeRateMapper;
-use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\DB\IResult;
 use OCP\DB\QueryBuilder\IExpressionBuilder;
 use OCP\DB\QueryBuilder\IQueryBuilder;
@@ -32,7 +31,7 @@ class ManualExchangeRateMapperTest extends TestCase {
 		$this->qb->method('createNamedParameter')->willReturn(':param');
 
 		foreach (['select', 'from', 'where', 'andWhere', 'orderBy',
-				   'insert', 'delete', 'update', 'set', 'setValue'] as $method) {
+			'insert', 'delete', 'update', 'set', 'setValue'] as $method) {
 			$this->qb->method($method)->willReturnSelf();
 		}
 

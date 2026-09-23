@@ -33,7 +33,7 @@ class DigestJobTest extends TestCase {
 		$this->db = $this->createMock(IDBConnection::class);
 		$this->jobList = $this->createMock(IJobList::class);
 		$this->jobList->method('has')
-			->willReturnCallback(fn(string $class, $argument) => isset($this->pending[$argument['userId']]));
+			->willReturnCallback(fn (string $class, $argument) => isset($this->pending[$argument['userId']]));
 		$this->jobList->method('add')
 			->willReturnCallback(function (string $class, $argument) {
 				$this->added[] = [$class, $argument];
@@ -60,8 +60,8 @@ class DigestJobTest extends TestCase {
 	 */
 	private function mockUserQueries(array $digestUsers, array $accountUsers): void {
 		$resultSets = [
-			array_map(static fn($id) => ['user_id' => $id], $digestUsers),
-			array_map(static fn($id) => ['user_id' => $id], $accountUsers),
+			array_map(static fn ($id) => ['user_id' => $id], $digestUsers),
+			array_map(static fn ($id) => ['user_id' => $id], $accountUsers),
 		];
 
 		$this->db->method('getQueryBuilder')->willReturnCallback(function () use (&$resultSets) {

@@ -112,7 +112,7 @@ class PresetRegistryTest extends TestCase {
 	 * @dataProvider fixtureHeaderProvider
 	 */
 	public function testDetectsEachAppFromItsExportHeader(string $fixture, string $delimiter, string $expected): void {
-		$content = (string) file_get_contents(__DIR__ . '/../../../../fixtures/import/' . $fixture);
+		$content = (string)file_get_contents(__DIR__ . '/../../../../fixtures/import/' . $fixture);
 		$header = str_getcsv(strtok($content, "\r\n"), $delimiter, '"', '');
 		$this->assertSame($expected, $this->registry->detect($header));
 	}

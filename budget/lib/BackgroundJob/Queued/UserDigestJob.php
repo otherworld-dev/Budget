@@ -36,55 +36,55 @@ use Psr\Log\LoggerInterface;
  */
 class UserDigestJob extends QueuedJob {
 
-    public function __construct(ITimeFactory $time) {
-        parent::__construct($time);
-    }
+	public function __construct(ITimeFactory $time) {
+		parent::__construct($time);
+	}
 
-    protected function run($argument): void {
-        $userId = is_array($argument) ? (string)($argument['userId'] ?? '') : '';
-        if ($userId === '') {
-            return;
-        }
+	protected function run($argument): void {
+		$userId = is_array($argument) ? (string)($argument['userId'] ?? '') : '';
+		if ($userId === '') {
+			return;
+		}
 
-        $settingService = Server::get(SettingService::class);
-        $logger = Server::get(LoggerInterface::class);
+		$settingService = Server::get(SettingService::class);
+		$logger = Server::get(LoggerInterface::class);
 
-        if ($settingService->get($userId, 'digest_enabled') === 'true') {
-            try {
-                $frequency = $settingService->get($userId, 'digest_frequency') === 'monthly' ? 'monthly' : 'weekly';
-                $currentPeriod = $frequency === 'monthly' ? date('Y-m') : date('o-\WW');
+		if ($settingService->get($userId, 'digest_enabled') === 'true') {
+			try {
+				$frequency = $settingService->get($userId, 'digest_frequency') === 'monthly' ? 'monthly' : 'weekly';
+				$currentPeriod = $frequency === 'monthly' ? date('Y-m') : date('o-\WW');
 
-                if ($settingService->get($userId, 'digest_last_period') !== $currentPeriod) {
-                    Server::get(DigestService::class)->sendDigest($userId, $frequency);
-                    $settingService->set($userId, 'digest_last_period', $currentPeriod);
-                }
-            } catch (\Exception $e) {
-                $logger->warning("Digest failed for {$userId}: " . $e->getMessage(), ['app' => 'budget']);
-            }
-        }
+				if ($settingService->get($userId, 'digest_last_period') !== $currentPeriod) {
+					Server::get(DigestService::class)->sendDigest($userId, $frequency);
+					$settingService->set($userId, 'digest_last_period', $currentPeriod);
+				}
+			} catch (\Exception $e) {
+				$logger->warning("Digest failed for {$userId}: " . $e->getMessage(), ['app' => 'budget']);
+			}
+		}
 
-        try {
-            if ($settingService->get($userId, 'anomaly_alerts_enabled') !== 'false') {
-                Server::get(AnomalyDetectionService::class)->detectAndNotify($userId);
-            }
-        } catch (\Exception $e) {
-            $logger->warning("Anomaly detection failed for {$userId}: " . $e->getMessage(), ['app' => 'budget']);
-        }
+		try {
+			if ($settingService->get($userId, 'anomaly_alerts_enabled') !== 'false') {
+				Server::get(AnomalyDetectionService::class)->detectAndNotify($userId);
+			}
+		} catch (\Exception $e) {
+			$logger->warning("Anomaly detection failed for {$userId}: " . $e->getMessage(), ['app' => 'budget']);
+		}
 
-        try {
-            if ($settingService->get($userId, 'notification_budget_alert') !== 'false') {
-                Server::get(BudgetAlertService::class)->notifyAlerts($userId);
-            }
-        } catch (\Exception $e) {
-            $logger->warning("Budget alerts failed for {$userId}: " . $e->getMessage(), ['app' => 'budget']);
-        }
+		try {
+			if ($settingService->get($userId, 'notification_budget_alert') !== 'false') {
+				Server::get(BudgetAlertService::class)->notifyAlerts($userId);
+			}
+		} catch (\Exception $e) {
+			$logger->warning("Budget alerts failed for {$userId}: " . $e->getMessage(), ['app' => 'budget']);
+		}
 
-        try {
-            if ($settingService->get($userId, 'notification_forecast_warning') !== 'false') {
-                Server::get(ForecastWarningService::class)->checkAndNotify($userId);
-            }
-        } catch (\Exception $e) {
-            $logger->warning("Forecast warning failed for {$userId}: " . $e->getMessage(), ['app' => 'budget']);
-        }
-    }
+		try {
+			if ($settingService->get($userId, 'notification_forecast_warning') !== 'false') {
+				Server::get(ForecastWarningService::class)->checkAndNotify($userId);
+			}
+		} catch (\Exception $e) {
+			$logger->warning("Forecast warning failed for {$userId}: " . $e->getMessage(), ['app' => 'budget']);
+		}
+	}
 }

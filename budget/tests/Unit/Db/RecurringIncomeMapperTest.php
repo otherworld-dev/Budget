@@ -14,254 +14,254 @@ use OCP\IDBConnection;
 use PHPUnit\Framework\TestCase;
 
 class RecurringIncomeMapperTest extends TestCase {
-    private RecurringIncomeMapper $mapper;
-    private IDBConnection $db;
-    private IQueryBuilder $qb;
-    private IExpressionBuilder $expr;
-    private IResult $result;
+	private RecurringIncomeMapper $mapper;
+	private IDBConnection $db;
+	private IQueryBuilder $qb;
+	private IExpressionBuilder $expr;
+	private IResult $result;
 
-    protected function setUp(): void {
-        $this->db = $this->createMock(IDBConnection::class);
-        $this->qb = $this->createMock(IQueryBuilder::class);
-        $this->expr = $this->createMock(IExpressionBuilder::class);
-        $this->result = $this->createMock(IResult::class);
+	protected function setUp(): void {
+		$this->db = $this->createMock(IDBConnection::class);
+		$this->qb = $this->createMock(IQueryBuilder::class);
+		$this->expr = $this->createMock(IExpressionBuilder::class);
+		$this->result = $this->createMock(IResult::class);
 
-        $this->db->method('getQueryBuilder')->willReturn($this->qb);
-        $this->qb->method('expr')->willReturn($this->expr);
-        $this->qb->method('getSQL')->willReturn('');
-        $this->qb->method('createNamedParameter')->willReturn(':param');
+		$this->db->method('getQueryBuilder')->willReturn($this->qb);
+		$this->qb->method('expr')->willReturn($this->expr);
+		$this->qb->method('getSQL')->willReturn('');
+		$this->qb->method('createNamedParameter')->willReturn(':param');
 
-        foreach (['select', 'from', 'where', 'andWhere', 'orderBy',
-                   'addOrderBy', 'delete', 'update', 'set'] as $method) {
-            $this->qb->method($method)->willReturnSelf();
-        }
+		foreach (['select', 'from', 'where', 'andWhere', 'orderBy',
+			'addOrderBy', 'delete', 'update', 'set'] as $method) {
+			$this->qb->method($method)->willReturnSelf();
+		}
 
-        $this->mapper = new RecurringIncomeMapper($this->db);
-    }
+		$this->mapper = new RecurringIncomeMapper($this->db);
+	}
 
-    private function makeIncomeRow(array $overrides = []): array {
-        return array_merge([
-            'id' => 1,
-            'user_id' => 'user1',
-            'name' => 'Salary',
-            'amount' => 5000.00,
-            'frequency' => 'monthly',
-            'expected_day' => 25,
-            'expected_month' => null,
-            'category_id' => 3,
-            'account_id' => 1,
-            'source' => 'Employer Inc',
-            'auto_detect_pattern' => null,
-            'is_active' => 1,
-            'last_received_date' => '2026-02-25',
-            'next_expected_date' => '2026-03-25',
-            'notes' => null,
-            'created_at' => '2026-01-01 00:00:00',
-        ], $overrides);
-    }
+	private function makeIncomeRow(array $overrides = []): array {
+		return array_merge([
+			'id' => 1,
+			'user_id' => 'user1',
+			'name' => 'Salary',
+			'amount' => 5000.00,
+			'frequency' => 'monthly',
+			'expected_day' => 25,
+			'expected_month' => null,
+			'category_id' => 3,
+			'account_id' => 1,
+			'source' => 'Employer Inc',
+			'auto_detect_pattern' => null,
+			'is_active' => 1,
+			'last_received_date' => '2026-02-25',
+			'next_expected_date' => '2026-03-25',
+			'notes' => null,
+			'created_at' => '2026-01-01 00:00:00',
+		], $overrides);
+	}
 
-    private function makeIncome(array $overrides = []): RecurringIncome {
-        $income = new RecurringIncome();
-        $defaults = [
-            'id' => 1,
-            'userId' => 'user1',
-            'name' => 'Salary',
-            'amount' => 5000.00,
-            'frequency' => 'monthly',
-            'isActive' => true,
-        ];
-        $data = array_merge($defaults, $overrides);
+	private function makeIncome(array $overrides = []): RecurringIncome {
+		$income = new RecurringIncome();
+		$defaults = [
+			'id' => 1,
+			'userId' => 'user1',
+			'name' => 'Salary',
+			'amount' => 5000.00,
+			'frequency' => 'monthly',
+			'isActive' => true,
+		];
+		$data = array_merge($defaults, $overrides);
 
-        $income->setId($data['id']);
-        $income->setUserId($data['userId']);
-        $income->setName($data['name']);
-        $income->setAmount($data['amount']);
-        $income->setFrequency($data['frequency']);
-        $income->setIsActive($data['isActive']);
-        return $income;
-    }
+		$income->setId($data['id']);
+		$income->setUserId($data['userId']);
+		$income->setName($data['name']);
+		$income->setAmount($data['amount']);
+		$income->setFrequency($data['frequency']);
+		$income->setIsActive($data['isActive']);
+		return $income;
+	}
 
-    // ===== getTableName =====
+	// ===== getTableName =====
 
-    public function testTableNameIsCorrect(): void {
-        $this->assertEquals('budget_recurring_income', $this->mapper->getTableName());
-    }
+	public function testTableNameIsCorrect(): void {
+		$this->assertEquals('budget_recurring_income', $this->mapper->getTableName());
+	}
 
-    // ===== find =====
+	// ===== find =====
 
-    public function testFindReturnsIncome(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls($this->makeIncomeRow(), false);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindReturnsIncome(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls($this->makeIncomeRow(), false);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $income = $this->mapper->find(1, 'user1');
+		$income = $this->mapper->find(1, 'user1');
 
-        $this->assertInstanceOf(RecurringIncome::class, $income);
-        $this->assertEquals('Salary', $income->getName());
-        $this->assertEquals(5000.00, $income->getAmount());
-        $this->assertEquals('monthly', $income->getFrequency());
-    }
+		$this->assertInstanceOf(RecurringIncome::class, $income);
+		$this->assertEquals('Salary', $income->getName());
+		$this->assertEquals(5000.00, $income->getAmount());
+		$this->assertEquals('monthly', $income->getFrequency());
+	}
 
-    public function testFindThrowsWhenNotFound(): void {
-        $this->result->method('fetch')->willReturn(false);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindThrowsWhenNotFound(): void {
+		$this->result->method('fetch')->willReturn(false);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $this->expectException(DoesNotExistException::class);
+		$this->expectException(DoesNotExistException::class);
 
-        $this->mapper->find(999, 'user1');
-    }
+		$this->mapper->find(999, 'user1');
+	}
 
-    // ===== findAll =====
+	// ===== findAll =====
 
-    public function testFindAllReturnsIncomes(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeIncomeRow(['id' => 1, 'name' => 'Salary']),
-                $this->makeIncomeRow(['id' => 2, 'name' => 'Freelance']),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindAllReturnsIncomes(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeIncomeRow(['id' => 1, 'name' => 'Salary']),
+				$this->makeIncomeRow(['id' => 2, 'name' => 'Freelance']),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $incomes = $this->mapper->findAll('user1');
+		$incomes = $this->mapper->findAll('user1');
 
-        $this->assertCount(2, $incomes);
-    }
+		$this->assertCount(2, $incomes);
+	}
 
-    // ===== findActive =====
+	// ===== findActive =====
 
-    public function testFindActiveReturnsActiveIncomes(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeIncomeRow(['is_active' => 1]),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindActiveReturnsActiveIncomes(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeIncomeRow(['is_active' => 1]),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $incomes = $this->mapper->findActive('user1');
+		$incomes = $this->mapper->findActive('user1');
 
-        $this->assertCount(1, $incomes);
-    }
+		$this->assertCount(1, $incomes);
+	}
 
-    // ===== findExpectedInRange =====
+	// ===== findExpectedInRange =====
 
-    public function testFindExpectedInRangeReturnsIncomes(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeIncomeRow(['next_expected_date' => '2026-03-25']),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindExpectedInRangeReturnsIncomes(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeIncomeRow(['next_expected_date' => '2026-03-25']),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $incomes = $this->mapper->findExpectedInRange('user1', '2026-03-01', '2026-03-31');
+		$incomes = $this->mapper->findExpectedInRange('user1', '2026-03-01', '2026-03-31');
 
-        $this->assertCount(1, $incomes);
-    }
+		$this->assertCount(1, $incomes);
+	}
 
-    // ===== findByCategory =====
+	// ===== findByCategory =====
 
-    public function testFindByCategoryReturnsIncomes(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeIncomeRow(['category_id' => 3]),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindByCategoryReturnsIncomes(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeIncomeRow(['category_id' => 3]),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $incomes = $this->mapper->findByCategory('user1', 3);
+		$incomes = $this->mapper->findByCategory('user1', 3);
 
-        $this->assertCount(1, $incomes);
-    }
+		$this->assertCount(1, $incomes);
+	}
 
-    // ===== findByFrequency =====
+	// ===== findByFrequency =====
 
-    public function testFindByFrequencyReturnsIncomes(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeIncomeRow(['frequency' => 'weekly']),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindByFrequencyReturnsIncomes(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeIncomeRow(['frequency' => 'weekly']),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $incomes = $this->mapper->findByFrequency('user1', 'weekly');
+		$incomes = $this->mapper->findByFrequency('user1', 'weekly');
 
-        $this->assertCount(1, $incomes);
-    }
+		$this->assertCount(1, $incomes);
+	}
 
-    // ===== findUpcoming =====
+	// ===== findUpcoming =====
 
-    public function testFindUpcomingReturnsIncomes(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeIncomeRow(),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
+	public function testFindUpcomingReturnsIncomes(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeIncomeRow(),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
 
-        $incomes = $this->mapper->findUpcoming('user1', 30);
+		$incomes = $this->mapper->findUpcoming('user1', 30);
 
-        $this->assertCount(1, $incomes);
-    }
+		$this->assertCount(1, $incomes);
+	}
 
-    // ===== updateFields =====
+	// ===== updateFields =====
 
-    public function testUpdateFieldsExecutesStatement(): void {
-        $this->qb->expects($this->once())->method('executeStatement');
+	public function testUpdateFieldsExecutesStatement(): void {
+		$this->qb->expects($this->once())->method('executeStatement');
 
-        $this->mapper->updateFields(1, 'user1', ['name' => 'Updated']);
-    }
+		$this->mapper->updateFields(1, 'user1', ['name' => 'Updated']);
+	}
 
-    /**
-     * Regression (#363 review): start_date was added as a persisted column but
-     * never whitelisted here. IncomeModule sends startDate (often null) on
-     * EVERY save, and null values route through updateFields, so editing most
-     * recurring income threw "Column 'start_date' is not updatable".
-     */
-    public function testUpdateFieldsAllowsNullStartDate(): void {
-        $this->qb->expects($this->once())->method('executeStatement');
+	/**
+	 * Regression (#363 review): start_date was added as a persisted column but
+	 * never whitelisted here. IncomeModule sends startDate (often null) on
+	 * EVERY save, and null values route through updateFields, so editing most
+	 * recurring income threw "Column 'start_date' is not updatable".
+	 */
+	public function testUpdateFieldsAllowsNullStartDate(): void {
+		$this->qb->expects($this->once())->method('executeStatement');
 
-        $this->mapper->updateFields(1, 'user1', ['start_date' => null]);
-    }
+		$this->mapper->updateFields(1, 'user1', ['start_date' => null]);
+	}
 
-    /**
-     * Guards the whole class of bug (mirrors BillMapperTest): every column the
-     * entity persists must be accepted by updateFields — a column added to the
-     * entity/migrations but not whitelisted breaks every edit carrying it.
-     */
-    public function testUpdateFieldsAcceptsEveryPersistedColumn(): void {
-        $skip = ['id', 'userId', 'createdAt'];
-        $reflection = new \ReflectionClass(RecurringIncome::class);
-        foreach ($reflection->getProperties(\ReflectionProperty::IS_PROTECTED) as $property) {
-            if ($property->getDeclaringClass()->getName() !== RecurringIncome::class) {
-                continue;
-            }
-            if (in_array($property->getName(), $skip, true)) {
-                continue;
-            }
-            $column = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $property->getName()));
-            try {
-                $this->mapper->updateFields(1, 'user1', [$column => 'x']);
-            } catch (\InvalidArgumentException $e) {
-                $this->fail("Persisted column '$column' is not in UPDATABLE_COLUMNS: " . $e->getMessage());
-            }
-        }
-        $this->addToAssertionCount(1);
-    }
+	/**
+	 * Guards the whole class of bug (mirrors BillMapperTest): every column the
+	 * entity persists must be accepted by updateFields — a column added to the
+	 * entity/migrations but not whitelisted breaks every edit carrying it.
+	 */
+	public function testUpdateFieldsAcceptsEveryPersistedColumn(): void {
+		$skip = ['id', 'userId', 'createdAt'];
+		$reflection = new \ReflectionClass(RecurringIncome::class);
+		foreach ($reflection->getProperties(\ReflectionProperty::IS_PROTECTED) as $property) {
+			if ($property->getDeclaringClass()->getName() !== RecurringIncome::class) {
+				continue;
+			}
+			if (in_array($property->getName(), $skip, true)) {
+				continue;
+			}
+			$column = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $property->getName()));
+			try {
+				$this->mapper->updateFields(1, 'user1', [$column => 'x']);
+			} catch (\InvalidArgumentException $e) {
+				$this->fail("Persisted column '$column' is not in UPDATABLE_COLUMNS: " . $e->getMessage());
+			}
+		}
+		$this->addToAssertionCount(1);
+	}
 
-    // ===== deleteAll =====
+	// ===== deleteAll =====
 
-    public function testDeleteAllReturnsAffectedRows(): void {
-        $this->qb->method('executeStatement')->willReturn(3);
+	public function testDeleteAllReturnsAffectedRows(): void {
+		$this->qb->method('executeStatement')->willReturn(3);
 
-        $count = $this->mapper->deleteAll('user1');
+		$count = $this->mapper->deleteAll('user1');
 
-        $this->assertEquals(3, $count);
-    }
+		$this->assertEquals(3, $count);
+	}
 }

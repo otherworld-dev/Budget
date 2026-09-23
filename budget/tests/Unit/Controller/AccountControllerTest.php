@@ -639,7 +639,7 @@ class AccountControllerTest extends TestCase {
 
 		$this->service->expects($this->once())
 			->method('update')
-			->with(1, 'user1', $this->callback(fn($updates) => ($updates['excludedFromReports'] ?? null) === true))
+			->with(1, 'user1', $this->callback(fn ($updates) => ($updates['excludedFromReports'] ?? null) === true))
 			->willReturn($this->makeAccount());
 
 		$response = $this->controller->update(1);
@@ -1000,7 +1000,7 @@ class AccountControllerTest extends TestCase {
 
 		$this->service->expects($this->once())
 			->method('update')
-			->with(1, 'user1', $this->callback(fn($updates) => ($updates['closed'] ?? null) === true))
+			->with(1, 'user1', $this->callback(fn ($updates) => ($updates['closed'] ?? null) === true))
 			->willReturn($this->makeAccount());
 
 		$response = $this->controller->update(1);

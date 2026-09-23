@@ -20,383 +20,383 @@ use Psr\Log\LoggerInterface;
  * PSD2 requirement: Bank connections expire after 90 days, user must re-authorize.
  */
 class GoCardlessProvider implements BankSyncProviderInterface {
-    private const BASE_URL = 'https://bankaccountdata.gocardless.com/api/v2';
+	private const BASE_URL = 'https://bankaccountdata.gocardless.com/api/v2';
 
-    public function __construct(
-        private IClientService $clientService,
-        private LoggerInterface $logger
-    ) {
-    }
+	public function __construct(
+		private IClientService $clientService,
+		private LoggerInterface $logger,
+	) {
+	}
 
-    public function getIdentifier(): string {
-        return 'gocardless';
-    }
+	public function getIdentifier(): string {
+		return 'gocardless';
+	}
 
-    public function getDisplayName(): string {
-        return 'GoCardless (UK/Europe)';
-    }
+	public function getDisplayName(): string {
+		return 'GoCardless (UK/Europe)';
+	}
 
-    public function initializeConnection(array $params): array {
-        $secretId = $params['secretId'] ?? null;
-        $secretKey = $params['secretKey'] ?? null;
-        $institutionId = $params['institutionId'] ?? null;
-        $redirectUrl = $params['redirectUrl'] ?? null;
+	public function initializeConnection(array $params): array {
+		$secretId = $params['secretId'] ?? null;
+		$secretKey = $params['secretKey'] ?? null;
+		$institutionId = $params['institutionId'] ?? null;
+		$redirectUrl = $params['redirectUrl'] ?? null;
 
-        if (!$secretId || !$secretKey) {
-            throw new \InvalidArgumentException('Secret ID and Secret Key are required');
-        }
+		if (!$secretId || !$secretKey) {
+			throw new \InvalidArgumentException('Secret ID and Secret Key are required');
+		}
 
-        // Get access token
-        $accessToken = $this->getAccessToken($secretId, $secretKey);
+		// Get access token
+		$accessToken = $this->getAccessToken($secretId, $secretKey);
 
-        // Store credentials as JSON
-        $credentials = json_encode([
-            'secretId' => $secretId,
-            'secretKey' => $secretKey,
-            'accessToken' => $accessToken['access'],
-            'refreshToken' => $accessToken['refresh'] ?? null,
-            'tokenExpires' => time() + ($accessToken['access_expires'] ?? 86400),
-        ]);
+		// Store credentials as JSON
+		$credentials = json_encode([
+			'secretId' => $secretId,
+			'secretKey' => $secretKey,
+			'accessToken' => $accessToken['access'],
+			'refreshToken' => $accessToken['refresh'] ?? null,
+			'tokenExpires' => time() + ($accessToken['access_expires'] ?? 86400),
+		]);
 
-        // If institution specified, create a requisition for bank authorization
-        $accounts = [];
-        if ($institutionId) {
-            $requisition = $this->createRequisition($accessToken['access'], $institutionId, $redirectUrl ?? '');
-            $credentials = json_encode(array_merge(
-                json_decode($credentials, true),
-                ['requisitionId' => $requisition['id']]
-            ));
+		// If institution specified, create a requisition for bank authorization
+		$accounts = [];
+		if ($institutionId) {
+			$requisition = $this->createRequisition($accessToken['access'], $institutionId, $redirectUrl ?? '');
+			$credentials = json_encode(array_merge(
+				json_decode($credentials, true),
+				['requisitionId' => $requisition['id']]
+			));
 
-            // Return the authorization link for the user to visit
-            return [
-                'credentials' => $credentials,
-                'accounts' => [],
-                'authorizationUrl' => $requisition['link'],
-                'requisitionId' => $requisition['id'],
-            ];
-        }
+			// Return the authorization link for the user to visit
+			return [
+				'credentials' => $credentials,
+				'accounts' => [],
+				'authorizationUrl' => $requisition['link'],
+				'requisitionId' => $requisition['id'],
+			];
+		}
 
-        return [
-            'credentials' => $credentials,
-            'accounts' => $accounts,
-        ];
-    }
+		return [
+			'credentials' => $credentials,
+			'accounts' => $accounts,
+		];
+	}
 
-    public function fetchAccounts(string $credentials, array $options = []): array {
-        // GoCardless has no pending-transaction option; $options is ignored.
-        $creds = json_decode($credentials, true);
-        if (!$creds) {
-            throw new \Exception('Invalid credentials format');
-        }
+	public function fetchAccounts(string $credentials, array $options = []): array {
+		// GoCardless has no pending-transaction option; $options is ignored.
+		$creds = json_decode($credentials, true);
+		if (!$creds) {
+			throw new \Exception('Invalid credentials format');
+		}
 
-        // Refresh token if expired
-        $accessToken = $creds['accessToken'];
-        $updatedCredentials = null;
-        if (isset($creds['tokenExpires']) && time() > $creds['tokenExpires']) {
-            $newToken = $this->getAccessToken($creds['secretId'], $creds['secretKey']);
-            $accessToken = $newToken['access'];
-            $creds['accessToken'] = $accessToken;
-            $creds['tokenExpires'] = time() + ($newToken['access_expires'] ?? 86400);
-            if (isset($newToken['refresh'])) {
-                $creds['refreshToken'] = $newToken['refresh'];
-            }
-            $updatedCredentials = json_encode($creds);
-        }
+		// Refresh token if expired
+		$accessToken = $creds['accessToken'];
+		$updatedCredentials = null;
+		if (isset($creds['tokenExpires']) && time() > $creds['tokenExpires']) {
+			$newToken = $this->getAccessToken($creds['secretId'], $creds['secretKey']);
+			$accessToken = $newToken['access'];
+			$creds['accessToken'] = $accessToken;
+			$creds['tokenExpires'] = time() + ($newToken['access_expires'] ?? 86400);
+			if (isset($newToken['refresh'])) {
+				$creds['refreshToken'] = $newToken['refresh'];
+			}
+			$updatedCredentials = json_encode($creds);
+		}
 
-        // Get requisition details to find linked accounts
-        $requisitionId = $creds['requisitionId'] ?? null;
-        if (!$requisitionId) {
-            return ['accounts' => []];
-        }
+		// Get requisition details to find linked accounts
+		$requisitionId = $creds['requisitionId'] ?? null;
+		if (!$requisitionId) {
+			return ['accounts' => []];
+		}
 
-        $requisition = $this->getRequisition($accessToken, $requisitionId);
-        $accountIds = $requisition['accounts'] ?? [];
+		$requisition = $this->getRequisition($accessToken, $requisitionId);
+		$accountIds = $requisition['accounts'] ?? [];
 
-        $accounts = [];
-        foreach ($accountIds as $accountId) {
-            try {
-                $details = $this->getAccountDetails($accessToken, $accountId);
-                $balances = $this->getAccountBalances($accessToken, $accountId);
-                $transactions = $this->getAccountTransactions($accessToken, $accountId);
+		$accounts = [];
+		foreach ($accountIds as $accountId) {
+			try {
+				$details = $this->getAccountDetails($accessToken, $accountId);
+				$balances = $this->getAccountBalances($accessToken, $accountId);
+				$transactions = $this->getAccountTransactions($accessToken, $accountId);
 
-                $balance = '0';
-                if (!empty($balances['balances'])) {
-                    // Prefer 'expected' or 'interimAvailable' balance
-                    foreach ($balances['balances'] as $bal) {
-                        $balance = $bal['balanceAmount']['amount'] ?? '0';
-                        if (($bal['balanceType'] ?? '') === 'expected') {
-                            break;
-                        }
-                    }
-                }
+				$balance = '0';
+				if (!empty($balances['balances'])) {
+					// Prefer 'expected' or 'interimAvailable' balance
+					foreach ($balances['balances'] as $bal) {
+						$balance = $bal['balanceAmount']['amount'] ?? '0';
+						if (($bal['balanceType'] ?? '') === 'expected') {
+							break;
+						}
+					}
+				}
 
-                $normalizedTx = [];
-                $bookedTx = $transactions['transactions']['booked'] ?? [];
-                foreach ($bookedTx as $idx => $tx) {
-                    $amount = $tx['transactionAmount']['amount'] ?? '0';
-                    $description = $tx['remittanceInformationUnstructured']
-                        ?? (!empty($tx['remittanceInformationUnstructuredArray']) ? $tx['remittanceInformationUnstructuredArray'][0] : null)
-                        ?? $tx['additionalInformation']
-                        ?? '';
-                    $normalizedTx[] = [
-                        'id' => $tx['transactionId'] ?? $tx['internalTransactionId'] ?? hash('sha256', $accountId . ':' . $idx . ':' . ($tx['bookingDate'] ?? '') . ':' . $amount . ':' . $description),
-                        'date' => $tx['bookingDate'] ?? $tx['valueDate'] ?? date('Y-m-d'),
-                        'amount' => $amount,
-                        'description' => $description,
-                        'vendor' => $tx['creditorName'] ?? $tx['debtorName'] ?? null,
-                    ];
-                }
+				$normalizedTx = [];
+				$bookedTx = $transactions['transactions']['booked'] ?? [];
+				foreach ($bookedTx as $idx => $tx) {
+					$amount = $tx['transactionAmount']['amount'] ?? '0';
+					$description = $tx['remittanceInformationUnstructured']
+						?? (!empty($tx['remittanceInformationUnstructuredArray']) ? $tx['remittanceInformationUnstructuredArray'][0] : null)
+						?? $tx['additionalInformation']
+						?? '';
+					$normalizedTx[] = [
+						'id' => $tx['transactionId'] ?? $tx['internalTransactionId'] ?? hash('sha256', $accountId . ':' . $idx . ':' . ($tx['bookingDate'] ?? '') . ':' . $amount . ':' . $description),
+						'date' => $tx['bookingDate'] ?? $tx['valueDate'] ?? date('Y-m-d'),
+						'amount' => $amount,
+						'description' => $description,
+						'vendor' => $tx['creditorName'] ?? $tx['debtorName'] ?? null,
+					];
+				}
 
-                $accounts[] = [
-                    'id' => $accountId,
-                    'name' => $details['account']['name']
-                        ?? $details['account']['product']
-                        ?? $details['account']['iban']
-                        ?? 'Account',
-                    'currency' => $details['account']['currency']
-                        ?? $balances['balances'][0]['balanceAmount']['currency']
-                        ?? 'EUR',
-                    'balance' => $balance,
-                    'transactions' => $normalizedTx,
-                ];
-            } catch (\Exception $e) {
-                $this->logger->warning("GoCardless: failed to fetch account {$accountId}: " . $e->getMessage(), ['app' => 'budget']);
-            }
-        }
+				$accounts[] = [
+					'id' => $accountId,
+					'name' => $details['account']['name']
+						?? $details['account']['product']
+						?? $details['account']['iban']
+						?? 'Account',
+					'currency' => $details['account']['currency']
+						?? $balances['balances'][0]['balanceAmount']['currency']
+						?? 'EUR',
+					'balance' => $balance,
+					'transactions' => $normalizedTx,
+				];
+			} catch (\Exception $e) {
+				$this->logger->warning("GoCardless: failed to fetch account {$accountId}: " . $e->getMessage(), ['app' => 'budget']);
+			}
+		}
 
-        $result = ['accounts' => $accounts];
-        if ($updatedCredentials !== null) {
-            $result['updatedCredentials'] = $updatedCredentials;
-        }
-        return $result;
-    }
+		$result = ['accounts' => $accounts];
+		if ($updatedCredentials !== null) {
+			$result['updatedCredentials'] = $updatedCredentials;
+		}
+		return $result;
+	}
 
-    public function fetchAccountList(string $credentials, array $options = []): array {
-        $creds = json_decode($credentials, true);
-        if (!$creds) {
-            throw new \Exception('Invalid credentials format');
-        }
+	public function fetchAccountList(string $credentials, array $options = []): array {
+		$creds = json_decode($credentials, true);
+		if (!$creds) {
+			throw new \Exception('Invalid credentials format');
+		}
 
-        $accessToken = $creds['accessToken'];
-        $updatedCredentials = null;
-        if (isset($creds['tokenExpires']) && time() > $creds['tokenExpires']) {
-            $newToken = $this->getAccessToken($creds['secretId'], $creds['secretKey']);
-            $accessToken = $newToken['access'];
-            $creds['accessToken'] = $accessToken;
-            $creds['tokenExpires'] = time() + ($newToken['access_expires'] ?? 86400);
-            if (isset($newToken['refresh'])) {
-                $creds['refreshToken'] = $newToken['refresh'];
-            }
-            $updatedCredentials = json_encode($creds);
-        }
+		$accessToken = $creds['accessToken'];
+		$updatedCredentials = null;
+		if (isset($creds['tokenExpires']) && time() > $creds['tokenExpires']) {
+			$newToken = $this->getAccessToken($creds['secretId'], $creds['secretKey']);
+			$accessToken = $newToken['access'];
+			$creds['accessToken'] = $accessToken;
+			$creds['tokenExpires'] = time() + ($newToken['access_expires'] ?? 86400);
+			if (isset($newToken['refresh'])) {
+				$creds['refreshToken'] = $newToken['refresh'];
+			}
+			$updatedCredentials = json_encode($creds);
+		}
 
-        $requisitionId = $creds['requisitionId'] ?? null;
-        if (!$requisitionId) {
-            return ['accounts' => []];
-        }
+		$requisitionId = $creds['requisitionId'] ?? null;
+		if (!$requisitionId) {
+			return ['accounts' => []];
+		}
 
-        $requisition = $this->getRequisition($accessToken, $requisitionId);
-        $accountIds = $requisition['accounts'] ?? [];
+		$requisition = $this->getRequisition($accessToken, $requisitionId);
+		$accountIds = $requisition['accounts'] ?? [];
 
-        $accounts = [];
-        foreach ($accountIds as $accountId) {
-            try {
-                $details = $this->getAccountDetails($accessToken, $accountId);
-                $balances = $this->getAccountBalances($accessToken, $accountId);
+		$accounts = [];
+		foreach ($accountIds as $accountId) {
+			try {
+				$details = $this->getAccountDetails($accessToken, $accountId);
+				$balances = $this->getAccountBalances($accessToken, $accountId);
 
-                $balance = '0';
-                if (!empty($balances['balances'])) {
-                    foreach ($balances['balances'] as $bal) {
-                        $balance = $bal['balanceAmount']['amount'] ?? '0';
-                        if (($bal['balanceType'] ?? '') === 'expected') {
-                            break;
-                        }
-                    }
-                }
+				$balance = '0';
+				if (!empty($balances['balances'])) {
+					foreach ($balances['balances'] as $bal) {
+						$balance = $bal['balanceAmount']['amount'] ?? '0';
+						if (($bal['balanceType'] ?? '') === 'expected') {
+							break;
+						}
+					}
+				}
 
-                $accounts[] = [
-                    'id' => $accountId,
-                    'name' => $details['account']['name']
-                        ?? $details['account']['product']
-                        ?? $details['account']['iban']
-                        ?? 'Account',
-                    'currency' => $details['account']['currency']
-                        ?? $balances['balances'][0]['balanceAmount']['currency']
-                        ?? 'EUR',
-                    'balance' => $balance,
-                    'transactions' => [],
-                ];
-            } catch (\Exception $e) {
-                $this->logger->warning("GoCardless: failed to fetch account {$accountId}: " . $e->getMessage(), ['app' => 'budget']);
-            }
-        }
+				$accounts[] = [
+					'id' => $accountId,
+					'name' => $details['account']['name']
+						?? $details['account']['product']
+						?? $details['account']['iban']
+						?? 'Account',
+					'currency' => $details['account']['currency']
+						?? $balances['balances'][0]['balanceAmount']['currency']
+						?? 'EUR',
+					'balance' => $balance,
+					'transactions' => [],
+				];
+			} catch (\Exception $e) {
+				$this->logger->warning("GoCardless: failed to fetch account {$accountId}: " . $e->getMessage(), ['app' => 'budget']);
+			}
+		}
 
-        $result = ['accounts' => $accounts];
-        if ($updatedCredentials !== null) {
-            $result['updatedCredentials'] = $updatedCredentials;
-        }
-        return $result;
-    }
+		$result = ['accounts' => $accounts];
+		if ($updatedCredentials !== null) {
+			$result['updatedCredentials'] = $updatedCredentials;
+		}
+		return $result;
+	}
 
-    public function requiresReauthorization(string $credentials): bool {
-        $creds = json_decode($credentials, true);
-        if (!$creds || !isset($creds['requisitionId'])) {
-            return true;
-        }
+	public function requiresReauthorization(string $credentials): bool {
+		$creds = json_decode($credentials, true);
+		if (!$creds || !isset($creds['requisitionId'])) {
+			return true;
+		}
 
-        try {
-            // Use the token from fetchAccounts' refresh cycle — don't refresh here
-            // to avoid duplicate API calls. If token is expired, getRequisition will
-            // fail and we fall through to the catch which returns false (unknown),
-            // letting fetchAccounts handle the refresh.
-            $accessToken = $creds['accessToken'] ?? null;
-            if (!$accessToken) {
-                return true;
-            }
+		try {
+			// Use the token from fetchAccounts' refresh cycle — don't refresh here
+			// to avoid duplicate API calls. If token is expired, getRequisition will
+			// fail and we fall through to the catch which returns false (unknown),
+			// letting fetchAccounts handle the refresh.
+			$accessToken = $creds['accessToken'] ?? null;
+			if (!$accessToken) {
+				return true;
+			}
 
-            $requisition = $this->getRequisition($accessToken, $creds['requisitionId']);
-            $status = $requisition['status'] ?? '';
+			$requisition = $this->getRequisition($accessToken, $creds['requisitionId']);
+			$status = $requisition['status'] ?? '';
 
-            // GoCardless statuses: CR (created), LN (linked), EX (expired), RJ (rejected), SA (suspended)
-            // Only definitively expired/rejected/suspended statuses require reauth.
-            // CR (created) means auth in progress — not expired.
-            return in_array($status, ['EX', 'RJ', 'SA'], true);
-        } catch (\Exception $e) {
-            // Transient API errors (network, expired token) should NOT mark
-            // the connection as expired. Let fetchAccounts handle its own
-            // token refresh and fail with a proper error if needed.
-            $this->logger->warning('GoCardless: reauth check failed, assuming OK: ' . $e->getMessage(), ['app' => 'budget']);
-            return false;
-        }
-    }
+			// GoCardless statuses: CR (created), LN (linked), EX (expired), RJ (rejected), SA (suspended)
+			// Only definitively expired/rejected/suspended statuses require reauth.
+			// CR (created) means auth in progress — not expired.
+			return in_array($status, ['EX', 'RJ', 'SA'], true);
+		} catch (\Exception $e) {
+			// Transient API errors (network, expired token) should NOT mark
+			// the connection as expired. Let fetchAccounts handle its own
+			// token refresh and fail with a proper error if needed.
+			$this->logger->warning('GoCardless: reauth check failed, assuming OK: ' . $e->getMessage(), ['app' => 'budget']);
+			return false;
+		}
+	}
 
-    public function revokeConnection(string $credentials): void {
-        try {
-            $creds = json_decode($credentials, true);
-            if (!$creds || !isset($creds['requisitionId'], $creds['secretId'], $creds['secretKey'])) {
-                return;
-            }
+	public function revokeConnection(string $credentials): void {
+		try {
+			$creds = json_decode($credentials, true);
+			if (!$creds || !isset($creds['requisitionId'], $creds['secretId'], $creds['secretKey'])) {
+				return;
+			}
 
-            $accessToken = $this->getAccessToken($creds['secretId'], $creds['secretKey'])['access'];
-            $client = $this->clientService->newClient();
-            $client->delete(self::BASE_URL . '/requisitions/' . urlencode($creds['requisitionId']) . '/', [
-                'headers' => ['Authorization' => 'Bearer ' . $accessToken],
-                'timeout' => 15,
-            ]);
-        } catch (\Exception $e) {
-            $this->logger->warning('GoCardless: failed to revoke requisition: ' . $e->getMessage(), ['app' => 'budget']);
-        }
-    }
+			$accessToken = $this->getAccessToken($creds['secretId'], $creds['secretKey'])['access'];
+			$client = $this->clientService->newClient();
+			$client->delete(self::BASE_URL . '/requisitions/' . urlencode($creds['requisitionId']) . '/', [
+				'headers' => ['Authorization' => 'Bearer ' . $accessToken],
+				'timeout' => 15,
+			]);
+		} catch (\Exception $e) {
+			$this->logger->warning('GoCardless: failed to revoke requisition: ' . $e->getMessage(), ['app' => 'budget']);
+		}
+	}
 
-    /**
-     * Get an access token for API calls (e.g. institution listing).
-     */
-    public function getToken(string $secretId, string $secretKey): string {
-        $tokenData = $this->getAccessToken($secretId, $secretKey);
-        return $tokenData['access'];
-    }
+	/**
+	 * Get an access token for API calls (e.g. institution listing).
+	 */
+	public function getToken(string $secretId, string $secretKey): string {
+		$tokenData = $this->getAccessToken($secretId, $secretKey);
+		return $tokenData['access'];
+	}
 
-    /**
-     * Get available institutions (banks) for a country.
-     *
-     * @return array List of institutions with id, name, logo
-     */
-    public function getInstitutions(string $accessToken, string $country = 'GB'): array {
-        $client = $this->clientService->newClient();
-        $response = $client->get(self::BASE_URL . '/institutions/?country=' . urlencode($country), [
-            'headers' => ['Authorization' => 'Bearer ' . $accessToken],
-            'timeout' => 30,
-        ]);
+	/**
+	 * Get available institutions (banks) for a country.
+	 *
+	 * @return array List of institutions with id, name, logo
+	 */
+	public function getInstitutions(string $accessToken, string $country = 'GB'): array {
+		$client = $this->clientService->newClient();
+		$response = $client->get(self::BASE_URL . '/institutions/?country=' . urlencode($country), [
+			'headers' => ['Authorization' => 'Bearer ' . $accessToken],
+			'timeout' => 30,
+		]);
 
-        $institutions = json_decode($response->getBody(), true);
-        if (!is_array($institutions)) {
-            return [];
-        }
+		$institutions = json_decode($response->getBody(), true);
+		if (!is_array($institutions)) {
+			return [];
+		}
 
-        return array_map(fn($inst) => [
-            'id' => $inst['id'],
-            'name' => $inst['name'],
-            'logo' => $inst['logo'] ?? null,
-            'countries' => $inst['countries'] ?? [],
-        ], $institutions);
-    }
+		return array_map(fn ($inst) => [
+			'id' => $inst['id'],
+			'name' => $inst['name'],
+			'logo' => $inst['logo'] ?? null,
+			'countries' => $inst['countries'] ?? [],
+		], $institutions);
+	}
 
-    // ── Private API methods ────────────────────────────────
+	// ── Private API methods ────────────────────────────────
 
-    private function getAccessToken(string $secretId, string $secretKey): array {
-        $client = $this->clientService->newClient();
-        $response = $client->post(self::BASE_URL . '/token/new/', [
-            'json' => [
-                'secret_id' => $secretId,
-                'secret_key' => $secretKey,
-            ],
-            'timeout' => 30,
-        ]);
+	private function getAccessToken(string $secretId, string $secretKey): array {
+		$client = $this->clientService->newClient();
+		$response = $client->post(self::BASE_URL . '/token/new/', [
+			'json' => [
+				'secret_id' => $secretId,
+				'secret_key' => $secretKey,
+			],
+			'timeout' => 30,
+		]);
 
-        $data = json_decode($response->getBody(), true);
-        if (!$data || !isset($data['access'])) {
-            throw new \Exception('Failed to obtain GoCardless access token');
-        }
+		$data = json_decode($response->getBody(), true);
+		if (!$data || !isset($data['access'])) {
+			throw new \Exception('Failed to obtain GoCardless access token');
+		}
 
-        return $data;
-    }
+		return $data;
+	}
 
-    private function createRequisition(string $accessToken, string $institutionId, string $redirectUrl): array {
-        $client = $this->clientService->newClient();
-        $response = $client->post(self::BASE_URL . '/requisitions/', [
-            'headers' => ['Authorization' => 'Bearer ' . $accessToken],
-            'json' => [
-                'institution_id' => $institutionId,
-                'redirect' => $redirectUrl,
-            ],
-            'timeout' => 30,
-        ]);
+	private function createRequisition(string $accessToken, string $institutionId, string $redirectUrl): array {
+		$client = $this->clientService->newClient();
+		$response = $client->post(self::BASE_URL . '/requisitions/', [
+			'headers' => ['Authorization' => 'Bearer ' . $accessToken],
+			'json' => [
+				'institution_id' => $institutionId,
+				'redirect' => $redirectUrl,
+			],
+			'timeout' => 30,
+		]);
 
-        $data = json_decode($response->getBody(), true);
-        if (!$data || !isset($data['id'])) {
-            throw new \Exception('Failed to create GoCardless requisition');
-        }
+		$data = json_decode($response->getBody(), true);
+		if (!$data || !isset($data['id'])) {
+			throw new \Exception('Failed to create GoCardless requisition');
+		}
 
-        return $data;
-    }
+		return $data;
+	}
 
-    private function getRequisition(string $accessToken, string $requisitionId): array {
-        $client = $this->clientService->newClient();
-        $response = $client->get(self::BASE_URL . '/requisitions/' . urlencode($requisitionId) . '/', [
-            'headers' => ['Authorization' => 'Bearer ' . $accessToken],
-            'timeout' => 30,
-        ]);
+	private function getRequisition(string $accessToken, string $requisitionId): array {
+		$client = $this->clientService->newClient();
+		$response = $client->get(self::BASE_URL . '/requisitions/' . urlencode($requisitionId) . '/', [
+			'headers' => ['Authorization' => 'Bearer ' . $accessToken],
+			'timeout' => 30,
+		]);
 
-        return json_decode($response->getBody(), true) ?? [];
-    }
+		return json_decode($response->getBody(), true) ?? [];
+	}
 
-    private function getAccountDetails(string $accessToken, string $accountId): array {
-        $client = $this->clientService->newClient();
-        $response = $client->get(self::BASE_URL . '/accounts/' . urlencode($accountId) . '/details/', [
-            'headers' => ['Authorization' => 'Bearer ' . $accessToken],
-            'timeout' => 30,
-        ]);
+	private function getAccountDetails(string $accessToken, string $accountId): array {
+		$client = $this->clientService->newClient();
+		$response = $client->get(self::BASE_URL . '/accounts/' . urlencode($accountId) . '/details/', [
+			'headers' => ['Authorization' => 'Bearer ' . $accessToken],
+			'timeout' => 30,
+		]);
 
-        return json_decode($response->getBody(), true) ?? [];
-    }
+		return json_decode($response->getBody(), true) ?? [];
+	}
 
-    private function getAccountBalances(string $accessToken, string $accountId): array {
-        $client = $this->clientService->newClient();
-        $response = $client->get(self::BASE_URL . '/accounts/' . urlencode($accountId) . '/balances/', [
-            'headers' => ['Authorization' => 'Bearer ' . $accessToken],
-            'timeout' => 30,
-        ]);
+	private function getAccountBalances(string $accessToken, string $accountId): array {
+		$client = $this->clientService->newClient();
+		$response = $client->get(self::BASE_URL . '/accounts/' . urlencode($accountId) . '/balances/', [
+			'headers' => ['Authorization' => 'Bearer ' . $accessToken],
+			'timeout' => 30,
+		]);
 
-        return json_decode($response->getBody(), true) ?? [];
-    }
+		return json_decode($response->getBody(), true) ?? [];
+	}
 
-    private function getAccountTransactions(string $accessToken, string $accountId): array {
-        $client = $this->clientService->newClient();
-        $response = $client->get(self::BASE_URL . '/accounts/' . urlencode($accountId) . '/transactions/', [
-            'headers' => ['Authorization' => 'Bearer ' . $accessToken],
-            'timeout' => 30,
-        ]);
+	private function getAccountTransactions(string $accessToken, string $accountId): array {
+		$client = $this->clientService->newClient();
+		$response = $client->get(self::BASE_URL . '/accounts/' . urlencode($accountId) . '/transactions/', [
+			'headers' => ['Authorization' => 'Bearer ' . $accessToken],
+			'timeout' => 30,
+		]);
 
-        return json_decode($response->getBody(), true) ?? [];
-    }
+		return json_decode($response->getBody(), true) ?? [];
+	}
 }

@@ -40,7 +40,7 @@ class BillServiceTest extends TestCase {
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnCallback(function (string $text, array $params = []) {
 			foreach ($params as $i => $param) {
-				$text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
+				$text = str_replace('%' . ($i + 1) . '$s', (string)$param, $text);
 			}
 			return $text;
 		});
@@ -102,7 +102,7 @@ class BillServiceTest extends TestCase {
 			->willReturn('2099-07-01');
 		$this->mapper->expects($this->once())
 			->method('insert')
-			->willReturnCallback(fn(Bill $b) => $b);
+			->willReturnCallback(fn (Bill $b) => $b);
 
 		$bill = $this->service->create('user1', 'Netflix', 15.99, 'monthly', 1);
 
@@ -117,7 +117,7 @@ class BillServiceTest extends TestCase {
 		// First call = next due from today (before start); second = from start date.
 		$this->frequencyCalculator->method('calculateNextDueDate')
 			->willReturnOnConsecutiveCalls('2099-07-01', '2099-09-01');
-		$this->mapper->expects($this->once())->method('insert')->willReturnCallback(fn(Bill $b) => $b);
+		$this->mapper->expects($this->once())->method('insert')->willReturnCallback(fn (Bill $b) => $b);
 
 		$bill = $this->service->create(
 			'user1', 'Rent', 1000.0, 'monthly', 1,
@@ -162,7 +162,7 @@ class BillServiceTest extends TestCase {
 		$this->frequencyCalculator->method('calculateNextDueDate')
 			->with('one-time', 26, 8, null, null, false, '2020-08-26')
 			->willReturn('2020-08-26');
-		$this->mapper->method('insert')->willReturnCallback(fn(Bill $b) => $b);
+		$this->mapper->method('insert')->willReturnCallback(fn (Bill $b) => $b);
 
 		// dueDay/dueMonth deliberately wrong in the request (1 January): the date wins
 		$bill = $this->service->create('user1', 'Garage', 321.60, 'one-time', 1, 1, startDate: '2020-08-26');
@@ -180,7 +180,7 @@ class BillServiceTest extends TestCase {
 	 */
 	public function testCreatePreCreatesAScheduledPlaceholderEvenForAPastDate(): void {
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2020-08-26');
-		$this->mapper->method('insert')->willReturnCallback(fn(Bill $b) => $b);
+		$this->mapper->method('insert')->willReturnCallback(fn (Bill $b) => $b);
 
 		$this->transactionService->expects($this->once())
 			->method('createFromBill')
@@ -199,7 +199,7 @@ class BillServiceTest extends TestCase {
 		return $method->invoke($this->service, $occurrences, $bill, $payments, 2026);
 	}
 
-	private function monthly(array $months = null): array {
+	private function monthly(?array $months = null): array {
 		$occ = array_fill(1, 12, false);
 		foreach ($months ?? range(1, 12) as $m) {
 			$occ[$m] = true;
@@ -335,7 +335,7 @@ class BillServiceTest extends TestCase {
 	public function testOneTimeBillsWithTheSameNameShareOneCalendarRow(): void {
 		$method = new \ReflectionMethod($this->service, 'groupOneTimeBillsByName');
 		$method->setAccessible(true);
-		$row = fn(int $id, string $name, string $freq, int $month, float $amount, bool $paid, bool $active) => [
+		$row = fn (int $id, string $name, string $freq, int $month, float $amount, bool $paid, bool $active) => [
 			'id' => $id, 'name' => $name, 'frequency' => $freq, 'currency' => 'CHF', 'amount' => $amount, 'isActive' => $active,
 			'occurrences' => array_replace(array_fill(1, 12, false), [$month => true]),
 			'paidMonths' => $paid ? [$month] : [], 'paidAmounts' => $paid ? [$month => $amount] : [],
@@ -475,7 +475,7 @@ class BillServiceTest extends TestCase {
 		$this->mapper->method('findByType')->willReturn([$water, $gas]);
 		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
 
-		$names = fn(array $result) => array_column($result['bills'], 'name');
+		$names = fn (array $result) => array_column($result['bills'], 'name');
 
 		$this->assertSame(['Gas'], $names($this->service->getAnnualOverview('user1', 2026)));
 		$this->assertSame(['Water', 'Gas'], $names($this->service->getAnnualOverview('user1', 2027)));
@@ -500,7 +500,7 @@ class BillServiceTest extends TestCase {
 	public function testGroupingOneTimeBillsMergesUnrecordedMonths(): void {
 		$method = new \ReflectionMethod($this->service, 'groupOneTimeBillsByName');
 		$method->setAccessible(true);
-		$row = fn(int $id, int $month, bool $paid, bool $unrecorded) => [
+		$row = fn (int $id, int $month, bool $paid, bool $unrecorded) => [
 			'id' => $id, 'name' => 'Garage', 'frequency' => 'one-time', 'currency' => 'CHF', 'amount' => 100.0, 'isActive' => false,
 			'occurrences' => array_replace(array_fill(1, 12, false), [$month => true]),
 			'paidMonths' => $paid ? [$month] : [], 'paidAmounts' => $paid ? [$month => 100.0] : [],
@@ -600,10 +600,10 @@ class BillServiceTest extends TestCase {
 		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
 		$this->incomeMapper->expects($this->once())->method('findActive')->with('user1')->willReturn([]);
 
-		$result = $this->service->getAnnualOverview('user1', (int) date('Y'), false, 'active', 5);
+		$result = $this->service->getAnnualOverview('user1', (int)date('Y'), false, 'active', 5);
 
 		$this->assertSame(['id' => 5, 'name' => 'Current', 'currency' => 'CHF', 'balance' => 1000.0], $result['account']);
-		$current = (int) date('n');
+		$current = (int)date('n');
 		for ($month = 1; $month <= 12; $month++) {
 			if ($month < $current) {
 				$this->assertNull($result['projectedBalance'][$month], "month $month has gone");
@@ -621,12 +621,12 @@ class BillServiceTest extends TestCase {
 	 * so every month up to this one lands in this one.
 	 */
 	public function testAnnualOverviewProjectsTransfersTheTableHides(): void {
-		$year = (int) date('Y');
+		$year = (int)date('Y');
 		$this->accountMapper->method('findAll')->willReturn([$this->makeAccount(5, 'Current'), $this->makeAccount(7, 'Savings')]);
 		$this->transactionService->method('getBalanceAsOf')->willReturn(1000.0);
 		$topUp = $this->makeBill(['id' => 3, 'name' => 'Top-up', 'amount' => 100.0, 'accountId' => 7, 'isTransfer' => true, 'destinationAccountId' => 5, 'nextDueDate' => "$year-01-15"]);
 		$this->mapper->method('findByType')->willReturnCallback(
-			fn(string $userId, ?bool $isTransfer) => $isTransfer === false ? [] : [$topUp]
+			fn (string $userId, ?bool $isTransfer) => $isTransfer === false ? [] : [$topUp]
 		);
 		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
 		$this->incomeMapper->method('findActive')->willReturn([]);
@@ -634,7 +634,7 @@ class BillServiceTest extends TestCase {
 		$result = $this->service->getAnnualOverview('user1', $year, false, 'active', 5);
 
 		$this->assertSame([], $result['bills'], 'the table still hides it');
-		$current = (int) date('n');
+		$current = (int)date('n');
 		$this->assertEqualsWithDelta(100.0 * $current, $result['projectedFlows'][$current]['transfersIn'], 0.001);
 		$this->assertEqualsWithDelta(2200.0, $result['projectedBalance'][12], 0.001);
 	}
@@ -647,7 +647,7 @@ class BillServiceTest extends TestCase {
 		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
 		$this->incomeMapper->expects($this->never())->method('findActive');
 
-		$result = $this->service->getAnnualOverview('user1', (int) date('Y') + 1, false, 'active', 5);
+		$result = $this->service->getAnnualOverview('user1', (int)date('Y') + 1, false, 'active', 5);
 
 		$this->assertSame('Current', $result['account']['name']);
 		$this->assertNull($result['projectedBalance']);
@@ -659,7 +659,7 @@ class BillServiceTest extends TestCase {
 		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
 		$this->transactionService->expects($this->never())->method('getBalanceAsOf');
 
-		$result = $this->service->getAnnualOverview('user1', (int) date('Y'));
+		$result = $this->service->getAnnualOverview('user1', (int)date('Y'));
 
 		$this->assertNull($result['account']);
 		$this->assertNull($result['projectedBalance']);
@@ -672,7 +672,7 @@ class BillServiceTest extends TestCase {
 		$this->mapper->method('findByType')->willReturn([]);
 		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
 
-		$result = $this->service->getAnnualOverview('user1', (int) date('Y'), false, 'active', 99);
+		$result = $this->service->getAnnualOverview('user1', (int)date('Y'), false, 'active', 99);
 
 		$this->assertNull($result['account']);
 		$this->assertNull($result['projectedBalance']);
@@ -736,7 +736,7 @@ class BillServiceTest extends TestCase {
 			return $b;
 		});
 
-		$mk = fn(array $o = []) => array_merge([
+		$mk = fn (array $o = []) => array_merge([
 			'patternKey' => 'netflix|16', 'description' => 'NETFLIX 12345',
 			'suggestedName' => 'Netflix', 'amount' => 15.99, 'frequency' => 'monthly',
 			'dueDay' => 16, 'categoryId' => null, 'accountId' => null,
@@ -999,10 +999,10 @@ class BillServiceTest extends TestCase {
 		// it paid; an unrelated edit must leave that date alone (#584).
 		$real = new FrequencyCalculator();
 		$this->frequencyCalculator->method('calculateNextDueDate')
-			->willReturnCallback(fn(...$args) => $real->calculateNextDueDate(...$args));
+			->willReturnCallback(fn (...$args) => $real->calculateNextDueDate(...$args));
 
 		$due = (new \DateTime('+5 days'))->format('Y-m-d');
-		$dueDay = (int) (new \DateTime($due))->format('j');
+		$dueDay = (int)(new \DateTime($due))->format('j');
 		$nextDue = $due;
 		for ($i = 0; $i < $periodsAhead; $i++) {
 			$nextDue = $real->calculateNextDueDate('monthly', $dueDay, null, $nextDue, null, true);
@@ -1035,13 +1035,13 @@ class BillServiceTest extends TestCase {
 	public function testCreateBiweeklyAnchorsToStartDate(): void {
 		// Back the mock with the real calculator so the anchor maths runs.
 		$this->frequencyCalculator->method('calculateNextDueDate')
-			->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
-		$this->mapper->method('insert')->willReturnCallback(fn(Bill $b) => $b);
+			->willReturnCallback(fn (...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+		$this->mapper->method('insert')->willReturnCallback(fn (Bill $b) => $b);
 
 		// Anchor 21 days ago: occurrences at -21, -7 and +7 days. Without the
 		// anchor, creation week would win and next due would land at +14.
 		$anchor = (new \DateTime('-21 days'))->format('Y-m-d');
-		$dueDay = (int) (new \DateTime())->format('N'); // same weekday as anchor
+		$dueDay = (int)(new \DateTime())->format('N'); // same weekday as anchor
 
 		$bill = $this->service->create('user1', 'Pay', 100.0, 'biweekly', $dueDay, startDate: $anchor);
 
@@ -1054,12 +1054,12 @@ class BillServiceTest extends TestCase {
 		// flipped its parity. With a startDate anchor the stored due date is
 		// consistent and must be left alone.
 		$this->frequencyCalculator->method('calculateNextDueDate')
-			->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+			->willReturnCallback(fn (...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
 
 		$anchor = (new \DateTime('-21 days'))->format('Y-m-d');
 		$bill = $this->makeBill([
 			'frequency' => 'biweekly',
-			'dueDay' => (int) (new \DateTime())->format('N'),
+			'dueDay' => (int)(new \DateTime())->format('N'),
 			'nextDueDate' => (new \DateTime('+7 days'))->format('Y-m-d'),
 		]);
 		$bill->setStartDate($anchor);
@@ -1079,7 +1079,7 @@ class BillServiceTest extends TestCase {
 
 	public function testUpdateScheduleChangeRecomputesFromStartDateAnchor(): void {
 		$this->frequencyCalculator->method('calculateNextDueDate')
-			->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+			->willReturnCallback(fn (...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
 
 		// Weekly bill due today, anchored 21 days back; switching it to
 		// biweekly must land on the anchor's fortnight (+7 days), not on
@@ -1087,7 +1087,7 @@ class BillServiceTest extends TestCase {
 		$anchor = (new \DateTime('-21 days'))->format('Y-m-d');
 		$bill = $this->makeBill([
 			'frequency' => 'weekly',
-			'dueDay' => (int) (new \DateTime())->format('N'),
+			'dueDay' => (int)(new \DateTime())->format('N'),
 			'nextDueDate' => (new \DateTime())->format('Y-m-d'),
 		]);
 		$bill->setStartDate($anchor);
@@ -1106,7 +1106,7 @@ class BillServiceTest extends TestCase {
 
 	public function testUpdateSettingStartDateReanchorsNextDue(): void {
 		$this->frequencyCalculator->method('calculateNextDueDate')
-			->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+			->willReturnCallback(fn (...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
 
 		// Un-anchored biweekly bill stuck on creation-week parity (+14 days);
 		// giving it a startDate must snap next due onto the anchor's
@@ -1114,7 +1114,7 @@ class BillServiceTest extends TestCase {
 		$anchor = (new \DateTime('-21 days'))->format('Y-m-d');
 		$bill = $this->makeBill([
 			'frequency' => 'biweekly',
-			'dueDay' => (int) (new \DateTime())->format('N'),
+			'dueDay' => (int)(new \DateTime())->format('N'),
 			'nextDueDate' => (new \DateTime('+14 days'))->format('Y-m-d'),
 		]);
 		$this->mapper->method('find')->willReturn($bill);
@@ -1132,7 +1132,7 @@ class BillServiceTest extends TestCase {
 
 	public function testCreatePersistsPreBookOptOut(): void {
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-01');
-		$this->mapper->method('insert')->willReturnCallback(fn(Bill $b) => $b);
+		$this->mapper->method('insert')->willReturnCallback(fn (Bill $b) => $b);
 
 		$bill = $this->service->create('user1', 'Netflix', 15.99, 'monthly', 1, createTransaction: false);
 
@@ -1743,7 +1743,7 @@ class BillServiceTest extends TestCase {
 			->with(20, $this->anything())
 			->willReturn(440.0);
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-09-15');
-		$this->mapper->method('insert')->willReturnCallback(fn(Bill $b) => $b);
+		$this->mapper->method('insert')->willReturnCallback(fn (Bill $b) => $b);
 
 		$bill = $this->service->create(
 			userId: 'user1', name: 'Visa payment', amount: 0.0, frequency: 'monthly',
@@ -2119,12 +2119,12 @@ class BillServiceTest extends TestCase {
 		// after today", which is today itself — snapping the bill back onto
 		// the just-paid occurrence, which auto-pay then paid again.
 		$this->frequencyCalculator->method('calculateNextDueDate')
-			->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+			->willReturnCallback(fn (...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
 
 		$today = new \DateTime();
 		$bill = $this->makeBill([
 			'frequency' => 'biweekly',
-			'dueDay' => (int) $today->format('N'),
+			'dueDay' => (int)$today->format('N'),
 			'nextDueDate' => (clone $today)->modify('+14 days')->format('Y-m-d'),
 			'lastPaidDate' => $today->format('Y-m-d'),
 		]);
@@ -2148,13 +2148,13 @@ class BillServiceTest extends TestCase {
 		// paid one period earlier. The overdue date is real, unpaid state —
 		// an unrelated edit must not silently snap it into the future.
 		$this->frequencyCalculator->method('calculateNextDueDate')
-			->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+			->willReturnCallback(fn (...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
 
 		$today = new \DateTime();
 		$overdue = (clone $today)->modify('-3 days')->format('Y-m-d');
 		$bill = $this->makeBill([
 			'frequency' => 'biweekly',
-			'dueDay' => (int) (new \DateTime($overdue))->format('N'),
+			'dueDay' => (int)(new \DateTime($overdue))->format('N'),
 			'nextDueDate' => $overdue,
 			'lastPaidDate' => (clone $today)->modify('-17 days')->format('Y-m-d'),
 		]);

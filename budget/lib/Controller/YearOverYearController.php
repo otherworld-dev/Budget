@@ -20,391 +20,391 @@ use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
 class YearOverYearController extends Controller {
-    use SharedAccessTrait;
+	use SharedAccessTrait;
 
-    private YearOverYearService $service;
-    private IL10N $l;
-    private string $userId;
-    private LoggerInterface $logger;
+	private YearOverYearService $service;
+	private IL10N $l;
+	private string $userId;
+	private LoggerInterface $logger;
 
-    public function __construct(
-        IRequest $request,
-        YearOverYearService $service,
-        GranularShareService $granularShareService,
-        IL10N $l,
-        string $userId,
-        LoggerInterface $logger
-    ) {
-        parent::__construct(Application::APP_ID, $request);
-        $this->service = $service;
-        $this->l = $l;
-        $this->userId = $userId;
-        $this->logger = $logger;
-        $this->setGranularShareService($granularShareService);
-    }
+	public function __construct(
+		IRequest $request,
+		YearOverYearService $service,
+		GranularShareService $granularShareService,
+		IL10N $l,
+		string $userId,
+		LoggerInterface $logger,
+	) {
+		parent::__construct(Application::APP_ID, $request);
+		$this->service = $service;
+		$this->l = $l;
+		$this->userId = $userId;
+		$this->logger = $logger;
+		$this->setGranularShareService($granularShareService);
+	}
 
-    /**
-     * Compare the same month across multiple years.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function compareMonth(int $month = 0, int $years = 3, ?int $accountId = null, ?array $accountIds = null, ?bool $excludeShared = null): DataResponse {
-        try {
-            // Default to current month if not specified
-            if ($month <= 0 || $month > 12) {
-                $month = (int) date('n');
-            }
+	/**
+	 * Compare the same month across multiple years.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function compareMonth(int $month = 0, int $years = 3, ?int $accountId = null, ?array $accountIds = null, ?bool $excludeShared = null): DataResponse {
+		try {
+			// Default to current month if not specified
+			if ($month <= 0 || $month > 12) {
+				$month = (int)date('n');
+			}
 
-            // Limit years to reasonable range
-            $years = max(1, min(10, $years));
+			// Limit years to reasonable range
+			$years = max(1, min(10, $years));
 
-            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
-            $comparison = $this->service->compareMonth($this->getEffectiveUserId(), $month, $years, $accountId, $visibleAccountIds);
-            return new DataResponse($comparison);
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to compare month', [
-                'exception' => $e,
-                'userId' => $this->userId,
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to compare month data')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+			[$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
+			$comparison = $this->service->compareMonth($this->getEffectiveUserId(), $month, $years, $accountId, $visibleAccountIds);
+			return new DataResponse($comparison);
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to compare month', [
+				'exception' => $e,
+				'userId' => $this->userId,
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to compare month data')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Compare full years.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function compareYears(int $years = 3, ?int $accountId = null, ?array $accountIds = null, ?bool $excludeShared = null): DataResponse {
-        try {
-            // Limit years to reasonable range
-            $years = max(1, min(10, $years));
+	/**
+	 * Compare full years.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function compareYears(int $years = 3, ?int $accountId = null, ?array $accountIds = null, ?bool $excludeShared = null): DataResponse {
+		try {
+			// Limit years to reasonable range
+			$years = max(1, min(10, $years));
 
-            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
-            $comparison = $this->service->compareYears($this->getEffectiveUserId(), $years, $accountId, $visibleAccountIds);
-            return new DataResponse($comparison);
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to compare years', [
-                'exception' => $e,
-                'userId' => $this->userId,
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to compare year data')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+			[$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
+			$comparison = $this->service->compareYears($this->getEffectiveUserId(), $years, $accountId, $visibleAccountIds);
+			return new DataResponse($comparison);
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to compare years', [
+				'exception' => $e,
+				'userId' => $this->userId,
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to compare year data')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Compare spending by category across years.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function compareCategories(int $years = 2, ?int $accountId = null, ?array $accountIds = null, ?bool $excludeShared = null): DataResponse {
-        try {
-            // Limit years to reasonable range
-            $years = max(1, min(5, $years));
+	/**
+	 * Compare spending by category across years.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function compareCategories(int $years = 2, ?int $accountId = null, ?array $accountIds = null, ?bool $excludeShared = null): DataResponse {
+		try {
+			// Limit years to reasonable range
+			$years = max(1, min(5, $years));
 
-            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
-            $comparison = $this->service->compareCategorySpending($this->getEffectiveUserId(), $years, $accountId, $visibleAccountIds);
-            return new DataResponse($comparison);
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to compare categories', [
-                'exception' => $e,
-                'userId' => $this->userId,
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to compare category data')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+			[$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
+			$comparison = $this->service->compareCategorySpending($this->getEffectiveUserId(), $years, $accountId, $visibleAccountIds);
+			return new DataResponse($comparison);
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to compare categories', [
+				'exception' => $e,
+				'userId' => $this->userId,
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to compare category data')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Get monthly trends for year comparison.
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function monthlyTrends(int $years = 2, ?int $accountId = null, ?array $accountIds = null, ?bool $excludeShared = null): DataResponse {
-        try {
-            // Limit years to reasonable range
-            $years = max(1, min(5, $years));
+	/**
+	 * Get monthly trends for year comparison.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function monthlyTrends(int $years = 2, ?int $accountId = null, ?array $accountIds = null, ?bool $excludeShared = null): DataResponse {
+		try {
+			// Limit years to reasonable range
+			$years = max(1, min(5, $years));
 
-            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
-            $trends = $this->service->getMonthlyTrends($this->getEffectiveUserId(), $years, $accountId, $visibleAccountIds);
-            return new DataResponse($trends);
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to get monthly trends', [
-                'exception' => $e,
-                'userId' => $this->userId,
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to get monthly trends')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+			[$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
+			$trends = $this->service->getMonthlyTrends($this->getEffectiveUserId(), $years, $accountId, $visibleAccountIds);
+			return new DataResponse($trends);
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to get monthly trends', [
+				'exception' => $e,
+				'userId' => $this->userId,
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to get monthly trends')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    /**
-     * Export YoY comparison data as CSV or PDF.
-     *
-     * @NoAdminRequired
-     */
-    public function export(
-        string $comparisonType = 'years',
-        string $format = 'csv',
-        int $years = 3,
-        int $month = 0,
-        ?int $accountId = null,
-        ?array $accountIds = null,
-        ?bool $excludeShared = null
-    ): DataDownloadResponse|DataResponse {
-        try {
-            $years = max(1, min(10, $years));
+	/**
+	 * Export YoY comparison data as CSV or PDF.
+	 *
+	 * @NoAdminRequired
+	 */
+	public function export(
+		string $comparisonType = 'years',
+		string $format = 'csv',
+		int $years = 3,
+		int $month = 0,
+		?int $accountId = null,
+		?array $accountIds = null,
+		?bool $excludeShared = null,
+	): DataDownloadResponse|DataResponse {
+		try {
+			$years = max(1, min(10, $years));
 
-            [$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
-            $data = match ($comparisonType) {
-                'month' => $this->service->compareMonth(
-                    $this->getEffectiveUserId(),
-                    ($month > 0 && $month <= 12) ? $month : (int) date('n'),
-                    $years,
-                    $accountId,
-                    $visibleAccountIds
-                ),
-                'categories' => $this->service->compareCategorySpending($this->getEffectiveUserId(), min($years, 5), $accountId, $visibleAccountIds),
-                default => $this->service->compareYears($this->getEffectiveUserId(), $years, $accountId, $visibleAccountIds),
-            };
+			[$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
+			$data = match ($comparisonType) {
+				'month' => $this->service->compareMonth(
+					$this->getEffectiveUserId(),
+					($month > 0 && $month <= 12) ? $month : (int)date('n'),
+					$years,
+					$accountId,
+					$visibleAccountIds
+				),
+				'categories' => $this->service->compareCategorySpending($this->getEffectiveUserId(), min($years, 5), $accountId, $visibleAccountIds),
+				default => $this->service->compareYears($this->getEffectiveUserId(), $years, $accountId, $visibleAccountIds),
+			};
 
-            if ($format === 'pdf') {
-                $result = $this->exportYoYToPdf($data, $comparisonType);
-            } else {
-                $result = $this->exportYoYToCsv($data, $comparisonType);
-            }
+			if ($format === 'pdf') {
+				$result = $this->exportYoYToPdf($data, $comparisonType);
+			} else {
+				$result = $this->exportYoYToCsv($data, $comparisonType);
+			}
 
-            return new DataDownloadResponse(
-                $result['stream'],
-                $result['filename'],
-                $result['contentType']
-            );
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to export YoY data', [
-                'exception' => $e,
-                'userId' => $this->userId,
-            ]);
-            return new DataResponse(
-                ['error' => $this->l->t('Failed to export YoY data')],
-                Http::STATUS_INTERNAL_SERVER_ERROR
-            );
-        }
-    }
+			return new DataDownloadResponse(
+				$result['stream'],
+				$result['filename'],
+				$result['contentType']
+			);
+		} catch (\Exception $e) {
+			$this->logger->error('Failed to export YoY data', [
+				'exception' => $e,
+				'userId' => $this->userId,
+			]);
+			return new DataResponse(
+				['error' => $this->l->t('Failed to export YoY data')],
+				Http::STATUS_INTERNAL_SERVER_ERROR
+			);
+		}
+	}
 
-    private function exportYoYToCsv(array $data, string $comparisonType): array {
-        $csv = fopen('php://memory', 'w');
+	private function exportYoYToCsv(array $data, string $comparisonType): array {
+		$csv = fopen('php://memory', 'w');
 
-        if ($comparisonType === 'categories') {
-            $this->writeYoYCategoriesCsv($csv, $data);
-        } else {
-            $this->writeYoYComparisonCsv($csv, $data, $comparisonType);
-        }
+		if ($comparisonType === 'categories') {
+			$this->writeYoYCategoriesCsv($csv, $data);
+		} else {
+			$this->writeYoYComparisonCsv($csv, $data, $comparisonType);
+		}
 
-        rewind($csv);
-        $content = stream_get_contents($csv);
-        fclose($csv);
+		rewind($csv);
+		$content = stream_get_contents($csv);
+		fclose($csv);
 
-        return [
-            'stream' => $content,
-            'contentType' => 'text/csv',
-            'filename' => "yoy_{$comparisonType}_" . date('Y-m-d') . '.csv',
-        ];
-    }
+		return [
+			'stream' => $content,
+			'contentType' => 'text/csv',
+			'filename' => "yoy_{$comparisonType}_" . date('Y-m-d') . '.csv',
+		];
+	}
 
-    /**
-     * "Year Comparison", or "<Month> Comparison" with the month in the user's language.
-     */
-    private function comparisonHeading(array $data, string $comparisonType): string {
-        if ($comparisonType !== 'month') {
-            return $this->l->t('Year Comparison');
-        }
-        $month = (int) ($data['month'] ?? 0);
-        $name = ($month >= 1 && $month <= 12)
-            ? MonthNames::long($this->l, $month)
-            : (string) ($data['monthName'] ?? $this->l->t('Month'));
-        return $this->l->t('%s Comparison', [$name]);
-    }
+	/**
+	 * "Year Comparison", or "<Month> Comparison" with the month in the user's language.
+	 */
+	private function comparisonHeading(array $data, string $comparisonType): string {
+		if ($comparisonType !== 'month') {
+			return $this->l->t('Year Comparison');
+		}
+		$month = (int)($data['month'] ?? 0);
+		$name = ($month >= 1 && $month <= 12)
+			? MonthNames::long($this->l, $month)
+			: (string)($data['monthName'] ?? $this->l->t('Month'));
+		return $this->l->t('%s Comparison', [$name]);
+	}
 
-    /**
-     * @return string[]
-     */
-    private function comparisonColumns(): array {
-        return [
-            $this->l->t('Year'),
-            $this->l->t('Income'),
-            $this->l->t('Expenses'),
-            $this->l->t('Savings'),
-            $this->l->t('Transactions'),
-            $this->l->t('Income Change %%'),
-            $this->l->t('Expense Change %%'),
-        ];
-    }
+	/**
+	 * @return string[]
+	 */
+	private function comparisonColumns(): array {
+		return [
+			$this->l->t('Year'),
+			$this->l->t('Income'),
+			$this->l->t('Expenses'),
+			$this->l->t('Savings'),
+			$this->l->t('Transactions'),
+			$this->l->t('Income Change %%'),
+			$this->l->t('Expense Change %%'),
+		];
+	}
 
-    private function writeYoYComparisonCsv($handle, array $data, string $comparisonType): void {
-        CsvSafe::put($handle, [$this->comparisonHeading($data, $comparisonType)]);
-        CsvSafe::put($handle, $this->comparisonColumns());
+	private function writeYoYComparisonCsv($handle, array $data, string $comparisonType): void {
+		CsvSafe::put($handle, [$this->comparisonHeading($data, $comparisonType)]);
+		CsvSafe::put($handle, $this->comparisonColumns());
 
-        foreach ($data['years'] ?? [] as $year) {
-            CsvSafe::put($handle, [
-                $year['year'] ?? '',
-                $year['income'] ?? 0,
-                $year['expenses'] ?? 0,
-                $year['savings'] ?? 0,
-                $year['transactionCount'] ?? 0,
-                isset($year['incomeChange']) ? round($year['incomeChange'], 1) . '%' : '-',
-                isset($year['expenseChange']) ? round($year['expenseChange'], 1) . '%' : '-',
-            ]);
-        }
-    }
+		foreach ($data['years'] ?? [] as $year) {
+			CsvSafe::put($handle, [
+				$year['year'] ?? '',
+				$year['income'] ?? 0,
+				$year['expenses'] ?? 0,
+				$year['savings'] ?? 0,
+				$year['transactionCount'] ?? 0,
+				isset($year['incomeChange']) ? round($year['incomeChange'], 1) . '%' : '-',
+				isset($year['expenseChange']) ? round($year['expenseChange'], 1) . '%' : '-',
+			]);
+		}
+	}
 
-    private function writeYoYCategoriesCsv($handle, array $data): void {
-        // Build header: Category, Year1, Year2, ..., Change %
-        $years = [];
-        foreach ($data['categories'] ?? [] as $cat) {
-            foreach ($cat['years'] ?? [] as $y) {
-                if (!in_array($y['year'], $years)) {
-                    $years[] = $y['year'];
-                }
-            }
-            break;
-        }
-        sort($years);
+	private function writeYoYCategoriesCsv($handle, array $data): void {
+		// Build header: Category, Year1, Year2, ..., Change %
+		$years = [];
+		foreach ($data['categories'] ?? [] as $cat) {
+			foreach ($cat['years'] ?? [] as $y) {
+				if (!in_array($y['year'], $years)) {
+					$years[] = $y['year'];
+				}
+			}
+			break;
+		}
+		sort($years);
 
-        $header = [$this->l->t('Category')];
-        foreach ($years as $y) {
-            $header[] = (string) $y;
-        }
-        $header[] = $this->l->t('Change %%');
-        CsvSafe::put($handle, $header);
+		$header = [$this->l->t('Category')];
+		foreach ($years as $y) {
+			$header[] = (string)$y;
+		}
+		$header[] = $this->l->t('Change %%');
+		CsvSafe::put($handle, $header);
 
-        foreach ($data['categories'] ?? [] as $cat) {
-            $row = [$cat['name'] ?? $this->l->t('Unknown')];
-            // Build year lookup for this category
-            $yearLookup = [];
-            foreach ($cat['years'] ?? [] as $y) {
-                $yearLookup[$y['year']] = $y['spending'] ?? 0;
-            }
-            foreach ($years as $y) {
-                $row[] = $yearLookup[$y] ?? 0;
-            }
-            $row[] = $cat['change'] !== null ? round($cat['change'], 1) . '%' : '-';
-            CsvSafe::put($handle, $row);
-        }
-    }
+		foreach ($data['categories'] ?? [] as $cat) {
+			$row = [$cat['name'] ?? $this->l->t('Unknown')];
+			// Build year lookup for this category
+			$yearLookup = [];
+			foreach ($cat['years'] ?? [] as $y) {
+				$yearLookup[$y['year']] = $y['spending'] ?? 0;
+			}
+			foreach ($years as $y) {
+				$row[] = $yearLookup[$y] ?? 0;
+			}
+			$row[] = $cat['change'] !== null ? round($cat['change'], 1) . '%' : '-';
+			CsvSafe::put($handle, $row);
+		}
+	}
 
-    private function exportYoYToPdf(array $data, string $comparisonType): array {
-        if (!class_exists('TCPDF')) {
-            // Fallback to CSV
-            return $this->exportYoYToCsv($data, $comparisonType);
-        }
+	private function exportYoYToPdf(array $data, string $comparisonType): array {
+		if (!class_exists('TCPDF')) {
+			// Fallback to CSV
+			return $this->exportYoYToCsv($data, $comparisonType);
+		}
 
-        $pdf = new \TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
-        $pdf->SetCreator('Nextcloud Budget');
-        $title = $this->l->t('Year-over-Year Report');
-        $pdf->SetTitle($title);
-        $pdf->setPrintHeader(false);
-        $pdf->setPrintFooter(true);
-        $pdf->SetMargins(15, 15, 15);
-        $pdf->SetAutoPageBreak(true, 25);
-        $pdf->AddPage();
+		$pdf = new \TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
+		$pdf->SetCreator('Nextcloud Budget');
+		$title = $this->l->t('Year-over-Year Report');
+		$pdf->SetTitle($title);
+		$pdf->setPrintHeader(false);
+		$pdf->setPrintFooter(true);
+		$pdf->SetMargins(15, 15, 15);
+		$pdf->SetAutoPageBreak(true, 25);
+		$pdf->AddPage();
 
-        $pdf->SetFont('dejavusans', 'B', 16);
-        $pdf->Cell(0, 10, $title, 0, 1, 'C');
-        $pdf->Ln(5);
+		$pdf->SetFont('dejavusans', 'B', 16);
+		$pdf->Cell(0, 10, $title, 0, 1, 'C');
+		$pdf->Ln(5);
 
-        if ($comparisonType === 'categories') {
-            $this->renderYoYCategoriesPdf($pdf, $data);
-        } else {
-            $this->renderYoYComparisonPdf($pdf, $data, $comparisonType);
-        }
+		if ($comparisonType === 'categories') {
+			$this->renderYoYCategoriesPdf($pdf, $data);
+		} else {
+			$this->renderYoYComparisonPdf($pdf, $data, $comparisonType);
+		}
 
-        return [
-            'stream' => $pdf->Output('', 'S'),
-            'contentType' => 'application/pdf',
-            'filename' => "yoy_{$comparisonType}_" . date('Y-m-d') . '.pdf',
-        ];
-    }
+		return [
+			'stream' => $pdf->Output('', 'S'),
+			'contentType' => 'application/pdf',
+			'filename' => "yoy_{$comparisonType}_" . date('Y-m-d') . '.pdf',
+		];
+	}
 
-    private function renderYoYComparisonPdf($pdf, array $data, string $comparisonType): void {
-        $pdf->SetFont('dejavusans', 'B', 12);
-        $pdf->Cell(0, 8, $this->comparisonHeading($data, $comparisonType), 0, 1);
+	private function renderYoYComparisonPdf($pdf, array $data, string $comparisonType): void {
+		$pdf->SetFont('dejavusans', 'B', 12);
+		$pdf->Cell(0, 8, $this->comparisonHeading($data, $comparisonType), 0, 1);
 
-        $pdf->SetFont('dejavusans', 'B', 9);
-        $colWidths = [25, 35, 35, 35, 30, 40, 40];
-        $headers = $this->comparisonColumns();
-        foreach ($headers as $i => $h) {
-            $pdf->Cell($colWidths[$i], 6, $h, 1, 0, $i === 0 ? 'L' : 'R');
-        }
-        $pdf->Ln();
+		$pdf->SetFont('dejavusans', 'B', 9);
+		$colWidths = [25, 35, 35, 35, 30, 40, 40];
+		$headers = $this->comparisonColumns();
+		foreach ($headers as $i => $h) {
+			$pdf->Cell($colWidths[$i], 6, $h, 1, 0, $i === 0 ? 'L' : 'R');
+		}
+		$pdf->Ln();
 
-        $pdf->SetFont('dejavusans', '', 9);
-        foreach ($data['years'] ?? [] as $year) {
-            $pdf->Cell($colWidths[0], 6, $year['year'] ?? '', 1, 0, 'L');
-            $pdf->Cell($colWidths[1], 6, number_format($year['income'] ?? 0, 2), 1, 0, 'R');
-            $pdf->Cell($colWidths[2], 6, number_format($year['expenses'] ?? 0, 2), 1, 0, 'R');
-            $pdf->Cell($colWidths[3], 6, number_format($year['savings'] ?? 0, 2), 1, 0, 'R');
-            $pdf->Cell($colWidths[4], 6, $year['transactionCount'] ?? 0, 1, 0, 'R');
-            $pdf->Cell($colWidths[5], 6, isset($year['incomeChange']) ? round($year['incomeChange'], 1) . '%' : '-', 1, 0, 'R');
-            $pdf->Cell($colWidths[6], 6, isset($year['expenseChange']) ? round($year['expenseChange'], 1) . '%' : '-', 1, 0, 'R');
-            $pdf->Ln();
-        }
-    }
+		$pdf->SetFont('dejavusans', '', 9);
+		foreach ($data['years'] ?? [] as $year) {
+			$pdf->Cell($colWidths[0], 6, $year['year'] ?? '', 1, 0, 'L');
+			$pdf->Cell($colWidths[1], 6, number_format($year['income'] ?? 0, 2), 1, 0, 'R');
+			$pdf->Cell($colWidths[2], 6, number_format($year['expenses'] ?? 0, 2), 1, 0, 'R');
+			$pdf->Cell($colWidths[3], 6, number_format($year['savings'] ?? 0, 2), 1, 0, 'R');
+			$pdf->Cell($colWidths[4], 6, $year['transactionCount'] ?? 0, 1, 0, 'R');
+			$pdf->Cell($colWidths[5], 6, isset($year['incomeChange']) ? round($year['incomeChange'], 1) . '%' : '-', 1, 0, 'R');
+			$pdf->Cell($colWidths[6], 6, isset($year['expenseChange']) ? round($year['expenseChange'], 1) . '%' : '-', 1, 0, 'R');
+			$pdf->Ln();
+		}
+	}
 
-    private function renderYoYCategoriesPdf($pdf, array $data): void {
-        $pdf->SetFont('dejavusans', 'B', 12);
-        $pdf->Cell(0, 8, $this->l->t('Category Spending Comparison'), 0, 1);
+	private function renderYoYCategoriesPdf($pdf, array $data): void {
+		$pdf->SetFont('dejavusans', 'B', 12);
+		$pdf->Cell(0, 8, $this->l->t('Category Spending Comparison'), 0, 1);
 
-        // Determine year columns
-        $years = [];
-        foreach ($data['categories'] ?? [] as $cat) {
-            foreach ($cat['years'] ?? [] as $y) {
-                if (!in_array($y['year'], $years)) {
-                    $years[] = $y['year'];
-                }
-            }
-            break;
-        }
-        sort($years);
+		// Determine year columns
+		$years = [];
+		foreach ($data['categories'] ?? [] as $cat) {
+			foreach ($cat['years'] ?? [] as $y) {
+				if (!in_array($y['year'], $years)) {
+					$years[] = $y['year'];
+				}
+			}
+			break;
+		}
+		sort($years);
 
-        // Header
-        $pdf->SetFont('dejavusans', 'B', 9);
-        $catWidth = 60;
-        $yearWidth = count($years) > 0 ? min(40, (210 - $catWidth - 30) / count($years)) : 40;
-        $changeWidth = 30;
+		// Header
+		$pdf->SetFont('dejavusans', 'B', 9);
+		$catWidth = 60;
+		$yearWidth = count($years) > 0 ? min(40, (210 - $catWidth - 30) / count($years)) : 40;
+		$changeWidth = 30;
 
-        $pdf->Cell($catWidth, 6, $this->l->t('Category'), 1, 0, 'L');
-        foreach ($years as $y) {
-            $pdf->Cell($yearWidth, 6, (string) $y, 1, 0, 'R');
-        }
-        $pdf->Cell($changeWidth, 6, $this->l->t('Change %%'), 1, 1, 'R');
+		$pdf->Cell($catWidth, 6, $this->l->t('Category'), 1, 0, 'L');
+		foreach ($years as $y) {
+			$pdf->Cell($yearWidth, 6, (string)$y, 1, 0, 'R');
+		}
+		$pdf->Cell($changeWidth, 6, $this->l->t('Change %%'), 1, 1, 'R');
 
-        // Data rows
-        $pdf->SetFont('dejavusans', '', 9);
-        foreach ($data['categories'] ?? [] as $cat) {
-            $yearLookup = [];
-            foreach ($cat['years'] ?? [] as $y) {
-                $yearLookup[$y['year']] = $y['spending'] ?? 0;
-            }
+		// Data rows
+		$pdf->SetFont('dejavusans', '', 9);
+		foreach ($data['categories'] ?? [] as $cat) {
+			$yearLookup = [];
+			foreach ($cat['years'] ?? [] as $y) {
+				$yearLookup[$y['year']] = $y['spending'] ?? 0;
+			}
 
-            $pdf->Cell($catWidth, 6, $cat['name'] ?? $this->l->t('Unknown'), 1, 0, 'L');
-            foreach ($years as $y) {
-                $pdf->Cell($yearWidth, 6, number_format($yearLookup[$y] ?? 0, 2), 1, 0, 'R');
-            }
-            $pdf->Cell($changeWidth, 6, $cat['change'] !== null ? round($cat['change'], 1) . '%' : '-', 1, 1, 'R');
-        }
-    }
+			$pdf->Cell($catWidth, 6, $cat['name'] ?? $this->l->t('Unknown'), 1, 0, 'L');
+			foreach ($years as $y) {
+				$pdf->Cell($yearWidth, 6, number_format($yearLookup[$y] ?? 0, 2), 1, 0, 'R');
+			}
+			$pdf->Cell($changeWidth, 6, $cat['change'] !== null ? round($cat['change'], 1) . '%' : '-', 1, 1, 'R');
+		}
+	}
 }

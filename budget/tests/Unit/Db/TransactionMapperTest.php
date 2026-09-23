@@ -21,1530 +21,1530 @@ use PHPUnit\Framework\TestCase;
  * Stub to add escapeLikeParameter (not on IQueryBuilder interface).
  */
 abstract class TransactionQueryBuilder implements IQueryBuilder {
-    abstract public function escapeLikeParameter(string $parameter): string;
+	abstract public function escapeLikeParameter(string $parameter): string;
 }
 
 class TransactionMapperTest extends TestCase {
-    private TransactionMapper $mapper;
-    private IDBConnection $db;
-    /** @var TransactionQueryBuilder&\PHPUnit\Framework\MockObject\MockObject */
-    private $qb;
-    private IExpressionBuilder $expr;
-    private IFunctionBuilder $func;
-    private IResult $result;
-    private QueryFilterBuilder $filterBuilder;
-    /** Every SQL fragment passed to createFunction(), in call order. */
-    private array $capturedFunctions = [];
-
-    protected function setUp(): void {
-        $this->db = $this->createMock(IDBConnection::class);
-        $this->qb = $this->createMock(TransactionQueryBuilder::class);
-        $this->expr = $this->createMock(IExpressionBuilder::class);
-        $this->func = $this->createMock(IFunctionBuilder::class);
-        $this->result = $this->createMock(IResult::class);
-        $this->filterBuilder = $this->createMock(QueryFilterBuilder::class);
-
-        $this->db->method('getQueryBuilder')->willReturn($this->qb);
-        $this->qb->method('expr')->willReturn($this->expr);
-        $this->qb->method('func')->willReturn($this->func);
-        $this->qb->method('getSQL')->willReturn('');
-        $this->qb->method('createNamedParameter')->willReturn(':param');
-        $this->qb->method('escapeLikeParameter')->willReturnCallback(fn($v) => $v);
-
-        $mockFunction = $this->createMock(IQueryFunction::class);
-        // Record the raw SQL fragments so tests can assert on expression shape
-        // (a per-test re-stub would lose to this one — PHPUnit keeps the first
-        // configuration — so the recording has to live here in setUp).
-        $this->capturedFunctions = [];
-        $this->qb->method('createFunction')->willReturnCallback(function (string $sql) use ($mockFunction) {
-            $this->capturedFunctions[] = $sql;
-            return $mockFunction;
-        });
-        $this->func->method('sum')->willReturn($mockFunction);
-        $this->func->method('count')->willReturn($mockFunction);
-
-        // Fluent methods
-        foreach (['select', 'addSelect', 'selectAlias', 'from', 'where', 'andWhere',
-                   'orderBy', 'addOrderBy', 'innerJoin', 'leftJoin',
-                   'delete', 'update', 'set', 'groupBy', 'addGroupBy',
-                   'setMaxResults', 'setFirstResult'] as $method) {
-            $this->qb->method($method)->willReturnSelf();
-        }
-
-        $this->mapper = new TransactionMapper($this->db, $this->filterBuilder);
-    }
-
-    /** One IResult mock yielding the given rows -- for methods that run more than one query. */
-    private function resultOf(array $rows): IResult {
-        $result = $this->createMock(IResult::class);
-        $result->method('fetchAll')->willReturn($rows);
-        $result->method('closeCursor');
-        return $result;
-    }
-
-    private function makeTransactionRow(array $overrides = []): array {
-        return array_merge([
-            'id' => 1,
-            'account_id' => 10,
-            'category_id' => 5,
-            'date' => '2026-01-15',
-            'description' => 'Coffee Shop',
-            'vendor' => 'Starbucks',
-            'amount' => 4.50,
-            'type' => 'debit',
-            'reference' => null,
-            'notes' => null,
-            'import_id' => null,
-            'reconciled' => 0,
-            'created_at' => '2026-01-15 10:00:00',
-            'updated_at' => '2026-01-15 10:00:00',
-            'linked_transaction_id' => null,
-            'is_split' => 0,
-            'bill_id' => null,
-            'status' => 'cleared',
-        ], $overrides);
-    }
-
-    // ===== getTableName =====
-
-    public function testTableNameIsCorrect(): void {
-        $this->assertEquals('budget_transactions', $this->mapper->getTableName());
-    }
-
-    // ===== find =====
-
-    public function testFindReturnsTransaction(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeTransactionRow(),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $tx = $this->mapper->find(1, 'user1');
-
-        $this->assertInstanceOf(Transaction::class, $tx);
-        $this->assertEquals('Coffee Shop', $tx->getDescription());
-        $this->assertEquals(4.50, $tx->getAmount());
-        $this->assertEquals('debit', $tx->getType());
-        $this->assertEquals(10, $tx->getAccountId());
-    }
-
-    public function testFindThrowsWhenNotFound(): void {
-        $this->result->method('fetch')->willReturn(false);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $this->expectException(DoesNotExistException::class);
-
-        $this->mapper->find(999, 'user1');
-    }
-
-    // ===== findByAccount =====
-
-    public function testFindByAccountReturnsTransactions(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeTransactionRow(['id' => 1]),
-                $this->makeTransactionRow(['id' => 2, 'description' => 'Grocery']),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $txs = $this->mapper->findByAccount(10, 'user1');
-
-        $this->assertCount(2, $txs);
-        $this->assertEquals('Coffee Shop', $txs[0]->getDescription());
-        $this->assertEquals('Grocery', $txs[1]->getDescription());
-    }
-
-    // ===== findByDateRange =====
-
-    public function testFindByDateRangeReturnsTransactions(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeTransactionRow(['date' => '2026-01-15']),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $txs = $this->mapper->findByDateRange(10, '2026-01-01', '2026-01-31');
-
-        $this->assertCount(1, $txs);
-    }
-
-    // ===== findAll =====
-
-    public function testFindAllReturnsAllUserTransactions(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeTransactionRow(['id' => 1]),
-                $this->makeTransactionRow(['id' => 2]),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $txs = $this->mapper->findAll('user1');
-
-        $this->assertCount(2, $txs);
-    }
-
-    // ===== findAllByUserAndDateRange =====
-
-    public function testFindAllByUserAndDateRangeReturnsTransactions(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeTransactionRow(),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $txs = $this->mapper->findAllByUserAndDateRange('user1', '2026-01-01', '2026-01-31');
-
-        $this->assertCount(1, $txs);
-    }
-
-    public function testFindAllByUserAndDateRangeWithAccountFilter(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeTransactionRow(['account_id' => 10]),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $txs = $this->mapper->findAllByUserAndDateRange('user1', '2026-01-01', '2026-01-31', 10);
-
-        $this->assertCount(1, $txs);
-    }
-
-    // ===== findByCategory =====
-
-    public function testFindByCategoryReturnsTransactions(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeTransactionRow(['category_id' => 5]),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $txs = $this->mapper->findByCategory(5, 'user1');
-
-        $this->assertCount(1, $txs);
-        $this->assertEquals(5, $txs[0]->getCategoryId());
-    }
-
-    // ===== existsByImportId =====
-
-    public function testExistsByImportIdReturnsTrueWhenExists(): void {
-        $countFunc = $this->createMock(IQueryFunction::class);
-        $this->func->method('count')->willReturn($countFunc);
-        $this->result->method('fetchOne')->willReturn('1');
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $exists = $this->mapper->existsByImportId(10, 'import-abc');
-
-        $this->assertTrue($exists);
-    }
-
-    public function testExistsByImportIdReturnsFalseWhenNotExists(): void {
-        $countFunc = $this->createMock(IQueryFunction::class);
-        $this->func->method('count')->willReturn($countFunc);
-        $this->result->method('fetchOne')->willReturn('0');
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $exists = $this->mapper->existsByImportId(10, 'nonexistent');
-
-        $this->assertFalse($exists);
-    }
-
-    // ===== findUncategorized =====
-
-    public function testFindUncategorizedReturnsNullCategoryTransactions(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeTransactionRow(['category_id' => null]),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $txs = $this->mapper->findUncategorized('user1');
-
-        $this->assertCount(1, $txs);
-        $this->assertNull($txs[0]->getCategoryId());
-    }
-
-    /**
-     * A split parent carries no category of its own, so the bare
-     * "category_id IS NULL" predicate matched every split transaction and the
-     * dashboard's uncategorised widget listed them all (#356).
-     */
-    public function testFindUncategorizedExcludesSplitParents(): void {
-        $nulled = [];
-        $this->expr->method('isNull')
-            ->willReturnCallback(function (string $column) use (&$nulled) {
-                $nulled[] = $column;
-                return $column . ' IS NULL';
-            });
-
-        $this->result->method('fetch')->willReturn(false);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $this->mapper->findUncategorized('user1');
-
-        $this->assertContains('t.category_id', $nulled);
-    }
-
-    /**
-     * The original guard was true-or-NULL on is_split, which still let a
-     * NULL-flag row (predates the column) that actually HAS split parts
-     * through as "uncategorised" -- offering a split parent up for
-     * categorisation is exactly how damaged rows (category + parts both set)
-     * get created. The guard is now the partition complement used by
-     * getCategorySpendingBatch et al: eq(is_split, false) OR NOT EXISTS(parts),
-     * so a NULL-flag row is only listed when it genuinely has no parts (#360).
-     */
-    public function testFindUncategorizedGuardIsThePartitionComplementForSplitParents(): void {
-        $eqCalls = [];
-        $this->expr->method('eq')->willReturnCallback(function (string $col, $val) use (&$eqCalls) {
-            $eqCalls[] = $col;
-            return "eq($col)";
-        });
-        $orXCalls = [];
-        $orXResult = $this->createMock(ICompositeExpression::class);
-        $this->expr->method('orX')->willReturnCallback(function (...$parts) use (&$orXCalls, $orXResult) {
-            $orXCalls[] = $parts;
-            return $orXResult;
-        });
-
-        $this->result->method('fetch')->willReturn(false);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $this->mapper->findUncategorized('user1');
-
-        $guardFound = false;
-        foreach ($orXCalls as $parts) {
-            $hasIsSplitFalse = false;
-            $hasNotExists = false;
-            foreach ($parts as $part) {
-                if ($part === 'eq(t.is_split)') {
-                    $hasIsSplitFalse = true;
-                }
-                if (is_string($part) && str_contains($part, 'NOT EXISTS')) {
-                    $hasNotExists = true;
-                }
-            }
-            if ($hasIsSplitFalse && $hasNotExists) {
-                $guardFound = true;
-                break;
-            }
-        }
-        $this->assertTrue($guardFound, 'findUncategorized must OR eq(is_split, false) with NOT EXISTS(split parts)');
-    }
-
-    // ===== search =====
-
-    public function testSearchReturnsMatchingTransactions(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeTransactionRow(['description' => 'Coffee at Starbucks']),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $txs = $this->mapper->search('user1', 'coffee');
-
-        $this->assertCount(1, $txs);
-    }
-
-    // ===== findWithFilters =====
-
-    public function testFindWithFiltersReturnsTransactionsAndTotal(): void {
-        // Count query result
-        $countResult = $this->createMock(IResult::class);
-        $countResult->method('fetchOne')->willReturn('5');
-        $countResult->method('closeCursor');
-
-        // Main query result
-        $mainResult = $this->createMock(IResult::class);
-        $mainResult->method('fetchAll')->willReturn([
-            array_merge($this->makeTransactionRow(), [
-                'excluded_from_forecast' => 1,
-                'account_name' => 'Checking',
-                'account_currency' => 'USD',
-                'category_name' => 'Food',
-            ]),
-        ]);
-        $mainResult->method('closeCursor');
-
-        $this->qb->method('executeQuery')
-            ->willReturnOnConsecutiveCalls($countResult, $mainResult);
-
-        $result = $this->mapper->findWithFilters('user1', [], 25, 0);
-
-        $this->assertArrayHasKey('transactions', $result);
-        $this->assertArrayHasKey('total', $result);
-        $this->assertEquals(5, $result['total']);
-        $this->assertCount(1, $result['transactions']);
-
-        // Check data transformation
-        $tx = $result['transactions'][0];
-        $this->assertEquals(1, $tx['id']);
-        $this->assertEquals(10, $tx['accountId']);
-        $this->assertEquals(5, $tx['categoryId']);
-        $this->assertEquals('2026-01-15', $tx['date']);
-        $this->assertEquals('Coffee Shop', $tx['description']);
-        $this->assertEquals('Starbucks', $tx['vendor']);
-        $this->assertEquals(4.50, $tx['amount']);
-        $this->assertEquals('debit', $tx['type']);
-        $this->assertFalse($tx['reconciled']);
-        // Regression #326: the edit dialog is populated from list rows, so the
-        // flag must survive the row mapping or edits silently reset it
-        $this->assertTrue($tx['excludedFromForecast']);
-        $this->assertEquals('Checking', $tx['accountName']);
-        $this->assertEquals('USD', $tx['accountCurrency']);
-        $this->assertEquals('Food', $tx['categoryName']);
-    }
-
-    public function testFindWithFiltersNullCategoryIdMappedToNull(): void {
-        $countResult = $this->createMock(IResult::class);
-        $countResult->method('fetchOne')->willReturn('1');
-        $countResult->method('closeCursor');
-
-        $mainResult = $this->createMock(IResult::class);
-        $mainResult->method('fetchAll')->willReturn([
-            array_merge($this->makeTransactionRow(['category_id' => null]), [
-                'account_name' => 'Checking',
-                'account_currency' => 'USD',
-                'category_name' => null,
-            ]),
-        ]);
-        $mainResult->method('closeCursor');
-
-        $this->qb->method('executeQuery')
-            ->willReturnOnConsecutiveCalls($countResult, $mainResult);
-
-        $result = $this->mapper->findWithFilters('user1', [], 25, 0);
-
-        $this->assertNull($result['transactions'][0]['categoryId']);
-    }
-
-    public function testFindWithFiltersDelegatesToFilterBuilder(): void {
-        $countResult = $this->createMock(IResult::class);
-        $countResult->method('fetchOne')->willReturn('0');
-        $countResult->method('closeCursor');
-
-        $mainResult = $this->createMock(IResult::class);
-        $mainResult->method('fetchAll')->willReturn([]);
-        $mainResult->method('closeCursor');
-
-        $this->qb->method('executeQuery')
-            ->willReturnOnConsecutiveCalls($countResult, $mainResult);
-
-        $filters = ['accountId' => 10, 'type' => 'debit'];
-
-        // Filter builder should be called twice: once for main query, once for count
-        $this->filterBuilder->expects($this->exactly(2))
-            ->method('applyTransactionFilters');
-        $this->filterBuilder->expects($this->once())
-            ->method('applySorting');
-        $this->filterBuilder->expects($this->once())
-            ->method('applyPagination');
-
-        $this->mapper->findWithFilters('user1', $filters, 25, 0);
-    }
-
-    public function testFindWithFiltersDefaultStatusCleared(): void {
-        $countResult = $this->createMock(IResult::class);
-        $countResult->method('fetchOne')->willReturn('1');
-        $countResult->method('closeCursor');
-
-        $mainResult = $this->createMock(IResult::class);
-        $mainResult->method('fetchAll')->willReturn([
-            array_merge($this->makeTransactionRow(['status' => null]), [
-                'account_name' => 'Checking',
-                'account_currency' => null,
-                'category_name' => null,
-            ]),
-        ]);
-        $mainResult->method('closeCursor');
-
-        $this->qb->method('executeQuery')
-            ->willReturnOnConsecutiveCalls($countResult, $mainResult);
-
-        $result = $this->mapper->findWithFilters('user1', [], 25, 0);
-
-        // null status defaults to 'cleared'
-        $this->assertEquals('cleared', $result['transactions'][0]['status']);
-        // missing excluded_from_forecast defaults to false
-        $this->assertFalse($result['transactions'][0]['excludedFromForecast']);
-        // null account_currency defaults to 'USD'
-        $this->assertEquals('USD', $result['transactions'][0]['accountCurrency']);
-    }
-
-    // ===== findIdsWithFilters =====
-
-    public function testFindIdsWithFiltersDedupesAndCountsBills(): void {
-        $this->result->method('fetch')->willReturnOnConsecutiveCalls(
-            ['id' => 1, 'bill_id' => null],
-            ['id' => 2, 'bill_id' => 7],
-            // Duplicate row (the tag filter's join emits one per matching tag) —
-            // must not double-select or double-count the bill
-            ['id' => 2, 'bill_id' => 7],
-            ['id' => 3, 'bill_id' => null],
-            false
-        );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $filters = ['accountId' => 10];
-        $this->filterBuilder->expects($this->once())
-            ->method('applyTransactionFilters')
-            ->with($this->qb, $filters, 't');
-
-        $result = $this->mapper->findIdsWithFilters('user1', $filters);
-
-        $this->assertSame([1, 2, 3], $result['ids']);
-        $this->assertSame(1, $result['billCount']);
-    }
-
-    // ===== getAccountSummaries =====
-
-    public function testGetAccountSummariesReturnsIndexedByAccountId(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['account_id' => '10', 'income' => '5000.00', 'expenses' => '3000.00', 'count' => '50'],
-            ['account_id' => '20', 'income' => '1000.00', 'expenses' => '500.00', 'count' => '10'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $summaries = $this->mapper->getAccountSummaries('user1', '2026-01-01', '2026-01-31');
-
-        $this->assertArrayHasKey(10, $summaries);
-        $this->assertArrayHasKey(20, $summaries);
-        $this->assertEquals(5000.00, $summaries[10]['income']);
-        $this->assertEquals(3000.00, $summaries[10]['expenses']);
-        $this->assertEquals(50, $summaries[10]['count']);
-    }
-
-    public function testGetAccountSummariesReturnsEmptyForNoData(): void {
-        $this->result->method('fetchAll')->willReturn([]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $summaries = $this->mapper->getAccountSummaries('user1', '2026-01-01', '2026-01-31');
-
-        $this->assertEmpty($summaries);
-    }
-
-    // ===== getTransferTotals =====
-
-    public function testGetTransferTotalsReturnsFloats(): void {
-        $this->result->method('fetch')->willReturn(
-            ['income' => '500.00', 'expenses' => '500.00']
-        );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $totals = $this->mapper->getTransferTotals('user1', '2026-01-01', '2026-01-31');
-
-        $this->assertEquals(500.00, $totals['income']);
-        $this->assertEquals(500.00, $totals['expenses']);
-    }
-
-    public function testGetTransferTotalsReturnsZeroForNullRow(): void {
-        $this->result->method('fetch')->willReturn(
-            ['income' => null, 'expenses' => null]
-        );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $totals = $this->mapper->getTransferTotals('user1', '2026-01-01', '2026-01-31');
-
-        $this->assertEquals(0.0, $totals['income']);
-        $this->assertEquals(0.0, $totals['expenses']);
-    }
-
-    // ===== getTransferTotalsByAccount =====
-
-    public function testGetTransferTotalsByAccountReturnsIndexedByAccountId(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['account_id' => '10', 'income' => '300.00', 'expenses' => '200.00'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $totals = $this->mapper->getTransferTotalsByAccount('user1', '2026-01-01', '2026-01-31');
-
-        $this->assertArrayHasKey(10, $totals);
-        $this->assertEquals(300.00, $totals[10]['income']);
-        $this->assertEquals(200.00, $totals[10]['expenses']);
-    }
-
-    // ===== getCategorySpendingBatch =====
-
-    public function testGetCategorySpendingBatchReturnsEmptyForEmptyInput(): void {
-        $this->qb->expects($this->never())->method('executeQuery');
-
-        $result = $this->mapper->getCategorySpendingBatch([], '2026-01-01', '2026-01-31');
-
-        $this->assertEmpty($result);
-    }
-
-    public function testGetCategorySpendingBatchReturnsIndexedByCategoryId(): void {
-        // First query = spending held directly on the transaction; second =
-        // spending held on its split parts. Nothing is split here.
-        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
-            $this->resultOf([
-                ['category_id' => '5', 'total' => '450.00'],
-                ['category_id' => '10', 'total' => '200.00'],
-            ]),
-            $this->resultOf([])
-        );
-
-        $spending = $this->mapper->getCategorySpendingBatch([5, 10], '2026-01-01', '2026-01-31');
-
-        $this->assertArrayHasKey(5, $spending);
-        $this->assertArrayHasKey(10, $spending);
-        $this->assertEquals(450.00, $spending[5]);
-        $this->assertEquals(200.00, $spending[10]);
-    }
-
-    /**
-     * Splitting a transaction nulls its category_id and moves the categories
-     * onto budget_tx_splits, so `WHERE t.category_id IN (...)` can never match
-     * one. Budget spending that went through a split was therefore invisible to
-     * every budget surface -- the progress bars, the budget report and its
-     * exports, and the spending-anomaly digest -- while the spending charts had
-     * counted it since v2.33.0, so the two contradicted each other on the same
-     * screen (#360). The companion query mirrors getSpendingSummary's (#297).
-     */
-    public function testGetCategorySpendingBatchAddsSplitAllocations(): void {
-        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
-            $this->resultOf([['category_id' => '5', 'total' => '100.00']]),
-            $this->resultOf([
-                ['category_id' => '5', 'total' => '50.00'],
-                ['category_id' => '9', 'total' => '850.00'],
-            ])
-        );
-
-        $spending = $this->mapper->getCategorySpendingBatch([5, 9], '2026-01-01', '2026-01-31');
-
-        // 100 spent directly plus 50 through a split part.
-        $this->assertEqualsWithDelta(150.0, $spending[5], 0.001);
-        // A category funded only by splits still has to appear, or a budget
-        // filled entirely from split receipts reads as untouched.
-        $this->assertArrayHasKey(9, $spending);
-        $this->assertEqualsWithDelta(850.0, $spending[9], 0.001);
-    }
-
-    public function testGetCategorySpendingBatchKeepsNegativeSplitParts(): void {
-        // A receipt's discount line is a negative part, and must reduce the
-        // category rather than be dropped or counted as spending.
-        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
-            $this->resultOf([['category_id' => '5', 'total' => '100.00']]),
-            $this->resultOf([['category_id' => '5', 'total' => '-12.50']])
-        );
-
-        $spending = $this->mapper->getCategorySpendingBatch([5], '2026-01-01', '2026-01-31');
-
-        $this->assertEqualsWithDelta(87.5, $spending[5], 0.001);
-    }
-
-    public function testGetCategorySpendingBatchRunsNoSplitQueryForNoCategories(): void {
-        $this->qb->expects($this->never())->method('executeQuery');
-
-        $this->assertEmpty($this->mapper->getCategorySpendingBatch([], '2026-01-01', '2026-01-31'));
-    }
-
-    // ===== getCategoryTransactionCounts =====
-
-    /**
-     * The count badge on the Categories tree disagreed with the panel it
-     * opens: Category Details has counted split allocations since #359, while
-     * this query filtered on t.category_id, which a split never has. A
-     * category funded entirely by split receipts showed 0 next to a panel
-     * listing its transactions (#360).
-     */
-    public function testCategoryTransactionCountsIncludeSplits(): void {
-        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
-            $this->resultOf([['category_id' => '5', 'count' => '3']]),
-            $this->resultOf([
-                ['category_id' => '5', 'count' => '2'],
-                ['category_id' => '9', 'count' => '4'],
-            ])
-        );
-
-        $counts = $this->mapper->getCategoryTransactionCounts('user1');
-
-        // 3 counted on the transaction itself plus 2 reached through splits.
-        $this->assertSame(5, $counts[5]);
-        // A category only ever funded by splits still appears.
-        $this->assertSame(4, $counts[9]);
-    }
-
-    public function testCategoryTransactionCountsWithoutSplitsAreUnchanged(): void {
-        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
-            $this->resultOf([['category_id' => '5', 'count' => '3']]),
-            $this->resultOf([])
-        );
-
-        $this->assertSame([5 => 3], $this->mapper->getCategoryTransactionCounts('user1'));
-    }
-
-    // ===== findCategoryTransactionRows (Category Details panel) =====
-
-    /**
-     * The Category Details panel's direct-rows query used to list a row that
-     * carries BOTH its own category_id and split parts under its stamped
-     * category, while the badge above it (getCategoryTransactionCounts) has
-     * excluded such rows via directRowPredicate() since #360. Badge and panel
-     * must agree, so the direct-rows query needs the same partition-complement
-     * guard: eq(is_split, false) OR NOT EXISTS(split parts).
-     */
-    public function testFindCategoryTransactionRowsDirectQueryAppliesPartitionComplement(): void {
-        $orXCalls = [];
-        $orXResult = $this->createMock(ICompositeExpression::class);
-        $this->expr->method('eq')->willReturnCallback(fn(string $col, $val) => "eq($col)");
-        $this->expr->method('orX')->willReturnCallback(function (...$parts) use (&$orXCalls, $orXResult) {
-            $orXCalls[] = $parts;
-            return $orXResult;
-        });
-
-        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
-            $this->resultOf([]),
-            $this->resultOf([])
-        );
-
-        $this->mapper->findCategoryTransactionRows('user1', [5], 5);
-
-        $guardFound = false;
-        foreach ($orXCalls as $parts) {
-            $hasIsSplitFalse = false;
-            $hasNotExists = false;
-            foreach ($parts as $part) {
-                if ($part === 'eq(t.is_split)') {
-                    $hasIsSplitFalse = true;
-                }
-                if (is_string($part) && str_contains($part, 'NOT EXISTS')) {
-                    $hasNotExists = true;
-                }
-            }
-            if ($hasIsSplitFalse && $hasNotExists) {
-                $guardFound = true;
-                break;
-            }
-        }
-        $this->assertTrue($guardFound, 'the direct-rows query behind findCategoryTransactionRows must OR eq(is_split, false) with NOT EXISTS(split parts), matching getCategoryTransactionCounts (#360 follow-up)');
-    }
-
-    // ===== getCategoryTotalsByAccount =====
-
-    public function testGetCategoryTotalsByAccountReturnsEmptyForEmptyInput(): void {
-        $this->qb->expects($this->never())->method('executeQuery');
-
-        $result = $this->mapper->getCategoryTotalsByAccount([], '2026-01-01', '2026-01-31');
-
-        $this->assertEmpty($result);
-    }
-
-    public function testGetCategoryTotalsByAccountReturnsIndexedByAccountId(): void {
-        // First query = totals held directly on the transaction; second = totals
-        // held on its split parts. Nothing is split here.
-        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
-            $this->resultOf([
-                ['account_id' => '10', 'income' => '50.00', 'expenses' => '450.00'],
-                ['account_id' => '20', 'income' => null, 'expenses' => '200.00'],
-            ]),
-            $this->resultOf([])
-        );
-
-        $totals = $this->mapper->getCategoryTotalsByAccount([5, 10], '2026-01-01', '2026-01-31');
-
-        $this->assertEquals(['income' => 50.00, 'expenses' => 450.00], $totals[10]);
-        $this->assertEquals(['income' => 0.0, 'expenses' => 200.00], $totals[20]);
-    }
-
-    /**
-     * Splitting a transaction nulls its category_id and moves the categories
-     * onto budget_tx_splits, so `WHERE t.category_id IN (...)` can never match
-     * one -- money in an excluded category spent through a split was never
-     * deducted from the report totals it feeds (#326, #360). This is the
-     * split-only case: the account has no direct spending in the excluded
-     * category, only split parts, and must still be reported.
-     */
-    public function testGetCategoryTotalsByAccountIncludesSplitOnlyAccount(): void {
-        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
-            $this->resultOf([]),
-            $this->resultOf([
-                ['account_id' => '30', 'income' => '20.00', 'expenses' => '80.00'],
-            ])
-        );
-
-        $totals = $this->mapper->getCategoryTotalsByAccount([5], '2026-01-01', '2026-01-31');
-
-        $this->assertArrayHasKey(30, $totals);
-        $this->assertEquals(['income' => 20.00, 'expenses' => 80.00], $totals[30]);
-    }
-
-    /**
-     * An account with both direct spending and split spending in the excluded
-     * category must get both deducted, merged rather than one overwriting the
-     * other.
-     */
-    public function testGetCategoryTotalsByAccountMergesDirectAndSplitTotals(): void {
-        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
-            $this->resultOf([
-                ['account_id' => '10', 'income' => '50.00', 'expenses' => '450.00'],
-            ]),
-            $this->resultOf([
-                ['account_id' => '10', 'income' => '10.00', 'expenses' => '25.00'],
-            ])
-        );
-
-        $totals = $this->mapper->getCategoryTotalsByAccount([5], '2026-01-01', '2026-01-31');
-
-        $this->assertEqualsWithDelta(60.00, $totals[10]['income'], 0.001);
-        $this->assertEqualsWithDelta(475.00, $totals[10]['expenses'], 0.001);
-    }
-
-    /**
-     * The direct/split merge is money arithmetic and goes through
-     * MoneyCalculator, never incremented floats (#274): 0.1 + 0.2 must come
-     * out as exactly 0.3, not 0.30000000000000004.
-     */
-    public function testGetCategoryTotalsByAccountMergesWithMoneyPrecision(): void {
-        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
-            $this->resultOf([
-                ['account_id' => '10', 'income' => '0.1', 'expenses' => '0.7'],
-            ]),
-            $this->resultOf([
-                ['account_id' => '10', 'income' => '0.2', 'expenses' => '0.1'],
-            ])
-        );
-
-        $totals = $this->mapper->getCategoryTotalsByAccount([5], '2026-01-01', '2026-01-31');
-
-        $this->assertSame(0.3, $totals[10]['income']);
-        $this->assertSame(0.8, $totals[10]['expenses']);
-    }
-
-    // ===== findPotentialMatches =====
-
-    public function testFindPotentialMatchesIsStrictByDefault(): void {
-        // Same-currency-same-amount only: no OR branch in the query
-        $this->expr->expects($this->never())->method('orX');
-
-        $this->result->method('fetch')->willReturn(false);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $result = $this->mapper->findPotentialMatches('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR');
-
-        $this->assertSame([], $result);
-    }
-
-    public function testFindPotentialMatchesCrossCurrencyAddsOrBranch(): void {
-        // Cross-currency opt-in (#326): (same currency AND same amount) OR different currency
-        $this->expr->expects($this->once())->method('orX');
-
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls($this->makeTransactionRow(['type' => 'credit']), false);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $result = $this->mapper->findPotentialMatches('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR', 3, true);
-
-        $this->assertCount(1, $result);
-        $this->assertInstanceOf(Transaction::class, $result[0]);
-    }
-
-    // ===== getNetChangeAll =====
-
-    public function testGetNetChangeAllReturnsFloat(): void {
-        $this->result->method('fetchOne')->willReturn('500.25');
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $netChange = $this->mapper->getNetChangeAll(10);
-
-        $this->assertEquals(500.25, $netChange);
-    }
-
-    public function testGetNetChangeAllReturnsZeroWhenNoTransactions(): void {
-        $this->result->method('fetchOne')->willReturn('0');
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $netChange = $this->mapper->getNetChangeAll(10);
-
-        $this->assertEquals(0.0, $netChange);
-    }
-
-    // ===== getAccountMetrics (#285) =====
-
-    public function testGetAccountMetricsMapsAggregates(): void {
-        // First query (count + average) uses fetch(); the two range-sum queries use fetchOne()
-        $this->result->method('fetch')->willReturn(['cnt' => 7, 'avg_amt' => '244.2857']);
-        $this->result->method('fetchOne')->willReturnOnConsecutiveCalls('150', '60');
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $metrics = $this->mapper->getAccountMetrics(10, '2026-06-01', '2026-06-30');
-
-        $this->assertSame(7, $metrics['count']);
-        $this->assertEqualsWithDelta(244.2857, $metrics['average'], 0.0001);
-        $this->assertSame(150.0, $metrics['monthIncome']);
-        $this->assertSame(60.0, $metrics['monthExpenses']);
-    }
-
-    public function testGetAccountMetricsHandlesEmptyAccount(): void {
-        // No rows: count 0, AVG returns null, sums return null/false
-        $this->result->method('fetch')->willReturn(['cnt' => 0, 'avg_amt' => null]);
-        $this->result->method('fetchOne')->willReturn(false);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $metrics = $this->mapper->getAccountMetrics(10, '2026-06-01', '2026-06-30');
-
-        $this->assertSame(0, $metrics['count']);
-        $this->assertSame(0.0, $metrics['average']);
-        $this->assertSame(0.0, $metrics['monthIncome']);
-        $this->assertSame(0.0, $metrics['monthExpenses']);
-    }
-
-    // ===== getNetChangeAfterDate =====
-
-    public function testGetNetChangeAfterDateReturnsFloat(): void {
-        $this->result->method('fetchOne')->willReturn('250.75');
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $netChange = $this->mapper->getNetChangeAfterDate(10, '2026-01-15');
-
-        $this->assertEquals(250.75, $netChange);
-    }
-
-    public function testGetNetChangeAfterDateReturnsZeroForNull(): void {
-        $this->result->method('fetchOne')->willReturn('0');
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $netChange = $this->mapper->getNetChangeAfterDate(10, '2026-01-15');
-
-        $this->assertEquals(0.0, $netChange);
-    }
-
-    // ===== getNetChangeAfterDateBatch =====
-
-    public function testGetNetChangeAfterDateBatchReturnsIndexedByAccountId(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['account_id' => '10', 'net_change' => '100.00'],
-            ['account_id' => '20', 'net_change' => '-50.00'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $changes = $this->mapper->getNetChangeAfterDateBatch('user1', '2026-01-15');
-
-        $this->assertArrayHasKey(10, $changes);
-        $this->assertArrayHasKey(20, $changes);
-        $this->assertEquals(100.00, $changes[10]);
-        $this->assertEquals(-50.00, $changes[20]);
-    }
-
-    // ===== getDailyBalanceChanges =====
-
-    public function testGetDailyBalanceChangesReturnsIndexedByDate(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['date' => '2026-01-15', 'net_change' => '-4.50'],
-            ['date' => '2026-01-16', 'net_change' => '100.00'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $changes = $this->mapper->getDailyBalanceChanges(10, '2026-01-15', '2026-01-16');
-
-        $this->assertArrayHasKey('2026-01-15', $changes);
-        $this->assertArrayHasKey('2026-01-16', $changes);
-        $this->assertEquals(-4.50, $changes['2026-01-15']);
-        $this->assertEquals(100.00, $changes['2026-01-16']);
-    }
-
-    // ===== linkTransactions =====
-
-    public function testLinkTransactionsExecutesTwoStatements(): void {
-        $this->qb->expects($this->exactly(2))->method('executeStatement');
-
-        $this->mapper->linkTransactions(1, 2);
-    }
-
-    // ===== unlinkTransaction =====
-
-    public function testUnlinkTransactionReturnsNullWhenNotLinked(): void {
-        $this->result->method('fetchOne')->willReturn(null);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $linkedId = $this->mapper->unlinkTransaction(1);
-
-        $this->assertNull($linkedId);
-    }
-
-    public function testUnlinkTransactionReturnsLinkedIdAndExecutesStatements(): void {
-        $this->result->method('fetchOne')->willReturn('42');
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-        $this->qb->method('executeStatement')->willReturn(1);
-
-        $linkedId = $this->mapper->unlinkTransaction(1);
-
-        $this->assertEquals(42, $linkedId);
-    }
-
-    // ===== deleteAll =====
-
-    public function testDeleteAllReturnsAffectedRows(): void {
-        // First call: select IDs returns rows
-        $this->result->method('fetchAll')->willReturn(
-            array_map(fn($i) => ['id' => $i], range(1, 15))
-        );
-        $this->qb->method('executeQuery')->willReturn($this->result);
-        // Second call: delete by IDs
-        $this->qb->method('executeStatement')->willReturn(15);
-
-        $count = $this->mapper->deleteAll('user1');
-
-        $this->assertEquals(15, $count);
-    }
-
-    // ===== findScheduledDueForTransition =====
-
-    public function testFindScheduledDueForTransitionReturnsTransactions(): void {
-        $this->result->method('fetch')
-            ->willReturnOnConsecutiveCalls(
-                $this->makeTransactionRow(['status' => 'scheduled', 'date' => '2026-01-01']),
-                false
-            );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $txs = $this->mapper->findScheduledDueForTransition();
-
-        $this->assertCount(1, $txs);
-    }
-
-    // ===== getSpendingSummary =====
-
-    public function testGetSpendingSummaryReturnsRawRows(): void {
-        $this->result->method('fetchAll')->willReturn([
-            ['id' => 5, 'name' => 'Food', 'color' => '#ff0000', 'icon' => null, 'total' => '450.00', 'count' => '10'],
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $summary = $this->mapper->getSpendingSummary('user1', '2026-01-01', '2026-01-31');
-
-        $this->assertCount(1, $summary);
-        $this->assertEquals('Food', $summary[0]['name']);
-    }
-
-    public function testGetSpendingSummaryAddsSplitSpending(): void {
-        // First query = direct (non-split) spending; second = split allocations.
-        $direct = $this->createMock(IResult::class);
-        $direct->method('fetchAll')->willReturn([
-            ['id' => 5, 'name' => 'Food', 'color' => '#f00', 'icon' => null, 'total' => '100.00', 'count' => '2'],
-        ]);
-        $direct->method('closeCursor');
-
-        $split = $this->createMock(IResult::class);
-        $split->method('fetchAll')->willReturn([
-            ['id' => 5, 'name' => 'Food', 'color' => '#f00', 'icon' => null, 'total' => '50.00', 'count' => '1'],
-            ['id' => 9, 'name' => 'Rent', 'color' => '#0f0', 'icon' => null, 'total' => '850.00', 'count' => '1'],
-        ]);
-        $split->method('closeCursor');
-
-        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls($direct, $split);
-
-        $summary = $this->mapper->getSpendingSummary('user1', '2026-01-01', '2026-01-31');
-
-        $byId = [];
-        foreach ($summary as $row) {
-            $byId[(int)$row['id']] = $row;
-        }
-
-        // Food: 100 direct + 50 split = 150 (counts merged too)
-        $this->assertEqualsWithDelta(150.0, (float)$byId[5]['total'], 0.001);
-        $this->assertSame(3, (int)$byId[5]['count']);
-        // A category that only has split spending still appears
-        $this->assertArrayHasKey(9, $byId);
-        $this->assertEqualsWithDelta(850.0, (float)$byId[9]['total'], 0.001);
-        // Re-sorted by total descending — Rent (850) comes first
-        $this->assertSame(9, (int)$summary[0]['id']);
-    }
-
-    /**
-     * The Budget page's Spent figure is served by this query, and it used to
-     * sum one direction only — so refund credits sitting in an expense
-     * category never reduced it, and the bar contradicted Category Details on
-     * the same screen (#361). When asked to net, both queries must switch to
-     * the same signed CASE the batch method uses and stop filtering by type.
-     */
-    public function testGetSpendingSummaryNetsOppositeTypeWhenAsked(): void {
-        $eqCalls = [];
-        $this->expr->method('eq')->willReturnCallback(function (string $col, $val) use (&$eqCalls) {
-            $eqCalls[] = $col;
-            return "eq($col)";
-        });
-
-        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
-            $this->resultOf([]),
-            $this->resultOf([])
-        );
-
-        $this->mapper->getSpendingSummary(
-            'user1', '2026-08-01', '2026-08-31', null, [], true, false, null, 'debit', true
-        );
-
-        $directNet = false;
-        $splitNet = false;
-        foreach ($this->capturedFunctions as $sql) {
-            if (str_contains($sql, 'CASE WHEN t.type =') && str_contains($sql, 'ELSE -t.amount')) {
-                $directNet = true;
-            }
-            if (str_contains($sql, 'CASE WHEN t.type =') && str_contains($sql, 'ELSE -s.amount')) {
-                $splitNet = true;
-            }
-        }
-        $this->assertTrue($directNet, 'direct query must sum with the signed CASE when netting');
-        $this->assertTrue($splitNet, 'split companion must sum with the signed CASE when netting');
-        $this->assertNotContains('t.type', $eqCalls, 'netting must include both directions, not filter t.type');
-    }
-
-    public function testGetSpendingSummaryStaysGrossByDefault(): void {
-        $eqCalls = [];
-        $this->expr->method('eq')->willReturnCallback(function (string $col, $val) use (&$eqCalls) {
-            $eqCalls[] = $col;
-            return "eq($col)";
-        });
-
-        $this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
-            $this->resultOf([]),
-            $this->resultOf([])
-        );
-
-        $this->mapper->getSpendingSummary('user1', '2026-08-01', '2026-08-31');
-
-        foreach ($this->capturedFunctions as $sql) {
-            $this->assertStringNotContainsString('CASE WHEN t.type =', $sql,
-                'the spending report path keeps its one-direction gross sum');
-        }
-        $this->assertContains('t.type', $eqCalls, 'gross mode still filters to the requested direction');
-    }
-
-    // ===== getCategorySpendingByBucketBatch (#360) =====
-
-    public function testGetCategorySpendingByBucketBatchReturnsIndexedByCategoryAndBucket(): void {
-        $this->result->method('fetch')->willReturnOnConsecutiveCalls(
-            ['category_id' => 5, 'bucket' => '2026-01', 'total' => '120.00'],
-            ['category_id' => 9, 'bucket' => '2026-02', 'total' => '40.00'],
-            false
-        );
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $totals = $this->mapper->getCategorySpendingByBucketBatch('user1', '2026-01-01', '2026-02-28');
-
-        $this->assertSame(120.0, $totals[5]['2026-01']);
-        $this->assertSame(40.0, $totals[9]['2026-02']);
-    }
-
-    /**
-     * Companion to TransactionSplitMapper::getCategoryTotalsByBucket via
-     * BudgetCarryoverService::loadSpending. Both sides used to guard on plain
-     * true-or-NULL, so a pre-#351 NULL-flag row that actually HAS parts was
-     * summed at its own amount here AND part-by-part by the split query.
-     * The guard is now the partition complement: eq(is_split, false) OR
-     * NOT EXISTS(parts), matching getCategorySpendingBatch (#360).
-     */
-    public function testGetCategorySpendingByBucketBatchGuardIsThePartitionComplement(): void {
-        $eqCalls = [];
-        $this->expr->method('eq')->willReturnCallback(function (string $col, $val) use (&$eqCalls) {
-            $eqCalls[] = $col;
-            return "eq($col)";
-        });
-        $orXCalls = [];
-        $orXResult = $this->createMock(ICompositeExpression::class);
-        $this->expr->method('orX')->willReturnCallback(function (...$parts) use (&$orXCalls, $orXResult) {
-            $orXCalls[] = $parts;
-            return $orXResult;
-        });
-
-        $this->result->method('fetch')->willReturn(false);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $this->mapper->getCategorySpendingByBucketBatch('user1', '2026-01-01', '2026-01-31');
-
-        $guardFound = false;
-        foreach ($orXCalls as $parts) {
-            $hasIsSplitFalse = false;
-            $hasNotExists = false;
-            foreach ($parts as $part) {
-                if ($part === 'eq(t.is_split)') {
-                    $hasIsSplitFalse = true;
-                }
-                if (is_string($part) && str_contains($part, 'NOT EXISTS')) {
-                    $hasNotExists = true;
-                }
-            }
-            if ($hasIsSplitFalse && $hasNotExists) {
-                $guardFound = true;
-                break;
-            }
-        }
-        $this->assertTrue($guardFound, 'getCategorySpendingByBucketBatch must OR eq(is_split, false) with NOT EXISTS(split parts)');
-    }
-
-    // ===== getCategorySpendingBatch: scope and report choke point =====
-
-    /**
-     * A selected account narrows the user's scope, it doesn't replace it:
-     * the id comes straight off the request, and on its own it let a budget
-     * report read any account at all.
-     */
-    public function testCategorySpendingBatchKeepsTheUserScopeWithASelectedAccount(): void {
-        $eqColumns = [];
-        $this->expr->method('eq')->willReturnCallback(function ($column, $value) use (&$eqColumns) {
-            // Parameter comparisons only, not join conditions
-            if ($value === ':param') {
-                $eqColumns[] = $column;
-            }
-            return 'eq';
-        });
-        $inColumns = [];
-        $this->expr->method('in')->willReturnCallback(function ($column) use (&$inColumns) {
-            $inColumns[] = $column;
-            return 'in';
-        });
-        $this->qb->method('executeQuery')->willReturnCallback(fn() => $this->resultOf([]));
-
-        $this->mapper->getCategorySpendingBatch([1], '2026-01-01', '2026-01-31', 'debit', 42, false, 'user1');
-        $this->assertSame(2, count(array_keys($eqColumns, 'a.user_id', true)), 'both halves keep the owner scope');
-        $this->assertSame(2, count(array_keys($eqColumns, 't.account_id', true)), 'both halves narrow to the account');
-
-        $eqColumns = [];
-        $this->mapper->getCategorySpendingBatch([1], '2026-01-01', '2026-01-31', 'debit', 42, false, 'user1', [42, 43]);
-        $this->assertNotContains('a.user_id', $eqColumns);
-        $this->assertSame(2, count(array_keys($inColumns, 'a.id', true)), 'both halves keep the visible-account scope');
-        $this->assertSame(2, count(array_keys($eqColumns, 't.account_id', true)));
-    }
-
-    public function testCategorySpendingBatchCanApplyTheReportChokePoint(): void {
-        $joins = [];
-        $this->qb->method('leftJoin')->willReturnCallback(function ($from, $table) use (&$joins) {
-            $joins[] = "{$from}->{$table}";
-            return $this->qb;
-        });
-        $this->qb->method('executeQuery')->willReturnCallback(fn() => $this->resultOf([]));
-
-        $this->mapper->getCategorySpendingBatch([1, 2], '2026-01-01', '2026-01-31');
-        $this->assertSame([], $joins, 'off by default: budgets count categories kept out of reports');
-
-        $this->mapper->getCategorySpendingBatch([1, 2], '2026-01-01', '2026-01-31', excludeReportCategories: true);
-        $this->assertSame(['t->budget_categories', 's->budget_categories'], $joins);
-    }
-
-    // ===== findDuplicates (#333) =====
-
-    /**
-     * findDuplicates() used to compare each candidate to the LAST row added
-     * to the group rather than the FIRST, so a run of legitimate same-amount
-     * purchases a few days apart chained end-to-end into one "duplicate"
-     * group spanning far more than the window (#333). Five rows two days
-     * apart (1st, 3rd, 5th, 7th, 9th) with a 3-day window must never merge
-     * into one group of five -- but hard-anchoring on each group's first row
-     * silently DROPPED boundary rows (the 9th appeared nowhere, and the 3rd
-     * and 5th -- two days apart -- were reported in different groups). The
-     * grouping now re-anchors at the boundary: when a row falls outside the
-     * window, tail rows of the flushed group still within the window of the
-     * new row carry into its group. Every pair of rows within the window of
-     * each other is reported together, at the cost of a boundary row
-     * appearing in two adjacent groups; no group ever spans more than the
-     * window. (Expectation deliberately changed from two groups of two when
-     * the boundary false negatives were fixed.)
-     */
-    public function testFindDuplicatesReAnchorsAtWindowBoundariesWithoutChaining(): void {
-        $row = fn (int $id, string $date) => array_merge($this->makeTransactionRow([
-            'id' => $id,
-            'account_id' => 10,
-            'amount' => 4.50,
-            'type' => 'debit',
-            'description' => 'Coffee Shop',
-            'date' => $date,
-        ]), [
-            'account_name' => 'Checking',
-            'account_currency' => 'USD',
-            'category_name' => 'Food',
-        ]);
-
-        $this->result->method('fetchAll')->willReturn([
-            $row(1, '2026-01-01'),
-            $row(2, '2026-01-03'),
-            $row(3, '2026-01-05'),
-            $row(4, '2026-01-07'),
-            $row(5, '2026-01-09'),
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $groups = $this->mapper->findDuplicates('user1', 3);
-
-        $this->assertSame([
-            [1, 2],
-            [2, 3],
-            [3, 4],
-            [4, 5],
-        ], array_map(fn (array $g) => array_column($g, 'id'), $groups));
-    }
-
-    /**
-     * The false negative the re-anchoring exists for: same-amount rows on
-     * the 1st, 4th and 5th with a 3-day window used to split as [1st, 4th]
-     * plus a lone 5th -- a next-day duplicate reported nowhere, because the
-     * 5th is 4 days from the group's first-row anchor.
-     */
-    public function testFindDuplicatesReportsANextDayPairAcrossAWindowBoundary(): void {
-        $row = fn (int $id, string $date) => array_merge($this->makeTransactionRow([
-            'id' => $id,
-            'account_id' => 10,
-            'amount' => 4.50,
-            'type' => 'debit',
-            'description' => 'Coffee Shop',
-            'date' => $date,
-        ]), [
-            'account_name' => 'Checking',
-            'account_currency' => 'USD',
-            'category_name' => 'Food',
-        ]);
-
-        $this->result->method('fetchAll')->willReturn([
-            $row(1, '2026-01-01'),
-            $row(2, '2026-01-04'),
-            $row(3, '2026-01-05'),
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $groups = $this->mapper->findDuplicates('user1', 3);
-
-        $this->assertSame([
-            [1, 2],
-            [2, 3],
-        ], array_map(fn (array $g) => array_column($g, 'id'), $groups));
-    }
-
-    /** The #333 anti-chaining property: far-apart purchases are not duplicates. */
-    public function testFindDuplicatesNeverChainsRowsWeeksApart(): void {
-        $row = fn (int $id, string $date) => array_merge($this->makeTransactionRow([
-            'id' => $id,
-            'account_id' => 10,
-            'amount' => 4.50,
-            'type' => 'debit',
-            'description' => 'Coffee Shop',
-            'date' => $date,
-        ]), [
-            'account_name' => 'Checking',
-            'account_currency' => 'USD',
-            'category_name' => 'Food',
-        ]);
-
-        $this->result->method('fetchAll')->willReturn([
-            $row(1, '2026-01-01'),
-            $row(2, '2026-01-15'),
-            $row(3, '2026-02-01'),
-            $row(4, '2026-02-15'),
-            $row(5, '2026-03-01'),
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $this->assertSame([], $this->mapper->findDuplicates('user1', 3));
-    }
-
-    /** Tail rows only carry across a window boundary within the same key. */
-    public function testFindDuplicatesDoesNotCarryTailRowsIntoADifferentDescription(): void {
-        $row = fn (int $id, string $desc, string $date) => array_merge($this->makeTransactionRow([
-            'id' => $id,
-            'account_id' => 10,
-            'amount' => 4.50,
-            'type' => 'debit',
-            'description' => $desc,
-            'date' => $date,
-        ]), [
-            'account_name' => 'Checking',
-            'account_currency' => 'USD',
-            'category_name' => 'Food',
-        ]);
-
-        $this->result->method('fetchAll')->willReturn([
-            $row(1, 'Coffee Shop', '2026-01-01'),
-            $row(2, 'Coffee Shop', '2026-01-01'),
-            $row(3, 'Tea House', '2026-01-01'),
-            $row(4, 'Tea House', '2026-01-01'),
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $groups = $this->mapper->findDuplicates('user1', 3);
-
-        $this->assertSame([
-            [1, 2],
-            [3, 4],
-        ], array_map(fn (array $g) => array_column($g, 'id'), $groups));
-    }
-
-    /**
-     * The dialog shows "Split" instead of a dash in the category column for a
-     * split parent (#360). The mapping trusts the raw flag — the one-time
-     * backfill (Version001000100) resolves NULL and stray-true flags from the
-     * parts table, so post-backfill the flag IS the truth and no per-row
-     * parts probe is spent here.
-     */
-    public function testFindDuplicatesReportsAFlagTrueRowAsSplit(): void {
-        $row = fn (int $id, $isSplit) => array_merge($this->makeTransactionRow([
-            'id' => $id,
-            'account_id' => 10,
-            'amount' => 25.00,
-            'type' => 'debit',
-            'description' => 'Supermarket',
-            'date' => '2026-03-01',
-            'is_split' => $isSplit,
-            'category_id' => null,
-            'category_name' => null,
-        ]), [
-            'account_name' => 'Checking',
-            'account_currency' => 'USD',
-        ]);
-
-        $this->result->method('fetchAll')->willReturn([
-            $row(21, 1),
-            $row(22, 0),
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $groups = $this->mapper->findDuplicates('user1', 3);
-
-        $this->assertCount(1, $groups);
-        $this->assertTrue($groups[0][0]['isSplit']);
-        $this->assertFalse($groups[0][1]['isSplit']);
-    }
-
-    public function testFindDuplicatesStillReportsAGenuineSameDayPair(): void {
-        $row = fn (int $id, string $date) => array_merge($this->makeTransactionRow([
-            'id' => $id,
-            'account_id' => 20,
-            'amount' => 9.99,
-            'type' => 'debit',
-            'description' => 'Same Day Purchase',
-            'date' => $date,
-        ]), [
-            'account_name' => 'Checking',
-            'account_currency' => 'USD',
-            'category_name' => 'Shopping',
-        ]);
-
-        $this->result->method('fetchAll')->willReturn([
-            $row(10, '2026-02-01'),
-            $row(11, '2026-02-01'),
-        ]);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $groups = $this->mapper->findDuplicates('user1', 3);
-
-        $this->assertCount(1, $groups);
-        $this->assertSame([10, 11], array_column($groups[0], 'id'));
-    }
-
-    // ===== match scoping across shared accounts (#378) =====
-
-    public function testFindPotentialMatchesScopesToTheGivenAccountsNotTheOwner(): void {
-        // Given account ids, the candidate set is those accounts — scoping to
-        // a.user_id would drop every leg sitting in a shared account (#378)
-        $ownerScoped = false;
-        $this->expr->method('eq')->willReturnCallback(function ($x) use (&$ownerScoped) {
-            if ($x === 'a.user_id') {
-                $ownerScoped = true;
-            }
-            return 'eq';
-        });
-        $scopedIn = [];
-        $this->expr->method('in')->willReturnCallback(function ($x) use (&$scopedIn) {
-            $scopedIn[] = $x;
-            return 'in';
-        });
-
-        $this->result->method('fetch')->willReturn(false);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $this->mapper->findPotentialMatches(
-            'user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR', 3, false, [10, 20]
-        );
-
-        $this->assertFalse($ownerScoped, 'candidates must not be scoped to the acting user');
-        $this->assertContains('a.id', $scopedIn);
-    }
-
-    public function testFindPotentialMatchesStillScopesToTheOwnerWithoutAccountIds(): void {
-        // No account ids: the import/sync callers keep their own-scoped search
-        $ownerScoped = false;
-        $this->expr->method('eq')->willReturnCallback(function ($x) use (&$ownerScoped) {
-            if ($x === 'a.user_id') {
-                $ownerScoped = true;
-            }
-            return 'eq';
-        });
-
-        $this->result->method('fetch')->willReturn(false);
-        $this->result->method('closeCursor');
-        $this->qb->method('executeQuery')->willReturn($this->result);
-
-        $this->mapper->findPotentialMatches('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR');
-
-        $this->assertTrue($ownerScoped);
-    }
-
-    public function testFindPotentialMatchesRunsNoQueryForAnEmptyAccountScope(): void {
-        // "no accounts in scope" must mean no candidates, never an IN () whose
-        // SQL semantics we would be guessing at
-        $this->qb->expects($this->never())->method('executeQuery');
-
-        $this->assertSame([], $this->mapper->findPotentialMatches(
-            'user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR', 3, false, []
-        ));
-    }
-
-    public function testFindUnlinkedWithMatchesRunsNoQueryForAnEmptyAccountScope(): void {
-        $this->qb->expects($this->never())->method('executeQuery');
-
-        $this->assertSame(
-            ['transactions' => [], 'total' => 0],
-            $this->mapper->findUnlinkedWithMatches('user1', 3, 100, 0, [])
-        );
-    }
+	private TransactionMapper $mapper;
+	private IDBConnection $db;
+	/** @var TransactionQueryBuilder&\PHPUnit\Framework\MockObject\MockObject */
+	private $qb;
+	private IExpressionBuilder $expr;
+	private IFunctionBuilder $func;
+	private IResult $result;
+	private QueryFilterBuilder $filterBuilder;
+	/** Every SQL fragment passed to createFunction(), in call order. */
+	private array $capturedFunctions = [];
+
+	protected function setUp(): void {
+		$this->db = $this->createMock(IDBConnection::class);
+		$this->qb = $this->createMock(TransactionQueryBuilder::class);
+		$this->expr = $this->createMock(IExpressionBuilder::class);
+		$this->func = $this->createMock(IFunctionBuilder::class);
+		$this->result = $this->createMock(IResult::class);
+		$this->filterBuilder = $this->createMock(QueryFilterBuilder::class);
+
+		$this->db->method('getQueryBuilder')->willReturn($this->qb);
+		$this->qb->method('expr')->willReturn($this->expr);
+		$this->qb->method('func')->willReturn($this->func);
+		$this->qb->method('getSQL')->willReturn('');
+		$this->qb->method('createNamedParameter')->willReturn(':param');
+		$this->qb->method('escapeLikeParameter')->willReturnCallback(fn ($v) => $v);
+
+		$mockFunction = $this->createMock(IQueryFunction::class);
+		// Record the raw SQL fragments so tests can assert on expression shape
+		// (a per-test re-stub would lose to this one — PHPUnit keeps the first
+		// configuration — so the recording has to live here in setUp).
+		$this->capturedFunctions = [];
+		$this->qb->method('createFunction')->willReturnCallback(function (string $sql) use ($mockFunction) {
+			$this->capturedFunctions[] = $sql;
+			return $mockFunction;
+		});
+		$this->func->method('sum')->willReturn($mockFunction);
+		$this->func->method('count')->willReturn($mockFunction);
+
+		// Fluent methods
+		foreach (['select', 'addSelect', 'selectAlias', 'from', 'where', 'andWhere',
+			'orderBy', 'addOrderBy', 'innerJoin', 'leftJoin',
+			'delete', 'update', 'set', 'groupBy', 'addGroupBy',
+			'setMaxResults', 'setFirstResult'] as $method) {
+			$this->qb->method($method)->willReturnSelf();
+		}
+
+		$this->mapper = new TransactionMapper($this->db, $this->filterBuilder);
+	}
+
+	/** One IResult mock yielding the given rows -- for methods that run more than one query. */
+	private function resultOf(array $rows): IResult {
+		$result = $this->createMock(IResult::class);
+		$result->method('fetchAll')->willReturn($rows);
+		$result->method('closeCursor');
+		return $result;
+	}
+
+	private function makeTransactionRow(array $overrides = []): array {
+		return array_merge([
+			'id' => 1,
+			'account_id' => 10,
+			'category_id' => 5,
+			'date' => '2026-01-15',
+			'description' => 'Coffee Shop',
+			'vendor' => 'Starbucks',
+			'amount' => 4.50,
+			'type' => 'debit',
+			'reference' => null,
+			'notes' => null,
+			'import_id' => null,
+			'reconciled' => 0,
+			'created_at' => '2026-01-15 10:00:00',
+			'updated_at' => '2026-01-15 10:00:00',
+			'linked_transaction_id' => null,
+			'is_split' => 0,
+			'bill_id' => null,
+			'status' => 'cleared',
+		], $overrides);
+	}
+
+	// ===== getTableName =====
+
+	public function testTableNameIsCorrect(): void {
+		$this->assertEquals('budget_transactions', $this->mapper->getTableName());
+	}
+
+	// ===== find =====
+
+	public function testFindReturnsTransaction(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeTransactionRow(),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$tx = $this->mapper->find(1, 'user1');
+
+		$this->assertInstanceOf(Transaction::class, $tx);
+		$this->assertEquals('Coffee Shop', $tx->getDescription());
+		$this->assertEquals(4.50, $tx->getAmount());
+		$this->assertEquals('debit', $tx->getType());
+		$this->assertEquals(10, $tx->getAccountId());
+	}
+
+	public function testFindThrowsWhenNotFound(): void {
+		$this->result->method('fetch')->willReturn(false);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$this->expectException(DoesNotExistException::class);
+
+		$this->mapper->find(999, 'user1');
+	}
+
+	// ===== findByAccount =====
+
+	public function testFindByAccountReturnsTransactions(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeTransactionRow(['id' => 1]),
+				$this->makeTransactionRow(['id' => 2, 'description' => 'Grocery']),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$txs = $this->mapper->findByAccount(10, 'user1');
+
+		$this->assertCount(2, $txs);
+		$this->assertEquals('Coffee Shop', $txs[0]->getDescription());
+		$this->assertEquals('Grocery', $txs[1]->getDescription());
+	}
+
+	// ===== findByDateRange =====
+
+	public function testFindByDateRangeReturnsTransactions(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeTransactionRow(['date' => '2026-01-15']),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$txs = $this->mapper->findByDateRange(10, '2026-01-01', '2026-01-31');
+
+		$this->assertCount(1, $txs);
+	}
+
+	// ===== findAll =====
+
+	public function testFindAllReturnsAllUserTransactions(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeTransactionRow(['id' => 1]),
+				$this->makeTransactionRow(['id' => 2]),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$txs = $this->mapper->findAll('user1');
+
+		$this->assertCount(2, $txs);
+	}
+
+	// ===== findAllByUserAndDateRange =====
+
+	public function testFindAllByUserAndDateRangeReturnsTransactions(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeTransactionRow(),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$txs = $this->mapper->findAllByUserAndDateRange('user1', '2026-01-01', '2026-01-31');
+
+		$this->assertCount(1, $txs);
+	}
+
+	public function testFindAllByUserAndDateRangeWithAccountFilter(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeTransactionRow(['account_id' => 10]),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$txs = $this->mapper->findAllByUserAndDateRange('user1', '2026-01-01', '2026-01-31', 10);
+
+		$this->assertCount(1, $txs);
+	}
+
+	// ===== findByCategory =====
+
+	public function testFindByCategoryReturnsTransactions(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeTransactionRow(['category_id' => 5]),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$txs = $this->mapper->findByCategory(5, 'user1');
+
+		$this->assertCount(1, $txs);
+		$this->assertEquals(5, $txs[0]->getCategoryId());
+	}
+
+	// ===== existsByImportId =====
+
+	public function testExistsByImportIdReturnsTrueWhenExists(): void {
+		$countFunc = $this->createMock(IQueryFunction::class);
+		$this->func->method('count')->willReturn($countFunc);
+		$this->result->method('fetchOne')->willReturn('1');
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$exists = $this->mapper->existsByImportId(10, 'import-abc');
+
+		$this->assertTrue($exists);
+	}
+
+	public function testExistsByImportIdReturnsFalseWhenNotExists(): void {
+		$countFunc = $this->createMock(IQueryFunction::class);
+		$this->func->method('count')->willReturn($countFunc);
+		$this->result->method('fetchOne')->willReturn('0');
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$exists = $this->mapper->existsByImportId(10, 'nonexistent');
+
+		$this->assertFalse($exists);
+	}
+
+	// ===== findUncategorized =====
+
+	public function testFindUncategorizedReturnsNullCategoryTransactions(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeTransactionRow(['category_id' => null]),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$txs = $this->mapper->findUncategorized('user1');
+
+		$this->assertCount(1, $txs);
+		$this->assertNull($txs[0]->getCategoryId());
+	}
+
+	/**
+	 * A split parent carries no category of its own, so the bare
+	 * "category_id IS NULL" predicate matched every split transaction and the
+	 * dashboard's uncategorised widget listed them all (#356).
+	 */
+	public function testFindUncategorizedExcludesSplitParents(): void {
+		$nulled = [];
+		$this->expr->method('isNull')
+			->willReturnCallback(function (string $column) use (&$nulled) {
+				$nulled[] = $column;
+				return $column . ' IS NULL';
+			});
+
+		$this->result->method('fetch')->willReturn(false);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$this->mapper->findUncategorized('user1');
+
+		$this->assertContains('t.category_id', $nulled);
+	}
+
+	/**
+	 * The original guard was true-or-NULL on is_split, which still let a
+	 * NULL-flag row (predates the column) that actually HAS split parts
+	 * through as "uncategorised" -- offering a split parent up for
+	 * categorisation is exactly how damaged rows (category + parts both set)
+	 * get created. The guard is now the partition complement used by
+	 * getCategorySpendingBatch et al: eq(is_split, false) OR NOT EXISTS(parts),
+	 * so a NULL-flag row is only listed when it genuinely has no parts (#360).
+	 */
+	public function testFindUncategorizedGuardIsThePartitionComplementForSplitParents(): void {
+		$eqCalls = [];
+		$this->expr->method('eq')->willReturnCallback(function (string $col, $val) use (&$eqCalls) {
+			$eqCalls[] = $col;
+			return "eq($col)";
+		});
+		$orXCalls = [];
+		$orXResult = $this->createMock(ICompositeExpression::class);
+		$this->expr->method('orX')->willReturnCallback(function (...$parts) use (&$orXCalls, $orXResult) {
+			$orXCalls[] = $parts;
+			return $orXResult;
+		});
+
+		$this->result->method('fetch')->willReturn(false);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$this->mapper->findUncategorized('user1');
+
+		$guardFound = false;
+		foreach ($orXCalls as $parts) {
+			$hasIsSplitFalse = false;
+			$hasNotExists = false;
+			foreach ($parts as $part) {
+				if ($part === 'eq(t.is_split)') {
+					$hasIsSplitFalse = true;
+				}
+				if (is_string($part) && str_contains($part, 'NOT EXISTS')) {
+					$hasNotExists = true;
+				}
+			}
+			if ($hasIsSplitFalse && $hasNotExists) {
+				$guardFound = true;
+				break;
+			}
+		}
+		$this->assertTrue($guardFound, 'findUncategorized must OR eq(is_split, false) with NOT EXISTS(split parts)');
+	}
+
+	// ===== search =====
+
+	public function testSearchReturnsMatchingTransactions(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeTransactionRow(['description' => 'Coffee at Starbucks']),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$txs = $this->mapper->search('user1', 'coffee');
+
+		$this->assertCount(1, $txs);
+	}
+
+	// ===== findWithFilters =====
+
+	public function testFindWithFiltersReturnsTransactionsAndTotal(): void {
+		// Count query result
+		$countResult = $this->createMock(IResult::class);
+		$countResult->method('fetchOne')->willReturn('5');
+		$countResult->method('closeCursor');
+
+		// Main query result
+		$mainResult = $this->createMock(IResult::class);
+		$mainResult->method('fetchAll')->willReturn([
+			array_merge($this->makeTransactionRow(), [
+				'excluded_from_forecast' => 1,
+				'account_name' => 'Checking',
+				'account_currency' => 'USD',
+				'category_name' => 'Food',
+			]),
+		]);
+		$mainResult->method('closeCursor');
+
+		$this->qb->method('executeQuery')
+			->willReturnOnConsecutiveCalls($countResult, $mainResult);
+
+		$result = $this->mapper->findWithFilters('user1', [], 25, 0);
+
+		$this->assertArrayHasKey('transactions', $result);
+		$this->assertArrayHasKey('total', $result);
+		$this->assertEquals(5, $result['total']);
+		$this->assertCount(1, $result['transactions']);
+
+		// Check data transformation
+		$tx = $result['transactions'][0];
+		$this->assertEquals(1, $tx['id']);
+		$this->assertEquals(10, $tx['accountId']);
+		$this->assertEquals(5, $tx['categoryId']);
+		$this->assertEquals('2026-01-15', $tx['date']);
+		$this->assertEquals('Coffee Shop', $tx['description']);
+		$this->assertEquals('Starbucks', $tx['vendor']);
+		$this->assertEquals(4.50, $tx['amount']);
+		$this->assertEquals('debit', $tx['type']);
+		$this->assertFalse($tx['reconciled']);
+		// Regression #326: the edit dialog is populated from list rows, so the
+		// flag must survive the row mapping or edits silently reset it
+		$this->assertTrue($tx['excludedFromForecast']);
+		$this->assertEquals('Checking', $tx['accountName']);
+		$this->assertEquals('USD', $tx['accountCurrency']);
+		$this->assertEquals('Food', $tx['categoryName']);
+	}
+
+	public function testFindWithFiltersNullCategoryIdMappedToNull(): void {
+		$countResult = $this->createMock(IResult::class);
+		$countResult->method('fetchOne')->willReturn('1');
+		$countResult->method('closeCursor');
+
+		$mainResult = $this->createMock(IResult::class);
+		$mainResult->method('fetchAll')->willReturn([
+			array_merge($this->makeTransactionRow(['category_id' => null]), [
+				'account_name' => 'Checking',
+				'account_currency' => 'USD',
+				'category_name' => null,
+			]),
+		]);
+		$mainResult->method('closeCursor');
+
+		$this->qb->method('executeQuery')
+			->willReturnOnConsecutiveCalls($countResult, $mainResult);
+
+		$result = $this->mapper->findWithFilters('user1', [], 25, 0);
+
+		$this->assertNull($result['transactions'][0]['categoryId']);
+	}
+
+	public function testFindWithFiltersDelegatesToFilterBuilder(): void {
+		$countResult = $this->createMock(IResult::class);
+		$countResult->method('fetchOne')->willReturn('0');
+		$countResult->method('closeCursor');
+
+		$mainResult = $this->createMock(IResult::class);
+		$mainResult->method('fetchAll')->willReturn([]);
+		$mainResult->method('closeCursor');
+
+		$this->qb->method('executeQuery')
+			->willReturnOnConsecutiveCalls($countResult, $mainResult);
+
+		$filters = ['accountId' => 10, 'type' => 'debit'];
+
+		// Filter builder should be called twice: once for main query, once for count
+		$this->filterBuilder->expects($this->exactly(2))
+			->method('applyTransactionFilters');
+		$this->filterBuilder->expects($this->once())
+			->method('applySorting');
+		$this->filterBuilder->expects($this->once())
+			->method('applyPagination');
+
+		$this->mapper->findWithFilters('user1', $filters, 25, 0);
+	}
+
+	public function testFindWithFiltersDefaultStatusCleared(): void {
+		$countResult = $this->createMock(IResult::class);
+		$countResult->method('fetchOne')->willReturn('1');
+		$countResult->method('closeCursor');
+
+		$mainResult = $this->createMock(IResult::class);
+		$mainResult->method('fetchAll')->willReturn([
+			array_merge($this->makeTransactionRow(['status' => null]), [
+				'account_name' => 'Checking',
+				'account_currency' => null,
+				'category_name' => null,
+			]),
+		]);
+		$mainResult->method('closeCursor');
+
+		$this->qb->method('executeQuery')
+			->willReturnOnConsecutiveCalls($countResult, $mainResult);
+
+		$result = $this->mapper->findWithFilters('user1', [], 25, 0);
+
+		// null status defaults to 'cleared'
+		$this->assertEquals('cleared', $result['transactions'][0]['status']);
+		// missing excluded_from_forecast defaults to false
+		$this->assertFalse($result['transactions'][0]['excludedFromForecast']);
+		// null account_currency defaults to 'USD'
+		$this->assertEquals('USD', $result['transactions'][0]['accountCurrency']);
+	}
+
+	// ===== findIdsWithFilters =====
+
+	public function testFindIdsWithFiltersDedupesAndCountsBills(): void {
+		$this->result->method('fetch')->willReturnOnConsecutiveCalls(
+			['id' => 1, 'bill_id' => null],
+			['id' => 2, 'bill_id' => 7],
+			// Duplicate row (the tag filter's join emits one per matching tag) —
+			// must not double-select or double-count the bill
+			['id' => 2, 'bill_id' => 7],
+			['id' => 3, 'bill_id' => null],
+			false
+		);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$filters = ['accountId' => 10];
+		$this->filterBuilder->expects($this->once())
+			->method('applyTransactionFilters')
+			->with($this->qb, $filters, 't');
+
+		$result = $this->mapper->findIdsWithFilters('user1', $filters);
+
+		$this->assertSame([1, 2, 3], $result['ids']);
+		$this->assertSame(1, $result['billCount']);
+	}
+
+	// ===== getAccountSummaries =====
+
+	public function testGetAccountSummariesReturnsIndexedByAccountId(): void {
+		$this->result->method('fetchAll')->willReturn([
+			['account_id' => '10', 'income' => '5000.00', 'expenses' => '3000.00', 'count' => '50'],
+			['account_id' => '20', 'income' => '1000.00', 'expenses' => '500.00', 'count' => '10'],
+		]);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$summaries = $this->mapper->getAccountSummaries('user1', '2026-01-01', '2026-01-31');
+
+		$this->assertArrayHasKey(10, $summaries);
+		$this->assertArrayHasKey(20, $summaries);
+		$this->assertEquals(5000.00, $summaries[10]['income']);
+		$this->assertEquals(3000.00, $summaries[10]['expenses']);
+		$this->assertEquals(50, $summaries[10]['count']);
+	}
+
+	public function testGetAccountSummariesReturnsEmptyForNoData(): void {
+		$this->result->method('fetchAll')->willReturn([]);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$summaries = $this->mapper->getAccountSummaries('user1', '2026-01-01', '2026-01-31');
+
+		$this->assertEmpty($summaries);
+	}
+
+	// ===== getTransferTotals =====
+
+	public function testGetTransferTotalsReturnsFloats(): void {
+		$this->result->method('fetch')->willReturn(
+			['income' => '500.00', 'expenses' => '500.00']
+		);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$totals = $this->mapper->getTransferTotals('user1', '2026-01-01', '2026-01-31');
+
+		$this->assertEquals(500.00, $totals['income']);
+		$this->assertEquals(500.00, $totals['expenses']);
+	}
+
+	public function testGetTransferTotalsReturnsZeroForNullRow(): void {
+		$this->result->method('fetch')->willReturn(
+			['income' => null, 'expenses' => null]
+		);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$totals = $this->mapper->getTransferTotals('user1', '2026-01-01', '2026-01-31');
+
+		$this->assertEquals(0.0, $totals['income']);
+		$this->assertEquals(0.0, $totals['expenses']);
+	}
+
+	// ===== getTransferTotalsByAccount =====
+
+	public function testGetTransferTotalsByAccountReturnsIndexedByAccountId(): void {
+		$this->result->method('fetchAll')->willReturn([
+			['account_id' => '10', 'income' => '300.00', 'expenses' => '200.00'],
+		]);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$totals = $this->mapper->getTransferTotalsByAccount('user1', '2026-01-01', '2026-01-31');
+
+		$this->assertArrayHasKey(10, $totals);
+		$this->assertEquals(300.00, $totals[10]['income']);
+		$this->assertEquals(200.00, $totals[10]['expenses']);
+	}
+
+	// ===== getCategorySpendingBatch =====
+
+	public function testGetCategorySpendingBatchReturnsEmptyForEmptyInput(): void {
+		$this->qb->expects($this->never())->method('executeQuery');
+
+		$result = $this->mapper->getCategorySpendingBatch([], '2026-01-01', '2026-01-31');
+
+		$this->assertEmpty($result);
+	}
+
+	public function testGetCategorySpendingBatchReturnsIndexedByCategoryId(): void {
+		// First query = spending held directly on the transaction; second =
+		// spending held on its split parts. Nothing is split here.
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+			$this->resultOf([
+				['category_id' => '5', 'total' => '450.00'],
+				['category_id' => '10', 'total' => '200.00'],
+			]),
+			$this->resultOf([])
+		);
+
+		$spending = $this->mapper->getCategorySpendingBatch([5, 10], '2026-01-01', '2026-01-31');
+
+		$this->assertArrayHasKey(5, $spending);
+		$this->assertArrayHasKey(10, $spending);
+		$this->assertEquals(450.00, $spending[5]);
+		$this->assertEquals(200.00, $spending[10]);
+	}
+
+	/**
+	 * Splitting a transaction nulls its category_id and moves the categories
+	 * onto budget_tx_splits, so `WHERE t.category_id IN (...)` can never match
+	 * one. Budget spending that went through a split was therefore invisible to
+	 * every budget surface -- the progress bars, the budget report and its
+	 * exports, and the spending-anomaly digest -- while the spending charts had
+	 * counted it since v2.33.0, so the two contradicted each other on the same
+	 * screen (#360). The companion query mirrors getSpendingSummary's (#297).
+	 */
+	public function testGetCategorySpendingBatchAddsSplitAllocations(): void {
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+			$this->resultOf([['category_id' => '5', 'total' => '100.00']]),
+			$this->resultOf([
+				['category_id' => '5', 'total' => '50.00'],
+				['category_id' => '9', 'total' => '850.00'],
+			])
+		);
+
+		$spending = $this->mapper->getCategorySpendingBatch([5, 9], '2026-01-01', '2026-01-31');
+
+		// 100 spent directly plus 50 through a split part.
+		$this->assertEqualsWithDelta(150.0, $spending[5], 0.001);
+		// A category funded only by splits still has to appear, or a budget
+		// filled entirely from split receipts reads as untouched.
+		$this->assertArrayHasKey(9, $spending);
+		$this->assertEqualsWithDelta(850.0, $spending[9], 0.001);
+	}
+
+	public function testGetCategorySpendingBatchKeepsNegativeSplitParts(): void {
+		// A receipt's discount line is a negative part, and must reduce the
+		// category rather than be dropped or counted as spending.
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+			$this->resultOf([['category_id' => '5', 'total' => '100.00']]),
+			$this->resultOf([['category_id' => '5', 'total' => '-12.50']])
+		);
+
+		$spending = $this->mapper->getCategorySpendingBatch([5], '2026-01-01', '2026-01-31');
+
+		$this->assertEqualsWithDelta(87.5, $spending[5], 0.001);
+	}
+
+	public function testGetCategorySpendingBatchRunsNoSplitQueryForNoCategories(): void {
+		$this->qb->expects($this->never())->method('executeQuery');
+
+		$this->assertEmpty($this->mapper->getCategorySpendingBatch([], '2026-01-01', '2026-01-31'));
+	}
+
+	// ===== getCategoryTransactionCounts =====
+
+	/**
+	 * The count badge on the Categories tree disagreed with the panel it
+	 * opens: Category Details has counted split allocations since #359, while
+	 * this query filtered on t.category_id, which a split never has. A
+	 * category funded entirely by split receipts showed 0 next to a panel
+	 * listing its transactions (#360).
+	 */
+	public function testCategoryTransactionCountsIncludeSplits(): void {
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+			$this->resultOf([['category_id' => '5', 'count' => '3']]),
+			$this->resultOf([
+				['category_id' => '5', 'count' => '2'],
+				['category_id' => '9', 'count' => '4'],
+			])
+		);
+
+		$counts = $this->mapper->getCategoryTransactionCounts('user1');
+
+		// 3 counted on the transaction itself plus 2 reached through splits.
+		$this->assertSame(5, $counts[5]);
+		// A category only ever funded by splits still appears.
+		$this->assertSame(4, $counts[9]);
+	}
+
+	public function testCategoryTransactionCountsWithoutSplitsAreUnchanged(): void {
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+			$this->resultOf([['category_id' => '5', 'count' => '3']]),
+			$this->resultOf([])
+		);
+
+		$this->assertSame([5 => 3], $this->mapper->getCategoryTransactionCounts('user1'));
+	}
+
+	// ===== findCategoryTransactionRows (Category Details panel) =====
+
+	/**
+	 * The Category Details panel's direct-rows query used to list a row that
+	 * carries BOTH its own category_id and split parts under its stamped
+	 * category, while the badge above it (getCategoryTransactionCounts) has
+	 * excluded such rows via directRowPredicate() since #360. Badge and panel
+	 * must agree, so the direct-rows query needs the same partition-complement
+	 * guard: eq(is_split, false) OR NOT EXISTS(split parts).
+	 */
+	public function testFindCategoryTransactionRowsDirectQueryAppliesPartitionComplement(): void {
+		$orXCalls = [];
+		$orXResult = $this->createMock(ICompositeExpression::class);
+		$this->expr->method('eq')->willReturnCallback(fn (string $col, $val) => "eq($col)");
+		$this->expr->method('orX')->willReturnCallback(function (...$parts) use (&$orXCalls, $orXResult) {
+			$orXCalls[] = $parts;
+			return $orXResult;
+		});
+
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+			$this->resultOf([]),
+			$this->resultOf([])
+		);
+
+		$this->mapper->findCategoryTransactionRows('user1', [5], 5);
+
+		$guardFound = false;
+		foreach ($orXCalls as $parts) {
+			$hasIsSplitFalse = false;
+			$hasNotExists = false;
+			foreach ($parts as $part) {
+				if ($part === 'eq(t.is_split)') {
+					$hasIsSplitFalse = true;
+				}
+				if (is_string($part) && str_contains($part, 'NOT EXISTS')) {
+					$hasNotExists = true;
+				}
+			}
+			if ($hasIsSplitFalse && $hasNotExists) {
+				$guardFound = true;
+				break;
+			}
+		}
+		$this->assertTrue($guardFound, 'the direct-rows query behind findCategoryTransactionRows must OR eq(is_split, false) with NOT EXISTS(split parts), matching getCategoryTransactionCounts (#360 follow-up)');
+	}
+
+	// ===== getCategoryTotalsByAccount =====
+
+	public function testGetCategoryTotalsByAccountReturnsEmptyForEmptyInput(): void {
+		$this->qb->expects($this->never())->method('executeQuery');
+
+		$result = $this->mapper->getCategoryTotalsByAccount([], '2026-01-01', '2026-01-31');
+
+		$this->assertEmpty($result);
+	}
+
+	public function testGetCategoryTotalsByAccountReturnsIndexedByAccountId(): void {
+		// First query = totals held directly on the transaction; second = totals
+		// held on its split parts. Nothing is split here.
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+			$this->resultOf([
+				['account_id' => '10', 'income' => '50.00', 'expenses' => '450.00'],
+				['account_id' => '20', 'income' => null, 'expenses' => '200.00'],
+			]),
+			$this->resultOf([])
+		);
+
+		$totals = $this->mapper->getCategoryTotalsByAccount([5, 10], '2026-01-01', '2026-01-31');
+
+		$this->assertEquals(['income' => 50.00, 'expenses' => 450.00], $totals[10]);
+		$this->assertEquals(['income' => 0.0, 'expenses' => 200.00], $totals[20]);
+	}
+
+	/**
+	 * Splitting a transaction nulls its category_id and moves the categories
+	 * onto budget_tx_splits, so `WHERE t.category_id IN (...)` can never match
+	 * one -- money in an excluded category spent through a split was never
+	 * deducted from the report totals it feeds (#326, #360). This is the
+	 * split-only case: the account has no direct spending in the excluded
+	 * category, only split parts, and must still be reported.
+	 */
+	public function testGetCategoryTotalsByAccountIncludesSplitOnlyAccount(): void {
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+			$this->resultOf([]),
+			$this->resultOf([
+				['account_id' => '30', 'income' => '20.00', 'expenses' => '80.00'],
+			])
+		);
+
+		$totals = $this->mapper->getCategoryTotalsByAccount([5], '2026-01-01', '2026-01-31');
+
+		$this->assertArrayHasKey(30, $totals);
+		$this->assertEquals(['income' => 20.00, 'expenses' => 80.00], $totals[30]);
+	}
+
+	/**
+	 * An account with both direct spending and split spending in the excluded
+	 * category must get both deducted, merged rather than one overwriting the
+	 * other.
+	 */
+	public function testGetCategoryTotalsByAccountMergesDirectAndSplitTotals(): void {
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+			$this->resultOf([
+				['account_id' => '10', 'income' => '50.00', 'expenses' => '450.00'],
+			]),
+			$this->resultOf([
+				['account_id' => '10', 'income' => '10.00', 'expenses' => '25.00'],
+			])
+		);
+
+		$totals = $this->mapper->getCategoryTotalsByAccount([5], '2026-01-01', '2026-01-31');
+
+		$this->assertEqualsWithDelta(60.00, $totals[10]['income'], 0.001);
+		$this->assertEqualsWithDelta(475.00, $totals[10]['expenses'], 0.001);
+	}
+
+	/**
+	 * The direct/split merge is money arithmetic and goes through
+	 * MoneyCalculator, never incremented floats (#274): 0.1 + 0.2 must come
+	 * out as exactly 0.3, not 0.30000000000000004.
+	 */
+	public function testGetCategoryTotalsByAccountMergesWithMoneyPrecision(): void {
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+			$this->resultOf([
+				['account_id' => '10', 'income' => '0.1', 'expenses' => '0.7'],
+			]),
+			$this->resultOf([
+				['account_id' => '10', 'income' => '0.2', 'expenses' => '0.1'],
+			])
+		);
+
+		$totals = $this->mapper->getCategoryTotalsByAccount([5], '2026-01-01', '2026-01-31');
+
+		$this->assertSame(0.3, $totals[10]['income']);
+		$this->assertSame(0.8, $totals[10]['expenses']);
+	}
+
+	// ===== findPotentialMatches =====
+
+	public function testFindPotentialMatchesIsStrictByDefault(): void {
+		// Same-currency-same-amount only: no OR branch in the query
+		$this->expr->expects($this->never())->method('orX');
+
+		$this->result->method('fetch')->willReturn(false);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$result = $this->mapper->findPotentialMatches('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR');
+
+		$this->assertSame([], $result);
+	}
+
+	public function testFindPotentialMatchesCrossCurrencyAddsOrBranch(): void {
+		// Cross-currency opt-in (#326): (same currency AND same amount) OR different currency
+		$this->expr->expects($this->once())->method('orX');
+
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls($this->makeTransactionRow(['type' => 'credit']), false);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$result = $this->mapper->findPotentialMatches('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR', 3, true);
+
+		$this->assertCount(1, $result);
+		$this->assertInstanceOf(Transaction::class, $result[0]);
+	}
+
+	// ===== getNetChangeAll =====
+
+	public function testGetNetChangeAllReturnsFloat(): void {
+		$this->result->method('fetchOne')->willReturn('500.25');
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$netChange = $this->mapper->getNetChangeAll(10);
+
+		$this->assertEquals(500.25, $netChange);
+	}
+
+	public function testGetNetChangeAllReturnsZeroWhenNoTransactions(): void {
+		$this->result->method('fetchOne')->willReturn('0');
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$netChange = $this->mapper->getNetChangeAll(10);
+
+		$this->assertEquals(0.0, $netChange);
+	}
+
+	// ===== getAccountMetrics (#285) =====
+
+	public function testGetAccountMetricsMapsAggregates(): void {
+		// First query (count + average) uses fetch(); the two range-sum queries use fetchOne()
+		$this->result->method('fetch')->willReturn(['cnt' => 7, 'avg_amt' => '244.2857']);
+		$this->result->method('fetchOne')->willReturnOnConsecutiveCalls('150', '60');
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$metrics = $this->mapper->getAccountMetrics(10, '2026-06-01', '2026-06-30');
+
+		$this->assertSame(7, $metrics['count']);
+		$this->assertEqualsWithDelta(244.2857, $metrics['average'], 0.0001);
+		$this->assertSame(150.0, $metrics['monthIncome']);
+		$this->assertSame(60.0, $metrics['monthExpenses']);
+	}
+
+	public function testGetAccountMetricsHandlesEmptyAccount(): void {
+		// No rows: count 0, AVG returns null, sums return null/false
+		$this->result->method('fetch')->willReturn(['cnt' => 0, 'avg_amt' => null]);
+		$this->result->method('fetchOne')->willReturn(false);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$metrics = $this->mapper->getAccountMetrics(10, '2026-06-01', '2026-06-30');
+
+		$this->assertSame(0, $metrics['count']);
+		$this->assertSame(0.0, $metrics['average']);
+		$this->assertSame(0.0, $metrics['monthIncome']);
+		$this->assertSame(0.0, $metrics['monthExpenses']);
+	}
+
+	// ===== getNetChangeAfterDate =====
+
+	public function testGetNetChangeAfterDateReturnsFloat(): void {
+		$this->result->method('fetchOne')->willReturn('250.75');
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$netChange = $this->mapper->getNetChangeAfterDate(10, '2026-01-15');
+
+		$this->assertEquals(250.75, $netChange);
+	}
+
+	public function testGetNetChangeAfterDateReturnsZeroForNull(): void {
+		$this->result->method('fetchOne')->willReturn('0');
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$netChange = $this->mapper->getNetChangeAfterDate(10, '2026-01-15');
+
+		$this->assertEquals(0.0, $netChange);
+	}
+
+	// ===== getNetChangeAfterDateBatch =====
+
+	public function testGetNetChangeAfterDateBatchReturnsIndexedByAccountId(): void {
+		$this->result->method('fetchAll')->willReturn([
+			['account_id' => '10', 'net_change' => '100.00'],
+			['account_id' => '20', 'net_change' => '-50.00'],
+		]);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$changes = $this->mapper->getNetChangeAfterDateBatch('user1', '2026-01-15');
+
+		$this->assertArrayHasKey(10, $changes);
+		$this->assertArrayHasKey(20, $changes);
+		$this->assertEquals(100.00, $changes[10]);
+		$this->assertEquals(-50.00, $changes[20]);
+	}
+
+	// ===== getDailyBalanceChanges =====
+
+	public function testGetDailyBalanceChangesReturnsIndexedByDate(): void {
+		$this->result->method('fetchAll')->willReturn([
+			['date' => '2026-01-15', 'net_change' => '-4.50'],
+			['date' => '2026-01-16', 'net_change' => '100.00'],
+		]);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$changes = $this->mapper->getDailyBalanceChanges(10, '2026-01-15', '2026-01-16');
+
+		$this->assertArrayHasKey('2026-01-15', $changes);
+		$this->assertArrayHasKey('2026-01-16', $changes);
+		$this->assertEquals(-4.50, $changes['2026-01-15']);
+		$this->assertEquals(100.00, $changes['2026-01-16']);
+	}
+
+	// ===== linkTransactions =====
+
+	public function testLinkTransactionsExecutesTwoStatements(): void {
+		$this->qb->expects($this->exactly(2))->method('executeStatement');
+
+		$this->mapper->linkTransactions(1, 2);
+	}
+
+	// ===== unlinkTransaction =====
+
+	public function testUnlinkTransactionReturnsNullWhenNotLinked(): void {
+		$this->result->method('fetchOne')->willReturn(null);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$linkedId = $this->mapper->unlinkTransaction(1);
+
+		$this->assertNull($linkedId);
+	}
+
+	public function testUnlinkTransactionReturnsLinkedIdAndExecutesStatements(): void {
+		$this->result->method('fetchOne')->willReturn('42');
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+		$this->qb->method('executeStatement')->willReturn(1);
+
+		$linkedId = $this->mapper->unlinkTransaction(1);
+
+		$this->assertEquals(42, $linkedId);
+	}
+
+	// ===== deleteAll =====
+
+	public function testDeleteAllReturnsAffectedRows(): void {
+		// First call: select IDs returns rows
+		$this->result->method('fetchAll')->willReturn(
+			array_map(fn ($i) => ['id' => $i], range(1, 15))
+		);
+		$this->qb->method('executeQuery')->willReturn($this->result);
+		// Second call: delete by IDs
+		$this->qb->method('executeStatement')->willReturn(15);
+
+		$count = $this->mapper->deleteAll('user1');
+
+		$this->assertEquals(15, $count);
+	}
+
+	// ===== findScheduledDueForTransition =====
+
+	public function testFindScheduledDueForTransitionReturnsTransactions(): void {
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls(
+				$this->makeTransactionRow(['status' => 'scheduled', 'date' => '2026-01-01']),
+				false
+			);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$txs = $this->mapper->findScheduledDueForTransition();
+
+		$this->assertCount(1, $txs);
+	}
+
+	// ===== getSpendingSummary =====
+
+	public function testGetSpendingSummaryReturnsRawRows(): void {
+		$this->result->method('fetchAll')->willReturn([
+			['id' => 5, 'name' => 'Food', 'color' => '#ff0000', 'icon' => null, 'total' => '450.00', 'count' => '10'],
+		]);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$summary = $this->mapper->getSpendingSummary('user1', '2026-01-01', '2026-01-31');
+
+		$this->assertCount(1, $summary);
+		$this->assertEquals('Food', $summary[0]['name']);
+	}
+
+	public function testGetSpendingSummaryAddsSplitSpending(): void {
+		// First query = direct (non-split) spending; second = split allocations.
+		$direct = $this->createMock(IResult::class);
+		$direct->method('fetchAll')->willReturn([
+			['id' => 5, 'name' => 'Food', 'color' => '#f00', 'icon' => null, 'total' => '100.00', 'count' => '2'],
+		]);
+		$direct->method('closeCursor');
+
+		$split = $this->createMock(IResult::class);
+		$split->method('fetchAll')->willReturn([
+			['id' => 5, 'name' => 'Food', 'color' => '#f00', 'icon' => null, 'total' => '50.00', 'count' => '1'],
+			['id' => 9, 'name' => 'Rent', 'color' => '#0f0', 'icon' => null, 'total' => '850.00', 'count' => '1'],
+		]);
+		$split->method('closeCursor');
+
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls($direct, $split);
+
+		$summary = $this->mapper->getSpendingSummary('user1', '2026-01-01', '2026-01-31');
+
+		$byId = [];
+		foreach ($summary as $row) {
+			$byId[(int)$row['id']] = $row;
+		}
+
+		// Food: 100 direct + 50 split = 150 (counts merged too)
+		$this->assertEqualsWithDelta(150.0, (float)$byId[5]['total'], 0.001);
+		$this->assertSame(3, (int)$byId[5]['count']);
+		// A category that only has split spending still appears
+		$this->assertArrayHasKey(9, $byId);
+		$this->assertEqualsWithDelta(850.0, (float)$byId[9]['total'], 0.001);
+		// Re-sorted by total descending — Rent (850) comes first
+		$this->assertSame(9, (int)$summary[0]['id']);
+	}
+
+	/**
+	 * The Budget page's Spent figure is served by this query, and it used to
+	 * sum one direction only — so refund credits sitting in an expense
+	 * category never reduced it, and the bar contradicted Category Details on
+	 * the same screen (#361). When asked to net, both queries must switch to
+	 * the same signed CASE the batch method uses and stop filtering by type.
+	 */
+	public function testGetSpendingSummaryNetsOppositeTypeWhenAsked(): void {
+		$eqCalls = [];
+		$this->expr->method('eq')->willReturnCallback(function (string $col, $val) use (&$eqCalls) {
+			$eqCalls[] = $col;
+			return "eq($col)";
+		});
+
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+			$this->resultOf([]),
+			$this->resultOf([])
+		);
+
+		$this->mapper->getSpendingSummary(
+			'user1', '2026-08-01', '2026-08-31', null, [], true, false, null, 'debit', true
+		);
+
+		$directNet = false;
+		$splitNet = false;
+		foreach ($this->capturedFunctions as $sql) {
+			if (str_contains($sql, 'CASE WHEN t.type =') && str_contains($sql, 'ELSE -t.amount')) {
+				$directNet = true;
+			}
+			if (str_contains($sql, 'CASE WHEN t.type =') && str_contains($sql, 'ELSE -s.amount')) {
+				$splitNet = true;
+			}
+		}
+		$this->assertTrue($directNet, 'direct query must sum with the signed CASE when netting');
+		$this->assertTrue($splitNet, 'split companion must sum with the signed CASE when netting');
+		$this->assertNotContains('t.type', $eqCalls, 'netting must include both directions, not filter t.type');
+	}
+
+	public function testGetSpendingSummaryStaysGrossByDefault(): void {
+		$eqCalls = [];
+		$this->expr->method('eq')->willReturnCallback(function (string $col, $val) use (&$eqCalls) {
+			$eqCalls[] = $col;
+			return "eq($col)";
+		});
+
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+			$this->resultOf([]),
+			$this->resultOf([])
+		);
+
+		$this->mapper->getSpendingSummary('user1', '2026-08-01', '2026-08-31');
+
+		foreach ($this->capturedFunctions as $sql) {
+			$this->assertStringNotContainsString('CASE WHEN t.type =', $sql,
+				'the spending report path keeps its one-direction gross sum');
+		}
+		$this->assertContains('t.type', $eqCalls, 'gross mode still filters to the requested direction');
+	}
+
+	// ===== getCategorySpendingByBucketBatch (#360) =====
+
+	public function testGetCategorySpendingByBucketBatchReturnsIndexedByCategoryAndBucket(): void {
+		$this->result->method('fetch')->willReturnOnConsecutiveCalls(
+			['category_id' => 5, 'bucket' => '2026-01', 'total' => '120.00'],
+			['category_id' => 9, 'bucket' => '2026-02', 'total' => '40.00'],
+			false
+		);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$totals = $this->mapper->getCategorySpendingByBucketBatch('user1', '2026-01-01', '2026-02-28');
+
+		$this->assertSame(120.0, $totals[5]['2026-01']);
+		$this->assertSame(40.0, $totals[9]['2026-02']);
+	}
+
+	/**
+	 * Companion to TransactionSplitMapper::getCategoryTotalsByBucket via
+	 * BudgetCarryoverService::loadSpending. Both sides used to guard on plain
+	 * true-or-NULL, so a pre-#351 NULL-flag row that actually HAS parts was
+	 * summed at its own amount here AND part-by-part by the split query.
+	 * The guard is now the partition complement: eq(is_split, false) OR
+	 * NOT EXISTS(parts), matching getCategorySpendingBatch (#360).
+	 */
+	public function testGetCategorySpendingByBucketBatchGuardIsThePartitionComplement(): void {
+		$eqCalls = [];
+		$this->expr->method('eq')->willReturnCallback(function (string $col, $val) use (&$eqCalls) {
+			$eqCalls[] = $col;
+			return "eq($col)";
+		});
+		$orXCalls = [];
+		$orXResult = $this->createMock(ICompositeExpression::class);
+		$this->expr->method('orX')->willReturnCallback(function (...$parts) use (&$orXCalls, $orXResult) {
+			$orXCalls[] = $parts;
+			return $orXResult;
+		});
+
+		$this->result->method('fetch')->willReturn(false);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$this->mapper->getCategorySpendingByBucketBatch('user1', '2026-01-01', '2026-01-31');
+
+		$guardFound = false;
+		foreach ($orXCalls as $parts) {
+			$hasIsSplitFalse = false;
+			$hasNotExists = false;
+			foreach ($parts as $part) {
+				if ($part === 'eq(t.is_split)') {
+					$hasIsSplitFalse = true;
+				}
+				if (is_string($part) && str_contains($part, 'NOT EXISTS')) {
+					$hasNotExists = true;
+				}
+			}
+			if ($hasIsSplitFalse && $hasNotExists) {
+				$guardFound = true;
+				break;
+			}
+		}
+		$this->assertTrue($guardFound, 'getCategorySpendingByBucketBatch must OR eq(is_split, false) with NOT EXISTS(split parts)');
+	}
+
+	// ===== getCategorySpendingBatch: scope and report choke point =====
+
+	/**
+	 * A selected account narrows the user's scope, it doesn't replace it:
+	 * the id comes straight off the request, and on its own it let a budget
+	 * report read any account at all.
+	 */
+	public function testCategorySpendingBatchKeepsTheUserScopeWithASelectedAccount(): void {
+		$eqColumns = [];
+		$this->expr->method('eq')->willReturnCallback(function ($column, $value) use (&$eqColumns) {
+			// Parameter comparisons only, not join conditions
+			if ($value === ':param') {
+				$eqColumns[] = $column;
+			}
+			return 'eq';
+		});
+		$inColumns = [];
+		$this->expr->method('in')->willReturnCallback(function ($column) use (&$inColumns) {
+			$inColumns[] = $column;
+			return 'in';
+		});
+		$this->qb->method('executeQuery')->willReturnCallback(fn () => $this->resultOf([]));
+
+		$this->mapper->getCategorySpendingBatch([1], '2026-01-01', '2026-01-31', 'debit', 42, false, 'user1');
+		$this->assertSame(2, count(array_keys($eqColumns, 'a.user_id', true)), 'both halves keep the owner scope');
+		$this->assertSame(2, count(array_keys($eqColumns, 't.account_id', true)), 'both halves narrow to the account');
+
+		$eqColumns = [];
+		$this->mapper->getCategorySpendingBatch([1], '2026-01-01', '2026-01-31', 'debit', 42, false, 'user1', [42, 43]);
+		$this->assertNotContains('a.user_id', $eqColumns);
+		$this->assertSame(2, count(array_keys($inColumns, 'a.id', true)), 'both halves keep the visible-account scope');
+		$this->assertSame(2, count(array_keys($eqColumns, 't.account_id', true)));
+	}
+
+	public function testCategorySpendingBatchCanApplyTheReportChokePoint(): void {
+		$joins = [];
+		$this->qb->method('leftJoin')->willReturnCallback(function ($from, $table) use (&$joins) {
+			$joins[] = "{$from}->{$table}";
+			return $this->qb;
+		});
+		$this->qb->method('executeQuery')->willReturnCallback(fn () => $this->resultOf([]));
+
+		$this->mapper->getCategorySpendingBatch([1, 2], '2026-01-01', '2026-01-31');
+		$this->assertSame([], $joins, 'off by default: budgets count categories kept out of reports');
+
+		$this->mapper->getCategorySpendingBatch([1, 2], '2026-01-01', '2026-01-31', excludeReportCategories: true);
+		$this->assertSame(['t->budget_categories', 's->budget_categories'], $joins);
+	}
+
+	// ===== findDuplicates (#333) =====
+
+	/**
+	 * findDuplicates() used to compare each candidate to the LAST row added
+	 * to the group rather than the FIRST, so a run of legitimate same-amount
+	 * purchases a few days apart chained end-to-end into one "duplicate"
+	 * group spanning far more than the window (#333). Five rows two days
+	 * apart (1st, 3rd, 5th, 7th, 9th) with a 3-day window must never merge
+	 * into one group of five -- but hard-anchoring on each group's first row
+	 * silently DROPPED boundary rows (the 9th appeared nowhere, and the 3rd
+	 * and 5th -- two days apart -- were reported in different groups). The
+	 * grouping now re-anchors at the boundary: when a row falls outside the
+	 * window, tail rows of the flushed group still within the window of the
+	 * new row carry into its group. Every pair of rows within the window of
+	 * each other is reported together, at the cost of a boundary row
+	 * appearing in two adjacent groups; no group ever spans more than the
+	 * window. (Expectation deliberately changed from two groups of two when
+	 * the boundary false negatives were fixed.)
+	 */
+	public function testFindDuplicatesReAnchorsAtWindowBoundariesWithoutChaining(): void {
+		$row = fn (int $id, string $date) => array_merge($this->makeTransactionRow([
+			'id' => $id,
+			'account_id' => 10,
+			'amount' => 4.50,
+			'type' => 'debit',
+			'description' => 'Coffee Shop',
+			'date' => $date,
+		]), [
+			'account_name' => 'Checking',
+			'account_currency' => 'USD',
+			'category_name' => 'Food',
+		]);
+
+		$this->result->method('fetchAll')->willReturn([
+			$row(1, '2026-01-01'),
+			$row(2, '2026-01-03'),
+			$row(3, '2026-01-05'),
+			$row(4, '2026-01-07'),
+			$row(5, '2026-01-09'),
+		]);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$groups = $this->mapper->findDuplicates('user1', 3);
+
+		$this->assertSame([
+			[1, 2],
+			[2, 3],
+			[3, 4],
+			[4, 5],
+		], array_map(fn (array $g) => array_column($g, 'id'), $groups));
+	}
+
+	/**
+	 * The false negative the re-anchoring exists for: same-amount rows on
+	 * the 1st, 4th and 5th with a 3-day window used to split as [1st, 4th]
+	 * plus a lone 5th -- a next-day duplicate reported nowhere, because the
+	 * 5th is 4 days from the group's first-row anchor.
+	 */
+	public function testFindDuplicatesReportsANextDayPairAcrossAWindowBoundary(): void {
+		$row = fn (int $id, string $date) => array_merge($this->makeTransactionRow([
+			'id' => $id,
+			'account_id' => 10,
+			'amount' => 4.50,
+			'type' => 'debit',
+			'description' => 'Coffee Shop',
+			'date' => $date,
+		]), [
+			'account_name' => 'Checking',
+			'account_currency' => 'USD',
+			'category_name' => 'Food',
+		]);
+
+		$this->result->method('fetchAll')->willReturn([
+			$row(1, '2026-01-01'),
+			$row(2, '2026-01-04'),
+			$row(3, '2026-01-05'),
+		]);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$groups = $this->mapper->findDuplicates('user1', 3);
+
+		$this->assertSame([
+			[1, 2],
+			[2, 3],
+		], array_map(fn (array $g) => array_column($g, 'id'), $groups));
+	}
+
+	/** The #333 anti-chaining property: far-apart purchases are not duplicates. */
+	public function testFindDuplicatesNeverChainsRowsWeeksApart(): void {
+		$row = fn (int $id, string $date) => array_merge($this->makeTransactionRow([
+			'id' => $id,
+			'account_id' => 10,
+			'amount' => 4.50,
+			'type' => 'debit',
+			'description' => 'Coffee Shop',
+			'date' => $date,
+		]), [
+			'account_name' => 'Checking',
+			'account_currency' => 'USD',
+			'category_name' => 'Food',
+		]);
+
+		$this->result->method('fetchAll')->willReturn([
+			$row(1, '2026-01-01'),
+			$row(2, '2026-01-15'),
+			$row(3, '2026-02-01'),
+			$row(4, '2026-02-15'),
+			$row(5, '2026-03-01'),
+		]);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$this->assertSame([], $this->mapper->findDuplicates('user1', 3));
+	}
+
+	/** Tail rows only carry across a window boundary within the same key. */
+	public function testFindDuplicatesDoesNotCarryTailRowsIntoADifferentDescription(): void {
+		$row = fn (int $id, string $desc, string $date) => array_merge($this->makeTransactionRow([
+			'id' => $id,
+			'account_id' => 10,
+			'amount' => 4.50,
+			'type' => 'debit',
+			'description' => $desc,
+			'date' => $date,
+		]), [
+			'account_name' => 'Checking',
+			'account_currency' => 'USD',
+			'category_name' => 'Food',
+		]);
+
+		$this->result->method('fetchAll')->willReturn([
+			$row(1, 'Coffee Shop', '2026-01-01'),
+			$row(2, 'Coffee Shop', '2026-01-01'),
+			$row(3, 'Tea House', '2026-01-01'),
+			$row(4, 'Tea House', '2026-01-01'),
+		]);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$groups = $this->mapper->findDuplicates('user1', 3);
+
+		$this->assertSame([
+			[1, 2],
+			[3, 4],
+		], array_map(fn (array $g) => array_column($g, 'id'), $groups));
+	}
+
+	/**
+	 * The dialog shows "Split" instead of a dash in the category column for a
+	 * split parent (#360). The mapping trusts the raw flag — the one-time
+	 * backfill (Version001000100) resolves NULL and stray-true flags from the
+	 * parts table, so post-backfill the flag IS the truth and no per-row
+	 * parts probe is spent here.
+	 */
+	public function testFindDuplicatesReportsAFlagTrueRowAsSplit(): void {
+		$row = fn (int $id, $isSplit) => array_merge($this->makeTransactionRow([
+			'id' => $id,
+			'account_id' => 10,
+			'amount' => 25.00,
+			'type' => 'debit',
+			'description' => 'Supermarket',
+			'date' => '2026-03-01',
+			'is_split' => $isSplit,
+			'category_id' => null,
+			'category_name' => null,
+		]), [
+			'account_name' => 'Checking',
+			'account_currency' => 'USD',
+		]);
+
+		$this->result->method('fetchAll')->willReturn([
+			$row(21, 1),
+			$row(22, 0),
+		]);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$groups = $this->mapper->findDuplicates('user1', 3);
+
+		$this->assertCount(1, $groups);
+		$this->assertTrue($groups[0][0]['isSplit']);
+		$this->assertFalse($groups[0][1]['isSplit']);
+	}
+
+	public function testFindDuplicatesStillReportsAGenuineSameDayPair(): void {
+		$row = fn (int $id, string $date) => array_merge($this->makeTransactionRow([
+			'id' => $id,
+			'account_id' => 20,
+			'amount' => 9.99,
+			'type' => 'debit',
+			'description' => 'Same Day Purchase',
+			'date' => $date,
+		]), [
+			'account_name' => 'Checking',
+			'account_currency' => 'USD',
+			'category_name' => 'Shopping',
+		]);
+
+		$this->result->method('fetchAll')->willReturn([
+			$row(10, '2026-02-01'),
+			$row(11, '2026-02-01'),
+		]);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$groups = $this->mapper->findDuplicates('user1', 3);
+
+		$this->assertCount(1, $groups);
+		$this->assertSame([10, 11], array_column($groups[0], 'id'));
+	}
+
+	// ===== match scoping across shared accounts (#378) =====
+
+	public function testFindPotentialMatchesScopesToTheGivenAccountsNotTheOwner(): void {
+		// Given account ids, the candidate set is those accounts — scoping to
+		// a.user_id would drop every leg sitting in a shared account (#378)
+		$ownerScoped = false;
+		$this->expr->method('eq')->willReturnCallback(function ($x) use (&$ownerScoped) {
+			if ($x === 'a.user_id') {
+				$ownerScoped = true;
+			}
+			return 'eq';
+		});
+		$scopedIn = [];
+		$this->expr->method('in')->willReturnCallback(function ($x) use (&$scopedIn) {
+			$scopedIn[] = $x;
+			return 'in';
+		});
+
+		$this->result->method('fetch')->willReturn(false);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$this->mapper->findPotentialMatches(
+			'user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR', 3, false, [10, 20]
+		);
+
+		$this->assertFalse($ownerScoped, 'candidates must not be scoped to the acting user');
+		$this->assertContains('a.id', $scopedIn);
+	}
+
+	public function testFindPotentialMatchesStillScopesToTheOwnerWithoutAccountIds(): void {
+		// No account ids: the import/sync callers keep their own-scoped search
+		$ownerScoped = false;
+		$this->expr->method('eq')->willReturnCallback(function ($x) use (&$ownerScoped) {
+			if ($x === 'a.user_id') {
+				$ownerScoped = true;
+			}
+			return 'eq';
+		});
+
+		$this->result->method('fetch')->willReturn(false);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$this->mapper->findPotentialMatches('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR');
+
+		$this->assertTrue($ownerScoped);
+	}
+
+	public function testFindPotentialMatchesRunsNoQueryForAnEmptyAccountScope(): void {
+		// "no accounts in scope" must mean no candidates, never an IN () whose
+		// SQL semantics we would be guessing at
+		$this->qb->expects($this->never())->method('executeQuery');
+
+		$this->assertSame([], $this->mapper->findPotentialMatches(
+			'user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR', 3, false, []
+		));
+	}
+
+	public function testFindUnlinkedWithMatchesRunsNoQueryForAnEmptyAccountScope(): void {
+		$this->qb->expects($this->never())->method('executeQuery');
+
+		$this->assertSame(
+			['transactions' => [], 'total' => 0],
+			$this->mapper->findUnlinkedWithMatches('user1', 3, 100, 0, [])
+		);
+	}
 }

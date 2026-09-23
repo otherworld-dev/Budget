@@ -287,17 +287,13 @@ class CriteriaEvaluator {
 		switch ($matchType) {
 			case 'contains':
 				return stripos($value, $pattern) !== false;
-
 			case 'starts_with':
 				return stripos($value, $pattern) === 0;
-
 			case 'ends_with':
 				$patternLen = strlen($pattern);
 				return $patternLen === 0 || strcasecmp(substr($value, -$patternLen), $pattern) === 0;
-
 			case 'equals':
 				return strcasecmp($value, $pattern) === 0;
-
 			case 'regex':
 				// Suppress warnings for invalid regex
 				$result = @preg_match('/' . $pattern . '/i', $value);
@@ -306,7 +302,6 @@ class CriteriaEvaluator {
 					return false;
 				}
 				return $result === 1;
-
 			default:
 				return false;
 		}
@@ -332,13 +327,10 @@ class CriteriaEvaluator {
 				$target = (float)$pattern;
 				// Use epsilon comparison for floating point
 				return abs($value - $target) < 0.01;
-
 			case 'greater_than':
 				return $value > (float)$pattern;
-
 			case 'less_than':
 				return $value < (float)$pattern;
-
 			case 'between':
 				$range = self::parseRange($pattern);
 				if ($range === null || !is_numeric($range['min']) || !is_numeric($range['max'])) {
@@ -348,7 +340,6 @@ class CriteriaEvaluator {
 				$min = (float)$range['min'];
 				$max = (float)$range['max'];
 				return $value >= $min && $value <= $max;
-
 			default:
 				return false;
 		}
@@ -383,21 +374,18 @@ class CriteriaEvaluator {
 				}
 				// Compare dates only (ignore time)
 				return date('Y-m-d', $valueTime) === date('Y-m-d', $patternTime);
-
 			case 'before':
 				$patternTime = strtotime((string)$pattern);
 				if ($patternTime === false) {
 					return false;
 				}
 				return $valueTime < $patternTime;
-
 			case 'after':
 				$patternTime = strtotime((string)$pattern);
 				if ($patternTime === false) {
 					return false;
 				}
 				return $valueTime > $patternTime;
-
 			case 'between':
 				$range = self::parseRange($pattern);
 				if ($range === null) {
@@ -410,7 +398,6 @@ class CriteriaEvaluator {
 					return false;
 				}
 				return $valueTime >= $minTime && $valueTime <= $maxTime;
-
 			default:
 				return false;
 		}

@@ -34,61 +34,61 @@ namespace OCA\Budget\Service\BankSync;
  * ]
  */
 interface BankSyncProviderInterface {
-    /**
-     * Provider identifier (e.g. 'simplefin', 'gocardless').
-     */
-    public function getIdentifier(): string;
+	/**
+	 * Provider identifier (e.g. 'simplefin', 'gocardless').
+	 */
+	public function getIdentifier(): string;
 
-    /**
-     * Human-readable display name.
-     */
-    public function getDisplayName(): string;
+	/**
+	 * Human-readable display name.
+	 */
+	public function getDisplayName(): string;
 
-    /**
-     * Initialize a new connection. Performs token exchange / API key validation.
-     *
-     * @param array $params Provider-specific parameters (e.g. setupToken, secretId/secretKey)
-     * @return array{credentials: string, accounts: array} Credentials to store (encrypted) + initial account list
-     * @throws \Exception on authentication failure
-     */
-    public function initializeConnection(array $params): array;
+	/**
+	 * Initialize a new connection. Performs token exchange / API key validation.
+	 *
+	 * @param array $params Provider-specific parameters (e.g. setupToken, secretId/secretKey)
+	 * @return array{credentials: string, accounts: array} Credentials to store (encrypted) + initial account list
+	 * @throws \Exception on authentication failure
+	 */
+	public function initializeConnection(array $params): array;
 
-    /**
-     * Fetch accounts and their recent transactions.
-     *
-     * @param string $credentials Provider-specific stored credentials (decrypted)
-     * @param array $options Provider-specific fetch options. Recognized keys:
-     *                       - includePending (bool): also fetch not-yet-posted
-     *                         transactions (SimpleFIN). Providers ignore unknown options.
-     * @return array Normalized account data (see interface docblock)
-     * @throws \Exception on API failure
-     */
-    public function fetchAccounts(string $credentials, array $options = []): array;
+	/**
+	 * Fetch accounts and their recent transactions.
+	 *
+	 * @param string $credentials Provider-specific stored credentials (decrypted)
+	 * @param array $options Provider-specific fetch options. Recognized keys:
+	 *                       - includePending (bool): also fetch not-yet-posted
+	 *                       transactions (SimpleFIN). Providers ignore unknown options.
+	 * @return array Normalized account data (see interface docblock)
+	 * @throws \Exception on API failure
+	 */
+	public function fetchAccounts(string $credentials, array $options = []): array;
 
-    /**
-     * Fetch account metadata only (no transactions). Used by refreshAccounts
-     * to avoid wasting API quota fetching transactions that will be discarded.
-     * Default implementation calls fetchAccounts — providers can override for efficiency.
-     *
-     * @param string $credentials Provider-specific stored credentials
-     * @param array $options Provider-specific fetch options (see fetchAccounts)
-     * @return array Same format as fetchAccounts but transactions arrays may be empty
-     */
-    public function fetchAccountList(string $credentials, array $options = []): array;
+	/**
+	 * Fetch account metadata only (no transactions). Used by refreshAccounts
+	 * to avoid wasting API quota fetching transactions that will be discarded.
+	 * Default implementation calls fetchAccounts — providers can override for efficiency.
+	 *
+	 * @param string $credentials Provider-specific stored credentials
+	 * @param array $options Provider-specific fetch options (see fetchAccounts)
+	 * @return array Same format as fetchAccounts but transactions arrays may be empty
+	 */
+	public function fetchAccountList(string $credentials, array $options = []): array;
 
-    /**
-     * Check if the connection needs re-authorization (e.g. GoCardless 90-day consent).
-     *
-     * @param string $credentials Provider-specific stored credentials
-     * @return bool True if re-auth is needed
-     */
-    public function requiresReauthorization(string $credentials): bool;
+	/**
+	 * Check if the connection needs re-authorization (e.g. GoCardless 90-day consent).
+	 *
+	 * @param string $credentials Provider-specific stored credentials
+	 * @return bool True if re-auth is needed
+	 */
+	public function requiresReauthorization(string $credentials): bool;
 
-    /**
-     * Revoke the connection at the provider side (best-effort).
-     * Called during disconnect. Implementations should not throw on failure.
-     *
-     * @param string $credentials Provider-specific stored credentials
-     */
-    public function revokeConnection(string $credentials): void;
+	/**
+	 * Revoke the connection at the provider side (best-effort).
+	 * Called during disconnect. Implementations should not throw on failure.
+	 *
+	 * @param string $credentials Provider-specific stored credentials
+	 */
+	public function revokeConnection(string $credentials): void;
 }

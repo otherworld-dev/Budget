@@ -57,7 +57,7 @@ class SharedAccessTraitTest extends TestCase {
 
 	private function makeService(): GranularShareService {
 		$accountMapper = $this->createMock(AccountMapper::class);
-		$accountMapper->method('findAll')->willReturnCallback(fn(string $userId) => array_map(
+		$accountMapper->method('findAll')->willReturnCallback(fn (string $userId) => array_map(
 			function (int $id) {
 				$a = new Account();
 				$a->setId($id);
@@ -67,7 +67,7 @@ class SharedAccessTraitTest extends TestCase {
 		));
 
 		$categoryMapper = $this->createMock(CategoryMapper::class);
-		$categoryMapper->method('findAll')->willReturnCallback(fn(string $userId) => array_map(
+		$categoryMapper->method('findAll')->willReturnCallback(fn (string $userId) => array_map(
 			function (int $id) {
 				$c = new Category();
 				$c->setId($id);
@@ -89,10 +89,10 @@ class SharedAccessTraitTest extends TestCase {
 
 		$shareItemMapper = $this->createMock(ShareItemMapper::class);
 		$shareItemMapper->method('findSharedEntityIds')->willReturnCallback(
-			fn(int $shareId, string $type) => array_keys(self::SHARE_ITEMS[$shareId][$type] ?? [])
+			fn (int $shareId, string $type) => array_keys(self::SHARE_ITEMS[$shareId][$type] ?? [])
 		);
 		$shareItemMapper->method('getEntityPermission')->willReturnCallback(
-			fn(int $shareId, string $type, int $id) => self::SHARE_ITEMS[$shareId][$type][$id] ?? null
+			fn (int $shareId, string $type, int $id) => self::SHARE_ITEMS[$shareId][$type][$id] ?? null
 		);
 
 		return new GranularShareService(

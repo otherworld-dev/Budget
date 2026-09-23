@@ -13,84 +13,84 @@ use OCP\IDBConnection;
  * @template-extends QBMapper<SavingsGoal>
  */
 class SavingsGoalMapper extends QBMapper {
-    public function __construct(IDBConnection $db) {
-        parent::__construct($db, 'budget_savings_goals', SavingsGoal::class);
-    }
+	public function __construct(IDBConnection $db) {
+		parent::__construct($db, 'budget_savings_goals', SavingsGoal::class);
+	}
 
-    /**
-     * @throws DoesNotExistException
-     */
-    public function find(int $id, string $userId): SavingsGoal {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+	/**
+	 * @throws DoesNotExistException
+	 */
+	public function find(int $id, string $userId): SavingsGoal {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
 
-        return $this->findEntity($qb);
-    }
+		return $this->findEntity($qb);
+	}
 
-    /**
-     * @return SavingsGoal[]
-     */
-    public function findAll(string $userId): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->orderBy('name', 'ASC');
+	/**
+	 * @return SavingsGoal[]
+	 */
+	public function findAll(string $userId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->orderBy('name', 'ASC');
 
-        return $this->findEntities($qb);
-    }
+		return $this->findEntities($qb);
+	}
 
-    /**
-     * Find multiple savings goals by IDs without user scoping.
-     * IDs are pre-authorized by GranularShareService.
-     *
-     * @param int[] $ids
-     * @return SavingsGoal[]
-     */
-    public function findByIds(array $ids): array {
-        if (empty($ids)) {
-            return [];
-        }
+	/**
+	 * Find multiple savings goals by IDs without user scoping.
+	 * IDs are pre-authorized by GranularShareService.
+	 *
+	 * @param int[] $ids
+	 * @return SavingsGoal[]
+	 */
+	public function findByIds(array $ids): array {
+		if (empty($ids)) {
+			return [];
+		}
 
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->in('id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)));
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->in('id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)));
 
-        return $this->findEntities($qb);
-    }
+		return $this->findEntities($qb);
+	}
 
-    /**
-     * Delete all savings goals for a user
-     *
-     * @param string $userId
-     * @return int Number of deleted rows
-     */
-    public function deleteAll(string $userId): int {
-        $qb = $this->db->getQueryBuilder();
+	/**
+	 * Delete all savings goals for a user
+	 *
+	 * @param string $userId
+	 * @return int Number of deleted rows
+	 */
+	public function deleteAll(string $userId): int {
+		$qb = $this->db->getQueryBuilder();
 
-        $qb->delete($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
+		$qb->delete($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
 
-        return $qb->executeStatement();
-    }
+		return $qb->executeStatement();
+	}
 
-    /**
-     * Clear tag references when a tag is deleted.
-     * Sets tag_id to NULL for any goals linked to the given tag.
-     *
-     * @param int $tagId
-     * @return int Number of updated rows
-     */
-    public function clearTagReference(int $tagId): int {
-        $qb = $this->db->getQueryBuilder();
-        $qb->update($this->getTableName())
-            ->set('tag_id', $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
-            ->where($qb->expr()->eq('tag_id', $qb->createNamedParameter($tagId, IQueryBuilder::PARAM_INT)));
+	/**
+	 * Clear tag references when a tag is deleted.
+	 * Sets tag_id to NULL for any goals linked to the given tag.
+	 *
+	 * @param int $tagId
+	 * @return int Number of updated rows
+	 */
+	public function clearTagReference(int $tagId): int {
+		$qb = $this->db->getQueryBuilder();
+		$qb->update($this->getTableName())
+			->set('tag_id', $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
+			->where($qb->expr()->eq('tag_id', $qb->createNamedParameter($tagId, IQueryBuilder::PARAM_INT)));
 
-        return $qb->executeStatement();
-    }
+		return $qb->executeStatement();
+	}
 }

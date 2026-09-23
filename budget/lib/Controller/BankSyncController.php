@@ -19,312 +19,334 @@ use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
 class BankSyncController extends Controller {
-    use ApiErrorHandlerTrait;
+	use ApiErrorHandlerTrait;
 
-    public function __construct(
-        IRequest $request,
-        private BankSyncService $syncService,
-        private AdminSettingService $adminSettings,
-        private ProviderFactory $providerFactory,
-        private IL10N $l,
-        private string $userId,
-        LoggerInterface $logger
-    ) {
-        parent::__construct(Application::APP_ID, $request);
-        $this->setLogger($logger);
-    }
+	public function __construct(
+		IRequest $request,
+		private BankSyncService $syncService,
+		private AdminSettingService $adminSettings,
+		private ProviderFactory $providerFactory,
+		private IL10N $l,
+		private string $userId,
+		LoggerInterface $logger,
+	) {
+		parent::__construct(Application::APP_ID, $request);
+		$this->setLogger($logger);
+	}
 
-    private function requireBankSync(): ?DataResponse {
-        if (!$this->adminSettings->isBankSyncEnabled()) {
-            return new DataResponse(
-                ['error' => $this->l->t('Bank sync is disabled by the administrator')],
-                Http::STATUS_FORBIDDEN
-            );
-        }
-        return null;
-    }
+	private function requireBankSync(): ?DataResponse {
+		if (!$this->adminSettings->isBankSyncEnabled()) {
+			return new DataResponse(
+				['error' => $this->l->t('Bank sync is disabled by the administrator')],
+				Http::STATUS_FORBIDDEN
+			);
+		}
+		return null;
+	}
 
-    /**
-     * Check if bank sync is enabled and if user has connections.
-     * @NoAdminRequired
-     */
-    public function status(): DataResponse {
-        $enabled = $this->adminSettings->isBankSyncEnabled();
-        $connections = $enabled ? $this->syncService->getConnections($this->userId) : [];
-        return new DataResponse([
-            'enabled' => $enabled,
-            'hasConnections' => count($connections) > 0,
-            'connectionCount' => count($connections),
-        ]);
-    }
+	/**
+	 * Check if bank sync is enabled and if user has connections.
+	 * @NoAdminRequired
+	 */
+	public function status(): DataResponse {
+		$enabled = $this->adminSettings->isBankSyncEnabled();
+		$connections = $enabled ? $this->syncService->getConnections($this->userId) : [];
+		return new DataResponse([
+			'enabled' => $enabled,
+			'hasConnections' => count($connections) > 0,
+			'connectionCount' => count($connections),
+		]);
+	}
 
-    /**
-     * List available providers.
-     * @NoAdminRequired
-     */
-    public function providers(): DataResponse {
-        if ($r = $this->requireBankSync()) return $r;
-        return new DataResponse($this->providerFactory->getAvailableProviders());
-    }
+	/**
+	 * List available providers.
+	 * @NoAdminRequired
+	 */
+	public function providers(): DataResponse {
+		if ($r = $this->requireBankSync()) {
+			return $r;
+		}
+		return new DataResponse($this->providerFactory->getAvailableProviders());
+	}
 
-    /**
-     * List institutions for a provider (GoCardless bank list).
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 10, period: 60)]
-    public function institutions(string $provider): DataResponse {
-        if ($r = $this->requireBankSync()) return $r;
+	/**
+	 * List institutions for a provider (GoCardless bank list).
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 10, period: 60)]
+	public function institutions(string $provider): DataResponse {
+		if ($r = $this->requireBankSync()) {
+			return $r;
+		}
 
-        try {
-            $p = $this->providerFactory->getProvider($provider);
-            if (!($p instanceof GoCardlessProvider)) {
-                return new DataResponse(['error' => $this->l->t('This provider does not support institution listing')], Http::STATUS_BAD_REQUEST);
-            }
+		try {
+			$p = $this->providerFactory->getProvider($provider);
+			if (!($p instanceof GoCardlessProvider)) {
+				return new DataResponse(['error' => $this->l->t('This provider does not support institution listing')], Http::STATUS_BAD_REQUEST);
+			}
 
-            $params = $this->request->getParams();
-            $country = strtoupper(trim($params['country'] ?? 'GB'));
-            if (!preg_match('/^[A-Z]{2}$/', $country)) {
-                return new DataResponse(['error' => $this->l->t('Invalid country code')], Http::STATUS_BAD_REQUEST);
-            }
-            $secretId = $params['secretId'] ?? null;
-            $secretKey = $params['secretKey'] ?? null;
+			$params = $this->request->getParams();
+			$country = strtoupper(trim($params['country'] ?? 'GB'));
+			if (!preg_match('/^[A-Z]{2}$/', $country)) {
+				return new DataResponse(['error' => $this->l->t('Invalid country code')], Http::STATUS_BAD_REQUEST);
+			}
+			$secretId = $params['secretId'] ?? null;
+			$secretKey = $params['secretKey'] ?? null;
 
-            if (!$secretId || !$secretKey) {
-                return new DataResponse(['error' => $this->l->t('API credentials required')], Http::STATUS_BAD_REQUEST);
-            }
+			if (!$secretId || !$secretKey) {
+				return new DataResponse(['error' => $this->l->t('API credentials required')], Http::STATUS_BAD_REQUEST);
+			}
 
-            // Get access token and fetch institutions
-            $accessToken = $this->getGoCardlessToken($p, $secretId, $secretKey);
-            $institutions = $p->getInstitutions($accessToken, $country);
+			// Get access token and fetch institutions
+			$accessToken = $this->getGoCardlessToken($p, $secretId, $secretKey);
+			$institutions = $p->getInstitutions($accessToken, $country);
 
-            return new DataResponse($institutions);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to fetch institutions'), Http::STATUS_BAD_REQUEST);
-        }
-    }
+			return new DataResponse($institutions);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to fetch institutions'), Http::STATUS_BAD_REQUEST);
+		}
+	}
 
-    /**
-     * List user's bank connections.
-     * @NoAdminRequired
-     */
-    public function connections(): DataResponse {
-        if ($r = $this->requireBankSync()) return $r;
-        return new DataResponse($this->syncService->getConnections($this->userId));
-    }
+	/**
+	 * List user's bank connections.
+	 * @NoAdminRequired
+	 */
+	public function connections(): DataResponse {
+		if ($r = $this->requireBankSync()) {
+			return $r;
+		}
+		return new DataResponse($this->syncService->getConnections($this->userId));
+	}
 
-    /**
-     * Create a new bank connection.
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 5, period: 60)]
-    public function connect(): DataResponse {
-        if ($r = $this->requireBankSync()) return $r;
+	/**
+	 * Create a new bank connection.
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 5, period: 60)]
+	public function connect(): DataResponse {
+		if ($r = $this->requireBankSync()) {
+			return $r;
+		}
 
-        try {
-            $params = $this->request->getParams();
-            $provider = $params['provider'] ?? null;
-            $name = $params['name'] ?? null;
+		try {
+			$params = $this->request->getParams();
+			$provider = $params['provider'] ?? null;
+			$name = $params['name'] ?? null;
 
-            if (!$provider || !$name) {
-                return new DataResponse(['error' => $this->l->t('Provider and name are required')], Http::STATUS_BAD_REQUEST);
-            }
+			if (!$provider || !$name) {
+				return new DataResponse(['error' => $this->l->t('Provider and name are required')], Http::STATUS_BAD_REQUEST);
+			}
 
-            $name = trim($name);
-            if (strlen($name) === 0 || strlen($name) > 255) {
-                return new DataResponse(['error' => $this->l->t('Connection name must be between 1 and 255 characters')], Http::STATUS_BAD_REQUEST);
-            }
+			$name = trim($name);
+			if (strlen($name) === 0 || strlen($name) > 255) {
+				return new DataResponse(['error' => $this->l->t('Connection name must be between 1 and 255 characters')], Http::STATUS_BAD_REQUEST);
+			}
 
-            $validProviders = ['simplefin', 'gocardless'];
-            if (!in_array($provider, $validProviders, true)) {
-                return new DataResponse(['error' => $this->l->t('Invalid provider')], Http::STATUS_BAD_REQUEST);
-            }
+			$validProviders = ['simplefin', 'gocardless'];
+			if (!in_array($provider, $validProviders, true)) {
+				return new DataResponse(['error' => $this->l->t('Invalid provider')], Http::STATUS_BAD_REQUEST);
+			}
 
-            // Extract provider-specific params
-            $providerParams = [];
-            if ($provider === 'simplefin') {
-                $providerParams['setupToken'] = $params['setupToken'] ?? null;
-            } elseif ($provider === 'gocardless') {
-                $providerParams['secretId'] = $params['secretId'] ?? null;
-                $providerParams['secretKey'] = $params['secretKey'] ?? null;
-                $providerParams['institutionId'] = $params['institutionId'] ?? null;
-                $providerParams['redirectUrl'] = $params['redirectUrl'] ?? null;
-            }
+			// Extract provider-specific params
+			$providerParams = [];
+			if ($provider === 'simplefin') {
+				$providerParams['setupToken'] = $params['setupToken'] ?? null;
+			} elseif ($provider === 'gocardless') {
+				$providerParams['secretId'] = $params['secretId'] ?? null;
+				$providerParams['secretKey'] = $params['secretKey'] ?? null;
+				$providerParams['institutionId'] = $params['institutionId'] ?? null;
+				$providerParams['redirectUrl'] = $params['redirectUrl'] ?? null;
+			}
 
-            if (!empty($providerParams['redirectUrl'])) {
-                $baseUrl = $this->request->getServerProtocol() . '://' . $this->request->getServerHost();
-                if (!str_starts_with($providerParams['redirectUrl'], $baseUrl)) {
-                    $providerParams['redirectUrl'] = '';
-                }
-            }
+			if (!empty($providerParams['redirectUrl'])) {
+				$baseUrl = $this->request->getServerProtocol() . '://' . $this->request->getServerHost();
+				if (!str_starts_with($providerParams['redirectUrl'], $baseUrl)) {
+					$providerParams['redirectUrl'] = '';
+				}
+			}
 
-            $result = $this->syncService->connect($this->userId, $provider, $providerParams, $name);
-            return new DataResponse($result);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to connect bank'), Http::STATUS_BAD_REQUEST);
-        }
-    }
+			$result = $this->syncService->connect($this->userId, $provider, $providerParams, $name);
+			return new DataResponse($result);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to connect bank'), Http::STATUS_BAD_REQUEST);
+		}
+	}
 
-    /**
-     * Disconnect a bank connection.
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 10, period: 60)]
-    public function disconnect(int $id): DataResponse {
-        if ($r = $this->requireBankSync()) return $r;
+	/**
+	 * Disconnect a bank connection.
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 10, period: 60)]
+	public function disconnect(int $id): DataResponse {
+		if ($r = $this->requireBankSync()) {
+			return $r;
+		}
 
-        try {
-            $this->syncService->disconnect($this->userId, $id);
-            return new DataResponse(['status' => 'ok']);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to disconnect bank'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
-        }
-    }
+		try {
+			$this->syncService->disconnect($this->userId, $id);
+			return new DataResponse(['status' => 'ok']);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to disconnect bank'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
+		}
+	}
 
-    /**
-     * Update connection settings.
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function updateConnection(int $id): DataResponse {
-        if ($r = $this->requireBankSync()) return $r;
+	/**
+	 * Update connection settings.
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function updateConnection(int $id): DataResponse {
+		if ($r = $this->requireBankSync()) {
+			return $r;
+		}
 
-        try {
-            $params = $this->request->getParams();
-            $connection = $this->syncService->getConnection($this->userId, $id);
+		try {
+			$params = $this->request->getParams();
+			$connection = $this->syncService->getConnection($this->userId, $id);
 
-            if (isset($params['applyRules'])) {
-                $connection->setApplyRules((bool) $params['applyRules']);
-            }
+			if (isset($params['applyRules'])) {
+				$connection->setApplyRules((bool)$params['applyRules']);
+			}
 
-            if (isset($params['includePending'])) {
-                $connection->setIncludePending((bool) $params['includePending']);
-            }
+			if (isset($params['includePending'])) {
+				$connection->setIncludePending((bool)$params['includePending']);
+			}
 
-            $connection->setUpdatedAt(date('Y-m-d H:i:s'));
-            $this->syncService->updateConnectionEntity($connection);
+			$connection->setUpdatedAt(date('Y-m-d H:i:s'));
+			$this->syncService->updateConnectionEntity($connection);
 
-            return new DataResponse($connection);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to update connection'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
-        }
-    }
+			return new DataResponse($connection);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to update connection'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
+		}
+	}
 
-    /**
-     * Manually trigger a sync for a connection.
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 10, period: 60)]
-    public function sync(int $id, bool $force = false): DataResponse {
-        if ($r = $this->requireBankSync()) return $r;
+	/**
+	 * Manually trigger a sync for a connection.
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 10, period: 60)]
+	public function sync(int $id, bool $force = false): DataResponse {
+		if ($r = $this->requireBankSync()) {
+			return $r;
+		}
 
-        try {
-            $result = $this->syncService->sync($this->userId, $id, $force);
-            return new DataResponse($result);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to sync bank data'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
-        }
-    }
+		try {
+			$result = $this->syncService->sync($this->userId, $id, $force);
+			return new DataResponse($result);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to sync bank data'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
+		}
+	}
 
-    /**
-     * Get account mappings for a connection.
-     * @NoAdminRequired
-     */
-    public function mappings(int $id): DataResponse {
-        if ($r = $this->requireBankSync()) return $r;
+	/**
+	 * Get account mappings for a connection.
+	 * @NoAdminRequired
+	 */
+	public function mappings(int $id): DataResponse {
+		if ($r = $this->requireBankSync()) {
+			return $r;
+		}
 
-        try {
-            // Verify connection ownership
-            $connections = $this->syncService->getConnections($this->userId);
-            $found = false;
-            $mappings = [];
-            foreach ($connections as $conn) {
-                if ($conn['connection']->getId() === $id) {
-                    $found = true;
-                    $mappings = $conn['mappings'];
-                    break;
-                }
-            }
+		try {
+			// Verify connection ownership
+			$connections = $this->syncService->getConnections($this->userId);
+			$found = false;
+			$mappings = [];
+			foreach ($connections as $conn) {
+				if ($conn['connection']->getId() === $id) {
+					$found = true;
+					$mappings = $conn['mappings'];
+					break;
+				}
+			}
 
-            if (!$found) {
-                return new DataResponse(['error' => $this->l->t('Connection not found')], Http::STATUS_NOT_FOUND);
-            }
+			if (!$found) {
+				return new DataResponse(['error' => $this->l->t('Connection not found')], Http::STATUS_NOT_FOUND);
+			}
 
-            return new DataResponse($mappings);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to fetch mappings'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
-        }
-    }
+			return new DataResponse($mappings);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to fetch mappings'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
+		}
+	}
 
-    /**
-     * Update an account mapping.
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function updateMapping(int $id, int $mappingId): DataResponse {
-        if ($r = $this->requireBankSync()) return $r;
+	/**
+	 * Update an account mapping.
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function updateMapping(int $id, int $mappingId): DataResponse {
+		if ($r = $this->requireBankSync()) {
+			return $r;
+		}
 
-        try {
-            $params = $this->request->getParams();
-            $hasBudgetAccountId = array_key_exists('budgetAccountId', $params);
-            $budgetAccountId = $hasBudgetAccountId ? ($params['budgetAccountId'] !== null ? (int) $params['budgetAccountId'] : null) : null;
-            $clearBudgetAccount = $hasBudgetAccountId && $params['budgetAccountId'] === null;
-            $enabled = isset($params['enabled']) ? (bool) $params['enabled'] : null;
+		try {
+			$params = $this->request->getParams();
+			$hasBudgetAccountId = array_key_exists('budgetAccountId', $params);
+			$budgetAccountId = $hasBudgetAccountId ? ($params['budgetAccountId'] !== null ? (int)$params['budgetAccountId'] : null) : null;
+			$clearBudgetAccount = $hasBudgetAccountId && $params['budgetAccountId'] === null;
+			$enabled = isset($params['enabled']) ? (bool)$params['enabled'] : null;
 
-            $mapping = $this->syncService->updateMapping($this->userId, $id, $mappingId, $budgetAccountId, $clearBudgetAccount, $enabled);
-            return new DataResponse($mapping);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to update mapping'), Http::STATUS_BAD_REQUEST);
-        }
-    }
+			$mapping = $this->syncService->updateMapping($this->userId, $id, $mappingId, $budgetAccountId, $clearBudgetAccount, $enabled);
+			return new DataResponse($mapping);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to update mapping'), Http::STATUS_BAD_REQUEST);
+		}
+	}
 
-    /**
-     * Refresh account list from provider.
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 10, period: 60)]
-    public function refreshAccounts(int $id): DataResponse {
-        if ($r = $this->requireBankSync()) return $r;
+	/**
+	 * Refresh account list from provider.
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 10, period: 60)]
+	public function refreshAccounts(int $id): DataResponse {
+		if ($r = $this->requireBankSync()) {
+			return $r;
+		}
 
-        try {
-            $mappings = $this->syncService->refreshAccounts($this->userId, $id);
-            return new DataResponse($mappings);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to refresh accounts'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
-        }
-    }
+		try {
+			$mappings = $this->syncService->refreshAccounts($this->userId, $id);
+			return new DataResponse($mappings);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to refresh accounts'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
+		}
+	}
 
-    /**
-     * Re-authorize an expired GoCardless connection.
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 5, period: 60)]
-    public function reauthorize(int $id): DataResponse {
-        if ($r = $this->requireBankSync()) return $r;
+	/**
+	 * Re-authorize an expired GoCardless connection.
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 5, period: 60)]
+	public function reauthorize(int $id): DataResponse {
+		if ($r = $this->requireBankSync()) {
+			return $r;
+		}
 
-        try {
-            $params = $this->request->getParams();
-            $institutionId = $params['institutionId'] ?? null;
-            $redirectUrl = $params['redirectUrl'] ?? null;
+		try {
+			$params = $this->request->getParams();
+			$institutionId = $params['institutionId'] ?? null;
+			$redirectUrl = $params['redirectUrl'] ?? null;
 
-            if (!$institutionId) {
-                return new DataResponse(['error' => $this->l->t('Institution ID is required')], Http::STATUS_BAD_REQUEST);
-            }
+			if (!$institutionId) {
+				return new DataResponse(['error' => $this->l->t('Institution ID is required')], Http::STATUS_BAD_REQUEST);
+			}
 
-            if ($redirectUrl) {
-                $baseUrl = $this->request->getServerProtocol() . '://' . $this->request->getServerHost();
-                if (!str_starts_with($redirectUrl, $baseUrl)) {
-                    $redirectUrl = '';
-                }
-            }
+			if ($redirectUrl) {
+				$baseUrl = $this->request->getServerProtocol() . '://' . $this->request->getServerHost();
+				if (!str_starts_with($redirectUrl, $baseUrl)) {
+					$redirectUrl = '';
+				}
+			}
 
-            $result = $this->syncService->reauthorize($this->userId, $id, $institutionId, $redirectUrl ?? '');
-            return new DataResponse($result);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to re-authorize'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
-        }
-    }
+			$result = $this->syncService->reauthorize($this->userId, $id, $institutionId, $redirectUrl ?? '');
+			return new DataResponse($result);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to re-authorize'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
+		}
+	}
 
-    private function getGoCardlessToken(GoCardlessProvider $provider, string $secretId, string $secretKey): string {
-        return $provider->getToken($secretId, $secretKey);
-    }
+	private function getGoCardlessToken(GoCardlessProvider $provider, string $secretId, string $secretKey): string {
+		return $provider->getToken($secretId, $secretKey);
+	}
 }

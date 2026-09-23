@@ -19,24 +19,24 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000103Date20260912 extends SimpleMigrationStep {
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if (!$schema->hasTable('budget_import_templates')) {
-            return null;
-        }
+		if (!$schema->hasTable('budget_import_templates')) {
+			return null;
+		}
 
-        $table = $schema->getTable('budget_import_templates');
+		$table = $schema->getTable('budget_import_templates');
 
-        if (!$table->hasColumn('encoding')) {
-            $table->addColumn('encoding', Types::STRING, [
-                'notnull' => false,
-                'length' => 32,
-            ]);
-            return $schema;
-        }
+		if (!$table->hasColumn('encoding')) {
+			$table->addColumn('encoding', Types::STRING, [
+				'notnull' => false,
+				'length' => 32,
+			]);
+			return $schema;
+		}
 
-        return null;
-    }
+		return null;
+	}
 }

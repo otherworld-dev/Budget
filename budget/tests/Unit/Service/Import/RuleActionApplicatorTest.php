@@ -934,7 +934,7 @@ class RuleActionApplicatorTest extends TestCase {
 		$result = $this->applicator->validateActions($actions, 'user123');
 
 		$this->assertFalse($result['valid']);
-		$this->assertStringContainsString("invalid transaction type", strtolower($result['errors'][0]));
+		$this->assertStringContainsString('invalid transaction type', strtolower($result['errors'][0]));
 	}
 
 	public function testValidateTagsMustBeArray(): void {

@@ -15,9 +15,6 @@ use OCA\Budget\Enum\Currency;
 use OCA\Budget\Service\Bill\BalanceProjector;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Bill\RecurringBillDetector;
-use OCA\Budget\Service\CurrencyConversionService;
-use OCA\Budget\Service\TransactionService;
-use OCA\Budget\Service\TransactionSplitService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IL10N;
 use Psr\Log\LoggerInterface;
@@ -26,2145 +23,2145 @@ use Psr\Log\LoggerInterface;
  * Manages bill CRUD operations and summary calculations.
  */
 class BillService {
-    private BillMapper $mapper;
-    private FrequencyCalculator $frequencyCalculator;
-    private RecurringBillDetector $recurringDetector;
-    private TransactionService $transactionService;
-    private IL10N $l;
-    private AccountMapper $accountMapper;
-    private CurrencyConversionService $currencyConversion;
-    private TransactionSplitService $splitService;
-    private LoggerInterface $logger;
-    private DismissedSuggestionMapper $dismissedMapper;
-    private ?AutoShareService $autoShareService;
-    private ?RecurringIncomeMapper $incomeMapper;
-
-    public function __construct(
-        BillMapper $mapper,
-        FrequencyCalculator $frequencyCalculator,
-        RecurringBillDetector $recurringDetector,
-        TransactionService $transactionService,
-        IL10N $l,
-        AccountMapper $accountMapper,
-        CurrencyConversionService $currencyConversion,
-        TransactionSplitService $splitService,
-        LoggerInterface $logger,
-        DismissedSuggestionMapper $dismissedMapper,
-        ?AutoShareService $autoShareService = null,
-        ?RecurringIncomeMapper $incomeMapper = null
-    ) {
-        $this->mapper = $mapper;
-        $this->frequencyCalculator = $frequencyCalculator;
-        $this->recurringDetector = $recurringDetector;
-        $this->transactionService = $transactionService;
-        $this->l = $l;
-        $this->accountMapper = $accountMapper;
-        $this->currencyConversion = $currencyConversion;
-        $this->splitService = $splitService;
-        $this->logger = $logger;
-        $this->dismissedMapper = $dismissedMapper;
-        $this->autoShareService = $autoShareService;
-        $this->incomeMapper = $incomeMapper;
-    }
-
-    /** Amount types whose figure is resolved from the destination card at payment time (#347) */
-    private const DYNAMIC_AMOUNT_TYPES = ['statement', 'current_balance', 'minimum_payment'];
-
-    /** suggestion_type under which dismissed unrecorded payments are stored (#394) */
-    private const UNRECORDED_DISMISS_TYPE = 'unrecorded';
-
-    /**
-     * @throws DoesNotExistException
-     */
-    public function find(int $id, string $userId): Bill {
-        return $this->mapper->find($id, $userId);
-    }
-
-    /**
-     * A dynamic amount type needs a card-like transfer destination to
-     * resolve against.
-     */
-    private function validateAmountType(string $amountType, bool $isTransfer, ?int $destinationAccountId): void {
-        if ($amountType !== 'fixed' && !in_array($amountType, self::DYNAMIC_AMOUNT_TYPES, true)) {
-            throw new \InvalidArgumentException($this->l->t('Invalid amount type'));
-        }
-        if ($amountType === 'fixed') {
-            return;
-        }
-        if (!$isTransfer || $destinationAccountId === null) {
-            throw new \InvalidArgumentException($this->l->t('This amount type requires a transfer with a destination account'));
-        }
-        $destinationType = $this->accountMapper->findById($destinationAccountId)->getType();
-        if (!in_array($destinationType, ['credit_card', 'line_of_credit'], true)) {
-            throw new \InvalidArgumentException($this->l->t('This amount type is only available for transfers to a credit card'));
-        }
-    }
-
-    /**
-     * Resolve the payable amount for a dynamic-amount bill (#347).
-     * $dueDate is the statement cut-off (null = use $paidDate); $paidDate is
-     * when the money moves. Returns null for fixed-amount bills.
-     */
-    private function resolveDynamicAmount(string $amountType, ?int $destinationAccountId, ?string $dueDate, string $paidDate): ?float {
-        if (!in_array($amountType, self::DYNAMIC_AMOUNT_TYPES, true) || $destinationAccountId === null) {
-            return null;
-        }
-        if ($amountType === 'statement') {
-            // What was owed at the due date; later charges roll to the next statement
-            return $this->transactionService->getStatementAmountForAccount($destinationAccountId, $dueDate ?? $paidDate);
-        }
-        $owedNow = $this->transactionService->getStatementAmountForAccount($destinationAccountId, $paidDate);
-        if ($amountType === 'current_balance') {
-            return $owedNow;
-        }
-        // minimum_payment: the card's stored minimum, never more than is owed
-        $minimum = (float) ($this->accountMapper->findById($destinationAccountId)->getMinimumPayment() ?? 0);
-        return min($minimum, $owedNow);
-    }
-
-    public function findAll(string $userId): array {
-        return $this->mapper->findAll($userId);
-    }
-
-    public function findActive(string $userId): array {
-        return $this->mapper->findActive($userId);
-    }
-
-    /**
-     * Find existing transactions that might match a bill payment.
-     * Used to avoid creating duplicate transactions when marking a bill paid.
-     *
-     * @return array Scored candidates [{transaction, score, matchReasons}]
-     */
-    public function findMatchingTransactions(int $billId, string $userId): array {
-        $bill = $this->find($billId, $userId);
-
-        if (!$bill->getAccountId()) {
-            return [];
-        }
-
-        $dueDate = $bill->getNextDueDate() ?? date('Y-m-d');
-
-        return $this->transactionService->findBillPaymentCandidates(
-            $bill->getAccountId(),
-            $bill->getName(),
-            (float) $bill->getAmount(),
-            $dueDate
-        );
-    }
-
-    /**
-     * Bills whose most recent payment has no recorded transaction (#274).
-     *
-     * Marking a bill paid without creating or linking a transaction leaves
-     * the account balance out of step with the bank. This returns recent
-     * occurrences (last $sinceDays days) so the Bills page can surface them.
-     * Deliberate skips (Skip button) never set the last-paid date and are
-     * not flagged, and neither is a payment dismissed from the card (#394).
-     */
-    public function findUnrecordedPayments(string $userId, int $sinceDays = 60): array {
-        $cutoff = date('Y-m-d', strtotime("-{$sinceDays} days"));
-        $candidates = [];
-        foreach ($this->mapper->findAll($userId) as $bill) {
-            $lastPaid = $bill->getLastPaidDate();
-            if ($lastPaid !== null && $lastPaid >= $cutoff) {
-                $candidates[] = $bill;
-            }
-        }
-        if (empty($candidates)) {
-            return [];
-        }
-
-        $billIds = array_map(static fn(Bill $b) => $b->getId(), $candidates);
-        $txDatesByBill = [];
-        foreach ($this->transactionService->findRecordedBillTransactions($billIds) as $tx) {
-            $txDatesByBill[$tx->getBillId()][] = $tx->getDate();
-        }
-
-        // Payments the user has dismissed as deliberately unrecorded (#394)
-        $dismissed = array_flip($this->dismissedMapper->findHashes($userId, self::UNRECORDED_DISMISS_TYPE));
-
-        $currencyMap = $this->buildCurrencyMap($userId);
-        $unrecorded = [];
-        foreach ($candidates as $bill) {
-            if ($this->hasRecordedPayment($bill->getLastPaidDate(), $txDatesByBill[$bill->getId()] ?? [])) {
-                continue;
-            }
-            if (isset($dismissed[sha1($this->unrecordedPaymentKey($bill->getId(), $bill->getLastPaidDate()))])) {
-                continue;
-            }
-            $unrecorded[] = [
-                'billId' => $bill->getId(),
-                'name' => $bill->getName(),
-                'amount' => (float) $bill->getAmount(),
-                'lastPaidDate' => $bill->getLastPaidDate(),
-                'accountId' => $bill->getAccountId(),
-                'currency' => $bill->getAccountId() !== null
-                    ? ($currencyMap[$bill->getAccountId()] ?? null)
-                    : null,
-                // Lets the card offer Mark Unpaid alongside Dismiss (#394)
-                'canMarkUnpaid' => $bill->canMarkUnpaid(),
-            ];
-        }
-
-        usort($unrecorded, static fn($a, $b) => strcmp($b['lastPaidDate'], $a['lastPaidDate']));
-        return $unrecorded;
-    }
-
-    /**
-     * Record the missing transaction for a payment that was marked paid
-     * without one (#274). Creates a cleared transaction (both legs for
-     * transfers) dated the bill's last paid date and linked to the bill.
-     */
-    public function recordMissedPayment(int $id, string $userId): array {
-        $bill = $this->find($id, $userId);
-
-        $lastPaid = $bill->getLastPaidDate();
-        if ($lastPaid === null) {
-            throw new \InvalidArgumentException($this->l->t('This bill has never been marked as paid'));
-        }
-        if ($bill->getAccountId() === null) {
-            throw new \InvalidArgumentException($this->l->t('Assign an account to the bill first'));
-        }
-
-        // The bill may reference an account that has since been deleted — give an
-        // actionable message instead of a raw lookup failure surfacing as the
-        // generic "Failed to record the payment" (#333, #334).
-        try {
-            $this->accountMapper->findById($bill->getAccountId());
-        } catch (DoesNotExistException $e) {
-            throw new \InvalidArgumentException($this->l->t('The account linked to this bill no longer exists. Edit the bill and choose an account.'));
-        }
-
-        // Idempotence guard: refuse when a payment transaction already exists
-        $existingDates = array_map(
-            static fn($tx) => $tx->getDate(),
-            $this->transactionService->findRecordedBillTransactions([$id])
-        );
-        if ($this->hasRecordedPayment($lastPaid, $existingDates)) {
-            throw new \InvalidArgumentException($this->l->t('A transaction for this payment already exists'));
-        }
-
-        $transaction = $this->transactionService->createFromBill($userId, $bill, $lastPaid, 'cleared');
-        $this->applySplitTemplate($bill, $transaction, $userId);
-
-        return ['transaction' => $transaction];
-    }
-
-    /**
-     * Acknowledge that a payment has no transaction on purpose, so the
-     * unrecorded-payments card stops listing it (#394). The dismissal is
-     * keyed on the paid date, so the bill's next payment without a
-     * transaction is flagged afresh.
-     */
-    public function dismissUnrecordedPayment(int $id, string $userId): void {
-        $bill = $this->find($id, $userId);
-
-        $lastPaid = $bill->getLastPaidDate();
-        if ($lastPaid === null) {
-            throw new \InvalidArgumentException($this->l->t('This bill has never been marked as paid'));
-        }
-
-        $key = $this->unrecordedPaymentKey($bill->getId(), $lastPaid);
-        $this->dismissedMapper->dismiss($userId, self::UNRECORDED_DISMISS_TYPE, sha1($key), $key);
-    }
-
-    private function unrecordedPaymentKey(int $billId, string $paidDate): string {
-        return $billId . ':' . $paidDate;
-    }
-
-    /**
-     * Whether any of the given transaction dates plausibly records a payment
-     * made on $paidDate. Linked payments can be dated a few days off the
-     * paid date (the matching dialog offers a ±7 day window), so allow slack.
-     */
-    private function hasRecordedPayment(?string $paidDate, array $txDates): bool {
-        if ($paidDate === null) {
-            return false;
-        }
-        foreach ($txDates as $txDate) {
-            if (abs(strtotime($txDate) - strtotime($paidDate)) <= 14 * 86400) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Build a map of accountId => currency for the user's accounts.
-     */
-    private function buildCurrencyMap(string $userId): array {
-        return $this->currencyMapFor($this->accountMapper->findAll($userId));
-    }
-
-    /**
-     * @param Account[] $accounts
-     * @return array<int, string|null> account id => currency code
-     */
-    private function currencyMapFor(array $accounts): array {
-        $map = [];
-        foreach ($accounts as $account) {
-            $map[$account->getId()] = $account->getCurrency() ?: null;
-        }
-        return $map;
-    }
-
-    /**
-     * Set the non-persisted currency property on each bill from its linked account.
-     *
-     * @param Bill[] $bills
-     * @return Bill[]
-     */
-    public function enrichBillsWithCurrency(array $bills, string $userId): array {
-        $currencyMap = $this->buildCurrencyMap($userId);
-        $baseCurrency = $this->currencyConversion->getBaseCurrency($userId);
-        foreach ($bills as $bill) {
-            $accountId = $bill->getAccountId();
-            $bill->setCurrency($accountId !== null && isset($currencyMap[$accountId])
-                ? $currencyMap[$accountId]
-                : $baseCurrency);
-        }
-        return $bills;
-    }
-
-    public function findByType(string $userId, ?bool $isTransfer = null, ?bool $isActive = null, bool $activeOrRevertible = false): array {
-        return $this->mapper->findByType($userId, $isTransfer, $isActive, $activeOrRevertible);
-    }
-
-    public function findOverdue(string $userId): array {
-        return $this->mapper->findOverdue($userId);
-    }
-
-    public function findDueThisMonth(string $userId): array {
-        $startDate = date('Y-m-01');
-        $endDate = date('Y-m-t');
-        return $this->mapper->findDueInRange($userId, $startDate, $endDate);
-    }
-
-    /**
-     * Find upcoming bills (including overdue) sorted by due date.
-     */
-    public function findUpcoming(string $userId, int $days = 30): array {
-        $overdue = $this->mapper->findOverdue($userId);
-        $startDate = date('Y-m-d');
-        $endDate = date('Y-m-d', strtotime("+{$days} days"));
-        $upcoming = $this->mapper->findDueInRange($userId, $startDate, $endDate);
-
-        $allBills = array_merge($overdue, $upcoming);
-
-        // Remove duplicates
-        $seen = [];
-        $uniqueBills = [];
-        foreach ($allBills as $bill) {
-            $id = $bill->getId();
-            if (!isset($seen[$id])) {
-                $seen[$id] = true;
-                $uniqueBills[] = $bill;
-            }
-        }
-
-        // Sort by next due date
-        usort($uniqueBills, function($a, $b) {
-            $dateA = $a->getNextDueDate() ?? '9999-12-31';
-            $dateB = $b->getNextDueDate() ?? '9999-12-31';
-            return strcmp($dateA, $dateB);
-        });
-
-        return $uniqueBills;
-    }
-
-    public function create(
-        string $userId,
-        string $name,
-        float $amount,
-        string $frequency = 'monthly',
-        ?int $dueDay = null,
-        ?int $dueMonth = null,
-        ?int $categoryId = null,
-        ?int $accountId = null,
-        ?string $autoDetectPattern = null,
-        ?string $description = null,
-        ?string $notes = null,
-        ?int $reminderDays = null,
-        ?string $customRecurrencePattern = null,
-        bool $createTransaction = true,
-        ?string $transactionDate = null,
-        bool $autoPayEnabled = false,
-        bool $isTransfer = false,
-        ?int $destinationAccountId = null,
-        ?string $transferDescriptionPattern = null,
-        array $tagIds = [],
-        ?string $endDate = null,
-        ?int $remainingPayments = null,
-        ?array $splitTemplate = null,
-        ?string $startDate = null,
-        bool $excludedFromForecast = false,
-        string $amountType = 'fixed'
-    ): Bill {
-        // Validate auto-pay requires account
-        if ($autoPayEnabled && $accountId === null) {
-            throw new \InvalidArgumentException($this->l->t('Auto-pay requires an account to be set'));
-        }
-
-        // Validate transfer requires destination account
-        if ($isTransfer && $destinationAccountId === null) {
-            throw new \InvalidArgumentException($this->l->t('Transfer requires a destination account'));
-        }
-
-        // Validate transfer cannot have same source and destination
-        if ($isTransfer && $accountId !== null && $accountId === $destinationAccountId) {
-            throw new \InvalidArgumentException($this->l->t('Cannot transfer to the same account'));
-        }
-
-        $this->validateAmountType($amountType, $isTransfer, $destinationAccountId);
-        if ($amountType !== 'fixed') {
-            // Initial estimate: resolved against the card right now. Refined to
-            // the actual amount on every markPaid().
-            $amount = $this->resolveDynamicAmount($amountType, $destinationAccountId, null, date('Y-m-d')) ?? $amount;
-        }
-
-        $bill = new Bill();
-        $bill->setUserId($userId);
-        $bill->setName($name);
-        $bill->setAmount($amount);
-        $bill->setAmountType($amountType);
-        $bill->setFrequency($frequency);
-        $bill->setDueDay($dueDay);
-        $bill->setDueMonth($dueMonth);
-        $bill->setCategoryId($categoryId);
-        $bill->setAccountId($accountId);
-        $bill->setAutoDetectPattern($autoDetectPattern);
-        $bill->setDescription($description);
-        $bill->setIsActive(true);
-        $bill->setNotes($notes);
-        $bill->setReminderDays($reminderDays);
-        $bill->setCustomRecurrencePattern($customRecurrencePattern);
-        $bill->setAutoPayEnabled($autoPayEnabled);
-        $bill->setAutoPayFailed(false);
-        $bill->setIsTransfer($isTransfer);
-        $bill->setDestinationAccountId($destinationAccountId);
-        $bill->setTransferDescriptionPattern($transferDescriptionPattern);
-        $bill->setTagIdsArray($tagIds);
-        $bill->setStartDate($startDate);
-        $bill->setEndDate($endDate);
-        $bill->setRemainingPayments($remainingPayments);
-        // A one-time bill's date is the whole schedule: its day and month
-        // follow the date so the Bills Calendar puts it in the right month
-        // (#375). The calculator returns this date verbatim, past or not.
-        if ($frequency === 'one-time' && $startDate !== null && $startDate !== '') {
-            $dueDay = (int) (new \DateTime($startDate))->format('j');
-            $dueMonth = (int) (new \DateTime($startDate))->format('n');
-            $bill->setDueDay($dueDay);
-            $bill->setDueMonth($dueMonth);
-        }
-        $bill->setExcludedFromForecast($excludedFromForecast);
-        $bill->setCreateTransaction($createTransaction);
-        if ($splitTemplate !== null) {
-            $bill->setSplitTemplateArray($splitTemplate);
-            // When splits define the categories, clear the bill-level category
-            $bill->setCategoryId(null);
-        }
-        $bill->setCreatedAt(date('Y-m-d H:i:s'));
-
-        // startDate doubles as the recurrence anchor for weekly/biweekly:
-        // occurrences fall on startDate + n*interval, so the week parity is
-        // fixed by the user's chosen first payment date, not by when the
-        // bill happened to be created (#364)
-        $nextDue = $this->frequencyCalculator->calculateNextDueDate($frequency, $dueDay, $dueMonth, null, $customRecurrencePattern, false, $startDate);
-        $nextDue = $this->applyStartDateFloor($nextDue, $startDate, $frequency, $dueDay, $dueMonth, $customRecurrencePattern);
-        $bill->setNextDueDate($nextDue);
-
-        $bill = $this->mapper->insert($bill);
-
-        // Pre-create the next occurrence if requested and the bill has an
-        // account. Always a scheduled placeholder: creating a bill records no
-        // payment, whatever date the row carries. Found live with #375 - a
-        // one-time bill dated in the past got a CLEARED row on creation,
-        // GBP 321.60 booked as spent for an invoice nobody had paid, because
-        // createFromBill() reads an explicit date in the past as a payment.
-        if ($createTransaction && $accountId !== null) {
-            try {
-                $transaction = $this->transactionService->createFromBill(
-                    $userId,
-                    $bill,
-                    $transactionDate,
-                    'scheduled'
-                );
-                $this->applySplitTemplate($bill, $transaction, $userId);
-            } catch (\Exception $e) {
-                // Log error but don't fail bill creation
-                $this->logger->warning("Failed to create transaction for bill {$bill->getId()}: {$e->getMessage()}");
-            }
-        }
-
-        if ($this->autoShareService !== null) {
-            $this->autoShareService->autoShareNewEntity($userId, ShareItem::TYPE_BILL, $bill->getId());
-        }
-
-        return $bill;
-    }
-
-    public function update(int $id, string $userId, array $updates): Bill {
-        $bill = $this->find($id, $userId);
-        $needsRecalculation = false;
-        $dbUpdates = [];
-
-        // Validate auto-pay requires account when enabling
-        if (isset($updates['autoPayEnabled']) && $updates['autoPayEnabled'] === true) {
-            $currentAccountId = $updates['accountId'] ?? $bill->getAccountId();
-            if ($currentAccountId === null) {
-                throw new \InvalidArgumentException($this->l->t('Auto-pay requires an account to be set'));
-            }
-        }
-
-        // Auto-disable auto-pay if account is being removed
-        if (array_key_exists('accountId', $updates) && $updates['accountId'] === null) {
-            $updates['autoPayEnabled'] = false;
-            $updates['autoPayFailed'] = false;
-        }
-
-        // Dynamic amount types: validate and refresh the estimate (#347)
-        if (array_key_exists('isTransfer', $updates) && !$updates['isTransfer']
-            && ($updates['amountType'] ?? $bill->getAmountType() ?? 'fixed') !== 'fixed') {
-            // No longer a transfer — nothing to resolve the amount against
-            $updates['amountType'] = 'fixed';
-        }
-        if (isset($updates['amountType']) && $updates['amountType'] !== 'fixed') {
-            $isTransfer = $updates['isTransfer'] ?? ($bill->getIsTransfer() ?? false);
-            $destinationId = $updates['destinationAccountId'] ?? $bill->getDestinationAccountId();
-            $this->validateAmountType($updates['amountType'], (bool) $isTransfer, $destinationId);
-            $updates['amount'] = $this->resolveDynamicAmount($updates['amountType'], $destinationId, null, date('Y-m-d'));
-        } elseif (isset($updates['amountType'])) {
-            $this->validateAmountType($updates['amountType'], true, null);
-        }
-
-        foreach ($updates as $key => $value) {
-            // Track if schedule-related fields actually changed (not just
-            // present). is_callable, not method_exists: the Bill entity's
-            // getters are magic (__call), which method_exists cannot see —
-            // schedule changes then only fired the recalculation through the
-            // date-consistency fallback below, which now deliberately
-            // tolerates paid-ahead/overdue dates (#364 review).
-            if (in_array($key, ['frequency', 'dueDay', 'dueMonth', 'customRecurrencePattern', 'startDate'])) {
-                $getter = 'get' . ucfirst($key);
-                if (is_callable([$bill, $getter]) && $bill->$getter() != $value) {
-                    $needsRecalculation = true;
-                }
-            }
-
-            // Convert camelCase to snake_case for database column names
-            $columnName = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $key));
-            $dbUpdates[$columnName] = $value;
-        }
-
-        // A stored mark-unpaid snapshot captures the bill's amount and
-        // schedule state; restoring it after a deliberate change to any of
-        // those would silently revert the edit (or restore a next-due-date
-        // computed under the old schedule). A material edit therefore spends
-        // the snapshot; name/notes/reminder-style edits keep it (#365 review).
-        if ($bill->getPaidUndoState() !== null && $bill->getPaidUndoState() !== '') {
-            $materialKeys = ['amount', 'amountType', 'frequency', 'dueDay', 'dueMonth',
-                'customRecurrencePattern', 'startDate', 'accountId', 'destinationAccountId', 'isTransfer'];
-            foreach ($materialKeys as $key) {
-                if (!array_key_exists($key, $updates)) {
-                    continue;
-                }
-                $getter = 'get' . ucfirst($key);
-                $current = $bill->$getter();
-                // Legacy rows hold NULL where the form sends the default
-                if ($key === 'amountType') {
-                    $current = $current ?? 'fixed';
-                } elseif ($key === 'isTransfer') {
-                    $current = $current ?? false;
-                }
-                if ($current != $updates[$key]) {
-                    $dbUpdates['paid_undo_state'] = null;
-                    $bill->setPaidUndoState(null);
-                    break;
-                }
-            }
-        }
-
-        // Recalculate next due date if schedule fields changed, OR if
-        // nextDueDate is inconsistent with the current schedule (catches
-        // stale dates from edits on older versions)
-        if (!$needsRecalculation && $bill->getIsActive() && $bill->getNextDueDate()) {
-            // With a startDate anchor the expectation is computed FROM THE
-            // ANCHOR — recomputing "from today" made every unrelated edit in
-            // an off-parity week flip a biweekly bill's fortnight (#364).
-            // An incoming startDate (set OR cleared) participates, so
-            // re-anchoring a bill snaps next due onto the new fortnight.
-            $effectiveAnchor = array_key_exists('startDate', $updates)
-                ? $updates['startDate']
-                : $bill->getStartDate();
-            $expect = fn(?string $fromDate): string => $this->frequencyCalculator->calculateNextDueDate(
-                $updates['frequency'] ?? $bill->getFrequency(),
-                $updates['dueDay'] ?? $bill->getDueDay(),
-                $updates['dueMonth'] ?? $bill->getDueMonth(),
-                $fromDate,
-                $updates['customRecurrencePattern'] ?? $bill->getCustomRecurrencePattern(),
-                false,
-                $effectiveAnchor
-            );
-
-            $storedDue = $bill->getNextDueDate();
-            $lastPaid = $bill->getLastPaidDate();
-            $today = date('Y-m-d');
-
-            // The stored date is CONSISTENT when it matches the schedule
-            // given the bill's payment state — not just "first occurrence
-            // from today", which cannot represent a bill legitimately paid
-            // ahead or overdue (#364/#365 review):
-            //  1. the plain expectation — first occurrence on/after today;
-            //  2. the advanced-past-payment expectation — a bill paid on its
-            //     due day stores due + one interval, which the calculator's
-            //     strictly-after-fromDate semantics reproduce;
-            //  3. a due/overdue occurrence not yet paid — snapping it forward
-            //     on an unrelated edit would silently un-overdue the bill;
-            //  4. a paid bill's future date that sits on the schedule (the
-            //     first occurrence strictly after the day before it) —
-            //     paid-ahead and skipped-ahead dates are deliberate.
-            // Anything else is a stale date and gets recalculated.
-            $isConsistent = $storedDue === $expect(null);
-            if (!$isConsistent && $lastPaid !== null) {
-                $isConsistent = $storedDue === $expect($lastPaid);
-            }
-            if (!$isConsistent && $storedDue <= $today && ($lastPaid === null || $storedDue > $lastPaid)) {
-                $isConsistent = true;
-            }
-            if (!$isConsistent && $lastPaid !== null && $storedDue > $today) {
-                $dayBefore = (new \DateTime($storedDue))->modify('-1 day')->format('Y-m-d');
-                $isConsistent = $storedDue === $expect($dayBefore);
-            }
-            if (!$isConsistent) {
-                $needsRecalculation = true;
-            }
-        }
-
-        if ($needsRecalculation) {
-            // Apply updates to a copy to get the edited state for the
-            // calculation. Not to $bill itself: the pre-booking toggle and the
-            // amount-type switch below compare $bill's stored values against
-            // the updates, and a mutated $bill made both read "unchanged" (#584)
-            $edited = clone $bill;
-            foreach ($updates as $key => $value) {
-                if (property_exists($edited, $key)) {
-                    $setter = 'set' . ucfirst($key);
-                    $edited->$setter($value);
-                }
-            }
-
-            // A one-time bill's date is its schedule (#375): keep day and
-            // month in step with it, in the entity and in what is written.
-            if ($edited->getFrequency() === 'one-time' && $edited->getStartDate()) {
-                $edited->setDueDay((int) (new \DateTime($edited->getStartDate()))->format('j'));
-                $edited->setDueMonth((int) (new \DateTime($edited->getStartDate()))->format('n'));
-                $dbUpdates['due_day'] = $edited->getDueDay();
-                $dbUpdates['due_month'] = $edited->getDueMonth();
-            }
-
-            // Recalculate from today (not from the old nextDueDate) since
-            // the schedule parameters changed; a startDate anchors the
-            // weekly/biweekly parity (#364)
-            $nextDue = $this->frequencyCalculator->calculateNextDueDate(
-                $edited->getFrequency(),
-                $edited->getDueDay(),
-                $edited->getDueMonth(),
-                null, // recalculate from today
-                $edited->getCustomRecurrencePattern(),
-                false,
-                $edited->getStartDate()
-            );
-            $nextDue = $this->applyStartDateFloor(
-                $nextDue,
-                $edited->getStartDate(),
-                $edited->getFrequency(),
-                $edited->getDueDay(),
-                $edited->getDueMonth(),
-                $edited->getCustomRecurrencePattern()
-            );
-            $dbUpdates['next_due_date'] = $nextDue;
-        }
-
-        // Apply all updates directly to database
-        if (!empty($dbUpdates)) {
-            $this->mapper->updateFields($id, $userId, $dbUpdates);
-        }
-
-        // Toggling "create future transaction" takes effect immediately:
-        // off removes the pending placeholder, on creates one for the next
-        // occurrence (instead of only changing behaviour at the next payment)
-        if (isset($updates['createTransaction'])) {
-            $wasEnabled = $bill->getCreateTransaction() ?? true;
-            $nowEnabled = (bool) $updates['createTransaction'];
-            if ($wasEnabled && !$nowEnabled) {
-                $this->transactionService->deleteScheduledBillTransactions($id);
-            } elseif (!$wasEnabled && $nowEnabled) {
-                $fresh = $this->find($id, $userId);
-                if ($fresh->getIsActive() && $fresh->getAccountId() !== null && $fresh->getNextDueDate() !== null) {
-                    try {
-                        $nextTransaction = $this->transactionService->createFromBill($userId, $fresh, null);
-                        $this->applySplitTemplate($fresh, $nextTransaction, $userId);
-                    } catch (\Exception $e) {
-                        $this->logger->warning("Failed to create next transaction after enabling pre-booking on bill {$id}: {$e->getMessage()}");
-                    }
-                }
-            }
-        }
-
-        // Switching to a dynamic amount type: replace the pre-created
-        // placeholder so it carries the freshly resolved estimate (#347)
-        if (isset($updates['amountType']) && $updates['amountType'] !== 'fixed'
-            && ($bill->getAmountType() ?? 'fixed') !== $updates['amountType']) {
-            $fresh = $this->find($id, $userId);
-            if (($fresh->getCreateTransaction() ?? true) && $fresh->getIsActive()
-                && $fresh->getAccountId() !== null && $fresh->getNextDueDate() !== null) {
-                $this->transactionService->deleteScheduledBillTransactions($id);
-                try {
-                    $nextTransaction = $this->transactionService->createFromBill($userId, $fresh, null);
-                    $this->applySplitTemplate($fresh, $nextTransaction, $userId);
-                } catch (\Exception $e) {
-                    $this->logger->warning("Failed to refresh placeholder after switching bill {$id} to statement amount: {$e->getMessage()}");
-                }
-            }
-        }
-
-        // Reload from database to ensure we return the actual saved state
-        return $this->find($id, $userId);
-    }
-
-    public function delete(int $id, string $userId): void {
-        $bill = $this->find($id, $userId);
-        // Remove scheduled transactions before deleting the bill
-        $this->transactionService->deleteScheduledBillTransactions($id);
-        $this->mapper->delete($bill);
-    }
-
-    /**
-     * Mark a bill as paid and advance to next due date.
-     *
-     * @param int $id Bill ID
-     * @param string $userId User ID
-     * @param string|null $paidDate Date bill was paid (defaults to the bill's current due date)
-     * @param bool $recordPayment Whether to record the payment itself as a transaction.
-     *        This decides the payment leg ONLY. Whether the ledger carries a
-     *        pre-created row for the NEXT occurrence is the bill's own
-     *        create_transaction setting, exactly as skipPayment() and update()
-     *        read it. One flag used to answer both, so declining to record a
-     *        payment (or linking one that already existed) also left the bill
-     *        with no upcoming row - while the placeholder for the occurrence
-     *        just paid stayed behind, still scheduled, still looking due (#376).
-     * @param int|null $existingTransactionId Link an existing transaction instead of creating a new one
-     * @return array Updated bill with undo data
-     */
-    public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $recordPayment = true, ?int $existingTransactionId = null): array {
-        $bill = $this->find($id, $userId);
-
-        // Capture previous state for undo support
-        $previousState = [
-            'lastPaidDate' => $bill->getLastPaidDate(),
-            'nextDueDate' => $bill->getNextDueDate(),
-            'remainingPayments' => $bill->getRemainingPayments(),
-            'isActive' => $bill->getIsActive(),
-            'autoPayFailed' => $bill->getAutoPayFailed(),
-            'amount' => $bill->getAmount(),
-        ];
-        $createdTransactionIds = [];
-        // The next-occurrence placeholder is tracked separately from the
-        // payment legs: by the time the snapshot is used it may have
-        // materialised into a real (possibly reconciled) ledger row, and the
-        // revert must then leave it alone (#365 review).
-        $scheduledTransactionIds = [];
-        // A pre-existing transaction LINKED to record the payment (dialog
-        // choice or import auto-match) is unlinked on revert, never deleted.
-        $linkedTransactionId = null;
-        $hadScheduledTransaction = false;
-        $linkedExistingTransaction = false;
-        $paymentTransactionRecorded = false;
-
-        // Reset auto-pay failed flag on successful manual payment
-        if ($bill->getAutoPayFailed()) {
-            $bill->setAutoPayFailed(false);
-        }
-
-        // Use today's date as the paid/transaction date so the payment appears
-        // immediately in the account balance, regardless of when the bill was due.
-        $paidDate = $paidDate ?? date('Y-m-d');
-        $bill->setLastPaidDate($paidDate);
-
-        // Dynamic-amount bills resolve their amount now: what the card calls
-        // for at this payment. Persisting it into the bill keeps lists,
-        // summaries and the next placeholder showing a real number, and the
-        // next placeholder inherits it as the estimate (#347).
-        $statementAmount = null;
-        if ($bill->getIsTransfer() ?? false) {
-            $statementAmount = $this->resolveDynamicAmount(
-                $bill->getAmountType() ?? 'fixed',
-                $bill->getDestinationAccountId(),
-                $bill->getNextDueDate(),
-                $paidDate
-            );
-            if ($statementAmount !== null) {
-                $bill->setAmount($statementAmount);
-            }
-        }
-
-        // Handle transaction: either link existing or create new
-        if ($existingTransactionId !== null && $bill->getAccountId() !== null) {
-            // User chose to link an existing transaction instead of creating a new one
-            try {
-                // Clear any pre-existing scheduled transactions for this bill
-                $this->transactionService->deleteScheduledBillTransactions($bill->getId());
-
-                // Link the existing transaction to this bill
-                $this->transactionService->update($existingTransactionId, $userId, [
-                    'billId' => $bill->getId(),
-                ]);
-                $linkedExistingTransaction = true;
-                $linkedTransactionId = $existingTransactionId;
-            } catch (\Exception $e) {
-                $this->logger->warning("Failed to link existing transaction {$existingTransactionId} to bill {$id}: {$e->getMessage()}");
-            }
-        } elseif ($recordPayment && $bill->getAccountId() !== null) {
-            try {
-                // Clear pre-existing scheduled transaction(s), or create new cleared one
-                $transaction = $this->transactionService->clearScheduledBillTransaction($userId, $bill->getId(), $paidDate, $statementAmount);
-                if ($transaction) {
-                    $hadScheduledTransaction = true;
-                } else {
-                    $transaction = $this->transactionService->createFromBill($userId, $bill, $paidDate, 'cleared');
-                }
-                $createdTransactionIds[] = $transaction->getId();
-                $paymentTransactionRecorded = true;
-                // For transfers, also track the linked deposit transaction
-                if ($transaction->getLinkedTransactionId()) {
-                    $createdTransactionIds[] = $transaction->getLinkedTransactionId();
-                }
-
-                // Apply split template if defined
-                $this->applySplitTemplate($bill, $transaction, $userId);
-            } catch (\Exception $e) {
-                $this->logger->warning("Failed to create transaction for bill {$id}: {$e->getMessage()}");
-            }
-        } else {
-            // Nothing recorded this occurrence, so the placeholder standing in
-            // for it has to go: the payment happened, and a scheduled row for
-            // a paid occurrence goes on showing the bill as still due. The
-            // other two branches already clear it, one by clearing it into the
-            // payment and one by deleting it outright (#376).
-            $this->transactionService->deleteScheduledBillTransactions($bill->getId());
-        }
-
-        // Auto-deactivate one-time bills after payment
-        if ($bill->getFrequency() === 'one-time') {
-            // The date it was due is all a paid invoice has left to show, and
-            // clearing next_due_date threw it away: a bill created before the
-            // date field existed then read "No due date" in the list and
-            // opened with an empty Due Date (#333). It is kept as the start
-            // date, which is where a one-time bill's date lives (#375).
-            if (($bill->getStartDate() === null || $bill->getStartDate() === '') && $bill->getNextDueDate()) {
-                $bill->setStartDate($bill->getNextDueDate());
-            }
-            $bill->setIsActive(false);
-            $bill->setNextDueDate(null);
-        } else {
-            $nextDue = $this->frequencyCalculator->calculateNextDueDate(
-                $bill->getFrequency(),
-                $bill->getDueDay(),
-                $bill->getDueMonth(),
-                $bill->getNextDueDate(),
-                $bill->getCustomRecurrencePattern(),
-                true // Always force advance — the bill was just paid
-            );
-            $bill->setNextDueDate($nextDue);
-
-            // Decrement remaining payments if set
-            $remaining = $bill->getRemainingPayments();
-            if ($remaining !== null) {
-                $remaining--;
-                $bill->setRemainingPayments($remaining);
-                if ($remaining <= 0) {
-                    $bill->setIsActive(false);
-                    $bill->setNextDueDate(null);
-                }
-            }
-
-            // Deactivate if next due date exceeds end date
-            $endDate = $bill->getEndDate();
-            if ($endDate !== null && $bill->getNextDueDate() !== null && $bill->getNextDueDate() > $endDate) {
-                $bill->setIsActive(false);
-                $bill->setNextDueDate(null);
-            }
-        }
-
-        $bill = $this->mapper->update($bill);
-
-        // Auto-create transaction for next occurrence if bill has account
-        // Skip for deactivated bills (one-time, end date reached, remaining payments exhausted)
-        // and bills that opted out of pre-created transactions (null = legacy rows, treated as opted in)
-        if (($bill->getCreateTransaction() ?? true) && $bill->getIsActive() && $bill->getAccountId() !== null) {
-            try {
-                $nextTransaction = $this->transactionService->createFromBill($userId, $bill, null);
-                $scheduledTransactionIds[] = $nextTransaction->getId();
-                // For transfers, also track the linked deposit transaction
-                if ($nextTransaction->getLinkedTransactionId()) {
-                    $scheduledTransactionIds[] = $nextTransaction->getLinkedTransactionId();
-                }
-                $this->applySplitTemplate($bill, $nextTransaction, $userId);
-            } catch (\Exception $e) {
-                $this->logger->warning("Failed to create next transaction for bill {$id}: {$e->getMessage()}");
-            }
-        }
-
-        // Persist the undo payload so "mark as unpaid" survives page reloads
-        // and covers auto-pay / import-match payments too (#365). Overwrites
-        // any previous snapshot: only the latest payment is revertible.
-        // The payment itself is already committed — a DB error here may only
-        // cost the durable undo, never fail the payment.
-        $bill->setPaidUndoState(json_encode([
-            'previousState' => $previousState,
-            'createdTransactionIds' => $createdTransactionIds,
-            'scheduledTransactionIds' => $scheduledTransactionIds,
-            'linkedTransactionId' => $linkedTransactionId,
-            'hadScheduledTransaction' => $hadScheduledTransaction,
-            'paidDate' => $paidDate,
-        ]));
-        try {
-            $bill = $this->mapper->update($bill);
-        } catch (\Exception $e) {
-            // A snapshot that failed to persist must not be advertised as a
-            // working Mark Unpaid; the toast-based undo still has the ids below.
-            $bill->setPaidUndoState(null);
-            $this->logger->warning("Failed to persist the undo snapshot for bill {$id}: {$e->getMessage()}");
-        }
-
-        return [
-            'bill' => $bill,
-            'previousState' => $previousState,
-            // The toast-based undo path deletes everything it is given right
-            // away, so it keeps receiving payment legs and placeholder alike.
-            'createdTransactionIds' => array_merge($createdTransactionIds, $scheduledTransactionIds),
-            'hadScheduledTransaction' => $hadScheduledTransaction,
-            'linkedExistingTransaction' => $linkedExistingTransaction,
-            // False = the bill was marked paid but NO money movement was
-            // recorded (no account on the bill, creation failed, or the user
-            // neither created nor linked a transaction). The UI must surface
-            // this — silently recording nothing made app balances drift from
-            // real bank balances (#89, #274).
-            'paymentTransactionRecorded' => $paymentTransactionRecorded || $linkedExistingTransaction,
-            // Non-null only for statement bills: the amount resolved for
-            // this payment (#347)
-            'statementAmount' => $statementAmount,
-        ];
-    }
-
-    /**
-     * Undo a mark-paid action, restoring the bill to its previous state
-     * and deleting any transactions that were created.
-     *
-     * @param int $id Bill ID
-     * @param string $userId User ID
-     * @param array $previousState Previous bill field values to restore
-     * @param int[] $createdTransactionIds Transaction IDs created by markPaid to delete
-     * @param bool $hadScheduledTransaction Whether a scheduled transaction existed before markPaid
-     * @param int[] $scheduledTransactionIds Next-occurrence placeholder IDs — deleted only while still 'scheduled'
-     * @param int|null $linkedTransactionId Pre-existing transaction linked by markPaid — unlinked, never deleted
-     * @return Bill Restored bill
-     */
-    public function undoPaid(int $id, string $userId, array $previousState, array $createdTransactionIds, bool $hadScheduledTransaction = false, array $scheduledTransactionIds = [], ?int $linkedTransactionId = null): Bill {
-        $bill = $this->find($id, $userId);
-
-        // Delete the transactions markPaid recorded. They were created under
-        // the ACCOUNT owner (#334) — for a bill on a shared account that is
-        // not the acting user, and deleting under the acting user missed
-        // every row: the revert left the payment in the ledger while the
-        // bill claimed unpaid.
-        foreach ($createdTransactionIds as $transactionId) {
-            try {
-                $this->transactionService->deleteAsAccountOwner((int) $transactionId);
-            } catch (\Exception $e) {
-                $this->logger->warning("Failed to delete transaction {$transactionId} during undo-paid for bill {$id}: {$e->getMessage()}");
-            }
-        }
-
-        // The next-occurrence placeholder may have materialised into a real
-        // (possibly reconciled) ledger row since the payment — remove it only
-        // while it is still a scheduled placeholder (#365 review).
-        foreach ($scheduledTransactionIds as $transactionId) {
-            try {
-                $this->transactionService->deleteAsAccountOwner((int) $transactionId, true);
-            } catch (\Exception $e) {
-                $this->logger->warning("Failed to delete scheduled transaction {$transactionId} during undo-paid for bill {$id}: {$e->getMessage()}");
-            }
-        }
-
-        // A linked pre-existing transaction was never created by markPaid:
-        // it predates the payment and survives the revert — only the bill
-        // linkage is undone.
-        if ($linkedTransactionId !== null) {
-            try {
-                $this->transactionService->unlinkBillAsAccountOwner($linkedTransactionId);
-            } catch (\Exception $e) {
-                $this->logger->warning("Failed to unlink transaction {$linkedTransactionId} during undo-paid for bill {$id}: {$e->getMessage()}");
-            }
-        }
-
-        // Restore previous bill state
-        $bill->setLastPaidDate($previousState['lastPaidDate'] ?? null);
-        $bill->setNextDueDate($previousState['nextDueDate'] ?? null);
-        $bill->setIsActive($previousState['isActive'] ?? true);
-        if (array_key_exists('remainingPayments', $previousState)) {
-            $bill->setRemainingPayments($previousState['remainingPayments']);
-        }
-        if (array_key_exists('autoPayFailed', $previousState)) {
-            $bill->setAutoPayFailed($previousState['autoPayFailed'] ?? false);
-        }
-        // Statement bills overwrite the amount on markPaid — restore it.
-        // Older clients round-trip undo data without this key.
-        if (array_key_exists('amount', $previousState) && $previousState['amount'] !== null) {
-            $bill->setAmount((float) $previousState['amount']);
-        }
-
-        // The payment was reverted — its persisted undo snapshot is spent (#365)
-        $bill->setPaidUndoState(null);
-
-        $bill = $this->mapper->update($bill);
-
-        // Only recreate scheduled transaction if one existed before markPaid
-        if ($hadScheduledTransaction && $bill->getIsActive() && $bill->getAccountId() !== null && $bill->getNextDueDate() !== null) {
-            try {
-                $nextTransaction = $this->transactionService->createFromBill($userId, $bill, null);
-                $this->applySplitTemplate($bill, $nextTransaction, $userId);
-            } catch (\Exception $e) {
-                $this->logger->warning("Failed to recreate scheduled transaction after undo-paid for bill {$id}: {$e->getMessage()}");
-            }
-        }
-
-        return $bill;
-    }
-
-    /**
-     * Durable "mark as unpaid": revert the last markPaid from the snapshot
-     * persisted on the bill, so the revert works long after the undo toast is
-     * gone — across reloads, and for auto-paid or import-matched bills that
-     * never showed a toast at all (#365).
-     *
-     * @param int $id Bill ID
-     * @param string $userId User ID
-     * @return Bill Restored bill
-     * @throws \InvalidArgumentException when no payment snapshot is stored
-     */
-    public function markUnpaid(int $id, string $userId): Bill {
-        $bill = $this->find($id, $userId);
-
-        $raw = $bill->getPaidUndoState();
-        $decoded = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
-        if (!is_array($decoded) || !is_array($decoded['previousState'] ?? null)) {
-            throw new \InvalidArgumentException($this->l->t('This bill has no recorded payment to undo'));
-        }
-
-        // A corrupt blob must fail exactly like a missing snapshot — the
-        // controller's catches do not cover a TypeError from array_map (#365
-        // review). Older snapshots carry the placeholder inside
-        // createdTransactionIds and no linked id; both stay valid.
-        $createdIds = $decoded['createdTransactionIds'] ?? [];
-        $scheduledIds = $decoded['scheduledTransactionIds'] ?? [];
-        $linkedId = $decoded['linkedTransactionId'] ?? null;
-        $allNumeric = static fn(array $ids): bool => array_filter($ids, static fn($v) => !is_numeric($v)) === [];
-        if (!is_array($createdIds) || !is_array($scheduledIds)
-            || !$allNumeric($createdIds) || !$allNumeric($scheduledIds)
-            || ($linkedId !== null && !is_numeric($linkedId))) {
-            throw new \InvalidArgumentException($this->l->t('This bill has no recorded payment to undo'));
-        }
-
-        // undoPaid deletes the created transactions tolerantly, restores the
-        // snapshot fields (including a statement amount that cannot be
-        // re-derived, #347) and clears the spent snapshot.
-        return $this->undoPaid(
-            $id,
-            $userId,
-            $decoded['previousState'],
-            array_map('intval', $createdIds),
-            (bool) ($decoded['hadScheduledTransaction'] ?? false),
-            array_map('intval', $scheduledIds),
-            $linkedId !== null ? (int) $linkedId : null
-        );
-    }
-
-    /**
-     * Skip a bill payment, advancing to the next due date without creating a transaction.
-     *
-     * @param int $id Bill ID
-     * @param string $userId User ID
-     * @return Bill Updated bill
-     */
-    public function skipPayment(int $id, string $userId): array {
-        $bill = $this->find($id, $userId);
-
-        if ($bill->getFrequency() === 'one-time') {
-            throw new \InvalidArgumentException($this->l->t('Cannot skip a one-time bill'));
-        }
-
-        if (!$bill->getIsActive()) {
-            throw new \InvalidArgumentException($this->l->t('Cannot skip an inactive bill'));
-        }
-
-        $previousNextDueDate = $bill->getNextDueDate();
-
-        // Delete any pre-existing scheduled transaction for the skipped occurrence
-        $this->transactionService->deleteScheduledBillTransactions($id);
-
-        $nextDue = $this->frequencyCalculator->calculateNextDueDate(
-            $bill->getFrequency(),
-            $bill->getDueDay(),
-            $bill->getDueMonth(),
-            $bill->getNextDueDate(),
-            $bill->getCustomRecurrencePattern(),
-            true // forceAdvance: always advance one cycle, even if not yet overdue
-        );
-        $bill->setNextDueDate($nextDue);
-
-        // Deactivate if next due date exceeds end date
-        $endDate = $bill->getEndDate();
-        if ($endDate !== null && $bill->getNextDueDate() !== null && $bill->getNextDueDate() > $endDate) {
-            $bill->setIsActive(false);
-            $bill->setNextDueDate(null);
-        }
-
-        // The skip moved next_due_date — a mark-unpaid snapshot restored
-        // after it would bring back a pre-skip date, so it is spent (#365 review)
-        $bill->setPaidUndoState(null);
-
-        $bill = $this->mapper->update($bill);
-
-        // Create scheduled transaction for the new next occurrence,
-        // unless the bill opted out of pre-created transactions
-        if (($bill->getCreateTransaction() ?? true) && $bill->getIsActive() && $bill->getAccountId() !== null) {
-            try {
-                $nextTransaction = $this->transactionService->createFromBill($userId, $bill, null);
-                $this->applySplitTemplate($bill, $nextTransaction, $userId);
-            } catch (\Exception $e) {
-                $this->logger->warning("Failed to create next transaction after skipping bill {$id}: {$e->getMessage()}");
-            }
-        }
-
-        return [
-            'bill' => $bill,
-            'previousNextDueDate' => $previousNextDueDate,
-        ];
-    }
-
-    /**
-     * Undo a skipped bill payment, reverting to the previous due date.
-     *
-     * @param int $id Bill ID
-     * @param string $userId User ID
-     * @param string $previousNextDueDate The due date to restore
-     * @return Bill Updated bill
-     */
-    public function undoSkip(int $id, string $userId, string $previousNextDueDate): Bill {
-        $bill = $this->find($id, $userId);
-
-        // Delete scheduled transaction for the advanced (wrong) date
-        $this->transactionService->deleteScheduledBillTransactions($id);
-
-        // Restore previous due date and reactivate if needed
-        $bill->setNextDueDate($previousNextDueDate);
-        if (!$bill->getIsActive() && $bill->getFrequency() !== 'one-time') {
-            $bill->setIsActive(true);
-        }
-
-        $bill = $this->mapper->update($bill);
-
-        // Recreate scheduled transaction for the restored date, unless the
-        // bill opted out of pre-created transactions - skipPayment() honours
-        // that, and undoing it must not put back what it never had (#396)
-        if (($bill->getCreateTransaction() ?? true) && $bill->getIsActive() && $bill->getAccountId() !== null) {
-            try {
-                $nextTransaction = $this->transactionService->createFromBill($userId, $bill, null);
-                $this->applySplitTemplate($bill, $nextTransaction, $userId);
-            } catch (\Exception $e) {
-                $this->logger->warning("Failed to recreate transaction after undoing skip for bill {$id}: {$e->getMessage()}");
-            }
-        }
-
-        return $bill;
-    }
-
-    /**
-     * Get monthly summary of bills.
-     */
-    public function getMonthlySummary(string $userId): array {
-        $bills = $this->findActive($userId);
-        $currencyMap = $this->buildCurrencyMap($userId);
-        $baseCurrency = $this->currencyConversion->getBaseCurrency($userId);
-
-        $total = 0.0;
-        $dueThisMonth = 0;
-        $overdue = 0;
-        $paidThisMonth = 0;
-        $byCategory = [];
-        $byFrequency = [
-            'daily' => 0.0,
-            'weekly' => 0.0,
-            'biweekly' => 0.0,
-            'semi-monthly' => 0.0,
-            'monthly' => 0.0,
-            'quarterly' => 0.0,
-            'semi-annually' => 0.0,
-            'yearly' => 0.0,
-            'one-time' => 0.0,
-            'custom' => 0.0,
-        ];
-
-        $today = date('Y-m-d');
-        $startOfMonth = date('Y-m-01');
-        $endOfMonth = date('Y-m-t');
-
-        foreach ($bills as $bill) {
-            $monthlyAmount = $this->frequencyCalculator->getMonthlyEquivalent($bill);
-
-            // Convert to base currency if the bill's account uses a different currency
-            $billCurrency = ($bill->getAccountId() !== null && isset($currencyMap[$bill->getAccountId()]))
-                ? $currencyMap[$bill->getAccountId()]
-                : $baseCurrency;
-            $convertedMonthly = $this->convertToBase($monthlyAmount, $billCurrency, $baseCurrency, $userId);
-            $convertedAmount = $this->convertToBase($bill->getAmount(), $billCurrency, $baseCurrency, $userId);
-
-            $total += $convertedMonthly;
-
-            $freq = $bill->getFrequency();
-            if (isset($byFrequency[$freq])) {
-                $byFrequency[$freq] += $convertedAmount;
-            }
-
-            $catId = $bill->getCategoryId() ?? 0;
-            if (!isset($byCategory[$catId])) {
-                $byCategory[$catId] = 0.0;
-            }
-            $byCategory[$catId] += $convertedMonthly;
-
-            // Check if due this month
-            $nextDue = $bill->getNextDueDate();
-            if ($nextDue && $nextDue >= $startOfMonth && $nextDue <= $endOfMonth) {
-                $dueThisMonth++;
-            }
-
-            // Check if overdue
-            if ($nextDue && $nextDue < $today) {
-                $isPaid = $this->checkIfPaidInPeriod($bill, $startOfMonth, $endOfMonth);
-                if (!$isPaid) {
-                    $overdue++;
-                }
-            }
-
-            // Check if paid this month
-            if ($this->checkIfPaidInPeriod($bill, $startOfMonth, $endOfMonth)) {
-                $paidThisMonth++;
-            }
-        }
-
-        return [
-            'totalMonthly' => $total,
-            'monthlyTotal' => $total, // Alias for frontend compatibility
-            'totalYearly' => $total * 12,
-            'billCount' => count($bills),
-            'dueThisMonth' => $dueThisMonth,
-            'overdue' => $overdue,
-            'paidThisMonth' => $paidThisMonth,
-            'byCategory' => $byCategory,
-            'byFrequency' => $byFrequency,
-            'baseCurrency' => $baseCurrency,
-        ];
-    }
-
-    /**
-     * Apply a bill's split template to a newly created transaction.
-     */
-    private function applySplitTemplate(Bill $bill, $transaction, string $userId): void {
-        $splits = $bill->getSplitTemplateArray();
-        if (empty($splits) || $transaction === null) {
-            return;
-        }
-
-        try {
-            $splitData = array_map(function ($split) {
-                return [
-                    'categoryId' => isset($split['categoryId']) ? (int) $split['categoryId'] : null,
-                    'amount' => (float) $split['amount'],
-                    'description' => $split['description'] ?? null,
-                ];
-            }, $splits);
-
-            // Splits are scoped to the transaction's account owner, which may
-            // differ from the acting user when the bill points at a shared
-            // account (#334).
-            $ownerUserId = $this->accountMapper->findById($transaction->getAccountId())->getUserId();
-            $this->splitService->splitTransaction($transaction->getId(), $ownerUserId, $splitData);
-        } catch (\Exception $e) {
-            $this->logger->warning("Failed to apply split template to transaction {$transaction->getId()}: {$e->getMessage()}");
-        }
-    }
-
-    /**
-     * Convert an amount to base currency if needed. Returns unchanged if already base.
-     */
-    private function convertToBase(float $amount, ?string $fromCurrency, string $baseCurrency, string $userId): float {
-        if ($fromCurrency === null || $fromCurrency === $baseCurrency) {
-            return $amount;
-        }
-        return $this->currencyConversion->convertToBaseFloat($amount, $fromCurrency, $userId);
-    }
-
-    /**
-     * Get bill status for current month showing paid/unpaid.
-     */
-    public function getBillStatusForMonth(string $userId, ?string $month = null): array {
-        $month = $month ?? date('Y-m');
-        $startDate = $month . '-01';
-        $endDate = date('Y-m-t', strtotime($startDate));
-
-        $bills = $this->mapper->findDueInRange($userId, $startDate, $endDate);
-        $result = [];
-
-        foreach ($bills as $bill) {
-            $isPaid = $this->checkIfPaidInPeriod($bill, $startDate, $endDate);
-
-            $result[] = [
-                'bill' => $bill,
-                'isPaid' => $isPaid,
-                'dueDate' => $bill->getNextDueDate(),
-                'isOverdue' => !$isPaid && $bill->getNextDueDate() < date('Y-m-d'),
-            ];
-        }
-
-        return $result;
-    }
-
-    /**
-     * Auto-detect recurring bills from transaction history.
-     */
-    public function detectRecurringBills(string $userId, int $months = 6): array {
-        return $this->recurringDetector->detectRecurringBills($userId, $months);
-    }
-
-    /**
-     * Create bills from detected patterns.
-     */
-    public function createFromDetected(string $userId, array $detected): array {
-        $created = [];
-
-        foreach ($detected as $item) {
-            $isTransfer = !empty($item['isTransfer']);
-            $destinationAccountId = isset($item['destinationAccountId']) ? (int) $item['destinationAccountId'] : null;
-
-            // Named arguments — create() has 25 parameters and positional
-            // calls here previously drifted (a missing value pushed `false`
-            // into the ?string customRecurrencePattern slot, 500-ing every
-            // detect-and-add). Names keep this aligned.
-            $bill = $this->create(
-                userId: $userId,
-                name: $item['suggestedName'] ?? $item['description'],
-                amount: (float) $item['amount'],
-                frequency: $item['frequency'],
-                dueDay: isset($item['dueDay']) ? (int) $item['dueDay'] : null,
-                categoryId: $isTransfer ? null : (isset($item['categoryId']) ? (int) $item['categoryId'] : null),
-                accountId: isset($item['accountId']) ? (int) $item['accountId'] : null,
-                autoDetectPattern: $item['autoDetectPattern'] ?? null,
-                isTransfer: $isTransfer,
-                destinationAccountId: $destinationAccountId,
-            );
-            $created[] = $bill;
-        }
-
-        return $created;
-    }
-
-    /**
-     * Check if a transaction matches any bill's auto-detect pattern.
-     */
-    public function matchTransactionToBill(string $userId, string $description, float $amount): ?Bill {
-        $bills = $this->findActive($userId);
-
-        foreach ($bills as $bill) {
-            $pattern = $bill->getAutoDetectPattern();
-            if (empty($pattern)) {
-                continue;
-            }
-
-            if (stripos($description, $pattern) !== false) {
-                $billAmount = $bill->getAmount();
-                if (abs($amount - $billAmount) <= $billAmount * 0.1) {
-                    return $bill;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Auto-mark bills paid from freshly imported transactions (#274).
-     *
-     * For each imported debit that matches an active bill's auto-detect
-     * pattern (amount within 10%, account matching when the bill has one,
-     * transaction date within the bill's current due window), the bill is
-     * marked paid with the transaction LINKED — no duplicate money movement
-     * is ever recorded. Marking paid advances the due date, so a second
-     * same-period transaction in the batch falls outside the new window and
-     * cannot double-advance the bill.
-     *
-     * @param \OCA\Budget\Db\Transaction[] $transactions freshly created rows
-     * @return int number of bills marked paid
-     */
-    public function autoMatchPaidFromImport(string $userId, array $transactions): int {
-        if (empty($transactions)) {
-            return 0;
-        }
-
-        $bills = array_filter(
-            $this->findActive($userId),
-            fn(Bill $bill) => !($bill->getIsTransfer() ?? false)
-                && !empty($bill->getAutoDetectPattern())
-                && $bill->getNextDueDate() !== null
-        );
-        if (empty($bills)) {
-            return 0;
-        }
-
-        $marked = 0;
-        foreach ($transactions as $transaction) {
-            if ($transaction->getType() !== 'debit') {
-                continue;
-            }
-            if (($transaction->getStatus() ?? 'cleared') === 'scheduled') {
-                continue;
-            }
-
-            foreach ($bills as $key => $bill) {
-                if (!$this->importedTransactionMatchesBill($bill, $transaction)) {
-                    continue;
-                }
-
-                try {
-                    $this->markPaid($bill->getId(), $userId, $transaction->getDate(), false, $transaction->getId());
-                    $marked++;
-                    // Reload: the due date advanced (or the bill deactivated),
-                    // which is what keeps this loop from double-advancing
-                    $bills[$key] = $this->find($bill->getId(), $userId);
-                    if (!$bills[$key]->getIsActive() || $bills[$key]->getNextDueDate() === null) {
-                        unset($bills[$key]);
-                    }
-                } catch (\Exception $e) {
-                    $this->logger->warning(
-                        "Auto-match failed marking bill {$bill->getId()} paid from imported transaction {$transaction->getId()}: {$e->getMessage()}"
-                    );
-                }
-                break; // one bill per transaction
-            }
-        }
-
-        return $marked;
-    }
-
-    /**
-     * Match an imported transaction against a bill: pattern in description
-     * or vendor, amount within 10%, account agreement, and the transaction
-     * date inside the bill's current due window (so historical re-imports
-     * can't advance bills through future periods).
-     */
-    private function importedTransactionMatchesBill(Bill $bill, \OCA\Budget\Db\Transaction $transaction): bool {
-        $pattern = (string) $bill->getAutoDetectPattern();
-        $haystack = $transaction->getDescription() . ' ' . ($transaction->getVendor() ?? '');
-        if (stripos($haystack, $pattern) === false) {
-            return false;
-        }
-
-        $billAmount = (float) $bill->getAmount();
-        if ($billAmount <= 0 || abs((float) $transaction->getAmount() - $billAmount) > $billAmount * 0.1) {
-            return false;
-        }
-
-        if ($bill->getAccountId() !== null && $bill->getAccountId() !== $transaction->getAccountId()) {
-            return false;
-        }
-
-        $dueDate = $bill->getNextDueDate();
-        $daysOff = abs((strtotime($transaction->getDate()) - strtotime($dueDate)) / 86400);
-
-        return $daysOff <= $this->dueDateToleranceDays($bill->getFrequency());
-    }
-
-    /**
-     * How far an imported payment may sit from the due date and still count
-     * as paying THIS occurrence — roughly half the recurrence interval,
-     * capped so monthly+ bills accept payments up to two weeks early/late.
-     */
-    private function dueDateToleranceDays(?string $frequency): int {
-        return match ($frequency) {
-            'daily' => 1,
-            'weekly' => 3,
-            'biweekly' => 6,
-            'semi-monthly' => 7,
-            default => 15, // monthly, quarterly, semi-annually, yearly, custom, one-time
-        };
-    }
-
-    /**
-     * Attempt to auto-pay a bill and handle success/failure.
-     *
-     * @param int $id Bill ID
-     * @param string $userId User ID
-     * @return array ['success' => bool, 'message' => string, 'bill' => ?Bill]
-     */
-    public function processAutoPay(int $id, string $userId): array {
-        try {
-            $bill = $this->find($id, $userId);
-
-            // Validate auto-pay is enabled and account exists
-            if (!$bill->getAutoPayEnabled()) {
-                return [
-                    'success' => false,
-                    'message' => $this->l->t('Auto-pay is not enabled for this bill'),
-                    'bill' => null,
-                ];
-            }
-
-            if ($bill->getAccountId() === null) {
-                // Disable auto-pay and mark as failed
-                $this->mapper->updateFields($id, $userId, [
-                    'auto_pay_enabled' => false,
-                    'auto_pay_failed' => true,
-                ]);
-                return [
-                    'success' => false,
-                    'message' => $this->l->t('Bill has no account associated'),
-                    'bill' => $this->find($id, $userId),
-                ];
-            }
-
-            // Mark bill as paid
-            $result = $this->markPaid($id, $userId, null, true);
-
-            return [
-                'success' => true,
-                'message' => $this->l->t('Bill auto-paid successfully'),
-                'bill' => $result['bill'],
-            ];
-
-        } catch (\Exception $e) {
-            // Mark auto-pay as failed and disable it
-            try {
-                $this->mapper->updateFields($id, $userId, [
-                    'auto_pay_enabled' => false,
-                    'auto_pay_failed' => true,
-                ]);
-                $bill = $this->find($id, $userId);
-            } catch (\Exception $e2) {
-                $bill = null;
-            }
-
-            return [
-                'success' => false,
-                'message' => 'Auto-pay failed: ' . $e->getMessage(),
-                'bill' => $bill,
-            ];
-        }
-    }
-
-    private function checkIfPaidInPeriod(Bill $bill, string $startDate, string $endDate): bool {
-        $lastPaid = $bill->getLastPaidDate();
-        if (!$lastPaid) {
-            return false;
-        }
-        return $lastPaid >= $startDate && $lastPaid <= $endDate;
-    }
-
-    /**
-     * Get annual overview of bills showing which months each bill occurs
-     *
-     * @param string $userId User ID
-     * @param int $year Year to generate overview for
-     * @param bool $includeTransfers Include transfer bills
-     * @param string $billStatus 'active', 'inactive', or 'all'
-     * @param int|null $accountId Filter by account ID (source or destination)
-     * @return array Bills with monthly occurrences and totals
-     */
-    public function getAnnualOverview(string $userId, int $year, bool $includeTransfers = false, string $billStatus = 'active', ?int $accountId = null): array {
-        // Build currency map for conversion. The same list finds the picked
-        // account below, so an id the user cannot see finds nothing.
-        $accounts = $this->accountMapper->findAll($userId);
-        $currencyMap = $this->currencyMapFor($accounts);
-        $baseCurrency = $this->currencyConversion->getBaseCurrency($userId);
-
-        [$billsData, $monthlyTotals] = $this->calendarRows($userId, $year, $includeTransfers, $billStatus, $accountId, $currencyMap, $baseCurrency);
-
-        // With an account picked: its balance carried through the rest of
-        // this year, from today's (#393). Another year has no today to start
-        // from, so it gets no projection.
-        $accountSummary = null;
-        $projection = null;
-        $account = $accountId === null ? null : $this->accountAmong($accounts, $accountId);
-        if ($account !== null) {
-            $balance = $this->transactionService->getBalanceAsOf($account->getId(), date('Y-m-d'));
-            $accountSummary = [
-                'id' => $account->getId(),
-                'name' => $account->getName(),
-                'currency' => $account->getCurrency() ?: $baseCurrency,
-                'balance' => $balance,
-            ];
-            if ($year === (int) date('Y')) {
-                // The money moves whatever the table is set to show, so a
-                // view without transfers, or of inactive bills only, is
-                // projected from every bill that is still live
-                $projectionRows = ($includeTransfers && $billStatus !== 'inactive')
-                    ? $billsData
-                    : $this->calendarRows($userId, $year, true, 'active', $accountId, $currencyMap, $baseCurrency)[0];
-                $projection = $this->projectBalance($userId, $projectionRows, $account, $balance);
-            }
-        }
-
-        return [
-            'year' => $year,
-            'bills' => $this->groupOneTimeBillsByName($billsData),
-            'monthlyTotals' => $monthlyTotals,
-            'baseCurrency' => $baseCurrency,
-            'account' => $accountSummary,
-            'projectedBalance' => $projection['balance'] ?? null,
-            'projectedFlows' => $projection['flows'] ?? null,
-        ];
-    }
-
-    /**
-     * The calendar's rows, one per bill with anything in the year, and what
-     * each month comes to in the base currency.
-     *
-     * @param array<int, string|null> $currencyMap account id => currency code
-     * @return array{0: array[], 1: array<int, float>} ungrouped rows, monthly totals
-     */
-    private function calendarRows(string $userId, int $year, bool $includeTransfers, string $billStatus, ?int $accountId, array $currencyMap, string $baseCurrency): array {
-        // Determine which bills to fetch based on status
-        $bills = [];
-        if ($billStatus === 'active') {
-            $isActive = true;
-        } elseif ($billStatus === 'inactive') {
-            $isActive = false;
-        } else {
-            $isActive = null; // All bills
-        }
-
-        // Fetch bills with type filter. "Active" fetches everything and is
-        // narrowed below, because a bill that is inactive now but was paid
-        // this year - a one-time bill deactivates itself on payment - still
-        // belongs in the year's picture (#375).
-        $fetchActive = $billStatus === 'active' ? null : $isActive;
-        if ($includeTransfers) {
-            $bills = $this->mapper->findByType($userId, null, $fetchActive);
-        } else {
-            $bills = $this->mapper->findByType($userId, false, $fetchActive);
-        }
-
-        // Filter by account if specified (match source or destination account)
-        if ($accountId !== null) {
-            $bills = array_filter($bills, function ($bill) use ($accountId) {
-                return $bill->getAccountId() === $accountId
-                    || $bill->getDestinationAccountId() === $accountId;
-            });
-        }
-
-        // What was actually paid this year, per bill. The cells used to be
-        // guessed from last_paid_date - every month up to it counted as paid,
-        // so a bill first paid in September showed January to August paid
-        // too - and a one-time bill fell out of the calendar the moment it
-        // was paid (#375). Only the debit leg counts: a transfer bill's
-        // credit leg is the same payment arriving, not a second one.
-        $paymentsByBill = [];
-        $billIds = array_map(fn(Bill $bill) => $bill->getId(), $bills);
-        foreach ($this->transactionService->findBillPaymentsInYear($billIds, $year) as $payment) {
-            if (($payment->getType() ?? 'debit') !== 'debit') {
-                continue;
-            }
-            $paymentsByBill[$payment->getBillId()][] = [
-                'date' => $payment->getDate(),
-                'amount' => (float) $payment->getAmount(),
-            ];
-        }
-
-        if ($billStatus === 'active') {
-            $bills = array_filter($bills, fn(Bill $bill) => $bill->getIsActive() || isset($paymentsByBill[$bill->getId()]));
-        }
-
-        // Calculate monthly occurrences for each bill
-        $billsData = [];
-        $monthlyTotals = array_fill(1, 12, 0.0);
-
-        foreach ($bills as $bill) {
-            $occurrences = $this->calculateMonthlyOccurrences($bill, $year);
-            [$occurrences, $paidMonths, $paidAmounts, $unrecordedMonths] = $this->attributePayments(
-                $occurrences,
-                $bill,
-                $paymentsByBill[$bill->getId()] ?? [],
-                $year
-            );
-
-            // A bill with nothing in this year - created after its only date
-            // came round, or started next year - has no cell to draw, and an
-            // empty row says nothing (#333)
-            if (array_filter($occurrences) === []) {
-                continue;
-            }
-
-            $billCurrency = ($bill->getAccountId() !== null && isset($currencyMap[$bill->getAccountId()]))
-                ? $currencyMap[$bill->getAccountId()]
-                : $baseCurrency;
-
-            $billData = [
-                'id' => $bill->getId(),
-                'name' => $bill->getName(),
-                'amount' => $bill->getAmount(),
-                'currency' => $billCurrency,
-                'frequency' => $bill->getFrequency(),
-                'categoryId' => $bill->getCategoryId(),
-                'accountId' => $bill->getAccountId(),
-                'isActive' => $bill->getIsActive(),
-                'isTransfer' => $bill->getIsTransfer() ?? false,
-                'destinationAccountId' => $bill->getDestinationAccountId(),
-                'lastPaidDate' => $bill->getLastPaidDate(),
-                'nextDueDate' => $bill->getNextDueDate(),
-                'occurrences' => $occurrences, // Array with month numbers as keys
-                // Months whose occurrence has a recorded payment, and what was
-                // actually paid in each - the expected amount stands in for
-                // the months still to come (#375)
-                'paidMonths' => $paidMonths,
-                'paidAmounts' => $paidAmounts,
-                // Occurrences the bill has moved past without a recorded
-                // payment - marked paid with no transaction, or skipped. Not
-                // paid, but not owed either, so they must not read as due (#333)
-                'unrecordedMonths' => $unrecordedMonths,
-                // What each occurring month is expected to cost. One per month
-                // so that one-time bills sharing a name can be shown as one
-                // row without losing each invoice's own amount (#375)
-                'expectedAmounts' => array_fill_keys(array_keys(array_filter($occurrences)), (float) $bill->getAmount()),
-            ];
-
-            // Monthly totals: what was paid where a payment exists, the
-            // expected amount otherwise
-            $convertedAmount = $this->convertToBase($bill->getAmount(), $billCurrency, $baseCurrency, $userId);
-            foreach ($occurrences as $month => $occurs) {
-                if (!$occurs) {
-                    continue;
-                }
-                $monthlyTotals[$month] += isset($paidAmounts[$month])
-                    ? $this->convertToBase($paidAmounts[$month], $billCurrency, $baseCurrency, $userId)
-                    : $convertedAmount;
-            }
-
-            $billsData[] = $billData;
-        }
-
-        return [$billsData, $monthlyTotals];
-    }
-
-    /** @param Account[] $accounts */
-    private function accountAmong(array $accounts, int $accountId): ?Account {
-        foreach ($accounts as $account) {
-            if ($account->getId() === $accountId) {
-                return $account;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * The account's running balance through the rest of this year: bills
-     * out, transfers and recurring income in, carried month to month (#393).
-     *
-     * @param array[] $billsData ungrouped calendar rows
-     * @return array{balance: array<int, float|null>, flows: array<int, array{bills: float, transfersIn: float, income: float}|null>}
-     */
-    private function projectBalance(string $userId, array $billsData, Account $account, float $balance): array {
-        $scale = Currency::decimalsFor($account->getCurrency());
-        $today = date('Y-m-d');
-        $projector = new BalanceProjector($this->frequencyCalculator);
-        $incomes = $this->incomeMapper?->findActive($userId) ?? [];
-        return $projector->project(
-            $billsData,
-            $account->getId(),
-            $balance,
-            $projector->incomeByMonth($incomes, $account->getId(), $today, $scale),
-            (int) date('n'),
-            $scale
-        );
-    }
-
-    /**
-     * Fold one-time bills that share a name into a single calendar row.
-     *
-     * Every invoice from the same vendor is its own one-time bill, and once
-     * paid ones stay in the year's calendar (#375) a garage that sent three
-     * invoices showed as three rows with the same name, one cell each. One
-     * row with a cell per invoice reads the way the recurring rows do. Each
-     * month keeps its own expected and paid amount; two invoices in one
-     * month add up. Recurring bills are left alone.
-     *
-     * @param array<int, array<string, mixed>> $rows
-     * @return array<int, array<string, mixed>>
-     */
-    private function groupOneTimeBillsByName(array $rows): array {
-        $grouped = [];
-        $byName = [];
-        foreach ($rows as $row) {
-            if (($row['frequency'] ?? '') !== 'one-time') {
-                $grouped[] = $row;
-                continue;
-            }
-            $key = mb_strtolower(trim((string) $row['name'])) . '|' . ($row['currency'] ?? '');
-            $row['unrecordedMonths'] = $row['unrecordedMonths'] ?? [];
-            if (!isset($byName[$key])) {
-                $row['billIds'] = [$row['id']];
-                $byName[$key] = count($grouped);
-                $grouped[] = $row;
-                continue;
-            }
-            $index = $byName[$key];
-            $grouped[$index]['billIds'][] = $row['id'];
-            $grouped[$index]['isActive'] = $grouped[$index]['isActive'] || $row['isActive'];
-            foreach ($row['occurrences'] as $month => $occurs) {
-                if ($occurs) {
-                    $grouped[$index]['occurrences'][$month] = true;
-                }
-            }
-            $unrecorded = array_unique(array_merge($grouped[$index]['unrecordedMonths'], $row['unrecordedMonths']));
-            sort($unrecorded);
-            $grouped[$index]['unrecordedMonths'] = array_values($unrecorded);
-            foreach ($row['expectedAmounts'] as $month => $amount) {
-                $grouped[$index]['expectedAmounts'][$month] = ($grouped[$index]['expectedAmounts'][$month] ?? 0.0) + $amount;
-            }
-            foreach ($row['paidAmounts'] as $month => $amount) {
-                $grouped[$index]['paidAmounts'][$month] = ($grouped[$index]['paidAmounts'][$month] ?? 0.0) + $amount;
-            }
-            ksort($grouped[$index]['paidAmounts']);
-            ksort($grouped[$index]['expectedAmounts']);
-            $grouped[$index]['paidMonths'] = array_keys($grouped[$index]['paidAmounts']);
-        }
-
-        return $grouped;
-    }
-
-    /**
-     * Ensure the next due date is no earlier than the bill's start date. When a
-     * bill starts in the future, its first occurrence should fall on/after the
-     * start date rather than the next calendar occurrence from today (#268).
-     *
-     * Weekly/biweekly bills with a startDate never reach the recursive call:
-     * their nextDue already came out of the calculator's anchor path, which by
-     * construction never returns a date before the anchor (#364).
-     */
-    private function applyStartDateFloor(string $nextDue, ?string $startDate, string $frequency, ?int $dueDay, ?int $dueMonth, ?string $customPattern): string {
-        if ($startDate === null || $startDate === '' || $startDate <= $nextDue) {
-            return $nextDue;
-        }
-        $fromStart = $this->frequencyCalculator->calculateNextDueDate($frequency, $dueDay, $dueMonth, $startDate, $customPattern);
-        return max($fromStart, $startDate);
-    }
-
-    /** How far a payment may sit from an occurrence's due date and still be that occurrence's. */
-    private const PAYMENT_MATCH_WINDOW_DAYS = 45;
-
-    /**
-     * Match a year's payments to the schedule's occurrences, by date - and
-     * never ahead of the bill itself.
-     *
-     * The bill already knows which occurrences are done: marking one paid
-     * advances next_due_date by a cycle, so every occurrence due before that
-     * date is closed and everything from it on is still owed. Payments are
-     * only ever placed on closed occurrences. Without that boundary a user
-     * who pays each cycle a few days before the next one is due - or pays
-     * one twice - had the row shift a month forward, and the calendar showed
-     * September paid while the Bills page showed the same occurrence as
-     * upcoming (#375).
-     *
-     * Within the closed occurrences a payment belongs to the nearest unpaid
-     * one within the window; when all of those are taken it adds to the
-     * nearest closed one (a double payment shows as the larger amount rather
-     * than as a month that was never paid); a payment with no closed
-     * occurrence anywhere near it becomes an extra paid month, provided that
-     * month is itself before the next due date. A bill with a single
-     * occurrence takes any payment, whenever it was made.
-     *
-     * A closed occurrence that ends up with no payment is reported too. The
-     * bill was marked paid with "Don't create any transaction", or the
-     * occurrence was skipped: either way the bill has moved past it, so it is
-     * neither paid nor owed, and drawing it as due - which is what a cell
-     * without a payment used to mean - had a yearly premium paid in
-     * February still showing as outstanding in September (#333).
-     *
-     * @param array<int, bool> $occurrences month => occurs, 1..12
-     * @param array<int, array{date: string, amount: float}> $payments in date order
-     * @return array{0: array<int, bool>, 1: int[], 2: array<int, float>, 3: int[]}
-     *         occurrences (with extras), paid months, paid amount per month,
-     *         months the bill has moved past with no payment recorded
-     */
-    private function attributePayments(array $occurrences, Bill $bill, array $payments, int $year): array {
-        $paidAmounts = [];
-        $slots = array_keys(array_filter($occurrences));
-        $slotDates = [];
-        foreach ($slots as $slot) {
-            $slotDates[$slot] = new \DateTimeImmutable($this->occurrenceDate($bill, $year, $slot));
-        }
-
-        // Occurrences the bill itself still counts as owed are never paid
-        // targets. An inactive bill (ended, or a one-time bill after its
-        // payment) has nothing owed, so all of its occurrences are closed.
-        $nextDue = $bill->getNextDueDate();
-        $boundary = ($bill->getIsActive() && $nextDue !== null && $nextDue !== '' && $bill->getFrequency() !== 'one-time')
-            ? new \DateTimeImmutable($nextDue)
-            : null;
-        $closedSlots = array_values(array_filter(
-            $slots,
-            fn(int $slot): bool => $boundary === null || $slotDates[$slot] < $boundary
-        ));
-
-        // What the bill has definitely moved past. An inactive bill owes
-        // nothing; an active one-time bill owes its only occurrence, and an
-        // active recurring bill owes everything from next_due_date on. Kept
-        // apart from $closedSlots, which is deliberately wider for an active
-        // one-time bill so that its payment can land whenever it was made.
-        if (!$bill->getIsActive()) {
-            $settledSlots = $slots;
-        } elseif ($boundary === null) {
-            $settledSlots = [];
-        } else {
-            $settledSlots = $closedSlots;
-        }
-
-        $nearest = function (\DateTimeImmutable $paidOn, array $candidates, ?int $window) use (&$slotDates): ?int {
-            $best = null;
-            foreach ($candidates as $slot) {
-                $days = $paidOn->diff($slotDates[$slot])->days;
-                if ($window !== null && $days > $window) {
-                    continue;
-                }
-                // Nearest wins; on a tie the earlier month (a late payment)
-                if ($best === null || $days < $best[0] || ($days === $best[0] && $slot < $best[1])) {
-                    $best = [$days, $slot];
-                }
-            }
-            return $best[1] ?? null;
-        };
-
-        foreach ($payments as $payment) {
-            $paidOn = new \DateTimeImmutable($payment['date']);
-            $target = null;
-
-            if (count($slots) === 1) {
-                $target = $slots[0];
-            } else {
-                $unpaid = array_values(array_filter($closedSlots, fn(int $s): bool => !isset($paidAmounts[$s])));
-                $target = $nearest($paidOn, $unpaid, self::PAYMENT_MATCH_WINDOW_DAYS)
-                    ?? $nearest($paidOn, $closedSlots, self::PAYMENT_MATCH_WINDOW_DAYS);
-
-                if ($target === null) {
-                    // Real money with no occurrence near it: its own month, as
-                    // long as the bill does not still count that month as owed
-                    $month = (int) $paidOn->format('n');
-                    $monthDate = new \DateTimeImmutable($this->occurrenceDate($bill, $year, $month));
-                    if ($boundary === null || $monthDate < $boundary) {
-                        $target = $month;
-                        $occurrences[$month] = true;
-                        $slotDates[$month] = $monthDate;
-                    } else {
-                        $target = $nearest($paidOn, $closedSlots, null);
-                    }
-                }
-            }
-
-            if ($target === null) {
-                continue; // nothing the bill counts as paid to put it on
-            }
-            $paidAmounts[$target] = ($paidAmounts[$target] ?? 0.0) + $payment['amount'];
-        }
-
-        ksort($paidAmounts);
-        $unrecorded = array_values(array_filter($settledSlots, fn(int $slot): bool => !isset($paidAmounts[$slot])));
-
-        return [$occurrences, array_keys($paidAmounts), $paidAmounts, $unrecorded];
-    }
-
-    /**
-     * The date an occurrence in a given month falls due. A one-time bill's
-     * explicit date is used as is; frequencies with several occurrences a
-     * month (daily, weekly, biweekly) are pinned to mid-month, since the
-     * calendar only knows them by month anyway.
-     */
-    private function occurrenceDate(Bill $bill, int $year, int $month): string {
-        $frequency = $bill->getFrequency();
-        $startDate = $bill->getStartDate();
-        if ($frequency === 'one-time' && $startDate !== null && $startDate !== '') {
-            return $startDate;
-        }
-
-        $daysInMonth = (int) date('t', mktime(0, 0, 0, $month, 1, $year));
-        $day = in_array($frequency, ['daily', 'weekly', 'biweekly'], true)
-            ? 15
-            : min(max((int) ($bill->getDueDay() ?? 1), 1), $daysInMonth);
-
-        return sprintf('%04d-%02d-%02d', $year, $month, $day);
-    }
-
-    /**
-     * Calculate which months a bill occurs in for a given year
-     *
-     * @param Bill $bill The bill entity
-     * @param int $year The year to calculate for
-     * @return array Array with month numbers (1-12) as keys and boolean values
-     */
-    private function calculateMonthlyOccurrences(Bill $bill, int $year): array {
-        $occurrences = array_fill(1, 12, false);
-        $frequency = $bill->getFrequency();
-        $dueDay = $bill->getDueDay();
-        $dueMonth = $bill->getDueMonth();
-        $customPattern = $bill->getCustomRecurrencePattern();
-
-        switch ($frequency) {
-            case 'daily':
-            case 'weekly':
-            case 'biweekly':
-            case 'monthly':
-                // Occurs every month
-                for ($month = 1; $month <= 12; $month++) {
-                    $occurrences[$month] = true;
-                }
-                break;
-
-            case 'quarterly':
-                // Quarterly bills occur every 3 months
-                // Determine starting month (defaults to Jan, Apr, Jul, Oct)
-                $startMonth = $dueMonth ?? 1;
-
-                // Calculate which months it occurs in
-                for ($month = $startMonth; $month <= 12; $month += 3) {
-                    $occurrences[$month] = true;
-                }
-
-                // If startMonth is not 1, 4, 7, or 10, we need to wrap around
-                // E.g., if startMonth is 2, then 2, 5, 8, 11
-                break;
-
-            case 'semi-annually':
-                // Twice per year - every 6 months
-                $startMonth = $dueMonth ?? 1;
-                $occurrences[$startMonth] = true;
-                if ($startMonth + 6 <= 12) {
-                    $occurrences[$startMonth + 6] = true;
-                }
-                break;
-
-            case 'yearly':
-                // Only occurs in the specified month
-                $month = $dueMonth ?? 1;
-                $occurrences[$month] = true;
-                break;
-
-            case 'one-time':
-                // One-time bills only occur in their specified month
-                $month = $dueMonth ?? 1;
-                if ($month >= 1 && $month <= 12) {
-                    $occurrences[$month] = true;
-                }
-                break;
-
-            case 'custom':
-                // Parse custom pattern
-                if ($customPattern) {
-                    $pattern = json_decode($customPattern, true);
-                    if (is_array($pattern) && isset($pattern['months'])) {
-                        foreach ($pattern['months'] as $month) {
-                            if ($month >= 1 && $month <= 12) {
-                                $occurrences[$month] = true;
-                            }
-                        }
-                    }
-                }
-                break;
-        }
-
-        // Apply start date constraint: remove occurrences before the start date
-        $startDate = $bill->getStartDate();
-        if ($startDate !== null && $startDate !== '') {
-            $startYear = (int) date('Y', strtotime($startDate));
-            $startMonth = (int) date('n', strtotime($startDate));
-
-            for ($month = 1; $month <= 12; $month++) {
-                if ($year < $startYear || ($year === $startYear && $month < $startMonth)) {
-                    $occurrences[$month] = false;
-                }
-            }
-        } elseif ($bill->getCreatedAt()) {
-            // Nothing was due before the bill existed. Without a start date the
-            // schedule was projected across the whole year, and once the cells
-            // came from payments (#375) a monthly bill created on 8 September
-            // read as owed from January - the old guess had struck those months
-            // through as paid, which was no truer (#333). Compared by date, so
-            // that a bill created on the 8th and due on the 5th first falls due
-            // next month, the way its next due date already does. A start date
-            // is the user's word on when the schedule began and governs instead
-            // (above); a one-time bill dated in the past on purpose has one.
-            // Frequencies the calendar pins mid-month keep their whole month.
-            $createdOn = substr((string) $bill->getCreatedAt(), 0, 10);
-            $wholeMonth = in_array($frequency, ['daily', 'weekly', 'biweekly'], true);
-            for ($month = 1; $month <= 12; $month++) {
-                if (!$occurrences[$month]) {
-                    continue;
-                }
-                $notBefore = $wholeMonth
-                    ? sprintf('%04d-%02d-%02d', $year, $month, (int) date('t', mktime(0, 0, 0, $month, 1, $year)))
-                    : $this->occurrenceDate($bill, $year, $month);
-                if ($notBefore < $createdOn) {
-                    $occurrences[$month] = false;
-                }
-            }
-        }
-
-        // Apply end date constraint: remove occurrences after end date
-        $endDate = $bill->getEndDate();
-        if ($endDate !== null) {
-            $endYear = (int) date('Y', strtotime($endDate));
-            $endMonth = (int) date('n', strtotime($endDate));
-
-            for ($month = 1; $month <= 12; $month++) {
-                if ($year > $endYear || ($year === $endYear && $month > $endMonth)) {
-                    $occurrences[$month] = false;
-                }
-            }
-        }
-
-        // Apply remaining payments constraint: cap number of future occurrences
-        // But keep past months visible for historical calendar view
-        $remaining = $bill->getRemainingPayments();
-        if ($remaining !== null && $remaining >= 0) {
-            $nextDueDate = $bill->getNextDueDate();
-            $nextDueYear = $nextDueDate ? (int) date('Y', strtotime($nextDueDate)) : $year;
-            $nextDueMonth = $nextDueDate ? (int) date('n', strtotime($nextDueDate)) : 1;
-
-            $count = 0;
-            for ($month = 1; $month <= 12; $month++) {
-                if (!$occurrences[$month]) {
-                    continue;
-                }
-
-                // Keep past months visible (they were already paid)
-                if ($year < $nextDueYear || ($year === $nextDueYear && $month < $nextDueMonth)) {
-                    continue;
-                }
-
-                $count++;
-                if ($count > $remaining) {
-                    $occurrences[$month] = false;
-                }
-            }
-        }
-
-        return $occurrences;
-    }
+	private BillMapper $mapper;
+	private FrequencyCalculator $frequencyCalculator;
+	private RecurringBillDetector $recurringDetector;
+	private TransactionService $transactionService;
+	private IL10N $l;
+	private AccountMapper $accountMapper;
+	private CurrencyConversionService $currencyConversion;
+	private TransactionSplitService $splitService;
+	private LoggerInterface $logger;
+	private DismissedSuggestionMapper $dismissedMapper;
+	private ?AutoShareService $autoShareService;
+	private ?RecurringIncomeMapper $incomeMapper;
+
+	public function __construct(
+		BillMapper $mapper,
+		FrequencyCalculator $frequencyCalculator,
+		RecurringBillDetector $recurringDetector,
+		TransactionService $transactionService,
+		IL10N $l,
+		AccountMapper $accountMapper,
+		CurrencyConversionService $currencyConversion,
+		TransactionSplitService $splitService,
+		LoggerInterface $logger,
+		DismissedSuggestionMapper $dismissedMapper,
+		?AutoShareService $autoShareService = null,
+		?RecurringIncomeMapper $incomeMapper = null,
+	) {
+		$this->mapper = $mapper;
+		$this->frequencyCalculator = $frequencyCalculator;
+		$this->recurringDetector = $recurringDetector;
+		$this->transactionService = $transactionService;
+		$this->l = $l;
+		$this->accountMapper = $accountMapper;
+		$this->currencyConversion = $currencyConversion;
+		$this->splitService = $splitService;
+		$this->logger = $logger;
+		$this->dismissedMapper = $dismissedMapper;
+		$this->autoShareService = $autoShareService;
+		$this->incomeMapper = $incomeMapper;
+	}
+
+	/** Amount types whose figure is resolved from the destination card at payment time (#347) */
+	private const DYNAMIC_AMOUNT_TYPES = ['statement', 'current_balance', 'minimum_payment'];
+
+	/** suggestion_type under which dismissed unrecorded payments are stored (#394) */
+	private const UNRECORDED_DISMISS_TYPE = 'unrecorded';
+
+	/**
+	 * @throws DoesNotExistException
+	 */
+	public function find(int $id, string $userId): Bill {
+		return $this->mapper->find($id, $userId);
+	}
+
+	/**
+	 * A dynamic amount type needs a card-like transfer destination to
+	 * resolve against.
+	 */
+	private function validateAmountType(string $amountType, bool $isTransfer, ?int $destinationAccountId): void {
+		if ($amountType !== 'fixed' && !in_array($amountType, self::DYNAMIC_AMOUNT_TYPES, true)) {
+			throw new \InvalidArgumentException($this->l->t('Invalid amount type'));
+		}
+		if ($amountType === 'fixed') {
+			return;
+		}
+		if (!$isTransfer || $destinationAccountId === null) {
+			throw new \InvalidArgumentException($this->l->t('This amount type requires a transfer with a destination account'));
+		}
+		$destinationType = $this->accountMapper->findById($destinationAccountId)->getType();
+		if (!in_array($destinationType, ['credit_card', 'line_of_credit'], true)) {
+			throw new \InvalidArgumentException($this->l->t('This amount type is only available for transfers to a credit card'));
+		}
+	}
+
+	/**
+	 * Resolve the payable amount for a dynamic-amount bill (#347).
+	 * $dueDate is the statement cut-off (null = use $paidDate); $paidDate is
+	 * when the money moves. Returns null for fixed-amount bills.
+	 */
+	private function resolveDynamicAmount(string $amountType, ?int $destinationAccountId, ?string $dueDate, string $paidDate): ?float {
+		if (!in_array($amountType, self::DYNAMIC_AMOUNT_TYPES, true) || $destinationAccountId === null) {
+			return null;
+		}
+		if ($amountType === 'statement') {
+			// What was owed at the due date; later charges roll to the next statement
+			return $this->transactionService->getStatementAmountForAccount($destinationAccountId, $dueDate ?? $paidDate);
+		}
+		$owedNow = $this->transactionService->getStatementAmountForAccount($destinationAccountId, $paidDate);
+		if ($amountType === 'current_balance') {
+			return $owedNow;
+		}
+		// minimum_payment: the card's stored minimum, never more than is owed
+		$minimum = (float)($this->accountMapper->findById($destinationAccountId)->getMinimumPayment() ?? 0);
+		return min($minimum, $owedNow);
+	}
+
+	public function findAll(string $userId): array {
+		return $this->mapper->findAll($userId);
+	}
+
+	public function findActive(string $userId): array {
+		return $this->mapper->findActive($userId);
+	}
+
+	/**
+	 * Find existing transactions that might match a bill payment.
+	 * Used to avoid creating duplicate transactions when marking a bill paid.
+	 *
+	 * @return array Scored candidates [{transaction, score, matchReasons}]
+	 */
+	public function findMatchingTransactions(int $billId, string $userId): array {
+		$bill = $this->find($billId, $userId);
+
+		if (!$bill->getAccountId()) {
+			return [];
+		}
+
+		$dueDate = $bill->getNextDueDate() ?? date('Y-m-d');
+
+		return $this->transactionService->findBillPaymentCandidates(
+			$bill->getAccountId(),
+			$bill->getName(),
+			(float)$bill->getAmount(),
+			$dueDate
+		);
+	}
+
+	/**
+	 * Bills whose most recent payment has no recorded transaction (#274).
+	 *
+	 * Marking a bill paid without creating or linking a transaction leaves
+	 * the account balance out of step with the bank. This returns recent
+	 * occurrences (last $sinceDays days) so the Bills page can surface them.
+	 * Deliberate skips (Skip button) never set the last-paid date and are
+	 * not flagged, and neither is a payment dismissed from the card (#394).
+	 */
+	public function findUnrecordedPayments(string $userId, int $sinceDays = 60): array {
+		$cutoff = date('Y-m-d', strtotime("-{$sinceDays} days"));
+		$candidates = [];
+		foreach ($this->mapper->findAll($userId) as $bill) {
+			$lastPaid = $bill->getLastPaidDate();
+			if ($lastPaid !== null && $lastPaid >= $cutoff) {
+				$candidates[] = $bill;
+			}
+		}
+		if (empty($candidates)) {
+			return [];
+		}
+
+		$billIds = array_map(static fn (Bill $b) => $b->getId(), $candidates);
+		$txDatesByBill = [];
+		foreach ($this->transactionService->findRecordedBillTransactions($billIds) as $tx) {
+			$txDatesByBill[$tx->getBillId()][] = $tx->getDate();
+		}
+
+		// Payments the user has dismissed as deliberately unrecorded (#394)
+		$dismissed = array_flip($this->dismissedMapper->findHashes($userId, self::UNRECORDED_DISMISS_TYPE));
+
+		$currencyMap = $this->buildCurrencyMap($userId);
+		$unrecorded = [];
+		foreach ($candidates as $bill) {
+			if ($this->hasRecordedPayment($bill->getLastPaidDate(), $txDatesByBill[$bill->getId()] ?? [])) {
+				continue;
+			}
+			if (isset($dismissed[sha1($this->unrecordedPaymentKey($bill->getId(), $bill->getLastPaidDate()))])) {
+				continue;
+			}
+			$unrecorded[] = [
+				'billId' => $bill->getId(),
+				'name' => $bill->getName(),
+				'amount' => (float)$bill->getAmount(),
+				'lastPaidDate' => $bill->getLastPaidDate(),
+				'accountId' => $bill->getAccountId(),
+				'currency' => $bill->getAccountId() !== null
+					? ($currencyMap[$bill->getAccountId()] ?? null)
+					: null,
+				// Lets the card offer Mark Unpaid alongside Dismiss (#394)
+				'canMarkUnpaid' => $bill->canMarkUnpaid(),
+			];
+		}
+
+		usort($unrecorded, static fn ($a, $b) => strcmp($b['lastPaidDate'], $a['lastPaidDate']));
+		return $unrecorded;
+	}
+
+	/**
+	 * Record the missing transaction for a payment that was marked paid
+	 * without one (#274). Creates a cleared transaction (both legs for
+	 * transfers) dated the bill's last paid date and linked to the bill.
+	 */
+	public function recordMissedPayment(int $id, string $userId): array {
+		$bill = $this->find($id, $userId);
+
+		$lastPaid = $bill->getLastPaidDate();
+		if ($lastPaid === null) {
+			throw new \InvalidArgumentException($this->l->t('This bill has never been marked as paid'));
+		}
+		if ($bill->getAccountId() === null) {
+			throw new \InvalidArgumentException($this->l->t('Assign an account to the bill first'));
+		}
+
+		// The bill may reference an account that has since been deleted — give an
+		// actionable message instead of a raw lookup failure surfacing as the
+		// generic "Failed to record the payment" (#333, #334).
+		try {
+			$this->accountMapper->findById($bill->getAccountId());
+		} catch (DoesNotExistException $e) {
+			throw new \InvalidArgumentException($this->l->t('The account linked to this bill no longer exists. Edit the bill and choose an account.'));
+		}
+
+		// Idempotence guard: refuse when a payment transaction already exists
+		$existingDates = array_map(
+			static fn ($tx) => $tx->getDate(),
+			$this->transactionService->findRecordedBillTransactions([$id])
+		);
+		if ($this->hasRecordedPayment($lastPaid, $existingDates)) {
+			throw new \InvalidArgumentException($this->l->t('A transaction for this payment already exists'));
+		}
+
+		$transaction = $this->transactionService->createFromBill($userId, $bill, $lastPaid, 'cleared');
+		$this->applySplitTemplate($bill, $transaction, $userId);
+
+		return ['transaction' => $transaction];
+	}
+
+	/**
+	 * Acknowledge that a payment has no transaction on purpose, so the
+	 * unrecorded-payments card stops listing it (#394). The dismissal is
+	 * keyed on the paid date, so the bill's next payment without a
+	 * transaction is flagged afresh.
+	 */
+	public function dismissUnrecordedPayment(int $id, string $userId): void {
+		$bill = $this->find($id, $userId);
+
+		$lastPaid = $bill->getLastPaidDate();
+		if ($lastPaid === null) {
+			throw new \InvalidArgumentException($this->l->t('This bill has never been marked as paid'));
+		}
+
+		$key = $this->unrecordedPaymentKey($bill->getId(), $lastPaid);
+		$this->dismissedMapper->dismiss($userId, self::UNRECORDED_DISMISS_TYPE, sha1($key), $key);
+	}
+
+	private function unrecordedPaymentKey(int $billId, string $paidDate): string {
+		return $billId . ':' . $paidDate;
+	}
+
+	/**
+	 * Whether any of the given transaction dates plausibly records a payment
+	 * made on $paidDate. Linked payments can be dated a few days off the
+	 * paid date (the matching dialog offers a ±7 day window), so allow slack.
+	 */
+	private function hasRecordedPayment(?string $paidDate, array $txDates): bool {
+		if ($paidDate === null) {
+			return false;
+		}
+		foreach ($txDates as $txDate) {
+			if (abs(strtotime($txDate) - strtotime($paidDate)) <= 14 * 86400) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Build a map of accountId => currency for the user's accounts.
+	 */
+	private function buildCurrencyMap(string $userId): array {
+		return $this->currencyMapFor($this->accountMapper->findAll($userId));
+	}
+
+	/**
+	 * @param Account[] $accounts
+	 * @return array<int, string|null> account id => currency code
+	 */
+	private function currencyMapFor(array $accounts): array {
+		$map = [];
+		foreach ($accounts as $account) {
+			$map[$account->getId()] = $account->getCurrency() ?: null;
+		}
+		return $map;
+	}
+
+	/**
+	 * Set the non-persisted currency property on each bill from its linked account.
+	 *
+	 * @param Bill[] $bills
+	 * @return Bill[]
+	 */
+	public function enrichBillsWithCurrency(array $bills, string $userId): array {
+		$currencyMap = $this->buildCurrencyMap($userId);
+		$baseCurrency = $this->currencyConversion->getBaseCurrency($userId);
+		foreach ($bills as $bill) {
+			$accountId = $bill->getAccountId();
+			$bill->setCurrency($accountId !== null && isset($currencyMap[$accountId])
+				? $currencyMap[$accountId]
+				: $baseCurrency);
+		}
+		return $bills;
+	}
+
+	public function findByType(string $userId, ?bool $isTransfer = null, ?bool $isActive = null, bool $activeOrRevertible = false): array {
+		return $this->mapper->findByType($userId, $isTransfer, $isActive, $activeOrRevertible);
+	}
+
+	public function findOverdue(string $userId): array {
+		return $this->mapper->findOverdue($userId);
+	}
+
+	public function findDueThisMonth(string $userId): array {
+		$startDate = date('Y-m-01');
+		$endDate = date('Y-m-t');
+		return $this->mapper->findDueInRange($userId, $startDate, $endDate);
+	}
+
+	/**
+	 * Find upcoming bills (including overdue) sorted by due date.
+	 */
+	public function findUpcoming(string $userId, int $days = 30): array {
+		$overdue = $this->mapper->findOverdue($userId);
+		$startDate = date('Y-m-d');
+		$endDate = date('Y-m-d', strtotime("+{$days} days"));
+		$upcoming = $this->mapper->findDueInRange($userId, $startDate, $endDate);
+
+		$allBills = array_merge($overdue, $upcoming);
+
+		// Remove duplicates
+		$seen = [];
+		$uniqueBills = [];
+		foreach ($allBills as $bill) {
+			$id = $bill->getId();
+			if (!isset($seen[$id])) {
+				$seen[$id] = true;
+				$uniqueBills[] = $bill;
+			}
+		}
+
+		// Sort by next due date
+		usort($uniqueBills, function ($a, $b) {
+			$dateA = $a->getNextDueDate() ?? '9999-12-31';
+			$dateB = $b->getNextDueDate() ?? '9999-12-31';
+			return strcmp($dateA, $dateB);
+		});
+
+		return $uniqueBills;
+	}
+
+	public function create(
+		string $userId,
+		string $name,
+		float $amount,
+		string $frequency = 'monthly',
+		?int $dueDay = null,
+		?int $dueMonth = null,
+		?int $categoryId = null,
+		?int $accountId = null,
+		?string $autoDetectPattern = null,
+		?string $description = null,
+		?string $notes = null,
+		?int $reminderDays = null,
+		?string $customRecurrencePattern = null,
+		bool $createTransaction = true,
+		?string $transactionDate = null,
+		bool $autoPayEnabled = false,
+		bool $isTransfer = false,
+		?int $destinationAccountId = null,
+		?string $transferDescriptionPattern = null,
+		array $tagIds = [],
+		?string $endDate = null,
+		?int $remainingPayments = null,
+		?array $splitTemplate = null,
+		?string $startDate = null,
+		bool $excludedFromForecast = false,
+		string $amountType = 'fixed',
+	): Bill {
+		// Validate auto-pay requires account
+		if ($autoPayEnabled && $accountId === null) {
+			throw new \InvalidArgumentException($this->l->t('Auto-pay requires an account to be set'));
+		}
+
+		// Validate transfer requires destination account
+		if ($isTransfer && $destinationAccountId === null) {
+			throw new \InvalidArgumentException($this->l->t('Transfer requires a destination account'));
+		}
+
+		// Validate transfer cannot have same source and destination
+		if ($isTransfer && $accountId !== null && $accountId === $destinationAccountId) {
+			throw new \InvalidArgumentException($this->l->t('Cannot transfer to the same account'));
+		}
+
+		$this->validateAmountType($amountType, $isTransfer, $destinationAccountId);
+		if ($amountType !== 'fixed') {
+			// Initial estimate: resolved against the card right now. Refined to
+			// the actual amount on every markPaid().
+			$amount = $this->resolveDynamicAmount($amountType, $destinationAccountId, null, date('Y-m-d')) ?? $amount;
+		}
+
+		$bill = new Bill();
+		$bill->setUserId($userId);
+		$bill->setName($name);
+		$bill->setAmount($amount);
+		$bill->setAmountType($amountType);
+		$bill->setFrequency($frequency);
+		$bill->setDueDay($dueDay);
+		$bill->setDueMonth($dueMonth);
+		$bill->setCategoryId($categoryId);
+		$bill->setAccountId($accountId);
+		$bill->setAutoDetectPattern($autoDetectPattern);
+		$bill->setDescription($description);
+		$bill->setIsActive(true);
+		$bill->setNotes($notes);
+		$bill->setReminderDays($reminderDays);
+		$bill->setCustomRecurrencePattern($customRecurrencePattern);
+		$bill->setAutoPayEnabled($autoPayEnabled);
+		$bill->setAutoPayFailed(false);
+		$bill->setIsTransfer($isTransfer);
+		$bill->setDestinationAccountId($destinationAccountId);
+		$bill->setTransferDescriptionPattern($transferDescriptionPattern);
+		$bill->setTagIdsArray($tagIds);
+		$bill->setStartDate($startDate);
+		$bill->setEndDate($endDate);
+		$bill->setRemainingPayments($remainingPayments);
+		// A one-time bill's date is the whole schedule: its day and month
+		// follow the date so the Bills Calendar puts it in the right month
+		// (#375). The calculator returns this date verbatim, past or not.
+		if ($frequency === 'one-time' && $startDate !== null && $startDate !== '') {
+			$dueDay = (int)(new \DateTime($startDate))->format('j');
+			$dueMonth = (int)(new \DateTime($startDate))->format('n');
+			$bill->setDueDay($dueDay);
+			$bill->setDueMonth($dueMonth);
+		}
+		$bill->setExcludedFromForecast($excludedFromForecast);
+		$bill->setCreateTransaction($createTransaction);
+		if ($splitTemplate !== null) {
+			$bill->setSplitTemplateArray($splitTemplate);
+			// When splits define the categories, clear the bill-level category
+			$bill->setCategoryId(null);
+		}
+		$bill->setCreatedAt(date('Y-m-d H:i:s'));
+
+		// startDate doubles as the recurrence anchor for weekly/biweekly:
+		// occurrences fall on startDate + n*interval, so the week parity is
+		// fixed by the user's chosen first payment date, not by when the
+		// bill happened to be created (#364)
+		$nextDue = $this->frequencyCalculator->calculateNextDueDate($frequency, $dueDay, $dueMonth, null, $customRecurrencePattern, false, $startDate);
+		$nextDue = $this->applyStartDateFloor($nextDue, $startDate, $frequency, $dueDay, $dueMonth, $customRecurrencePattern);
+		$bill->setNextDueDate($nextDue);
+
+		$bill = $this->mapper->insert($bill);
+
+		// Pre-create the next occurrence if requested and the bill has an
+		// account. Always a scheduled placeholder: creating a bill records no
+		// payment, whatever date the row carries. Found live with #375 - a
+		// one-time bill dated in the past got a CLEARED row on creation,
+		// GBP 321.60 booked as spent for an invoice nobody had paid, because
+		// createFromBill() reads an explicit date in the past as a payment.
+		if ($createTransaction && $accountId !== null) {
+			try {
+				$transaction = $this->transactionService->createFromBill(
+					$userId,
+					$bill,
+					$transactionDate,
+					'scheduled'
+				);
+				$this->applySplitTemplate($bill, $transaction, $userId);
+			} catch (\Exception $e) {
+				// Log error but don't fail bill creation
+				$this->logger->warning("Failed to create transaction for bill {$bill->getId()}: {$e->getMessage()}");
+			}
+		}
+
+		if ($this->autoShareService !== null) {
+			$this->autoShareService->autoShareNewEntity($userId, ShareItem::TYPE_BILL, $bill->getId());
+		}
+
+		return $bill;
+	}
+
+	public function update(int $id, string $userId, array $updates): Bill {
+		$bill = $this->find($id, $userId);
+		$needsRecalculation = false;
+		$dbUpdates = [];
+
+		// Validate auto-pay requires account when enabling
+		if (isset($updates['autoPayEnabled']) && $updates['autoPayEnabled'] === true) {
+			$currentAccountId = $updates['accountId'] ?? $bill->getAccountId();
+			if ($currentAccountId === null) {
+				throw new \InvalidArgumentException($this->l->t('Auto-pay requires an account to be set'));
+			}
+		}
+
+		// Auto-disable auto-pay if account is being removed
+		if (array_key_exists('accountId', $updates) && $updates['accountId'] === null) {
+			$updates['autoPayEnabled'] = false;
+			$updates['autoPayFailed'] = false;
+		}
+
+		// Dynamic amount types: validate and refresh the estimate (#347)
+		if (array_key_exists('isTransfer', $updates) && !$updates['isTransfer']
+			&& ($updates['amountType'] ?? $bill->getAmountType() ?? 'fixed') !== 'fixed') {
+			// No longer a transfer — nothing to resolve the amount against
+			$updates['amountType'] = 'fixed';
+		}
+		if (isset($updates['amountType']) && $updates['amountType'] !== 'fixed') {
+			$isTransfer = $updates['isTransfer'] ?? ($bill->getIsTransfer() ?? false);
+			$destinationId = $updates['destinationAccountId'] ?? $bill->getDestinationAccountId();
+			$this->validateAmountType($updates['amountType'], (bool)$isTransfer, $destinationId);
+			$updates['amount'] = $this->resolveDynamicAmount($updates['amountType'], $destinationId, null, date('Y-m-d'));
+		} elseif (isset($updates['amountType'])) {
+			$this->validateAmountType($updates['amountType'], true, null);
+		}
+
+		foreach ($updates as $key => $value) {
+			// Track if schedule-related fields actually changed (not just
+			// present). is_callable, not method_exists: the Bill entity's
+			// getters are magic (__call), which method_exists cannot see —
+			// schedule changes then only fired the recalculation through the
+			// date-consistency fallback below, which now deliberately
+			// tolerates paid-ahead/overdue dates (#364 review).
+			if (in_array($key, ['frequency', 'dueDay', 'dueMonth', 'customRecurrencePattern', 'startDate'])) {
+				$getter = 'get' . ucfirst($key);
+				if (is_callable([$bill, $getter]) && $bill->$getter() != $value) {
+					$needsRecalculation = true;
+				}
+			}
+
+			// Convert camelCase to snake_case for database column names
+			$columnName = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $key));
+			$dbUpdates[$columnName] = $value;
+		}
+
+		// A stored mark-unpaid snapshot captures the bill's amount and
+		// schedule state; restoring it after a deliberate change to any of
+		// those would silently revert the edit (or restore a next-due-date
+		// computed under the old schedule). A material edit therefore spends
+		// the snapshot; name/notes/reminder-style edits keep it (#365 review).
+		if ($bill->getPaidUndoState() !== null && $bill->getPaidUndoState() !== '') {
+			$materialKeys = ['amount', 'amountType', 'frequency', 'dueDay', 'dueMonth',
+				'customRecurrencePattern', 'startDate', 'accountId', 'destinationAccountId', 'isTransfer'];
+			foreach ($materialKeys as $key) {
+				if (!array_key_exists($key, $updates)) {
+					continue;
+				}
+				$getter = 'get' . ucfirst($key);
+				$current = $bill->$getter();
+				// Legacy rows hold NULL where the form sends the default
+				if ($key === 'amountType') {
+					$current = $current ?? 'fixed';
+				} elseif ($key === 'isTransfer') {
+					$current = $current ?? false;
+				}
+				if ($current != $updates[$key]) {
+					$dbUpdates['paid_undo_state'] = null;
+					$bill->setPaidUndoState(null);
+					break;
+				}
+			}
+		}
+
+		// Recalculate next due date if schedule fields changed, OR if
+		// nextDueDate is inconsistent with the current schedule (catches
+		// stale dates from edits on older versions)
+		if (!$needsRecalculation && $bill->getIsActive() && $bill->getNextDueDate()) {
+			// With a startDate anchor the expectation is computed FROM THE
+			// ANCHOR — recomputing "from today" made every unrelated edit in
+			// an off-parity week flip a biweekly bill's fortnight (#364).
+			// An incoming startDate (set OR cleared) participates, so
+			// re-anchoring a bill snaps next due onto the new fortnight.
+			$effectiveAnchor = array_key_exists('startDate', $updates)
+				? $updates['startDate']
+				: $bill->getStartDate();
+			$expect = fn (?string $fromDate): string => $this->frequencyCalculator->calculateNextDueDate(
+				$updates['frequency'] ?? $bill->getFrequency(),
+				$updates['dueDay'] ?? $bill->getDueDay(),
+				$updates['dueMonth'] ?? $bill->getDueMonth(),
+				$fromDate,
+				$updates['customRecurrencePattern'] ?? $bill->getCustomRecurrencePattern(),
+				false,
+				$effectiveAnchor
+			);
+
+			$storedDue = $bill->getNextDueDate();
+			$lastPaid = $bill->getLastPaidDate();
+			$today = date('Y-m-d');
+
+			// The stored date is CONSISTENT when it matches the schedule
+			// given the bill's payment state — not just "first occurrence
+			// from today", which cannot represent a bill legitimately paid
+			// ahead or overdue (#364/#365 review):
+			//  1. the plain expectation — first occurrence on/after today;
+			//  2. the advanced-past-payment expectation — a bill paid on its
+			//     due day stores due + one interval, which the calculator's
+			//     strictly-after-fromDate semantics reproduce;
+			//  3. a due/overdue occurrence not yet paid — snapping it forward
+			//     on an unrelated edit would silently un-overdue the bill;
+			//  4. a paid bill's future date that sits on the schedule (the
+			//     first occurrence strictly after the day before it) —
+			//     paid-ahead and skipped-ahead dates are deliberate.
+			// Anything else is a stale date and gets recalculated.
+			$isConsistent = $storedDue === $expect(null);
+			if (!$isConsistent && $lastPaid !== null) {
+				$isConsistent = $storedDue === $expect($lastPaid);
+			}
+			if (!$isConsistent && $storedDue <= $today && ($lastPaid === null || $storedDue > $lastPaid)) {
+				$isConsistent = true;
+			}
+			if (!$isConsistent && $lastPaid !== null && $storedDue > $today) {
+				$dayBefore = (new \DateTime($storedDue))->modify('-1 day')->format('Y-m-d');
+				$isConsistent = $storedDue === $expect($dayBefore);
+			}
+			if (!$isConsistent) {
+				$needsRecalculation = true;
+			}
+		}
+
+		if ($needsRecalculation) {
+			// Apply updates to a copy to get the edited state for the
+			// calculation. Not to $bill itself: the pre-booking toggle and the
+			// amount-type switch below compare $bill's stored values against
+			// the updates, and a mutated $bill made both read "unchanged" (#584)
+			$edited = clone $bill;
+			foreach ($updates as $key => $value) {
+				if (property_exists($edited, $key)) {
+					$setter = 'set' . ucfirst($key);
+					$edited->$setter($value);
+				}
+			}
+
+			// A one-time bill's date is its schedule (#375): keep day and
+			// month in step with it, in the entity and in what is written.
+			if ($edited->getFrequency() === 'one-time' && $edited->getStartDate()) {
+				$edited->setDueDay((int)(new \DateTime($edited->getStartDate()))->format('j'));
+				$edited->setDueMonth((int)(new \DateTime($edited->getStartDate()))->format('n'));
+				$dbUpdates['due_day'] = $edited->getDueDay();
+				$dbUpdates['due_month'] = $edited->getDueMonth();
+			}
+
+			// Recalculate from today (not from the old nextDueDate) since
+			// the schedule parameters changed; a startDate anchors the
+			// weekly/biweekly parity (#364)
+			$nextDue = $this->frequencyCalculator->calculateNextDueDate(
+				$edited->getFrequency(),
+				$edited->getDueDay(),
+				$edited->getDueMonth(),
+				null, // recalculate from today
+				$edited->getCustomRecurrencePattern(),
+				false,
+				$edited->getStartDate()
+			);
+			$nextDue = $this->applyStartDateFloor(
+				$nextDue,
+				$edited->getStartDate(),
+				$edited->getFrequency(),
+				$edited->getDueDay(),
+				$edited->getDueMonth(),
+				$edited->getCustomRecurrencePattern()
+			);
+			$dbUpdates['next_due_date'] = $nextDue;
+		}
+
+		// Apply all updates directly to database
+		if (!empty($dbUpdates)) {
+			$this->mapper->updateFields($id, $userId, $dbUpdates);
+		}
+
+		// Toggling "create future transaction" takes effect immediately:
+		// off removes the pending placeholder, on creates one for the next
+		// occurrence (instead of only changing behaviour at the next payment)
+		if (isset($updates['createTransaction'])) {
+			$wasEnabled = $bill->getCreateTransaction() ?? true;
+			$nowEnabled = (bool)$updates['createTransaction'];
+			if ($wasEnabled && !$nowEnabled) {
+				$this->transactionService->deleteScheduledBillTransactions($id);
+			} elseif (!$wasEnabled && $nowEnabled) {
+				$fresh = $this->find($id, $userId);
+				if ($fresh->getIsActive() && $fresh->getAccountId() !== null && $fresh->getNextDueDate() !== null) {
+					try {
+						$nextTransaction = $this->transactionService->createFromBill($userId, $fresh, null);
+						$this->applySplitTemplate($fresh, $nextTransaction, $userId);
+					} catch (\Exception $e) {
+						$this->logger->warning("Failed to create next transaction after enabling pre-booking on bill {$id}: {$e->getMessage()}");
+					}
+				}
+			}
+		}
+
+		// Switching to a dynamic amount type: replace the pre-created
+		// placeholder so it carries the freshly resolved estimate (#347)
+		if (isset($updates['amountType']) && $updates['amountType'] !== 'fixed'
+			&& ($bill->getAmountType() ?? 'fixed') !== $updates['amountType']) {
+			$fresh = $this->find($id, $userId);
+			if (($fresh->getCreateTransaction() ?? true) && $fresh->getIsActive()
+				&& $fresh->getAccountId() !== null && $fresh->getNextDueDate() !== null) {
+				$this->transactionService->deleteScheduledBillTransactions($id);
+				try {
+					$nextTransaction = $this->transactionService->createFromBill($userId, $fresh, null);
+					$this->applySplitTemplate($fresh, $nextTransaction, $userId);
+				} catch (\Exception $e) {
+					$this->logger->warning("Failed to refresh placeholder after switching bill {$id} to statement amount: {$e->getMessage()}");
+				}
+			}
+		}
+
+		// Reload from database to ensure we return the actual saved state
+		return $this->find($id, $userId);
+	}
+
+	public function delete(int $id, string $userId): void {
+		$bill = $this->find($id, $userId);
+		// Remove scheduled transactions before deleting the bill
+		$this->transactionService->deleteScheduledBillTransactions($id);
+		$this->mapper->delete($bill);
+	}
+
+	/**
+	 * Mark a bill as paid and advance to next due date.
+	 *
+	 * @param int $id Bill ID
+	 * @param string $userId User ID
+	 * @param string|null $paidDate Date bill was paid (defaults to the bill's current due date)
+	 * @param bool $recordPayment Whether to record the payment itself as a transaction.
+	 *                            This decides the payment leg ONLY. Whether the ledger carries a
+	 *                            pre-created row for the NEXT occurrence is the bill's own
+	 *                            create_transaction setting, exactly as skipPayment() and update()
+	 *                            read it. One flag used to answer both, so declining to record a
+	 *                            payment (or linking one that already existed) also left the bill
+	 *                            with no upcoming row - while the placeholder for the occurrence
+	 *                            just paid stayed behind, still scheduled, still looking due (#376).
+	 * @param int|null $existingTransactionId Link an existing transaction instead of creating a new one
+	 * @return array Updated bill with undo data
+	 */
+	public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $recordPayment = true, ?int $existingTransactionId = null): array {
+		$bill = $this->find($id, $userId);
+
+		// Capture previous state for undo support
+		$previousState = [
+			'lastPaidDate' => $bill->getLastPaidDate(),
+			'nextDueDate' => $bill->getNextDueDate(),
+			'remainingPayments' => $bill->getRemainingPayments(),
+			'isActive' => $bill->getIsActive(),
+			'autoPayFailed' => $bill->getAutoPayFailed(),
+			'amount' => $bill->getAmount(),
+		];
+		$createdTransactionIds = [];
+		// The next-occurrence placeholder is tracked separately from the
+		// payment legs: by the time the snapshot is used it may have
+		// materialised into a real (possibly reconciled) ledger row, and the
+		// revert must then leave it alone (#365 review).
+		$scheduledTransactionIds = [];
+		// A pre-existing transaction LINKED to record the payment (dialog
+		// choice or import auto-match) is unlinked on revert, never deleted.
+		$linkedTransactionId = null;
+		$hadScheduledTransaction = false;
+		$linkedExistingTransaction = false;
+		$paymentTransactionRecorded = false;
+
+		// Reset auto-pay failed flag on successful manual payment
+		if ($bill->getAutoPayFailed()) {
+			$bill->setAutoPayFailed(false);
+		}
+
+		// Use today's date as the paid/transaction date so the payment appears
+		// immediately in the account balance, regardless of when the bill was due.
+		$paidDate = $paidDate ?? date('Y-m-d');
+		$bill->setLastPaidDate($paidDate);
+
+		// Dynamic-amount bills resolve their amount now: what the card calls
+		// for at this payment. Persisting it into the bill keeps lists,
+		// summaries and the next placeholder showing a real number, and the
+		// next placeholder inherits it as the estimate (#347).
+		$statementAmount = null;
+		if ($bill->getIsTransfer() ?? false) {
+			$statementAmount = $this->resolveDynamicAmount(
+				$bill->getAmountType() ?? 'fixed',
+				$bill->getDestinationAccountId(),
+				$bill->getNextDueDate(),
+				$paidDate
+			);
+			if ($statementAmount !== null) {
+				$bill->setAmount($statementAmount);
+			}
+		}
+
+		// Handle transaction: either link existing or create new
+		if ($existingTransactionId !== null && $bill->getAccountId() !== null) {
+			// User chose to link an existing transaction instead of creating a new one
+			try {
+				// Clear any pre-existing scheduled transactions for this bill
+				$this->transactionService->deleteScheduledBillTransactions($bill->getId());
+
+				// Link the existing transaction to this bill
+				$this->transactionService->update($existingTransactionId, $userId, [
+					'billId' => $bill->getId(),
+				]);
+				$linkedExistingTransaction = true;
+				$linkedTransactionId = $existingTransactionId;
+			} catch (\Exception $e) {
+				$this->logger->warning("Failed to link existing transaction {$existingTransactionId} to bill {$id}: {$e->getMessage()}");
+			}
+		} elseif ($recordPayment && $bill->getAccountId() !== null) {
+			try {
+				// Clear pre-existing scheduled transaction(s), or create new cleared one
+				$transaction = $this->transactionService->clearScheduledBillTransaction($userId, $bill->getId(), $paidDate, $statementAmount);
+				if ($transaction) {
+					$hadScheduledTransaction = true;
+				} else {
+					$transaction = $this->transactionService->createFromBill($userId, $bill, $paidDate, 'cleared');
+				}
+				$createdTransactionIds[] = $transaction->getId();
+				$paymentTransactionRecorded = true;
+				// For transfers, also track the linked deposit transaction
+				if ($transaction->getLinkedTransactionId()) {
+					$createdTransactionIds[] = $transaction->getLinkedTransactionId();
+				}
+
+				// Apply split template if defined
+				$this->applySplitTemplate($bill, $transaction, $userId);
+			} catch (\Exception $e) {
+				$this->logger->warning("Failed to create transaction for bill {$id}: {$e->getMessage()}");
+			}
+		} else {
+			// Nothing recorded this occurrence, so the placeholder standing in
+			// for it has to go: the payment happened, and a scheduled row for
+			// a paid occurrence goes on showing the bill as still due. The
+			// other two branches already clear it, one by clearing it into the
+			// payment and one by deleting it outright (#376).
+			$this->transactionService->deleteScheduledBillTransactions($bill->getId());
+		}
+
+		// Auto-deactivate one-time bills after payment
+		if ($bill->getFrequency() === 'one-time') {
+			// The date it was due is all a paid invoice has left to show, and
+			// clearing next_due_date threw it away: a bill created before the
+			// date field existed then read "No due date" in the list and
+			// opened with an empty Due Date (#333). It is kept as the start
+			// date, which is where a one-time bill's date lives (#375).
+			if (($bill->getStartDate() === null || $bill->getStartDate() === '') && $bill->getNextDueDate()) {
+				$bill->setStartDate($bill->getNextDueDate());
+			}
+			$bill->setIsActive(false);
+			$bill->setNextDueDate(null);
+		} else {
+			$nextDue = $this->frequencyCalculator->calculateNextDueDate(
+				$bill->getFrequency(),
+				$bill->getDueDay(),
+				$bill->getDueMonth(),
+				$bill->getNextDueDate(),
+				$bill->getCustomRecurrencePattern(),
+				true // Always force advance — the bill was just paid
+			);
+			$bill->setNextDueDate($nextDue);
+
+			// Decrement remaining payments if set
+			$remaining = $bill->getRemainingPayments();
+			if ($remaining !== null) {
+				$remaining--;
+				$bill->setRemainingPayments($remaining);
+				if ($remaining <= 0) {
+					$bill->setIsActive(false);
+					$bill->setNextDueDate(null);
+				}
+			}
+
+			// Deactivate if next due date exceeds end date
+			$endDate = $bill->getEndDate();
+			if ($endDate !== null && $bill->getNextDueDate() !== null && $bill->getNextDueDate() > $endDate) {
+				$bill->setIsActive(false);
+				$bill->setNextDueDate(null);
+			}
+		}
+
+		$bill = $this->mapper->update($bill);
+
+		// Auto-create transaction for next occurrence if bill has account
+		// Skip for deactivated bills (one-time, end date reached, remaining payments exhausted)
+		// and bills that opted out of pre-created transactions (null = legacy rows, treated as opted in)
+		if (($bill->getCreateTransaction() ?? true) && $bill->getIsActive() && $bill->getAccountId() !== null) {
+			try {
+				$nextTransaction = $this->transactionService->createFromBill($userId, $bill, null);
+				$scheduledTransactionIds[] = $nextTransaction->getId();
+				// For transfers, also track the linked deposit transaction
+				if ($nextTransaction->getLinkedTransactionId()) {
+					$scheduledTransactionIds[] = $nextTransaction->getLinkedTransactionId();
+				}
+				$this->applySplitTemplate($bill, $nextTransaction, $userId);
+			} catch (\Exception $e) {
+				$this->logger->warning("Failed to create next transaction for bill {$id}: {$e->getMessage()}");
+			}
+		}
+
+		// Persist the undo payload so "mark as unpaid" survives page reloads
+		// and covers auto-pay / import-match payments too (#365). Overwrites
+		// any previous snapshot: only the latest payment is revertible.
+		// The payment itself is already committed — a DB error here may only
+		// cost the durable undo, never fail the payment.
+		$bill->setPaidUndoState(json_encode([
+			'previousState' => $previousState,
+			'createdTransactionIds' => $createdTransactionIds,
+			'scheduledTransactionIds' => $scheduledTransactionIds,
+			'linkedTransactionId' => $linkedTransactionId,
+			'hadScheduledTransaction' => $hadScheduledTransaction,
+			'paidDate' => $paidDate,
+		]));
+		try {
+			$bill = $this->mapper->update($bill);
+		} catch (\Exception $e) {
+			// A snapshot that failed to persist must not be advertised as a
+			// working Mark Unpaid; the toast-based undo still has the ids below.
+			$bill->setPaidUndoState(null);
+			$this->logger->warning("Failed to persist the undo snapshot for bill {$id}: {$e->getMessage()}");
+		}
+
+		return [
+			'bill' => $bill,
+			'previousState' => $previousState,
+			// The toast-based undo path deletes everything it is given right
+			// away, so it keeps receiving payment legs and placeholder alike.
+			'createdTransactionIds' => array_merge($createdTransactionIds, $scheduledTransactionIds),
+			'hadScheduledTransaction' => $hadScheduledTransaction,
+			'linkedExistingTransaction' => $linkedExistingTransaction,
+			// False = the bill was marked paid but NO money movement was
+			// recorded (no account on the bill, creation failed, or the user
+			// neither created nor linked a transaction). The UI must surface
+			// this — silently recording nothing made app balances drift from
+			// real bank balances (#89, #274).
+			'paymentTransactionRecorded' => $paymentTransactionRecorded || $linkedExistingTransaction,
+			// Non-null only for statement bills: the amount resolved for
+			// this payment (#347)
+			'statementAmount' => $statementAmount,
+		];
+	}
+
+	/**
+	 * Undo a mark-paid action, restoring the bill to its previous state
+	 * and deleting any transactions that were created.
+	 *
+	 * @param int $id Bill ID
+	 * @param string $userId User ID
+	 * @param array $previousState Previous bill field values to restore
+	 * @param int[] $createdTransactionIds Transaction IDs created by markPaid to delete
+	 * @param bool $hadScheduledTransaction Whether a scheduled transaction existed before markPaid
+	 * @param int[] $scheduledTransactionIds Next-occurrence placeholder IDs — deleted only while still 'scheduled'
+	 * @param int|null $linkedTransactionId Pre-existing transaction linked by markPaid — unlinked, never deleted
+	 * @return Bill Restored bill
+	 */
+	public function undoPaid(int $id, string $userId, array $previousState, array $createdTransactionIds, bool $hadScheduledTransaction = false, array $scheduledTransactionIds = [], ?int $linkedTransactionId = null): Bill {
+		$bill = $this->find($id, $userId);
+
+		// Delete the transactions markPaid recorded. They were created under
+		// the ACCOUNT owner (#334) — for a bill on a shared account that is
+		// not the acting user, and deleting under the acting user missed
+		// every row: the revert left the payment in the ledger while the
+		// bill claimed unpaid.
+		foreach ($createdTransactionIds as $transactionId) {
+			try {
+				$this->transactionService->deleteAsAccountOwner((int)$transactionId);
+			} catch (\Exception $e) {
+				$this->logger->warning("Failed to delete transaction {$transactionId} during undo-paid for bill {$id}: {$e->getMessage()}");
+			}
+		}
+
+		// The next-occurrence placeholder may have materialised into a real
+		// (possibly reconciled) ledger row since the payment — remove it only
+		// while it is still a scheduled placeholder (#365 review).
+		foreach ($scheduledTransactionIds as $transactionId) {
+			try {
+				$this->transactionService->deleteAsAccountOwner((int)$transactionId, true);
+			} catch (\Exception $e) {
+				$this->logger->warning("Failed to delete scheduled transaction {$transactionId} during undo-paid for bill {$id}: {$e->getMessage()}");
+			}
+		}
+
+		// A linked pre-existing transaction was never created by markPaid:
+		// it predates the payment and survives the revert — only the bill
+		// linkage is undone.
+		if ($linkedTransactionId !== null) {
+			try {
+				$this->transactionService->unlinkBillAsAccountOwner($linkedTransactionId);
+			} catch (\Exception $e) {
+				$this->logger->warning("Failed to unlink transaction {$linkedTransactionId} during undo-paid for bill {$id}: {$e->getMessage()}");
+			}
+		}
+
+		// Restore previous bill state
+		$bill->setLastPaidDate($previousState['lastPaidDate'] ?? null);
+		$bill->setNextDueDate($previousState['nextDueDate'] ?? null);
+		$bill->setIsActive($previousState['isActive'] ?? true);
+		if (array_key_exists('remainingPayments', $previousState)) {
+			$bill->setRemainingPayments($previousState['remainingPayments']);
+		}
+		if (array_key_exists('autoPayFailed', $previousState)) {
+			$bill->setAutoPayFailed($previousState['autoPayFailed'] ?? false);
+		}
+		// Statement bills overwrite the amount on markPaid — restore it.
+		// Older clients round-trip undo data without this key.
+		if (array_key_exists('amount', $previousState) && $previousState['amount'] !== null) {
+			$bill->setAmount((float)$previousState['amount']);
+		}
+
+		// The payment was reverted — its persisted undo snapshot is spent (#365)
+		$bill->setPaidUndoState(null);
+
+		$bill = $this->mapper->update($bill);
+
+		// Only recreate scheduled transaction if one existed before markPaid
+		if ($hadScheduledTransaction && $bill->getIsActive() && $bill->getAccountId() !== null && $bill->getNextDueDate() !== null) {
+			try {
+				$nextTransaction = $this->transactionService->createFromBill($userId, $bill, null);
+				$this->applySplitTemplate($bill, $nextTransaction, $userId);
+			} catch (\Exception $e) {
+				$this->logger->warning("Failed to recreate scheduled transaction after undo-paid for bill {$id}: {$e->getMessage()}");
+			}
+		}
+
+		return $bill;
+	}
+
+	/**
+	 * Durable "mark as unpaid": revert the last markPaid from the snapshot
+	 * persisted on the bill, so the revert works long after the undo toast is
+	 * gone — across reloads, and for auto-paid or import-matched bills that
+	 * never showed a toast at all (#365).
+	 *
+	 * @param int $id Bill ID
+	 * @param string $userId User ID
+	 * @return Bill Restored bill
+	 * @throws \InvalidArgumentException when no payment snapshot is stored
+	 */
+	public function markUnpaid(int $id, string $userId): Bill {
+		$bill = $this->find($id, $userId);
+
+		$raw = $bill->getPaidUndoState();
+		$decoded = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
+		if (!is_array($decoded) || !is_array($decoded['previousState'] ?? null)) {
+			throw new \InvalidArgumentException($this->l->t('This bill has no recorded payment to undo'));
+		}
+
+		// A corrupt blob must fail exactly like a missing snapshot — the
+		// controller's catches do not cover a TypeError from array_map (#365
+		// review). Older snapshots carry the placeholder inside
+		// createdTransactionIds and no linked id; both stay valid.
+		$createdIds = $decoded['createdTransactionIds'] ?? [];
+		$scheduledIds = $decoded['scheduledTransactionIds'] ?? [];
+		$linkedId = $decoded['linkedTransactionId'] ?? null;
+		$allNumeric = static fn (array $ids): bool => array_filter($ids, static fn ($v) => !is_numeric($v)) === [];
+		if (!is_array($createdIds) || !is_array($scheduledIds)
+			|| !$allNumeric($createdIds) || !$allNumeric($scheduledIds)
+			|| ($linkedId !== null && !is_numeric($linkedId))) {
+			throw new \InvalidArgumentException($this->l->t('This bill has no recorded payment to undo'));
+		}
+
+		// undoPaid deletes the created transactions tolerantly, restores the
+		// snapshot fields (including a statement amount that cannot be
+		// re-derived, #347) and clears the spent snapshot.
+		return $this->undoPaid(
+			$id,
+			$userId,
+			$decoded['previousState'],
+			array_map('intval', $createdIds),
+			(bool)($decoded['hadScheduledTransaction'] ?? false),
+			array_map('intval', $scheduledIds),
+			$linkedId !== null ? (int)$linkedId : null
+		);
+	}
+
+	/**
+	 * Skip a bill payment, advancing to the next due date without creating a transaction.
+	 *
+	 * @param int $id Bill ID
+	 * @param string $userId User ID
+	 * @return Bill Updated bill
+	 */
+	public function skipPayment(int $id, string $userId): array {
+		$bill = $this->find($id, $userId);
+
+		if ($bill->getFrequency() === 'one-time') {
+			throw new \InvalidArgumentException($this->l->t('Cannot skip a one-time bill'));
+		}
+
+		if (!$bill->getIsActive()) {
+			throw new \InvalidArgumentException($this->l->t('Cannot skip an inactive bill'));
+		}
+
+		$previousNextDueDate = $bill->getNextDueDate();
+
+		// Delete any pre-existing scheduled transaction for the skipped occurrence
+		$this->transactionService->deleteScheduledBillTransactions($id);
+
+		$nextDue = $this->frequencyCalculator->calculateNextDueDate(
+			$bill->getFrequency(),
+			$bill->getDueDay(),
+			$bill->getDueMonth(),
+			$bill->getNextDueDate(),
+			$bill->getCustomRecurrencePattern(),
+			true // forceAdvance: always advance one cycle, even if not yet overdue
+		);
+		$bill->setNextDueDate($nextDue);
+
+		// Deactivate if next due date exceeds end date
+		$endDate = $bill->getEndDate();
+		if ($endDate !== null && $bill->getNextDueDate() !== null && $bill->getNextDueDate() > $endDate) {
+			$bill->setIsActive(false);
+			$bill->setNextDueDate(null);
+		}
+
+		// The skip moved next_due_date — a mark-unpaid snapshot restored
+		// after it would bring back a pre-skip date, so it is spent (#365 review)
+		$bill->setPaidUndoState(null);
+
+		$bill = $this->mapper->update($bill);
+
+		// Create scheduled transaction for the new next occurrence,
+		// unless the bill opted out of pre-created transactions
+		if (($bill->getCreateTransaction() ?? true) && $bill->getIsActive() && $bill->getAccountId() !== null) {
+			try {
+				$nextTransaction = $this->transactionService->createFromBill($userId, $bill, null);
+				$this->applySplitTemplate($bill, $nextTransaction, $userId);
+			} catch (\Exception $e) {
+				$this->logger->warning("Failed to create next transaction after skipping bill {$id}: {$e->getMessage()}");
+			}
+		}
+
+		return [
+			'bill' => $bill,
+			'previousNextDueDate' => $previousNextDueDate,
+		];
+	}
+
+	/**
+	 * Undo a skipped bill payment, reverting to the previous due date.
+	 *
+	 * @param int $id Bill ID
+	 * @param string $userId User ID
+	 * @param string $previousNextDueDate The due date to restore
+	 * @return Bill Updated bill
+	 */
+	public function undoSkip(int $id, string $userId, string $previousNextDueDate): Bill {
+		$bill = $this->find($id, $userId);
+
+		// Delete scheduled transaction for the advanced (wrong) date
+		$this->transactionService->deleteScheduledBillTransactions($id);
+
+		// Restore previous due date and reactivate if needed
+		$bill->setNextDueDate($previousNextDueDate);
+		if (!$bill->getIsActive() && $bill->getFrequency() !== 'one-time') {
+			$bill->setIsActive(true);
+		}
+
+		$bill = $this->mapper->update($bill);
+
+		// Recreate scheduled transaction for the restored date, unless the
+		// bill opted out of pre-created transactions - skipPayment() honours
+		// that, and undoing it must not put back what it never had (#396)
+		if (($bill->getCreateTransaction() ?? true) && $bill->getIsActive() && $bill->getAccountId() !== null) {
+			try {
+				$nextTransaction = $this->transactionService->createFromBill($userId, $bill, null);
+				$this->applySplitTemplate($bill, $nextTransaction, $userId);
+			} catch (\Exception $e) {
+				$this->logger->warning("Failed to recreate transaction after undoing skip for bill {$id}: {$e->getMessage()}");
+			}
+		}
+
+		return $bill;
+	}
+
+	/**
+	 * Get monthly summary of bills.
+	 */
+	public function getMonthlySummary(string $userId): array {
+		$bills = $this->findActive($userId);
+		$currencyMap = $this->buildCurrencyMap($userId);
+		$baseCurrency = $this->currencyConversion->getBaseCurrency($userId);
+
+		$total = 0.0;
+		$dueThisMonth = 0;
+		$overdue = 0;
+		$paidThisMonth = 0;
+		$byCategory = [];
+		$byFrequency = [
+			'daily' => 0.0,
+			'weekly' => 0.0,
+			'biweekly' => 0.0,
+			'semi-monthly' => 0.0,
+			'monthly' => 0.0,
+			'quarterly' => 0.0,
+			'semi-annually' => 0.0,
+			'yearly' => 0.0,
+			'one-time' => 0.0,
+			'custom' => 0.0,
+		];
+
+		$today = date('Y-m-d');
+		$startOfMonth = date('Y-m-01');
+		$endOfMonth = date('Y-m-t');
+
+		foreach ($bills as $bill) {
+			$monthlyAmount = $this->frequencyCalculator->getMonthlyEquivalent($bill);
+
+			// Convert to base currency if the bill's account uses a different currency
+			$billCurrency = ($bill->getAccountId() !== null && isset($currencyMap[$bill->getAccountId()]))
+				? $currencyMap[$bill->getAccountId()]
+				: $baseCurrency;
+			$convertedMonthly = $this->convertToBase($monthlyAmount, $billCurrency, $baseCurrency, $userId);
+			$convertedAmount = $this->convertToBase($bill->getAmount(), $billCurrency, $baseCurrency, $userId);
+
+			$total += $convertedMonthly;
+
+			$freq = $bill->getFrequency();
+			if (isset($byFrequency[$freq])) {
+				$byFrequency[$freq] += $convertedAmount;
+			}
+
+			$catId = $bill->getCategoryId() ?? 0;
+			if (!isset($byCategory[$catId])) {
+				$byCategory[$catId] = 0.0;
+			}
+			$byCategory[$catId] += $convertedMonthly;
+
+			// Check if due this month
+			$nextDue = $bill->getNextDueDate();
+			if ($nextDue && $nextDue >= $startOfMonth && $nextDue <= $endOfMonth) {
+				$dueThisMonth++;
+			}
+
+			// Check if overdue
+			if ($nextDue && $nextDue < $today) {
+				$isPaid = $this->checkIfPaidInPeriod($bill, $startOfMonth, $endOfMonth);
+				if (!$isPaid) {
+					$overdue++;
+				}
+			}
+
+			// Check if paid this month
+			if ($this->checkIfPaidInPeriod($bill, $startOfMonth, $endOfMonth)) {
+				$paidThisMonth++;
+			}
+		}
+
+		return [
+			'totalMonthly' => $total,
+			'monthlyTotal' => $total, // Alias for frontend compatibility
+			'totalYearly' => $total * 12,
+			'billCount' => count($bills),
+			'dueThisMonth' => $dueThisMonth,
+			'overdue' => $overdue,
+			'paidThisMonth' => $paidThisMonth,
+			'byCategory' => $byCategory,
+			'byFrequency' => $byFrequency,
+			'baseCurrency' => $baseCurrency,
+		];
+	}
+
+	/**
+	 * Apply a bill's split template to a newly created transaction.
+	 */
+	private function applySplitTemplate(Bill $bill, $transaction, string $userId): void {
+		$splits = $bill->getSplitTemplateArray();
+		if (empty($splits) || $transaction === null) {
+			return;
+		}
+
+		try {
+			$splitData = array_map(function ($split) {
+				return [
+					'categoryId' => isset($split['categoryId']) ? (int)$split['categoryId'] : null,
+					'amount' => (float)$split['amount'],
+					'description' => $split['description'] ?? null,
+				];
+			}, $splits);
+
+			// Splits are scoped to the transaction's account owner, which may
+			// differ from the acting user when the bill points at a shared
+			// account (#334).
+			$ownerUserId = $this->accountMapper->findById($transaction->getAccountId())->getUserId();
+			$this->splitService->splitTransaction($transaction->getId(), $ownerUserId, $splitData);
+		} catch (\Exception $e) {
+			$this->logger->warning("Failed to apply split template to transaction {$transaction->getId()}: {$e->getMessage()}");
+		}
+	}
+
+	/**
+	 * Convert an amount to base currency if needed. Returns unchanged if already base.
+	 */
+	private function convertToBase(float $amount, ?string $fromCurrency, string $baseCurrency, string $userId): float {
+		if ($fromCurrency === null || $fromCurrency === $baseCurrency) {
+			return $amount;
+		}
+		return $this->currencyConversion->convertToBaseFloat($amount, $fromCurrency, $userId);
+	}
+
+	/**
+	 * Get bill status for current month showing paid/unpaid.
+	 */
+	public function getBillStatusForMonth(string $userId, ?string $month = null): array {
+		$month = $month ?? date('Y-m');
+		$startDate = $month . '-01';
+		$endDate = date('Y-m-t', strtotime($startDate));
+
+		$bills = $this->mapper->findDueInRange($userId, $startDate, $endDate);
+		$result = [];
+
+		foreach ($bills as $bill) {
+			$isPaid = $this->checkIfPaidInPeriod($bill, $startDate, $endDate);
+
+			$result[] = [
+				'bill' => $bill,
+				'isPaid' => $isPaid,
+				'dueDate' => $bill->getNextDueDate(),
+				'isOverdue' => !$isPaid && $bill->getNextDueDate() < date('Y-m-d'),
+			];
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Auto-detect recurring bills from transaction history.
+	 */
+	public function detectRecurringBills(string $userId, int $months = 6): array {
+		return $this->recurringDetector->detectRecurringBills($userId, $months);
+	}
+
+	/**
+	 * Create bills from detected patterns.
+	 */
+	public function createFromDetected(string $userId, array $detected): array {
+		$created = [];
+
+		foreach ($detected as $item) {
+			$isTransfer = !empty($item['isTransfer']);
+			$destinationAccountId = isset($item['destinationAccountId']) ? (int)$item['destinationAccountId'] : null;
+
+			// Named arguments — create() has 25 parameters and positional
+			// calls here previously drifted (a missing value pushed `false`
+			// into the ?string customRecurrencePattern slot, 500-ing every
+			// detect-and-add). Names keep this aligned.
+			$bill = $this->create(
+				userId: $userId,
+				name: $item['suggestedName'] ?? $item['description'],
+				amount: (float)$item['amount'],
+				frequency: $item['frequency'],
+				dueDay: isset($item['dueDay']) ? (int)$item['dueDay'] : null,
+				categoryId: $isTransfer ? null : (isset($item['categoryId']) ? (int)$item['categoryId'] : null),
+				accountId: isset($item['accountId']) ? (int)$item['accountId'] : null,
+				autoDetectPattern: $item['autoDetectPattern'] ?? null,
+				isTransfer: $isTransfer,
+				destinationAccountId: $destinationAccountId,
+			);
+			$created[] = $bill;
+		}
+
+		return $created;
+	}
+
+	/**
+	 * Check if a transaction matches any bill's auto-detect pattern.
+	 */
+	public function matchTransactionToBill(string $userId, string $description, float $amount): ?Bill {
+		$bills = $this->findActive($userId);
+
+		foreach ($bills as $bill) {
+			$pattern = $bill->getAutoDetectPattern();
+			if (empty($pattern)) {
+				continue;
+			}
+
+			if (stripos($description, $pattern) !== false) {
+				$billAmount = $bill->getAmount();
+				if (abs($amount - $billAmount) <= $billAmount * 0.1) {
+					return $bill;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Auto-mark bills paid from freshly imported transactions (#274).
+	 *
+	 * For each imported debit that matches an active bill's auto-detect
+	 * pattern (amount within 10%, account matching when the bill has one,
+	 * transaction date within the bill's current due window), the bill is
+	 * marked paid with the transaction LINKED — no duplicate money movement
+	 * is ever recorded. Marking paid advances the due date, so a second
+	 * same-period transaction in the batch falls outside the new window and
+	 * cannot double-advance the bill.
+	 *
+	 * @param \OCA\Budget\Db\Transaction[] $transactions freshly created rows
+	 * @return int number of bills marked paid
+	 */
+	public function autoMatchPaidFromImport(string $userId, array $transactions): int {
+		if (empty($transactions)) {
+			return 0;
+		}
+
+		$bills = array_filter(
+			$this->findActive($userId),
+			fn (Bill $bill) => !($bill->getIsTransfer() ?? false)
+				&& !empty($bill->getAutoDetectPattern())
+				&& $bill->getNextDueDate() !== null
+		);
+		if (empty($bills)) {
+			return 0;
+		}
+
+		$marked = 0;
+		foreach ($transactions as $transaction) {
+			if ($transaction->getType() !== 'debit') {
+				continue;
+			}
+			if (($transaction->getStatus() ?? 'cleared') === 'scheduled') {
+				continue;
+			}
+
+			foreach ($bills as $key => $bill) {
+				if (!$this->importedTransactionMatchesBill($bill, $transaction)) {
+					continue;
+				}
+
+				try {
+					$this->markPaid($bill->getId(), $userId, $transaction->getDate(), false, $transaction->getId());
+					$marked++;
+					// Reload: the due date advanced (or the bill deactivated),
+					// which is what keeps this loop from double-advancing
+					$bills[$key] = $this->find($bill->getId(), $userId);
+					if (!$bills[$key]->getIsActive() || $bills[$key]->getNextDueDate() === null) {
+						unset($bills[$key]);
+					}
+				} catch (\Exception $e) {
+					$this->logger->warning(
+						"Auto-match failed marking bill {$bill->getId()} paid from imported transaction {$transaction->getId()}: {$e->getMessage()}"
+					);
+				}
+				break; // one bill per transaction
+			}
+		}
+
+		return $marked;
+	}
+
+	/**
+	 * Match an imported transaction against a bill: pattern in description
+	 * or vendor, amount within 10%, account agreement, and the transaction
+	 * date inside the bill's current due window (so historical re-imports
+	 * can't advance bills through future periods).
+	 */
+	private function importedTransactionMatchesBill(Bill $bill, \OCA\Budget\Db\Transaction $transaction): bool {
+		$pattern = (string)$bill->getAutoDetectPattern();
+		$haystack = $transaction->getDescription() . ' ' . ($transaction->getVendor() ?? '');
+		if (stripos($haystack, $pattern) === false) {
+			return false;
+		}
+
+		$billAmount = (float)$bill->getAmount();
+		if ($billAmount <= 0 || abs((float)$transaction->getAmount() - $billAmount) > $billAmount * 0.1) {
+			return false;
+		}
+
+		if ($bill->getAccountId() !== null && $bill->getAccountId() !== $transaction->getAccountId()) {
+			return false;
+		}
+
+		$dueDate = $bill->getNextDueDate();
+		$daysOff = abs((strtotime($transaction->getDate()) - strtotime($dueDate)) / 86400);
+
+		return $daysOff <= $this->dueDateToleranceDays($bill->getFrequency());
+	}
+
+	/**
+	 * How far an imported payment may sit from the due date and still count
+	 * as paying THIS occurrence — roughly half the recurrence interval,
+	 * capped so monthly+ bills accept payments up to two weeks early/late.
+	 */
+	private function dueDateToleranceDays(?string $frequency): int {
+		return match ($frequency) {
+			'daily' => 1,
+			'weekly' => 3,
+			'biweekly' => 6,
+			'semi-monthly' => 7,
+			default => 15, // monthly, quarterly, semi-annually, yearly, custom, one-time
+		};
+	}
+
+	/**
+	 * Attempt to auto-pay a bill and handle success/failure.
+	 *
+	 * @param int $id Bill ID
+	 * @param string $userId User ID
+	 * @return array ['success' => bool, 'message' => string, 'bill' => ?Bill]
+	 */
+	public function processAutoPay(int $id, string $userId): array {
+		try {
+			$bill = $this->find($id, $userId);
+
+			// Validate auto-pay is enabled and account exists
+			if (!$bill->getAutoPayEnabled()) {
+				return [
+					'success' => false,
+					'message' => $this->l->t('Auto-pay is not enabled for this bill'),
+					'bill' => null,
+				];
+			}
+
+			if ($bill->getAccountId() === null) {
+				// Disable auto-pay and mark as failed
+				$this->mapper->updateFields($id, $userId, [
+					'auto_pay_enabled' => false,
+					'auto_pay_failed' => true,
+				]);
+				return [
+					'success' => false,
+					'message' => $this->l->t('Bill has no account associated'),
+					'bill' => $this->find($id, $userId),
+				];
+			}
+
+			// Mark bill as paid
+			$result = $this->markPaid($id, $userId, null, true);
+
+			return [
+				'success' => true,
+				'message' => $this->l->t('Bill auto-paid successfully'),
+				'bill' => $result['bill'],
+			];
+
+		} catch (\Exception $e) {
+			// Mark auto-pay as failed and disable it
+			try {
+				$this->mapper->updateFields($id, $userId, [
+					'auto_pay_enabled' => false,
+					'auto_pay_failed' => true,
+				]);
+				$bill = $this->find($id, $userId);
+			} catch (\Exception $e2) {
+				$bill = null;
+			}
+
+			return [
+				'success' => false,
+				'message' => 'Auto-pay failed: ' . $e->getMessage(),
+				'bill' => $bill,
+			];
+		}
+	}
+
+	private function checkIfPaidInPeriod(Bill $bill, string $startDate, string $endDate): bool {
+		$lastPaid = $bill->getLastPaidDate();
+		if (!$lastPaid) {
+			return false;
+		}
+		return $lastPaid >= $startDate && $lastPaid <= $endDate;
+	}
+
+	/**
+	 * Get annual overview of bills showing which months each bill occurs
+	 *
+	 * @param string $userId User ID
+	 * @param int $year Year to generate overview for
+	 * @param bool $includeTransfers Include transfer bills
+	 * @param string $billStatus 'active', 'inactive', or 'all'
+	 * @param int|null $accountId Filter by account ID (source or destination)
+	 * @return array Bills with monthly occurrences and totals
+	 */
+	public function getAnnualOverview(string $userId, int $year, bool $includeTransfers = false, string $billStatus = 'active', ?int $accountId = null): array {
+		// Build currency map for conversion. The same list finds the picked
+		// account below, so an id the user cannot see finds nothing.
+		$accounts = $this->accountMapper->findAll($userId);
+		$currencyMap = $this->currencyMapFor($accounts);
+		$baseCurrency = $this->currencyConversion->getBaseCurrency($userId);
+
+		[$billsData, $monthlyTotals] = $this->calendarRows($userId, $year, $includeTransfers, $billStatus, $accountId, $currencyMap, $baseCurrency);
+
+		// With an account picked: its balance carried through the rest of
+		// this year, from today's (#393). Another year has no today to start
+		// from, so it gets no projection.
+		$accountSummary = null;
+		$projection = null;
+		$account = $accountId === null ? null : $this->accountAmong($accounts, $accountId);
+		if ($account !== null) {
+			$balance = $this->transactionService->getBalanceAsOf($account->getId(), date('Y-m-d'));
+			$accountSummary = [
+				'id' => $account->getId(),
+				'name' => $account->getName(),
+				'currency' => $account->getCurrency() ?: $baseCurrency,
+				'balance' => $balance,
+			];
+			if ($year === (int)date('Y')) {
+				// The money moves whatever the table is set to show, so a
+				// view without transfers, or of inactive bills only, is
+				// projected from every bill that is still live
+				$projectionRows = ($includeTransfers && $billStatus !== 'inactive')
+					? $billsData
+					: $this->calendarRows($userId, $year, true, 'active', $accountId, $currencyMap, $baseCurrency)[0];
+				$projection = $this->projectBalance($userId, $projectionRows, $account, $balance);
+			}
+		}
+
+		return [
+			'year' => $year,
+			'bills' => $this->groupOneTimeBillsByName($billsData),
+			'monthlyTotals' => $monthlyTotals,
+			'baseCurrency' => $baseCurrency,
+			'account' => $accountSummary,
+			'projectedBalance' => $projection['balance'] ?? null,
+			'projectedFlows' => $projection['flows'] ?? null,
+		];
+	}
+
+	/**
+	 * The calendar's rows, one per bill with anything in the year, and what
+	 * each month comes to in the base currency.
+	 *
+	 * @param array<int, string|null> $currencyMap account id => currency code
+	 * @return array{0: array[], 1: array<int, float>} ungrouped rows, monthly totals
+	 */
+	private function calendarRows(string $userId, int $year, bool $includeTransfers, string $billStatus, ?int $accountId, array $currencyMap, string $baseCurrency): array {
+		// Determine which bills to fetch based on status
+		$bills = [];
+		if ($billStatus === 'active') {
+			$isActive = true;
+		} elseif ($billStatus === 'inactive') {
+			$isActive = false;
+		} else {
+			$isActive = null; // All bills
+		}
+
+		// Fetch bills with type filter. "Active" fetches everything and is
+		// narrowed below, because a bill that is inactive now but was paid
+		// this year - a one-time bill deactivates itself on payment - still
+		// belongs in the year's picture (#375).
+		$fetchActive = $billStatus === 'active' ? null : $isActive;
+		if ($includeTransfers) {
+			$bills = $this->mapper->findByType($userId, null, $fetchActive);
+		} else {
+			$bills = $this->mapper->findByType($userId, false, $fetchActive);
+		}
+
+		// Filter by account if specified (match source or destination account)
+		if ($accountId !== null) {
+			$bills = array_filter($bills, function ($bill) use ($accountId) {
+				return $bill->getAccountId() === $accountId
+					|| $bill->getDestinationAccountId() === $accountId;
+			});
+		}
+
+		// What was actually paid this year, per bill. The cells used to be
+		// guessed from last_paid_date - every month up to it counted as paid,
+		// so a bill first paid in September showed January to August paid
+		// too - and a one-time bill fell out of the calendar the moment it
+		// was paid (#375). Only the debit leg counts: a transfer bill's
+		// credit leg is the same payment arriving, not a second one.
+		$paymentsByBill = [];
+		$billIds = array_map(fn (Bill $bill) => $bill->getId(), $bills);
+		foreach ($this->transactionService->findBillPaymentsInYear($billIds, $year) as $payment) {
+			if (($payment->getType() ?? 'debit') !== 'debit') {
+				continue;
+			}
+			$paymentsByBill[$payment->getBillId()][] = [
+				'date' => $payment->getDate(),
+				'amount' => (float)$payment->getAmount(),
+			];
+		}
+
+		if ($billStatus === 'active') {
+			$bills = array_filter($bills, fn (Bill $bill) => $bill->getIsActive() || isset($paymentsByBill[$bill->getId()]));
+		}
+
+		// Calculate monthly occurrences for each bill
+		$billsData = [];
+		$monthlyTotals = array_fill(1, 12, 0.0);
+
+		foreach ($bills as $bill) {
+			$occurrences = $this->calculateMonthlyOccurrences($bill, $year);
+			[$occurrences, $paidMonths, $paidAmounts, $unrecordedMonths] = $this->attributePayments(
+				$occurrences,
+				$bill,
+				$paymentsByBill[$bill->getId()] ?? [],
+				$year
+			);
+
+			// A bill with nothing in this year - created after its only date
+			// came round, or started next year - has no cell to draw, and an
+			// empty row says nothing (#333)
+			if (array_filter($occurrences) === []) {
+				continue;
+			}
+
+			$billCurrency = ($bill->getAccountId() !== null && isset($currencyMap[$bill->getAccountId()]))
+				? $currencyMap[$bill->getAccountId()]
+				: $baseCurrency;
+
+			$billData = [
+				'id' => $bill->getId(),
+				'name' => $bill->getName(),
+				'amount' => $bill->getAmount(),
+				'currency' => $billCurrency,
+				'frequency' => $bill->getFrequency(),
+				'categoryId' => $bill->getCategoryId(),
+				'accountId' => $bill->getAccountId(),
+				'isActive' => $bill->getIsActive(),
+				'isTransfer' => $bill->getIsTransfer() ?? false,
+				'destinationAccountId' => $bill->getDestinationAccountId(),
+				'lastPaidDate' => $bill->getLastPaidDate(),
+				'nextDueDate' => $bill->getNextDueDate(),
+				'occurrences' => $occurrences, // Array with month numbers as keys
+				// Months whose occurrence has a recorded payment, and what was
+				// actually paid in each - the expected amount stands in for
+				// the months still to come (#375)
+				'paidMonths' => $paidMonths,
+				'paidAmounts' => $paidAmounts,
+				// Occurrences the bill has moved past without a recorded
+				// payment - marked paid with no transaction, or skipped. Not
+				// paid, but not owed either, so they must not read as due (#333)
+				'unrecordedMonths' => $unrecordedMonths,
+				// What each occurring month is expected to cost. One per month
+				// so that one-time bills sharing a name can be shown as one
+				// row without losing each invoice's own amount (#375)
+				'expectedAmounts' => array_fill_keys(array_keys(array_filter($occurrences)), (float)$bill->getAmount()),
+			];
+
+			// Monthly totals: what was paid where a payment exists, the
+			// expected amount otherwise
+			$convertedAmount = $this->convertToBase($bill->getAmount(), $billCurrency, $baseCurrency, $userId);
+			foreach ($occurrences as $month => $occurs) {
+				if (!$occurs) {
+					continue;
+				}
+				$monthlyTotals[$month] += isset($paidAmounts[$month])
+					? $this->convertToBase($paidAmounts[$month], $billCurrency, $baseCurrency, $userId)
+					: $convertedAmount;
+			}
+
+			$billsData[] = $billData;
+		}
+
+		return [$billsData, $monthlyTotals];
+	}
+
+	/** @param Account[] $accounts */
+	private function accountAmong(array $accounts, int $accountId): ?Account {
+		foreach ($accounts as $account) {
+			if ($account->getId() === $accountId) {
+				return $account;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * The account's running balance through the rest of this year: bills
+	 * out, transfers and recurring income in, carried month to month (#393).
+	 *
+	 * @param array[] $billsData ungrouped calendar rows
+	 * @return array{balance: array<int, float|null>, flows: array<int, array{bills: float, transfersIn: float, income: float}|null>}
+	 */
+	private function projectBalance(string $userId, array $billsData, Account $account, float $balance): array {
+		$scale = Currency::decimalsFor($account->getCurrency());
+		$today = date('Y-m-d');
+		$projector = new BalanceProjector($this->frequencyCalculator);
+		$incomes = $this->incomeMapper?->findActive($userId) ?? [];
+		return $projector->project(
+			$billsData,
+			$account->getId(),
+			$balance,
+			$projector->incomeByMonth($incomes, $account->getId(), $today, $scale),
+			(int)date('n'),
+			$scale
+		);
+	}
+
+	/**
+	 * Fold one-time bills that share a name into a single calendar row.
+	 *
+	 * Every invoice from the same vendor is its own one-time bill, and once
+	 * paid ones stay in the year's calendar (#375) a garage that sent three
+	 * invoices showed as three rows with the same name, one cell each. One
+	 * row with a cell per invoice reads the way the recurring rows do. Each
+	 * month keeps its own expected and paid amount; two invoices in one
+	 * month add up. Recurring bills are left alone.
+	 *
+	 * @param array<int, array<string, mixed>> $rows
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function groupOneTimeBillsByName(array $rows): array {
+		$grouped = [];
+		$byName = [];
+		foreach ($rows as $row) {
+			if (($row['frequency'] ?? '') !== 'one-time') {
+				$grouped[] = $row;
+				continue;
+			}
+			$key = mb_strtolower(trim((string)$row['name'])) . '|' . ($row['currency'] ?? '');
+			$row['unrecordedMonths'] = $row['unrecordedMonths'] ?? [];
+			if (!isset($byName[$key])) {
+				$row['billIds'] = [$row['id']];
+				$byName[$key] = count($grouped);
+				$grouped[] = $row;
+				continue;
+			}
+			$index = $byName[$key];
+			$grouped[$index]['billIds'][] = $row['id'];
+			$grouped[$index]['isActive'] = $grouped[$index]['isActive'] || $row['isActive'];
+			foreach ($row['occurrences'] as $month => $occurs) {
+				if ($occurs) {
+					$grouped[$index]['occurrences'][$month] = true;
+				}
+			}
+			$unrecorded = array_unique(array_merge($grouped[$index]['unrecordedMonths'], $row['unrecordedMonths']));
+			sort($unrecorded);
+			$grouped[$index]['unrecordedMonths'] = array_values($unrecorded);
+			foreach ($row['expectedAmounts'] as $month => $amount) {
+				$grouped[$index]['expectedAmounts'][$month] = ($grouped[$index]['expectedAmounts'][$month] ?? 0.0) + $amount;
+			}
+			foreach ($row['paidAmounts'] as $month => $amount) {
+				$grouped[$index]['paidAmounts'][$month] = ($grouped[$index]['paidAmounts'][$month] ?? 0.0) + $amount;
+			}
+			ksort($grouped[$index]['paidAmounts']);
+			ksort($grouped[$index]['expectedAmounts']);
+			$grouped[$index]['paidMonths'] = array_keys($grouped[$index]['paidAmounts']);
+		}
+
+		return $grouped;
+	}
+
+	/**
+	 * Ensure the next due date is no earlier than the bill's start date. When a
+	 * bill starts in the future, its first occurrence should fall on/after the
+	 * start date rather than the next calendar occurrence from today (#268).
+	 *
+	 * Weekly/biweekly bills with a startDate never reach the recursive call:
+	 * their nextDue already came out of the calculator's anchor path, which by
+	 * construction never returns a date before the anchor (#364).
+	 */
+	private function applyStartDateFloor(string $nextDue, ?string $startDate, string $frequency, ?int $dueDay, ?int $dueMonth, ?string $customPattern): string {
+		if ($startDate === null || $startDate === '' || $startDate <= $nextDue) {
+			return $nextDue;
+		}
+		$fromStart = $this->frequencyCalculator->calculateNextDueDate($frequency, $dueDay, $dueMonth, $startDate, $customPattern);
+		return max($fromStart, $startDate);
+	}
+
+	/** How far a payment may sit from an occurrence's due date and still be that occurrence's. */
+	private const PAYMENT_MATCH_WINDOW_DAYS = 45;
+
+	/**
+	 * Match a year's payments to the schedule's occurrences, by date - and
+	 * never ahead of the bill itself.
+	 *
+	 * The bill already knows which occurrences are done: marking one paid
+	 * advances next_due_date by a cycle, so every occurrence due before that
+	 * date is closed and everything from it on is still owed. Payments are
+	 * only ever placed on closed occurrences. Without that boundary a user
+	 * who pays each cycle a few days before the next one is due - or pays
+	 * one twice - had the row shift a month forward, and the calendar showed
+	 * September paid while the Bills page showed the same occurrence as
+	 * upcoming (#375).
+	 *
+	 * Within the closed occurrences a payment belongs to the nearest unpaid
+	 * one within the window; when all of those are taken it adds to the
+	 * nearest closed one (a double payment shows as the larger amount rather
+	 * than as a month that was never paid); a payment with no closed
+	 * occurrence anywhere near it becomes an extra paid month, provided that
+	 * month is itself before the next due date. A bill with a single
+	 * occurrence takes any payment, whenever it was made.
+	 *
+	 * A closed occurrence that ends up with no payment is reported too. The
+	 * bill was marked paid with "Don't create any transaction", or the
+	 * occurrence was skipped: either way the bill has moved past it, so it is
+	 * neither paid nor owed, and drawing it as due - which is what a cell
+	 * without a payment used to mean - had a yearly premium paid in
+	 * February still showing as outstanding in September (#333).
+	 *
+	 * @param array<int, bool> $occurrences month => occurs, 1..12
+	 * @param array<int, array{date: string, amount: float}> $payments in date order
+	 * @return array{0: array<int, bool>, 1: int[], 2: array<int, float>, 3: int[]}
+	 *                                                                              occurrences (with extras), paid months, paid amount per month,
+	 *                                                                              months the bill has moved past with no payment recorded
+	 */
+	private function attributePayments(array $occurrences, Bill $bill, array $payments, int $year): array {
+		$paidAmounts = [];
+		$slots = array_keys(array_filter($occurrences));
+		$slotDates = [];
+		foreach ($slots as $slot) {
+			$slotDates[$slot] = new \DateTimeImmutable($this->occurrenceDate($bill, $year, $slot));
+		}
+
+		// Occurrences the bill itself still counts as owed are never paid
+		// targets. An inactive bill (ended, or a one-time bill after its
+		// payment) has nothing owed, so all of its occurrences are closed.
+		$nextDue = $bill->getNextDueDate();
+		$boundary = ($bill->getIsActive() && $nextDue !== null && $nextDue !== '' && $bill->getFrequency() !== 'one-time')
+			? new \DateTimeImmutable($nextDue)
+			: null;
+		$closedSlots = array_values(array_filter(
+			$slots,
+			fn (int $slot): bool => $boundary === null || $slotDates[$slot] < $boundary
+		));
+
+		// What the bill has definitely moved past. An inactive bill owes
+		// nothing; an active one-time bill owes its only occurrence, and an
+		// active recurring bill owes everything from next_due_date on. Kept
+		// apart from $closedSlots, which is deliberately wider for an active
+		// one-time bill so that its payment can land whenever it was made.
+		if (!$bill->getIsActive()) {
+			$settledSlots = $slots;
+		} elseif ($boundary === null) {
+			$settledSlots = [];
+		} else {
+			$settledSlots = $closedSlots;
+		}
+
+		$nearest = function (\DateTimeImmutable $paidOn, array $candidates, ?int $window) use (&$slotDates): ?int {
+			$best = null;
+			foreach ($candidates as $slot) {
+				$days = $paidOn->diff($slotDates[$slot])->days;
+				if ($window !== null && $days > $window) {
+					continue;
+				}
+				// Nearest wins; on a tie the earlier month (a late payment)
+				if ($best === null || $days < $best[0] || ($days === $best[0] && $slot < $best[1])) {
+					$best = [$days, $slot];
+				}
+			}
+			return $best[1] ?? null;
+		};
+
+		foreach ($payments as $payment) {
+			$paidOn = new \DateTimeImmutable($payment['date']);
+			$target = null;
+
+			if (count($slots) === 1) {
+				$target = $slots[0];
+			} else {
+				$unpaid = array_values(array_filter($closedSlots, fn (int $s): bool => !isset($paidAmounts[$s])));
+				$target = $nearest($paidOn, $unpaid, self::PAYMENT_MATCH_WINDOW_DAYS)
+					?? $nearest($paidOn, $closedSlots, self::PAYMENT_MATCH_WINDOW_DAYS);
+
+				if ($target === null) {
+					// Real money with no occurrence near it: its own month, as
+					// long as the bill does not still count that month as owed
+					$month = (int)$paidOn->format('n');
+					$monthDate = new \DateTimeImmutable($this->occurrenceDate($bill, $year, $month));
+					if ($boundary === null || $monthDate < $boundary) {
+						$target = $month;
+						$occurrences[$month] = true;
+						$slotDates[$month] = $monthDate;
+					} else {
+						$target = $nearest($paidOn, $closedSlots, null);
+					}
+				}
+			}
+
+			if ($target === null) {
+				continue; // nothing the bill counts as paid to put it on
+			}
+			$paidAmounts[$target] = ($paidAmounts[$target] ?? 0.0) + $payment['amount'];
+		}
+
+		ksort($paidAmounts);
+		$unrecorded = array_values(array_filter($settledSlots, fn (int $slot): bool => !isset($paidAmounts[$slot])));
+
+		return [$occurrences, array_keys($paidAmounts), $paidAmounts, $unrecorded];
+	}
+
+	/**
+	 * The date an occurrence in a given month falls due. A one-time bill's
+	 * explicit date is used as is; frequencies with several occurrences a
+	 * month (daily, weekly, biweekly) are pinned to mid-month, since the
+	 * calendar only knows them by month anyway.
+	 */
+	private function occurrenceDate(Bill $bill, int $year, int $month): string {
+		$frequency = $bill->getFrequency();
+		$startDate = $bill->getStartDate();
+		if ($frequency === 'one-time' && $startDate !== null && $startDate !== '') {
+			return $startDate;
+		}
+
+		$daysInMonth = (int)date('t', mktime(0, 0, 0, $month, 1, $year));
+		$day = in_array($frequency, ['daily', 'weekly', 'biweekly'], true)
+			? 15
+			: min(max((int)($bill->getDueDay() ?? 1), 1), $daysInMonth);
+
+		return sprintf('%04d-%02d-%02d', $year, $month, $day);
+	}
+
+	/**
+	 * Calculate which months a bill occurs in for a given year
+	 *
+	 * @param Bill $bill The bill entity
+	 * @param int $year The year to calculate for
+	 * @return array Array with month numbers (1-12) as keys and boolean values
+	 */
+	private function calculateMonthlyOccurrences(Bill $bill, int $year): array {
+		$occurrences = array_fill(1, 12, false);
+		$frequency = $bill->getFrequency();
+		$dueDay = $bill->getDueDay();
+		$dueMonth = $bill->getDueMonth();
+		$customPattern = $bill->getCustomRecurrencePattern();
+
+		switch ($frequency) {
+			case 'daily':
+			case 'weekly':
+			case 'biweekly':
+			case 'monthly':
+				// Occurs every month
+				for ($month = 1; $month <= 12; $month++) {
+					$occurrences[$month] = true;
+				}
+				break;
+
+			case 'quarterly':
+				// Quarterly bills occur every 3 months
+				// Determine starting month (defaults to Jan, Apr, Jul, Oct)
+				$startMonth = $dueMonth ?? 1;
+
+				// Calculate which months it occurs in
+				for ($month = $startMonth; $month <= 12; $month += 3) {
+					$occurrences[$month] = true;
+				}
+
+				// If startMonth is not 1, 4, 7, or 10, we need to wrap around
+				// E.g., if startMonth is 2, then 2, 5, 8, 11
+				break;
+
+			case 'semi-annually':
+				// Twice per year - every 6 months
+				$startMonth = $dueMonth ?? 1;
+				$occurrences[$startMonth] = true;
+				if ($startMonth + 6 <= 12) {
+					$occurrences[$startMonth + 6] = true;
+				}
+				break;
+
+			case 'yearly':
+				// Only occurs in the specified month
+				$month = $dueMonth ?? 1;
+				$occurrences[$month] = true;
+				break;
+
+			case 'one-time':
+				// One-time bills only occur in their specified month
+				$month = $dueMonth ?? 1;
+				if ($month >= 1 && $month <= 12) {
+					$occurrences[$month] = true;
+				}
+				break;
+
+			case 'custom':
+				// Parse custom pattern
+				if ($customPattern) {
+					$pattern = json_decode($customPattern, true);
+					if (is_array($pattern) && isset($pattern['months'])) {
+						foreach ($pattern['months'] as $month) {
+							if ($month >= 1 && $month <= 12) {
+								$occurrences[$month] = true;
+							}
+						}
+					}
+				}
+				break;
+		}
+
+		// Apply start date constraint: remove occurrences before the start date
+		$startDate = $bill->getStartDate();
+		if ($startDate !== null && $startDate !== '') {
+			$startYear = (int)date('Y', strtotime($startDate));
+			$startMonth = (int)date('n', strtotime($startDate));
+
+			for ($month = 1; $month <= 12; $month++) {
+				if ($year < $startYear || ($year === $startYear && $month < $startMonth)) {
+					$occurrences[$month] = false;
+				}
+			}
+		} elseif ($bill->getCreatedAt()) {
+			// Nothing was due before the bill existed. Without a start date the
+			// schedule was projected across the whole year, and once the cells
+			// came from payments (#375) a monthly bill created on 8 September
+			// read as owed from January - the old guess had struck those months
+			// through as paid, which was no truer (#333). Compared by date, so
+			// that a bill created on the 8th and due on the 5th first falls due
+			// next month, the way its next due date already does. A start date
+			// is the user's word on when the schedule began and governs instead
+			// (above); a one-time bill dated in the past on purpose has one.
+			// Frequencies the calendar pins mid-month keep their whole month.
+			$createdOn = substr((string)$bill->getCreatedAt(), 0, 10);
+			$wholeMonth = in_array($frequency, ['daily', 'weekly', 'biweekly'], true);
+			for ($month = 1; $month <= 12; $month++) {
+				if (!$occurrences[$month]) {
+					continue;
+				}
+				$notBefore = $wholeMonth
+					? sprintf('%04d-%02d-%02d', $year, $month, (int)date('t', mktime(0, 0, 0, $month, 1, $year)))
+					: $this->occurrenceDate($bill, $year, $month);
+				if ($notBefore < $createdOn) {
+					$occurrences[$month] = false;
+				}
+			}
+		}
+
+		// Apply end date constraint: remove occurrences after end date
+		$endDate = $bill->getEndDate();
+		if ($endDate !== null) {
+			$endYear = (int)date('Y', strtotime($endDate));
+			$endMonth = (int)date('n', strtotime($endDate));
+
+			for ($month = 1; $month <= 12; $month++) {
+				if ($year > $endYear || ($year === $endYear && $month > $endMonth)) {
+					$occurrences[$month] = false;
+				}
+			}
+		}
+
+		// Apply remaining payments constraint: cap number of future occurrences
+		// But keep past months visible for historical calendar view
+		$remaining = $bill->getRemainingPayments();
+		if ($remaining !== null && $remaining >= 0) {
+			$nextDueDate = $bill->getNextDueDate();
+			$nextDueYear = $nextDueDate ? (int)date('Y', strtotime($nextDueDate)) : $year;
+			$nextDueMonth = $nextDueDate ? (int)date('n', strtotime($nextDueDate)) : 1;
+
+			$count = 0;
+			for ($month = 1; $month <= 12; $month++) {
+				if (!$occurrences[$month]) {
+					continue;
+				}
+
+				// Keep past months visible (they were already paid)
+				if ($year < $nextDueYear || ($year === $nextDueYear && $month < $nextDueMonth)) {
+					continue;
+				}
+
+				$count++;
+				if ($count > $remaining) {
+					$occurrences[$month] = false;
+				}
+			}
+		}
+
+		return $occurrences;
+	}
 }

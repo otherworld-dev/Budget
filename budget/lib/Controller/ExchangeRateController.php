@@ -19,204 +19,204 @@ use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
 class ExchangeRateController extends Controller {
-    use ApiErrorHandlerTrait;
+	use ApiErrorHandlerTrait;
 
-    private ExchangeRateService $exchangeRateService;
-    private CurrencyConversionService $conversionService;
-    private ManualExchangeRateService $manualRateService;
-    private ExchangeRateMapper $exchangeRateMapper;
-    private IL10N $l;
-    private string $userId;
+	private ExchangeRateService $exchangeRateService;
+	private CurrencyConversionService $conversionService;
+	private ManualExchangeRateService $manualRateService;
+	private ExchangeRateMapper $exchangeRateMapper;
+	private IL10N $l;
+	private string $userId;
 
-    public function __construct(
-        IRequest $request,
-        ExchangeRateService $exchangeRateService,
-        CurrencyConversionService $conversionService,
-        ManualExchangeRateService $manualRateService,
-        ExchangeRateMapper $exchangeRateMapper,
-        IL10N $l,
-        string $userId,
-        LoggerInterface $logger
-    ) {
-        parent::__construct(Application::APP_ID, $request);
-        $this->exchangeRateService = $exchangeRateService;
-        $this->conversionService = $conversionService;
-        $this->manualRateService = $manualRateService;
-        $this->exchangeRateMapper = $exchangeRateMapper;
-        $this->l = $l;
-        $this->userId = $userId;
-        $this->setLogger($logger);
-    }
+	public function __construct(
+		IRequest $request,
+		ExchangeRateService $exchangeRateService,
+		CurrencyConversionService $conversionService,
+		ManualExchangeRateService $manualRateService,
+		ExchangeRateMapper $exchangeRateMapper,
+		IL10N $l,
+		string $userId,
+		LoggerInterface $logger,
+	) {
+		parent::__construct(Application::APP_ID, $request);
+		$this->exchangeRateService = $exchangeRateService;
+		$this->conversionService = $conversionService;
+		$this->manualRateService = $manualRateService;
+		$this->exchangeRateMapper = $exchangeRateMapper;
+		$this->l = $l;
+		$this->userId = $userId;
+		$this->setLogger($logger);
+	}
 
-    /**
-     * Get all exchange rates (auto + manual) for the current user.
-     *
-     * @NoAdminRequired
-     */
-    public function index(): DataResponse {
-        try {
-            $baseCurrency = $this->conversionService->getBaseCurrency($this->userId);
+	/**
+	 * Get all exchange rates (auto + manual) for the current user.
+	 *
+	 * @NoAdminRequired
+	 */
+	public function index(): DataResponse {
+		try {
+			$baseCurrency = $this->conversionService->getBaseCurrency($this->userId);
 
-            // Get all latest auto rates
-            $autoRates = $this->exchangeRateMapper->findAllLatest();
-            $autoRatesData = [];
-            foreach ($autoRates as $rate) {
-                $autoRatesData[$rate->getCurrency()] = [
-                    'ratePerEur' => $rate->getRatePerEur(),
-                    'source' => $rate->getSource(),
-                    'date' => $rate->getDate(),
-                ];
-            }
+			// Get all latest auto rates
+			$autoRates = $this->exchangeRateMapper->findAllLatest();
+			$autoRatesData = [];
+			foreach ($autoRates as $rate) {
+				$autoRatesData[$rate->getCurrency()] = [
+					'ratePerEur' => $rate->getRatePerEur(),
+					'source' => $rate->getSource(),
+					'date' => $rate->getDate(),
+				];
+			}
 
-            // EUR is the reference currency (rate = 1.0) but has no DB row.
-            // Synthesize it so the UI can display a rate for EUR.
-            if (!isset($autoRatesData['EUR'])) {
-                $autoRatesData['EUR'] = [
-                    'ratePerEur' => '1.0000000000',
-                    'source' => 'reference',
-                    'date' => date('Y-m-d'),
-                ];
-            }
+			// EUR is the reference currency (rate = 1.0) but has no DB row.
+			// Synthesize it so the UI can display a rate for EUR.
+			if (!isset($autoRatesData['EUR'])) {
+				$autoRatesData['EUR'] = [
+					'ratePerEur' => '1.0000000000',
+					'source' => 'reference',
+					'date' => date('Y-m-d'),
+				];
+			}
 
-            // Get all manual rates for this user
-            $manualRates = $this->manualRateService->getAllForUser($this->userId);
-            $manualRatesData = [];
-            foreach ($manualRates as $rate) {
-                $manualRatesData[$rate->getCurrency()] = [
-                    'ratePerEur' => $rate->getRatePerEur(),
-                    'updatedAt' => $rate->getUpdatedAt(),
-                ];
-            }
+			// Get all manual rates for this user
+			$manualRates = $this->manualRateService->getAllForUser($this->userId);
+			$manualRatesData = [];
+			foreach ($manualRates as $rate) {
+				$manualRatesData[$rate->getCurrency()] = [
+					'ratePerEur' => $rate->getRatePerEur(),
+					'updatedAt' => $rate->getUpdatedAt(),
+				];
+			}
 
-            // Build currency metadata from enum
-            $currencies = [];
-            foreach (Currency::cases() as $currency) {
-                $code = $currency->value;
-                $currencies[$code] = [
-                    'code' => $code,
-                    'name' => $currency->name(),
-                    'symbol' => $currency->symbol(),
-                    'isCrypto' => $currency->isCrypto(),
-                    'decimals' => $currency->decimals(),
-                ];
-            }
+			// Build currency metadata from enum
+			$currencies = [];
+			foreach (Currency::cases() as $currency) {
+				$code = $currency->value;
+				$currencies[$code] = [
+					'code' => $code,
+					'name' => $currency->name(),
+					'symbol' => $currency->symbol(),
+					'isCrypto' => $currency->isCrypto(),
+					'decimals' => $currency->decimals(),
+				];
+			}
 
-            return new DataResponse([
-                'baseCurrency' => $baseCurrency,
-                'autoRates' => $autoRatesData,
-                'manualRates' => $manualRatesData,
-                'currencies' => $currencies,
-            ]);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to load exchange rates'));
-        }
-    }
+			return new DataResponse([
+				'baseCurrency' => $baseCurrency,
+				'autoRates' => $autoRatesData,
+				'manualRates' => $manualRatesData,
+				'currencies' => $currencies,
+			]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to load exchange rates'));
+		}
+	}
 
-    /**
-     * Get the user's base currency (backward-compatible endpoint).
-     *
-     * @NoAdminRequired
-     */
-    public function latest(): DataResponse {
-        try {
-            $baseCurrency = $this->conversionService->getBaseCurrency($this->userId);
-            return new DataResponse([
-                'baseCurrency' => $baseCurrency,
-            ]);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to get base currency'));
-        }
-    }
+	/**
+	 * Get the user's base currency (backward-compatible endpoint).
+	 *
+	 * @NoAdminRequired
+	 */
+	public function latest(): DataResponse {
+		try {
+			$baseCurrency = $this->conversionService->getBaseCurrency($this->userId);
+			return new DataResponse([
+				'baseCurrency' => $baseCurrency,
+			]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to get base currency'));
+		}
+	}
 
-    /**
-     * Convert an amount between two currencies.
-     *
-     * @NoAdminRequired
-     */
-    public function convert(string $from, string $to, float $amount): DataResponse {
-        try {
-            $from = strtoupper($from);
-            $to = strtoupper($to);
+	/**
+	 * Convert an amount between two currencies.
+	 *
+	 * @NoAdminRequired
+	 */
+	public function convert(string $from, string $to, float $amount): DataResponse {
+		try {
+			$from = strtoupper($from);
+			$to = strtoupper($to);
 
-            if ($from === $to) {
-                return new DataResponse([
-                    'from' => $from,
-                    'to' => $to,
-                    'sourceAmount' => $amount,
-                    'convertedAmount' => $amount,
-                    'rate' => 1.0,
-                ]);
-            }
+			if ($from === $to) {
+				return new DataResponse([
+					'from' => $from,
+					'to' => $to,
+					'sourceAmount' => $amount,
+					'convertedAmount' => $amount,
+					'rate' => 1.0,
+				]);
+			}
 
-            $converted = $this->conversionService->convert($amount, $from, $to);
-            $rate = $amount > 0 ? (float) $converted / $amount : 0;
+			$converted = $this->conversionService->convert($amount, $from, $to);
+			$rate = $amount > 0 ? (float)$converted / $amount : 0;
 
-            return new DataResponse([
-                'from' => $from,
-                'to' => $to,
-                'sourceAmount' => $amount,
-                'convertedAmount' => round((float) $converted, 2),
-                'rate' => round($rate, 6),
-            ]);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to convert currency'));
-        }
-    }
+			return new DataResponse([
+				'from' => $from,
+				'to' => $to,
+				'sourceAmount' => $amount,
+				'convertedAmount' => round((float)$converted, 2),
+				'rate' => round($rate, 6),
+			]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to convert currency'));
+		}
+	}
 
-    /**
-     * Trigger a manual refresh of exchange rates.
-     *
-     * @NoAdminRequired
-     */
-    public function refresh(): DataResponse {
-        try {
-            $this->exchangeRateService->fetchLatestRates();
-            return new DataResponse([
-                'status' => 'ok',
-                'message' => $this->l->t('Exchange rates refreshed successfully'),
-            ]);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to refresh exchange rates'));
-        }
-    }
+	/**
+	 * Trigger a manual refresh of exchange rates.
+	 *
+	 * @NoAdminRequired
+	 */
+	public function refresh(): DataResponse {
+		try {
+			$this->exchangeRateService->fetchLatestRates();
+			return new DataResponse([
+				'status' => 'ok',
+				'message' => $this->l->t('Exchange rates refreshed successfully'),
+			]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to refresh exchange rates'));
+		}
+	}
 
-    /**
-     * Set a manual exchange rate override.
-     *
-     * @NoAdminRequired
-     */
-    public function setManualRate(): DataResponse {
-        try {
-            $currency = $this->request->getParam('currency');
-            $rate = $this->request->getParam('rate');
+	/**
+	 * Set a manual exchange rate override.
+	 *
+	 * @NoAdminRequired
+	 */
+	public function setManualRate(): DataResponse {
+		try {
+			$currency = $this->request->getParam('currency');
+			$rate = $this->request->getParam('rate');
 
-            if (empty($currency) || empty($rate)) {
-                return new DataResponse(
-                    ['error' => $this->l->t('Currency and rate are required')],
-                    Http::STATUS_BAD_REQUEST
-                );
-            }
+			if (empty($currency) || empty($rate)) {
+				return new DataResponse(
+					['error' => $this->l->t('Currency and rate are required')],
+					Http::STATUS_BAD_REQUEST
+				);
+			}
 
-            $entity = $this->manualRateService->setRate($this->userId, $currency, $rate);
-            return new DataResponse($entity);
-        } catch (\InvalidArgumentException $e) {
-            return $this->handleValidationError($e);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to set manual rate'));
-        }
-    }
+			$entity = $this->manualRateService->setRate($this->userId, $currency, $rate);
+			return new DataResponse($entity);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleValidationError($e);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to set manual rate'));
+		}
+	}
 
-    /**
-     * Remove a manual exchange rate override.
-     *
-     * @NoAdminRequired
-     */
-    public function removeManualRate(string $currency): DataResponse {
-        try {
-            $this->manualRateService->removeRate($this->userId, $currency);
-            return new DataResponse(['status' => 'ok']);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to remove manual rate'));
-        }
-    }
+	/**
+	 * Remove a manual exchange rate override.
+	 *
+	 * @NoAdminRequired
+	 */
+	public function removeManualRate(string $currency): DataResponse {
+		try {
+			$this->manualRateService->removeRate($this->userId, $currency);
+			return new DataResponse(['status' => 'ok']);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to remove manual rate'));
+		}
+	}
 }

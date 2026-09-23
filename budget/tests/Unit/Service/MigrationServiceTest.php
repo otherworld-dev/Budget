@@ -10,7 +10,6 @@ use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\Category;
 use OCA\Budget\Db\CategoryMapper;
-use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
@@ -353,11 +352,11 @@ class MigrationServiceTest extends TestCase {
 			->with($this->callback(function (Bill $b) {
 				$this->assertSame('{"months":[3,6,9,12]}', $b->getCustomRecurrencePattern());
 				$this->assertSame('Mortgage interest', $b->getDescription());
-				$this->assertTrue((bool) $b->getIsTransfer());
+				$this->assertTrue((bool)$b->getIsTransfer());
 				$this->assertSame(2, $b->getAccountId());
 				$this->assertSame(3, $b->getDestinationAccountId());
 				$this->assertSame('HYP {month}', $b->getTransferDescriptionPattern());
-				$this->assertTrue((bool) $b->getAutoPayEnabled());
+				$this->assertTrue((bool)$b->getAutoPayEnabled());
 				$this->assertSame(5, $b->getReminderDays());
 				// Tag ids remap through the imported tags (#351); this archive
 				// carries none, so unmappable references are dropped rather
@@ -367,8 +366,8 @@ class MigrationServiceTest extends TestCase {
 				$this->assertSame('2030-12-31', $b->getEndDate());
 				$this->assertSame(12, $b->getRemainingPayments());
 				$this->assertSame([['categoryId' => 100, 'percent' => 100]], $b->getSplitTemplateArray());
-				$this->assertTrue((bool) $b->getExcludedFromForecast());
-				$this->assertFalse((bool) $b->getCreateTransaction());
+				$this->assertTrue((bool)$b->getExcludedFromForecast());
+				$this->assertFalse((bool)$b->getCreateTransaction());
 				$this->assertSame('2026-06-28', $b->getLastPaidDate());
 				$this->assertSame('2026-09-28', $b->getNextDueDate());
 				return true;
@@ -861,10 +860,7 @@ class MigrationServiceTest extends TestCase {
 
 	/** The same service with limits small enough to test without allocating hundreds of MB. */
 	private function smallLimitService(): MigrationService {
-		return new class(
-			$this->accountMapper, $this->transactionMapper, $this->categoryMapper,
-			$this->billMapper, $this->importRuleMapper, $this->settingMapper, $this->db
-		) extends MigrationService {
+		return new class($this->accountMapper, $this->transactionMapper, $this->categoryMapper, $this->billMapper, $this->importRuleMapper, $this->settingMapper, $this->db) extends MigrationService {
 			public const MAX_ENTRY_BYTES = 1000;
 			public const MAX_TOTAL_BYTES = 2500;
 		};
@@ -1021,9 +1017,9 @@ class MigrationServiceTest extends TestCase {
 
 		// An older backup without the keys restores the defaults
 		$groceries = $captured['Groceries'];
-		$this->assertFalse((bool) $groceries->getExcludedFromReports());
-		$this->assertFalse((bool) $groceries->getExcludedFromBudget());
-		$this->assertFalse((bool) $groceries->getBudgetRollover());
+		$this->assertFalse((bool)$groceries->getExcludedFromReports());
+		$this->assertFalse((bool)$groceries->getExcludedFromBudget());
+		$this->assertFalse((bool)$groceries->getBudgetRollover());
 		$this->assertNull($groceries->getRolloverStart());
 	}
 }

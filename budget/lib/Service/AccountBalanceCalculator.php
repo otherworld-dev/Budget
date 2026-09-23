@@ -18,42 +18,42 @@ use OCA\Budget\Enum\Currency;
  * (the scheduled-transaction job rounded crypto balances to 2dp).
  */
 class AccountBalanceCalculator {
-    public function __construct(
-        private AccountMapper $accountMapper,
-        private TransactionMapper $transactionMapper,
-    ) {
-    }
+	public function __construct(
+		private AccountMapper $accountMapper,
+		private TransactionMapper $transactionMapper,
+	) {
+	}
 
-    /**
-     * The balance the ledger says this account should have, as a decimal
-     * string at the account currency's scale.
-     */
-    public function expectedBalance(Account $account): string {
-        return $this->balanceFor($account->getId(), $account->getOpeningBalance(), $account->getCurrency());
-    }
+	/**
+	 * The balance the ledger says this account should have, as a decimal
+	 * string at the account currency's scale.
+	 */
+	public function expectedBalance(Account $account): string {
+		return $this->balanceFor($account->getId(), $account->getOpeningBalance(), $account->getCurrency());
+	}
 
-    /**
-     * The ledger sum for an account id, for callers that already hold the
-     * opening balance and currency.
-     */
-    public function balanceFor(int $accountId, float|int|string|null $openingBalance, ?string $currency): string {
-        // Pass a float through: MoneyCalculator normalizes it without
-        // scientific notation (a string cast of a tiny float would not).
-        return MoneyCalculator::add(
-            is_string($openingBalance) ? $openingBalance : (float) ($openingBalance ?? 0.0),
-            $this->transactionMapper->getNetChangeAll($accountId),
-            Currency::decimalsFor($currency)
-        );
-    }
+	/**
+	 * The ledger sum for an account id, for callers that already hold the
+	 * opening balance and currency.
+	 */
+	public function balanceFor(int $accountId, float|int|string|null $openingBalance, ?string $currency): string {
+		// Pass a float through: MoneyCalculator normalizes it without
+		// scientific notation (a string cast of a tiny float would not).
+		return MoneyCalculator::add(
+			is_string($openingBalance) ? $openingBalance : (float)($openingBalance ?? 0.0),
+			$this->transactionMapper->getNetChangeAll($accountId),
+			Currency::decimalsFor($currency)
+		);
+	}
 
-    /**
-     * Recompute and store the account's balance from its ledger.
-     *
-     * @return string The balance written
-     */
-    public function recalculate(Account $account): string {
-        $balance = $this->expectedBalance($account);
-        $this->accountMapper->updateBalance($account->getId(), $balance, $account->getUserId());
-        return $balance;
-    }
+	/**
+	 * Recompute and store the account's balance from its ledger.
+	 *
+	 * @return string The balance written
+	 */
+	public function recalculate(Account $account): string {
+		$balance = $this->expectedBalance($account);
+		$this->accountMapper->updateBalance($account->getId(), $balance, $account->getUserId());
+		return $balance;
+	}
 }

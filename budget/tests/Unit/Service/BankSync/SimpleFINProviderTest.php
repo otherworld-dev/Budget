@@ -354,7 +354,7 @@ class SimpleFINProviderTest extends TestCase {
 		$this->client->expects($this->once())
 			->method('get')
 			->with(
-				$this->callback(fn($url) => !str_contains($url, 'pending=1')),
+				$this->callback(fn ($url) => !str_contains($url, 'pending=1')),
 				$this->anything()
 			)
 			->willReturn($response);

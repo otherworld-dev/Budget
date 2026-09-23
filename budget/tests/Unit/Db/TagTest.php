@@ -14,30 +14,30 @@ use PHPUnit\Framework\TestCase;
  * must read as not hidden.
  */
 class TagTest extends TestCase {
-    public function testJsonSerializeReportsHiddenFalseByDefault(): void {
-        $tag = new Tag();
-        $tag->setId(1);
-        $tag->setName('2026 NYC');
+	public function testJsonSerializeReportsHiddenFalseByDefault(): void {
+		$tag = new Tag();
+		$tag->setId(1);
+		$tag->setName('2026 NYC');
 
-        $json = $tag->jsonSerialize();
+		$json = $tag->jsonSerialize();
 
-        $this->assertArrayHasKey('hidden', $json);
-        $this->assertFalse($json['hidden']);
-    }
+		$this->assertArrayHasKey('hidden', $json);
+		$this->assertFalse($json['hidden']);
+	}
 
-    public function testJsonSerializeReportsHiddenTrueWhenSet(): void {
-        $tag = new Tag();
-        $tag->setId(1);
-        $tag->setName('2026 NYC');
-        $tag->setHidden(true);
+	public function testJsonSerializeReportsHiddenTrueWhenSet(): void {
+		$tag = new Tag();
+		$tag->setId(1);
+		$tag->setName('2026 NYC');
+		$tag->setHidden(true);
 
-        $this->assertTrue($tag->jsonSerialize()['hidden']);
-    }
+		$this->assertTrue($tag->jsonSerialize()['hidden']);
+	}
 
-    public function testHiddenReadsFalseForNullFromOlderRows(): void {
-        $tag = Tag::fromRow(['id' => 1, 'name' => '2026 NYC', 'hidden' => null]);
+	public function testHiddenReadsFalseForNullFromOlderRows(): void {
+		$tag = Tag::fromRow(['id' => 1, 'name' => '2026 NYC', 'hidden' => null]);
 
-        $this->assertFalse($tag->getHidden());
-        $this->assertFalse($tag->jsonSerialize()['hidden']);
-    }
+		$this->assertFalse($tag->getHidden());
+		$this->assertFalse($tag->jsonSerialize()['hidden']);
+	}
 }

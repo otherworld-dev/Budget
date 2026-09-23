@@ -30,7 +30,7 @@ if ($serverRoot === null) {
 }
 
 if ($serverRoot === null || !is_file($serverRoot . '/lib/base.php')) {
-	fwrite(STDERR, "Budget integration tests need a Nextcloud server: could not find lib/base.php above "
+	fwrite(STDERR, 'Budget integration tests need a Nextcloud server: could not find lib/base.php above '
 		. __DIR__ . ". Set NEXTCLOUD_ROOT to the server root.\n");
 	exit(1);
 }

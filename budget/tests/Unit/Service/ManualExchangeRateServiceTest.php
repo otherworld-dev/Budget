@@ -25,7 +25,7 @@ class ManualExchangeRateServiceTest extends TestCase {
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnCallback(function (string $text, array $params = []) {
 			foreach ($params as $i => $param) {
-				$text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
+				$text = str_replace('%' . ($i + 1) . '$s', (string)$param, $text);
 			}
 			return $text;
 		});
@@ -83,7 +83,7 @@ class ManualExchangeRateServiceTest extends TestCase {
 				'user1',
 				'ARS',
 				$this->callback(function ($rate) {
-					return abs((float) $rate - 1020.0) < 0.01;
+					return abs((float)$rate - 1020.0) < 0.01;
 				})
 			)
 			->willReturn($expectedEntity);
@@ -106,7 +106,7 @@ class ManualExchangeRateServiceTest extends TestCase {
 				'user1',
 				'ARS',
 				$this->callback(function ($rate) {
-					return abs((float) $rate - 1200.0) < 0.01;
+					return abs((float)$rate - 1200.0) < 0.01;
 				})
 			)
 			->willReturn($expectedEntity);

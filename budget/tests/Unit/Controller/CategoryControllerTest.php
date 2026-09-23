@@ -30,7 +30,7 @@ class CategoryControllerTest extends TestCase {
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnCallback(function (string $text, array $params = []) {
 			foreach ($params as $i => $param) {
-				$text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
+				$text = str_replace('%' . ($i + 1) . '$s', (string)$param, $text);
 			}
 			return $text;
 		});
@@ -204,7 +204,7 @@ class CategoryControllerTest extends TestCase {
 			->method('create')
 			->with(
 				'user1',
-				$this->callback(fn($v) => $v === 'Groceries'),
+				$this->callback(fn ($v) => $v === 'Groceries'),
 				'expense',
 				$this->anything(),
 				$this->anything(),

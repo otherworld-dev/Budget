@@ -50,7 +50,7 @@ class DebtPayoffServiceTest extends TestCase {
 		$this->accountMapper->method('findAll')->with('user1')->willReturn($accounts);
 
 		$debts = $this->service->getDebts('user1');
-		$types = array_map(fn($d) => $d->getType(), array_values($debts));
+		$types = array_map(fn ($d) => $d->getType(), array_values($debts));
 
 		$this->assertCount(3, $debts);
 		$this->assertContains('credit_card', $types);

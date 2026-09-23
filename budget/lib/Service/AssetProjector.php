@@ -14,7 +14,7 @@ class AssetProjector {
 
 	public function __construct(
 		AssetMapper $assetMapper,
-		CurrencyConversionService $conversionService
+		CurrencyConversionService $conversionService,
 	) {
 		$this->assetMapper = $assetMapper;
 		$this->conversionService = $conversionService;

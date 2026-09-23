@@ -60,22 +60,22 @@ class Version001000041Date20260307 extends SimpleMigrationStep {
 		$result->closeCursor();
 
 		foreach ($accounts as $account) {
-			$accountId = (int) $account['id'];
-			$storedBalance = (float) $account['balance'];
+			$accountId = (int)$account['id'];
+			$storedBalance = (float)$account['balance'];
 
 			// Sum all transactions for this account
 			$qb2 = $this->db->getQueryBuilder();
 			$qb2->selectAlias(
-					$qb2->createFunction(
-						'COALESCE(SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE -t.amount END), 0)'
-					),
-					'net_change'
-				)
+				$qb2->createFunction(
+					'COALESCE(SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE -t.amount END), 0)'
+				),
+				'net_change'
+			)
 				->from('budget_transactions', 't')
 				->where($qb2->expr()->eq('t.account_id', $qb2->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
 
 			$txResult = $qb2->executeQuery();
-			$netChange = (float) $txResult->fetchOne();
+			$netChange = (float)$txResult->fetchOne();
 			$txResult->closeCursor();
 
 			$openingBalance = $storedBalance - $netChange;

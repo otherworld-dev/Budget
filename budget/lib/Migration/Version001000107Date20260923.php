@@ -26,46 +26,46 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000107Date20260923 extends SimpleMigrationStep {
 
-    public function __construct(
-        private IDBConnection $db,
-    ) {
-    }
+	public function __construct(
+		private IDBConnection $db,
+	) {
+	}
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        return null;
-    }
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		return null;
+	}
 
-    public function postSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
-        if (!$schema->hasTable('budget_tags') || !$schema->hasTable('budget_tag_sets')
-            || !$schema->hasTable('budget_categories')
-            || !$schema->getTable('budget_tags')->hasColumn('user_id')) {
-            return;
-        }
+	public function postSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
+		if (!$schema->hasTable('budget_tags') || !$schema->hasTable('budget_tag_sets')
+			|| !$schema->hasTable('budget_categories')
+			|| !$schema->getTable('budget_tags')->hasColumn('user_id')) {
+			return;
+		}
 
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('t.id', 'c.user_id')
-            ->from('budget_tags', 't')
-            ->innerJoin('t', 'budget_tag_sets', 'ts', $qb->expr()->eq('t.tag_set_id', 'ts.id'))
-            ->innerJoin('ts', 'budget_categories', 'c', $qb->expr()->eq('ts.category_id', 'c.id'))
-            ->where($qb->expr()->isNull('t.user_id'));
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('t.id', 'c.user_id')
+			->from('budget_tags', 't')
+			->innerJoin('t', 'budget_tag_sets', 'ts', $qb->expr()->eq('t.tag_set_id', 'ts.id'))
+			->innerJoin('ts', 'budget_categories', 'c', $qb->expr()->eq('ts.category_id', 'c.id'))
+			->where($qb->expr()->isNull('t.user_id'));
 
-        $result = $qb->executeQuery();
-        $rows = $result->fetchAll();
-        $result->closeCursor();
+		$result = $qb->executeQuery();
+		$rows = $result->fetchAll();
+		$result->closeCursor();
 
-        $updated = 0;
-        foreach ($rows as $row) {
-            $update = $this->db->getQueryBuilder();
-            $update->update('budget_tags')
-                ->set('user_id', $update->createNamedParameter($row['user_id']))
-                ->where($update->expr()->eq('id', $update->createNamedParameter((int) $row['id'], IQueryBuilder::PARAM_INT)));
-            $updated += $update->executeStatement();
-        }
+		$updated = 0;
+		foreach ($rows as $row) {
+			$update = $this->db->getQueryBuilder();
+			$update->update('budget_tags')
+				->set('user_id', $update->createNamedParameter($row['user_id']))
+				->where($update->expr()->eq('id', $update->createNamedParameter((int)$row['id'], IQueryBuilder::PARAM_INT)));
+			$updated += $update->executeStatement();
+		}
 
-        if ($updated > 0) {
-            $output->info("Set the owner on {$updated} category tag(s)");
-        }
-    }
+		if ($updated > 0) {
+			$output->info("Set the owner on {$updated} category tag(s)");
+		}
+	}
 }
