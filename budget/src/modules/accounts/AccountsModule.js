@@ -3203,7 +3203,8 @@ export default class AccountsModule {
             try {
                 result = await apiFetch(`/apps/budget/api/accounts/validate/${fieldType}`, {
                     method: 'POST',
-                    body: { [fieldType.replace('-', '')]: value },
+                    // routing-number -> routingNumber, the controller's parameter name
+                    body: { [fieldType.replace(/-(\w)/g, (_, c) => c.toUpperCase())]: value },
                 });
             } catch (error) {
                 // A refused check still shows its error body as the feedback
