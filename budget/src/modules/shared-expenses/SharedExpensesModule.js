@@ -9,6 +9,7 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import { computeSplit, toCents } from './splitMath.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
+import { attachUserPicker } from '../../utils/userPicker.js';
 
 export default class SharedExpensesModule {
     constructor(app) {
@@ -271,49 +272,33 @@ export default class SharedExpensesModule {
             document.getElementById('contact-email').value = contact.email || '';
         }
 
-        this.populateUserDropdown(contact?.nextcloudUserId || '');
-        this.setupUserSelectHandler();
+        this.setupUserPicker(contact);
         modal.style.display = 'flex';
     }
 
-    async populateUserDropdown(selectedUserId = '') {
-        const select = document.getElementById('contact-user-select');
-        if (!select) return;
+    /**
+     * The contact form's "Nextcloud user" field: type a name, id or email and
+     * pick from the matches. Picking fills the name; clearing the field
+     * leaves a manual contact.
+     */
+    setupUserPicker(contact) {
+        const input = document.getElementById('contact-user-search');
+        if (!input) return;
+        const uidField = document.getElementById('contact-nextcloud-user-id');
 
-        // Keep the manual option
-        select.innerHTML = `<option value="">${t('budget', '— None (enter details manually) —')}</option>`;
-
-        try {
-            // Fetch all users (empty query with low minimum)
-            const users = await apiFetch('/apps/budget/api/shared/users/search?query=*').catch(() => null);
-            if (!users) return;
-
-            users.forEach(user => {
-                const option = document.createElement('option');
-                option.value = user.uid;
-                option.textContent = `${user.displayName} (${user.uid})`;
-                option.dataset.displayName = user.displayName;
-                if (user.uid === selectedUserId) option.selected = true;
-                select.appendChild(option);
+        if (!this._userPicker) {
+            this._userPicker = attachUserPicker(input, {
+                onSelect: (user) => {
+                    uidField.value = user ? user.uid : '';
+                    if (user?.displayName) {
+                        document.getElementById('contact-name').value = user.displayName;
+                    }
+                },
             });
-        } catch (error) {
-            console.error('Failed to load users:', error);
         }
-    }
 
-    setupUserSelectHandler() {
-        const select = document.getElementById('contact-user-select');
-        if (!select) return;
-
-        select.onchange = () => {
-            const selectedOption = select.options[select.selectedIndex];
-            const uid = select.value;
-            document.getElementById('contact-nextcloud-user-id').value = uid;
-
-            if (uid && selectedOption.dataset.displayName) {
-                document.getElementById('contact-name').value = selectedOption.dataset.displayName;
-            }
-        };
+        const linked = contact?.nextcloudUserId;
+        this._userPicker.setSelected(linked ? { uid: linked, displayName: '' } : null);
     }
 
     async saveContact() {

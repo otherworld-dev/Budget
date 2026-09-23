@@ -10,6 +10,7 @@ import { showSuccess, showError } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { escapeHtml } from '../../utils/dom.js';
 import { apiFetch } from '../../utils/api.js';
+import { attachUserPicker } from '../../utils/userPicker.js';
 
 export default class SharingModule {
     constructor(app) {
@@ -91,9 +92,7 @@ export default class SharingModule {
                     <h3>${t('budget', 'Share Your Budget')}</h3>
                     <p class="sharing-description">${t('budget', 'Invite a Nextcloud user and then configure which parts of your budget they can access.')}</p>
                     <div class="sharing-add-form">
-                        <select id="share-username-input" class="sharing-input" aria-label="${t('budget', 'User to share with')}">
-                            <option value="">${t('budget', 'Select a user...')}</option>
-                        </select>
+                        <input type="text" id="share-username-input" class="sharing-input" aria-label="${t('budget', 'User to share with')}">
                         <button id="share-add-btn" class="primary">${t('budget', 'Invite')}</button>
                     </div>
 
@@ -173,10 +172,12 @@ export default class SharingModule {
 
     bindEvents(container) {
         const addBtn = container.querySelector('#share-add-btn');
-        const select = container.querySelector('#share-username-input');
-        if (addBtn && select) {
-            addBtn.addEventListener('click', () => this.handleShare(select.value));
-            this.populateUserDropdown(select);
+        const input = container.querySelector('#share-username-input');
+        if (addBtn && input) {
+            const picker = attachUserPicker(input);
+            // A user picked from the matches, or else what was typed: with
+            // user enumeration off, an exact user id is still a valid invite.
+            addBtn.addEventListener('click', () => this.handleShare(picker.selected()?.uid || input.value.trim()));
         }
 
         container.querySelectorAll('.btn-accept-share').forEach(btn =>
@@ -390,22 +391,6 @@ export default class SharingModule {
     }
 
     // ==================== Share Actions ====================
-
-    async populateUserDropdown(select) {
-        try {
-            const users = await apiFetch('/apps/budget/api/shared/users/search?query=*').catch(() => null);
-            if (!users) return;
-
-            users.forEach(user => {
-                const option = document.createElement('option');
-                option.value = user.uid;
-                option.textContent = `${user.displayName} (${user.uid})`;
-                select.appendChild(option);
-            });
-        } catch (error) {
-            console.error('Failed to load users for sharing:', error);
-        }
-    }
 
     async handleShare(username) {
         if (!username) { showError(t('budget', 'Please enter a username')); return; }
