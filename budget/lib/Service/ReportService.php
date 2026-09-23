@@ -206,6 +206,8 @@ class ReportService {
 
         $totalIncome = (float)($income['totals']['amount'] ?? 0);
         $totalExpenses = (float)($expenses['totals']['amount'] ?? 0);
+        // Through MoneyCalculator, never a float subtraction (#274)
+        $net = MoneyCalculator::toFloat(MoneyCalculator::subtract($totalIncome, $totalExpenses, 8));
 
         return [
             'period' => [
@@ -217,7 +219,7 @@ class ReportService {
             'totals' => [
                 'income' => $totalIncome,
                 'expenses' => $totalExpenses,
-                'net' => $totalIncome - $totalExpenses,
+                'net' => $net,
             ],
         ];
     }

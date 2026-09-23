@@ -6,6 +6,7 @@ namespace OCA\Budget\Service\Report;
 
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Service\MoneyCalculator;
 
 /**
  * Handles calculation of spending and income metrics.
@@ -194,16 +195,18 @@ class ReportCalculator {
      * Calculate totals from report data items.
      */
     public function calculateTotals(array $data): array {
-        $amount = 0;
         $transactions = 0;
-
         foreach ($data as $item) {
-            $amount += $item['total'];
-            $transactions += $item['count'];
+            $transactions += (int) $item['count'];
         }
 
         return [
-            'amount' => $amount,
+            // Through MoneyCalculator, never float += (#274); scale 8 keeps a
+            // crypto amount whole
+            'amount' => MoneyCalculator::toFloat(MoneyCalculator::sum(
+                array_map(static fn(array $item) => (float) $item['total'], $data),
+                8
+            )),
             'transactions' => $transactions
         ];
     }

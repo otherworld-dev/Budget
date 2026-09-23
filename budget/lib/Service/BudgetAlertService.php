@@ -504,15 +504,16 @@ class BudgetAlertService {
     public function getSummary(string $userId, ?array $visibleAccountIds = null): array {
         $statuses = $this->getBudgetStatus($userId, $visibleAccountIds);
 
-        $totalBudget = 0;
-        $totalSpent = 0;
+        // Running totals through MoneyCalculator, never float += (#274)
+        $budgetSum = '0';
+        $spentSum = '0';
         $overBudgetCount = 0;
         $warningCount = 0;
         $onTrackCount = 0;
 
         foreach ($statuses as $s) {
-            $totalBudget += $s['budgetAmount'];
-            $totalSpent += $s['spent'];
+            $budgetSum = MoneyCalculator::add($budgetSum, (float) $s['budgetAmount']);
+            $spentSum = MoneyCalculator::add($spentSum, (float) $s['spent']);
 
             if ($s['status'] === 'danger') {
                 $overBudgetCount++;
@@ -523,11 +524,14 @@ class BudgetAlertService {
             }
         }
 
+        $totalBudget = MoneyCalculator::toFloat($budgetSum);
+        $totalSpent = MoneyCalculator::toFloat($spentSum);
+
         return [
             'totalCategories' => count($statuses),
-            'totalBudget' => round($totalBudget, 2),
-            'totalSpent' => round($totalSpent, 2),
-            'totalRemaining' => round($totalBudget - $totalSpent, 2),
+            'totalBudget' => $totalBudget,
+            'totalSpent' => $totalSpent,
+            'totalRemaining' => MoneyCalculator::toFloat(MoneyCalculator::subtract($budgetSum, $spentSum)),
             'overallPercentage' => $totalBudget > 0 ? round(($totalSpent / $totalBudget) * 100, 1) : 0,
             'overBudgetCount' => $overBudgetCount,
             'warningCount' => $warningCount,

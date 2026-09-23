@@ -129,6 +129,15 @@ class ReportCalculatorTest extends TestCase {
 		$this->assertSame(18, $result['transactions']);
 	}
 
+	/** Money adds through MoneyCalculator (#274), never float += */
+	public function testCalculateTotalsAddsWithoutFloatDrift(): void {
+		$result = $this->calculator->calculateTotals([
+			['total' => 0.1, 'count' => 1],
+			['total' => 0.2, 'count' => 1],
+		]);
+		$this->assertSame(0.3, $result['amount']);
+	}
+
 	public function testCalculateTotalsEmpty(): void {
 		$result = $this->calculator->calculateTotals([]);
 		$this->assertEqualsWithDelta(0.0, $result['amount'], 0.001);
