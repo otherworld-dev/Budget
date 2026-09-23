@@ -286,7 +286,9 @@ class QueryFilterBuilder {
         string $alias = 't'
     ): void {
         $sortField = $sortField ?? 'date';
-        $sortDirection = strtoupper($sortDirection ?? 'DESC');
+        // Straight from the request: orderBy() does not quote its direction,
+        // so anything but ASC/DESC would be written into the SQL verbatim
+        $sortDirection = strtoupper(trim((string) $sortDirection)) === 'ASC' ? 'ASC' : 'DESC';
 
         // Map frontend sort fields to database fields
         $sortFieldMap = [

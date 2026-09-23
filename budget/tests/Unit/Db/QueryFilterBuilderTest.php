@@ -480,6 +480,30 @@ class QueryFilterBuilderTest extends TestCase {
         $this->builder->applySorting($this->qb, 'amount', 'asc', 't');
     }
 
+    /**
+     * The direction comes straight from the request and orderBy() writes it
+     * into the SQL unquoted; anything but ASC/DESC falls back to the default.
+     */
+    public function testSortDirectionIsWhitelisted(): void {
+        $seen = [];
+        $this->qb->method('orderBy')->willReturnCallback(function ($field, $direction) use (&$seen) {
+            $seen[] = $direction;
+            return $this->qb;
+        });
+
+        foreach (['asc', 'Desc', ' ASC ', 'ASC, (SELECT 1)', '; DROP TABLE x', '', 'sideways'] as $input) {
+            $this->builder->applySorting($this->qb, 'amount', $input, 't');
+        }
+
+        $this->assertSame(['ASC', 'DESC', 'ASC', 'DESC', 'DESC', 'DESC', 'DESC'], $seen);
+    }
+
+    public function testUnknownSortFieldCannotReachTheQuery(): void {
+        $this->qb->expects($this->once())->method('orderBy')->with('t.date', 'DESC');
+
+        $this->builder->applySorting($this->qb, 't.id; DROP TABLE x', 'desc', 't');
+    }
+
     public function testSortFieldMappings(): void {
         // Test that 'category' maps to 'category_id'
         $this->qb->expects($this->once())
