@@ -211,6 +211,9 @@ class AccountMapper extends QBMapper {
             ->set('credit_limit', $qb->createNamedParameter($entity->getCreditLimit()))
             ->set('overdraft_limit', $qb->createNamedParameter($entity->getOverdraftLimit()))
             ->set('minimum_payment', $qb->createNamedParameter($entity->getMinimumPayment()))
+            ->set('statement_day', $entity->getStatementDay() === null
+                ? $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL)
+                : $qb->createNamedParameter($entity->getStatementDay(), IQueryBuilder::PARAM_INT))
             ->set('interest_enabled', $qb->createNamedParameter($entity->getInterestEnabled(), IQueryBuilder::PARAM_BOOL))
             ->set('compounding_frequency', $qb->createNamedParameter($entity->getCompoundingFrequency()))
             ->set('accrued_interest', $qb->createNamedParameter(

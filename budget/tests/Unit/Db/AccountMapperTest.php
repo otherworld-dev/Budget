@@ -368,6 +368,65 @@ class AccountMapperTest extends TestCase {
     }
 
     /**
+     * The card statement day (#347) was set on the entity and persisted on
+     * insert, but was missing from update()'s hand-written set list, so
+     * editing it never stuck.
+     */
+    public function testUpdatePersistsStatementDay(): void {
+        $this->qb->method('executeStatement')->willReturn(1);
+        $this->result->method('fetch')
+            ->willReturnOnConsecutiveCalls($this->makeAccountRow(['statement_day' => 12]), false);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $account = new Account();
+        $account->setId(1);
+        $account->setUserId('user1');
+        $account->setName('Card');
+        $account->setType('credit_card');
+        $account->setBalance(-10.0);
+        $account->setCurrency('GBP');
+        $account->setStatementDay(12);
+
+        $this->mapper->update($account);
+
+        $this->assertContains('statement_day', $this->setColumns);
+    }
+
+    /**
+     * Guard against the whole class of bug: every column the entity maps must
+     * be written by update(), apart from the key, the owner and the creation
+     * stamp, which never change after insert.
+     */
+    public function testUpdateWritesEveryMappedColumn(): void {
+        $this->qb->method('executeStatement')->willReturn(1);
+        $this->result->method('fetch')
+            ->willReturnOnConsecutiveCalls($this->makeAccountRow(), false);
+        $this->result->method('closeCursor');
+        $this->qb->method('executeQuery')->willReturn($this->result);
+
+        $account = new Account();
+        $account->setId(1);
+        $account->setUserId('user1');
+        $account->setName('Checking');
+        $account->setType('checking');
+        $account->setBalance(0.0);
+        $account->setCurrency('GBP');
+
+        $this->mapper->update($account);
+
+        $immutable = ['id', 'user_id', 'created_at'];
+        foreach (array_keys($account->getFieldTypes()) as $property) {
+            $column = $account->propertyToColumn($property);
+            if (in_array($column, $immutable, true)) {
+                continue;
+            }
+            $this->assertContains($column, $this->setColumns,
+                "update() must persist the {$column} column");
+        }
+    }
+
+    /**
      * findOpen() feeds every server-side "pick an account for new activity"
      * list — the standalone quick-add page and import auto-matching. NULL
      * counts as open so rows from before the column existed keep appearing.
