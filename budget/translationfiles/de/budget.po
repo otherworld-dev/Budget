@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-23 11:37+0000\n"
-"PO-Revision-Date: 2026-09-23 12:36+0000\n"
+"PO-Revision-Date: 2026-09-23 19:31+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -4200,6 +4200,8 @@ msgid ""
 "Disabling and re-enabling Budget on the Apps page repairs this, no command "
 "line needed."
 msgstr ""
+"Das Deaktivieren und erneute Aktivieren von Budget auf der Apps-Seite behebt "
+"das Problem – die Kommandozeile ist dafür nicht erforderlich."
 
 #: /app/lib/Service/ShareService.php:56
 msgid "You cannot share your budget with yourself"
@@ -5181,10 +5183,8 @@ msgid "No description"
 msgstr "Keine Beschreibung"
 
 #: /app/src/main.js:1286
-#, fuzzy
-#| msgid "Description"
 msgid "Select {description}"
-msgstr "Beschreibung"
+msgstr "{description} auswählen"
 
 #: /app/src/main.js:1344
 msgid ""
@@ -5449,7 +5449,7 @@ msgstr "{count} Schulden wieder als Verbindlichkeiten erfasst"
 
 #: /app/src/main.js:2192
 msgid "{count} confirmed as genuine credits"
-msgstr ""
+msgstr "{count} als tatsächliche Guthaben bestätigt"
 
 #: /app/src/main.js:2196
 msgid "{count} account balances corrected"
@@ -5899,7 +5899,7 @@ msgstr "Saldenprognose"
 
 #: /app/src/modules/accounts/AccountsModule.js:31
 msgid "Status (tiles only)"
-msgstr ""
+msgstr "Status (nur Kacheln)"
 
 #: /app/src/modules/accounts/AccountsModule.js:277
 msgid ""
@@ -5989,7 +5989,11 @@ msgid_plural ""
 "Delete %n accounts? Accounts that still have transactions are kept back and "
 "asked about separately."
 msgstr[0] ""
+"%n Konto löschen? Konten, die noch Transaktionen enthalten, werden zunächst "
+"nicht gelöscht und separat abgefragt."
 msgstr[1] ""
+"%n Konten löschen? Konten, die noch Transaktionen enthalten, werden zunächst "
+"nicht gelöscht und separat abgefragt."
 
 #: /app/src/modules/accounts/AccountsModule.js:746
 msgid ""
@@ -6044,7 +6048,7 @@ msgstr "Fehler beim Laden der Konto Details"
 
 #: /app/src/modules/accounts/AccountsModule.js:1261
 msgid "Day {day} each month"
-msgstr ""
+msgstr "Jeden Monat am {day}"
 
 #: /app/src/modules/accounts/AccountsModule.js:1314
 #: /app/src/modules/accounts/AccountsModule.js:1315
@@ -6274,6 +6278,8 @@ msgid ""
 "Enter the amount owed as a positive number. Tick \"This account is in "
 "credit\" if the lender owes you instead."
 msgstr ""
+"Gib den geschuldeten Betrag als positive Zahl ein. Aktiviere „Dieses Konto "
+"weist ein Guthaben auf“, wenn dir stattdessen der Kreditgeber Geld schuldet."
 
 #: /app/src/modules/accounts/AccountsModule.js:2715
 msgid "Please enter an account name"
@@ -6312,6 +6318,8 @@ msgid ""
 "This account has a balance of {balance}. It must be zero before it can be "
 "closed."
 msgstr ""
+"Dieses Konto hat einen Kontostand von {balance}. Der Kontostand muss null "
+"sein, bevor das Konto geschlossen werden kann."
 
 #: /app/src/modules/accounts/AccountsModule.js:2871
 #: /app/templates/index.php:1114
@@ -6353,6 +6361,8 @@ msgid ""
 "Enter what you owe as a plain positive number — the app records it as a debt "
 "for you."
 msgstr ""
+"Gib den geschuldeten Betrag einfach als positive Zahl ein – die App erfasst "
+"ihn für dich als Schuld."
 
 #: /app/src/modules/accounts/AccountsModule.js:3083
 #: /app/templates/index.php:5929
@@ -6371,6 +6381,10 @@ msgid ""
 "owes you this money, which adds it to your net worth. If you actually owe "
 "it, untick the box above and save."
 msgstr ""
+"Dieses Konto wird derzeit als Guthaben geführt – als würde dir der "
+"Kreditgeber diesen Betrag schulden. Dadurch wird er deinem Nettovermögen "
+"zugerechnet. Wenn du den Betrag tatsächlich schuldest, entferne das Häkchen "
+"oben und speichere die Änderung."
 
 #: /app/src/modules/accounts/AccountsModule.js:3135
 #: /app/templates/index.php:5944
@@ -6915,6 +6929,8 @@ msgid ""
 "One-time bills leave the list after payment — open it here to assign an "
 "account"
 msgstr ""
+"Einmalige Rechnungen verschwinden nach der Zahlung aus der Liste – öffne sie "
+"hier, um ein Konto zuzuweisen"
 
 #: /app/src/modules/bills/BillsModule.js:110
 #, fuzzy
@@ -6939,7 +6955,7 @@ msgstr "Als unbezahlt markieren"
 
 #: /app/src/modules/bills/BillsModule.js:114
 msgid "Keep the bill as paid and stop listing this payment"
-msgstr ""
+msgstr "Die Rechnung als bezahlt belassen und diese Zahlung nicht mehr anzeigen"
 
 #: /app/src/modules/bills/BillsModule.js:114
 #: /app/src/modules/bills/BillsModule.js:224
@@ -7147,6 +7163,9 @@ msgid ""
 "The date this bill is due. It can be in the past - an invoice you are "
 "entering late stays due on its own date."
 msgstr ""
+"Das Datum, an dem diese Rechnung fällig ist. Es kann auch in der "
+"Vergangenheit liegen – eine nachträglich erfasste Rechnung behält ihr "
+"ursprüngliches Fälligkeitsdatum."
 
 #: /app/src/modules/bills/BillsModule.js:910 /app/templates/index.php:6235
 msgid "Bill only occurs on or after this date (optional)"
@@ -7511,6 +7530,9 @@ msgid ""
 "Auto-pay is on for this bill — it may pay it again on the next run. Disable "
 "auto-pay first if the payment should not recur."
 msgstr ""
+"Für diese Rechnung ist die automatische Zahlung aktiviert – beim nächsten "
+"Durchlauf könnte sie erneut bezahlt werden. Deaktiviere zuerst die "
+"automatische Zahlung, wenn die Zahlung nicht erneut erfolgen soll."
 
 #: /app/src/modules/bills/BillsModule.js:1597
 msgid "Payment reverted — the bill is marked as unpaid."
@@ -7768,8 +7790,9 @@ msgstr[1] "%n Kategorien erfolgreich gelöscht"
 msgid "Give %n category a new color? Its current color will be replaced."
 msgid_plural ""
 "Give %n categories new colors? Their current colors will be replaced."
-msgstr[0] ""
+msgstr[0] "%n Kategorie eine neue Farbe zuweisen? Die aktuelle Farbe wird ersetzt."
 msgstr[1] ""
+"%n Kategorien eine neue Farbe zuweisen? Die aktuellen Farben werden ersetzt."
 
 #: /app/src/modules/categories/CategoriesModule.js:1389
 #, fuzzy
@@ -7829,6 +7852,8 @@ msgid ""
 "{create} new categories will be created. {exists} already exist and will be "
 "left unchanged."
 msgstr ""
+"{create} neue Kategorien werden erstellt. {exists} sind bereits vorhanden "
+"und bleiben unverändert."
 
 #: /app/src/modules/categories/CategoriesModule.js:1662
 #, fuzzy
@@ -7853,7 +7878,7 @@ msgstr "Keine Buchungen zum Importieren vorhanden"
 
 #: /app/src/modules/categories/CategoriesModule.js:1692
 msgid "Exists"
-msgstr ""
+msgstr "Bereits vorhanden"
 
 #: /app/src/modules/categories/CategoriesModule.js:1693
 #: /app/src/modules/import/ImportModule.js:1939
@@ -7990,6 +8015,8 @@ msgstr "Kein Budget festgelegt"
 #: /app/src/modules/categories/CategoriesModule.js:2515
 msgid "Envelope budgeting enabled — unspent budget now carries to next month"
 msgstr ""
+"Umschlagbudgetierung aktiviert – nicht verbrauchtes Budget wird jetzt in den "
+"nächsten Monat übertragen"
 
 #: /app/src/modules/categories/CategoriesModule.js:2516
 msgid "Envelope budgeting disabled"
@@ -8759,10 +8786,8 @@ msgstr "Hauptübersicht"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5564
 #: /app/src/modules/dashboard/DashboardModule.js:5598
-#, fuzzy
-#| msgid "Add Income"
 msgid "Add {name}"
-msgstr "Einnahme hinzufügen"
+msgstr "{name} hinzufügen"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5586
 #, fuzzy
