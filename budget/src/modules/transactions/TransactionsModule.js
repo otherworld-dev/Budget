@@ -21,6 +21,9 @@ import { offerableTags } from '../../utils/tags.js';
 import flatpickr from 'flatpickr';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
+/** Width at which the transactions table turns into cards; keep in step with style.css. */
+const PHONE_CARD_QUERY = '(max-width: 640px)';
+
 export default class TransactionsModule {
     constructor(app) {
         this.app = app;
@@ -4663,6 +4666,20 @@ export default class TransactionsModule {
         if (!transactionsTable) {
             return;
         }
+
+        // On a phone the rows are cards (see the 640px layout in style.css),
+        // and editing one small cell in place is fiddly: a tap anywhere on the
+        // card opens the full edit form instead. Runs in the capture phase so
+        // it gets there before the inline editor below. Checkboxes, buttons
+        // and links inside the card keep their own behaviour.
+        transactionsTable.addEventListener('click', (e) => {
+            if (!window.matchMedia(PHONE_CARD_QUERY).matches) return;
+            const row = e.target.closest('tr.transaction-row');
+            if (!row || e.target.closest('input, button, a, select, .linked-indicator, .cell-editing, .editing')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            this.editTransaction(parseInt(row.dataset.transactionId, 10));
+        }, true);
 
         // Handle click on editable cells
         transactionsTable.addEventListener('click', (e) => {
