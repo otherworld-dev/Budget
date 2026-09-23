@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, dev, master]
 
+permissions:
+  contents: read
+
 jobs:
   php:
     name: PHP ${{ matrix.php }}
@@ -15,8 +18,9 @@ jobs:
         working-directory: budget
 
     strategy:
+      fail-fast: false
       matrix:
-        php: ['8.1', '8.2', '8.3']
+        php: ['8.1', '8.2', '8.3', '8.4']
 
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +30,9 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           extensions: bcmath
-          coverage: none
+          # Coverage is collected on one leg only; pcov is much faster than xdebug
+          coverage: ${{ matrix.php == '8.3' && 'pcov' || 'none' }}
+          ini-values: memory_limit=-1
 
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist
@@ -54,7 +60,78 @@ jobs:
           exit $FAIL
 
       - name: Run tests
+        if: matrix.php != '8.3'
         run: composer test:unit
+
+      - name: Run tests with coverage
+        if: matrix.php == '8.3'
+        run: >-
+          composer test:unit --
+          --coverage-clover build/coverage/clover.xml
+          --coverage-html build/coverage/html
+          --coverage-text=build/coverage/summary.txt
+
+      - name: Coverage summary
+        if: matrix.php == '8.3'
+        run: head -n 12 build/coverage/summary.txt
+
+      - name: Upload coverage report
+        if: matrix.php == '8.3'
+        uses: actions/upload-artifact@v4
+        with:
+          name: php-coverage
+          path: budget/build/coverage
+          retention-days: 14
+
+  static:
+    name: Psalm & coding standard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: budget
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath
+          coverage: none
+          ini-values: memory_limit=-1
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      # New findings fail; existing ones live in psalm-baseline.xml
+      # (regenerate with: composer psalm:baseline)
+      - name: Psalm
+        run: composer psalm -- --output-format=github
+
+      - name: Coding standard (php-cs-fixer, dry run)
+        run: composer cs:check
+
+  translations:
+    name: Translation template
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Install gettext
+        run: sudo apt-get update -q && sudo apt-get install -y -q gettext
+
+      # Fails if a msgid in the committed budget.pot is missing from a fresh
+      # regeneration; strings that are only new are reported as a notice.
+      - name: Regenerate budget.pot and compare msgids
+        run: bash .github/scripts/check-pot.sh budget
 
   js:
     name: JS Lint, Test & Build
@@ -87,3 +164,113 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # The bundle is committed and served as-is, so a src/ change without a
+      # rebuild ships stale JS. Source maps are left out of the comparison:
+      # they embed every source file verbatim, so a bundle built from a CRLF
+      # (Windows) checkout differs from this LF one in the maps alone.
+      - name: Committed bundle is up to date
+        run: |
+          if ! git diff --quiet -- js css ':(exclude)*.map'; then
+            git diff --stat -- js css ':(exclude)*.map'
+            echo "::error title=Stale bundle::js/ or css/ differs from a fresh npm run build. Rebuild and commit the bundle."
+            exit 1
+          fi
+          untracked=$(git status --porcelain --untracked-files=all -- js css | grep '^??' || true)
+          if [ -n "$untracked" ]; then
+            echo "$untracked"
+            echo "::error title=Stale bundle::npm run build produced files that are not committed."
+            exit 1
+          fi
+
+  integration:
+    name: Integration (NC ${{ matrix.server }}, ${{ matrix.db }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Oldest and newest server branches info.xml allows
+        server: ['stable30', 'stable35']
+        db: ['sqlite', 'mysql', 'pgsql']
+
+    services:
+      # An empty image skips the service, so each leg starts only its own DB
+      mysql:
+        image: ${{ matrix.db == 'mysql' && 'mysql:8' || '' }}
+        env:
+          MYSQL_ROOT_PASSWORD: rootpassword
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -prootpassword"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+      postgres:
+        image: ${{ matrix.db == 'pgsql' && 'postgres:16' || '' }}
+        env:
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: rootpassword
+          POSTGRES_DB: nextcloud
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U root"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - name: Check out Nextcloud server ${{ matrix.server }}
+        uses: actions/checkout@v4
+        with:
+          repository: nextcloud/server
+          ref: ${{ matrix.server }}
+          submodules: true
+          path: server
+
+      - name: Check out the app
+        uses: actions/checkout@v4
+        with:
+          path: app-repo
+
+      # The app lives in the repo's budget/ folder; the server wants it at apps/budget
+      - name: Put the app where the server looks for it
+        run: mv app-repo/budget server/apps/budget
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, ctype, curl, dom, fileinfo, gd, intl, json, mbstring, openssl, pdo_sqlite, pdo_mysql, pdo_pgsql, sqlite, xml, zip
+          coverage: none
+          ini-values: memory_limit=-1
+
+      - name: Install app dependencies
+        working-directory: server/apps/budget
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Install Nextcloud
+        working-directory: server
+        run: |
+          mkdir -p data
+          case "${{ matrix.db }}" in
+            sqlite) db_args=(--database=sqlite) ;;
+            mysql)  db_args=(--database=mysql --database-host=127.0.0.1 --database-port=3306 --database-user=root --database-pass=rootpassword) ;;
+            pgsql)  db_args=(--database=pgsql --database-host=127.0.0.1 --database-port=5432 --database-user=root --database-pass=rootpassword) ;;
+          esac
+          php occ maintenance:install --verbose --database-name=nextcloud "${db_args[@]}" --admin-user=admin --admin-pass=admin
+          php occ app:enable --force budget
+
+      - name: Integration tests
+        working-directory: server/apps/budget
+        run: composer test:integration -- --exclude-group known-bug
+
+      # Tests pinned to open bugs: reported, never blocking. Drop a test's
+      # known-bug group once its fix lands and it joins the gate above.
+      - name: Known-bug tests (informational)
+        if: always()
+        continue-on-error: true
+        working-directory: server/apps/budget
+        run: composer test:integration -- --group known-bug

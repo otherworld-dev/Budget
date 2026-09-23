@@ -16,7 +16,7 @@ module.exports = {
         budgetApp: 'writable'
     },
     rules: {
-        'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+        'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
         'no-console': 'off',
         'no-debugger': 'error'
     }

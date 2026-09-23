@@ -6,3 +6,4 @@ css/budget-main.css
 debug_auth.txt
 fix_auth_lockout.sql
 fix_lockout.php
+.php-cs-fixer.cache
