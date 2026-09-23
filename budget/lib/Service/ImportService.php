@@ -361,15 +361,6 @@ class ImportService {
         ];
     }
 
-    public function rollbackImport(string $userId, int $importId): array {
-        return [
-            'importId' => $importId,
-            'rolledBack' => true,
-            'transactionsRemoved' => 0,
-            'message' => 'Import rolled back successfully'
-        ];
-    }
-
     // Private helper methods
 
     private function getOrCreateImportsFolder() {

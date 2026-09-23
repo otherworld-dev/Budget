@@ -149,7 +149,6 @@ return [
         ['name' => 'import#dataPreview', 'url' => '/api/import/data-preview', 'verb' => 'POST'],
         ['name' => 'import#process', 'url' => '/api/import/process', 'verb' => 'POST'],
         ['name' => 'import#execute', 'url' => '/api/import/execute', 'verb' => 'POST'],
-        ['name' => 'import#rollback', 'url' => '/api/import/rollback/{importId}', 'verb' => 'POST'],
         ['name' => 'import#history', 'url' => '/api/import/history', 'verb' => 'GET'],
         ['name' => 'import#templates', 'url' => '/api/import/templates', 'verb' => 'GET'],
 

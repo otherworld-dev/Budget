@@ -363,17 +363,4 @@ class ImportController extends Controller {
             return $this->handleError($e, $this->l->t('Failed to execute import'));
         }
     }
-
-    /**
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 5, period: 60)]
-    public function rollback(int $importId): DataResponse {
-        try {
-            $result = $this->service->rollbackImport($this->userId, $importId);
-            return new DataResponse($result);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to rollback import'), Http::STATUS_BAD_REQUEST, ['importId' => $importId]);
-        }
-    }
 }

@@ -142,15 +142,6 @@ class ImportServiceTest extends TestCase {
         $this->assertTrue($result['success']);
     }
 
-    // ===== rollbackImport =====
-
-    public function testRollbackImportReturnsSuccessStructure(): void {
-        $result = $this->service->rollbackImport('user1', 1);
-
-        $this->assertEquals(1, $result['importId']);
-        $this->assertTrue($result['rolledBack']);
-    }
-
     // ===== import file ownership =====
 
     public static function foreignFileIds(): array {

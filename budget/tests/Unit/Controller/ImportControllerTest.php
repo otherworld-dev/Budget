@@ -401,27 +401,4 @@ class ImportControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
-
-	// ── rollback ────────────────────────────────────────────────────
-
-	public function testRollbackReturnsData(): void {
-		$result = ['rolledBack' => 5];
-		$this->service->method('rollbackImport')
-			->with('user1', 1)
-			->willReturn($result);
-
-		$response = $this->controller->rollback(1);
-
-		$this->assertSame(Http::STATUS_OK, $response->getStatus());
-		$this->assertSame($result, $response->getData());
-	}
-
-	public function testRollbackHandlesError(): void {
-		$this->service->method('rollbackImport')
-			->willThrowException(new \RuntimeException('error'));
-
-		$response = $this->controller->rollback(999);
-
-		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
-	}
 }
