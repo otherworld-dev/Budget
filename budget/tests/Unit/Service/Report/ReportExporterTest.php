@@ -407,6 +407,16 @@ class ReportExporterTest extends TestCase {
 		$this->assertStringNotContainsString('Unknown Source', $text);
 	}
 
+	public function testCategoryMonthlyLabelsTheUncategorizedRowInTheUsersLanguage(): void {
+		$exporter = $this->exporterTranslating(['Uncategorized' => 'Nicht kategorisiert']);
+		$data = $this->categoryMonthlyData();
+		$data['rows'][] = ['categoryId' => null, 'name' => null, 'uncategorized' => true, 'depth' => 0, 'isParent' => false, 'monthly' => ['2026-01' => 0.0, '2026-02' => -200.0], 'total' => -200.0];
+
+		$csv = $exporter->export($data, 'category-monthly', 'csv')['stream'];
+
+		$this->assertStringContainsString('"Nicht kategorisiert",0.00,-200.00,-200.00', $csv);
+	}
+
 	public function testMonthColumnsUseTranslatedMonthNames(): void {
 		$exporter = $this->exporterTranslating(['Jan' => 'Jaen']);
 

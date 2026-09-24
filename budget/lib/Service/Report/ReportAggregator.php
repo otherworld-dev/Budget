@@ -750,7 +750,8 @@ class ReportAggregator {
 	 * (TransactionReportQueries::getCategoryNetByMonth()): report-excluded
 	 * accounts and categories, categories the viewer muted, future scheduled
 	 * rows, pension legs and - in the all-accounts view - transfers never
-	 * count. This method only shapes the rows.
+	 * count. This method only shapes the rows. Uncategorised money is one
+	 * last row flagged 'uncategorized' (null categoryId and name).
 	 *
 	 * Amounts are summed in their stored currency; for a single-currency budget
 	 * this is exact. (Multi-currency conversion is not applied here.)
@@ -865,6 +866,29 @@ class ReportAggregator {
 		};
 		foreach ($this->sortCategoryIds($rootIds, $byId, $rolled, $sort) as $rid) {
 			$emit($rid, 0);
+		}
+
+		// Uncategorised money gets its own last row, so the rows add up to
+		// the Net total. The label is the renderer's to translate.
+		$uncategorized = $own[TransactionReportQueries::UNCATEGORIZED] ?? [];
+		$uncatMonthly = [];
+		$uncatTotal = 0.0;
+		foreach ($months as $m) {
+			$uncatMonthly[$m] = round($uncategorized[$m] ?? 0.0, 2);
+			$uncatTotal += $uncatMonthly[$m];
+		}
+		if (array_filter($uncatMonthly, static fn (float $v) => $v !== 0.0)) {
+			$rows[] = [
+				'categoryId' => null,
+				'name' => null,
+				'uncategorized' => true,
+				'type' => null,
+				'color' => null,
+				'depth' => 0,
+				'isParent' => false,
+				'monthly' => $uncatMonthly,
+				'total' => round($uncatTotal, 2),
+			];
 		}
 
 		// Grand totals per month + overall: sum each category's OWN net (avoids

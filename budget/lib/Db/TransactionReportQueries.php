@@ -21,6 +21,9 @@ use OCP\IDBConnection;
 class TransactionReportQueries {
 	private const TABLE = 'budget_transactions';
 
+	/** getCategoryNetByMonth()'s key for money with no category (ids start at 1). */
+	public const UNCATEGORIZED = 0;
+
 	public function __construct(
 		private IDBConnection $db,
 	) {
@@ -752,7 +755,8 @@ class TransactionReportQueries {
 	 * report agrees with the spending and income reports for the same
 	 * period. The report used to drop excluded categories in PHP after the
 	 * fetch - the owner flag only, never mutes, and transfers still counted.
-	 * Uncategorised money is not a row here and is left out.
+	 * Uncategorised money (including a split part with no category) is kept
+	 * under key UNCATEGORIZED, so the report's totals match the month view.
 	 *
 	 * @param int[]|null $visibleAccountIds
 	 * @return array<int, array<string, float>> categoryId => 'YYYY-MM' => net
@@ -770,7 +774,6 @@ class TransactionReportQueries {
 				$qb->select("{$alloc}.category_id")
 					->addSelect($qb->createFunction(ReportScope::monthExpr() . ' as month'))
 					->selectAlias($qb->createFunction(ReportScope::signedAmountSum($qb, 'credit', "{$alloc}.amount")), 'net')
-					->andWhere($qb->expr()->isNotNull("{$alloc}.category_id"))
 					->groupBy("{$alloc}.category_id")
 					->addGroupBy($qb->createFunction(ReportScope::monthExpr()));
 			}
@@ -778,7 +781,8 @@ class TransactionReportQueries {
 
 		$totals = [];
 		foreach (ReportScope::mergeReportHalves($direct, $split, ['category_id', 'month'], ['net']) as $row) {
-			$totals[(int)$row['category_id']][substr((string)$row['month'], 0, 7)] = $row['net'];
+			$catId = $row['category_id'] === null ? self::UNCATEGORIZED : (int)$row['category_id'];
+			$totals[$catId][substr((string)$row['month'], 0, 7)] = $row['net'];
 		}
 
 		return $totals;

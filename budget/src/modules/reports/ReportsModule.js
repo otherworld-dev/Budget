@@ -1086,8 +1086,9 @@ export default class ReportsModule {
         const bodyRows = rows.map(row => {
             const indent = (row.depth || 0) * 16;
             const monthCells = months.map(m => cell(row.monthly?.[m])).join('');
+            const name = row.uncategorized ? t('budget', 'Uncategorized') : (row.name || '');
             return `<tr class="${row.isParent ? 'cm-parent' : ''}">
-                <td class="cm-name" style="padding-left:${8 + indent}px">${dom.escapeHtml(row.name || '')}</td>
+                <td class="cm-name" style="padding-left:${8 + indent}px">${dom.escapeHtml(name)}</td>
                 ${monthCells}
                 ${cell(row.total)}
             </tr>`;

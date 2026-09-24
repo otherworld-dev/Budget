@@ -54,6 +54,22 @@ class ReportScopeGroupingsTest extends IntegrationTestCase {
 		$this->assertEqualsWithDelta(-13.0, $net[$this->food]['2026-02'], 0.001);
 	}
 
+	public function testCategoryByMonthKeepsUncategorisedMoneyUnderItsOwnKey(): void {
+		$this->makeTransaction($this->accountId, ['category_id' => $this->food, 'amount' => '10.00', 'date' => '2026-02-01']);
+		$this->makeTransaction($this->accountId, ['amount' => '40.00', 'date' => '2026-02-02']);
+		$this->makeTransaction($this->accountId, ['amount' => '15.00', 'type' => 'credit', 'date' => '2026-03-02']);
+		// A split part with no category is uncategorised; the parent row
+		// (category NULL) must not count a second time
+		$this->makeSplitTransaction($this->accountId, [[$this->food, '7.00'], [null, '3.00']], ['date' => '2026-02-05']);
+
+		$net = $this->reports->getCategoryNetByMonth($this->userId, '2026-01-01', '2026-03-31');
+
+		$this->assertEqualsCanonicalizing([$this->food, TransactionReportQueries::UNCATEGORIZED], array_keys($net));
+		$this->assertEqualsWithDelta(-17.0, $net[$this->food]['2026-02'], 0.001);
+		$this->assertEqualsWithDelta(-43.0, $net[TransactionReportQueries::UNCATEGORIZED]['2026-02'], 0.001);
+		$this->assertEqualsWithDelta(15.0, $net[TransactionReportQueries::UNCATEGORIZED]['2026-03'], 0.001);
+	}
+
 	public function testCategoryByMonthKeepsASingleAccountsOwnTransferLegs(): void {
 		$this->makeTransaction($this->accountId, ['category_id' => $this->food, 'amount' => '10.00', 'date' => '2026-02-01']);
 		$this->makeTransfer('25.00', '2026-02-07', $this->food);

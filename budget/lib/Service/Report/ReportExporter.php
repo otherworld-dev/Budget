@@ -681,7 +681,7 @@ class ReportExporter {
 		CsvSafe::put($handle, $header);
 
 		foreach ($data['rows'] ?? [] as $row) {
-			$line = [str_repeat('    ', (int)($row['depth'] ?? 0)) . ($row['name'] ?? '')];
+			$line = [str_repeat('    ', (int)($row['depth'] ?? 0)) . $this->categoryMonthlyName($row)];
 			foreach ($months as $m) {
 				$line[] = number_format((float)($row['monthly'][$m] ?? 0), 2, '.', '');
 			}
@@ -726,7 +726,7 @@ class ReportExporter {
 		$pdf->Cell($colW, 6, $this->l->t('Overall'), 1, 1, 'R');
 
 		foreach ($data['rows'] ?? [] as $row) {
-			$name = str_repeat('   ', (int)($row['depth'] ?? 0)) . ($row['name'] ?? '');
+			$name = str_repeat('   ', (int)($row['depth'] ?? 0)) . $this->categoryMonthlyName($row);
 			$pdf->SetFont(self::PDF_FONT, !empty($row['isParent']) ? 'B' : '', $fontSize);
 			$pdf->Cell($catW, 5, $this->truncateText($name, 40), 1, 0, 'L');
 			foreach ($months as $m) {
@@ -742,6 +742,11 @@ class ReportExporter {
 		}
 		$this->amountCell($pdf, $colW, (float)($data['totals']['total'] ?? 0), true);
 		$pdf->Ln();
+	}
+
+	/** A category-by-month row's label; the uncategorised row carries none. */
+	private function categoryMonthlyName(array $row): string {
+		return !empty($row['uncategorized']) ? $this->l->t('Uncategorized') : (string)($row['name'] ?? '');
 	}
 
 	/**

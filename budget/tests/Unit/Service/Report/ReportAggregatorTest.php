@@ -721,6 +721,52 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertSame('total', $r['sort']);
 	}
 
+	public function testCategoryMonthlyAddsUncategorizedAsTheLastRowSoRowsAddUpToTheTotal(): void {
+		$this->conversionService->method('getBaseCurrency')->willReturn('USD');
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(1, 'Salary', 'income'),
+			$this->makeCategory(2, 'Rent', 'expense'),
+		]);
+		$this->reportQueries->method('getCategoryNetByMonth')->willReturn([
+			TransactionReportQueries::UNCATEGORIZED => ['2026-02' => -200.0],
+			1 => ['2026-01' => 3000.0],
+			2 => ['2026-01' => -1000.0],
+		]);
+
+		// Sorted by total, the uncategorised row still comes last
+		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-01-01', '2026-02-28', null, 'total');
+
+		$this->assertSame(['Salary', 'Rent', null], array_column($r['rows'], 'name'));
+		$uncat = $r['rows'][2];
+		$this->assertTrue($uncat['uncategorized']);
+		$this->assertNull($uncat['categoryId']);
+		$this->assertSame(0, $uncat['depth']);
+		$this->assertSame(['2026-01' => 0.0, '2026-02' => -200.0], $uncat['monthly']);
+		$this->assertEqualsWithDelta(-200.0, $uncat['total'], 0.001);
+		$this->assertEqualsWithDelta(1800.0, $r['totals']['total'], 0.001);
+		$this->assertEqualsWithDelta(
+			$r['totals']['total'],
+			array_sum(array_column($r['rows'], 'total')),
+			0.001,
+			'With no parent rows, the rows must add up to the Net total'
+		);
+	}
+
+	public function testCategoryMonthlyHasNoUncategorizedRowWhenItNetsToZero(): void {
+		$this->conversionService->method('getBaseCurrency')->willReturn('USD');
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(1, 'Salary', 'income'),
+		]);
+		$this->reportQueries->method('getCategoryNetByMonth')->willReturn([
+			TransactionReportQueries::UNCATEGORIZED => ['2026-01' => 0.0],
+			1 => ['2026-01' => 3000.0],
+		]);
+
+		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-01-01', '2026-01-31');
+
+		$this->assertSame(['Salary'], array_column($r['rows'], 'name'));
+	}
+
 	public function testCategoryMonthlyTakesItsMoneyFromTheReportScopedQuery(): void {
 		$this->conversionService->method('getBaseCurrency')->willReturn('USD');
 		$this->categoryMapper->method('findAll')->willReturn([
