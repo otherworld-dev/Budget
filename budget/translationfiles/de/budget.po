@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-23 22:02+0000\n"
-"PO-Revision-Date: 2026-09-23 19:31+0000\n"
+"PO-Revision-Date: 2026-09-24 16:38+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -1548,7 +1548,7 @@ msgstr "Budgetwarnungen wurden nicht abgerufen"
 
 #: /app/lib/Controller/OnboardingController.php:78
 msgid "Sample data can only be added to an empty budget."
-msgstr ""
+msgstr "Beispieldaten können nur zu einem leeren Budget hinzugefügt werden."
 
 #: /app/lib/Controller/OnboardingController.php:87
 #: /app/src/modules/onboarding/OnboardingModule.js:371
@@ -1563,12 +1563,12 @@ msgid ""
 "Clearing the sample data requires confirmed=true. It deletes everything in "
 "your budget."
 msgstr ""
+"Zum Löschen der Beispieldaten ist confirmed=true erforderlich. Dabei werden "
+"alle Daten in deinem Budget gelöscht."
 
 #: /app/lib/Controller/OnboardingController.php:108
-#, fuzzy
-#| msgid "No file data available"
 msgid "No sample data is loaded."
-msgstr "Keine Dateidaten verfügbar"
+msgstr "Es sind keine Beispieldaten geladen."
 
 #: /app/lib/Controller/OnboardingController.php:117
 #: /app/src/modules/onboarding/OnboardingModule.js:401
@@ -1954,7 +1954,7 @@ msgstr "Einnahmenübersicht konnte nicht abgerufen werden"
 
 #: /app/lib/Controller/RecurringIncomeController.php:442
 msgid "Previous expected date"
-msgstr ""
+msgstr "Vorheriges erwartetes Datum"
 
 #: /app/lib/Controller/RecurringIncomeController.php:463
 #: /app/src/modules/income/IncomeModule.js:712
@@ -3133,13 +3133,11 @@ msgstr "{file} wurde in deinen Dateien gespeichert."
 
 #: /app/lib/Notification/Notifier.php:471
 msgid "{user} added a receipt to your budget"
-msgstr ""
+msgstr "{user} hat deinem Budget einen Beleg hinzugefügt"
 
 #: /app/lib/Notification/Notifier.php:483
-#, fuzzy
-#| msgid "{file} was saved to your Files."
 msgid "{file} was saved to your Files for {transaction}."
-msgstr "{file} wurde in deinen Dateien gespeichert."
+msgstr "{file} wurde für {transaction} in deinen Dateien gespeichert."
 
 #. TRANSLATORS: {category} is replaced with the category name. Do NOT translate {category} — keep it exactly as-is.
 #: /app/lib/Notification/Notifier.php:510
@@ -3734,12 +3732,12 @@ msgstr "Konto konnte nicht ermittelt werden: %1$s"
 #: /app/lib/Service/ImportService.php:2220
 #, php-format
 msgid "The %1$s format reads CSV files only"
-msgstr ""
+msgstr "Das Format %1$s unterstützt nur CSV-Dateien"
 
 #: /app/lib/Service/ImportService.php:2244
 #, php-format
 msgid "This file does not look like a %1$s export. Columns missing: %2$s"
-msgstr ""
+msgstr "Diese Datei scheint kein %1$s-Export zu sein. Fehlende Spalten: %2$s"
 
 #: /app/lib/Service/ManualExchangeRateService.php:62
 #, php-format
@@ -3771,6 +3769,8 @@ msgstr ""
 msgid ""
 "This backup cannot be imported: %1$s is larger than %2$s MB when unpacked"
 msgstr ""
+"Dieses Backup kann nicht importiert werden: %1$s ist im entpackten Zustand "
+"größer als %2$s MB"
 
 #: /app/lib/Service/MigrationService.php:559
 #, php-format
@@ -3778,6 +3778,8 @@ msgid ""
 "This backup cannot be imported: its files add up to more than %1$s MB when "
 "unpacked"
 msgstr ""
+"Dieses Backup kann nicht importiert werden: Die enthaltenen Dateien sind im "
+"entpackten Zustand insgesamt größer als %1$s MB"
 
 #: /app/lib/Service/ReconciliationService.php:68
 #: /app/lib/Service/ReconciliationService.php:99
@@ -4449,60 +4451,6 @@ msgid "Simple budget tracker and forecaster"
 msgstr "Einfache Budgetüberwachung und -prognose"
 
 #: /app/specialAppInfoFakeDummyForL10nScript.php:4
-#, fuzzy
-#| msgid ""
-#| "**⚠️ Beta: This app is currently in testing. Data loss is possible. Please "
-#| "backup your data regularly and report any issues.**\n"
-#| "\n"
-#| "# Budget - Financial Tracking for Nextcloud\n"
-#| "\n"
-#| "Track your spending habits, manage savings, and forecast future account "
-#| "balances with intelligent analysis of your financial history.\n"
-#| "\n"
-#| "## Features\n"
-#| "\n"
-#| "* **Import Bank Statements**: Support for CSV, OFX, and QIF formats\n"
-#| "* **Smart Categorization**: Automatic vendor matching and transaction "
-#| "categorization\n"
-#| "* **Auto-Categorization Rules**: Apply rules to existing transactions "
-#| "anytime with preview\n"
-#| "* **Split Transactions**: Allocate single transactions across multiple "
-#| "categories\n"
-#| "* **Transfer Detection**: Automatic matching of transfers between "
-#| "accounts\n"
-#| "* **Budget Tracking**: Set spending limits with alerts when approaching "
-#| "or exceeding budgets\n"
-#| "* **Balance Forecasting**: Predict future balances based on historical "
-#| "data\n"
-#| "* **Recurring Bills**: Track bills with due date monitoring and Nextcloud "
-#| "notifications\n"
-#| "* **Recurring Income**: Track expected income sources with receipt "
-#| "tracking\n"
-#| "* **Split Expenses**: Share expenses with contacts and track who owes "
-#| "whom\n"
-#| "* **Debt Payoff Planner**: Plan repayment using avalanche or snowball "
-#| "strategies\n"
-#| "* **Savings Goals**: Set targets with progress tracking and achievement "
-#| "forecasting\n"
-#| "* **Pension Tracker**: Track retirement accounts with growth projections\n"
-#| "* **Net Worth History**: Track assets and liabilities over time\n"
-#| "* **Year-over-Year Reports**: Compare spending across multiple years\n"
-#| "* **Multi-Account Support**: Manage multiple bank accounts and "
-#| "currencies\n"
-#| "* **Custom Categories**: Create your own category hierarchy\n"
-#| "* **Reports & Charts**: Visualize your financial data with interactive "
-#| "charts\n"
-#| "\n"
-#| "## Documentation\n"
-#| "\n"
-#| "Full user documentation: https://github.com/otherworld-dev/budget/tree/"
-#| "master/docs\n"
-#| "\n"
-#| "## Requirements\n"
-#| "\n"
-#| "* Nextcloud 30 or higher\n"
-#| "* PHP 8.1 or higher\n"
-#| "* PHP BCMath extension (`php-bcmath`)"
 msgid ""
 "**⚠️ Beta: This app is currently in testing. Data loss is possible. Please "
 "backup your data regularly and report any issues.**\n"
@@ -4576,63 +4524,88 @@ msgid ""
 "* PHP 8.1 or higher\n"
 "* PHP BCMath extension (`php-bcmath`)"
 msgstr ""
-"**⚠️ Beta: Diese App befindet sich derzeit in der Testphase. Datenverlust ist "
-"möglich. Bitte erstelle regelmäßig Sicherungen deiner Daten und melde "
-"auftretende Probleme.**\n"
+"**⚠️ Beta: Diese App befindet sich derzeit in der Testphase. Datenverlust "
+"ist möglich. Bitte sichere deine Daten regelmäßig und melde auftretende "
+"Probleme.**\n"
 "\n"
 "# Budget – Finanzverwaltung für Nextcloud\n"
 "\n"
-"Behalte deine Ausgaben im Blick, verwalte deine Ersparnisse und "
-"prognostiziere zukünftige Kontostände mithilfe einer intelligenten Analyse "
-"deiner Finanzhistorie.\n"
+"Verfolge deine Ausgaben, verwalte deine Ersparnisse und prognostiziere "
+"zukünftige Kontostände mithilfe einer intelligenten Analyse deiner "
+"Finanzhistorie.\n"
 "\n"
 "## Funktionen\n"
 "\n"
-"* **Kontoauszüge importieren**: Unterstützung für CSV-, OFX- und QIF-"
-"Dateien\n"
-"* **Intelligente Kategorisierung**: Automatische Erkennung von Händlern und "
-"Kategorisierung von Transaktionen\n"
+"* **Kontoauszüge importieren**: Unterstützt CSV-, OFX-, QIF- und ISO-20022-"
+"camt.053-XML-Formate\n"
+"* **Banksynchronisierung**: Transaktionen automatisch über GoCardless (UK/"
+"EU) oder SimpleFIN (USA) abrufen\n"
+"* **Intelligente Kategorisierung**: Automatische Erkennung von "
+"Zahlungsempfängern und Kategorisierung von Transaktionen\n"
 "* **Regeln zur automatischen Kategorisierung**: Regeln jederzeit mit "
 "Vorschau auf bestehende Transaktionen anwenden\n"
 "* **Transaktionen aufteilen**: Einzelne Transaktionen auf mehrere Kategorien "
-"verteilen\n"
-"* **Umbuchungserkennung**: Automatische Erkennung und Zuordnung von "
-"Umbuchungen zwischen Konten\n"
-"* **Budgetverwaltung**: Ausgabenlimits festlegen und Warnungen erhalten, "
-"wenn sich das Budget dem Limit nähert oder überschritten wird\n"
-"* **Kontostandsprognose**: Zukünftige Kontostände anhand historischer Daten "
-"vorhersagen\n"
-"* **Wiederkehrende Rechnungen**: Rechnungen mit Fälligkeitsüberwachung und "
-"Nextcloud-Benachrichtigungen verwalten\n"
-"* **Wiederkehrende Einnahmen**: Erwartete Einnahmen mit "
-"Zahlungseingangsverfolgung verwalten\n"
-"* **Ausgaben aufteilen**: Ausgaben mit Kontakten teilen und offene Beträge "
-"verwalten\n"
-"* **Schuldentilgungsplaner**: Rückzahlungen mit der Avalanche- oder Snowball-"
+"aufteilen\n"
+"* **Umbuchungen erkennen**: Automatische Zuordnung von Umbuchungen zwischen "
+"Konten\n"
+"* **Kontenabgleich**: Transaktionen mit einem Kontoauszug abgleichen, bis "
+"die Differenz null beträgt\n"
+"* **Belegerkennung**: Fotos von Belegen an Transaktionen anhängen und – "
+"sobald ein Administrator die Funktion eingerichtet hat – Betrag und "
+"Positionen daraus auslesen (OCR)\n"
+"* **Schnelle Buchung und öffentliche API**: Eine Seite zur schnellen "
+"Erfassung auf dem Smartphone sowie eine REST-API für Skripte, "
+"Automatisierungen und die Budget Companion Android-App (in Entwicklung)\n"
+"* **Budgetüberwachung**: Ausgabenlimits festlegen und Warnungen erhalten, "
+"wenn Budgets fast ausgeschöpft oder überschritten werden\n"
+"* **Übertragbare Budgets**: Umschlagbudgetierung, bei der nicht verbrauchtes "
+"Budget (oder Mehrausgaben) in den nächsten Monat übertragen wird\n"
+"* **Projektbudgets**: Ein Budget für ein Vorhaben, das sich über mehrere "
+"Monate erstreckt, zum Beispiel eine Renovierung oder eine Hochzeit\n"
+"* **Kontostandsprognose**: Zukünftige Kontostände auf Grundlage historischer "
+"Daten prognostizieren\n"
+"* **Wiederkehrende Rechnungen**: Rechnungen mit Überwachung der "
+"Fälligkeitstermine und Nextcloud-Benachrichtigungen verwalten\n"
+"* **Abonnements erkennen**: Erkennt Zahlungen, die regelmäßig zu sein "
+"scheinen, aber noch nicht erfasst werden, und wandelt sie mit einem Klick in "
+"Rechnungen um\n"
+"* **Wiederkehrende Einnahmen**: Erwartete Einnahmequellen einschließlich "
+"Zahlungseingängen verwalten\n"
+"* **Geteilte Ausgaben**: Ausgaben mit einer oder mehreren Personen teilen "
+"und nachverfolgen, wer wem wie viel schuldet\n"
+"* **Schuldentilgungsplaner**: Tilgung mit der Avalanche- oder Snowball-"
 "Strategie planen\n"
-"* **Sparziele**: Sparziele festlegen, Fortschritt verfolgen und den "
-"voraussichtlichen Zieltermin berechnen\n"
-"* **Altersvorsorge**: Altersvorsorgekonten mit Wachstumsprognosen verwalten\n"
-"* **Vermögensentwicklung**: Vermögenswerte und Verbindlichkeiten im "
-"Zeitverlauf verfolgen\n"
+"* **Sparziele**: Sparziele festlegen, Fortschritte verfolgen und "
+"prognostizieren, wann sie erreicht werden\n"
+"* **Altersvorsorge**: Altersvorsorgekonten mit Prognosen zur Wertentwicklung "
+"verfolgen\n"
+"* **Nettovermögensverlauf**: Vermögen und Verbindlichkeiten im Zeitverlauf "
+"verfolgen\n"
 "* **Vorjahresvergleich**: Ausgaben über mehrere Jahre hinweg vergleichen\n"
+"* **Geldflussbericht**: Ein Sankey-Diagramm, das zeigt, woher das Geld in "
+"einem Zeitraum kam und wohin es geflossen ist\n"
+"* **Übersichten und Warnungen bei ungewöhnlichen Ausgaben**: Optional eine "
+"wöchentliche oder monatliche Übersicht sowie eine Benachrichtigung, wenn die "
+"Ausgaben einer Kategorie deutlich über dem üblichen Niveau liegen\n"
+"* **Geplante PDF-Berichte**: Den Bericht des vergangenen Monats automatisch "
+"in deinen Dateien speichern oder per E-Mail versenden\n"
 "* **Unterstützung mehrerer Konten**: Mehrere Bankkonten und Währungen "
 "verwalten\n"
-"* **Eigene Kategorien**: Individelle Kategorien und Kategorienhierarchien "
-"erstellen\n"
+"* **Benutzerdefinierte Kategorien**: Eigene Kategoriehierarchie erstellen\n"
 "* **Berichte und Diagramme**: Finanzdaten mit interaktiven Diagrammen "
 "visualisieren\n"
+"* **Checkliste für den Einstieg**: Eine Checkliste für den ersten Start mit "
+"Beispieldaten, die du ausprobieren kannst, bevor du deine eigenen Daten "
+"hinzufügst\n"
 "\n"
 "## Dokumentation\n"
 "\n"
-"Vollständige Benutzerdokumentation: [https://github.com/otherworld-dev/"
-"budget/tree/master/docs](https://github.com/otherworld-dev/budget/tree/"
-"master/docs)\n"
+"Vollständige Benutzerdokumentation: https://budget.otherworld.dev/docs/\n"
 "\n"
 "## Voraussetzungen\n"
 "\n"
-"* Nextcloud 30 oder neuer\n"
-"* PHP 8.1 oder neuer\n"
+"* Nextcloud 30 oder höher\n"
+"* PHP 8.1 oder höher\n"
 "* PHP-BCMath-Erweiterung (`php-bcmath`)"
 
 #: /app/src/config/dashboardWidgets.js:8
@@ -5025,19 +4998,21 @@ msgstr "Aktuelle Zeile auswählen / Auswahl aufheben"
 
 #: /app/src/core/KeyboardShortcuts.js:382
 msgid "Reordering"
-msgstr ""
+msgstr "Neu anordnen"
 
 #: /app/src/core/KeyboardShortcuts.js:384
 msgid "Move a focused category or list column up / down"
-msgstr ""
+msgstr "Ausgewählte Kategorie oder Listenspalte nach oben / unten verschieben"
 
 #: /app/src/core/KeyboardShortcuts.js:385
 msgid "Make a focused category a subcategory of the one above"
 msgstr ""
+"Ausgewählte Kategorie zur Unterkategorie der darüberliegenden Kategorie "
+"machen"
 
 #: /app/src/core/KeyboardShortcuts.js:386
 msgid "Move a focused subcategory out one level"
-msgstr ""
+msgstr "Ausgewählte Unterkategorie um eine Ebene nach oben verschieben"
 
 #: /app/src/core/KeyboardShortcuts.js:396
 #: /app/src/core/KeyboardShortcuts.js:416 /app/src/main.js:1022
@@ -6864,10 +6839,8 @@ msgstr "Einwilligung gültig bis: {date}"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:755
 #: /app/src/modules/import/ImportModule.js:2168
-#, fuzzy
-#| msgid "Budgets adjusted from {month}"
 msgid "Budget account for {account}"
-msgstr "Budgets ab {month} angepasst"
+msgstr "Budgetkonto für {account}"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:756
 msgid "— Not mapped —"
@@ -8057,7 +8030,7 @@ msgstr ""
 
 #: /app/src/modules/categories/CategoriesModule.js:2453
 msgid "Envelope budgeting disabled"
-msgstr ""
+msgstr "Umschlagbudgetierung deaktiviert"
 
 #: /app/src/modules/categories/CategoriesModule.js:2456
 #, fuzzy
@@ -8075,11 +8048,11 @@ msgstr "Budget konnte nicht aktualisiert werden: {message}"
 
 #: /app/src/modules/categories/CategoriesModule.js:2657
 msgid "Over-assigned: {income} in, {budgeted} budgeted"
-msgstr ""
+msgstr "Zu viel zugewiesen: {income} Einnahmen, {budgeted} budgetiert"
 
 #: /app/src/modules/categories/CategoriesModule.js:2659
 msgid "{income} in, {budgeted} budgeted"
-msgstr ""
+msgstr "{income} Einnahmen, {budgeted} budgetiert"
 
 #: /app/src/modules/dashboard/DashboardModule.js:403
 #: /app/src/modules/dashboard/DashboardModule.js:425
@@ -8117,7 +8090,7 @@ msgstr "Letzte 30 Tage"
 #: /app/src/modules/dashboard/DashboardModule.js:618
 #: /app/src/modules/dashboard/DashboardModule.js:690
 msgid "Last 90 days"
-msgstr ""
+msgstr "Letzte 90 Tage"
 
 #: /app/src/modules/dashboard/DashboardModule.js:619
 #: /app/src/modules/dashboard/DashboardModule.js:691
@@ -8209,12 +8182,12 @@ msgstr "Keine letzten Buchungen"
 #: /app/src/modules/dashboard/DashboardModule.js:1388
 msgid "No budget alerts. %n category is muted."
 msgid_plural "No budget alerts. %n categories are muted."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Keine Budgetwarnungen. %n Kategorie ist stummgeschaltet."
+msgstr[1] "Keine Budgetwarnungen. %n Kategorien sind stummgeschaltet."
 
 #: /app/src/modules/dashboard/DashboardModule.js:1389
 msgid "No budget alerts from the budgets you set."
-msgstr ""
+msgstr "Keine Budgetwarnungen für die von dir festgelegten Budgets."
 
 #: /app/src/modules/dashboard/DashboardModule.js:1407
 #, javascript-format
@@ -8227,7 +8200,7 @@ msgstr "{percent}% genutzt"
 
 #: /app/src/modules/dashboard/DashboardModule.js:1444
 msgid "(from a bill)"
-msgstr ""
+msgstr "(aus einer Rechnung)"
 
 #: /app/src/modules/dashboard/DashboardModule.js:1480
 #, fuzzy
@@ -8265,7 +8238,7 @@ msgstr "Verbleibend"
 
 #: /app/src/modules/dashboard/DashboardModule.js:1679
 msgid "paid off"
-msgstr ""
+msgstr "abbezahlt"
 
 #: /app/src/modules/dashboard/DashboardModule.js:1707
 #, fuzzy
@@ -8433,6 +8406,8 @@ msgstr "Noch keine Renten"
 msgid ""
 "Set your date of birth in your Nextcloud profile for an accurate horizon"
 msgstr ""
+"Hinterlege dein Geburtsdatum in deinem Nextcloud-Profil, um einen genauen "
+"Prognosezeitraum zu erhalten"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2412
 #, fuzzy
@@ -8523,7 +8498,7 @@ msgstr "Gesamtausgaben"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2887
 msgid "{month} (so far)"
-msgstr ""
+msgstr "{month} (bisher)"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2965
 #: /app/templates/index.php:1194
@@ -8650,11 +8625,11 @@ msgstr "Genaue Übereinstimmungen"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4880
 msgid "Small"
-msgstr ""
+msgstr "Klein"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4881
 msgid "Medium"
-msgstr ""
+msgstr "Mittel"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4882
 #, fuzzy
@@ -8664,7 +8639,7 @@ msgstr "Fälligkeitsdatum"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4909
 msgid "Move earlier"
-msgstr ""
+msgstr "Nach vorne verschieben"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4909
 #, fuzzy
@@ -10035,10 +10010,8 @@ msgid "Getting started progress"
 msgstr "Einstiegshilfe"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:181
-#, fuzzy
-#| msgid "{spent} of {total}"
 msgid "{done} of {total} done"
-msgstr "{spent} von {total}"
+msgstr "{done} von {total} erledigt"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:196
 msgid ""
@@ -10107,10 +10080,8 @@ msgid ""
 msgstr ""
 
 #: /app/src/modules/onboarding/OnboardingModule.js:389
-#, fuzzy
-#| msgid "Clear search"
 msgid "Clear sample data?"
-msgstr "Suche leeren"
+msgstr "Beispieldaten löschen?"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:403
 msgid "Sample data cleared"
@@ -11377,10 +11348,8 @@ msgid "Action {number}: Reference value is empty"
 msgstr "Action {number}: Referenz ist leer"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:155
-#, fuzzy
-#| msgid "condition {number}"
 msgid "How conditions combine"
-msgstr "Bedingung {number}"
+msgstr "Wie Bedingungen kombiniert werden"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:156
 msgid "All conditions must match (AND)"
@@ -14679,10 +14648,8 @@ msgid "Use the transactions.csv file from Mint's \"Export all transactions\"."
 msgstr ""
 
 #: /app/templates/index.php:2330
-#, fuzzy
-#| msgid "Failed to load transactions"
 msgid "Settings > Data > Download transactions."
-msgstr "Buchungen laden fehlgeschlagen"
+msgstr "Einstellungen > Daten > Transaktionen herunterladen."
 
 #: /app/templates/index.php:2336
 msgid "Export your entries as a CSV file, covering all accounts."
@@ -18390,10 +18357,8 @@ msgid "Search banks..."
 msgstr "Kategorien durchsuchen …"
 
 #: /app/templates/index.php:7510
-#, fuzzy
-#| msgid "Search categories..."
 msgid "Search banks"
-msgstr "Kategorien durchsuchen …"
+msgstr "Banken durchsuchen"
 
 #: /app/templates/index.php:7514
 #, fuzzy
