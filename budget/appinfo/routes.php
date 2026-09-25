@@ -8,7 +8,7 @@ return [
 		['name' => 'page#index', 'url' => '/', 'verb' => 'GET'],
 		['name' => 'page#quickAdd', 'url' => '/quick-add', 'verb' => 'GET'],
 		['name' => 'page#quickAddManifest', 'url' => '/quick-add/manifest', 'verb' => 'GET'],
-
+		
 		// Account routes
 		['name' => 'account#index', 'url' => '/api/accounts', 'verb' => 'GET'],
 		['name' => 'account#show', 'url' => '/api/accounts/{id}', 'verb' => 'GET'],
@@ -426,6 +426,7 @@ return [
 		['name' => 'bankSync#institutions', 'url' => '/api/bank-sync/providers/{provider}/institutions', 'verb' => 'POST'],
 		['name' => 'bankSync#connections', 'url' => '/api/bank-sync/connections', 'verb' => 'GET'],
 		['name' => 'bankSync#connect', 'url' => '/api/bank-sync/connections', 'verb' => 'POST'],
+		['name' => 'bankSync#enablebankingCallback', 'url' => '/settings/enablebanking/callback', 'verb' => 'GET'],
 		['name' => 'bankSync#updateConnection', 'url' => '/api/bank-sync/connections/{id}', 'verb' => 'PUT'],
 		['name' => 'bankSync#disconnect', 'url' => '/api/bank-sync/connections/{id}', 'verb' => 'DELETE'],
 		['name' => 'bankSync#sync', 'url' => '/api/bank-sync/connections/{id}/sync', 'verb' => 'POST'],

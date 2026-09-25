@@ -111,6 +111,53 @@ class BankSyncController extends Controller {
 	 * List user's bank connections.
 	 * @NoAdminRequired
 	 */
+		/**
+	 * Callback from EnableBanking after user authenticates at the bank.
+	 * @NoAdminRequired
+	 * @NoCSRFRequired
+	 */
+	public function enablebankingCallback(): \OCP\AppFramework\Http\RedirectResponse {
+		$code = $this->request->getParam('code');
+		$state = $this->request->getParam('state');
+		
+		if (!$code || !$state) {
+			$url = \OC::$server->get(\OCP\IURLGenerator::class)->linkToRoute('budget.page.index') . '#/settings/bank-sync';
+			return new \OCP\AppFramework\Http\RedirectResponse($url);
+		}
+		
+		try {
+			$connections = $this->syncService->getConnections($this->userId);
+			$targetConnection = null;
+			foreach ($connections as $conn) {
+				if ($conn['connection']->getProvider() === 'enablebanking' && $conn['connection']->getStatus() === 'pending_auth') {
+					$creds = json_decode($conn['connection']->getCredentials(), true);
+					if (isset($creds['authData']['state']) && $creds['authData']['state'] === $state) {
+						$targetConnection = $conn['connection'];
+						break;
+					}
+				}
+			}
+			
+			if ($targetConnection) {
+				$provider = $this->providerFactory->getProvider('enablebanking');
+				$newCreds = $provider->createSession($code, $targetConnection->getCredentials());
+				
+				$mapper = \OC::$server->get(\OCA\Budget\Db\BankConnectionMapper::class);
+				$connectionModel = $mapper->find($targetConnection->getId(), $this->userId);
+				$connectionModel->setCredentials($newCreds);
+				$connectionModel->setStatus('active');
+				$connectionModel->setUpdatedAt(date('Y-m-d H:i:s'));
+				$mapper->update($connectionModel);
+			}
+		} catch (\Exception $e) {
+			\OC::$server->getLogger()->error('EnableBanking callback error: ' . $e->getMessage());
+		}
+		
+		$url = \OC::$server->get(\OCP\IURLGenerator::class)->linkToRoute('budget.page.index') . '#/settings/bank-sync';
+		return new \OCP\AppFramework\Http\RedirectResponse($url);
+	}
+
+
 	public function connections(): DataResponse {
 		if ($r = $this->requireBankSync()) {
 			return $r;
@@ -142,7 +189,7 @@ class BankSyncController extends Controller {
 				return new DataResponse(['error' => $this->l->t('Connection name must be between 1 and 255 characters')], Http::STATUS_BAD_REQUEST);
 			}
 
-			$validProviders = ['simplefin', 'gocardless'];
+			$validProviders = ['simplefin', 'gocardless', 'enablebanking'];
 			if (!in_array($provider, $validProviders, true)) {
 				return new DataResponse(['error' => $this->l->t('Invalid provider')], Http::STATUS_BAD_REQUEST);
 			}
@@ -156,6 +203,11 @@ class BankSyncController extends Controller {
 				$providerParams['secretKey'] = $params['secretKey'] ?? null;
 				$providerParams['institutionId'] = $params['institutionId'] ?? null;
 				$providerParams['redirectUrl'] = $params['redirectUrl'] ?? null;
+			} elseif ($provider === 'enablebanking') {
+				$providerParams['appId'] = trim($params['appId'] ?? '');
+				$providerParams['privateKey'] = trim($params['privateKey'] ?? '');
+					$providerParams['institutionId'] = trim($params['institutionId'] ?? '');
+				$providerParams['redirectUrl'] = $params['redirectUrl'] ?? null;
 			}
 
 			if (!empty($providerParams['redirectUrl'])) {
@@ -168,7 +220,7 @@ class BankSyncController extends Controller {
 			$result = $this->syncService->connect($this->userId, $provider, $providerParams, $name);
 			return new DataResponse($result);
 		} catch (\Exception $e) {
-			return $this->handleError($e, $this->l->t('Failed to connect bank'), Http::STATUS_BAD_REQUEST);
+			return new \OCP\AppFramework\Http\DataResponse(['error' => $e->getMessage()], 400);
 		}
 	}
 

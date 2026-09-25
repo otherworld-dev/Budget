@@ -80,6 +80,7 @@ export default class BankSyncModule {
                 const provider = e.target.value;
                 document.getElementById('simplefin-fields').style.display = provider === 'simplefin' ? 'block' : 'none';
                 document.getElementById('gocardless-fields').style.display = provider === 'gocardless' ? 'block' : 'none';
+                document.getElementById('enablebanking-fields').style.display = provider === 'enablebanking' ? 'block' : 'none';
             } else if (e.target.id === 'bank-sync-country') {
                 this.loadInstitutions(e.target.value);
             }
@@ -144,7 +145,7 @@ export default class BankSyncModule {
                 expired: t('budget', 'Expired'),
             }[connection.status] || connection.status;
 
-            const providerLabel = connection.provider === 'gocardless' ? 'GoCardless' : 'SimpleFIN';
+            const providerLabel = connection.provider === 'gocardless' ? 'GoCardless' : (connection.provider === 'enablebanking' ? 'EnableBanking' : 'SimpleFIN');
             const lastSync = connection.lastSyncAt
                 ? t('budget', 'Last sync: {date}', { date: new Date(connection.lastSyncAt).toLocaleString(userLocale()) })
                 : t('budget', 'Never synced');
@@ -233,8 +234,11 @@ export default class BankSyncModule {
         document.getElementById('bank-sync-setup-token').value = '';
         document.getElementById('bank-sync-secret-id').value = '';
         document.getElementById('bank-sync-secret-key').value = '';
+        document.getElementById('bank-sync-enablebanking-appid').value = '';
+        document.getElementById('bank-sync-enablebanking-key').value = '';
         document.getElementById('simplefin-fields').style.display = 'none';
         document.getElementById('gocardless-fields').style.display = 'none';
+        document.getElementById('enablebanking-fields').style.display = 'none';
         document.getElementById('bank-sync-provider').disabled = false;
         document.getElementById('bank-sync-name').disabled = false;
 
@@ -300,7 +304,52 @@ export default class BankSyncModule {
             return;
         }
 
+        if (provider === 'enablebanking') {
+            const appId = document.getElementById('bank-sync-enablebanking-appid').value.trim();
+            const privateKey = document.getElementById('bank-sync-enablebanking-key').value.trim();
+            const aspspName = document.getElementById('bank-sync-enablebanking-aspsp') ? document.getElementById('bank-sync-enablebanking-aspsp').value.trim() : '';
+            if (!appId || !privateKey || !aspspName) {
+                this._showStepError(1, t('budget', 'Please enter your API credentials'));
+                return;
+            }
+            this._wizardCredentials = { appId, privateKey, aspspName, name, provider };
+            
+            const btn = document.getElementById('bank-sync-step1-next');
+            this._busy = true;
+            btn.disabled = true;
+            btn.textContent = t('budget', 'Redirecting...');
+            
+            try {
+                const redirectUrl = window.location.origin + OC.generateUrl('/apps/budget') + '/settings/enablebanking/callback';
+                const creds = this._wizardCredentials;
+                const result = await apiFetch('/apps/budget/api/bank-sync/connections', {
+                    method: 'POST',
+                    body: {
+                        provider: 'enablebanking',
+                        name: creds.name,
+                        institutionId: creds.aspspName,
+                        appId: creds.appId,
+                        privateKey: creds.privateKey,
+                        redirectUrl
+                    }
+                });
+                if (result.authorizationUrl) {
+                    window.location.href = result.authorizationUrl;
+                } else {
+                    this.loadConnections();
+                    this.closeWizard();
+                }
+            } catch (e) {
+                this._showStepError(1, e.message);
+                this._busy = false;
+                btn.disabled = false;
+                btn.textContent = t('budget', 'Next');
+            }
+            return;
+        }
+
         const secretId = document.getElementById('bank-sync-secret-id').value.trim();
+
         const secretKey = document.getElementById('bank-sync-secret-key').value.trim();
 
         if (!secretId || !secretKey) {
@@ -601,6 +650,8 @@ export default class BankSyncModule {
         document.getElementById('simplefin-fields').style.display = 'none';
         document.getElementById('bank-sync-secret-id').value = '';
         document.getElementById('bank-sync-secret-key').value = '';
+        document.getElementById('bank-sync-enablebanking-appid').value = '';
+        document.getElementById('bank-sync-enablebanking-key').value = '';
 
         this.showWizardStep(1);
         modal.style.display = 'flex';

@@ -7458,6 +7458,7 @@ style('budget', 'budget-app');
                 <select id="bank-sync-provider">
                     <option value=""><?php p($l->t('Select a provider...')); ?></option>
                     <option value="gocardless"><?php p($l->t('GoCardless (UK/Europe)')); ?></option>
+                    <option value="enablebanking"><?php p($l->t('EnableBanking (Europe)')); ?></option>
                     <option value="simplefin"><?php p($l->t('SimpleFIN Bridge (US)')); ?></option>
                 </select>
             </div>
@@ -7488,6 +7489,22 @@ style('budget', 'budget-app');
                 </div>
                 <small class="form-text"><?php p($l->t('Get API keys from bankaccountdata.gocardless.com')); ?></small>
             </div>
+            <div id="enablebanking-fields" style="display: none;">
+                <div class="form-group">
+                    <label for="bank-sync-enablebanking-appid"><?php p($l->t('Application ID')); ?></label>
+                    <input type="text" id="bank-sync-enablebanking-appid" placeholder="<?php p($l->t('EnableBanking Application ID')); ?>" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="bank-sync-enablebanking-key"><?php p($l->t('Private Key')); ?></label>
+                    <textarea id="bank-sync-enablebanking-key" placeholder="<?php p($l->t('Paste Private Key here')); ?>" rows="4"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="bank-sync-enablebanking-aspsp"><?php p($l->t('Bank Name (ASPSP)')); ?></label>
+                    <input type="text" id="bank-sync-enablebanking-aspsp" placeholder="<?php p($l->t('e.g. CaixaBank, Revolut, Santander')); ?>" autocomplete="off">
+                </div>
+                <small class="form-text"><?php p($l->t('Get API keys from enablebanking.com')); ?></small>
+            </div>
+
 
             <div id="bank-sync-step1-error" class="bank-sync-error" style="display: none;"></div>
 
