@@ -152,6 +152,24 @@ class CriteriaEvaluatorTest extends TestCase {
 		$this->assertTrue($this->evaluator->evaluate($criteria, $transaction, 2));
 	}
 
+	public function testBareRegexKeepsItsSpaces(): void {
+		// Saved patterns aren't trimmed, so a trailing space is part of the
+		// rule: "^TFR " is a transfer reference, "TFRX" is not.
+		$criteria = [
+			'version' => 2,
+			'root' => [
+				'type' => 'condition',
+				'field' => 'description',
+				'matchType' => 'regex',
+				'pattern' => '^TFR ',
+				'negate' => false
+			]
+		];
+
+		$this->assertTrue($this->evaluator->evaluate($criteria, ['description' => 'TFR 12345'], 2));
+		$this->assertFalse($this->evaluator->evaluate($criteria, ['description' => 'TFRX 12345'], 2));
+	}
+
 	public function testInvalidRegexReturnsFalse(): void {
 		$criteria = [
 			'version' => 2,

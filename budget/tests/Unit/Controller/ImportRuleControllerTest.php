@@ -338,6 +338,20 @@ class ImportRuleControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
+	public function testCreateReturnsTheServiceValidationMessage(): void {
+		// The builder leaves regex checking to the server (#403), so the reason
+		// a rule was refused has to reach the user rather than a generic error.
+		$this->validationService->method('validateName')
+			->willReturn(['valid' => true, 'sanitized' => 'Test Rule']);
+		$this->service->method('create')
+			->willThrowException(new \InvalidArgumentException("Invalid criteria: Invalid regex pattern: '([a-z'"));
+
+		$response = $this->controller->create('Test Rule', schemaVersion: 2, criteria: ['root' => []]);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame("Invalid criteria: Invalid regex pattern: '([a-z'", $response->getData()['error']);
+	}
+
 	// ── update ──────────────────────────────────────────────────────
 
 	public function testUpdateReturnsUpdatedRule(): void {
@@ -475,6 +489,16 @@ class ImportRuleControllerTest extends TestCase {
 		$response = $this->controller->update(1, name: 'Test');
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testUpdateReturnsTheServiceValidationMessage(): void {
+		$this->service->method('update')
+			->willThrowException(new \InvalidArgumentException("Invalid criteria: Invalid regex pattern: '([a-z'"));
+
+		$response = $this->controller->update(1, criteria: ['root' => []]);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame("Invalid criteria: Invalid regex pattern: '([a-z'", $response->getData()['error']);
 	}
 
 	// ── destroy ─────────────────────────────────────────────────────

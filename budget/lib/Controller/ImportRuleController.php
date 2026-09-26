@@ -7,6 +7,7 @@ namespace OCA\Budget\Controller;
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Service\GranularShareService;
+use OCA\Budget\Service\Import\RegexPattern;
 use OCA\Budget\Service\ImportRuleService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
@@ -50,19 +51,6 @@ class ImportRuleController extends Controller {
 		$this->setLogger($logger);
 		$this->setInputValidator($validationService);
 		$this->setGranularShareService($granularShareService);
-	}
-
-	private function normalizeRegexPattern(string $pattern): ?string {
-		$trimmed = trim($pattern);
-		if ($trimmed === '') {
-			return null;
-		}
-
-		if (preg_match('#^/(.*)/([a-zA-Z]*)$#s', $trimmed, $matches) === 1) {
-			return $matches[0];
-		}
-
-		return '/' . $trimmed . '/i';
 	}
 
 	/**
@@ -177,8 +165,7 @@ class ImportRuleController extends Controller {
 				// Validate regex pattern if matchType is regex. Accept both bare
 				// patterns and full /pattern/flags literals for backward compatibility.
 				if ($matchType === 'regex' && $pattern !== null) {
-					$regexPattern = $this->normalizeRegexPattern($pattern);
-					if ($regexPattern === null || @preg_match($regexPattern, '') === false) {
+					if (!RegexPattern::isValid($pattern)) {
 						return new DataResponse(['error' => $this->l->t('Invalid regex pattern')], Http::STATUS_BAD_REQUEST);
 					}
 				}
@@ -219,6 +206,11 @@ class ImportRuleController extends Controller {
 				$groupName
 			);
 			return new DataResponse($rule, Http::STATUS_CREATED);
+		} catch (\InvalidArgumentException $e) {
+			// The service's validation says what is wrong with the rule (a bad
+			// regex, a missing field), which the generic message would hide
+			// now that the builder leaves regex checking to the server.
+			return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to create import rule'));
 		}
@@ -288,8 +280,7 @@ class ImportRuleController extends Controller {
 				// and full /pattern/flags literals for backward compatibility.
 				$patternToValidate = $updates['pattern'] ?? $pattern;
 				if ($matchType === 'regex' && $patternToValidate !== null) {
-					$regexPattern = $this->normalizeRegexPattern($patternToValidate);
-					if ($regexPattern === null || @preg_match($regexPattern, '') === false) {
+					if (!RegexPattern::isValid($patternToValidate)) {
 						return new DataResponse(['error' => $this->l->t('Invalid regex pattern')], Http::STATUS_BAD_REQUEST);
 					}
 				}
@@ -356,6 +347,8 @@ class ImportRuleController extends Controller {
 
 			$rule = $this->service->update($id, $owner, $updates);
 			return new DataResponse($rule);
+		} catch (\InvalidArgumentException $e) {
+			return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to update import rule'), Http::STATUS_BAD_REQUEST, ['ruleId' => $id]);
 		}

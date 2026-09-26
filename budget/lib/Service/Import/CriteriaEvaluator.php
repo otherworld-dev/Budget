@@ -295,7 +295,7 @@ class CriteriaEvaluator {
 			case 'equals':
 				return strcasecmp($value, $pattern) === 0;
 			case 'regex':
-				$regex = $this->normalizeRegexPattern($pattern);
+				$regex = RegexPattern::toPcre($pattern);
 				if ($regex === null) {
 					$this->logger->warning('Invalid regex pattern', ['pattern' => $pattern]);
 					return false;
@@ -309,19 +309,6 @@ class CriteriaEvaluator {
 			default:
 				return false;
 		}
-	}
-
-	private function normalizeRegexPattern(string $pattern): ?string {
-		$trimmed = trim($pattern);
-		if ($trimmed === '') {
-			return null;
-		}
-
-		if (preg_match('#^/(.*)/([a-zA-Z]*)$#s', $trimmed, $matches) === 1) {
-			return $matches[0];
-		}
-
-		return '/' . $trimmed . '/i';
 	}
 
 	/**
@@ -578,8 +565,7 @@ class CriteriaEvaluator {
 			// clear error, instead of silently never matching at run time. This
 			// accepts both bare patterns and full '/pattern/flags' literals.
 			if ($matchType === 'regex' && isset($node['pattern']) && is_string($node['pattern'])) {
-				$regex = $this->normalizeRegexPattern($node['pattern']);
-				if ($regex === null || @preg_match($regex, '') === false) {
+				if (!RegexPattern::isValid($node['pattern'])) {
 					$errors[] = "Invalid regex pattern: '" . $node['pattern'] . "'";
 				}
 			}
