@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-23 22:02+0000\n"
-"PO-Revision-Date: 2026-09-24 17:32+0000\n"
-"Last-Translator: Adam Morgan <adam@otherworld.dev>\n"
+"PO-Revision-Date: 2026-09-26 12:51+0000\n"
+"Last-Translator: Christophe <tophe.perso@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
 "Language: fr\n"
@@ -902,8 +902,7 @@ msgstr "Annuel"
 
 #: /app/lib/Controller/BillController.php:1351
 msgid "Split template must have at least 2 splits"
-msgstr ""
-"Le modèle de fractionnement doit comporter au moins deux fractionnements"
+msgstr "Le modèle de ventilation doit comporter au moins deux ventilations"
 
 #: /app/lib/Controller/BillController.php:1359
 msgid "Each split must have a positive amount"
@@ -1533,7 +1532,7 @@ msgstr "Échec de l'enregistrement du filtre d'alerte budgétaire"
 
 #: /app/lib/Controller/OnboardingController.php:78
 msgid "Sample data can only be added to an empty budget."
-msgstr ""
+msgstr "Les données d'échantillon ne peuvent être ajoutées qu'à un budget vide."
 
 #: /app/lib/Controller/OnboardingController.php:87
 #: /app/src/modules/onboarding/OnboardingModule.js:371
@@ -1548,6 +1547,9 @@ msgid ""
 "Clearing the sample data requires confirmed=true. It deletes everything in "
 "your budget."
 msgstr ""
+"Pour effacer les données d'échantillon, il faut que le paramètre « confirmed "
+"» soit défini sur « true ». Cette opération supprime tout le contenu de "
+"votre budget."
 
 #: /app/lib/Controller/OnboardingController.php:108
 #, fuzzy
@@ -1898,7 +1900,7 @@ msgstr "Impossible de récupérer le résumé des revenus"
 
 #: /app/lib/Controller/RecurringIncomeController.php:442
 msgid "Previous expected date"
-msgstr ""
+msgstr "Date prévue précédemment"
 
 #: /app/lib/Controller/RecurringIncomeController.php:463
 #: /app/src/modules/income/IncomeModule.js:712
@@ -2294,7 +2296,7 @@ msgstr "Échec du partage de la dépense"
 
 #: /app/lib/Controller/SharedExpenseController.php:357
 msgid "Failed to split expense"
-msgstr "Échec du fractionnement de la dépense"
+msgstr "Échec de la ventilation de la dépense"
 
 #: /app/lib/Controller/SharedExpenseController.php:383
 msgid "Each person can only be in a split once"
@@ -2552,7 +2554,7 @@ msgstr "Échec du chargement des options d'étiquettes"
 
 #: /app/lib/Controller/TransactionController.php:937
 msgid "Invalid splits data"
-msgstr "Données de fractionnement invalides"
+msgstr "Données de ventilation invalides"
 
 #: /app/lib/Controller/TransactionController.php:952
 #, php-format
@@ -2574,7 +2576,7 @@ msgstr "Ventilation %1$s : Le montant ne peut pas être négatif"
 #: /app/src/modules/transactions/transactionRow.js:224
 #: /app/templates/index.php:1474 /app/templates/index.php:1638
 msgid "Split"
-msgstr "Fractionnement"
+msgstr "Ventilée"
 
 #: /app/lib/Controller/TransactionController.php:1052
 msgid "Failed to set transaction tags"
@@ -2993,7 +2995,7 @@ msgstr "{file} a été enregistré dans vos fichiers."
 
 #: /app/lib/Notification/Notifier.php:471
 msgid "{user} added a receipt to your budget"
-msgstr ""
+msgstr "{user} a ajouté un justificatif à votre budget"
 
 #: /app/lib/Notification/Notifier.php:483
 #, fuzzy
@@ -3550,12 +3552,14 @@ msgstr "Impossible de trouver le compte : %1$s"
 #: /app/lib/Service/ImportService.php:2220
 #, php-format
 msgid "The %1$s format reads CSV files only"
-msgstr ""
+msgstr "Le format %1$s permet uniquement la lecture de fichiers CSV"
 
 #: /app/lib/Service/ImportService.php:2244
 #, php-format
 msgid "This file does not look like a %1$s export. Columns missing: %2$s"
 msgstr ""
+"Ce fichier ne semble pas être une exportation de %1$s. Colonnes manquantes : "
+"%2$s"
 
 #: /app/lib/Service/ManualExchangeRateService.php:62
 #, php-format
@@ -3587,6 +3591,8 @@ msgstr ""
 msgid ""
 "This backup cannot be imported: %1$s is larger than %2$s MB when unpacked"
 msgstr ""
+"Cette sauvegarde ne peut pas être importée : %1$s occupe plus de %2$s Mo une "
+"fois décompressée"
 
 #: /app/lib/Service/MigrationService.php:559
 #, php-format
@@ -3594,6 +3600,8 @@ msgid ""
 "This backup cannot be imported: its files add up to more than %1$s MB when "
 "unpacked"
 msgstr ""
+"Cette sauvegarde ne peut pas être importée : une fois décompressés, ses "
+"fichiers occupent plus de %1$s Mo"
 
 #: /app/lib/Service/ReconciliationService.php:68
 #: /app/lib/Service/ReconciliationService.php:99
@@ -4790,19 +4798,22 @@ msgstr "Sélectionner / désélectionner la ligne actuelle"
 
 #: /app/src/core/KeyboardShortcuts.js:382
 msgid "Reordering"
-msgstr ""
+msgstr "Réorganisation"
 
 #: /app/src/core/KeyboardShortcuts.js:384
 msgid "Move a focused category or list column up / down"
 msgstr ""
+"Déplacer une catégorie ou une colonne de liste sélectionnée vers le haut ou "
+"vers le bas"
 
 #: /app/src/core/KeyboardShortcuts.js:385
 msgid "Make a focused category a subcategory of the one above"
 msgstr ""
+"Faire d'une catégorie spécifique une sous-catégorie de celle qui la précède"
 
 #: /app/src/core/KeyboardShortcuts.js:386
 msgid "Move a focused subcategory out one level"
-msgstr ""
+msgstr "Déplacer une sous-catégorie sélectionnée d'un niveau vers le haut"
 
 #: /app/src/core/KeyboardShortcuts.js:396
 #: /app/src/core/KeyboardShortcuts.js:416 /app/src/main.js:1022
@@ -7606,11 +7617,11 @@ msgstr "Échec de la mise à jour du budget : {message}"
 
 #: /app/src/modules/categories/CategoriesModule.js:2657
 msgid "Over-assigned: {income} in, {budgeted} budgeted"
-msgstr ""
+msgstr "Dépassement : {income} perçus, {budgeted} prévu"
 
 #: /app/src/modules/categories/CategoriesModule.js:2659
 msgid "{income} in, {budgeted} budgeted"
-msgstr ""
+msgstr "{income} encaissé, {budgeted} budgété"
 
 #: /app/src/modules/dashboard/DashboardModule.js:403
 #: /app/src/modules/dashboard/DashboardModule.js:425
@@ -8009,7 +8020,7 @@ msgstr "Dépenses totales"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2887
 msgid "{month} (so far)"
-msgstr ""
+msgstr "{month} (jusqu'à présent)"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2965
 #: /app/templates/index.php:1194
@@ -8134,11 +8145,11 @@ msgstr "Suppléments"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4880
 msgid "Small"
-msgstr ""
+msgstr "Petit"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4881
 msgid "Medium"
-msgstr ""
+msgstr "Moyen"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4882
 #, fuzzy
@@ -8148,7 +8159,7 @@ msgstr "Objectif"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4909
 msgid "Move earlier"
-msgstr ""
+msgstr "Déplacé plus tôt"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4909
 #, fuzzy
@@ -8740,6 +8751,9 @@ msgid ""
 "created, categories and tags are created as needed, and transfer rows are "
 "skipped."
 msgstr ""
+"Lit un fichier d'exportation Toshl Finance : chaque compte du fichier est "
+"associé à son nom ou créé, les catégories et les étiquettes sont créées si "
+"nécessaire, et les lignes de virement sont ignorées."
 
 #: /app/src/modules/import/ImportModule.js:101
 msgid ""
@@ -8747,6 +8761,10 @@ msgid ""
 "created in its own currency, categories and tags are created as needed, and "
 "each transfer is imported into both accounts and linked."
 msgstr ""
+"Lit un fichier d'exportation Firefly III : chaque compte du fichier est "
+"associé par son nom ou créé dans sa propre devise ; les catégories et les "
+"étiquettes sont créées selon les besoins ; et chaque virement est importé "
+"dans les deux comptes et relié."
 
 #: /app/src/modules/import/ImportModule.js:102
 msgid ""
@@ -8754,6 +8772,10 @@ msgid ""
 "category groups become parent categories, and transfers are linked. Income "
 "assigned to \"Ready to Assign\" is left uncategorized."
 msgstr ""
+"Lit le registre YNAB exporté : chaque compte est associé à son nom ou créé, "
+"les groupes de catégories deviennent des catégories parentes et les "
+"virements sont reliés. Les revenus affectés à la rubrique « Prêts à être "
+"affectés » ne sont pas classés dans une catégorie."
 
 #: /app/src/modules/import/ImportModule.js:103
 msgid ""
@@ -8761,6 +8783,10 @@ msgid ""
 "category groups become parent categories, split transactions are imported as "
 "their parts, and transfers are linked."
 msgstr ""
+"Lit un fichier d'exportation « Actual Budget » : chaque compte est associé à "
+"son nom ou créé, les groupes de catégories deviennent des catégories "
+"parentes, les opérations fractionnées sont importées sous forme de parties "
+"distinctes et les virements sont reliés entre eux."
 
 #: /app/src/modules/import/ImportModule.js:104
 msgid ""
@@ -8768,12 +8794,19 @@ msgid ""
 "categories are created as needed, labels become tags, and transfers and card "
 "payments are linked."
 msgstr ""
+"Lit le fichier « transactions.csv » de Mint : chaque compte est associé à "
+"son nom ou créé, les catégories sont créées si nécessaire, les libellés "
+"deviennent des étiquettes, et les virements ainsi que les paiements par "
+"carte sont reliés."
 
 #: /app/src/modules/import/ImportModule.js:105
 msgid ""
 "Reads a Monarch Money download: each account is matched by name or created, "
 "categories are created as needed, and transfers and card payments are linked."
 msgstr ""
+"Lit un fichier téléchargé depuis Monarch Money : chaque compte est associé à "
+"son nom ou créé, les catégories sont créées selon les besoins, et les "
+"virements ainsi que les paiements par carte sont rattachés."
 
 #: /app/src/modules/import/ImportModule.js:187
 msgid "Rule: {name}"
@@ -8907,12 +8940,16 @@ msgstr "Les comptes de ce modèle ne correspondent pas au fichier importé"
 #: /app/src/modules/import/ImportModule.js:938
 msgid "Now choose your {app} export file."
 msgstr ""
+"Sélectionnez maintenant votre fichier d'exportation de l'application {app}."
 
 #: /app/src/modules/import/ImportModule.js:967
 msgid ""
 "This file looks like a {app} export, so that format has been selected. "
 "Choose Custom CSV to map the columns yourself."
 msgstr ""
+"Ce fichier ressemble à une exportation de l'application {app} ; ce format a "
+"donc été sélectionné. Choisissez « CSV personnalisé » pour mapper vous-même "
+"les colonnes."
 
 #: /app/src/modules/import/ImportModule.js:1013
 msgid "%n record"
@@ -8986,6 +9023,8 @@ msgid ""
 "{count} split total rows will be skipped; the parts of each split are "
 "imported instead"
 msgstr ""
+"{count} lignes du total ventilé seront ignorées ; ce sont les parties de "
+"chaque ventilation qui seront importées à la place"
 
 #: /app/src/modules/import/ImportModule.js:1881
 msgid "This import will create %n new account"
@@ -9182,8 +9221,8 @@ msgstr[1] ""
 #: /app/src/modules/import/ImportModule.js:2484
 msgid "%n transfer between your accounts was linked"
 msgid_plural "%n transfers between your accounts were linked"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n virement entre vos comptes a été associé"
+msgstr[1] "%n virements entre vos comptes ont été associés"
 
 #: /app/src/modules/import/ImportModule.js:2490
 msgid "Import complete. %n category created — it may take a moment to appear."
@@ -9411,7 +9450,7 @@ msgstr "Impossible de récupérer la devise de base"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:46
 msgid "The currency your totals and reports are shown in."
-msgstr ""
+msgstr "La devise dans laquelle s'affichent vos totaux et vos rapports."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:48
 #, fuzzy
@@ -9430,6 +9469,8 @@ msgid ""
 "A ready-made set of income and spending categories, which you can change "
 "later."
 msgstr ""
+"Un ensemble prédéfini de catégories de revenus et de dépenses, que vous "
+"pourrez modifier ultérieurement."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:56
 #, fuzzy
@@ -9447,15 +9488,19 @@ msgstr "Ajouter un nouveau compte"
 #: /app/src/modules/onboarding/OnboardingModule.js:62
 msgid "A bank account, card or cash wallet to record money in and out of."
 msgstr ""
+"Un compte bancaire, une carte ou un porte-monnaie pour noter les entrées et "
+"les sorties d'argent."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:70
 msgid "Import a statement or connect your bank"
-msgstr ""
+msgstr "Importez un relevé ou connectez-vous à votre banque"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:72
 msgid ""
 "Bring in your transactions from a CSV, OFX or QIF file your bank gives you."
 msgstr ""
+"Importez vos opérations à partir d'un fichier CSV, OFX ou QIF fourni par "
+"votre banque."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:79
 #, fuzzy
@@ -9466,6 +9511,7 @@ msgstr "Sélectionnez une catégorie"
 #: /app/src/modules/onboarding/OnboardingModule.js:80
 msgid "Choose how much you want to spend on something each month."
 msgstr ""
+"Choisissez le montant que vous souhaitez consacrer à une dépense chaque mois."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:153
 #, fuzzy
@@ -9477,11 +9523,13 @@ msgstr "Catégories avec budget"
 msgid ""
 "A few steps to a working budget. Each one ticks itself off once it is done."
 msgstr ""
+"Quelques étapes pour établir un budget fonctionnel. Chacune d'entre elles "
+"est cochée une fois terminée."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:162
 #: /app/src/modules/onboarding/OnboardingModule.js:163
 msgid "Hide this checklist"
-msgstr ""
+msgstr "Masquer cette liste de vérification"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:174
 #, fuzzy
@@ -9501,10 +9549,13 @@ msgid ""
 "budgets to explore, then clear them in one click when you are ready for your "
 "own."
 msgstr ""
+"Vous ne faites que jeter un œil ? Pour découvrir Budget, importez un "
+"échantillon de comptes, d'opérations et de budgets, puis effacez-les d'un "
+"simple clic lorsque vous serez prêt à créer les vôtres."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:200
 msgid "Try with sample data"
-msgstr ""
+msgstr "Essayez avec un échantillon de données"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:211
 #, fuzzy
@@ -9526,23 +9577,25 @@ msgstr "Activer/désactiver le verrouillage du tableau de bord"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:247
 msgid "(done)"
-msgstr ""
+msgstr "(terminé)"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:247
 msgid "(not done yet)"
-msgstr ""
+msgstr "(pas encore terminé)"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:273
 msgid "Guide"
-msgstr ""
+msgstr "Guide"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:296
 msgid "You're looking at sample data"
-msgstr ""
+msgstr "Vous consultez ici un échantillon de données"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:298
 msgid "None of it is real. Clear it when you are ready to add your own."
 msgstr ""
+"Tout cela n'est pas réel. Effacez-le lorsque vous serez prêt à ajouter vos "
+"propres éléments."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:303
 #: /app/src/modules/onboarding/OnboardingModule.js:390
@@ -9554,22 +9607,24 @@ msgstr "Effacer la sélection"
 #: /app/src/modules/onboarding/OnboardingModule.js:373
 msgid "Sample data added. Have a look around."
 msgstr ""
+"Des échantillons de données ont été ajoutés. N'hésitez pas à les consulter."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:387
 msgid ""
 "This deletes everything in your budget: the sample data and anything you "
 "added while trying it. Your settings are kept."
 msgstr ""
+"Cette opération supprime tout le contenu de votre budget : les données "
+"d'échantillon et tout ce que vous avez ajouté pendant que vous testiez "
+"l'application. Vos paramètres sont conservés."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:389
-#, fuzzy
-#| msgid "Clear selection"
 msgid "Clear sample data?"
-msgstr "Effacer la sélection"
+msgstr "Effacer les données d'échantillon ?"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:403
 msgid "Sample data cleared"
-msgstr ""
+msgstr "Données d'échantillon effacées"
 
 #: /app/src/modules/pensions/PensionsModule.js:37
 #: /app/src/modules/pensions/PensionsModule.js:40
@@ -10024,17 +10079,20 @@ msgstr ""
 
 #: /app/src/modules/reports/ReportsModule.js:1959
 msgid "The projected balance is only shown for the current year."
-msgstr ""
+msgstr "Le solde prévisionnel n'est affiché que pour l'année en cours."
 
 #: /app/src/modules/reports/ReportsModule.js:1977
 msgid "Bills {bills}, transfers in {transfers}, income {income}"
-msgstr ""
+msgstr "Factures {bills}, virements entrants {transfers}, revenus {income}"
 
 #: /app/src/modules/reports/ReportsModule.js:1986
 msgid ""
 "{account} today: {balance}. Each month carries on from the month before, "
 "less the bills and plus the transfers and recurring income still due."
 msgstr ""
+"{account} aujourd'hui : {balance}. Chaque mois reprend le solde du mois "
+"précédent, déduction faite des factures et majoré des virements et des "
+"revenus récurrents encore à percevoir."
 
 #: /app/src/modules/reports/ReportsModule.js:1991
 #, fuzzy
@@ -13079,7 +13137,7 @@ msgstr "{name} (clôturé)"
 
 #: /app/src/utils/billDates.js:29
 msgid "Paid {paidDate}, next due {dueDate}"
-msgstr ""
+msgstr "Payé le {paidDate}, prochaine échéance le {dueDate}"
 
 #: /app/src/utils/billDates.js:34
 #, fuzzy
@@ -13117,7 +13175,7 @@ msgstr "Lecture seule"
 
 #: /app/src/utils/dialogs.js:339
 msgid "Got it"
-msgstr ""
+msgstr "D'accord"
 
 #: /app/src/utils/formatters.js:268 /app/templates/index.php:5984
 msgid "Mortgage"
@@ -13131,7 +13189,7 @@ msgstr "Échéance le {date}"
 
 #: /app/src/utils/loading.js:84
 msgid "Retry"
-msgstr ""
+msgstr "Réessayer"
 
 #: /app/src/utils/multiselect.js:32
 msgid "Select column(s)..."
@@ -13843,14 +13901,19 @@ msgid ""
 "yet; negative means your budgets add up to more than came in. Amounts "
 "carried over from earlier months are not counted again."
 msgstr ""
+"Les revenus perçus ce mois-ci dans vos catégories de revenus, moins le total "
+"des dépenses budgétées de ce mois-ci. Un solde positif correspond à l'argent "
+"que vous n'avez pas encore affecté à un budget ; un solde négatif signifie "
+"que le total de vos budgets est supérieur aux revenus. Les montants reportés "
+"des mois précédents ne sont pas comptabilisés une nouvelle fois."
 
 #: /app/templates/index.php:2174
 msgid "Ready to Assign"
-msgstr ""
+msgstr "Prêt à attribuer"
 
 #: /app/templates/index.php:2175
 msgid "Income this month minus this month's budgets"
-msgstr ""
+msgstr "Revenus de ce mois-ci moins les dépenses prévues pour ce mois-ci"
 
 #: /app/templates/index.php:2184
 msgid "Total Budgeted"
@@ -13920,7 +13983,7 @@ msgstr "Parcourir les fichiers"
 
 #: /app/templates/index.php:2300
 msgid "Switching from another app?"
-msgstr ""
+msgstr "Vous venez d'une autre application ?"
 
 #: /app/templates/index.php:2301
 msgid ""
@@ -13928,25 +13991,36 @@ msgid ""
 "file. Accounts and categories are created as needed, and transfers between "
 "your accounts are linked."
 msgstr ""
+"Exportez vos données depuis l'application que vous quittez, sélectionnez-les "
+"ici, puis choisissez le fichier. Les comptes et les catégories sont créés "
+"selon vos besoins, et les virements entre vos comptes sont mis en "
+"correspondance."
 
 #: /app/templates/index.php:2306
 msgid "Options > Export data, then export all transactions."
-msgstr ""
+msgstr "Options > Exporter les données, puis exporter toutes les opérations."
 
 #: /app/templates/index.php:2312
 msgid ""
 "Plan menu > Export Plan Data. Unzip the download and pick the file ending in "
 "\"Register\". YNAB 4 register exports work too."
 msgstr ""
+"Menu « Plan » > « Exporter les données du plan ». Décompressez le fichier "
+"téléchargé et sélectionnez celui dont l'extension est « Register ». Les "
+"exportations au format « Register » de YNAB 4 fonctionnent également."
 
 #: /app/templates/index.php:2318
 msgid ""
 "Open All accounts and choose Export from the menu above the transactions."
 msgstr ""
+"Ouvrez « Tous les comptes » et sélectionnez « Exporter » dans le menu situé "
+"au-dessus des opérations."
 
 #: /app/templates/index.php:2324
 msgid "Use the transactions.csv file from Mint's \"Export all transactions\"."
 msgstr ""
+"Utilisez le fichier \"transactions.csv\" issu de la fonction « Exporter "
+"toutes les transactions » de Mint."
 
 #: /app/templates/index.php:2330
 #, fuzzy
@@ -13957,6 +14031,7 @@ msgstr "Échec du chargement des opérations"
 #: /app/templates/index.php:2336
 msgid "Export your entries as a CSV file, covering all accounts."
 msgstr ""
+"Exportez vos entrées sous forme de fichier CSV, en incluant tous les comptes."
 
 #: /app/templates/index.php:2344
 msgid "Supported Formats:"
@@ -15068,6 +15143,8 @@ msgstr ""
 #: /app/templates/index.php:4395
 msgid "Changes are saved as you make them."
 msgstr ""
+"Les modifications sont enregistrées au fur et à mesure que vous les "
+"effectuez."
 
 #: /app/templates/index.php:4399
 #, fuzzy
@@ -15700,6 +15777,8 @@ msgid ""
 "Put every setting on this page back to its default. Your accounts, "
 "transactions and other data are not touched."
 msgstr ""
+"Réinitialisez tous les paramètres de cette page à leurs valeurs par défaut. "
+"Vos comptes, vos opérations et vos autres données ne seront pas modifiés."
 
 #: /app/templates/index.php:4944 /app/templates/index.php:4949
 msgid "Factory Reset"
@@ -15718,7 +15797,7 @@ msgstr ""
 
 #: /app/templates/index.php:4965
 msgid "What's new"
-msgstr ""
+msgstr "Quoi de neuf"
 
 #: /app/templates/index.php:4969
 msgid "Open docs site"
@@ -15827,7 +15906,7 @@ msgstr "Couleur"
 
 #: /app/templates/index.php:5072
 msgid "Color (hex code)"
-msgstr ""
+msgstr "Couleur (code hexadécimal)"
 
 #: /app/templates/index.php:5080 /app/templates/index.php:6955
 msgid ""
@@ -17342,6 +17421,9 @@ msgid ""
 "Type a name, user ID or email to link a Nextcloud user, or leave it empty "
 "for someone without an account"
 msgstr ""
+"Saisissez un nom, un identifiant ou une adresse e-mail pour associer un "
+"utilisateur Nextcloud, ou laissez ce champ vide pour une personne ne "
+"disposant pas de compte"
 
 #: /app/templates/index.php:7237
 msgid "e.g., John, Roommate, Partner"
