@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-23 22:02+0000\n"
-"PO-Revision-Date: 2026-09-24 17:32+0000\n"
-"Last-Translator: Adam Morgan <adam@otherworld.dev>\n"
+"POT-Creation-Date: 2026-09-26 18:22+0000\n"
+"PO-Revision-Date: 2026-09-26 17:27+0000\n"
+"Last-Translator: Christophe <tophe.perso@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
 "Language: fr\n"
@@ -130,7 +130,7 @@ msgstr "Requête invalide"
 #: /app/lib/Controller/AccountController.php:483
 #: /app/lib/Controller/BillController.php:728
 #: /app/lib/Controller/CategoryController.php:319
-#: /app/lib/Controller/ImportRuleController.php:332
+#: /app/lib/Controller/ImportRuleController.php:340
 #: /app/lib/Controller/ImportTemplateController.php:152
 #: /app/lib/Controller/TagSetController.php:186
 #: /app/lib/Controller/TagSetController.php:308
@@ -311,8 +311,8 @@ msgstr "Un compte est obligatoire"
 #: /app/lib/Controller/TransactionController.php:310
 #: /app/lib/Controller/TransactionController.php:417
 #: /app/lib/Service/Export/TransactionCsvExporter.php:28 /app/src/main.js:3554
-#: /app/src/modules/rules/RulesModule.js:935
-#: /app/src/modules/rules/RulesModule.js:1137
+#: /app/src/modules/rules/RulesModule.js:938
+#: /app/src/modules/rules/RulesModule.js:1140
 #: /app/src/modules/rules/components/CriteriaBuilder.js:194
 #: /app/templates/index.php:1033 /app/templates/index.php:1533
 #: /app/templates/index.php:1773 /app/templates/index.php:1827
@@ -635,7 +635,7 @@ msgstr "Facture"
 #: /app/lib/Controller/GoalsController.php:316
 #: /app/lib/Controller/GoalsController.php:344
 #: /app/lib/Controller/GoalsController.php:363
-#: /app/lib/Controller/ImportRuleController.php:90
+#: /app/lib/Controller/ImportRuleController.php:91
 #: /app/lib/Controller/ProjectController.php:186
 #: /app/lib/Controller/RecurringIncomeController.php:89
 #: /app/lib/Traits/ApiErrorHandlerTrait.php:211
@@ -837,8 +837,8 @@ msgstr "Impossible d’exporter le calendrier des factures"
 #: /app/lib/Service/Report/ReportExporter.php:572
 #: /app/lib/Service/Report/ReportExporter.php:615 /app/src/main.js:3622
 #: /app/src/main.js:3623 /app/src/modules/bills/BillsModule.js:965
-#: /app/src/modules/rules/RulesModule.js:937
-#: /app/src/modules/rules/RulesModule.js:1139
+#: /app/src/modules/rules/RulesModule.js:940
+#: /app/src/modules/rules/RulesModule.js:1142
 #: /app/src/modules/rules/components/CriteriaBuilder.js:190
 #: /app/src/modules/transactions/TransactionsModule.js:2040
 #: /app/src/modules/transactions/TransactionsModule.js:3183
@@ -881,13 +881,13 @@ msgstr "Total annuel"
 #: /app/lib/Service/Report/ReportExporter.php:584
 #: /app/lib/Service/Report/ReportExporter.php:659
 #: /app/src/modules/categories/CategoriesModule.js:2355
-#: /app/src/modules/reports/ReportsModule.js:1853 /app/templates/index.php:7321
+#: /app/src/modules/reports/ReportsModule.js:1854 /app/templates/index.php:7321
 msgid "Total"
 msgstr "Total"
 
 #: /app/lib/Controller/BillController.php:1230
 #: /app/src/modules/dashboard/DashboardModule.js:3162
-#: /app/src/modules/reports/ReportsModule.js:1998
+#: /app/src/modules/reports/ReportsModule.js:1999
 msgid "Projected balance"
 msgstr "Solde prévisionnel"
 
@@ -902,8 +902,7 @@ msgstr "Annuel"
 
 #: /app/lib/Controller/BillController.php:1351
 msgid "Split template must have at least 2 splits"
-msgstr ""
-"Le modèle de fractionnement doit comporter au moins deux fractionnements"
+msgstr "Le modèle de ventilation doit comporter au moins deux ventilations"
 
 #: /app/lib/Controller/BillController.php:1359
 msgid "Each split must have a positive amount"
@@ -996,8 +995,8 @@ msgstr "Impossible de récupérer le nombre de transactions"
 #: /app/lib/Service/Report/ReportExporter.php:676
 #: /app/lib/Service/Report/ReportExporter.php:722 /app/src/main.js:3627
 #: /app/src/main.js:3628 /app/src/modules/dashboard/DashboardModule.js:2164
-#: /app/src/modules/reports/ReportsModule.js:1114
-#: /app/src/modules/reports/ReportsModule.js:1562
+#: /app/src/modules/reports/ReportsModule.js:1115
+#: /app/src/modules/reports/ReportsModule.js:1563
 #: /app/src/modules/transactions/TransactionsModule.js:3188
 #: /app/src/modules/transactions/TransactionsModule.js:3189
 #: /app/src/modules/transactions/TransactionsModule.js:3792
@@ -1386,85 +1385,85 @@ msgstr "Impossible de valider le fichier"
 msgid "Failed to execute import"
 msgstr "Impossible d’exécuter l’import"
 
-#: /app/lib/Controller/ImportRuleController.php:66
+#: /app/lib/Controller/ImportRuleController.php:67
 msgid "Failed to retrieve import rules"
 msgstr "Impossible de récupérer les règles d’import"
 
-#: /app/lib/Controller/ImportRuleController.php:78
+#: /app/lib/Controller/ImportRuleController.php:79
 msgid "Failed to retrieve rule groups"
 msgstr "Échec de la récupération des groupes de règles"
 
-#: /app/lib/Controller/ImportRuleController.php:90
-#: /app/lib/Controller/ImportRuleController.php:103
-#: /app/lib/Controller/ImportRuleController.php:357
-#: /app/lib/Controller/ImportRuleController.php:373
+#: /app/lib/Controller/ImportRuleController.php:91
+#: /app/lib/Controller/ImportRuleController.php:104
+#: /app/lib/Controller/ImportRuleController.php:367
+#: /app/lib/Controller/ImportRuleController.php:383
 msgid "Import rule"
 msgstr "Règle d’import"
 
-#: /app/lib/Controller/ImportRuleController.php:138
+#: /app/lib/Controller/ImportRuleController.php:139
 msgid "Criteria required for v2 rules"
 msgstr "Critères requis pour les règles v2"
 
-#: /app/lib/Controller/ImportRuleController.php:144
+#: /app/lib/Controller/ImportRuleController.php:145
 msgid "Pattern, field, and matchType required for v1 rules"
 msgstr ""
 "Le modèle, le champ et le type de correspondance sont requis pour les règles "
 "v1"
 
-#: /app/lib/Controller/ImportRuleController.php:156
-#: /app/lib/Controller/ImportRuleController.php:260
+#: /app/lib/Controller/ImportRuleController.php:157
+#: /app/lib/Controller/ImportRuleController.php:267
 #, php-format
 msgid "Invalid field. Must be one of: %1$s"
 msgstr "Champ invalide. Doit être l’un des suivants : %1$s"
 
-#: /app/lib/Controller/ImportRuleController.php:161
-#: /app/lib/Controller/ImportRuleController.php:268
+#: /app/lib/Controller/ImportRuleController.php:162
+#: /app/lib/Controller/ImportRuleController.php:275
 #, php-format
 msgid "Invalid match type. Must be one of: %1$s"
 msgstr "Type de correspondance invalide. Doit être l’un des suivants : %1$s"
 
-#: /app/lib/Controller/ImportRuleController.php:167
-#: /app/lib/Controller/ImportRuleController.php:276
+#: /app/lib/Controller/ImportRuleController.php:169
+#: /app/lib/Controller/ImportRuleController.php:284
 msgid "Invalid regex pattern"
 msgstr "Modèle d’expression régulière invalide"
 
-#: /app/lib/Controller/ImportRuleController.php:208
+#: /app/lib/Controller/ImportRuleController.php:215
 msgid "Failed to create import rule"
 msgstr "Impossible de créer la règle d’import"
 
-#: /app/lib/Controller/ImportRuleController.php:343
+#: /app/lib/Controller/ImportRuleController.php:353
 msgid "Failed to update import rule"
 msgstr "Impossible de mettre à jour la règle d’import"
 
-#: /app/lib/Controller/ImportRuleController.php:365
+#: /app/lib/Controller/ImportRuleController.php:375
 msgid "Only the rule owner can delete it"
 msgstr "Seul le propriétaire de la règle peut la supprimer"
 
-#: /app/lib/Controller/ImportRuleController.php:385
+#: /app/lib/Controller/ImportRuleController.php:395
 msgid "Failed to test import rules"
 msgstr "Impossible de tester les règles d’import"
 
-#: /app/lib/Controller/ImportRuleController.php:411
+#: /app/lib/Controller/ImportRuleController.php:421
 msgid "Failed to preview rule application"
 msgstr "Impossible de prévisualiser l’application de la règle"
 
-#: /app/lib/Controller/ImportRuleController.php:439
+#: /app/lib/Controller/ImportRuleController.php:449
 msgid "Failed to test rule against transactions"
 msgstr "Impossible de tester la règle sur les transactions"
 
-#: /app/lib/Controller/ImportRuleController.php:466
+#: /app/lib/Controller/ImportRuleController.php:476
 msgid "Failed to apply rules to transactions"
 msgstr "Impossible d’appliquer les règles aux transactions"
 
-#: /app/lib/Controller/ImportRuleController.php:480
+#: /app/lib/Controller/ImportRuleController.php:490
 msgid "Failed to migrate import rule"
 msgstr "Impossible de migrer la règle d’import"
 
-#: /app/lib/Controller/ImportRuleController.php:497
+#: /app/lib/Controller/ImportRuleController.php:507
 msgid "Failed to migrate import rules"
 msgstr "Impossible de migrer les règles d’import"
 
-#: /app/lib/Controller/ImportRuleController.php:513
+#: /app/lib/Controller/ImportRuleController.php:523
 #: /app/lib/Traits/InputValidationTrait.php:108
 msgid "Validation failed"
 msgstr "La validation a échoué"
@@ -1519,49 +1518,43 @@ msgid "Snapshot"
 msgstr "Snapshot"
 
 #: /app/lib/Controller/OnboardingController.php:48
-#, fuzzy
-#| msgid "Failed to load the split"
 msgid "Failed to load the getting started checklist"
-msgstr "Échec du chargement de la ventilation"
+msgstr "Échec du chargement de la liste de contrôle « Pour bien démarrer »"
 
 #: /app/lib/Controller/OnboardingController.php:63
 #: /app/src/modules/onboarding/OnboardingModule.js:359
-#, fuzzy
-#| msgid "Failed to save the budget alert filter"
 msgid "Failed to hide the getting started checklist"
-msgstr "Échec de l'enregistrement du filtre d'alerte budgétaire"
+msgstr "Impossible de masquer la liste de contrôle « Pour bien démarrer »"
 
 #: /app/lib/Controller/OnboardingController.php:78
 msgid "Sample data can only be added to an empty budget."
 msgstr ""
+"Les données d'échantillon ne peuvent être ajoutées qu'à un budget vide."
 
 #: /app/lib/Controller/OnboardingController.php:87
 #: /app/src/modules/onboarding/OnboardingModule.js:371
 #: /app/src/modules/onboarding/OnboardingModule.js:377
-#, fuzzy
-#| msgid "Failed to load the split"
 msgid "Failed to add the sample data"
-msgstr "Échec du chargement de la ventilation"
+msgstr "Impossible d'ajouter les données d'échantillons"
 
 #: /app/lib/Controller/OnboardingController.php:103
 msgid ""
 "Clearing the sample data requires confirmed=true. It deletes everything in "
 "your budget."
 msgstr ""
+"Pour effacer les données d'échantillon, il faut que le paramètre "
+"« confirmed » soit défini sur « true ». Cette opération supprime tout le "
+"contenu de votre budget."
 
 #: /app/lib/Controller/OnboardingController.php:108
-#, fuzzy
-#| msgid "No file data available"
 msgid "No sample data is loaded."
-msgstr "Aucune donnée de fichier disponible"
+msgstr "Aucune donnée d'échantillon n'est chargée."
 
 #: /app/lib/Controller/OnboardingController.php:117
 #: /app/src/modules/onboarding/OnboardingModule.js:401
 #: /app/src/modules/onboarding/OnboardingModule.js:408
-#, fuzzy
-#| msgid "Failed to load the split"
 msgid "Failed to clear the sample data"
-msgstr "Échec du chargement de la ventilation"
+msgstr "Échec de l'effacement des données d'échantillon"
 
 #: /app/lib/Controller/PageController.php:155
 #: /app/src/config/dashboardWidgets.js:91 /app/templates/index.php:1025
@@ -1898,7 +1891,7 @@ msgstr "Impossible de récupérer le résumé des revenus"
 
 #: /app/lib/Controller/RecurringIncomeController.php:442
 msgid "Previous expected date"
-msgstr ""
+msgstr "Date prévue précédemment"
 
 #: /app/lib/Controller/RecurringIncomeController.php:463
 #: /app/src/modules/income/IncomeModule.js:712
@@ -1927,7 +1920,7 @@ msgid "Failed to generate income and expenses report"
 msgstr "Impossible de générer le rapport des revenus et dépenses"
 
 #: /app/lib/Controller/ReportController.php:226
-#: /app/src/modules/reports/ReportsModule.js:1611
+#: /app/src/modules/reports/ReportsModule.js:1612
 msgid "Failed to export report"
 msgstr "Impossible d’exporter le rapport"
 
@@ -2294,7 +2287,7 @@ msgstr "Échec du partage de la dépense"
 
 #: /app/lib/Controller/SharedExpenseController.php:357
 msgid "Failed to split expense"
-msgstr "Échec du fractionnement de la dépense"
+msgstr "Échec de la ventilation de la dépense"
 
 #: /app/lib/Controller/SharedExpenseController.php:383
 msgid "Each person can only be in a split once"
@@ -2552,7 +2545,7 @@ msgstr "Échec du chargement des options d'étiquettes"
 
 #: /app/lib/Controller/TransactionController.php:937
 msgid "Invalid splits data"
-msgstr "Données de fractionnement invalides"
+msgstr "Données de ventilation invalides"
 
 #: /app/lib/Controller/TransactionController.php:952
 #, php-format
@@ -2567,14 +2560,14 @@ msgstr "Ventilation %1$s : Le montant ne peut pas être négatif"
 #: /app/lib/Controller/TransactionController.php:1004
 #: /app/src/modules/bills/BillsModule.js:364
 #: /app/src/modules/dashboard/DashboardModule.js:1284
-#: /app/src/modules/rules/RulesModule.js:986
+#: /app/src/modules/rules/RulesModule.js:989
 #: /app/src/modules/transactions/TransactionsModule.js:5249
 #: /app/src/modules/transactions/transactionRow.js:68
 #: /app/src/modules/transactions/transactionRow.js:182
 #: /app/src/modules/transactions/transactionRow.js:224
 #: /app/templates/index.php:1474 /app/templates/index.php:1638
 msgid "Split"
-msgstr "Fractionnement"
+msgstr "Ventilée"
 
 #: /app/lib/Controller/TransactionController.php:1052
 msgid "Failed to set transaction tags"
@@ -2649,10 +2642,10 @@ msgstr "Année"
 #: /app/src/modules/dashboard/DashboardModule.js:5497
 #: /app/src/modules/help/HelpModule.js:33
 #: /app/src/modules/reports/ReportsModule.js:751
-#: /app/src/modules/reports/ReportsModule.js:1144
-#: /app/src/modules/reports/ReportsModule.js:1450
-#: /app/src/modules/reports/ReportsModule.js:1466
-#: /app/src/modules/reports/ReportsModule.js:1511
+#: /app/src/modules/reports/ReportsModule.js:1145
+#: /app/src/modules/reports/ReportsModule.js:1451
+#: /app/src/modules/reports/ReportsModule.js:1467
+#: /app/src/modules/reports/ReportsModule.js:1512
 #: /app/src/modules/rules/components/ActionBuilder.js:327
 #: /app/src/modules/rules/components/CriteriaBuilder.js:218
 #: /app/templates/index.php:103 /app/templates/index.php:1047
@@ -2678,10 +2671,10 @@ msgstr "Revenu"
 #: /app/src/modules/dashboard/DashboardModule.js:3183
 #: /app/src/modules/dashboard/DashboardModule.js:3252
 #: /app/src/modules/reports/ReportsModule.js:758
-#: /app/src/modules/reports/ReportsModule.js:1152
-#: /app/src/modules/reports/ReportsModule.js:1453
-#: /app/src/modules/reports/ReportsModule.js:1470
-#: /app/src/modules/reports/ReportsModule.js:1518 /app/templates/index.php:1875
+#: /app/src/modules/reports/ReportsModule.js:1153
+#: /app/src/modules/reports/ReportsModule.js:1454
+#: /app/src/modules/reports/ReportsModule.js:1471
+#: /app/src/modules/reports/ReportsModule.js:1519 /app/templates/index.php:1875
 #: /app/templates/index.php:2221 /app/templates/index.php:3325
 #: /app/templates/index.php:3360 /app/templates/index.php:3488
 msgid "Expenses"
@@ -2690,7 +2683,7 @@ msgstr "Dépenses"
 #: /app/lib/Controller/YearOverYearController.php:250
 #: /app/src/modules/dashboard/DashboardModule.js:1038
 #: /app/src/modules/dashboard/DashboardModule.js:2248
-#: /app/src/modules/reports/ReportsModule.js:1474
+#: /app/src/modules/reports/ReportsModule.js:1475
 #: /app/src/utils/formatters.js:263
 msgid "Savings"
 msgstr "Épargne"
@@ -2993,13 +2986,11 @@ msgstr "{file} a été enregistré dans vos fichiers."
 
 #: /app/lib/Notification/Notifier.php:471
 msgid "{user} added a receipt to your budget"
-msgstr ""
+msgstr "{user} a ajouté un justificatif à votre budget"
 
 #: /app/lib/Notification/Notifier.php:483
-#, fuzzy
-#| msgid "{file} was saved to your Files."
 msgid "{file} was saved to your Files for {transaction}."
-msgstr "{file} a été enregistré dans vos fichiers."
+msgstr "{file} a été enregistré dans vos fichiers pour {transaction}"
 
 #. TRANSLATORS: {category} is replaced with the category name. Do NOT translate {category} — keep it exactly as-is.
 #: /app/lib/Notification/Notifier.php:510
@@ -3162,27 +3153,27 @@ msgstr ""
 msgid "A transaction for this payment already exists"
 msgstr "Une opération pour ce paiement existe déjà"
 
-#: /app/lib/Service/BillService.php:1060 /app/lib/Service/BillService.php:1074
+#: /app/lib/Service/BillService.php:1064 /app/lib/Service/BillService.php:1078
 msgid "This bill has no recorded payment to undo"
 msgstr "Cette facture n'a pas de paiement enregistré à annuler"
 
-#: /app/lib/Service/BillService.php:1102
+#: /app/lib/Service/BillService.php:1106
 msgid "Cannot skip a one-time bill"
 msgstr "Impossible de passer une facture ponctuelle"
 
-#: /app/lib/Service/BillService.php:1106
+#: /app/lib/Service/BillService.php:1110
 msgid "Cannot skip an inactive bill"
 msgstr "Impossible de passer une facture inactive"
 
-#: /app/lib/Service/BillService.php:1525
+#: /app/lib/Service/BillService.php:1529
 msgid "Auto-pay is not enabled for this bill"
 msgstr "Le paiement automatique n'est pas activé pour cette facture"
 
-#: /app/lib/Service/BillService.php:1538
+#: /app/lib/Service/BillService.php:1542
 msgid "Bill has no account associated"
 msgstr "Aucun compte n'est associé à la facture"
 
-#: /app/lib/Service/BillService.php:1548
+#: /app/lib/Service/BillService.php:1552
 msgid "Bill auto-paid successfully"
 msgstr "Facture réglée automatiquement avec succès"
 
@@ -3334,8 +3325,8 @@ msgstr[1] ""
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:29 /app/src/main.js:3558
 #: /app/src/main.js:3634 /app/src/main.js:3635
-#: /app/src/modules/rules/RulesModule.js:936
-#: /app/src/modules/rules/RulesModule.js:1138
+#: /app/src/modules/rules/RulesModule.js:939
+#: /app/src/modules/rules/RulesModule.js:1141
 #: /app/src/modules/rules/components/CriteriaBuilder.js:188
 #: /app/src/modules/transactions/TransactionsModule.js:3195
 #: /app/src/modules/transactions/TransactionsModule.js:3196
@@ -3550,12 +3541,14 @@ msgstr "Impossible de trouver le compte : %1$s"
 #: /app/lib/Service/ImportService.php:2220
 #, php-format
 msgid "The %1$s format reads CSV files only"
-msgstr ""
+msgstr "Le format %1$s permet uniquement la lecture de fichiers CSV"
 
 #: /app/lib/Service/ImportService.php:2244
 #, php-format
 msgid "This file does not look like a %1$s export. Columns missing: %2$s"
 msgstr ""
+"Ce fichier ne semble pas être une exportation de %1$s. Colonnes manquantes : "
+"%2$s"
 
 #: /app/lib/Service/ManualExchangeRateService.php:62
 #, php-format
@@ -3587,6 +3580,8 @@ msgstr ""
 msgid ""
 "This backup cannot be imported: %1$s is larger than %2$s MB when unpacked"
 msgstr ""
+"Cette sauvegarde ne peut pas être importée : %1$s occupe plus de %2$s Mo une "
+"fois décompressée"
 
 #: /app/lib/Service/MigrationService.php:559
 #, php-format
@@ -3594,6 +3589,8 @@ msgid ""
 "This backup cannot be imported: its files add up to more than %1$s MB when "
 "unpacked"
 msgstr ""
+"Cette sauvegarde ne peut pas être importée : une fois décompressés, ses "
+"fichiers occupent plus de %1$s Mo"
 
 #: /app/lib/Service/ReconciliationService.php:68
 #: /app/lib/Service/ReconciliationService.php:99
@@ -3615,22 +3612,16 @@ msgid "No reconciliation in progress for this account"
 msgstr "Aucun rapprochement en cours pour ce compte"
 
 #: /app/lib/Service/RecurringIncomeService.php:285
-#, fuzzy
-#| msgid "Cannot skip a one-time bill"
 msgid "Cannot skip a one-time income"
-msgstr "Impossible de passer une facture ponctuelle"
+msgstr "Impossible de passer un revenu ponctuel"
 
 #: /app/lib/Service/RecurringIncomeService.php:288
-#, fuzzy
-#| msgid "Cannot skip an inactive bill"
 msgid "Cannot skip an inactive income"
-msgstr "Impossible de passer une facture inactive"
+msgstr "Impossible de passer un revenu inactif"
 
 #: /app/lib/Service/RecurringIncomeService.php:293
-#, fuzzy
-#| msgid "This bill has no recorded payment to undo"
 msgid "This income has no expected date to skip"
-msgstr "Cette facture n'a pas de paiement enregistré à annuler"
+msgstr "Il n'y a pas de date prévue pour la suspension de ce revenu"
 
 #: /app/lib/Service/Report/MonthNames.php:21 /app/templates/index.php:3650
 #: /app/templates/index.php:6204
@@ -3974,19 +3965,41 @@ msgstr "Ventilation mensuelle"
 
 #: /app/lib/Service/Report/ReportExporter.php:680
 #: /app/lib/Service/Report/ReportExporter.php:726
-#: /app/src/modules/reports/ReportsModule.js:1116
+#: /app/src/modules/reports/ReportsModule.js:1117
 msgid "Overall"
 msgstr "Global"
 
 #: /app/lib/Service/Report/ReportExporter.php:693
 #: /app/lib/Service/Report/ReportExporter.php:739
-#: /app/src/modules/reports/ReportsModule.js:1099
+#: /app/src/modules/reports/ReportsModule.js:1100
 msgid "Net total"
 msgstr "Total net"
 
 #: /app/lib/Service/Report/ReportExporter.php:710 /app/templates/index.php:3687
 msgid "Category Income & Expenses by Month"
 msgstr "Catégories de revenus et de dépenses mois"
+
+#: /app/lib/Service/Report/ReportExporter.php:749
+#: /app/src/config/dashboardWidgets.js:26 /app/src/main.js:1897
+#: /app/src/main.js:3629 /app/src/modules/accounts/AccountsModule.js:1864
+#: /app/src/modules/categories/CategoriesModule.js:823
+#: /app/src/modules/dashboard/DashboardModule.js:1253
+#: /app/src/modules/import/ImportModule.js:189
+#: /app/src/modules/import/ImportModule.js:2032
+#: /app/src/modules/reports/ReportsModule.js:1089
+#: /app/src/modules/rules/RulesModule.js:994
+#: /app/src/modules/transactions/TransactionsModule.js:510
+#: /app/src/modules/transactions/TransactionsModule.js:1183
+#: /app/src/modules/transactions/TransactionsModule.js:3190
+#: /app/src/modules/transactions/TransactionsModule.js:3794
+#: /app/src/modules/transactions/TransactionsModule.js:4641
+#: /app/src/modules/transactions/transactionRow.js:122
+#: /app/src/modules/transactions/transactionRow.js:183
+#: /app/src/modules/transactions/transactionRow.js:225
+#: /app/templates/index.php:539 /app/templates/index.php:1464
+#: /app/templates/index.php:1628 /app/templates/quick-add.php:57
+msgid "Uncategorized"
+msgstr "Non catégorisé"
 
 #: /app/lib/Service/Report/ScheduledReportService.php:76
 #: /app/lib/Service/Report/ScheduledReportService.php:77
@@ -4226,60 +4239,6 @@ msgid "Simple budget tracker and forecaster"
 msgstr "Outil simple de suivi et de prévision budgétaire"
 
 #: /app/specialAppInfoFakeDummyForL10nScript.php:4
-#, fuzzy
-#| msgid ""
-#| "**⚠️ Beta: This app is currently in testing. Data loss is possible. Please "
-#| "backup your data regularly and report any issues.**\n"
-#| "\n"
-#| "# Budget - Financial Tracking for Nextcloud\n"
-#| "\n"
-#| "Track your spending habits, manage savings, and forecast future account "
-#| "balances with intelligent analysis of your financial history.\n"
-#| "\n"
-#| "## Features\n"
-#| "\n"
-#| "* **Import Bank Statements**: Support for CSV, OFX, QIF and ISO 20022 "
-#| "camt.053 XML formats\n"
-#| "* **Smart Categorization**: Automatic vendor matching and transaction "
-#| "categorization\n"
-#| "* **Auto-Categorization Rules**: Apply rules to existing transactions "
-#| "anytime with preview\n"
-#| "* **Split Transactions**: Allocate single transactions across multiple "
-#| "categories\n"
-#| "* **Transfer Detection**: Automatic matching of transfers between "
-#| "accounts\n"
-#| "* **Budget Tracking**: Set spending limits with alerts when approaching "
-#| "or exceeding budgets\n"
-#| "* **Balance Forecasting**: Predict future balances based on historical "
-#| "data\n"
-#| "* **Recurring Bills**: Track bills with due date monitoring and Nextcloud "
-#| "notifications\n"
-#| "* **Recurring Income**: Track expected income sources with receipt "
-#| "tracking\n"
-#| "* **Split Expenses**: Share expenses with contacts and track who owes "
-#| "whom\n"
-#| "* **Debt Payoff Planner**: Plan repayment using avalanche or snowball "
-#| "strategies\n"
-#| "* **Savings Goals**: Set targets with progress tracking and achievement "
-#| "forecasting\n"
-#| "* **Pension Tracker**: Track retirement accounts with growth projections\n"
-#| "* **Net Worth History**: Track assets and liabilities over time\n"
-#| "* **Year-over-Year Reports**: Compare spending across multiple years\n"
-#| "* **Multi-Account Support**: Manage multiple bank accounts and "
-#| "currencies\n"
-#| "* **Custom Categories**: Create your own category hierarchy\n"
-#| "* **Reports & Charts**: Visualize your financial data with interactive "
-#| "charts\n"
-#| "\n"
-#| "## Documentation\n"
-#| "\n"
-#| "Full user documentation: https://budget.otherworld.dev/docs/\n"
-#| "\n"
-#| "## Requirements\n"
-#| "\n"
-#| "* Nextcloud 30 or higher\n"
-#| "* PHP 8.1 or higher\n"
-#| "* PHP BCMath extension (`php-bcmath`)"
 msgid ""
 "**⚠️ Beta: This app is currently in testing. Data loss is possible. Please "
 "backup your data regularly and report any issues.**\n"
@@ -4367,6 +4326,8 @@ msgstr ""
 "\n"
 "* **Importation de relevés bancaires** : Prise en charge des formats CSV, "
 "OFX, QIF et ISO 20022 camt.053 XML\n"
+"* **Synchronisation bancaire** : récupérez automatiquement vos opérations "
+"via GoCardless (Royaume-Uni/UE) ou SimpleFIN (États-Unis)\n"
 "* **Catégorisation intelligente** : Association automatique aux commerçants "
 "et catégorisation des opérations\n"
 "* **Règles de catégorisation automatique** : Application de règles aux "
@@ -4375,16 +4336,33 @@ msgstr ""
 "plusieurs catégories\n"
 "* **Détection de virements** : Association automatique des virements entre "
 "comptes\n"
-"* **Suivi budgétaire** : Définition de plafonds de dépenses avec alertes à "
-"l'approche ou au dépassement du budget\n"
+"* **Rapprochement des relevés** : cocher les opérations au fur et à mesure "
+"sur un relevé bancaire jusqu'à ce que la différence soit nulle\n"
+"* **Numérisation des reçus** : joignez des photos de reçus aux opérations "
+"et, une fois que l'administrateur aura configuré cette fonctionnalité, le "
+"système pourra extraire le montant et les articles figurant sur ces reçus "
+"(OCR)\n"
+"* **Ajout rapide et API publique** : une page d'accès rapide depuis votre "
+"téléphone, ainsi qu'une API REST pour les scripts, l'automatisation et "
+"l'application Android « Budget Companion » (en cours de développement)\n"
+"* **Suivi budgétaire** : définissez des limites de dépenses et recevez des "
+"alertes lorsque vous vous approchez de ces limites ou que vous les dépassez\n"
+"* **Budgets reportables** : système de budgétisation par enveloppes, dans "
+"lequel les fonds non dépensés (ou les dépassements de budget) sont reportés "
+"sur le mois suivant\n"
+"* **Budgets de projet** : un budget unique pour un projet s'étalant sur "
+"plusieurs mois, comme une rénovation ou un mariage\n"
 "* **Prévision de solde** : Estimation des soldes futurs basée sur les "
 "données historiques\n"
 "* **Factures récurrentes** : Suivi des factures avec rappel des échéances et "
 "notifications Nextcloud\n"
+"* **Détection des abonnements** : identifie les paiements qui semblent "
+"récurrents mais qui ne sont pas encore enregistrés, et les transforme en "
+"factures en un seul clic\n"
 "* **Revenus récurrents** : Suivi des sources de revenus prévues et de leur "
 "encaissement\n"
-"* **Partage de dépenses** : Partage de frais avec des contacts et suivi des "
-"dettes mutuelles\n"
+"* **Partage des dépenses** : partagez vos dépenses avec vos contacts ou "
+"plusieurs personnes et suivez qui doit quoi à qui\n"
 "* **Planificateur de remboursement de dettes** : Planification du "
 "remboursement via les méthodes « avalanche » ou « boule de neige »\n"
 "* **Objectifs d'épargne** : Définition d'objectifs avec suivi de la "
@@ -4395,6 +4373,13 @@ msgstr ""
 "passifs dans le temps\n"
 "* **Rapports annuels comparatifs** : Comparaison des dépenses sur plusieurs "
 "années\n"
+"* **Rapport sur les flux financiers** : un diagramme de Sankey illustrant "
+"l'origine et la destination des fonds pour une période donnée\n"
+"* **Résumé et alertes de dépenses inhabituelles** : un récapitulatif "
+"hebdomadaire ou mensuel (facultatif) et une notification lorsqu'une "
+"catégorie dépasse largement son niveau habituel\n"
+"* **Rapports PDF programmés** : le rapport du mois dernier est enregistré "
+"dans vos fichiers ou vous est envoyé automatiquement par e-mail\n"
 "* **Gestion multi-comptes** : Gestion de plusieurs comptes bancaires et "
 "devises\n"
 "* **Catégories personnalisées** : Création de votre propre hiérarchie de "
@@ -4468,26 +4453,6 @@ msgstr "Revenus du compte"
 #: /app/src/config/dashboardWidgets.js:23 /app/templates/index.php:523
 msgid "Account Expenses"
 msgstr "Dépenses du compte"
-
-#: /app/src/config/dashboardWidgets.js:26 /app/src/main.js:1897
-#: /app/src/main.js:3629 /app/src/modules/accounts/AccountsModule.js:1864
-#: /app/src/modules/categories/CategoriesModule.js:823
-#: /app/src/modules/dashboard/DashboardModule.js:1253
-#: /app/src/modules/import/ImportModule.js:189
-#: /app/src/modules/import/ImportModule.js:2032
-#: /app/src/modules/rules/RulesModule.js:991
-#: /app/src/modules/transactions/TransactionsModule.js:510
-#: /app/src/modules/transactions/TransactionsModule.js:1183
-#: /app/src/modules/transactions/TransactionsModule.js:3190
-#: /app/src/modules/transactions/TransactionsModule.js:3794
-#: /app/src/modules/transactions/TransactionsModule.js:4641
-#: /app/src/modules/transactions/transactionRow.js:122
-#: /app/src/modules/transactions/transactionRow.js:183
-#: /app/src/modules/transactions/transactionRow.js:225
-#: /app/templates/index.php:539 /app/templates/index.php:1464
-#: /app/templates/index.php:1628 /app/templates/quick-add.php:57
-msgid "Uncategorized"
-msgstr "Non catégorisé"
 
 #: /app/src/config/dashboardWidgets.js:27 /app/templates/index.php:552
 msgid "Low Balance Alert"
@@ -4691,7 +4656,7 @@ msgstr "Catégories"
 #: /app/src/modules/bills/BillsModule.js:1699
 #: /app/src/modules/help/HelpModule.js:31
 #: /app/src/modules/reports/ReportsModule.js:432
-#: /app/src/modules/rules/RulesModule.js:822
+#: /app/src/modules/rules/RulesModule.js:825
 #: /app/src/modules/savings/SavingsModule.js:295
 #: /app/src/modules/tagsets/TagSetsModule.js:601
 #: /app/src/modules/transactions/TransactionsModule.js:548
@@ -4790,19 +4755,22 @@ msgstr "Sélectionner / désélectionner la ligne actuelle"
 
 #: /app/src/core/KeyboardShortcuts.js:382
 msgid "Reordering"
-msgstr ""
+msgstr "Réorganisation"
 
 #: /app/src/core/KeyboardShortcuts.js:384
 msgid "Move a focused category or list column up / down"
 msgstr ""
+"Déplacer une catégorie ou une colonne de liste sélectionnée vers le haut ou "
+"vers le bas"
 
 #: /app/src/core/KeyboardShortcuts.js:385
 msgid "Make a focused category a subcategory of the one above"
 msgstr ""
+"Faire d'une catégorie spécifique une sous-catégorie de celle qui la précède"
 
 #: /app/src/core/KeyboardShortcuts.js:386
 msgid "Move a focused subcategory out one level"
-msgstr ""
+msgstr "Déplacer une sous-catégorie sélectionnée d'un niveau vers le haut"
 
 #: /app/src/core/KeyboardShortcuts.js:396
 #: /app/src/core/KeyboardShortcuts.js:416 /app/src/main.js:1022
@@ -5306,7 +5274,7 @@ msgid "Failed to calculate scenario"
 msgstr "Échec du calcul du scénario"
 
 #: /app/src/main.js:2699 /app/src/modules/dashboard/DashboardModule.js:950
-#: /app/src/modules/reports/ReportsModule.js:1570
+#: /app/src/modules/reports/ReportsModule.js:1571
 msgid "N/A"
 msgstr "N/A"
 
@@ -6597,7 +6565,7 @@ msgid "Failed to dismiss suggestions"
 msgstr "Échec du rejet des suggestions"
 
 #: /app/src/modules/bills/BillsModule.js:317
-#: /app/src/modules/reports/ReportsModule.js:1908
+#: /app/src/modules/reports/ReportsModule.js:1909
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:476
 #: /app/src/modules/transfers/TransfersModule.js:315
 #: /app/templates/index.php:2690
@@ -7234,7 +7202,7 @@ msgstr "Catégorie réorganisée avec succès"
 #: /app/src/modules/reports/ReportsModule.js:204
 #: /app/src/modules/reports/ReportsModule.js:207
 #: /app/src/modules/reports/ReportsModule.js:209
-#: /app/src/modules/reports/ReportsModule.js:1702
+#: /app/src/modules/reports/ReportsModule.js:1703
 #: /app/src/modules/transactions/TransactionsModule.js:503
 #: /app/templates/index.php:594 /app/templates/index.php:616
 #: /app/templates/index.php:634 /app/templates/index.php:685
@@ -7418,7 +7386,7 @@ msgid "Default categories created successfully"
 msgstr "Catégories par défaut créées avec succès"
 
 #: /app/src/modules/categories/CategoriesModule.js:1615
-#: /app/src/modules/rules/RulesModule.js:1363
+#: /app/src/modules/rules/RulesModule.js:1366
 msgid "Could not read that file: {error}"
 msgstr "Impossible de lire ce fichier : {error}"
 
@@ -7606,11 +7574,11 @@ msgstr "Échec de la mise à jour du budget : {message}"
 
 #: /app/src/modules/categories/CategoriesModule.js:2657
 msgid "Over-assigned: {income} in, {budgeted} budgeted"
-msgstr ""
+msgstr "Dépassement : {income} perçus, {budgeted} prévu"
 
 #: /app/src/modules/categories/CategoriesModule.js:2659
 msgid "{income} in, {budgeted} budgeted"
-msgstr ""
+msgstr "{income} encaissé, {budgeted} budgété"
 
 #: /app/src/modules/dashboard/DashboardModule.js:403
 #: /app/src/modules/dashboard/DashboardModule.js:425
@@ -8009,7 +7977,7 @@ msgstr "Dépenses totales"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2887
 msgid "{month} (so far)"
-msgstr ""
+msgstr "{month} (jusqu'à présent)"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2965
 #: /app/templates/index.php:1194
@@ -8134,11 +8102,11 @@ msgstr "Suppléments"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4880
 msgid "Small"
-msgstr ""
+msgstr "Petit"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4881
 msgid "Medium"
-msgstr ""
+msgstr "Moyen"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4882
 #, fuzzy
@@ -8148,7 +8116,7 @@ msgstr "Objectif"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4909
 msgid "Move earlier"
-msgstr ""
+msgstr "Déplacé plus tôt"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4909
 #, fuzzy
@@ -8740,6 +8708,9 @@ msgid ""
 "created, categories and tags are created as needed, and transfer rows are "
 "skipped."
 msgstr ""
+"Lit un fichier d'exportation Toshl Finance : chaque compte du fichier est "
+"associé à son nom ou créé, les catégories et les étiquettes sont créées si "
+"nécessaire, et les lignes de virement sont ignorées."
 
 #: /app/src/modules/import/ImportModule.js:101
 msgid ""
@@ -8747,6 +8718,10 @@ msgid ""
 "created in its own currency, categories and tags are created as needed, and "
 "each transfer is imported into both accounts and linked."
 msgstr ""
+"Lit un fichier d'exportation Firefly III : chaque compte du fichier est "
+"associé par son nom ou créé dans sa propre devise ; les catégories et les "
+"étiquettes sont créées selon les besoins ; et chaque virement est importé "
+"dans les deux comptes et relié."
 
 #: /app/src/modules/import/ImportModule.js:102
 msgid ""
@@ -8754,6 +8729,10 @@ msgid ""
 "category groups become parent categories, and transfers are linked. Income "
 "assigned to \"Ready to Assign\" is left uncategorized."
 msgstr ""
+"Lit le registre YNAB exporté : chaque compte est associé à son nom ou créé, "
+"les groupes de catégories deviennent des catégories parentes et les "
+"virements sont reliés. Les revenus affectés à la rubrique « Prêts à être "
+"affectés » ne sont pas classés dans une catégorie."
 
 #: /app/src/modules/import/ImportModule.js:103
 msgid ""
@@ -8761,6 +8740,10 @@ msgid ""
 "category groups become parent categories, split transactions are imported as "
 "their parts, and transfers are linked."
 msgstr ""
+"Lit un fichier d'exportation « Actual Budget » : chaque compte est associé à "
+"son nom ou créé, les groupes de catégories deviennent des catégories "
+"parentes, les opérations fractionnées sont importées sous forme de parties "
+"distinctes et les virements sont reliés entre eux."
 
 #: /app/src/modules/import/ImportModule.js:104
 msgid ""
@@ -8768,12 +8751,19 @@ msgid ""
 "categories are created as needed, labels become tags, and transfers and card "
 "payments are linked."
 msgstr ""
+"Lit le fichier « transactions.csv » de Mint : chaque compte est associé à "
+"son nom ou créé, les catégories sont créées si nécessaire, les libellés "
+"deviennent des étiquettes, et les virements ainsi que les paiements par "
+"carte sont reliés."
 
 #: /app/src/modules/import/ImportModule.js:105
 msgid ""
 "Reads a Monarch Money download: each account is matched by name or created, "
 "categories are created as needed, and transfers and card payments are linked."
 msgstr ""
+"Lit un fichier téléchargé depuis Monarch Money : chaque compte est associé à "
+"son nom ou créé, les catégories sont créées selon les besoins, et les "
+"virements ainsi que les paiements par carte sont rattachés."
 
 #: /app/src/modules/import/ImportModule.js:187
 msgid "Rule: {name}"
@@ -8907,12 +8897,16 @@ msgstr "Les comptes de ce modèle ne correspondent pas au fichier importé"
 #: /app/src/modules/import/ImportModule.js:938
 msgid "Now choose your {app} export file."
 msgstr ""
+"Sélectionnez maintenant votre fichier d'exportation de l'application {app}."
 
 #: /app/src/modules/import/ImportModule.js:967
 msgid ""
 "This file looks like a {app} export, so that format has been selected. "
 "Choose Custom CSV to map the columns yourself."
 msgstr ""
+"Ce fichier ressemble à une exportation de l'application {app} ; ce format a "
+"donc été sélectionné. Choisissez « CSV personnalisé » pour mapper vous-même "
+"les colonnes."
 
 #: /app/src/modules/import/ImportModule.js:1013
 msgid "%n record"
@@ -8986,6 +8980,8 @@ msgid ""
 "{count} split total rows will be skipped; the parts of each split are "
 "imported instead"
 msgstr ""
+"{count} lignes du total ventilé seront ignorées ; ce sont les parties de "
+"chaque ventilation qui seront importées à la place"
 
 #: /app/src/modules/import/ImportModule.js:1881
 msgid "This import will create %n new account"
@@ -9182,8 +9178,8 @@ msgstr[1] ""
 #: /app/src/modules/import/ImportModule.js:2484
 msgid "%n transfer between your accounts was linked"
 msgid_plural "%n transfers between your accounts were linked"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n virement entre vos comptes a été associé"
+msgstr[1] "%n virements entre vos comptes ont été associés"
 
 #: /app/src/modules/import/ImportModule.js:2490
 msgid "Import complete. %n category created — it may take a moment to appear."
@@ -9411,7 +9407,7 @@ msgstr "Impossible de récupérer la devise de base"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:46
 msgid "The currency your totals and reports are shown in."
-msgstr ""
+msgstr "La devise dans laquelle s'affichent vos totaux et vos rapports."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:48
 #, fuzzy
@@ -9430,6 +9426,8 @@ msgid ""
 "A ready-made set of income and spending categories, which you can change "
 "later."
 msgstr ""
+"Un ensemble prédéfini de catégories de revenus et de dépenses, que vous "
+"pourrez modifier ultérieurement."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:56
 #, fuzzy
@@ -9447,15 +9445,19 @@ msgstr "Ajouter un nouveau compte"
 #: /app/src/modules/onboarding/OnboardingModule.js:62
 msgid "A bank account, card or cash wallet to record money in and out of."
 msgstr ""
+"Un compte bancaire, une carte ou un porte-monnaie pour noter les entrées et "
+"les sorties d'argent."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:70
 msgid "Import a statement or connect your bank"
-msgstr ""
+msgstr "Importez un relevé ou connectez-vous à votre banque"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:72
 msgid ""
 "Bring in your transactions from a CSV, OFX or QIF file your bank gives you."
 msgstr ""
+"Importez vos opérations à partir d'un fichier CSV, OFX ou QIF fourni par "
+"votre banque."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:79
 #, fuzzy
@@ -9466,6 +9468,7 @@ msgstr "Sélectionnez une catégorie"
 #: /app/src/modules/onboarding/OnboardingModule.js:80
 msgid "Choose how much you want to spend on something each month."
 msgstr ""
+"Choisissez le montant que vous souhaitez consacrer à une dépense chaque mois."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:153
 #, fuzzy
@@ -9477,11 +9480,13 @@ msgstr "Catégories avec budget"
 msgid ""
 "A few steps to a working budget. Each one ticks itself off once it is done."
 msgstr ""
+"Quelques étapes pour établir un budget fonctionnel. Chacune d'entre elles "
+"est cochée une fois terminée."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:162
 #: /app/src/modules/onboarding/OnboardingModule.js:163
 msgid "Hide this checklist"
-msgstr ""
+msgstr "Masquer cette liste de vérification"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:174
 #, fuzzy
@@ -9501,10 +9506,13 @@ msgid ""
 "budgets to explore, then clear them in one click when you are ready for your "
 "own."
 msgstr ""
+"Vous ne faites que jeter un œil ? Pour découvrir Budget, importez un "
+"échantillon de comptes, d'opérations et de budgets, puis effacez-les d'un "
+"simple clic lorsque vous serez prêt à créer les vôtres."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:200
 msgid "Try with sample data"
-msgstr ""
+msgstr "Essayez avec un échantillon de données"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:211
 #, fuzzy
@@ -9526,23 +9534,25 @@ msgstr "Activer/désactiver le verrouillage du tableau de bord"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:247
 msgid "(done)"
-msgstr ""
+msgstr "(terminé)"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:247
 msgid "(not done yet)"
-msgstr ""
+msgstr "(pas encore terminé)"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:273
 msgid "Guide"
-msgstr ""
+msgstr "Guide"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:296
 msgid "You're looking at sample data"
-msgstr ""
+msgstr "Vous consultez ici un échantillon de données"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:298
 msgid "None of it is real. Clear it when you are ready to add your own."
 msgstr ""
+"Tout cela n'est pas réel. Effacez-le lorsque vous serez prêt à ajouter vos "
+"propres éléments."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:303
 #: /app/src/modules/onboarding/OnboardingModule.js:390
@@ -9554,22 +9564,24 @@ msgstr "Effacer la sélection"
 #: /app/src/modules/onboarding/OnboardingModule.js:373
 msgid "Sample data added. Have a look around."
 msgstr ""
+"Des échantillons de données ont été ajoutés. N'hésitez pas à les consulter."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:387
 msgid ""
 "This deletes everything in your budget: the sample data and anything you "
 "added while trying it. Your settings are kept."
 msgstr ""
+"Cette opération supprime tout le contenu de votre budget : les données "
+"d'échantillon et tout ce que vous avez ajouté pendant que vous testiez "
+"l'application. Vos paramètres sont conservés."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:389
-#, fuzzy
-#| msgid "Clear selection"
 msgid "Clear sample data?"
-msgstr "Effacer la sélection"
+msgstr "Effacer les données d'échantillon ?"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:403
 msgid "Sample data cleared"
-msgstr ""
+msgstr "Données d'échantillon effacées"
 
 #: /app/src/modules/pensions/PensionsModule.js:37
 #: /app/src/modules/pensions/PensionsModule.js:40
@@ -9941,7 +9953,7 @@ msgstr "Rien durant cette période"
 msgid "No data for the selected period."
 msgstr "Aucune donnée pour la période sélectionnée."
 
-#: /app/src/modules/reports/ReportsModule.js:1105
+#: /app/src/modules/reports/ReportsModule.js:1106
 msgid ""
 "You have accounts in more than one currency. Amounts are summed in their "
 "original currency without conversion."
@@ -9949,58 +9961,58 @@ msgstr ""
 "Vous possédez des comptes dans plusieurs devises. Les montants sont "
 "additionnés dans leur devise d'origine, sans conversion."
 
-#: /app/src/modules/reports/ReportsModule.js:1160
+#: /app/src/modules/reports/ReportsModule.js:1161
 msgid "Net Cash Flow"
 msgstr "Flux de trésorerie net"
 
-#: /app/src/modules/reports/ReportsModule.js:1301 /app/templates/index.php:3187
+#: /app/src/modules/reports/ReportsModule.js:1302 /app/templates/index.php:3187
 #: /app/templates/index.php:3503
 msgid "Money Flow"
 msgstr "Flux de trésorerie"
 
-#: /app/src/modules/reports/ReportsModule.js:1427
+#: /app/src/modules/reports/ReportsModule.js:1428
 msgid "Failed to generate comparison"
 msgstr "Échec de la génération de la comparaison"
 
-#: /app/src/modules/reports/ReportsModule.js:1461
+#: /app/src/modules/reports/ReportsModule.js:1462
 msgid "YTD"
 msgstr "Cumul à ce jour"
 
-#: /app/src/modules/reports/ReportsModule.js:1486
+#: /app/src/modules/reports/ReportsModule.js:1487
 msgid "{monthName} - Year over Year Comparison"
 msgstr "{monthName} – Comparaison d'une année sur l'autre"
 
-#: /app/src/modules/reports/ReportsModule.js:1487
+#: /app/src/modules/reports/ReportsModule.js:1488
 msgid "Annual Income & Expenses"
 msgstr "Revenus et dépenses annuels"
 
-#: /app/src/modules/reports/ReportsModule.js:1564
+#: /app/src/modules/reports/ReportsModule.js:1565
 msgid "Change"
 msgstr "Modifier"
 
-#: /app/src/modules/reports/ReportsModule.js:1608
+#: /app/src/modules/reports/ReportsModule.js:1609
 msgid "Report exported as {format}"
 msgstr "Rapport exporté au format {format}"
 
-#: /app/src/modules/reports/ReportsModule.js:1811
+#: /app/src/modules/reports/ReportsModule.js:1812
 msgid "Failed to generate bills calendar"
 msgstr "Échec de la génération du calendrier des factures"
 
-#: /app/src/modules/reports/ReportsModule.js:1839
+#: /app/src/modules/reports/ReportsModule.js:1840
 msgid "Total Bills"
 msgstr "Total des factures"
 
-#: /app/src/modules/reports/ReportsModule.js:1911
+#: /app/src/modules/reports/ReportsModule.js:1912
 msgid "No payment recorded - the bill has moved on from this date"
 msgstr ""
 "Aucun paiement n'a été enregistré — la facture a été reportée au-delà de "
 "cette date"
 
-#: /app/src/modules/reports/ReportsModule.js:1914
+#: /app/src/modules/reports/ReportsModule.js:1915
 msgid "Due"
 msgstr "À payer"
 
-#: /app/src/modules/reports/ReportsModule.js:1919
+#: /app/src/modules/reports/ReportsModule.js:1920
 #: /app/src/modules/transactions/TransactionsModule.js:1988
 #: /app/src/modules/transactions/transactionRow.js:55
 #: /app/src/modules/transfers/TransfersModule.js:473
@@ -10008,11 +10020,11 @@ msgstr "À payer"
 msgid "Transfer"
 msgstr "Transfert"
 
-#: /app/src/modules/reports/ReportsModule.js:1937
+#: /app/src/modules/reports/ReportsModule.js:1938
 msgid "Monthly Totals"
 msgstr "Totaux mensuels"
 
-#: /app/src/modules/reports/ReportsModule.js:1956
+#: /app/src/modules/reports/ReportsModule.js:1957
 #, fuzzy
 #| msgid ""
 #| "Pick an account above to see what is left in it after each month's bills."
@@ -10022,28 +10034,31 @@ msgstr ""
 "Choisissez un compte parmi ceux ci-dessus pour voir le solde restant après "
 "le paiement des factures mensuelles."
 
-#: /app/src/modules/reports/ReportsModule.js:1959
+#: /app/src/modules/reports/ReportsModule.js:1960
 msgid "The projected balance is only shown for the current year."
-msgstr ""
+msgstr "Le solde prévisionnel n'est affiché que pour l'année en cours."
 
-#: /app/src/modules/reports/ReportsModule.js:1977
+#: /app/src/modules/reports/ReportsModule.js:1978
 msgid "Bills {bills}, transfers in {transfers}, income {income}"
-msgstr ""
+msgstr "Factures {bills}, virements entrants {transfers}, revenus {income}"
 
-#: /app/src/modules/reports/ReportsModule.js:1986
+#: /app/src/modules/reports/ReportsModule.js:1987
 msgid ""
 "{account} today: {balance}. Each month carries on from the month before, "
 "less the bills and plus the transfers and recurring income still due."
 msgstr ""
+"{account} aujourd'hui : {balance}. Chaque mois reprend le solde du mois "
+"précédent, déduction faite des factures et majoré des virements et des "
+"revenus récurrents encore à percevoir."
 
-#: /app/src/modules/reports/ReportsModule.js:1991
+#: /app/src/modules/reports/ReportsModule.js:1992
 #, fuzzy
 #| msgid "Your projected balance falls to {balance} in {month}."
 msgid "Lowest: {balance} in {month}."
 msgstr "Votre solde prévisionnel s'établit à {balance} en {month}."
 
-#: /app/src/modules/reports/ReportsModule.js:2027
-#: /app/src/modules/reports/ReportsModule.js:2029
+#: /app/src/modules/reports/ReportsModule.js:2028
+#: /app/src/modules/reports/ReportsModule.js:2030
 msgid "%n bill"
 msgid_plural "%n bills"
 msgstr[0] "%n facture"
@@ -10152,96 +10167,102 @@ msgid "NOT"
 msgstr "NOT"
 
 #: /app/src/modules/rules/RulesModule.js:242
-#: /app/src/modules/rules/RulesModule.js:271
+#: /app/src/modules/rules/RulesModule.js:274
 msgid "Category #{id}"
 msgstr "Categorie #{id}"
 
 #: /app/src/modules/rules/RulesModule.js:247
-#: /app/src/modules/rules/RulesModule.js:277
+#: /app/src/modules/rules/RulesModule.js:280
 msgid "Vendor:"
 msgstr "Fournisseur :"
 
 #: /app/src/modules/rules/RulesModule.js:250
-#: /app/src/modules/rules/RulesModule.js:281
+#, fuzzy
+#| msgid "Set Description"
+msgid "Set description"
+msgstr "Définir la description"
+
+#: /app/src/modules/rules/RulesModule.js:253
+#: /app/src/modules/rules/RulesModule.js:284
 msgid "Set notes"
 msgstr "Définir des remarques"
 
-#: /app/src/modules/rules/RulesModule.js:253
+#: /app/src/modules/rules/RulesModule.js:256
 msgid "Set tags"
 msgstr "Définir des étiquettes"
 
-#: /app/src/modules/rules/RulesModule.js:256
+#: /app/src/modules/rules/RulesModule.js:259
 msgid "Type:"
 msgstr "Type :"
 
-#: /app/src/modules/rules/RulesModule.js:259
+#: /app/src/modules/rules/RulesModule.js:262
 msgid "Move account"
 msgstr "Déplacer le compte"
 
-#: /app/src/modules/rules/RulesModule.js:262
+#: /app/src/modules/rules/RulesModule.js:265
 msgid "Set reference"
 msgstr "Définir une référence"
 
-#: /app/src/modules/rules/RulesModule.js:285
+#: /app/src/modules/rules/RulesModule.js:288
 msgid "No actions"
 msgstr "Aucune action"
 
-#: /app/src/modules/rules/RulesModule.js:413
-#: /app/src/modules/rules/RulesModule.js:432
+#: /app/src/modules/rules/RulesModule.js:416
+#: /app/src/modules/rules/RulesModule.js:435
 msgid "rule"
 msgstr "règle"
 
-#: /app/src/modules/rules/RulesModule.js:413
-#: /app/src/modules/rules/RulesModule.js:432
+#: /app/src/modules/rules/RulesModule.js:416
+#: /app/src/modules/rules/RulesModule.js:435
 msgid "rules"
 msgstr "règles"
 
-#: /app/src/modules/rules/RulesModule.js:413
+#: /app/src/modules/rules/RulesModule.js:416
 msgid "active"
 msgstr "active"
 
-#: /app/src/modules/rules/RulesModule.js:414
+#: /app/src/modules/rules/RulesModule.js:417
 msgid "Run all rules in this group"
 msgstr "Exécuter toutes les règles de ce groupe"
 
-#: /app/src/modules/rules/RulesModule.js:414
+#: /app/src/modules/rules/RulesModule.js:417
 msgid "Run Group"
 msgstr "Exécuter ce groupe"
 
-#: /app/src/modules/rules/RulesModule.js:431
+#: /app/src/modules/rules/RulesModule.js:434
 msgid "Ungrouped"
 msgstr "Non groupé"
 
-#: /app/src/modules/rules/RulesModule.js:722
+#: /app/src/modules/rules/RulesModule.js:725
 msgid "This rule has been upgraded to the new format with advanced features"
 msgstr ""
 "Cette règle a été mise à niveau vers le nouveau format, avec des "
 "fonctionnalités avancées"
 
-#: /app/src/modules/rules/RulesModule.js:725
+#: /app/src/modules/rules/RulesModule.js:728
 msgid "Failed to upgrade rule format"
 msgstr "Échec de la mise à niveau du format de la règle"
 
-#: /app/src/modules/rules/RulesModule.js:741
+#: /app/src/modules/rules/RulesModule.js:744
 msgid "Edit Rule"
 msgstr "Modifier la règle"
 
-#: /app/src/modules/rules/RulesModule.js:769 /app/templates/index.php:2756
+#: /app/src/modules/rules/RulesModule.js:772 /app/templates/index.php:2756
 msgid "Add Rule"
 msgstr "Ajouter une règle"
 
-#: /app/src/modules/rules/RulesModule.js:874
-#: /app/src/modules/rules/RulesModule.js:1225
+#: /app/src/modules/rules/RulesModule.js:877
+#: /app/src/modules/rules/RulesModule.js:1228
 msgid "Error: CriteriaBuilder not initialized"
 msgstr "Erreur : CriteriaBuilder non initialisé"
 
-#: /app/src/modules/rules/RulesModule.js:880
-#: /app/src/modules/rules/RulesModule.js:1064
-#: /app/src/modules/rules/RulesModule.js:1230
+#: /app/src/modules/rules/RulesModule.js:883
+#: /app/src/modules/rules/RulesModule.js:1067
+#: /app/src/modules/rules/RulesModule.js:1233
 msgid "Invalid criteria: {errors}"
 msgstr "Critères invalides : {errors}"
 
-#: /app/src/modules/rules/RulesModule.js:895
+#: /app/src/modules/rules/RulesModule.js:898
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:508
 #: /app/src/modules/sharing/SharingModule.js:32
 #: /app/src/modules/transactions/TransactionsModule.js:1289
@@ -10256,107 +10277,107 @@ msgstr "Critères invalides : {errors}"
 msgid "Loading..."
 msgstr "Chargement..."
 
-#: /app/src/modules/rules/RulesModule.js:914
+#: /app/src/modules/rules/RulesModule.js:917
 msgid "Failed to preview rule: {error}"
 msgstr "Échec de la prévisualisation de la règle : {error}"
 
-#: /app/src/modules/rules/RulesModule.js:918 /app/templates/index.php:6548
+#: /app/src/modules/rules/RulesModule.js:921 /app/templates/index.php:6548
 msgid "Preview Matches"
 msgstr "Aperçu des correspondances"
 
-#: /app/src/modules/rules/RulesModule.js:938
-#: /app/src/modules/rules/RulesModule.js:1140 /app/templates/index.php:6521
+#: /app/src/modules/rules/RulesModule.js:941
+#: /app/src/modules/rules/RulesModule.js:1143 /app/templates/index.php:6521
 msgid "Current Category"
 msgstr "Catégorie actuelle"
 
-#: /app/src/modules/rules/RulesModule.js:956
+#: /app/src/modules/rules/RulesModule.js:959
 msgid "No matching transactions found"
 msgstr "Aucune opération correspondante trouvée"
 
-#: /app/src/modules/rules/RulesModule.js:1002 /app/templates/quick-add.php:160
+#: /app/src/modules/rules/RulesModule.js:1005 /app/templates/quick-add.php:160
 msgid "Saving..."
 msgstr "Enregistrement..."
 
-#: /app/src/modules/rules/RulesModule.js:1010
+#: /app/src/modules/rules/RulesModule.js:1013
 msgid "Failed to save rule"
 msgstr "Échec de l'enregistrement de la règle"
 
-#: /app/src/modules/rules/RulesModule.js:1014
-#: /app/src/modules/rules/RulesModule.js:1680
+#: /app/src/modules/rules/RulesModule.js:1017
+#: /app/src/modules/rules/RulesModule.js:1683
 msgid "Running..."
 msgstr "En cours d'exécution..."
 
-#: /app/src/modules/rules/RulesModule.js:1028
-#: /app/src/modules/rules/RulesModule.js:1695
+#: /app/src/modules/rules/RulesModule.js:1031
+#: /app/src/modules/rules/RulesModule.js:1698
 msgid "Rule applied: %n transaction updated"
 msgid_plural "Rule applied: %n transactions updated"
 msgstr[0] "Règle appliquée : %n opération mise à jour"
 msgstr[1] "Règle appliquée : %n opérations mises à jour"
 
-#: /app/src/modules/rules/RulesModule.js:1034
-#: /app/src/modules/rules/RulesModule.js:1152
-#: /app/src/modules/rules/RulesModule.js:1700
-#: /app/src/modules/rules/RulesModule.js:1739
+#: /app/src/modules/rules/RulesModule.js:1037
+#: /app/src/modules/rules/RulesModule.js:1155
+#: /app/src/modules/rules/RulesModule.js:1703
+#: /app/src/modules/rules/RulesModule.js:1742
 msgid "No transactions were updated"
 msgstr "Aucune opération n'a été mise à jour"
 
-#: /app/src/modules/rules/RulesModule.js:1039
-#: /app/src/modules/rules/RulesModule.js:1704
+#: /app/src/modules/rules/RulesModule.js:1042
+#: /app/src/modules/rules/RulesModule.js:1707
 msgid "Failed to run rule: {error}"
 msgstr "Échec de l'exécution de la règle : {error}"
 
-#: /app/src/modules/rules/RulesModule.js:1042 /app/templates/index.php:6549
+#: /app/src/modules/rules/RulesModule.js:1045 /app/templates/index.php:6549
 msgid "Run Rule Now"
 msgstr "Appliquez la règle dès maintenant"
 
-#: /app/src/modules/rules/RulesModule.js:1059
+#: /app/src/modules/rules/RulesModule.js:1062
 msgid "CriteriaBuilder not initialized"
 msgstr "CriteriaBuilder non initialisé"
 
-#: /app/src/modules/rules/RulesModule.js:1071
+#: /app/src/modules/rules/RulesModule.js:1074
 msgid "ActionBuilder not initialized"
 msgstr "ActionBuilder non initialisé"
 
-#: /app/src/modules/rules/RulesModule.js:1076
-#: /app/src/modules/rules/RulesModule.js:1241
+#: /app/src/modules/rules/RulesModule.js:1079
+#: /app/src/modules/rules/RulesModule.js:1244
 msgid "Invalid actions: {errors}"
 msgstr "Actions invalides : {errors}"
 
-#: /app/src/modules/rules/RulesModule.js:1145
+#: /app/src/modules/rules/RulesModule.js:1148
 msgid "{count} updated"
 msgstr "{count} mise(s) à jour"
 
-#: /app/src/modules/rules/RulesModule.js:1200
+#: /app/src/modules/rules/RulesModule.js:1203
 msgid "Rule updated successfully"
 msgstr "Règle mise à jour avec succès"
 
-#: /app/src/modules/rules/RulesModule.js:1200
+#: /app/src/modules/rules/RulesModule.js:1203
 msgid "Rule created successfully"
 msgstr "Règle créée avec succès"
 
-#: /app/src/modules/rules/RulesModule.js:1209
+#: /app/src/modules/rules/RulesModule.js:1212
 msgid "Failed to save rule: {error}"
 msgstr "Échec de l'enregistrement de la règle : {error}"
 
-#: /app/src/modules/rules/RulesModule.js:1236
+#: /app/src/modules/rules/RulesModule.js:1239
 msgid "Error: ActionBuilder not initialized"
 msgstr "Erreur : ActionBuilder non initialisé"
 
-#: /app/src/modules/rules/RulesModule.js:1324
+#: /app/src/modules/rules/RulesModule.js:1327
 msgid "You have no rules to export."
 msgstr "Vous n'avez aucune règle à exporter."
 
-#: /app/src/modules/rules/RulesModule.js:1346
+#: /app/src/modules/rules/RulesModule.js:1349
 msgid "Exported %n rule"
 msgid_plural "Exported %n rules"
 msgstr[0] "%n règle exportée"
 msgstr[1] "%n règles exportées"
 
-#: /app/src/modules/rules/RulesModule.js:1372
+#: /app/src/modules/rules/RulesModule.js:1375
 msgid "No rules found in that file."
 msgstr "Aucune règle trouvée dans ce fichier."
 
-#: /app/src/modules/rules/RulesModule.js:1390
+#: /app/src/modules/rules/RulesModule.js:1393
 msgid ""
 "No rules could be imported. They may reference categories or accounts that "
 "don't exist here."
@@ -10364,7 +10385,7 @@ msgstr ""
 "Aucune règle n'a pu être importée. Elles font peut-être référence à des "
 "catégories ou à des comptes qui n'existent pas ici."
 
-#: /app/src/modules/rules/RulesModule.js:1392
+#: /app/src/modules/rules/RulesModule.js:1395
 msgid ""
 "Imported {imported}; {failed} could not be imported (they may reference "
 "categories or accounts that don't exist here)."
@@ -10372,21 +10393,21 @@ msgstr ""
 "{imported} importées ; {failed} n'ont pas pu être importées (elles font peut-"
 "être référence à des catégories ou à des comptes qui n'existent pas ici)."
 
-#: /app/src/modules/rules/RulesModule.js:1394
+#: /app/src/modules/rules/RulesModule.js:1397
 msgid "Imported %n rule"
 msgid_plural "Imported %n rules"
 msgstr[0] "%n règle importée"
 msgstr[1] "%n règles importées"
 
-#: /app/src/modules/rules/RulesModule.js:1458
+#: /app/src/modules/rules/RulesModule.js:1461
 msgid "Invalid JSON: {error}"
 msgstr "JSON invalide : {error}"
 
-#: /app/src/modules/rules/RulesModule.js:1462
+#: /app/src/modules/rules/RulesModule.js:1465
 msgid "Rule JSON must be a single object."
 msgstr "La règle JSON doit être un objet unique."
 
-#: /app/src/modules/rules/RulesModule.js:1509
+#: /app/src/modules/rules/RulesModule.js:1512
 msgid ""
 "This JSON could not be loaded into the builder. Fix the structure, or save "
 "directly from JSON."
@@ -10394,71 +10415,71 @@ msgstr ""
 "Ce JSON n'a pas pu être chargé dans le générateur. Corrigez la structure ou "
 "enregistrez directement à partir du JSON."
 
-#: /app/src/modules/rules/RulesModule.js:1587
+#: /app/src/modules/rules/RulesModule.js:1590
 msgid "Rule JSON copied to clipboard"
 msgstr "Règle JSON copiée dans le presse-papiers"
 
-#: /app/src/modules/rules/RulesModule.js:1592
+#: /app/src/modules/rules/RulesModule.js:1595
 msgid "Could not copy automatically — the text is selected, press Ctrl+C"
 msgstr ""
 "Impossible de copier automatiquement — le texte est sélectionné, appuyez sur "
 "Ctrl+C"
 
-#: /app/src/modules/rules/RulesModule.js:1602
+#: /app/src/modules/rules/RulesModule.js:1605
 msgid "Failed to load rule"
 msgstr "Échec du chargement de la règle"
 
-#: /app/src/modules/rules/RulesModule.js:1607
+#: /app/src/modules/rules/RulesModule.js:1610
 msgid "Are you sure you want to delete this rule?"
 msgstr "Êtes-vous sûr de vouloir supprimer cette règle ?"
 
-#: /app/src/modules/rules/RulesModule.js:1612
+#: /app/src/modules/rules/RulesModule.js:1615
 msgid "Rule deleted successfully"
 msgstr "Règle supprimée avec succès"
 
-#: /app/src/modules/rules/RulesModule.js:1616
+#: /app/src/modules/rules/RulesModule.js:1619
 msgid "Failed to delete rule"
 msgstr "Échec de la suppression de la règle"
 
-#: /app/src/modules/rules/RulesModule.js:1644
+#: /app/src/modules/rules/RulesModule.js:1647
 msgid "Rule enabled"
 msgstr "Règle activée"
 
-#: /app/src/modules/rules/RulesModule.js:1644
+#: /app/src/modules/rules/RulesModule.js:1647
 msgid "Rule disabled"
 msgstr "Règle désactivée"
 
-#: /app/src/modules/rules/RulesModule.js:1647
+#: /app/src/modules/rules/RulesModule.js:1650
 msgid "Failed to update rule: {error}"
 msgstr "Échec de la mise à jour de la règle : {error}"
 
-#: /app/src/modules/rules/RulesModule.js:1664
+#: /app/src/modules/rules/RulesModule.js:1667
 msgid "Run rule \"{name}\" on matching transactions?"
 msgstr "Exécuter la règle « {name} » sur les opérations correspondantes ?"
 
-#: /app/src/modules/rules/RulesModule.js:1707 /app/templates/index.php:6638
+#: /app/src/modules/rules/RulesModule.js:1710 /app/templates/index.php:6638
 msgid "Run"
 msgstr "Exécuter"
 
-#: /app/src/modules/rules/RulesModule.js:1714
+#: /app/src/modules/rules/RulesModule.js:1717
 msgid "No active rules in this group"
 msgstr "Aucune règle active dans ce groupe"
 
-#: /app/src/modules/rules/RulesModule.js:1718
+#: /app/src/modules/rules/RulesModule.js:1721
 msgid "Run {count} active rules in group \"{name}\"?"
 msgstr "Exécuter {count} règles actives dans le groupe « {name} » ?"
 
-#: /app/src/modules/rules/RulesModule.js:1734
+#: /app/src/modules/rules/RulesModule.js:1737
 msgid "Group applied: %n transaction updated"
 msgid_plural "Group applied: %n transactions updated"
 msgstr[0] "Groupe appliqué : %n opération mise à jour"
 msgstr[1] "Groupe appliqué : %n opérations mises à jour"
 
-#: /app/src/modules/rules/RulesModule.js:1743
+#: /app/src/modules/rules/RulesModule.js:1746
 msgid "Failed to run group rules: {error}"
 msgstr "Échec de l'exécution des règles de groupe : {error}"
 
-#: /app/src/modules/rules/RulesModule.js:1805
+#: /app/src/modules/rules/RulesModule.js:1808
 msgid ""
 "Apply rules to matching transactions? This will modify the selected "
 "transactions."
@@ -10466,21 +10487,21 @@ msgstr ""
 "Appliquer des règles aux opérations correspondantes ? Cela modifiera les "
 "opérations sélectionnées."
 
-#: /app/src/modules/rules/RulesModule.js:1814
+#: /app/src/modules/rules/RulesModule.js:1817
 msgid "Applying..."
 msgstr "Application en cours..."
 
-#: /app/src/modules/rules/RulesModule.js:1832
+#: /app/src/modules/rules/RulesModule.js:1835
 msgid "Rules applied: {success} updated, {skipped} skipped, {failed} failed"
 msgstr ""
 "Règles appliquées : {success} mise(s) à jour, {skipped} ignorée(s), {failed} "
 "en échec"
 
-#: /app/src/modules/rules/RulesModule.js:1841
+#: /app/src/modules/rules/RulesModule.js:1844
 msgid "Failed to apply rules"
 msgstr "Échec de l'application des règles"
 
-#: /app/src/modules/rules/RulesModule.js:1844 /app/templates/index.php:2743
+#: /app/src/modules/rules/RulesModule.js:1847 /app/templates/index.php:2743
 #: /app/templates/index.php:6617
 msgid "Apply Rules"
 msgstr "Appliquer les règles"
@@ -10905,20 +10926,14 @@ msgstr "La condition à {path} n'a aucun type de correspondance sélectionné"
 msgid "Condition at {path} has no pattern value"
 msgstr "La condition à {path} ne possède pas de valeur d'occurence"
 
-#: /app/src/modules/rules/components/CriteriaBuilder.js:546
-msgid "Condition at {path} has invalid regex pattern: {error}"
-msgstr ""
-"La condition à {path} contient un motif d'expression régulière invalide : "
-"{error}"
-
-#: /app/src/modules/rules/components/CriteriaBuilder.js:557
+#: /app/src/modules/rules/components/CriteriaBuilder.js:551
 msgid ""
 "Condition at {path} 'between' pattern must have 'min' and 'max' properties"
 msgstr ""
 "La condition « entre » au niveau de {path} doit comporter les propriétés "
 "« min » et « max »"
 
-#: /app/src/modules/rules/components/CriteriaBuilder.js:560
+#: /app/src/modules/rules/components/CriteriaBuilder.js:554
 msgid "Condition at {path} 'between' pattern must be valid JSON with min/max"
 msgstr ""
 "La condition « entre » au niveau de {path} doit être un JSON valide incluant "
@@ -13079,7 +13094,7 @@ msgstr "{name} (clôturé)"
 
 #: /app/src/utils/billDates.js:29
 msgid "Paid {paidDate}, next due {dueDate}"
-msgstr ""
+msgstr "Payé le {paidDate}, prochaine échéance le {dueDate}"
 
 #: /app/src/utils/billDates.js:34
 #, fuzzy
@@ -13117,7 +13132,7 @@ msgstr "Lecture seule"
 
 #: /app/src/utils/dialogs.js:339
 msgid "Got it"
-msgstr ""
+msgstr "D'accord"
 
 #: /app/src/utils/formatters.js:268 /app/templates/index.php:5984
 msgid "Mortgage"
@@ -13131,7 +13146,7 @@ msgstr "Échéance le {date}"
 
 #: /app/src/utils/loading.js:84
 msgid "Retry"
-msgstr ""
+msgstr "Réessayer"
 
 #: /app/src/utils/multiselect.js:32
 msgid "Select column(s)..."
@@ -13843,14 +13858,19 @@ msgid ""
 "yet; negative means your budgets add up to more than came in. Amounts "
 "carried over from earlier months are not counted again."
 msgstr ""
+"Les revenus perçus ce mois-ci dans vos catégories de revenus, moins le total "
+"des dépenses budgétées de ce mois-ci. Un solde positif correspond à l'argent "
+"que vous n'avez pas encore affecté à un budget ; un solde négatif signifie "
+"que le total de vos budgets est supérieur aux revenus. Les montants reportés "
+"des mois précédents ne sont pas comptabilisés une nouvelle fois."
 
 #: /app/templates/index.php:2174
 msgid "Ready to Assign"
-msgstr ""
+msgstr "Prêt à attribuer"
 
 #: /app/templates/index.php:2175
 msgid "Income this month minus this month's budgets"
-msgstr ""
+msgstr "Revenus de ce mois-ci moins les dépenses prévues pour ce mois-ci"
 
 #: /app/templates/index.php:2184
 msgid "Total Budgeted"
@@ -13920,7 +13940,7 @@ msgstr "Parcourir les fichiers"
 
 #: /app/templates/index.php:2300
 msgid "Switching from another app?"
-msgstr ""
+msgstr "Vous venez d'une autre application ?"
 
 #: /app/templates/index.php:2301
 msgid ""
@@ -13928,25 +13948,36 @@ msgid ""
 "file. Accounts and categories are created as needed, and transfers between "
 "your accounts are linked."
 msgstr ""
+"Exportez vos données depuis l'application que vous quittez, sélectionnez-les "
+"ici, puis choisissez le fichier. Les comptes et les catégories sont créés "
+"selon vos besoins, et les virements entre vos comptes sont mis en "
+"correspondance."
 
 #: /app/templates/index.php:2306
 msgid "Options > Export data, then export all transactions."
-msgstr ""
+msgstr "Options > Exporter les données, puis exporter toutes les opérations."
 
 #: /app/templates/index.php:2312
 msgid ""
 "Plan menu > Export Plan Data. Unzip the download and pick the file ending in "
 "\"Register\". YNAB 4 register exports work too."
 msgstr ""
+"Menu « Plan » > « Exporter les données du plan ». Décompressez le fichier "
+"téléchargé et sélectionnez celui dont l'extension est « Register ». Les "
+"exportations au format « Register » de YNAB 4 fonctionnent également."
 
 #: /app/templates/index.php:2318
 msgid ""
 "Open All accounts and choose Export from the menu above the transactions."
 msgstr ""
+"Ouvrez « Tous les comptes » et sélectionnez « Exporter » dans le menu situé "
+"au-dessus des opérations."
 
 #: /app/templates/index.php:2324
 msgid "Use the transactions.csv file from Mint's \"Export all transactions\"."
 msgstr ""
+"Utilisez le fichier \"transactions.csv\" issu de la fonction « Exporter "
+"toutes les transactions » de Mint."
 
 #: /app/templates/index.php:2330
 #, fuzzy
@@ -13957,6 +13988,7 @@ msgstr "Échec du chargement des opérations"
 #: /app/templates/index.php:2336
 msgid "Export your entries as a CSV file, covering all accounts."
 msgstr ""
+"Exportez vos entrées sous forme de fichier CSV, en incluant tous les comptes."
 
 #: /app/templates/index.php:2344
 msgid "Supported Formats:"
@@ -15068,6 +15100,8 @@ msgstr ""
 #: /app/templates/index.php:4395
 msgid "Changes are saved as you make them."
 msgstr ""
+"Les modifications sont enregistrées au fur et à mesure que vous les "
+"effectuez."
 
 #: /app/templates/index.php:4399
 #, fuzzy
@@ -15700,6 +15734,8 @@ msgid ""
 "Put every setting on this page back to its default. Your accounts, "
 "transactions and other data are not touched."
 msgstr ""
+"Réinitialisez tous les paramètres de cette page à leurs valeurs par défaut. "
+"Vos comptes, vos opérations et vos autres données ne seront pas modifiés."
 
 #: /app/templates/index.php:4944 /app/templates/index.php:4949
 msgid "Factory Reset"
@@ -15718,7 +15754,7 @@ msgstr ""
 
 #: /app/templates/index.php:4965
 msgid "What's new"
-msgstr ""
+msgstr "Quoi de neuf"
 
 #: /app/templates/index.php:4969
 msgid "Open docs site"
@@ -15827,7 +15863,7 @@ msgstr "Couleur"
 
 #: /app/templates/index.php:5072
 msgid "Color (hex code)"
-msgstr ""
+msgstr "Couleur (code hexadécimal)"
 
 #: /app/templates/index.php:5080 /app/templates/index.php:6955
 msgid ""
@@ -17342,6 +17378,9 @@ msgid ""
 "Type a name, user ID or email to link a Nextcloud user, or leave it empty "
 "for someone without an account"
 msgstr ""
+"Saisissez un nom, un identifiant ou une adresse e-mail pour associer un "
+"utilisateur Nextcloud, ou laissez ce champ vide pour une personne ne "
+"disposant pas de compte"
 
 #: /app/templates/index.php:7237
 msgid "e.g., John, Roommate, Partner"
@@ -17613,6 +17652,11 @@ msgstr "Enregistrer l'opération"
 #: /app/templates/quick-add.php:179
 msgid "Transaction saved!"
 msgstr "Opération sauvegardée !"
+
+#~ msgid "Condition at {path} has invalid regex pattern: {error}"
+#~ msgstr ""
+#~ "La condition à {path} contient un motif d'expression régulière invalide : "
+#~ "{error}"
 
 #~ msgid "Failed to rollback import"
 #~ msgstr "Impossible d’annuler l’import"

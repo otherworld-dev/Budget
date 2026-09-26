@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-23 22:02+0000\n"
-"PO-Revision-Date: 2026-09-17 01:40+0000\n"
-"Last-Translator: Anonymous <noreply@weblate.org>\n"
+"POT-Creation-Date: 2026-09-26 18:22+0000\n"
+"PO-Revision-Date: 2026-09-26 12:51+0000\n"
+"Last-Translator: marcosab1991 <marcosab1991@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/es/>\n"
 "Language: es\n"
@@ -21,14 +21,16 @@ msgstr ""
 
 #: /app/lib/Controller/AccountController.php:82
 #: /app/lib/Controller/ApiV1AccountController.php:56
+#, fuzzy
 msgid "Failed to retrieve accounts"
-msgstr ""
+msgstr "Error al obtener las cuentas"
 
 #: /app/lib/Controller/AccountController.php:92
 #: /app/lib/Controller/AccountController.php:659
 #: /app/lib/Controller/ApiV1TransactionController.php:380
+#, fuzzy
 msgid "Account not found"
-msgstr ""
+msgstr "Cuenta no encontrada"
 
 #: /app/lib/Controller/AccountController.php:105
 #: /app/lib/Controller/AccountController.php:640
@@ -54,38 +56,43 @@ msgstr ""
 #: /app/templates/index.php:3215 /app/templates/index.php:3323
 #: /app/templates/index.php:3615 /app/templates/index.php:5831
 #: /app/templates/index.php:6568 /app/templates/quick-add.php:22
+#, fuzzy
 msgid "Account"
-msgstr ""
+msgstr "Cuenta"
 
 #: /app/lib/Controller/AccountController.php:119
+#, fuzzy
 msgid "Invalid JSON data or empty request"
-msgstr ""
+msgstr "Datos JSON no válidos o solicitud vacía"
 
 #: /app/lib/Controller/AccountController.php:131
+#, fuzzy
 msgid "Account type is required and cannot be empty"
-msgstr ""
+msgstr "El tipo de cuenta es obligatorio y no puede estar vacío"
 
 #: /app/lib/Controller/AccountController.php:137
 #: /app/lib/Controller/AccountController.php:314
-#, php-format
+#, fuzzy, php-format
 msgid "Invalid account type: %1$s"
-msgstr ""
+msgstr "Tipo de cuenta no válido: %1$s"
 
 #: /app/lib/Controller/AccountController.php:144
 #: /app/lib/Controller/AccountController.php:323
-#, php-format
+#, fuzzy, php-format
 msgid "Invalid currency: %1$s"
-msgstr ""
+msgstr "Moneda no válida: %1$s"
 
 #: /app/lib/Controller/AccountController.php:150
 #: /app/src/modules/accounts/AccountsModule.js:27 /app/templates/index.php:1107
 #: /app/templates/index.php:6020
+#, fuzzy
 msgid "Institution"
-msgstr ""
+msgstr "Entidad"
 
 #: /app/lib/Controller/AccountController.php:159
+#, fuzzy
 msgid "Account holder name"
-msgstr ""
+msgstr "Nombre del titular de la cuenta"
 
 #: /app/lib/Controller/AccountController.php:202
 #: /app/lib/Controller/AccountController.php:441
@@ -94,54 +101,58 @@ msgstr ""
 
 #: /app/lib/Controller/AccountController.php:219
 #: /app/lib/Controller/AccountController.php:352
-#, php-format
+#, fuzzy, php-format
 msgid "Invalid routing number: %1$s"
-msgstr ""
+msgstr "Número de ruta no válido: %1$s"
 
 #: /app/lib/Controller/AccountController.php:227
 #: /app/lib/Controller/AccountController.php:365
-#, php-format
+#, fuzzy, php-format
 msgid "Invalid sort code: %1$s"
-msgstr ""
+msgstr "Código de clasificación no válido: %1$s"
 
 #: /app/lib/Controller/AccountController.php:235
 #: /app/lib/Controller/AccountController.php:378
-#, php-format
+#, fuzzy, php-format
 msgid "Invalid IBAN: %1$s"
-msgstr ""
+msgstr "IBAN no válido: %1$s"
 
 #: /app/lib/Controller/AccountController.php:243
 #: /app/lib/Controller/AccountController.php:391
-#, php-format
+#, fuzzy, php-format
 msgid "Invalid SWIFT/BIC: %1$s"
-msgstr ""
+msgstr "SWIFT/BIC no válido: %1$s"
 
 #: /app/lib/Controller/AccountController.php:280
+#, fuzzy
 msgid "Failed to create account"
-msgstr ""
+msgstr "Error al crear la cuenta"
 
 #: /app/lib/Controller/AccountController.php:296
 #: /app/lib/Controller/BillController.php:1045
 #: /app/lib/Controller/BillController.php:1063
 #: /app/lib/Controller/RecurringIncomeController.php:477
+#, fuzzy
 msgid "Invalid request data"
-msgstr ""
+msgstr "Datos de solicitud no válidos"
 
 #: /app/lib/Controller/AccountController.php:483
 #: /app/lib/Controller/BillController.php:728
 #: /app/lib/Controller/CategoryController.php:319
-#: /app/lib/Controller/ImportRuleController.php:332
+#: /app/lib/Controller/ImportRuleController.php:340
 #: /app/lib/Controller/ImportTemplateController.php:152
 #: /app/lib/Controller/TagSetController.php:186
 #: /app/lib/Controller/TagSetController.php:308
 #: /app/lib/Controller/TagSetController.php:412
 #: /app/lib/Controller/TransactionController.php:486
+#, fuzzy
 msgid "No valid fields to update"
-msgstr ""
+msgstr "No hay campos válidos para actualizar"
 
 #: /app/lib/Controller/AccountController.php:515
+#, fuzzy
 msgid "Failed to update account"
-msgstr ""
+msgstr "Error al actualizar la cuenta"
 
 #: /app/lib/Controller/AccountController.php:534
 msgid "No account IDs provided"
@@ -162,16 +173,19 @@ msgid "Failed to delete account"
 msgstr ""
 
 #: /app/lib/Controller/AccountController.php:666
+#, fuzzy
 msgid "This account has no sensitive banking data to reveal"
-msgstr ""
+msgstr "Esta cuenta no tiene datos bancarios sensibles que mostrar"
 
 #: /app/lib/Controller/AccountController.php:692
+#, fuzzy
 msgid "Failed to retrieve account summary"
-msgstr ""
+msgstr "Error al obtener el resumen de la cuenta"
 
 #: /app/lib/Controller/AccountController.php:782
+#, fuzzy
 msgid "Failed to reconcile account"
-msgstr ""
+msgstr "Error al conciliar la cuenta"
 
 #: /app/lib/Controller/AccountController.php:797
 msgid "Too many transactions (max 500)"
@@ -223,27 +237,32 @@ msgid "The billing portal could not be opened. Try again shortly."
 msgstr ""
 
 #: /app/lib/Controller/AlertController.php:51
+#, fuzzy
 msgid "Failed to retrieve budget alerts"
-msgstr ""
+msgstr "Error al obtener las alertas del presupuesto"
 
 #: /app/lib/Controller/AlertController.php:64
+#, fuzzy
 msgid "Failed to retrieve budget status"
-msgstr ""
+msgstr "Error al obtener el estado del presupuesto"
 
 #: /app/lib/Controller/AlertController.php:77
+#, fuzzy
 msgid "Failed to retrieve budget summary"
-msgstr ""
+msgstr "Error al obtener el resumen del presupuesto"
 
 #: /app/lib/Controller/ApiV1CategoryController.php:62
 #: /app/lib/Controller/CategoryController.php:183
 #: /app/lib/Controller/CategoryController.php:254
+#, fuzzy
 msgid "Invalid category type. Must be income or expense"
-msgstr ""
+msgstr "Tipo de categoría no válido. Debe ser ingresos o gasto"
 
 #: /app/lib/Controller/ApiV1CategoryController.php:81
 #: /app/lib/Controller/CategoryController.php:92
+#, fuzzy
 msgid "Failed to retrieve categories"
-msgstr ""
+msgstr "Error al obtener las categorías"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:73
 #: /app/lib/Controller/ApiV1TransactionController.php:651
@@ -252,8 +271,9 @@ msgstr ""
 #: /app/lib/Controller/MigrationController.php:83
 #: /app/lib/Controller/MigrationController.php:118
 #: /app/lib/Controller/ReceiptScanController.php:81
+#, fuzzy
 msgid "No file uploaded"
-msgstr ""
+msgstr "No se ha subido ningún archivo"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:84
 msgid ""
@@ -306,8 +326,8 @@ msgstr ""
 #: /app/lib/Controller/TransactionController.php:310
 #: /app/lib/Controller/TransactionController.php:417
 #: /app/lib/Service/Export/TransactionCsvExporter.php:28 /app/src/main.js:3554
-#: /app/src/modules/rules/RulesModule.js:935
-#: /app/src/modules/rules/RulesModule.js:1137
+#: /app/src/modules/rules/RulesModule.js:938
+#: /app/src/modules/rules/RulesModule.js:1140
 #: /app/src/modules/rules/components/CriteriaBuilder.js:194
 #: /app/templates/index.php:1033 /app/templates/index.php:1533
 #: /app/templates/index.php:1773 /app/templates/index.php:1827
@@ -317,8 +337,9 @@ msgstr ""
 #: /app/templates/index.php:5669 /app/templates/index.php:5843
 #: /app/templates/index.php:6518 /app/templates/index.php:7327
 #: /app/templates/quick-add.php:17
+#, fuzzy
 msgid "Date"
-msgstr ""
+msgstr "Fecha"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:258
 #: /app/lib/Controller/TransactionController.php:318
@@ -387,12 +408,14 @@ msgid "Transaction not found"
 msgstr ""
 
 #: /app/lib/Controller/AssetController.php:78
+#, fuzzy
 msgid "Failed to retrieve assets"
-msgstr ""
+msgstr "Error al obtener los activos"
 
 #: /app/lib/Controller/AssetController.php:90
+#, fuzzy
 msgid "Asset"
-msgstr ""
+msgstr "Activo"
 
 #: /app/lib/Controller/AssetController.php:103
 #: /app/lib/Controller/AssetController.php:193
@@ -402,108 +425,128 @@ msgstr ""
 #: /app/lib/Controller/PensionController.php:340
 #: /app/lib/Controller/PensionController.php:407
 #: /app/lib/Controller/TransactionController.php:996
+#, fuzzy
 msgid "Invalid JSON data"
-msgstr ""
+msgstr "Datos JSON no válidos"
 
 #: /app/lib/Controller/AssetController.php:117
 #: /app/lib/Controller/PensionController.php:131
+#, fuzzy
 msgid "Name and type are required"
-msgstr ""
+msgstr "El nombre y el tipo son obligatorios"
 
 #: /app/lib/Controller/AssetController.php:130
 #: /app/lib/Controller/AssetController.php:217
-#, php-format
+#, fuzzy, php-format
 msgid "Invalid asset type. Must be one of: %1$s"
-msgstr ""
+msgstr "Tipo de activo no válido. Debe ser uno de: %1$s"
 
 #: /app/lib/Controller/AssetController.php:145
 #: /app/lib/Controller/AssetController.php:232
 #: /app/lib/Controller/PensionController.php:159
 #: /app/lib/Controller/PensionController.php:257
+#, fuzzy
 msgid "Currency must be a 3-letter code"
-msgstr ""
+msgstr "La moneda debe ser un código de 3 letras"
 
 #: /app/lib/Controller/AssetController.php:150
 #: /app/lib/Controller/AssetController.php:237
+#, fuzzy
 msgid "Current value cannot be negative"
-msgstr ""
+msgstr "El valor actual no puede ser negativo"
 
 #: /app/lib/Controller/AssetController.php:153
 #: /app/lib/Controller/AssetController.php:240
+#, fuzzy
 msgid "Purchase price cannot be negative"
-msgstr ""
+msgstr "El precio de compra no puede ser negativo"
 
 #: /app/lib/Controller/AssetController.php:156
 #: /app/lib/Controller/AssetController.php:243
-#, php-format
+#, fuzzy, php-format
 msgid "Annual change rate must be between -1 and 1 (e.g., 0.03 for 3%%)"
-msgstr ""
+msgstr "La tasa de cambio anual debe estar entre -1 y 1 (ej., 0.03 para 3%%)"
 
 #: /app/lib/Controller/AssetController.php:161
 #: /app/lib/Controller/AssetController.php:248
+#, fuzzy
 msgid "Purchase date"
-msgstr ""
+msgstr "Fecha de compra"
 
 #: /app/lib/Controller/AssetController.php:180
+#, fuzzy
 msgid "Failed to create asset"
-msgstr ""
+msgstr "Error al crear el activo"
 
 #: /app/lib/Controller/AssetController.php:268
+#, fuzzy
 msgid "Failed to update asset"
-msgstr ""
+msgstr "Error al actualizar el activo"
 
 #: /app/lib/Controller/AssetController.php:279
+#, fuzzy
 msgid "Asset deleted successfully"
-msgstr ""
+msgstr "Activo eliminado correctamente"
 
 #: /app/lib/Controller/AssetController.php:281
 #: /app/src/modules/assets/AssetsModule.js:403
+#, fuzzy
 msgid "Failed to delete asset"
-msgstr ""
+msgstr "Error al eliminar el activo"
 
 #: /app/lib/Controller/AssetController.php:297
 #: /app/lib/Controller/PensionController.php:326
+#, fuzzy
 msgid "Failed to retrieve snapshots"
-msgstr ""
+msgstr "Error al obtener las instantáneas"
 
 #: /app/lib/Controller/AssetController.php:317
+#, fuzzy
 msgid "Value and date are required"
-msgstr ""
+msgstr "El valor y la fecha son obligatorios"
 
 #: /app/lib/Controller/AssetController.php:322
+#, fuzzy
 msgid "Value cannot be negative"
-msgstr ""
+msgstr "El valor no puede ser negativo"
 
 #: /app/lib/Controller/AssetController.php:334
 #: /app/lib/Controller/PensionController.php:364
+#, fuzzy
 msgid "Failed to create snapshot"
-msgstr ""
+msgstr "Error al crear la instantánea"
 
 #: /app/lib/Controller/AssetController.php:345
 #: /app/lib/Controller/PensionController.php:375
+#, fuzzy
 msgid "Snapshot deleted successfully"
-msgstr ""
+msgstr "Instantánea eliminada correctamente"
 
 #: /app/lib/Controller/AssetController.php:347
 #: /app/lib/Controller/PensionController.php:377
+#, fuzzy
 msgid "Failed to delete snapshot"
-msgstr ""
+msgstr "Error al eliminar la instantánea"
 
 #: /app/lib/Controller/AssetController.php:363
+#, fuzzy
 msgid "Failed to retrieve asset summary"
-msgstr ""
+msgstr "Error al obtener el resumen del activo"
 
 #: /app/lib/Controller/AssetController.php:375
+#, fuzzy
 msgid "Failed to retrieve asset projection"
-msgstr ""
+msgstr "Error al obtener la proyección del activo"
 
 #: /app/lib/Controller/AssetController.php:387
+#, fuzzy
 msgid "Failed to retrieve combined asset projection"
-msgstr ""
+msgstr "Error al obtener la proyección combinada de activos"
 
 #: /app/lib/Controller/AssetController.php:407
+#, fuzzy
 msgid "Failed to retrieve asset value history"
-msgstr ""
+msgstr "Error al obtener el historial de valor del activo"
 
 #: /app/lib/Controller/AttachmentController.php:76
 msgid "File not found"
@@ -603,8 +646,9 @@ msgid "Failed to re-authorize"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:98
+#, fuzzy
 msgid "Failed to retrieve bills"
-msgstr ""
+msgstr "Error al obtener las facturas"
 
 #: /app/lib/Controller/BillController.php:121
 #: /app/lib/Controller/BillController.php:136
@@ -612,8 +656,9 @@ msgstr ""
 #: /app/lib/Controller/BillController.php:1162
 #: /app/lib/Controller/BillController.php:1268 /app/templates/index.php:3649
 #: /app/templates/index.php:6166
+#, fuzzy
 msgid "Bill"
-msgstr ""
+msgstr "Factura"
 
 #: /app/lib/Controller/BillController.php:121
 #: /app/lib/Controller/CategoryController.php:381
@@ -624,7 +669,7 @@ msgstr ""
 #: /app/lib/Controller/GoalsController.php:316
 #: /app/lib/Controller/GoalsController.php:344
 #: /app/lib/Controller/GoalsController.php:363
-#: /app/lib/Controller/ImportRuleController.php:90
+#: /app/lib/Controller/ImportRuleController.php:91
 #: /app/lib/Controller/ProjectController.php:186
 #: /app/lib/Controller/RecurringIncomeController.php:89
 #: /app/lib/Traits/ApiErrorHandlerTrait.php:211
@@ -639,46 +684,54 @@ msgid "Invalid amount type"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:194
+#, fuzzy
 msgid "Name and amount are required"
-msgstr ""
+msgstr "El nombre y el importe son obligatorios"
 
 #: /app/lib/Controller/BillController.php:238
 #: /app/lib/Controller/BillController.php:707
 #: /app/lib/Service/BillService.php:403 /app/lib/Service/BillService.php:513
+#, fuzzy
 msgid "Auto-pay requires an account to be set"
-msgstr ""
+msgstr "El pago automático requiere configurar una cuenta"
 
 #: /app/lib/Controller/BillController.php:246
 #: /app/lib/Controller/BillController.php:641
 #: /app/lib/Service/BillService.php:408
+#, fuzzy
 msgid "Transfer requires a destination account"
-msgstr ""
+msgstr "La transferencia requiere una cuenta de destino"
 
 #: /app/lib/Controller/BillController.php:254
 #: /app/lib/Controller/BillController.php:669
 #: /app/lib/Service/BillService.php:413
 #: /app/src/modules/transfers/TransfersModule.js:848
+#, fuzzy
 msgid "Cannot transfer to the same account"
-msgstr ""
+msgstr "No se puede transferir a la misma cuenta"
 
 #: /app/lib/Controller/BillController.php:277
 #: /app/lib/Controller/BillController.php:432
+#, fuzzy
 msgid "Due day must be between 1 and 31"
-msgstr ""
+msgstr "El día de vencimiento debe estar entre 1 y 31"
 
 #: /app/lib/Controller/BillController.php:282
 #: /app/lib/Controller/BillController.php:444
+#, fuzzy
 msgid "Due month must be between 1 and 12"
-msgstr ""
+msgstr "El mes de vencimiento debe estar entre 1 y 12"
 
 #: /app/lib/Controller/BillController.php:305
 #: /app/lib/Controller/BillController.php:497
+#, fuzzy
 msgid "Reminder days must be between 0 and 30"
-msgstr ""
+msgstr "Los días de recordatorio deben estar entre 0 y 30"
 
 #: /app/lib/Controller/BillController.php:318
+#, fuzzy
 msgid "Transaction date"
-msgstr ""
+msgstr "Fecha de la transacción"
 
 #: /app/lib/Controller/BillController.php:326
 #: /app/lib/Controller/BillController.php:539
@@ -690,8 +743,9 @@ msgstr ""
 
 #: /app/lib/Controller/BillController.php:336
 #: /app/lib/Controller/BillController.php:550 /app/templates/index.php:3210
+#, fuzzy
 msgid "End date"
-msgstr ""
+msgstr "Fecha de fin"
 
 #: /app/lib/Controller/BillController.php:346
 msgid "Start date must be before the end date"
@@ -699,13 +753,15 @@ msgstr ""
 
 #: /app/lib/Controller/BillController.php:351
 #: /app/lib/Controller/BillController.php:563
+#, fuzzy
 msgid "Remaining payments must be at least 1"
-msgstr ""
+msgstr "Los pagos restantes deben ser al menos 1"
 
 #: /app/lib/Controller/BillController.php:392
 #: /app/src/modules/bills/BillsModule.js:234
+#, fuzzy
 msgid "Failed to create bill"
-msgstr ""
+msgstr "Error al crear la factura"
 
 #: /app/lib/Controller/BillController.php:602
 msgid ""
@@ -714,8 +770,9 @@ msgid ""
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:743
+#, fuzzy
 msgid "Failed to update bill"
-msgstr ""
+msgstr "Error al actualizar la factura"
 
 #: /app/lib/Controller/BillController.php:771
 msgid "Failed to find matching transactions"
@@ -737,8 +794,9 @@ msgstr ""
 
 #: /app/lib/Controller/BillController.php:843
 #: /app/src/modules/bills/BillsModule.js:1248
+#, fuzzy
 msgid "Failed to mark bill as paid"
-msgstr ""
+msgstr "Error al marcar la factura como pagada"
 
 #: /app/lib/Controller/BillController.php:880
 msgid "Failed to undo mark as paid"
@@ -764,29 +822,35 @@ msgid "Failed to undo skip"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:952
+#, fuzzy
 msgid "Failed to retrieve upcoming bills"
-msgstr ""
+msgstr "Error al obtener las facturas próximas"
 
 #: /app/lib/Controller/BillController.php:966
+#, fuzzy
 msgid "Failed to retrieve bills due this month"
-msgstr ""
+msgstr "Error al obtener las facturas que vencen este mes"
 
 #: /app/lib/Controller/BillController.php:980
+#, fuzzy
 msgid "Failed to retrieve overdue bills"
-msgstr ""
+msgstr "Error al obtener las facturas vencidas"
 
 #: /app/lib/Controller/BillController.php:993
+#, fuzzy
 msgid "Failed to retrieve bill summary"
-msgstr ""
+msgstr "Error al obtener el resumen de facturas"
 
 #: /app/lib/Controller/BillController.php:1006
+#, fuzzy
 msgid "Failed to retrieve bill status"
-msgstr ""
+msgstr "Error al obtener el estado de las facturas"
 
 #: /app/lib/Controller/BillController.php:1019
 #: /app/src/modules/bills/BillsModule.js:1586
+#, fuzzy
 msgid "Failed to detect recurring bills"
-msgstr ""
+msgstr "Error al detectar las facturas recurrentes"
 
 #: /app/lib/Controller/BillController.php:1033
 msgid "Failed to load bill suggestions"
@@ -798,21 +862,25 @@ msgid "Failed to dismiss suggestion"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:1082
+#, fuzzy
 msgid "Failed to create bills from detected patterns"
-msgstr ""
+msgstr "Error al crear facturas a partir de los patrones detectados"
 
 #: /app/lib/Controller/BillController.php:1097
 #: /app/lib/Controller/BillController.php:1130
+#, fuzzy
 msgid "Invalid year"
-msgstr ""
+msgstr "Año no válido"
 
 #: /app/lib/Controller/BillController.php:1112
+#, fuzzy
 msgid "Failed to generate annual overview"
-msgstr ""
+msgstr "Error al generar el resumen anual"
 
 #: /app/lib/Controller/BillController.php:1153
+#, fuzzy
 msgid "Failed to export bills calendar"
-msgstr ""
+msgstr "Error al exportar el calendario de facturas"
 
 #: /app/lib/Controller/BillController.php:1162
 #: /app/lib/Controller/BillController.php:1269
@@ -824,8 +892,8 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:572
 #: /app/lib/Service/Report/ReportExporter.php:615 /app/src/main.js:3622
 #: /app/src/main.js:3623 /app/src/modules/bills/BillsModule.js:965
-#: /app/src/modules/rules/RulesModule.js:937
-#: /app/src/modules/rules/RulesModule.js:1139
+#: /app/src/modules/rules/RulesModule.js:940
+#: /app/src/modules/rules/RulesModule.js:1142
 #: /app/src/modules/rules/components/CriteriaBuilder.js:190
 #: /app/src/modules/transactions/TransactionsModule.js:2040
 #: /app/src/modules/transactions/TransactionsModule.js:3183
@@ -868,13 +936,13 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:584
 #: /app/lib/Service/Report/ReportExporter.php:659
 #: /app/src/modules/categories/CategoriesModule.js:2355
-#: /app/src/modules/reports/ReportsModule.js:1853 /app/templates/index.php:7321
+#: /app/src/modules/reports/ReportsModule.js:1854 /app/templates/index.php:7321
 msgid "Total"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:1230
 #: /app/src/modules/dashboard/DashboardModule.js:3162
-#: /app/src/modules/reports/ReportsModule.js:1998
+#: /app/src/modules/reports/ReportsModule.js:1999
 msgid "Projected balance"
 msgstr ""
 
@@ -900,48 +968,59 @@ msgid "Split amounts must equal the bill amount"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:1377
+#, fuzzy
 msgid "Invalid JSON in custom recurrence pattern"
-msgstr ""
+msgstr "JSON no válido en el patrón de recurrencia personalizado"
 
 #: /app/lib/Controller/BillController.php:1384
+#, fuzzy
 msgid "Custom recurrence pattern must be a JSON object"
-msgstr ""
+msgstr "El patrón de recurrencia personalizado debe ser un objeto JSON"
 
 #: /app/lib/Controller/BillController.php:1393
+#, fuzzy
 msgid "Months must be an array"
-msgstr ""
+msgstr "Los meses deben ser un array"
 
 #: /app/lib/Controller/BillController.php:1400
+#, fuzzy
 msgid "At least one month must be specified"
-msgstr ""
+msgstr "Debe especificarse al menos un mes"
 
 #: /app/lib/Controller/BillController.php:1408
+#, fuzzy
 msgid "Each month must be a number between 1 and 12"
-msgstr ""
+msgstr "Cada mes debe ser un número entre 1 y 12"
 
 #: /app/lib/Controller/BillController.php:1421
+#, fuzzy
 msgid "Dates must be an array"
-msgstr ""
+msgstr "Las fechas deben ser un array"
 
 #: /app/lib/Controller/BillController.php:1428
+#, fuzzy
 msgid "At least one date must be specified"
-msgstr ""
+msgstr "Debe especificarse al menos una fecha"
 
 #: /app/lib/Controller/BillController.php:1436
+#, fuzzy
 msgid "Each date must have \"month\" and \"day\" fields"
-msgstr ""
+msgstr "Cada fecha debe tener los campos «mes» y «día»"
 
 #: /app/lib/Controller/BillController.php:1443
+#, fuzzy
 msgid "Month must be a number between 1 and 12"
-msgstr ""
+msgstr "El mes debe ser un número entre 1 y 12"
 
 #: /app/lib/Controller/BillController.php:1450
+#, fuzzy
 msgid "Day must be a number between 1 and 31"
-msgstr ""
+msgstr "El día debe ser un número entre 1 y 31"
 
 #: /app/lib/Controller/BillController.php:1460
+#, fuzzy
 msgid "Custom pattern must contain either \"months\" or \"dates\" field"
-msgstr ""
+msgstr "El patrón personalizado debe contener el campo «months» o «dates»"
 
 #: /app/lib/Controller/CalendarFeedController.php:94
 #: /app/src/modules/bills/BillsModule.js:1164
@@ -954,12 +1033,14 @@ msgid "Failed to regenerate calendar feed token"
 msgstr ""
 
 #: /app/lib/Controller/CategoryController.php:129
+#, fuzzy
 msgid "Failed to retrieve category tree"
-msgstr ""
+msgstr "Error al obtener el árbol de categorías"
 
 #: /app/lib/Controller/CategoryController.php:141
+#, fuzzy
 msgid "Failed to retrieve transaction counts"
-msgstr ""
+msgstr "Error al obtener el recuento de transacciones"
 
 #: /app/lib/Controller/CategoryController.php:153
 #: /app/lib/Controller/CategoryController.php:381
@@ -980,8 +1061,8 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:676
 #: /app/lib/Service/Report/ReportExporter.php:722 /app/src/main.js:3627
 #: /app/src/main.js:3628 /app/src/modules/dashboard/DashboardModule.js:2164
-#: /app/src/modules/reports/ReportsModule.js:1114
-#: /app/src/modules/reports/ReportsModule.js:1562
+#: /app/src/modules/reports/ReportsModule.js:1115
+#: /app/src/modules/reports/ReportsModule.js:1563
 #: /app/src/modules/transactions/TransactionsModule.js:3188
 #: /app/src/modules/transactions/TransactionsModule.js:3189
 #: /app/src/modules/transactions/TransactionsModule.js:3792
@@ -997,17 +1078,22 @@ msgstr ""
 #: /app/templates/index.php:5862 /app/templates/index.php:6253
 #: /app/templates/index.php:6723 /app/templates/index.php:7118
 #: /app/templates/index.php:7159 /app/templates/quick-add.php:55
+#, fuzzy
 msgid "Category"
-msgstr ""
+msgstr "Categoría"
 
 #: /app/lib/Controller/CategoryController.php:281
+#, fuzzy
 msgid "Invalid budget period. Must be monthly, weekly, yearly, or quarterly"
 msgstr ""
+"Período de presupuesto no válido. Debe ser mensual, semanal, anual o "
+"trimestral"
 
 #: /app/lib/Controller/CategoryController.php:326
 #: /app/src/modules/categories/CategoriesModule.js:1389
+#, fuzzy
 msgid "Failed to update category"
-msgstr ""
+msgstr "Error al actualizar la categoría"
 
 #: /app/lib/Controller/CategoryController.php:352
 msgid "Invalid position"
@@ -1044,8 +1130,9 @@ msgstr ""
 
 #: /app/lib/Controller/CategoryController.php:462
 #: /app/lib/Controller/CategoryController.php:480
+#, fuzzy
 msgid "Failed to retrieve category spending"
-msgstr ""
+msgstr "Error al obtener el gasto por categoría"
 
 #: /app/lib/Controller/CategoryController.php:531
 #: /app/lib/Controller/CategoryController.php:553
@@ -1093,25 +1180,30 @@ msgid "Failed to import categories"
 msgstr ""
 
 #: /app/lib/Controller/DebtController.php:58
+#, fuzzy
 msgid "Failed to retrieve debts"
-msgstr ""
+msgstr "Error al obtener las deudas"
 
 #: /app/lib/Controller/DebtController.php:79
+#, fuzzy
 msgid "Failed to retrieve debt summary"
-msgstr ""
+msgstr "Error al obtener el resumen de deudas"
 
 #: /app/lib/Controller/DebtController.php:96
+#, fuzzy
 msgid "Invalid strategy. Must be \"avalanche\" or \"snowball\""
-msgstr ""
+msgstr "Estrategia no válida. Debe ser «avalanche» o «snowball»"
 
 #: /app/lib/Controller/DebtController.php:104
 #: /app/lib/Controller/DebtController.php:153
+#, fuzzy
 msgid "Extra payment cannot be negative"
-msgstr ""
+msgstr "El pago adicional no puede ser negativo"
 
 #: /app/lib/Controller/DebtController.php:118
+#, fuzzy
 msgid "Failed to calculate payoff plan"
-msgstr ""
+msgstr "Error al calcular el plan de amortización"
 
 #: /app/lib/Controller/DebtController.php:136
 msgid "Failed to get debt progress"
@@ -1119,8 +1211,9 @@ msgstr ""
 
 #: /app/lib/Controller/DebtController.php:166 /app/src/main.js:3094
 #: /app/src/main.js:3099
+#, fuzzy
 msgid "Failed to compare strategies"
-msgstr ""
+msgstr "Error al comparar las estrategias"
 
 #: /app/lib/Controller/DebtScenarioController.php:59
 msgid "Failed to retrieve debt scenarios"
@@ -1185,70 +1278,85 @@ msgstr ""
 #: /app/lib/Controller/ExchangeRateController.php:111
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:38
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:39
+#, fuzzy
 msgid "Failed to load exchange rates"
-msgstr ""
+msgstr "Error al cargar los tipos de cambio"
 
 #: /app/lib/Controller/ExchangeRateController.php:127
+#, fuzzy
 msgid "Failed to get base currency"
-msgstr ""
+msgstr "Error al obtener la moneda base"
 
 #: /app/lib/Controller/ExchangeRateController.php:162
 msgid "Failed to convert currency"
 msgstr ""
 
 #: /app/lib/Controller/ExchangeRateController.php:176
+#, fuzzy
 msgid "Exchange rates refreshed successfully"
-msgstr ""
+msgstr "Tipos de cambio actualizados correctamente"
 
 #: /app/lib/Controller/ExchangeRateController.php:179
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:351
+#, fuzzy
 msgid "Failed to refresh exchange rates"
-msgstr ""
+msgstr "Error al actualizar los tipos de cambio"
 
 #: /app/lib/Controller/ExchangeRateController.php:195
+#, fuzzy
 msgid "Currency and rate are required"
-msgstr ""
+msgstr "La moneda y el tipo son obligatorios"
 
 #: /app/lib/Controller/ExchangeRateController.php:205
+#, fuzzy
 msgid "Failed to set manual rate"
-msgstr ""
+msgstr "Error al establecer el tipo manual"
 
 #: /app/lib/Controller/ExchangeRateController.php:219
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:334
+#, fuzzy
 msgid "Failed to remove manual rate"
-msgstr ""
+msgstr "Error al eliminar el tipo manual"
 
 #: /app/lib/Controller/ForecastController.php:61
+#, fuzzy
 msgid "Failed to generate forecast"
-msgstr ""
+msgstr "Error al generar la previsión"
 
 #: /app/lib/Controller/ForecastController.php:90
+#, fuzzy
 msgid "Failed to generate cash flow forecast"
-msgstr ""
+msgstr "Error al generar la previsión de flujo de caja"
 
 #: /app/lib/Controller/ForecastController.php:110
+#, fuzzy
 msgid "Failed to retrieve spending trends"
-msgstr ""
+msgstr "Error al obtener las tendencias de gasto"
 
 #: /app/lib/Controller/ForecastController.php:130
+#, fuzzy
 msgid "Failed to run forecast scenarios"
-msgstr ""
+msgstr "Error al ejecutar los escenarios de previsión"
 
 #: /app/lib/Controller/ForecastController.php:154
+#, fuzzy
 msgid "Failed to generate enhanced forecast"
-msgstr ""
+msgstr "Error al generar la previsión mejorada"
 
 #: /app/lib/Controller/ForecastController.php:171
+#, fuzzy
 msgid "Failed to retrieve live forecast"
-msgstr ""
+msgstr "Error al obtener la previsión en tiempo real"
 
 #: /app/lib/Controller/ForecastController.php:189
+#, fuzzy
 msgid "Failed to export forecast"
-msgstr ""
+msgstr "Error al exportar la previsión"
 
 #: /app/lib/Controller/GoalsController.php:75
+#, fuzzy
 msgid "Failed to retrieve goals"
-msgstr ""
+msgstr "Error al obtener los objetivos"
 
 #: /app/lib/Controller/GoalsController.php:87
 #: /app/lib/Controller/GoalsController.php:99
@@ -1256,33 +1364,39 @@ msgstr ""
 #: /app/lib/Controller/GoalsController.php:344
 #: /app/lib/Controller/GoalsController.php:363 /app/templates/index.php:5209
 #: /app/templates/index.php:5281
+#, fuzzy
 msgid "Goal"
-msgstr ""
+msgstr "Objetivo"
 
 #: /app/lib/Controller/GoalsController.php:137
 #: /app/lib/Controller/GoalsController.php:236
+#, fuzzy
 msgid "Target date"
-msgstr ""
+msgstr "Fecha objetivo"
 
 #: /app/lib/Controller/GoalsController.php:147
 #: /app/lib/Controller/GoalsController.php:244
+#, fuzzy
 msgid "Target amount must be greater than zero"
-msgstr ""
+msgstr "El importe objetivo debe ser mayor que cero"
 
 #: /app/lib/Controller/GoalsController.php:152
 #: /app/lib/Controller/GoalsController.php:249
+#, fuzzy
 msgid "Target months must be greater than zero"
-msgstr ""
+msgstr "Los meses objetivo deben ser mayores que cero"
 
 #: /app/lib/Controller/GoalsController.php:157
 #: /app/lib/Controller/GoalsController.php:254
+#, fuzzy
 msgid "Current amount cannot be negative"
-msgstr ""
+msgstr "El importe actual no puede ser negativo"
 
 #: /app/lib/Controller/GoalsController.php:162
 #: /app/lib/Controller/GoalsController.php:259
+#, fuzzy
 msgid "Invalid tag ID"
-msgstr ""
+msgstr "ID de etiqueta no válido"
 
 #: /app/lib/Controller/GoalsController.php:167
 #: /app/lib/Controller/GoalsController.php:264
@@ -1290,53 +1404,63 @@ msgid "Invalid account ID"
 msgstr ""
 
 #: /app/lib/Controller/GoalsController.php:193
+#, fuzzy
 msgid "Failed to create goal"
-msgstr ""
+msgstr "Error al crear el objetivo"
 
 #: /app/lib/Controller/GoalsController.php:303
+#, fuzzy
 msgid "Failed to update goal"
-msgstr ""
+msgstr "Error al actualizar el objetivo"
 
 #: /app/lib/Controller/GoalsController.php:324
 msgid "Only the goal owner can delete it"
 msgstr ""
 
 #: /app/lib/Controller/GoalsController.php:330
+#, fuzzy
 msgid "Goal deleted successfully"
-msgstr ""
+msgstr "Objetivo eliminado correctamente"
 
 #: /app/lib/Controller/GoalsController.php:332
 #: /app/src/modules/savings/SavingsModule.js:460
+#, fuzzy
 msgid "Failed to delete goal"
-msgstr ""
+msgstr "Error al eliminar el objetivo"
 
 #: /app/lib/Controller/GoalsController.php:351
+#, fuzzy
 msgid "Failed to retrieve goal progress"
-msgstr ""
+msgstr "Error al obtener el progreso del objetivo"
 
 #: /app/lib/Controller/GoalsController.php:370
+#, fuzzy
 msgid "Failed to retrieve goal forecast"
-msgstr ""
+msgstr "Error al obtener la previsión del objetivo"
 
 #: /app/lib/Controller/ImportController.php:115
 #: /app/lib/Controller/MigrationController.php:90
 #: /app/lib/Controller/MigrationController.php:125
+#, fuzzy
 msgid "File upload failed"
-msgstr ""
+msgstr "Error al subir el archivo"
 
 #: /app/lib/Controller/ImportController.php:134
 #: /app/src/modules/import/ImportModule.js:210
+#, fuzzy
 msgid "Failed to upload file"
-msgstr ""
+msgstr "Error al subir el archivo"
 
 #: /app/lib/Controller/ImportController.php:178
 #: /app/lib/Controller/MigrationController.php:102
+#, fuzzy
 msgid "Failed to preview import"
-msgstr ""
+msgstr "Error al previsualizar la importación"
 
 #: /app/lib/Controller/ImportController.php:241
+#, fuzzy
 msgid "Failed to process import"
-msgstr ""
+msgstr "Error al procesar la importación"
 
 #: /app/lib/Controller/ImportController.php:265
 msgid "CSV delimiter must be a single character"
@@ -1353,98 +1477,115 @@ msgstr ""
 
 #: /app/lib/Controller/ImportController.php:317
 #: /app/lib/Controller/ImportTemplateController.php:51
+#, fuzzy
 msgid "Failed to retrieve import templates"
-msgstr ""
+msgstr "Error al obtener las plantillas de importación"
 
 #: /app/lib/Controller/ImportController.php:329
+#, fuzzy
 msgid "Failed to retrieve import history"
-msgstr ""
+msgstr "Error al obtener el historial de importación"
 
 #: /app/lib/Controller/ImportController.php:341
+#, fuzzy
 msgid "Failed to validate file"
-msgstr ""
+msgstr "Error al validar el archivo"
 
 #: /app/lib/Controller/ImportController.php:363
+#, fuzzy
 msgid "Failed to execute import"
-msgstr ""
+msgstr "Error al ejecutar la importación"
 
-#: /app/lib/Controller/ImportRuleController.php:66
+#: /app/lib/Controller/ImportRuleController.php:67
+#, fuzzy
 msgid "Failed to retrieve import rules"
-msgstr ""
+msgstr "Error al obtener las reglas de importación"
 
-#: /app/lib/Controller/ImportRuleController.php:78
+#: /app/lib/Controller/ImportRuleController.php:79
 msgid "Failed to retrieve rule groups"
 msgstr ""
 
-#: /app/lib/Controller/ImportRuleController.php:90
-#: /app/lib/Controller/ImportRuleController.php:103
-#: /app/lib/Controller/ImportRuleController.php:357
-#: /app/lib/Controller/ImportRuleController.php:373
+#: /app/lib/Controller/ImportRuleController.php:91
+#: /app/lib/Controller/ImportRuleController.php:104
+#: /app/lib/Controller/ImportRuleController.php:367
+#: /app/lib/Controller/ImportRuleController.php:383
+#, fuzzy
 msgid "Import rule"
-msgstr ""
+msgstr "Regla de importación"
 
-#: /app/lib/Controller/ImportRuleController.php:138
+#: /app/lib/Controller/ImportRuleController.php:139
+#, fuzzy
 msgid "Criteria required for v2 rules"
-msgstr ""
+msgstr "Se requieren criterios para las reglas v2"
 
-#: /app/lib/Controller/ImportRuleController.php:144
+#: /app/lib/Controller/ImportRuleController.php:145
+#, fuzzy
 msgid "Pattern, field, and matchType required for v1 rules"
-msgstr ""
+msgstr "Se requieren patrón, campo y tipo de coincidencia para las reglas v1"
 
-#: /app/lib/Controller/ImportRuleController.php:156
-#: /app/lib/Controller/ImportRuleController.php:260
-#, php-format
+#: /app/lib/Controller/ImportRuleController.php:157
+#: /app/lib/Controller/ImportRuleController.php:267
+#, fuzzy, php-format
 msgid "Invalid field. Must be one of: %1$s"
-msgstr ""
+msgstr "Campo no válido. Debe ser uno de: %1$s"
 
-#: /app/lib/Controller/ImportRuleController.php:161
-#: /app/lib/Controller/ImportRuleController.php:268
-#, php-format
+#: /app/lib/Controller/ImportRuleController.php:162
+#: /app/lib/Controller/ImportRuleController.php:275
+#, fuzzy, php-format
 msgid "Invalid match type. Must be one of: %1$s"
-msgstr ""
+msgstr "Tipo de coincidencia no válido. Debe ser uno de: %1$s"
 
-#: /app/lib/Controller/ImportRuleController.php:167
-#: /app/lib/Controller/ImportRuleController.php:276
+#: /app/lib/Controller/ImportRuleController.php:169
+#: /app/lib/Controller/ImportRuleController.php:284
+#, fuzzy
 msgid "Invalid regex pattern"
-msgstr ""
+msgstr "Patrón de expresión regular no válido"
 
-#: /app/lib/Controller/ImportRuleController.php:208
+#: /app/lib/Controller/ImportRuleController.php:215
+#, fuzzy
 msgid "Failed to create import rule"
-msgstr ""
+msgstr "Error al crear la regla de importación"
 
-#: /app/lib/Controller/ImportRuleController.php:343
+#: /app/lib/Controller/ImportRuleController.php:353
+#, fuzzy
 msgid "Failed to update import rule"
-msgstr ""
+msgstr "Error al actualizar la regla de importación"
 
-#: /app/lib/Controller/ImportRuleController.php:365
+#: /app/lib/Controller/ImportRuleController.php:375
 msgid "Only the rule owner can delete it"
 msgstr ""
 
-#: /app/lib/Controller/ImportRuleController.php:385
+#: /app/lib/Controller/ImportRuleController.php:395
+#, fuzzy
 msgid "Failed to test import rules"
-msgstr ""
+msgstr "Error al probar las reglas de importación"
 
-#: /app/lib/Controller/ImportRuleController.php:411
+#: /app/lib/Controller/ImportRuleController.php:421
+#, fuzzy
 msgid "Failed to preview rule application"
-msgstr ""
+msgstr "Error al previsualizar la aplicación de la regla"
 
-#: /app/lib/Controller/ImportRuleController.php:439
+#: /app/lib/Controller/ImportRuleController.php:449
+#, fuzzy
 msgid "Failed to test rule against transactions"
-msgstr ""
+msgstr "Error al probar la regla con las transacciones"
 
-#: /app/lib/Controller/ImportRuleController.php:466
+#: /app/lib/Controller/ImportRuleController.php:476
+#, fuzzy
 msgid "Failed to apply rules to transactions"
-msgstr ""
+msgstr "Error al aplicar las reglas a las transacciones"
 
-#: /app/lib/Controller/ImportRuleController.php:480
+#: /app/lib/Controller/ImportRuleController.php:490
+#, fuzzy
 msgid "Failed to migrate import rule"
-msgstr ""
+msgstr "Error al migrar la regla de importación"
 
-#: /app/lib/Controller/ImportRuleController.php:497
+#: /app/lib/Controller/ImportRuleController.php:507
+#, fuzzy
 msgid "Failed to migrate import rules"
-msgstr ""
+msgstr "Error al migrar las reglas de importación"
 
-#: /app/lib/Controller/ImportRuleController.php:513
+#: /app/lib/Controller/ImportRuleController.php:523
 #: /app/lib/Traits/InputValidationTrait.php:108
 msgid "Validation failed"
 msgstr ""
@@ -1463,38 +1604,48 @@ msgid "Failed to update import template"
 msgstr ""
 
 #: /app/lib/Controller/MigrationController.php:67
+#, fuzzy
 msgid "Failed to export data"
-msgstr ""
+msgstr "Error al exportar los datos"
 
 #: /app/lib/Controller/MigrationController.php:134
+#, fuzzy
 msgid ""
 "Import not confirmed. This operation will replace ALL existing data. Pass "
 "confirmed=true to proceed."
 msgstr ""
+"Importación no confirmada. Esta operación reemplazará TODOS los datos "
+"existentes. Pasa confirmed=true para continuar."
 
 #: /app/lib/Controller/MigrationController.php:179
+#, fuzzy
 msgid "Failed to import data"
-msgstr ""
+msgstr "Error al importar los datos"
 
 #: /app/lib/Controller/NetWorthController.php:64
+#, fuzzy
 msgid "Failed to calculate net worth"
-msgstr ""
+msgstr "Error al calcular el patrimonio neto"
 
 #: /app/lib/Controller/NetWorthController.php:79
+#, fuzzy
 msgid "Failed to retrieve net worth snapshots"
-msgstr ""
+msgstr "Error al obtener las instantáneas del patrimonio neto"
 
 #: /app/lib/Controller/NetWorthController.php:99
+#, fuzzy
 msgid "Failed to create net worth snapshot"
-msgstr ""
+msgstr "Error al crear la instantánea del patrimonio neto"
 
 #: /app/lib/Controller/NetWorthController.php:112
+#, fuzzy
 msgid "Snapshot deleted"
-msgstr ""
+msgstr "Instantánea eliminada"
 
 #: /app/lib/Controller/NetWorthController.php:114
+#, fuzzy
 msgid "Snapshot"
-msgstr ""
+msgstr "Instantánea"
 
 #: /app/lib/Controller/OnboardingController.php:48
 msgid "Failed to load the getting started checklist"
@@ -1542,99 +1693,116 @@ msgid "Quick Add"
 msgstr ""
 
 #: /app/lib/Controller/PensionController.php:88
+#, fuzzy
 msgid "Failed to retrieve pensions"
-msgstr ""
+msgstr "Error al obtener los planes de pensiones"
 
 #: /app/lib/Controller/PensionController.php:100
 #: /app/src/modules/transactions/transactionRow.js:76
 #: /app/src/utils/formatters.js:269
+#, fuzzy
 msgid "Pension"
-msgstr ""
+msgstr "Plan de pensiones"
 
 #: /app/lib/Controller/PensionController.php:144
 #: /app/lib/Controller/PensionController.php:242
-#, php-format
+#, fuzzy, php-format
 msgid "Invalid pension type. Must be one of: %1$s"
-msgstr ""
+msgstr "Tipo de pensión no válido. Debe ser uno de: %1$s"
 
 #: /app/lib/Controller/PensionController.php:164
 #: /app/lib/Controller/PensionController.php:262
+#, fuzzy
 msgid "Current balance cannot be negative"
-msgstr ""
+msgstr "El saldo actual no puede ser negativo"
 
 #: /app/lib/Controller/PensionController.php:167
 #: /app/lib/Controller/PensionController.php:265
+#, fuzzy
 msgid "Monthly contribution cannot be negative"
-msgstr ""
+msgstr "La contribución mensual no puede ser negativa"
 
 #: /app/lib/Controller/PensionController.php:170
 #: /app/lib/Controller/PensionController.php:268
-#, php-format
+#, fuzzy, php-format
 msgid "Expected return rate must be between 0%% and 100%%"
-msgstr ""
+msgstr "La tasa de rentabilidad esperada debe estar entre 0%% y 100%%"
 
 #: /app/lib/Controller/PensionController.php:173
 #: /app/lib/Controller/PensionController.php:271
+#, fuzzy
 msgid "Retirement age must be between 18 and 100"
-msgstr ""
+msgstr "La edad de jubilación debe estar entre 18 y 100"
 
 #: /app/lib/Controller/PensionController.php:176
 #: /app/lib/Controller/PensionController.php:274
+#, fuzzy
 msgid "Annual income cannot be negative"
-msgstr ""
+msgstr "Los ingresos anuales no pueden ser negativos"
 
 #: /app/lib/Controller/PensionController.php:179
 #: /app/lib/Controller/PensionController.php:277
+#, fuzzy
 msgid "Transfer value cannot be negative"
-msgstr ""
+msgstr "El valor de la transferencia no puede ser negativo"
 
 #: /app/lib/Controller/PensionController.php:182
 msgid "Projection target cannot be negative"
 msgstr ""
 
 #: /app/lib/Controller/PensionController.php:201
+#, fuzzy
 msgid "Failed to create pension"
-msgstr ""
+msgstr "Error al crear el plan de pensiones"
 
 #: /app/lib/Controller/PensionController.php:297
+#, fuzzy
 msgid "Failed to update pension"
-msgstr ""
+msgstr "Error al actualizar el plan de pensiones"
 
 #: /app/lib/Controller/PensionController.php:308
+#, fuzzy
 msgid "Pension deleted successfully"
-msgstr ""
+msgstr "Plan de pensiones eliminado correctamente"
 
 #: /app/lib/Controller/PensionController.php:310
 #: /app/src/modules/pensions/PensionsModule.js:488
+#, fuzzy
 msgid "Failed to delete pension"
-msgstr ""
+msgstr "Error al eliminar el plan de pensiones"
 
 #: /app/lib/Controller/PensionController.php:347
+#, fuzzy
 msgid "Balance and date are required"
-msgstr ""
+msgstr "El saldo y la fecha son obligatorios"
 
 #: /app/lib/Controller/PensionController.php:352
+#, fuzzy
 msgid "Balance cannot be negative"
-msgstr ""
+msgstr "El saldo no puede ser negativo"
 
 #: /app/lib/Controller/PensionController.php:393
+#, fuzzy
 msgid "Failed to retrieve contributions"
-msgstr ""
+msgstr "Error al obtener las aportaciones"
 
 #: /app/lib/Controller/PensionController.php:419
 #: /app/lib/Controller/PensionController.php:471
+#, fuzzy
 msgid "Amount and date are required"
-msgstr ""
+msgstr "El importe y la fecha son obligatorios"
 
 #: /app/lib/Controller/PensionController.php:424
 #: /app/lib/Controller/PensionController.php:474
 #: /app/lib/Controller/PensionController.php:583
+#, fuzzy
 msgid "Amount must be greater than zero"
-msgstr ""
+msgstr "El importe debe ser mayor que cero"
 
 #: /app/lib/Controller/PensionController.php:449
+#, fuzzy
 msgid "Failed to create contribution"
-msgstr ""
+msgstr "Error al crear la aportación"
 
 #: /app/lib/Controller/PensionController.php:497
 #: /app/src/modules/pensions/PensionsModule.js:984
@@ -1642,12 +1810,14 @@ msgid "Failed to record withdrawal"
 msgstr ""
 
 #: /app/lib/Controller/PensionController.php:508
+#, fuzzy
 msgid "Contribution deleted successfully"
-msgstr ""
+msgstr "Aportación eliminada correctamente"
 
 #: /app/lib/Controller/PensionController.php:510
+#, fuzzy
 msgid "Failed to delete contribution"
-msgstr ""
+msgstr "Error al eliminar la aportación"
 
 #: /app/lib/Controller/PensionController.php:528
 msgid "Failed to retrieve balance history"
@@ -1687,20 +1857,24 @@ msgstr ""
 
 #: /app/lib/Controller/PensionController.php:653
 #: /app/src/modules/pensions/PensionsModule.js:1109
+#, fuzzy
 msgid "Failed to post contribution"
-msgstr ""
+msgstr "Error al registrar la aportación"
 
 #: /app/lib/Controller/PensionController.php:669
+#, fuzzy
 msgid "Failed to retrieve pension summary"
-msgstr ""
+msgstr "Error al obtener el resumen del plan de pensiones"
 
 #: /app/lib/Controller/PensionController.php:682
+#, fuzzy
 msgid "Failed to retrieve pension projection"
-msgstr ""
+msgstr "Error al obtener la proyección del plan de pensiones"
 
 #: /app/lib/Controller/PensionController.php:695
+#, fuzzy
 msgid "Failed to retrieve combined pension projection"
-msgstr ""
+msgstr "Error al obtener la proyección combinada de pensiones"
 
 #: /app/lib/Controller/ProjectController.php:62
 #: /app/src/modules/projects/ProjectsModule.js:39
@@ -1795,20 +1969,24 @@ msgid ""
 msgstr ""
 
 #: /app/lib/Controller/ReconciliationController.php:58
+#, fuzzy
 msgid "Failed to load reconciliation session"
-msgstr ""
+msgstr "Error al cargar la sesión de conciliación"
 
 #: /app/lib/Controller/ReconciliationController.php:73
+#, fuzzy
 msgid "A reconciliation is already in progress for this account"
-msgstr ""
+msgstr "Ya hay una conciliación en curso para esta cuenta"
 
 #: /app/lib/Controller/ReconciliationController.php:159
+#, fuzzy
 msgid "Failed to load reconciliation history"
-msgstr ""
+msgstr "Error al cargar el historial de conciliación"
 
 #: /app/lib/Controller/RecurringIncomeController.php:76
+#, fuzzy
 msgid "Failed to retrieve recurring income"
-msgstr ""
+msgstr "Error al obtener los ingresos recurrentes"
 
 #: /app/lib/Controller/RecurringIncomeController.php:89
 #: /app/lib/Controller/RecurringIncomeController.php:103
@@ -1818,42 +1996,51 @@ msgstr ""
 #: /app/lib/Controller/RecurringIncomeController.php:428
 #: /app/lib/Controller/RecurringIncomeController.php:450
 #: /app/lib/Service/AccountClosureService.php:81
+#, fuzzy
 msgid "Recurring income"
-msgstr ""
+msgstr "Ingresos recurrentes"
 
 #: /app/lib/Controller/RecurringIncomeController.php:171
 #: /app/lib/Controller/RecurringIncomeController.php:297
+#, fuzzy
 msgid "Expected day must be between 1 and 31"
-msgstr ""
+msgstr "El día esperado debe estar entre 1 y 31"
 
 #: /app/lib/Controller/RecurringIncomeController.php:176
 #: /app/lib/Controller/RecurringIncomeController.php:304
+#, fuzzy
 msgid "Expected month must be between 1 and 12"
-msgstr ""
+msgstr "El mes esperado debe estar entre 1 y 12"
 
 #: /app/lib/Controller/RecurringIncomeController.php:236
+#, fuzzy
 msgid "Failed to create recurring income"
-msgstr ""
+msgstr "Error al crear los ingresos recurrentes"
 
 #: /app/lib/Controller/RecurringIncomeController.php:264
+#, fuzzy
 msgid "No data provided"
-msgstr ""
+msgstr "No se han proporcionado datos"
 
 #: /app/lib/Controller/RecurringIncomeController.php:352
+#, fuzzy
 msgid "Recurring income deleted"
-msgstr ""
+msgstr "Ingresos recurrentes eliminados"
 
 #: /app/lib/Controller/RecurringIncomeController.php:367
+#, fuzzy
 msgid "Failed to retrieve upcoming income"
-msgstr ""
+msgstr "Error al obtener los ingresos próximos"
 
 #: /app/lib/Controller/RecurringIncomeController.php:380
+#, fuzzy
 msgid "Failed to retrieve expected income"
-msgstr ""
+msgstr "Error al obtener los ingresos esperados"
 
 #: /app/lib/Controller/RecurringIncomeController.php:393
+#, fuzzy
 msgid "Failed to retrieve income summary"
-msgstr ""
+msgstr "Error al obtener el resumen de ingresos"
 
 #: /app/lib/Controller/RecurringIncomeController.php:442
 msgid "Previous expected date"
@@ -1861,8 +2048,9 @@ msgstr ""
 
 #: /app/lib/Controller/RecurringIncomeController.php:463
 #: /app/src/modules/income/IncomeModule.js:712
+#, fuzzy
 msgid "Failed to detect recurring income"
-msgstr ""
+msgstr "Error al detectar los ingresos recurrentes"
 
 #: /app/lib/Controller/RecurringIncomeController.php:496
 msgid "Failed to create recurring income from detected patterns"
@@ -1885,7 +2073,7 @@ msgid "Failed to generate income and expenses report"
 msgstr ""
 
 #: /app/lib/Controller/ReportController.php:226
-#: /app/src/modules/reports/ReportsModule.js:1611
+#: /app/src/modules/reports/ReportsModule.js:1612
 msgid "Failed to export report"
 msgstr ""
 
@@ -1922,27 +2110,32 @@ msgid "Failed to generate tag set breakdown"
 msgstr ""
 
 #: /app/lib/Controller/ReportController.php:556
+#, fuzzy
 msgid "Failed to generate category monthly report"
-msgstr ""
+msgstr "Error al generar el informe mensual de categorías"
 
 #: /app/lib/Controller/SavedReportController.php:48
+#, fuzzy
 msgid "Failed to load saved reports"
-msgstr ""
+msgstr "Error al cargar los informes guardados"
 
 #: /app/lib/Controller/SavedReportController.php:63
 #: /app/src/modules/reports/ReportsModule.js:381
 #: /app/src/modules/reports/ReportsModule.js:387
+#, fuzzy
 msgid "Failed to save report"
-msgstr ""
+msgstr "Error al guardar el informe"
 
 #: /app/lib/Controller/SavedReportController.php:79
+#, fuzzy
 msgid "Failed to update saved report"
-msgstr ""
+msgstr "Error al actualizar el informe guardado"
 
 #: /app/lib/Controller/SavedReportController.php:93
 #: /app/src/modules/reports/ReportsModule.js:411
+#, fuzzy
 msgid "Failed to delete saved report"
-msgstr ""
+msgstr "Error al eliminar el informe guardado"
 
 #: /app/lib/Controller/SettingController.php:103
 msgid "Failed to retrieve settings"
@@ -2068,12 +2261,14 @@ msgid "Budget app initialized successfully"
 msgstr ""
 
 #: /app/lib/Controller/SetupController.php:70
+#, fuzzy
 msgid "Failed to initialize budget app"
-msgstr ""
+msgstr "Error al inicializar la aplicación de presupuestos"
 
 #: /app/lib/Controller/SetupController.php:88
+#, fuzzy
 msgid "Failed to get setup status"
-msgstr ""
+msgstr "Error al obtener el estado de la configuración"
 
 #: /app/lib/Controller/SetupController.php:102
 #, php-format
@@ -2081,8 +2276,9 @@ msgid "%1$s duplicate categories removed"
 msgstr ""
 
 #: /app/lib/Controller/SetupController.php:105
+#, fuzzy
 msgid "Failed to remove duplicate categories"
-msgstr ""
+msgstr "Error al eliminar las categorías duplicadas"
 
 #: /app/lib/Controller/SetupController.php:120
 #, php-format
@@ -2090,8 +2286,9 @@ msgid "Reset complete: deleted %1$s, created %2$s"
 msgstr ""
 
 #: /app/lib/Controller/SetupController.php:123
+#, fuzzy
 msgid "Failed to reset categories"
-msgstr ""
+msgstr "Error al restablecer las categorías"
 
 #: /app/lib/Controller/SetupController.php:140
 msgid ""
@@ -2110,41 +2307,50 @@ msgid "Factory reset failed"
 msgstr ""
 
 #: /app/lib/Controller/SetupController.php:186
+#, fuzzy
 msgid "Balance recalculation failed"
-msgstr ""
+msgstr "Error al recalcular el saldo"
 
 #: /app/lib/Controller/SetupController.php:201 /app/src/main.js:1739
+#, fuzzy
 msgid "Diagnosis failed"
-msgstr ""
+msgstr "Error en el diagnóstico"
 
 #: /app/lib/Controller/SetupController.php:218
+#, fuzzy
 msgid "No repair categories specified"
-msgstr ""
+msgstr "No se han especificado categorías de reparación"
 
 #: /app/lib/Controller/SetupController.php:229
+#, fuzzy
 msgid "No valid repair categories specified"
-msgstr ""
+msgstr "No se han especificado categorías de reparación válidas"
 
 #: /app/lib/Controller/SetupController.php:256 /app/src/main.js:2004
+#, fuzzy
 msgid "Repair failed"
-msgstr ""
+msgstr "Error en la reparación"
 
 #: /app/lib/Controller/SetupController.php:371
+#, fuzzy
 msgid "Failed to get system info"
-msgstr ""
+msgstr "Error al obtener la información del sistema"
 
 #: /app/lib/Controller/ShareController.php:58
 #: /app/lib/Controller/ShareController.php:72
+#, fuzzy
 msgid "Failed to retrieve shares"
-msgstr ""
+msgstr "Error al obtener los elementos compartidos"
 
 #: /app/lib/Controller/ShareController.php:86
+#, fuzzy
 msgid "Failed to retrieve pending shares"
-msgstr ""
+msgstr "Error al obtener los elementos compartidos pendientes"
 
 #: /app/lib/Controller/ShareController.php:103
+#, fuzzy
 msgid "Failed to create share"
-msgstr ""
+msgstr "Error al crear el elemento compartido"
 
 #: /app/lib/Controller/ShareController.php:119
 #: /app/lib/Controller/ShareController.php:137
@@ -2152,52 +2358,63 @@ msgstr ""
 #: /app/lib/Controller/ShareController.php:173
 #: /app/lib/Controller/ShareController.php:198
 #: /app/lib/Controller/ShareController.php:232
+#, fuzzy
 msgid "Share"
-msgstr ""
+msgstr "Compartir"
 
 #: /app/lib/Controller/ShareController.php:121
 #: /app/src/modules/sharing/SharingModule.js:413
+#, fuzzy
 msgid "Failed to accept share"
-msgstr ""
+msgstr "Error al aceptar el elemento compartido"
 
 #: /app/lib/Controller/ShareController.php:139
 #: /app/src/modules/sharing/SharingModule.js:421
+#, fuzzy
 msgid "Failed to decline share"
-msgstr ""
+msgstr "Error al rechazar el elemento compartido"
 
 #: /app/lib/Controller/ShareController.php:157
 #: /app/src/modules/sharing/SharingModule.js:431
+#, fuzzy
 msgid "Failed to revoke share"
-msgstr ""
+msgstr "Error al revocar el elemento compartido"
 
 #: /app/lib/Controller/ShareController.php:175
 #: /app/src/modules/sharing/SharingModule.js:441
+#, fuzzy
 msgid "Failed to leave share"
-msgstr ""
+msgstr "Error al salir del elemento compartido"
 
 #: /app/lib/Controller/ShareController.php:192
+#, fuzzy
 msgid "Share not found"
-msgstr ""
+msgstr "Elemento compartido no encontrado"
 
 #: /app/lib/Controller/ShareController.php:200
+#, fuzzy
 msgid "Failed to retrieve share configuration"
-msgstr ""
+msgstr "Error al obtener la configuración de uso compartido"
 
 #: /app/lib/Controller/ShareController.php:216
+#, fuzzy
 msgid "Invalid entity IDs"
-msgstr ""
+msgstr "ID de entidad no válidos"
 
 #: /app/lib/Controller/ShareController.php:234
+#, fuzzy
 msgid "Failed to update share configuration"
-msgstr ""
+msgstr "Error al actualizar la configuración de uso compartido"
 
 #: /app/lib/Controller/ShareController.php:255
+#, fuzzy
 msgid "Failed to retrieve auto-share configuration"
-msgstr ""
+msgstr "Error al obtener la configuración de uso compartido automático"
 
 #: /app/lib/Controller/ShareController.php:274
+#, fuzzy
 msgid "Failed to update auto-share configuration"
-msgstr ""
+msgstr "Error al actualizar la configuración de uso compartido automático"
 
 #: /app/lib/Controller/SharedExpenseController.php:69
 msgid "Failed to get contacts"
@@ -2205,8 +2422,9 @@ msgstr ""
 
 #: /app/lib/Controller/SharedExpenseController.php:91
 #: /app/src/utils/userPicker.js:114
+#, fuzzy
 msgid "Nextcloud user not found"
-msgstr ""
+msgstr "Usuario de Nextcloud no encontrado"
 
 #: /app/lib/Controller/SharedExpenseController.php:109
 msgid "Failed to create contact"
@@ -2230,17 +2448,20 @@ msgid "Failed to get balances"
 msgstr ""
 
 #: /app/lib/Controller/SharedExpenseController.php:267
+#, fuzzy
 msgid "Failed to get shared expenses"
-msgstr ""
+msgstr "Error al obtener los gastos compartidos"
 
 #: /app/lib/Controller/SharedExpenseController.php:289
+#, fuzzy
 msgid "Failed to get shared transactions"
-msgstr ""
+msgstr "Error al obtener las transacciones compartidas"
 
 #: /app/lib/Controller/SharedExpenseController.php:321
 #: /app/lib/Controller/SharedExpenseController.php:348
+#, fuzzy
 msgid "This transaction is already shared with this contact"
-msgstr ""
+msgstr "Esta transacción ya se ha compartido con este contacto"
 
 #: /app/lib/Controller/SharedExpenseController.php:330
 msgid "Failed to share expense"
@@ -2296,8 +2517,9 @@ msgstr ""
 
 #: /app/lib/Controller/SharedExpenseController.php:507
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:585
+#, fuzzy
 msgid "Please select at least one expense to settle"
-msgstr ""
+msgstr "Seleccione al menos un gasto para liquidar"
 
 #: /app/lib/Controller/SharedExpenseController.php:522
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:607
@@ -2421,8 +2643,9 @@ msgid "Transaction"
 msgstr ""
 
 #: /app/lib/Controller/TransactionController.php:480
+#, fuzzy
 msgid "Invalid status. Must be cleared, scheduled or pending"
-msgstr ""
+msgstr "Estado no válido. Debe ser liquidado, programado o pendiente"
 
 #: /app/lib/Controller/TransactionController.php:511
 #: /app/src/modules/transactions/TransactionsModule.js:5096
@@ -2521,7 +2744,7 @@ msgstr ""
 #: /app/lib/Controller/TransactionController.php:1004
 #: /app/src/modules/bills/BillsModule.js:364
 #: /app/src/modules/dashboard/DashboardModule.js:1284
-#: /app/src/modules/rules/RulesModule.js:986
+#: /app/src/modules/rules/RulesModule.js:989
 #: /app/src/modules/transactions/TransactionsModule.js:5249
 #: /app/src/modules/transactions/transactionRow.js:68
 #: /app/src/modules/transactions/transactionRow.js:182
@@ -2603,10 +2826,10 @@ msgstr ""
 #: /app/src/modules/dashboard/DashboardModule.js:5497
 #: /app/src/modules/help/HelpModule.js:33
 #: /app/src/modules/reports/ReportsModule.js:751
-#: /app/src/modules/reports/ReportsModule.js:1144
-#: /app/src/modules/reports/ReportsModule.js:1450
-#: /app/src/modules/reports/ReportsModule.js:1466
-#: /app/src/modules/reports/ReportsModule.js:1511
+#: /app/src/modules/reports/ReportsModule.js:1145
+#: /app/src/modules/reports/ReportsModule.js:1451
+#: /app/src/modules/reports/ReportsModule.js:1467
+#: /app/src/modules/reports/ReportsModule.js:1512
 #: /app/src/modules/rules/components/ActionBuilder.js:327
 #: /app/src/modules/rules/components/CriteriaBuilder.js:218
 #: /app/templates/index.php:103 /app/templates/index.php:1047
@@ -2632,10 +2855,10 @@ msgstr ""
 #: /app/src/modules/dashboard/DashboardModule.js:3183
 #: /app/src/modules/dashboard/DashboardModule.js:3252
 #: /app/src/modules/reports/ReportsModule.js:758
-#: /app/src/modules/reports/ReportsModule.js:1152
-#: /app/src/modules/reports/ReportsModule.js:1453
-#: /app/src/modules/reports/ReportsModule.js:1470
-#: /app/src/modules/reports/ReportsModule.js:1518 /app/templates/index.php:1875
+#: /app/src/modules/reports/ReportsModule.js:1153
+#: /app/src/modules/reports/ReportsModule.js:1454
+#: /app/src/modules/reports/ReportsModule.js:1471
+#: /app/src/modules/reports/ReportsModule.js:1519 /app/templates/index.php:1875
 #: /app/templates/index.php:2221 /app/templates/index.php:3325
 #: /app/templates/index.php:3360 /app/templates/index.php:3488
 msgid "Expenses"
@@ -2644,7 +2867,7 @@ msgstr ""
 #: /app/lib/Controller/YearOverYearController.php:250
 #: /app/src/modules/dashboard/DashboardModule.js:1038
 #: /app/src/modules/dashboard/DashboardModule.js:2248
-#: /app/src/modules/reports/ReportsModule.js:1474
+#: /app/src/modules/reports/ReportsModule.js:1475
 #: /app/src/utils/formatters.js:263
 msgid "Savings"
 msgstr ""
@@ -2709,8 +2932,9 @@ msgid "Category Spending Comparison"
 msgstr ""
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:43
+#, fuzzy
 msgid "Budget: Overview"
-msgstr ""
+msgstr "Presupuesto: Resumen"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:79
 #: /app/src/modules/dashboard/DashboardModule.js:1020
@@ -2721,26 +2945,29 @@ msgstr ""
 #: /app/lib/Service/Mail/BudgetMailService.php:67
 #: /app/src/modules/onboarding/OnboardingModule.js:82
 #: /app/templates/quick-add.php:11
+#, fuzzy
 msgid "Open Budget"
-msgstr ""
+msgstr "Abrir Presupuesto"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:117
-#, php-format
+#, fuzzy, php-format
 msgid "(excludes %1$s — no exchange rate)"
-msgstr ""
+msgstr "(excluye %1$s; sin tipo de cambio)"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:121
+#, fuzzy
 msgid "Total balance"
-msgstr ""
+msgstr "Saldo total"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:131
+#, fuzzy
 msgid "Budget this month"
-msgstr ""
+msgstr "Presupuesto de este mes"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:132
-#, php-format
+#, fuzzy, php-format
 msgid "%1$s of %2$s spent (%3$s%%)"
-msgstr ""
+msgstr "%1$s de %2$s gastados (%3$s%%)"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:147
 msgid "%n category over budget"
@@ -2755,12 +2982,14 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:153
+#, fuzzy
 msgid "Attention"
-msgstr ""
+msgstr "Atención"
 
 #: /app/lib/Dashboard/UpcomingBillsWidget.php:42
+#, fuzzy
 msgid "Budget: Upcoming bills"
-msgstr ""
+msgstr "Presupuesto: Próximas facturas"
 
 #: /app/lib/Dashboard/UpcomingBillsWidget.php:78
 #: /app/src/modules/dashboard/DashboardModule.js:1739
@@ -2769,17 +2998,20 @@ msgid "No upcoming bills"
 msgstr ""
 
 #: /app/lib/Dashboard/UpcomingBillsWidget.php:87
+#, fuzzy
 msgid "All bills"
-msgstr ""
+msgstr "Todas las facturas"
 
 #: /app/lib/Dashboard/UpcomingBillsWidget.php:116
+#, fuzzy
 msgid "overdue"
-msgstr ""
+msgstr "vencida"
 
 #: /app/lib/Dashboard/UpcomingBillsWidget.php:119
 #: /app/lib/Notification/Notifier.php:57
+#, fuzzy
 msgid "due today"
-msgstr ""
+msgstr "vence hoy"
 
 #: /app/lib/Dashboard/UpcomingBillsWidget.php:122
 msgid "due in %n day"
@@ -2797,42 +3029,49 @@ msgstr[1] ""
 #: /app/src/modules/projects/ProjectsModule.js:145 /app/templates/index.php:93
 #: /app/templates/index.php:2147 /app/templates/index.php:2232
 #: /app/templates/index.php:5136
+#, fuzzy
 msgid "Budget"
-msgstr ""
+msgstr "Presupuesto"
 
 #: /app/lib/Notification/Notifier.php:46
+#, fuzzy
 msgid "Bill reminder: {bill}"
-msgstr ""
+msgstr "Recordatorio de factura: {bill}"
 
 #: /app/lib/Notification/Notifier.php:60
+#, fuzzy
 msgid "due tomorrow"
-msgstr ""
+msgstr "vence mañana"
 
 #: /app/lib/Notification/Notifier.php:61
-#, php-format
+#, fuzzy, php-format
 msgid "due in %s days"
-msgstr ""
+msgstr "vence en %s días"
 
 #: /app/lib/Notification/Notifier.php:66
+#, fuzzy
 msgid "{bill} ({amount}) is {dueText}"
-msgstr ""
+msgstr "{bill} ({amount}) {dueText}"
 
 #: /app/lib/Notification/Notifier.php:99
+#, fuzzy
 msgid "Overdue bill: {bill}"
-msgstr ""
+msgstr "Factura vencida: {bill}"
 
 #: /app/lib/Notification/Notifier.php:111
+#, fuzzy
 msgid "1 day overdue"
-msgstr ""
+msgstr "1 día de retraso"
 
 #: /app/lib/Notification/Notifier.php:112
-#, php-format
+#, fuzzy, php-format
 msgid "%s days overdue"
-msgstr ""
+msgstr "%s días de retraso"
 
 #: /app/lib/Notification/Notifier.php:116
+#, fuzzy
 msgid "{bill} ({amount}) is {overdueText}"
-msgstr ""
+msgstr "{bill} ({amount}) lleva {overdueText}"
 
 #: /app/lib/Notification/Notifier.php:149
 msgid "Bill auto-paid: {bill}"
@@ -2853,38 +3092,51 @@ msgid ""
 msgstr ""
 
 #: /app/lib/Notification/Notifier.php:239
+#, fuzzy
 msgid "Income auto-created: {income}"
-msgstr ""
+msgstr "Ingreso creado automáticamente: {income}"
 
 #: /app/lib/Notification/Notifier.php:251
+#, fuzzy
 msgid ""
 "{income} ({amount}) transaction was automatically created. Next expected: "
 "{nextExpectedDate}"
 msgstr ""
+"La transacción {income} ({amount}) se ha creado automáticamente. Próxima "
+"prevista: {nextExpectedDate}"
 
 #: /app/lib/Notification/Notifier.php:284
+#, fuzzy
 msgid "Auto-create failed: {income}"
-msgstr ""
+msgstr "Error en la creación automática: {income}"
 
 #: /app/lib/Notification/Notifier.php:296
+#, fuzzy
 msgid ""
 "Failed to auto-create transaction for {income} ({amount}). Reason: {reason}"
 msgstr ""
+"Error al crear automáticamente la transacción para {income} ({amount}). "
+"Motivo: {reason}"
 
 #: /app/lib/Notification/Notifier.php:329
+#, fuzzy
 msgid "{user} shared their budget with you"
-msgstr ""
+msgstr "{user} ha compartido su presupuesto"
 
 #: /app/lib/Notification/Notifier.php:341
+#, fuzzy
 msgid ""
 "{user} has invited you to view their budget. Open Budget to accept or "
 "decline."
 msgstr ""
+"{user} ha enviado una invitación para ver su presupuesto. Abra Presupuesto "
+"para aceptar o rechazar."
 
 #: /app/lib/Notification/Notifier.php:364
 #: /app/lib/Service/DigestService.php:127
+#, fuzzy
 msgid "Your monthly budget digest"
-msgstr ""
+msgstr "Resumen mensual del presupuesto"
 
 #: /app/lib/Notification/Notifier.php:365
 #: /app/lib/Service/DigestService.php:126
@@ -3074,27 +3326,27 @@ msgstr ""
 msgid "A transaction for this payment already exists"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:1060 /app/lib/Service/BillService.php:1074
+#: /app/lib/Service/BillService.php:1064 /app/lib/Service/BillService.php:1078
 msgid "This bill has no recorded payment to undo"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:1102
+#: /app/lib/Service/BillService.php:1106
 msgid "Cannot skip a one-time bill"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:1106
+#: /app/lib/Service/BillService.php:1110
 msgid "Cannot skip an inactive bill"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:1525
+#: /app/lib/Service/BillService.php:1529
 msgid "Auto-pay is not enabled for this bill"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:1538
+#: /app/lib/Service/BillService.php:1542
 msgid "Bill has no account associated"
 msgstr ""
 
-#: /app/lib/Service/BillService.php:1548
+#: /app/lib/Service/BillService.php:1552
 msgid "Bill auto-paid successfully"
 msgstr ""
 
@@ -3232,8 +3484,8 @@ msgstr[1] ""
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:29 /app/src/main.js:3558
 #: /app/src/main.js:3634 /app/src/main.js:3635
-#: /app/src/modules/rules/RulesModule.js:936
-#: /app/src/modules/rules/RulesModule.js:1138
+#: /app/src/modules/rules/RulesModule.js:939
+#: /app/src/modules/rules/RulesModule.js:1141
 #: /app/src/modules/rules/components/CriteriaBuilder.js:188
 #: /app/src/modules/transactions/TransactionsModule.js:3195
 #: /app/src/modules/transactions/TransactionsModule.js:3196
@@ -3845,18 +4097,40 @@ msgstr ""
 
 #: /app/lib/Service/Report/ReportExporter.php:680
 #: /app/lib/Service/Report/ReportExporter.php:726
-#: /app/src/modules/reports/ReportsModule.js:1116
+#: /app/src/modules/reports/ReportsModule.js:1117
 msgid "Overall"
 msgstr ""
 
 #: /app/lib/Service/Report/ReportExporter.php:693
 #: /app/lib/Service/Report/ReportExporter.php:739
-#: /app/src/modules/reports/ReportsModule.js:1099
+#: /app/src/modules/reports/ReportsModule.js:1100
 msgid "Net total"
 msgstr ""
 
 #: /app/lib/Service/Report/ReportExporter.php:710 /app/templates/index.php:3687
 msgid "Category Income & Expenses by Month"
+msgstr ""
+
+#: /app/lib/Service/Report/ReportExporter.php:749
+#: /app/src/config/dashboardWidgets.js:26 /app/src/main.js:1897
+#: /app/src/main.js:3629 /app/src/modules/accounts/AccountsModule.js:1864
+#: /app/src/modules/categories/CategoriesModule.js:823
+#: /app/src/modules/dashboard/DashboardModule.js:1253
+#: /app/src/modules/import/ImportModule.js:189
+#: /app/src/modules/import/ImportModule.js:2032
+#: /app/src/modules/reports/ReportsModule.js:1089
+#: /app/src/modules/rules/RulesModule.js:994
+#: /app/src/modules/transactions/TransactionsModule.js:510
+#: /app/src/modules/transactions/TransactionsModule.js:1183
+#: /app/src/modules/transactions/TransactionsModule.js:3190
+#: /app/src/modules/transactions/TransactionsModule.js:3794
+#: /app/src/modules/transactions/TransactionsModule.js:4641
+#: /app/src/modules/transactions/transactionRow.js:122
+#: /app/src/modules/transactions/transactionRow.js:183
+#: /app/src/modules/transactions/transactionRow.js:225
+#: /app/templates/index.php:539 /app/templates/index.php:1464
+#: /app/templates/index.php:1628 /app/templates/quick-add.php:57
+msgid "Uncategorized"
 msgstr ""
 
 #: /app/lib/Service/Report/ScheduledReportService.php:76
@@ -4203,26 +4477,6 @@ msgstr ""
 msgid "Account Expenses"
 msgstr ""
 
-#: /app/src/config/dashboardWidgets.js:26 /app/src/main.js:1897
-#: /app/src/main.js:3629 /app/src/modules/accounts/AccountsModule.js:1864
-#: /app/src/modules/categories/CategoriesModule.js:823
-#: /app/src/modules/dashboard/DashboardModule.js:1253
-#: /app/src/modules/import/ImportModule.js:189
-#: /app/src/modules/import/ImportModule.js:2032
-#: /app/src/modules/rules/RulesModule.js:991
-#: /app/src/modules/transactions/TransactionsModule.js:510
-#: /app/src/modules/transactions/TransactionsModule.js:1183
-#: /app/src/modules/transactions/TransactionsModule.js:3190
-#: /app/src/modules/transactions/TransactionsModule.js:3794
-#: /app/src/modules/transactions/TransactionsModule.js:4641
-#: /app/src/modules/transactions/transactionRow.js:122
-#: /app/src/modules/transactions/transactionRow.js:183
-#: /app/src/modules/transactions/transactionRow.js:225
-#: /app/templates/index.php:539 /app/templates/index.php:1464
-#: /app/templates/index.php:1628 /app/templates/quick-add.php:57
-msgid "Uncategorized"
-msgstr ""
-
 #: /app/src/config/dashboardWidgets.js:27 /app/templates/index.php:552
 msgid "Low Balance Alert"
 msgstr ""
@@ -4425,7 +4679,7 @@ msgstr ""
 #: /app/src/modules/bills/BillsModule.js:1699
 #: /app/src/modules/help/HelpModule.js:31
 #: /app/src/modules/reports/ReportsModule.js:432
-#: /app/src/modules/rules/RulesModule.js:822
+#: /app/src/modules/rules/RulesModule.js:825
 #: /app/src/modules/savings/SavingsModule.js:295
 #: /app/src/modules/tagsets/TagSetsModule.js:601
 #: /app/src/modules/transactions/TransactionsModule.js:548
@@ -5007,7 +5261,7 @@ msgid "Failed to calculate scenario"
 msgstr ""
 
 #: /app/src/main.js:2699 /app/src/modules/dashboard/DashboardModule.js:950
-#: /app/src/modules/reports/ReportsModule.js:1570
+#: /app/src/modules/reports/ReportsModule.js:1571
 msgid "N/A"
 msgstr ""
 
@@ -6239,7 +6493,7 @@ msgid "Failed to dismiss suggestions"
 msgstr ""
 
 #: /app/src/modules/bills/BillsModule.js:317
-#: /app/src/modules/reports/ReportsModule.js:1908
+#: /app/src/modules/reports/ReportsModule.js:1909
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:476
 #: /app/src/modules/transfers/TransfersModule.js:315
 #: /app/templates/index.php:2690
@@ -6475,12 +6729,14 @@ msgid "Are you sure you want to delete this bill?"
 msgstr ""
 
 #: /app/src/modules/bills/BillsModule.js:1146
+#, fuzzy
 msgid "Bill deleted successfully"
-msgstr ""
+msgstr "Factura eliminada correctamente"
 
 #: /app/src/modules/bills/BillsModule.js:1150
+#, fuzzy
 msgid "Failed to delete bill"
-msgstr ""
+msgstr "Error al eliminar la factura"
 
 #: /app/src/modules/bills/BillsModule.js:1177
 msgid "Bills calendar subscription"
@@ -6840,7 +7096,7 @@ msgstr ""
 #: /app/src/modules/reports/ReportsModule.js:204
 #: /app/src/modules/reports/ReportsModule.js:207
 #: /app/src/modules/reports/ReportsModule.js:209
-#: /app/src/modules/reports/ReportsModule.js:1702
+#: /app/src/modules/reports/ReportsModule.js:1703
 #: /app/src/modules/transactions/TransactionsModule.js:503
 #: /app/templates/index.php:594 /app/templates/index.php:616
 #: /app/templates/index.php:634 /app/templates/index.php:685
@@ -6915,14 +7171,16 @@ msgstr ""
 
 #: /app/src/modules/categories/CategoriesModule.js:1177
 #: /app/src/modules/categories/CategoriesModule.js:1206
+#, fuzzy
 msgid "Category deleted successfully"
-msgstr ""
+msgstr "Categoría eliminada correctamente"
 
 #: /app/src/modules/categories/CategoriesModule.js:1183
 #: /app/src/modules/categories/CategoriesModule.js:1215
 #: /app/src/modules/categories/CategoriesModule.js:1227
+#, fuzzy
 msgid "Failed to delete category"
-msgstr ""
+msgstr "Error al eliminar la categoría"
 
 #: /app/src/modules/categories/CategoriesModule.js:1194
 msgid "this category"
@@ -7008,7 +7266,7 @@ msgid "Default categories created successfully"
 msgstr ""
 
 #: /app/src/modules/categories/CategoriesModule.js:1615
-#: /app/src/modules/rules/RulesModule.js:1363
+#: /app/src/modules/rules/RulesModule.js:1366
 msgid "Could not read that file: {error}"
 msgstr ""
 
@@ -9328,62 +9586,62 @@ msgstr ""
 msgid "No data for the selected period."
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1105
+#: /app/src/modules/reports/ReportsModule.js:1106
 msgid ""
 "You have accounts in more than one currency. Amounts are summed in their "
 "original currency without conversion."
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1160
+#: /app/src/modules/reports/ReportsModule.js:1161
 msgid "Net Cash Flow"
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1301 /app/templates/index.php:3187
+#: /app/src/modules/reports/ReportsModule.js:1302 /app/templates/index.php:3187
 #: /app/templates/index.php:3503
 msgid "Money Flow"
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1427
+#: /app/src/modules/reports/ReportsModule.js:1428
 msgid "Failed to generate comparison"
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1461
+#: /app/src/modules/reports/ReportsModule.js:1462
 msgid "YTD"
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1486
+#: /app/src/modules/reports/ReportsModule.js:1487
 msgid "{monthName} - Year over Year Comparison"
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1487
+#: /app/src/modules/reports/ReportsModule.js:1488
 msgid "Annual Income & Expenses"
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1564
+#: /app/src/modules/reports/ReportsModule.js:1565
 msgid "Change"
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1608
+#: /app/src/modules/reports/ReportsModule.js:1609
 msgid "Report exported as {format}"
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1811
+#: /app/src/modules/reports/ReportsModule.js:1812
 msgid "Failed to generate bills calendar"
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1839
+#: /app/src/modules/reports/ReportsModule.js:1840
 msgid "Total Bills"
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1911
+#: /app/src/modules/reports/ReportsModule.js:1912
 msgid "No payment recorded - the bill has moved on from this date"
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1914
+#: /app/src/modules/reports/ReportsModule.js:1915
 msgid "Due"
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1919
+#: /app/src/modules/reports/ReportsModule.js:1920
 #: /app/src/modules/transactions/TransactionsModule.js:1988
 #: /app/src/modules/transactions/transactionRow.js:55
 #: /app/src/modules/transfers/TransfersModule.js:473
@@ -9391,35 +9649,35 @@ msgstr ""
 msgid "Transfer"
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1937
+#: /app/src/modules/reports/ReportsModule.js:1938
 msgid "Monthly Totals"
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1956
+#: /app/src/modules/reports/ReportsModule.js:1957
 msgid ""
 "Pick an account above to see its projected balance for the rest of the year."
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1959
+#: /app/src/modules/reports/ReportsModule.js:1960
 msgid "The projected balance is only shown for the current year."
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1977
+#: /app/src/modules/reports/ReportsModule.js:1978
 msgid "Bills {bills}, transfers in {transfers}, income {income}"
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1986
+#: /app/src/modules/reports/ReportsModule.js:1987
 msgid ""
 "{account} today: {balance}. Each month carries on from the month before, "
 "less the bills and plus the transfers and recurring income still due."
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1991
+#: /app/src/modules/reports/ReportsModule.js:1992
 msgid "Lowest: {balance} in {month}."
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:2027
-#: /app/src/modules/reports/ReportsModule.js:2029
+#: /app/src/modules/reports/ReportsModule.js:2028
+#: /app/src/modules/reports/ReportsModule.js:2030
 msgid "%n bill"
 msgid_plural "%n bills"
 msgstr[0] ""
@@ -9528,94 +9786,98 @@ msgid "NOT"
 msgstr ""
 
 #: /app/src/modules/rules/RulesModule.js:242
-#: /app/src/modules/rules/RulesModule.js:271
+#: /app/src/modules/rules/RulesModule.js:274
 msgid "Category #{id}"
 msgstr ""
 
 #: /app/src/modules/rules/RulesModule.js:247
-#: /app/src/modules/rules/RulesModule.js:277
+#: /app/src/modules/rules/RulesModule.js:280
 msgid "Vendor:"
 msgstr ""
 
 #: /app/src/modules/rules/RulesModule.js:250
-#: /app/src/modules/rules/RulesModule.js:281
-msgid "Set notes"
+msgid "Set description"
 msgstr ""
 
 #: /app/src/modules/rules/RulesModule.js:253
-msgid "Set tags"
+#: /app/src/modules/rules/RulesModule.js:284
+msgid "Set notes"
 msgstr ""
 
 #: /app/src/modules/rules/RulesModule.js:256
-msgid "Type:"
+msgid "Set tags"
 msgstr ""
 
 #: /app/src/modules/rules/RulesModule.js:259
-msgid "Move account"
+msgid "Type:"
 msgstr ""
 
 #: /app/src/modules/rules/RulesModule.js:262
+msgid "Move account"
+msgstr ""
+
+#: /app/src/modules/rules/RulesModule.js:265
 msgid "Set reference"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:285
+#: /app/src/modules/rules/RulesModule.js:288
 msgid "No actions"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:413
-#: /app/src/modules/rules/RulesModule.js:432
+#: /app/src/modules/rules/RulesModule.js:416
+#: /app/src/modules/rules/RulesModule.js:435
 msgid "rule"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:413
-#: /app/src/modules/rules/RulesModule.js:432
+#: /app/src/modules/rules/RulesModule.js:416
+#: /app/src/modules/rules/RulesModule.js:435
 msgid "rules"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:413
+#: /app/src/modules/rules/RulesModule.js:416
 msgid "active"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:414
+#: /app/src/modules/rules/RulesModule.js:417
 msgid "Run all rules in this group"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:414
+#: /app/src/modules/rules/RulesModule.js:417
 msgid "Run Group"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:431
+#: /app/src/modules/rules/RulesModule.js:434
 msgid "Ungrouped"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:722
+#: /app/src/modules/rules/RulesModule.js:725
 msgid "This rule has been upgraded to the new format with advanced features"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:725
+#: /app/src/modules/rules/RulesModule.js:728
 msgid "Failed to upgrade rule format"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:741
+#: /app/src/modules/rules/RulesModule.js:744
 msgid "Edit Rule"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:769 /app/templates/index.php:2756
+#: /app/src/modules/rules/RulesModule.js:772 /app/templates/index.php:2756
 msgid "Add Rule"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:874
-#: /app/src/modules/rules/RulesModule.js:1225
+#: /app/src/modules/rules/RulesModule.js:877
+#: /app/src/modules/rules/RulesModule.js:1228
 msgid "Error: CriteriaBuilder not initialized"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:880
-#: /app/src/modules/rules/RulesModule.js:1064
-#: /app/src/modules/rules/RulesModule.js:1230
+#: /app/src/modules/rules/RulesModule.js:883
+#: /app/src/modules/rules/RulesModule.js:1067
+#: /app/src/modules/rules/RulesModule.js:1233
 msgid "Invalid criteria: {errors}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:895
+#: /app/src/modules/rules/RulesModule.js:898
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:508
 #: /app/src/modules/sharing/SharingModule.js:32
 #: /app/src/modules/transactions/TransactionsModule.js:1289
@@ -9630,219 +9892,219 @@ msgstr ""
 msgid "Loading..."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:914
+#: /app/src/modules/rules/RulesModule.js:917
 msgid "Failed to preview rule: {error}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:918 /app/templates/index.php:6548
+#: /app/src/modules/rules/RulesModule.js:921 /app/templates/index.php:6548
 msgid "Preview Matches"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:938
-#: /app/src/modules/rules/RulesModule.js:1140 /app/templates/index.php:6521
+#: /app/src/modules/rules/RulesModule.js:941
+#: /app/src/modules/rules/RulesModule.js:1143 /app/templates/index.php:6521
 msgid "Current Category"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:956
+#: /app/src/modules/rules/RulesModule.js:959
 msgid "No matching transactions found"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1002 /app/templates/quick-add.php:160
+#: /app/src/modules/rules/RulesModule.js:1005 /app/templates/quick-add.php:160
 msgid "Saving..."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1010
+#: /app/src/modules/rules/RulesModule.js:1013
 msgid "Failed to save rule"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1014
-#: /app/src/modules/rules/RulesModule.js:1680
+#: /app/src/modules/rules/RulesModule.js:1017
+#: /app/src/modules/rules/RulesModule.js:1683
 msgid "Running..."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1028
-#: /app/src/modules/rules/RulesModule.js:1695
+#: /app/src/modules/rules/RulesModule.js:1031
+#: /app/src/modules/rules/RulesModule.js:1698
 msgid "Rule applied: %n transaction updated"
 msgid_plural "Rule applied: %n transactions updated"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/rules/RulesModule.js:1034
-#: /app/src/modules/rules/RulesModule.js:1152
-#: /app/src/modules/rules/RulesModule.js:1700
-#: /app/src/modules/rules/RulesModule.js:1739
+#: /app/src/modules/rules/RulesModule.js:1037
+#: /app/src/modules/rules/RulesModule.js:1155
+#: /app/src/modules/rules/RulesModule.js:1703
+#: /app/src/modules/rules/RulesModule.js:1742
 msgid "No transactions were updated"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1039
-#: /app/src/modules/rules/RulesModule.js:1704
+#: /app/src/modules/rules/RulesModule.js:1042
+#: /app/src/modules/rules/RulesModule.js:1707
 msgid "Failed to run rule: {error}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1042 /app/templates/index.php:6549
+#: /app/src/modules/rules/RulesModule.js:1045 /app/templates/index.php:6549
 msgid "Run Rule Now"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1059
+#: /app/src/modules/rules/RulesModule.js:1062
 msgid "CriteriaBuilder not initialized"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1071
+#: /app/src/modules/rules/RulesModule.js:1074
 msgid "ActionBuilder not initialized"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1076
-#: /app/src/modules/rules/RulesModule.js:1241
+#: /app/src/modules/rules/RulesModule.js:1079
+#: /app/src/modules/rules/RulesModule.js:1244
 msgid "Invalid actions: {errors}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1145
+#: /app/src/modules/rules/RulesModule.js:1148
 msgid "{count} updated"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1200
+#: /app/src/modules/rules/RulesModule.js:1203
 msgid "Rule updated successfully"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1200
+#: /app/src/modules/rules/RulesModule.js:1203
 msgid "Rule created successfully"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1209
+#: /app/src/modules/rules/RulesModule.js:1212
 msgid "Failed to save rule: {error}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1236
+#: /app/src/modules/rules/RulesModule.js:1239
 msgid "Error: ActionBuilder not initialized"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1324
+#: /app/src/modules/rules/RulesModule.js:1327
 msgid "You have no rules to export."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1346
+#: /app/src/modules/rules/RulesModule.js:1349
 msgid "Exported %n rule"
 msgid_plural "Exported %n rules"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/rules/RulesModule.js:1372
+#: /app/src/modules/rules/RulesModule.js:1375
 msgid "No rules found in that file."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1390
+#: /app/src/modules/rules/RulesModule.js:1393
 msgid ""
 "No rules could be imported. They may reference categories or accounts that "
 "don't exist here."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1392
+#: /app/src/modules/rules/RulesModule.js:1395
 msgid ""
 "Imported {imported}; {failed} could not be imported (they may reference "
 "categories or accounts that don't exist here)."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1394
+#: /app/src/modules/rules/RulesModule.js:1397
 msgid "Imported %n rule"
 msgid_plural "Imported %n rules"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/rules/RulesModule.js:1458
+#: /app/src/modules/rules/RulesModule.js:1461
 msgid "Invalid JSON: {error}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1462
+#: /app/src/modules/rules/RulesModule.js:1465
 msgid "Rule JSON must be a single object."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1509
+#: /app/src/modules/rules/RulesModule.js:1512
 msgid ""
 "This JSON could not be loaded into the builder. Fix the structure, or save "
 "directly from JSON."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1587
+#: /app/src/modules/rules/RulesModule.js:1590
 msgid "Rule JSON copied to clipboard"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1592
+#: /app/src/modules/rules/RulesModule.js:1595
 msgid "Could not copy automatically — the text is selected, press Ctrl+C"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1602
+#: /app/src/modules/rules/RulesModule.js:1605
 msgid "Failed to load rule"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1607
+#: /app/src/modules/rules/RulesModule.js:1610
 msgid "Are you sure you want to delete this rule?"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1612
+#: /app/src/modules/rules/RulesModule.js:1615
 msgid "Rule deleted successfully"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1616
+#: /app/src/modules/rules/RulesModule.js:1619
 msgid "Failed to delete rule"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1644
+#: /app/src/modules/rules/RulesModule.js:1647
 msgid "Rule enabled"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1644
+#: /app/src/modules/rules/RulesModule.js:1647
 msgid "Rule disabled"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1647
+#: /app/src/modules/rules/RulesModule.js:1650
 msgid "Failed to update rule: {error}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1664
+#: /app/src/modules/rules/RulesModule.js:1667
 msgid "Run rule \"{name}\" on matching transactions?"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1707 /app/templates/index.php:6638
+#: /app/src/modules/rules/RulesModule.js:1710 /app/templates/index.php:6638
 msgid "Run"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1714
+#: /app/src/modules/rules/RulesModule.js:1717
 msgid "No active rules in this group"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1718
+#: /app/src/modules/rules/RulesModule.js:1721
 msgid "Run {count} active rules in group \"{name}\"?"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1734
+#: /app/src/modules/rules/RulesModule.js:1737
 msgid "Group applied: %n transaction updated"
 msgid_plural "Group applied: %n transactions updated"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/rules/RulesModule.js:1743
+#: /app/src/modules/rules/RulesModule.js:1746
 msgid "Failed to run group rules: {error}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1805
+#: /app/src/modules/rules/RulesModule.js:1808
 msgid ""
 "Apply rules to matching transactions? This will modify the selected "
 "transactions."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1814
+#: /app/src/modules/rules/RulesModule.js:1817
 msgid "Applying..."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1832
+#: /app/src/modules/rules/RulesModule.js:1835
 msgid "Rules applied: {success} updated, {skipped} skipped, {failed} failed"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1841
+#: /app/src/modules/rules/RulesModule.js:1844
 msgid "Failed to apply rules"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1844 /app/templates/index.php:2743
+#: /app/src/modules/rules/RulesModule.js:1847 /app/templates/index.php:2743
 #: /app/templates/index.php:6617
 msgid "Apply Rules"
 msgstr ""
@@ -10251,16 +10513,12 @@ msgstr ""
 msgid "Condition at {path} has no pattern value"
 msgstr ""
 
-#: /app/src/modules/rules/components/CriteriaBuilder.js:546
-msgid "Condition at {path} has invalid regex pattern: {error}"
-msgstr ""
-
-#: /app/src/modules/rules/components/CriteriaBuilder.js:557
+#: /app/src/modules/rules/components/CriteriaBuilder.js:551
 msgid ""
 "Condition at {path} 'between' pattern must have 'min' and 'max' properties"
 msgstr ""
 
-#: /app/src/modules/rules/components/CriteriaBuilder.js:560
+#: /app/src/modules/rules/components/CriteriaBuilder.js:554
 msgid "Condition at {path} 'between' pattern must be valid JSON with min/max"
 msgstr ""
 
