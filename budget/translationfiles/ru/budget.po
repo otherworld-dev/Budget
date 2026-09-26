@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-23 22:02+0000\n"
+"POT-Creation-Date: 2026-09-26 18:22+0000\n"
 "PO-Revision-Date: 2026-09-21 19:51+0000\n"
 "Last-Translator: Leonid Zaliubovskyi <la399fox@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -131,7 +131,7 @@ msgstr "Недопустимые данные запроса"
 #: /app/lib/Controller/AccountController.php:483
 #: /app/lib/Controller/BillController.php:728
 #: /app/lib/Controller/CategoryController.php:319
-#: /app/lib/Controller/ImportRuleController.php:332
+#: /app/lib/Controller/ImportRuleController.php:340
 #: /app/lib/Controller/ImportTemplateController.php:152
 #: /app/lib/Controller/TagSetController.php:186
 #: /app/lib/Controller/TagSetController.php:308
@@ -312,8 +312,8 @@ msgstr "Необходимо указать счёт"
 #: /app/lib/Controller/TransactionController.php:310
 #: /app/lib/Controller/TransactionController.php:417
 #: /app/lib/Service/Export/TransactionCsvExporter.php:28 /app/src/main.js:3554
-#: /app/src/modules/rules/RulesModule.js:935
-#: /app/src/modules/rules/RulesModule.js:1137
+#: /app/src/modules/rules/RulesModule.js:938
+#: /app/src/modules/rules/RulesModule.js:1140
 #: /app/src/modules/rules/components/CriteriaBuilder.js:194
 #: /app/templates/index.php:1033 /app/templates/index.php:1533
 #: /app/templates/index.php:1773 /app/templates/index.php:1827
@@ -633,7 +633,7 @@ msgstr "Платёж"
 #: /app/lib/Controller/GoalsController.php:316
 #: /app/lib/Controller/GoalsController.php:344
 #: /app/lib/Controller/GoalsController.php:363
-#: /app/lib/Controller/ImportRuleController.php:90
+#: /app/lib/Controller/ImportRuleController.php:91
 #: /app/lib/Controller/ProjectController.php:186
 #: /app/lib/Controller/RecurringIncomeController.php:89
 #: /app/lib/Traits/ApiErrorHandlerTrait.php:211
@@ -837,8 +837,8 @@ msgstr "Не удалось экспортировать календарь пл
 #: /app/lib/Service/Report/ReportExporter.php:572
 #: /app/lib/Service/Report/ReportExporter.php:615 /app/src/main.js:3622
 #: /app/src/main.js:3623 /app/src/modules/bills/BillsModule.js:965
-#: /app/src/modules/rules/RulesModule.js:937
-#: /app/src/modules/rules/RulesModule.js:1139
+#: /app/src/modules/rules/RulesModule.js:940
+#: /app/src/modules/rules/RulesModule.js:1142
 #: /app/src/modules/rules/components/CriteriaBuilder.js:190
 #: /app/src/modules/transactions/TransactionsModule.js:2040
 #: /app/src/modules/transactions/TransactionsModule.js:3183
@@ -881,13 +881,13 @@ msgstr "Итого за год"
 #: /app/lib/Service/Report/ReportExporter.php:584
 #: /app/lib/Service/Report/ReportExporter.php:659
 #: /app/src/modules/categories/CategoriesModule.js:2355
-#: /app/src/modules/reports/ReportsModule.js:1853 /app/templates/index.php:7321
+#: /app/src/modules/reports/ReportsModule.js:1854 /app/templates/index.php:7321
 msgid "Total"
 msgstr "Всего"
 
 #: /app/lib/Controller/BillController.php:1230
 #: /app/src/modules/dashboard/DashboardModule.js:3162
-#: /app/src/modules/reports/ReportsModule.js:1998
+#: /app/src/modules/reports/ReportsModule.js:1999
 msgid "Projected balance"
 msgstr "Прогнозируемый баланс"
 
@@ -993,8 +993,8 @@ msgstr "Не удалось получить количество транзак
 #: /app/lib/Service/Report/ReportExporter.php:676
 #: /app/lib/Service/Report/ReportExporter.php:722 /app/src/main.js:3627
 #: /app/src/main.js:3628 /app/src/modules/dashboard/DashboardModule.js:2164
-#: /app/src/modules/reports/ReportsModule.js:1114
-#: /app/src/modules/reports/ReportsModule.js:1562
+#: /app/src/modules/reports/ReportsModule.js:1115
+#: /app/src/modules/reports/ReportsModule.js:1563
 #: /app/src/modules/transactions/TransactionsModule.js:3188
 #: /app/src/modules/transactions/TransactionsModule.js:3189
 #: /app/src/modules/transactions/TransactionsModule.js:3792
@@ -1384,83 +1384,83 @@ msgstr "Не удалось проверить файл"
 msgid "Failed to execute import"
 msgstr "Не удалось выполнить импорт"
 
-#: /app/lib/Controller/ImportRuleController.php:66
+#: /app/lib/Controller/ImportRuleController.php:67
 msgid "Failed to retrieve import rules"
 msgstr "Не удалось получить правила импорта"
 
-#: /app/lib/Controller/ImportRuleController.php:78
+#: /app/lib/Controller/ImportRuleController.php:79
 msgid "Failed to retrieve rule groups"
 msgstr "Не удалось получить группы правил"
 
-#: /app/lib/Controller/ImportRuleController.php:90
-#: /app/lib/Controller/ImportRuleController.php:103
-#: /app/lib/Controller/ImportRuleController.php:357
-#: /app/lib/Controller/ImportRuleController.php:373
+#: /app/lib/Controller/ImportRuleController.php:91
+#: /app/lib/Controller/ImportRuleController.php:104
+#: /app/lib/Controller/ImportRuleController.php:367
+#: /app/lib/Controller/ImportRuleController.php:383
 msgid "Import rule"
 msgstr "Правило импорта"
 
-#: /app/lib/Controller/ImportRuleController.php:138
+#: /app/lib/Controller/ImportRuleController.php:139
 msgid "Criteria required for v2 rules"
 msgstr "Для правил v2 нужны критерии"
 
-#: /app/lib/Controller/ImportRuleController.php:144
+#: /app/lib/Controller/ImportRuleController.php:145
 msgid "Pattern, field, and matchType required for v1 rules"
 msgstr "Для правил v1 нужны pattern, field и matchType"
 
-#: /app/lib/Controller/ImportRuleController.php:156
-#: /app/lib/Controller/ImportRuleController.php:260
+#: /app/lib/Controller/ImportRuleController.php:157
+#: /app/lib/Controller/ImportRuleController.php:267
 #, php-format
 msgid "Invalid field. Must be one of: %1$s"
 msgstr "Недопустимое поле. Допустимые значения: %1$s"
 
-#: /app/lib/Controller/ImportRuleController.php:161
-#: /app/lib/Controller/ImportRuleController.php:268
+#: /app/lib/Controller/ImportRuleController.php:162
+#: /app/lib/Controller/ImportRuleController.php:275
 #, php-format
 msgid "Invalid match type. Must be one of: %1$s"
 msgstr "Недопустимый тип совпадения. Допустимые значения: %1$s"
 
-#: /app/lib/Controller/ImportRuleController.php:167
-#: /app/lib/Controller/ImportRuleController.php:276
+#: /app/lib/Controller/ImportRuleController.php:169
+#: /app/lib/Controller/ImportRuleController.php:284
 msgid "Invalid regex pattern"
 msgstr "Недопустимое регулярное выражение"
 
-#: /app/lib/Controller/ImportRuleController.php:208
+#: /app/lib/Controller/ImportRuleController.php:215
 msgid "Failed to create import rule"
 msgstr "Не удалось создать правило импорта"
 
-#: /app/lib/Controller/ImportRuleController.php:343
+#: /app/lib/Controller/ImportRuleController.php:353
 msgid "Failed to update import rule"
 msgstr "Не удалось обновить правило импорта"
 
-#: /app/lib/Controller/ImportRuleController.php:365
+#: /app/lib/Controller/ImportRuleController.php:375
 msgid "Only the rule owner can delete it"
 msgstr "Удалить правило может только его владелец"
 
-#: /app/lib/Controller/ImportRuleController.php:385
+#: /app/lib/Controller/ImportRuleController.php:395
 msgid "Failed to test import rules"
 msgstr "Не удалось проверить правила импорта"
 
-#: /app/lib/Controller/ImportRuleController.php:411
+#: /app/lib/Controller/ImportRuleController.php:421
 msgid "Failed to preview rule application"
 msgstr "Не удалось выполнить предпросмотр применения правила"
 
-#: /app/lib/Controller/ImportRuleController.php:439
+#: /app/lib/Controller/ImportRuleController.php:449
 msgid "Failed to test rule against transactions"
 msgstr "Не удалось проверить правило на транзакциях"
 
-#: /app/lib/Controller/ImportRuleController.php:466
+#: /app/lib/Controller/ImportRuleController.php:476
 msgid "Failed to apply rules to transactions"
 msgstr "Не удалось применить правила к транзакциям"
 
-#: /app/lib/Controller/ImportRuleController.php:480
+#: /app/lib/Controller/ImportRuleController.php:490
 msgid "Failed to migrate import rule"
 msgstr "Не удалось перенести правило импорта"
 
-#: /app/lib/Controller/ImportRuleController.php:497
+#: /app/lib/Controller/ImportRuleController.php:507
 msgid "Failed to migrate import rules"
 msgstr "Не удалось перенести правила импорта"
 
-#: /app/lib/Controller/ImportRuleController.php:513
+#: /app/lib/Controller/ImportRuleController.php:523
 #: /app/lib/Traits/InputValidationTrait.php:108
 msgid "Validation failed"
 msgstr "Проверка не пройдена"
@@ -1917,7 +1917,7 @@ msgid "Failed to generate income and expenses report"
 msgstr "Не удалось создать отчёт о доходах и расходах"
 
 #: /app/lib/Controller/ReportController.php:226
-#: /app/src/modules/reports/ReportsModule.js:1611
+#: /app/src/modules/reports/ReportsModule.js:1612
 msgid "Failed to export report"
 msgstr "Не удалось экспортировать отчёт"
 
@@ -2556,7 +2556,7 @@ msgstr "Часть %1$s: сумма не может быть равна нулю
 #: /app/lib/Controller/TransactionController.php:1004
 #: /app/src/modules/bills/BillsModule.js:364
 #: /app/src/modules/dashboard/DashboardModule.js:1284
-#: /app/src/modules/rules/RulesModule.js:986
+#: /app/src/modules/rules/RulesModule.js:989
 #: /app/src/modules/transactions/TransactionsModule.js:5249
 #: /app/src/modules/transactions/transactionRow.js:68
 #: /app/src/modules/transactions/transactionRow.js:182
@@ -2638,10 +2638,10 @@ msgstr "Год"
 #: /app/src/modules/dashboard/DashboardModule.js:5497
 #: /app/src/modules/help/HelpModule.js:33
 #: /app/src/modules/reports/ReportsModule.js:751
-#: /app/src/modules/reports/ReportsModule.js:1144
-#: /app/src/modules/reports/ReportsModule.js:1450
-#: /app/src/modules/reports/ReportsModule.js:1466
-#: /app/src/modules/reports/ReportsModule.js:1511
+#: /app/src/modules/reports/ReportsModule.js:1145
+#: /app/src/modules/reports/ReportsModule.js:1451
+#: /app/src/modules/reports/ReportsModule.js:1467
+#: /app/src/modules/reports/ReportsModule.js:1512
 #: /app/src/modules/rules/components/ActionBuilder.js:327
 #: /app/src/modules/rules/components/CriteriaBuilder.js:218
 #: /app/templates/index.php:103 /app/templates/index.php:1047
@@ -2667,10 +2667,10 @@ msgstr "Доход"
 #: /app/src/modules/dashboard/DashboardModule.js:3183
 #: /app/src/modules/dashboard/DashboardModule.js:3252
 #: /app/src/modules/reports/ReportsModule.js:758
-#: /app/src/modules/reports/ReportsModule.js:1152
-#: /app/src/modules/reports/ReportsModule.js:1453
-#: /app/src/modules/reports/ReportsModule.js:1470
-#: /app/src/modules/reports/ReportsModule.js:1518 /app/templates/index.php:1875
+#: /app/src/modules/reports/ReportsModule.js:1153
+#: /app/src/modules/reports/ReportsModule.js:1454
+#: /app/src/modules/reports/ReportsModule.js:1471
+#: /app/src/modules/reports/ReportsModule.js:1519 /app/templates/index.php:1875
 #: /app/templates/index.php:2221 /app/templates/index.php:3325
 #: /app/templates/index.php:3360 /app/templates/index.php:3488
 msgid "Expenses"
@@ -2679,7 +2679,7 @@ msgstr "Расходы"
 #: /app/lib/Controller/YearOverYearController.php:250
 #: /app/src/modules/dashboard/DashboardModule.js:1038
 #: /app/src/modules/dashboard/DashboardModule.js:2248
-#: /app/src/modules/reports/ReportsModule.js:1474
+#: /app/src/modules/reports/ReportsModule.js:1475
 #: /app/src/utils/formatters.js:263
 msgid "Savings"
 msgstr "Сбережения"
@@ -3150,27 +3150,27 @@ msgstr ""
 msgid "A transaction for this payment already exists"
 msgstr "Транзакция для этого платежа уже существует"
 
-#: /app/lib/Service/BillService.php:1060 /app/lib/Service/BillService.php:1074
+#: /app/lib/Service/BillService.php:1064 /app/lib/Service/BillService.php:1078
 msgid "This bill has no recorded payment to undo"
 msgstr "У этого платежа нет учтённой оплаты, которую можно отменить"
 
-#: /app/lib/Service/BillService.php:1102
+#: /app/lib/Service/BillService.php:1106
 msgid "Cannot skip a one-time bill"
 msgstr "Нельзя пропустить разовый платёж"
 
-#: /app/lib/Service/BillService.php:1106
+#: /app/lib/Service/BillService.php:1110
 msgid "Cannot skip an inactive bill"
 msgstr "Нельзя пропустить неактивный платёж"
 
-#: /app/lib/Service/BillService.php:1525
+#: /app/lib/Service/BillService.php:1529
 msgid "Auto-pay is not enabled for this bill"
 msgstr "Автоплатёж для этого платежа не включён"
 
-#: /app/lib/Service/BillService.php:1538
+#: /app/lib/Service/BillService.php:1542
 msgid "Bill has no account associated"
 msgstr "С платежом не связан счёт"
 
-#: /app/lib/Service/BillService.php:1548
+#: /app/lib/Service/BillService.php:1552
 msgid "Bill auto-paid successfully"
 msgstr "Платёж успешно выполнен автоматически"
 
@@ -3330,8 +3330,8 @@ msgstr[2] ""
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:29 /app/src/main.js:3558
 #: /app/src/main.js:3634 /app/src/main.js:3635
-#: /app/src/modules/rules/RulesModule.js:936
-#: /app/src/modules/rules/RulesModule.js:1138
+#: /app/src/modules/rules/RulesModule.js:939
+#: /app/src/modules/rules/RulesModule.js:1141
 #: /app/src/modules/rules/components/CriteriaBuilder.js:188
 #: /app/src/modules/transactions/TransactionsModule.js:3195
 #: /app/src/modules/transactions/TransactionsModule.js:3196
@@ -3962,19 +3962,41 @@ msgstr "Разбивка по месяцам"
 
 #: /app/lib/Service/Report/ReportExporter.php:680
 #: /app/lib/Service/Report/ReportExporter.php:726
-#: /app/src/modules/reports/ReportsModule.js:1116
+#: /app/src/modules/reports/ReportsModule.js:1117
 msgid "Overall"
 msgstr "Всего"
 
 #: /app/lib/Service/Report/ReportExporter.php:693
 #: /app/lib/Service/Report/ReportExporter.php:739
-#: /app/src/modules/reports/ReportsModule.js:1099
+#: /app/src/modules/reports/ReportsModule.js:1100
 msgid "Net total"
 msgstr "Чистый итог"
 
 #: /app/lib/Service/Report/ReportExporter.php:710 /app/templates/index.php:3687
 msgid "Category Income & Expenses by Month"
 msgstr "Доходы и расходы по категории за каждый месяц"
+
+#: /app/lib/Service/Report/ReportExporter.php:749
+#: /app/src/config/dashboardWidgets.js:26 /app/src/main.js:1897
+#: /app/src/main.js:3629 /app/src/modules/accounts/AccountsModule.js:1864
+#: /app/src/modules/categories/CategoriesModule.js:823
+#: /app/src/modules/dashboard/DashboardModule.js:1253
+#: /app/src/modules/import/ImportModule.js:189
+#: /app/src/modules/import/ImportModule.js:2032
+#: /app/src/modules/reports/ReportsModule.js:1089
+#: /app/src/modules/rules/RulesModule.js:994
+#: /app/src/modules/transactions/TransactionsModule.js:510
+#: /app/src/modules/transactions/TransactionsModule.js:1183
+#: /app/src/modules/transactions/TransactionsModule.js:3190
+#: /app/src/modules/transactions/TransactionsModule.js:3794
+#: /app/src/modules/transactions/TransactionsModule.js:4641
+#: /app/src/modules/transactions/transactionRow.js:122
+#: /app/src/modules/transactions/transactionRow.js:183
+#: /app/src/modules/transactions/transactionRow.js:225
+#: /app/templates/index.php:539 /app/templates/index.php:1464
+#: /app/templates/index.php:1628 /app/templates/quick-add.php:57
+msgid "Uncategorized"
+msgstr "Без категории"
 
 #: /app/lib/Service/Report/ScheduledReportService.php:76
 #: /app/lib/Service/Report/ScheduledReportService.php:77
@@ -4454,26 +4476,6 @@ msgstr "Доход по счёту"
 msgid "Account Expenses"
 msgstr "Расходы по счёту"
 
-#: /app/src/config/dashboardWidgets.js:26 /app/src/main.js:1897
-#: /app/src/main.js:3629 /app/src/modules/accounts/AccountsModule.js:1864
-#: /app/src/modules/categories/CategoriesModule.js:823
-#: /app/src/modules/dashboard/DashboardModule.js:1253
-#: /app/src/modules/import/ImportModule.js:189
-#: /app/src/modules/import/ImportModule.js:2032
-#: /app/src/modules/rules/RulesModule.js:991
-#: /app/src/modules/transactions/TransactionsModule.js:510
-#: /app/src/modules/transactions/TransactionsModule.js:1183
-#: /app/src/modules/transactions/TransactionsModule.js:3190
-#: /app/src/modules/transactions/TransactionsModule.js:3794
-#: /app/src/modules/transactions/TransactionsModule.js:4641
-#: /app/src/modules/transactions/transactionRow.js:122
-#: /app/src/modules/transactions/transactionRow.js:183
-#: /app/src/modules/transactions/transactionRow.js:225
-#: /app/templates/index.php:539 /app/templates/index.php:1464
-#: /app/templates/index.php:1628 /app/templates/quick-add.php:57
-msgid "Uncategorized"
-msgstr "Без категории"
-
 #: /app/src/config/dashboardWidgets.js:27 /app/templates/index.php:552
 msgid "Low Balance Alert"
 msgstr "Оповещение о низком остатке на счёте"
@@ -4676,7 +4678,7 @@ msgstr "Категории"
 #: /app/src/modules/bills/BillsModule.js:1699
 #: /app/src/modules/help/HelpModule.js:31
 #: /app/src/modules/reports/ReportsModule.js:432
-#: /app/src/modules/rules/RulesModule.js:822
+#: /app/src/modules/rules/RulesModule.js:825
 #: /app/src/modules/savings/SavingsModule.js:295
 #: /app/src/modules/tagsets/TagSetsModule.js:601
 #: /app/src/modules/transactions/TransactionsModule.js:548
@@ -5286,7 +5288,7 @@ msgid "Failed to calculate scenario"
 msgstr "Не удалось рассчитать сценарий"
 
 #: /app/src/main.js:2699 /app/src/modules/dashboard/DashboardModule.js:950
-#: /app/src/modules/reports/ReportsModule.js:1570
+#: /app/src/modules/reports/ReportsModule.js:1571
 msgid "N/A"
 msgstr "Н/Д"
 
@@ -6578,7 +6580,7 @@ msgid "Failed to dismiss suggestions"
 msgstr "Не удалось скрыть предложения"
 
 #: /app/src/modules/bills/BillsModule.js:317
-#: /app/src/modules/reports/ReportsModule.js:1908
+#: /app/src/modules/reports/ReportsModule.js:1909
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:476
 #: /app/src/modules/transfers/TransfersModule.js:315
 #: /app/templates/index.php:2690
@@ -7210,7 +7212,7 @@ msgstr "Порядок категории успешно изменён"
 #: /app/src/modules/reports/ReportsModule.js:204
 #: /app/src/modules/reports/ReportsModule.js:207
 #: /app/src/modules/reports/ReportsModule.js:209
-#: /app/src/modules/reports/ReportsModule.js:1702
+#: /app/src/modules/reports/ReportsModule.js:1703
 #: /app/src/modules/transactions/TransactionsModule.js:503
 #: /app/templates/index.php:594 /app/templates/index.php:616
 #: /app/templates/index.php:634 /app/templates/index.php:685
@@ -7390,7 +7392,7 @@ msgid "Default categories created successfully"
 msgstr "Набор категорий по умолчанию создан"
 
 #: /app/src/modules/categories/CategoriesModule.js:1615
-#: /app/src/modules/rules/RulesModule.js:1363
+#: /app/src/modules/rules/RulesModule.js:1366
 msgid "Could not read that file: {error}"
 msgstr "Не удалось прочитать файл: {error}"
 
@@ -9908,7 +9910,7 @@ msgstr "За этот период данных нет"
 msgid "No data for the selected period."
 msgstr "Нет данных за выбранный период."
 
-#: /app/src/modules/reports/ReportsModule.js:1105
+#: /app/src/modules/reports/ReportsModule.js:1106
 msgid ""
 "You have accounts in more than one currency. Amounts are summed in their "
 "original currency without conversion."
@@ -9916,56 +9918,56 @@ msgstr ""
 "У вас есть счета в нескольких валютах. Суммы складываются в исходных валютах "
 "без конвертации."
 
-#: /app/src/modules/reports/ReportsModule.js:1160
+#: /app/src/modules/reports/ReportsModule.js:1161
 msgid "Net Cash Flow"
 msgstr "Чистый денежный поток"
 
-#: /app/src/modules/reports/ReportsModule.js:1301 /app/templates/index.php:3187
+#: /app/src/modules/reports/ReportsModule.js:1302 /app/templates/index.php:3187
 #: /app/templates/index.php:3503
 msgid "Money Flow"
 msgstr "Движение денежных средств"
 
-#: /app/src/modules/reports/ReportsModule.js:1427
+#: /app/src/modules/reports/ReportsModule.js:1428
 msgid "Failed to generate comparison"
 msgstr "Не удалось создать сравнение"
 
-#: /app/src/modules/reports/ReportsModule.js:1461
+#: /app/src/modules/reports/ReportsModule.js:1462
 msgid "YTD"
 msgstr "С начала года"
 
-#: /app/src/modules/reports/ReportsModule.js:1486
+#: /app/src/modules/reports/ReportsModule.js:1487
 msgid "{monthName} - Year over Year Comparison"
 msgstr "{monthName} — сравнение по годам"
 
-#: /app/src/modules/reports/ReportsModule.js:1487
+#: /app/src/modules/reports/ReportsModule.js:1488
 msgid "Annual Income & Expenses"
 msgstr "Годовые доходы и расходы"
 
-#: /app/src/modules/reports/ReportsModule.js:1564
+#: /app/src/modules/reports/ReportsModule.js:1565
 msgid "Change"
 msgstr "Изменение"
 
-#: /app/src/modules/reports/ReportsModule.js:1608
+#: /app/src/modules/reports/ReportsModule.js:1609
 msgid "Report exported as {format}"
 msgstr "Отчёт экспортирован в формате {format}"
 
-#: /app/src/modules/reports/ReportsModule.js:1811
+#: /app/src/modules/reports/ReportsModule.js:1812
 msgid "Failed to generate bills calendar"
 msgstr "Не удалось создать календарь платежей"
 
-#: /app/src/modules/reports/ReportsModule.js:1839
+#: /app/src/modules/reports/ReportsModule.js:1840
 msgid "Total Bills"
 msgstr "Всего платежей"
 
-#: /app/src/modules/reports/ReportsModule.js:1911
+#: /app/src/modules/reports/ReportsModule.js:1912
 msgid "No payment recorded - the bill has moved on from this date"
 msgstr "Нет записи об оплате - платёж уже перешёл к следующей дате"
 
-#: /app/src/modules/reports/ReportsModule.js:1914
+#: /app/src/modules/reports/ReportsModule.js:1915
 msgid "Due"
 msgstr "К оплате"
 
-#: /app/src/modules/reports/ReportsModule.js:1919
+#: /app/src/modules/reports/ReportsModule.js:1920
 #: /app/src/modules/transactions/TransactionsModule.js:1988
 #: /app/src/modules/transactions/transactionRow.js:55
 #: /app/src/modules/transfers/TransfersModule.js:473
@@ -9973,37 +9975,37 @@ msgstr "К оплате"
 msgid "Transfer"
 msgstr "Перевод"
 
-#: /app/src/modules/reports/ReportsModule.js:1937
+#: /app/src/modules/reports/ReportsModule.js:1938
 msgid "Monthly Totals"
 msgstr "Всего за месяц"
 
-#: /app/src/modules/reports/ReportsModule.js:1956
+#: /app/src/modules/reports/ReportsModule.js:1957
 msgid ""
 "Pick an account above to see its projected balance for the rest of the year."
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1959
+#: /app/src/modules/reports/ReportsModule.js:1960
 msgid "The projected balance is only shown for the current year."
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1977
+#: /app/src/modules/reports/ReportsModule.js:1978
 msgid "Bills {bills}, transfers in {transfers}, income {income}"
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1986
+#: /app/src/modules/reports/ReportsModule.js:1987
 msgid ""
 "{account} today: {balance}. Each month carries on from the month before, "
 "less the bills and plus the transfers and recurring income still due."
 msgstr ""
 
-#: /app/src/modules/reports/ReportsModule.js:1991
+#: /app/src/modules/reports/ReportsModule.js:1992
 #, fuzzy
 #| msgid "Your projected balance falls to {balance} in {month}."
 msgid "Lowest: {balance} in {month}."
 msgstr "В {month} прогнозируемый остаток снизится до {balance}."
 
-#: /app/src/modules/reports/ReportsModule.js:2027
-#: /app/src/modules/reports/ReportsModule.js:2029
+#: /app/src/modules/reports/ReportsModule.js:2028
+#: /app/src/modules/reports/ReportsModule.js:2030
 msgid "%n bill"
 msgid_plural "%n bills"
 msgstr[0] "%n платеж"
@@ -10113,94 +10115,100 @@ msgid "NOT"
 msgstr "НЕ"
 
 #: /app/src/modules/rules/RulesModule.js:242
-#: /app/src/modules/rules/RulesModule.js:271
+#: /app/src/modules/rules/RulesModule.js:274
 msgid "Category #{id}"
 msgstr "Категория #{id}"
 
 #: /app/src/modules/rules/RulesModule.js:247
-#: /app/src/modules/rules/RulesModule.js:277
+#: /app/src/modules/rules/RulesModule.js:280
 msgid "Vendor:"
 msgstr "Продавец:"
 
 #: /app/src/modules/rules/RulesModule.js:250
-#: /app/src/modules/rules/RulesModule.js:281
+#, fuzzy
+#| msgid "Set Description"
+msgid "Set description"
+msgstr "Указать описание"
+
+#: /app/src/modules/rules/RulesModule.js:253
+#: /app/src/modules/rules/RulesModule.js:284
 msgid "Set notes"
 msgstr "Задать примечания"
 
-#: /app/src/modules/rules/RulesModule.js:253
+#: /app/src/modules/rules/RulesModule.js:256
 msgid "Set tags"
 msgstr "Задать теги"
 
-#: /app/src/modules/rules/RulesModule.js:256
+#: /app/src/modules/rules/RulesModule.js:259
 msgid "Type:"
 msgstr "Тип:"
 
-#: /app/src/modules/rules/RulesModule.js:259
+#: /app/src/modules/rules/RulesModule.js:262
 msgid "Move account"
 msgstr "Переместить на счёт"
 
-#: /app/src/modules/rules/RulesModule.js:262
+#: /app/src/modules/rules/RulesModule.js:265
 msgid "Set reference"
 msgstr "Задать ссылку"
 
-#: /app/src/modules/rules/RulesModule.js:285
+#: /app/src/modules/rules/RulesModule.js:288
 msgid "No actions"
 msgstr "Ничего не делать"
 
-#: /app/src/modules/rules/RulesModule.js:413
-#: /app/src/modules/rules/RulesModule.js:432
+#: /app/src/modules/rules/RulesModule.js:416
+#: /app/src/modules/rules/RulesModule.js:435
 msgid "rule"
 msgstr "правило"
 
-#: /app/src/modules/rules/RulesModule.js:413
-#: /app/src/modules/rules/RulesModule.js:432
+#: /app/src/modules/rules/RulesModule.js:416
+#: /app/src/modules/rules/RulesModule.js:435
 msgid "rules"
 msgstr "правила"
 
-#: /app/src/modules/rules/RulesModule.js:413
+#: /app/src/modules/rules/RulesModule.js:416
 msgid "active"
 msgstr "активно"
 
-#: /app/src/modules/rules/RulesModule.js:414
+#: /app/src/modules/rules/RulesModule.js:417
 msgid "Run all rules in this group"
 msgstr "Выполнить все правила в этой группе"
 
-#: /app/src/modules/rules/RulesModule.js:414
+#: /app/src/modules/rules/RulesModule.js:417
 msgid "Run Group"
 msgstr "Выполнить группу"
 
-#: /app/src/modules/rules/RulesModule.js:431
+#: /app/src/modules/rules/RulesModule.js:434
 msgid "Ungrouped"
 msgstr "Без группы"
 
-#: /app/src/modules/rules/RulesModule.js:722
+#: /app/src/modules/rules/RulesModule.js:725
 msgid "This rule has been upgraded to the new format with advanced features"
 msgstr "Это правило обновлено до нового формата с расширенными возможностями"
 
-#: /app/src/modules/rules/RulesModule.js:725
+#: /app/src/modules/rules/RulesModule.js:728
 msgid "Failed to upgrade rule format"
 msgstr "Не удалось обновить формат правила"
 
-#: /app/src/modules/rules/RulesModule.js:741
+#: /app/src/modules/rules/RulesModule.js:744
 msgid "Edit Rule"
 msgstr "Редактировать правило"
 
-#: /app/src/modules/rules/RulesModule.js:769 /app/templates/index.php:2756
+#: /app/src/modules/rules/RulesModule.js:772 /app/templates/index.php:2756
 msgid "Add Rule"
 msgstr "Добавить правило"
 
-#: /app/src/modules/rules/RulesModule.js:874
-#: /app/src/modules/rules/RulesModule.js:1225
+#: /app/src/modules/rules/RulesModule.js:877
+#: /app/src/modules/rules/RulesModule.js:1228
 msgid "Error: CriteriaBuilder not initialized"
 msgstr "Ошибка: CriteriaBuilder не инициализирован"
 
-#: /app/src/modules/rules/RulesModule.js:880
-#: /app/src/modules/rules/RulesModule.js:1064
-#: /app/src/modules/rules/RulesModule.js:1230
+#: /app/src/modules/rules/RulesModule.js:883
+#: /app/src/modules/rules/RulesModule.js:1067
+#: /app/src/modules/rules/RulesModule.js:1233
 msgid "Invalid criteria: {errors}"
 msgstr "Недопустимые критерии: {errors}"
 
-#: /app/src/modules/rules/RulesModule.js:895
+#: /app/src/modules/rules/RulesModule.js:898
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:508
 #: /app/src/modules/sharing/SharingModule.js:32
 #: /app/src/modules/transactions/TransactionsModule.js:1289
@@ -10215,109 +10223,109 @@ msgstr "Недопустимые критерии: {errors}"
 msgid "Loading..."
 msgstr "Загрузка..."
 
-#: /app/src/modules/rules/RulesModule.js:914
+#: /app/src/modules/rules/RulesModule.js:917
 msgid "Failed to preview rule: {error}"
 msgstr "Не удалось выполнить предпросмотр правила: {error}"
 
-#: /app/src/modules/rules/RulesModule.js:918 /app/templates/index.php:6548
+#: /app/src/modules/rules/RulesModule.js:921 /app/templates/index.php:6548
 msgid "Preview Matches"
 msgstr "Предпросмотр совпадений"
 
-#: /app/src/modules/rules/RulesModule.js:938
-#: /app/src/modules/rules/RulesModule.js:1140 /app/templates/index.php:6521
+#: /app/src/modules/rules/RulesModule.js:941
+#: /app/src/modules/rules/RulesModule.js:1143 /app/templates/index.php:6521
 msgid "Current Category"
 msgstr "Текущая категория"
 
-#: /app/src/modules/rules/RulesModule.js:956
+#: /app/src/modules/rules/RulesModule.js:959
 msgid "No matching transactions found"
 msgstr "Подходящие транзакции не найдены"
 
-#: /app/src/modules/rules/RulesModule.js:1002 /app/templates/quick-add.php:160
+#: /app/src/modules/rules/RulesModule.js:1005 /app/templates/quick-add.php:160
 msgid "Saving..."
 msgstr "Сохранение..."
 
-#: /app/src/modules/rules/RulesModule.js:1010
+#: /app/src/modules/rules/RulesModule.js:1013
 msgid "Failed to save rule"
 msgstr "Не удалось сохранить правило"
 
-#: /app/src/modules/rules/RulesModule.js:1014
-#: /app/src/modules/rules/RulesModule.js:1680
+#: /app/src/modules/rules/RulesModule.js:1017
+#: /app/src/modules/rules/RulesModule.js:1683
 msgid "Running..."
 msgstr "Выполнение..."
 
-#: /app/src/modules/rules/RulesModule.js:1028
-#: /app/src/modules/rules/RulesModule.js:1695
+#: /app/src/modules/rules/RulesModule.js:1031
+#: /app/src/modules/rules/RulesModule.js:1698
 msgid "Rule applied: %n transaction updated"
 msgid_plural "Rule applied: %n transactions updated"
 msgstr[0] "Правило применено: %n транзакция обновлена"
 msgstr[1] "Правило применено: %n транзакции обновлены"
 msgstr[2] "Правило применено: %n транзакций обновлено"
 
-#: /app/src/modules/rules/RulesModule.js:1034
-#: /app/src/modules/rules/RulesModule.js:1152
-#: /app/src/modules/rules/RulesModule.js:1700
-#: /app/src/modules/rules/RulesModule.js:1739
+#: /app/src/modules/rules/RulesModule.js:1037
+#: /app/src/modules/rules/RulesModule.js:1155
+#: /app/src/modules/rules/RulesModule.js:1703
+#: /app/src/modules/rules/RulesModule.js:1742
 msgid "No transactions were updated"
 msgstr "Ни одна транзакция не была обновлена"
 
-#: /app/src/modules/rules/RulesModule.js:1039
-#: /app/src/modules/rules/RulesModule.js:1704
+#: /app/src/modules/rules/RulesModule.js:1042
+#: /app/src/modules/rules/RulesModule.js:1707
 msgid "Failed to run rule: {error}"
 msgstr "Не удалось применить правило: {error}"
 
-#: /app/src/modules/rules/RulesModule.js:1042 /app/templates/index.php:6549
+#: /app/src/modules/rules/RulesModule.js:1045 /app/templates/index.php:6549
 msgid "Run Rule Now"
 msgstr "Применить правило сейчас"
 
-#: /app/src/modules/rules/RulesModule.js:1059
+#: /app/src/modules/rules/RulesModule.js:1062
 msgid "CriteriaBuilder not initialized"
 msgstr "CriteriaBuilder не инициализирован"
 
-#: /app/src/modules/rules/RulesModule.js:1071
+#: /app/src/modules/rules/RulesModule.js:1074
 msgid "ActionBuilder not initialized"
 msgstr "ActionBuilder не инициализирован"
 
-#: /app/src/modules/rules/RulesModule.js:1076
-#: /app/src/modules/rules/RulesModule.js:1241
+#: /app/src/modules/rules/RulesModule.js:1079
+#: /app/src/modules/rules/RulesModule.js:1244
 msgid "Invalid actions: {errors}"
 msgstr "Недопустимые действия: {errors}"
 
-#: /app/src/modules/rules/RulesModule.js:1145
+#: /app/src/modules/rules/RulesModule.js:1148
 msgid "{count} updated"
 msgstr "{count} обновлено"
 
-#: /app/src/modules/rules/RulesModule.js:1200
+#: /app/src/modules/rules/RulesModule.js:1203
 msgid "Rule updated successfully"
 msgstr "Правило обновлено"
 
-#: /app/src/modules/rules/RulesModule.js:1200
+#: /app/src/modules/rules/RulesModule.js:1203
 msgid "Rule created successfully"
 msgstr "Правило создано"
 
-#: /app/src/modules/rules/RulesModule.js:1209
+#: /app/src/modules/rules/RulesModule.js:1212
 msgid "Failed to save rule: {error}"
 msgstr "Не удалось сохранить правило: {error}"
 
-#: /app/src/modules/rules/RulesModule.js:1236
+#: /app/src/modules/rules/RulesModule.js:1239
 msgid "Error: ActionBuilder not initialized"
 msgstr "Ошибка: ActionBuilder не инициализирован"
 
-#: /app/src/modules/rules/RulesModule.js:1324
+#: /app/src/modules/rules/RulesModule.js:1327
 msgid "You have no rules to export."
 msgstr "У вас нет правил для экспорта."
 
-#: /app/src/modules/rules/RulesModule.js:1346
+#: /app/src/modules/rules/RulesModule.js:1349
 msgid "Exported %n rule"
 msgid_plural "Exported %n rules"
 msgstr[0] "Экспортировано %n правило"
 msgstr[1] "Экспортировано %n правила"
 msgstr[2] "Экспортировано %n правил"
 
-#: /app/src/modules/rules/RulesModule.js:1372
+#: /app/src/modules/rules/RulesModule.js:1375
 msgid "No rules found in that file."
 msgstr "В этом файле правила не найдены."
 
-#: /app/src/modules/rules/RulesModule.js:1390
+#: /app/src/modules/rules/RulesModule.js:1393
 msgid ""
 "No rules could be imported. They may reference categories or accounts that "
 "don't exist here."
@@ -10325,7 +10333,7 @@ msgstr ""
 "Не удалось импортировать ни одного правила. Возможно, они ссылаются на "
 "отсутствующие здесь категории или счета."
 
-#: /app/src/modules/rules/RulesModule.js:1392
+#: /app/src/modules/rules/RulesModule.js:1395
 msgid ""
 "Imported {imported}; {failed} could not be imported (they may reference "
 "categories or accounts that don't exist here)."
@@ -10333,22 +10341,22 @@ msgstr ""
 "Импортировано: {imported}; не удалось импортировать: {failed} (возможно, они "
 "ссылаются на отсутствующие здесь категории или счета)."
 
-#: /app/src/modules/rules/RulesModule.js:1394
+#: /app/src/modules/rules/RulesModule.js:1397
 msgid "Imported %n rule"
 msgid_plural "Imported %n rules"
 msgstr[0] "Импортировано %n правило"
 msgstr[1] "Импортировано %n правила"
 msgstr[2] "Импортировано %n правил"
 
-#: /app/src/modules/rules/RulesModule.js:1458
+#: /app/src/modules/rules/RulesModule.js:1461
 msgid "Invalid JSON: {error}"
 msgstr "Недопустимый JSON: {error}"
 
-#: /app/src/modules/rules/RulesModule.js:1462
+#: /app/src/modules/rules/RulesModule.js:1465
 msgid "Rule JSON must be a single object."
 msgstr "JSON правила должен быть одним объектом."
 
-#: /app/src/modules/rules/RulesModule.js:1509
+#: /app/src/modules/rules/RulesModule.js:1512
 msgid ""
 "This JSON could not be loaded into the builder. Fix the structure, or save "
 "directly from JSON."
@@ -10356,70 +10364,70 @@ msgstr ""
 "Не удалось загрузить этот JSON в конструктор. Исправьте структуру или "
 "сохраните непосредственно из JSON."
 
-#: /app/src/modules/rules/RulesModule.js:1587
+#: /app/src/modules/rules/RulesModule.js:1590
 msgid "Rule JSON copied to clipboard"
 msgstr "JSON правила скопирован в буфер обмена"
 
-#: /app/src/modules/rules/RulesModule.js:1592
+#: /app/src/modules/rules/RulesModule.js:1595
 msgid "Could not copy automatically — the text is selected, press Ctrl+C"
 msgstr "Не удалось скопировать автоматически — текст выделен, нажмите Ctrl+C"
 
-#: /app/src/modules/rules/RulesModule.js:1602
+#: /app/src/modules/rules/RulesModule.js:1605
 msgid "Failed to load rule"
 msgstr "Не удалось загрузить правило"
 
-#: /app/src/modules/rules/RulesModule.js:1607
+#: /app/src/modules/rules/RulesModule.js:1610
 msgid "Are you sure you want to delete this rule?"
 msgstr "Вы уверены, что хотите удалить это правило?"
 
-#: /app/src/modules/rules/RulesModule.js:1612
+#: /app/src/modules/rules/RulesModule.js:1615
 msgid "Rule deleted successfully"
 msgstr "Правило удалено"
 
-#: /app/src/modules/rules/RulesModule.js:1616
+#: /app/src/modules/rules/RulesModule.js:1619
 msgid "Failed to delete rule"
 msgstr "Не удалось удалить правило"
 
-#: /app/src/modules/rules/RulesModule.js:1644
+#: /app/src/modules/rules/RulesModule.js:1647
 msgid "Rule enabled"
 msgstr "Правило включено"
 
-#: /app/src/modules/rules/RulesModule.js:1644
+#: /app/src/modules/rules/RulesModule.js:1647
 msgid "Rule disabled"
 msgstr "Правило отключено"
 
-#: /app/src/modules/rules/RulesModule.js:1647
+#: /app/src/modules/rules/RulesModule.js:1650
 msgid "Failed to update rule: {error}"
 msgstr "Не удалось обновить правило: {error}"
 
-#: /app/src/modules/rules/RulesModule.js:1664
+#: /app/src/modules/rules/RulesModule.js:1667
 msgid "Run rule \"{name}\" on matching transactions?"
 msgstr "Применить правило «{name}» к подходящим транзакциям?"
 
-#: /app/src/modules/rules/RulesModule.js:1707 /app/templates/index.php:6638
+#: /app/src/modules/rules/RulesModule.js:1710 /app/templates/index.php:6638
 msgid "Run"
 msgstr "Выполнить"
 
-#: /app/src/modules/rules/RulesModule.js:1714
+#: /app/src/modules/rules/RulesModule.js:1717
 msgid "No active rules in this group"
 msgstr "В этой группе нет активных правил"
 
-#: /app/src/modules/rules/RulesModule.js:1718
+#: /app/src/modules/rules/RulesModule.js:1721
 msgid "Run {count} active rules in group \"{name}\"?"
 msgstr "Выполнить активные правила ({count}) из группы «{name}»?"
 
-#: /app/src/modules/rules/RulesModule.js:1734
+#: /app/src/modules/rules/RulesModule.js:1737
 msgid "Group applied: %n transaction updated"
 msgid_plural "Group applied: %n transactions updated"
 msgstr[0] "Группа применена: обновлена %n транзакция"
 msgstr[1] "Группа применена: обновлены %n транзакции"
 msgstr[2] "Группа применена: обновлено %n транзакций"
 
-#: /app/src/modules/rules/RulesModule.js:1743
+#: /app/src/modules/rules/RulesModule.js:1746
 msgid "Failed to run group rules: {error}"
 msgstr "Не удалось применить правила группы: {error}"
 
-#: /app/src/modules/rules/RulesModule.js:1805
+#: /app/src/modules/rules/RulesModule.js:1808
 msgid ""
 "Apply rules to matching transactions? This will modify the selected "
 "transactions."
@@ -10427,21 +10435,21 @@ msgstr ""
 "Применить правила к подходящим транзакциям? Выбранные транзакции будут "
 "изменены."
 
-#: /app/src/modules/rules/RulesModule.js:1814
+#: /app/src/modules/rules/RulesModule.js:1817
 msgid "Applying..."
 msgstr "Применение..."
 
-#: /app/src/modules/rules/RulesModule.js:1832
+#: /app/src/modules/rules/RulesModule.js:1835
 msgid "Rules applied: {success} updated, {skipped} skipped, {failed} failed"
 msgstr ""
 "Правила применены: обновлено — {success}, пропущено — {skipped}, с ошибкой — "
 "{failed}"
 
-#: /app/src/modules/rules/RulesModule.js:1841
+#: /app/src/modules/rules/RulesModule.js:1844
 msgid "Failed to apply rules"
 msgstr "Не удалось применить правила"
 
-#: /app/src/modules/rules/RulesModule.js:1844 /app/templates/index.php:2743
+#: /app/src/modules/rules/RulesModule.js:1847 /app/templates/index.php:2743
 #: /app/templates/index.php:6617
 msgid "Apply Rules"
 msgstr "Применить правила"
@@ -10862,13 +10870,13 @@ msgstr "Для условия {path} не выбран тип сопоставл
 msgid "Condition at {path} has no pattern value"
 msgstr "Для условия {path} не указано значение шаблона"
 
-#: /app/src/modules/rules/components/CriteriaBuilder.js:557
+#: /app/src/modules/rules/components/CriteriaBuilder.js:551
 msgid ""
 "Condition at {path} 'between' pattern must have 'min' and 'max' properties"
 msgstr ""
 "Шаблон 'between' в условии {path} должен содержать свойства 'min' и 'max'"
 
-#: /app/src/modules/rules/components/CriteriaBuilder.js:560
+#: /app/src/modules/rules/components/CriteriaBuilder.js:554
 msgid "Condition at {path} 'between' pattern must be valid JSON with min/max"
 msgstr ""
 "Шаблон 'between' в условии {path} должен быть корректным JSON с min/max"
