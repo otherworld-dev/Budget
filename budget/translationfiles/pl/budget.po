@@ -10870,12 +10870,6 @@ msgstr "Dla warunku w lokalizacji {path} nie wybrano typu dopasowania"
 msgid "Condition at {path} has no pattern value"
 msgstr "Dla warunku w lokalizacji {path} nie podano wartości wzorca"
 
-#: /app/src/modules/rules/components/CriteriaBuilder.js:546
-msgid "Condition at {path} has invalid regex pattern: {error}"
-msgstr ""
-"Warunek w lokalizacji {path} zawiera nieprawidłowe wyrażenie regularne: "
-"{error}"
-
 #: /app/src/modules/rules/components/CriteriaBuilder.js:557
 msgid ""
 "Condition at {path} 'between' pattern must have 'min' and 'max' properties"
@@ -17523,6 +17517,11 @@ msgstr "Zapisz transakcję"
 #: /app/templates/quick-add.php:179
 msgid "Transaction saved!"
 msgstr "Transakcja została zapisana!"
+
+#~ msgid "Condition at {path} has invalid regex pattern: {error}"
+#~ msgstr ""
+#~ "Warunek w lokalizacji {path} zawiera nieprawidłowe wyrażenie regularne: "
+#~ "{error}"
 
 #~ msgid "Failed to rollback import"
 #~ msgstr "Nie udało się wycofać importu"

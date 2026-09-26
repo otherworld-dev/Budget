@@ -10655,10 +10655,6 @@ msgstr ""
 msgid "Condition at {path} has no pattern value"
 msgstr ""
 
-#: /app/src/modules/rules/components/CriteriaBuilder.js:546
-msgid "Condition at {path} has invalid regex pattern: {error}"
-msgstr ""
-
 #: /app/src/modules/rules/components/CriteriaBuilder.js:557
 msgid ""
 "Condition at {path} 'between' pattern must have 'min' and 'max' properties"

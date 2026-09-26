@@ -4506,8 +4506,8 @@ msgid ""
 "* PHP 8.1 or higher\n"
 "* PHP BCMath extension (`php-bcmath`)"
 msgstr ""
-"**⚠️ Beta: Diese App befindet sich derzeit in der Testphase. Datenverlust "
-"ist möglich. Bitte sichere deine Daten regelmäßig und melde auftretende "
+"**⚠️ Beta: Diese App befindet sich derzeit in der Testphase. Datenverlust ist "
+"möglich. Bitte sichere deine Daten regelmäßig und melde auftretende "
 "Probleme.**\n"
 "\n"
 "# Budget – Finanzverwaltung für Nextcloud\n"
@@ -9277,8 +9277,8 @@ msgid ""
 msgstr ""
 "Liest einen YNAB-Registerexport ein: Jedes Konto wird anhand des Namens "
 "zugeordnet oder neu erstellt, Kategoriegruppen werden zu übergeordneten "
-"Kategorien und Umbuchungen werden miteinander verknüpft. Einnahmen, die „"
-"Ready to Assign“ zugeordnet sind, bleiben nicht kategorisiert."
+"Kategorien und Umbuchungen werden miteinander verknüpft. Einnahmen, die "
+"„Ready to Assign“ zugeordnet sind, bleiben nicht kategorisiert."
 
 #: /app/src/modules/import/ImportModule.js:103
 msgid ""
@@ -11516,10 +11516,6 @@ msgstr "Für die Bedingung unter {path} wurde kein Vergleichstyp ausgewählt"
 #: /app/src/modules/rules/components/CriteriaBuilder.js:538
 msgid "Condition at {path} has no pattern value"
 msgstr "Für die Bedingung unter {path} wurde kein Suchmuster angegeben"
-
-#: /app/src/modules/rules/components/CriteriaBuilder.js:546
-msgid "Condition at {path} has invalid regex pattern: {error}"
-msgstr "Für die Bedingung unter {path} ist das Regex-Muster ungültig: {error}"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:557
 msgid ""
@@ -18426,6 +18422,10 @@ msgstr "Buchung speichern"
 #: /app/templates/quick-add.php:179
 msgid "Transaction saved!"
 msgstr "Transaktion gespeichert!"
+
+#~ msgid "Condition at {path} has invalid regex pattern: {error}"
+#~ msgstr ""
+#~ "Für die Bedingung unter {path} ist das Regex-Muster ungültig: {error}"
 
 #~ msgid "Failed to rollback import"
 #~ msgstr "Import konnte nicht rückgängig gemacht werden"
