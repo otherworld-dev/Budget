@@ -543,11 +543,11 @@ describe('validate', () => {
         expect(build(tree([cond({ matchType: 'regex', pattern: '^ORDER-\\d+$' })])).validate().valid).toBe(true);
     });
 
-    it('rejects an invalid regex with the parser\'s reason', () => {
+    it('defers regex validation to the server instead of rejecting with JS parser errors', () => {
         const result = build(tree([cond({ matchType: 'regex', pattern: '([a-z' })])).validate();
 
-        expect(result.valid).toBe(false);
-        expect(result.errors[0]).toMatch(/^Condition at condition 1 has invalid regex pattern: /);
+        expect(result.valid).toBe(true);
+        expect(result.errors).toEqual([]);
     });
 
     it('accepts a between range with min and max', () => {
