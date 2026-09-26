@@ -295,8 +295,12 @@ class CriteriaEvaluator {
 			case 'equals':
 				return strcasecmp($value, $pattern) === 0;
 			case 'regex':
-				// Suppress warnings for invalid regex
-				$result = @preg_match('/' . $pattern . '/i', $value);
+				$regex = $this->normalizeRegexPattern($pattern);
+				if ($regex === null) {
+					$this->logger->warning('Invalid regex pattern', ['pattern' => $pattern]);
+					return false;
+				}
+				$result = @preg_match($regex, $value);
 				if ($result === false) {
 					$this->logger->warning('Invalid regex pattern', ['pattern' => $pattern]);
 					return false;
@@ -305,6 +309,19 @@ class CriteriaEvaluator {
 			default:
 				return false;
 		}
+	}
+
+	private function normalizeRegexPattern(string $pattern): ?string {
+		$trimmed = trim($pattern);
+		if ($trimmed === '') {
+			return null;
+		}
+
+		if (preg_match('#^/(.*)/([a-zA-Z]*)$#s', $trimmed, $matches) === 1) {
+			return $matches[0];
+		}
+
+		return '/' . $trimmed . '/i';
 	}
 
 	/**
@@ -558,11 +575,11 @@ class CriteriaEvaluator {
 			}
 
 			// Reject an invalid regex pattern at save time so it surfaces as a
-			// clear error, instead of silently never matching at run time. The
-			// visual builder already checks this client-side; validating here
-			// covers the JSON-editing path too (#318).
+			// clear error, instead of silently never matching at run time. This
+			// accepts both bare patterns and full '/pattern/flags' literals.
 			if ($matchType === 'regex' && isset($node['pattern']) && is_string($node['pattern'])) {
-				if (@preg_match('/' . $node['pattern'] . '/i', '') === false) {
+				$regex = $this->normalizeRegexPattern($node['pattern']);
+				if ($regex === null || @preg_match($regex, '') === false) {
 					$errors[] = "Invalid regex pattern: '" . $node['pattern'] . "'";
 				}
 			}

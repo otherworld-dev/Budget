@@ -538,15 +538,9 @@ export class CriteriaBuilder {
 				errors.push(t('budget', 'Condition at {path} has no pattern value', { path }));
 			}
 
-			// Validate regex if match type is regex
-			if (node.matchType === 'regex' && pattern) {
-				try {
-					new RegExp(pattern);
-				} catch (e) {
-					errors.push(t('budget', 'Condition at {path} has invalid regex pattern: {error}', { path, error: e.message }));
-				}
-			}
-
+			// Regex validation is intentionally left to the server-side save path so
+			// we accept both bare patterns and full /pattern/flags literals without
+			// JavaScript-specific incompatibilities such as PCRE-only inline flags.
 			// Validate JSON for 'between' match types
 			if (node.matchType === 'between' && pattern.trim() !== '') {
 				try {

@@ -52,6 +52,19 @@ class ImportRuleController extends Controller {
 		$this->setGranularShareService($granularShareService);
 	}
 
+	private function normalizeRegexPattern(string $pattern): ?string {
+		$trimmed = trim($pattern);
+		if ($trimmed === '') {
+			return null;
+		}
+
+		if (preg_match('#^/(.*)/([a-zA-Z]*)$#s', $trimmed, $matches) === 1) {
+			return $matches[0];
+		}
+
+		return '/' . $trimmed . '/i';
+	}
+
 	/**
 	 * @NoAdminRequired
 	 */
@@ -161,9 +174,11 @@ class ImportRuleController extends Controller {
 					return new DataResponse(['error' => $this->l->t('Invalid match type. Must be one of: %1$s', [implode(', ', self::VALID_MATCH_TYPES)])], Http::STATUS_BAD_REQUEST);
 				}
 
-				// Validate regex pattern if matchType is regex
-				if ($matchType === 'regex') {
-					if (@preg_match('/' . $pattern . '/', '') === false) {
+				// Validate regex pattern if matchType is regex. Accept both bare
+				// patterns and full /pattern/flags literals for backward compatibility.
+				if ($matchType === 'regex' && $pattern !== null) {
+					$regexPattern = $this->normalizeRegexPattern($pattern);
+					if ($regexPattern === null || @preg_match($regexPattern, '') === false) {
 						return new DataResponse(['error' => $this->l->t('Invalid regex pattern')], Http::STATUS_BAD_REQUEST);
 					}
 				}
@@ -269,10 +284,12 @@ class ImportRuleController extends Controller {
 				}
 				$updates['matchType'] = $matchType;
 
-				// If updating to regex, validate the pattern
+				// If updating to regex, validate the pattern. Accept bare values
+				// and full /pattern/flags literals for backward compatibility.
 				$patternToValidate = $updates['pattern'] ?? $pattern;
 				if ($matchType === 'regex' && $patternToValidate !== null) {
-					if (@preg_match('/' . $patternToValidate . '/', '') === false) {
+					$regexPattern = $this->normalizeRegexPattern($patternToValidate);
+					if ($regexPattern === null || @preg_match($regexPattern, '') === false) {
 						return new DataResponse(['error' => $this->l->t('Invalid regex pattern')], Http::STATUS_BAD_REQUEST);
 					}
 				}

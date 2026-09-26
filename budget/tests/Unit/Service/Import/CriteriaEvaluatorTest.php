@@ -136,6 +136,22 @@ class CriteriaEvaluatorTest extends TestCase {
 		$this->assertFalse($this->evaluator->evaluate($criteria, $transaction, 2));
 	}
 
+	public function testRegexMatchWithFullLiteralAndFlags(): void {
+		$criteria = [
+			'version' => 2,
+			'root' => [
+				'type' => 'condition',
+				'field' => 'description',
+				'matchType' => 'regex',
+				'pattern' => '/^order-\d{5}$/i',
+				'negate' => false
+			]
+		];
+
+		$transaction = ['description' => 'ORDER-12345'];
+		$this->assertTrue($this->evaluator->evaluate($criteria, $transaction, 2));
+	}
+
 	public function testInvalidRegexReturnsFalse(): void {
 		$criteria = [
 			'version' => 2,
@@ -715,6 +731,23 @@ class CriteriaEvaluatorTest extends TestCase {
 
 		$result = $this->evaluator->validate($criteria);
 		$this->assertTrue($result['valid']);
+	}
+
+	public function testValidateAcceptsFullRegexLiteralWithFlags(): void {
+		$criteria = [
+			'version' => 2,
+			'root' => [
+				'type' => 'condition',
+				'field' => 'description',
+				'matchType' => 'regex',
+				'pattern' => '/amazon|ebay/i',
+				'negate' => false
+			]
+		];
+
+		$result = $this->evaluator->validate($criteria);
+		$this->assertTrue($result['valid']);
+		$this->assertTrue($this->evaluator->evaluate($criteria, ['description' => 'EBAY order']));
 	}
 
 	// ===== Account Field Tests =====
