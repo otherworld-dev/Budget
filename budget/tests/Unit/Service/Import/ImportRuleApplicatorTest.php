@@ -117,6 +117,161 @@ class ImportRuleApplicatorTest extends TestCase {
 		$this->assertSame('Updated Description', $result['description']);
 	}
 
+	public function testApplyRulesRegexReplaceDescription(): void {
+		$rule = $this->makeRule([
+			'actions' => [
+				'version' => 2,
+				'actions' => [[
+					'type' => 'regex_replace',
+					'field' => 'description',
+					'pattern' => '/\\d+/',
+					'replacement' => 'X',
+				]],
+			],
+		]);
+		$this->ruleMapper->method('findActive')->willReturn([$rule]);
+		$this->evaluator->method('evaluate')->willReturn(true);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'Invoice 12345']);
+
+		$this->assertSame('Invoice X', $result['description']);
+	}
+
+	public function testApplyRulesRegexReplaceAmountTargetProducesFloat(): void {
+		$rule = $this->makeRule([
+			'actions' => [
+				'version' => 2,
+				'actions' => [[
+					'type' => 'regex_replace',
+					'field' => 'description',
+					'target' => 'amount',
+					'pattern' => '/.*?(\\d+\\.\\d+)/',
+					'replacement' => '$1',
+				]],
+			],
+		]);
+		$this->ruleMapper->method('findActive')->willReturn([$rule]);
+		$this->evaluator->method('evaluate')->willReturn(true);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'Invoice 123.45']);
+
+		$this->assertSame(123.45, $result['amount']);
+		$this->assertIsFloat($result['amount']);
+	}
+
+	public function testApplyRulesRegexReplaceIfEmptyChecksItsTargetField(): void {
+		$rule = $this->makeRule([
+			'actions' => [
+				'version' => 2,
+				'actions' => [[
+					'type' => 'regex_replace',
+					'field' => 'description',
+					'target' => 'notes',
+					'pattern' => '/\\d+/',
+					'replacement' => 'X',
+					'behavior' => 'if_empty',
+				]],
+			],
+		]);
+		$this->ruleMapper->method('findActive')->willReturn([$rule]);
+		$this->evaluator->method('evaluate')->willReturn(true);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'Invoice 123', 'notes' => null]);
+
+		$this->assertSame('Invoice X', $result['notes']);
+	}
+
+	public function testApplyRulesRunsMultipleRegexReplacementsInPriorityOrder(): void {
+		$rule = $this->makeRule([
+			'actions' => [
+				'version' => 2,
+				'actions' => [
+					['type' => 'regex_replace', 'field' => 'description', 'pattern' => '/123/', 'replacement' => 'ABC', 'priority' => 20],
+					['type' => 'regex_replace', 'field' => 'description', 'pattern' => '/ABC/', 'replacement' => 'XYZ', 'priority' => 10],
+				],
+			],
+		]);
+		$this->ruleMapper->method('findActive')->willReturn([$rule]);
+		$this->evaluator->method('evaluate')->willReturn(true);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'Invoice 123']);
+
+		$this->assertSame('Invoice XYZ', $result['description']);
+	}
+
+	public function testApplyRulesChangeCaseDescription(): void {
+		$rule = $this->makeRule([
+			'actions' => [
+				'version' => 2,
+				'actions' => [[
+					'type' => 'change_case',
+					'field' => 'description',
+					'mode' => 'upper',
+				]],
+			],
+		]);
+		$this->ruleMapper->method('findActive')->willReturn([$rule]);
+		$this->evaluator->method('evaluate')->willReturn(true);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'grocery run']);
+
+		$this->assertSame('GROCERY RUN', $result['description']);
+	}
+
+	public function testApplyRulesChangeCaseDescriptionSentence(): void {
+		$rule = $this->makeRule([
+			'actions' => [
+				'version' => 2,
+				'actions' => [[
+					'type' => 'change_case',
+					'field' => 'description',
+					'mode' => 'sentence',
+				]],
+			],
+		]);
+		$this->ruleMapper->method('findActive')->willReturn([$rule]);
+		$this->evaluator->method('evaluate')->willReturn(true);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'grocery run']);
+
+		$this->assertSame('Grocery run', $result['description']);
+	}
+
+	public function testApplyRulesChangeCaseUpperHandlesDiacritics(): void {
+		$rule = $this->makeRule([
+			'actions' => [
+				'version' => 2,
+				'actions' => [['type' => 'change_case', 'field' => 'description', 'mode' => 'upper']],
+			],
+		]);
+		$this->ruleMapper->method('findActive')->willReturn([$rule]);
+		$this->evaluator->method('evaluate')->willReturn(true);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'école']);
+
+		$this->assertSame('ÉCOLE', $result['description']);
+	}
+
+	public function testApplyRulesReplaceTextDescription(): void {
+		$rule = $this->makeRule([
+			'actions' => [
+				'version' => 2,
+				'actions' => [[
+					'type' => 'replace_text',
+					'field' => 'description',
+					'find' => '12345',
+					'replace' => '67890',
+				]],
+			],
+		]);
+		$this->ruleMapper->method('findActive')->willReturn([$rule]);
+		$this->evaluator->method('evaluate')->willReturn(true);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'Invoice 12345']);
+
+		$this->assertSame('Invoice 67890', $result['description']);
+	}
+
 	public function testApplyRulesSetVendor(): void {
 		$rule = $this->makeRule([
 			'actions' => [

@@ -44,4 +44,16 @@ describe('rule action badges', () => {
             expect(html).toContain(`action-badge ${cls}`);
         }
     });
+
+    it('shows badges for text transform and regex actions', () => {
+        const html = badgesFor([
+            { type: 'set_description', value: 'Updated description' },
+            { type: 'regex_replace', field: 'description', target: 'reference', pattern: '/\\d+/', replacement: 'X' },
+            { type: 'change_case', field: 'description', mode: 'sentence' },
+            { type: 'replace_text', field: 'description', find: 'foo', replace: 'bar' },
+        ]);
+        expect(html).toContain('Regular expression: description → reference');
+        expect(html).toContain('Case change on description');
+        expect(html).toContain('Replace in description');
+    });
 });
