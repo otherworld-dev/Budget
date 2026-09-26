@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-23 22:02+0000\n"
-"PO-Revision-Date: 2026-09-26 12:51+0000\n"
+"PO-Revision-Date: 2026-09-26 17:27+0000\n"
 "Last-Translator: Christophe <tophe.perso@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
@@ -1518,17 +1518,13 @@ msgid "Snapshot"
 msgstr "Snapshot"
 
 #: /app/lib/Controller/OnboardingController.php:48
-#, fuzzy
-#| msgid "Failed to load the split"
 msgid "Failed to load the getting started checklist"
-msgstr "Échec du chargement de la ventilation"
+msgstr "Échec du chargement de la liste de contrôle « Pour bien démarrer »"
 
 #: /app/lib/Controller/OnboardingController.php:63
 #: /app/src/modules/onboarding/OnboardingModule.js:359
-#, fuzzy
-#| msgid "Failed to save the budget alert filter"
 msgid "Failed to hide the getting started checklist"
-msgstr "Échec de l'enregistrement du filtre d'alerte budgétaire"
+msgstr "Impossible de masquer la liste de contrôle « Pour bien démarrer »"
 
 #: /app/lib/Controller/OnboardingController.php:78
 msgid "Sample data can only be added to an empty budget."
@@ -1537,10 +1533,8 @@ msgstr "Les données d'échantillon ne peuvent être ajoutées qu'à un budget v
 #: /app/lib/Controller/OnboardingController.php:87
 #: /app/src/modules/onboarding/OnboardingModule.js:371
 #: /app/src/modules/onboarding/OnboardingModule.js:377
-#, fuzzy
-#| msgid "Failed to load the split"
 msgid "Failed to add the sample data"
-msgstr "Échec du chargement de la ventilation"
+msgstr "Impossible d'ajouter les données d'échantillons"
 
 #: /app/lib/Controller/OnboardingController.php:103
 msgid ""
@@ -1552,18 +1546,14 @@ msgstr ""
 "votre budget."
 
 #: /app/lib/Controller/OnboardingController.php:108
-#, fuzzy
-#| msgid "No file data available"
 msgid "No sample data is loaded."
-msgstr "Aucune donnée de fichier disponible"
+msgstr "Aucune donnée d'échantillon n'est chargée."
 
 #: /app/lib/Controller/OnboardingController.php:117
 #: /app/src/modules/onboarding/OnboardingModule.js:401
 #: /app/src/modules/onboarding/OnboardingModule.js:408
-#, fuzzy
-#| msgid "Failed to load the split"
 msgid "Failed to clear the sample data"
-msgstr "Échec du chargement de la ventilation"
+msgstr "Échec de l'effacement des données d'échantillon"
 
 #: /app/lib/Controller/PageController.php:155
 #: /app/src/config/dashboardWidgets.js:91 /app/templates/index.php:1025
@@ -2998,10 +2988,8 @@ msgid "{user} added a receipt to your budget"
 msgstr "{user} a ajouté un justificatif à votre budget"
 
 #: /app/lib/Notification/Notifier.php:483
-#, fuzzy
-#| msgid "{file} was saved to your Files."
 msgid "{file} was saved to your Files for {transaction}."
-msgstr "{file} a été enregistré dans vos fichiers."
+msgstr "{file} a été enregistré dans vos fichiers pour {transaction}"
 
 #. TRANSLATORS: {category} is replaced with the category name. Do NOT translate {category} — keep it exactly as-is.
 #: /app/lib/Notification/Notifier.php:510
@@ -3623,22 +3611,16 @@ msgid "No reconciliation in progress for this account"
 msgstr "Aucun rapprochement en cours pour ce compte"
 
 #: /app/lib/Service/RecurringIncomeService.php:285
-#, fuzzy
-#| msgid "Cannot skip a one-time bill"
 msgid "Cannot skip a one-time income"
-msgstr "Impossible de passer une facture ponctuelle"
+msgstr "Impossible de passer un revenu ponctuel"
 
 #: /app/lib/Service/RecurringIncomeService.php:288
-#, fuzzy
-#| msgid "Cannot skip an inactive bill"
 msgid "Cannot skip an inactive income"
-msgstr "Impossible de passer une facture inactive"
+msgstr "Impossible de passer un revenu inactif"
 
 #: /app/lib/Service/RecurringIncomeService.php:293
-#, fuzzy
-#| msgid "This bill has no recorded payment to undo"
 msgid "This income has no expected date to skip"
-msgstr "Cette facture n'a pas de paiement enregistré à annuler"
+msgstr "Il n'y a pas de date prévue pour la suspension de ce revenu"
 
 #: /app/lib/Service/Report/MonthNames.php:21 /app/templates/index.php:3650
 #: /app/templates/index.php:6204
@@ -4234,60 +4216,6 @@ msgid "Simple budget tracker and forecaster"
 msgstr "Outil simple de suivi et de prévision budgétaire"
 
 #: /app/specialAppInfoFakeDummyForL10nScript.php:4
-#, fuzzy
-#| msgid ""
-#| "**⚠️ Beta: This app is currently in testing. Data loss is possible. Please "
-#| "backup your data regularly and report any issues.**\n"
-#| "\n"
-#| "# Budget - Financial Tracking for Nextcloud\n"
-#| "\n"
-#| "Track your spending habits, manage savings, and forecast future account "
-#| "balances with intelligent analysis of your financial history.\n"
-#| "\n"
-#| "## Features\n"
-#| "\n"
-#| "* **Import Bank Statements**: Support for CSV, OFX, QIF and ISO 20022 "
-#| "camt.053 XML formats\n"
-#| "* **Smart Categorization**: Automatic vendor matching and transaction "
-#| "categorization\n"
-#| "* **Auto-Categorization Rules**: Apply rules to existing transactions "
-#| "anytime with preview\n"
-#| "* **Split Transactions**: Allocate single transactions across multiple "
-#| "categories\n"
-#| "* **Transfer Detection**: Automatic matching of transfers between "
-#| "accounts\n"
-#| "* **Budget Tracking**: Set spending limits with alerts when approaching "
-#| "or exceeding budgets\n"
-#| "* **Balance Forecasting**: Predict future balances based on historical "
-#| "data\n"
-#| "* **Recurring Bills**: Track bills with due date monitoring and Nextcloud "
-#| "notifications\n"
-#| "* **Recurring Income**: Track expected income sources with receipt "
-#| "tracking\n"
-#| "* **Split Expenses**: Share expenses with contacts and track who owes "
-#| "whom\n"
-#| "* **Debt Payoff Planner**: Plan repayment using avalanche or snowball "
-#| "strategies\n"
-#| "* **Savings Goals**: Set targets with progress tracking and achievement "
-#| "forecasting\n"
-#| "* **Pension Tracker**: Track retirement accounts with growth projections\n"
-#| "* **Net Worth History**: Track assets and liabilities over time\n"
-#| "* **Year-over-Year Reports**: Compare spending across multiple years\n"
-#| "* **Multi-Account Support**: Manage multiple bank accounts and "
-#| "currencies\n"
-#| "* **Custom Categories**: Create your own category hierarchy\n"
-#| "* **Reports & Charts**: Visualize your financial data with interactive "
-#| "charts\n"
-#| "\n"
-#| "## Documentation\n"
-#| "\n"
-#| "Full user documentation: https://budget.otherworld.dev/docs/\n"
-#| "\n"
-#| "## Requirements\n"
-#| "\n"
-#| "* Nextcloud 30 or higher\n"
-#| "* PHP 8.1 or higher\n"
-#| "* PHP BCMath extension (`php-bcmath`)"
 msgid ""
 "**⚠️ Beta: This app is currently in testing. Data loss is possible. Please "
 "backup your data regularly and report any issues.**\n"
@@ -4361,8 +4289,8 @@ msgid ""
 "* PHP 8.1 or higher\n"
 "* PHP BCMath extension (`php-bcmath`)"
 msgstr ""
-"**⚠️ Bêta : Cette application est actuellement en phase de test. Une perte de "
-"données est possible. Veuillez sauvegarder régulièrement vos données et "
+"**⚠️ Bêta : Cette application est actuellement en phase de test. Une perte "
+"de données est possible. Veuillez sauvegarder régulièrement vos données et "
 "signaler tout problème.**\n"
 "\n"
 "# Budget - Suivi financier pour Nextcloud\n"
@@ -4375,6 +4303,8 @@ msgstr ""
 "\n"
 "* **Importation de relevés bancaires** : Prise en charge des formats CSV, "
 "OFX, QIF et ISO 20022 camt.053 XML\n"
+"* **Synchronisation bancaire** : récupérez automatiquement vos opérations "
+"via GoCardless (Royaume-Uni/UE) ou SimpleFIN (États-Unis)\n"
 "* **Catégorisation intelligente** : Association automatique aux commerçants "
 "et catégorisation des opérations\n"
 "* **Règles de catégorisation automatique** : Application de règles aux "
@@ -4383,16 +4313,33 @@ msgstr ""
 "plusieurs catégories\n"
 "* **Détection de virements** : Association automatique des virements entre "
 "comptes\n"
-"* **Suivi budgétaire** : Définition de plafonds de dépenses avec alertes à "
-"l'approche ou au dépassement du budget\n"
+"* **Rapprochement des relevés** : cocher les opérations au fur et à mesure "
+"sur un relevé bancaire jusqu'à ce que la différence soit nulle\n"
+"* **Numérisation des reçus** : joignez des photos de reçus aux opérations "
+"et, une fois que l'administrateur aura configuré cette fonctionnalité, le "
+"système pourra extraire le montant et les articles figurant sur ces reçus "
+"(OCR)\n"
+"* **Ajout rapide et API publique** : une page d'accès rapide depuis votre "
+"téléphone, ainsi qu'une API REST pour les scripts, l'automatisation et "
+"l'application Android « Budget Companion » (en cours de développement)\n"
+"* **Suivi budgétaire** : définissez des limites de dépenses et recevez des "
+"alertes lorsque vous vous approchez de ces limites ou que vous les dépassez\n"
+"* **Budgets reportables** : système de budgétisation par enveloppes, dans "
+"lequel les fonds non dépensés (ou les dépassements de budget) sont reportés "
+"sur le mois suivant\n"
+"* **Budgets de projet** : un budget unique pour un projet s'étalant sur "
+"plusieurs mois, comme une rénovation ou un mariage\n"
 "* **Prévision de solde** : Estimation des soldes futurs basée sur les "
 "données historiques\n"
 "* **Factures récurrentes** : Suivi des factures avec rappel des échéances et "
 "notifications Nextcloud\n"
+"* **Détection des abonnements** : identifie les paiements qui semblent "
+"récurrents mais qui ne sont pas encore enregistrés, et les transforme en "
+"factures en un seul clic\n"
 "* **Revenus récurrents** : Suivi des sources de revenus prévues et de leur "
 "encaissement\n"
-"* **Partage de dépenses** : Partage de frais avec des contacts et suivi des "
-"dettes mutuelles\n"
+"* **Partage des dépenses** : partagez vos dépenses avec vos contacts ou "
+"plusieurs personnes et suivez qui doit quoi à qui\n"
 "* **Planificateur de remboursement de dettes** : Planification du "
 "remboursement via les méthodes « avalanche » ou « boule de neige »\n"
 "* **Objectifs d'épargne** : Définition d'objectifs avec suivi de la "
@@ -4403,6 +4350,13 @@ msgstr ""
 "passifs dans le temps\n"
 "* **Rapports annuels comparatifs** : Comparaison des dépenses sur plusieurs "
 "années\n"
+"* **Rapport sur les flux financiers** : un diagramme de Sankey illustrant "
+"l'origine et la destination des fonds pour une période donnée\n"
+"* **Résumé et alertes de dépenses inhabituelles** : un récapitulatif "
+"hebdomadaire ou mensuel (facultatif) et une notification lorsqu'une "
+"catégorie dépasse largement son niveau habituel\n"
+"* **Rapports PDF programmés** : le rapport du mois dernier est enregistré "
+"dans vos fichiers ou vous est envoyé automatiquement par e-mail\n"
 "* **Gestion multi-comptes** : Gestion de plusieurs comptes bancaires et "
 "devises\n"
 "* **Catégories personnalisées** : Création de votre propre hiérarchie de "
