@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-23 22:02+0000\n"
-"PO-Revision-Date: 2026-09-24 16:38+0000\n"
+"PO-Revision-Date: 2026-09-26 12:51+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -153,10 +153,8 @@ msgid "Failed to delete accounts"
 msgstr "Konten konnten nicht gelöscht werden"
 
 #: /app/lib/Controller/AccountController.php:580
-#, fuzzy
-#| msgid "Only the goal owner can delete it"
 msgid "Only the account owner can delete an account"
-msgstr "Nur der Eigentümer des Ziels kann das löschen"
+msgstr "Nur der Eigentümer des Kontos kann das Konto löschen"
 
 #: /app/lib/Controller/AccountController.php:642
 #: /app/src/modules/accounts/AccountsModule.js:2985
@@ -897,10 +895,8 @@ msgstr "Summe"
 #: /app/lib/Controller/BillController.php:1230
 #: /app/src/modules/dashboard/DashboardModule.js:3162
 #: /app/src/modules/reports/ReportsModule.js:1998
-#, fuzzy
-#| msgid "Projected Balance"
 msgid "Projected balance"
-msgstr "Prognostizierter Saldo"
+msgstr "Prognostizierter Kontostand"
 
 #: /app/lib/Controller/BillController.php:1245
 #, php-format
@@ -1534,17 +1530,13 @@ msgid "Snapshot"
 msgstr "Momentaufnahme"
 
 #: /app/lib/Controller/OnboardingController.php:48
-#, fuzzy
-#| msgid "Failed to load tag sets"
 msgid "Failed to load the getting started checklist"
-msgstr "Fehler beim Laden der Schlagwortgruppen"
+msgstr "Die Checkliste für den Einstieg konnte nicht geladen werden"
 
 #: /app/lib/Controller/OnboardingController.php:63
 #: /app/src/modules/onboarding/OnboardingModule.js:359
-#, fuzzy
-#| msgid "Failed to retrieve budget alerts"
 msgid "Failed to hide the getting started checklist"
-msgstr "Budgetwarnungen wurden nicht abgerufen"
+msgstr "Die Checkliste für den Einstieg konnte nicht ausgeblendet werden"
 
 #: /app/lib/Controller/OnboardingController.php:78
 msgid "Sample data can only be added to an empty budget."
@@ -1553,10 +1545,8 @@ msgstr "Beispieldaten können nur zu einem leeren Budget hinzugefügt werden."
 #: /app/lib/Controller/OnboardingController.php:87
 #: /app/src/modules/onboarding/OnboardingModule.js:371
 #: /app/src/modules/onboarding/OnboardingModule.js:377
-#, fuzzy
-#| msgid "Failed to load tag sets"
 msgid "Failed to add the sample data"
-msgstr "Fehler beim Laden der Schlagwortgruppen"
+msgstr "Die Beispieldaten konnten nicht hinzugefügt werden"
 
 #: /app/lib/Controller/OnboardingController.php:103
 msgid ""
@@ -1573,10 +1563,8 @@ msgstr "Es sind keine Beispieldaten geladen."
 #: /app/lib/Controller/OnboardingController.php:117
 #: /app/src/modules/onboarding/OnboardingModule.js:401
 #: /app/src/modules/onboarding/OnboardingModule.js:408
-#, fuzzy
-#| msgid "Failed to load tag sets"
 msgid "Failed to clear the sample data"
-msgstr "Fehler beim Laden der Schlagwortgruppen"
+msgstr "Die Beispieldaten konnten nicht gelöscht werden"
 
 #: /app/lib/Controller/PageController.php:155
 #: /app/src/config/dashboardWidgets.js:91 /app/templates/index.php:1025
@@ -1585,10 +1573,8 @@ msgid "Quick Add Transaction"
 msgstr "Buchung schnell erfassen"
 
 #: /app/lib/Controller/PageController.php:156 /app/templates/quick-add.php:98
-#, fuzzy
-#| msgid "Quick Add Transaction"
 msgid "Quick Add"
-msgstr "Buchung schnell erfassen"
+msgstr "Schnelle Buchung"
 
 #: /app/lib/Controller/PensionController.php:88
 msgid "Failed to retrieve pensions"
@@ -1731,17 +1717,13 @@ msgid "Recurring contribution deleted"
 msgstr "Wiederkehrender Beitrag gelöscht"
 
 #: /app/lib/Controller/PensionController.php:638
-#, fuzzy
-#| msgid "Failed to delete contribution"
 msgid "Failed to delete recurring contribution"
-msgstr "Beitrag konnte nicht gelöscht werden"
+msgstr "Wiederkehrender Beitrag konnte nicht gelöscht werden"
 
 #: /app/lib/Controller/PensionController.php:653
 #: /app/src/modules/pensions/PensionsModule.js:1109
-#, fuzzy
-#| msgid "Failed to log contribution"
 msgid "Failed to post contribution"
-msgstr "Beitrag konnte nicht protokolliert werden"
+msgstr "Beitrag konnte nicht verbucht werden"
 
 #: /app/lib/Controller/PensionController.php:669
 msgid "Failed to retrieve pension summary"
@@ -8667,7 +8649,7 @@ msgstr "Kacheln hinzufügen"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5061
 msgid "Look ahead"
-msgstr ""
+msgstr "Vorausschau"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5064
 #, fuzzy
@@ -8759,7 +8741,7 @@ msgstr "Art der Übereinstimmung"
 #: /app/src/modules/dashboard/DashboardModule.js:5180
 #: /app/src/modules/dashboard/DashboardModule.js:5181
 msgid "Rows to show"
-msgstr ""
+msgstr "Anzuzeigende Zeilen"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5196
 #: /app/src/modules/dashboard/DashboardModule.js:5197
@@ -8770,7 +8752,7 @@ msgstr "Datumsformat"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5209
 msgid "Show change indicator"
-msgstr ""
+msgstr "Änderungsindikator anzeigen"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5223
 msgid "No settings available for this tile."
@@ -8779,6 +8761,8 @@ msgstr "Für diese Kachel sind keine Einstellungen verfügbar."
 #: /app/src/modules/dashboard/DashboardModule.js:5230
 msgid "Drag to reorder. Toggle visibility for each item."
 msgstr ""
+"Zum Neuordnen ziehen. Die Sichtbarkeit kann für jedes Element ein- oder "
+"ausgeschaltet werden."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5248
 #, fuzzy
@@ -8789,10 +8773,14 @@ msgstr "Alle Kategorien und Budgeteinstellungen"
 #: /app/src/modules/dashboard/DashboardModule.js:5250
 msgid "Leaves out the budgets worked out from your bills and recurring income."
 msgstr ""
+"Lässt die Budgets unberücksichtigt, die aus deinen Rechnungen und "
+"wiederkehrenden Einnahmen berechnet wurden."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5251
 msgid "Untick a category to stop it alerting, here and in notifications."
 msgstr ""
+"Entferne das Häkchen bei einer Kategorie, um Warnungen dafür hier und in den "
+"Benachrichtigungen zu deaktivieren."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5487
 msgid "All tiles are visible"
@@ -8844,7 +8832,7 @@ msgstr "Einnahme hinzufügen"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5629
 msgid "Maximum of {max} instances reached"
-msgstr ""
+msgstr "Maximale Anzahl von {max} Instanzen erreicht"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5699
 #, fuzzy
@@ -8854,7 +8842,7 @@ msgstr "Vermögenswert hinzugefügt"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5737
 msgid "Tile removed"
-msgstr ""
+msgstr "Kachel entfernt"
 
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:115
 msgid "No rate available"
@@ -9063,6 +9051,11 @@ msgid ""
 "a category and its subcategories between two dates, can give its "
 "subcategories amounts of their own, and does not reset each month."
 msgstr ""
+"Ein Budget für ein Vorhaben, das sich über mehrere Monate erstreckt, zum "
+"Beispiel eine Renovierung. Es umfasst eine Kategorie und ihre "
+"Unterkategorien zwischen zwei festgelegten Daten. Den Unterkategorien können "
+"eigene Beträge zugewiesen werden, und das Budget wird nicht jeden Monat "
+"zurückgesetzt."
 
 #: /app/src/modules/help/HelpModule.js:38
 msgid ""
@@ -9206,7 +9199,7 @@ msgstr ""
 #: /app/src/modules/help/HelpModule.js:188
 #: /app/src/modules/help/HelpModule.js:192
 msgid "URL copied to clipboard"
-msgstr ""
+msgstr "URL in die Zwischenablage kopiert"
 
 #: /app/src/modules/help/HelpModule.js:231
 #, fuzzy
@@ -9216,11 +9209,11 @@ msgstr "Löschen fehlgeschlagen"
 
 #: /app/src/modules/help/HelpModule.js:239
 msgid "JavaScript Errors"
-msgstr ""
+msgstr "JavaScript-Fehler"
 
 #: /app/src/modules/help/HelpModule.js:246
 msgid "No failed API requests this session"
-msgstr ""
+msgstr "Keine fehlgeschlagenen API-Anfragen in dieser Sitzung"
 
 #: /app/src/modules/help/HelpModule.js:249
 #, fuzzy
@@ -9236,7 +9229,7 @@ msgstr "Teile dein Budget"
 
 #: /app/src/modules/help/HelpModule.js:260
 msgid "No server errors logged"
-msgstr ""
+msgstr "Keine Serverfehler protokolliert"
 
 #: /app/src/modules/help/HelpModule.js:295
 #: /app/src/modules/help/HelpModule.js:304
@@ -9261,6 +9254,9 @@ msgid ""
 "created, categories and tags are created as needed, and transfer rows are "
 "skipped."
 msgstr ""
+"Liest einen Toshl-Finance-Export ein: Jedes Konto in der Datei wird anhand "
+"des Namens zugeordnet oder neu erstellt, Kategorien und Schlagwörter werden "
+"bei Bedarf erstellt und Zeilen mit Umbuchungen werden übersprungen."
 
 #: /app/src/modules/import/ImportModule.js:101
 msgid ""
@@ -9268,6 +9264,10 @@ msgid ""
 "created in its own currency, categories and tags are created as needed, and "
 "each transfer is imported into both accounts and linked."
 msgstr ""
+"Liest einen Firefly-III-Export ein: Jedes Konto in der Datei wird anhand des "
+"Namens zugeordnet oder in seiner jeweiligen Währung neu erstellt, Kategorien "
+"und Schlagwörter werden bei Bedarf erstellt und jede Umbuchung wird in beide "
+"Konten importiert und miteinander verknüpft."
 
 #: /app/src/modules/import/ImportModule.js:102
 msgid ""
@@ -9275,6 +9275,10 @@ msgid ""
 "category groups become parent categories, and transfers are linked. Income "
 "assigned to \"Ready to Assign\" is left uncategorized."
 msgstr ""
+"Liest einen YNAB-Registerexport ein: Jedes Konto wird anhand des Namens "
+"zugeordnet oder neu erstellt, Kategoriegruppen werden zu übergeordneten "
+"Kategorien und Umbuchungen werden miteinander verknüpft. Einnahmen, die „"
+"Ready to Assign“ zugeordnet sind, bleiben nicht kategorisiert."
 
 #: /app/src/modules/import/ImportModule.js:103
 msgid ""
@@ -9282,6 +9286,10 @@ msgid ""
 "category groups become parent categories, split transactions are imported as "
 "their parts, and transfers are linked."
 msgstr ""
+"Liest einen Actual-Budget-Export ein: Jedes Konto wird anhand des Namens "
+"zugeordnet oder neu erstellt, Kategoriegruppen werden zu übergeordneten "
+"Kategorien, aufgeteilte Transaktionen werden mit ihren einzelnen "
+"Teilbeträgen importiert und Umbuchungen werden miteinander verknüpft."
 
 #: /app/src/modules/import/ImportModule.js:104
 msgid ""
@@ -9289,12 +9297,19 @@ msgid ""
 "categories are created as needed, labels become tags, and transfers and card "
 "payments are linked."
 msgstr ""
+"Liest eine Mint-transactions.csv ein: Jedes Konto wird anhand des Namens "
+"zugeordnet oder neu erstellt, Kategorien werden bei Bedarf erstellt, Labels "
+"werden zu Schlagwörtern und Umbuchungen sowie Kreditkartenzahlungen werden "
+"miteinander verknüpft."
 
 #: /app/src/modules/import/ImportModule.js:105
 msgid ""
 "Reads a Monarch Money download: each account is matched by name or created, "
 "categories are created as needed, and transfers and card payments are linked."
 msgstr ""
+"Liest einen Monarch-Money-Export ein: Jedes Konto wird anhand des Namens "
+"zugeordnet oder neu erstellt, Kategorien werden bei Bedarf erstellt und "
+"Umbuchungen sowie Kreditkartenzahlungen werden miteinander verknüpft."
 
 #: /app/src/modules/import/ImportModule.js:187
 msgid "Rule: {name}"
@@ -9312,12 +9327,12 @@ msgstr "Daten importieren"
 
 #: /app/src/modules/import/ImportModule.js:280
 msgid "Custom CSV (manual mapping)"
-msgstr ""
+msgstr "Benutzerdefinierte CSV-Datei (manuelle Zuordnung)"
 
 #: /app/src/modules/import/ImportModule.js:281
 #: /app/src/modules/import/ImportModule.js:751
 msgid "My Templates"
-msgstr ""
+msgstr "Meine Vorlagen"
 
 #: /app/src/modules/import/ImportModule.js:282
 #, fuzzy
@@ -9327,7 +9342,7 @@ msgstr "Sonstiges"
 
 #: /app/src/modules/import/ImportModule.js:285
 msgid "Save mapping as template…"
-msgstr ""
+msgstr "Zuordnung als Vorlage speichern …"
 
 #: /app/src/modules/import/ImportModule.js:286
 #: /app/src/modules/import/ImportModule.js:755
@@ -9338,14 +9353,16 @@ msgstr "Vorlagen verwalten"
 msgid ""
 "Using saved template. Adjust any column to switch back to a custom mapping."
 msgstr ""
+"Gespeicherte Vorlage wird verwendet. Ändere eine beliebige Spaltenzuordnung, "
+"um wieder zu einer benutzerdefinierten Zuordnung zu wechseln."
 
 #: /app/src/modules/import/ImportModule.js:542
 msgid "Map the required columns before saving a template"
-msgstr ""
+msgstr "Ordne die erforderlichen Spalten zu, bevor du die Vorlage speicherst"
 
 #: /app/src/modules/import/ImportModule.js:546
 msgid "Map at least one account before saving a template"
-msgstr ""
+msgstr "Ordne mindestens ein Konto zu, bevor du die Vorlage speicherst"
 
 #: /app/src/modules/import/ImportModule.js:561
 #, fuzzy
@@ -9371,12 +9388,14 @@ msgid ""
 "No saved templates yet. Map your columns, then use “Save mapping as "
 "template”."
 msgstr ""
+"Noch keine Vorlagen gespeichert. Ordne deine Spalten zu und wähle "
+"anschließend „Zuordnung als Vorlage speichern …“."
 
 #: /app/src/modules/import/ImportModule.js:644
 msgid "%n column mapped"
 msgid_plural "%n columns mapped"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n Spalte zugeordnet"
+msgstr[1] "%n Spalten zugeordnet"
 
 #: /app/src/modules/import/ImportModule.js:647
 #, fuzzy
@@ -9404,7 +9423,7 @@ msgstr "Fehler beim Laden der Importvorlagen"
 
 #: /app/src/modules/import/ImportModule.js:680
 msgid "Import template renamed"
-msgstr ""
+msgstr "Importvorlage umbenannt"
 
 #: /app/src/modules/import/ImportModule.js:695
 #, fuzzy
@@ -9432,7 +9451,7 @@ msgstr "Konto speichern"
 
 #: /app/src/modules/import/ImportModule.js:750
 msgid "Manual (set below)"
-msgstr ""
+msgstr "Manuell (unten festlegen)"
 
 #: /app/src/modules/import/ImportModule.js:754
 msgid "Save routing as template…"
@@ -16478,7 +16497,7 @@ msgstr "Tastenkürzel anzeigen"
 
 #: /app/templates/index.php:5028
 msgid "Quick Add Page"
-msgstr "Schnelle Buchung"
+msgstr "Seite „Schnelle Buchung“"
 
 #: /app/templates/index.php:5029
 msgid ""
@@ -16490,10 +16509,8 @@ msgstr ""
 "hinzu."
 
 #: /app/templates/index.php:5031
-#, fuzzy
-#| msgid "Quick Add Page"
 msgid "Quick Add Page URL"
-msgstr "Schnelle Buchung"
+msgstr "URL der Seite „Schnelle Buchung“"
 
 #: /app/templates/index.php:5034
 msgid "Copy URL"
