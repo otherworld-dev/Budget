@@ -175,7 +175,9 @@ class CategoryServiceTest extends TestCase {
 		$this->categoryMapper->method('find')
 			->willThrowException(new DoesNotExistException(''));
 
-		$this->expectException(DoesNotExistException::class);
+		// A clean message, not the mapper's raw query (#402)
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Parent category not found');
 		$this->service->create('user1', 'Child', 'expense', 999);
 	}
 
@@ -215,6 +217,22 @@ class CategoryServiceTest extends TestCase {
 		$this->expectExceptionMessage('its own parent');
 
 		$this->service->update(5, 'user1', ['parentId' => 5]);
+	}
+
+	public function testUpdateRefusesParentTheUserDoesNotOwn(): void {
+		$category = $this->makeCategory(['id' => 5]);
+		$this->categoryMapper->method('find')
+			->willReturnCallback(function (int $id) use ($category) {
+				if ($id === 5) {
+					return $category;
+				}
+				throw new DoesNotExistException('');
+			});
+		$this->categoryMapper->expects($this->never())->method('update');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Parent category not found');
+		$this->service->update(5, 'user1', ['parentId' => 10]);
 	}
 
 	public function testUpdateValidatesNewParent(): void {

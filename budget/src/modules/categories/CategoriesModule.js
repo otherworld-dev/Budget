@@ -1127,7 +1127,7 @@ export default class CategoriesModule {
         title.textContent = isWriteShared
             ? t('budget', 'Edit Shared Category')
             : t('budget', 'Edit Category');
-        this.populateCategoryParentDropdown(this.selectedCategory.id, this.selectedCategory.parentId);
+        this.populateCategoryParentDropdown(this.selectedCategory.id, this.selectedCategory.parentId, isWriteShared);
         this.loadCategoryData(this.selectedCategory);
 
         // For write-shared categories, lock fields that belong to the owner —
@@ -1468,7 +1468,16 @@ export default class CategoriesModule {
         this.app.renderCategoryTagSetsUI(category.id);
     }
 
-    populateCategoryParentDropdown(excludeId = null, selectedId = null) {
+    /**
+     * Fill the parent picker. Categories shared with the user are left out:
+     * only the owner can add subcategories to one (#402). Read from the
+     * unmerged app.rawCategoryTree, because merging swaps your own category
+     * for a shared one of the same name, which would offer the other person's
+     * id under your category's name. includeShared keeps the merged tree for a
+     * write-shared category being edited, whose picker is locked but must
+     * still show its current parent.
+     */
+    populateCategoryParentDropdown(excludeId = null, selectedId = null, includeShared = false) {
         const parentSelect = document.getElementById('category-parent');
         if (!parentSelect) return;
 
@@ -1478,7 +1487,10 @@ export default class CategoriesModule {
         parentSelect.innerHTML = `<option value="">${t('budget', 'None (Top Level)')}</option>`;
 
         if (this.categoryTree) {
-            dom.populateCategorySelect(parentSelect, this.categoryTree, {
+            const tree = includeShared
+                ? this.categoryTree
+                : (this.app.rawCategoryTree || []).filter(node => !node._shared);
+            dom.populateCategorySelect(parentSelect, tree, {
                 typeFilter: currentType,
                 excludeId: excludeId ? parseInt(excludeId) : null,
                 selectedId: selectedId ? parseInt(selectedId) : null,

@@ -476,13 +476,15 @@ class RuleActionApplicator {
 			switch ($type) {
 				case 'set_category':
 					if ($value !== null && !$this->canUseCategory((int)$value, $userId)) {
-						$errors[] = "Action $idx: invalid category ID $value";
+						// Validated as the rule's owner, so a recipient editing a
+						// shared rule can't point it at their own category (#402)
+						$errors[] = "Action $idx: category $value is not available to the rule's owner (it must be theirs or shared with them)";
 					}
 					break;
 
 				case 'set_account':
 					if ($value !== null && !$this->canUseAccount((int)$value, $userId)) {
-						$errors[] = "Action $idx: invalid account ID $value";
+						$errors[] = "Action $idx: account $value is not available to the rule's owner (it must be theirs or shared with them)";
 					}
 					break;
 

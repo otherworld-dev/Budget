@@ -200,6 +200,11 @@ class CategoryController extends Controller {
 				$color = $colorValidation['sanitized'];
 			}
 
+			$refusal = $this->sharedParentRefusal($parentId);
+			if ($refusal !== null) {
+				return $refusal;
+			}
+
 			$category = $this->service->create(
 				$this->getEffectiveUserId(),
 				$name,
@@ -313,6 +318,11 @@ class CategoryController extends Controller {
 				?? $this->userId;
 			if ($owner !== $this->userId) {
 				$updates = array_intersect_key($updates, array_flip(self::RECIPIENT_WRITABLE_FIELDS));
+			} else {
+				$refusal = $this->sharedParentRefusal($updates['parentId'] ?? null);
+				if ($refusal !== null) {
+					return $refusal;
+				}
 			}
 
 			if (empty($updates)) {
@@ -329,6 +339,26 @@ class CategoryController extends Controller {
 			// name, self-parent) to the user.
 			return $this->handleValidationError($e);
 		}
+	}
+
+	/**
+	 * Refuse a parent that someone else shared with this user. A write share
+	 * covers a category's name and colour, not its tree, and a subcategory made
+	 * under it would belong to a different person than its parent (#402). A
+	 * parent that isn't visible at all is left to the service's not-found error.
+	 */
+	private function sharedParentRefusal(?int $parentId): ?DataResponse {
+		if ($parentId === null) {
+			return null;
+		}
+		$owner = $this->granularShareService->resolveOwner($this->userId, 'category', $parentId);
+		if ($owner === null || $owner === $this->userId) {
+			return null;
+		}
+		return new DataResponse(
+			['error' => $this->l->t('Only the owner can add subcategories to a shared category')],
+			Http::STATUS_FORBIDDEN
+		);
 	}
 
 	/**
@@ -358,6 +388,12 @@ class CategoryController extends Controller {
 			// Reparenting is structural — owner-only. Recipients may only reorder.
 			if ($position === 'child' && $owner !== $this->userId) {
 				return new DataResponse(['error' => $this->l->t('Shared categories cannot be nested')], Http::STATUS_FORBIDDEN);
+			}
+			if ($position === 'child') {
+				$refusal = $this->sharedParentRefusal($targetId);
+				if ($refusal !== null) {
+					return $refusal;
+				}
 			}
 
 			$category = $this->service->reorderCategory($id, $owner, $targetId, $position);

@@ -18,6 +18,7 @@ use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Exception\CategoryInUseException;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\Entity;
 use OCP\IL10N;
 
@@ -139,9 +140,8 @@ class CategoryService extends AbstractCrudService {
 		bool $excludedFromReports = false,
 		bool $excludedFromBudget = false,
 	): Category {
-		// Validate parent if provided
 		if ($parentId !== null) {
-			$this->find($parentId, $userId);
+			$this->requireOwnParent($parentId, $userId);
 		}
 
 		// Prevent duplicate categories (same name, type, and parent)
@@ -178,7 +178,7 @@ class CategoryService extends AbstractCrudService {
 			if ($updates['parentId'] === $entity->getId()) {
 				throw new \Exception($this->l->t('Category cannot be its own parent'));
 			}
-			$this->find($updates['parentId'], $userId);
+			$this->requireOwnParent($updates['parentId'], $userId);
 		}
 
 		// Prevent duplicate categories after update
@@ -187,6 +187,21 @@ class CategoryService extends AbstractCrudService {
 		$parentId = array_key_exists('parentId', $updates) ? $updates['parentId'] : $entity->getParentId();
 		if ($this->getCategoryMapper()->existsDuplicate($userId, $name, $type, $parentId, $entity->getId())) {
 			throw new \Exception($this->l->t('A category with this name already exists at this level'));
+		}
+	}
+
+	/**
+	 * A parent must be one of $userId's own categories. A category shared with
+	 * them is someone else's tree, so a subcategory under it is refused here
+	 * rather than surfacing the mapper's raw "expected one result" query (#402).
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	private function requireOwnParent(int $parentId, string $userId): void {
+		try {
+			$this->find($parentId, $userId);
+		} catch (DoesNotExistException $e) {
+			throw new \InvalidArgumentException($this->l->t('Parent category not found'));
 		}
 	}
 

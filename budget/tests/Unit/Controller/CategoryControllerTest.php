@@ -219,6 +219,27 @@ class CategoryControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
 	}
 
+	public function testCreateRefusesSubcategoryUnderSharedParent(): void {
+		// Parent 7 belongs to owner1 and is shared with user1 (#402)
+		$this->granularShareService->method('resolveOwner')
+			->with('user1', 'category', 7)->willReturn('owner1');
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controller->create('Snacks', 'expense', 7);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+		$this->assertSame('Only the owner can add subcategories to a shared category', $response->getData()['error']);
+	}
+
+	public function testCreateAllowsSubcategoryUnderOwnParent(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
+		$this->service->expects($this->once())->method('create')->willReturn($this->makeCategory());
+
+		$response = $this->controller->create('Snacks', 'expense', 7);
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
 	// ── update ──────────────────────────────────────────────────────
 
 	public function testUpdateWithName(): void {
@@ -328,6 +349,31 @@ class CategoryControllerTest extends TestCase {
 	}
 
 	// ── destroy ─────────────────────────────────────────────────────
+
+	public function testUpdateRefusesMovingOwnCategoryUnderSharedParent(): void {
+		// Category 1 is user1's own; the new parent 7 is owner1's (#402)
+		$this->granularShareService->method('resolveOwner')->willReturnCallback(
+			fn (string $userId, string $type, int $id) => $id === 7 ? 'owner1' : 'user1'
+		);
+		$this->request->method('getParams')->willReturn(['parentId' => 7]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controller->update(1, null, null, 7);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testReorderRefusesNestingOwnCategoryUnderSharedTarget(): void {
+		$this->granularShareService->method('resolveOwner')->willReturnCallback(
+			fn (string $userId, string $type, int $id) => $id === 7 ? 'owner1' : 'user1'
+		);
+		$this->request->method('getParams')->willReturn(['targetId' => 7, 'position' => 'child']);
+		$this->service->expects($this->never())->method('reorderCategory');
+
+		$response = $this->controller->reorder(1);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
 
 	public function testDestroySuccess(): void {
 		// destroy() resolves the owner first (owner-only delete, #306 phase 2)

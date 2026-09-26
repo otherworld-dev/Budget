@@ -893,7 +893,7 @@ class RuleActionApplicatorTest extends TestCase {
 		$result = $this->applicator->validateActions($actions, 'user123');
 
 		$this->assertFalse($result['valid']);
-		$this->assertStringContainsString('invalid category', strtolower($result['errors'][0]));
+		$this->assertStringContainsString("category 999 is not available to the rule's owner", strtolower($result['errors'][0]));
 	}
 
 	public function testValidateInvalidAccountId(): void {
@@ -915,7 +915,7 @@ class RuleActionApplicatorTest extends TestCase {
 		$result = $this->applicator->validateActions($actions, 'user123');
 
 		$this->assertFalse($result['valid']);
-		$this->assertStringContainsString('invalid account', strtolower($result['errors'][0]));
+		$this->assertStringContainsString("account 999 is not available to the rule's owner", strtolower($result['errors'][0]));
 	}
 
 	public function testValidateInvalidTransactionType(): void {
