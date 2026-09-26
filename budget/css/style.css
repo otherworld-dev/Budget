@@ -16405,6 +16405,21 @@ button.secondary.compact {
     color: var(--color-warning);
 }
 
+.action-badge.description {
+    background: rgba(233, 30, 99, 0.12);
+    color: #ad1457;
+}
+
+.action-badge.case {
+    background: rgba(0, 150, 136, 0.12);
+    color: #009688;
+}
+
+.action-badge.replace {
+    background: rgba(255, 152, 0, 0.12);
+    color: #f57c00;
+}
+
 .action-badge.none {
     background: var(--color-background-dark);
     color: var(--color-text-maxcontrast);
