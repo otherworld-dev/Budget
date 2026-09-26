@@ -1528,7 +1528,8 @@ msgstr "Impossible de masquer la liste de contrôle « Pour bien démarrer »"
 
 #: /app/lib/Controller/OnboardingController.php:78
 msgid "Sample data can only be added to an empty budget."
-msgstr "Les données d'échantillon ne peuvent être ajoutées qu'à un budget vide."
+msgstr ""
+"Les données d'échantillon ne peuvent être ajoutées qu'à un budget vide."
 
 #: /app/lib/Controller/OnboardingController.php:87
 #: /app/src/modules/onboarding/OnboardingModule.js:371
@@ -1541,9 +1542,9 @@ msgid ""
 "Clearing the sample data requires confirmed=true. It deletes everything in "
 "your budget."
 msgstr ""
-"Pour effacer les données d'échantillon, il faut que le paramètre « confirmed "
-"» soit défini sur « true ». Cette opération supprime tout le contenu de "
-"votre budget."
+"Pour effacer les données d'échantillon, il faut que le paramètre "
+"« confirmed » soit défini sur « true ». Cette opération supprime tout le "
+"contenu de votre budget."
 
 #: /app/lib/Controller/OnboardingController.php:108
 msgid "No sample data is loaded."
@@ -4289,8 +4290,8 @@ msgid ""
 "* PHP 8.1 or higher\n"
 "* PHP BCMath extension (`php-bcmath`)"
 msgstr ""
-"**⚠️ Bêta : Cette application est actuellement en phase de test. Une perte "
-"de données est possible. Veuillez sauvegarder régulièrement vos données et "
+"**⚠️ Bêta : Cette application est actuellement en phase de test. Une perte de "
+"données est possible. Veuillez sauvegarder régulièrement vos données et "
 "signaler tout problème.**\n"
 "\n"
 "# Budget - Suivi financier pour Nextcloud\n"
@@ -10916,12 +10917,6 @@ msgstr "La condition à {path} n'a aucun type de correspondance sélectionné"
 #: /app/src/modules/rules/components/CriteriaBuilder.js:538
 msgid "Condition at {path} has no pattern value"
 msgstr "La condition à {path} ne possède pas de valeur d'occurence"
-
-#: /app/src/modules/rules/components/CriteriaBuilder.js:546
-msgid "Condition at {path} has invalid regex pattern: {error}"
-msgstr ""
-"La condition à {path} contient un motif d'expression régulière invalide : "
-"{error}"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:557
 msgid ""
@@ -17649,6 +17644,11 @@ msgstr "Enregistrer l'opération"
 #: /app/templates/quick-add.php:179
 msgid "Transaction saved!"
 msgstr "Opération sauvegardée !"
+
+#~ msgid "Condition at {path} has invalid regex pattern: {error}"
+#~ msgstr ""
+#~ "La condition à {path} contient un motif d'expression régulière invalide : "
+#~ "{error}"
 
 #~ msgid "Failed to rollback import"
 #~ msgstr "Impossible d’annuler l’import"

@@ -10842,10 +10842,6 @@ msgstr "В умові за шляхом {path} не вибрано тип від
 msgid "Condition at {path} has no pattern value"
 msgstr "В умові за шляхом {path} не вказано значення шаблону"
 
-#: /app/src/modules/rules/components/CriteriaBuilder.js:546
-msgid "Condition at {path} has invalid regex pattern: {error}"
-msgstr "Умова за шляхом {path} містить неприпустимий регулярний вираз: {error}"
-
 #: /app/src/modules/rules/components/CriteriaBuilder.js:557
 msgid ""
 "Condition at {path} 'between' pattern must have 'min' and 'max' properties"
@@ -17469,6 +17465,10 @@ msgstr "Зберегти транзакцію"
 #: /app/templates/quick-add.php:179
 msgid "Transaction saved!"
 msgstr "Транзакцію збережено!"
+
+#~ msgid "Condition at {path} has invalid regex pattern: {error}"
+#~ msgstr ""
+#~ "Умова за шляхом {path} містить неприпустимий регулярний вираз: {error}"
 
 #~ msgid "Failed to rollback import"
 #~ msgstr "Не вдалося скасувати імпорт"

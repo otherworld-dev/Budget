@@ -10862,11 +10862,6 @@ msgstr "Для условия {path} не выбран тип сопоставл
 msgid "Condition at {path} has no pattern value"
 msgstr "Для условия {path} не указано значение шаблона"
 
-#: /app/src/modules/rules/components/CriteriaBuilder.js:546
-msgid "Condition at {path} has invalid regex pattern: {error}"
-msgstr ""
-"Условие по пути {path} содержит недопустимое регулярное выражение: {error}"
-
 #: /app/src/modules/rules/components/CriteriaBuilder.js:557
 msgid ""
 "Condition at {path} 'between' pattern must have 'min' and 'max' properties"
@@ -17483,6 +17478,10 @@ msgstr "Сохранить транзакцию"
 #: /app/templates/quick-add.php:179
 msgid "Transaction saved!"
 msgstr "Транзакция сохранена!"
+
+#~ msgid "Condition at {path} has invalid regex pattern: {error}"
+#~ msgstr ""
+#~ "Условие по пути {path} содержит недопустимое регулярное выражение: {error}"
 
 #~ msgid "Failed to rollback import"
 #~ msgstr "Не удалось откатить импорт"
