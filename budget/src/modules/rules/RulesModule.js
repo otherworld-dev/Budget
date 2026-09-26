@@ -264,6 +264,18 @@ export default class RulesModule {
                     case 'reference':
                         badges.push(`<span class="action-badge reference">${t('budget', 'Set reference')}</span>`);
                         break;
+                    case 'regex_replace': {
+                        const sourceField = action.field || 'description';
+                        const targetField = action.target || sourceField;
+                        badges.push(`<span class="action-badge replace">${t('budget', 'Regular expression: {source} → {target}', { source: sourceField, target: targetField })}</span>`);
+                        break;
+                    }
+                    case 'change_case':
+                        badges.push(`<span class="action-badge case">${t('budget', 'Case change on {field}', { field: action.field || 'description' })}</span>`);
+                        break;
+                    case 'replace_text':
+                        badges.push(`<span class="action-badge replace">${t('budget', 'Replace in {field}', { field: action.field || 'description' })}</span>`);
+                        break;
                 }
             }
         } else {
