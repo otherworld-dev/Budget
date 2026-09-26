@@ -16405,6 +16405,11 @@ button.secondary.compact {
     color: var(--color-warning);
 }
 
+.action-badge.description {
+    background: rgba(233, 30, 99, 0.12);
+    color: #ad1457;
+}
+
 .action-badge.none {
     background: var(--color-background-dark);
     color: var(--color-text-maxcontrast);
