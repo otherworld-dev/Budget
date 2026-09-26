@@ -246,6 +246,9 @@ export default class RulesModule {
                     case 'vendor':
                         badges.push(`<span class="action-badge vendor">${t('budget', 'Vendor:')} ${dom.escapeHtml(action.value)}</span>`);
                         break;
+                    case 'description':
+                        badges.push(`<span class="action-badge description">${t('budget', 'Set description')}</span>`);
+                        break;
                     case 'notes':
                         badges.push(`<span class="action-badge notes">${t('budget', 'Set notes')}</span>`);
                         break;
