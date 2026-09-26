@@ -618,9 +618,13 @@ class BillService {
 			//     strictly-after-fromDate semantics reproduce;
 			//  3. a due/overdue occurrence not yet paid — snapping it forward
 			//     on an unrelated edit would silently un-overdue the bill;
-			//  4. a paid bill's future date that sits on the schedule (the
-			//     first occurrence strictly after the day before it) —
-			//     paid-ahead and skipped-ahead dates are deliberate.
+			//  4. a paid bill's future date that sits on the schedule —
+			//     paid-ahead and skipped-ahead dates are deliberate. Anchored
+			//     weekly/biweekly dates count strictly after fromDate, so they
+			//     are asked from the day before; calendar frequencies snap to
+			//     fromDate's own month, so they are asked from the date itself
+			//     (from the day before, a bill due on the 1st landed a month
+			//     early and every edit reset it).
 			// Anything else is a stale date and gets recalculated.
 			$isConsistent = $storedDue === $expect(null);
 			if (!$isConsistent && $lastPaid !== null) {
@@ -631,7 +635,7 @@ class BillService {
 			}
 			if (!$isConsistent && $lastPaid !== null && $storedDue > $today) {
 				$dayBefore = (new \DateTime($storedDue))->modify('-1 day')->format('Y-m-d');
-				$isConsistent = $storedDue === $expect($dayBefore);
+				$isConsistent = $storedDue === $expect($dayBefore) || $storedDue === $expect($storedDue);
 			}
 			if (!$isConsistent) {
 				$needsRecalculation = true;

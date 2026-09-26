@@ -1030,6 +1030,35 @@ class BillServiceTest extends TestCase {
 		return ['one period ahead' => [1], 'two periods ahead' => [2]];
 	}
 
+	public function testUpdateKeepsAPaidAheadDueDateOnTheFirstOfTheMonth(): void {
+		// The paid-ahead check asked the calculator from the day before the
+		// stored date, which for a bill due on the 1st is the previous month:
+		// monthly snapped to that month's 1st, so the date read as stale and
+		// every edit reset it. The data-provider test above only hit this when
+		// today + 5 days fell on a 1st.
+		$real = new FrequencyCalculator();
+		$this->frequencyCalculator->method('calculateNextDueDate')
+			->willReturnCallback(fn (...$args) => $real->calculateNextDueDate(...$args));
+
+		$bill = $this->makeBill([
+			'dueDay' => 1,
+			'nextDueDate' => (new \DateTime('first day of +2 months'))->format('Y-m-d'),
+			'lastPaidDate' => date('Y-m-d'),
+		]);
+		$this->mapper->method('find')->willReturn($bill);
+
+		$captured = null;
+		$this->mapper->method('updateFields')
+			->willReturnCallback(function ($id, $userId, $updates) use (&$captured) {
+				$captured = $updates;
+			});
+
+		$this->service->update(1, 'user1', ['name' => 'Renamed']);
+
+		$this->assertNotNull($captured);
+		$this->assertArrayNotHasKey('next_due_date', $captured);
+	}
+
 	// ── biweekly anchoring to startDate (#364) ──────────────────────
 
 	public function testCreateBiweeklyAnchorsToStartDate(): void {
