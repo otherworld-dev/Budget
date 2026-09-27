@@ -662,6 +662,18 @@ export default class CategoriesModule {
         // categories can edit them (#328).
         const isReadShared = !!category._shared && !category._canWrite;
 
+        // Action button visibility by ownership/write access, set before the
+        // fetch so the last category's buttons don't linger while it loads:
+        //  - own category    → Edit + Delete
+        //  - write-shared     → Edit only (delete is owner-only), except a
+        //                       subcategory you added under Full control
+        //  - read-shared      → neither (read-only details view, #328)
+        const editBtn = document.getElementById('edit-category-btn');
+        const deleteBtn = document.getElementById('delete-category-btn');
+        const canDelete = !category._shared || !!category._canDelete;
+        if (editBtn) editBtn.style.display = isReadShared ? 'none' : '';
+        if (deleteBtn) deleteBtn.style.display = canDelete ? '' : 'none';
+
         // Load data from server in parallel
         const [detailsRes, transactions] = await Promise.all([
             this.fetchCategoryDetails(category.id),
@@ -698,17 +710,6 @@ export default class CategoriesModule {
         if (periodSelect) {
             periodSelect.onchange = () => this.refreshCategoryChart();
         }
-
-        // Action button visibility by ownership/write access:
-        //  - own category    → Edit + Delete
-        //  - write-shared     → Edit only (delete is owner-only), except a
-        //                       subcategory you added under Full control
-        //  - read-shared      → neither (read-only details view, #328)
-        const editBtn = document.getElementById('edit-category-btn');
-        const deleteBtn = document.getElementById('delete-category-btn');
-        const canDelete = !category._shared || !!category._canDelete;
-        if (editBtn) editBtn.style.display = isReadShared ? 'none' : '';
-        if (deleteBtn) deleteBtn.style.display = canDelete ? '' : 'none';
     }
 
     /**
