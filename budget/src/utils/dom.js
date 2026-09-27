@@ -41,7 +41,7 @@ export function closeModal(modal) {
  * @param {Array} categoryTree - Hierarchical category array (each item may have .children)
  * @param {Object} [options] - Optional filters
  * @param {string} [options.typeFilter] - Only include categories matching this type (e.g. 'expense', 'income')
- * @param {number} [options.excludeId] - Exclude this category ID (and skip rendering it, but still recurse children)
+ * @param {number} [options.excludeId] - Exclude this category and everything under it (the parent picker for it)
  * @param {number|string} [options.selectedId] - Pre-select this category ID
  * @param {number} [level=0] - Current nesting depth (used internally for recursion)
  */
@@ -53,8 +53,11 @@ export function populateCategorySelect(selectElement, categoryTree, options = {}
     categoryTree.forEach(category => {
         const matchesType = !typeFilter || category.type === typeFilter;
         const isExcluded = excludeId != null && category.id === excludeId;
+        // The whole branch: a category can't go under one of its own
+        // subcategories either
+        if (isExcluded) return;
 
-        if (matchesType && !isExcluded) {
+        if (matchesType) {
             const option = document.createElement('option');
             option.value = category.id;
             option.textContent = '\u00A0\u00A0'.repeat(level) + category.name;

@@ -207,6 +207,97 @@ class CategoryServiceTest extends TestCase {
 		$this->service->create('user1', 'Custom Color', 'expense', null, null, '#abcdef');
 	}
 
+	public function testCreateRecordsAFullControlRecipientAsCreator(): void {
+		$this->categoryMapper->method('find')->willReturn($this->makeCategory(['id' => 7, 'userId' => 'owner1']));
+		$this->categoryMapper->expects($this->once())
+			->method('insert')
+			->willReturnCallback(function (Category $cat) {
+				$this->assertSame('owner1', $cat->getUserId());
+				$this->assertSame('user1', $cat->getCreatedBy());
+				$cat->setId(42);
+				return $cat;
+			});
+
+		$this->service->create('owner1', 'Snacks', 'expense', 7, null, null, null, 0, false, false, 'user1');
+	}
+
+	public function testCreateLeavesCreatorEmptyForTheOwner(): void {
+		$this->categoryMapper->expects($this->once())
+			->method('insert')
+			->willReturnCallback(function (Category $cat) {
+				$this->assertNull($cat->getCreatedBy());
+				$cat->setId(1);
+				return $cat;
+			});
+
+		$this->service->create('user1', 'Food', 'expense', null, null, null, null, 0, false, false, 'user1');
+	}
+
+	// ===== deleteAsCreator() =====
+
+	private function addedByUser1(): Category {
+		$category = $this->makeCategory(['id' => 42, 'userId' => 'owner1']);
+		$category->setCreatedBy('user1');
+		return $category;
+	}
+
+	public function testDeleteAsCreatorRemovesAnUnusedLeaf(): void {
+		$this->categoryMapper->method('find')->with(42, 'owner1')->willReturn($this->addedByUser1());
+		$this->categoryMapper->method('findChildren')->willReturn([]);
+		$this->transactionMapper->method('categoryInUseAnywhere')->with(42)->willReturn(false);
+		$this->transactionMapper->method('findByCategory')->willReturn([]);
+		$this->tagSetMapper->method('findByCategory')->willReturn([]);
+		$this->categoryMapper->expects($this->once())->method('delete');
+
+		$this->service->deleteAsCreator(42, 'owner1', 'user1');
+	}
+
+	public function testDeleteAsCreatorRefusesSomeoneElsesCategory(): void {
+		$this->categoryMapper->method('find')->willReturn($this->makeCategory(['id' => 42, 'userId' => 'owner1']));
+		$this->categoryMapper->expects($this->never())->method('delete');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Only the category owner can delete it');
+		$this->service->deleteAsCreator(42, 'owner1', 'user1');
+	}
+
+	public function testDeleteAsCreatorRefusesACategoryWithSubcategories(): void {
+		$this->categoryMapper->method('find')->willReturn($this->addedByUser1());
+		$this->categoryMapper->method('findChildren')->willReturn([$this->makeCategory(['id' => 43])]);
+		$this->categoryMapper->expects($this->never())->method('delete');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('has subcategories');
+		$this->service->deleteAsCreator(42, 'owner1', 'user1');
+	}
+
+	public function testDeleteAsCreatorRefusesACategoryInUse(): void {
+		$this->categoryMapper->method('find')->willReturn($this->addedByUser1());
+		$this->categoryMapper->method('findChildren')->willReturn([]);
+		$this->transactionMapper->method('categoryInUseAnywhere')->willReturn(true);
+		$this->categoryMapper->expects($this->never())->method('delete');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('has transactions');
+		$this->service->deleteAsCreator(42, 'owner1', 'user1');
+	}
+
+	public function testUpdateRefusesMovingACategoryUnderItsOwnSubcategory(): void {
+		$category = $this->makeCategory(['id' => 5]);
+		$child = $this->makeCategory(['id' => 6, 'parentId' => 5]);
+		$this->categoryMapper->method('find')->willReturnCallback(
+			fn (int $id) => $id === 5 ? $category : $child
+		);
+		$this->categoryMapper->method('findChildren')->willReturnCallback(
+			fn (string $userId, int $parentId) => $parentId === 5 ? [$child] : []
+		);
+		$this->categoryMapper->expects($this->never())->method('update');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('cannot be nested inside itself');
+		$this->service->update(5, 'user1', ['parentId' => 6]);
+	}
+
 	// ===== beforeUpdate() =====
 
 	public function testUpdateRejectsSelfReferentialParent(): void {

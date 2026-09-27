@@ -11,6 +11,7 @@ import { apiFetch, ApiError } from '../../utils/api.js';
 import { expenseProgressStatus, progressBarAttrs, overBudgetText } from '../../utils/budgetProgress.js';
 import { showLoadError } from '../../utils/loading.js';
 import { nextCategoryColor, distinctCategoryColors } from '../../utils/colors.js';
+import { parentPickerTree } from './parentPicker.js';
 
 export default class CategoriesModule {
     constructor(app) {
@@ -329,7 +330,9 @@ export default class CategoriesModule {
                         <div class="category-content">
                             <span class="category-name">${dom.escapeHtml(category.name)}</span>
                             <div class="category-meta">
-                                ${shared && canWrite
+                                ${shared && category._canManage
+                                    ? `<span class="category-shared-badge write-shared" title="${t('budget', 'Shared by {owner} — you have full control', { owner: sharedOwner })}">${t('budget', 'Shared (full control)')} · ${sharedOwnerHtml}</span>`
+                                    : shared && canWrite
                                     ? `<span class="category-shared-badge write-shared" title="${t('budget', 'Shared by {owner} — you can edit', { owner: sharedOwner })}">${t('budget', 'Shared (editable)')} · ${sharedOwnerHtml}</span>`
                                     : shared
                                     ? `<span class="category-shared-badge" title="${t('budget', 'Shared by {owner}', { owner: sharedOwner })}">${t('budget', 'Shared')} · ${sharedOwnerHtml}</span>`
@@ -589,14 +592,17 @@ export default class CategoriesModule {
             // Shared categories belong to another user. A write-shared category may
             // be REORDERED among its same-owner write-shared siblings (above/below);
             // the server accepts only the sortOrder change (parentId/type stay
-            // owner-only). Everything else — read-shared, cross-owner, nesting
-            // (child), or mixing own and shared — is blocked for clear UX (#328).
+            // owner-only). Nesting one under another needs Full control of both.
+            // Everything else — read-shared, cross-owner, or mixing own and
+            // shared — is blocked for clear UX (#328).
             if (draggedCategory._shared || targetCategory._shared) {
-                const bothWriteSharedSameOwner =
+                const sameOwnerShared =
                     draggedCategory._shared && targetCategory._shared &&
-                    draggedCategory._canWrite && targetCategory._canWrite &&
                     draggedCategory._sharedBy === targetCategory._sharedBy;
-                if (!bothWriteSharedSameOwner || position === 'child') {
+                const allowed = position === 'child'
+                    ? sameOwnerShared && draggedCategory._canManage && targetCategory._canManage
+                    : sameOwnerShared && draggedCategory._canWrite && targetCategory._canWrite;
+                if (!allowed) {
                     showWarning(t('budget', 'Shared categories can only be reordered among themselves'));
                     return;
                 }
@@ -695,13 +701,14 @@ export default class CategoriesModule {
 
         // Action button visibility by ownership/write access:
         //  - own category    → Edit + Delete
-        //  - write-shared     → Edit only (delete is owner-only)
+        //  - write-shared     → Edit only (delete is owner-only), except a
+        //                       subcategory you added under Full control
         //  - read-shared      → neither (read-only details view, #328)
         const editBtn = document.getElementById('edit-category-btn');
         const deleteBtn = document.getElementById('delete-category-btn');
-        const isWriteShared = !!category._shared && !!category._canWrite;
+        const canDelete = !category._shared || !!category._canDelete;
         if (editBtn) editBtn.style.display = isReadShared ? 'none' : '';
-        if (deleteBtn) deleteBtn.style.display = (isReadShared || isWriteShared) ? 'none' : '';
+        if (deleteBtn) deleteBtn.style.display = canDelete ? '' : 'none';
     }
 
     /**
@@ -1122,18 +1129,26 @@ export default class CategoriesModule {
             return;
         }
 
-        const isWriteShared = !!this.selectedCategory._shared && !!this.selectedCategory._canWrite;
+        const shared = !!this.selectedCategory._shared;
+        const isWriteShared = shared && !!this.selectedCategory._canWrite
+            && !this.selectedCategory._canManage;
 
-        title.textContent = isWriteShared
+        title.textContent = shared
             ? t('budget', 'Edit Shared Category')
             : t('budget', 'Edit Category');
-        this.populateCategoryParentDropdown(this.selectedCategory.id, this.selectedCategory.parentId, isWriteShared);
+        let parentScope = 'own';
+        if (isWriteShared) {
+            parentScope = 'locked';
+        } else if (shared) {
+            parentScope = { owner: this.selectedCategory._sharedBy };
+        }
+        this.populateCategoryParentDropdown(this.selectedCategory.id, this.selectedCategory.parentId, parentScope);
         this.loadCategoryData(this.selectedCategory);
 
         // For write-shared categories, lock fields that belong to the owner —
         // recipients may edit only name and colour. Structural fields (type,
         // parent) and the scope flags (excludedFromReports, excludedFromBudget)
-        // stay owner-only.
+        // stay with the owner, and with anyone the owner gave Full control.
         const parentSelect = document.getElementById('category-parent');
         const typeSelect = document.getElementById('category-type');
         const excludedCheckbox = document.getElementById('category-excluded-from-reports');
@@ -1157,8 +1172,10 @@ export default class CategoriesModule {
             return;
         }
         // Only own categories can be deleted — shared categories (read or write)
-        // are owner-only for deletion.
-        if (this.selectedCategory._shared) {
+        // are owner-only for deletion, bar a subcategory you added under Full
+        // control, which the server allows while nothing uses it.
+        const shared = !!this.selectedCategory._shared;
+        if (shared && !this.selectedCategory._canDelete) {
             return;
         }
 
@@ -1169,7 +1186,11 @@ export default class CategoriesModule {
         }
 
         try {
-            const { deleted, reassigned } = await this._deleteCategoryWithReassign(categoryId, categoryName);
+            // No reassign for a shared one: moving the owner's transactions
+            // is the owner's call, so the server refuses it in use instead
+            const { deleted, reassigned } = shared
+                ? await this._sendCategoryDelete(categoryId, false).then(() => ({ deleted: true, reassigned: false }))
+                : await this._deleteCategoryWithReassign(categoryId, categoryName);
             if (!deleted) return;
 
             showSuccess(reassigned
@@ -1469,15 +1490,13 @@ export default class CategoriesModule {
     }
 
     /**
-     * Fill the parent picker. Categories shared with the user are left out:
-     * only the owner can add subcategories to one (#402). Read from the
-     * unmerged app.rawCategoryTree, because merging swaps your own category
-     * for a shared one of the same name, which would offer the other person's
-     * id under your category's name. includeShared keeps the merged tree for a
-     * write-shared category being edited, whose picker is locked but must
-     * still show its current parent.
+     * Fill the parent picker for the category being saved. scope is 'add',
+     * 'own' or { owner } (see parentPickerTree), or 'locked' for a
+     * write-shared category, whose picker is disabled but must still show its
+     * current parent from the merged tree.
      */
-    populateCategoryParentDropdown(excludeId = null, selectedId = null, includeShared = false) {
+    populateCategoryParentDropdown(excludeId = null, selectedId = null, scope = 'add') {
+        this._parentPickerArgs = [excludeId, selectedId, scope];
         const parentSelect = document.getElementById('category-parent');
         if (!parentSelect) return;
 
@@ -1487,15 +1506,22 @@ export default class CategoriesModule {
         parentSelect.innerHTML = `<option value="">${t('budget', 'None (Top Level)')}</option>`;
 
         if (this.categoryTree) {
-            const tree = includeShared
+            const tree = scope === 'locked'
                 ? this.categoryTree
-                : (this.app.rawCategoryTree || []).filter(node => !node._shared);
+                : parentPickerTree(this.app.rawCategoryTree, scope);
             dom.populateCategorySelect(parentSelect, tree, {
                 typeFilter: currentType,
                 excludeId: excludeId ? parseInt(excludeId) : null,
                 selectedId: selectedId ? parseInt(selectedId) : null,
             });
         }
+    }
+
+    /** Refill the parent picker for the form as it was opened (type changed). */
+    refreshCategoryParentDropdown() {
+        const [excludeId, selectedId] = this._parentPickerArgs || [];
+        const scope = this._parentPickerArgs?.[2] ?? 'add';
+        this.populateCategoryParentDropdown(excludeId ?? null, selectedId ?? null, scope);
     }
 
     async saveCategory() {
@@ -1523,7 +1549,8 @@ export default class CategoriesModule {
             && this.selectedCategory
             && String(this.selectedCategory.id) === String(categoryId)
             && !!this.selectedCategory._shared
-            && !!this.selectedCategory._canWrite;
+            && !!this.selectedCategory._canWrite
+            && !this.selectedCategory._canManage;
 
         const categoryData = { name, color };
         if (!isEditingWriteShared) {

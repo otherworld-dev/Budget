@@ -375,6 +375,113 @@ class CategoryControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
 	}
 
+	// ── Full control ────────────────────────────────────────────────
+
+	/** Category 7 (and 8) belong to owner1 and are shared with user1 at Full control. */
+	private function givenFullControlOf(array $ids): void {
+		$this->granularShareService->method('resolveOwner')->willReturnCallback(
+			fn (string $userId, string $type, int $id) => in_array($id, $ids, true) ? 'owner1' : 'user1'
+		);
+		$this->granularShareService->method('canManage')->willReturnCallback(
+			fn (string $userId, string $type, int $id) => in_array($id, $ids, true)
+		);
+	}
+
+	public function testFullControlSubcategoryBelongsToTheParentsOwner(): void {
+		$this->givenFullControlOf([7]);
+		$created = $this->makeCategory(['id' => 42, 'userId' => 'owner1']);
+		$this->service->expects($this->once())
+			->method('create')
+			->with('owner1', 'Snacks', 'expense', 7, null, null, null, 0, false, false, 'user1')
+			->willReturn($created);
+		$this->granularShareService->expects($this->once())
+			->method('shareBackToRecipient')
+			->with('owner1', 'user1', 'category', 42, 7);
+
+		$response = $this->controller->create('Snacks', 'expense', 7);
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	public function testOwnSubcategoryIsNotSharedBack(): void {
+		$this->givenFullControlOf([]);
+		$this->service->method('create')->willReturn($this->makeCategory());
+		$this->granularShareService->expects($this->never())->method('shareBackToRecipient');
+
+		$this->controller->create('Snacks', 'expense', 3);
+	}
+
+	public function testFullControlRecipientCanChangeStructure(): void {
+		$this->givenFullControlOf([7, 8]);
+		$this->request->method('getParams')->willReturn(['parentId' => 8, 'excludedFromReports' => true]);
+		$this->service->expects($this->once())
+			->method('update')
+			->with(7, 'owner1', $this->callback(fn ($updates) => $updates['type'] === 'income'
+				&& $updates['parentId'] === 8
+				&& $updates['budgetAmount'] === 99.0
+				&& $updates['excludedFromReports'] === true))
+			->willReturn($this->makeCategory());
+
+		$response = $this->controller->update(7, null, 'income', 8, null, null, 99.0);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testFullControlCannotMoveACategoryIntoAnotherPersonsTree(): void {
+		// 7 is owner1's, 3 is user1's own: ownership never transfers
+		$this->givenFullControlOf([7]);
+		$this->request->method('getParams')->willReturn(['parentId' => 3]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controller->update(7, null, null, 3);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+		$this->assertSame('A category can only be moved under another category with the same owner', $response->getData()['error']);
+	}
+
+	public function testFullControlAllowsNestingWithinTheOwnersTree(): void {
+		$this->givenFullControlOf([7, 8]);
+		$this->request->method('getParams')->willReturn(['targetId' => 8, 'position' => 'child']);
+		$this->service->expects($this->once())
+			->method('reorderCategory')->with(7, 'owner1', 8, 'child')
+			->willReturn($this->makeCategory());
+
+		$response = $this->controller->reorder(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testCreatorCanDeleteASubcategoryTheyAdded(): void {
+		$this->givenFullControlOf([42]);
+		$this->service->expects($this->once())->method('deleteAsCreator')->with(42, 'owner1', 'user1');
+		$this->service->expects($this->never())->method('delete');
+
+		$response = $this->controller->destroy(42);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testCreatorDeleteRefusalIsForbidden(): void {
+		$this->givenFullControlOf([42]);
+		$this->service->method('deleteAsCreator')
+			->willThrowException(new \InvalidArgumentException('This category has transactions, so only its owner can delete it'));
+
+		$response = $this->controller->destroy(42);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+		$this->assertSame('This category has transactions, so only its owner can delete it', $response->getData()['error']);
+	}
+
+	public function testFullControlNeverReassignsTheOwnersTransactions(): void {
+		$this->givenFullControlOf([42]);
+		$this->service->expects($this->never())->method('deleteAsCreator');
+		$this->service->expects($this->never())->method('deleteWithReassign');
+
+		$response = $this->controller->destroy(42, true);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
 	public function testDestroySuccess(): void {
 		// destroy() resolves the owner first (owner-only delete, #306 phase 2)
 		$this->granularShareService->method('resolveOwner')->willReturn('user1');

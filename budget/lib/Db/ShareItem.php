@@ -33,6 +33,8 @@ class ShareItem extends Entity implements JsonSerializable {
 
 	public const PERMISSION_READ = 'read';
 	public const PERMISSION_WRITE = 'write';
+	/** Write plus the owner-only structure (see FULL_CONTROL_TYPES) */
+	public const PERMISSION_FULL = 'full';
 
 	public const TYPE_ACCOUNT = 'account';
 	public const TYPE_CATEGORY = 'category';
@@ -51,6 +53,20 @@ class ShareItem extends Entity implements JsonSerializable {
 		self::TYPE_IMPORT_RULE,
 		self::TYPE_PROJECT,
 	];
+
+	/**
+	 * Types a share may grant Full control on. Only categories hold anything
+	 * back from a write recipient beyond delete (type, parent, subcategories,
+	 * budgets, scope flags), so nowhere else would Full mean anything.
+	 */
+	public const FULL_CONTROL_TYPES = [self::TYPE_CATEGORY];
+
+	public static function isValidPermission(string $permission, string $entityType): bool {
+		if ($permission === self::PERMISSION_FULL) {
+			return in_array($entityType, self::FULL_CONTROL_TYPES, true);
+		}
+		return in_array($permission, [self::PERMISSION_READ, self::PERMISSION_WRITE], true);
+	}
 
 	public function __construct() {
 		$this->addType('id', 'integer');

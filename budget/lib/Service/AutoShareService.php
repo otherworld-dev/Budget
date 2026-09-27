@@ -75,7 +75,7 @@ class AutoShareService {
 			throw new \InvalidArgumentException('Invalid entity type');
 		}
 		if ($enabled) {
-			if (!in_array($permission, [ShareItem::PERMISSION_READ, ShareItem::PERMISSION_WRITE], true)) {
+			if (!ShareItem::isValidPermission($permission, $entityType)) {
 				throw new \InvalidArgumentException('Invalid permission');
 			}
 			$this->autoConfigMapper->setConfig($shareId, $entityType, $permission);

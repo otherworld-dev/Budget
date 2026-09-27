@@ -265,7 +265,10 @@ export default class SharingModule {
     renderConfigPanel(panel, shareId, config, entities, autoConfig = {}) {
         const sections = [
             { type: 'account', label: t('budget', 'Accounts'), nameField: 'name' },
-            { type: 'category', label: t('budget', 'Categories'), nameField: 'name' },
+            // Only categories hold anything back from Read & Write beyond
+            // delete, so only they offer Full control (type, parent,
+            // subcategories, budgets, report settings; never delete)
+            { type: 'category', label: t('budget', 'Categories'), nameField: 'name', fullControl: true },
             { type: 'bill', label: t('budget', 'Bills'), nameField: 'name' },
             { type: 'recurring_income', label: t('budget', 'Recurring Income'), nameField: 'name' },
             { type: 'savings_goal', label: t('budget', 'Savings Goals'), nameField: 'name' },
@@ -294,6 +297,7 @@ export default class SharingModule {
                                     <select class="share-config-permission" data-type="${section.type}">
                                         <option value="read" ${currentConfig.permission === 'read' ? 'selected' : ''}>${t('budget', 'Read only')}</option>
                                         <option value="write" ${currentConfig.permission === 'write' ? 'selected' : ''}>${t('budget', 'Read & Write')}</option>
+                                        ${section.fullControl ? `<option value="full" ${currentConfig.permission === 'full' ? 'selected' : ''} title="${t('budget', 'Read & Write, plus the type, parent, subcategories, budget and report settings. Only you can delete.')}">${t('budget', 'Full control')}</option>` : ''}
                                     </select>
                                 </div>
                             </div>

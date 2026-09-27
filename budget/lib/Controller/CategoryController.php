@@ -33,7 +33,8 @@ class CategoryController extends Controller {
 	 * Remaining structural fields (type, parentId), budget fields, and the scope
 	 * flags (excludedFromReports/excludedFromBudget — they alter the OWNER's
 	 * aggregates) stay owner-only. Any field not listed here is stripped from a
-	 * recipient's update, so the restriction is fail-closed.
+	 * recipient's update, so the restriction is fail-closed. A share at Full
+	 * control lifts it: that recipient may change every field (see canManage).
 	 */
 	private const RECIPIENT_WRITABLE_FIELDS = ['name', 'icon', 'color', 'sortOrder'];
 
@@ -200,13 +201,25 @@ class CategoryController extends Controller {
 				$color = $colorValidation['sanitized'];
 			}
 
-			$refusal = $this->sharedParentRefusal($parentId);
-			if ($refusal !== null) {
-				return $refusal;
+			// Under someone else's category the new one is theirs, so it sits
+			// in their tree, and it is shared back to this user, who is recorded
+			// as its creator. That needs Full control of the parent; a write
+			// share covers name and colour, not the tree (#402).
+			$owner = $this->userId;
+			$createdBy = null;
+			if ($parentId !== null) {
+				$parentOwner = $this->granularShareService->resolveOwner($this->userId, 'category', $parentId);
+				if ($parentOwner !== null && $parentOwner !== $this->userId) {
+					if (!$this->granularShareService->canManage($this->userId, 'category', $parentId)) {
+						return $this->subcategoryRefusal();
+					}
+					$owner = $parentOwner;
+					$createdBy = $this->userId;
+				}
 			}
 
 			$category = $this->service->create(
-				$this->getEffectiveUserId(),
+				$owner,
 				$name,
 				$type,
 				$parentId,
@@ -215,8 +228,12 @@ class CategoryController extends Controller {
 				$budgetAmount,
 				$sortOrder,
 				$excludedFromReports,
-				$excludedFromBudget
+				$excludedFromBudget,
+				$createdBy
 			);
+			if ($createdBy !== null) {
+				$this->granularShareService->shareBackToRecipient($owner, $this->userId, 'category', $category->getId(), $parentId);
+			}
 			return new DataResponse($category, Http::STATUS_CREATED);
 		} catch (\Exception $e) {
 			return $this->handleValidationError($e);
@@ -311,15 +328,18 @@ class CategoryController extends Controller {
 
 			// Write access is confirmed above. Resolve the actual owner so the
 			// owner-scoped service lookup succeeds for write-shared categories.
-			// Recipients are restricted to cosmetic fields plus sortOrder (so they
-			// can reorder shared categories, #328); type, parentId, budgets and
-			// report-scope stay owner-only.
+			// Write recipients are restricted to cosmetic fields plus sortOrder
+			// (so they can reorder shared categories, #328); type, parentId,
+			// budgets and report-scope stay with the owner and anyone the owner
+			// gave Full control.
 			$owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id)
 				?? $this->userId;
-			if ($owner !== $this->userId) {
+			$manages = $owner === $this->userId
+				|| $this->granularShareService->canManage($this->userId, 'category', $id);
+			if (!$manages) {
 				$updates = array_intersect_key($updates, array_flip(self::RECIPIENT_WRITABLE_FIELDS));
-			} else {
-				$refusal = $this->sharedParentRefusal($updates['parentId'] ?? null);
+			} elseif (isset($updates['parentId'])) {
+				$refusal = $this->parentRefusal($updates['parentId'], $owner);
 				if ($refusal !== null) {
 					return $refusal;
 				}
@@ -342,19 +362,33 @@ class CategoryController extends Controller {
 	}
 
 	/**
-	 * Refuse a parent that someone else shared with this user. A write share
-	 * covers a category's name and colour, not its tree, and a subcategory made
-	 * under it would belong to a different person than its parent (#402). A
-	 * parent that isn't visible at all is left to the service's not-found error.
+	 * Refuse moving a category owned by $categoryOwner under $parentId when
+	 * this user may not build under that parent, or when it is in another
+	 * person's tree. Under someone else's category the user needs Full
+	 * control of it, as a write share covers name and colour, not the tree
+	 * (#402). Ownership never transfers, so a category only ever moves within
+	 * its owner's tree. A parent that isn't visible at all is left to the
+	 * service's not-found error.
 	 */
-	private function sharedParentRefusal(?int $parentId): ?DataResponse {
-		if ($parentId === null) {
+	private function parentRefusal(int $parentId, string $categoryOwner): ?DataResponse {
+		$parentOwner = $this->granularShareService->resolveOwner($this->userId, 'category', $parentId);
+		if ($parentOwner === null) {
 			return null;
 		}
-		$owner = $this->granularShareService->resolveOwner($this->userId, 'category', $parentId);
-		if ($owner === null || $owner === $this->userId) {
-			return null;
+		if ($parentOwner !== $this->userId
+			&& !$this->granularShareService->canManage($this->userId, 'category', $parentId)) {
+			return $this->subcategoryRefusal();
 		}
+		if ($parentOwner !== $categoryOwner) {
+			return new DataResponse(
+				['error' => $this->l->t('A category can only be moved under another category with the same owner')],
+				Http::STATUS_FORBIDDEN
+			);
+		}
+		return null;
+	}
+
+	private function subcategoryRefusal(): DataResponse {
 		return new DataResponse(
 			['error' => $this->l->t('Only the owner can add subcategories to a shared category')],
 			Http::STATUS_FORBIDDEN
@@ -368,7 +402,8 @@ class CategoryController extends Controller {
 	 * Reorder a category relative to a target sibling (drag-and-drop). Renumbers
 	 * the sibling group so the order is deterministic. Own categories support all
 	 * positions; write-shared categories may be reordered (above/below) but not
-	 * nested (reparenting is owner-only) (#328).
+	 * nested (reparenting is owner-only) (#328), unless the share gives Full
+	 * control.
 	 *
 	 * @NoAdminRequired
 	 */
@@ -385,12 +420,14 @@ class CategoryController extends Controller {
 			$this->requireWriteAccess('category', $id);
 			$owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id) ?? $this->userId;
 
-			// Reparenting is structural — owner-only. Recipients may only reorder.
-			if ($position === 'child' && $owner !== $this->userId) {
-				return new DataResponse(['error' => $this->l->t('Shared categories cannot be nested')], Http::STATUS_FORBIDDEN);
-			}
+			// Reparenting is structural: the owner's, or a Full control
+			// recipient's. Write recipients may only reorder.
 			if ($position === 'child') {
-				$refusal = $this->sharedParentRefusal($targetId);
+				if ($owner !== $this->userId
+					&& !$this->granularShareService->canManage($this->userId, 'category', $id)) {
+					return new DataResponse(['error' => $this->l->t('Shared categories cannot be nested')], Http::STATUS_FORBIDDEN);
+				}
+				$refusal = $this->parentRefusal($targetId, $owner);
 				if ($refusal !== null) {
 					return $refusal;
 				}
@@ -420,8 +457,18 @@ class CategoryController extends Controller {
 			}
 			// Only the owner may delete a category — recipients (even with write
 			// access) can edit it but not remove it. Deletion cascades to the
-			// owner's child categories, budget snapshots, and tag metadata.
+			// owner's child categories, budget snapshots, and tag metadata. The
+			// one exception is a Full control recipient removing a subcategory
+			// they added, which the service keeps to an unused leaf.
 			if ($owner !== $this->userId) {
+				if (!$reassign && $this->granularShareService->canManage($this->userId, 'category', $id)) {
+					try {
+						$this->service->deleteAsCreator($id, $owner, $this->userId);
+						return new DataResponse(['status' => 'success']);
+					} catch (\InvalidArgumentException $e) {
+						return new DataResponse(['error' => $e->getMessage()], Http::STATUS_FORBIDDEN);
+					}
+				}
 				return new DataResponse(
 					['error' => $this->l->t('Only the category owner can delete it')],
 					Http::STATUS_FORBIDDEN

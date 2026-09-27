@@ -139,6 +139,7 @@ class CategoryService extends AbstractCrudService {
 		int $sortOrder = 0,
 		bool $excludedFromReports = false,
 		bool $excludedFromBudget = false,
+		?string $createdBy = null,
 	): Category {
 		if ($parentId !== null) {
 			$this->requireOwnParent($parentId, $userId);
@@ -160,6 +161,8 @@ class CategoryService extends AbstractCrudService {
 		$category->setSortOrder($sortOrder);
 		$category->setExcludedFromReports($excludedFromReports);
 		$category->setExcludedFromBudget($excludedFromBudget);
+		// Only a recipient creating in the owner's tree is recorded (see Category)
+		$category->setCreatedBy($createdBy !== null && $createdBy !== $userId ? $createdBy : null);
 		$this->setTimestamps($category, true);
 
 		$category = $this->mapper->insert($category);
@@ -179,6 +182,11 @@ class CategoryService extends AbstractCrudService {
 				throw new \Exception($this->l->t('Category cannot be its own parent'));
 			}
 			$this->requireOwnParent($updates['parentId'], $userId);
+			// Under one of its own subcategories would detach the whole branch
+			// into a loop that no tree walk reaches again
+			if (in_array($updates['parentId'], $this->collectSelfAndDescendantIds($entity->getId(), $userId), true)) {
+				throw new \InvalidArgumentException($this->l->t('A category cannot be nested inside itself'));
+			}
 		}
 
 		// Prevent duplicate categories after update
@@ -276,6 +284,30 @@ class CategoryService extends AbstractCrudService {
 
 		// Transactions are now uncategorized, so beforeDelete()'s guard passes.
 		$this->delete($id, $userId);
+	}
+
+	/**
+	 * Delete a subcategory a Full control recipient added to the owner's tree,
+	 * on that recipient's behalf. Delete is otherwise owner-only, so this is
+	 * kept to what cannot touch anything of the owner's: the category must be
+	 * one $creatorId created, with no subcategories, and no transaction or
+	 * split part anywhere using it. There is no reassign; a category in use
+	 * is the owner's to remove.
+	 *
+	 * @throws \InvalidArgumentException when it isn't theirs to delete
+	 */
+	public function deleteAsCreator(int $id, string $ownerId, string $creatorId): void {
+		$category = $this->find($id, $ownerId);
+		if ($category->getCreatedBy() === null || $category->getCreatedBy() !== $creatorId) {
+			throw new \InvalidArgumentException($this->l->t('Only the category owner can delete it'));
+		}
+		if ($this->getCategoryMapper()->findChildren($ownerId, $id) !== []) {
+			throw new \InvalidArgumentException($this->l->t('This category has subcategories, so only its owner can delete it'));
+		}
+		if ($this->transactionMapper->categoryInUseAnywhere($id)) {
+			throw new \InvalidArgumentException($this->l->t('This category has transactions, so only its owner can delete it'));
+		}
+		$this->delete($id, $ownerId);
 	}
 
 	/**

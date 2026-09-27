@@ -194,6 +194,25 @@ class AutoShareServiceTest extends TestCase {
 		$this->service->setConfig('alice', 5, ShareItem::TYPE_ACCOUNT, true, 'admin');
 	}
 
+	public function testCategoriesCanAutoShareAtFullControl(): void {
+		$this->givenShare(5, 'alice');
+		$this->autoConfigMapper->expects($this->once())
+			->method('setConfig')
+			->with(5, ShareItem::TYPE_CATEGORY, ShareItem::PERMISSION_FULL);
+
+		$this->service->setConfig('alice', 5, ShareItem::TYPE_CATEGORY, true, ShareItem::PERMISSION_FULL);
+	}
+
+	public function testFullControlIsRejectedOutsideCategories(): void {
+		$this->givenShare(5, 'alice');
+		$this->autoConfigMapper->expects($this->never())->method('setConfig');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Invalid permission');
+
+		$this->service->setConfig('alice', 5, ShareItem::TYPE_ACCOUNT, true, ShareItem::PERMISSION_FULL);
+	}
+
 	public function testAnUnknownEntityTypeIsRejected(): void {
 		$this->givenShare(5, 'alice');
 		$this->autoConfigMapper->expects($this->never())->method('setConfig');
