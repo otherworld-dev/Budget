@@ -89,9 +89,11 @@ export default class SavingsModule {
             const targetDate = goal.targetDate || goal.target_date;
 
             // Sharing: own goals are always editable; shared goals depend on
-            // the permission flag from the API. Only owners may delete.
+            // the permission flag from the API. Deleting a shared goal needs
+            // Full control from its owner.
             const isShared = goal._shared === true;
             const canWrite = !isShared || goal._canWrite === true;
+            const canDelete = !isShared || goal._canManage === true;
             const owner = goal.userId || goal.user_id || '';
 
             let targetDateText = '';
@@ -138,7 +140,7 @@ export default class SavingsModule {
                             ${canWrite ? `<button class="edit-goal-btn" title="${t('budget', 'Edit')}" aria-label="${t('budget', 'Edit')}" data-goal-id="${goal.id}">
                                 <span class="icon-rename"></span>
                             </button>` : ''}
-                            ${!isShared ? `<button class="delete-goal-btn delete-btn" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}" data-goal-id="${goal.id}">
+                            ${canDelete ? `<button class="delete-goal-btn delete-btn" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}" data-goal-id="${goal.id}">
                                 <span class="icon-delete"></span>
                             </button>` : ''}
                         </div>

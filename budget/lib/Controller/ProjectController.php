@@ -158,9 +158,10 @@ class ProjectController extends Controller {
 			if ($owner === null) {
 				return $this->notFound();
 			}
-			if ($owner !== $this->userId) {
+			if ($owner !== $this->userId
+				&& !$this->granularShareService->canManage($this->userId, ShareItem::TYPE_PROJECT, $id)) {
 				return new DataResponse(
-					['error' => $this->l->t('Only the owner can delete this project')],
+					['error' => $this->l->t('Deleting a shared item needs Full control from its owner')],
 					Http::STATUS_FORBIDDEN
 				);
 			}
@@ -177,6 +178,7 @@ class ProjectController extends Controller {
 		return $project + [
 			'_shared' => true,
 			'_canWrite' => $this->granularShareService->canWrite($this->userId, ShareItem::TYPE_PROJECT, (int)$project['id']),
+			'_canManage' => $this->granularShareService->canManage($this->userId, ShareItem::TYPE_PROJECT, (int)$project['id']),
 			'_sharedByName' => $this->granularShareService->ownerDisplayName((string)$project['userId']),
 		];
 	}

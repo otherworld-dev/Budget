@@ -130,7 +130,8 @@ export default class ProjectsModule {
         document.getElementById('project-details-summary').innerHTML = this.summaryHtml(project);
         document.getElementById('project-details-rows').innerHTML = this.breakdownHtml(project);
         document.getElementById('project-edit-btn').style.display = canWrite ? '' : 'none';
-        document.getElementById('project-delete-btn').style.display = project._shared ? 'none' : '';
+        // Deleting a shared project needs Full control from its owner
+        document.getElementById('project-delete-btn').style.display = project._shared && !project._canManage ? 'none' : '';
 
         const modal = document.getElementById('project-details-modal');
         modal.style.display = 'flex';

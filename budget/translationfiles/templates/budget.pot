@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-27 13:44+0000\n"
+"POT-Creation-Date: 2026-09-27 14:18+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -120,14 +120,14 @@ msgid "Failed to create account"
 msgstr ""
 
 #: /app/lib/Controller/AccountController.php:296
-#: /app/lib/Controller/BillController.php:1045
-#: /app/lib/Controller/BillController.php:1063
-#: /app/lib/Controller/RecurringIncomeController.php:477
+#: /app/lib/Controller/BillController.php:1050
+#: /app/lib/Controller/BillController.php:1068
+#: /app/lib/Controller/RecurringIncomeController.php:482
 msgid "Invalid request data"
 msgstr ""
 
 #: /app/lib/Controller/AccountController.php:483
-#: /app/lib/Controller/BillController.php:728
+#: /app/lib/Controller/BillController.php:729
 #: /app/lib/Controller/CategoryController.php:349
 #: /app/lib/Controller/CategoryController.php:472
 #: /app/lib/Controller/ImportRuleController.php:340
@@ -607,10 +607,10 @@ msgid "Failed to retrieve bills"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:121
-#: /app/lib/Controller/BillController.php:136
-#: /app/lib/Controller/BillController.php:758
-#: /app/lib/Controller/BillController.php:1162
-#: /app/lib/Controller/BillController.php:1268 /app/templates/index.php:3649
+#: /app/lib/Controller/BillController.php:137
+#: /app/lib/Controller/BillController.php:763
+#: /app/lib/Controller/BillController.php:1167
+#: /app/lib/Controller/BillController.php:1273 /app/templates/index.php:3649
 #: /app/templates/index.php:6166
 msgid "Bill"
 msgstr ""
@@ -621,202 +621,209 @@ msgstr ""
 #: /app/lib/Controller/CategoryController.php:641
 #: /app/lib/Controller/CategoryController.php:659
 #: /app/lib/Controller/CategoryController.php:678
-#: /app/lib/Controller/GoalsController.php:87
-#: /app/lib/Controller/GoalsController.php:316
-#: /app/lib/Controller/GoalsController.php:344
-#: /app/lib/Controller/GoalsController.php:363
+#: /app/lib/Controller/GoalsController.php:92
+#: /app/lib/Controller/GoalsController.php:322
+#: /app/lib/Controller/GoalsController.php:351
+#: /app/lib/Controller/GoalsController.php:370
 #: /app/lib/Controller/ImportRuleController.php:91
-#: /app/lib/Controller/ProjectController.php:186
+#: /app/lib/Controller/ProjectController.php:188
 #: /app/lib/Controller/RecurringIncomeController.php:89
 #: /app/lib/Traits/ApiErrorHandlerTrait.php:211
 #, php-format
 msgid "%1$s not found"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:189
-#: /app/lib/Controller/BillController.php:622
+#: /app/lib/Controller/BillController.php:190
+#: /app/lib/Controller/BillController.php:623
 #: /app/lib/Service/BillService.php:86
 msgid "Invalid amount type"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:194
+#: /app/lib/Controller/BillController.php:195
 msgid "Name and amount are required"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:238
-#: /app/lib/Controller/BillController.php:707
+#: /app/lib/Controller/BillController.php:239
+#: /app/lib/Controller/BillController.php:708
 #: /app/lib/Service/BillService.php:403 /app/lib/Service/BillService.php:513
 msgid "Auto-pay requires an account to be set"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:246
-#: /app/lib/Controller/BillController.php:641
+#: /app/lib/Controller/BillController.php:247
+#: /app/lib/Controller/BillController.php:642
 #: /app/lib/Service/BillService.php:408
 msgid "Transfer requires a destination account"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:254
-#: /app/lib/Controller/BillController.php:669
+#: /app/lib/Controller/BillController.php:255
+#: /app/lib/Controller/BillController.php:670
 #: /app/lib/Service/BillService.php:413
 #: /app/src/modules/transfers/TransfersModule.js:848
 msgid "Cannot transfer to the same account"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:277
-#: /app/lib/Controller/BillController.php:432
+#: /app/lib/Controller/BillController.php:278
+#: /app/lib/Controller/BillController.php:433
 msgid "Due day must be between 1 and 31"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:282
-#: /app/lib/Controller/BillController.php:444
+#: /app/lib/Controller/BillController.php:283
+#: /app/lib/Controller/BillController.php:445
 msgid "Due month must be between 1 and 12"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:305
-#: /app/lib/Controller/BillController.php:497
+#: /app/lib/Controller/BillController.php:306
+#: /app/lib/Controller/BillController.php:498
 msgid "Reminder days must be between 0 and 30"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:318
+#: /app/lib/Controller/BillController.php:319
 msgid "Transaction date"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:326
-#: /app/lib/Controller/BillController.php:539
-#: /app/lib/Controller/RecurringIncomeController.php:199
-#: /app/lib/Controller/RecurringIncomeController.php:311
+#: /app/lib/Controller/BillController.php:327
+#: /app/lib/Controller/BillController.php:540
+#: /app/lib/Controller/RecurringIncomeController.php:200
+#: /app/lib/Controller/RecurringIncomeController.php:312
 #: /app/templates/index.php:3208 /app/templates/index.php:5171
 msgid "Start date"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:336
-#: /app/lib/Controller/BillController.php:550 /app/templates/index.php:3210
+#: /app/lib/Controller/BillController.php:337
+#: /app/lib/Controller/BillController.php:551 /app/templates/index.php:3210
 msgid "End date"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:346
+#: /app/lib/Controller/BillController.php:347
 msgid "Start date must be before the end date"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:351
-#: /app/lib/Controller/BillController.php:563
+#: /app/lib/Controller/BillController.php:352
+#: /app/lib/Controller/BillController.php:564
 msgid "Remaining payments must be at least 1"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:392
+#: /app/lib/Controller/BillController.php:393
 #: /app/src/modules/bills/BillsModule.js:234
 msgid "Failed to create bill"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:602
+#: /app/lib/Controller/BillController.php:603
 msgid ""
 "The new amount does not match the bill's split template. Update the splits "
 "together with the amount."
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:743
+#: /app/lib/Controller/BillController.php:744
 msgid "Failed to update bill"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:771
+#: /app/lib/Controller/BillController.php:758
+#: /app/lib/Controller/GoalsController.php:331
+#: /app/lib/Controller/ProjectController.php:164
+#: /app/lib/Controller/RecurringIncomeController.php:354
+msgid "Deleting a shared item needs Full control from its owner"
+msgstr ""
+
+#: /app/lib/Controller/BillController.php:776
 msgid "Failed to find matching transactions"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:784
+#: /app/lib/Controller/BillController.php:789
 msgid "Failed to check for unrecorded payments"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:801
+#: /app/lib/Controller/BillController.php:806
 #: /app/src/modules/bills/BillsModule.js:164
 msgid "Failed to record the payment"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:820
+#: /app/lib/Controller/BillController.php:825
 #: /app/src/modules/bills/BillsModule.js:153
 msgid "Failed to dismiss the payment"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:843
+#: /app/lib/Controller/BillController.php:848
 #: /app/src/modules/bills/BillsModule.js:1248
 msgid "Failed to mark bill as paid"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:880
+#: /app/lib/Controller/BillController.php:885
 msgid "Failed to undo mark as paid"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:899
+#: /app/lib/Controller/BillController.php:904
 #: /app/src/modules/bills/BillsModule.js:1501
 #: /app/src/modules/bills/BillsModule.js:1508
 msgid "Failed to mark bill as unpaid"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:916
+#: /app/lib/Controller/BillController.php:921
 #: /app/src/modules/bills/BillsModule.js:1542
 msgid "Failed to skip bill payment"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:932
+#: /app/lib/Controller/BillController.php:937
 msgid "Missing previous due date"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:938
+#: /app/lib/Controller/BillController.php:943
 msgid "Failed to undo skip"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:952
+#: /app/lib/Controller/BillController.php:957
 msgid "Failed to retrieve upcoming bills"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:966
+#: /app/lib/Controller/BillController.php:971
 msgid "Failed to retrieve bills due this month"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:980
+#: /app/lib/Controller/BillController.php:985
 msgid "Failed to retrieve overdue bills"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:993
+#: /app/lib/Controller/BillController.php:998
 msgid "Failed to retrieve bill summary"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1006
+#: /app/lib/Controller/BillController.php:1011
 msgid "Failed to retrieve bill status"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1019
+#: /app/lib/Controller/BillController.php:1024
 #: /app/src/modules/bills/BillsModule.js:1586
 msgid "Failed to detect recurring bills"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1033
+#: /app/lib/Controller/BillController.php:1038
 msgid "Failed to load bill suggestions"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1050
+#: /app/lib/Controller/BillController.php:1055
 #: /app/src/modules/bills/BillsModule.js:253
 msgid "Failed to dismiss suggestion"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1082
+#: /app/lib/Controller/BillController.php:1087
 msgid "Failed to create bills from detected patterns"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1097
-#: /app/lib/Controller/BillController.php:1130
+#: /app/lib/Controller/BillController.php:1102
+#: /app/lib/Controller/BillController.php:1135
 msgid "Invalid year"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1112
+#: /app/lib/Controller/BillController.php:1117
 msgid "Failed to generate annual overview"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1153
+#: /app/lib/Controller/BillController.php:1158
 msgid "Failed to export bills calendar"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1162
-#: /app/lib/Controller/BillController.php:1269
+#: /app/lib/Controller/BillController.php:1167
+#: /app/lib/Controller/BillController.php:1274
 #: /app/lib/Service/Export/TransactionCsvExporter.php:34
 #: /app/lib/Service/Report/ReportExporter.php:279
 #: /app/lib/Service/Report/ReportExporter.php:337
@@ -849,19 +856,19 @@ msgstr ""
 msgid "Amount"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1162
+#: /app/lib/Controller/BillController.php:1167
 #: /app/src/modules/transfers/TransfersModule.js:500
 #: /app/templates/index.php:5527 /app/templates/index.php:6186
 #: /app/templates/index.php:6676
 msgid "Frequency"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1166
+#: /app/lib/Controller/BillController.php:1171
 msgid "Annual Total"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1190
-#: /app/lib/Controller/BillController.php:1294
+#: /app/lib/Controller/BillController.php:1195
+#: /app/lib/Controller/BillController.php:1299
 #: /app/lib/Service/Report/ReportExporter.php:298
 #: /app/lib/Service/Report/ReportExporter.php:348
 #: /app/lib/Service/Report/ReportExporter.php:421
@@ -873,74 +880,74 @@ msgstr ""
 msgid "Total"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1230
+#: /app/lib/Controller/BillController.php:1235
 #: /app/src/modules/dashboard/DashboardModule.js:3162
 #: /app/src/modules/reports/ReportsModule.js:1999
 msgid "Projected balance"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1245
+#: /app/lib/Controller/BillController.php:1250
 #, php-format
 msgid "Bills Calendar %s"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1273
+#: /app/lib/Controller/BillController.php:1278
 msgid "Annual"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1351
+#: /app/lib/Controller/BillController.php:1356
 msgid "Split template must have at least 2 splits"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1359
+#: /app/lib/Controller/BillController.php:1364
 msgid "Each split must have a positive amount"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1365
+#: /app/lib/Controller/BillController.php:1370
 msgid "Split amounts must equal the bill amount"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1377
+#: /app/lib/Controller/BillController.php:1382
 msgid "Invalid JSON in custom recurrence pattern"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1384
+#: /app/lib/Controller/BillController.php:1389
 msgid "Custom recurrence pattern must be a JSON object"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1393
+#: /app/lib/Controller/BillController.php:1398
 msgid "Months must be an array"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1400
+#: /app/lib/Controller/BillController.php:1405
 msgid "At least one month must be specified"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1408
+#: /app/lib/Controller/BillController.php:1413
 msgid "Each month must be a number between 1 and 12"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1421
+#: /app/lib/Controller/BillController.php:1426
 msgid "Dates must be an array"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1428
+#: /app/lib/Controller/BillController.php:1433
 msgid "At least one date must be specified"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1436
+#: /app/lib/Controller/BillController.php:1441
 msgid "Each date must have \"month\" and \"day\" fields"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1443
+#: /app/lib/Controller/BillController.php:1448
 msgid "Month must be a number between 1 and 12"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1450
+#: /app/lib/Controller/BillController.php:1455
 msgid "Day must be a number between 1 and 31"
 msgstr ""
 
-#: /app/lib/Controller/BillController.php:1460
+#: /app/lib/Controller/BillController.php:1465
 msgid "Custom pattern must contain either \"months\" or \"dates\" field"
 msgstr ""
 
@@ -1264,75 +1271,71 @@ msgstr ""
 msgid "Failed to export forecast"
 msgstr ""
 
-#: /app/lib/Controller/GoalsController.php:75
+#: /app/lib/Controller/GoalsController.php:80
 msgid "Failed to retrieve goals"
 msgstr ""
 
-#: /app/lib/Controller/GoalsController.php:87
-#: /app/lib/Controller/GoalsController.php:99
-#: /app/lib/Controller/GoalsController.php:316
-#: /app/lib/Controller/GoalsController.php:344
-#: /app/lib/Controller/GoalsController.php:363 /app/templates/index.php:5209
+#: /app/lib/Controller/GoalsController.php:92
+#: /app/lib/Controller/GoalsController.php:105
+#: /app/lib/Controller/GoalsController.php:322
+#: /app/lib/Controller/GoalsController.php:351
+#: /app/lib/Controller/GoalsController.php:370 /app/templates/index.php:5209
 #: /app/templates/index.php:5281
 msgid "Goal"
 msgstr ""
 
-#: /app/lib/Controller/GoalsController.php:137
-#: /app/lib/Controller/GoalsController.php:236
+#: /app/lib/Controller/GoalsController.php:143
+#: /app/lib/Controller/GoalsController.php:242
 msgid "Target date"
 msgstr ""
 
-#: /app/lib/Controller/GoalsController.php:147
-#: /app/lib/Controller/GoalsController.php:244
+#: /app/lib/Controller/GoalsController.php:153
+#: /app/lib/Controller/GoalsController.php:250
 msgid "Target amount must be greater than zero"
 msgstr ""
 
-#: /app/lib/Controller/GoalsController.php:152
-#: /app/lib/Controller/GoalsController.php:249
+#: /app/lib/Controller/GoalsController.php:158
+#: /app/lib/Controller/GoalsController.php:255
 msgid "Target months must be greater than zero"
 msgstr ""
 
-#: /app/lib/Controller/GoalsController.php:157
-#: /app/lib/Controller/GoalsController.php:254
+#: /app/lib/Controller/GoalsController.php:163
+#: /app/lib/Controller/GoalsController.php:260
 msgid "Current amount cannot be negative"
 msgstr ""
 
-#: /app/lib/Controller/GoalsController.php:162
-#: /app/lib/Controller/GoalsController.php:259
+#: /app/lib/Controller/GoalsController.php:168
+#: /app/lib/Controller/GoalsController.php:265
 msgid "Invalid tag ID"
 msgstr ""
 
-#: /app/lib/Controller/GoalsController.php:167
-#: /app/lib/Controller/GoalsController.php:264
+#: /app/lib/Controller/GoalsController.php:173
+#: /app/lib/Controller/GoalsController.php:270
 msgid "Invalid account ID"
 msgstr ""
 
-#: /app/lib/Controller/GoalsController.php:193
+#: /app/lib/Controller/GoalsController.php:199
 msgid "Failed to create goal"
 msgstr ""
 
-#: /app/lib/Controller/GoalsController.php:303
+#: /app/lib/Controller/GoalsController.php:309
 msgid "Failed to update goal"
 msgstr ""
 
-#: /app/lib/Controller/GoalsController.php:324
-msgid "Only the goal owner can delete it"
-msgstr ""
-
-#: /app/lib/Controller/GoalsController.php:330
+#: /app/lib/Controller/GoalsController.php:337
 msgid "Goal deleted successfully"
 msgstr ""
 
-#: /app/lib/Controller/GoalsController.php:332
-#: /app/src/modules/savings/SavingsModule.js:460
+#: /app/lib/Controller/GoalsController.php:339
+#: /app/src/modules/savings/SavingsModule.js:462
 msgid "Failed to delete goal"
 msgstr ""
 
-#: /app/lib/Controller/GoalsController.php:351
+#: /app/lib/Controller/GoalsController.php:358
 msgid "Failed to retrieve goal progress"
 msgstr ""
 
-#: /app/lib/Controller/GoalsController.php:370
+#: /app/lib/Controller/GoalsController.php:377
 msgid "Failed to retrieve goal forecast"
 msgstr ""
 
@@ -1733,68 +1736,64 @@ msgstr ""
 
 #: /app/lib/Controller/ProjectController.php:107
 #: /app/lib/Controller/ProjectController.php:147
-#: /app/lib/Controller/ProjectController.php:203
-#: /app/src/modules/projects/ProjectsModule.js:353
-#: /app/src/modules/projects/ProjectsModule.js:363
+#: /app/lib/Controller/ProjectController.php:205
+#: /app/src/modules/projects/ProjectsModule.js:354
+#: /app/src/modules/projects/ProjectsModule.js:364
 msgid "Failed to save the project"
 msgstr ""
 
-#: /app/lib/Controller/ProjectController.php:163
-msgid "Only the owner can delete this project"
-msgstr ""
-
-#: /app/lib/Controller/ProjectController.php:172
-#: /app/src/modules/projects/ProjectsModule.js:201
-#: /app/src/modules/projects/ProjectsModule.js:207
+#: /app/lib/Controller/ProjectController.php:173
+#: /app/src/modules/projects/ProjectsModule.js:202
+#: /app/src/modules/projects/ProjectsModule.js:208
 msgid "Failed to delete the project"
 msgstr ""
 
-#: /app/lib/Controller/ProjectController.php:186
+#: /app/lib/Controller/ProjectController.php:188
 msgid "Project"
 msgstr ""
 
-#: /app/lib/Controller/ProjectController.php:193
-#: /app/src/modules/projects/ProjectsModule.js:332
-msgid "Enter a name for the project"
-msgstr ""
-
-#: /app/lib/Controller/ProjectController.php:194
-#: /app/src/modules/projects/ProjectsModule.js:334
-msgid "The total must be more than zero"
-msgstr ""
-
 #: /app/lib/Controller/ProjectController.php:195
-msgid "Choose one of your own expense categories"
+#: /app/src/modules/projects/ProjectsModule.js:333
+msgid "Enter a name for the project"
 msgstr ""
 
 #: /app/lib/Controller/ProjectController.php:196
 #: /app/src/modules/projects/ProjectsModule.js:335
-msgid "Enter a start date for the project"
+msgid "The total must be more than zero"
 msgstr ""
 
 #: /app/lib/Controller/ProjectController.php:197
-#: /app/src/modules/projects/ProjectsModule.js:336
-msgid "The end date cannot be before the start date"
+msgid "Choose one of your own expense categories"
 msgstr ""
 
 #: /app/lib/Controller/ProjectController.php:198
-msgid "Every subcategory amount must be more than zero"
+#: /app/src/modules/projects/ProjectsModule.js:336
+msgid "Enter a start date for the project"
 msgstr ""
 
 #: /app/lib/Controller/ProjectController.php:199
-msgid "Amounts can only go to subcategories of the project category"
+#: /app/src/modules/projects/ProjectsModule.js:337
+msgid "The end date cannot be before the start date"
 msgstr ""
 
 #: /app/lib/Controller/ProjectController.php:200
-msgid "Each subcategory can only have one amount"
+msgid "Every subcategory amount must be more than zero"
 msgstr ""
 
 #: /app/lib/Controller/ProjectController.php:201
-msgid "A subcategory and one of its own subcategories cannot both have amounts"
+msgid "Amounts can only go to subcategories of the project category"
 msgstr ""
 
 #: /app/lib/Controller/ProjectController.php:202
-#: /app/src/modules/projects/ProjectsModule.js:338
+msgid "Each subcategory can only have one amount"
+msgstr ""
+
+#: /app/lib/Controller/ProjectController.php:203
+msgid "A subcategory and one of its own subcategories cannot both have amounts"
+msgstr ""
+
+#: /app/lib/Controller/ProjectController.php:204
+#: /app/src/modules/projects/ProjectsModule.js:339
 msgid "The subcategory amounts add up to more than the total"
 msgstr ""
 
@@ -1829,60 +1828,60 @@ msgid "Failed to retrieve recurring income"
 msgstr ""
 
 #: /app/lib/Controller/RecurringIncomeController.php:89
-#: /app/lib/Controller/RecurringIncomeController.php:103
-#: /app/lib/Controller/RecurringIncomeController.php:339
-#: /app/lib/Controller/RecurringIncomeController.php:354
-#: /app/lib/Controller/RecurringIncomeController.php:411
-#: /app/lib/Controller/RecurringIncomeController.php:428
-#: /app/lib/Controller/RecurringIncomeController.php:450
+#: /app/lib/Controller/RecurringIncomeController.php:104
+#: /app/lib/Controller/RecurringIncomeController.php:340
+#: /app/lib/Controller/RecurringIncomeController.php:359
+#: /app/lib/Controller/RecurringIncomeController.php:416
+#: /app/lib/Controller/RecurringIncomeController.php:433
+#: /app/lib/Controller/RecurringIncomeController.php:455
 #: /app/lib/Service/AccountClosureService.php:81
 msgid "Recurring income"
 msgstr ""
 
-#: /app/lib/Controller/RecurringIncomeController.php:171
-#: /app/lib/Controller/RecurringIncomeController.php:297
+#: /app/lib/Controller/RecurringIncomeController.php:172
+#: /app/lib/Controller/RecurringIncomeController.php:298
 msgid "Expected day must be between 1 and 31"
 msgstr ""
 
-#: /app/lib/Controller/RecurringIncomeController.php:176
-#: /app/lib/Controller/RecurringIncomeController.php:304
+#: /app/lib/Controller/RecurringIncomeController.php:177
+#: /app/lib/Controller/RecurringIncomeController.php:305
 msgid "Expected month must be between 1 and 12"
 msgstr ""
 
-#: /app/lib/Controller/RecurringIncomeController.php:236
+#: /app/lib/Controller/RecurringIncomeController.php:237
 msgid "Failed to create recurring income"
 msgstr ""
 
-#: /app/lib/Controller/RecurringIncomeController.php:264
+#: /app/lib/Controller/RecurringIncomeController.php:265
 msgid "No data provided"
 msgstr ""
 
-#: /app/lib/Controller/RecurringIncomeController.php:352
+#: /app/lib/Controller/RecurringIncomeController.php:357
 msgid "Recurring income deleted"
 msgstr ""
 
-#: /app/lib/Controller/RecurringIncomeController.php:367
+#: /app/lib/Controller/RecurringIncomeController.php:372
 msgid "Failed to retrieve upcoming income"
 msgstr ""
 
-#: /app/lib/Controller/RecurringIncomeController.php:380
+#: /app/lib/Controller/RecurringIncomeController.php:385
 msgid "Failed to retrieve expected income"
 msgstr ""
 
-#: /app/lib/Controller/RecurringIncomeController.php:393
+#: /app/lib/Controller/RecurringIncomeController.php:398
 msgid "Failed to retrieve income summary"
 msgstr ""
 
-#: /app/lib/Controller/RecurringIncomeController.php:442
+#: /app/lib/Controller/RecurringIncomeController.php:447
 msgid "Previous expected date"
 msgstr ""
 
-#: /app/lib/Controller/RecurringIncomeController.php:463
+#: /app/lib/Controller/RecurringIncomeController.php:468
 #: /app/src/modules/income/IncomeModule.js:712
 msgid "Failed to detect recurring income"
 msgstr ""
 
-#: /app/lib/Controller/RecurringIncomeController.php:496
+#: /app/lib/Controller/RecurringIncomeController.php:501
 msgid "Failed to create recurring income from detected patterns"
 msgstr ""
 
@@ -2174,22 +2173,22 @@ msgid "Share"
 msgstr ""
 
 #: /app/lib/Controller/ShareController.php:121
-#: /app/src/modules/sharing/SharingModule.js:417
+#: /app/src/modules/sharing/SharingModule.js:419
 msgid "Failed to accept share"
 msgstr ""
 
 #: /app/lib/Controller/ShareController.php:139
-#: /app/src/modules/sharing/SharingModule.js:425
+#: /app/src/modules/sharing/SharingModule.js:427
 msgid "Failed to decline share"
 msgstr ""
 
 #: /app/lib/Controller/ShareController.php:157
-#: /app/src/modules/sharing/SharingModule.js:435
+#: /app/src/modules/sharing/SharingModule.js:437
 msgid "Failed to revoke share"
 msgstr ""
 
 #: /app/lib/Controller/ShareController.php:175
-#: /app/src/modules/sharing/SharingModule.js:445
+#: /app/src/modules/sharing/SharingModule.js:447
 msgid "Failed to leave share"
 msgstr ""
 
@@ -2812,7 +2811,7 @@ msgstr[1] ""
 #: /app/src/modules/categories/CategoriesModule.js:2390
 #: /app/src/modules/dashboard/DashboardModule.js:2165
 #: /app/src/modules/help/HelpModule.js:32
-#: /app/src/modules/projects/ProjectsModule.js:145 /app/templates/index.php:93
+#: /app/src/modules/projects/ProjectsModule.js:146 /app/templates/index.php:93
 #: /app/templates/index.php:2147 /app/templates/index.php:2232
 #: /app/templates/index.php:5136
 msgid "Budget"
@@ -2998,7 +2997,7 @@ msgstr ""
 #: /app/src/core/KeyboardShortcuts.js:355
 #: /app/src/modules/dashboard/DashboardModule.js:5500
 #: /app/src/modules/help/HelpModule.js:34
-#: /app/src/modules/sharing/SharingModule.js:272 /app/templates/index.php:113
+#: /app/src/modules/sharing/SharingModule.js:274 /app/templates/index.php:113
 #: /app/templates/index.php:2610 /app/templates/index.php:4765
 msgid "Bills"
 msgstr ""
@@ -3835,7 +3834,7 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:641
 #: /app/src/modules/categories/CategoriesModule.js:2415
 #: /app/src/modules/dashboard/DashboardModule.js:2166
-#: /app/src/modules/projects/ProjectsModule.js:146
+#: /app/src/modules/projects/ProjectsModule.js:147
 #: /app/templates/index.php:2234 /app/templates/index.php:5137
 msgid "Spent"
 msgstr ""
@@ -3844,7 +3843,7 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:642
 #: /app/src/modules/categories/CategoriesModule.js:2418
 #: /app/src/modules/dashboard/DashboardModule.js:2167
-#: /app/src/modules/projects/ProjectsModule.js:147
+#: /app/src/modules/projects/ProjectsModule.js:148
 #: /app/templates/index.php:2202 /app/templates/index.php:2235
 #: /app/templates/index.php:5138
 msgid "Remaining"
@@ -4288,7 +4287,7 @@ msgstr ""
 #: /app/src/config/dashboardWidgets.js:39
 #: /app/src/core/KeyboardShortcuts.js:349
 #: /app/src/modules/help/HelpModule.js:28
-#: /app/src/modules/sharing/SharingModule.js:267 /app/templates/index.php:53
+#: /app/src/modules/sharing/SharingModule.js:272 /app/templates/index.php:53
 #: /app/templates/index.php:696 /app/templates/index.php:774
 #: /app/templates/index.php:1080 /app/templates/index.php:1215
 #: /app/templates/index.php:4757
@@ -4311,14 +4310,14 @@ msgstr ""
 #: /app/src/config/dashboardWidgets.js:43
 #: /app/src/core/KeyboardShortcuts.js:357
 #: /app/src/modules/help/HelpModule.js:36
-#: /app/src/modules/sharing/SharingModule.js:274 /app/templates/index.php:133
+#: /app/src/modules/sharing/SharingModule.js:276 /app/templates/index.php:133
 #: /app/templates/index.php:744 /app/templates/index.php:2932
 msgid "Savings Goals"
 msgstr ""
 
 #: /app/src/config/dashboardWidgets.js:44
 #: /app/src/modules/help/HelpModule.js:37
-#: /app/src/modules/sharing/SharingModule.js:275 /app/templates/index.php:143
+#: /app/src/modules/sharing/SharingModule.js:277 /app/templates/index.php:143
 #: /app/templates/index.php:755 /app/templates/index.php:3010
 msgid "Projects"
 msgstr ""
@@ -4448,7 +4447,7 @@ msgstr ""
 #: /app/src/core/KeyboardShortcuts.js:351
 #: /app/src/modules/dashboard/DashboardModule.js:5150
 #: /app/src/modules/help/HelpModule.js:30
-#: /app/src/modules/sharing/SharingModule.js:271 /app/templates/index.php:73
+#: /app/src/modules/sharing/SharingModule.js:273 /app/templates/index.php:73
 #: /app/templates/index.php:1871 /app/templates/index.php:4753
 msgid "Categories"
 msgstr ""
@@ -4459,7 +4458,7 @@ msgstr ""
 #: /app/src/modules/help/HelpModule.js:31
 #: /app/src/modules/reports/ReportsModule.js:432
 #: /app/src/modules/rules/RulesModule.js:825
-#: /app/src/modules/savings/SavingsModule.js:295
+#: /app/src/modules/savings/SavingsModule.js:297
 #: /app/src/modules/tagsets/TagSetsModule.js:601
 #: /app/src/modules/transactions/TransactionsModule.js:548
 #: /app/src/modules/transactions/TransactionsModule.js:1345
@@ -4631,7 +4630,7 @@ msgstr ""
 #: /app/src/modules/pensions/PensionsModule.js:797
 #: /app/src/modules/pensions/PensionsModule.js:798
 #: /app/src/modules/pensions/PensionsModule.js:1043
-#: /app/src/modules/savings/SavingsModule.js:141
+#: /app/src/modules/savings/SavingsModule.js:143
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:192
 #: /app/src/modules/tagsets/TagSetsModule.js:84 /app/templates/index.php:1177
 #: /app/templates/index.php:1720 /app/templates/index.php:1971
@@ -5079,7 +5078,7 @@ msgstr ""
 #: /app/src/main.js:2916 /app/src/modules/accounts/AccountsModule.js:609
 #: /app/src/modules/assets/AssetsModule.js:166
 #: /app/src/modules/pensions/PensionsModule.js:120
-#: /app/src/modules/savings/SavingsModule.js:138
+#: /app/src/modules/savings/SavingsModule.js:140
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:189
 #: /app/src/modules/tagsets/TagSetsModule.js:83 /app/templates/index.php:1223
 #: /app/templates/index.php:1967 /app/templates/index.php:4016
@@ -5596,7 +5595,7 @@ msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:2225
 #: /app/src/modules/accounts/AccountsModule.js:2327
-#: /app/src/modules/savings/SavingsModule.js:487
+#: /app/src/modules/savings/SavingsModule.js:489
 msgid "Please enter a valid amount"
 msgstr ""
 
@@ -6828,14 +6827,14 @@ msgstr ""
 #: /app/src/modules/categories/CategoriesModule.js:338
 #: /app/src/modules/projects/ProjectsModule.js:57
 #: /app/src/modules/rules/RulesModule.js:132
-#: /app/src/modules/savings/SavingsModule.js:126
+#: /app/src/modules/savings/SavingsModule.js:128
 msgid "Shared by {owner}"
 msgstr ""
 
 #: /app/src/modules/categories/CategoriesModule.js:338
 #: /app/src/modules/projects/ProjectsModule.js:57
 #: /app/src/modules/rules/RulesModule.js:132
-#: /app/src/modules/savings/SavingsModule.js:126
+#: /app/src/modules/savings/SavingsModule.js:128
 #: /app/src/modules/transactions/transactionRow.js:71
 msgid "Shared"
 msgstr ""
@@ -9261,67 +9260,67 @@ msgstr ""
 msgid "{amount} left"
 msgstr ""
 
-#: /app/src/modules/projects/ProjectsModule.js:155
+#: /app/src/modules/projects/ProjectsModule.js:156
 msgid "Not counted in this project"
 msgstr ""
 
-#: /app/src/modules/projects/ProjectsModule.js:170
+#: /app/src/modules/projects/ProjectsModule.js:171
 msgid "Directly in {category}"
 msgstr ""
 
-#: /app/src/modules/projects/ProjectsModule.js:173
+#: /app/src/modules/projects/ProjectsModule.js:174
 msgid "Unallocated"
 msgstr ""
 
-#: /app/src/modules/projects/ProjectsModule.js:178
+#: /app/src/modules/projects/ProjectsModule.js:179
 msgid "No subcategories or amounts yet"
 msgstr ""
 
-#: /app/src/modules/projects/ProjectsModule.js:196
+#: /app/src/modules/projects/ProjectsModule.js:197
 msgid ""
 "Delete the project \"{name}\"? Its categories and transactions are not "
 "changed."
 msgstr ""
 
-#: /app/src/modules/projects/ProjectsModule.js:204
+#: /app/src/modules/projects/ProjectsModule.js:205
 msgid "Project deleted"
 msgstr ""
 
-#: /app/src/modules/projects/ProjectsModule.js:257
+#: /app/src/modules/projects/ProjectsModule.js:258
 msgid "Edit Project"
 msgstr ""
 
-#: /app/src/modules/projects/ProjectsModule.js:257
+#: /app/src/modules/projects/ProjectsModule.js:258
 #: /app/templates/index.php:3013 /app/templates/index.php:3020
 #: /app/templates/index.php:5154
 msgid "New Project"
 msgstr ""
 
-#: /app/src/modules/projects/ProjectsModule.js:265
+#: /app/src/modules/projects/ProjectsModule.js:266
 msgid "Choose a category…"
 msgstr ""
 
-#: /app/src/modules/projects/ProjectsModule.js:300
+#: /app/src/modules/projects/ProjectsModule.js:301
 msgid "No amount"
 msgstr ""
 
-#: /app/src/modules/projects/ProjectsModule.js:312
+#: /app/src/modules/projects/ProjectsModule.js:313
 msgid "The subcategory amounts are {amount} over the total"
 msgstr ""
 
-#: /app/src/modules/projects/ProjectsModule.js:313
+#: /app/src/modules/projects/ProjectsModule.js:314
 msgid "Unallocated: {amount}"
 msgstr ""
 
-#: /app/src/modules/projects/ProjectsModule.js:333
+#: /app/src/modules/projects/ProjectsModule.js:334
 msgid "Choose a category for the project"
 msgstr ""
 
-#: /app/src/modules/projects/ProjectsModule.js:356
+#: /app/src/modules/projects/ProjectsModule.js:357
 msgid "Project saved"
 msgstr ""
 
-#: /app/src/modules/projects/ProjectsModule.js:356
+#: /app/src/modules/projects/ProjectsModule.js:357
 msgid "Project created"
 msgstr ""
 
@@ -10310,91 +10309,91 @@ msgstr ""
 msgid "Failed to load savings goals"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:104
+#: /app/src/modules/savings/SavingsModule.js:106
 msgid "Target date passed"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:106
+#: /app/src/modules/savings/SavingsModule.js:108
 msgid "Target date: Today"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:108
+#: /app/src/modules/savings/SavingsModule.js:110
 msgid "%n day left"
 msgid_plural "%n days left"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/savings/SavingsModule.js:110
+#: /app/src/modules/savings/SavingsModule.js:112
 msgid "Target: {date}"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:116
+#: /app/src/modules/savings/SavingsModule.js:118
 msgid "Goal reached!"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:118
+#: /app/src/modules/savings/SavingsModule.js:120
 msgid "Auto-tracked"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:120
+#: /app/src/modules/savings/SavingsModule.js:122
 msgid "+ Add money"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:154
+#: /app/src/modules/savings/SavingsModule.js:156
 msgid "of {amount}"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:250
+#: /app/src/modules/savings/SavingsModule.js:252
 msgid "Auto-calculated from tag"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:266 /app/templates/index.php:5237
+#: /app/src/modules/savings/SavingsModule.js:268 /app/templates/index.php:5237
 msgid "No linked account"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:288 /app/templates/index.php:5245
+#: /app/src/modules/savings/SavingsModule.js:290 /app/templates/index.php:5245
 msgid "No linked tag"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:347
+#: /app/src/modules/savings/SavingsModule.js:349
 msgid "Edit Savings Goal"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:347 /app/templates/index.php:5202
+#: /app/src/modules/savings/SavingsModule.js:349 /app/templates/index.php:5202
 msgid "Add Savings Goal"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:423
-#: /app/src/modules/savings/SavingsModule.js:437
+#: /app/src/modules/savings/SavingsModule.js:425
+#: /app/src/modules/savings/SavingsModule.js:439
 msgid "Failed to save goal"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:433
+#: /app/src/modules/savings/SavingsModule.js:435
 msgid "Goal updated"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:433
+#: /app/src/modules/savings/SavingsModule.js:435
 msgid "Goal created"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:449
+#: /app/src/modules/savings/SavingsModule.js:451
 msgid "Are you sure you want to delete this savings goal?"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:456
+#: /app/src/modules/savings/SavingsModule.js:458
 msgid "Goal deleted"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:470
-#: /app/src/modules/savings/SavingsModule.js:496
+#: /app/src/modules/savings/SavingsModule.js:472
+#: /app/src/modules/savings/SavingsModule.js:498
 msgid "This goal is auto-tracked via a tag"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:510
+#: /app/src/modules/savings/SavingsModule.js:512
 msgid "Added {amount} to goal"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:514
+#: /app/src/modules/savings/SavingsModule.js:516
 msgid "Failed to add money to goal"
 msgstr ""
 
@@ -10777,96 +10776,100 @@ msgstr ""
 msgid "Failed to load configuration"
 msgstr ""
 
-#: /app/src/modules/sharing/SharingModule.js:273 /app/templates/index.php:2831
-msgid "Recurring Income"
+#: /app/src/modules/sharing/SharingModule.js:270
+msgid "Read & Write, plus deleting them."
 msgstr ""
 
-#: /app/src/modules/sharing/SharingModule.js:276 /app/templates/index.php:4769
-msgid "Import Rules"
-msgstr ""
-
-#: /app/src/modules/sharing/SharingModule.js:292
-msgid ""
-"Automatically share new items of this type at the permission selected here"
-msgstr ""
-
-#: /app/src/modules/sharing/SharingModule.js:294
-msgid "Auto-share new"
-msgstr ""
-
-#: /app/src/modules/sharing/SharingModule.js:296
-#: /app/src/modules/sharing/SharingModule.js:343 /app/templates/index.php:1922
-msgid "Select All"
-msgstr ""
-
-#: /app/src/modules/sharing/SharingModule.js:298
-msgid "Read only"
-msgstr ""
-
-#: /app/src/modules/sharing/SharingModule.js:299
-msgid "Read & Write"
-msgstr ""
-
-#: /app/src/modules/sharing/SharingModule.js:300
+#: /app/src/modules/sharing/SharingModule.js:273
 msgid ""
 "Read & Write, plus the type, parent, subcategories, budget and report "
 "settings. Only you can delete."
 msgstr ""
 
+#: /app/src/modules/sharing/SharingModule.js:275 /app/templates/index.php:2831
+msgid "Recurring Income"
+msgstr ""
+
+#: /app/src/modules/sharing/SharingModule.js:278 /app/templates/index.php:4769
+msgid "Import Rules"
+msgstr ""
+
+#: /app/src/modules/sharing/SharingModule.js:294
+msgid ""
+"Automatically share new items of this type at the permission selected here"
+msgstr ""
+
+#: /app/src/modules/sharing/SharingModule.js:296
+msgid "Auto-share new"
+msgstr ""
+
+#: /app/src/modules/sharing/SharingModule.js:298
+#: /app/src/modules/sharing/SharingModule.js:345 /app/templates/index.php:1922
+msgid "Select All"
+msgstr ""
+
 #: /app/src/modules/sharing/SharingModule.js:300
+msgid "Read only"
+msgstr ""
+
+#: /app/src/modules/sharing/SharingModule.js:301
+msgid "Read & Write"
+msgstr ""
+
+#: /app/src/modules/sharing/SharingModule.js:302
 msgid "Full control"
 msgstr ""
 
-#: /app/src/modules/sharing/SharingModule.js:325
+#: /app/src/modules/sharing/SharingModule.js:327
 msgid "Save Configuration"
 msgstr ""
 
-#: /app/src/modules/sharing/SharingModule.js:343
+#: /app/src/modules/sharing/SharingModule.js:345
 #: /app/src/modules/transactions/TransactionsModule.js:5212
 msgid "Deselect All"
 msgstr ""
 
-#: /app/src/modules/sharing/SharingModule.js:391
+#: /app/src/modules/sharing/SharingModule.js:393
 msgid "Failed to save some sections: {types}"
 msgstr ""
 
-#: /app/src/modules/sharing/SharingModule.js:393
+#: /app/src/modules/sharing/SharingModule.js:395
 msgid "Share configuration saved"
 msgstr ""
 
-#: /app/src/modules/sharing/SharingModule.js:400
+#: /app/src/modules/sharing/SharingModule.js:402
 msgid "Please enter a username"
 msgstr ""
 
-#: /app/src/modules/sharing/SharingModule.js:406
+#: /app/src/modules/sharing/SharingModule.js:408
 msgid "Invitation sent to {user}"
 msgstr ""
 
-#: /app/src/modules/sharing/SharingModule.js:408
+#: /app/src/modules/sharing/SharingModule.js:410
 msgid "Failed to share budget"
 msgstr ""
 
-#: /app/src/modules/sharing/SharingModule.js:414
+#: /app/src/modules/sharing/SharingModule.js:416
 msgid "Share accepted — reloading budget data"
 msgstr ""
 
-#: /app/src/modules/sharing/SharingModule.js:423
+#: /app/src/modules/sharing/SharingModule.js:425
 msgid "Share declined"
 msgstr ""
 
-#: /app/src/modules/sharing/SharingModule.js:429
+#: /app/src/modules/sharing/SharingModule.js:431
 msgid "Are you sure? The user will lose access to your budget."
 msgstr ""
 
-#: /app/src/modules/sharing/SharingModule.js:432
+#: /app/src/modules/sharing/SharingModule.js:434
 msgid "Share revoked"
 msgstr ""
 
-#: /app/src/modules/sharing/SharingModule.js:439
+#: /app/src/modules/sharing/SharingModule.js:441
 msgid "Are you sure you want to leave this shared budget?"
 msgstr ""
 
-#: /app/src/modules/sharing/SharingModule.js:442
+#: /app/src/modules/sharing/SharingModule.js:444
 msgid "Left shared budget — reloading your data"
 msgstr ""
 

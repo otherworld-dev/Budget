@@ -474,6 +474,7 @@ class GranularShareService {
 				'_sharedBy' => $b->getUserId(),
 				'_sharedByName' => $this->displayNameFor($b->getUserId()),
 				'_canWrite' => $canWrite,
+				'_canManage' => $this->canManage($userId, ShareItem::TYPE_BILL, $b->getId()),
 				// Bill actions run under the bill's OWNER since #368, so a
 				// recipient's markUnpaid succeeds now — offer it whenever they
 				// may write. Read-only recipients still never see the action.
@@ -493,7 +494,11 @@ class GranularShareService {
 			return [];
 		}
 		$income = $this->recurringIncomeMapper->findByIds($ids);
-		return array_map(fn ($r) => array_merge($r->jsonSerialize(), ['_shared' => true]), $income);
+		return array_map(fn ($r) => array_merge($r->jsonSerialize(), [
+			'_shared' => true,
+			'_canWrite' => $this->canWrite($userId, ShareItem::TYPE_RECURRING_INCOME, $r->getId()),
+			'_canManage' => $this->canManage($userId, ShareItem::TYPE_RECURRING_INCOME, $r->getId()),
+		]), $income);
 	}
 
 	/**

@@ -390,9 +390,9 @@ export default class BillsModule {
                         <button class="bill-action-btn bill-edit-btn" data-bill-id="${bill.id}" title="${t('budget', 'Edit bill')}" aria-label="${t('budget', 'Edit bill')}">
                             <span class="icon-rename" aria-hidden="true"></span>
                         </button>
-                        <button class="bill-action-btn bill-delete-btn" data-bill-id="${bill.id}" title="${t('budget', 'Delete bill')}" aria-label="${t('budget', 'Delete bill')}">
+                        ${bill._shared && !bill._canManage ? '' : `<button class="bill-action-btn bill-delete-btn" data-bill-id="${bill.id}" title="${t('budget', 'Delete bill')}" aria-label="${t('budget', 'Delete bill')}">
                             <span class="icon-delete" aria-hidden="true"></span>
-                        </button>
+                        </button>`}
                     </div>
                 </div>
             `;

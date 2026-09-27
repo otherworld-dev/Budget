@@ -568,11 +568,12 @@ class RecurringIncomeControllerTest extends TestCase {
 	 * Built fresh rather than re-stubbing setUp()'s mock, which PHPUnit will
 	 * not let a later willReturn() override.
 	 */
-	private function controllerOwnedBy(?string $owner, bool $canWrite = true): RecurringIncomeController {
+	private function controllerOwnedBy(?string $owner, bool $canWrite = true, bool $canManage = false): RecurringIncomeController {
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn($owner !== null);
 		$granularShareService->method('resolveOwner')->willReturn($owner);
 		$granularShareService->method('canWrite')->willReturn($canWrite);
+		$granularShareService->method('canManage')->willReturn($canManage);
 		if (!$canWrite) {
 			$granularShareService->method('requireWriteAccess')
 				->willThrowException(new \OCA\Budget\Exception\ReadOnlyShareException());
@@ -611,11 +612,21 @@ class RecurringIncomeControllerTest extends TestCase {
 	}
 
 	public function testDestroyDeletesSharedIncomeUnderItsOwner(): void {
+		// Deleting needs Full control from the owner
 		$this->service->expects($this->once())->method('delete')->with(7, 'owner1');
 
-		$response = $this->controllerOwnedBy('owner1')->destroy(7);
+		$response = $this->controllerOwnedBy('owner1', true, true)->destroy(7);
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testDestroyRefusesSharedIncomeAtReadAndWrite(): void {
+		$this->service->expects($this->never())->method('delete');
+
+		$response = $this->controllerOwnedBy('owner1', true, false)->destroy(7);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+		$this->assertSame('Deleting a shared item needs Full control from its owner', $response->getData()['error']);
 	}
 
 	public function testMarkReceivedRunsAsTheIncomeOwner(): void {

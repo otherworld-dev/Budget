@@ -263,16 +263,18 @@ export default class SharingModule {
     }
 
     renderConfigPanel(panel, shareId, config, entities, autoConfig = {}) {
+        // Full control adds what Read & Write keeps for the owner: deleting,
+        // or for categories their structure (type, parent, subcategories,
+        // budgets, report settings) but never deleting one. Accounts and
+        // import rules don't offer it (see ShareItem::FULL_CONTROL_TYPES).
+        const canDelete = t('budget', 'Read & Write, plus deleting them.');
         const sections = [
             { type: 'account', label: t('budget', 'Accounts'), nameField: 'name' },
-            // Only categories hold anything back from Read & Write beyond
-            // delete, so only they offer Full control (type, parent,
-            // subcategories, budgets, report settings; never delete)
-            { type: 'category', label: t('budget', 'Categories'), nameField: 'name', fullControl: true },
-            { type: 'bill', label: t('budget', 'Bills'), nameField: 'name' },
-            { type: 'recurring_income', label: t('budget', 'Recurring Income'), nameField: 'name' },
-            { type: 'savings_goal', label: t('budget', 'Savings Goals'), nameField: 'name' },
-            { type: 'project', label: t('budget', 'Projects'), nameField: 'name' },
+            { type: 'category', label: t('budget', 'Categories'), nameField: 'name', fullControl: t('budget', 'Read & Write, plus the type, parent, subcategories, budget and report settings. Only you can delete.') },
+            { type: 'bill', label: t('budget', 'Bills'), nameField: 'name', fullControl: canDelete },
+            { type: 'recurring_income', label: t('budget', 'Recurring Income'), nameField: 'name', fullControl: canDelete },
+            { type: 'savings_goal', label: t('budget', 'Savings Goals'), nameField: 'name', fullControl: canDelete },
+            { type: 'project', label: t('budget', 'Projects'), nameField: 'name', fullControl: canDelete },
             { type: 'import_rule', label: t('budget', 'Import Rules'), nameField: 'name' },
         ];
 
@@ -297,7 +299,7 @@ export default class SharingModule {
                                     <select class="share-config-permission" data-type="${section.type}">
                                         <option value="read" ${currentConfig.permission === 'read' ? 'selected' : ''}>${t('budget', 'Read only')}</option>
                                         <option value="write" ${currentConfig.permission === 'write' ? 'selected' : ''}>${t('budget', 'Read & Write')}</option>
-                                        ${section.fullControl ? `<option value="full" ${currentConfig.permission === 'full' ? 'selected' : ''} title="${t('budget', 'Read & Write, plus the type, parent, subcategories, budget and report settings. Only you can delete.')}">${t('budget', 'Full control')}</option>` : ''}
+                                        ${section.fullControl ? `<option value="full" ${currentConfig.permission === 'full' ? 'selected' : ''} title="${section.fullControl}">${t('budget', 'Full control')}</option>` : ''}
                                     </select>
                                 </div>
                             </div>
