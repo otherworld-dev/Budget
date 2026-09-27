@@ -2366,6 +2366,14 @@ export default class CategoriesModule {
                 ? (remaining <= 0 ? 'positive' : 'zero')
                 : (remaining > 0 ? 'positive' : (remaining < 0 ? 'negative' : 'zero'));
 
+            // A shared category's budget is its owner's: only they, or someone
+            // they gave Full control, can change it. The server refuses anyone
+            // else, so the controls are read-only rather than failing on save.
+            const budgetLocked = !!category._shared && !category._canManage;
+            const lockedAttrs = budgetLocked
+                ? `disabled title="${t('budget', 'Only the owner can change the budget of a shared category')}"`
+                : '';
+
             return `
                 <div class="budget-category-row ${hasChildren ? 'parent-row' : ''}" data-category-id="${category.id}">
                     <div class="budget-category-name level-${level}" data-label="">
@@ -2376,7 +2384,8 @@ export default class CategoriesModule {
                                 data-enabled="${rolloverEnabled ? '1' : '0'}"
                                 title="${rolloverEnabled ? t('budget', 'Envelope budgeting on: unspent budget carries to next month. Click to turn off.') : t('budget', 'Turn on envelope budgeting: unspent budget carries to next month')}"
                                 aria-label="${t('budget', 'Envelope budgeting')}"
-                                aria-pressed="${rolloverEnabled ? 'true' : 'false'}">&#8635;</button>` : ''}
+                                aria-pressed="${rolloverEnabled ? 'true' : 'false'}"
+                                ${budgetLocked ? 'disabled' : ''}>&#8635;</button>` : ''}
                     </div>
                     <div class="budget-input-wrapper" data-label="${t('budget', 'Budget')}">
                         <input type="number"
@@ -2386,7 +2395,8 @@ export default class CategoriesModule {
                                value="${manualBudgetAmount ? Math.round(manualBudgetAmount * 100) / 100 : ''}"
                                placeholder="${isAutoBudget ? Math.round(recurringBudgetAmount * 100) / 100 : '0.00'}"
                                step="0.01"
-                               min="0">
+                               min="0"
+                               ${lockedAttrs}>
                         ${isAutoBudget ? `<span class="budget-auto-hint" title="${t('budget', 'Auto-calculated from recurring bills/income. Enter a value to override.')}">${t('budget', 'auto')}</span>` : ''}
                         ${rolloverEnabled && Math.abs(carried) >= 0.005 ? `<span class="budget-carried-hint ${carried < 0 ? 'negative' : 'positive'}" title="${(carried < 0
                             ? t('budget', '{base} − {over} overspent = {available} available', { base: this.formatCurrency(baseBudgetAmount), over: this.formatCurrency(Math.abs(carried)), available: this.formatCurrency(effectiveBudgetAmount) })
@@ -2395,7 +2405,7 @@ export default class CategoriesModule {
                         ${hasChildren && budget > effectiveBudgetAmount ? `<span class="budget-aggregate-hint">${t('budget', 'Total')}: ${this.formatCurrency(budget)}</span>` : ''}
                     </div>
                     <div data-label="${t('budget', 'Period')}">
-                        <select class="budget-period-select" data-category-id="${category.id}" aria-label="${t('budget', 'Budget period for {category}', { category: category.name })}">
+                        <select class="budget-period-select" data-category-id="${category.id}" aria-label="${t('budget', 'Budget period for {category}', { category: category.name })}" ${lockedAttrs}>
                             <option value="monthly" ${effectivePeriod === 'monthly' ? 'selected' : ''}>${t('budget', 'Monthly')}</option>
                             <option value="weekly" ${effectivePeriod === 'weekly' ? 'selected' : ''}>${t('budget', 'Weekly')}</option>
                             <option value="quarterly" ${effectivePeriod === 'quarterly' ? 'selected' : ''}>${t('budget', 'Quarterly')}</option>
@@ -2548,7 +2558,21 @@ export default class CategoriesModule {
             // No errorMessage: the toast below already says "Failed to update
             // budget: …", so a failure without a server message shows its
             // HTTP status there.
-            if (this._currentMonthHasSnapshot) {
+            const shared = !!this.findCategoryById(parseInt(categoryId))?._shared;
+            let savedToCategory = !this._currentMonthHasSnapshot;
+            if (shared) {
+                // The owner's budget: the server puts it in their adjustment
+                // for this month if they have one, otherwise on the category.
+                // This user's own adjustment never holds it.
+                const payload = {};
+                if ('budgetAmount' in updates) payload.amount = updates.budgetAmount;
+                if ('budgetPeriod' in updates) payload.period = updates.budgetPeriod;
+                const result = await apiFetch(
+                    `/apps/budget/api/categories/${categoryId}/budget/${this.budgetMonth}`,
+                    { method: 'PUT', body: payload }
+                );
+                savedToCategory = result?.target === 'category';
+            } else if (this._currentMonthHasSnapshot) {
                 // Save to snapshot API
                 const snapshotPayload = {};
                 if ('budgetAmount' in updates) snapshotPayload.amount = updates.budgetAmount;
@@ -2571,10 +2595,8 @@ export default class CategoriesModule {
 
             // Update local data
             const category = this.findCategoryById(parseInt(categoryId));
-            if (category) {
-                if (!this._currentMonthHasSnapshot) {
-                    Object.assign(category, updates);
-                }
+            if (category && savedToCategory) {
+                Object.assign(category, updates);
             }
 
             // Update effective budgets cache locally

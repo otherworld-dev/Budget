@@ -396,6 +396,89 @@ class CategoryController extends Controller {
 	}
 
 	/**
+	 * The effective budgets of the categories shared with this user, as each
+	 * owner sees them for $month: the owner's adjustment for the month, the
+	 * owner's envelope and its carry-over over the owner's accounts. Without
+	 * this a shared category showed only its plain budget, so in any month
+	 * the owner had adjusted the two people saw different figures.
+	 *
+	 * @return array<int, array> keyed by category id, like resolveEffectiveBudgets()
+	 */
+	private function sharedEffectiveBudgets(string $month): array {
+		$idsByOwner = [];
+		foreach ($this->granularShareService->getSharedCategories($this->userId) as $category) {
+			$idsByOwner[$category['userId']][] = (int)$category['id'];
+		}
+
+		$budgets = [];
+		foreach ($idsByOwner as $owner => $ids) {
+			$ownerBudgets = $this->service->resolveEffectiveBudgets(
+				$owner,
+				$month,
+				$this->granularShareService->getVisibleAccountIds($owner)
+			);
+			$budgets += array_intersect_key($ownerBudgets, array_flip($ids));
+		}
+		return $budgets;
+	}
+
+	/**
+	 * Set the budget of a category shared with this user at Full control, for
+	 * the month the Budget page is showing. The change lands where the
+	 * owner's own edit would: their adjustment for that month if they made
+	 * one, otherwise the category's budget. The recipient's own adjustments
+	 * never hold the owner's categories, so routing it through them failed.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 60, period: 60)]
+	public function updateSharedBudget(int $id, string $month, ?float $amount = null, ?string $period = null): DataResponse {
+		try {
+			if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+				return new DataResponse(['error' => $this->l->t('Invalid month format. Use YYYY-MM')], Http::STATUS_BAD_REQUEST);
+			}
+			if ($period !== null && !in_array($period, ['monthly', 'weekly', 'yearly', 'quarterly'], true)) {
+				return new DataResponse(['error' => $this->l->t('Invalid budget period')], Http::STATUS_BAD_REQUEST);
+			}
+
+			$owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id);
+			if ($owner === null) {
+				return new DataResponse(
+					['error' => $this->l->t('%1$s not found', [$this->l->t('Category')])],
+					Http::STATUS_NOT_FOUND
+				);
+			}
+			if ($owner !== $this->userId
+				&& !$this->granularShareService->canManage($this->userId, 'category', $id)) {
+				return new DataResponse(
+					['error' => $this->l->t('Only the owner can change the budget of a shared category')],
+					Http::STATUS_FORBIDDEN
+				);
+			}
+
+			if ($this->service->hasSnapshot($owner, $month)) {
+				$this->service->updateSnapshotBudget($owner, $id, $month, $amount, $period);
+				return new DataResponse(['target' => 'adjustment']);
+			}
+
+			$updates = [];
+			if ($amount !== null) {
+				$updates['budgetAmount'] = $amount;
+			}
+			if ($period !== null) {
+				$updates['budgetPeriod'] = $period;
+			}
+			if ($updates === []) {
+				return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
+			}
+			$this->service->update($id, $owner, $updates);
+			return new DataResponse(['target' => 'category']);
+		} catch (\Exception $e) {
+			return $this->handleValidationError($e);
+		}
+	}
+
+	/**
 	 * @NoAdminRequired
 	 */
 	/**
@@ -676,12 +759,15 @@ class CategoryController extends Controller {
 				$month,
 				$accountIds
 			);
+			// The page's "Ready to assign" card, for the same month and scope.
+			// Only this user's own budgets give out their income, so it is
+			// worked out before the shared categories join the list.
+			$readyToAssign = $this->service->getReadyToAssign($this->userId, $month, $accountIds, $budgets);
 			return new DataResponse([
 				'month' => $month,
 				'hasSnapshot' => $hasSnapshot,
-				'budgets' => $budgets,
-				// The page's "Ready to assign" card, for the same month and scope
-				'readyToAssign' => $this->service->getReadyToAssign($this->userId, $month, $accountIds, $budgets),
+				'budgets' => $budgets + $this->sharedEffectiveBudgets($month),
+				'readyToAssign' => $readyToAssign,
 			]);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to retrieve effective budgets'));
