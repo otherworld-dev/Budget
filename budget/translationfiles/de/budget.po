@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-26 18:22+0000\n"
+"POT-Creation-Date: 2026-09-26 22:37+0000\n"
 "PO-Revision-Date: 2026-09-26 12:51+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -129,7 +129,7 @@ msgstr "Ungültige Anfragedaten"
 
 #: /app/lib/Controller/AccountController.php:483
 #: /app/lib/Controller/BillController.php:728
-#: /app/lib/Controller/CategoryController.php:319
+#: /app/lib/Controller/CategoryController.php:329
 #: /app/lib/Controller/ImportRuleController.php:340
 #: /app/lib/Controller/ImportTemplateController.php:152
 #: /app/lib/Controller/TagSetController.php:186
@@ -241,7 +241,7 @@ msgstr "Budgetzusammenfassung konnte nicht abgerufen werden"
 
 #: /app/lib/Controller/ApiV1CategoryController.php:62
 #: /app/lib/Controller/CategoryController.php:183
-#: /app/lib/Controller/CategoryController.php:254
+#: /app/lib/Controller/CategoryController.php:259
 msgid "Invalid category type. Must be income or expense"
 msgstr "Ungültiger Kategorietyp. Muss Einkommen oder Ausgaben sein"
 
@@ -633,10 +633,10 @@ msgid "Bill"
 msgstr "Rechnung"
 
 #: /app/lib/Controller/BillController.php:121
-#: /app/lib/Controller/CategoryController.php:381
-#: /app/lib/Controller/CategoryController.php:475
-#: /app/lib/Controller/CategoryController.php:493
-#: /app/lib/Controller/CategoryController.php:512
+#: /app/lib/Controller/CategoryController.php:417
+#: /app/lib/Controller/CategoryController.php:511
+#: /app/lib/Controller/CategoryController.php:529
+#: /app/lib/Controller/CategoryController.php:548
 #: /app/lib/Controller/GoalsController.php:87
 #: /app/lib/Controller/GoalsController.php:316
 #: /app/lib/Controller/GoalsController.php:344
@@ -887,7 +887,7 @@ msgstr "Jahressumme"
 #: /app/lib/Service/Report/ReportExporter.php:513
 #: /app/lib/Service/Report/ReportExporter.php:584
 #: /app/lib/Service/Report/ReportExporter.php:659
-#: /app/src/modules/categories/CategoriesModule.js:2355
+#: /app/src/modules/categories/CategoriesModule.js:2367
 #: /app/src/modules/reports/ReportsModule.js:1854 /app/templates/index.php:7321
 msgid "Total"
 msgstr "Summe"
@@ -988,12 +988,12 @@ msgid "Failed to retrieve transaction counts"
 msgstr "Die Anzahl an Buchungen konnte nicht ermittelt werden"
 
 #: /app/lib/Controller/CategoryController.php:153
-#: /app/lib/Controller/CategoryController.php:381
-#: /app/lib/Controller/CategoryController.php:475
-#: /app/lib/Controller/CategoryController.php:493
-#: /app/lib/Controller/CategoryController.php:499
-#: /app/lib/Controller/CategoryController.php:512
-#: /app/lib/Controller/CategoryController.php:519
+#: /app/lib/Controller/CategoryController.php:417
+#: /app/lib/Controller/CategoryController.php:511
+#: /app/lib/Controller/CategoryController.php:529
+#: /app/lib/Controller/CategoryController.php:535
+#: /app/lib/Controller/CategoryController.php:548
+#: /app/lib/Controller/CategoryController.php:555
 #: /app/lib/Controller/YearOverYearController.php:287
 #: /app/lib/Controller/YearOverYearController.php:389
 #: /app/lib/Service/Export/TransactionCsvExporter.php:31
@@ -1026,97 +1026,104 @@ msgstr "Die Anzahl an Buchungen konnte nicht ermittelt werden"
 msgid "Category"
 msgstr "Kategorie"
 
-#: /app/lib/Controller/CategoryController.php:281
+#: /app/lib/Controller/CategoryController.php:286
 msgid "Invalid budget period. Must be monthly, weekly, yearly, or quarterly"
 msgstr ""
 "Ungültige Budgetperiode. Muss monatlich, wöchentlich, jährlich oder "
 "vierteljährlich sein"
 
-#: /app/lib/Controller/CategoryController.php:326
+#: /app/lib/Controller/CategoryController.php:336
 #: /app/src/modules/categories/CategoriesModule.js:1389
 msgid "Failed to update category"
 msgstr "Kategorie konnte nicht aktualisiert werden"
 
-#: /app/lib/Controller/CategoryController.php:352
+#: /app/lib/Controller/CategoryController.php:359
+#, fuzzy
+#| msgid "Amounts can only go to subcategories of the project category"
+msgid "Only the owner can add subcategories to a shared category"
+msgstr ""
+"Beträge können nur Unterkategorien der Projektkategorie zugewiesen werden"
+
+#: /app/lib/Controller/CategoryController.php:382
 msgid "Invalid position"
 msgstr "Ungültige Position"
 
-#: /app/lib/Controller/CategoryController.php:360
+#: /app/lib/Controller/CategoryController.php:390
 msgid "Shared categories cannot be nested"
 msgstr "Geteilte Kategorien können nicht verschachtelt werden"
 
-#: /app/lib/Controller/CategoryController.php:366
-#: /app/lib/Controller/CategoryController.php:368
+#: /app/lib/Controller/CategoryController.php:402
+#: /app/lib/Controller/CategoryController.php:404
 #: /app/src/modules/categories/CategoriesModule.js:611
 #: /app/src/modules/categories/CategoriesModule.js:620
 msgid "Failed to reorder category"
 msgstr "Kategorie konnte nicht neu angeordnet werden"
 
-#: /app/lib/Controller/CategoryController.php:390
+#: /app/lib/Controller/CategoryController.php:426
 msgid "Only the category owner can delete it"
 msgstr "Nur der Eigentümer der Kategorie kann das löschen"
 
-#: /app/lib/Controller/CategoryController.php:424
+#: /app/lib/Controller/CategoryController.php:460
 msgid "Failed to load report preferences"
 msgstr "Berichtseinstellungen konnten nicht geladen werden"
 
-#: /app/lib/Controller/CategoryController.php:440
+#: /app/lib/Controller/CategoryController.php:476
 #: /app/lib/Service/GranularShareService.php:146
 msgid "Category not found"
 msgstr "Kategorie nicht gefunden"
 
-#: /app/lib/Controller/CategoryController.php:445
+#: /app/lib/Controller/CategoryController.php:481
 #: /app/src/modules/categories/CategoriesModule.js:441
 msgid "Failed to update report preference"
 msgstr "Berichtseinstellung konnte nicht aktualisiert werden"
 
-#: /app/lib/Controller/CategoryController.php:462
-#: /app/lib/Controller/CategoryController.php:480
+#: /app/lib/Controller/CategoryController.php:498
+#: /app/lib/Controller/CategoryController.php:516
 msgid "Failed to retrieve category spending"
 msgstr "Die Ausgabenkategorie konnte nicht abgerufen werden"
 
-#: /app/lib/Controller/CategoryController.php:531
-#: /app/lib/Controller/CategoryController.php:553
-#: /app/lib/Controller/CategoryController.php:583
-#: /app/lib/Controller/CategoryController.php:631
+#: /app/lib/Controller/CategoryController.php:567
+#: /app/lib/Controller/CategoryController.php:589
+#: /app/lib/Controller/CategoryController.php:619
+#: /app/lib/Controller/CategoryController.php:667
 msgid "Invalid month format. Use YYYY-MM"
 msgstr "Ungültiges Monatsformat. Verwende YYYY-MM"
 
-#: /app/lib/Controller/CategoryController.php:559
+#: /app/lib/Controller/CategoryController.php:595
 msgid "Failed to delete budget snapshot"
 msgstr "Budget-Momentaufnahme konnte nicht gelöscht werden"
 
-#: /app/lib/Controller/CategoryController.php:572
+#: /app/lib/Controller/CategoryController.php:608
 msgid "Failed to retrieve snapshot months"
 msgstr "Momentaufnahmen für den Monat konnten nicht abgerufen werden"
 
-#: /app/lib/Controller/CategoryController.php:604
+#: /app/lib/Controller/CategoryController.php:640
 msgid "Failed to retrieve effective budgets"
 msgstr "Gültige Budgets konnten nicht abgerufen werden"
 
-#: /app/lib/Controller/CategoryController.php:619
+#: /app/lib/Controller/CategoryController.php:655
 msgid "Failed to retrieve recurring budgets"
 msgstr "Wiederkehrende Budgets konnten nicht abgerufen werden"
 
-#: /app/lib/Controller/CategoryController.php:637
+#: /app/lib/Controller/CategoryController.php:673
 msgid "Invalid budget period"
 msgstr "Ungültiger Budgetzeitraum"
 
 #: /app/lib/Controller/CategoryTransferController.php:64
-#: /app/src/modules/categories/CategoriesModule.js:1587
 #: /app/src/modules/categories/CategoriesModule.js:1599
+#: /app/src/modules/categories/CategoriesModule.js:1611
 msgid "Failed to export categories"
 msgstr "Kategorien konnten nicht exportiert werden"
 
 #: /app/lib/Controller/CategoryTransferController.php:89
-#: /app/src/modules/categories/CategoriesModule.js:1623
-#: /app/src/modules/categories/CategoriesModule.js:1629
+#: /app/src/modules/categories/CategoriesModule.js:1635
+#: /app/src/modules/categories/CategoriesModule.js:1641
 msgid "Failed to read the category file"
 msgstr "Die Kategoriedatei konnte nicht gelesen werden"
 
 #: /app/lib/Controller/CategoryTransferController.php:109
-#: /app/src/modules/categories/CategoriesModule.js:1697
-#: /app/src/modules/categories/CategoriesModule.js:1705
+#: /app/src/modules/categories/CategoriesModule.js:1709
+#: /app/src/modules/categories/CategoriesModule.js:1717
 msgid "Failed to import categories"
 msgstr "Kategorien konnten nicht importiert werden"
 
@@ -2102,7 +2109,7 @@ msgstr "Montag"
 
 #: /app/lib/Controller/SettingController.php:321
 #: /app/src/modules/bills/BillsModule.js:331
-#: /app/src/modules/categories/CategoriesModule.js:2360
+#: /app/src/modules/categories/CategoriesModule.js:2372
 #: /app/src/modules/income/IncomeModule.js:110
 #: /app/src/modules/transfers/TransfersModule.js:330
 #: /app/src/modules/transfers/TransfersModule.js:503
@@ -2115,7 +2122,7 @@ msgstr "Wöchentlich"
 #: /app/lib/Controller/SettingController.php:322
 #: /app/src/modules/accounts/AccountsModule.js:1368
 #: /app/src/modules/bills/BillsModule.js:334
-#: /app/src/modules/categories/CategoriesModule.js:2359
+#: /app/src/modules/categories/CategoriesModule.js:2371
 #: /app/src/modules/income/IncomeModule.js:113
 #: /app/src/modules/pensions/PensionsModule.js:1026
 #: /app/src/modules/transfers/TransfersModule.js:333
@@ -2129,7 +2136,7 @@ msgstr "Monatlich"
 
 #: /app/lib/Controller/SettingController.php:323
 #: /app/src/modules/bills/BillsModule.js:335
-#: /app/src/modules/categories/CategoriesModule.js:2361
+#: /app/src/modules/categories/CategoriesModule.js:2373
 #: /app/src/modules/income/IncomeModule.js:114
 #: /app/src/modules/pensions/PensionsModule.js:1027
 #: /app/src/modules/transfers/TransfersModule.js:334
@@ -2143,7 +2150,7 @@ msgstr "Vierteljährlich"
 #: /app/lib/Controller/SettingController.php:324
 #: /app/src/modules/accounts/AccountsModule.js:1369
 #: /app/src/modules/bills/BillsModule.js:337
-#: /app/src/modules/categories/CategoriesModule.js:2362
+#: /app/src/modules/categories/CategoriesModule.js:2374
 #: /app/src/modules/income/IncomeModule.js:116
 #: /app/src/modules/pensions/PensionsModule.js:1028
 #: /app/src/modules/transfers/TransfersModule.js:336
@@ -2738,7 +2745,7 @@ msgstr "Jahr"
 #: /app/src/core/KeyboardShortcuts.js:354
 #: /app/src/modules/categories/CategoriesModule.js:763
 #: /app/src/modules/categories/CategoriesModule.js:905
-#: /app/src/modules/categories/CategoriesModule.js:1675
+#: /app/src/modules/categories/CategoriesModule.js:1687
 #: /app/src/modules/dashboard/DashboardModule.js:2329
 #: /app/src/modules/dashboard/DashboardModule.js:2857
 #: /app/src/modules/dashboard/DashboardModule.js:3182
@@ -2959,7 +2966,7 @@ msgstr[1] "Fällig in %n Tagen"
 #: /app/specialAppInfoFakeDummyForL10nScript.php:2
 #: /app/src/core/KeyboardShortcuts.js:353
 #: /app/src/modules/categories/CategoriesModule.js:926
-#: /app/src/modules/categories/CategoriesModule.js:2341
+#: /app/src/modules/categories/CategoriesModule.js:2353
 #: /app/src/modules/dashboard/DashboardModule.js:2165
 #: /app/src/modules/help/HelpModule.js:32
 #: /app/src/modules/projects/ProjectsModule.js:145 /app/templates/index.php:93
@@ -3336,7 +3343,13 @@ msgstr "Eine Kategorie mit diesem Namen existiert bereits in dieser Ebene"
 msgid "Category cannot be its own parent"
 msgstr "Die Kategorie kann nicht sich selbst übergeordnet sein"
 
-#: /app/lib/Service/CategoryService.php:215
+#: /app/lib/Service/CategoryService.php:204
+#, fuzzy
+#| msgid "Category not found"
+msgid "Parent category not found"
+msgstr "Kategorie nicht gefunden"
+
+#: /app/lib/Service/CategoryService.php:230
 #, fuzzy
 #| msgid ""
 #| "Cannot delete account with existing transactions. Please delete all "
@@ -3348,13 +3361,13 @@ msgstr ""
 "Konto mit existierenden Buchungen kann nicht gelöscht werden. Bitte lösche "
 "zuerst alle Buchungen."
 
-#: /app/lib/Service/CategoryService.php:279
+#: /app/lib/Service/CategoryService.php:294
 #, fuzzy
 #| msgid "Category cannot be its own parent"
 msgid "A category cannot be nested inside itself"
 msgstr "Die Kategorie kann nicht sich selbst übergeordnet sein"
 
-#: /app/lib/Service/CategoryService.php:360
+#: /app/lib/Service/CategoryService.php:375
 #, php-format
 msgid ""
 "This category is used by the project \"%1$s\". Change or delete the project "
@@ -3363,13 +3376,13 @@ msgstr ""
 "Diese Kategorie wird vom Projekt „%1$s“ verwendet. Ändere oder lösche zuerst "
 "das Projekt."
 
-#: /app/lib/Service/CategoryService.php:638
+#: /app/lib/Service/CategoryService.php:653
 #, fuzzy
 #| msgid "A pending share already exists for this user"
 msgid "A budget adjustment already exists for this month"
 msgstr "Es existiert bereits eine ausstehende Aktie für diesen Benutzer"
 
-#: /app/lib/Service/CategoryService.php:714
+#: /app/lib/Service/CategoryService.php:729
 msgid "No budget snapshot found for this category and month"
 msgstr "Für diese Kategorie und diesen Monat sind keine Budgetdaten verfügbar"
 
@@ -3576,7 +3589,7 @@ msgstr "Aufteilung"
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:144
 #: /app/src/modules/categories/CategoriesModule.js:763
-#: /app/src/modules/categories/CategoriesModule.js:1675
+#: /app/src/modules/categories/CategoriesModule.js:1687
 #: /app/src/modules/rules/components/ActionBuilder.js:322
 #: /app/src/modules/rules/components/CriteriaBuilder.js:217
 #: /app/templates/index.php:1046 /app/templates/index.php:1473
@@ -4109,7 +4122,7 @@ msgid "Source"
 msgstr "Bezugsquelle"
 
 #: /app/lib/Service/Report/ReportExporter.php:357
-#: /app/src/modules/categories/CategoriesModule.js:2357
+#: /app/src/modules/categories/CategoriesModule.js:2369
 #: /app/templates/index.php:597 /app/templates/index.php:2034
 #: /app/templates/index.php:2233 /app/templates/index.php:3195
 msgid "Period"
@@ -4128,7 +4141,7 @@ msgstr "Budget"
 
 #: /app/lib/Service/Report/ReportExporter.php:402
 #: /app/lib/Service/Report/ReportExporter.php:641
-#: /app/src/modules/categories/CategoriesModule.js:2365
+#: /app/src/modules/categories/CategoriesModule.js:2377
 #: /app/src/modules/dashboard/DashboardModule.js:2166
 #: /app/src/modules/projects/ProjectsModule.js:146
 #: /app/templates/index.php:2234 /app/templates/index.php:5137
@@ -4137,7 +4150,7 @@ msgstr "Ausgegeben"
 
 #: /app/lib/Service/Report/ReportExporter.php:403
 #: /app/lib/Service/Report/ReportExporter.php:642
-#: /app/src/modules/categories/CategoriesModule.js:2368
+#: /app/src/modules/categories/CategoriesModule.js:2380
 #: /app/src/modules/dashboard/DashboardModule.js:2167
 #: /app/src/modules/projects/ProjectsModule.js:147
 #: /app/templates/index.php:2202 /app/templates/index.php:2235
@@ -7419,7 +7432,7 @@ msgid "Your account balance will NOT reflect this payment."
 msgstr "Diese Zahlung wirkt sich NICHT auf deinen Kontostand aus."
 
 #: /app/src/modules/bills/BillsModule.js:1407
-#: /app/src/modules/categories/CategoriesModule.js:1934
+#: /app/src/modules/categories/CategoriesModule.js:1946
 #: /app/src/modules/transfers/TransfersModule.js:171
 #: /app/src/modules/transfers/TransfersModule.js:611
 #: /app/src/utils/dialogs.js:237 /app/src/utils/dialogs.js:262
@@ -7448,7 +7461,7 @@ msgid "Cancel"
 msgstr "Abbrechen"
 
 #: /app/src/modules/bills/BillsModule.js:1408
-#: /app/src/modules/categories/CategoriesModule.js:1933
+#: /app/src/modules/categories/CategoriesModule.js:1945
 #: /app/src/utils/dialogs.js:236
 #, fuzzy
 #| msgid "Configure"
@@ -7792,45 +7805,45 @@ msgstr[1] "Kategorien unter dem Budget"
 msgid "Failed to recolor: {errors}"
 msgstr "Fehler beim Löschen: {errors}"
 
-#: /app/src/modules/categories/CategoriesModule.js:1478
+#: /app/src/modules/categories/CategoriesModule.js:1487
 #: /app/templates/index.php:6820
 msgid "None (Top Level)"
 msgstr "Keine (oberste Ebene)"
 
-#: /app/src/modules/categories/CategoriesModule.js:1497
+#: /app/src/modules/categories/CategoriesModule.js:1509
 msgid "Category name is required"
 msgstr "Name der Kategorie ist erforderlich"
 
-#: /app/src/modules/categories/CategoriesModule.js:1534
-#: /app/src/modules/categories/CategoriesModule.js:1549
+#: /app/src/modules/categories/CategoriesModule.js:1546
+#: /app/src/modules/categories/CategoriesModule.js:1561
 msgid "Failed to save category"
 msgstr "Kategorie konnte nicht gespeichert werden"
 
-#: /app/src/modules/categories/CategoriesModule.js:1537
+#: /app/src/modules/categories/CategoriesModule.js:1549
 msgid "Category updated successfully"
 msgstr "Kategorie erfolgreich aktualisiert"
 
-#: /app/src/modules/categories/CategoriesModule.js:1537
+#: /app/src/modules/categories/CategoriesModule.js:1549
 msgid "Category created successfully"
 msgstr "Kategorie erfolgreich erstellt"
 
-#: /app/src/modules/categories/CategoriesModule.js:1564
-#: /app/src/modules/categories/CategoriesModule.js:1572
+#: /app/src/modules/categories/CategoriesModule.js:1576
+#: /app/src/modules/categories/CategoriesModule.js:1584
 msgid "Failed to create default categories"
 msgstr "Standardkategorien konnten nicht erstellt werden"
 
-#: /app/src/modules/categories/CategoriesModule.js:1567
+#: /app/src/modules/categories/CategoriesModule.js:1579
 msgid "Default categories created successfully"
 msgstr "Standardkategorien erfolgreich erstellt"
 
-#: /app/src/modules/categories/CategoriesModule.js:1615
+#: /app/src/modules/categories/CategoriesModule.js:1627
 #: /app/src/modules/rules/RulesModule.js:1366
 #, fuzzy
 #| msgid "Failed to preview file: {error}"
 msgid "Could not read that file: {error}"
 msgstr "Vorschau der Datei fehlgeschlagen: {error}"
 
-#: /app/src/modules/categories/CategoriesModule.js:1641
+#: /app/src/modules/categories/CategoriesModule.js:1653
 msgid ""
 "{create} new categories will be created. {exists} already exist and will be "
 "left unchanged."
@@ -7838,7 +7851,7 @@ msgstr ""
 "{create} neue Kategorien werden erstellt. {exists} sind bereits vorhanden "
 "und bleiben unverändert."
 
-#: /app/src/modules/categories/CategoriesModule.js:1642
+#: /app/src/modules/categories/CategoriesModule.js:1654
 #, fuzzy
 #| msgid "%n category is over budget."
 #| msgid_plural "%n categories are over budget."
@@ -7847,28 +7860,28 @@ msgid_plural "%n new categories will be created."
 msgstr[0] "%n Kategorie ist über dem Budget."
 msgstr[1] "%n Kategorien sind über dem Budget."
 
-#: /app/src/modules/categories/CategoriesModule.js:1661
+#: /app/src/modules/categories/CategoriesModule.js:1673
 msgid "Import %n category"
 msgid_plural "Import %n categories"
 msgstr[0] "%n Kategorie importieren"
 msgstr[1] "%n Kategorien importieren"
 
-#: /app/src/modules/categories/CategoriesModule.js:1662
+#: /app/src/modules/categories/CategoriesModule.js:1674
 #, fuzzy
 #| msgid "No transactions to import"
 msgid "Nothing to import"
 msgstr "Keine Buchungen zum Importieren vorhanden"
 
-#: /app/src/modules/categories/CategoriesModule.js:1672
+#: /app/src/modules/categories/CategoriesModule.js:1684
 msgid "Exists"
 msgstr "Bereits vorhanden"
 
-#: /app/src/modules/categories/CategoriesModule.js:1673
+#: /app/src/modules/categories/CategoriesModule.js:1685
 #: /app/src/modules/import/ImportModule.js:1992
 msgid "New"
 msgstr "Neu"
 
-#: /app/src/modules/categories/CategoriesModule.js:1700
+#: /app/src/modules/categories/CategoriesModule.js:1712
 #, fuzzy
 #| msgid "Imported %n rule"
 #| msgid_plural "Imported %n rules"
@@ -7877,21 +7890,21 @@ msgid_plural "Imported %n categories"
 msgstr[0] "%n Regel importiert"
 msgstr[1] "%n Regeln importiert"
 
-#: /app/src/modules/categories/CategoriesModule.js:1900
+#: /app/src/modules/categories/CategoriesModule.js:1912
 msgid "Budgets adjusted from {month}"
 msgstr "Budgets ab {month} angepasst"
 
-#: /app/src/modules/categories/CategoriesModule.js:1901
+#: /app/src/modules/categories/CategoriesModule.js:1913
 #, fuzzy
 #| msgid "Remove action"
 msgid "Remove adjustment"
 msgstr "Aktion löschen"
 
-#: /app/src/modules/categories/CategoriesModule.js:1914
+#: /app/src/modules/categories/CategoriesModule.js:1926
 msgid "Adjust budgets from this month"
 msgstr "Budgets von diesem Monat anpassen"
 
-#: /app/src/modules/categories/CategoriesModule.js:1930
+#: /app/src/modules/categories/CategoriesModule.js:1942
 msgid ""
 "This will save the current budget values as a new baseline from {month} "
 "onwards. Previous months will keep their existing values. You can edit the "
@@ -7901,46 +7914,46 @@ msgstr ""
 "gespeichert. Die Werte der vorherigen Monate bleiben unverändert. Nach dem "
 "Bestätigen kannst du die neuen Werte bearbeiten."
 
-#: /app/src/modules/categories/CategoriesModule.js:1932
+#: /app/src/modules/categories/CategoriesModule.js:1944
 msgid "Adjust budgets from {month}?"
 msgstr "Budgets ab {month} anpassen?"
 
-#: /app/src/modules/categories/CategoriesModule.js:1945
-#: /app/src/modules/categories/CategoriesModule.js:1965
+#: /app/src/modules/categories/CategoriesModule.js:1957
+#: /app/src/modules/categories/CategoriesModule.js:1977
 #, fuzzy
 #| msgid "Failed to create tag set"
 msgid "Failed to create budget adjustment"
 msgstr "Fehler beim Erstellen des Schlagwort Gruppe"
 
-#: /app/src/modules/categories/CategoriesModule.js:1959
+#: /app/src/modules/categories/CategoriesModule.js:1971
 msgid ""
 "Budget adjusted from {month}. You can now edit values for this month onwards."
 msgstr ""
 "Das Budget wurde ab {month} angepasst. Du kannst die Werte ab diesem Monat "
 "jetzt bearbeiten."
 
-#: /app/src/modules/categories/CategoriesModule.js:1974
+#: /app/src/modules/categories/CategoriesModule.js:1986
 msgid "Budget adjustment created."
 msgstr "Budgetanpassung erstellt."
 
-#: /app/src/modules/categories/CategoriesModule.js:1975
+#: /app/src/modules/categories/CategoriesModule.js:1987
 #: /app/src/modules/transactions/TransactionsModule.js:4177
 #: /app/src/modules/transactions/TransactionsModule.js:4332
 #: /app/src/utils/notifications.js:73
 msgid "Undo"
 msgstr "Rückgängig"
 
-#: /app/src/modules/categories/CategoriesModule.js:2008
+#: /app/src/modules/categories/CategoriesModule.js:2020
 msgid "Budget adjustment removed"
 msgstr "Budgetanpassung entfernt"
 
-#: /app/src/modules/categories/CategoriesModule.js:2011
+#: /app/src/modules/categories/CategoriesModule.js:2023
 #, fuzzy
 #| msgid "Failed to retrieve budget alerts"
 msgid "Failed to remove budget adjustment"
 msgstr "Budgetwarnungen wurden nicht abgerufen"
 
-#: /app/src/modules/categories/CategoriesModule.js:2337
+#: /app/src/modules/categories/CategoriesModule.js:2349
 msgid ""
 "Envelope budgeting on: unspent budget carries to next month. Click to turn "
 "off."
@@ -7948,93 +7961,93 @@ msgstr ""
 "Umlagebudgetierung aktiviert: Nicht verbrauchtes Budget wird in den nächsten "
 "Monat übernommen. Klicke hier, um sie zu deaktivieren."
 
-#: /app/src/modules/categories/CategoriesModule.js:2337
+#: /app/src/modules/categories/CategoriesModule.js:2349
 msgid "Turn on envelope budgeting: unspent budget carries to next month"
 msgstr ""
 "Umlagebudgetierung aktivieren: Nicht verbrauchtes Budget wird in den "
 "nächsten Monat übernommen"
 
-#: /app/src/modules/categories/CategoriesModule.js:2338
+#: /app/src/modules/categories/CategoriesModule.js:2350
 #, fuzzy
 #| msgid "Exclude from budgeting"
 msgid "Envelope budgeting"
 msgstr "Von der Budgetierung ausschließen"
 
-#: /app/src/modules/categories/CategoriesModule.js:2344
+#: /app/src/modules/categories/CategoriesModule.js:2356
 #, fuzzy
 #| msgid "Listed under {category}"
 msgid "Budget for {category}"
 msgstr "Aufgeführt unter {category}"
 
-#: /app/src/modules/categories/CategoriesModule.js:2350
+#: /app/src/modules/categories/CategoriesModule.js:2362
 msgid "Auto-calculated from recurring bills/income. Enter a value to override."
 msgstr ""
 "Automatisch aus wiederkehrenden Rechnungen und Einnahmen berechnet. Gib "
 "einen Wert ein, um ihn zu überschreiben."
 
-#: /app/src/modules/categories/CategoriesModule.js:2350
+#: /app/src/modules/categories/CategoriesModule.js:2362
 #: /app/src/modules/pensions/PensionsModule.js:1034
 msgid "auto"
 msgstr "Auto"
 
-#: /app/src/modules/categories/CategoriesModule.js:2352
+#: /app/src/modules/categories/CategoriesModule.js:2364
 msgid "{base} − {over} overspent = {available} available"
 msgstr "{base} − {over} überzogen = {available} verfügbar"
 
-#: /app/src/modules/categories/CategoriesModule.js:2353
+#: /app/src/modules/categories/CategoriesModule.js:2365
 msgid "{base} + {carried} carried = {available} available"
 msgstr "{base} + {carried} übernommen = {available} verfügbar"
 
-#: /app/src/modules/categories/CategoriesModule.js:2354
+#: /app/src/modules/categories/CategoriesModule.js:2366
 #, fuzzy
 #| msgid "Projected Value"
 msgid "(projected)"
 msgstr "Prognostizierter Wert"
 
-#: /app/src/modules/categories/CategoriesModule.js:2358
+#: /app/src/modules/categories/CategoriesModule.js:2370
 #, fuzzy
 #| msgid "Listed under {category}"
 msgid "Budget period for {category}"
 msgstr "Aufgeführt unter {category}"
 
-#: /app/src/modules/categories/CategoriesModule.js:2371
+#: /app/src/modules/categories/CategoriesModule.js:2383
 #: /app/templates/index.php:2236 /app/templates/index.php:5139
 msgid "Progress"
 msgstr "Fortschritt"
 
-#: /app/src/modules/categories/CategoriesModule.js:2378
+#: /app/src/modules/categories/CategoriesModule.js:2390
 msgid "No budget set"
 msgstr "Kein Budget festgelegt"
 
-#: /app/src/modules/categories/CategoriesModule.js:2452
+#: /app/src/modules/categories/CategoriesModule.js:2464
 msgid "Envelope budgeting enabled — unspent budget now carries to next month"
 msgstr ""
 "Umschlagbudgetierung aktiviert – nicht verbrauchtes Budget wird jetzt in den "
 "nächsten Monat übertragen"
 
-#: /app/src/modules/categories/CategoriesModule.js:2453
+#: /app/src/modules/categories/CategoriesModule.js:2465
 msgid "Envelope budgeting disabled"
 msgstr "Umschlagbudgetierung deaktiviert"
 
-#: /app/src/modules/categories/CategoriesModule.js:2456
+#: /app/src/modules/categories/CategoriesModule.js:2468
 #, fuzzy
 #| msgid "Failed to update setting"
 msgid "Failed to update envelope setting"
 msgstr "Einstellung konnte nicht aktualisiert werden"
 
-#: /app/src/modules/categories/CategoriesModule.js:2565
+#: /app/src/modules/categories/CategoriesModule.js:2577
 msgid "Budget updated"
 msgstr "Budget aktualisiert"
 
-#: /app/src/modules/categories/CategoriesModule.js:2568
+#: /app/src/modules/categories/CategoriesModule.js:2580
 msgid "Failed to update budget: {message}"
 msgstr "Budget konnte nicht aktualisiert werden: {message}"
 
-#: /app/src/modules/categories/CategoriesModule.js:2657
+#: /app/src/modules/categories/CategoriesModule.js:2669
 msgid "Over-assigned: {income} in, {budgeted} budgeted"
 msgstr "Zu viel zugewiesen: {income} Einnahmen, {budgeted} budgetiert"
 
-#: /app/src/modules/categories/CategoriesModule.js:2659
+#: /app/src/modules/categories/CategoriesModule.js:2671
 msgid "{income} in, {budgeted} budgeted"
 msgstr "{income} Einnahmen, {budgeted} budgetiert"
 
