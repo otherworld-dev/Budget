@@ -75,19 +75,6 @@ class RuleActionApplicator {
 		}
 	}
 
-	private function normalizeRegexPattern(string $pattern): ?string {
-		$trimmed = trim($pattern);
-		if ($trimmed === '') {
-			return null;
-		}
-
-		if (preg_match('#^/(.*)/([a-zA-Z]*)$#s', $trimmed, $matches) === 1) {
-			return $matches[0];
-		}
-
-		return '/' . $trimmed . '/i';
-	}
-
 	/**
 	 * Apply all matching rules to a transaction.
 	 * Handles multiple rule matches with conflict resolution.
@@ -381,7 +368,7 @@ class RuleActionApplicator {
 				$pattern = $action['pattern'] ?? null;
 				$replacement = $action['replacement'] ?? '';
 				if (!in_array($sourceField, ['description', 'vendor', 'reference', 'notes'], true)
-					|| !in_array($targetField, ['description', 'vendor', 'amount', 'reference', 'notes', 'date'], true)
+					|| !in_array($targetField, ['description', 'vendor', 'reference', 'notes'], true)
 					|| !is_string($pattern) || !is_string($replacement)) {
 					$this->logger->warning('Invalid regex replace action fields', ['action' => $action]);
 					break;
@@ -399,38 +386,33 @@ class RuleActionApplicator {
 				if (!is_string($currentValue)) {
 					break;
 				}
-				$normalizedPattern = $this->normalizeRegexPattern($pattern);
+				$normalizedPattern = RegexPattern::toPcre($pattern);
 				if ($normalizedPattern === null || @preg_match($normalizedPattern, '') === false) {
 					$this->logger->warning('Invalid regex replace pattern', ['pattern' => $pattern]);
 					break;
 				}
 				$targetCurrentValue = $this->getFieldValue($transaction, $targetField);
 				if ($behavior !== 'if_empty' || $targetCurrentValue === null || $targetCurrentValue === '') {
-					$regex = @preg_replace($normalizedPattern, $replacement, $currentValue);
+					$regex = @preg_replace($normalizedPattern, $replacement, $currentValue, -1, $matchCount);
 					if ($regex === null) {
 						$this->logger->warning('Invalid regex replace pattern', ['pattern' => $pattern]);
 						break;
 					}
-					if ($targetField === 'amount' && (!is_numeric($regex) || !is_finite((float)$regex))) {
-						$this->logger->warning('Regex replace produced an invalid amount', ['result' => $regex]);
-						break;
-					}
-					if ($targetField === 'date' && !$this->isValidDate($regex)) {
-						$this->logger->warning('Regex replace produced an invalid date', ['result' => $regex]);
+					// No match means preg_replace handed back the source unchanged;
+					// writing that into a different target would copy it verbatim.
+					if ($matchCount === 0) {
 						break;
 					}
 					$oldValue = match ($targetField) {
 						'description' => $transaction->getDescription(),
 						'vendor' => $transaction->getVendor(),
-						'amount' => (string)$transaction->getAmount(),
 						'reference' => $transaction->getReference(),
 						'notes' => $transaction->getNotes(),
-						'date' => $transaction->getDate(),
 					};
 					$this->setFieldValue($transaction, $targetField, $regex);
 					$changes[$targetField] = [
 						'old' => $changes[$targetField]['old'] ?? $oldValue,
-						'new' => $targetField === 'amount' ? (float)$regex : $regex,
+						'new' => $regex,
 					];
 				}
 				break;
@@ -454,10 +436,11 @@ class RuleActionApplicator {
 					'lower' => mb_strtolower($currentValue, 'UTF-8'),
 					'title' => mb_convert_case($currentValue, MB_CASE_TITLE, 'UTF-8'),
 					'sentence' => mb_strtoupper(mb_substr($currentValue, 0, 1, 'UTF-8'), 'UTF-8') . mb_strtolower(mb_substr($currentValue, 1, null, 'UTF-8'), 'UTF-8'),
-					default => $currentValue,
 				};
-				$this->setFieldValue($transaction, $field, $updated);
-				$changes[$field] = ['old' => $changes[$field]['old'] ?? $oldValue, 'new' => $updated];
+				if ($updated !== ($oldValue ?? '')) {
+					$this->setFieldValue($transaction, $field, $updated);
+					$changes[$field] = ['old' => $changes[$field]['old'] ?? $oldValue, 'new' => $updated];
+				}
 				break;
 
 			case 'replace_text':
@@ -474,8 +457,10 @@ class RuleActionApplicator {
 				$oldValue = $currentValue;
 				$currentValue ??= '';
 				$updated = str_replace($find, $replace, $currentValue);
-				$this->setFieldValue($transaction, $field, $updated);
-				$changes[$field] = ['old' => $changes[$field]['old'] ?? $oldValue, 'new' => $updated];
+				if ($updated !== ($oldValue ?? '')) {
+					$this->setFieldValue($transaction, $field, $updated);
+					$changes[$field] = ['old' => $changes[$field]['old'] ?? $oldValue, 'new' => $updated];
+				}
 				break;
 
 			default:
@@ -509,28 +494,16 @@ class RuleActionApplicator {
 		return true;
 	}
 
-	private function isValidDate(string $value): bool {
-		$date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
-		$errors = \DateTimeImmutable::getLastErrors();
-		return $date !== false
-			&& ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))
-			&& $date->format('Y-m-d') === $value;
-	}
-
 	private function getFieldValue(Transaction $transaction, string $field) {
 		switch ($field) {
 			case 'description':
 				return $transaction->getDescription();
 			case 'vendor':
 				return $transaction->getVendor();
-			case 'amount':
-				return (string)$transaction->getAmount();
 			case 'reference':
 				return $transaction->getReference();
 			case 'notes':
 				return $transaction->getNotes();
-			case 'date':
-				return $transaction->getDate();
 			default:
 				return null;
 		}
@@ -544,17 +517,11 @@ class RuleActionApplicator {
 			case 'vendor':
 				$transaction->setVendor($value);
 				break;
-			case 'amount':
-				$transaction->setAmount((float)$value);
-				break;
 			case 'reference':
 				$transaction->setReference($value);
 				break;
 			case 'notes':
 				$transaction->setNotes($value);
-				break;
-			case 'date':
-				$transaction->setDate($value);
 				break;
 		}
 	}
@@ -680,7 +647,7 @@ class RuleActionApplicator {
 						break;
 					}
 					$targetField = $action['target'] ?? $field;
-					if (!in_array($targetField, ['description', 'vendor', 'amount', 'reference', 'notes', 'date'], true)) {
+					if (!in_array($targetField, ['description', 'vendor', 'reference', 'notes'], true)) {
 						$errors[] = "Action $idx: invalid regex target field '$targetField'";
 						break;
 					}
@@ -693,8 +660,7 @@ class RuleActionApplicator {
 						$errors[] = "Action $idx: regex replacement must be a string";
 						break;
 					}
-					$normalizedPattern = $this->normalizeRegexPattern($pattern);
-					if ($normalizedPattern === null || @preg_match($normalizedPattern, '') === false) {
+					if (!RegexPattern::isValid($pattern)) {
 						$errors[] = "Action $idx: invalid regex pattern '$pattern'";
 					}
 					break;

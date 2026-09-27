@@ -206,10 +206,8 @@ export class ActionBuilder {
 					<select aria-label="${t('budget', 'Target')}" class="action-target" data-index="${index}" data-field="target">
 						<option value="description" ${action.target === 'description' ? 'selected' : ''}>${t('budget', 'Description')}</option>
 						<option value="vendor" ${action.target === 'vendor' ? 'selected' : ''}>${t('budget', 'Vendor')}</option>
-						<option value="amount" ${action.target === 'amount' ? 'selected' : ''}>${t('budget', 'Amount')}</option>
 						<option value="reference" ${action.target === 'reference' ? 'selected' : ''}>${t('budget', 'Reference')}</option>
 						<option value="notes" ${action.target === 'notes' ? 'selected' : ''}>${t('budget', 'Notes')}</option>
-						<option value="date" ${action.target === 'date' ? 'selected' : ''}>${t('budget', 'Date')}</option>
 					</select>
 					<select aria-label="${t('budget', 'Behavior')}" class="action-behavior" data-index="${index}" data-field="behavior">
 						<option value="always" ${action.behavior === 'always' ? 'selected' : ''}>${t('budget', 'Always set')}</option>
@@ -697,7 +695,7 @@ export class ActionBuilder {
 					if (!action.field || !['description', 'vendor', 'reference', 'notes'].includes(action.field)) {
 						errors.push(t('budget', 'Action {number}: Regex field is invalid', { number: index + 1 }));
 					}
-					if (action.target && !['description', 'vendor', 'amount', 'reference', 'notes', 'date'].includes(action.target)) {
+					if (action.target && !['description', 'vendor', 'reference', 'notes'].includes(action.target)) {
 						errors.push(t('budget', 'Action {number}: Regex target field is invalid', { number: index + 1 }));
 					}
 					if (!action.pattern || action.pattern.trim() === '') {

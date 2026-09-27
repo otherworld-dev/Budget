@@ -137,28 +137,6 @@ class ImportRuleApplicatorTest extends TestCase {
 		$this->assertSame('Invoice X', $result['description']);
 	}
 
-	public function testApplyRulesRegexReplaceAmountTargetProducesFloat(): void {
-		$rule = $this->makeRule([
-			'actions' => [
-				'version' => 2,
-				'actions' => [[
-					'type' => 'regex_replace',
-					'field' => 'description',
-					'target' => 'amount',
-					'pattern' => '/.*?(\\d+\\.\\d+)/',
-					'replacement' => '$1',
-				]],
-			],
-		]);
-		$this->ruleMapper->method('findActive')->willReturn([$rule]);
-		$this->evaluator->method('evaluate')->willReturn(true);
-
-		$result = $this->applicator->applyRules('user1', ['description' => 'Invoice 123.45']);
-
-		$this->assertSame(123.45, $result['amount']);
-		$this->assertIsFloat($result['amount']);
-	}
-
 	public function testApplyRulesRegexReplaceIfEmptyChecksItsTargetField(): void {
 		$rule = $this->makeRule([
 			'actions' => [
@@ -179,6 +157,30 @@ class ImportRuleApplicatorTest extends TestCase {
 		$result = $this->applicator->applyRules('user1', ['description' => 'Invoice 123', 'notes' => null]);
 
 		$this->assertSame('Invoice X', $result['notes']);
+	}
+
+	public function testApplyRulesRegexReplaceLeavesTargetUnchangedWhenPatternDoesNotMatch(): void {
+		// preg_replace hands back the source unchanged when the pattern doesn't
+		// match; writing that into a different target field would copy the
+		// whole source value into it rather than doing nothing.
+		$rule = $this->makeRule([
+			'actions' => [
+				'version' => 2,
+				'actions' => [[
+					'type' => 'regex_replace',
+					'field' => 'description',
+					'target' => 'notes',
+					'pattern' => '/\\d+/',
+					'replacement' => 'X',
+				]],
+			],
+		]);
+		$this->ruleMapper->method('findActive')->willReturn([$rule]);
+		$this->evaluator->method('evaluate')->willReturn(true);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'Groceries', 'notes' => 'original notes']);
+
+		$this->assertSame('original notes', $result['notes']);
 	}
 
 	public function testApplyRulesRunsMultipleRegexReplacementsInPriorityOrder(): void {

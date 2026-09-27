@@ -272,7 +272,7 @@ class ImportRuleApplicator {
 					$pattern = $action['pattern'] ?? null;
 					$replacement = $action['replacement'] ?? '';
 					if (!in_array($sourceField, ['description', 'vendor', 'reference', 'notes'], true)
-						|| !in_array($targetField, ['description', 'vendor', 'amount', 'reference', 'notes', 'date'], true)
+						|| !in_array($targetField, ['description', 'vendor', 'reference', 'notes'], true)
 						|| !is_string($pattern) || !is_string($replacement)) {
 						break;
 					}
@@ -280,19 +280,19 @@ class ImportRuleApplicator {
 					if ($pattern === '' || !is_string($current)) {
 						break;
 					}
-					$normalizedPattern = $this->normalizeRegexPattern($pattern);
+					$normalizedPattern = RegexPattern::toPcre($pattern);
 					if ($normalizedPattern === null || @preg_match($normalizedPattern, '') === false) {
 						break;
 					}
 					$targetCurrent = $transaction[$targetField] ?? null;
 					if ($this->shouldApply($behavior, $targetCurrent)) {
-						$updated = @preg_replace($normalizedPattern, $replacement, $current);
-						if ($updated === null
-							|| ($targetField === 'amount' && (!is_numeric($updated) || !is_finite((float)$updated)))
-							|| ($targetField === 'date' && !$this->isValidDate($updated))) {
+						$updated = @preg_replace($normalizedPattern, $replacement, $current, -1, $matchCount);
+						// No match means preg_replace handed back the source unchanged;
+						// writing that into a different target would copy it verbatim.
+						if ($updated === null || $matchCount === 0) {
 							break;
 						}
-						$transaction[$targetField] = $targetField === 'amount' ? (float)$updated : $updated;
+						$transaction[$targetField] = $updated;
 					}
 					break;
 
@@ -311,7 +311,6 @@ class ImportRuleApplicator {
 						'lower' => mb_strtolower($current, 'UTF-8'),
 						'title' => mb_convert_case($current, MB_CASE_TITLE, 'UTF-8'),
 						'sentence' => mb_strtoupper(mb_substr($current, 0, 1, 'UTF-8'), 'UTF-8') . mb_strtolower(mb_substr($current, 1, null, 'UTF-8'), 'UTF-8'),
-						default => $current,
 					};
 					$transaction[$field] = $updated;
 					break;
@@ -369,26 +368,5 @@ class ImportRuleApplicator {
 			return $currentValue === null || $currentValue === '';
 		}
 		return true;
-	}
-
-	private function normalizeRegexPattern(string $pattern): ?string {
-		$trimmed = trim($pattern);
-		if ($trimmed === '') {
-			return null;
-		}
-
-		if (preg_match('#^/(.*)/([a-zA-Z]*)$#s', $trimmed, $matches) === 1) {
-			return $matches[0];
-		}
-
-		return '/' . $trimmed . '/i';
-	}
-
-	private function isValidDate(string $value): bool {
-		$date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
-		$errors = \DateTimeImmutable::getLastErrors();
-		return $date !== false
-			&& ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))
-			&& $date->format('Y-m-d') === $value;
 	}
 }
