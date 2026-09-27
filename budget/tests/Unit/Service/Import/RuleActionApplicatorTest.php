@@ -47,6 +47,8 @@ class RuleActionApplicatorTest extends TestCase {
 			'accountId' => 1,
 			'type' => 'expense',
 			'categoryId' => null,
+			'amount' => 0.0,
+			'date' => '2024-01-01',
 			'vendor' => null,
 			'notes' => null,
 			'reference' => null,
@@ -57,6 +59,8 @@ class RuleActionApplicatorTest extends TestCase {
 
 		$transaction->setAccountId($data['accountId']);
 		$transaction->setType($data['type']);
+		$transaction->setAmount((float)$data['amount']);
+		$transaction->setDate($data['date']);
 		if ($data['categoryId'] !== null) {
 			$transaction->setCategoryId($data['categoryId']);
 		}
@@ -116,6 +120,276 @@ class RuleActionApplicatorTest extends TestCase {
 
 		$this->assertArrayHasKey('description', $changes);
 		$this->assertSame('New description', $transaction->getDescription());
+	}
+
+	public function testRegexReplaceDescription(): void {
+		$transaction = $this->createTransaction(['description' => 'Invoice 12345']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'regex_replace',
+					'field' => 'description',
+					'pattern' => '/\\d+/',
+					'replacement' => 'X',
+					'behavior' => 'always',
+					'priority' => 100,
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('Invoice X', $transaction->getDescription());
+		$this->assertArrayHasKey('description', $changes);
+		$this->assertSame('Invoice X', $changes['description']['new']);
+	}
+
+	public function testRegexReplaceCanWriteToDifferentTargetField(): void {
+		$transaction = $this->createTransaction([
+			'description' => 'Invoice 12345',
+			'notes' => 'original notes',
+		]);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'regex_replace',
+					'field' => 'description',
+					'target' => 'notes',
+					'pattern' => '/\\d+/',
+					'replacement' => 'X',
+					'behavior' => 'always',
+					'priority' => 100,
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('Invoice X', $transaction->getNotes());
+		$this->assertArrayHasKey('notes', $changes);
+		$this->assertSame('Invoice X', $changes['notes']['new']);
+	}
+
+	public function testRegexReplaceIfEmptyChecksItsTargetField(): void {
+		$transaction = $this->createTransaction(['description' => 'Invoice 123', 'notes' => null]);
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [[
+				'type' => 'regex_replace',
+				'field' => 'description',
+				'target' => 'notes',
+				'pattern' => '/\\d+/',
+				'replacement' => 'X',
+				'behavior' => 'if_empty',
+			]],
+		]);
+
+		$this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('Invoice X', $transaction->getNotes());
+	}
+
+	public function testRegexReplaceLeavesTargetUnchangedWhenPatternDoesNotMatch(): void {
+		// preg_replace hands back the source string unchanged when the pattern
+		// doesn't match; writing that into a different target field would copy
+		// the whole source value into it rather than doing nothing.
+		$transaction = $this->createTransaction([
+			'description' => 'Groceries',
+			'notes' => 'original notes',
+		]);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'regex_replace',
+					'field' => 'description',
+					'target' => 'notes',
+					'pattern' => '/\\d+/',
+					'replacement' => 'X',
+					'behavior' => 'always',
+					'priority' => 100,
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('original notes', $transaction->getNotes());
+		$this->assertArrayNotHasKey('notes', $changes);
+	}
+
+	public function testMultipleRegexReplacementsRunInPriorityOrder(): void {
+		$transaction = $this->createTransaction(['description' => 'Invoice 123']);
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				['type' => 'regex_replace', 'field' => 'description', 'pattern' => '/123/', 'replacement' => 'ABC', 'priority' => 20],
+				['type' => 'regex_replace', 'field' => 'description', 'pattern' => '/ABC/', 'replacement' => 'XYZ', 'priority' => 10],
+			],
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('Invoice XYZ', $transaction->getDescription());
+		$this->assertSame('Invoice 123', $changes['description']['old']);
+	}
+
+	public function testChangeCaseDescription(): void {
+		$transaction = $this->createTransaction(['description' => 'grocery run']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'change_case',
+					'field' => 'description',
+					'mode' => 'upper',
+					'behavior' => 'always',
+					'priority' => 100,
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('GROCERY RUN', $transaction->getDescription());
+		$this->assertArrayHasKey('description', $changes);
+		$this->assertSame('GROCERY RUN', $changes['description']['new']);
+	}
+
+	public function testChangeCaseDescriptionAlreadyUpperDoesNotRecordChange(): void {
+		// A row that already matches the target case shouldn't be reported as
+		// updated on every re-run of the rule.
+		$transaction = $this->createTransaction(['description' => 'GROCERY RUN']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'change_case',
+					'field' => 'description',
+					'mode' => 'upper',
+					'behavior' => 'always',
+					'priority' => 100,
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('GROCERY RUN', $transaction->getDescription());
+		$this->assertArrayNotHasKey('description', $changes);
+	}
+
+	public function testChangeCaseDescriptionSentence(): void {
+		$transaction = $this->createTransaction(['description' => 'grocery run']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'change_case',
+					'field' => 'description',
+					'mode' => 'sentence',
+					'behavior' => 'always',
+					'priority' => 100,
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('Grocery run', $transaction->getDescription());
+		$this->assertArrayHasKey('description', $changes);
+		$this->assertSame('Grocery run', $changes['description']['new']);
+	}
+
+	public function testChangeCaseUpperHandlesDiacritics(): void {
+		$transaction = $this->createTransaction(['description' => 'école']);
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [[
+				'type' => 'change_case',
+				'field' => 'description',
+				'mode' => 'upper',
+			]],
+		]);
+
+		$this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('ÉCOLE', $transaction->getDescription());
+	}
+
+	public function testReplaceTextDescription(): void {
+		$transaction = $this->createTransaction(['description' => 'Invoice 12345']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'replace_text',
+					'field' => 'description',
+					'find' => '12345',
+					'replace' => '67890',
+					'behavior' => 'always',
+					'priority' => 100,
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('Invoice 67890', $transaction->getDescription());
+		$this->assertArrayHasKey('description', $changes);
+		$this->assertSame('Invoice 67890', $changes['description']['new']);
+	}
+
+	public function testReplaceTextDoesNotRecordChangeWhenFindNotPresent(): void {
+		// The find text isn't present, so str_replace returns the string as-is;
+		// that shouldn't be reported as an update.
+		$transaction = $this->createTransaction(['description' => 'Invoice 12345']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'replace_text',
+					'field' => 'description',
+					'find' => 'nomatch',
+					'replace' => '67890',
+					'behavior' => 'always',
+					'priority' => 100,
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('Invoice 12345', $transaction->getDescription());
+		$this->assertArrayNotHasKey('description', $changes);
+	}
+
+	public function testValidateActionsAcceptsBareRegexPattern(): void {
+		$validation = $this->applicator->validateActions([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'regex_replace',
+					'field' => 'description',
+					'pattern' => '(.*) ref:\\d+',
+					'replacement' => '$1',
+					'behavior' => 'always',
+					'priority' => 50,
+				],
+			],
+		], 'user123');
+
+		$this->assertTrue($validation['valid'], 'Bare regex patterns should be accepted without wrapping /.../: ' . implode(', ', $validation['errors']));
 	}
 
 	public function testSetCategoryAlways(): void {

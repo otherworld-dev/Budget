@@ -362,6 +362,107 @@ class RuleActionApplicator {
 				$changes['excludedFromForecast'] = ['old' => $oldValue, 'new' => $newValue];
 				break;
 
+			case 'regex_replace':
+				$sourceField = $action['field'] ?? 'description';
+				$targetField = $action['target'] ?? $sourceField;
+				$pattern = $action['pattern'] ?? null;
+				$replacement = $action['replacement'] ?? '';
+				if (!in_array($sourceField, ['description', 'vendor', 'reference', 'notes'], true)
+					|| !in_array($targetField, ['description', 'vendor', 'reference', 'notes'], true)
+					|| !is_string($pattern) || !is_string($replacement)) {
+					$this->logger->warning('Invalid regex replace action fields', ['action' => $action]);
+					break;
+				}
+				$currentValue = match ($sourceField) {
+					'description' => $transaction->getDescription(),
+					'vendor' => $transaction->getVendor(),
+					'reference' => $transaction->getReference(),
+					'notes' => $transaction->getNotes(),
+				};
+				if ($pattern === '') {
+					$this->logger->warning('Regex replace action missing pattern', ['action' => $action]);
+					break;
+				}
+				if (!is_string($currentValue)) {
+					break;
+				}
+				$normalizedPattern = RegexPattern::toPcre($pattern);
+				if ($normalizedPattern === null || @preg_match($normalizedPattern, '') === false) {
+					$this->logger->warning('Invalid regex replace pattern', ['pattern' => $pattern]);
+					break;
+				}
+				$targetCurrentValue = $this->getFieldValue($transaction, $targetField);
+				if ($behavior !== 'if_empty' || $targetCurrentValue === null || $targetCurrentValue === '') {
+					$regex = @preg_replace($normalizedPattern, $replacement, $currentValue, -1, $matchCount);
+					if ($regex === null) {
+						$this->logger->warning('Invalid regex replace pattern', ['pattern' => $pattern]);
+						break;
+					}
+					// No match means preg_replace handed back the source unchanged;
+					// writing that into a different target would copy it verbatim.
+					if ($matchCount === 0) {
+						break;
+					}
+					$oldValue = match ($targetField) {
+						'description' => $transaction->getDescription(),
+						'vendor' => $transaction->getVendor(),
+						'reference' => $transaction->getReference(),
+						'notes' => $transaction->getNotes(),
+					};
+					$this->setFieldValue($transaction, $targetField, $regex);
+					$changes[$targetField] = [
+						'old' => $changes[$targetField]['old'] ?? $oldValue,
+						'new' => $regex,
+					];
+				}
+				break;
+
+			case 'change_case':
+				$field = $action['field'] ?? 'description';
+				$mode = $action['mode'] ?? 'upper';
+				$currentValue = $this->getFieldValue($transaction, $field);
+				if (!in_array($mode, ['upper', 'lower', 'title', 'sentence'], true)) {
+					$this->logger->warning('Invalid case mode in rule action', ['mode' => $mode]);
+					break;
+				}
+				if (!in_array($field, ['description', 'vendor', 'reference', 'notes'], true)
+					|| ($currentValue !== null && !is_string($currentValue))) {
+					break;
+				}
+				$oldValue = $currentValue;
+				$currentValue ??= '';
+				$updated = match ($mode) {
+					'upper' => mb_strtoupper($currentValue, 'UTF-8'),
+					'lower' => mb_strtolower($currentValue, 'UTF-8'),
+					'title' => mb_convert_case($currentValue, MB_CASE_TITLE, 'UTF-8'),
+					'sentence' => mb_strtoupper(mb_substr($currentValue, 0, 1, 'UTF-8'), 'UTF-8') . mb_strtolower(mb_substr($currentValue, 1, null, 'UTF-8'), 'UTF-8'),
+				};
+				if ($updated !== ($oldValue ?? '')) {
+					$this->setFieldValue($transaction, $field, $updated);
+					$changes[$field] = ['old' => $changes[$field]['old'] ?? $oldValue, 'new' => $updated];
+				}
+				break;
+
+			case 'replace_text':
+				$field = $action['field'] ?? 'description';
+				$find = $action['find'] ?? '';
+				$replace = $action['replace'] ?? '';
+				$currentValue = $this->getFieldValue($transaction, $field);
+				if (!in_array($field, ['description', 'vendor', 'reference', 'notes'], true)
+					|| !is_string($find) || $find === '' || !is_string($replace)
+					|| ($currentValue !== null && !is_string($currentValue))) {
+					$this->logger->warning('Replace text action missing find value', ['action' => $action]);
+					break;
+				}
+				$oldValue = $currentValue;
+				$currentValue ??= '';
+				$updated = str_replace($find, $replace, $currentValue);
+				if ($updated !== ($oldValue ?? '')) {
+					$this->setFieldValue($transaction, $field, $updated);
+					$changes[$field] = ['old' => $changes[$field]['old'] ?? $oldValue, 'new' => $updated];
+				}
+				break;
+
 			default:
 				$this->logger->warning('Unknown action type', ['type' => $type]);
 		}
@@ -391,6 +492,38 @@ class RuleActionApplicator {
 
 		// 'always' or 'replace' - always apply
 		return true;
+	}
+
+	private function getFieldValue(Transaction $transaction, string $field) {
+		switch ($field) {
+			case 'description':
+				return $transaction->getDescription();
+			case 'vendor':
+				return $transaction->getVendor();
+			case 'reference':
+				return $transaction->getReference();
+			case 'notes':
+				return $transaction->getNotes();
+			default:
+				return null;
+		}
+	}
+
+	private function setFieldValue(Transaction $transaction, string $field, string $value): void {
+		switch ($field) {
+			case 'description':
+				$transaction->setDescription($value);
+				break;
+			case 'vendor':
+				$transaction->setVendor($value);
+				break;
+			case 'reference':
+				$transaction->setReference($value);
+				break;
+			case 'notes':
+				$transaction->setNotes($value);
+				break;
+		}
 	}
 
 	/**
@@ -505,6 +638,55 @@ class RuleActionApplicator {
 				case 'set_notes':
 				case 'set_reference':
 					// String values - no specific validation
+					break;
+
+				case 'regex_replace':
+					$field = $action['field'] ?? null;
+					if (!in_array($field, ['description', 'vendor', 'reference', 'notes'], true)) {
+						$errors[] = "Action $idx: invalid regex source field '$field'";
+						break;
+					}
+					$targetField = $action['target'] ?? $field;
+					if (!in_array($targetField, ['description', 'vendor', 'reference', 'notes'], true)) {
+						$errors[] = "Action $idx: invalid regex target field '$targetField'";
+						break;
+					}
+					$pattern = $action['pattern'] ?? null;
+					if (!is_string($pattern) || $pattern === '') {
+						$errors[] = "Action $idx: regex pattern is required";
+						break;
+					}
+					if (isset($action['replacement']) && !is_string($action['replacement'])) {
+						$errors[] = "Action $idx: regex replacement must be a string";
+						break;
+					}
+					if (!RegexPattern::isValid($pattern)) {
+						$errors[] = "Action $idx: invalid regex pattern '$pattern'";
+					}
+					break;
+
+				case 'change_case':
+					$field = $action['field'] ?? null;
+					if (!in_array($field, ['description', 'vendor', 'reference', 'notes'], true)) {
+						$errors[] = "Action $idx: invalid text target field '$field'";
+						break;
+					}
+					$mode = $action['mode'] ?? null;
+					if (!in_array($mode, ['upper', 'lower', 'title', 'sentence'], true)) {
+						$errors[] = "Action $idx: invalid case mode '$mode'";
+					}
+					break;
+
+				case 'replace_text':
+					$field = $action['field'] ?? null;
+					if (!in_array($field, ['description', 'vendor', 'reference', 'notes'], true)) {
+						$errors[] = "Action $idx: invalid text target field '$field'";
+						break;
+					}
+					$find = $action['find'] ?? null;
+					if (!is_string($find) || $find === '') {
+						$errors[] = "Action $idx: replace text target is required";
+					}
 					break;
 
 				case 'link_transfer':
