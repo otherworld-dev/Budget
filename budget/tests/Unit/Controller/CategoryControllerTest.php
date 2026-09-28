@@ -9,6 +9,7 @@ use OCA\Budget\Db\Category;
 use OCA\Budget\Service\CategoryService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\RecurringBudgetService;
+use OCA\Budget\Service\SharedBudgetService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
@@ -48,6 +49,7 @@ class CategoryControllerTest extends TestCase {
 			$this->validationService,
 			$this->granularShareService,
 			$this->recurringBudgetService,
+			new SharedBudgetService($this->service, $this->granularShareService),
 			$l,
 			'user1',
 			$logger

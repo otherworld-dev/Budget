@@ -8,6 +8,7 @@ use OCA\Budget\Controller\CategoryController;
 use OCA\Budget\Service\CategoryService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\RecurringBudgetService;
+use OCA\Budget\Service\SharedBudgetService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
@@ -41,6 +42,7 @@ class CategoryControllerReadyToAssignTest extends TestCase {
 			new ValidationService($l),
 			$shares,
 			$this->createMock(RecurringBudgetService::class),
+			new SharedBudgetService($service, $shares),
 			$l,
 			'user1',
 			$this->createMock(LoggerInterface::class)
