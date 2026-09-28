@@ -74,6 +74,18 @@ final class BudgetPeriod {
 		return substr($date, 0, 7);
 	}
 
+	/**
+	 * A budget amount for $period as its monthly equivalent, by the yearly
+	 * ratios the Budget page's summary uses (formatters.prorateBudget).
+	 */
+	public static function monthlyEquivalent(string $amount, string $period): string {
+		$perYear = ['weekly' => '52', 'monthly' => '12', 'quarterly' => '4', 'yearly' => '1'][$period] ?? '12';
+		if ($perYear === '12') {
+			return $amount;
+		}
+		return MoneyCalculator::divide(MoneyCalculator::multiply($amount, $perYear, 6), '12', 6);
+	}
+
 	private static function clampedDay(\DateTime $monthStart, int $startDay): \DateTime {
 		$day = min($startDay, (int)$monthStart->format('t'));
 		return (clone $monthStart)->setDate(
