@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-09-27 19:39+0000\n"
+"POT-Creation-Date: 2026-09-28 18:20+0000\n"
 "PO-Revision-Date: 2026-09-28 19:08+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -121,15 +121,16 @@ msgid "Failed to create account"
 msgstr "Konto konnte nicht erstellt werden"
 
 #: /app/lib/Controller/AccountController.php:296
-#: /app/lib/Controller/BillController.php:1045
-#: /app/lib/Controller/BillController.php:1063
-#: /app/lib/Controller/RecurringIncomeController.php:477
+#: /app/lib/Controller/BillController.php:1050
+#: /app/lib/Controller/BillController.php:1068
+#: /app/lib/Controller/RecurringIncomeController.php:482
 msgid "Invalid request data"
 msgstr "Ungültige Anfragedaten"
 
 #: /app/lib/Controller/AccountController.php:483
-#: /app/lib/Controller/BillController.php:728
-#: /app/lib/Controller/CategoryController.php:329
+#: /app/lib/Controller/BillController.php:729
+#: /app/lib/Controller/CategoryController.php:349
+#: /app/lib/Controller/CategoryController.php:472
 #: /app/lib/Controller/ImportRuleController.php:340
 #: /app/lib/Controller/ImportTemplateController.php:152
 #: /app/lib/Controller/TagSetController.php:186
@@ -240,13 +241,13 @@ msgid "Failed to retrieve budget summary"
 msgstr "Budgetzusammenfassung konnte nicht abgerufen werden"
 
 #: /app/lib/Controller/ApiV1CategoryController.php:62
-#: /app/lib/Controller/CategoryController.php:183
-#: /app/lib/Controller/CategoryController.php:259
+#: /app/lib/Controller/CategoryController.php:184
+#: /app/lib/Controller/CategoryController.php:276
 msgid "Invalid category type. Must be income or expense"
 msgstr "Ungültiger Kategorietyp. Muss Einkommen oder Ausgaben sein"
 
 #: /app/lib/Controller/ApiV1CategoryController.php:81
-#: /app/lib/Controller/CategoryController.php:92
+#: /app/lib/Controller/CategoryController.php:93
 msgid "Failed to retrieve categories"
 msgstr "Kategorien konnten nicht abgefragt werden"
 
@@ -624,107 +625,108 @@ msgid "Failed to retrieve bills"
 msgstr "Rechnungen konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/BillController.php:121
-#: /app/lib/Controller/BillController.php:136
-#: /app/lib/Controller/BillController.php:758
-#: /app/lib/Controller/BillController.php:1162
-#: /app/lib/Controller/BillController.php:1268 /app/templates/index.php:3649
+#: /app/lib/Controller/BillController.php:137
+#: /app/lib/Controller/BillController.php:763
+#: /app/lib/Controller/BillController.php:1167
+#: /app/lib/Controller/BillController.php:1273 /app/templates/index.php:3649
 #: /app/templates/index.php:6166
 msgid "Bill"
 msgstr "Rechnung"
 
 #: /app/lib/Controller/BillController.php:121
-#: /app/lib/Controller/CategoryController.php:417
-#: /app/lib/Controller/CategoryController.php:511
-#: /app/lib/Controller/CategoryController.php:529
-#: /app/lib/Controller/CategoryController.php:548
-#: /app/lib/Controller/GoalsController.php:87
-#: /app/lib/Controller/GoalsController.php:316
-#: /app/lib/Controller/GoalsController.php:344
-#: /app/lib/Controller/GoalsController.php:363
+#: /app/lib/Controller/CategoryController.php:447
+#: /app/lib/Controller/CategoryController.php:537
+#: /app/lib/Controller/CategoryController.php:641
+#: /app/lib/Controller/CategoryController.php:659
+#: /app/lib/Controller/CategoryController.php:678
+#: /app/lib/Controller/GoalsController.php:92
+#: /app/lib/Controller/GoalsController.php:322
+#: /app/lib/Controller/GoalsController.php:351
+#: /app/lib/Controller/GoalsController.php:370
 #: /app/lib/Controller/ImportRuleController.php:91
-#: /app/lib/Controller/ProjectController.php:186
+#: /app/lib/Controller/ProjectController.php:188
 #: /app/lib/Controller/RecurringIncomeController.php:89
 #: /app/lib/Traits/ApiErrorHandlerTrait.php:211
 #, php-format
 msgid "%1$s not found"
 msgstr "%1$s nicht gefunden"
 
-#: /app/lib/Controller/BillController.php:189
-#: /app/lib/Controller/BillController.php:622
+#: /app/lib/Controller/BillController.php:190
+#: /app/lib/Controller/BillController.php:623
 #: /app/lib/Service/BillService.php:86
 msgid "Invalid amount type"
 msgstr "Ungültiger Betragstyp"
 
-#: /app/lib/Controller/BillController.php:194
+#: /app/lib/Controller/BillController.php:195
 msgid "Name and amount are required"
 msgstr "Name und Betrag sind erforderlich"
 
-#: /app/lib/Controller/BillController.php:238
-#: /app/lib/Controller/BillController.php:707
+#: /app/lib/Controller/BillController.php:239
+#: /app/lib/Controller/BillController.php:708
 #: /app/lib/Service/BillService.php:403 /app/lib/Service/BillService.php:513
 msgid "Auto-pay requires an account to be set"
 msgstr "Automatische Zahlung erfordert ein Konto"
 
-#: /app/lib/Controller/BillController.php:246
-#: /app/lib/Controller/BillController.php:641
+#: /app/lib/Controller/BillController.php:247
+#: /app/lib/Controller/BillController.php:642
 #: /app/lib/Service/BillService.php:408
 msgid "Transfer requires a destination account"
 msgstr "Umbuchung erfordert ein Zielkonto"
 
-#: /app/lib/Controller/BillController.php:254
-#: /app/lib/Controller/BillController.php:669
+#: /app/lib/Controller/BillController.php:255
+#: /app/lib/Controller/BillController.php:670
 #: /app/lib/Service/BillService.php:413
 #: /app/src/modules/transfers/TransfersModule.js:848
 msgid "Cannot transfer to the same account"
 msgstr "Die Umbuchung kann nicht auf das selbe Konto erfolgen"
 
-#: /app/lib/Controller/BillController.php:277
-#: /app/lib/Controller/BillController.php:432
+#: /app/lib/Controller/BillController.php:278
+#: /app/lib/Controller/BillController.php:433
 msgid "Due day must be between 1 and 31"
 msgstr "Das Fälligkeitsdatum muss zwischen dem 1. und dem 31. liegen"
 
-#: /app/lib/Controller/BillController.php:282
-#: /app/lib/Controller/BillController.php:444
+#: /app/lib/Controller/BillController.php:283
+#: /app/lib/Controller/BillController.php:445
 msgid "Due month must be between 1 and 12"
 msgstr "Der Monat muss zwischen 1 und 12 liegen"
 
-#: /app/lib/Controller/BillController.php:305
-#: /app/lib/Controller/BillController.php:497
+#: /app/lib/Controller/BillController.php:306
+#: /app/lib/Controller/BillController.php:498
 msgid "Reminder days must be between 0 and 30"
 msgstr "Der Erinnerungszeitraum muss zwischen 0 und 30 liegen"
 
-#: /app/lib/Controller/BillController.php:318
+#: /app/lib/Controller/BillController.php:319
 msgid "Transaction date"
 msgstr "Buchungsdatum"
 
-#: /app/lib/Controller/BillController.php:326
-#: /app/lib/Controller/BillController.php:539
-#: /app/lib/Controller/RecurringIncomeController.php:199
-#: /app/lib/Controller/RecurringIncomeController.php:311
+#: /app/lib/Controller/BillController.php:327
+#: /app/lib/Controller/BillController.php:540
+#: /app/lib/Controller/RecurringIncomeController.php:200
+#: /app/lib/Controller/RecurringIncomeController.php:312
 #: /app/templates/index.php:3208 /app/templates/index.php:5171
 msgid "Start date"
 msgstr "Startdatum"
 
-#: /app/lib/Controller/BillController.php:336
-#: /app/lib/Controller/BillController.php:550 /app/templates/index.php:3210
+#: /app/lib/Controller/BillController.php:337
+#: /app/lib/Controller/BillController.php:551 /app/templates/index.php:3210
 msgid "End date"
 msgstr "Enddatum"
 
-#: /app/lib/Controller/BillController.php:346
+#: /app/lib/Controller/BillController.php:347
 msgid "Start date must be before the end date"
 msgstr "Das Startdatum muss vor dem Enddatum liegen"
 
-#: /app/lib/Controller/BillController.php:351
-#: /app/lib/Controller/BillController.php:563
+#: /app/lib/Controller/BillController.php:352
+#: /app/lib/Controller/BillController.php:564
 msgid "Remaining payments must be at least 1"
 msgstr "Die verbleibenden Zahlungen müssen mindesten 1 betragen"
 
-#: /app/lib/Controller/BillController.php:392
+#: /app/lib/Controller/BillController.php:393
 #: /app/src/modules/bills/BillsModule.js:234
 msgid "Failed to create bill"
 msgstr "Rechnung konnte nicht erstellt werden"
 
-#: /app/lib/Controller/BillController.php:602
+#: /app/lib/Controller/BillController.php:603
 msgid ""
 "The new amount does not match the bill's split template. Update the splits "
 "together with the amount."
@@ -732,110 +734,117 @@ msgstr ""
 "Der neue Betrag entspricht nicht der Aufteilungsvorlage dieser Rechnung. "
 "Passe die Aufteilung gemeinsam mit dem Betrag an."
 
-#: /app/lib/Controller/BillController.php:743
+#: /app/lib/Controller/BillController.php:744
 msgid "Failed to update bill"
 msgstr "Rechnung konnte nicht aktualisiert werden"
 
-#: /app/lib/Controller/BillController.php:771
+#: /app/lib/Controller/BillController.php:758
+#: /app/lib/Controller/GoalsController.php:331
+#: /app/lib/Controller/ProjectController.php:164
+#: /app/lib/Controller/RecurringIncomeController.php:354
+msgid "Deleting a shared item needs Full control from its owner"
+msgstr ""
+
+#: /app/lib/Controller/BillController.php:776
 msgid "Failed to find matching transactions"
 msgstr "Passende Transaktionen konnten nicht gefunden werden"
 
-#: /app/lib/Controller/BillController.php:784
+#: /app/lib/Controller/BillController.php:789
 msgid "Failed to check for unrecorded payments"
 msgstr "Es konnte nicht nach nicht erfassten Zahlungen gesucht werden"
 
-#: /app/lib/Controller/BillController.php:801
+#: /app/lib/Controller/BillController.php:806
 #: /app/src/modules/bills/BillsModule.js:164
 msgid "Failed to record the payment"
 msgstr "Die Zahlung konnte nicht erfasst werden"
 
-#: /app/lib/Controller/BillController.php:820
+#: /app/lib/Controller/BillController.php:825
 #: /app/src/modules/bills/BillsModule.js:153
 msgid "Failed to dismiss the payment"
 msgstr "Die Zahlung konnte nicht verworfen werden"
 
-#: /app/lib/Controller/BillController.php:843
+#: /app/lib/Controller/BillController.php:848
 #: /app/src/modules/bills/BillsModule.js:1248
 msgid "Failed to mark bill as paid"
 msgstr "Rechnung konnte nicht als bezahlt markiert werden"
 
-#: /app/lib/Controller/BillController.php:880
+#: /app/lib/Controller/BillController.php:885
 msgid "Failed to undo mark as paid"
 msgstr "Die Kennzeichnung \"bezahlt\" konnte nicht entfernt werden"
 
-#: /app/lib/Controller/BillController.php:899
+#: /app/lib/Controller/BillController.php:904
 #: /app/src/modules/bills/BillsModule.js:1501
 #: /app/src/modules/bills/BillsModule.js:1508
 msgid "Failed to mark bill as unpaid"
 msgstr "Die Rechnung konnte nicht als unbezahlt markiert werden"
 
-#: /app/lib/Controller/BillController.php:916
+#: /app/lib/Controller/BillController.php:921
 #: /app/src/modules/bills/BillsModule.js:1542
 msgid "Failed to skip bill payment"
 msgstr "Rechnungszahlung konnte nicht übersprungen werden"
 
-#: /app/lib/Controller/BillController.php:932
+#: /app/lib/Controller/BillController.php:937
 msgid "Missing previous due date"
 msgstr "Vorheriger Stichtag fehlt"
 
-#: /app/lib/Controller/BillController.php:938
+#: /app/lib/Controller/BillController.php:943
 msgid "Failed to undo skip"
 msgstr "Überspringen könnte nicht rückgängig gemacht werden"
 
-#: /app/lib/Controller/BillController.php:952
+#: /app/lib/Controller/BillController.php:957
 msgid "Failed to retrieve upcoming bills"
 msgstr "Anstehende Rechnungen konnten nicht abgefragt werden"
 
-#: /app/lib/Controller/BillController.php:966
+#: /app/lib/Controller/BillController.php:971
 msgid "Failed to retrieve bills due this month"
 msgstr ""
 "Rechnungen, die diesen Monat fällig sind, konnten nicht ermittelt werden"
 
-#: /app/lib/Controller/BillController.php:980
+#: /app/lib/Controller/BillController.php:985
 msgid "Failed to retrieve overdue bills"
 msgstr "Überfällige Rechnungen konnten nicht abgefragt werden"
 
-#: /app/lib/Controller/BillController.php:993
+#: /app/lib/Controller/BillController.php:998
 msgid "Failed to retrieve bill summary"
 msgstr "Rechnungszusammenfassung konnte nicht abgefragt werden"
 
-#: /app/lib/Controller/BillController.php:1006
+#: /app/lib/Controller/BillController.php:1011
 msgid "Failed to retrieve bill status"
 msgstr "Status der Rechnung konnte nicht abgefragt werden"
 
-#: /app/lib/Controller/BillController.php:1019
+#: /app/lib/Controller/BillController.php:1024
 #: /app/src/modules/bills/BillsModule.js:1586
 msgid "Failed to detect recurring bills"
 msgstr "Wiederkehrende Rechnungen konnten nicht ermittelt werden"
 
-#: /app/lib/Controller/BillController.php:1033
+#: /app/lib/Controller/BillController.php:1038
 msgid "Failed to load bill suggestions"
 msgstr "Rechnungsvorschläge konnten nicht geladen werden"
 
-#: /app/lib/Controller/BillController.php:1050
+#: /app/lib/Controller/BillController.php:1055
 #: /app/src/modules/bills/BillsModule.js:253
 msgid "Failed to dismiss suggestion"
 msgstr "Vorschlag konnte nicht verworfen werden"
 
-#: /app/lib/Controller/BillController.php:1082
+#: /app/lib/Controller/BillController.php:1087
 msgid "Failed to create bills from detected patterns"
 msgstr "Erstellen von Rechnungen aus erkannten Mustern schlug fehl"
 
-#: /app/lib/Controller/BillController.php:1097
-#: /app/lib/Controller/BillController.php:1130
+#: /app/lib/Controller/BillController.php:1102
+#: /app/lib/Controller/BillController.php:1135
 msgid "Invalid year"
 msgstr "Ungültiges Jahr"
 
-#: /app/lib/Controller/BillController.php:1112
+#: /app/lib/Controller/BillController.php:1117
 msgid "Failed to generate annual overview"
 msgstr "Jahresüberblick konnte nicht generiert werden"
 
-#: /app/lib/Controller/BillController.php:1153
+#: /app/lib/Controller/BillController.php:1158
 msgid "Failed to export bills calendar"
 msgstr "Export des Rechnungskalender schlug fehl"
 
-#: /app/lib/Controller/BillController.php:1162
-#: /app/lib/Controller/BillController.php:1269
+#: /app/lib/Controller/BillController.php:1167
+#: /app/lib/Controller/BillController.php:1274
 #: /app/lib/Service/Export/TransactionCsvExporter.php:34
 #: /app/lib/Service/Report/ReportExporter.php:279
 #: /app/lib/Service/Report/ReportExporter.php:337
@@ -868,102 +877,102 @@ msgstr "Export des Rechnungskalender schlug fehl"
 msgid "Amount"
 msgstr "Betrag"
 
-#: /app/lib/Controller/BillController.php:1162
+#: /app/lib/Controller/BillController.php:1167
 #: /app/src/modules/transfers/TransfersModule.js:500
 #: /app/templates/index.php:5527 /app/templates/index.php:6186
 #: /app/templates/index.php:6676
 msgid "Frequency"
 msgstr "Häufigkeit"
 
-#: /app/lib/Controller/BillController.php:1166
+#: /app/lib/Controller/BillController.php:1171
 msgid "Annual Total"
 msgstr "Jahressumme"
 
-#: /app/lib/Controller/BillController.php:1190
-#: /app/lib/Controller/BillController.php:1294
+#: /app/lib/Controller/BillController.php:1195
+#: /app/lib/Controller/BillController.php:1299
 #: /app/lib/Service/Report/ReportExporter.php:298
 #: /app/lib/Service/Report/ReportExporter.php:348
 #: /app/lib/Service/Report/ReportExporter.php:421
 #: /app/lib/Service/Report/ReportExporter.php:513
 #: /app/lib/Service/Report/ReportExporter.php:584
 #: /app/lib/Service/Report/ReportExporter.php:659
-#: /app/src/modules/categories/CategoriesModule.js:2367
+#: /app/src/modules/categories/CategoriesModule.js:2405
 #: /app/src/modules/reports/ReportsModule.js:1854 /app/templates/index.php:7321
 msgid "Total"
 msgstr "Summe"
 
-#: /app/lib/Controller/BillController.php:1230
+#: /app/lib/Controller/BillController.php:1235
 #: /app/src/modules/dashboard/DashboardModule.js:3162
 #: /app/src/modules/reports/ReportsModule.js:1999
 msgid "Projected balance"
 msgstr "Prognostizierter Kontostand"
 
-#: /app/lib/Controller/BillController.php:1245
+#: /app/lib/Controller/BillController.php:1250
 #, php-format
 msgid "Bills Calendar %s"
 msgstr "Rechnungskalender %s"
 
-#: /app/lib/Controller/BillController.php:1273
+#: /app/lib/Controller/BillController.php:1278
 msgid "Annual"
 msgstr "Jährlich"
 
-#: /app/lib/Controller/BillController.php:1351
+#: /app/lib/Controller/BillController.php:1356
 msgid "Split template must have at least 2 splits"
 msgstr "Die Aufteilungsvorlage muss mindestens 2 Aufteilungen enthalten"
 
-#: /app/lib/Controller/BillController.php:1359
+#: /app/lib/Controller/BillController.php:1364
 msgid "Each split must have a positive amount"
 msgstr "Jeder Split muss einen positiven Betrag haben"
 
-#: /app/lib/Controller/BillController.php:1365
+#: /app/lib/Controller/BillController.php:1370
 msgid "Split amounts must equal the bill amount"
 msgstr "Die Summe der Aufteilungen muss dem Rechnungsbetrag entsprechen"
 
-#: /app/lib/Controller/BillController.php:1377
+#: /app/lib/Controller/BillController.php:1382
 msgid "Invalid JSON in custom recurrence pattern"
 msgstr ""
 "Ungültiges JSON in benutzerdefiniertem Muster zur Erkennung von "
 "wiederkehrenden Ereignissen"
 
-#: /app/lib/Controller/BillController.php:1384
+#: /app/lib/Controller/BillController.php:1389
 msgid "Custom recurrence pattern must be a JSON object"
 msgstr ""
 "Muster zur Erkennung von wiederkehrenden Ereignissen muss ein JSON-Objekt "
 "sein"
 
-#: /app/lib/Controller/BillController.php:1393
+#: /app/lib/Controller/BillController.php:1398
 msgid "Months must be an array"
 msgstr "„Monate“ muss eine Liste bzw. ein Array sein"
 
-#: /app/lib/Controller/BillController.php:1400
+#: /app/lib/Controller/BillController.php:1405
 msgid "At least one month must be specified"
 msgstr "Es muss mindestens ein Monat angegeben werden"
 
-#: /app/lib/Controller/BillController.php:1408
+#: /app/lib/Controller/BillController.php:1413
 msgid "Each month must be a number between 1 and 12"
 msgstr "Jeder Monat muss eine Zahl zwischen 1 und 12 sein"
 
-#: /app/lib/Controller/BillController.php:1421
+#: /app/lib/Controller/BillController.php:1426
 msgid "Dates must be an array"
 msgstr "„Daten“ muss eine Liste bzw. ein Array sein"
 
-#: /app/lib/Controller/BillController.php:1428
+#: /app/lib/Controller/BillController.php:1433
 msgid "At least one date must be specified"
 msgstr "Es muss mindestens ein Datum angegeben werden"
 
-#: /app/lib/Controller/BillController.php:1436
+#: /app/lib/Controller/BillController.php:1441
 msgid "Each date must have \"month\" and \"day\" fields"
 msgstr "Jedes Datum braucht einen Tag und einen Monat"
 
-#: /app/lib/Controller/BillController.php:1443
+#: /app/lib/Controller/BillController.php:1448
 msgid "Month must be a number between 1 and 12"
 msgstr "„Monat“ muss eine Zahl zwischen 1 und 12 sein"
 
-#: /app/lib/Controller/BillController.php:1450
+#: /app/lib/Controller/BillController.php:1455
 msgid "Day must be a number between 1 and 31"
 msgstr "„Tag“ muss eine Zahl zwischen 1 und 31 sein"
 
-#: /app/lib/Controller/BillController.php:1460
+#: /app/lib/Controller/BillController.php:1465
 msgid "Custom pattern must contain either \"months\" or \"dates\" field"
 msgstr ""
 "Das benutzerdefinierte Muster muss entweder ein „Monate“-Feld oder „Daten“-"
@@ -979,21 +988,22 @@ msgstr "Kalender-Feed konnte nicht abgerufen werden"
 msgid "Failed to regenerate calendar feed token"
 msgstr "Token für den Kalender-Feed konnte nicht neu erstellt werden"
 
-#: /app/lib/Controller/CategoryController.php:129
+#: /app/lib/Controller/CategoryController.php:130
 msgid "Failed to retrieve category tree"
 msgstr "Der Kategorien-Baum konnte nicht abgefragt werden"
 
-#: /app/lib/Controller/CategoryController.php:141
+#: /app/lib/Controller/CategoryController.php:142
 msgid "Failed to retrieve transaction counts"
 msgstr "Die Anzahl an Buchungen konnte nicht ermittelt werden"
 
-#: /app/lib/Controller/CategoryController.php:153
-#: /app/lib/Controller/CategoryController.php:417
-#: /app/lib/Controller/CategoryController.php:511
-#: /app/lib/Controller/CategoryController.php:529
-#: /app/lib/Controller/CategoryController.php:535
-#: /app/lib/Controller/CategoryController.php:548
-#: /app/lib/Controller/CategoryController.php:555
+#: /app/lib/Controller/CategoryController.php:154
+#: /app/lib/Controller/CategoryController.php:447
+#: /app/lib/Controller/CategoryController.php:537
+#: /app/lib/Controller/CategoryController.php:641
+#: /app/lib/Controller/CategoryController.php:659
+#: /app/lib/Controller/CategoryController.php:665
+#: /app/lib/Controller/CategoryController.php:678
+#: /app/lib/Controller/CategoryController.php:685
 #: /app/lib/Controller/YearOverYearController.php:287
 #: /app/lib/Controller/YearOverYearController.php:389
 #: /app/lib/Service/Export/TransactionCsvExporter.php:31
@@ -1026,103 +1036,119 @@ msgstr "Die Anzahl an Buchungen konnte nicht ermittelt werden"
 msgid "Category"
 msgstr "Kategorie"
 
-#: /app/lib/Controller/CategoryController.php:286
+#: /app/lib/Controller/CategoryController.php:303
 msgid "Invalid budget period. Must be monthly, weekly, yearly, or quarterly"
 msgstr ""
 "Ungültige Budgetperiode. Muss monatlich, wöchentlich, jährlich oder "
 "vierteljährlich sein"
 
-#: /app/lib/Controller/CategoryController.php:336
-#: /app/src/modules/categories/CategoriesModule.js:1389
+#: /app/lib/Controller/CategoryController.php:356
+#: /app/src/modules/categories/CategoriesModule.js:1411
 msgid "Failed to update category"
 msgstr "Kategorie konnte nicht aktualisiert werden"
 
-#: /app/lib/Controller/CategoryController.php:359
+#: /app/lib/Controller/CategoryController.php:384
+msgid "A category can only be moved under another category with the same owner"
+msgstr ""
+
+#: /app/lib/Controller/CategoryController.php:393
 msgid "Only the owner can add subcategories to a shared category"
 msgstr ""
 "Nur der Eigentümer kann Unterkategorien zu einer geteilten Kategorie "
 "hinzufügen"
 
-#: /app/lib/Controller/CategoryController.php:382
+#: /app/lib/Controller/CategoryController.php:438
+#: /app/lib/Controller/CategoryController.php:697
+#: /app/lib/Controller/CategoryController.php:719
+#: /app/lib/Controller/CategoryController.php:749
+#: /app/lib/Controller/CategoryController.php:800
+msgid "Invalid month format. Use YYYY-MM"
+msgstr "Ungültiges Monatsformat. Verwende YYYY-MM"
+
+#: /app/lib/Controller/CategoryController.php:441
+#: /app/lib/Controller/CategoryController.php:806
+msgid "Invalid budget period"
+msgstr "Ungültiger Budgetzeitraum"
+
+#: /app/lib/Controller/CategoryController.php:454
+#: /app/src/modules/categories/CategoriesModule.js:2374
+#, fuzzy
+#| msgid "Only the owner can add subcategories to a shared category"
+msgid "Only the owner can change the budget of a shared category"
+msgstr ""
+"Nur der Eigentümer kann Unterkategorien zu einer geteilten Kategorie "
+"hinzufügen"
+
+#: /app/lib/Controller/CategoryController.php:500
 msgid "Invalid position"
 msgstr "Ungültige Position"
 
-#: /app/lib/Controller/CategoryController.php:390
+#: /app/lib/Controller/CategoryController.php:511
 msgid "Shared categories cannot be nested"
 msgstr "Geteilte Kategorien können nicht verschachtelt werden"
 
-#: /app/lib/Controller/CategoryController.php:402
-#: /app/lib/Controller/CategoryController.php:404
-#: /app/src/modules/categories/CategoriesModule.js:611
-#: /app/src/modules/categories/CategoriesModule.js:620
+#: /app/lib/Controller/CategoryController.php:522
+#: /app/lib/Controller/CategoryController.php:524
+#: /app/src/modules/categories/CategoriesModule.js:617
+#: /app/src/modules/categories/CategoriesModule.js:626
 msgid "Failed to reorder category"
 msgstr "Kategorie konnte nicht neu angeordnet werden"
 
-#: /app/lib/Controller/CategoryController.php:426
+#: /app/lib/Controller/CategoryController.php:556
+#: /app/lib/Service/CategoryService.php:302
 msgid "Only the category owner can delete it"
 msgstr "Nur der Eigentümer der Kategorie kann das löschen"
 
-#: /app/lib/Controller/CategoryController.php:460
+#: /app/lib/Controller/CategoryController.php:590
 msgid "Failed to load report preferences"
 msgstr "Berichtseinstellungen konnten nicht geladen werden"
 
-#: /app/lib/Controller/CategoryController.php:476
+#: /app/lib/Controller/CategoryController.php:606
 #: /app/lib/Service/GranularShareService.php:146
 msgid "Category not found"
 msgstr "Kategorie nicht gefunden"
 
-#: /app/lib/Controller/CategoryController.php:481
-#: /app/src/modules/categories/CategoriesModule.js:441
+#: /app/lib/Controller/CategoryController.php:611
+#: /app/src/modules/categories/CategoriesModule.js:444
 msgid "Failed to update report preference"
 msgstr "Berichtseinstellung konnte nicht aktualisiert werden"
 
-#: /app/lib/Controller/CategoryController.php:498
-#: /app/lib/Controller/CategoryController.php:516
+#: /app/lib/Controller/CategoryController.php:628
+#: /app/lib/Controller/CategoryController.php:646
 msgid "Failed to retrieve category spending"
 msgstr "Die Ausgabenkategorie konnte nicht abgerufen werden"
 
-#: /app/lib/Controller/CategoryController.php:567
-#: /app/lib/Controller/CategoryController.php:589
-#: /app/lib/Controller/CategoryController.php:619
-#: /app/lib/Controller/CategoryController.php:667
-msgid "Invalid month format. Use YYYY-MM"
-msgstr "Ungültiges Monatsformat. Verwende YYYY-MM"
-
-#: /app/lib/Controller/CategoryController.php:595
+#: /app/lib/Controller/CategoryController.php:725
 msgid "Failed to delete budget snapshot"
 msgstr "Budget-Momentaufnahme konnte nicht gelöscht werden"
 
-#: /app/lib/Controller/CategoryController.php:608
+#: /app/lib/Controller/CategoryController.php:738
 msgid "Failed to retrieve snapshot months"
 msgstr "Momentaufnahmen für den Monat konnten nicht abgerufen werden"
 
-#: /app/lib/Controller/CategoryController.php:640
+#: /app/lib/Controller/CategoryController.php:773
 msgid "Failed to retrieve effective budgets"
 msgstr "Gültige Budgets konnten nicht abgerufen werden"
 
-#: /app/lib/Controller/CategoryController.php:655
+#: /app/lib/Controller/CategoryController.php:788
 msgid "Failed to retrieve recurring budgets"
 msgstr "Wiederkehrende Budgets konnten nicht abgerufen werden"
 
-#: /app/lib/Controller/CategoryController.php:673
-msgid "Invalid budget period"
-msgstr "Ungültiger Budgetzeitraum"
-
 #: /app/lib/Controller/CategoryTransferController.php:64
-#: /app/src/modules/categories/CategoriesModule.js:1599
-#: /app/src/modules/categories/CategoriesModule.js:1611
+#: /app/src/modules/categories/CategoriesModule.js:1627
+#: /app/src/modules/categories/CategoriesModule.js:1639
 msgid "Failed to export categories"
 msgstr "Kategorien konnten nicht exportiert werden"
 
 #: /app/lib/Controller/CategoryTransferController.php:89
-#: /app/src/modules/categories/CategoriesModule.js:1635
-#: /app/src/modules/categories/CategoriesModule.js:1641
+#: /app/src/modules/categories/CategoriesModule.js:1663
+#: /app/src/modules/categories/CategoriesModule.js:1669
 msgid "Failed to read the category file"
 msgstr "Die Kategoriedatei konnte nicht gelesen werden"
 
 #: /app/lib/Controller/CategoryTransferController.php:109
-#: /app/src/modules/categories/CategoriesModule.js:1709
-#: /app/src/modules/categories/CategoriesModule.js:1717
+#: /app/src/modules/categories/CategoriesModule.js:1737
+#: /app/src/modules/categories/CategoriesModule.js:1745
 msgid "Failed to import categories"
 msgstr "Kategorien konnten nicht importiert werden"
 
@@ -1283,75 +1309,71 @@ msgstr "Aktuelle Prognose konnte nicht abgerufen werden"
 msgid "Failed to export forecast"
 msgstr "Prognose konnte nicht exportiert werden"
 
-#: /app/lib/Controller/GoalsController.php:75
+#: /app/lib/Controller/GoalsController.php:80
 msgid "Failed to retrieve goals"
 msgstr "Fehler beim Laden der Ziele"
 
-#: /app/lib/Controller/GoalsController.php:87
-#: /app/lib/Controller/GoalsController.php:99
-#: /app/lib/Controller/GoalsController.php:316
-#: /app/lib/Controller/GoalsController.php:344
-#: /app/lib/Controller/GoalsController.php:363 /app/templates/index.php:5209
+#: /app/lib/Controller/GoalsController.php:92
+#: /app/lib/Controller/GoalsController.php:105
+#: /app/lib/Controller/GoalsController.php:322
+#: /app/lib/Controller/GoalsController.php:351
+#: /app/lib/Controller/GoalsController.php:370 /app/templates/index.php:5209
 #: /app/templates/index.php:5281
 msgid "Goal"
 msgstr "Ziel"
 
-#: /app/lib/Controller/GoalsController.php:137
-#: /app/lib/Controller/GoalsController.php:236
+#: /app/lib/Controller/GoalsController.php:143
+#: /app/lib/Controller/GoalsController.php:242
 msgid "Target date"
 msgstr "Fälligkeitsdatum"
 
-#: /app/lib/Controller/GoalsController.php:147
-#: /app/lib/Controller/GoalsController.php:244
+#: /app/lib/Controller/GoalsController.php:153
+#: /app/lib/Controller/GoalsController.php:250
 msgid "Target amount must be greater than zero"
 msgstr "Der Zielbetrag muss größer als null sein"
 
-#: /app/lib/Controller/GoalsController.php:152
-#: /app/lib/Controller/GoalsController.php:249
+#: /app/lib/Controller/GoalsController.php:158
+#: /app/lib/Controller/GoalsController.php:255
 msgid "Target months must be greater than zero"
 msgstr "Die Zielmonate müssen größer als null sein"
 
-#: /app/lib/Controller/GoalsController.php:157
-#: /app/lib/Controller/GoalsController.php:254
+#: /app/lib/Controller/GoalsController.php:163
+#: /app/lib/Controller/GoalsController.php:260
 msgid "Current amount cannot be negative"
 msgstr "Der aktuelle Betrag darf nicht negativ sein"
 
-#: /app/lib/Controller/GoalsController.php:162
-#: /app/lib/Controller/GoalsController.php:259
+#: /app/lib/Controller/GoalsController.php:168
+#: /app/lib/Controller/GoalsController.php:265
 msgid "Invalid tag ID"
 msgstr "Ungültige Schlagwort ID"
 
-#: /app/lib/Controller/GoalsController.php:167
-#: /app/lib/Controller/GoalsController.php:264
+#: /app/lib/Controller/GoalsController.php:173
+#: /app/lib/Controller/GoalsController.php:270
 msgid "Invalid account ID"
 msgstr "Ungültige Konto-ID"
 
-#: /app/lib/Controller/GoalsController.php:193
+#: /app/lib/Controller/GoalsController.php:199
 msgid "Failed to create goal"
 msgstr "Fehler beim Anlegen des Ziels"
 
-#: /app/lib/Controller/GoalsController.php:303
+#: /app/lib/Controller/GoalsController.php:309
 msgid "Failed to update goal"
 msgstr "Ziel konnte nicht aktualisiert werden"
 
-#: /app/lib/Controller/GoalsController.php:324
-msgid "Only the goal owner can delete it"
-msgstr "Nur der Eigentümer des Ziels kann das löschen"
-
-#: /app/lib/Controller/GoalsController.php:330
+#: /app/lib/Controller/GoalsController.php:337
 msgid "Goal deleted successfully"
 msgstr "Ziel erfolgreich gelöscht"
 
-#: /app/lib/Controller/GoalsController.php:332
-#: /app/src/modules/savings/SavingsModule.js:460
+#: /app/lib/Controller/GoalsController.php:339
+#: /app/src/modules/savings/SavingsModule.js:462
 msgid "Failed to delete goal"
 msgstr "Fehler beim Löschen des Ziels"
 
-#: /app/lib/Controller/GoalsController.php:351
+#: /app/lib/Controller/GoalsController.php:358
 msgid "Failed to retrieve goal progress"
 msgstr "Fehler beim Laden des Zielverlaufs"
 
-#: /app/lib/Controller/GoalsController.php:370
+#: /app/lib/Controller/GoalsController.php:377
 msgid "Failed to retrieve goal forecast"
 msgstr "Fehler beim Laden der Zielprognose"
 
@@ -1760,87 +1782,81 @@ msgstr "Fehler beim Laden der Schlagwortgruppen"
 
 #: /app/lib/Controller/ProjectController.php:107
 #: /app/lib/Controller/ProjectController.php:147
-#: /app/lib/Controller/ProjectController.php:203
-#: /app/src/modules/projects/ProjectsModule.js:353
-#: /app/src/modules/projects/ProjectsModule.js:363
+#: /app/lib/Controller/ProjectController.php:205
+#: /app/src/modules/projects/ProjectsModule.js:354
+#: /app/src/modules/projects/ProjectsModule.js:364
 #, fuzzy
 #| msgid "Failed to save splits"
 msgid "Failed to save the project"
 msgstr "Fehler beim Speichern der Aufteilungen"
 
-#: /app/lib/Controller/ProjectController.php:163
-#, fuzzy
-#| msgid "Only the goal owner can delete it"
-msgid "Only the owner can delete this project"
-msgstr "Nur der Eigentümer des Ziels kann das löschen"
-
-#: /app/lib/Controller/ProjectController.php:172
-#: /app/src/modules/projects/ProjectsModule.js:201
-#: /app/src/modules/projects/ProjectsModule.js:207
+#: /app/lib/Controller/ProjectController.php:173
+#: /app/src/modules/projects/ProjectsModule.js:202
+#: /app/src/modules/projects/ProjectsModule.js:208
 #, fuzzy
 #| msgid "Failed to delete tag set"
 msgid "Failed to delete the project"
 msgstr "Fehler beim löschen der Schlagwort Gruppe"
 
-#: /app/lib/Controller/ProjectController.php:186
+#: /app/lib/Controller/ProjectController.php:188
 #, fuzzy
 #| msgid "Projected Value"
 msgid "Project"
 msgstr "Prognostizierter Wert"
 
-#: /app/lib/Controller/ProjectController.php:193
-#: /app/src/modules/projects/ProjectsModule.js:332
+#: /app/lib/Controller/ProjectController.php:195
+#: /app/src/modules/projects/ProjectsModule.js:333
 #, fuzzy
 #| msgid "Please enter a date"
 msgid "Enter a name for the project"
 msgstr "Bitte wähle ein Datum"
 
-#: /app/lib/Controller/ProjectController.php:194
-#: /app/src/modules/projects/ProjectsModule.js:334
+#: /app/lib/Controller/ProjectController.php:196
+#: /app/src/modules/projects/ProjectsModule.js:335
 #, fuzzy
 #| msgid "Target amount must be greater than zero"
 msgid "The total must be more than zero"
 msgstr "Der Zielbetrag muss größer als null sein"
 
-#: /app/lib/Controller/ProjectController.php:195
+#: /app/lib/Controller/ProjectController.php:197
 msgid "Choose one of your own expense categories"
 msgstr "Wähle eine deiner eigenen Ausgabenkategorien aus"
 
-#: /app/lib/Controller/ProjectController.php:196
-#: /app/src/modules/projects/ProjectsModule.js:335
+#: /app/lib/Controller/ProjectController.php:198
+#: /app/src/modules/projects/ProjectsModule.js:336
 msgid "Enter a start date for the project"
 msgstr "Gib ein Startdatum für das Projekt ein"
 
-#: /app/lib/Controller/ProjectController.php:197
-#: /app/src/modules/projects/ProjectsModule.js:336
+#: /app/lib/Controller/ProjectController.php:199
+#: /app/src/modules/projects/ProjectsModule.js:337
 msgid "The end date cannot be before the start date"
 msgstr "Das Enddatum darf nicht vor dem Startdatum liegen"
 
-#: /app/lib/Controller/ProjectController.php:198
+#: /app/lib/Controller/ProjectController.php:200
 #, fuzzy
 #| msgid "Target amount must be greater than zero"
 msgid "Every subcategory amount must be more than zero"
 msgstr "Der Zielbetrag muss größer als null sein"
 
-#: /app/lib/Controller/ProjectController.php:199
+#: /app/lib/Controller/ProjectController.php:201
 msgid "Amounts can only go to subcategories of the project category"
 msgstr ""
 "Beträge können nur Unterkategorien der Projektkategorie zugewiesen werden"
 
-#: /app/lib/Controller/ProjectController.php:200
+#: /app/lib/Controller/ProjectController.php:202
 #, fuzzy
 #| msgid "Each person can only be in a split once"
 msgid "Each subcategory can only have one amount"
 msgstr "Jede Person kann nur einmal in einer Aufteilung enthalten sein"
 
-#: /app/lib/Controller/ProjectController.php:201
+#: /app/lib/Controller/ProjectController.php:203
 msgid "A subcategory and one of its own subcategories cannot both have amounts"
 msgstr ""
 "Einer Unterkategorie und einer ihrer eigenen Unterkategorien können nicht "
 "gleichzeitig Beträge zugewiesen werden"
 
-#: /app/lib/Controller/ProjectController.php:202
-#: /app/src/modules/projects/ProjectsModule.js:338
+#: /app/lib/Controller/ProjectController.php:204
+#: /app/src/modules/projects/ProjectsModule.js:339
 #, fuzzy
 #| msgid "Failed to create transaction"
 msgid "The subcategory amounts add up to more than the total"
@@ -1894,62 +1910,62 @@ msgid "Failed to retrieve recurring income"
 msgstr "Laufende Einnahmen konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/RecurringIncomeController.php:89
-#: /app/lib/Controller/RecurringIncomeController.php:103
-#: /app/lib/Controller/RecurringIncomeController.php:339
-#: /app/lib/Controller/RecurringIncomeController.php:354
-#: /app/lib/Controller/RecurringIncomeController.php:411
-#: /app/lib/Controller/RecurringIncomeController.php:428
-#: /app/lib/Controller/RecurringIncomeController.php:450
+#: /app/lib/Controller/RecurringIncomeController.php:104
+#: /app/lib/Controller/RecurringIncomeController.php:340
+#: /app/lib/Controller/RecurringIncomeController.php:359
+#: /app/lib/Controller/RecurringIncomeController.php:416
+#: /app/lib/Controller/RecurringIncomeController.php:433
+#: /app/lib/Controller/RecurringIncomeController.php:455
 #: /app/lib/Service/AccountClosureService.php:81
 msgid "Recurring income"
 msgstr "Laufende Einnahme"
 
-#: /app/lib/Controller/RecurringIncomeController.php:171
-#: /app/lib/Controller/RecurringIncomeController.php:297
+#: /app/lib/Controller/RecurringIncomeController.php:172
+#: /app/lib/Controller/RecurringIncomeController.php:298
 msgid "Expected day must be between 1 and 31"
 msgstr "Erwartender Tag muss zwischen 1 und 31 sein"
 
-#: /app/lib/Controller/RecurringIncomeController.php:176
-#: /app/lib/Controller/RecurringIncomeController.php:304
+#: /app/lib/Controller/RecurringIncomeController.php:177
+#: /app/lib/Controller/RecurringIncomeController.php:305
 msgid "Expected month must be between 1 and 12"
 msgstr "Erwartender Monat muss zwischen 1 und 12 sein"
 
-#: /app/lib/Controller/RecurringIncomeController.php:236
+#: /app/lib/Controller/RecurringIncomeController.php:237
 msgid "Failed to create recurring income"
 msgstr "Laufende Einnahme konnte nicht erstellt werden"
 
-#: /app/lib/Controller/RecurringIncomeController.php:264
+#: /app/lib/Controller/RecurringIncomeController.php:265
 #, fuzzy
 #| msgid "Not provided"
 msgid "No data provided"
 msgstr "Nicht angegeben"
 
-#: /app/lib/Controller/RecurringIncomeController.php:352
+#: /app/lib/Controller/RecurringIncomeController.php:357
 msgid "Recurring income deleted"
 msgstr "Laufende Einnahme entfernt"
 
-#: /app/lib/Controller/RecurringIncomeController.php:367
+#: /app/lib/Controller/RecurringIncomeController.php:372
 msgid "Failed to retrieve upcoming income"
 msgstr "Bevorstehende Einnahme konnte nicht abgerufen werden"
 
-#: /app/lib/Controller/RecurringIncomeController.php:380
+#: /app/lib/Controller/RecurringIncomeController.php:385
 msgid "Failed to retrieve expected income"
 msgstr "Erwartete Einnahme konnte nicht abgerufen werden"
 
-#: /app/lib/Controller/RecurringIncomeController.php:393
+#: /app/lib/Controller/RecurringIncomeController.php:398
 msgid "Failed to retrieve income summary"
 msgstr "Einnahmenübersicht konnte nicht abgerufen werden"
 
-#: /app/lib/Controller/RecurringIncomeController.php:442
+#: /app/lib/Controller/RecurringIncomeController.php:447
 msgid "Previous expected date"
 msgstr "Vorheriges erwartetes Datum"
 
-#: /app/lib/Controller/RecurringIncomeController.php:463
+#: /app/lib/Controller/RecurringIncomeController.php:468
 #: /app/src/modules/income/IncomeModule.js:712
 msgid "Failed to detect recurring income"
 msgstr "Laufende Einnahme konnte nicht gefunden werden"
 
-#: /app/lib/Controller/RecurringIncomeController.php:496
+#: /app/lib/Controller/RecurringIncomeController.php:501
 msgid "Failed to create recurring income from detected patterns"
 msgstr "Laufende Einnahme konnte nicht aus erkanntem Muster erstellt werden"
 
@@ -2108,7 +2124,7 @@ msgstr "Montag"
 
 #: /app/lib/Controller/SettingController.php:321
 #: /app/src/modules/bills/BillsModule.js:331
-#: /app/src/modules/categories/CategoriesModule.js:2372
+#: /app/src/modules/categories/CategoriesModule.js:2410
 #: /app/src/modules/income/IncomeModule.js:110
 #: /app/src/modules/transfers/TransfersModule.js:330
 #: /app/src/modules/transfers/TransfersModule.js:503
@@ -2121,7 +2137,7 @@ msgstr "Wöchentlich"
 #: /app/lib/Controller/SettingController.php:322
 #: /app/src/modules/accounts/AccountsModule.js:1368
 #: /app/src/modules/bills/BillsModule.js:334
-#: /app/src/modules/categories/CategoriesModule.js:2371
+#: /app/src/modules/categories/CategoriesModule.js:2409
 #: /app/src/modules/income/IncomeModule.js:113
 #: /app/src/modules/pensions/PensionsModule.js:1026
 #: /app/src/modules/transfers/TransfersModule.js:333
@@ -2135,7 +2151,7 @@ msgstr "Monatlich"
 
 #: /app/lib/Controller/SettingController.php:323
 #: /app/src/modules/bills/BillsModule.js:335
-#: /app/src/modules/categories/CategoriesModule.js:2373
+#: /app/src/modules/categories/CategoriesModule.js:2411
 #: /app/src/modules/income/IncomeModule.js:114
 #: /app/src/modules/pensions/PensionsModule.js:1027
 #: /app/src/modules/transfers/TransfersModule.js:334
@@ -2149,7 +2165,7 @@ msgstr "Vierteljährlich"
 #: /app/lib/Controller/SettingController.php:324
 #: /app/src/modules/accounts/AccountsModule.js:1369
 #: /app/src/modules/bills/BillsModule.js:337
-#: /app/src/modules/categories/CategoriesModule.js:2374
+#: /app/src/modules/categories/CategoriesModule.js:2412
 #: /app/src/modules/income/IncomeModule.js:116
 #: /app/src/modules/pensions/PensionsModule.js:1028
 #: /app/src/modules/transfers/TransfersModule.js:336
@@ -2278,22 +2294,22 @@ msgid "Share"
 msgstr "Aktie"
 
 #: /app/lib/Controller/ShareController.php:121
-#: /app/src/modules/sharing/SharingModule.js:413
+#: /app/src/modules/sharing/SharingModule.js:419
 msgid "Failed to accept share"
 msgstr "Annehmen Aktie fehlgeschlagen"
 
 #: /app/lib/Controller/ShareController.php:139
-#: /app/src/modules/sharing/SharingModule.js:421
+#: /app/src/modules/sharing/SharingModule.js:427
 msgid "Failed to decline share"
 msgstr "Ablehnen Aktie fehlgeschlagen"
 
 #: /app/lib/Controller/ShareController.php:157
-#: /app/src/modules/sharing/SharingModule.js:431
+#: /app/src/modules/sharing/SharingModule.js:437
 msgid "Failed to revoke share"
 msgstr "Widerruf Aktie fehlgeschlagen"
 
 #: /app/lib/Controller/ShareController.php:175
-#: /app/src/modules/sharing/SharingModule.js:441
+#: /app/src/modules/sharing/SharingModule.js:447
 msgid "Failed to leave share"
 msgstr "Aktie verlassen fehlgeschlagen"
 
@@ -2742,9 +2758,9 @@ msgstr "Jahr"
 #: /app/lib/Service/Report/ReportExporter.php:544
 #: /app/lib/Service/Report/ReportExporter.php:594
 #: /app/src/core/KeyboardShortcuts.js:354
-#: /app/src/modules/categories/CategoriesModule.js:763
-#: /app/src/modules/categories/CategoriesModule.js:905
-#: /app/src/modules/categories/CategoriesModule.js:1687
+#: /app/src/modules/categories/CategoriesModule.js:771
+#: /app/src/modules/categories/CategoriesModule.js:913
+#: /app/src/modules/categories/CategoriesModule.js:1715
 #: /app/src/modules/dashboard/DashboardModule.js:2329
 #: /app/src/modules/dashboard/DashboardModule.js:2857
 #: /app/src/modules/dashboard/DashboardModule.js:3182
@@ -2964,11 +2980,11 @@ msgstr[1] "Fällig in %n Tagen"
 #: /app/lib/Notification/Notifier.php:31 /app/lib/Service/DigestService.php:150
 #: /app/specialAppInfoFakeDummyForL10nScript.php:2
 #: /app/src/core/KeyboardShortcuts.js:353
-#: /app/src/modules/categories/CategoriesModule.js:926
-#: /app/src/modules/categories/CategoriesModule.js:2353
+#: /app/src/modules/categories/CategoriesModule.js:934
+#: /app/src/modules/categories/CategoriesModule.js:2390
 #: /app/src/modules/dashboard/DashboardModule.js:2165
 #: /app/src/modules/help/HelpModule.js:32
-#: /app/src/modules/projects/ProjectsModule.js:145 /app/templates/index.php:93
+#: /app/src/modules/projects/ProjectsModule.js:146 /app/templates/index.php:93
 #: /app/templates/index.php:2147 /app/templates/index.php:2232
 #: /app/templates/index.php:5136
 msgid "Budget"
@@ -3188,7 +3204,7 @@ msgstr ""
 #: /app/src/core/KeyboardShortcuts.js:355
 #: /app/src/modules/dashboard/DashboardModule.js:5500
 #: /app/src/modules/help/HelpModule.js:34
-#: /app/src/modules/sharing/SharingModule.js:269 /app/templates/index.php:113
+#: /app/src/modules/sharing/SharingModule.js:274 /app/templates/index.php:113
 #: /app/templates/index.php:2610 /app/templates/index.php:4765
 msgid "Bills"
 msgstr "Rechnungen"
@@ -3333,22 +3349,29 @@ msgstr "Rechnung ist keinem Konto zugewiesen"
 msgid "Bill auto-paid successfully"
 msgstr "Rechnung wurde automatisch bezahlt"
 
-#: /app/lib/Service/CategoryService.php:149
-#: /app/lib/Service/CategoryService.php:189
+#: /app/lib/Service/CategoryService.php:150
+#: /app/lib/Service/CategoryService.php:197
 msgid "A category with this name already exists at this level"
 msgstr "Eine Kategorie mit diesem Namen existiert bereits in dieser Ebene"
 
-#: /app/lib/Service/CategoryService.php:179
+#: /app/lib/Service/CategoryService.php:182
 msgid "Category cannot be its own parent"
 msgstr "Die Kategorie kann nicht sich selbst übergeordnet sein"
 
-#: /app/lib/Service/CategoryService.php:204
+#: /app/lib/Service/CategoryService.php:188
+#: /app/lib/Service/CategoryService.php:326
+#, fuzzy
+#| msgid "Category cannot be its own parent"
+msgid "A category cannot be nested inside itself"
+msgstr "Die Kategorie kann nicht sich selbst übergeordnet sein"
+
+#: /app/lib/Service/CategoryService.php:212
 #, fuzzy
 #| msgid "Category not found"
 msgid "Parent category not found"
 msgstr "Kategorie nicht gefunden"
 
-#: /app/lib/Service/CategoryService.php:230
+#: /app/lib/Service/CategoryService.php:238
 #, fuzzy
 #| msgid ""
 #| "Cannot delete account with existing transactions. Please delete all "
@@ -3360,13 +3383,23 @@ msgstr ""
 "Konto mit existierenden Buchungen kann nicht gelöscht werden. Bitte lösche "
 "zuerst alle Buchungen."
 
-#: /app/lib/Service/CategoryService.php:294
+#: /app/lib/Service/CategoryService.php:305
 #, fuzzy
-#| msgid "Category cannot be its own parent"
-msgid "A category cannot be nested inside itself"
-msgstr "Die Kategorie kann nicht sich selbst übergeordnet sein"
+#| msgid "Only the category owner can delete it"
+msgid "This category has subcategories, so only its owner can delete it"
+msgstr "Nur der Eigentümer der Kategorie kann das löschen"
 
-#: /app/lib/Service/CategoryService.php:375
+#: /app/lib/Service/CategoryService.php:308
+#, fuzzy
+#| msgid ""
+#| "This category still has transactions assigned to it. Move them to "
+#| "Uncategorized and delete \"{name}\"?"
+msgid "This category has transactions, so only its owner can delete it"
+msgstr ""
+"Dieser Kategorie sind noch Transaktionen zugeordnet. Sollen sie in „Nicht "
+"kategorisiert“ verschoben und „{name}“ gelöscht werden?"
+
+#: /app/lib/Service/CategoryService.php:407
 #, php-format
 msgid ""
 "This category is used by the project \"%1$s\". Change or delete the project "
@@ -3375,13 +3408,13 @@ msgstr ""
 "Diese Kategorie wird vom Projekt „%1$s“ verwendet. Ändere oder lösche zuerst "
 "das Projekt."
 
-#: /app/lib/Service/CategoryService.php:653
+#: /app/lib/Service/CategoryService.php:685
 #, fuzzy
 #| msgid "A pending share already exists for this user"
 msgid "A budget adjustment already exists for this month"
 msgstr "Es existiert bereits eine ausstehende Aktie für diesen Benutzer"
 
-#: /app/lib/Service/CategoryService.php:729
+#: /app/lib/Service/CategoryService.php:761
 msgid "No budget snapshot found for this category and month"
 msgstr "Für diese Kategorie und diesen Monat sind keine Budgetdaten verfügbar"
 
@@ -3603,8 +3636,8 @@ msgid "Split of"
 msgstr "Aufteilung"
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:144
-#: /app/src/modules/categories/CategoriesModule.js:763
-#: /app/src/modules/categories/CategoriesModule.js:1687
+#: /app/src/modules/categories/CategoriesModule.js:771
+#: /app/src/modules/categories/CategoriesModule.js:1715
 #: /app/src/modules/rules/components/ActionBuilder.js:413
 #: /app/src/modules/rules/components/CriteriaBuilder.js:217
 #: /app/templates/index.php:1046 /app/templates/index.php:1473
@@ -3614,22 +3647,22 @@ msgstr "Aufteilung"
 msgid "Expense"
 msgstr "Ausgabe"
 
-#: /app/lib/Service/GranularShareService.php:330
+#: /app/lib/Service/GranularShareService.php:377
 #, php-format
 msgid "Invalid entity type: %1$s"
 msgstr "Ungültiger Einheitentyp: %1$s"
 
-#: /app/lib/Service/GranularShareService.php:335
+#: /app/lib/Service/GranularShareService.php:382
 #, php-format
 msgid "Invalid permission: %1$s"
 msgstr "Ungültige Berechtigung: %1$s"
 
-#: /app/lib/Service/GranularShareService.php:341
+#: /app/lib/Service/GranularShareService.php:388
 #: /app/lib/Service/ShareService.php:195
 msgid "You are not the owner of this share"
 msgstr "Du bist nicht Besitzer dieser Aktie"
 
-#: /app/lib/Service/GranularShareService.php:348
+#: /app/lib/Service/GranularShareService.php:395
 msgid "Some entities do not belong to you"
 msgstr "Einige Einheiten gehören nicht Dir"
 
@@ -4137,7 +4170,7 @@ msgid "Source"
 msgstr "Bezugsquelle"
 
 #: /app/lib/Service/Report/ReportExporter.php:357
-#: /app/src/modules/categories/CategoriesModule.js:2369
+#: /app/src/modules/categories/CategoriesModule.js:2407
 #: /app/templates/index.php:597 /app/templates/index.php:2034
 #: /app/templates/index.php:2233 /app/templates/index.php:3195
 msgid "Period"
@@ -4156,18 +4189,18 @@ msgstr "Budget"
 
 #: /app/lib/Service/Report/ReportExporter.php:402
 #: /app/lib/Service/Report/ReportExporter.php:641
-#: /app/src/modules/categories/CategoriesModule.js:2377
+#: /app/src/modules/categories/CategoriesModule.js:2415
 #: /app/src/modules/dashboard/DashboardModule.js:2166
-#: /app/src/modules/projects/ProjectsModule.js:146
+#: /app/src/modules/projects/ProjectsModule.js:147
 #: /app/templates/index.php:2234 /app/templates/index.php:5137
 msgid "Spent"
 msgstr "Ausgegeben"
 
 #: /app/lib/Service/Report/ReportExporter.php:403
 #: /app/lib/Service/Report/ReportExporter.php:642
-#: /app/src/modules/categories/CategoriesModule.js:2380
+#: /app/src/modules/categories/CategoriesModule.js:2418
 #: /app/src/modules/dashboard/DashboardModule.js:2167
-#: /app/src/modules/projects/ProjectsModule.js:147
+#: /app/src/modules/projects/ProjectsModule.js:148
 #: /app/templates/index.php:2202 /app/templates/index.php:2235
 #: /app/templates/index.php:5138
 msgid "Remaining"
@@ -4222,7 +4255,7 @@ msgstr "Einnahmen & Ausgaben nach Jahr"
 #: /app/lib/Service/Report/ReportExporter.php:749
 #: /app/src/config/dashboardWidgets.js:26 /app/src/main.js:1897
 #: /app/src/main.js:3629 /app/src/modules/accounts/AccountsModule.js:1864
-#: /app/src/modules/categories/CategoriesModule.js:823
+#: /app/src/modules/categories/CategoriesModule.js:831
 #: /app/src/modules/dashboard/DashboardModule.js:1253
 #: /app/src/modules/import/ImportModule.js:189
 #: /app/src/modules/import/ImportModule.js:2032
@@ -4729,7 +4762,7 @@ msgstr "Letzte Buchungen"
 #: /app/src/config/dashboardWidgets.js:39
 #: /app/src/core/KeyboardShortcuts.js:349
 #: /app/src/modules/help/HelpModule.js:28
-#: /app/src/modules/sharing/SharingModule.js:267 /app/templates/index.php:53
+#: /app/src/modules/sharing/SharingModule.js:272 /app/templates/index.php:53
 #: /app/templates/index.php:696 /app/templates/index.php:774
 #: /app/templates/index.php:1080 /app/templates/index.php:1215
 #: /app/templates/index.php:4757
@@ -4752,14 +4785,14 @@ msgstr "Budgetfortschritt"
 #: /app/src/config/dashboardWidgets.js:43
 #: /app/src/core/KeyboardShortcuts.js:357
 #: /app/src/modules/help/HelpModule.js:36
-#: /app/src/modules/sharing/SharingModule.js:271 /app/templates/index.php:133
+#: /app/src/modules/sharing/SharingModule.js:276 /app/templates/index.php:133
 #: /app/templates/index.php:744 /app/templates/index.php:2932
 msgid "Savings Goals"
 msgstr "Sparziele"
 
 #: /app/src/config/dashboardWidgets.js:44
 #: /app/src/modules/help/HelpModule.js:37
-#: /app/src/modules/sharing/SharingModule.js:272 /app/templates/index.php:143
+#: /app/src/modules/sharing/SharingModule.js:277 /app/templates/index.php:143
 #: /app/templates/index.php:755 /app/templates/index.php:3010
 #, fuzzy
 #| msgid "Projected Value"
@@ -4897,7 +4930,7 @@ msgstr "Dashboard"
 #: /app/src/core/KeyboardShortcuts.js:351
 #: /app/src/modules/dashboard/DashboardModule.js:5150
 #: /app/src/modules/help/HelpModule.js:30
-#: /app/src/modules/sharing/SharingModule.js:268 /app/templates/index.php:73
+#: /app/src/modules/sharing/SharingModule.js:273 /app/templates/index.php:73
 #: /app/templates/index.php:1871 /app/templates/index.php:4753
 msgid "Categories"
 msgstr "Kategorien"
@@ -4908,7 +4941,7 @@ msgstr "Kategorien"
 #: /app/src/modules/help/HelpModule.js:31
 #: /app/src/modules/reports/ReportsModule.js:432
 #: /app/src/modules/rules/RulesModule.js:837
-#: /app/src/modules/savings/SavingsModule.js:295
+#: /app/src/modules/savings/SavingsModule.js:297
 #: /app/src/modules/tagsets/TagSetsModule.js:601
 #: /app/src/modules/transactions/TransactionsModule.js:548
 #: /app/src/modules/transactions/TransactionsModule.js:1345
@@ -5092,7 +5125,7 @@ msgstr "Transfer zuordnen"
 #: /app/src/modules/pensions/PensionsModule.js:797
 #: /app/src/modules/pensions/PensionsModule.js:798
 #: /app/src/modules/pensions/PensionsModule.js:1043
-#: /app/src/modules/savings/SavingsModule.js:141
+#: /app/src/modules/savings/SavingsModule.js:143
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:192
 #: /app/src/modules/tagsets/TagSetsModule.js:84 /app/templates/index.php:1177
 #: /app/templates/index.php:1720 /app/templates/index.php:1971
@@ -5610,7 +5643,7 @@ msgstr "Saldo"
 #: /app/src/main.js:2916 /app/src/modules/accounts/AccountsModule.js:609
 #: /app/src/modules/assets/AssetsModule.js:166
 #: /app/src/modules/pensions/PensionsModule.js:120
-#: /app/src/modules/savings/SavingsModule.js:138
+#: /app/src/modules/savings/SavingsModule.js:140
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:189
 #: /app/src/modules/tagsets/TagSetsModule.js:83 /app/templates/index.php:1223
 #: /app/templates/index.php:1967 /app/templates/index.php:4016
@@ -5960,7 +5993,7 @@ msgid "Select account"
 msgstr "Konto auswählen"
 
 #: /app/src/modules/accounts/AccountsModule.js:678
-#: /app/src/modules/categories/CategoriesModule.js:1315
+#: /app/src/modules/categories/CategoriesModule.js:1337
 msgid "%n selected"
 msgid_plural "%n selected"
 msgstr[0] "%n ausgewählt"
@@ -6011,7 +6044,7 @@ msgstr[0] "%n konto"
 msgstr[1] "%n konten"
 
 #: /app/src/modules/accounts/AccountsModule.js:757
-#: /app/src/modules/categories/CategoriesModule.js:1355
+#: /app/src/modules/categories/CategoriesModule.js:1377
 msgid "Failed to delete: {errors}"
 msgstr "Fehler beim Löschen: {errors}"
 
@@ -6200,7 +6233,7 @@ msgstr "Bitte wähle einen Buchungstyp"
 
 #: /app/src/modules/accounts/AccountsModule.js:2225
 #: /app/src/modules/accounts/AccountsModule.js:2327
-#: /app/src/modules/savings/SavingsModule.js:487
+#: /app/src/modules/savings/SavingsModule.js:489
 msgid "Please enter a valid amount"
 msgstr "Bitte gib eine gültige Summe ein"
 
@@ -7447,7 +7480,7 @@ msgid "Your account balance will NOT reflect this payment."
 msgstr "Diese Zahlung wirkt sich NICHT auf deinen Kontostand aus."
 
 #: /app/src/modules/bills/BillsModule.js:1407
-#: /app/src/modules/categories/CategoriesModule.js:1946
+#: /app/src/modules/categories/CategoriesModule.js:1974
 #: /app/src/modules/transfers/TransfersModule.js:171
 #: /app/src/modules/transfers/TransfersModule.js:611
 #: /app/src/utils/dialogs.js:237 /app/src/utils/dialogs.js:262
@@ -7476,7 +7509,7 @@ msgid "Cancel"
 msgstr "Abbrechen"
 
 #: /app/src/modules/bills/BillsModule.js:1408
-#: /app/src/modules/categories/CategoriesModule.js:1945
+#: /app/src/modules/categories/CategoriesModule.js:1973
 #: /app/src/utils/dialogs.js:236
 #, fuzzy
 #| msgid "Configure"
@@ -7569,90 +7602,100 @@ msgstr "Ausgewählte Rechnungen konnten nicht hinzugefügt werden"
 msgid "No tags defined"
 msgstr "Keine Schlagwörter definiert"
 
-#: /app/src/modules/categories/CategoriesModule.js:112
-#: /app/src/modules/categories/CategoriesModule.js:115
+#: /app/src/modules/categories/CategoriesModule.js:113
+#: /app/src/modules/categories/CategoriesModule.js:116
 msgid "Failed to load categories"
 msgstr "Kategorien konnten nicht geladen werden"
 
-#: /app/src/modules/categories/CategoriesModule.js:320
+#: /app/src/modules/categories/CategoriesModule.js:321
 #, fuzzy
 #| msgid "Collapse all"
 msgid "Collapse"
 msgstr "Alle zusammenklappen"
 
-#: /app/src/modules/categories/CategoriesModule.js:320
+#: /app/src/modules/categories/CategoriesModule.js:321
 #, fuzzy
 #| msgid "Expand all"
 msgid "Expand"
 msgstr "Alle aufklappen"
 
-#: /app/src/modules/categories/CategoriesModule.js:333
+#: /app/src/modules/categories/CategoriesModule.js:334
+#, fuzzy
+#| msgid "Shared by {owner} — you can edit"
+msgid "Shared by {owner} — you have full control"
+msgstr "Von {owner} geteilt – du kannst es bearbeiten"
+
+#: /app/src/modules/categories/CategoriesModule.js:334
+msgid "Shared (full control)"
+msgstr ""
+
+#: /app/src/modules/categories/CategoriesModule.js:336
 msgid "Shared by {owner} — you can edit"
 msgstr "Von {owner} geteilt – du kannst es bearbeiten"
 
-#: /app/src/modules/categories/CategoriesModule.js:333
+#: /app/src/modules/categories/CategoriesModule.js:336
 #, fuzzy
 #| msgid "Shared With Me"
 msgid "Shared (editable)"
 msgstr "Geteilt mit mir"
 
-#: /app/src/modules/categories/CategoriesModule.js:335
+#: /app/src/modules/categories/CategoriesModule.js:338
 #: /app/src/modules/projects/ProjectsModule.js:57
 #: /app/src/modules/rules/RulesModule.js:132
-#: /app/src/modules/savings/SavingsModule.js:126
+#: /app/src/modules/savings/SavingsModule.js:128
 msgid "Shared by {owner}"
 msgstr "Von {owner} geteilt"
 
-#: /app/src/modules/categories/CategoriesModule.js:335
+#: /app/src/modules/categories/CategoriesModule.js:338
 #: /app/src/modules/projects/ProjectsModule.js:57
 #: /app/src/modules/rules/RulesModule.js:132
-#: /app/src/modules/savings/SavingsModule.js:126
+#: /app/src/modules/savings/SavingsModule.js:128
 #: /app/src/modules/transactions/transactionRow.js:71
 msgid "Shared"
 msgstr "Geteilt"
 
-#: /app/src/modules/categories/CategoriesModule.js:337
+#: /app/src/modules/categories/CategoriesModule.js:340
 msgid "Hidden from your reports — the owner and other viewers are unaffected"
 msgstr ""
 "In deinen Berichten ausgeblendet – der Eigentümer und andere Nutzer sind "
 "davon nicht betroffen"
 
-#: /app/src/modules/categories/CategoriesModule.js:337
+#: /app/src/modules/categories/CategoriesModule.js:340
 msgid "Hidden from my reports"
 msgstr "In meinen Berichten ausgeblendet"
 
-#: /app/src/modules/categories/CategoriesModule.js:345
+#: /app/src/modules/categories/CategoriesModule.js:348
 msgid "Show in my reports"
 msgstr "In meinen Berichten anzeigen"
 
-#: /app/src/modules/categories/CategoriesModule.js:345
+#: /app/src/modules/categories/CategoriesModule.js:348
 msgid "Hide from my reports"
 msgstr "In meinen Berichten ausblenden"
 
-#: /app/src/modules/categories/CategoriesModule.js:349
+#: /app/src/modules/categories/CategoriesModule.js:352
 msgid "Delete {name}"
 msgstr "{name} löschen"
 
-#: /app/src/modules/categories/CategoriesModule.js:435
+#: /app/src/modules/categories/CategoriesModule.js:438
 msgid "Category hidden from your reports"
 msgstr "Kategorie in deinen Berichten ausgeblendet"
 
-#: /app/src/modules/categories/CategoriesModule.js:436
+#: /app/src/modules/categories/CategoriesModule.js:439
 msgid "Category shown in your reports again"
 msgstr "Kategorie wird wieder in deinen Berichten angezeigt"
 
-#: /app/src/modules/categories/CategoriesModule.js:600
+#: /app/src/modules/categories/CategoriesModule.js:606
 #, fuzzy
 #| msgid "Shared categories cannot be moved or reordered"
 msgid "Shared categories can only be reordered among themselves"
 msgstr ""
 "Freigegebene Kategorien können nicht verschoben oder neu angeordnet werden"
 
-#: /app/src/modules/categories/CategoriesModule.js:616
+#: /app/src/modules/categories/CategoriesModule.js:622
 msgid "Category reordered successfully"
 msgstr "Kategorie erfolgreich neu sortiert"
 
-#: /app/src/modules/categories/CategoriesModule.js:682
+#: /app/src/modules/categories/CategoriesModule.js:700
 #: /app/src/modules/dashboard/DashboardModule.js:5101
 #: /app/src/modules/reports/ReportsModule.js:204
 #: /app/src/modules/reports/ReportsModule.js:207
@@ -7666,24 +7709,24 @@ msgstr "Kategorie erfolgreich neu sortiert"
 msgid "All Accounts"
 msgstr "Alle Konten"
 
-#: /app/src/modules/categories/CategoriesModule.js:784
+#: /app/src/modules/categories/CategoriesModule.js:792
 msgid "Increasing"
 msgstr "Zunehmend"
 
-#: /app/src/modules/categories/CategoriesModule.js:785
+#: /app/src/modules/categories/CategoriesModule.js:793
 msgid "Decreasing"
 msgstr "Abnehmend"
 
-#: /app/src/modules/categories/CategoriesModule.js:786
+#: /app/src/modules/categories/CategoriesModule.js:794
 msgid "Stable"
 msgstr "Stabil"
 
-#: /app/src/modules/categories/CategoriesModule.js:803
+#: /app/src/modules/categories/CategoriesModule.js:811
 #: /app/templates/index.php:2052
 msgid "No transactions in this category yet."
 msgstr "Noch keine Buchungen in dieser Kategorie."
 
-#: /app/src/modules/categories/CategoriesModule.js:832
+#: /app/src/modules/categories/CategoriesModule.js:840
 #: /app/src/modules/transactions/transactionRow.js:67
 msgid ""
 "Part of a split transaction. The amount shown is the part in this category."
@@ -7691,43 +7734,43 @@ msgstr ""
 "Teil einer aufgeteilten Transaktion. Der angezeigte Betrag ist der dieser "
 "Kategorie zugeordnete Teilbetrag."
 
-#: /app/src/modules/categories/CategoriesModule.js:832
+#: /app/src/modules/categories/CategoriesModule.js:840
 #: /app/src/modules/transactions/transactionRow.js:68
 #, fuzzy
 #| msgid "Split with"
 msgid "Split part"
 msgstr "Teilen mit"
 
-#: /app/src/modules/categories/CategoriesModule.js:833
+#: /app/src/modules/categories/CategoriesModule.js:841
 msgid "Split part of {total}"
 msgstr "Aufteilung von {total}"
 
-#: /app/src/modules/categories/CategoriesModule.js:906
+#: /app/src/modules/categories/CategoriesModule.js:914
 #, fuzzy
 #| msgid "Pending"
 msgid "Spending"
 msgstr "Ausstehend"
 
-#: /app/src/modules/categories/CategoriesModule.js:1051
+#: /app/src/modules/categories/CategoriesModule.js:1059
 msgid "Root"
 msgstr "Hauptkategorie"
 
-#: /app/src/modules/categories/CategoriesModule.js:1075
+#: /app/src/modules/categories/CategoriesModule.js:1083
 #: /app/templates/index.php:1884 /app/templates/index.php:1948
 msgid "Add Category"
 msgstr "Kategorie hinzufügen"
 
-#: /app/src/modules/categories/CategoriesModule.js:1128
+#: /app/src/modules/categories/CategoriesModule.js:1138
 #, fuzzy
 #| msgid "Edit Category"
 msgid "Edit Shared Category"
 msgstr "Kategorie bearbeiten"
 
-#: /app/src/modules/categories/CategoriesModule.js:1129
+#: /app/src/modules/categories/CategoriesModule.js:1139
 msgid "Edit Category"
 msgstr "Kategorie bearbeiten"
 
-#: /app/src/modules/categories/CategoriesModule.js:1167
+#: /app/src/modules/categories/CategoriesModule.js:1185
 msgid ""
 "Are you sure you want to delete the category \"{name}\"? This action cannot "
 "be undone."
@@ -7735,36 +7778,36 @@ msgstr ""
 "Möchten Sie die Kategorie „{name}“ wirklich löschen? Diese Aktion kann nicht "
 "rückgängig gemacht werden."
 
-#: /app/src/modules/categories/CategoriesModule.js:1176
-#: /app/src/modules/categories/CategoriesModule.js:1205
+#: /app/src/modules/categories/CategoriesModule.js:1198
+#: /app/src/modules/categories/CategoriesModule.js:1227
 msgid "Category deleted; its transactions are now Uncategorized"
 msgstr ""
 "Die Kategorie wurde gelöscht. Die zugehörigen Transaktionen wurden nach "
 "„Nicht kategorisiert“ verschoben"
 
-#: /app/src/modules/categories/CategoriesModule.js:1177
-#: /app/src/modules/categories/CategoriesModule.js:1206
+#: /app/src/modules/categories/CategoriesModule.js:1199
+#: /app/src/modules/categories/CategoriesModule.js:1228
 msgid "Category deleted successfully"
 msgstr "Kategorie erfolgreich gelöscht"
 
-#: /app/src/modules/categories/CategoriesModule.js:1183
-#: /app/src/modules/categories/CategoriesModule.js:1215
-#: /app/src/modules/categories/CategoriesModule.js:1227
+#: /app/src/modules/categories/CategoriesModule.js:1205
+#: /app/src/modules/categories/CategoriesModule.js:1237
+#: /app/src/modules/categories/CategoriesModule.js:1249
 msgid "Failed to delete category"
 msgstr "Das Löschen der Kategorie schlug fehl"
 
-#: /app/src/modules/categories/CategoriesModule.js:1194
+#: /app/src/modules/categories/CategoriesModule.js:1216
 msgid "this category"
 msgstr "diese Kategorie"
 
-#: /app/src/modules/categories/CategoriesModule.js:1196
+#: /app/src/modules/categories/CategoriesModule.js:1218
 msgid ""
 "Are you sure you want to delete \"{name}\"? This action cannot be undone."
 msgstr ""
 "Möchten Sie „{name}“ wirklich löschen? Diese Aktion kann nicht rückgängig "
 "gemacht werden."
 
-#: /app/src/modules/categories/CategoriesModule.js:1243
+#: /app/src/modules/categories/CategoriesModule.js:1265
 msgid ""
 "This category still has transactions assigned to it. Move them to "
 "Uncategorized and delete \"{name}\"?"
@@ -7772,7 +7815,7 @@ msgstr ""
 "Dieser Kategorie sind noch Transaktionen zugeordnet. Sollen sie in „Nicht "
 "kategorisiert“ verschoben und „{name}“ gelöscht werden?"
 
-#: /app/src/modules/categories/CategoriesModule.js:1323
+#: /app/src/modules/categories/CategoriesModule.js:1345
 msgid ""
 "Are you sure you want to delete %n category? This action cannot be undone."
 msgid_plural ""
@@ -7784,19 +7827,19 @@ msgstr[1] ""
 "Möchtest du %n Kategorien wirklich löschen? Diese Aktion kann nicht "
 "rückgängig gemacht werden."
 
-#: /app/src/modules/categories/CategoriesModule.js:1335
+#: /app/src/modules/categories/CategoriesModule.js:1357
 #: /app/src/modules/pensions/PensionsModule.js:834
 #: /app/src/modules/pensions/PensionsModule.js:1096
 msgid "Failed to delete"
 msgstr "Löschen fehlgeschlagen"
 
-#: /app/src/modules/categories/CategoriesModule.js:1347
+#: /app/src/modules/categories/CategoriesModule.js:1369
 msgid "%n category deleted successfully"
 msgid_plural "%n categories deleted successfully"
 msgstr[0] "%n Kategorie erfolgreich gelöscht"
 msgstr[1] "%n Kategorien erfolgreich gelöscht"
 
-#: /app/src/modules/categories/CategoriesModule.js:1370
+#: /app/src/modules/categories/CategoriesModule.js:1392
 msgid "Give %n category a new color? Its current color will be replaced."
 msgid_plural ""
 "Give %n categories new colors? Their current colors will be replaced."
@@ -7805,7 +7848,7 @@ msgstr[0] ""
 msgstr[1] ""
 "%n Kategorien eine neue Farbe zuweisen? Die aktuellen Farben werden ersetzt."
 
-#: /app/src/modules/categories/CategoriesModule.js:1399
+#: /app/src/modules/categories/CategoriesModule.js:1421
 #, fuzzy
 #| msgid "%n category under budget"
 #| msgid_plural "%n categories under budget"
@@ -7814,51 +7857,51 @@ msgid_plural "%n categories recolored"
 msgstr[0] "Kategorie unter dem Budget"
 msgstr[1] "Kategorien unter dem Budget"
 
-#: /app/src/modules/categories/CategoriesModule.js:1405
+#: /app/src/modules/categories/CategoriesModule.js:1427
 #, fuzzy
 #| msgid "Failed to delete: {errors}"
 msgid "Failed to recolor: {errors}"
 msgstr "Fehler beim Löschen: {errors}"
 
-#: /app/src/modules/categories/CategoriesModule.js:1487
+#: /app/src/modules/categories/CategoriesModule.js:1507
 #: /app/templates/index.php:6820
 msgid "None (Top Level)"
 msgstr "Keine (oberste Ebene)"
 
-#: /app/src/modules/categories/CategoriesModule.js:1509
+#: /app/src/modules/categories/CategoriesModule.js:1536
 msgid "Category name is required"
 msgstr "Name der Kategorie ist erforderlich"
 
-#: /app/src/modules/categories/CategoriesModule.js:1546
-#: /app/src/modules/categories/CategoriesModule.js:1561
+#: /app/src/modules/categories/CategoriesModule.js:1574
+#: /app/src/modules/categories/CategoriesModule.js:1589
 msgid "Failed to save category"
 msgstr "Kategorie konnte nicht gespeichert werden"
 
-#: /app/src/modules/categories/CategoriesModule.js:1549
+#: /app/src/modules/categories/CategoriesModule.js:1577
 msgid "Category updated successfully"
 msgstr "Kategorie erfolgreich aktualisiert"
 
-#: /app/src/modules/categories/CategoriesModule.js:1549
+#: /app/src/modules/categories/CategoriesModule.js:1577
 msgid "Category created successfully"
 msgstr "Kategorie erfolgreich erstellt"
 
-#: /app/src/modules/categories/CategoriesModule.js:1576
-#: /app/src/modules/categories/CategoriesModule.js:1584
+#: /app/src/modules/categories/CategoriesModule.js:1604
+#: /app/src/modules/categories/CategoriesModule.js:1612
 msgid "Failed to create default categories"
 msgstr "Standardkategorien konnten nicht erstellt werden"
 
-#: /app/src/modules/categories/CategoriesModule.js:1579
+#: /app/src/modules/categories/CategoriesModule.js:1607
 msgid "Default categories created successfully"
 msgstr "Standardkategorien erfolgreich erstellt"
 
-#: /app/src/modules/categories/CategoriesModule.js:1627
+#: /app/src/modules/categories/CategoriesModule.js:1655
 #: /app/src/modules/rules/RulesModule.js:1378
 #, fuzzy
 #| msgid "Failed to preview file: {error}"
 msgid "Could not read that file: {error}"
 msgstr "Vorschau der Datei fehlgeschlagen: {error}"
 
-#: /app/src/modules/categories/CategoriesModule.js:1653
+#: /app/src/modules/categories/CategoriesModule.js:1681
 msgid ""
 "{create} new categories will be created. {exists} already exist and will be "
 "left unchanged."
@@ -7866,7 +7909,7 @@ msgstr ""
 "{create} neue Kategorien werden erstellt. {exists} sind bereits vorhanden "
 "und bleiben unverändert."
 
-#: /app/src/modules/categories/CategoriesModule.js:1654
+#: /app/src/modules/categories/CategoriesModule.js:1682
 #, fuzzy
 #| msgid "%n category is over budget."
 #| msgid_plural "%n categories are over budget."
@@ -7875,28 +7918,28 @@ msgid_plural "%n new categories will be created."
 msgstr[0] "%n Kategorie ist über dem Budget."
 msgstr[1] "%n Kategorien sind über dem Budget."
 
-#: /app/src/modules/categories/CategoriesModule.js:1673
+#: /app/src/modules/categories/CategoriesModule.js:1701
 msgid "Import %n category"
 msgid_plural "Import %n categories"
 msgstr[0] "%n Kategorie importieren"
 msgstr[1] "%n Kategorien importieren"
 
-#: /app/src/modules/categories/CategoriesModule.js:1674
+#: /app/src/modules/categories/CategoriesModule.js:1702
 #, fuzzy
 #| msgid "No transactions to import"
 msgid "Nothing to import"
 msgstr "Keine Buchungen zum Importieren vorhanden"
 
-#: /app/src/modules/categories/CategoriesModule.js:1684
+#: /app/src/modules/categories/CategoriesModule.js:1712
 msgid "Exists"
 msgstr "Bereits vorhanden"
 
-#: /app/src/modules/categories/CategoriesModule.js:1685
+#: /app/src/modules/categories/CategoriesModule.js:1713
 #: /app/src/modules/import/ImportModule.js:1992
 msgid "New"
 msgstr "Neu"
 
-#: /app/src/modules/categories/CategoriesModule.js:1712
+#: /app/src/modules/categories/CategoriesModule.js:1740
 #, fuzzy
 #| msgid "Imported %n rule"
 #| msgid_plural "Imported %n rules"
@@ -7905,21 +7948,21 @@ msgid_plural "Imported %n categories"
 msgstr[0] "%n Regel importiert"
 msgstr[1] "%n Regeln importiert"
 
-#: /app/src/modules/categories/CategoriesModule.js:1912
+#: /app/src/modules/categories/CategoriesModule.js:1940
 msgid "Budgets adjusted from {month}"
 msgstr "Budgets ab {month} angepasst"
 
-#: /app/src/modules/categories/CategoriesModule.js:1913
+#: /app/src/modules/categories/CategoriesModule.js:1941
 #, fuzzy
 #| msgid "Remove action"
 msgid "Remove adjustment"
 msgstr "Aktion löschen"
 
-#: /app/src/modules/categories/CategoriesModule.js:1926
+#: /app/src/modules/categories/CategoriesModule.js:1954
 msgid "Adjust budgets from this month"
 msgstr "Budgets von diesem Monat anpassen"
 
-#: /app/src/modules/categories/CategoriesModule.js:1942
+#: /app/src/modules/categories/CategoriesModule.js:1970
 msgid ""
 "This will save the current budget values as a new baseline from {month} "
 "onwards. Previous months will keep their existing values. You can edit the "
@@ -7929,46 +7972,46 @@ msgstr ""
 "gespeichert. Die Werte der vorherigen Monate bleiben unverändert. Nach dem "
 "Bestätigen kannst du die neuen Werte bearbeiten."
 
-#: /app/src/modules/categories/CategoriesModule.js:1944
+#: /app/src/modules/categories/CategoriesModule.js:1972
 msgid "Adjust budgets from {month}?"
 msgstr "Budgets ab {month} anpassen?"
 
-#: /app/src/modules/categories/CategoriesModule.js:1957
-#: /app/src/modules/categories/CategoriesModule.js:1977
+#: /app/src/modules/categories/CategoriesModule.js:1985
+#: /app/src/modules/categories/CategoriesModule.js:2005
 #, fuzzy
 #| msgid "Failed to create tag set"
 msgid "Failed to create budget adjustment"
 msgstr "Fehler beim Erstellen des Schlagwort Gruppe"
 
-#: /app/src/modules/categories/CategoriesModule.js:1971
+#: /app/src/modules/categories/CategoriesModule.js:1999
 msgid ""
 "Budget adjusted from {month}. You can now edit values for this month onwards."
 msgstr ""
 "Das Budget wurde ab {month} angepasst. Du kannst die Werte ab diesem Monat "
 "jetzt bearbeiten."
 
-#: /app/src/modules/categories/CategoriesModule.js:1986
+#: /app/src/modules/categories/CategoriesModule.js:2014
 msgid "Budget adjustment created."
 msgstr "Budgetanpassung erstellt."
 
-#: /app/src/modules/categories/CategoriesModule.js:1987
+#: /app/src/modules/categories/CategoriesModule.js:2015
 #: /app/src/modules/transactions/TransactionsModule.js:4177
 #: /app/src/modules/transactions/TransactionsModule.js:4332
 #: /app/src/utils/notifications.js:73
 msgid "Undo"
 msgstr "Rückgängig"
 
-#: /app/src/modules/categories/CategoriesModule.js:2020
+#: /app/src/modules/categories/CategoriesModule.js:2048
 msgid "Budget adjustment removed"
 msgstr "Budgetanpassung entfernt"
 
-#: /app/src/modules/categories/CategoriesModule.js:2023
+#: /app/src/modules/categories/CategoriesModule.js:2051
 #, fuzzy
 #| msgid "Failed to retrieve budget alerts"
 msgid "Failed to remove budget adjustment"
 msgstr "Budgetwarnungen wurden nicht abgerufen"
 
-#: /app/src/modules/categories/CategoriesModule.js:2349
+#: /app/src/modules/categories/CategoriesModule.js:2385
 msgid ""
 "Envelope budgeting on: unspent budget carries to next month. Click to turn "
 "off."
@@ -7976,93 +8019,93 @@ msgstr ""
 "Umlagebudgetierung aktiviert: Nicht verbrauchtes Budget wird in den nächsten "
 "Monat übernommen. Klicke hier, um sie zu deaktivieren."
 
-#: /app/src/modules/categories/CategoriesModule.js:2349
+#: /app/src/modules/categories/CategoriesModule.js:2385
 msgid "Turn on envelope budgeting: unspent budget carries to next month"
 msgstr ""
 "Umlagebudgetierung aktivieren: Nicht verbrauchtes Budget wird in den "
 "nächsten Monat übernommen"
 
-#: /app/src/modules/categories/CategoriesModule.js:2350
+#: /app/src/modules/categories/CategoriesModule.js:2386
 #, fuzzy
 #| msgid "Exclude from budgeting"
 msgid "Envelope budgeting"
 msgstr "Von der Budgetierung ausschließen"
 
-#: /app/src/modules/categories/CategoriesModule.js:2356
+#: /app/src/modules/categories/CategoriesModule.js:2393
 #, fuzzy
 #| msgid "Listed under {category}"
 msgid "Budget for {category}"
 msgstr "Aufgeführt unter {category}"
 
-#: /app/src/modules/categories/CategoriesModule.js:2362
+#: /app/src/modules/categories/CategoriesModule.js:2400
 msgid "Auto-calculated from recurring bills/income. Enter a value to override."
 msgstr ""
 "Automatisch aus wiederkehrenden Rechnungen und Einnahmen berechnet. Gib "
 "einen Wert ein, um ihn zu überschreiben."
 
-#: /app/src/modules/categories/CategoriesModule.js:2362
+#: /app/src/modules/categories/CategoriesModule.js:2400
 #: /app/src/modules/pensions/PensionsModule.js:1034
 msgid "auto"
 msgstr "Auto"
 
-#: /app/src/modules/categories/CategoriesModule.js:2364
+#: /app/src/modules/categories/CategoriesModule.js:2402
 msgid "{base} − {over} overspent = {available} available"
 msgstr "{base} − {over} überzogen = {available} verfügbar"
 
-#: /app/src/modules/categories/CategoriesModule.js:2365
+#: /app/src/modules/categories/CategoriesModule.js:2403
 msgid "{base} + {carried} carried = {available} available"
 msgstr "{base} + {carried} übernommen = {available} verfügbar"
 
-#: /app/src/modules/categories/CategoriesModule.js:2366
+#: /app/src/modules/categories/CategoriesModule.js:2404
 #, fuzzy
 #| msgid "Projected Value"
 msgid "(projected)"
 msgstr "Prognostizierter Wert"
 
-#: /app/src/modules/categories/CategoriesModule.js:2370
+#: /app/src/modules/categories/CategoriesModule.js:2408
 #, fuzzy
 #| msgid "Listed under {category}"
 msgid "Budget period for {category}"
 msgstr "Aufgeführt unter {category}"
 
-#: /app/src/modules/categories/CategoriesModule.js:2383
+#: /app/src/modules/categories/CategoriesModule.js:2421
 #: /app/templates/index.php:2236 /app/templates/index.php:5139
 msgid "Progress"
 msgstr "Fortschritt"
 
-#: /app/src/modules/categories/CategoriesModule.js:2390
+#: /app/src/modules/categories/CategoriesModule.js:2428
 msgid "No budget set"
 msgstr "Kein Budget festgelegt"
 
-#: /app/src/modules/categories/CategoriesModule.js:2464
+#: /app/src/modules/categories/CategoriesModule.js:2502
 msgid "Envelope budgeting enabled — unspent budget now carries to next month"
 msgstr ""
 "Umschlagbudgetierung aktiviert – nicht verbrauchtes Budget wird jetzt in den "
 "nächsten Monat übertragen"
 
-#: /app/src/modules/categories/CategoriesModule.js:2465
+#: /app/src/modules/categories/CategoriesModule.js:2503
 msgid "Envelope budgeting disabled"
 msgstr "Umschlagbudgetierung deaktiviert"
 
-#: /app/src/modules/categories/CategoriesModule.js:2468
+#: /app/src/modules/categories/CategoriesModule.js:2506
 #, fuzzy
 #| msgid "Failed to update setting"
 msgid "Failed to update envelope setting"
 msgstr "Einstellung konnte nicht aktualisiert werden"
 
-#: /app/src/modules/categories/CategoriesModule.js:2577
+#: /app/src/modules/categories/CategoriesModule.js:2627
 msgid "Budget updated"
 msgstr "Budget aktualisiert"
 
-#: /app/src/modules/categories/CategoriesModule.js:2580
+#: /app/src/modules/categories/CategoriesModule.js:2630
 msgid "Failed to update budget: {message}"
 msgstr "Budget konnte nicht aktualisiert werden: {message}"
 
-#: /app/src/modules/categories/CategoriesModule.js:2669
+#: /app/src/modules/categories/CategoriesModule.js:2719
 msgid "Over-assigned: {income} in, {budgeted} budgeted"
 msgstr "Zu viel zugewiesen: {income} Einnahmen, {budgeted} budgetiert"
 
-#: /app/src/modules/categories/CategoriesModule.js:2671
+#: /app/src/modules/categories/CategoriesModule.js:2721
 msgid "{income} in, {budgeted} budgeted"
 msgstr "{income} Einnahmen, {budgeted} budgetiert"
 
@@ -10452,83 +10495,83 @@ msgstr ""
 msgid "{amount} left"
 msgstr "{amount} verfügbar"
 
-#: /app/src/modules/projects/ProjectsModule.js:155
+#: /app/src/modules/projects/ProjectsModule.js:156
 #, fuzzy
 #| msgid "No pensions yet"
 msgid "Not counted in this project"
 msgstr "Noch keine Renten"
 
-#: /app/src/modules/projects/ProjectsModule.js:170
+#: /app/src/modules/projects/ProjectsModule.js:171
 #, fuzzy
 #| msgid "Listed under {category}"
 msgid "Directly in {category}"
 msgstr "Aufgeführt unter {category}"
 
-#: /app/src/modules/projects/ProjectsModule.js:173
+#: /app/src/modules/projects/ProjectsModule.js:174
 #, fuzzy
 #| msgid "Goal created"
 msgid "Unallocated"
 msgstr "Sparziel erstellt"
 
-#: /app/src/modules/projects/ProjectsModule.js:178
+#: /app/src/modules/projects/ProjectsModule.js:179
 #, fuzzy
 #| msgid "No categories yet"
 msgid "No subcategories or amounts yet"
 msgstr "Noch keine Kategorien"
 
-#: /app/src/modules/projects/ProjectsModule.js:196
+#: /app/src/modules/projects/ProjectsModule.js:197
 msgid ""
 "Delete the project \"{name}\"? Its categories and transactions are not "
 "changed."
 msgstr ""
 
-#: /app/src/modules/projects/ProjectsModule.js:204
+#: /app/src/modules/projects/ProjectsModule.js:205
 #, fuzzy
 #| msgid "Contact deleted"
 msgid "Project deleted"
 msgstr "Kontakt entfernt"
 
-#: /app/src/modules/projects/ProjectsModule.js:257
+#: /app/src/modules/projects/ProjectsModule.js:258
 #, fuzzy
 #| msgid "Edit rule"
 msgid "Edit Project"
 msgstr "Regel bearbeiten"
 
-#: /app/src/modules/projects/ProjectsModule.js:257
+#: /app/src/modules/projects/ProjectsModule.js:258
 #: /app/templates/index.php:3013 /app/templates/index.php:3020
 #: /app/templates/index.php:5154
 msgid "New Project"
 msgstr "Neues Projekt"
 
-#: /app/src/modules/projects/ProjectsModule.js:265
+#: /app/src/modules/projects/ProjectsModule.js:266
 msgid "Choose a category…"
 msgstr "Kategorie auswählen …"
 
-#: /app/src/modules/projects/ProjectsModule.js:300
+#: /app/src/modules/projects/ProjectsModule.js:301
 msgid "No amount"
 msgstr "Kein Betrag"
 
-#: /app/src/modules/projects/ProjectsModule.js:312
+#: /app/src/modules/projects/ProjectsModule.js:313
 msgid "The subcategory amounts are {amount} over the total"
 msgstr ""
 
-#: /app/src/modules/projects/ProjectsModule.js:313
+#: /app/src/modules/projects/ProjectsModule.js:314
 #, fuzzy
 #| msgid "Expected: {amount}"
 msgid "Unallocated: {amount}"
 msgstr "Erwarteter Betrag: {amount}"
 
-#: /app/src/modules/projects/ProjectsModule.js:333
+#: /app/src/modules/projects/ProjectsModule.js:334
 msgid "Choose a category for the project"
 msgstr ""
 
-#: /app/src/modules/projects/ProjectsModule.js:356
+#: /app/src/modules/projects/ProjectsModule.js:357
 #, fuzzy
 #| msgid "Projected Value"
 msgid "Project saved"
 msgstr "Prognostizierter Wert"
 
-#: /app/src/modules/projects/ProjectsModule.js:356
+#: /app/src/modules/projects/ProjectsModule.js:357
 #, fuzzy
 #| msgid "Goal created"
 msgid "Project created"
@@ -11736,91 +11779,91 @@ msgstr ""
 msgid "Failed to load savings goals"
 msgstr "Sparziele konnten nicht geladen werden"
 
-#: /app/src/modules/savings/SavingsModule.js:104
+#: /app/src/modules/savings/SavingsModule.js:106
 msgid "Target date passed"
 msgstr "Zieldatum überschritten"
 
-#: /app/src/modules/savings/SavingsModule.js:106
+#: /app/src/modules/savings/SavingsModule.js:108
 msgid "Target date: Today"
 msgstr "Zieldatum: Heute"
 
-#: /app/src/modules/savings/SavingsModule.js:108
+#: /app/src/modules/savings/SavingsModule.js:110
 msgid "%n day left"
 msgid_plural "%n days left"
 msgstr[0] "Ein Tag verbleibend"
 msgstr[1] "%n Tage verbleibend"
 
-#: /app/src/modules/savings/SavingsModule.js:110
+#: /app/src/modules/savings/SavingsModule.js:112
 msgid "Target: {date}"
 msgstr "Stichtag: {date}"
 
-#: /app/src/modules/savings/SavingsModule.js:116
+#: /app/src/modules/savings/SavingsModule.js:118
 msgid "Goal reached!"
 msgstr "Ziel erreicht!"
 
-#: /app/src/modules/savings/SavingsModule.js:118
+#: /app/src/modules/savings/SavingsModule.js:120
 msgid "Auto-tracked"
 msgstr "Automatisch verfolgt"
 
-#: /app/src/modules/savings/SavingsModule.js:120
+#: /app/src/modules/savings/SavingsModule.js:122
 msgid "+ Add money"
 msgstr "+ Geld hinzufügen"
 
-#: /app/src/modules/savings/SavingsModule.js:154
+#: /app/src/modules/savings/SavingsModule.js:156
 msgid "of {amount}"
 msgstr "von {amount}"
 
-#: /app/src/modules/savings/SavingsModule.js:250
+#: /app/src/modules/savings/SavingsModule.js:252
 msgid "Auto-calculated from tag"
 msgstr "Automatisch berechnet aus Schlagwort"
 
-#: /app/src/modules/savings/SavingsModule.js:266 /app/templates/index.php:5237
+#: /app/src/modules/savings/SavingsModule.js:268 /app/templates/index.php:5237
 msgid "No linked account"
 msgstr "Kein verknüpftes Konto"
 
-#: /app/src/modules/savings/SavingsModule.js:288 /app/templates/index.php:5245
+#: /app/src/modules/savings/SavingsModule.js:290 /app/templates/index.php:5245
 msgid "No linked tag"
 msgstr "Kein verknüpftes Schlagwort"
 
-#: /app/src/modules/savings/SavingsModule.js:347
+#: /app/src/modules/savings/SavingsModule.js:349
 msgid "Edit Savings Goal"
 msgstr "Sparziel bearbeiten"
 
-#: /app/src/modules/savings/SavingsModule.js:347 /app/templates/index.php:5202
+#: /app/src/modules/savings/SavingsModule.js:349 /app/templates/index.php:5202
 msgid "Add Savings Goal"
 msgstr "Sparziel hinzufügen"
 
-#: /app/src/modules/savings/SavingsModule.js:423
-#: /app/src/modules/savings/SavingsModule.js:437
+#: /app/src/modules/savings/SavingsModule.js:425
+#: /app/src/modules/savings/SavingsModule.js:439
 msgid "Failed to save goal"
 msgstr "Fehler beim Speichern des Sparziels"
 
-#: /app/src/modules/savings/SavingsModule.js:433
+#: /app/src/modules/savings/SavingsModule.js:435
 msgid "Goal updated"
 msgstr "Sparziel aktualisiert"
 
-#: /app/src/modules/savings/SavingsModule.js:433
+#: /app/src/modules/savings/SavingsModule.js:435
 msgid "Goal created"
 msgstr "Sparziel erstellt"
 
-#: /app/src/modules/savings/SavingsModule.js:449
+#: /app/src/modules/savings/SavingsModule.js:451
 msgid "Are you sure you want to delete this savings goal?"
 msgstr "Möchtest du dieses Sparziel wirklich löschen?"
 
-#: /app/src/modules/savings/SavingsModule.js:456
+#: /app/src/modules/savings/SavingsModule.js:458
 msgid "Goal deleted"
 msgstr "Sparziel gelöscht"
 
-#: /app/src/modules/savings/SavingsModule.js:470
-#: /app/src/modules/savings/SavingsModule.js:496
+#: /app/src/modules/savings/SavingsModule.js:472
+#: /app/src/modules/savings/SavingsModule.js:498
 msgid "This goal is auto-tracked via a tag"
 msgstr "Dieses Ziel wird automatisch über ein Schlagwort verfolgt"
 
-#: /app/src/modules/savings/SavingsModule.js:510
+#: /app/src/modules/savings/SavingsModule.js:512
 msgid "Added {amount} to goal"
 msgstr "{amount} zum Ziel hinzugefügt"
 
-#: /app/src/modules/savings/SavingsModule.js:514
+#: /app/src/modules/savings/SavingsModule.js:516
 msgid "Failed to add money to goal"
 msgstr "Geld konnte nicht zum Ziel hinzugefügt werden"
 
@@ -12244,88 +12287,102 @@ msgstr "Verlassen"
 msgid "Failed to load configuration"
 msgstr "Fehler beim Laden der Konfiguration"
 
-#: /app/src/modules/sharing/SharingModule.js:270 /app/templates/index.php:2831
+#: /app/src/modules/sharing/SharingModule.js:270
+msgid "Read & Write, plus deleting them."
+msgstr ""
+
+#: /app/src/modules/sharing/SharingModule.js:273
+msgid ""
+"Read & Write, plus the type, parent, subcategories, budget and report "
+"settings. Only you can delete."
+msgstr ""
+
+#: /app/src/modules/sharing/SharingModule.js:275 /app/templates/index.php:2831
 msgid "Recurring Income"
 msgstr "Wiederkehrende Einnahmen"
 
-#: /app/src/modules/sharing/SharingModule.js:273 /app/templates/index.php:4769
+#: /app/src/modules/sharing/SharingModule.js:278 /app/templates/index.php:4769
 msgid "Import Rules"
 msgstr "Importregeln"
 
-#: /app/src/modules/sharing/SharingModule.js:289
+#: /app/src/modules/sharing/SharingModule.js:294
 msgid ""
 "Automatically share new items of this type at the permission selected here"
 msgstr ""
 
-#: /app/src/modules/sharing/SharingModule.js:291
+#: /app/src/modules/sharing/SharingModule.js:296
 #, fuzzy
 #| msgid "Auto-pay enabled"
 msgid "Auto-share new"
 msgstr "Automatische Zahlung aktiviert"
 
-#: /app/src/modules/sharing/SharingModule.js:293
-#: /app/src/modules/sharing/SharingModule.js:339 /app/templates/index.php:1922
+#: /app/src/modules/sharing/SharingModule.js:298
+#: /app/src/modules/sharing/SharingModule.js:345 /app/templates/index.php:1922
 msgid "Select All"
 msgstr "Alle auswählen"
 
-#: /app/src/modules/sharing/SharingModule.js:295
+#: /app/src/modules/sharing/SharingModule.js:300
 msgid "Read only"
 msgstr "Lesezugriff"
 
-#: /app/src/modules/sharing/SharingModule.js:296
+#: /app/src/modules/sharing/SharingModule.js:301
 msgid "Read & Write"
 msgstr "Lese- und Schreibzugriff"
 
-#: /app/src/modules/sharing/SharingModule.js:321
+#: /app/src/modules/sharing/SharingModule.js:302
+msgid "Full control"
+msgstr ""
+
+#: /app/src/modules/sharing/SharingModule.js:327
 msgid "Save Configuration"
 msgstr "Konfiguration speichern"
 
-#: /app/src/modules/sharing/SharingModule.js:339
+#: /app/src/modules/sharing/SharingModule.js:345
 #: /app/src/modules/transactions/TransactionsModule.js:5212
 msgid "Deselect All"
 msgstr "Alle abwählen"
 
-#: /app/src/modules/sharing/SharingModule.js:387
+#: /app/src/modules/sharing/SharingModule.js:393
 msgid "Failed to save some sections: {types}"
 msgstr "Fehler beim Speichern mancher Abschnitte: {types}"
 
-#: /app/src/modules/sharing/SharingModule.js:389
+#: /app/src/modules/sharing/SharingModule.js:395
 msgid "Share configuration saved"
 msgstr "Geteilte Budget-Konfiguration gespeichert"
 
-#: /app/src/modules/sharing/SharingModule.js:396
+#: /app/src/modules/sharing/SharingModule.js:402
 msgid "Please enter a username"
 msgstr "Bitte gib einen Nutzernamen ein"
 
-#: /app/src/modules/sharing/SharingModule.js:402
+#: /app/src/modules/sharing/SharingModule.js:408
 msgid "Invitation sent to {user}"
 msgstr "Einladung an {user} gesendet"
 
-#: /app/src/modules/sharing/SharingModule.js:404
+#: /app/src/modules/sharing/SharingModule.js:410
 msgid "Failed to share budget"
 msgstr "Fehler beim Teilen des Budgets"
 
-#: /app/src/modules/sharing/SharingModule.js:410
+#: /app/src/modules/sharing/SharingModule.js:416
 msgid "Share accepted — reloading budget data"
 msgstr "Einladung angenommen - Budget wird neu geladen"
 
-#: /app/src/modules/sharing/SharingModule.js:419
+#: /app/src/modules/sharing/SharingModule.js:425
 msgid "Share declined"
 msgstr "Einladung abgelehnt"
 
-#: /app/src/modules/sharing/SharingModule.js:425
+#: /app/src/modules/sharing/SharingModule.js:431
 msgid "Are you sure? The user will lose access to your budget."
 msgstr "Bist du sicher? Der Benutzer verliert Zugriff auf dein Budget."
 
-#: /app/src/modules/sharing/SharingModule.js:428
+#: /app/src/modules/sharing/SharingModule.js:434
 msgid "Share revoked"
 msgstr "Einladung zurückgenommen"
 
-#: /app/src/modules/sharing/SharingModule.js:435
+#: /app/src/modules/sharing/SharingModule.js:441
 msgid "Are you sure you want to leave this shared budget?"
 msgstr "Möchtest du wirklich dieses geteilte Budget verlassen?"
 
-#: /app/src/modules/sharing/SharingModule.js:438
+#: /app/src/modules/sharing/SharingModule.js:444
 msgid "Left shared budget — reloading your data"
 msgstr "Geteiltes Budget verlassen - deine Daten werden neu geladen"
 
@@ -18619,6 +18676,14 @@ msgstr "Buchung speichern"
 #: /app/templates/quick-add.php:179
 msgid "Transaction saved!"
 msgstr "Transaktion gespeichert!"
+
+#~ msgid "Only the goal owner can delete it"
+#~ msgstr "Nur der Eigentümer des Ziels kann das löschen"
+
+#, fuzzy
+#~| msgid "Only the goal owner can delete it"
+#~ msgid "Only the owner can delete this project"
+#~ msgstr "Nur der Eigentümer des Ziels kann das löschen"
 
 #~ msgid "Condition at {path} has invalid regex pattern: {error}"
 #~ msgstr ""
