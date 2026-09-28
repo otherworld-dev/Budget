@@ -144,6 +144,7 @@ class ApiSerializerTest extends TestCase {
 			'id', 'account_id', 'category_id', 'date', 'description', 'vendor',
 			'amount', 'type', 'reference', 'notes', 'status', 'reconciled',
 			'is_split', 'created_at', 'updated_at',
+			'linked_transaction_id', 'linked_account_name', 'splits',
 		], array_keys($result));
 	}
 
@@ -229,7 +230,7 @@ class ApiSerializerTest extends TestCase {
 		$this->assertSame('scheduled', ApiSerializer::transaction(['id' => 1, 'status' => 'scheduled'])['status']);
 	}
 
-	public function testTransactionDropsInternalLinkageFields(): void {
+	public function testTransactionCarriesItsTransferLinkButNoOtherInternals(): void {
 		$result = ApiSerializer::transaction([
 			'id' => 1,
 			'accountId' => 2,
@@ -237,12 +238,101 @@ class ApiSerializerTest extends TestCase {
 			'billId' => 44,
 			'pensionContribId' => 9,
 			'linkedTransactionId' => 500,
+			'linkedAccountId' => 7,
+			'linkedAccountName' => 'Savings',
 			'reconSessionId' => 12,
+			'_canWrite' => true,
 		]);
 
-		foreach (['importId', 'billId', 'pensionContribId', 'linkedTransactionId', 'reconSessionId'] as $internal) {
+		// The other half of a transfer is part of v1 now (#407)...
+		$this->assertSame(500, $result['linked_transaction_id']);
+		$this->assertSame('Savings', $result['linked_account_name']);
+		// ...but nothing else that only means something inside the app.
+		foreach (['importId', 'billId', 'pensionContribId', 'linkedTransactionId', 'linkedAccountId',
+			'linkedAccountName', 'reconSessionId', '_canWrite', 'splitCategories'] as $internal) {
 			$this->assertArrayNotHasKey($internal, $result);
 		}
+	}
+
+	public function testTransactionWithoutATransferHasNullLinks(): void {
+		$result = ApiSerializer::transaction(['id' => 1]);
+
+		$this->assertNull($result['linked_transaction_id']);
+		$this->assertNull($result['linked_account_name']);
+	}
+
+	public function testTransactionSplitsAreAnEmptyListWhenNotSplit(): void {
+		$this->assertSame([], ApiSerializer::transaction(['id' => 1])['splits']);
+	}
+
+	public function testTransactionMapsItsSplitParts(): void {
+		// A list row carries its parts as splitCategories (#408)
+		$result = ApiSerializer::transaction([
+			'id' => 5,
+			'isSplit' => true,
+			'splitCategories' => [
+				['id' => 31, 'transactionId' => 5, 'categoryId' => 12, 'categoryName' => 'Groceries', 'amount' => 3.4, 'description' => 'Flat White'],
+				['id' => 32, 'transactionId' => 5, 'categoryId' => null, 'categoryName' => null, 'amount' => 1.42, 'description' => null],
+			],
+		]);
+
+		$this->assertSame([
+			['id' => 31, 'transaction_id' => 5, 'amount' => '3.40', 'category_id' => 12, 'category_name' => 'Groceries', 'description' => 'Flat White'],
+			['id' => 32, 'transaction_id' => 5, 'amount' => '1.42', 'category_id' => null, 'category_name' => null, 'description' => null],
+		], $result['splits']);
+	}
+
+	// ── recent ──────────────────────────────────────────────────────
+
+	public function testRecentTransactionKeysAreFixed(): void {
+		$result = ApiSerializer::recentTransaction(['id' => 1]);
+
+		$this->assertSame([
+			'id', 'merchant', 'date', 'amount', 'currency', 'account_name',
+			'account_id', 'type', 'category_name', 'is_split', 'splits',
+			'linked_transaction_id', 'linked_account_name',
+		], array_keys($result));
+	}
+
+	public function testRecentTransactionSaysWhichWayTheMoneyWent(): void {
+		$result = ApiSerializer::recentTransaction([
+			'id' => 1,
+			'accountId' => 3,
+			'amount' => 1500,
+			'type' => 'credit',
+			'categoryName' => 'Salary',
+		]);
+
+		$this->assertSame(3, $result['account_id']);
+		$this->assertSame('credit', $result['type']);
+		// Amounts stay positive; type carries the direction
+		$this->assertSame('1500.00', $result['amount']);
+		$this->assertSame('Salary', $result['category_name']);
+	}
+
+	public function testRecentTransactionCarriesSplitsAndTransferLink(): void {
+		$result = ApiSerializer::recentTransaction([
+			'id' => 1,
+			'isSplit' => true,
+			'splitCategories' => [['id' => 9, 'transactionId' => 1, 'categoryId' => 4, 'categoryName' => 'Fuel', 'amount' => 20.0, 'description' => null]],
+			'linkedTransactionId' => 77,
+			'linkedAccountName' => null,
+		]);
+
+		$this->assertTrue($result['is_split']);
+		$this->assertSame('20.00', $result['splits'][0]['amount']);
+		$this->assertSame(77, $result['linked_transaction_id']);
+		$this->assertNull($result['linked_account_name']);
+		$this->assertNull(ApiSerializer::recentTransaction(['id' => 2])['category_name']);
+	}
+
+	// ── splits ──────────────────────────────────────────────────────
+
+	public function testSplitKeysAreFixed(): void {
+		$this->assertSame(
+			['id', 'transaction_id', 'amount', 'category_id', 'category_name', 'description'],
+			array_keys(ApiSerializer::split([]))
+		);
 	}
 
 	// ── receipts ────────────────────────────────────────────────────

@@ -82,6 +82,12 @@ final class ApiSerializer {
 			'is_split' => (bool)($t['isSplit'] ?? false),
 			'created_at' => $t['createdAt'] ?? null,
 			'updated_at' => $t['updatedAt'] ?? null,
+			// The other half of a transfer (#407). The caller clears the name
+			// when that half's account is not one the requester can see.
+			'linked_transaction_id' => isset($t['linkedTransactionId']) ? (int)$t['linkedTransactionId'] : null,
+			'linked_account_name' => $t['linkedAccountName'] ?? null,
+			// A split transaction's parts (#408); [] when it isn't split.
+			'splits' => self::splits($t['splitCategories'] ?? []),
 		];
 
 		// List queries join these in; single-record lookups do not. Present
@@ -176,6 +182,15 @@ final class ApiSerializer {
 			'amount' => self::money($t['amount'] ?? 0),
 			'currency' => $t['accountCurrency'] ?? null,
 			'account_name' => $t['accountName'] ?? null,
+			// Added for "capture and check" (#767): without type a client
+			// cannot tell money in from money out.
+			'account_id' => (int)($t['accountId'] ?? 0),
+			'type' => (string)($t['type'] ?? ''),
+			'category_name' => $t['categoryName'] ?? null,
+			'is_split' => (bool)($t['isSplit'] ?? false),
+			'splits' => self::splits($t['splitCategories'] ?? []),
+			'linked_transaction_id' => isset($t['linkedTransactionId']) ? (int)$t['linkedTransactionId'] : null,
+			'linked_account_name' => $t['linkedAccountName'] ?? null,
 		];
 	}
 

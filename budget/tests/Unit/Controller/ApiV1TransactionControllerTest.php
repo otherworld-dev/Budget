@@ -224,7 +224,8 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 		$data = $this->controller->recent()->getData();
 
-		// Exactly the handoff's row shape: flat, merchant-first.
+		// Exactly the handoff's row shape: flat, merchant-first, with the
+		// "capture and check" keys after it (#767).
 		$this->assertSame([[
 			'id' => 20070,
 			'merchant' => 'Tesco',
@@ -232,6 +233,13 @@ class ApiV1TransactionControllerTest extends TestCase {
 			'amount' => '15.00',
 			'currency' => 'GBP',
 			'account_name' => 'Current Account',
+			'account_id' => 36,
+			'type' => 'debit',
+			'category_name' => null,
+			'is_split' => false,
+			'splits' => [],
+			'linked_transaction_id' => null,
+			'linked_account_name' => null,
 		]], $data);
 	}
 
@@ -1004,7 +1012,8 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 		$data = $this->controller->create()->getData();
 
-		$this->assertArrayNotHasKey('splits', $data);
+		// Not split: no parts and nothing to report about splitting
+		$this->assertSame([], $data['splits']);
 		$this->assertArrayNotHasKey('splits_error', $data);
 	}
 
