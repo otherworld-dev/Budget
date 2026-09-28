@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-28 18:20+0000\n"
-"PO-Revision-Date: 2026-09-28 19:08+0000\n"
+"PO-Revision-Date: 2026-09-29 19:56+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -1768,10 +1768,8 @@ msgstr "Kombinierte Rentenprognose konnte nicht abgerufen werden"
 #: /app/lib/Controller/ProjectController.php:62
 #: /app/src/modules/projects/ProjectsModule.js:39
 #: /app/src/modules/projects/ProjectsModule.js:42
-#, fuzzy
-#| msgid "Failed to load rules"
 msgid "Failed to load projects"
-msgstr "Fehler beim Laden der Regeln"
+msgstr "Projekte konnten nicht geladen werden"
 
 #: /app/lib/Controller/ProjectController.php:81
 #: /app/src/modules/projects/ProjectsModule.js:121
@@ -3390,14 +3388,10 @@ msgid "This category has subcategories, so only its owner can delete it"
 msgstr "Nur der Eigentümer der Kategorie kann das löschen"
 
 #: /app/lib/Service/CategoryService.php:308
-#, fuzzy
-#| msgid ""
-#| "This category still has transactions assigned to it. Move them to "
-#| "Uncategorized and delete \"{name}\"?"
 msgid "This category has transactions, so only its owner can delete it"
 msgstr ""
-"Dieser Kategorie sind noch Transaktionen zugeordnet. Sollen sie in „Nicht "
-"kategorisiert“ verschoben und „{name}“ gelöscht werden?"
+"Diese Kategorie enthält Transaktionen. Daher kann sie nur vom Eigentümer "
+"gelöscht werden"
 
 #: /app/lib/Service/CategoryService.php:407
 #, php-format
