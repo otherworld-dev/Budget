@@ -243,7 +243,7 @@ class GranularShareService {
 					$entityType,
 					$entityId
 				);
-				if ($permission === ShareItem::PERMISSION_WRITE) {
+				if ($permission === ShareItem::PERMISSION_WRITE || $permission === ShareItem::PERMISSION_FULL) {
 					$result = true;
 					break;
 				}
@@ -252,6 +252,53 @@ class GranularShareService {
 
 		$this->cache[$cacheKey] = $result;
 		return $result;
+	}
+
+	/**
+	 * Whether a user has Full control of an entity: their own, or shared with
+	 * them at PERMISSION_FULL. Full control lets a recipient change what write
+	 * keeps for the owner (a category's type, parent, subcategories, budgets
+	 * and scope flags), never delete it.
+	 */
+	public function canManage(string $userId, string $entityType, int $entityId): bool {
+		$cacheKey = "canmanage:{$userId}:{$entityType}:{$entityId}";
+		if (isset($this->cache[$cacheKey])) {
+			return $this->cache[$cacheKey];
+		}
+
+		$result = in_array($entityId, $this->getOwnIds($userId, $entityType), true);
+		if (!$result) {
+			foreach ($this->getAcceptedIncomingShares($userId) as $share) {
+				$permission = $this->shareItemMapper->getEntityPermission($share->getId(), $entityType, $entityId);
+				if ($permission === ShareItem::PERMISSION_FULL) {
+					$result = true;
+					break;
+				}
+			}
+		}
+
+		$this->cache[$cacheKey] = $result;
+		return $result;
+	}
+
+	/**
+	 * Share an entity a recipient just created in the owner's data back to
+	 * them, at the permission they hold on $parentId (the item it was created
+	 * under). Without this, a subcategory a Full control recipient adds under
+	 * the owner's category would belong to the owner and vanish from the
+	 * recipient's own view the moment it was saved.
+	 */
+	public function shareBackToRecipient(string $ownerUserId, string $recipientUserId, string $entityType, int $entityId, int $parentId): void {
+		foreach ($this->getAcceptedIncomingShares($recipientUserId) as $share) {
+			if ($share->getOwnerUserId() !== $ownerUserId) {
+				continue;
+			}
+			$permission = $this->shareItemMapper->getEntityPermission($share->getId(), $entityType, $parentId);
+			if ($permission !== null) {
+				$this->shareItemMapper->shareEntity($share->getId(), $entityType, $entityId, $permission);
+			}
+		}
+		$this->cache = [];
 	}
 
 	/**
@@ -331,7 +378,7 @@ class GranularShareService {
 		}
 
 		// Validate permission
-		if (!in_array($permission, [ShareItem::PERMISSION_READ, ShareItem::PERMISSION_WRITE], true)) {
+		if (!ShareItem::isValidPermission($permission, $entityType)) {
 			throw new \InvalidArgumentException($this->l->t('Invalid permission: %1$s', [$permission]));
 		}
 
@@ -400,6 +447,11 @@ class GranularShareService {
 			'_sharedBy' => $c->getUserId(),
 			'_sharedByName' => $this->displayNameFor($c->getUserId()),
 			'_canWrite' => $this->canWrite($userId, ShareItem::TYPE_CATEGORY, $c->getId()),
+			'_canManage' => $this->canManage($userId, ShareItem::TYPE_CATEGORY, $c->getId()),
+			// A subcategory this user added under Full control; the server
+			// still refuses it once it has subcategories or transactions
+			'_canDelete' => $c->getCreatedBy() === $userId
+				&& $this->canManage($userId, ShareItem::TYPE_CATEGORY, $c->getId()),
 		]), $categories);
 	}
 
@@ -422,6 +474,7 @@ class GranularShareService {
 				'_sharedBy' => $b->getUserId(),
 				'_sharedByName' => $this->displayNameFor($b->getUserId()),
 				'_canWrite' => $canWrite,
+				'_canManage' => $this->canManage($userId, ShareItem::TYPE_BILL, $b->getId()),
 				// Bill actions run under the bill's OWNER since #368, so a
 				// recipient's markUnpaid succeeds now — offer it whenever they
 				// may write. Read-only recipients still never see the action.
@@ -441,7 +494,11 @@ class GranularShareService {
 			return [];
 		}
 		$income = $this->recurringIncomeMapper->findByIds($ids);
-		return array_map(fn ($r) => array_merge($r->jsonSerialize(), ['_shared' => true]), $income);
+		return array_map(fn ($r) => array_merge($r->jsonSerialize(), [
+			'_shared' => true,
+			'_canWrite' => $this->canWrite($userId, ShareItem::TYPE_RECURRING_INCOME, $r->getId()),
+			'_canManage' => $this->canManage($userId, ShareItem::TYPE_RECURRING_INCOME, $r->getId()),
+		]), $income);
 	}
 
 	/**

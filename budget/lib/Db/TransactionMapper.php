@@ -391,6 +391,30 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
+	 * Whether any transaction or split part, in anyone's account, uses this
+	 * category. Deliberately unscoped: a shared category can be used from the
+	 * owner's accounts and every recipient's, and the one delete this guards
+	 * (a Full control recipient removing a subcategory they added) must never
+	 * leave any of them pointing at a deleted category.
+	 */
+	public function categoryInUseAnywhere(int $categoryId): bool {
+		foreach (['budget_transactions', 'budget_tx_splits'] as $table) {
+			$qb = $this->db->getQueryBuilder();
+			$qb->select('id')
+				->from($table)
+				->where($qb->expr()->eq('category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)))
+				->setMaxResults(1);
+			$result = $qb->executeQuery();
+			$found = $result->fetchOne() !== false;
+			$result->closeCursor();
+			if ($found) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * @return Transaction[]
 	 */
 	public function findByCategory(int $categoryId, string $userId, int $limit = 100): array {

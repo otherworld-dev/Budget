@@ -740,6 +740,11 @@ class MigrationService {
 			$category->setBudgetRollover(self::flag($catData, 'budgetRollover', false));
 			$category->setRolloverStart($catData['rolloverStart'] ?? null);
 			$category->setCreatedAt($catData['createdAt'] ?? date('Y-m-d H:i:s'));
+			// The Full control recipient who added it, so they can still delete
+			// it after a restore. Imported into that same person's account it
+			// is simply theirs, which NULL already says.
+			$createdBy = $catData['createdBy'] ?? null;
+			$category->setCreatedBy(is_string($createdBy) && $createdBy !== '' && $createdBy !== $userId ? $createdBy : null);
 
 			// Remap parent ID
 			if (!empty($catData['parentId']) && isset($idMap[$catData['parentId']])) {

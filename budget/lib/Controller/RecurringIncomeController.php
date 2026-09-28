@@ -98,6 +98,7 @@ class RecurringIncomeController extends Controller {
 			return new DataResponse(array_merge($income->jsonSerialize(), [
 				'_shared' => true,
 				'_canWrite' => $this->granularShareService->canWrite($this->userId, 'recurring_income', $id),
+				'_canManage' => $this->granularShareService->canManage($this->userId, 'recurring_income', $id),
 			]));
 		} catch (\Exception $e) {
 			return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);
@@ -347,8 +348,12 @@ class RecurringIncomeController extends Controller {
 	#[UserRateLimit(limit: 30, period: 60)]
 	public function destroy(int $id): DataResponse {
 		try {
-			$this->requireWriteAccess('recurring_income', $id);
-			$this->service->delete($id, $this->incomeOwner($id));
+			$owner = $this->incomeOwner($id);
+			// Editing shared income needs write; deleting it needs Full control
+			if ($owner !== $this->userId && !$this->granularShareService->canManage($this->userId, 'recurring_income', $id)) {
+				return new DataResponse(['error' => $this->l->t('Deleting a shared item needs Full control from its owner')], Http::STATUS_FORBIDDEN);
+			}
+			$this->service->delete($id, $owner);
 			return new DataResponse(['message' => $this->l->t('Recurring income deleted')]);
 		} catch (\Exception $e) {
 			return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);

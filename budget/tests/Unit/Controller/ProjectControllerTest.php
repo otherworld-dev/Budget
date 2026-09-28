@@ -25,6 +25,7 @@ class ProjectControllerTest extends TestCase {
 	/** project id => owner uid; anything missing is invisible */
 	private array $owners = [10 => 'user1', 20 => 'owner'];
 	private array $writable = [10 => true, 20 => false];
+	private array $manageable = [10 => true];
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
@@ -37,6 +38,7 @@ class ProjectControllerTest extends TestCase {
 				throw new ReadOnlyShareException();
 			}
 		});
+		$this->shares->method('canManage')->willReturnCallback(fn ($u, $t, $id) => $this->manageable[$id] ?? false);
 		$this->shares->method('ownerDisplayName')->willReturn('The Owner');
 
 		$l = $this->createMock(IL10N::class);
@@ -66,7 +68,7 @@ class ProjectControllerTest extends TestCase {
 
 		$this->assertSame(10, $data[0]['id']);
 		$this->assertArrayNotHasKey('_shared', $data[0]);
-		$this->assertSame(['id' => 20, 'userId' => 'owner', '_shared' => true, '_canWrite' => false, '_sharedByName' => 'The Owner'], $data[1]);
+		$this->assertSame(['id' => 20, 'userId' => 'owner', '_shared' => true, '_canWrite' => false, '_canManage' => false, '_sharedByName' => 'The Owner'], $data[1]);
 	}
 
 	public function testShowIsNotFoundWhenTheProjectIsNotVisible(): void {
@@ -171,6 +173,13 @@ class ProjectControllerTest extends TestCase {
 		$this->writable[20] = true;
 		$this->service->expects($this->never())->method('delete');
 		$this->assertSame(Http::STATUS_FORBIDDEN, $this->controller->destroy(20)->getStatus());
+	}
+
+	public function testFullControlCanDeleteASharedProject(): void {
+		$this->writable[20] = true;
+		$this->manageable[20] = true;
+		$this->service->expects($this->once())->method('delete')->with(20, 'owner');
+		$this->assertSame(['status' => 'deleted'], $this->controller->destroy(20)->getData());
 	}
 
 	public function testDeleteIsNotFoundWhenTheProjectIsNotVisible(): void {

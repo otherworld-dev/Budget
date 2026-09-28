@@ -33,6 +33,8 @@ class ShareItem extends Entity implements JsonSerializable {
 
 	public const PERMISSION_READ = 'read';
 	public const PERMISSION_WRITE = 'write';
+	/** Write plus what write keeps for the owner (see FULL_CONTROL_TYPES) */
+	public const PERMISSION_FULL = 'full';
 
 	public const TYPE_ACCOUNT = 'account';
 	public const TYPE_CATEGORY = 'category';
@@ -51,6 +53,30 @@ class ShareItem extends Entity implements JsonSerializable {
 		self::TYPE_IMPORT_RULE,
 		self::TYPE_PROJECT,
 	];
+
+	/**
+	 * Types a share may grant Full control on. For bills, recurring income,
+	 * savings goals and projects it adds deleting them, which write does not
+	 * allow. For categories it adds their structure (type, parent,
+	 * subcategories, budgets, scope flags) but never deleting one, as that
+	 * cascades through the owner's tree and transactions. Accounts and import
+	 * rules have no Full control: deleting an account takes its transactions
+	 * with it, and a rule is cheap for the owner to remove.
+	 */
+	public const FULL_CONTROL_TYPES = [
+		self::TYPE_CATEGORY,
+		self::TYPE_BILL,
+		self::TYPE_RECURRING_INCOME,
+		self::TYPE_SAVINGS_GOAL,
+		self::TYPE_PROJECT,
+	];
+
+	public static function isValidPermission(string $permission, string $entityType): bool {
+		if ($permission === self::PERMISSION_FULL) {
+			return in_array($entityType, self::FULL_CONTROL_TYPES, true);
+		}
+		return in_array($permission, [self::PERMISSION_READ, self::PERMISSION_WRITE], true);
+	}
 
 	public function __construct() {
 		$this->addType('id', 'integer');

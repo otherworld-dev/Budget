@@ -131,6 +131,7 @@ class BillController extends Controller {
 			return new DataResponse(array_merge($bill->jsonSerialize(), [
 				'_shared' => true,
 				'_canWrite' => $this->granularShareService->canWrite($this->userId, 'bill', $id),
+				'_canManage' => $this->granularShareService->canManage($this->userId, 'bill', $id),
 			]));
 		} catch (\Exception $e) {
 			return $this->handleNotFoundError($e, $this->l->t('Bill'), ['billId' => $id]);
@@ -751,8 +752,12 @@ class BillController extends Controller {
 	#[UserRateLimit(limit: 20, period: 60)]
 	public function destroy(int $id): DataResponse {
 		try {
-			$this->requireWriteAccess('bill', $id);
-			$this->service->delete($id, $this->billOwner($id));
+			$owner = $this->billOwner($id);
+			// Editing a shared bill needs write; deleting it needs Full control
+			if ($owner !== $this->userId && !$this->granularShareService->canManage($this->userId, 'bill', $id)) {
+				return new DataResponse(['error' => $this->l->t('Deleting a shared item needs Full control from its owner')], Http::STATUS_FORBIDDEN);
+			}
+			$this->service->delete($id, $owner);
 			return new DataResponse(['status' => 'success']);
 		} catch (\Exception $e) {
 			return $this->handleNotFoundError($e, $this->l->t('Bill'), ['billId' => $id]);

@@ -67,6 +67,11 @@ class GoalsController extends Controller {
 					'savings_goal',
 					(int)$goal['id']
 				);
+				$goal['_canManage'] = $this->granularShareService->canManage(
+					$this->userId,
+					'savings_goal',
+					(int)$goal['id']
+				);
 			}
 			unset($goal);
 
@@ -93,6 +98,7 @@ class GoalsController extends Controller {
 			if ($owner !== $this->userId) {
 				$goal['_shared'] = true;
 				$goal['_canWrite'] = $this->granularShareService->canWrite($this->userId, 'savings_goal', $id);
+				$goal['_canManage'] = $this->granularShareService->canManage($this->userId, 'savings_goal', $id);
 			}
 			return new DataResponse($goal);
 		} catch (\Exception $e) {
@@ -317,16 +323,17 @@ class GoalsController extends Controller {
 					Http::STATUS_NOT_FOUND
 				);
 			}
-			// Only the owner may delete a goal — recipients (even with write
-			// access) can edit and contribute but not remove it.
-			if ($owner !== $this->userId) {
+			// Recipients with write access can edit and contribute; removing
+			// the goal needs Full control from its owner.
+			if ($owner !== $this->userId
+				&& !$this->granularShareService->canManage($this->userId, 'savings_goal', $id)) {
 				return new DataResponse(
-					['error' => $this->l->t('Only the goal owner can delete it')],
+					['error' => $this->l->t('Deleting a shared item needs Full control from its owner')],
 					Http::STATUS_FORBIDDEN
 				);
 			}
 
-			$this->service->delete($id, $this->userId);
+			$this->service->delete($id, $owner);
 			return new DataResponse(['message' => $this->l->t('Goal deleted successfully')]);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to delete goal'), Http::STATUS_BAD_REQUEST, ['goalId' => $id]);

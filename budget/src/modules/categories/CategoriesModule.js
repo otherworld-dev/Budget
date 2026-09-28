@@ -11,6 +11,7 @@ import { apiFetch, ApiError } from '../../utils/api.js';
 import { expenseProgressStatus, progressBarAttrs, overBudgetText } from '../../utils/budgetProgress.js';
 import { showLoadError } from '../../utils/loading.js';
 import { nextCategoryColor, distinctCategoryColors } from '../../utils/colors.js';
+import { parentPickerTree } from './parentPicker.js';
 
 export default class CategoriesModule {
     constructor(app) {
@@ -329,7 +330,9 @@ export default class CategoriesModule {
                         <div class="category-content">
                             <span class="category-name">${dom.escapeHtml(category.name)}</span>
                             <div class="category-meta">
-                                ${shared && canWrite
+                                ${shared && category._canManage
+                                    ? `<span class="category-shared-badge write-shared" title="${t('budget', 'Shared by {owner} — you have full control', { owner: sharedOwner })}">${t('budget', 'Shared (full control)')} · ${sharedOwnerHtml}</span>`
+                                    : shared && canWrite
                                     ? `<span class="category-shared-badge write-shared" title="${t('budget', 'Shared by {owner} — you can edit', { owner: sharedOwner })}">${t('budget', 'Shared (editable)')} · ${sharedOwnerHtml}</span>`
                                     : shared
                                     ? `<span class="category-shared-badge" title="${t('budget', 'Shared by {owner}', { owner: sharedOwner })}">${t('budget', 'Shared')} · ${sharedOwnerHtml}</span>`
@@ -589,14 +592,17 @@ export default class CategoriesModule {
             // Shared categories belong to another user. A write-shared category may
             // be REORDERED among its same-owner write-shared siblings (above/below);
             // the server accepts only the sortOrder change (parentId/type stay
-            // owner-only). Everything else — read-shared, cross-owner, nesting
-            // (child), or mixing own and shared — is blocked for clear UX (#328).
+            // owner-only). Nesting one under another needs Full control of both.
+            // Everything else — read-shared, cross-owner, or mixing own and
+            // shared — is blocked for clear UX (#328).
             if (draggedCategory._shared || targetCategory._shared) {
-                const bothWriteSharedSameOwner =
+                const sameOwnerShared =
                     draggedCategory._shared && targetCategory._shared &&
-                    draggedCategory._canWrite && targetCategory._canWrite &&
                     draggedCategory._sharedBy === targetCategory._sharedBy;
-                if (!bothWriteSharedSameOwner || position === 'child') {
+                const allowed = position === 'child'
+                    ? sameOwnerShared && draggedCategory._canManage && targetCategory._canManage
+                    : sameOwnerShared && draggedCategory._canWrite && targetCategory._canWrite;
+                if (!allowed) {
                     showWarning(t('budget', 'Shared categories can only be reordered among themselves'));
                     return;
                 }
@@ -656,6 +662,18 @@ export default class CategoriesModule {
         // categories can edit them (#328).
         const isReadShared = !!category._shared && !category._canWrite;
 
+        // Action button visibility by ownership/write access, set before the
+        // fetch so the last category's buttons don't linger while it loads:
+        //  - own category    → Edit + Delete
+        //  - write-shared     → Edit only (delete is owner-only), except a
+        //                       subcategory you added under Full control
+        //  - read-shared      → neither (read-only details view, #328)
+        const editBtn = document.getElementById('edit-category-btn');
+        const deleteBtn = document.getElementById('delete-category-btn');
+        const canDelete = !category._shared || !!category._canDelete;
+        if (editBtn) editBtn.style.display = isReadShared ? 'none' : '';
+        if (deleteBtn) deleteBtn.style.display = canDelete ? '' : 'none';
+
         // Load data from server in parallel
         const [detailsRes, transactions] = await Promise.all([
             this.fetchCategoryDetails(category.id),
@@ -692,16 +710,6 @@ export default class CategoriesModule {
         if (periodSelect) {
             periodSelect.onchange = () => this.refreshCategoryChart();
         }
-
-        // Action button visibility by ownership/write access:
-        //  - own category    → Edit + Delete
-        //  - write-shared     → Edit only (delete is owner-only)
-        //  - read-shared      → neither (read-only details view, #328)
-        const editBtn = document.getElementById('edit-category-btn');
-        const deleteBtn = document.getElementById('delete-category-btn');
-        const isWriteShared = !!category._shared && !!category._canWrite;
-        if (editBtn) editBtn.style.display = isReadShared ? 'none' : '';
-        if (deleteBtn) deleteBtn.style.display = (isReadShared || isWriteShared) ? 'none' : '';
     }
 
     /**
@@ -1122,18 +1130,26 @@ export default class CategoriesModule {
             return;
         }
 
-        const isWriteShared = !!this.selectedCategory._shared && !!this.selectedCategory._canWrite;
+        const shared = !!this.selectedCategory._shared;
+        const isWriteShared = shared && !!this.selectedCategory._canWrite
+            && !this.selectedCategory._canManage;
 
-        title.textContent = isWriteShared
+        title.textContent = shared
             ? t('budget', 'Edit Shared Category')
             : t('budget', 'Edit Category');
-        this.populateCategoryParentDropdown(this.selectedCategory.id, this.selectedCategory.parentId, isWriteShared);
+        let parentScope = 'own';
+        if (isWriteShared) {
+            parentScope = 'locked';
+        } else if (shared) {
+            parentScope = { owner: this.selectedCategory._sharedBy };
+        }
+        this.populateCategoryParentDropdown(this.selectedCategory.id, this.selectedCategory.parentId, parentScope);
         this.loadCategoryData(this.selectedCategory);
 
         // For write-shared categories, lock fields that belong to the owner —
         // recipients may edit only name and colour. Structural fields (type,
         // parent) and the scope flags (excludedFromReports, excludedFromBudget)
-        // stay owner-only.
+        // stay with the owner, and with anyone the owner gave Full control.
         const parentSelect = document.getElementById('category-parent');
         const typeSelect = document.getElementById('category-type');
         const excludedCheckbox = document.getElementById('category-excluded-from-reports');
@@ -1157,8 +1173,10 @@ export default class CategoriesModule {
             return;
         }
         // Only own categories can be deleted — shared categories (read or write)
-        // are owner-only for deletion.
-        if (this.selectedCategory._shared) {
+        // are owner-only for deletion, bar a subcategory you added under Full
+        // control, which the server allows while nothing uses it.
+        const shared = !!this.selectedCategory._shared;
+        if (shared && !this.selectedCategory._canDelete) {
             return;
         }
 
@@ -1169,7 +1187,11 @@ export default class CategoriesModule {
         }
 
         try {
-            const { deleted, reassigned } = await this._deleteCategoryWithReassign(categoryId, categoryName);
+            // No reassign for a shared one: moving the owner's transactions
+            // is the owner's call, so the server refuses it in use instead
+            const { deleted, reassigned } = shared
+                ? await this._sendCategoryDelete(categoryId, false).then(() => ({ deleted: true, reassigned: false }))
+                : await this._deleteCategoryWithReassign(categoryId, categoryName);
             if (!deleted) return;
 
             showSuccess(reassigned
@@ -1469,15 +1491,13 @@ export default class CategoriesModule {
     }
 
     /**
-     * Fill the parent picker. Categories shared with the user are left out:
-     * only the owner can add subcategories to one (#402). Read from the
-     * unmerged app.rawCategoryTree, because merging swaps your own category
-     * for a shared one of the same name, which would offer the other person's
-     * id under your category's name. includeShared keeps the merged tree for a
-     * write-shared category being edited, whose picker is locked but must
-     * still show its current parent.
+     * Fill the parent picker for the category being saved. scope is 'add',
+     * 'own' or { owner } (see parentPickerTree), or 'locked' for a
+     * write-shared category, whose picker is disabled but must still show its
+     * current parent from the merged tree.
      */
-    populateCategoryParentDropdown(excludeId = null, selectedId = null, includeShared = false) {
+    populateCategoryParentDropdown(excludeId = null, selectedId = null, scope = 'add') {
+        this._parentPickerArgs = [excludeId, selectedId, scope];
         const parentSelect = document.getElementById('category-parent');
         if (!parentSelect) return;
 
@@ -1487,15 +1507,22 @@ export default class CategoriesModule {
         parentSelect.innerHTML = `<option value="">${t('budget', 'None (Top Level)')}</option>`;
 
         if (this.categoryTree) {
-            const tree = includeShared
+            const tree = scope === 'locked'
                 ? this.categoryTree
-                : (this.app.rawCategoryTree || []).filter(node => !node._shared);
+                : parentPickerTree(this.app.rawCategoryTree, scope);
             dom.populateCategorySelect(parentSelect, tree, {
                 typeFilter: currentType,
                 excludeId: excludeId ? parseInt(excludeId) : null,
                 selectedId: selectedId ? parseInt(selectedId) : null,
             });
         }
+    }
+
+    /** Refill the parent picker for the form as it was opened (type changed). */
+    refreshCategoryParentDropdown() {
+        const [excludeId, selectedId] = this._parentPickerArgs || [];
+        const scope = this._parentPickerArgs?.[2] ?? 'add';
+        this.populateCategoryParentDropdown(excludeId ?? null, selectedId ?? null, scope);
     }
 
     async saveCategory() {
@@ -1523,7 +1550,8 @@ export default class CategoriesModule {
             && this.selectedCategory
             && String(this.selectedCategory.id) === String(categoryId)
             && !!this.selectedCategory._shared
-            && !!this.selectedCategory._canWrite;
+            && !!this.selectedCategory._canWrite
+            && !this.selectedCategory._canManage;
 
         const categoryData = { name, color };
         if (!isEditingWriteShared) {
@@ -2338,6 +2366,14 @@ export default class CategoriesModule {
                 ? (remaining <= 0 ? 'positive' : 'zero')
                 : (remaining > 0 ? 'positive' : (remaining < 0 ? 'negative' : 'zero'));
 
+            // A shared category's budget is its owner's: only they, or someone
+            // they gave Full control, can change it. The server refuses anyone
+            // else, so the controls are read-only rather than failing on save.
+            const budgetLocked = !!category._shared && !category._canManage;
+            const lockedAttrs = budgetLocked
+                ? `disabled title="${t('budget', 'Only the owner can change the budget of a shared category')}"`
+                : '';
+
             return `
                 <div class="budget-category-row ${hasChildren ? 'parent-row' : ''}" data-category-id="${category.id}">
                     <div class="budget-category-name level-${level}" data-label="">
@@ -2348,7 +2384,8 @@ export default class CategoriesModule {
                                 data-enabled="${rolloverEnabled ? '1' : '0'}"
                                 title="${rolloverEnabled ? t('budget', 'Envelope budgeting on: unspent budget carries to next month. Click to turn off.') : t('budget', 'Turn on envelope budgeting: unspent budget carries to next month')}"
                                 aria-label="${t('budget', 'Envelope budgeting')}"
-                                aria-pressed="${rolloverEnabled ? 'true' : 'false'}">&#8635;</button>` : ''}
+                                aria-pressed="${rolloverEnabled ? 'true' : 'false'}"
+                                ${budgetLocked ? 'disabled' : ''}>&#8635;</button>` : ''}
                     </div>
                     <div class="budget-input-wrapper" data-label="${t('budget', 'Budget')}">
                         <input type="number"
@@ -2358,7 +2395,8 @@ export default class CategoriesModule {
                                value="${manualBudgetAmount ? Math.round(manualBudgetAmount * 100) / 100 : ''}"
                                placeholder="${isAutoBudget ? Math.round(recurringBudgetAmount * 100) / 100 : '0.00'}"
                                step="0.01"
-                               min="0">
+                               min="0"
+                               ${lockedAttrs}>
                         ${isAutoBudget ? `<span class="budget-auto-hint" title="${t('budget', 'Auto-calculated from recurring bills/income. Enter a value to override.')}">${t('budget', 'auto')}</span>` : ''}
                         ${rolloverEnabled && Math.abs(carried) >= 0.005 ? `<span class="budget-carried-hint ${carried < 0 ? 'negative' : 'positive'}" title="${(carried < 0
                             ? t('budget', '{base} − {over} overspent = {available} available', { base: this.formatCurrency(baseBudgetAmount), over: this.formatCurrency(Math.abs(carried)), available: this.formatCurrency(effectiveBudgetAmount) })
@@ -2367,7 +2405,7 @@ export default class CategoriesModule {
                         ${hasChildren && budget > effectiveBudgetAmount ? `<span class="budget-aggregate-hint">${t('budget', 'Total')}: ${this.formatCurrency(budget)}</span>` : ''}
                     </div>
                     <div data-label="${t('budget', 'Period')}">
-                        <select class="budget-period-select" data-category-id="${category.id}" aria-label="${t('budget', 'Budget period for {category}', { category: category.name })}">
+                        <select class="budget-period-select" data-category-id="${category.id}" aria-label="${t('budget', 'Budget period for {category}', { category: category.name })}" ${lockedAttrs}>
                             <option value="monthly" ${effectivePeriod === 'monthly' ? 'selected' : ''}>${t('budget', 'Monthly')}</option>
                             <option value="weekly" ${effectivePeriod === 'weekly' ? 'selected' : ''}>${t('budget', 'Weekly')}</option>
                             <option value="quarterly" ${effectivePeriod === 'quarterly' ? 'selected' : ''}>${t('budget', 'Quarterly')}</option>
@@ -2520,7 +2558,21 @@ export default class CategoriesModule {
             // No errorMessage: the toast below already says "Failed to update
             // budget: …", so a failure without a server message shows its
             // HTTP status there.
-            if (this._currentMonthHasSnapshot) {
+            const shared = !!this.findCategoryById(parseInt(categoryId))?._shared;
+            let savedToCategory = !this._currentMonthHasSnapshot;
+            if (shared) {
+                // The owner's budget: the server puts it in their adjustment
+                // for this month if they have one, otherwise on the category.
+                // This user's own adjustment never holds it.
+                const payload = {};
+                if ('budgetAmount' in updates) payload.amount = updates.budgetAmount;
+                if ('budgetPeriod' in updates) payload.period = updates.budgetPeriod;
+                const result = await apiFetch(
+                    `/apps/budget/api/categories/${categoryId}/budget/${this.budgetMonth}`,
+                    { method: 'PUT', body: payload }
+                );
+                savedToCategory = result?.target === 'category';
+            } else if (this._currentMonthHasSnapshot) {
                 // Save to snapshot API
                 const snapshotPayload = {};
                 if ('budgetAmount' in updates) snapshotPayload.amount = updates.budgetAmount;
@@ -2543,10 +2595,8 @@ export default class CategoriesModule {
 
             // Update local data
             const category = this.findCategoryById(parseInt(categoryId));
-            if (category) {
-                if (!this._currentMonthHasSnapshot) {
-                    Object.assign(category, updates);
-                }
+            if (category && savedToCategory) {
+                Object.assign(category, updates);
             }
 
             // Update effective budgets cache locally

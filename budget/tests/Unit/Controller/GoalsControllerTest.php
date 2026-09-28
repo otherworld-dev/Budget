@@ -30,6 +30,8 @@ class GoalsControllerTest extends TestCase {
 	private array $readOnlyIds = [];
 	/** Ids returned by getSharedSavingsGoalIds. */
 	private array $sharedIds = [];
+	/** Shared goal ids held at Full control. */
+	private array $manageableIds = [];
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
@@ -59,6 +61,9 @@ class GoalsControllerTest extends TestCase {
 				throw new \OCA\Budget\Exception\ReadOnlyShareException();
 			}
 		});
+		$granularShareService->method('canManage')->willReturnCallback(
+			fn ($u, $t, $id) => ($this->ownerMap[$id] ?? 'user1') === 'user1' || in_array($id, $this->manageableIds, true)
+		);
 		$granularShareService->method('getSharedSavingsGoalIds')->willReturnCallback(
 			fn ($u) => $this->sharedIds
 		);
@@ -426,6 +431,16 @@ class GoalsControllerTest extends TestCase {
 		$response = $this->controller->destroy(10);
 
 		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testFullControlCanDeleteASharedGoal(): void {
+		$this->ownerMap = [10 => 'owner2'];
+		$this->manageableIds = [10];
+		$this->service->expects($this->once())->method('delete')->with(10, 'owner2');
+
+		$response = $this->controller->destroy(10);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
 	public function testDestroyInaccessibleGoalReturns404(): void {

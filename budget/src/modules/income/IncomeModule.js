@@ -156,9 +156,9 @@ export default class IncomeModule {
                         <button class="income-action-btn income-edit-btn" data-income-id="${income.id}" title="${t('budget', 'Edit income')}" aria-label="${t('budget', 'Edit income')}">
                             <span class="icon-rename" aria-hidden="true"></span>
                         </button>
-                        <button class="income-action-btn income-delete-btn" data-income-id="${income.id}" title="${t('budget', 'Delete income')}" aria-label="${t('budget', 'Delete income')}">
+                        ${income._shared && !income._canManage ? '' : `<button class="income-action-btn income-delete-btn" data-income-id="${income.id}" title="${t('budget', 'Delete income')}" aria-label="${t('budget', 'Delete income')}">
                             <span class="icon-delete" aria-hidden="true"></span>
-                        </button>
+                        </button>`}
                     </div>
                 </div>
             `;

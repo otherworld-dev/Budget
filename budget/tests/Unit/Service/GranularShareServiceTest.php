@@ -533,6 +533,108 @@ class GranularShareServiceTest extends TestCase {
 	}
 
 	// =============================================
+	// Full control (categories only)
+	// =============================================
+
+	private function shareCategoryToAlice(string $permission): void {
+		$this->categoryMapper->method('findAll')->with('alice')->willReturn([]);
+		$share = $this->makeShare(100, 'bob', 'alice', Share::STATUS_ACCEPTED);
+		$this->shareMapper->method('findByRecipient')->with('alice')->willReturn([$share]);
+		$this->shareItemMapper->method('getEntityPermission')
+			->with(100, ShareItem::TYPE_CATEGORY, 5)
+			->willReturn($permission);
+	}
+
+	public function testFullControlCountsAsWrite(): void {
+		$this->shareCategoryToAlice(ShareItem::PERMISSION_FULL);
+
+		$this->assertTrue($this->service->canWrite('alice', ShareItem::TYPE_CATEGORY, 5));
+		$this->assertTrue($this->service->canManage('alice', ShareItem::TYPE_CATEGORY, 5));
+	}
+
+	public function testWriteShareDoesNotManage(): void {
+		$this->shareCategoryToAlice(ShareItem::PERMISSION_WRITE);
+
+		$this->assertTrue($this->service->canWrite('alice', ShareItem::TYPE_CATEGORY, 5));
+		$this->assertFalse($this->service->canManage('alice', ShareItem::TYPE_CATEGORY, 5));
+	}
+
+	public function testOwnCategoryIsAlwaysManaged(): void {
+		$own = new \OCA\Budget\Db\Category();
+		$own->setId(5);
+		$this->categoryMapper->method('findAll')->with('alice')->willReturn([$own]);
+		$this->shareItemMapper->expects($this->never())->method('getEntityPermission');
+
+		$this->assertTrue($this->service->canManage('alice', ShareItem::TYPE_CATEGORY, 5));
+	}
+
+	public function testUpdateShareItemsRefusesFullControlOutsideCategories(): void {
+		$this->shareItemMapper->expects($this->never())->method('replaceForShareAndType');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Invalid permission: full');
+		$this->service->updateShareItems('alice', 100, ShareItem::TYPE_ACCOUNT, [1], ShareItem::PERMISSION_FULL);
+	}
+
+	public function testUpdateShareItemsAcceptsFullControlOnCategories(): void {
+		$share = $this->makeShare(100, 'alice', 'carol', Share::STATUS_ACCEPTED);
+		$this->shareMapper->method('findById')->with(100)->willReturn($share);
+		$own = new \OCA\Budget\Db\Category();
+		$own->setId(3);
+		$this->categoryMapper->method('findAll')->with('alice')->willReturn([$own]);
+
+		$this->shareItemMapper->expects($this->once())
+			->method('replaceForShareAndType')
+			->with(100, ShareItem::TYPE_CATEGORY, [3], ShareItem::PERMISSION_FULL);
+
+		$this->service->updateShareItems('alice', 100, ShareItem::TYPE_CATEGORY, [3], ShareItem::PERMISSION_FULL);
+	}
+
+	public function testShareBackUsesThePermissionHeldOnTheParent(): void {
+		// bob shares with alice (100, full on parent 5) and with carol (200)
+		$toAlice = $this->makeShare(100, 'bob', 'alice', Share::STATUS_ACCEPTED);
+		$fromDave = $this->makeShare(300, 'dave', 'alice', Share::STATUS_ACCEPTED);
+		$this->shareMapper->method('findByRecipient')->with('alice')->willReturn([$fromDave, $toAlice]);
+		$this->shareItemMapper->method('getEntityPermission')
+			->with(100, ShareItem::TYPE_CATEGORY, 5)
+			->willReturn(ShareItem::PERMISSION_FULL);
+
+		$this->shareItemMapper->expects($this->once())
+			->method('shareEntity')
+			->with(100, ShareItem::TYPE_CATEGORY, 42, ShareItem::PERMISSION_FULL);
+
+		$this->service->shareBackToRecipient('bob', 'alice', ShareItem::TYPE_CATEGORY, 42, 5);
+	}
+
+	public function testGetSharedCategoriesFlagsManageAndCreatorDelete(): void {
+		$share = $this->makeShare(100, 'bob', 'alice', Share::STATUS_ACCEPTED);
+		$this->shareMapper->method('findByRecipient')->with('alice')->willReturn([$share]);
+		$this->categoryMapper->method('findAll')->with('alice')->willReturn([]);
+		$this->shareItemMapper->method('findSharedEntityIds')->willReturn([5, 6]);
+		$this->shareItemMapper->method('getEntityPermission')->willReturn(ShareItem::PERMISSION_FULL);
+
+		$parent = new \OCA\Budget\Db\Category();
+		$parent->setId(5);
+		$parent->setUserId('bob');
+		$parent->setName('Food');
+		$added = new \OCA\Budget\Db\Category();
+		$added->setId(6);
+		$added->setUserId('bob');
+		$added->setName('Snacks');
+		$added->setCreatedBy('alice');
+		$this->categoryMapper->method('findByIdsUnscoped')->willReturn([$parent, $added]);
+
+		$byId = [];
+		foreach ($this->service->getSharedCategories('alice') as $row) {
+			$byId[$row['id']] = $row;
+		}
+
+		$this->assertTrue($byId[5]['_canManage']);
+		$this->assertFalse($byId[5]['_canDelete']);
+		$this->assertTrue($byId[6]['_canDelete']);
+	}
+
+	// =============================================
 	// getSharedAccounts
 	// =============================================
 

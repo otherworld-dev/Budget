@@ -111,6 +111,7 @@ return [
 		['name' => 'category#setReportMute', 'url' => '/api/categories/{id}/report-mute', 'verb' => 'PUT'],
 		['name' => 'category#create', 'url' => '/api/categories', 'verb' => 'POST'],
 		['name' => 'category#reorder', 'url' => '/api/categories/{id}/reorder', 'verb' => 'POST'],
+		['name' => 'category#updateSharedBudget', 'url' => '/api/categories/{id}/budget/{month}', 'verb' => 'PUT'],
 		['name' => 'category#details', 'url' => '/api/categories/{id}/details', 'verb' => 'GET'],
 		['name' => 'category#transactions', 'url' => '/api/categories/{id}/transactions', 'verb' => 'GET'],
 		['name' => 'category#show', 'url' => '/api/categories/{id}', 'verb' => 'GET'],

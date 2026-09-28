@@ -40,6 +40,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setBudgetRollover(?bool $budgetRollover)
  * @method string|null getRolloverStart()
  * @method void setRolloverStart(?string $rolloverStart)
+ * @method string|null getCreatedBy()
+ * @method void setCreatedBy(?string $createdBy)
  */
 class Category extends Entity implements JsonSerializable {
 	protected $userId;
@@ -55,6 +57,7 @@ class Category extends Entity implements JsonSerializable {
 	protected $excludedFromBudget;  // still counts everywhere else, just not budgeted against
 	protected $budgetRollover;   // envelope budgeting: unspent budget carries to next month
 	protected $rolloverStart;    // YYYY-MM the carryover chain starts from
+	protected $createdBy;        // a Full control recipient who added it; NULL = the owner
 	protected $createdAt;
 	protected $updatedAt;
 
@@ -88,6 +91,7 @@ class Category extends Entity implements JsonSerializable {
 			'excludedFromBudget' => $this->getExcludedFromBudget() ?? false,
 			'budgetRollover' => $this->getBudgetRollover() ?? false,
 			'rolloverStart' => $this->getRolloverStart(),
+			'createdBy' => $this->getCreatedBy(),
 			'createdAt' => $this->getCreatedAt(),
 			'updatedAt' => $this->getUpdatedAt(),
 		];
