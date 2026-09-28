@@ -414,6 +414,26 @@ class TransactionSplitMapperTest extends TestCase {
 		$this->assertSame(50.0, $grouped[100][0]['amount']);
 	}
 
+	/**
+	 * The public API lists every part of a split row with its own id and
+	 * label (#408), so a part has to carry them, not just its category.
+	 */
+	public function testFindByTransactionIdsReportsEachPartsIdAndDescription(): void {
+		$this->result->method('fetch')->willReturnOnConsecutiveCalls(
+			$this->makeSplitRow(['id' => 31, 'transaction_id' => 100, 'description' => 'Flat White']),
+			$this->makeSplitRow(['id' => 32, 'transaction_id' => 100, 'description' => null]),
+			false
+		);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$grouped = $this->mapper->findByTransactionIds([100]);
+
+		$this->assertSame([31, 32], array_column($grouped[100], 'id'));
+		$this->assertSame([100, 100], array_column($grouped[100], 'transactionId'));
+		$this->assertSame(['Flat White', null], array_column($grouped[100], 'description'));
+	}
+
 	public function testFindByTransactionIdsReportsAnUncategorisedPartAsNull(): void {
 		$this->result->method('fetch')->willReturnOnConsecutiveCalls(
 			$this->makeSplitRow(['transaction_id' => 100, 'category_id' => null, 'category_name' => null]),

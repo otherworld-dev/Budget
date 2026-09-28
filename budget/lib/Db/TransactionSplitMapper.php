@@ -108,7 +108,7 @@ class TransactionSplitMapper extends QBMapper {
 		$grouped = [];
 		foreach (array_chunk($transactionIds, 500) as $chunk) {
 			$qb = $this->db->getQueryBuilder();
-			$qb->select('s.transaction_id', 's.category_id', 's.amount', 'c.name as category_name')
+			$qb->select('s.id', 's.transaction_id', 's.category_id', 's.amount', 's.description', 'c.name as category_name')
 				->from($this->getTableName(), 's')
 				->leftJoin('s', 'budget_categories', 'c', 'c.id = s.category_id')
 				->where($qb->expr()->in('s.transaction_id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)))
@@ -122,9 +122,13 @@ class TransactionSplitMapper extends QBMapper {
 					$grouped[$txId] = [];
 				}
 				$grouped[$txId][] = [
+					'id' => (int)$row['id'],
+					'transactionId' => $txId,
 					'categoryId' => isset($row['category_id']) ? (int)$row['category_id'] : null,
 					'categoryName' => $row['category_name'] ?? null,
 					'amount' => (float)$row['amount'],
+					// The public API lists every part with its own label (#408)
+					'description' => $row['description'] ?? null,
 				];
 			}
 			$result->closeCursor();

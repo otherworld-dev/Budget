@@ -112,16 +112,20 @@ class ApiV1TransactionController extends OCSController {
 				'direction' => 'desc',
 			];
 
+			$visible = $this->getEffectiveAccountIds();
 			$result = $this->service->findWithFilters(
 				$this->userId,
 				$filters,
 				$limit,
 				$offset,
-				$this->getEffectiveAccountIds()
+				$visible
 			);
 
 			return new DataResponse([
-				'transactions' => ApiSerializer::map($result['transactions'], [ApiSerializer::class, 'transaction']),
+				'transactions' => ApiSerializer::map(
+					$this->hideUnseenLinkedAccounts($result['transactions'], $visible),
+					[ApiSerializer::class, 'transaction']
+				),
 				'total' => (int)$result['total'],
 				'limit' => $limit,
 				'offset' => $offset,
@@ -146,6 +150,7 @@ class ApiV1TransactionController extends OCSController {
 		$limit = max(1, min($limit, self::MAX_LIMIT));
 
 		try {
+			$visible = $this->getEffectiveAccountIds();
 			$result = $this->service->findWithFilters(
 				$this->userId,
 				[
@@ -157,12 +162,13 @@ class ApiV1TransactionController extends OCSController {
 				],
 				$limit,
 				0,
-				$this->getEffectiveAccountIds()
+				$visible
 			);
 
-			return new DataResponse(
-				ApiSerializer::map($result['transactions'], [ApiSerializer::class, 'recentTransaction'])
-			);
+			return new DataResponse(ApiSerializer::map(
+				$this->hideUnseenLinkedAccounts($result['transactions'], $visible),
+				[ApiSerializer::class, 'recentTransaction']
+			));
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to retrieve transactions'));
 		}
@@ -617,6 +623,26 @@ class ApiV1TransactionController extends OCSController {
 		}
 
 		return $splits;
+	}
+
+	/**
+	 * Clear the name of a transfer's other account when the caller cannot
+	 * see that account. findWithFilters() joins it without a scope, and the
+	 * other half of a transfer on a shared account can sit in one of the
+	 * owner's accounts that was never shared. The link itself stays (#407).
+	 *
+	 * @param array<int, array<string, mixed>> $rows
+	 * @param int[] $visibleAccountIds
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function hideUnseenLinkedAccounts(array $rows, array $visibleAccountIds): array {
+		foreach ($rows as &$row) {
+			if (!in_array((int)($row['linkedAccountId'] ?? 0), $visibleAccountIds, true)) {
+				$row['linkedAccountName'] = null;
+			}
+		}
+		unset($row);
+		return $rows;
 	}
 
 	/**

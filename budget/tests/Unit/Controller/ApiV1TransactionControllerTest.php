@@ -1000,6 +1000,47 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame(5, $data['id']);
 	}
 
+	// ── check: transfer links and split parts on list rows (#767) ──
+
+	public function testRecentHidesTheNameOfATransferAccountTheCallerCannotSee(): void {
+		$this->service->method('findWithFilters')->willReturn(['transactions' => [
+			// Other half in account 44: the owner's, never shared
+			['id' => 1, 'accountId' => 9, 'type' => 'debit', 'amount' => 50.0, 'linkedTransactionId' => 501, 'linkedAccountId' => 44, 'linkedAccountName' => 'Owner savings'],
+			['id' => 2, 'accountId' => 1, 'type' => 'credit', 'amount' => 50.0, 'linkedTransactionId' => 502, 'linkedAccountId' => 2, 'linkedAccountName' => 'Current'],
+		], 'total' => 2]);
+
+		$rows = $this->controller->recent()->getData();
+
+		$this->assertSame(501, $rows[0]['linked_transaction_id']);
+		$this->assertNull($rows[0]['linked_account_name']);
+		$this->assertSame('Current', $rows[1]['linked_account_name']);
+	}
+
+	public function testIndexHidesTheNameOfATransferAccountTheCallerCannotSee(): void {
+		$this->service->method('findWithFilters')->willReturn(['transactions' => [
+			['id' => 1, 'accountId' => 9, 'linkedTransactionId' => 501, 'linkedAccountId' => 44, 'linkedAccountName' => 'Owner savings'],
+		], 'total' => 1]);
+
+		$data = $this->controller->index()->getData();
+
+		$this->assertSame(501, $data['transactions'][0]['linked_transaction_id']);
+		$this->assertNull($data['transactions'][0]['linked_account_name']);
+	}
+
+	public function testRecentCarriesTheSplitPartsOfARow(): void {
+		$this->service->method('findWithFilters')->willReturn(['transactions' => [
+			['id' => 7, 'accountId' => 1, 'type' => 'debit', 'amount' => 4.82, 'isSplit' => true, 'splitCategories' => [
+				['id' => 70, 'transactionId' => 7, 'categoryId' => 12, 'categoryName' => 'Coffee', 'amount' => 3.4, 'description' => 'Flat White'],
+				['id' => 71, 'transactionId' => 7, 'categoryId' => null, 'categoryName' => null, 'amount' => 1.42, 'description' => 'Tax'],
+			]],
+		], 'total' => 1]);
+
+		$row = $this->controller->recent()->getData()[0];
+
+		$this->assertTrue($row['is_split']);
+		$this->assertSame(['Flat White', 'Tax'], array_column($row['splits'], 'description'));
+	}
+
 	public function testCreateWithoutSplitsSaysNothingAboutThem(): void {
 		$this->params = $this->captureParams([
 			'date' => '2026-08-05',
