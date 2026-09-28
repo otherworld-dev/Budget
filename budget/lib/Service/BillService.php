@@ -324,6 +324,30 @@ class BillService {
 		return $bills;
 	}
 
+	/**
+	 * enrichBillsWithCurrency() for bills shared with someone else: the rows
+	 * GranularShareService::getSharedBills() returns, each priced from its
+	 * OWNER's account, or the owner's base currency, as the owner sees it.
+	 *
+	 * @param array[] $bills serialized bills carrying their owner's userId
+	 * @return array[]
+	 */
+	public function enrichSharedBillsWithCurrency(array $bills): array {
+		$maps = [];
+		$bases = [];
+		foreach ($bills as &$bill) {
+			$owner = (string)($bill['userId'] ?? '');
+			$maps[$owner] ??= $this->buildCurrencyMap($owner);
+			$bases[$owner] ??= $this->currencyConversion->getBaseCurrency($owner);
+			$accountId = $bill['accountId'] ?? null;
+			$bill['currency'] = $accountId !== null && isset($maps[$owner][$accountId])
+				? $maps[$owner][$accountId]
+				: $bases[$owner];
+		}
+		unset($bill);
+		return $bills;
+	}
+
 	public function findByType(string $userId, ?bool $isTransfer = null, ?bool $isActive = null, bool $activeOrRevertible = false): array {
 		return $this->mapper->findByType($userId, $isTransfer, $isActive, $activeOrRevertible);
 	}

@@ -10,6 +10,7 @@ use OCA\Budget\Exception\ReadOnlyShareException;
 use OCA\Budget\Service\CategoryService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\RecurringBudgetService;
+use OCA\Budget\Service\SharedBudgetService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
@@ -41,6 +42,7 @@ class CategoryController extends Controller {
 	private CategoryService $service;
 	private ValidationService $validationService;
 	private RecurringBudgetService $recurringBudgetService;
+	private SharedBudgetService $sharedBudgets;
 	private IL10N $l;
 	private string $userId;
 
@@ -50,6 +52,7 @@ class CategoryController extends Controller {
 		ValidationService $validationService,
 		GranularShareService $granularShareService,
 		RecurringBudgetService $recurringBudgetService,
+		SharedBudgetService $sharedBudgets,
 		IL10N $l,
 		string $userId,
 		LoggerInterface $logger,
@@ -58,6 +61,7 @@ class CategoryController extends Controller {
 		$this->service = $service;
 		$this->validationService = $validationService;
 		$this->recurringBudgetService = $recurringBudgetService;
+		$this->sharedBudgets = $sharedBudgets;
 		$this->l = $l;
 		$this->userId = $userId;
 		$this->setLogger($logger);
@@ -393,33 +397,6 @@ class CategoryController extends Controller {
 			['error' => $this->l->t('Only the owner can add subcategories to a shared category')],
 			Http::STATUS_FORBIDDEN
 		);
-	}
-
-	/**
-	 * The effective budgets of the categories shared with this user, as each
-	 * owner sees them for $month: the owner's adjustment for the month, the
-	 * owner's envelope and its carry-over over the owner's accounts. Without
-	 * this a shared category showed only its plain budget, so in any month
-	 * the owner had adjusted the two people saw different figures.
-	 *
-	 * @return array<int, array> keyed by category id, like resolveEffectiveBudgets()
-	 */
-	private function sharedEffectiveBudgets(string $month): array {
-		$idsByOwner = [];
-		foreach ($this->granularShareService->getSharedCategories($this->userId) as $category) {
-			$idsByOwner[$category['userId']][] = (int)$category['id'];
-		}
-
-		$budgets = [];
-		foreach ($idsByOwner as $owner => $ids) {
-			$ownerBudgets = $this->service->resolveEffectiveBudgets(
-				$owner,
-				$month,
-				$this->granularShareService->getVisibleAccountIds($owner)
-			);
-			$budgets += array_intersect_key($ownerBudgets, array_flip($ids));
-		}
-		return $budgets;
 	}
 
 	/**
@@ -766,7 +743,7 @@ class CategoryController extends Controller {
 			return new DataResponse([
 				'month' => $month,
 				'hasSnapshot' => $hasSnapshot,
-				'budgets' => $budgets + $this->sharedEffectiveBudgets($month),
+				'budgets' => $budgets + $this->sharedBudgets->effectiveBudgets($this->userId, $month),
 				'readyToAssign' => $readyToAssign,
 			]);
 		} catch (\Exception $e) {

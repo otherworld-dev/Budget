@@ -6,7 +6,6 @@ namespace OCA\Budget\Tests\Unit\Controller;
 
 use OCA\Budget\Controller\ApiV1AccountController;
 use OCA\Budget\Service\AccountService;
-use OCA\Budget\Service\GranularShareService;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
 use OCP\IRequest;
@@ -16,11 +15,9 @@ use Psr\Log\LoggerInterface;
 class ApiV1AccountControllerTest extends TestCase {
 	private ApiV1AccountController $controller;
 	private AccountService $service;
-	private GranularShareService $granularShareService;
 
 	protected function setUp(): void {
 		$this->service = $this->createMock(AccountService::class);
-		$this->granularShareService = $this->createMock(GranularShareService::class);
 
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnCallback(fn ($text, $parameters = []) => vsprintf($text, $parameters));
@@ -28,7 +25,6 @@ class ApiV1AccountControllerTest extends TestCase {
 		$this->controller = new ApiV1AccountController(
 			$this->createMock(IRequest::class),
 			$this->service,
-			$this->granularShareService,
 			$l,
 			'user1',
 			$this->createMock(LoggerInterface::class)
@@ -39,7 +35,7 @@ class ApiV1AccountControllerTest extends TestCase {
 		$this->service->method('findAllWithCurrentBalances')->with('user1')->willReturn([
 			['id' => 1, 'name' => 'Current', 'type' => 'checking', 'currency' => 'GBP', 'balance' => 100.0],
 		]);
-		$this->granularShareService->method('getSharedAccounts')->with('user1')->willReturn([
+		$this->service->method('findSharedWithCurrentBalances')->with('user1')->willReturn([
 			['id' => 9, 'name' => 'Joint', 'type' => 'checking', 'currency' => 'GBP', 'balance' => 50.0, '_shared' => true],
 		]);
 
@@ -56,7 +52,7 @@ class ApiV1AccountControllerTest extends TestCase {
 		$this->service->method('findAllWithCurrentBalances')->willReturn([
 			['id' => 1, 'name' => 'Current', 'iban' => 'GB33BUKB20201555555555', 'userId' => 'user1'],
 		]);
-		$this->granularShareService->method('getSharedAccounts')->willReturn([]);
+		$this->service->method('findSharedWithCurrentBalances')->willReturn([]);
 
 		$data = $this->controller->index()->getData();
 
@@ -64,9 +60,22 @@ class ApiV1AccountControllerTest extends TestCase {
 		$this->assertArrayNotHasKey('userId', $data[0]);
 	}
 
+	public function testSharedAccountsComeWithTodaysBalance(): void {
+		$this->service->method('findAllWithCurrentBalances')->willReturn([]);
+		$this->service->expects($this->once())->method('findSharedWithCurrentBalances')->with('user1')->willReturn([
+			['id' => 9, 'name' => 'Joint', 'balance' => 1400.0, 'convertedBalance' => 1650.0, 'baseCurrency' => 'EUR', '_shared' => true],
+		]);
+
+		$data = $this->controller->index()->getData();
+
+		$this->assertSame('1400.00', $data[0]['balance']);
+		$this->assertSame('1650.00', $data[0]['balance_in_base_currency']);
+		$this->assertTrue($data[0]['shared']);
+	}
+
 	public function testIndexWithNoAccounts(): void {
 		$this->service->method('findAllWithCurrentBalances')->willReturn([]);
-		$this->granularShareService->method('getSharedAccounts')->willReturn([]);
+		$this->service->method('findSharedWithCurrentBalances')->willReturn([]);
 
 		$response = $this->controller->index();
 
@@ -88,7 +97,6 @@ class ApiV1AccountControllerTest extends TestCase {
 		$controller = new ApiV1AccountController(
 			$this->createMock(IRequest::class),
 			$this->service,
-			$this->granularShareService,
 			$this->createMock(IL10N::class),
 			null,
 			$this->createMock(LoggerInterface::class)

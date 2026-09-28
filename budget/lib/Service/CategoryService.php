@@ -968,7 +968,7 @@ class CategoryService extends AbstractCrudService {
 			if (MoneyCalculator::compare($base, '0', 6) <= 0) {
 				continue;
 			}
-			$budgeted[] = $this->toMonthlyAmount($base, (string)($entry['period'] ?? 'monthly'));
+			$budgeted[] = BudgetPeriod::monthlyEquivalent($base, (string)($entry['period'] ?? 'monthly'));
 		}
 
 		$income = [];
@@ -998,18 +998,6 @@ class CategoryService extends AbstractCrudService {
 			'budgeted' => round(MoneyCalculator::toFloat($budgetedTotal), 2),
 			'amount' => round(MoneyCalculator::toFloat(MoneyCalculator::subtract($incomeTotal, $budgetedTotal, 6)), 2),
 		];
-	}
-
-	/**
-	 * A budget amount for $period as its monthly equivalent, by the same
-	 * yearly ratios the Budget page's summary uses (formatters.prorateBudget).
-	 */
-	private function toMonthlyAmount(string $amount, string $period): string {
-		$perYear = ['weekly' => '52', 'monthly' => '12', 'quarterly' => '4', 'yearly' => '1'][$period] ?? '12';
-		if ($perYear === '12') {
-			return $amount;
-		}
-		return MoneyCalculator::divide(MoneyCalculator::multiply($amount, $perYear, 6), '12', 6);
 	}
 
 	/**

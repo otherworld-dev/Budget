@@ -66,6 +66,37 @@ class BillServiceTest extends TestCase {
 		);
 	}
 
+	public function testSharedBillsArePricedFromTheirOwnersAccounts(): void {
+		$usd = new Account();
+		$usd->setId(5);
+		$usd->setCurrency('USD');
+		$accounts = $this->createMock(AccountMapper::class);
+		$accounts->method('findAll')->willReturnMap([['owner1', [$usd]], ['owner2', []]]);
+		$currency = $this->createMock(CurrencyConversionService::class);
+		$currency->method('getBaseCurrency')->willReturnMap([['owner1', 'GBP'], ['owner2', 'EUR']]);
+		$service = new BillService(
+			$this->mapper,
+			$this->frequencyCalculator,
+			$this->recurringDetector,
+			$this->transactionService,
+			$this->createMock(IL10N::class),
+			$accounts,
+			$currency,
+			$this->createMock(TransactionSplitService::class),
+			$this->createMock(LoggerInterface::class),
+			$this->dismissedMapper,
+		);
+
+		// Each is priced as its owner sees it: their account, else their base
+		$bills = $service->enrichSharedBillsWithCurrency([
+			['id' => 1, 'userId' => 'owner1', 'accountId' => 5],
+			['id' => 2, 'userId' => 'owner1', 'accountId' => null],
+			['id' => 3, 'userId' => 'owner2', 'accountId' => 7],
+		]);
+
+		$this->assertSame(['USD', 'GBP', 'EUR'], array_column($bills, 'currency'));
+	}
+
 	private function makeBill(array $overrides = []): Bill {
 		$bill = new Bill();
 		$bill->setId($overrides['id'] ?? 1);

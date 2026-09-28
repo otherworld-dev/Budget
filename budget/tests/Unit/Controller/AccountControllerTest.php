@@ -129,6 +129,19 @@ class AccountControllerTest extends TestCase {
 		$this->assertCount(2, $response->getData());
 	}
 
+	public function testIndexGivesSharedAccountsTodaysBalanceLikeOwnOnes(): void {
+		// The raw stored balance counts future-dated transactions, so the web
+		// and the API (#767) must both take shared accounts as of today
+		$this->service->method('findAllWithCurrentBalances')->willReturn([['id' => 1, 'name' => 'Checking', 'balance' => 100.0]]);
+		$this->service->expects($this->once())->method('findSharedWithCurrentBalances')->with('user1')
+			->willReturn([['id' => 9, 'name' => 'Joint', 'balance' => 2387.8, '_shared' => true]]);
+
+		$data = $this->controller->index()->getData();
+
+		$this->assertSame([1, 9], array_column($data, 'id'));
+		$this->assertSame(2387.8, $data[1]['balance']);
+	}
+
 	public function testIndexHandlesError(): void {
 		$this->service->method('findAllWithCurrentBalances')->willThrowException(new \RuntimeException('DB error'));
 

@@ -54,6 +54,90 @@ class AccountServiceTest extends TestCase {
 		);
 	}
 
+	// ── shared accounts as of today (#767) ───────────────────────
+
+	/**
+	 * A service whose user has these accounts shared with them. setUp()
+	 * stubs getSharedAccountIds() to [], and a stub in the test can't
+	 * override that, so this builds its own sharing mock.
+	 */
+	private function serviceSharing(array $accountIds): AccountService {
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('getSharedAccountIds')->with('user1')->willReturn($accountIds);
+		$l = $this->createMock(IL10N::class);
+
+		return new AccountService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->createMock(InterestRateMapper::class),
+			$this->conversionService,
+			$shares,
+			$this->transactionService,
+			$l
+		);
+	}
+
+	public function testASharedAccountsBalanceLeavesOutFutureTransactions(): void {
+		$joint = new Account();
+		$joint->setId(9);
+		$joint->setName('Joint');
+		$joint->setCurrency('GBP');
+		$joint->setBalance(1000.0);
+		$this->accountMapper->method('findByIds')->with([9])->willReturn([$joint]);
+		// A rent payment dated next week is already in the stored balance
+		$this->transactionMapper->method('getNetChangeAfterDateForAccounts')->with([9], date('Y-m-d'))->willReturn([9 => -400.0]);
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+
+		$accounts = $this->serviceSharing([9])->findSharedWithCurrentBalances('user1');
+
+		$this->assertSame(1400.0, $accounts[0]['balance']);
+		$this->assertTrue($accounts[0]['_shared']);
+	}
+
+	public function testASharedAccountIsConvertedToTheViewersBaseCurrency(): void {
+		$usd = new Account();
+		$usd->setId(9);
+		$usd->setCurrency('USD');
+		$usd->setBalance(100.0);
+		$this->accountMapper->method('findByIds')->willReturn([$usd]);
+		$this->transactionMapper->method('getNetChangeAfterDateForAccounts')->willReturn([]);
+		$this->conversionService->method('getBaseCurrency')->with('user1')->willReturn('GBP');
+		$this->conversionService->method('canConvert')->willReturn(true);
+		$this->conversionService->method('convertToBaseFloat')->with(100.0, 'USD', 'user1')->willReturn(79.5);
+
+		$account = $this->serviceSharing([9])->findSharedWithCurrentBalances('user1')[0];
+
+		$this->assertSame(79.5, $account['convertedBalance']);
+		$this->assertSame('GBP', $account['baseCurrency']);
+	}
+
+	/**
+	 * (string) of a tiny float is scientific notation ("1.0E-5"), which bcmath
+	 * refuses with a ValueError that nothing catches, so one crypto account
+	 * holding dust, or a float residue in the future-change sum, failed the
+	 * whole accounts list.
+	 */
+	public function testTinyBalancesAndFloatResiduesDoNotBreakTheList(): void {
+		$dust = new Account();
+		$dust->setId(9);
+		$dust->setCurrency('BTC');
+		$dust->setBalance(0.00001);
+		$this->transactionMapper->method('getNetChangeAfterDateForAccounts')->willReturn([9 => 0.1 + 0.2 - 0.3]);
+		$this->accountMapper->method('findByIds')->willReturn([$dust]);
+		$this->conversionService->method('getBaseCurrency')->willReturn('BTC');
+
+		$account = $this->serviceSharing([9])->findSharedWithCurrentBalances('user1')[0];
+
+		$this->assertSame(0.00001, $account['balance']);
+	}
+
+	public function testNoSharedAccountsMeansNoQueries(): void {
+		$this->granularShareService->method('getSharedAccountIds')->willReturn([]);
+		$this->transactionMapper->expects($this->never())->method('getNetChangeAfterDateForAccounts');
+
+		$this->assertSame([], $this->service->findSharedWithCurrentBalances('user1'));
+	}
+
 	private function makeAccount(array $overrides = []): Account {
 		$account = new Account();
 		$defaults = [

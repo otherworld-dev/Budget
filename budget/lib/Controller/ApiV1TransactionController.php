@@ -8,6 +8,8 @@ use OCA\Budget\Api\ApiSerializer;
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\IdempotencyKey;
 use OCA\Budget\Db\IdempotencyKeyMapper;
+use OCA\Budget\Db\Transaction;
+use OCA\Budget\Db\TransactionSplit;
 use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\MoneyCalculator;
@@ -112,16 +114,20 @@ class ApiV1TransactionController extends OCSController {
 				'direction' => 'desc',
 			];
 
+			$visible = $this->getEffectiveAccountIds();
 			$result = $this->service->findWithFilters(
 				$this->userId,
 				$filters,
 				$limit,
 				$offset,
-				$this->getEffectiveAccountIds()
+				$visible
 			);
 
 			return new DataResponse([
-				'transactions' => ApiSerializer::map($result['transactions'], [ApiSerializer::class, 'transaction']),
+				'transactions' => ApiSerializer::map(
+					$this->hideUnseenLinkedAccounts($result['transactions'], $visible),
+					[ApiSerializer::class, 'transaction']
+				),
 				'total' => (int)$result['total'],
 				'limit' => $limit,
 				'offset' => $offset,
@@ -146,6 +152,7 @@ class ApiV1TransactionController extends OCSController {
 		$limit = max(1, min($limit, self::MAX_LIMIT));
 
 		try {
+			$visible = $this->getEffectiveAccountIds();
 			$result = $this->service->findWithFilters(
 				$this->userId,
 				[
@@ -157,12 +164,13 @@ class ApiV1TransactionController extends OCSController {
 				],
 				$limit,
 				0,
-				$this->getEffectiveAccountIds()
+				$visible
 			);
 
-			return new DataResponse(
-				ApiSerializer::map($result['transactions'], [ApiSerializer::class, 'recentTransaction'])
-			);
+			return new DataResponse(ApiSerializer::map(
+				$this->hideUnseenLinkedAccounts($result['transactions'], $visible),
+				[ApiSerializer::class, 'recentTransaction']
+			));
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to retrieve transactions'));
 		}
@@ -171,13 +179,79 @@ class ApiV1TransactionController extends OCSController {
 	#[NoAdminRequired]
 	public function show(int $id): DataResponse {
 		try {
-			$transaction = $this->service->findForAccounts($id, $this->getEffectiveAccountIds());
+			$visible = $this->getEffectiveAccountIds();
+			$transaction = $this->service->findForAccounts($id, $visible);
 
-			return new DataResponse(ApiSerializer::transaction($transaction));
+			return new DataResponse($this->serializeOne($transaction, $visible));
 		} catch (DoesNotExistException $e) {
 			return $this->notFound();
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to retrieve transaction'));
+		}
+	}
+
+	/**
+	 * The parts of a split transaction (#408), [] when it isn't split. List
+	 * rows already carry them inline; this is the same shape for one record.
+	 */
+	#[NoAdminRequired]
+	public function splits(int $id): DataResponse {
+		try {
+			$transaction = $this->service->findForAccounts($id, $this->getEffectiveAccountIds());
+
+			return new DataResponse(['splits' => ApiSerializer::splits($this->splitsOf($transaction))]);
+		} catch (DoesNotExistException $e) {
+			return $this->notFound();
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to retrieve transaction'));
+		}
+	}
+
+	/**
+	 * One transaction with what a list row has joined in: its split parts
+	 * (#408) and its transfer partner's account name (#407), the name only
+	 * when the caller can see that account.
+	 *
+	 * @param int[] $visibleAccountIds
+	 */
+	private function serializeOne(Transaction $transaction, array $visibleAccountIds): array {
+		$row = $transaction->jsonSerialize();
+		// is_split is tri-state (#360): false means no parts, NULL predates
+		// the column and is a split only if parts come back, as on list rows
+		$parts = $transaction->getIsSplit() === false ? [] : $this->splitsOf($transaction);
+		$row['splitCategories'] = $parts;
+		$row['isSplit'] = $parts !== [];
+		$row['linkedAccountName'] = $this->linkedAccountName($transaction, $visibleAccountIds);
+
+		return ApiSerializer::transaction($row);
+	}
+
+	/**
+	 * A transaction's split parts, read as its account's owner: getSplits()
+	 * checks ownership against the user id it is given, so a recipient's id
+	 * would find nothing on a shared account.
+	 *
+	 * @return TransactionSplit[]
+	 */
+	private function splitsOf(Transaction $transaction): array {
+		$owner = $this->granularShareService->resolveOwner($this->userId, 'account', $transaction->getAccountId());
+		if ($owner === null) {
+			return [];
+		}
+		return $this->splitService->getSplits($transaction->getId(), $owner);
+	}
+
+	/** @param int[] $visibleAccountIds */
+	private function linkedAccountName(Transaction $transaction, array $visibleAccountIds): ?string {
+		$linkedId = $transaction->getLinkedTransactionId();
+		if ($linkedId === null) {
+			return null;
+		}
+		try {
+			$linked = $this->service->findForAccounts($linkedId, $visibleAccountIds);
+			return $this->service->findAccountById($linked->getAccountId())->getName();
+		} catch (DoesNotExistException $e) {
+			return null;
 		}
 	}
 
@@ -481,8 +555,10 @@ class ApiV1TransactionController extends OCSController {
 	 * "retry and the receipt is silently gone" into the recovery the client
 	 * expects from an idempotent retry.
 	 */
-	private function replayResponse(\OCA\Budget\Db\Transaction $transaction): array {
-		$out = ApiSerializer::transaction($transaction);
+	private function replayResponse(Transaction $transaction): array {
+		// With its parts, so replaying a split capture reports them like the
+		// first response did
+		$out = $this->serializeOne($transaction, $this->getEffectiveAccountIds());
 
 		$photo = $this->request->getUploadedFile('photo');
 		if ($photo) {
@@ -617,6 +693,26 @@ class ApiV1TransactionController extends OCSController {
 		}
 
 		return $splits;
+	}
+
+	/**
+	 * Clear the name of a transfer's other account when the caller cannot
+	 * see that account. findWithFilters() joins it without a scope, and the
+	 * other half of a transfer on a shared account can sit in one of the
+	 * owner's accounts that was never shared. The link itself stays (#407).
+	 *
+	 * @param array<int, array<string, mixed>> $rows
+	 * @param int[] $visibleAccountIds
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function hideUnseenLinkedAccounts(array $rows, array $visibleAccountIds): array {
+		foreach ($rows as &$row) {
+			if (!in_array((int)($row['linkedAccountId'] ?? 0), $visibleAccountIds, true)) {
+				$row['linkedAccountName'] = null;
+			}
+		}
+		unset($row);
+		return $rows;
 	}
 
 	/**

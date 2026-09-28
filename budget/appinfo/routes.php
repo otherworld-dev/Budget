@@ -463,6 +463,10 @@ return [
 
 		['name' => 'apiV1Category#index', 'url' => '/api/v1/categories', 'verb' => 'GET'],
 
+		// "Capture and check" (#767): read-only figures for the phone.
+		['name' => 'apiV1Budget#status', 'url' => '/api/v1/budget/status', 'verb' => 'GET'],
+		['name' => 'apiV1Bill#upcoming', 'url' => '/api/v1/bills/upcoming', 'verb' => 'GET'],
+
 		['name' => 'apiV1Transaction#index', 'url' => '/api/v1/transactions', 'verb' => 'GET'],
 		['name' => 'apiV1Transaction#create', 'url' => '/api/v1/transactions', 'verb' => 'POST'],
 		// Specific before {id}, as everywhere else in this file.
@@ -470,6 +474,7 @@ return [
 		['name' => 'apiV1Transaction#show', 'url' => '/api/v1/transactions/{id}', 'verb' => 'GET'],
 		// Per-item splits, for capture apps that read a receipt and let the
 		// user categorise each line. Additive to v1.
+		['name' => 'apiV1Transaction#splits', 'url' => '/api/v1/transactions/{id}/splits', 'verb' => 'GET'],
 		['name' => 'apiV1Transaction#createSplits', 'url' => '/api/v1/transactions/{id}/splits', 'verb' => 'POST'],
 		['name' => 'apiV1Transaction#receipts', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'GET'],
 		['name' => 'apiV1Transaction#uploadReceipt', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'POST'],

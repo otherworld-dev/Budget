@@ -82,6 +82,12 @@ final class ApiSerializer {
 			'is_split' => (bool)($t['isSplit'] ?? false),
 			'created_at' => $t['createdAt'] ?? null,
 			'updated_at' => $t['updatedAt'] ?? null,
+			// The other half of a transfer (#407). The caller clears the name
+			// when that half's account is not one the requester can see.
+			'linked_transaction_id' => isset($t['linkedTransactionId']) ? (int)$t['linkedTransactionId'] : null,
+			'linked_account_name' => $t['linkedAccountName'] ?? null,
+			// A split transaction's parts (#408); [] when it isn't split.
+			'splits' => self::splits($t['splitCategories'] ?? []),
 		];
 
 		// List queries join these in; single-record lookups do not. Present
@@ -176,6 +182,15 @@ final class ApiSerializer {
 			'amount' => self::money($t['amount'] ?? 0),
 			'currency' => $t['accountCurrency'] ?? null,
 			'account_name' => $t['accountName'] ?? null,
+			// Added for "capture and check" (#767): without type a client
+			// cannot tell money in from money out.
+			'account_id' => (int)($t['accountId'] ?? 0),
+			'type' => (string)($t['type'] ?? ''),
+			'category_name' => $t['categoryName'] ?? null,
+			'is_split' => (bool)($t['isSplit'] ?? false),
+			'splits' => self::splits($t['splitCategories'] ?? []),
+			'linked_transaction_id' => isset($t['linkedTransactionId']) ? (int)$t['linkedTransactionId'] : null,
+			'linked_account_name' => $t['linkedAccountName'] ?? null,
 		];
 	}
 
@@ -230,6 +245,76 @@ final class ApiSerializer {
 			$out[] = self::split($split);
 		}
 		return $out;
+	}
+
+	/**
+	 * GET /budget/status (#767): a month's budget, figure for figure as the
+	 * web Budget page shows it. `totals` covers expense categories only;
+	 * `categories` lists every budgeted row, income included.
+	 */
+	public static function budgetStatus(array $status): array {
+		$totals = $status['totals'] ?? [];
+
+		return [
+			'month' => (string)($status['month'] ?? ''),
+			'start_date' => $status['startDate'] ?? null,
+			'end_date' => $status['endDate'] ?? null,
+			'currency' => $status['currency'] ?? null,
+			'totals' => [
+				'budgeted' => self::money($totals['budgeted'] ?? 0),
+				'spent' => self::money($totals['spent'] ?? 0),
+				'remaining' => self::money($totals['remaining'] ?? 0),
+			],
+			'categories' => array_values(array_map([self::class, 'budgetLine'], $status['categories'] ?? [])),
+		];
+	}
+
+	/**
+	 * One budgeted category of GET /budget/status. `budgeted` includes any
+	 * envelope carry-over, which `carried` repeats for context; a parent's
+	 * figures cover its branch, as on the page. `parent_id` is its parent on
+	 * the page, which for a shared category can differ from where it is
+	 * stored.
+	 */
+	public static function budgetLine(array $line): array {
+		return [
+			'category_id' => (int)($line['categoryId'] ?? 0),
+			'name' => (string)($line['name'] ?? ''),
+			'parent_id' => isset($line['parentId']) ? (int)$line['parentId'] : null,
+			'type' => (string)($line['type'] ?? ''),
+			'period' => (string)($line['period'] ?? 'monthly'),
+			'budgeted' => self::money($line['budgeted'] ?? 0),
+			'carried' => self::money($line['carried'] ?? 0),
+			'spent' => self::money($line['spent'] ?? 0),
+			'remaining' => self::money($line['remaining'] ?? 0),
+			'shared' => (bool)($line['shared'] ?? false),
+		];
+	}
+
+	/**
+	 * One bill of GET /bills/upcoming (#767). `amount` is the stored figure:
+	 * for an `amount_type` other than 'fixed' the real one is only worked
+	 * out from the card's statement when the bill is paid.
+	 */
+	public static function bill(Entity|array $bill): array {
+		$b = self::toArray($bill);
+
+		return [
+			'id' => (int)($b['id'] ?? 0),
+			'name' => (string)($b['name'] ?? ''),
+			'amount' => self::money($b['amount'] ?? 0),
+			'amount_type' => (string)($b['amountType'] ?? 'fixed'),
+			'currency' => $b['currency'] ?? null,
+			'frequency' => (string)($b['frequency'] ?? ''),
+			'next_due_date' => $b['nextDueDate'] ?? null,
+			'overdue' => (bool)($b['overdue'] ?? false),
+			'account_id' => isset($b['accountId']) ? (int)$b['accountId'] : null,
+			'account_name' => $b['accountName'] ?? null,
+			'category_id' => isset($b['categoryId']) ? (int)$b['categoryId'] : null,
+			'is_transfer' => (bool)($b['isTransfer'] ?? false),
+			'auto_pay' => (bool)($b['autoPayEnabled'] ?? false),
+			'shared' => (bool)($b['_shared'] ?? false),
+		];
 	}
 
 	private static function toArray(Entity|array $value): array {

@@ -68,14 +68,12 @@ class AccountController extends Controller {
 	 */
 	public function index(): DataResponse {
 		try {
-			// Own accounts with balance adjustments
-			$accounts = $this->service->findAllWithCurrentBalances($this->userId);
-
-			// Merge in shared accounts
-			$shared = $this->granularShareService->getSharedAccounts($this->userId);
-			if (!empty($shared)) {
-				$accounts = array_merge($accounts, $shared);
-			}
+			// Own and shared accounts, every balance as of today and converted
+			// the same way, so a shared account shows what its owner sees
+			$accounts = array_merge(
+				$this->service->findAllWithCurrentBalances($this->userId),
+				$this->service->findSharedWithCurrentBalances($this->userId)
+			);
 
 			return new DataResponse($accounts);
 		} catch (\Exception $e) {

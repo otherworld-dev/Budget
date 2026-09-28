@@ -224,7 +224,8 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 		$data = $this->controller->recent()->getData();
 
-		// Exactly the handoff's row shape: flat, merchant-first.
+		// Exactly the handoff's row shape: flat, merchant-first, with the
+		// "capture and check" keys after it (#767).
 		$this->assertSame([[
 			'id' => 20070,
 			'merchant' => 'Tesco',
@@ -232,6 +233,13 @@ class ApiV1TransactionControllerTest extends TestCase {
 			'amount' => '15.00',
 			'currency' => 'GBP',
 			'account_name' => 'Current Account',
+			'account_id' => 36,
+			'type' => 'debit',
+			'category_name' => null,
+			'is_split' => false,
+			'splits' => [],
+			'linked_transaction_id' => null,
+			'linked_account_name' => null,
 		]], $data);
 	}
 
@@ -992,6 +1000,144 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame(5, $data['id']);
 	}
 
+	// ── check: transfer links and split parts on list rows (#767) ──
+
+	public function testRecentHidesTheNameOfATransferAccountTheCallerCannotSee(): void {
+		$this->service->method('findWithFilters')->willReturn(['transactions' => [
+			// Other half in account 44: the owner's, never shared
+			['id' => 1, 'accountId' => 9, 'type' => 'debit', 'amount' => 50.0, 'linkedTransactionId' => 501, 'linkedAccountId' => 44, 'linkedAccountName' => 'Owner savings'],
+			['id' => 2, 'accountId' => 1, 'type' => 'credit', 'amount' => 50.0, 'linkedTransactionId' => 502, 'linkedAccountId' => 2, 'linkedAccountName' => 'Current'],
+		], 'total' => 2]);
+
+		$rows = $this->controller->recent()->getData();
+
+		$this->assertSame(501, $rows[0]['linked_transaction_id']);
+		$this->assertNull($rows[0]['linked_account_name']);
+		$this->assertSame('Current', $rows[1]['linked_account_name']);
+	}
+
+	public function testIndexHidesTheNameOfATransferAccountTheCallerCannotSee(): void {
+		$this->service->method('findWithFilters')->willReturn(['transactions' => [
+			['id' => 1, 'accountId' => 9, 'linkedTransactionId' => 501, 'linkedAccountId' => 44, 'linkedAccountName' => 'Owner savings'],
+		], 'total' => 1]);
+
+		$data = $this->controller->index()->getData();
+
+		$this->assertSame(501, $data['transactions'][0]['linked_transaction_id']);
+		$this->assertNull($data['transactions'][0]['linked_account_name']);
+	}
+
+	public function testRecentCarriesTheSplitPartsOfARow(): void {
+		$this->service->method('findWithFilters')->willReturn(['transactions' => [
+			['id' => 7, 'accountId' => 1, 'type' => 'debit', 'amount' => 4.82, 'isSplit' => true, 'splitCategories' => [
+				['id' => 70, 'transactionId' => 7, 'categoryId' => 12, 'categoryName' => 'Coffee', 'amount' => 3.4, 'description' => 'Flat White'],
+				['id' => 71, 'transactionId' => 7, 'categoryId' => null, 'categoryName' => null, 'amount' => 1.42, 'description' => 'Tax'],
+			]],
+		], 'total' => 1]);
+
+		$row = $this->controller->recent()->getData()[0];
+
+		$this->assertTrue($row['is_split']);
+		$this->assertSame(['Flat White', 'Tax'], array_column($row['splits'], 'description'));
+	}
+
+	// ── check: one transaction's parts and transfer account (#767) ──
+
+	private function checkTransaction(int $id, int $accountId, ?bool $isSplit = false, ?int $linkedId = null): Transaction {
+		$t = new Transaction();
+		$t->setId($id);
+		$t->setAccountId($accountId);
+		$t->setAmount(20.0);
+		$t->setType('debit');
+		$t->setIsSplit($isSplit);
+		$t->setLinkedTransactionId($linkedId);
+		return $t;
+	}
+
+	private function part(int $id, int $transactionId, float $amount, ?string $description): TransactionSplit {
+		$s = new TransactionSplit();
+		$s->setId($id);
+		$s->setTransactionId($transactionId);
+		$s->setAmount($amount);
+		$s->setDescription($description);
+		return $s;
+	}
+
+	public function testSplitsOutsideTheCallersAccountsAreNotFound(): void {
+		$this->service->method('findForAccounts')->willThrowException(new DoesNotExistException('nope'));
+		$this->splitService->expects($this->never())->method('getSplits');
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $this->controller->splits(55)->getStatus());
+	}
+
+	public function testSplitsOnASharedAccountAreReadAsItsOwner(): void {
+		$this->service->method('findForAccounts')->with(55, [1, 2, 9])->willReturn($this->checkTransaction(55, 9, true));
+		$this->granularShareService->method('resolveOwner')->with('user1', 'account', 9)->willReturn('owner1');
+		// getSplits() checks ownership against the id it is given
+		$this->splitService->expects($this->once())->method('getSplits')->with(55, 'owner1')
+			->willReturn([$this->part(1, 55, 12.5, 'Milk'), $this->part(2, 55, 7.5, null)]);
+
+		$response = $this->controller->splits(55);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(['12.50', '7.50'], array_column($response->getData()['splits'], 'amount'));
+	}
+
+	public function testShowCarriesItsPartsAndTheVisibleLinkedAccount(): void {
+		$this->service->method('findForAccounts')->willReturnMap([
+			[55, [1, 2, 9], $this->checkTransaction(55, 9, true, 56)],
+			[56, [1, 2, 9], $this->checkTransaction(56, 2)],
+		]);
+		$this->granularShareService->method('resolveOwner')->willReturn('owner1');
+		$this->splitService->method('getSplits')->willReturn([$this->part(1, 55, 20.0, 'All of it')]);
+		$account = new Account();
+		$account->setName('Current');
+		$this->service->method('findAccountById')->with(2)->willReturn($account);
+
+		$data = $this->controller->show(55)->getData();
+
+		$this->assertTrue($data['is_split']);
+		$this->assertCount(1, $data['splits']);
+		$this->assertSame(56, $data['linked_transaction_id']);
+		$this->assertSame('Current', $data['linked_account_name']);
+	}
+
+	public function testShowHidesALinkedAccountOutsideTheCallersScope(): void {
+		$this->service->method('findForAccounts')->willReturnCallback(function (int $id) {
+			if ($id === 56) {
+				throw new DoesNotExistException('not visible');
+			}
+			return $this->checkTransaction(55, 9, false, 56);
+		});
+
+		$data = $this->controller->show(55)->getData();
+
+		$this->assertSame(56, $data['linked_transaction_id']);
+		$this->assertNull($data['linked_account_name']);
+	}
+
+	public function testShowSkipsTheSplitLookupForAnUnsplitTransaction(): void {
+		$this->service->method('findForAccounts')->willReturn($this->checkTransaction(55, 1, false));
+		$this->splitService->expects($this->never())->method('getSplits');
+
+		$data = $this->controller->show(55)->getData();
+
+		$this->assertFalse($data['is_split']);
+		$this->assertSame([], $data['splits']);
+	}
+
+	public function testShowResolvesAPreSplitColumnRowFromItsParts(): void {
+		// is_split NULL: a row older than the column (#360)
+		$this->service->method('findForAccounts')->willReturn($this->checkTransaction(55, 1, null));
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
+		$this->splitService->method('getSplits')->willReturn([$this->part(1, 55, 10.0, null), $this->part(2, 55, 10.0, null)]);
+
+		$data = $this->controller->show(55)->getData();
+
+		$this->assertTrue($data['is_split']);
+		$this->assertCount(2, $data['splits']);
+	}
+
 	public function testCreateWithoutSplitsSaysNothingAboutThem(): void {
 		$this->params = $this->captureParams([
 			'date' => '2026-08-05',
@@ -1004,7 +1150,8 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 		$data = $this->controller->create()->getData();
 
-		$this->assertArrayNotHasKey('splits', $data);
+		// Not split: no parts and nothing to report about splitting
+		$this->assertSame([], $data['splits']);
 		$this->assertArrayNotHasKey('splits_error', $data);
 	}
 

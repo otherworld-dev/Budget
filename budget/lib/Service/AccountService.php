@@ -349,34 +349,63 @@ class AccountService extends AbstractCrudService {
 	 * @return array[] Array of account data arrays
 	 */
 	public function findAllWithCurrentBalances(string $userId): array {
-		$accounts = $this->findAll($userId);
-
 		// Get future transaction adjustments for all accounts in one query
-		$today = date('Y-m-d');
-		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
-
+		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, date('Y-m-d'));
 		$baseCurrency = $this->conversionService->getBaseCurrency($userId);
 
-		$result = [];
-		foreach ($accounts as $account) {
-			// Calculate balance as of today (stored balance minus future transactions),
-			// at the account currency's precision so crypto keeps its 8dp (#331).
-			$storedBalance = (string)$account->getBalance();
-			$futureChange = (string)($futureChanges[$account->getId()] ?? 0);
-			$balance = MoneyCalculator::subtract($storedBalance, $futureChange, Currency::decimalsFor($account->getCurrency()));
+		return array_map(
+			fn (Account $account) => $this->withCurrentBalance($account, $futureChanges, $baseCurrency, $userId),
+			$this->findAll($userId)
+		);
+	}
 
-			// Convert account to array and override balance with adjusted value
-			$accountData = $account->toArrayMasked();
-			$balanceFloat = MoneyCalculator::toFloat($balance);
-			$accountData['balance'] = $balanceFloat;
-
-			// Add fiat equivalent for non-base-currency accounts
-			$this->addConvertedBalance($accountData, $balanceFloat, $account->getCurrency(), $baseCurrency, $userId);
-
-			$result[] = $accountData;
+	/**
+	 * The accounts shared with $userId, their balances as of today and in
+	 * $userId's base currency, as findAllWithCurrentBalances() gives their
+	 * own. GranularShareService::getSharedAccounts() returns the stored
+	 * balance, which counts future-dated transactions and is never
+	 * converted, so the two lists meant different things (#767).
+	 *
+	 * @return array[]
+	 */
+	public function findSharedWithCurrentBalances(string $userId): array {
+		$ids = $this->granularShareService->getSharedAccountIds($userId);
+		if ($ids === []) {
+			return [];
 		}
+		$futureChanges = $this->transactionMapper->getNetChangeAfterDateForAccounts($ids, date('Y-m-d'));
+		$baseCurrency = $this->conversionService->getBaseCurrency($userId);
 
-		return $result;
+		/** @var AccountMapper $mapper */
+		$mapper = $this->mapper;
+		return array_map(
+			fn (Account $account) => $this->withCurrentBalance($account, $futureChanges, $baseCurrency, $userId) + ['_shared' => true],
+			$mapper->findByIds($ids)
+		);
+	}
+
+	/**
+	 * One account as an array with its balance as of today (stored balance
+	 * minus future transactions), at the account currency's precision so
+	 * crypto keeps its 8dp (#331), plus its base-currency equivalent.
+	 *
+	 * @param array<int, float> $futureChanges account id => net change after today
+	 */
+	private function withCurrentBalance(Account $account, array $futureChanges, string $baseCurrency, string $userId): array {
+		// Floats go to MoneyCalculator as they are: (string) writes a tiny one
+		// in scientific notation ("1.0E-5"), which bcmath refuses outright, so
+		// a crypto account holding dust failed the whole list
+		$storedBalance = (float)($account->getBalance() ?? 0);
+		$futureChange = (float)($futureChanges[$account->getId()] ?? 0);
+		$balance = MoneyCalculator::subtract($storedBalance, $futureChange, Currency::decimalsFor($account->getCurrency()));
+
+		$accountData = $account->toArrayMasked();
+		$balanceFloat = MoneyCalculator::toFloat($balance);
+		$accountData['balance'] = $balanceFloat;
+		// Fiat equivalent for non-base-currency accounts
+		$this->addConvertedBalance($accountData, $balanceFloat, $account->getCurrency(), $baseCurrency, $userId);
+
+		return $accountData;
 	}
 
 	/**
