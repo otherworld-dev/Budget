@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-27 19:39+0000\n"
-"PO-Revision-Date: 2026-09-26 12:51+0000\n"
+"PO-Revision-Date: 2026-09-28 19:08+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -1038,11 +1038,10 @@ msgid "Failed to update category"
 msgstr "Kategorie konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/CategoryController.php:359
-#, fuzzy
-#| msgid "Amounts can only go to subcategories of the project category"
 msgid "Only the owner can add subcategories to a shared category"
 msgstr ""
-"Beträge können nur Unterkategorien der Projektkategorie zugewiesen werden"
+"Nur der Eigentümer kann Unterkategorien zu einer geteilten Kategorie "
+"hinzufügen"
 
 #: /app/lib/Controller/CategoryController.php:382
 msgid "Invalid position"
@@ -9486,21 +9485,25 @@ msgstr "Manuell (unten festlegen)"
 
 #: /app/src/modules/import/ImportModule.js:754
 msgid "Save routing as template…"
-msgstr ""
+msgstr "uordnung als Vorlage speichern …"
 
 #: /app/src/modules/import/ImportModule.js:802
 msgid "This template’s accounts don’t match the uploaded file"
 msgstr ""
+"Die Konten dieser Vorlage stimmen nicht mit der hochgeladenen Datei überein"
 
 #: /app/src/modules/import/ImportModule.js:938
 msgid "Now choose your {app} export file."
-msgstr ""
+msgstr "Wähle jetzt deine {app}-Exportdatei aus."
 
 #: /app/src/modules/import/ImportModule.js:967
 msgid ""
 "This file looks like a {app} export, so that format has been selected. "
 "Choose Custom CSV to map the columns yourself."
 msgstr ""
+"Diese Datei scheint ein {app}-Export zu sein, daher wurde dieses Format "
+"ausgewählt. Wähle „Benutzerdefinierte CSV-Datei“, um die Spalten selbst "
+"zuzuordnen."
 
 #: /app/src/modules/import/ImportModule.js:1013
 msgid "%n record"
@@ -9516,17 +9519,19 @@ msgstr "Rechnungen erkennen"
 
 #: /app/src/modules/import/ImportModule.js:1124
 msgid "Reading this file as {encoding}."
-msgstr ""
+msgstr "Diese Datei wird als {encoding} gelesen."
 
 #: /app/src/modules/import/ImportModule.js:1126
 msgid "Unicode (UTF-8)"
-msgstr ""
+msgstr "Unicode (UTF-8)"
 
 #: /app/src/modules/import/ImportModule.js:1125
 msgid ""
 "Detected {encoding}. Change this if accented or non-Latin characters look "
 "wrong in the preview below."
 msgstr ""
+"{encoding} erkannt. Ändere diese Einstellung, wenn Sonderzeichen oder nicht-"
+"lateinische Zeichen in der Vorschau unten falsch dargestellt werden."
 
 #: /app/src/modules/import/ImportModule.js:1539
 msgid "Please select a file first"
@@ -9561,7 +9566,7 @@ msgstr "Zu erstellende Konten:"
 
 #: /app/src/modules/import/ImportModule.js:1790
 msgid "Existing accounts matched:"
-msgstr ""
+msgstr "Übereinstimmende vorhandene Konten:"
 
 #: /app/src/modules/import/ImportModule.js:1813
 msgid "Categories to create:"
@@ -9569,13 +9574,16 @@ msgstr "Zu erstellende Kategorien:"
 
 #: /app/src/modules/import/ImportModule.js:1816
 msgid "{count} transfer rows will be skipped"
-msgstr ""
+msgstr "{count} Zeilen mit Umbuchungen werden übersprungen"
 
 #: /app/src/modules/import/ImportModule.js:1817
 msgid ""
 "{count} split total rows will be skipped; the parts of each split are "
 "imported instead"
 msgstr ""
+"{count} Zeilen mit der Gesamtsumme aufgeteilter Transaktionen werden "
+"übersprungen; stattdessen werden die einzelnen Teile jeder Aufteilung "
+"importiert"
 
 #: /app/src/modules/import/ImportModule.js:1881
 msgid "This import will create %n new account"
@@ -9589,6 +9597,10 @@ msgid ""
 "Account. Go back and check the column mapping - importing now would leave "
 "you an account per date to clean up."
 msgstr ""
+"Die Namen sehen wie Datumsangaben aus. Daher wurde die Datumsspalte "
+"wahrscheinlich dem Konto zugeordnet. Gehe zurück und überprüfe die "
+"Spaltenzuordnung – wenn du jetzt importierst, wird für jedes Datum ein "
+"eigenes Konto angelegt, das du anschließend wieder bereinigen musst."
 
 #: /app/src/modules/import/ImportModule.js:1891
 msgid ""
@@ -9596,6 +9608,9 @@ msgid ""
 "Account. If that is more than you expected, go back and check the column "
 "mapping before importing."
 msgstr ""
+"Für jeden unterschiedlichen Wert in der dem Konto zugeordneten Spalte wird "
+"ein eigenes Konto erstellt. Wenn das mehr Konten sind als erwartet, gehe "
+"zurück und überprüfe die Spaltenzuordnung, bevor du den Import startest."
 
 #: /app/src/modules/import/ImportModule.js:1920
 #, fuzzy
@@ -9606,6 +9621,8 @@ msgstr "Konto überspringen"
 #: /app/src/modules/import/ImportModule.js:1925
 msgid "{matching} of {total} rows have no usable transaction type"
 msgstr ""
+"Bei {matching} von {total} Zeilen ist kein verwendbarer Transaktionstyp "
+"vorhanden"
 
 #: /app/src/modules/import/ImportModule.js:1929
 msgid ""
@@ -10823,16 +10840,12 @@ msgid "Regular expression: {source} → {target}"
 msgstr ""
 
 #: /app/src/modules/rules/RulesModule.js:274
-#, fuzzy
-#| msgid "Tag deleted"
 msgid "Case change on {field}"
-msgstr "Schlagwort gelöscht"
+msgstr "Groß-/Kleinschreibung bei {field} ändern"
 
 #: /app/src/modules/rules/RulesModule.js:277
-#, fuzzy
-#| msgid "Replace notes"
 msgid "Replace in {field}"
-msgstr "Notizen ersetzen"
+msgstr "In {field} ersetzen"
 
 #: /app/src/modules/rules/RulesModule.js:300
 msgid "No actions"
@@ -11257,10 +11270,8 @@ msgid "Field"
 msgstr "Übereinstimmungsfeld"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:212
-#, fuzzy
-#| msgid "Behavior:"
 msgid "Behavior"
-msgstr "Verhalten:"
+msgstr "Verhalten"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:213
 #: /app/src/modules/rules/components/ActionBuilder.js:287
@@ -11303,10 +11314,8 @@ msgstr ""
 #: /app/src/modules/rules/components/ActionBuilder.js:231
 #: /app/src/modules/rules/components/ActionBuilder.js:254
 #: /app/src/modules/rules/components/ActionBuilder.js:255
-#, fuzzy
-#| msgid "Match Field"
 msgid "Field:"
-msgstr "Übereinstimmungsfeld"
+msgstr "Feld:"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:239
 #: /app/src/modules/rules/components/ActionBuilder.js:240
@@ -11342,10 +11351,8 @@ msgstr "z.B. 15"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:266
 #: /app/src/modules/rules/components/ActionBuilder.js:267
-#, fuzzy
-#| msgid "Replace notes"
 msgid "Replace:"
-msgstr "Notizen ersetzen"
+msgstr "Ersetzen:"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:268
 #, fuzzy
