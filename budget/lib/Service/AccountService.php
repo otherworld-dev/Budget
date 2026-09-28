@@ -376,9 +376,11 @@ class AccountService extends AbstractCrudService {
 		$futureChanges = $this->transactionMapper->getNetChangeAfterDateForAccounts($ids, date('Y-m-d'));
 		$baseCurrency = $this->conversionService->getBaseCurrency($userId);
 
+		/** @var AccountMapper $mapper */
+		$mapper = $this->mapper;
 		return array_map(
 			fn (Account $account) => $this->withCurrentBalance($account, $futureChanges, $baseCurrency, $userId) + ['_shared' => true],
-			$this->mapper->findByIds($ids)
+			$mapper->findByIds($ids)
 		);
 	}
 

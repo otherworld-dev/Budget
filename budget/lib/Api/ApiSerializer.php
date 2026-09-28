@@ -265,7 +265,7 @@ final class ApiSerializer {
 				'spent' => self::money($totals['spent'] ?? 0),
 				'remaining' => self::money($totals['remaining'] ?? 0),
 			],
-			'categories' => self::map($status['categories'] ?? [], [self::class, 'budgetLine']),
+			'categories' => array_values(array_map([self::class, 'budgetLine'], $status['categories'] ?? [])),
 		];
 	}
 
