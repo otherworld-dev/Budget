@@ -247,6 +247,50 @@ final class ApiSerializer {
 		return $out;
 	}
 
+	/**
+	 * GET /budget/status (#767): a month's budget, figure for figure as the
+	 * web Budget page shows it. `totals` covers expense categories only;
+	 * `categories` lists every budgeted row, income included.
+	 */
+	public static function budgetStatus(array $status): array {
+		$totals = $status['totals'] ?? [];
+
+		return [
+			'month' => (string)($status['month'] ?? ''),
+			'start_date' => $status['startDate'] ?? null,
+			'end_date' => $status['endDate'] ?? null,
+			'currency' => $status['currency'] ?? null,
+			'totals' => [
+				'budgeted' => self::money($totals['budgeted'] ?? 0),
+				'spent' => self::money($totals['spent'] ?? 0),
+				'remaining' => self::money($totals['remaining'] ?? 0),
+			],
+			'categories' => self::map($status['categories'] ?? [], [self::class, 'budgetLine']),
+		];
+	}
+
+	/**
+	 * One budgeted category of GET /budget/status. `budgeted` includes any
+	 * envelope carry-over, which `carried` repeats for context; a parent's
+	 * figures cover its branch, as on the page. `parent_id` is its parent on
+	 * the page, which for a shared category can differ from where it is
+	 * stored.
+	 */
+	public static function budgetLine(array $line): array {
+		return [
+			'category_id' => (int)($line['categoryId'] ?? 0),
+			'name' => (string)($line['name'] ?? ''),
+			'parent_id' => isset($line['parentId']) ? (int)$line['parentId'] : null,
+			'type' => (string)($line['type'] ?? ''),
+			'period' => (string)($line['period'] ?? 'monthly'),
+			'budgeted' => self::money($line['budgeted'] ?? 0),
+			'carried' => self::money($line['carried'] ?? 0),
+			'spent' => self::money($line['spent'] ?? 0),
+			'remaining' => self::money($line['remaining'] ?? 0),
+			'shared' => (bool)($line['shared'] ?? false),
+		];
+	}
+
 	private static function toArray(Entity|array $value): array {
 		if (is_array($value)) {
 			return $value;

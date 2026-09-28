@@ -335,6 +335,34 @@ class ApiSerializerTest extends TestCase {
 		);
 	}
 
+	// ── budget status (#767) ───────────────────────────────────────
+
+	public function testBudgetStatusKeysAreFixed(): void {
+		$result = ApiSerializer::budgetStatus(['month' => '2026-09']);
+
+		$this->assertSame(['month', 'start_date', 'end_date', 'currency', 'totals', 'categories'], array_keys($result));
+		$this->assertSame(['budgeted', 'spent', 'remaining'], array_keys($result['totals']));
+	}
+
+	public function testBudgetLineKeysAreFixed(): void {
+		$this->assertSame([
+			'category_id', 'name', 'parent_id', 'type', 'period',
+			'budgeted', 'carried', 'spent', 'remaining', 'shared',
+		], array_keys(ApiSerializer::budgetLine([])));
+	}
+
+	public function testBudgetStatusAmountsAreMoneyStrings(): void {
+		$result = ApiSerializer::budgetStatus([
+			'month' => '2026-09',
+			'totals' => ['budgeted' => '525.333333', 'spent' => '1220.000000', 'remaining' => '-694.666667'],
+			'categories' => [['categoryId' => 12, 'budgeted' => '400.000000', 'spent' => '431.2', 'remaining' => '-31.2', 'carried' => '0']],
+		]);
+
+		$this->assertSame(['budgeted' => '525.33', 'spent' => '1220.00', 'remaining' => '-694.67'], $result['totals']);
+		$this->assertSame('-31.20', $result['categories'][0]['remaining']);
+		$this->assertSame(12, $result['categories'][0]['category_id']);
+	}
+
 	// ── receipts ────────────────────────────────────────────────────
 
 	public function testAttachmentKeysAreFixed(): void {
