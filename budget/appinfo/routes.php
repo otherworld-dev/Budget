@@ -465,6 +465,7 @@ return [
 
 		// "Capture and check" (#767): read-only figures for the phone.
 		['name' => 'apiV1Budget#status', 'url' => '/api/v1/budget/status', 'verb' => 'GET'],
+		['name' => 'apiV1Bill#upcoming', 'url' => '/api/v1/bills/upcoming', 'verb' => 'GET'],
 
 		['name' => 'apiV1Transaction#index', 'url' => '/api/v1/transactions', 'verb' => 'GET'],
 		['name' => 'apiV1Transaction#create', 'url' => '/api/v1/transactions', 'verb' => 'POST'],

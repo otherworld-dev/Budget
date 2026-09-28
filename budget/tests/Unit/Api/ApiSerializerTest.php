@@ -363,6 +363,30 @@ class ApiSerializerTest extends TestCase {
 		$this->assertSame(12, $result['categories'][0]['category_id']);
 	}
 
+	// ── bills (#767) ───────────────────────────────────────────────
+
+	public function testBillKeysAreFixed(): void {
+		$this->assertSame([
+			'id', 'name', 'amount', 'amount_type', 'currency', 'frequency', 'next_due_date',
+			'overdue', 'account_id', 'account_name', 'category_id', 'is_transfer', 'auto_pay', 'shared',
+		], array_keys(ApiSerializer::bill(['id' => 1])));
+	}
+
+	public function testBillMapsTheServiceRow(): void {
+		$result = ApiSerializer::bill([
+			'id' => '3', 'name' => 'Netflix', 'amount' => 12.99, 'amountType' => 'fixed', 'currency' => 'GBP',
+			'frequency' => 'monthly', 'nextDueDate' => '2026-09-28', 'overdue' => false, 'accountId' => 1,
+			'accountName' => 'Current account', 'categoryId' => 9, 'isTransfer' => false, 'autoPayEnabled' => true,
+			'_shared' => true, 'userId' => 'owner1', 'paidUndoState' => 'x',
+		]);
+
+		$this->assertSame(3, $result['id']);
+		$this->assertSame('12.99', $result['amount']);
+		$this->assertTrue($result['auto_pay']);
+		$this->assertTrue($result['shared']);
+		$this->assertArrayNotHasKey('userId', $result);
+	}
+
 	// ── receipts ────────────────────────────────────────────────────
 
 	public function testAttachmentKeysAreFixed(): void {

@@ -291,6 +291,32 @@ final class ApiSerializer {
 		];
 	}
 
+	/**
+	 * One bill of GET /bills/upcoming (#767). `amount` is the stored figure:
+	 * for an `amount_type` other than 'fixed' the real one is only worked
+	 * out from the card's statement when the bill is paid.
+	 */
+	public static function bill(Entity|array $bill): array {
+		$b = self::toArray($bill);
+
+		return [
+			'id' => (int)($b['id'] ?? 0),
+			'name' => (string)($b['name'] ?? ''),
+			'amount' => self::money($b['amount'] ?? 0),
+			'amount_type' => (string)($b['amountType'] ?? 'fixed'),
+			'currency' => $b['currency'] ?? null,
+			'frequency' => (string)($b['frequency'] ?? ''),
+			'next_due_date' => $b['nextDueDate'] ?? null,
+			'overdue' => (bool)($b['overdue'] ?? false),
+			'account_id' => isset($b['accountId']) ? (int)$b['accountId'] : null,
+			'account_name' => $b['accountName'] ?? null,
+			'category_id' => isset($b['categoryId']) ? (int)$b['categoryId'] : null,
+			'is_transfer' => (bool)($b['isTransfer'] ?? false),
+			'auto_pay' => (bool)($b['autoPayEnabled'] ?? false),
+			'shared' => (bool)($b['_shared'] ?? false),
+		];
+	}
+
 	private static function toArray(Entity|array $value): array {
 		if (is_array($value)) {
 			return $value;
