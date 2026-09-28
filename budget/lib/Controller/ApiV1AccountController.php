@@ -7,7 +7,6 @@ namespace OCA\Budget\Controller;
 use OCA\Budget\Api\ApiSerializer;
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\AccountService;
-use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\DataResponse;
@@ -29,7 +28,6 @@ class ApiV1AccountController extends OCSController {
 	public function __construct(
 		IRequest $request,
 		private AccountService $service,
-		private GranularShareService $granularShareService,
 		private IL10N $l,
 		?string $userId,
 		LoggerInterface $logger,
@@ -42,14 +40,17 @@ class ApiV1AccountController extends OCSController {
 	}
 
 	/**
-	 * The user's own accounts (balance adjusted to today) plus every account
-	 * shared with them, each flagged so a client can tell them apart.
+	 * The user's own accounts plus every account shared with them, each
+	 * flagged so a client can tell them apart, and every balance adjusted to
+	 * today and converted the same way whoever owns the account.
 	 */
 	#[NoAdminRequired]
 	public function index(): DataResponse {
 		try {
-			$accounts = $this->service->findAllWithCurrentBalances($this->userId);
-			$accounts = array_merge($accounts, $this->granularShareService->getSharedAccounts($this->userId));
+			$accounts = array_merge(
+				$this->service->findAllWithCurrentBalances($this->userId),
+				$this->service->findSharedWithCurrentBalances($this->userId)
+			);
 
 			return new DataResponse(ApiSerializer::map($accounts, [ApiSerializer::class, 'account']));
 		} catch (\Exception $e) {
