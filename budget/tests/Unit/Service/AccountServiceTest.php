@@ -111,6 +111,26 @@ class AccountServiceTest extends TestCase {
 		$this->assertSame('GBP', $account['baseCurrency']);
 	}
 
+	/**
+	 * (string) of a tiny float is scientific notation ("1.0E-5"), which bcmath
+	 * refuses with a ValueError that nothing catches, so one crypto account
+	 * holding dust, or a float residue in the future-change sum, failed the
+	 * whole accounts list.
+	 */
+	public function testTinyBalancesAndFloatResiduesDoNotBreakTheList(): void {
+		$dust = new Account();
+		$dust->setId(9);
+		$dust->setCurrency('BTC');
+		$dust->setBalance(0.00001);
+		$this->transactionMapper->method('getNetChangeAfterDateForAccounts')->willReturn([9 => 0.1 + 0.2 - 0.3]);
+		$this->accountMapper->method('findByIds')->willReturn([$dust]);
+		$this->conversionService->method('getBaseCurrency')->willReturn('BTC');
+
+		$account = $this->serviceSharing([9])->findSharedWithCurrentBalances('user1')[0];
+
+		$this->assertSame(0.00001, $account['balance']);
+	}
+
 	public function testNoSharedAccountsMeansNoQueries(): void {
 		$this->granularShareService->method('getSharedAccountIds')->willReturn([]);
 		$this->transactionMapper->expects($this->never())->method('getNetChangeAfterDateForAccounts');

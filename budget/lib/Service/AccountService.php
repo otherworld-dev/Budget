@@ -392,8 +392,11 @@ class AccountService extends AbstractCrudService {
 	 * @param array<int, float> $futureChanges account id => net change after today
 	 */
 	private function withCurrentBalance(Account $account, array $futureChanges, string $baseCurrency, string $userId): array {
-		$storedBalance = (string)$account->getBalance();
-		$futureChange = (string)($futureChanges[$account->getId()] ?? 0);
+		// Floats go to MoneyCalculator as they are: (string) writes a tiny one
+		// in scientific notation ("1.0E-5"), which bcmath refuses outright, so
+		// a crypto account holding dust failed the whole list
+		$storedBalance = (float)($account->getBalance() ?? 0);
+		$futureChange = (float)($futureChanges[$account->getId()] ?? 0);
 		$balance = MoneyCalculator::subtract($storedBalance, $futureChange, Currency::decimalsFor($account->getCurrency()));
 
 		$accountData = $account->toArrayMasked();
