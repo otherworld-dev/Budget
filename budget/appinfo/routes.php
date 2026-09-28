@@ -470,6 +470,7 @@ return [
 		['name' => 'apiV1Transaction#show', 'url' => '/api/v1/transactions/{id}', 'verb' => 'GET'],
 		// Per-item splits, for capture apps that read a receipt and let the
 		// user categorise each line. Additive to v1.
+		['name' => 'apiV1Transaction#splits', 'url' => '/api/v1/transactions/{id}/splits', 'verb' => 'GET'],
 		['name' => 'apiV1Transaction#createSplits', 'url' => '/api/v1/transactions/{id}/splits', 'verb' => 'POST'],
 		['name' => 'apiV1Transaction#receipts', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'GET'],
 		['name' => 'apiV1Transaction#uploadReceipt', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'POST'],
