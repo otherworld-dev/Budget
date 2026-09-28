@@ -45,6 +45,14 @@
     {
       "name": "receipts",
       "description": "Receipt extraction (capture-before-save)"
+    },
+    {
+      "name": "budgets",
+      "description": "Read-only budget figures"
+    },
+    {
+      "name": "bills",
+      "description": "Read-only bills"
     }
   ],
   "paths": {
@@ -419,7 +427,7 @@
         ],
         "operationId": "getTransaction",
         "summary": "Get one transaction",
-        "description": "From any account the user can see. The joined accountName / accountCurrency / categoryName fields are not included here.",
+        "description": "From any account the user can see. The joined account_name / account_currency / category_name fields are not included here; splits and the transfer link (linked_transaction_id, linked_account_name) are.",
         "responses": {
           "200": {
             "description": "The transaction",
@@ -792,6 +800,62 @@
       }
     },
     "/transactions/{id}/splits": {
+      "get": {
+        "tags": [
+          "transactions"
+        ],
+        "operationId": "getSplits",
+        "summary": "A transaction's split parts",
+        "description": "The same parts list rows carry inline as `splits`; [] when the transaction isn't split. On a shared account the parts are read as the account's owner.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The parts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/SplitsEnvelope"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          }
+        }
+      },
       "post": {
         "summary": "Split a transaction into per-category parts",
         "description": "Replaces any existing splits. The parts must sum to the transaction amount and there must be at least two. Intended for capture apps that read a receipt and let the user categorise each item.\n\nOwner-scoped: on a shared account the splits are written to the account owner's ledger, like the transaction and its receipts.",
@@ -892,6 +956,124 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/budget/status": {
+      "get": {
+        "tags": [
+          "budgets"
+        ],
+        "operationId": "getBudgetStatus",
+        "summary": "How much of a month's budget is left",
+        "description": "Each budgeted category and the expense totals for a budget month, the same figures the web Budget page shows for that user and month, including categories shared with them.",
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "example": "2026-09"
+            },
+            "description": "YYYY-MM. Omitted or empty, the budget month running today, which follows the user's budget start day."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The month's budget",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/BudgetStatus"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          }
+        }
+      }
+    },
+    "/bills/upcoming": {
+      "get": {
+        "tags": [
+          "bills"
+        ],
+        "operationId": "listUpcomingBills",
+        "summary": "Bills overdue or due soon",
+        "description": "Active bills that are overdue or due within `days`, the user's own and those shared with them.",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 14,
+              "minimum": 1,
+              "maximum": 90
+            },
+            "description": "Clamped to 1-90; a non-numeric value gets the default."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Upcoming bills",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/UpcomingBills"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
           }
         }
       }
@@ -1146,6 +1328,14 @@
               "receipt_upload": {
                 "type": "boolean"
               },
+              "budget_status": {
+                "type": "boolean",
+                "description": "GET /budget/status."
+              },
+              "upcoming_bills": {
+                "type": "boolean",
+                "description": "GET /bills/upcoming."
+              },
               "receipt_ocr": {
                 "type": "boolean",
                 "description": "Server-side receipt extraction (POST /ocr/extract). True only when the administrator has configured an OCR provider; can flip either way as the server configuration changes."
@@ -1380,6 +1570,18 @@
             "type": "string",
             "nullable": true
           },
+          "linked_transaction_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 20071,
+            "description": "The other half of a transfer: the matching transaction in the other account. Null when this isn't a linked transfer."
+          },
+          "linked_account_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Savings",
+            "description": "The name of the account the other half sits in, only when the caller can see that account (their own, or shared with them). Null otherwise, even when linked_transaction_id is set."
+          },
           "account_name": {
             "type": "string",
             "description": "List responses only."
@@ -1399,10 +1601,10 @@
           },
           "splits": {
             "type": "array",
-            "description": "Present on a create that supplied splits and they were accepted.",
             "items": {
               "$ref": "#/components/schemas/Split"
-            }
+            },
+            "description": "The parts of a split transaction, [] when it isn't split. On a create that supplied splits and they were accepted, the parts just created."
           },
           "splits_error": {
             "type": "string",
@@ -1664,6 +1866,11 @@
             "description": "Whether this server accepts per-item splits. Absent on older servers; treat absence as false.",
             "example": true
           },
+          "check_available": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether this server has the read-only check routes: GET /budget/status, GET /bills/upcoming, GET /transactions/{id}/splits, and transfer links and split parts on transactions. Absent on older servers; treat absence as false."
+          },
           "currency": {
             "type": "string",
             "example": "GBP",
@@ -1717,6 +1924,46 @@
             "type": "string",
             "nullable": true,
             "example": "Current Account"
+          },
+          "account_id": {
+            "type": "integer",
+            "example": 36
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "debit",
+              "credit"
+            ],
+            "description": "debit is money out, credit is money in. amount stays positive."
+          },
+          "category_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Groceries",
+            "description": "Null when uncategorised or split; a split's categories are on its parts."
+          },
+          "is_split": {
+            "type": "boolean"
+          },
+          "splits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Split"
+            },
+            "description": "The parts of a split transaction, [] when it isn't split."
+          },
+          "linked_transaction_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 20071,
+            "description": "The other half of a transfer: the matching transaction in the other account. Null when this isn't a linked transfer."
+          },
+          "linked_account_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Savings",
+            "description": "The name of the account the other half sits in, only when the caller can see that account (their own, or shared with them). Null otherwise, even when linked_transaction_id is set."
           }
         }
       },
@@ -1787,6 +2034,212 @@
             "items": {
               "$ref": "#/components/schemas/Split"
             }
+          }
+        }
+      },
+      "BudgetLine": {
+        "type": "object",
+        "description": "One budgeted category, with the figures the web Budget page shows on its row. A parent's figures cover its branch, as on the page.",
+        "properties": {
+          "category_id": {
+            "type": "integer",
+            "example": 12
+          },
+          "name": {
+            "type": "string",
+            "example": "Groceries"
+          },
+          "parent_id": {
+            "type": "integer",
+            "nullable": true,
+            "description": "The row's parent on the Budget page. For a shared category this can differ from where it is stored: a shared category whose parent isn't shared sits at the top."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "expense",
+              "income"
+            ]
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "weekly",
+              "monthly",
+              "quarterly",
+              "yearly"
+            ],
+            "description": "The period the budget is set for. budgeted and spent are for this period: a weekly budget covers the week holding the month's 15th, a quarterly one the calendar quarter and a yearly one the calendar year."
+          },
+          "budgeted": {
+            "type": "string",
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "example": "400.00",
+            "description": "The budget for the period, including any envelope carry-over."
+          },
+          "carried": {
+            "type": "string",
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "example": "0.00",
+            "description": "Envelope carry-over into this month, already included in budgeted."
+          },
+          "spent": {
+            "type": "string",
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "example": "431.20",
+            "description": "Net of refunds, so it can be negative."
+          },
+          "remaining": {
+            "type": "string",
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "example": "-31.20",
+            "description": "budgeted minus spent; negative when overspent."
+          },
+          "shared": {
+            "type": "boolean",
+            "description": "A category someone else shared with the user; its budget is theirs."
+          }
+        }
+      },
+      "BudgetStatus": {
+        "type": "object",
+        "description": "A month's budget, figure for figure as the web Budget page shows it.",
+        "properties": {
+          "month": {
+            "type": "string",
+            "example": "2026-09"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-09-01",
+            "description": "The budget month's first day, which follows the user's budget start day."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-09-30"
+          },
+          "currency": {
+            "type": "string",
+            "example": "GBP",
+            "description": "The user's base currency. Amounts are added up as stored, with no conversion, as on the Budget page."
+          },
+          "totals": {
+            "type": "object",
+            "description": "The Budget page's summary cards, for expense categories only. budgeted is each budgeted category's budget turned into a monthly amount; spent is the spending of every expense category, budgeted or not, each over its own period.",
+            "properties": {
+              "budgeted": {
+                "type": "string",
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "example": "1450.00"
+              },
+              "spent": {
+                "type": "string",
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "example": "912.40"
+              },
+              "remaining": {
+                "type": "string",
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "example": "537.60",
+                "description": "budgeted minus spent; an overspent category reduces it."
+              }
+            }
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BudgetLine"
+            },
+            "description": "Every category with a budget, in the Budget page's order. Income categories are listed but left out of totals."
+          }
+        }
+      },
+      "Bill": {
+        "type": "object",
+        "description": "One bill due soon or overdue.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 3
+          },
+          "name": {
+            "type": "string",
+            "example": "Netflix"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "example": "12.99",
+            "description": "The stored amount. For an amount_type other than fixed, the real figure is only worked out from the card's statement when the bill is paid."
+          },
+          "amount_type": {
+            "type": "string",
+            "example": "fixed",
+            "description": "fixed, statement, current_balance or minimum_payment."
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true,
+            "example": "GBP",
+            "description": "The currency of the bill's account, else its owner's base currency."
+          },
+          "frequency": {
+            "type": "string",
+            "example": "monthly"
+          },
+          "next_due_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-09-28"
+          },
+          "overdue": {
+            "type": "boolean",
+            "description": "next_due_date is before today."
+          },
+          "account_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "account_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Current account",
+            "description": "Only when the caller can see that account, else null."
+          },
+          "category_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 9
+          },
+          "is_transfer": {
+            "type": "boolean"
+          },
+          "auto_pay": {
+            "type": "boolean"
+          },
+          "shared": {
+            "type": "boolean",
+            "description": "A bill someone else shared with the user."
+          }
+        }
+      },
+      "UpcomingBills": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "integer",
+            "example": 14,
+            "description": "The window actually used, after defaulting and clamping."
+          },
+          "bills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Bill"
+            },
+            "description": "Overdue first, then by next_due_date."
           }
         }
       }
