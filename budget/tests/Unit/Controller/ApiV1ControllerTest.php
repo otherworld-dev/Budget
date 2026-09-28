@@ -102,6 +102,7 @@ class ApiV1ControllerTest extends TestCase {
 		$this->assertSame([
 			'ocr_available' => true,
 			'splits_available' => true,
+			'check_available' => true,
 			'currency' => 'GBP',
 			'version' => '2.41.0',
 		], $data);
@@ -119,6 +120,21 @@ class ApiV1ControllerTest extends TestCase {
 		$this->assertTrue($data['splits_available']);
 		// Splits do not depend on OCR being set up — a user can split by hand.
 		$this->assertFalse($data['ocr_available']);
+	}
+
+	public function testCapabilitiesAnnounceTheCheckScreens(): void {
+		// Gates the phone's read-only screens (#767) the way splits_available
+		// gates its split editor; an older server omits it
+		$this->appManager->method('getAppVersion')->willReturn('2.41.0');
+
+		$this->assertTrue($this->controller->capabilities()->getData()['check_available']);
+	}
+
+	public function testInfoListsTheCheckFeatures(): void {
+		$features = $this->controller->info()->getData()['features'];
+
+		$this->assertTrue($features['budget_status']);
+		$this->assertTrue($features['upcoming_bills']);
 	}
 
 	public function testUnauthenticatedConstructionDoesNotFatal(): void {

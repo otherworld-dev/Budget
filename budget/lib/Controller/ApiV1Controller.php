@@ -61,6 +61,8 @@ class ApiV1Controller extends OCSController {
 				'transactions' => true,
 				'create_transaction' => true,
 				'receipt_upload' => true,
+				'budget_status' => true,
+				'upcoming_bills' => true,
 				// Server-side receipt extraction (#533): true only when this
 				// instance has an OCR provider configured AND usable, so the
 				// capture flow never appears on a server that cannot serve it.
@@ -92,6 +94,11 @@ class ApiV1Controller extends OCSController {
 			// gate. An older server omits the key entirely, and a client
 			// reading it as false gets exactly the right behaviour.
 			'splits_available' => true,
+			// Whether this server has the read-only "check" routes (#767):
+			// budget/status, bills/upcoming, and splits and transfer links on
+			// transactions. Hard-coded like splits_available, for the same
+			// reason; an older server omits it and a client reads false.
+			'check_available' => true,
 			'currency' => $this->conversionService->getBaseCurrency($this->userId),
 			'version' => $this->appVersion(),
 		]);
