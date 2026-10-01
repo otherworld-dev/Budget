@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-28 18:20+0000\n"
-"PO-Revision-Date: 2026-09-26 17:27+0000\n"
+"PO-Revision-Date: 2026-10-02 06:51+0000\n"
 "Last-Translator: Christophe <tophe.perso@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 2026.10.dev0\n"
+"X-Generator: Weblate 2026.10\n"
 
 #: /app/lib/Controller/AccountController.php:82
 #: /app/lib/Controller/ApiV1AccountController.php:56
@@ -738,6 +738,8 @@ msgstr "Impossible de modifierla facture"
 #: /app/lib/Controller/RecurringIncomeController.php:354
 msgid "Deleting a shared item needs Full control from its owner"
 msgstr ""
+"Pour supprimer un élément partagé, son propriétaire doit disposer de "
+"l'autorisation \"Contrôle total\""
 
 #: /app/lib/Controller/BillController.php:776
 msgid "Failed to find matching transactions"
@@ -1039,14 +1041,14 @@ msgstr "Échec de la mise à jour de la catégorie"
 #: /app/lib/Controller/CategoryController.php:384
 msgid "A category can only be moved under another category with the same owner"
 msgstr ""
+"Une catégorie ne peut être déplacée que sous une autre catégorie appartenant "
+"au même propriétaire"
 
 #: /app/lib/Controller/CategoryController.php:393
-#, fuzzy
-#| msgid "Amounts can only go to subcategories of the project category"
 msgid "Only the owner can add subcategories to a shared category"
 msgstr ""
-"Les montants ne peuvent être affectés qu'aux sous-catégories de la catégorie "
-"« projet »"
+"Seul le propriétaire peut ajouter des sous-catégories à une catégorie "
+"partagée"
 
 #: /app/lib/Controller/CategoryController.php:438
 #: /app/lib/Controller/CategoryController.php:697
@@ -1063,12 +1065,8 @@ msgstr "Période budgétaire non valide"
 
 #: /app/lib/Controller/CategoryController.php:454
 #: /app/src/modules/categories/CategoriesModule.js:2374
-#, fuzzy
-#| msgid "Amounts can only go to subcategories of the project category"
 msgid "Only the owner can change the budget of a shared category"
-msgstr ""
-"Les montants ne peuvent être affectés qu'aux sous-catégories de la catégorie "
-"« projet »"
+msgstr "Seul le propriétaire peut modifier le budget d'une catégorie partagée"
 
 #: /app/lib/Controller/CategoryController.php:500
 msgid "Invalid position"
@@ -3218,10 +3216,8 @@ msgid "A category cannot be nested inside itself"
 msgstr "Une catégorie ne peut pas être imbriquée en elle-même"
 
 #: /app/lib/Service/CategoryService.php:212
-#, fuzzy
-#| msgid "Category not found"
 msgid "Parent category not found"
-msgstr "Catégorie introuvable"
+msgstr "Catégorie parent introuvable"
 
 #: /app/lib/Service/CategoryService.php:238
 msgid ""
@@ -3232,20 +3228,16 @@ msgstr ""
 "Veuillez d'abord les réaffecter ou les supprimer."
 
 #: /app/lib/Service/CategoryService.php:305
-#, fuzzy
-#| msgid "Only the category owner can delete it"
 msgid "This category has subcategories, so only its owner can delete it"
-msgstr "Seul le propriétaire de la catégorie peut la supprimer"
+msgstr ""
+"Cette catégorie comporte des sous-catégories ; par conséquent, seul son "
+"propriétaire peut la supprimer"
 
 #: /app/lib/Service/CategoryService.php:308
-#, fuzzy
-#| msgid ""
-#| "This category still has transactions assigned to it. Move them to "
-#| "Uncategorized and delete \"{name}\"?"
 msgid "This category has transactions, so only its owner can delete it"
 msgstr ""
-"Cette catégorie contient encore des opérations qui lui sont affectées. "
-"Souhaitez-vous les déplacer vers « Non classé » et supprimer « {name} » ?"
+"Cette catégorie contient des transactions ; par conséquent, seul son "
+"propriétaire peut la supprimer"
 
 #: /app/lib/Service/CategoryService.php:407
 #, php-format
@@ -4868,14 +4860,8 @@ msgid "Close"
 msgstr "Fermer"
 
 #: /app/src/main.js:224
-#, fuzzy
-#| msgid ""
-#| "Your session has expired, so categories could not be loaded. Reload the "
-#| "page to restore them."
 msgid "This page could not be loaded. Reload the page to try again."
-msgstr ""
-"Votre session a expiré, les catégories n'ont donc pas pu être chargées. "
-"Rechargez la page pour les rétablir."
+msgstr "Cette page n'a pas pu être chargée. Actualisez la page pour réessayer."
 
 #: /app/src/main.js:520 /app/src/modules/import/ImportModule.js:1991
 #: /app/src/modules/import/ImportModule.js:2031
@@ -6515,10 +6501,8 @@ msgstr "Le consentement expire le : {date}"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:755
 #: /app/src/modules/import/ImportModule.js:2168
-#, fuzzy
-#| msgid "Budgets adjusted from {month}"
 msgid "Budget account for {account}"
-msgstr "Budgets ajustés à partir de {month}"
+msgstr "Compte budgétaire pour {account}"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:756
 msgid "— Not mapped —"
@@ -7190,26 +7174,20 @@ msgid "Failed to load categories"
 msgstr "Échec du chargement des catégories"
 
 #: /app/src/modules/categories/CategoriesModule.js:321
-#, fuzzy
-#| msgid "Collapse all"
 msgid "Collapse"
-msgstr "Tout réduire"
+msgstr "Réduire"
 
 #: /app/src/modules/categories/CategoriesModule.js:321
-#, fuzzy
-#| msgid "Expand all"
 msgid "Expand"
-msgstr "Tout développer"
+msgstr "Développer"
 
 #: /app/src/modules/categories/CategoriesModule.js:334
-#, fuzzy
-#| msgid "Shared by {owner} — you can edit"
 msgid "Shared by {owner} — you have full control"
-msgstr "Partagé par {owner} — vous pouvez modifier"
+msgstr "Partagé par {owner} — vous disposez d'un contrôle total"
 
 #: /app/src/modules/categories/CategoriesModule.js:334
 msgid "Shared (full control)"
-msgstr ""
+msgstr "Partagé (contrôle total)"
 
 #: /app/src/modules/categories/CategoriesModule.js:336
 msgid "Shared by {owner} — you can edit"
@@ -7576,16 +7554,12 @@ msgstr ""
 "au mois suivant"
 
 #: /app/src/modules/categories/CategoriesModule.js:2386
-#, fuzzy
-#| msgid "Envelope budgeting disabled"
 msgid "Envelope budgeting"
-msgstr "Budgétisation par enveloppes désactivée"
+msgstr "Budgétisation par enveloppes"
 
 #: /app/src/modules/categories/CategoriesModule.js:2393
-#, fuzzy
-#| msgid "Listed under {category}"
 msgid "Budget for {category}"
-msgstr "Répertorié sous {category}"
+msgstr "Budget pour {category}"
 
 #: /app/src/modules/categories/CategoriesModule.js:2400
 msgid "Auto-calculated from recurring bills/income. Enter a value to override."
@@ -7611,10 +7585,8 @@ msgid "(projected)"
 msgstr "(prévu)"
 
 #: /app/src/modules/categories/CategoriesModule.js:2408
-#, fuzzy
-#| msgid "Listed under {category}"
 msgid "Budget period for {category}"
-msgstr "Répertorié sous {category}"
+msgstr "Période budgétaire pour {category}"
 
 #: /app/src/modules/categories/CategoriesModule.js:2421
 #: /app/templates/index.php:2236 /app/templates/index.php:5139
@@ -8170,10 +8142,8 @@ msgid "Drag tiles to reorder your dashboard"
 msgstr "Faites glisser les tuiles pour réorganiser votre tableau de bord"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4879
-#, fuzzy
-#| msgid "Extras"
 msgid "Extra small"
-msgstr "Suppléments"
+msgstr "Très petit"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4880
 msgid "Small"
@@ -8184,20 +8154,16 @@ msgid "Medium"
 msgstr "Moyen"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4882
-#, fuzzy
-#| msgid "Target"
 msgid "Large"
-msgstr "Objectif"
+msgstr "Grand"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4909
 msgid "Move earlier"
 msgstr "Déplacé plus tôt"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4909
-#, fuzzy
-#| msgid "Move account"
 msgid "Move later"
-msgstr "Déplacer le compte"
+msgstr "Reporté à plus tard"
 
 #: /app/src/modules/dashboard/DashboardModule.js:4937
 #: /app/src/modules/dashboard/DashboardModule.js:5031
@@ -8357,10 +8323,8 @@ msgstr "Bandeau"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5533
 #: /app/src/modules/dashboard/DashboardModule.js:5567
-#, fuzzy
-#| msgid "Add Income"
 msgid "Add {name}"
-msgstr "Ajouter un revenu"
+msgstr "Ajouter {name}"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5555
 msgid "Add Another"
@@ -8862,10 +8826,8 @@ msgid "My Templates"
 msgstr "Mes modèles"
 
 #: /app/src/modules/import/ImportModule.js:282
-#, fuzzy
-#| msgid "Other"
 msgid "Other apps"
-msgstr "Autre"
+msgstr "Autres apps"
 
 #: /app/src/modules/import/ImportModule.js:285
 msgid "Save mapping as template…"
@@ -9411,23 +9373,17 @@ msgid "Failed to mark income as received"
 msgstr "Échec du marquage du revenu comme reçu"
 
 #: /app/src/modules/income/IncomeModule.js:637
-#, fuzzy
-#| msgid "Skip this payment and advance to the next due date?"
 msgid "Skip this payment and advance to the next expected date?"
-msgstr "Passer ce paiement et aller à la prochaine échéance ?"
+msgstr "Ignorer ce paiement et passer à la prochaine date prévue ?"
 
 #: /app/src/modules/income/IncomeModule.js:644
 #: /app/src/modules/income/IncomeModule.js:667
-#, fuzzy
-#| msgid "Failed to save income"
 msgid "Failed to skip income"
-msgstr "Échec de l'enregistrement du revenu"
+msgstr "Impossible de ne pas prendre en compte les revenus"
 
 #: /app/src/modules/income/IncomeModule.js:660
-#, fuzzy
-#| msgid "Payment skipped. Advanced to next due date."
 msgid "Payment skipped. Advanced to next expected date."
-msgstr "Paiement passé. Avance à la prochaine échéance."
+msgstr "Paiement ignoré. Passage à la prochaine date prévue."
 
 #: /app/src/modules/income/IncomeModule.js:703
 msgid "No recurring income patterns found in your transactions"
@@ -9463,38 +9419,28 @@ msgstr "Échec de l'ajout des sources de revenus sélectionnées"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:37
 #: /app/src/modules/onboarding/OnboardingModule.js:71
-#, fuzzy
-#| msgid "Importing Bank Statements"
 msgid "Import a statement"
-msgstr "Importation des relevés bancaires"
+msgstr "Importer un relevé"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:39
-#, fuzzy
-#| msgid "Connect"
 msgid "Connect a bank"
-msgstr "Connecter"
+msgstr "Connecter une banque"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:45
-#, fuzzy
-#| msgid "Failed to get base currency"
 msgid "Set your base currency"
-msgstr "Impossible de récupérer la devise de base"
+msgstr "Définissez votre devise de base"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:46
 msgid "The currency your totals and reports are shown in."
 msgstr "La devise dans laquelle s'affichent vos totaux et vos rapports."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:48
-#, fuzzy
-#| msgid "Save settings"
 msgid "Open settings"
-msgstr "Enregistrer les paramètres"
+msgstr "Ouvrir les paramètres"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:53
-#, fuzzy
-#| msgid "Failed to create default categories"
 msgid "Create the default categories"
-msgstr "Échec de la création des catégories par défaut"
+msgstr "Créer les catégories par défaut"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:54
 msgid ""
@@ -9505,17 +9451,13 @@ msgstr ""
 "pourrez modifier ultérieurement."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:56
-#, fuzzy
-#| msgid "Failed to create default categories"
 msgid "Create default categories"
-msgstr "Échec de la création des catégories par défaut"
+msgstr "Créer des catégories par défaut"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:61
 #: /app/src/modules/onboarding/OnboardingModule.js:64
-#, fuzzy
-#| msgid "Add new account"
 msgid "Add an account"
-msgstr "Ajouter un nouveau compte"
+msgstr "Ajouter un compte"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:62
 msgid "A bank account, card or cash wallet to record money in and out of."
@@ -9535,10 +9477,8 @@ msgstr ""
 "votre banque."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:79
-#, fuzzy
-#| msgid "Select a category"
 msgid "Set a budget for one category"
-msgstr "Sélectionnez une catégorie"
+msgstr "Définissez un budget pour une catégorie"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:80
 msgid "Choose how much you want to spend on something each month."
@@ -9546,10 +9486,8 @@ msgstr ""
 "Choisissez le montant que vous souhaitez consacrer à une dépense chaque mois."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:153
-#, fuzzy
-#| msgid "Categories with Budget"
 msgid "Get started with Budget"
-msgstr "Catégories avec budget"
+msgstr "Commencez à utiliser Budget"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:156
 msgid ""
@@ -9564,16 +9502,12 @@ msgid "Hide this checklist"
 msgstr "Masquer cette liste de vérification"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:174
-#, fuzzy
-#| msgid "Getting Started Guide"
 msgid "Getting started progress"
-msgstr "Guide de démarrage"
+msgstr "Avancement de la mise en route"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:181
-#, fuzzy
-#| msgid "{spent} of {total}"
 msgid "{done} of {total} done"
-msgstr "{spent} de {total}"
+msgstr "{done} sur {total} terminé"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:196
 msgid ""
@@ -9590,10 +9524,8 @@ msgid "Try with sample data"
 msgstr "Essayez avec un échantillon de données"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:211
-#, fuzzy
-#| msgid "Getting Started Guide"
 msgid "Read the getting started guide"
-msgstr "Guide de démarrage"
+msgstr "Lire le guide de démarrage"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:218
 #, fuzzy
