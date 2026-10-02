@@ -851,33 +851,20 @@ class BillController extends Controller {
 	}
 
 	/**
-	 * Undo a mark-paid action
+	 * Undo a mark-paid action (the toast's Undo)
+	 *
+	 * Reverts from the snapshot markPaid stored on the bill, exactly like
+	 * markUnpaid. Whatever undo data the client sends back is ignored: its
+	 * transaction ids used to be deleted as their account owner with nothing
+	 * tying them to this bill, so any user could delete any transaction on
+	 * the instance by id.
 	 * @NoAdminRequired
 	 */
 	#[UserRateLimit(limit: 30, period: 60)]
 	public function undoPaid(int $id): DataResponse {
 		try {
 			$this->requireWriteAccess('bill', $id);
-			$params = $this->request->getParams();
-			$previousState = $params['previousState'] ?? null;
-			$createdTransactionIds = $params['createdTransactionIds'] ?? [];
-
-			if ($previousState === null || !is_array($previousState)) {
-				// No in-memory undo data (a reload lost the toast) — fall back
-				// to the snapshot persisted by markPaid (#365)
-				$bill = $this->service->markUnpaid($id, $this->billOwner($id));
-				return new DataResponse($bill);
-			}
-
-			$hadScheduledTransaction = (bool)($params['hadScheduledTransaction'] ?? false);
-
-			$bill = $this->service->undoPaid(
-				$id,
-				$this->billOwner($id),
-				$previousState,
-				array_map('intval', $createdTransactionIds),
-				$hadScheduledTransaction
-			);
+			$bill = $this->service->markUnpaid($id, $this->billOwner($id));
 			return new DataResponse($bill);
 		} catch (\InvalidArgumentException $e) {
 			// Service-only validation keeps its message (#362)

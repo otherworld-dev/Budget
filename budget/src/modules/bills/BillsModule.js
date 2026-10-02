@@ -1279,9 +1279,6 @@ export default class BillsModule {
         // Store undo data from server response BEFORE reloading
         this._undoData = {
             billId: billId,
-            previousState: result.previousState,
-            createdTransactionIds: result.createdTransactionIds || [],
-            hadScheduledTransaction: result.hadScheduledTransaction || false,
             action: 'markPaid'
         };
 
@@ -1456,11 +1453,11 @@ export default class BillsModule {
         }
 
         try {
-            const { billId, previousState, createdTransactionIds, hadScheduledTransaction } = this._undoData;
+            // The server reverts from the snapshot it stored on the bill
+            const { billId } = this._undoData;
 
             await apiFetch(`/apps/budget/api/bills/${billId}/undo-paid`, {
                 method: 'POST',
-                body: { previousState, createdTransactionIds, hadScheduledTransaction },
             });
 
             this._undoData = null;

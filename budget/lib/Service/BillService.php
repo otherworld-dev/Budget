@@ -1006,7 +1006,7 @@ class BillService {
 		// bill claimed unpaid.
 		foreach ($createdTransactionIds as $transactionId) {
 			try {
-				$this->transactionService->deleteAsAccountOwner((int)$transactionId);
+				$this->transactionService->deleteAsAccountOwner((int)$transactionId, false, $id);
 			} catch (\Exception $e) {
 				$this->logger->warning("Failed to delete transaction {$transactionId} during undo-paid for bill {$id}: {$e->getMessage()}");
 			}
@@ -1017,7 +1017,7 @@ class BillService {
 		// while it is still a scheduled placeholder (#365 review).
 		foreach ($scheduledTransactionIds as $transactionId) {
 			try {
-				$this->transactionService->deleteAsAccountOwner((int)$transactionId, true);
+				$this->transactionService->deleteAsAccountOwner((int)$transactionId, true, $id);
 			} catch (\Exception $e) {
 				$this->logger->warning("Failed to delete scheduled transaction {$transactionId} during undo-paid for bill {$id}: {$e->getMessage()}");
 			}

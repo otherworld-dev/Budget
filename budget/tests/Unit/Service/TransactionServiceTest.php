@@ -611,6 +611,28 @@ class TransactionServiceTest extends TestCase {
 		$this->assertTrue($this->service->deleteAsAccountOwner(56, true));
 	}
 
+	public function testDeleteAsAccountOwnerLeavesARowOfAnotherBillAlone(): void {
+		// A revert only deletes what its bill booked. A partner row linked to
+		// the placeholder before payment (an imported card credit) carries no
+		// bill id, and must survive the bill's Mark Unpaid.
+		$tx = $this->makeTransaction(['id' => 57, 'accountId' => 10]);
+		$this->mapper->method('findById')->with(57)->willReturn($tx);
+		$this->mapper->expects($this->never())->method('delete');
+
+		$this->assertFalse($this->service->deleteAsAccountOwner(57, false, 9));
+	}
+
+	public function testDeleteAsAccountOwnerDeletesARowOfTheSameBill(): void {
+		$tx = $this->makeTransaction(['id' => 58, 'accountId' => 10, 'billId' => 9]);
+		$this->mapper->method('findById')->with(58)->willReturn($tx);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		$this->mapper->expects($this->once())->method('delete');
+
+		$this->assertTrue($this->service->deleteAsAccountOwner(58, false, 9));
+	}
+
 	public function testDeleteAsAccountOwnerThrowsWhenRowIsGone(): void {
 		$this->mapper->method('findById')->willReturn(null);
 

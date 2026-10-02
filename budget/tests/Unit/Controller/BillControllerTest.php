@@ -1338,18 +1338,22 @@ class BillControllerTest extends TestCase {
 
 	// ── undoPaid (#365: falls back to the stored snapshot) ──────────
 
-	public function testUndoPaidUsesClientPayloadWhenPresent(): void {
+	public function testUndoPaidIgnoresClientSuppliedTransactionIds(): void {
+		// The ids came from the browser and were deleted as their account
+		// owner without checking they belonged to this bill, so any user
+		// could delete any transaction on the instance by id. The revert
+		// now only ever uses the snapshot markPaid stored on the bill.
 		$this->mockInput(json_encode([
 			'previousState' => ['nextDueDate' => '2026-08-15', 'isActive' => true],
-			'createdTransactionIds' => [55],
+			'createdTransactionIds' => [55, 9001],
 			'hadScheduledTransaction' => true,
 		]));
 		$bill = $this->createMock(Bill::class);
 		$this->service->expects($this->once())
-			->method('undoPaid')
-			->with(1, 'user1', ['nextDueDate' => '2026-08-15', 'isActive' => true], [55], true)
+			->method('markUnpaid')
+			->with(1, 'user1')
 			->willReturn($bill);
-		$this->service->expects($this->never())->method('markUnpaid');
+		$this->service->expects($this->never())->method('undoPaid');
 
 		$response = $this->controller->undoPaid(1);
 

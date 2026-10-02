@@ -571,7 +571,8 @@ class TransactionService {
 	 *
 	 * With $onlyIfScheduled, a row that is no longer a scheduled placeholder
 	 * (it materialised into a real, possibly reconciled ledger row) is left
-	 * alone and false is returned.
+	 * alone and false is returned. With $onlyForBillId, so is a row that
+	 * doesn't carry that bill's id.
 	 *
 	 * Goes through delete() and thus deleteWithChildren() — never the mapper
 	 * directly (#359).
@@ -580,12 +581,18 @@ class TransactionService {
 	 *              deliberately left alone
 	 * @throws DoesNotExistException when the transaction no longer exists
 	 */
-	public function deleteAsAccountOwner(int $id, bool $onlyIfScheduled = false): bool {
+	public function deleteAsAccountOwner(int $id, bool $onlyIfScheduled = false, ?int $onlyForBillId = null): bool {
 		$transaction = $this->mapper->findById($id);
 		if ($transaction === null) {
 			throw new DoesNotExistException("Transaction {$id} does not exist");
 		}
 		if ($onlyIfScheduled && ($transaction->getStatus() ?? 'cleared') !== 'scheduled') {
+			return false;
+		}
+		// A bill revert deletes only what that bill booked: a row of another
+		// bill, or one linked to its placeholder from outside (an imported
+		// card credit), is not the bill's to remove
+		if ($onlyForBillId !== null && $transaction->getBillId() !== $onlyForBillId) {
 			return false;
 		}
 		$this->delete($id, $this->ownerOf($transaction));
