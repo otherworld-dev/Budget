@@ -1730,11 +1730,14 @@ export default class AccountsModule {
         if (account.closed) return;
 
         try {
-            const transfers = await apiFetch('/apps/budget/api/bills?isTransfer=true').catch(() => null);
-            if (!transfers) return;
+            // Every active transfer into the card, whoever set it up: on a
+            // shared card the other person's payment counts too, and the
+            // viewer's own transfers alone offered a second one
+            const transfers = await apiFetch(`/apps/budget/api/accounts/${account.id}/payment-transfers`).catch(() => null);
+            if (!Array.isArray(transfers)) return;
             // The user may have navigated elsewhere while we fetched
             if (this.currentAccount?.id !== account.id) return;
-            const paymentBill = transfers.find(b => b.destinationAccountId === account.id && b.isActive);
+            const paymentBill = transfers[0];
             if (paymentBill) {
                 infoTile.style.display = 'block';
                 const due = paymentBill.nextDueDate

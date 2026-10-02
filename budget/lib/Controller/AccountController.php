@@ -769,6 +769,19 @@ class AccountController extends Controller {
 	}
 
 	/**
+	 * The active transfers paying into this account, whoever set them up,
+	 * for the card's Payment due tile.
+	 * @NoAdminRequired
+	 */
+	public function paymentTransfers(int $id): DataResponse {
+		try {
+			return new DataResponse($this->service->getPaymentTransfers($id, $this->getEffectiveUserId()));
+		} catch (\Exception $e) {
+			return $this->handleNotFoundError($e, $this->l->t('Account'), ['accountId' => $id]);
+		}
+	}
+
+	/**
 	 * @NoAdminRequired
 	 */
 	public function reconcile(int $id, float $statementBalance, ?string $statementDate = null): DataResponse {

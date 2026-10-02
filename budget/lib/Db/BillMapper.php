@@ -165,6 +165,24 @@ class BillMapper extends QBMapper {
 	}
 
 	/**
+	 * The active transfers paying into an account, whoever set them up: a
+	 * shared card can be paid by either person using it.
+	 *
+	 * @return Bill[]
+	 */
+	public function findActiveTransfersInto(int $accountId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('destination_account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('is_transfer', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+			->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+			->orderBy('next_due_date', 'ASC');
+
+		return $this->findEntities($qb);
+	}
+
+	/**
 	 * Find overdue bills (next_due_date < today)
 	 * @return Bill[]
 	 */

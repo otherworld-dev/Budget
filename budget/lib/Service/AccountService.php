@@ -6,12 +6,14 @@ namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\InterestRateMapper;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Enum\AccountType;
 use OCA\Budget\Enum\Currency;
 use OCA\Budget\Exception\AccountInUseException;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\Entity;
 use OCP\IL10N;
 
@@ -41,6 +43,7 @@ class AccountService extends AbstractCrudService {
 		?AutoShareService $autoShareService = null,
 		?AccountClosureService $closureService = null,
 		?BudgetCarryoverService $carryoverService = null,
+		private ?BillMapper $billMapper = null,
 	) {
 		$this->mapper = $mapper;
 		$this->transactionMapper = $transactionMapper;
@@ -614,6 +617,44 @@ class AccountService extends AbstractCrudService {
 			'thisMonthExpenses' => $metrics['monthExpenses'],
 			'avgTransaction' => $metrics['average'],
 		];
+	}
+
+	/**
+	 * The active transfers paying into an account, set up by anyone who can
+	 * use it. A card shared between two people is paid by whichever of them
+	 * set the payment up; each saw only their own transfers, so the other
+	 * was offered to set up a second payment into the same card.
+	 *
+	 * @return array<array{nextDueDate: ?string, amount: float, amountType: string, mine: bool}>
+	 * @throws DoesNotExistException when the account isn't one the user can see
+	 */
+	public function getPaymentTransfers(int $accountId, string $userId): array {
+		if (!$this->canSee($userId, $accountId)) {
+			throw new DoesNotExistException('Account ' . $accountId . ' is not accessible to ' . $userId);
+		}
+		if ($this->billMapper === null) {
+			return [];
+		}
+
+		$owner = $this->mapper->findById($accountId)->getUserId();
+		$payments = [];
+		foreach ($this->billMapper->findActiveTransfersInto($accountId) as $bill) {
+			// Someone the account is no longer shared with doesn't pay into it
+			if ($bill->getUserId() !== $owner && !$this->canSee($bill->getUserId(), $accountId)) {
+				continue;
+			}
+			$payments[] = [
+				'nextDueDate' => $bill->getNextDueDate(),
+				'amount' => (float)$bill->getAmount(),
+				'amountType' => $bill->getAmountType() ?? 'fixed',
+				'mine' => $bill->getUserId() === $userId,
+			];
+		}
+		return $payments;
+	}
+
+	private function canSee(string $userId, int $accountId): bool {
+		return in_array($accountId, array_map('intval', $this->granularShareService->getVisibleAccountIds($userId)), true);
 	}
 
 	public function reconcile(int $accountId, string $userId, float $statementBalance, ?string $statementDate = null): array {
