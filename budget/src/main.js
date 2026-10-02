@@ -1780,16 +1780,27 @@ class BudgetApp {
         } else {
             findingsHtml = `<div class="repair-summary"><p>${t('budget', 'Found {count} issue(s) across {categories} categories.', { count: totalIssues, categories: (dupCount > 0 ? 1 : 0) + (stuckCount > 0 ? 1 : 0) + (paidOneTimeCount > 0 ? 1 : 0) + (futureCount > 0 ? 1 : 0) + (driftCount > 0 ? 1 : 0) + (signCount > 0 ? 1 : 0) })}</p></div>`;
 
-            // Duplicate transactions
+            // Duplicate transactions. A tick per row, because a payment that
+            // only looks like a duplicate is a real payment lost for good when
+            // it is deleted. Only pairs the scan is sure of come ticked.
             if (dupCount > 0) {
-                const dupItems = findings.duplicateTransactions.slice(0, 20).map(d =>
-                    `<div class="repair-item">
-                        <span>${dom.escapeHtml(d.vendor) || t('budget', '(unnamed)')}</span>
+                const dupItems = findings.duplicateTransactions.map(d => {
+                    let note = d.reason === 'same_occurrence'
+                        ? t('budget', 'Looks like a second payment for {occurrence} (other payment on {date})', { occurrence: d.occurrence, date: d.originalDate })
+                        : t('budget', 'Also recorded as {description} on {date}', { description: d.originalDescription || t('budget', '(unnamed)'), date: d.originalDate });
+                    if (d.originalReconciled) {
+                        note += ` (${t('budget', 'reconciled')})`;
+                    }
+                    return `<div class="repair-item">
+                        <label class="repair-item-select">
+                            <input type="checkbox" class="repair-dup-checkbox" data-transaction-id="${Number(d.duplicateId)}"${d.selected ? ' checked' : ''}>
+                            <span>${dom.escapeHtml(d.vendor) || t('budget', '(unnamed)')}</span>
+                        </label>
                         <span>${formatCurrency(d.amount)}</span>
                         <span>${dom.escapeHtml(d.date)}</span>
-                        <span class="repair-item-note">${t('budget', 'duplicate of')} ${dom.escapeHtml(d.originalDate)}</span>
-                    </div>`
-                ).join('');
+                        <span class="repair-item-note">${note}</span>
+                    </div>`;
+                }).join('');
 
                 findingsHtml += `
                     <div class="repair-category" data-category="duplicateTransactions">
@@ -1797,19 +1808,27 @@ class BudgetApp {
                             <h4><input type="checkbox" class="repair-checkbox" checked> ${t('budget', 'Duplicate Auto-Generated Transactions')}</h4>
                             <span class="repair-category-count">${dupCount}</span>
                         </div>
-                        <div class="repair-category-details">${dupItems}${dupCount > 20 ? `<p>... ${t('budget', 'and {more} more', { more: dupCount - 20 })}</p>` : ''}</div>
+                        <div class="repair-category-details">
+                            <p class="repair-category-help">${t('budget', 'Only ticked rows are deleted. Rows that come ticked are bill payments the app recorded that an imported bank transaction records as well. The others only look like duplicates and may be real payments: check them in the account first, and tick only the ones you are sure about.')}</p>
+                            ${dupItems}
+                        </div>
                     </div>`;
             }
 
-            // Stuck bills
+            // Stuck bills. Only the ones known to be stuck are moved on; the
+            // rest may be overdue with a payment still owed.
             if (stuckCount > 0) {
                 const stuckItems = findings.stuckBills.map(b =>
                     `<div class="repair-item">
                         <span>${dom.escapeHtml(b.name)}</span>
                         <span>${t('budget', 'Due: {date}', { date: b.nextDueDate })}</span>
                         <span>${t('budget', 'Paid: {date}', { date: b.lastPaidDate })}</span>
+                        ${b.fixable ? '' : `<span class="repair-item-note">${t('budget', 'Check: not changed')}</span>`}
                     </div>`
                 ).join('');
+                const stuckHelp = findings.stuckBills.some(b => !b.fixable)
+                    ? `<p class="repair-category-help">${t('budget', 'Repairing moves these bills on to their next due date, with their pending transaction. Bills marked Check are left as they are: their due date is before the last payment, which is also how an overdue bill with another payment still owed looks. If that payment was made, use Skip on the Bills page.')}</p>`
+                    : '';
 
                 findingsHtml += `
                     <div class="repair-category" data-category="stuckBills">
@@ -1817,7 +1836,7 @@ class BudgetApp {
                             <h4><input type="checkbox" class="repair-checkbox" checked> ${t('budget', 'Bills with Stuck Due Dates')}</h4>
                             <span class="repair-category-count">${stuckCount}</span>
                         </div>
-                        <div class="repair-category-details">${stuckItems}</div>
+                        <div class="repair-category-details">${stuckHelp}${stuckItems}</div>
                     </div>`;
             }
 
@@ -1848,9 +1867,14 @@ class BudgetApp {
                         <span>${dom.escapeHtml(f.description) || t('budget', '(unnamed)')}</span>
                         <span>${formatCurrency(f.amount)}</span>
                         <span>${dom.escapeHtml(f.date)}</span>
-                        <span class="repair-item-note">${dom.escapeHtml(f.accountName)}</span>
+                        <span class="repair-item-note">${dom.escapeHtml(f.accountName)}${f.review ? ` · ${t('budget', 'Check: not changed')}` : ''}</span>
                     </div>`
                 ).join('');
+                // Bill payments and reconciled rows stay as they are: as
+                // scheduled, a bill's payment would be taken for its pending row
+                const futureHelp = findings.futureClearedTransactions.some(f => f.review)
+                    ? `<p class="repair-category-help">${t('budget', 'Repairing marks these as scheduled, so they count in the balance from their date. Bill payments and reconciled transactions marked Check are left as they are: check their dates on the Transactions page.')}</p>`
+                    : '';
 
                 findingsHtml += `
                     <div class="repair-category" data-category="futureClearedTransactions">
@@ -1858,7 +1882,7 @@ class BudgetApp {
                             <h4><input type="checkbox" class="repair-checkbox" checked> ${t('budget', 'Future Transactions Not Marked as Scheduled')}</h4>
                             <span class="repair-category-count">${futureCount}</span>
                         </div>
-                        <div class="repair-category-details">${futureItems}${futureCount > 20 ? `<p>... ${t('budget', 'and {more} more', { more: futureCount - 20 })}</p>` : ''}</div>
+                        <div class="repair-category-details">${futureHelp}${futureItems}${futureCount > 20 ? `<p>... ${t('budget', 'and {more} more', { more: futureCount - 20 })}</p>` : ''}</div>
                     </div>`;
             }
 
@@ -1996,6 +2020,12 @@ class BudgetApp {
                 const accountIds = Array.from(
                     modal.querySelectorAll('.repair-account-checkbox:checked')
                 ).map(cb => parseInt(cb.dataset.accountId, 10)).filter(Number.isFinite);
+                // Only the duplicate rows left ticked are deleted. Always an
+                // array too: without it the server falls back to the ones it
+                // is sure of, whatever the user unticked.
+                const transactionIds = Array.from(
+                    modal.querySelectorAll('.repair-dup-checkbox:checked')
+                ).map(cb => parseInt(cb.dataset.transactionId, 10)).filter(Number.isFinite);
 
                 repairBtn.disabled = true;
                 repairBtn.innerHTML = '<span class="icon-loading-small"></span> ' + t('budget', 'Repairing...');
@@ -2003,7 +2033,7 @@ class BudgetApp {
                 try {
                     const result = await apiFetch('/apps/budget/api/setup/repair', {
                         method: 'POST',
-                        body: { categories: selectedCategories, accountIds },
+                        body: { categories: selectedCategories, accountIds, transactionIds },
                         errorMessage: t('budget', 'Repair failed'),
                     });
 

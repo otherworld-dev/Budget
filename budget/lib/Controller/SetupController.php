@@ -240,6 +240,14 @@ class SetupController extends Controller {
 					fn (int $id) => $id > 0
 				));
 			}
+			// The duplicate rows the user ticked. Only ids the scan itself
+			// reports are ever deleted, so any other id is simply ignored.
+			if (isset($params['transactionIds']) && is_array($params['transactionIds'])) {
+				$options['transactionIds'] = array_values(array_filter(
+					array_map('intval', $params['transactionIds']),
+					fn (int $id) => $id > 0
+				));
+			}
 
 			$results = $this->repairService->repair($this->userId, $categories, $options);
 
