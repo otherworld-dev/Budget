@@ -435,3 +435,23 @@ describe('Router.VIEW_LOADERS', () => {
         loaders.forEach(name => expect(name).toMatch(/^load[A-Z]\w+$/));
     });
 });
+
+describe('Router.deepLink', () => {
+    it('reads the view, a search and a transaction id from the hash', () => {
+        expect(Router.deepLink('#transactions?id=5372')).toEqual({ view: 'transactions', search: null, transactionId: 5372 });
+        expect(Router.deepLink('#/transactions?search=rent')).toEqual({ view: 'transactions', search: 'rent', transactionId: null });
+        expect(Router.deepLink('#budget')).toEqual({ view: 'budget', search: null, transactionId: null });
+    });
+
+    it('ignores an id that is not a positive whole number', () => {
+        for (const id of ['abc', '0', '-3', '1.5', '']) {
+            expect(Router.deepLink(`#transactions?id=${id}`).transactionId).toBeNull();
+        }
+    });
+
+    it('has nothing for an unknown view or an empty hash', () => {
+        expect(Router.deepLink('#nonsense')).toBeNull();
+        expect(Router.deepLink('')).toBeNull();
+        expect(Router.deepLink(undefined)).toBeNull();
+    });
+});

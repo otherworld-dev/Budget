@@ -836,6 +836,32 @@ class TransactionService {
 	/**
 	 * @param int[]|null $visibleAccountIds If provided, scope by account IDs instead of userId
 	 */
+	/**
+	 * Clear the other account of a transfer when the user cannot see it.
+	 * findWithFilters() joins the linked account's name and id without a
+	 * scope, and the other half of a transfer on a shared account can sit in
+	 * one of the owner's accounts that was never shared, which named that
+	 * account to the person it was shared with. The link itself stays, so
+	 * the row still reads as a transfer (#767). Every list consumer passes
+	 * the user's whole visible set here, not its own query scope: a list of
+	 * own accounts only must still name a shared account the user can see.
+	 *
+	 * @param array<int, array<string, mixed>> $rows findWithFilters() rows
+	 * @param array<int|string> $visibleAccountIds
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function hideUnseenLinkedAccounts(array $rows, array $visibleAccountIds): array {
+		$visible = array_flip(array_map('intval', $visibleAccountIds));
+		foreach ($rows as &$row) {
+			if (!isset($visible[(int)($row['linkedAccountId'] ?? 0)])) {
+				$row['linkedAccountId'] = null;
+				$row['linkedAccountName'] = null;
+			}
+		}
+		unset($row);
+		return $rows;
+	}
+
 	public function findWithFilters(string $userId, array $filters, int $limit, int $offset, ?array $visibleAccountIds = null): array {
 		$result = $this->mapper->findWithFilters($userId, $filters, $limit, $offset, $visibleAccountIds);
 

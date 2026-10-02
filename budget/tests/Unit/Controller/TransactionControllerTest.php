@@ -170,6 +170,29 @@ class TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
+	public function testIndexHidesOnlyTransferAccountsTheUserCannotSee(): void {
+		// Own accounts 1-3, Joint (9) shared with the user; 44 is the owner's
+		// account that was never shared. Listing own accounts only must not
+		// hide Joint's name, since the user can still see it.
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('getOwnAccountIds')->willReturn([1, 2, 3]);
+		$shares->method('getVisibleAccountIds')->willReturn([1, 2, 3, 9]);
+		$controller = new TransactionController(
+			$this->request, $this->service, $this->splitService,
+			$this->tagService, $this->validationService, $shares,
+			new TransactionCsvExporter($this->l), $this->l, 'user1', $this->logger
+		);
+		$this->service->method('findWithFilters')->willReturn(['transactions' => [
+			['id' => 1, 'accountId' => 1, 'linkedTransactionId' => 501, 'linkedAccountId' => 9, 'linkedAccountName' => 'Joint'],
+			['id' => 2, 'accountId' => 1, 'linkedTransactionId' => 502, 'linkedAccountId' => 44, 'linkedAccountName' => 'Owner savings'],
+		], 'total' => 2]);
+
+		$rows = $controller->index(excludeShared: true)->getData()['transactions'];
+
+		$this->assertSame('Joint', $rows[0]['linkedAccountName']);
+		$this->assertSame([502, null, null], [$rows[1]['linkedTransactionId'], $rows[1]['linkedAccountId'], $rows[1]['linkedAccountName']]);
+	}
+
 	public function testIndexHandlesError(): void {
 		$this->service->method('findWithFilters')->willThrowException(new \RuntimeException('error'));
 

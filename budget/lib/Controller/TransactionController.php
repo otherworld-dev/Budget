@@ -111,7 +111,10 @@ class TransactionController extends Controller {
 			$result = $this->service->findWithFilters($this->userId, $filters, $limit, $offset, $visibleAccountIds);
 
 			$responseData = [
-				'transactions' => $result['transactions'],
+				'transactions' => TransactionService::hideUnseenLinkedAccounts(
+					$result['transactions'],
+					$this->getVisibleAccountIds()
+				),
 				'total' => $result['total'],
 				'page' => $page,
 				'totalPages' => ceil($result['total'] / $limit)

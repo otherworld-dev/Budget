@@ -1218,11 +1218,21 @@ class BillService {
 
 	/**
 	 * Get monthly summary of bills.
+	 *
+	 * @param Bill[] $sharedBills bills other people shared with $userId. The
+	 *                            Bills page lists them, so its cards count the
+	 *                            active ones too. Each is priced from its
+	 *                            owner's account (or the owner's base
+	 *                            currency) and converted to $userId's.
 	 */
-	public function getMonthlySummary(string $userId): array {
-		$bills = $this->findActive($userId);
-		$currencyMap = $this->buildCurrencyMap($userId);
+	public function getMonthlySummary(string $userId, array $sharedBills = []): array {
+		$bills = array_merge(
+			$this->findActive($userId),
+			array_values(array_filter($sharedBills, static fn (Bill $bill) => (bool)$bill->getIsActive()))
+		);
 		$baseCurrency = $this->currencyConversion->getBaseCurrency($userId);
+		$currencyMaps = [$userId => $this->buildCurrencyMap($userId)];
+		$ownerBases = [$userId => $baseCurrency];
 
 		$total = 0.0;
 		$dueThisMonth = 0;
@@ -1249,10 +1259,14 @@ class BillService {
 		foreach ($bills as $bill) {
 			$monthlyAmount = $this->frequencyCalculator->getMonthlyEquivalent($bill);
 
-			// Convert to base currency if the bill's account uses a different currency
-			$billCurrency = ($bill->getAccountId() !== null && isset($currencyMap[$bill->getAccountId()]))
-				? $currencyMap[$bill->getAccountId()]
-				: $baseCurrency;
+			// Convert to base currency if the bill's account uses a different
+			// currency. A shared bill's account is its owner's.
+			$owner = (string)($bill->getUserId() ?? $userId);
+			$currencyMaps[$owner] ??= $this->buildCurrencyMap($owner);
+			$ownerBases[$owner] ??= $this->currencyConversion->getBaseCurrency($owner);
+			$billCurrency = ($bill->getAccountId() !== null && isset($currencyMaps[$owner][$bill->getAccountId()]))
+				? $currencyMaps[$owner][$bill->getAccountId()]
+				: $ownerBases[$owner];
 			$convertedMonthly = $this->convertToBase($monthlyAmount, $billCurrency, $baseCurrency, $userId);
 			$convertedAmount = $this->convertToBase($bill->getAmount(), $billCurrency, $baseCurrency, $userId);
 

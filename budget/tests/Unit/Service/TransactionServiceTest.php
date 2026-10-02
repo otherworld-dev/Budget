@@ -1679,6 +1679,30 @@ class TransactionServiceTest extends TestCase {
 		$this->service->clearScheduledBillTransaction('user1', 7, '2026-08-15');
 	}
 
+	// ===== transfers into an account the caller can't see (#767) =====
+
+	public function testAnUnseenTransferAccountLosesItsNameAndId(): void {
+		$rows = TransactionService::hideUnseenLinkedAccounts([
+			// The owner's account that was never shared with the caller
+			['id' => 1, 'linkedTransactionId' => 501, 'linkedAccountId' => 44, 'linkedAccountName' => 'Owner savings'],
+			['id' => 2, 'linkedTransactionId' => 502, 'linkedAccountId' => 9, 'linkedAccountName' => 'Joint'],
+			['id' => 3, 'linkedTransactionId' => null, 'linkedAccountId' => null, 'linkedAccountName' => null],
+		], [1, 9]);
+
+		$this->assertSame([501, null, null], [$rows[0]['linkedTransactionId'], $rows[0]['linkedAccountId'], $rows[0]['linkedAccountName']]);
+		$this->assertSame([9, 'Joint'], [$rows[1]['linkedAccountId'], $rows[1]['linkedAccountName']]);
+		$this->assertNull($rows[2]['linkedAccountName']);
+	}
+
+	public function testVisibleAccountIdsAreComparedAsNumbers(): void {
+		$rows = TransactionService::hideUnseenLinkedAccounts(
+			[['id' => 1, 'linkedTransactionId' => 5, 'linkedAccountId' => 9, 'linkedAccountName' => 'Joint']],
+			['9']
+		);
+
+		$this->assertSame('Joint', $rows[0]['linkedAccountName']);
+	}
+
 	// ===== split shares under a category filter (#359) =====
 
 	/**

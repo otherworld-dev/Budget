@@ -2547,6 +2547,21 @@ button.danger:hover {
 
 /* Improve mobile layout for account forms */
 @media (max-width: 768px) {
+    /* Nextcloud's header paints over a dialog, and Firefox on Android sizes
+       vh with its toolbar hidden while the dialog is centred in the visible
+       area, so a 90vh form rose under the header and hid its title. Lay
+       dialogs out in the space below the header, and size them from it. */
+    .modal {
+        top: var(--header-height, 50px);
+        bottom: 0;
+        height: auto;
+    }
+
+    .modal .modal-content,
+    .modal-columns .modal-content {
+        max-height: calc(100% - 16px);
+    }
+
     .form-section {
         display: block;
         gap: 0;

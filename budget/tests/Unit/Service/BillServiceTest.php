@@ -97,6 +97,50 @@ class BillServiceTest extends TestCase {
 		$this->assertSame(['USD', 'GBP', 'EUR'], array_column($bills, 'currency'));
 	}
 
+	/**
+	 * The Bills page cards counted only the user's own bills while the list
+	 * under them showed shared ones too, so a shared overdue bill was in the
+	 * list but the Overdue card said 0.
+	 */
+	public function testMonthlySummaryCountsSharedBills(): void {
+		$own = $this->makeBill(['id' => 1, 'userId' => 'user1', 'amount' => 10.0, 'nextDueDate' => date('Y-m-t'), 'accountId' => null]);
+		$shared = $this->makeBill(['id' => 2, 'userId' => 'owner1', 'amount' => 120.0, 'nextDueDate' => date('Y-m-d', strtotime('-40 days')), 'accountId' => 5]);
+		$inactive = $this->makeBill(['id' => 3, 'userId' => 'owner1', 'amount' => 99.0, 'isActive' => false, 'nextDueDate' => date('Y-m-d', strtotime('-40 days'))]);
+		$usd = new Account();
+		$usd->setId(5);
+		$usd->setCurrency('USD');
+		$mapper = $this->createMock(BillMapper::class);
+		$mapper->method('findActive')->with('user1')->willReturn([$own]);
+		$accounts = $this->createMock(AccountMapper::class);
+		$accounts->method('findAll')->willReturnMap([['user1', []], ['owner1', [$usd]]]);
+		$currency = $this->createMock(CurrencyConversionService::class);
+		$currency->method('getBaseCurrency')->willReturn('GBP');
+		// The shared bill is priced in its owner's account currency, then
+		// converted at the viewer's rates
+		$currency->expects($this->atLeastOnce())->method('convertToBaseFloat')
+			->with($this->anything(), 'USD', 'user1')->willReturnCallback(fn (float $amount) => $amount / 2);
+		$frequency = $this->createMock(FrequencyCalculator::class);
+		$frequency->method('getMonthlyEquivalent')->willReturnCallback(fn (Bill $bill) => (float)$bill->getAmount());
+		$service = new BillService(
+			$mapper,
+			$frequency,
+			$this->recurringDetector,
+			$this->transactionService,
+			$this->createMock(IL10N::class),
+			$accounts,
+			$currency,
+			$this->createMock(TransactionSplitService::class),
+			$this->createMock(LoggerInterface::class),
+			$this->dismissedMapper,
+		);
+
+		$summary = $service->getMonthlySummary('user1', [$shared, $inactive]);
+
+		$this->assertSame(2, $summary['billCount']);
+		$this->assertSame(1, $summary['overdue']);
+		$this->assertSame(70.0, $summary['monthlyTotal']);
+	}
+
 	private function makeBill(array $overrides = []): Bill {
 		$bill = new Bill();
 		$bill->setId($overrides['id'] ?? 1);

@@ -992,7 +992,11 @@ class BillController extends Controller {
 	 */
 	public function summary(): DataResponse {
 		try {
-			$summary = $this->service->getMonthlySummary($this->getEffectiveUserId());
+			// The cards count the shared bills the list under them shows
+			$summary = $this->service->getMonthlySummary(
+				$this->getEffectiveUserId(),
+				$this->granularShareService->getSharedBillEntities($this->getEffectiveUserId())
+			);
 			return new DataResponse($summary);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to retrieve bill summary'));
