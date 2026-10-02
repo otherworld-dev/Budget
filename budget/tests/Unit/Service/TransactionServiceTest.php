@@ -25,6 +25,8 @@ class TransactionServiceTest extends TestCase {
 	private TransactionTagMapper $transactionTagMapper;
 	private ExpenseShareMapper $expenseShareMapper;
 	private \OCA\Budget\Db\AttachmentMapper $attachmentMapper;
+	/** @var \OCA\Budget\Service\AuditService&\PHPUnit\Framework\MockObject\MockObject */
+	private $auditService;
 	/** @var \OCA\Budget\Db\TransactionSplitMapper&\PHPUnit\Framework\MockObject\MockObject */
 	private $splitMapper;
 	/** @var array<int, Account> per-test accounts served by the findById stub */
@@ -54,6 +56,7 @@ class TransactionServiceTest extends TestCase {
 		$dismissedImportMapper = $this->createMock(DismissedImportMapper::class);
 		$this->attachmentMapper = $this->createMock(\OCA\Budget\Db\AttachmentMapper::class);
 		$auditService = $this->createMock(\OCA\Budget\Service\AuditService::class);
+		$this->auditService = $auditService;
 		$pensionContributionMapper = $this->createMock(\OCA\Budget\Db\PensionContributionMapper::class);
 		// Real UserClock over a config that stores no timezone: "today" is
 		// the server's, which is what these tests have always assumed.
@@ -2273,6 +2276,22 @@ class TransactionServiceTest extends TestCase {
 		$this->attachmentMapper->expects($this->once())
 			->method('deleteByTransaction')
 			->with(11, 'user1');
+
+		$this->service->deleteScheduledBillTransactions(44);
+	}
+
+	/**
+	 * A placeholder ticked into a statement before ticking them was refused
+	 * went with Skip or a bill delete without a trace, unlike any other
+	 * reconciled row.
+	 */
+	public function testDeletingAReconciledPlaceholderLeavesAnAuditTrail(): void {
+		$placeholder = $this->makeTransaction(['id' => 11, 'billId' => 44, 'reconciled' => true]);
+		$placeholder->setStatus('scheduled');
+		$this->mapper->method('findAllScheduledByBillId')->willReturn([$placeholder]);
+
+		$this->auditService->expects($this->once())->method('log')
+			->with('user1', 'reconciled_tx_deleted', 'transaction', 11, $this->anything());
 
 		$this->service->deleteScheduledBillTransactions(44);
 	}

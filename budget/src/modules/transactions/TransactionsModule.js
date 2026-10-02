@@ -346,13 +346,35 @@ export default class TransactionsModule {
 
             // Individual transaction checkboxes
             if (e.target.classList.contains('transaction-checkbox')) {
-                const transactionId = parseInt(e.target.getAttribute('data-transaction-id'));
-                this.toggleTransactionSelection(transactionId, e.target.checked);
-                if (this.reconcileMode && this.reconcileSession) {
-                    this.queueReconcileTick(transactionId, e.target.checked);
-                }
+                this.handleTransactionCheckbox(e.target);
             }
         });
+    }
+
+    /**
+     * One row's checkbox. In a reconciliation session it is the statement
+     * tick, and a scheduled row can't be ticked: it is on no statement yet
+     * (a bill due today, before it is paid), the server refuses it, and a
+     * tick that moved nothing used to be balanced with an adjustment.
+     */
+    handleTransactionCheckbox(checkbox) {
+        const transactionId = parseInt(checkbox.getAttribute('data-transaction-id'));
+        const inSession = this.reconcileMode && this.reconcileSession;
+        if (inSession && checkbox.checked && !this.isReconcileTickable(transactionId)) {
+            checkbox.checked = false;
+            showWarning(t('budget', 'This transaction is scheduled, so it is not on a statement yet and cannot be ticked.'));
+            return;
+        }
+        this.toggleTransactionSelection(transactionId, checkbox.checked);
+        if (inSession) {
+            this.queueReconcileTick(transactionId, checkbox.checked);
+        }
+    }
+
+    /** Whether a row can be ticked into a reconciliation session. */
+    isReconcileTickable(transactionId) {
+        const tx = this.app.transactions?.find(row => row.id === transactionId);
+        return (tx?.status ?? 'cleared') !== 'scheduled';
     }
 
     // Transaction filtering and display methods
@@ -843,6 +865,10 @@ export default class TransactionsModule {
         if (this.reconcileMode && this.reconcileSession) {
             document.querySelectorAll('.transaction-checkbox').forEach(checkbox => {
                 const transactionId = parseInt(checkbox.getAttribute('data-transaction-id'));
+                // Scheduled rows are on no statement yet, see handleTransactionCheckbox()
+                if (checked && !this.isReconcileTickable(transactionId)) {
+                    return;
+                }
                 if (checkbox.checked !== checked) {
                     checkbox.checked = checked;
                     this.queueReconcileTick(transactionId, checked);

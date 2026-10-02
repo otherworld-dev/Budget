@@ -536,6 +536,18 @@ class TransactionService {
 	private function deleteWithChildren(Transaction $transaction, string $userId): void {
 		$id = $transaction->getId();
 
+		// Deleting a reconciled transaction breaks past statement
+		// reconciliations — allowed, but audit-logged (the UI warns first).
+		// Here rather than in delete(), so a bill's Skip or delete that takes
+		// a reconciled row with it leaves the same trail.
+		if ($transaction->getReconciled()) {
+			$this->auditService->log($userId, 'reconciled_tx_deleted', 'transaction', $id, [
+				'amount' => $transaction->getAmount(),
+				'date' => $transaction->getDate(),
+				'reconSessionId' => $transaction->getReconSessionId(),
+			]);
+		}
+
 		// The other half of a transfer keeps its own row, so it has to let go
 		// of this one. A bill's placeholder matched to a card credit used to be
 		// deleted without this when the bill was paid or skipped, leaving the
@@ -825,16 +837,6 @@ class TransactionService {
 	 */
 	public function delete(int $id, string $userId, bool $dismiss = true, bool $recalculate = true): int {
 		$transaction = $this->find($id, $userId);
-
-		// Deleting a reconciled transaction breaks past statement
-		// reconciliations — allowed, but audit-logged (the UI warns first)
-		if ($transaction->getReconciled()) {
-			$this->auditService->log($userId, 'reconciled_tx_deleted', 'transaction', $id, [
-				'amount' => $transaction->getAmount(),
-				'date' => $transaction->getDate(),
-				'reconSessionId' => $transaction->getReconSessionId(),
-			]);
-		}
 
 		// If this bank leg funded a pension contribution/withdrawal (#304),
 		// detach it so the pension record survives as a plain manual entry

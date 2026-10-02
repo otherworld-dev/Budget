@@ -96,6 +96,13 @@ class TransactionReconciliationQueries {
 	/**
 	 * Tick transactions into a session (account-scoped; already-reconciled
 	 * rows and rows belonging to another session are never grabbed).
+	 *
+	 * Nor are scheduled rows, which tickAllUpTo() has always left alone. A
+	 * bill's payment due today, before the job or Mark Paid got to it, could
+	 * be ticked one at a time: it never moved the difference (the sums leave
+	 * scheduled rows out), so the user balanced with an adjustment, and
+	 * Finish marked it reconciled anyway. Once paid it counted in the
+	 * balance, a payment the statement had never included.
 	 */
 	public function tickIntoSession(int $accountId, array $transactionIds, int $sessionId): int {
 		if (empty($transactionIds)) {
@@ -111,7 +118,11 @@ class TransactionReconciliationQueries {
 				$qb->expr()->eq('reconciled', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
 				$qb->expr()->isNull('reconciled')
 			))
-			->andWhere($qb->expr()->isNull('recon_session_id'));
+			->andWhere($qb->expr()->isNull('recon_session_id'))
+			->andWhere($qb->expr()->orX(
+				$qb->expr()->neq('status', $qb->createNamedParameter('scheduled')),
+				$qb->expr()->isNull('status')
+			));
 
 		return $qb->executeStatement();
 	}
@@ -157,8 +168,19 @@ class TransactionReconciliationQueries {
 	/**
 	 * Complete a session: mark everything ticked into it as reconciled.
 	 * The session linkage stays — permanent provenance for history.
+	 *
+	 * A scheduled row ticked before tickIntoSession() refused them was never
+	 * in the ticked sum, so it is no part of what the statement reconciled:
+	 * it is let go instead.
 	 */
 	public function markSessionReconciled(int $sessionId): int {
+		$release = $this->db->getQueryBuilder();
+		$release->update(self::TABLE)
+			->set('recon_session_id', $release->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
+			->where($release->expr()->eq('recon_session_id', $release->createNamedParameter($sessionId, IQueryBuilder::PARAM_INT)))
+			->andWhere($release->expr()->eq('status', $release->createNamedParameter('scheduled')));
+		$release->executeStatement();
+
 		$qb = $this->db->getQueryBuilder();
 		$qb->update(self::TABLE)
 			->set('reconciled', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL))
