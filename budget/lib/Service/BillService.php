@@ -36,6 +36,7 @@ class BillService {
 	private ?AutoShareService $autoShareService;
 	private ?RecurringIncomeMapper $incomeMapper;
 	private ?GranularShareService $granularShareService;
+	private ?UserClock $userClock;
 
 	public function __construct(
 		BillMapper $mapper,
@@ -51,6 +52,7 @@ class BillService {
 		?AutoShareService $autoShareService = null,
 		?RecurringIncomeMapper $incomeMapper = null,
 		?GranularShareService $granularShareService = null,
+		?UserClock $userClock = null,
 	) {
 		$this->mapper = $mapper;
 		$this->frequencyCalculator = $frequencyCalculator;
@@ -65,6 +67,7 @@ class BillService {
 		$this->autoShareService = $autoShareService;
 		$this->incomeMapper = $incomeMapper;
 		$this->granularShareService = $granularShareService;
+		$this->userClock = $userClock;
 	}
 
 	/** Amount types whose figure is resolved from the destination card at payment time (#347) */
@@ -549,12 +552,23 @@ class BillService {
 		}
 		$bill->setCreatedAt(date('Y-m-d H:i:s'));
 
-		// startDate doubles as the recurrence anchor for weekly/biweekly:
-		// occurrences fall on startDate + n*interval, so the week parity is
-		// fixed by the user's chosen first payment date, not by when the
-		// bill happened to be created (#364)
-		$nextDue = $this->frequencyCalculator->calculateNextDueDate($frequency, $dueDay, $dueMonth, null, $customRecurrencePattern, false, $startDate);
-		$nextDue = $this->applyStartDateFloor($nextDue, $startDate, $frequency, $dueDay, $dueMonth, $customRecurrencePattern);
+		if ($frequency === 'one-time' && ($startDate === null || $startDate === '')) {
+			// Without it the date was made up from a day and month, and a
+			// bill with no month landed on 1 January next year (#399)
+			throw new \InvalidArgumentException($this->l->t('A one-time bill needs its due date'));
+		}
+
+		// The first occurrence from today, never before the start date. The
+		// start date doubles as the anchor for weekly/biweekly: occurrences
+		// fall on startDate + n*interval, so the week parity is fixed by the
+		// user's chosen first payment date, not by when the bill happened to
+		// be created (#364)
+		$nextDue = $this->firstDue($bill, $this->today($userId));
+		if ($nextDue === null || ($endDate !== null && $endDate !== '' && $nextDue > $endDate)) {
+			// Ends before it is ever due: nothing to pay, nothing to pre-book
+			$bill->setIsActive(false);
+			$nextDue = null;
+		}
 		$bill->setNextDueDate($nextDue);
 
 		$bill = $this->mapper->insert($bill);
@@ -565,7 +579,7 @@ class BillService {
 		// one-time bill dated in the past got a CLEARED row on creation,
 		// GBP 321.60 booked as spent for an invoice nobody had paid, because
 		// createFromBill() reads an explicit date in the past as a payment.
-		if ($createTransaction && $accountId !== null) {
+		if ($createTransaction && $accountId !== null && $bill->getIsActive()) {
 			try {
 				$transaction = $this->transactionService->createFromBill(
 					$userId,
@@ -589,8 +603,13 @@ class BillService {
 
 	public function update(int $id, string $userId, array $updates): Bill {
 		$bill = $this->find($id, $userId);
-		$needsRecalculation = false;
 		$dbUpdates = [];
+
+		// The controller and older clients say 'active'; the column is is_active
+		if (array_key_exists('active', $updates)) {
+			$updates['isActive'] = (bool)$updates['active'];
+			unset($updates['active']);
+		}
 
 		// Validate auto-pay requires account when enabling
 		if (isset($updates['autoPayEnabled']) && $updates['autoPayEnabled'] === true) {
@@ -616,25 +635,77 @@ class BillService {
 			$isTransfer = $updates['isTransfer'] ?? ($bill->getIsTransfer() ?? false);
 			$destinationId = $updates['destinationAccountId'] ?? $bill->getDestinationAccountId();
 			$this->validateAmountType($updates['amountType'], (bool)$isTransfer, $destinationId);
-			$updates['amount'] = $this->resolveDynamicAmount($updates['amountType'], $destinationId, null, date('Y-m-d'));
+			$updates['amount'] = $this->resolveDynamicAmount($updates['amountType'], $destinationId, null, $this->today($userId));
 		} elseif (isset($updates['amountType'])) {
 			$this->validateAmountType($updates['amountType'], true, null);
 		}
 
+		// The bill as it will be, for the schedule decisions below
+		$edited = clone $bill;
 		foreach ($updates as $key => $value) {
-			// Track if schedule-related fields actually changed (not just
-			// present). is_callable, not method_exists: the Bill entity's
-			// getters are magic (__call), which method_exists cannot see —
-			// schedule changes then only fired the recalculation through the
-			// date-consistency fallback below, which now deliberately
-			// tolerates paid-ahead/overdue dates (#364 review).
-			if (in_array($key, ['frequency', 'dueDay', 'dueMonth', 'customRecurrencePattern', 'startDate'])) {
-				$getter = 'get' . ucfirst($key);
-				if (is_callable([$bill, $getter]) && $bill->$getter() != $value) {
-					$needsRecalculation = true;
+			if (property_exists($edited, $key)) {
+				$edited->{'set' . ucfirst($key)}($value);
+			}
+		}
+		// Legacy rows hold NULL where the form sends the default
+		$defaults = ['createTransaction' => true, 'isTransfer' => false, 'amountType' => 'fixed', 'excludedFromForecast' => false];
+		$changed = fn (string $key): bool => array_key_exists($key, $updates)
+			&& $this->differs($bill->{'get' . ucfirst($key)}() ?? ($defaults[$key] ?? null), $updates[$key]);
+
+		// The schedule changed only if one of its fields did, not because the
+		// form sent them back unchanged: recalculating on every edit put a
+		// paid-ahead bill back on the occurrence already paid and undid skips
+		$scheduleChanged = false;
+		foreach (['frequency', 'dueDay', 'dueMonth', 'customRecurrencePattern', 'startDate'] as $key) {
+			$scheduleChanged = $scheduleChanged || $changed($key);
+		}
+
+		if ($edited->getFrequency() === 'one-time') {
+			if ($edited->getStartDate() === null || $edited->getStartDate() === '') {
+				throw new \InvalidArgumentException($this->l->t('A one-time bill needs its due date'));
+			}
+			// A one-time bill's date is its schedule (#375): day and month follow it
+			$date = new \DateTimeImmutable($edited->getStartDate());
+			foreach (['dueDay' => (int)$date->format('j'), 'dueMonth' => (int)$date->format('n')] as $key => $value) {
+				if ($edited->{'get' . ucfirst($key)}() !== $value) {
+					$edited->{'set' . ucfirst($key)}($value);
+					$updates[$key] = $value;
 				}
 			}
+		}
 
+		// Pausing and resuming, and what an edit does to whether there is
+		// anything left to pay
+		$wasActive = (bool)$bill->getIsActive();
+		$resuming = array_key_exists('isActive', $updates) && $updates['isActive'] && !$wasActive;
+		$extended = !$wasActive && $bill->getNextDueDate() === null && $edited->getFrequency() !== 'one-time'
+			&& ($changed('endDate') || $changed('remainingPayments') || $changed('frequency'));
+		$today = $this->today($userId);
+
+		if ($edited->getIsActive() || $resuming || $extended) {
+			$next = $bill->getNextDueDate();
+			if ($scheduleChanged || $next === null || $edited->getFrequency() === 'one-time') {
+				$next = $this->rescheduledDue($bill, $edited, $today);
+			}
+			$ended = $next === null
+				|| ($edited->getEndDate() !== null && $edited->getEndDate() !== '' && $next > $edited->getEndDate())
+				|| ($edited->getRemainingPayments() !== null && $edited->getRemainingPayments() <= 0);
+			if ($ended) {
+				$edited->setIsActive(false);
+				$edited->setNextDueDate(null);
+			} elseif ($resuming || $extended || ($wasActive && $edited->getIsActive())) {
+				$edited->setIsActive(true);
+				$edited->setNextDueDate($next);
+			}
+			if ($edited->getIsActive() !== $bill->getIsActive()) {
+				$updates['isActive'] = $edited->getIsActive();
+			}
+			if ($edited->getNextDueDate() !== $bill->getNextDueDate()) {
+				$dbUpdates['next_due_date'] = $edited->getNextDueDate();
+			}
+		}
+
+		foreach ($updates as $key => $value) {
 			// Convert camelCase to snake_case for database column names
 			$columnName = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $key));
 			$dbUpdates[$columnName] = $value;
@@ -645,132 +716,37 @@ class BillService {
 		// those would silently revert the edit (or restore a next-due-date
 		// computed under the old schedule). A material edit therefore spends
 		// the snapshot; name/notes/reminder-style edits keep it (#365 review).
+		$materialKeys = ['amount', 'amountType', 'frequency', 'dueDay', 'dueMonth',
+			'customRecurrencePattern', 'startDate', 'accountId', 'destinationAccountId', 'isTransfer'];
 		if ($bill->getPaidUndoState() !== null && $bill->getPaidUndoState() !== '') {
-			$materialKeys = ['amount', 'amountType', 'frequency', 'dueDay', 'dueMonth',
-				'customRecurrencePattern', 'startDate', 'accountId', 'destinationAccountId', 'isTransfer'];
 			foreach ($materialKeys as $key) {
 				if (!array_key_exists($key, $updates)) {
 					continue;
 				}
-				$getter = 'get' . ucfirst($key);
-				$current = $bill->$getter();
+				$current = $bill->{'get' . ucfirst($key)}();
 				// Legacy rows hold NULL where the form sends the default
 				if ($key === 'amountType') {
 					$current = $current ?? 'fixed';
 				} elseif ($key === 'isTransfer') {
 					$current = $current ?? false;
 				}
-				if ($current != $updates[$key]) {
+				if ($this->differs($current, $updates[$key])) {
 					$dbUpdates['paid_undo_state'] = null;
-					$bill->setPaidUndoState(null);
 					break;
 				}
 			}
 		}
 
-		// Recalculate next due date if schedule fields changed, OR if
-		// nextDueDate is inconsistent with the current schedule (catches
-		// stale dates from edits on older versions)
-		if (!$needsRecalculation && $bill->getIsActive() && $bill->getNextDueDate()) {
-			// With a startDate anchor the expectation is computed FROM THE
-			// ANCHOR — recomputing "from today" made every unrelated edit in
-			// an off-parity week flip a biweekly bill's fortnight (#364).
-			// An incoming startDate (set OR cleared) participates, so
-			// re-anchoring a bill snaps next due onto the new fortnight.
-			$effectiveAnchor = array_key_exists('startDate', $updates)
-				? $updates['startDate']
-				: $bill->getStartDate();
-			$expect = fn (?string $fromDate): string => $this->frequencyCalculator->calculateNextDueDate(
-				$updates['frequency'] ?? $bill->getFrequency(),
-				$updates['dueDay'] ?? $bill->getDueDay(),
-				$updates['dueMonth'] ?? $bill->getDueMonth(),
-				$fromDate,
-				$updates['customRecurrencePattern'] ?? $bill->getCustomRecurrencePattern(),
-				false,
-				$effectiveAnchor
-			);
-
-			$storedDue = $bill->getNextDueDate();
-			$lastPaid = $bill->getLastPaidDate();
-			$today = date('Y-m-d');
-
-			// The stored date is CONSISTENT when it matches the schedule
-			// given the bill's payment state — not just "first occurrence
-			// from today", which cannot represent a bill legitimately paid
-			// ahead or overdue (#364/#365 review):
-			//  1. the plain expectation — first occurrence on/after today;
-			//  2. the advanced-past-payment expectation — a bill paid on its
-			//     due day stores due + one interval, which the calculator's
-			//     strictly-after-fromDate semantics reproduce;
-			//  3. a due/overdue occurrence not yet paid — snapping it forward
-			//     on an unrelated edit would silently un-overdue the bill;
-			//  4. a paid bill's future date that sits on the schedule —
-			//     paid-ahead and skipped-ahead dates are deliberate. Anchored
-			//     weekly/biweekly dates count strictly after fromDate, so they
-			//     are asked from the day before; calendar frequencies snap to
-			//     fromDate's own month, so they are asked from the date itself
-			//     (from the day before, a bill due on the 1st landed a month
-			//     early and every edit reset it).
-			// Anything else is a stale date and gets recalculated.
-			$isConsistent = $storedDue === $expect(null);
-			if (!$isConsistent && $lastPaid !== null) {
-				$isConsistent = $storedDue === $expect($lastPaid);
-			}
-			if (!$isConsistent && $storedDue <= $today && ($lastPaid === null || $storedDue > $lastPaid)) {
-				$isConsistent = true;
-			}
-			if (!$isConsistent && $lastPaid !== null && $storedDue > $today) {
-				$dayBefore = (new \DateTime($storedDue))->modify('-1 day')->format('Y-m-d');
-				$isConsistent = $storedDue === $expect($dayBefore) || $storedDue === $expect($storedDue);
-			}
-			if (!$isConsistent) {
-				$needsRecalculation = true;
-			}
-		}
-
-		if ($needsRecalculation) {
-			// Apply updates to a copy to get the edited state for the
-			// calculation. Not to $bill itself: the pre-booking toggle and the
-			// amount-type switch below compare $bill's stored values against
-			// the updates, and a mutated $bill made both read "unchanged" (#584)
-			$edited = clone $bill;
-			foreach ($updates as $key => $value) {
-				if (property_exists($edited, $key)) {
-					$setter = 'set' . ucfirst($key);
-					$edited->$setter($value);
-				}
-			}
-
-			// A one-time bill's date is its schedule (#375): keep day and
-			// month in step with it, in the entity and in what is written.
-			if ($edited->getFrequency() === 'one-time' && $edited->getStartDate()) {
-				$edited->setDueDay((int)(new \DateTime($edited->getStartDate()))->format('j'));
-				$edited->setDueMonth((int)(new \DateTime($edited->getStartDate()))->format('n'));
-				$dbUpdates['due_day'] = $edited->getDueDay();
-				$dbUpdates['due_month'] = $edited->getDueMonth();
-			}
-
-			// Recalculate from today (not from the old nextDueDate) since
-			// the schedule parameters changed; a startDate anchors the
-			// weekly/biweekly parity (#364)
-			$nextDue = $this->frequencyCalculator->calculateNextDueDate(
-				$edited->getFrequency(),
-				$edited->getDueDay(),
-				$edited->getDueMonth(),
-				null, // recalculate from today
-				$edited->getCustomRecurrencePattern(),
-				false,
-				$edited->getStartDate()
-			);
-			$nextDue = $this->applyStartDateFloor(
-				$nextDue,
-				$edited->getStartDate(),
-				$edited->getFrequency(),
-				$edited->getDueDay(),
-				$edited->getDueMonth(),
-				$edited->getCustomRecurrencePattern()
-			);
-			$dbUpdates['next_due_date'] = $nextDue;
+		// The pre-booked row mirrors the bill: an edit to anything it carries
+		// rebuilds it, so it never keeps the old amount, account, date or
+		// category for Mark Paid to record (and turning pre-booking off
+		// removes it, on adds it). Decided before the write, against the
+		// bill as it was.
+		$rowKeys = ['name', 'description', 'amount', 'amountType', 'categoryId', 'accountId', 'destinationAccountId',
+			'isTransfer', 'splitTemplate', 'tagIds', 'excludedFromForecast', 'createTransaction', 'isActive'];
+		$rowChanged = array_key_exists('next_due_date', $dbUpdates);
+		foreach ($rowKeys as $key) {
+			$rowChanged = $rowChanged || $changed($key);
 		}
 
 		// Apply all updates directly to database
@@ -778,48 +754,85 @@ class BillService {
 			$this->mapper->updateFields($id, $userId, $dbUpdates);
 		}
 
-		// Toggling "create future transaction" takes effect immediately:
-		// off removes the pending placeholder, on creates one for the next
-		// occurrence (instead of only changing behaviour at the next payment)
-		if (isset($updates['createTransaction'])) {
-			$wasEnabled = $bill->getCreateTransaction() ?? true;
-			$nowEnabled = (bool)$updates['createTransaction'];
-			if ($wasEnabled && !$nowEnabled) {
-				$this->transactionService->deleteScheduledBillTransactions($id);
-			} elseif (!$wasEnabled && $nowEnabled) {
-				$fresh = $this->find($id, $userId);
-				if ($fresh->getIsActive() && $fresh->getAccountId() !== null && $fresh->getNextDueDate() !== null
-					&& $this->accountsWritable($fresh)) {
-					try {
-						$nextTransaction = $this->transactionService->createFromBill($userId, $fresh, null);
-						$this->applySplitTemplate($fresh, $nextTransaction, $userId);
-					} catch (\Exception $e) {
-						$this->logger->warning("Failed to create next transaction after enabling pre-booking on bill {$id}: {$e->getMessage()}");
-					}
-				}
-			}
-		}
-
-		// Switching to a dynamic amount type: replace the pre-created
-		// placeholder so it carries the freshly resolved estimate (#347)
-		if (isset($updates['amountType']) && $updates['amountType'] !== 'fixed'
-			&& ($bill->getAmountType() ?? 'fixed') !== $updates['amountType']) {
-			$fresh = $this->find($id, $userId);
-			if (($fresh->getCreateTransaction() ?? true) && $fresh->getIsActive()
-				&& $fresh->getAccountId() !== null && $fresh->getNextDueDate() !== null
-				&& $this->accountsWritable($fresh)) {
-				$this->transactionService->deleteScheduledBillTransactions($id);
-				try {
-					$nextTransaction = $this->transactionService->createFromBill($userId, $fresh, null);
-					$this->applySplitTemplate($fresh, $nextTransaction, $userId);
-				} catch (\Exception $e) {
-					$this->logger->warning("Failed to refresh placeholder after switching bill {$id} to statement amount: {$e->getMessage()}");
-				}
-			}
+		if ($rowChanged) {
+			$this->syncPlaceholder($this->find($id, $userId), $userId);
 		}
 
 		// Reload from database to ensure we return the actual saved state
 		return $this->find($id, $userId);
+	}
+
+	/**
+	 * Replace the bill's pre-booked row with one for its current next due
+	 * date, or none when the bill doesn't pre-book, isn't active, has no
+	 * account or posts into an account its owner can no longer write to.
+	 */
+	private function syncPlaceholder(Bill $bill, string $userId): void {
+		$this->transactionService->deleteScheduledBillTransactions($bill->getId());
+		if (($bill->getCreateTransaction() ?? true) && $bill->getIsActive() && $bill->getAccountId() !== null
+			&& $bill->getNextDueDate() !== null && $this->accountsWritable($bill)) {
+			try {
+				$row = $this->transactionService->createFromBill($userId, $bill, null);
+				$this->applySplitTemplate($bill, $row, $userId);
+			} catch (\Exception $e) {
+				$this->logger->warning("Failed to pre-book the next occurrence of bill {$bill->getId()}: {$e->getMessage()}");
+			}
+		}
+	}
+
+	/**
+	 * Two field values differ, reading "5" and 5, true and 1, or "" and null
+	 * as the same, but null and false (or 0) as different
+	 */
+	private function differs(mixed $a, mixed $b): bool {
+		$norm = static fn ($v) => ($v === '' ? null : (is_bool($v) ? (int)$v : $v));
+		[$a, $b] = [$norm($a), $norm($b)];
+		if ($a === null || $b === null) {
+			return $a !== $b;
+		}
+		return $a != $b;
+	}
+
+	/**
+	 * The first occurrence a new bill owes: on or after today and never
+	 * before its start date. A one-time bill is its date, past or not (#375).
+	 */
+	private function firstDue(Bill $bill, string $today): ?string {
+		if ($bill->getFrequency() === 'one-time') {
+			return $bill->getStartDate();
+		}
+		return $this->frequencyCalculator->occurrenceOnOrAfter(
+			$bill->getFrequency(), $bill->getDueDay(), $bill->getDueMonth(),
+			$today, $bill->getCustomRecurrencePattern(), $bill->getStartDate()
+		);
+	}
+
+	/**
+	 * The occurrence a bill owes after its schedule changes: the same month's
+	 * (or week's) occurrence under the new schedule. Moving the day from the
+	 * 15th to the 25th makes November's payment the 25th, rather than
+	 * bringing back an occurrence already paid or skipping one still owed.
+	 * A bill that owed nothing (ended, paused) starts again from today.
+	 */
+	private function rescheduledDue(Bill $before, Bill $after, string $today): ?string {
+		if ($after->getFrequency() === 'one-time') {
+			return $after->getStartDate();
+		}
+		$pending = $before->getNextDueDate();
+		if ($pending === null || $before->getFrequency() === 'one-time') {
+			return $this->firstDue($after, $today);
+		}
+		$schedule = fn (Bill $b): array => [
+			'frequency' => $b->getFrequency(), 'dueDay' => $b->getDueDay(), 'dueMonth' => $b->getDueMonth(),
+			'pattern' => $b->getCustomRecurrencePattern(), 'anchor' => $b->getStartDate() ?: null,
+		];
+		return $this->frequencyCalculator->reschedule($schedule($before), $pending, $schedule($after))
+			?? $this->firstDue($after, $today);
+	}
+
+	/** Today's date as the user's calendar shows it */
+	private function today(string $userId): string {
+		return $this->userClock !== null ? $this->userClock->today($userId) : date('Y-m-d');
 	}
 
 	public function delete(int $id, string $userId): void {
@@ -846,8 +859,20 @@ class BillService {
 	 * @param int|null $existingTransactionId Link an existing transaction instead of creating a new one
 	 * @return array Updated bill with undo data
 	 */
-	public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $recordPayment = true, ?int $existingTransactionId = null): array {
+	public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $recordPayment = true, ?int $existingTransactionId = null, ?string $expectedDueDate = null): array {
 		$bill = $this->find($id, $userId);
+
+		// A paid one-time bill, an ended or paused one: a second click
+		// recorded another payment and overwrote the undo snapshot
+		if (!$bill->getIsActive() || $bill->getNextDueDate() === null) {
+			throw new \InvalidArgumentException($this->l->t('This bill has nothing left to pay'));
+		}
+		// The page names the occurrence it showed. A stale tab or a double
+		// submit names one already settled, and is refused rather than paid
+		// a second time.
+		if ($expectedDueDate !== null && $expectedDueDate !== '' && $expectedDueDate !== $bill->getNextDueDate()) {
+			throw new \InvalidArgumentException($this->l->t('This payment was already recorded. Reload the page to see the next one.'));
+		}
 		$this->requireWritableAccounts($bill);
 
 		// Capture previous state for undo support
@@ -879,7 +904,9 @@ class BillService {
 
 		// Use today's date as the paid/transaction date so the payment appears
 		// immediately in the account balance, regardless of when the bill was due.
-		$paidDate = $paidDate ?? date('Y-m-d');
+		// The user's today, not the server's: a payment marked in the evening
+		// west of UTC was filed under tomorrow.
+		$paidDate = $paidDate ?? $this->today($userId);
 		$bill->setLastPaidDate($paidDate);
 
 		// Dynamic-amount bills resolve their amount now: what the card calls
@@ -1121,15 +1148,12 @@ class BillService {
 
 		$bill = $this->mapper->update($bill);
 
-		// Only recreate scheduled transaction if one existed before markPaid
-		if ($hadScheduledTransaction && $bill->getIsActive() && $bill->getAccountId() !== null && $bill->getNextDueDate() !== null) {
-			try {
-				$nextTransaction = $this->transactionService->createFromBill($userId, $bill, null);
-				$this->applySplitTemplate($bill, $nextTransaction, $userId);
-			} catch (\Exception $e) {
-				$this->logger->warning("Failed to recreate scheduled transaction after undo-paid for bill {$id}: {$e->getMessage()}");
-			}
-		}
+		// The restored occurrence gets its pre-booked row back whenever the
+		// bill pre-books: after a payment that linked a bank row or recorded
+		// nothing the row was never put back, and one was put back on a bill
+		// that had since stopped pre-booking
+		$this->syncPlaceholder($bill, $userId);
+		$bill = $this->find($id, $userId);
 
 		return $bill;
 	}
@@ -1956,23 +1980,6 @@ class BillService {
 		}
 
 		return $grouped;
-	}
-
-	/**
-	 * Ensure the next due date is no earlier than the bill's start date. When a
-	 * bill starts in the future, its first occurrence should fall on/after the
-	 * start date rather than the next calendar occurrence from today (#268).
-	 *
-	 * Weekly/biweekly bills with a startDate never reach the recursive call:
-	 * their nextDue already came out of the calculator's anchor path, which by
-	 * construction never returns a date before the anchor (#364).
-	 */
-	private function applyStartDateFloor(string $nextDue, ?string $startDate, string $frequency, ?int $dueDay, ?int $dueMonth, ?string $customPattern): string {
-		if ($startDate === null || $startDate === '' || $startDate <= $nextDue) {
-			return $nextDue;
-		}
-		$fromStart = $this->frequencyCalculator->calculateNextDueDate($frequency, $dueDay, $dueMonth, $startDate, $customPattern);
-		return max($fromStart, $startDate);
 	}
 
 	/** How far a payment may sit from an occurrence's due date and still be that occurrence's. */

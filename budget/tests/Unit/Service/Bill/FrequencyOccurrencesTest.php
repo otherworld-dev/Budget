@@ -112,6 +112,36 @@ class FrequencyOccurrencesTest extends TestCase {
 		$this->assertSame('2026-10-09', $this->calc->periodStart('daily', '2026-10-09'));
 	}
 
+	public function testOccurrenceBeforeIsTheLastOneEarlier(): void {
+		$this->assertSame('2026-10-15', $this->calc->occurrenceBefore('monthly', 15, null, '2026-11-15'));
+		$this->assertSame('2026-02-28', $this->calc->occurrenceBefore('monthly', 31, null, '2026-03-31'));
+		$this->assertNull($this->calc->occurrenceBefore('monthly', 15, null, '2026-05-15', null, '2026-05-01'));
+	}
+
+	/** @return array<string, array{0: array, 1: string, 2: array, 3: string}> */
+	public static function reschedules(): array {
+		return [
+			// The pending payment moves within its month
+			'monthly day later' => [['monthly', 15], '2026-11-15', ['monthly', 25], '2026-11-25'],
+			'monthly day earlier' => [['monthly', 15], '2026-11-15', ['monthly', 1], '2026-11-01'],
+			// ...but never back onto one the old schedule already settled: the
+			// weekly payment a week ago was paid, so the fortnight is the next one
+			'weekly to bi-weekly' => [['weekly', null, null, '2026-09-14'], '2026-10-05', ['biweekly', null, null, '2026-09-14'], '2026-10-12'],
+			// A legacy bi-weekly schedule without a start date counts from its
+			// own pending date, whatever week it fell in
+			'anchoring a legacy bi-weekly' => [['biweekly', 1], '2026-10-19', ['biweekly', null, null, '2026-09-21'], '2026-10-19'],
+			'quarterly month' => [['quarterly', 1, 1], '2027-01-01', ['quarterly', 1, 2], '2027-02-01'],
+		];
+	}
+
+	#[DataProvider('reschedules')]
+	public function testRescheduleMovesThePendingOccurrence(array $old, string $pending, array $new, string $expected): void {
+		$schedule = fn (array $s) => ['frequency' => $s[0], 'dueDay' => $s[1] ?? null, 'dueMonth' => $s[2] ?? null,
+			'pattern' => null, 'anchor' => $s[3] ?? null];
+
+		$this->assertSame($expected, $this->calc->reschedule($schedule($old), $pending, $schedule($new)));
+	}
+
 	public function testAYearlyItemTwoYearsOutIsStillFound(): void {
 		$this->assertSame('2028-02-29', $this->calc->occurrenceAfter('yearly', 29, 2, '2027-02-28'));
 	}

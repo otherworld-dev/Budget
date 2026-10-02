@@ -30,7 +30,7 @@ class RecurringIncomeServiceTest extends TestCase {
 		$this->frequencyCalculator->method('getMonthlyEquivalentFromValues')
 			->willReturnCallback(fn (float $amount, string $frequency) => (new FrequencyCalculator())->getMonthlyEquivalentFromValues($amount, $frequency));
 		// The pure schedule questions run for real; tests pin calculateNextDueDate
-		foreach (['occurrenceOnOrAfter', 'occurrenceAfter', 'periodStart'] as $method) {
+		foreach (['occurrenceOnOrAfter', 'occurrenceAfter', 'occurrenceBefore', 'periodStart', 'reschedule'] as $method) {
 			$this->frequencyCalculator->method($method)
 				->willReturnCallback(fn (...$args) => (new FrequencyCalculator())->$method(...$args));
 		}

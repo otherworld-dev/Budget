@@ -122,6 +122,55 @@ class FrequencyCalculator {
 	}
 
 	/**
+	 * The last date the schedule falls on strictly before $date, or null.
+	 */
+	public function occurrenceBefore(
+		string $frequency,
+		?int $dueDay,
+		?int $dueMonth,
+		string $date,
+		?string $customPattern = null,
+		?string $anchor = null,
+	): ?string {
+		$date = new \DateTimeImmutable($this->day($date));
+		$dates = $this->occurrencesBetween(
+			$frequency, $dueDay, $dueMonth,
+			$date->modify('-' . self::SEARCH_DAYS . ' days')->format('Y-m-d'),
+			$date->modify('-1 day')->format('Y-m-d'),
+			$customPattern, $anchor
+		);
+		return $dates === [] ? null : end($dates);
+	}
+
+	/**
+	 * Where a pending occurrence lands when its schedule changes.
+	 *
+	 * The occurrence of the same period under the new schedule (see
+	 * periodStart()), and never one on or before the last occurrence the old
+	 * schedule had already settled: switching a weekly bill paid a week ago
+	 * to bi-weekly must not bring that week back. A weekly schedule with no
+	 * start date counts its old occurrences from the pending date itself,
+	 * the only fixed point it has.
+	 *
+	 * @param array{frequency: string, dueDay: ?int, dueMonth: ?int, pattern: ?string, anchor: ?string} $old
+	 * @param array{frequency: string, dueDay: ?int, dueMonth: ?int, pattern: ?string, anchor: ?string} $new
+	 */
+	public function reschedule(array $old, string $pending, array $new): ?string {
+		if ($new['frequency'] === 'one-time') {
+			return $new['anchor'];
+		}
+		$from = $this->periodStart($new['frequency'], $pending);
+		if ($old['frequency'] !== 'one-time') {
+			$oldAnchor = $old['anchor'] ?? (in_array($old['frequency'], ['weekly', 'biweekly'], true) ? $pending : null);
+			$settled = $this->occurrenceBefore($old['frequency'], $old['dueDay'], $old['dueMonth'], $pending, $old['pattern'], $oldAnchor);
+			if ($settled !== null) {
+				$from = max($from, (new \DateTimeImmutable($settled))->modify('+1 day')->format('Y-m-d'));
+			}
+		}
+		return $this->occurrenceOnOrAfter($new['frequency'], $new['dueDay'], $new['dueMonth'], $from, $new['pattern'], $new['anchor']);
+	}
+
+	/**
 	 * Where the period of a pending occurrence begins, for moving it when its
 	 * schedule changes: the occurrence under the new schedule is the first
 	 * on or after this. For calendar schedules that is the month, so moving

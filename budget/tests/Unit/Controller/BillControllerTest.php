@@ -164,6 +164,22 @@ class BillControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	public function testIndexFiltersSharedRowsLikeOwnOnes(): void {
+		// Shared rows were merged in unfiltered: shared transfers showed on
+		// the Bills page, shared bills on Transfers, ended ones everywhere
+		$this->service->method('findByType')->willReturn([]);
+		$this->granularShareService->method('getSharedBills')->willReturn([
+			['id' => 7, 'isTransfer' => false, 'isActive' => true],
+			['id' => 8, 'isTransfer' => true, 'isActive' => true],
+			['id' => 9, 'isTransfer' => false, 'isActive' => false],
+			['id' => 10, 'isTransfer' => false, 'isActive' => false, 'canMarkUnpaid' => true],
+		]);
+
+		$this->assertSame([7], array_column($this->controller->index(true, false)->getData(), 'id'));
+		$this->assertSame([7, 10], array_column($this->controller->index(false, false, true)->getData(), 'id'));
+		$this->assertSame([8], array_column($this->controller->index(true, true)->getData(), 'id'));
+	}
+
 	public function testIndexStringActiveOnly(): void {
 		$this->service->method('findActive')->with('user1')->willReturn([]);
 
@@ -1298,6 +1314,36 @@ class BillControllerTest extends TestCase {
 		$response = $this->controller->markPaid(1, '2026-03-01');
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testMarkPaidPassesTheShownDueDateAndReadsFalseAsFalse(): void {
+		// The due date names the occurrence the page showed, so a double
+		// click is refused; and the string "false" is false
+		$this->mockInput(json_encode(['recordPayment' => 'false', 'dueDate' => '2026-10-15']));
+		$this->service->expects($this->once())->method('markPaid')
+			->with(1, 'user1', null, false, null, '2026-10-15')
+			->willReturn(['bill' => $this->createMock(Bill::class)]);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->markPaid(1)->getStatus());
+	}
+
+	public function testMarkPaidShowsWhyItWasRefused(): void {
+		$this->mockInput(json_encode([]));
+		$this->service->method('markPaid')->willThrowException(new \InvalidArgumentException('This bill has nothing left to pay'));
+
+		$response = $this->controller->markPaid(1);
+
+		$this->assertSame('This bill has nothing left to pay', $response->getData()['error']);
+	}
+
+	public function testUpdateClearsTheAutoDetectPattern(): void {
+		// isset() on a null value skipped it, so the cleared field came back
+		$this->mockInput(json_encode(['autoDetectPattern' => null]));
+		$this->service->expects($this->once())->method('update')
+			->with(1, 'user1', ['autoDetectPattern' => null])
+			->willReturn($this->createMock(Bill::class));
+
+		$this->controller->update(1);
 	}
 
 	// ── markUnpaid (#365) ───────────────────────────────────────────

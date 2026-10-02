@@ -382,11 +382,12 @@ class RecurringIncomeService extends AbstractCrudService {
 		if ($pending === null || $before->getFrequency() === 'one-time') {
 			return $this->firstOccurrence($after, $today);
 		}
-		return $this->frequencyCalculator->occurrenceOnOrAfter(
-			$after->getFrequency(), $after->getExpectedDay(), $after->getExpectedMonth(),
-			$this->frequencyCalculator->periodStart($after->getFrequency(), $pending),
-			null, $after->getStartDate()
-		) ?? $this->firstOccurrence($after, $today);
+		$schedule = fn (RecurringIncome $i): array => [
+			'frequency' => $i->getFrequency(), 'dueDay' => $i->getExpectedDay(), 'dueMonth' => $i->getExpectedMonth(),
+			'pattern' => null, 'anchor' => $i->getStartDate() ?: null,
+		];
+		return $this->frequencyCalculator->reschedule($schedule($before), $pending, $schedule($after))
+			?? $this->firstOccurrence($after, $today);
 	}
 
 	/**

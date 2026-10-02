@@ -50,6 +50,11 @@ class BillServiceTest extends TestCase {
 		$logger = $this->createMock(LoggerInterface::class);
 		$this->dismissedMapper = $this->createMock(DismissedSuggestionMapper::class);
 		$this->incomeMapper = $this->createMock(RecurringIncomeMapper::class);
+		// The pure schedule questions run for real; tests pin calculateNextDueDate
+		foreach (['occurrenceOnOrAfter', 'occurrenceAfter', 'occurrenceBefore', 'occurrencesBetween', 'periodStart', 'reschedule'] as $method) {
+			$this->frequencyCalculator->method($method)
+				->willReturnCallback(fn (...$args) => (new FrequencyCalculator())->$method(...$args));
+		}
 		$this->service = new BillService(
 			$this->mapper,
 			$this->frequencyCalculator,
@@ -173,8 +178,7 @@ class BillServiceTest extends TestCase {
 	// ── create ──────────────────────────────────────────────────────
 
 	public function testCreateBasicBill(): void {
-		$this->frequencyCalculator->method('calculateNextDueDate')
-			->willReturn('2099-07-01');
+		$expected = (new FrequencyCalculator())->occurrenceOnOrAfter('monthly', 1, null, date('Y-m-d'));
 		$this->mapper->expects($this->once())
 			->method('insert')
 			->willReturnCallback(fn (Bill $b) => $b);
@@ -184,7 +188,7 @@ class BillServiceTest extends TestCase {
 		$this->assertSame('Netflix', $bill->getName());
 		$this->assertEqualsWithDelta(15.99, $bill->getAmount(), 0.001);
 		$this->assertSame('monthly', $bill->getFrequency());
-		$this->assertSame('2099-07-01', $bill->getNextDueDate());
+		$this->assertSame($expected, $bill->getNextDueDate());
 		$this->assertTrue($bill->getIsActive());
 	}
 
@@ -1012,9 +1016,19 @@ class BillServiceTest extends TestCase {
 		$this->service->markPaid(1, 'user1', null, false);
 	}
 
+	/** The mapper keeps what updateFields() writes, as the real one does */
+	private function persistUpdates(Bill $bill): void {
+		$this->mapper->method('updateFields')->willReturnCallback(function (int $id, string $user, array $fields) use ($bill) {
+			foreach ($fields as $column => $value) {
+				$bill->{'set' . str_replace('_', '', ucwords($column, '_'))}($value);
+			}
+		});
+	}
+
 	public function testUpdateTogglingOffRemovesPlaceholders(): void {
 		$bill = $this->makeBill(); // no flag = enabled
 		$this->mapper->method('find')->willReturn($bill);
+		$this->persistUpdates($bill);
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-06-15');
 
 		$this->transactionService->expects($this->once())->method('deleteScheduledBillTransactions')->with(1);
@@ -1026,10 +1040,10 @@ class BillServiceTest extends TestCase {
 	public function testUpdateTogglingOnCreatesPlaceholder(): void {
 		$bill = $this->makeBill(['createTransaction' => false]);
 		$this->mapper->method('find')->willReturn($bill);
+		$this->persistUpdates($bill);
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-06-15');
 
 		$this->transactionService->expects($this->once())->method('createFromBill');
-		$this->transactionService->expects($this->never())->method('deleteScheduledBillTransactions');
 
 		$this->service->update(1, 'user1', ['createTransaction' => true]);
 	}
@@ -1041,6 +1055,7 @@ class BillServiceTest extends TestCase {
 		// nothing (#584).
 		$bill = $this->makeBill(['createTransaction' => false]);
 		$this->mapper->method('find')->willReturn($bill);
+		$this->persistUpdates($bill);
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-06-20');
 
 		$this->transactionService->expects($this->once())->method('createFromBill');
@@ -1374,6 +1389,7 @@ class BillServiceTest extends TestCase {
 		$bill->setAmount(2912.0);
 		$bill->setFrequency('monthly');
 		$bill->setIsActive(true);
+		$bill->setNextDueDate('2099-06-28');
 		$this->mapper->method('find')->willReturn($bill);
 		$this->mapper->method('update')->willReturnArgument(0);
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-28');

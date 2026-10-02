@@ -85,8 +85,25 @@ class BillController extends Controller {
 			}
 			$bills = $this->service->enrichBillsWithCurrency($bills, $this->userId);
 
-			// Merge shared bills
-			$shared = $this->granularShareService->getSharedBills($this->userId);
+			// Merge shared bills, filtered the same way as the user's own:
+			// unfiltered, shared transfers showed on the Bills page, shared
+			// bills on Transfers, and ended ones everywhere
+			$shared = array_values(array_filter(
+				$this->granularShareService->getSharedBills($this->userId),
+				function (array $row) use ($isTransferBool, $activeOnlyBool, $revertibleTooBool): bool {
+					if ($isTransferBool !== null && (bool)($row['isTransfer'] ?? false) !== $isTransferBool) {
+						return false;
+					}
+					$active = (bool)($row['isActive'] ?? true);
+					if ($activeOnlyBool && !$active) {
+						return false;
+					}
+					if ($revertibleTooBool && !$active && !($row['canMarkUnpaid'] ?? false)) {
+						return false;
+					}
+					return true;
+				}
+			));
 			if (!empty($shared)) {
 				$bills = array_merge(
 					array_map(fn ($b) => $b->jsonSerialize(), $bills),
@@ -451,8 +468,9 @@ class BillController extends Controller {
 				}
 			}
 
-			// Validate autoDetectPattern if provided
-			if (isset($data['autoDetectPattern'])) {
+			// Validate autoDetectPattern if provided; null clears it (isset()
+			// skipped a null, so a cleared pattern came back)
+			if (array_key_exists('autoDetectPattern', $data)) {
 				if ($data['autoDetectPattern'] !== null && $data['autoDetectPattern'] !== '') {
 					$patternValidation = $this->validationService->validatePattern($data['autoDetectPattern'], false);
 					if (!$patternValidation['valid']) {
@@ -840,10 +858,14 @@ class BillController extends Controller {
 			// createNextTransaction, which is what it also did until #376
 			// separated the two; the old name still works so a bundle cached
 			// from before the rename does not silently record nothing.
-			$recordPayment = (bool)($params['recordPayment'] ?? $params['createNextTransaction'] ?? false);
+			// filter_var, not a cast: (bool)"false" is true
+			$recordPayment = filter_var($params['recordPayment'] ?? $params['createNextTransaction'] ?? false, FILTER_VALIDATE_BOOLEAN);
 			$existingTransactionId = isset($params['existingTransactionId']) ? (int)$params['existingTransactionId'] : null;
+			// The occurrence the page showed, so a second click or a stale
+			// tab is refused instead of paying it twice
+			$expectedDueDate = is_string($params['dueDate'] ?? null) ? $params['dueDate'] : null;
 
-			$result = $this->service->markPaid($id, $this->billOwner($id), $paidDate, $recordPayment, $existingTransactionId);
+			$result = $this->service->markPaid($id, $this->billOwner($id), $paidDate, $recordPayment, $existingTransactionId, $expectedDueDate);
 			return new DataResponse($result);
 		} catch (\InvalidArgumentException $e) {
 			// Service-only validation keeps its message (#362)
