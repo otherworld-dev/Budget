@@ -7,6 +7,7 @@ namespace OCA\Budget\Tests\Integration\Service;
 use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\MigrationService;
+use OCA\Budget\Tests\Integration\FullDataset;
 use OCA\Budget\Tests\Integration\IntegrationTestCase;
 
 /**
@@ -18,6 +19,8 @@ use OCA\Budget\Tests\Integration\IntegrationTestCase;
  * proves the SQL behind them.
  */
 class BackupRestoreLinksTest extends IntegrationTestCase {
+	use FullDataset;
+
 	private MigrationService $migration;
 	private string $bob;
 
