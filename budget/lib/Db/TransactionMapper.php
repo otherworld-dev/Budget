@@ -2851,6 +2851,35 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
+	 * Credits in an account that could be the arrival of a transfer of this
+	 * amount between two dates: not linked to another row, not paying a bill,
+	 * not pending.
+	 *
+	 * @return Transaction[] nearest-dated first is up to the caller
+	 */
+	public function findTransferArrivals(int $accountId, float $amount, string $from, string $to): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('type', $qb->createNamedParameter('credit')))
+			->andWhere($qb->expr()->isNull('linked_transaction_id'))
+			->andWhere($qb->expr()->isNull('bill_id'))
+			->andWhere($qb->expr()->orX(
+				$qb->expr()->isNull('status'),
+				$qb->expr()->neq('status', $qb->createNamedParameter('scheduled'))
+			))
+			// Decimal amounts compared with a half-cent margin, not as floats
+			->andWhere($qb->expr()->gte('amount', $qb->createNamedParameter(number_format($amount - 0.005, 3, '.', ''))))
+			->andWhere($qb->expr()->lte('amount', $qb->createNamedParameter(number_format($amount + 0.005, 3, '.', ''))))
+			->andWhere($qb->expr()->gte('date', $qb->createNamedParameter($from)))
+			->andWhere($qb->expr()->lte('date', $qb->createNamedParameter($to)))
+			->orderBy('date', 'ASC');
+
+		return $this->findEntities($qb);
+	}
+
+	/**
 	 * Credits the app booked for recurring income in an account between two
 	 * dates (by their "Auto-generated from income:" notes, as the income has
 	 * no column on the row), never an imported one.

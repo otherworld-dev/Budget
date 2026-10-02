@@ -744,7 +744,82 @@ class TransactionService {
 		if ($transaction === null) {
 			return;
 		}
+		$billId = $transaction->getBillId();
 		$this->update($id, $this->ownerOf($transaction), ['billId' => null]);
+
+		// A transfer paid by linking its withdrawal also marked the arrival
+		if ($billId !== null && $transaction->getLinkedTransactionId() !== null) {
+			$partner = $this->mapper->findById($transaction->getLinkedTransactionId());
+			if ($partner !== null && $partner->getBillId() === $billId) {
+				$this->update($partner->getId(), $this->ownerOf($partner), ['billId' => null]);
+			}
+		}
+	}
+
+	/**
+	 * Give a recurring transfer paid by linking its withdrawal the other leg.
+	 *
+	 * Linking only ever touched the withdrawal, so a transfer paid from an
+	 * imported bank row left its destination uncredited. Its arrival is, in
+	 * order: the row the withdrawal is already paired with; a credit of the
+	 * same amount within three days in the destination, the bank's own row
+	 * of the arrival; or failing both, a deposit booked as the destination
+	 * account's owner on the withdrawal's date.
+	 *
+	 * @return int|null the id of a deposit booked here, so a revert can
+	 *                  remove it; null when an existing row was used
+	 */
+	public function completeTransferPayment(Transaction $withdrawal, Bill $bill): ?int {
+		if ($withdrawal->getLinkedTransactionId() !== null) {
+			$partner = $this->mapper->findById($withdrawal->getLinkedTransactionId());
+			if ($partner !== null && $partner->getBillId() === null) {
+				$this->update($partner->getId(), $this->ownerOf($partner), ['billId' => $bill->getId()]);
+			}
+			return null;
+		}
+		$destination = $bill->getDestinationAccountId();
+		if ($destination === null) {
+			return null;
+		}
+
+		$on = new \DateTimeImmutable($withdrawal->getDate());
+		$arrivals = $this->mapper->findTransferArrivals(
+			$destination,
+			(float)$withdrawal->getAmount(),
+			$on->modify('-3 days')->format('Y-m-d'),
+			$on->modify('+3 days')->format('Y-m-d')
+		);
+		if ($arrivals !== []) {
+			usort($arrivals, fn (Transaction $a, Transaction $b) =>
+				abs(strtotime($a->getDate()) - $on->getTimestamp()) <=> abs(strtotime($b->getDate()) - $on->getTimestamp()));
+			$arrival = $arrivals[0];
+			$this->mapper->linkTransactions($withdrawal->getId(), $arrival->getId());
+			$this->update($arrival->getId(), $this->ownerOf($arrival), ['billId' => $bill->getId()]);
+			return null;
+		}
+
+		$deposit = $this->create(
+			userId: $this->accountMapper->findById($destination)->getUserId(),
+			accountId: $destination,
+			date: $withdrawal->getDate(),
+			description: $bill->getDescription() ?? '',
+			amount: (float)$withdrawal->getAmount(),
+			type: 'credit',
+			categoryId: $bill->getCategoryId(),
+			vendor: $bill->getName(),
+			reference: null,
+			notes: "Auto-generated transfer: {$bill->getName()}",
+			importId: null,
+			billId: $bill->getId(),
+			status: 'cleared',
+			excludedFromForecast: $bill->getExcludedFromForecast() ?? false
+		);
+		$this->mapper->linkTransactions($withdrawal->getId(), $deposit->getId());
+		$tagIds = $bill->getTagIdsArray();
+		if (!empty($tagIds)) {
+			$this->applyTagsToTransaction($deposit->getId(), $tagIds);
+		}
+		return $deposit->getId();
 	}
 
 	/**

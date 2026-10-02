@@ -1817,6 +1817,23 @@ class BillServiceTest extends TestCase {
 		$this->service->autoMatchPaidFromImport('user1', [$imported]);
 	}
 
+	public function testAnImportedWithdrawalPaysARecurringTransfer(): void {
+		// The transfer form's description pattern was never read and transfers
+		// were left out of matching, so the statement's rows stayed apart and
+		// Mark Paid then moved the money twice
+		$bill = $this->setupAutoMatchBill(['isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null]);
+		$bill->setTransferDescriptionPattern('NETFLIX');
+		$tx = $this->makeImportedTx();
+		$this->linkable($tx);
+		$this->transactionService->expects($this->once())->method('completeTransferPayment')
+			->with($tx, $this->isInstanceOf(Bill::class))->willReturn(901);
+
+		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$tx]));
+
+		$snapshot = json_decode($bill->getPaidUndoState(), true);
+		$this->assertSame([901], $snapshot['createdTransactionIds'], 'A deposit booked here goes on revert');
+	}
+
 	public function testAutoMatchMatchesPatternInVendor(): void {
 		$this->setupAutoMatchBill();
 		$tx = $this->makeImportedTx(['description' => 'Card payment 9912', 'vendor' => 'Netflix Inc']);

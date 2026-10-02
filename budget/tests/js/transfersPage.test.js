@@ -28,7 +28,12 @@ vi.mock('../../src/utils/notifications.js', () => ({
     showUndoNotification: vi.fn(),
 }));
 
+vi.mock('../../src/utils/matchingDialog.js', () => ({
+    showMatchingTransactionDialog: vi.fn(),
+}));
+
 import TransfersModule from '../../src/modules/transfers/TransfersModule.js';
+import { showMatchingTransactionDialog } from '../../src/utils/matchingDialog.js';
 import { showWarning } from '../../src/utils/notifications.js';
 
 function localDate(offset = 0) {
@@ -119,10 +124,44 @@ describe('Mark Paid on a transfer', () => {
 
         await mod.markTransferPaid(1);
 
-        const body = JSON.parse(global.fetch.mock.calls[0][1].body);
+        const paid = global.fetch.mock.calls.find(([url]) => url.endsWith('/paid'));
+        const body = JSON.parse(paid[1].body);
         expect(body.dueDate).toBe('2026-10-15');
         expect(body.recordPayment).toBe(true);
         expect(showWarning).toHaveBeenCalled();
+    });
+});
+
+describe('Mark Paid with the bank row already there', () => {
+    it('offers the rows already in the account and links the one chosen', async () => {
+        // Mark Paid always booked a new pair, so a transfer the statement
+        // had already brought in moved the money twice
+        const mod = makeModule([transfer({ nextDueDate: '2026-10-15' })]);
+        mod.renderTransfers = vi.fn();
+        mod.updateSummary = vi.fn();
+        const candidates = [{ transaction: { id: 55, date: '2026-10-15', amount: 100 }, score: 80, matchReasons: [] }];
+        global.fetch = vi.fn(async (url) => ({
+            ok: true,
+            json: async () => (url.includes('matching-transactions') ? candidates : { bill: { id: 1 }, paymentTransactionRecorded: true }),
+        }));
+        showMatchingTransactionDialog.mockResolvedValue({ action: 'link', transactionId: 55 });
+
+        await mod.markTransferPaid(1);
+
+        const paid = global.fetch.mock.calls.find(([url]) => url.endsWith('/paid'));
+        const body = JSON.parse(paid[1].body);
+        expect(body.existingTransactionId).toBe(55);
+        expect(body.recordPayment).toBe(false);
+    });
+
+    it('does nothing when the dialog is cancelled', async () => {
+        const mod = makeModule([transfer({ nextDueDate: '2026-10-15' })]);
+        global.fetch = vi.fn(async () => ({ ok: true, json: async () => [{ transaction: { id: 55 }, score: 80, matchReasons: [] }] }));
+        showMatchingTransactionDialog.mockResolvedValue(null);
+
+        await mod.markTransferPaid(1);
+
+        expect(global.fetch.mock.calls.some(([url]) => url.endsWith('/paid'))).toBe(false);
     });
 });
 

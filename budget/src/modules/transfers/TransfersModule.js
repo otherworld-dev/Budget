@@ -5,6 +5,7 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { billRowState } from '../../utils/billDates.js';
+import { showMatchingTransactionDialog } from '../../utils/matchingDialog.js';
 import { showSuccess, showError, showWarning, showUndoNotification } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { initSingleDatePicker } from '../../utils/datepicker.js';
@@ -941,20 +942,38 @@ export default class TransfersModule {
         if (!transfer) return;
 
         try {
-            const formattedDate = formatters.getTodayDateString();
+            // A withdrawal already in the source account (from a statement or
+            // bank sync) may be this transfer: offer to link it, as the Bills
+            // page does. Booking a new pair moved the money a second time.
+            let choice = { action: 'create' };
+            if (transfer.accountId || transfer.account_id) {
+                const candidates = await apiFetch(`/apps/budget/api/bills/${transferId}/matching-transactions`)
+                    .catch(() => null);
+                if (candidates && candidates.length > 0) {
+                    choice = await showMatchingTransactionDialog(transfer, candidates, this.settings);
+                    if (choice === null) {
+                        return; // cancelled
+                    }
+                }
+            }
 
             // Use the dedicated mark-paid endpoint so the paired transfer
             // transactions are actually created. A plain PUT of lastPaidDate
             // records the date but creates no account entries (#291). It
             // names the occurrence the row showed, so a second click is
             // refused rather than paid twice.
+            const body = {
+                recordPayment: choice.action === 'create',
+                dueDate: transfer.nextDueDate || transfer.next_due_date || null,
+            };
+            if (choice.action === 'link') {
+                body.existingTransactionId = choice.transactionId;
+            } else {
+                body.paidDate = formatters.getTodayDateString();
+            }
             const result = await apiFetch(`/apps/budget/api/bills/${transferId}/paid`, {
                 method: 'POST',
-                body: {
-                    paidDate: formattedDate,
-                    recordPayment: true,
-                    dueDate: transfer.nextDueDate || transfer.next_due_date || null,
-                },
+                body,
                 errorMessage: t('budget', 'Failed to mark transfer as paid'),
             });
 

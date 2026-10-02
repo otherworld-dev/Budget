@@ -809,6 +809,20 @@ class TransactionServiceTest extends TestCase {
 		$this->service->linkBillAsAccountOwner(80, $this->makeBill(['id' => 9]));
 	}
 
+	public function testUnlinkingATransfersWithdrawalFreesItsArrivalToo(): void {
+		$withdrawal = $this->makeTransaction(['id' => 77, 'accountId' => 10, 'billId' => 9]);
+		$withdrawal->setLinkedTransactionId(78);
+		$arrival = $this->makeTransaction(['id' => 78, 'accountId' => 20, 'billId' => 9]);
+		$this->mapper->method('findById')->willReturnCallback(fn (int $id) => $id === 77 ? $withdrawal : $arrival);
+		$this->mapper->method('find')->willReturnCallback(fn (int $id) => $id === 77 ? $withdrawal : $arrival);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$this->service->unlinkBillAsAccountOwner(77);
+
+		$this->assertNull($withdrawal->getBillId());
+		$this->assertNull($arrival->getBillId());
+	}
+
 	public function testUnlinkBillAsAccountOwnerIgnoresAMissingRow(): void {
 		$this->mapper->method('findById')->willReturn(null);
 		$this->mapper->expects($this->never())->method('update');
@@ -899,6 +913,55 @@ class TransactionServiceTest extends TestCase {
 		$this->mapper->expects($this->never())->method('update');
 
 		$this->assertNull($this->service->clearScheduledBillTransaction('user1', 1, '2026-02-01', null, true));
+	}
+
+	public function testALinkedTransfersArrivalIsTheBankCreditAlreadyThere(): void {
+		// Linking the bank's withdrawal paid the transfer; the destination's
+		// own imported credit is its other leg rather than a second deposit
+		$inserted = [];
+		$bill = $this->transferSetup('user1', $inserted);
+		$withdrawal = $this->makeTransaction(['id' => 70, 'accountId' => 10, 'billId' => 1, 'date' => '2026-02-01', 'amount' => 500.0]);
+		$arrival = $this->makeTransaction(['id' => 71, 'accountId' => 20, 'date' => '2026-02-02', 'amount' => 500.0]);
+		$arrival->setType('credit');
+		$this->mapper->method('findTransferArrivals')->with(20, 500.0, '2026-01-29', '2026-02-04')->willReturn([$arrival]);
+		$this->mapper->method('find')->willReturn($arrival);
+		$this->mapper->method('findById')->willReturn($arrival);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->expects($this->once())->method('linkTransactions')->with(70, 71);
+
+		$this->assertNull($this->service->completeTransferPayment($withdrawal, $bill));
+		$this->assertSame([], $inserted);
+		$this->assertSame(1, $arrival->getBillId());
+	}
+
+	public function testALinkedTransferWithNoArrivalBooksTheDeposit(): void {
+		$inserted = [];
+		$bill = $this->transferSetup('partner', $inserted);
+		$withdrawal = $this->makeTransaction(['id' => 70, 'accountId' => 10, 'billId' => 1, 'date' => '2026-02-01', 'amount' => 500.0]);
+		$this->mapper->method('findTransferArrivals')->willReturn([]);
+		$this->mapper->expects($this->once())->method('linkTransactions')->with(70, 1);
+
+		$created = $this->service->completeTransferPayment($withdrawal, $bill);
+
+		$this->assertSame(1, $created);
+		$this->assertSame(20, $inserted[0]->getAccountId());
+		$this->assertSame('credit', $inserted[0]->getType());
+		$this->assertSame('2026-02-01', $inserted[0]->getDate());
+	}
+
+	public function testATransferWhoseLegsAreAlreadyPairedOnlyGetsItsBill(): void {
+		$inserted = [];
+		$bill = $this->transferSetup('user1', $inserted);
+		$withdrawal = $this->makeTransaction(['id' => 70, 'accountId' => 10, 'billId' => 1]);
+		$withdrawal->setLinkedTransactionId(71);
+		$partner = $this->makeTransaction(['id' => 71, 'accountId' => 20]);
+		$this->mapper->method('findById')->willReturn($partner);
+		$this->mapper->method('find')->willReturn($partner);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->expects($this->never())->method('linkTransactions');
+
+		$this->assertNull($this->service->completeTransferPayment($withdrawal, $bill));
+		$this->assertSame(1, $partner->getBillId());
 	}
 
 	public function testCreateFromBillCreatesTransferPair(): void {

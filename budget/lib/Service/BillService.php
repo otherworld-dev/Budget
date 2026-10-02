@@ -1050,6 +1050,15 @@ class BillService {
 				$this->applySplitTemplate($bill, $linked, $userId);
 			}
 			$this->transactionService->deleteScheduledBillTransactions($bill->getId());
+			// A transfer's withdrawal needs its arrival: the bank's own credit
+			// in the destination, or a deposit booked for it (which a revert
+			// removes). Linking used to leave the destination uncredited.
+			if ($bill->getIsTransfer() ?? false) {
+				$deposit = $this->transactionService->completeTransferPayment($linked, $bill);
+				if ($deposit !== null) {
+					$createdTransactionIds[] = $deposit;
+				}
+			}
 			$linkedExistingTransaction = true;
 			$linkedTransactionId = $existingRow->getId();
 		} elseif ($recordPayment && $bill->getAccountId() !== null) {
@@ -1702,10 +1711,12 @@ class BillService {
 			return 0;
 		}
 
+		// Bills and recurring transfers alike: a transfer matches its
+		// withdrawal from the source account by its pattern (the transfer
+		// form's description pattern, which nothing used to read)
 		$bills = array_filter(
 			$this->findActive($userId),
-			fn (Bill $bill) => !($bill->getIsTransfer() ?? false)
-				&& !empty($bill->getAutoDetectPattern())
+			fn (Bill $bill) => $this->matchPattern($bill) !== ''
 				&& $bill->getNextDueDate() !== null
 		);
 		if (empty($bills)) {
@@ -1799,9 +1810,18 @@ class BillService {
 			&& $this->withinDueWindow($bill, $transaction->getDate(), (string)$bill->getNextDueDate());
 	}
 
+	/** What an imported row has to contain to be this bill's (or transfer's) payment */
+	private function matchPattern(Bill $bill): string {
+		$pattern = trim((string)$bill->getAutoDetectPattern());
+		if ($pattern === '' && ($bill->getIsTransfer() ?? false)) {
+			$pattern = trim((string)$bill->getTransferDescriptionPattern());
+		}
+		return $pattern;
+	}
+
 	/** Pattern, amount within 10% and the bill's account: everything but the date */
 	private function importedTransactionLooksLikeBill(Bill $bill, \OCA\Budget\Db\Transaction $transaction): bool {
-		$pattern = (string)$bill->getAutoDetectPattern();
+		$pattern = $this->matchPattern($bill);
 		$haystack = $transaction->getDescription() . ' ' . ($transaction->getVendor() ?? '');
 		if ($pattern === '' || stripos($haystack, $pattern) === false) {
 			return false;
