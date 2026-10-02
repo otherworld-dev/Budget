@@ -35,6 +35,7 @@ class BillService {
 	private DismissedSuggestionMapper $dismissedMapper;
 	private ?AutoShareService $autoShareService;
 	private ?RecurringIncomeMapper $incomeMapper;
+	private ?GranularShareService $granularShareService;
 
 	public function __construct(
 		BillMapper $mapper,
@@ -49,6 +50,7 @@ class BillService {
 		DismissedSuggestionMapper $dismissedMapper,
 		?AutoShareService $autoShareService = null,
 		?RecurringIncomeMapper $incomeMapper = null,
+		?GranularShareService $granularShareService = null,
 	) {
 		$this->mapper = $mapper;
 		$this->frequencyCalculator = $frequencyCalculator;
@@ -62,6 +64,7 @@ class BillService {
 		$this->dismissedMapper = $dismissedMapper;
 		$this->autoShareService = $autoShareService;
 		$this->incomeMapper = $incomeMapper;
+		$this->granularShareService = $granularShareService;
 	}
 
 	/** Amount types whose figure is resolved from the destination card at payment time (#347) */
@@ -75,6 +78,56 @@ class BillService {
 	 */
 	public function find(int $id, string $userId): Bill {
 		return $this->mapper->find($id, $userId);
+	}
+
+	/**
+	 * Refuse a payment action on a bill whose owner can no longer write to
+	 * the account(s) it posts into.
+	 *
+	 * A bill can name another user's account, shared to the bill's owner.
+	 * Revoking, leaving or cutting that share to read doesn't touch the bill,
+	 * and its actions only check access to the bill itself, so it went on
+	 * booking and deleting rows in the other user's ledger, auto-pay included.
+	 * Every action that writes to the account checks here first, before the
+	 * bill is changed.
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	private function requireWritableAccounts(Bill $bill): void {
+		if (!$this->accountsWritable($bill)) {
+			throw new \InvalidArgumentException($this->l->t('This bill uses an account you can no longer change. Edit the bill and choose another account.'));
+		}
+	}
+
+	/**
+	 * Remove the pending rows a user's bills booked into accounts the user can
+	 * no longer write to. Called when a share ends or is cut back: the rows
+	 * sit in the other user's ledger, where that user can neither see the
+	 * bill behind them nor stop them.
+	 */
+	public function dropUnwritablePlaceholders(string $userId): void {
+		foreach ($this->mapper->findAll($userId) as $bill) {
+			if ($bill->getAccountId() !== null && !$this->accountsWritable($bill)) {
+				$this->transactionService->deleteScheduledBillTransactions($bill->getId());
+			}
+		}
+	}
+
+	/** Whether the bill's owner can still write to every account the bill posts into */
+	private function accountsWritable(Bill $bill): bool {
+		if ($this->granularShareService === null) {
+			return true;
+		}
+		$accountIds = [$bill->getAccountId()];
+		if ($bill->getIsTransfer() ?? false) {
+			$accountIds[] = $bill->getDestinationAccountId();
+		}
+		foreach ($accountIds as $accountId) {
+			if ($accountId !== null && !$this->granularShareService->canWrite($bill->getUserId(), ShareItem::TYPE_ACCOUNT, (int)$accountId)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
@@ -133,10 +186,18 @@ class BillService {
 	 *
 	 * @return array Scored candidates [{transaction, score, matchReasons}]
 	 */
-	public function findMatchingTransactions(int $billId, string $userId): array {
+	public function findMatchingTransactions(int $billId, string $userId, ?string $actingUserId = null): array {
 		$bill = $this->find($billId, $userId);
 
 		if (!$bill->getAccountId()) {
+			return [];
+		}
+
+		// The candidates are full rows from the bill's account. A user who
+		// can't see that account (a share since revoked, or a bill shared
+		// without its account) gets none of them.
+		if ($this->granularShareService !== null
+			&& !$this->granularShareService->canAccess($actingUserId ?? $userId, ShareItem::TYPE_ACCOUNT, (int)$bill->getAccountId())) {
 			return [];
 		}
 
@@ -223,6 +284,7 @@ class BillService {
 		if ($bill->getAccountId() === null) {
 			throw new \InvalidArgumentException($this->l->t('Assign an account to the bill first'));
 		}
+		$this->requireWritableAccounts($bill);
 
 		// The bill may reference an account that has since been deleted — give an
 		// actionable message instead of a raw lookup failure surfacing as the
@@ -726,7 +788,8 @@ class BillService {
 				$this->transactionService->deleteScheduledBillTransactions($id);
 			} elseif (!$wasEnabled && $nowEnabled) {
 				$fresh = $this->find($id, $userId);
-				if ($fresh->getIsActive() && $fresh->getAccountId() !== null && $fresh->getNextDueDate() !== null) {
+				if ($fresh->getIsActive() && $fresh->getAccountId() !== null && $fresh->getNextDueDate() !== null
+					&& $this->accountsWritable($fresh)) {
 					try {
 						$nextTransaction = $this->transactionService->createFromBill($userId, $fresh, null);
 						$this->applySplitTemplate($fresh, $nextTransaction, $userId);
@@ -743,7 +806,8 @@ class BillService {
 			&& ($bill->getAmountType() ?? 'fixed') !== $updates['amountType']) {
 			$fresh = $this->find($id, $userId);
 			if (($fresh->getCreateTransaction() ?? true) && $fresh->getIsActive()
-				&& $fresh->getAccountId() !== null && $fresh->getNextDueDate() !== null) {
+				&& $fresh->getAccountId() !== null && $fresh->getNextDueDate() !== null
+				&& $this->accountsWritable($fresh)) {
 				$this->transactionService->deleteScheduledBillTransactions($id);
 				try {
 					$nextTransaction = $this->transactionService->createFromBill($userId, $fresh, null);
@@ -784,6 +848,7 @@ class BillService {
 	 */
 	public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $recordPayment = true, ?int $existingTransactionId = null): array {
 		$bill = $this->find($id, $userId);
+		$this->requireWritableAccounts($bill);
 
 		// Capture previous state for undo support
 		$previousState = [
@@ -998,6 +1063,7 @@ class BillService {
 	 */
 	public function undoPaid(int $id, string $userId, array $previousState, array $createdTransactionIds, bool $hadScheduledTransaction = false, array $scheduledTransactionIds = [], ?int $linkedTransactionId = null): Bill {
 		$bill = $this->find($id, $userId);
+		$this->requireWritableAccounts($bill);
 
 		// Delete the transactions markPaid recorded. They were created under
 		// the ACCOUNT owner (#334) — for a bill on a shared account that is
@@ -1125,6 +1191,7 @@ class BillService {
 	 */
 	public function skipPayment(int $id, string $userId): array {
 		$bill = $this->find($id, $userId);
+		$this->requireWritableAccounts($bill);
 
 		if ($bill->getFrequency() === 'one-time') {
 			throw new \InvalidArgumentException($this->l->t('Cannot skip a one-time bill'));
@@ -1189,6 +1256,7 @@ class BillService {
 	 */
 	public function undoSkip(int $id, string $userId, string $previousNextDueDate): Bill {
 		$bill = $this->find($id, $userId);
+		$this->requireWritableAccounts($bill);
 
 		// Delete scheduled transaction for the advanced (wrong) date
 		$this->transactionService->deleteScheduledBillTransactions($id);

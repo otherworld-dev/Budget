@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 
 use OCA\Budget\Controller\ShareController;
 use OCA\Budget\Db\Share;
+use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ShareService;
 use OCP\AppFramework\Db\DoesNotExistException;
@@ -168,6 +169,25 @@ class ShareControllerTest extends TestCase {
 	}
 
 	// ── revoke ──────────────────────────────────────────────────────
+
+	public function testRevokeDropsTheRecipientsPendingRowsInTheOwnersAccounts(): void {
+		$billService = $this->createMock(BillService::class);
+		$controller = new ShareController($this->request, $this->shareService, $this->granularShareService,
+			$this->l, 'user1', $this->logger, null, $billService);
+		$this->shareService->method('findById')->with(1)->willReturn($this->makeShare('user1', 'bob'));
+		$billService->expects($this->once())->method('dropUnwritablePlaceholders')->with('bob');
+
+		$this->assertSame(Http::STATUS_OK, $controller->revoke(1)->getStatus());
+	}
+
+	public function testLeaveDropsTheLeavingUsersPendingRows(): void {
+		$billService = $this->createMock(BillService::class);
+		$controller = new ShareController($this->request, $this->shareService, $this->granularShareService,
+			$this->l, 'user1', $this->logger, null, $billService);
+		$billService->expects($this->once())->method('dropUnwritablePlaceholders')->with('user1');
+
+		$this->assertSame(Http::STATUS_OK, $controller->leave(1)->getStatus());
+	}
 
 	public function testRevokeReturnsSuccess(): void {
 		$this->shareService->expects($this->once())

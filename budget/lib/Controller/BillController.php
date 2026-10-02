@@ -771,7 +771,7 @@ class BillController extends Controller {
 	 */
 	public function findMatchingTransactions(int $id): DataResponse {
 		try {
-			$candidates = $this->service->findMatchingTransactions($id, $this->billOwner($id));
+			$candidates = $this->service->findMatchingTransactions($id, $this->billOwner($id), $this->userId);
 			return new DataResponse($candidates);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to find matching transactions'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
@@ -845,6 +845,9 @@ class BillController extends Controller {
 
 			$result = $this->service->markPaid($id, $this->billOwner($id), $paidDate, $recordPayment, $existingTransactionId);
 			return new DataResponse($result);
+		} catch (\InvalidArgumentException $e) {
+			// Service-only validation keeps its message (#362)
+			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to mark bill as paid'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
 		}
@@ -927,6 +930,8 @@ class BillController extends Controller {
 
 			$bill = $this->service->undoSkip($id, $this->billOwner($id), $previousNextDueDate);
 			return new DataResponse($bill);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to undo skip'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
 		}

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Service\AutoShareService;
+use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ShareService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
@@ -35,6 +37,7 @@ class ShareController extends Controller {
 		string $userId,
 		LoggerInterface $logger,
 		?AutoShareService $autoShareService = null,
+		private ?BillService $billService = null,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 		$this->shareService = $shareService;
@@ -147,7 +150,9 @@ class ShareController extends Controller {
 	 */
 	public function revoke(int $id): DataResponse {
 		try {
+			$recipient = $this->billService !== null ? $this->shareService->findById($id)->getSharedWithUserId() : null;
 			$this->shareService->revoke($id, $this->userId);
+			$this->dropLostPlaceholders($recipient);
 			return new DataResponse(['status' => 'success']);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleValidationError($e);
@@ -166,6 +171,7 @@ class ShareController extends Controller {
 	public function leave(int $id): DataResponse {
 		try {
 			$this->shareService->leave($id, $this->userId);
+			$this->dropLostPlaceholders($this->userId);
 			return new DataResponse(['status' => 'success']);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleValidationError($e);
@@ -224,6 +230,9 @@ class ShareController extends Controller {
 				$entityIds,
 				$permission
 			);
+			if ($type === ShareItem::TYPE_ACCOUNT && $this->billService !== null) {
+				$this->dropLostPlaceholders($this->shareService->findById($id)->getSharedWithUserId());
+			}
 
 			return new DataResponse(['status' => 'success']);
 		} catch (\InvalidArgumentException $e) {
@@ -272,6 +281,22 @@ class ShareController extends Controller {
 			return $this->handleValidationError($e);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to update auto-share configuration'));
+		}
+	}
+
+	/**
+	 * A share that ended or lost write on an account leaves the recipient's
+	 * bills pointing at it. Their pending rows in the owner's ledger go; a
+	 * failure here must not undo the share change that already happened.
+	 */
+	private function dropLostPlaceholders(?string $recipientUserId): void {
+		if ($this->billService === null || $recipientUserId === null) {
+			return;
+		}
+		try {
+			$this->billService->dropUnwritablePlaceholders($recipientUserId);
+		} catch (\Exception $e) {
+			$this->logger?->warning('Failed to drop pending bill rows after a share change: ' . $e->getMessage());
 		}
 	}
 }
