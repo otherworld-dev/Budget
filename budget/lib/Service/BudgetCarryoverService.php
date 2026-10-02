@@ -142,7 +142,7 @@ class BudgetCarryoverService {
 		$snapshotsByCategory = $this->loadSnapshots($userId, end($months));
 
 		// Recurring fallback applies to current/future chain months only
-		$recurring = null; // lazy — most chains are entirely in the past
+		$recurring = []; // by month, lazily — most chains are entirely in the past
 
 		// Month-major, because which envelope owns a branch member can change
 		// from month to month — a subcategory that switches its own envelope on
@@ -161,10 +161,9 @@ class BudgetCarryoverService {
 
 				$base = $this->resolveBase($category, $snapshotsByCategory[$catId] ?? [], $month);
 				if ($base <= 0 && $month >= $currentMonth) {
-					if ($recurring === null) {
-						$recurring = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId);
-					}
-					$base = (float)($recurring[$catId] ?? 0);
+					// The bills running in that month, not today's
+					$recurring[$month] ??= $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId, $month);
+					$base = (float)($recurring[$month][$catId] ?? 0);
 				}
 
 				$branchBase[$ownerId] = ($branchBase[$ownerId] ?? 0.0) + $base;

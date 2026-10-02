@@ -421,7 +421,7 @@ class ReportAggregator {
 		// only — they reflect today's bills and must not rewrite history.
 		// Mirrors the Budget view's rule so both surfaces agree.
 		$recurringBudgets = $reportMonth >= $this->carryoverService->currentBudgetMonth($userId)
-			? $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId)
+			? $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId, $reportMonth)
 			: [];
 
 		// Envelope carryover is a monthly concept: apply it only when the

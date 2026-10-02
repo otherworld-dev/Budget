@@ -36,6 +36,8 @@ class CategoryServiceTest extends TestCase {
 	private string $currentBudgetMonth;
 	/** @var array<int, float> recurring budgets the mock returns */
 	private array $recurring = [];
+	/** @var array<string, array> recurring figures for a given month, when a test sets them */
+	private array $recurringByMonth = [];
 	/** The budget start day the mocked carryover service reports */
 	private int $budgetStartDay = 1;
 	/** @var string[] users whose start day was asked for */
@@ -70,7 +72,7 @@ class CategoryServiceTest extends TestCase {
 			});
 		$recurringBudgetService = $this->createMock(\OCA\Budget\Service\RecurringBudgetService::class);
 		$recurringBudgetService->method('getMonthlyBudgetsByCategory')
-			->willReturnCallback(fn () => $this->recurring);
+			->willReturnCallback(fn (string $userId, ?string $month = null) => $this->recurringByMonth[$month] ?? $this->recurring);
 		$recurringBudgetService->method('convertMonthlyToPeriod')
 			->willReturnCallback(fn (float $monthly) => $monthly);
 
@@ -369,6 +371,18 @@ class CategoryServiceTest extends TestCase {
 
 		$this->assertSame(0.0, $september[1]['available']);
 		$this->assertSame(80.0, $october[1]['available']);
+	}
+
+	/** Each month is budgeted from the bills running in it, not today's */
+	public function testTheRecurringFallbackIsTheViewedMonths(): void {
+		$this->currentBudgetMonth = '2026-10';
+		$this->recurringByMonth = ['2026-10' => [1 => 10.0], '2026-11' => [1 => 15.0]];
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(['id' => 1, 'budgetAmount' => 0.0]),
+		]);
+
+		$this->assertSame(10.0, $this->service->resolveEffectiveBudgets('user1', '2026-10')[1]['available']);
+		$this->assertSame(15.0, $this->service->resolveEffectiveBudgets('user1', '2026-11')[1]['available']);
 	}
 
 	// ===== beforeDelete() =====

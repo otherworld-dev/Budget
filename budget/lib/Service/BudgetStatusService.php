@@ -47,7 +47,7 @@ class BudgetStatusService {
 		));
 		$rows = self::flatten($tree);
 
-		[$periods, $ownBudget] = $this->ownBudgets($userId, $rows, $budgets, $month < $currentMonth);
+		[$periods, $ownBudget] = $this->ownBudgets($userId, $rows, $budgets, $month, $month < $currentMonth);
 		$ownSpent = $this->ownSpending($userId, $rows, $month, $accountIds);
 		$spent = $ownSpent;
 		$branchBudget = [];
@@ -70,7 +70,7 @@ class BudgetStatusService {
 	 *
 	 * @return array{0: array<int, string>, 1: array<int, string>} [periods, budgets] by category id
 	 */
-	private function ownBudgets(string $userId, array $rows, array $budgets, bool $pastMonth): array {
+	private function ownBudgets(string $userId, array $rows, array $budgets, string $month, bool $pastMonth): array {
 		$periods = [];
 		$own = [];
 		$recurring = null;
@@ -90,7 +90,7 @@ class BudgetStatusService {
 				$own[$id] = MoneyCalculator::add(max($manual, 0.0), '0', self::SCALE);
 				continue;
 			}
-			$recurring ??= $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId);
+			$recurring ??= $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId, $month);
 			$monthly = (float)($recurring[$id] ?? 0);
 			$own[$id] = MoneyCalculator::add(
 				$monthly != 0.0 ? $this->recurringBudgetService->convertMonthlyToPeriod($monthly, $periods[$id]) : 0.0,

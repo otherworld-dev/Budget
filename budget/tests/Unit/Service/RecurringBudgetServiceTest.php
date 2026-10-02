@@ -143,7 +143,8 @@ class RecurringBudgetServiceTest extends TestCase {
 		$future = $this->makeBill(100.0, 'monthly', 5);
 		$future->setStartDate(date('Y-m-d', strtotime('+2 months')));
 		$ended = $this->makeBill(100.0, 'monthly', 6);
-		$ended->setEndDate(date('Y-m-d', strtotime('-1 month')));
+		// Before this month began, however long this month is
+		$ended->setEndDate(date('Y-m-d', strtotime('first day of -2 months')));
 		$current = $this->makeBill(100.0, 'monthly', 7);
 
 		$this->billService->method('findActive')->willReturn([$future, $ended, $current]);

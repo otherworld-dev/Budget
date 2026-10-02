@@ -217,7 +217,7 @@ class BudgetAlertService {
 		$categories = $this->categoryMapper->findAll($userId);
 		$currentMonth = $this->currentBudgetMonth($userId);
 		$snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $currentMonth);
-		$recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId);
+		$recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId, $currentMonth);
 		$carryovers = $this->carryoverService->getCarryovers($userId, $currentMonth, $categories, $visibleAccountIds);
 		$notBudgeted = BudgetScope::excludedCategoryIds($categories);
 		$alertScope = $this->getAlertScope($userId);
@@ -415,7 +415,7 @@ class BudgetAlertService {
 		$categories = $this->categoryMapper->findAll($userId);
 		$currentMonth = $this->currentBudgetMonth($userId);
 		$snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $currentMonth);
-		$recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId);
+		$recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId, $currentMonth);
 		$carryovers = $this->carryoverService->getCarryovers($userId, $currentMonth, $categories, $visibleAccountIds);
 		$notBudgeted = BudgetScope::excludedCategoryIds($categories);
 

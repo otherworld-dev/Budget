@@ -43,6 +43,8 @@ class BudgetCarryoverServiceTest extends TestCase {
 	private array $snapshots = [];
 	/** @var array<int, float> */
 	private array $recurring = [];
+	/** @var array<string, array> recurring figures for a given month, when a test sets them */
+	private array $recurringByMonth = [];
 	/** @var array<int, int[]|null> every visible-account scope the mappers were called with */
 	private array $seenAccountScopes = [];
 
@@ -66,7 +68,7 @@ class BudgetCarryoverServiceTest extends TestCase {
 		$this->settingService->method('get')->willReturn(null); // start day 1
 		$this->recurringBudgetService = $this->createMock(RecurringBudgetService::class);
 		$this->recurringBudgetService->method('getMonthlyBudgetsByCategory')
-			->willReturnCallback(fn () => $this->recurring);
+			->willReturnCallback(fn (string $userId, ?string $month = null) => $this->recurringByMonth[$month] ?? $this->recurring);
 
 		$this->service = new TestableBudgetCarryoverService(
 			$categoryMapper,
@@ -268,6 +270,19 @@ class BudgetCarryoverServiceTest extends TestCase {
 		]);
 
 		$this->assertSame(150.0, $result[1]);
+	}
+
+	/** A projected month carries the bills running in it, not today's */
+	public function testProjectedMonthsUseEachMonthsRecurringFigure(): void {
+		$this->service->currentMonth = '2026-06';
+		$this->recurringByMonth = ['2026-06' => [1 => 200.0], '2026-07' => [1 => 50.0]];
+
+		$result = $this->service->getCarryovers('alice', '2026-08', [
+			$this->makeCategory(['budgetAmount' => 0.0, 'rolloverStart' => '2026-06']),
+		]);
+
+		// June: 200 − 0 = 200; July: 50 + 200 − 0 = 250
+		$this->assertSame(250.0, $result[1]);
 	}
 
 	public function testFutureMonthsAccumulateProjectedBases(): void {
