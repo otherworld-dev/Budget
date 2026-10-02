@@ -1149,6 +1149,92 @@ class TransactionServiceTest extends TestCase {
 		$this->assertSame($source->getDate(), $counterpart->getDate());
 	}
 
+	/**
+	 * The counterpart of a converted placeholder had no bill id, so Skip,
+	 * deleting the bill or an import match removed the placeholder and left
+	 * the counterpart behind: the card was credited for a payment that was
+	 * skipped or never made.
+	 */
+	public function testABillsPreBookedRowCannotBeConverted(): void {
+		$source = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'billId' => 9]);
+		$source->setStatus('scheduled');
+		$this->mapper->method('find')->willReturn($source);
+		$this->mapper->expects($this->never())->method('insert');
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('upcoming payment');
+
+		$this->service->convertToTransfer(1, 20, 'user1');
+	}
+
+	public function testTheOtherSideOfABillPaymentBelongsToTheBillToo(): void {
+		// So Mark Unpaid takes it away with the payment, instead of leaving
+		// the card credited for a bill that is no longer paid
+		$source = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 300.00, 'type' => 'debit', 'billId' => 9]);
+		$source->setStatus('cleared');
+		$counterpart = null;
+		$this->mapper->method('find')->willReturnCallback(
+			function (int $id) use ($source, &$counterpart) {
+				return $id === 1 ? $source : $counterpart;
+			}
+		);
+		$this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) use (&$counterpart) {
+			$tx->setId(2);
+			$counterpart = $tx;
+			return $tx;
+		});
+		$this->accountMapper->method('find')->willReturnCallback(
+			fn (int $id) => $this->makeAccount(['id' => $id, 'currency' => 'USD'])
+		);
+
+		$this->service->convertToTransfer(1, 20, 'user1');
+
+		$this->assertSame(9, $counterpart->getBillId());
+		$this->assertSame('cleared', $counterpart->getStatus());
+	}
+
+	public function testABillRevertTakesTheOtherSideOfItsPaymentWithIt(): void {
+		$payment = $this->makeTransaction(['id' => 58, 'accountId' => 10, 'billId' => 9, 'linkedTransactionId' => 59]);
+		$otherSide = $this->makeTransaction(['id' => 59, 'accountId' => 20, 'type' => 'credit', 'billId' => 9]);
+		$rows = [58 => $payment, 59 => $otherSide];
+		$this->mapper->method('findById')->willReturnCallback(function (int $id) use (&$rows) {
+			return $rows[$id] ?? null;
+		});
+		$this->mapper->method('find')->willReturnCallback(function (int $id) use (&$rows) {
+			return $rows[$id];
+		});
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+
+		$deleted = [];
+		$this->mapper->method('delete')->willReturnCallback(function (Transaction $tx) use (&$deleted, &$rows) {
+			$deleted[] = $tx->getId();
+			unset($rows[$tx->getId()]);
+			return $tx;
+		});
+
+		$this->assertTrue($this->service->deleteAsAccountOwner(58, false, 9));
+		// Already gone with the payment: nothing left to do, and no error
+		$this->assertFalse($this->service->deleteAsAccountOwner(59, false, 9));
+
+		$this->assertSame([58, 59], $deleted);
+	}
+
+	public function testABillRevertLeavesARowItDidNotBookAlone(): void {
+		// An imported card credit matched to the payment is not the bill's
+		$payment = $this->makeTransaction(['id' => 58, 'accountId' => 10, 'billId' => 9, 'linkedTransactionId' => 59]);
+		$imported = $this->makeTransaction(['id' => 59, 'accountId' => 20, 'type' => 'credit']);
+		$rows = [58 => $payment, 59 => $imported];
+		$this->mapper->method('findById')->willReturnCallback(fn (int $id) => $rows[$id] ?? null);
+		$this->mapper->method('find')->willReturnCallback(fn (int $id) => $rows[$id]);
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+
+		$this->mapper->expects($this->once())->method('delete')->with($payment);
+
+		$this->service->deleteAsAccountOwner(58, false, 9);
+	}
+
 	public function testConvertToTransferRejectsSameAccount(): void {
 		$source = $this->makeTransaction(['id' => 1, 'accountId' => 10]);
 		$this->mapper->method('find')->willReturn($source);

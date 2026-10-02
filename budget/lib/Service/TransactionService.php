@@ -608,16 +608,25 @@ class TransactionService {
 	 * alone and false is returned. With $onlyForBillId, so is a row that
 	 * doesn't carry that bill's id.
 	 *
+	 * With $onlyForBillId the other side of a transfer goes too when it carries
+	 * the same bill: a recurring transfer's deposit, or the other side Convert
+	 * to transfer created for a bill's payment. A row of that bill that is
+	 * already gone (deleted by hand, or with its other side) is nothing to do.
+	 *
 	 * Goes through delete() and thus deleteWithChildren() — never the mapper
 	 * directly (#359).
 	 *
 	 * @return bool true when the row was deleted, false when it was
 	 *              deliberately left alone
 	 * @throws DoesNotExistException when the transaction no longer exists
+	 *                               (only without $onlyForBillId)
 	 */
 	public function deleteAsAccountOwner(int $id, bool $onlyIfScheduled = false, ?int $onlyForBillId = null): bool {
 		$transaction = $this->mapper->findById($id);
 		if ($transaction === null) {
+			if ($onlyForBillId !== null) {
+				return false;
+			}
 			throw new DoesNotExistException("Transaction {$id} does not exist");
 		}
 		if ($onlyIfScheduled && ($transaction->getStatus() ?? 'cleared') !== 'scheduled') {
@@ -629,7 +638,16 @@ class TransactionService {
 		if ($onlyForBillId !== null && $transaction->getBillId() !== $onlyForBillId) {
 			return false;
 		}
+		$partnerId = $transaction->getLinkedTransactionId();
 		$this->delete($id, $this->ownerOf($transaction));
+
+		if ($onlyForBillId !== null && $partnerId !== null) {
+			$partner = $this->mapper->findById($partnerId);
+			if ($partner !== null && $partner->getBillId() === $onlyForBillId
+				&& (!$onlyIfScheduled || ($partner->getStatus() ?? 'cleared') === 'scheduled')) {
+				$this->delete($partnerId, $this->ownerOf($partner));
+			}
+		}
 		return true;
 	}
 
@@ -1364,6 +1382,13 @@ class TransactionService {
 		if ($transaction->getAccountId() === $targetAccountId) {
 			throw new \Exception('Cannot transfer within the same account');
 		}
+		// A bill's pre-booked row is a payment nobody has made yet. Its new
+		// other side outlived it whenever the bill was skipped, deleted or
+		// matched to an import, and was cleared on the old due date: the card
+		// was credited for a payment that never happened.
+		if (($transaction->getStatus() ?? 'cleared') === 'scheduled' && $transaction->getBillId() !== null) {
+			throw new \Exception('This is the upcoming payment of a bill, so it has no other side yet. Mark the bill paid first, or make it a recurring transfer.');
+		}
 
 		// Also verifies both accounts are ones the caller may use
 		$sourceAccount = $this->accountFor($transaction->getAccountId(), $userId, $visibleAccountIds);
@@ -1383,6 +1408,10 @@ class TransactionService {
 			type: $transaction->getType() === 'debit' ? 'credit' : 'debit',
 			vendor: $transaction->getVendor(),
 			notes: 'Auto-created transfer counterpart',
+			// The other side of a bill's payment is part of that payment, so
+			// Mark Unpaid takes it away too rather than leaving the card
+			// credited for a bill that is no longer paid
+			billId: $transaction->getBillId(),
 			status: $transaction->getStatus()
 		);
 
