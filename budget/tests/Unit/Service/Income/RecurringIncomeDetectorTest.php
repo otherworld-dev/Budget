@@ -382,4 +382,72 @@ class RecurringIncomeDetectorTest extends TestCase {
 
 		$this->assertSame(['Deposit', 'Transfer From'], $names);
 	}
+
+	// ===== the schedule a candidate carries =====
+
+	public function testWeeklyIncomeIsAnchoredOnTheLastPaymentAndItsWeekday(): void {
+		// A Thursday pension averaged to the 16th, read as a Tuesday
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->credits(['2026-09-03', '2026-09-10', '2026-09-17', '2026-09-24'], ['description' => 'STATE PENSION', 'amount' => 230.0])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('weekly');
+
+		$c = $this->detector->detectRecurringIncome('user1')[0];
+
+		$this->assertSame(4, $c['expectedDay']);
+		$this->assertSame('2026-09-24', $c['startDate']);
+		$this->assertNull($c['expectedMonth']);
+		$this->assertSame('2026-10-01', (new FrequencyCalculator())->occurrenceOnOrAfter('weekly', $c['expectedDay'], $c['expectedMonth'], '2026-09-30', null, $c['startDate']));
+	}
+
+	public function testBiweeklyPayKeepsItsRealFortnight(): void {
+		// Friday payroll: it came out on Wednesday the 30th instead of Friday the 9th
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->credits(['2026-08-14', '2026-08-28', '2026-09-11', '2026-09-25'], ['description' => 'ACME PAYROLL', 'amount' => 1400.0])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('biweekly');
+
+		$c = $this->detector->detectRecurringIncome('user1')[0];
+
+		$this->assertSame(5, $c['expectedDay']);
+		$this->assertSame('2026-09-25', $c['startDate']);
+		$this->assertSame('2026-10-09', (new FrequencyCalculator())->occurrenceOnOrAfter('biweekly', $c['expectedDay'], $c['expectedMonth'], '2026-09-26', null, $c['startDate']));
+	}
+
+	public function testBenefitBroughtForwardOverMonthEndKeepsItsDay(): void {
+		// Paid on the 1st, once brought forward to 31 July: it averaged to the 6th
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->credits(['2026-04-01', '2026-05-01', '2026-06-01', '2026-07-01', '2026-07-31', '2026-09-01'], ['description' => 'DWP UC', 'amount' => 600.0])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('monthly');
+
+		$c = $this->detector->detectRecurringIncome('user1')[0];
+
+		$this->assertSame(1, $c['expectedDay']);
+		$this->assertNull($c['startDate']);
+	}
+
+	public function testQuarterlyIncomeKeepsTheMonthsItArrivesIn(): void {
+		// A Jun/Sep dividend fell into Jan/Apr/Jul/Oct
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->credits(['2026-06-15', '2026-09-15'], ['description' => 'DIVIDEND XYZ PLC', 'amount' => 120.0])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('quarterly');
+
+		$c = $this->detector->detectRecurringIncome('user1')[0];
+
+		$this->assertSame(15, $c['expectedDay']);
+		$this->assertSame(9, $c['expectedMonth']);
+		$this->assertSame('2026-12-15', (new FrequencyCalculator())->occurrenceOnOrAfter('quarterly', $c['expectedDay'], $c['expectedMonth'], '2026-10-02', null, $c['startDate']));
+	}
+
+	public function testDailyCreditsAreNotOfferedAsIncome(): void {
+		// The income form has no daily schedule to show it with
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->credits(['2026-09-21', '2026-09-22', '2026-09-23'], ['description' => 'CASHBACK', 'amount' => 12.0])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('daily');
+
+		$this->assertSame([], $this->detector->detectRecurringIncome('user1'));
+	}
 }

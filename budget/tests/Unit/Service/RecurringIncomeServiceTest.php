@@ -594,4 +594,22 @@ class RecurringIncomeServiceTest extends TestCase {
 			['suggestedName' => '', 'description' => ' ', 'amount' => 200.0, 'frequency' => 'monthly'],
 		]);
 	}
+
+	public function testCreateFromDetectedKeepsTheDetectedSchedule(): void {
+		// A weekly income counts from the payment last seen, and a quarterly
+		// one keeps its months: both were dropped, so pay came on the wrong
+		// weekday and dividends in Jan/Apr/Jul/Oct
+		$this->mapper->method('insert')->willReturnArgument(0);
+
+		[$weekly, $quarterly] = $this->service->createFromDetected('user1', [
+			['suggestedName' => 'Payroll', 'amount' => 1400.0, 'frequency' => 'biweekly', 'expectedDay' => 5, 'expectedMonth' => null, 'startDate' => '2026-09-25'],
+			['suggestedName' => 'Dividend', 'amount' => 120.0, 'frequency' => 'quarterly', 'expectedDay' => 15, 'expectedMonth' => 9, 'startDate' => null],
+		]);
+
+		$this->assertSame('2026-09-25', $weekly->getStartDate());
+		$this->assertSame(5, (int)(new \DateTimeImmutable($weekly->getNextExpectedDate()))->format('N'));
+		$this->assertSame(0, (int)(new \DateTimeImmutable('2026-09-25'))->diff(new \DateTimeImmutable($weekly->getNextExpectedDate()))->format('%a') % 14);
+		$this->assertSame(9, $quarterly->getExpectedMonth());
+		$this->assertContains((int)substr($quarterly->getNextExpectedDate(), 5, 2), [3, 6, 9, 12]);
+	}
 }

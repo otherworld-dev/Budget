@@ -602,11 +602,14 @@ class RecurringIncomeService extends AbstractCrudService {
 				$item['amount'],
 				$item['frequency'],
 				$item['expectedDay'] ?? null,
-				null, // expectedMonth
+				// The schedule the payments showed: the month a quarterly or
+				// yearly income arrives in, and the payment weekly pay counts from
+				isset($item['expectedMonth']) ? (int)$item['expectedMonth'] : null,
 				$item['categoryId'] ?? null,
 				$item['accountId'] ?? null,
 				$item['source'] ?? null,
-				$item['autoDetectPattern'] ?? null
+				$item['autoDetectPattern'] ?? null,
+				startDate: isset($item['startDate']) && $item['startDate'] !== '' ? (string)$item['startDate'] : null,
 			);
 			$created[] = $income;
 		}

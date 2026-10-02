@@ -7,6 +7,7 @@ namespace OCA\Budget\Service\Income;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Service\Bill\DetectedSchedule;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Bill\RecurringBillDetector;
 
@@ -157,8 +158,9 @@ class RecurringIncomeDetector {
 
 			$frequency = $this->frequencyCalculator->detectFrequency($avgInterval);
 
-			if ($frequency === null) {
-				$rejectionReason = 'no_matching_frequency';
+			// The income form has no daily schedule to show one with
+			if ($frequency === null || $frequency === 'daily') {
+				$rejectionReason = $frequency === null ? 'no_matching_frequency' : 'unsupported_frequency';
 				if ($debug) {
 					$debugRejected[] = [
 						'description' => $data['description'],
@@ -204,9 +206,11 @@ class RecurringIncomeDetector {
 				$confidence *= 0.85;
 			}
 
-			// Detect typical expected day
-			$expectedDays = array_map(fn ($ts) => (int)date('j', $ts), $dates);
-			$avgExpectedDay = (int)round(array_sum($expectedDays) / count($expectedDays));
+			// The schedule as the payments show it: a weekday and a real first
+			// date for weekly pay, the month for quarterly and yearly income,
+			// and a day of the month that copes with pay brought forward over
+			// a month end
+			$schedule = DetectedSchedule::fromDates($frequency, array_map(fn ($ts) => date('Y-m-d', $ts), $dates));
 
 			$detected[] = [
 				'description' => $data['description'],
@@ -214,7 +218,9 @@ class RecurringIncomeDetector {
 				'source' => $this->generateIncomeSource($data['description']),
 				'amount' => round($avgAmount, 2),
 				'frequency' => $frequency,
-				'expectedDay' => $avgExpectedDay,
+				'expectedDay' => $schedule['day'],
+				'expectedMonth' => $schedule['month'],
+				'startDate' => $schedule['startDate'],
 				'categoryId' => $data['categoryId'],
 				'accountId' => $data['accountId'],
 				'occurrences' => count($data['dates']),
