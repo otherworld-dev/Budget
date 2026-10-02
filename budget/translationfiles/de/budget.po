@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-09-28 18:20+0000\n"
-"PO-Revision-Date: 2026-09-29 19:56+0000\n"
+"PO-Revision-Date: 2026-10-02 06:51+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2026.10.dev0\n"
+"X-Generator: Weblate 2026.10\n"
 
 #: /app/lib/Controller/AccountController.php:82
 #: /app/lib/Controller/ApiV1AccountController.php:56
@@ -744,6 +744,8 @@ msgstr "Rechnung konnte nicht aktualisiert werden"
 #: /app/lib/Controller/RecurringIncomeController.php:354
 msgid "Deleting a shared item needs Full control from its owner"
 msgstr ""
+"Zum Löschen eines geteilten Elements ist die Berechtigung „Vollzugriff“ des "
+"Eigentümers erforderlich"
 
 #: /app/lib/Controller/BillController.php:776
 msgid "Failed to find matching transactions"
@@ -1050,6 +1052,8 @@ msgstr "Kategorie konnte nicht aktualisiert werden"
 #: /app/lib/Controller/CategoryController.php:384
 msgid "A category can only be moved under another category with the same owner"
 msgstr ""
+"Eine Kategorie kann nur unter eine andere Kategorie mit demselben Eigentümer "
+"verschoben werden"
 
 #: /app/lib/Controller/CategoryController.php:393
 msgid "Only the owner can add subcategories to a shared category"
@@ -1072,12 +1076,8 @@ msgstr "Ungültiger Budgetzeitraum"
 
 #: /app/lib/Controller/CategoryController.php:454
 #: /app/src/modules/categories/CategoriesModule.js:2374
-#, fuzzy
-#| msgid "Only the owner can add subcategories to a shared category"
 msgid "Only the owner can change the budget of a shared category"
-msgstr ""
-"Nur der Eigentümer kann Unterkategorien zu einer geteilten Kategorie "
-"hinzufügen"
+msgstr "Nur der Eigentümer kann das Budget einer geteilten Kategorie ändern"
 
 #: /app/lib/Controller/CategoryController.php:500
 msgid "Invalid position"
@@ -1773,48 +1773,36 @@ msgstr "Projekte konnten nicht geladen werden"
 
 #: /app/lib/Controller/ProjectController.php:81
 #: /app/src/modules/projects/ProjectsModule.js:121
-#, fuzzy
-#| msgid "Failed to load tag sets"
 msgid "Failed to load the project"
-msgstr "Fehler beim Laden der Schlagwortgruppen"
+msgstr "Das Projekt konnte nicht geladen werden"
 
 #: /app/lib/Controller/ProjectController.php:107
 #: /app/lib/Controller/ProjectController.php:147
 #: /app/lib/Controller/ProjectController.php:205
 #: /app/src/modules/projects/ProjectsModule.js:354
 #: /app/src/modules/projects/ProjectsModule.js:364
-#, fuzzy
-#| msgid "Failed to save splits"
 msgid "Failed to save the project"
-msgstr "Fehler beim Speichern der Aufteilungen"
+msgstr "Das Projekt konnte nicht gespeichert werden"
 
 #: /app/lib/Controller/ProjectController.php:173
 #: /app/src/modules/projects/ProjectsModule.js:202
 #: /app/src/modules/projects/ProjectsModule.js:208
-#, fuzzy
-#| msgid "Failed to delete tag set"
 msgid "Failed to delete the project"
-msgstr "Fehler beim löschen der Schlagwort Gruppe"
+msgstr "Das Projekt konnte nicht gelöscht werden"
 
 #: /app/lib/Controller/ProjectController.php:188
-#, fuzzy
-#| msgid "Projected Value"
 msgid "Project"
-msgstr "Prognostizierter Wert"
+msgstr "Projekt"
 
 #: /app/lib/Controller/ProjectController.php:195
 #: /app/src/modules/projects/ProjectsModule.js:333
-#, fuzzy
-#| msgid "Please enter a date"
 msgid "Enter a name for the project"
-msgstr "Bitte wähle ein Datum"
+msgstr "Gib einen Namen für das Projekt ein"
 
 #: /app/lib/Controller/ProjectController.php:196
 #: /app/src/modules/projects/ProjectsModule.js:335
-#, fuzzy
-#| msgid "Target amount must be greater than zero"
 msgid "The total must be more than zero"
-msgstr "Der Zielbetrag muss größer als null sein"
+msgstr "Die Gesamtsumme muss größer als null sein"
 
 #: /app/lib/Controller/ProjectController.php:197
 msgid "Choose one of your own expense categories"
@@ -1831,10 +1819,8 @@ msgid "The end date cannot be before the start date"
 msgstr "Das Enddatum darf nicht vor dem Startdatum liegen"
 
 #: /app/lib/Controller/ProjectController.php:200
-#, fuzzy
-#| msgid "Target amount must be greater than zero"
 msgid "Every subcategory amount must be more than zero"
-msgstr "Der Zielbetrag muss größer als null sein"
+msgstr "Der Betrag jeder Unterkategorie muss größer als null sein"
 
 #: /app/lib/Controller/ProjectController.php:201
 msgid "Amounts can only go to subcategories of the project category"
@@ -1842,10 +1828,8 @@ msgstr ""
 "Beträge können nur Unterkategorien der Projektkategorie zugewiesen werden"
 
 #: /app/lib/Controller/ProjectController.php:202
-#, fuzzy
-#| msgid "Each person can only be in a split once"
 msgid "Each subcategory can only have one amount"
-msgstr "Jede Person kann nur einmal in einer Aufteilung enthalten sein"
+msgstr "Jede Unterkategorie kann nur einen Betrag haben"
 
 #: /app/lib/Controller/ProjectController.php:203
 msgid "A subcategory and one of its own subcategories cannot both have amounts"
@@ -1855,19 +1839,15 @@ msgstr ""
 
 #: /app/lib/Controller/ProjectController.php:204
 #: /app/src/modules/projects/ProjectsModule.js:339
-#, fuzzy
-#| msgid "Failed to create transaction"
 msgid "The subcategory amounts add up to more than the total"
-msgstr "Erstellen der Buchung fehlgeschlagen"
+msgstr ""
+"Die Beträge der Unterkategorien ergeben zusammen mehr als die Gesamtsumme"
 
 #: /app/lib/Controller/ReceiptScanController.php:92
-#, fuzzy
-#| msgid ""
-#| "No total could be read from this receipt. Enter the transaction manually"
 msgid "No total could be read from this receipt. Enter the details manually"
 msgstr ""
-"Auf diesem Beleg konnte kein Gesamtbetrag erkannt werden. Erfasse die "
-"Transaktion manuell"
+"Auf diesem Beleg konnte keine Gesamtsumme erkannt werden. Gib die Angaben "
+"manuell ein"
 
 #: /app/lib/Controller/ReceiptScanController.php:104
 msgid "The receipt scanning quota is used up. Try again later"
@@ -1876,26 +1856,20 @@ msgstr ""
 "erneut"
 
 #: /app/lib/Controller/ReceiptScanController.php:109
-#, fuzzy
-#| msgid ""
-#| "The receipt could not be read — the OCR provider failed. Try again, or "
-#| "enter the transaction manually"
 msgid ""
 "The receipt could not be read. Try a clearer photo, or enter the details "
 "manually"
 msgstr ""
-"Der Beleg konnte nicht gelesen werden – die Texterkennung ist "
-"fehlgeschlagen. Versuche es erneut oder erfasse die Transaktion manuell"
+"Der Beleg konnte nicht gelesen werden. Versuche es mit einem schärferen Foto "
+"oder gib die Angaben manuell ein"
 
 #: /app/lib/Controller/ReconciliationController.php:58
 msgid "Failed to load reconciliation session"
 msgstr "Abgleichssitzung konnte nicht geladen werden"
 
 #: /app/lib/Controller/ReconciliationController.php:73
-#, fuzzy
-#| msgid "A pending share already exists for this user"
 msgid "A reconciliation is already in progress for this account"
-msgstr "Es existiert bereits eine ausstehende Aktie für diesen Benutzer"
+msgstr "Für dieses Konto ist bereits ein Kontenabgleich aktiv"
 
 #: /app/lib/Controller/ReconciliationController.php:159
 #, fuzzy
@@ -2029,10 +2003,8 @@ msgid "Failed to generate category monthly report"
 msgstr "Vergleichsbericht konnte nicht generiert werden"
 
 #: /app/lib/Controller/SavedReportController.php:48
-#, fuzzy
-#| msgid "Failed to load tag sets"
 msgid "Failed to load saved reports"
-msgstr "Fehler beim Laden der Schlagwortgruppen"
+msgstr "Gespeicherte Berichte konnten nicht geladen werden"
 
 #: /app/lib/Controller/SavedReportController.php:63
 #: /app/src/modules/reports/ReportsModule.js:381
@@ -2407,20 +2379,16 @@ msgid "Every split needs an amount"
 msgstr "Für jede Aufteilung muss ein Betrag angegeben werden"
 
 #: /app/lib/Controller/SharedExpenseController.php:386
-#, fuzzy
-#| msgid "Failed to create transaction"
 msgid "The splits add up to more than the transaction"
-msgstr "Erstellen der Buchung fehlgeschlagen"
+msgstr "Die Teilbeträge ergeben zusammen mehr als die Transaktion"
 
 #: /app/lib/Controller/SharedExpenseController.php:387
 #: /app/lib/Controller/SharedExpenseController.php:401
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:851
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:899
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:917
-#, fuzzy
-#| msgid "Failed to save splits"
 msgid "Failed to save the split"
-msgstr "Fehler beim Speichern der Aufteilungen"
+msgstr "Die Aufteilung konnte nicht gespeichert werden"
 
 #: /app/lib/Controller/SharedExpenseController.php:392
 #, fuzzy
@@ -2659,10 +2627,8 @@ msgid "Failed to update transaction tags"
 msgstr "Fehler beim Aktualisieren der Buchungen"
 
 #: /app/lib/Controller/TransactionController.php:908
-#, fuzzy
-#| msgid "Failed to load tag sets"
 msgid "Failed to load tag options"
-msgstr "Fehler beim Laden der Schlagwortgruppen"
+msgstr "Tag-Optionen konnten nicht geladen werden"
 
 #: /app/lib/Controller/TransactionController.php:937
 msgid "Invalid splits data"
@@ -3403,10 +3369,8 @@ msgstr ""
 "das Projekt."
 
 #: /app/lib/Service/CategoryService.php:685
-#, fuzzy
-#| msgid "A pending share already exists for this user"
 msgid "A budget adjustment already exists for this month"
-msgstr "Es existiert bereits eine ausstehende Aktie für diesen Benutzer"
+msgstr "Für diesen Monat gibt es bereits eine Budgetanpassung"
 
 #: /app/lib/Service/CategoryService.php:761
 msgid "No budget snapshot found for this category and month"
@@ -4282,10 +4246,8 @@ msgstr ""
 
 #: /app/lib/Service/SavedReportService.php:75
 #: /app/src/modules/reports/ReportsModule.js:374
-#, fuzzy
-#| msgid "Please enter a date"
 msgid "Please enter a name for the report"
-msgstr "Bitte wähle ein Datum"
+msgstr "Bitte gib einen Namen für den Bericht ein"
 
 #: /app/lib/Service/SavedReportService.php:81
 #, fuzzy
@@ -4788,10 +4750,8 @@ msgstr "Sparziele"
 #: /app/src/modules/help/HelpModule.js:37
 #: /app/src/modules/sharing/SharingModule.js:277 /app/templates/index.php:143
 #: /app/templates/index.php:755 /app/templates/index.php:3010
-#, fuzzy
-#| msgid "Projected Value"
 msgid "Projects"
-msgstr "Prognostizierter Wert"
+msgstr "Projekte"
 
 #: /app/src/config/dashboardWidgets.js:45
 #: /app/src/core/KeyboardShortcuts.js:358
@@ -7621,7 +7581,7 @@ msgstr "Von {owner} geteilt – du kannst es bearbeiten"
 
 #: /app/src/modules/categories/CategoriesModule.js:334
 msgid "Shared (full control)"
-msgstr ""
+msgstr "Geteilt (Vollzugriff)"
 
 #: /app/src/modules/categories/CategoriesModule.js:336
 msgid "Shared by {owner} — you can edit"
@@ -8051,10 +8011,8 @@ msgid "{base} + {carried} carried = {available} available"
 msgstr "{base} + {carried} übernommen = {available} verfügbar"
 
 #: /app/src/modules/categories/CategoriesModule.js:2404
-#, fuzzy
-#| msgid "Projected Value"
 msgid "(projected)"
-msgstr "Prognostizierter Wert"
+msgstr "(prognostiziert)"
 
 #: /app/src/modules/categories/CategoriesModule.js:2408
 #, fuzzy
@@ -9667,10 +9625,14 @@ msgid ""
 "added based on whether the amount is negative. Fill the type in, or check "
 "the mapping, if that is not what you want."
 msgstr ""
+"Die Typ-Spalte ist in diesen Zeilen leer oder enthält einen unbekannten "
+"Wert. Daher werden sie anhand des Vorzeichens des Betrags als Einnahme oder "
+"Ausgabe hinzugefügt. Trage den Typ ein oder überprüfe die Spaltenzuordnung, "
+"wenn dies nicht deinen Vorstellungen entspricht."
 
 #: /app/src/modules/import/ImportModule.js:1931
 msgid "{matching} of {total} rows would be added as income"
-msgstr ""
+msgstr "{matching} von {total} Zeilen würden als Einnahmen hinzugefügt"
 
 #: /app/src/modules/import/ImportModule.js:1935
 #, javascript-format
@@ -9679,10 +9641,13 @@ msgid ""
 "wrong, go back and map the column holding the transaction type before "
 "importing."
 msgstr ""
+"Aber {percent}% der bereits in {account} vorhandenen Transaktionen sind "
+"Ausgaben. Wenn das nicht richtig aussieht, gehe zurück und ordne vor dem "
+"Import die Spalte zu, die den Transaktionstyp enthält."
 
 #: /app/src/modules/import/ImportModule.js:1940
 msgid "{matching} of {total} rows would be added as an expense"
-msgstr ""
+msgstr "{matching} von {total} Zeilen würden als Ausgaben hinzugefügt"
 
 #: /app/src/modules/import/ImportModule.js:1944
 #, javascript-format
@@ -9691,6 +9656,9 @@ msgid ""
 "wrong, go back and map the column holding the transaction type before "
 "importing."
 msgstr ""
+"Aber {percent}% der bereits in {account} vorhandenen Transaktionen sind "
+"Einnahmen. Wenn das nicht richtig aussieht, gehe zurück und ordne vor dem "
+"Import die Spalte zu, die den Transaktionstyp enthält."
 
 #: /app/src/modules/import/ImportModule.js:1976
 msgid "No transactions to import"
@@ -9713,7 +9681,7 @@ msgstr "Konto auswählen…"
 
 #: /app/src/modules/import/ImportModule.js:2084
 msgid "Account for rows without one:"
-msgstr ""
+msgstr "Konto für Zeilen ohne Konto:"
 
 #: /app/src/modules/import/ImportModule.js:2085 /app/templates/index.php:2517
 msgid "Import to Account:"
@@ -9729,27 +9697,29 @@ msgstr "Konto überspringen"
 
 #: /app/src/modules/import/ImportModule.js:2219
 msgid "Rows {rows} and {count} more"
-msgstr ""
+msgstr "Zeilen {rows} und {count} weitere"
 
 #: /app/src/modules/import/ImportModule.js:2220
 msgid "Rows {rows}"
-msgstr ""
+msgstr "Zeilen {rows}"
 
 #: /app/src/modules/import/ImportModule.js:2255
 msgid "{skipped} of {total} rows will not be imported"
-msgstr ""
+msgstr "{skipped} von {total} Zeilen werden nicht importiert"
 
 #: /app/src/modules/import/ImportModule.js:2259
 msgid "%n row will not be imported"
 msgid_plural "%n rows will not be imported"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n Zeile wird nicht importiert"
+msgstr[1] "%n Zeilen werden nicht importiert"
 
 #: /app/src/modules/import/ImportModule.js:2264
 msgid ""
 "Those rows have no account of their own. Pick one under \"Account for rows "
 "without one\" below and they will be imported into it."
 msgstr ""
+"Diese Zeilen haben kein eigenes Konto. Wähle unten unter „Konto für Zeilen "
+"ohne Konto“ ein Konto aus, in das sie importiert werden."
 
 #: /app/src/modules/import/ImportModule.js:2312
 msgid "{blank} of {total} rows have no description"
@@ -9768,12 +9738,16 @@ msgid ""
 "categorize them. If the cells should not be empty, check the file before "
 "importing."
 msgstr ""
+"Die der Beschreibung zugeordnete Spalte ist in diesen Zeilen leer. Die "
+"Zeilen werden trotzdem importiert. Importregeln, die anhand der Beschreibung "
+"übereinstimmen, können sie jedoch nicht kategorisieren. Wenn die Zellen "
+"nicht leer sein sollten, überprüfe die Datei vor dem Import."
 
 #: /app/src/modules/import/ImportModule.js:2347
 msgid "%n row was not imported"
 msgid_plural "%n rows were not imported"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n Zeile wurde nicht importiert"
+msgstr[1] "%n Zeilen wurden nicht importiert"
 
 #: /app/src/modules/import/ImportModule.js:2379
 msgid "No file data available"
@@ -9805,15 +9779,19 @@ msgstr[1] ""
 #: /app/src/modules/import/ImportModule.js:2484
 msgid "%n transfer between your accounts was linked"
 msgid_plural "%n transfers between your accounts were linked"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n Umbuchung zwischen deinen Konten wurde verknüpft"
+msgstr[1] "%n Umbuchungen zwischen deinen Konten wurde verknüpft"
 
 #: /app/src/modules/import/ImportModule.js:2490
 msgid "Import complete. %n category created — it may take a moment to appear."
 msgid_plural ""
 "Import complete. %n categories created — they may take a moment to appear."
 msgstr[0] ""
+"Import abgeschlossen. %n Kategorie wurde erstellt – es kann einen Moment "
+"dauern, bis sie angezeigt wird."
 msgstr[1] ""
+"Import abgeschlossen. %n Kategorien wurde erstellt – es kann einen Moment "
+"dauern, bis sie angezeigt werden."
 
 #: /app/src/modules/import/ImportModule.js:2500
 msgid "Failed to import transactions: {message}"
@@ -9821,12 +9799,12 @@ msgstr "Fehler beim Importieren der Buchungen: {message}"
 
 #: /app/src/modules/import/ImportModule.js:2518
 msgid "Auto-linked {count} transfer pairs"
-msgstr ""
+msgstr "{count} Umbuchungspaare automatisch verknüpft"
 
 #: /app/src/modules/import/ImportModule.js:2634
 #: /app/src/modules/projects/ProjectsModule.js:95
 msgid "{start} to {end}"
-msgstr ""
+msgstr "{start} bis {end}"
 
 #: /app/src/modules/import/ImportModule.js:2648
 msgid "0 Bytes"
@@ -9924,7 +9902,7 @@ msgstr "Tag des Monats, an dem die Einnahme erwartet wird"
 #: /app/src/modules/income/IncomeModule.js:454
 #: /app/src/modules/transfers/TransfersModule.js:789
 msgid "Follows the start date"
-msgstr ""
+msgstr "Folgt dem Startdatum"
 
 #: /app/src/modules/income/IncomeModule.js:520
 msgid "Income source created successfully"
@@ -10035,7 +10013,7 @@ msgstr "Fehler beim Abrufen der Basiswährung"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:46
 msgid "The currency your totals and reports are shown in."
-msgstr ""
+msgstr "Die Währung, in der deine Summen und Berichte angezeigt werden."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:48
 #, fuzzy
@@ -10054,6 +10032,8 @@ msgid ""
 "A ready-made set of income and spending categories, which you can change "
 "later."
 msgstr ""
+"Eine vorgefertigte Auswahl an Einnahmen- und Ausgabenkategorien, die du "
+"später ändern kannst."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:56
 #, fuzzy
@@ -10071,6 +10051,8 @@ msgstr "Neues Konto hinzufügen"
 #: /app/src/modules/onboarding/OnboardingModule.js:62
 msgid "A bank account, card or cash wallet to record money in and out of."
 msgstr ""
+"Ein Bankkonto, eine Karte oder ein Bargeldkonto, um Einnahmen und Ausgaben "
+"zu erfassen."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:70
 msgid "Import a statement or connect your bank"
@@ -10303,8 +10285,6 @@ msgid "Projected value (today's money)"
 msgstr "Prognostizierter Wert (10 Jahre)"
 
 #: /app/src/modules/pensions/PensionsModule.js:672
-#, fuzzy
-#| msgid "Projected Value"
 msgid "Projected value"
 msgstr "Prognostizierter Wert"
 
@@ -10560,10 +10540,8 @@ msgid "Choose a category for the project"
 msgstr ""
 
 #: /app/src/modules/projects/ProjectsModule.js:357
-#, fuzzy
-#| msgid "Projected Value"
 msgid "Project saved"
-msgstr "Prognostizierter Wert"
+msgstr "Projekt gespeichert"
 
 #: /app/src/modules/projects/ProjectsModule.js:357
 #, fuzzy
@@ -12100,10 +12078,8 @@ msgid "Please add contacts first in Shared Expenses"
 msgstr "Bitte fügen Sie zunächst Kontakte in den ‚Gemeinsamen Ausgaben‘ hinzu"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:660
-#, fuzzy
-#| msgid "Failed to load tag sets"
 msgid "Failed to load the split"
-msgstr "Fehler beim Laden der Schlagwortgruppen"
+msgstr "Die Aufteilung konnte nicht geladen werden"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:697
 msgid ""
