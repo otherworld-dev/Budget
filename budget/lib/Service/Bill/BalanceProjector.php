@@ -86,6 +86,16 @@ class BalanceProjector {
 				continue;
 			}
 			$key = $out ? 'bills' : 'transfersIn';
+			// What the bill still owes, by the dates from its next due date
+			// on. A month with one payment made isn't settled for a weekly
+			// bill: the rest of that month's payments are still to go out.
+			if (isset($row['owedAmounts'])) {
+				foreach ($row['owedAmounts'] as $month => $amount) {
+					$into = max($month, $currentMonth);
+					$flows[$into][$key] = MoneyCalculator::add($flows[$into][$key], (string)$amount, $scale);
+				}
+				continue;
+			}
 			$settled = array_flip(array_merge($row['paidMonths'], $row['unrecordedMonths']));
 			foreach ($row['expectedAmounts'] as $month => $amount) {
 				if (isset($settled[$month])) {

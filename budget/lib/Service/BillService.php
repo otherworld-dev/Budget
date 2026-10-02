@@ -1868,7 +1868,11 @@ class BillService {
 		$monthlyTotals = array_fill(1, 12, 0.0);
 
 		foreach ($bills as $bill) {
-			$occurrences = $this->calculateMonthlyOccurrences($bill, $year);
+			$datesByMonth = $this->occurrencesInYear($bill, $year);
+			$occurrences = array_fill(1, 12, false);
+			foreach (array_keys($datesByMonth) as $month) {
+				$occurrences[$month] = true;
+			}
 			[$occurrences, $paidMonths, $paidAmounts, $unrecordedMonths] = $this->attributePayments(
 				$occurrences,
 				$bill,
@@ -1886,6 +1890,26 @@ class BillService {
 			$billCurrency = ($bill->getAccountId() !== null && isset($currencyMap[$bill->getAccountId()]))
 				? $currencyMap[$bill->getAccountId()]
 				: $baseCurrency;
+
+			// What each month is expected to cost, one amount per date the
+			// bill falls on (a weekly bill pays four or five times a month),
+			// and what of it is still owed: the dates from the bill's next
+			// due date on, which the projection counts
+			$amount = (float)$bill->getAmount();
+			$expectedAmounts = [];
+			foreach (array_keys(array_filter($occurrences)) as $month) {
+				$expectedAmounts[$month] = $amount * max(1, count($datesByMonth[$month] ?? []));
+			}
+			$owedAmounts = [];
+			$nextDue = $bill->getNextDueDate();
+			if ($bill->getIsActive() && $nextDue !== null && $nextDue !== '') {
+				foreach ($datesByMonth as $month => $dates) {
+					$owed = count(array_filter($dates, fn (string $d): bool => $d >= $nextDue));
+					if ($owed > 0) {
+						$owedAmounts[$month] = $amount * $owed;
+					}
+				}
+			}
 
 			$billData = [
 				'id' => $bill->getId(),
@@ -1913,19 +1937,20 @@ class BillService {
 				// What each occurring month is expected to cost. One per month
 				// so that one-time bills sharing a name can be shown as one
 				// row without losing each invoice's own amount (#375)
-				'expectedAmounts' => array_fill_keys(array_keys(array_filter($occurrences)), (float)$bill->getAmount()),
+				'expectedAmounts' => $expectedAmounts,
+				'owedAmounts' => $owedAmounts,
 			];
 
-			// Monthly totals: what was paid where a payment exists, the
-			// expected amount otherwise
-			$convertedAmount = $this->convertToBase($bill->getAmount(), $billCurrency, $baseCurrency, $userId);
+			// Monthly totals: what was paid plus what is still owed, or the
+			// expected amount for a month with neither
 			foreach ($occurrences as $month => $occurs) {
 				if (!$occurs) {
 					continue;
 				}
-				$monthlyTotals[$month] += isset($paidAmounts[$month])
-					? $this->convertToBase($paidAmounts[$month], $billCurrency, $baseCurrency, $userId)
-					: $convertedAmount;
+				$total = isset($paidAmounts[$month]) || isset($owedAmounts[$month])
+					? ($paidAmounts[$month] ?? 0.0) + ($owedAmounts[$month] ?? 0.0)
+					: ($expectedAmounts[$month] ?? $amount);
+				$monthlyTotals[$month] += $this->convertToBase($total, $billCurrency, $baseCurrency, $userId);
 			}
 
 			$billsData[] = $billData;
@@ -2008,6 +2033,9 @@ class BillService {
 			$grouped[$index]['unrecordedMonths'] = array_values($unrecorded);
 			foreach ($row['expectedAmounts'] as $month => $amount) {
 				$grouped[$index]['expectedAmounts'][$month] = ($grouped[$index]['expectedAmounts'][$month] ?? 0.0) + $amount;
+			}
+			foreach ($row['owedAmounts'] ?? [] as $month => $amount) {
+				$grouped[$index]['owedAmounts'][$month] = ($grouped[$index]['owedAmounts'][$month] ?? 0.0) + $amount;
 			}
 			foreach ($row['paidAmounts'] as $month => $amount) {
 				$grouped[$index]['paidAmounts'][$month] = ($grouped[$index]['paidAmounts'][$month] ?? 0.0) + $amount;
@@ -2144,24 +2172,119 @@ class BillService {
 	}
 
 	/**
-	 * The date an occurrence in a given month falls due. A one-time bill's
-	 * explicit date is used as is; frequencies with several occurrences a
-	 * month (daily, weekly, biweekly) are pinned to mid-month, since the
-	 * calendar only knows them by month anyway.
+	 * The date an occurrence in a given month falls due: the schedule's own
+	 * date in that month. A month the schedule doesn't fall in (a payment
+	 * with no occurrence near it) gets the due day, or mid-month for the
+	 * frequencies that fall several times a month.
 	 */
 	private function occurrenceDate(Bill $bill, int $year, int $month): string {
-		$frequency = $bill->getFrequency();
-		$startDate = $bill->getStartDate();
-		if ($frequency === 'one-time' && $startDate !== null && $startDate !== '') {
-			return $startDate;
+		$dates = $this->occurrencesInYear($bill, $year)[$month] ?? [];
+		if ($dates !== []) {
+			return $dates[0];
 		}
 
 		$daysInMonth = (int)date('t', mktime(0, 0, 0, $month, 1, $year));
-		$day = in_array($frequency, ['daily', 'weekly', 'biweekly'], true)
+		$day = in_array($bill->getFrequency(), ['daily', 'weekly', 'biweekly'], true)
 			? 15
 			: min(max((int)($bill->getDueDay() ?? 1), 1), $daysInMonth);
 
 		return sprintf('%04d-%02d-%02d', $year, $month, $day);
+	}
+
+	/**
+	 * Every date a bill falls on in a year, by month, from the same schedule
+	 * the Bills page pays against. The calendar used to keep its own rules:
+	 * semi-monthly bills never appeared, a weekly bill counted once a month,
+	 * a quarterly bill from November showed only in November, and a one-time
+	 * bill came back in the same month of every later year.
+	 *
+	 *  - Nothing occurs before the start date or, without one, before the
+	 *    bill existed (#333); nothing after the end date.
+	 *  - Remaining payments cap what is still to come from the next due date.
+	 *  - A quarterly, half-yearly or yearly bill with no month stored takes
+	 *    it from its next due date; a weekly one with no start date takes its
+	 *    week from it too.
+	 *
+	 * @return array<int, string[]> month => Y-m-d dates in order
+	 */
+	private function occurrencesInYear(Bill $bill, int $year): array {
+		$from = sprintf('%04d-01-01', $year);
+		$to = sprintf('%04d-12-31', $year);
+		$frequency = $bill->getFrequency();
+		$nextDue = $bill->getNextDueDate() ?: null;
+		$anchor = $bill->getStartDate() ?: null;
+
+		if ($frequency === 'one-time' && $anchor === null) {
+			// A one-time bill from before the date field: its due date is it,
+			// or once paid, its day and month in the year it was paid
+			$anchor = $nextDue;
+			$lastPaid = $bill->getLastPaidDate() ?: null;
+			if ($anchor === null && $lastPaid !== null && $bill->getDueMonth() !== null) {
+				$paidYear = (int)substr($lastPaid, 0, 4);
+				$anchor = $this->frequencyCalculator->occurrenceOnOrAfter(
+					'monthly', $bill->getDueDay() ?? 1, null, sprintf('%04d-%02d-01', $paidYear, $bill->getDueMonth())
+				);
+			}
+			if ($anchor === null) {
+				return [];
+			}
+		}
+
+		$dueMonth = $bill->getDueMonth();
+		if ($dueMonth === null && $nextDue !== null && in_array($frequency, ['quarterly', 'semi-annually', 'yearly'], true)) {
+			$dueMonth = (int)substr($nextDue, 5, 2);
+		}
+
+		if ($anchor === null && $bill->getCreatedAt()) {
+			$from = max($from, substr((string)$bill->getCreatedAt(), 0, 10));
+		}
+		$endDate = $bill->getEndDate() ?: null;
+		if ($endDate !== null) {
+			$to = min($to, $endDate);
+		}
+		if ($from > $to) {
+			return [];
+		}
+
+		if ($anchor === null && $nextDue !== null && in_array($frequency, ['weekly', 'biweekly'], true)) {
+			// A step back far enough that the week comes from the due date
+			$interval = $frequency === 'biweekly' ? 14 : 7;
+			$back = (new \DateTimeImmutable($nextDue))->diff(new \DateTimeImmutable($from))->days;
+			$anchor = (new \DateTimeImmutable($nextDue))
+				->modify('-' . ((intdiv($back, $interval) + 1) * $interval) . ' days')->format('Y-m-d');
+		}
+
+		$dates = $this->frequencyCalculator->occurrencesBetween(
+			$frequency, $bill->getDueDay(), $dueMonth, $from, $to, $bill->getCustomRecurrencePattern(), $anchor
+		);
+
+		$remaining = $bill->getRemainingPayments();
+		if ($remaining !== null && $nextDue !== null) {
+			if ($nextDue < $from) {
+				// Payments still to come before this year starts use some up
+				$remaining -= count($this->frequencyCalculator->occurrencesBetween(
+					$frequency, $bill->getDueDay(), $dueMonth, $nextDue,
+					(new \DateTimeImmutable($from))->modify('-1 day')->format('Y-m-d'),
+					$bill->getCustomRecurrencePattern(), $anchor
+				));
+			}
+			$kept = [];
+			foreach ($dates as $date) {
+				if ($date < $nextDue) {
+					$kept[] = $date;
+				} elseif ($remaining > 0) {
+					$kept[] = $date;
+					$remaining--;
+				}
+			}
+			$dates = $kept;
+		}
+
+		$byMonth = [];
+		foreach ($dates as $date) {
+			$byMonth[(int)substr($date, 5, 2)][] = $date;
+		}
+		return $byMonth;
 	}
 
 	/**
@@ -2173,150 +2296,9 @@ class BillService {
 	 */
 	private function calculateMonthlyOccurrences(Bill $bill, int $year): array {
 		$occurrences = array_fill(1, 12, false);
-		$frequency = $bill->getFrequency();
-		$dueDay = $bill->getDueDay();
-		$dueMonth = $bill->getDueMonth();
-		$customPattern = $bill->getCustomRecurrencePattern();
-
-		switch ($frequency) {
-			case 'daily':
-			case 'weekly':
-			case 'biweekly':
-			case 'monthly':
-				// Occurs every month
-				for ($month = 1; $month <= 12; $month++) {
-					$occurrences[$month] = true;
-				}
-				break;
-
-			case 'quarterly':
-				// Quarterly bills occur every 3 months
-				// Determine starting month (defaults to Jan, Apr, Jul, Oct)
-				$startMonth = $dueMonth ?? 1;
-
-				// Calculate which months it occurs in
-				for ($month = $startMonth; $month <= 12; $month += 3) {
-					$occurrences[$month] = true;
-				}
-
-				// If startMonth is not 1, 4, 7, or 10, we need to wrap around
-				// E.g., if startMonth is 2, then 2, 5, 8, 11
-				break;
-
-			case 'semi-annually':
-				// Twice per year - every 6 months
-				$startMonth = $dueMonth ?? 1;
-				$occurrences[$startMonth] = true;
-				if ($startMonth + 6 <= 12) {
-					$occurrences[$startMonth + 6] = true;
-				}
-				break;
-
-			case 'yearly':
-				// Only occurs in the specified month
-				$month = $dueMonth ?? 1;
-				$occurrences[$month] = true;
-				break;
-
-			case 'one-time':
-				// One-time bills only occur in their specified month
-				$month = $dueMonth ?? 1;
-				if ($month >= 1 && $month <= 12) {
-					$occurrences[$month] = true;
-				}
-				break;
-
-			case 'custom':
-				// Parse custom pattern
-				if ($customPattern) {
-					$pattern = json_decode($customPattern, true);
-					if (is_array($pattern) && isset($pattern['months'])) {
-						foreach ($pattern['months'] as $month) {
-							if ($month >= 1 && $month <= 12) {
-								$occurrences[$month] = true;
-							}
-						}
-					}
-				}
-				break;
+		foreach (array_keys($this->occurrencesInYear($bill, $year)) as $month) {
+			$occurrences[$month] = true;
 		}
-
-		// Apply start date constraint: remove occurrences before the start date
-		$startDate = $bill->getStartDate();
-		if ($startDate !== null && $startDate !== '') {
-			$startYear = (int)date('Y', strtotime($startDate));
-			$startMonth = (int)date('n', strtotime($startDate));
-
-			for ($month = 1; $month <= 12; $month++) {
-				if ($year < $startYear || ($year === $startYear && $month < $startMonth)) {
-					$occurrences[$month] = false;
-				}
-			}
-		} elseif ($bill->getCreatedAt()) {
-			// Nothing was due before the bill existed. Without a start date the
-			// schedule was projected across the whole year, and once the cells
-			// came from payments (#375) a monthly bill created on 8 September
-			// read as owed from January - the old guess had struck those months
-			// through as paid, which was no truer (#333). Compared by date, so
-			// that a bill created on the 8th and due on the 5th first falls due
-			// next month, the way its next due date already does. A start date
-			// is the user's word on when the schedule began and governs instead
-			// (above); a one-time bill dated in the past on purpose has one.
-			// Frequencies the calendar pins mid-month keep their whole month.
-			$createdOn = substr((string)$bill->getCreatedAt(), 0, 10);
-			$wholeMonth = in_array($frequency, ['daily', 'weekly', 'biweekly'], true);
-			for ($month = 1; $month <= 12; $month++) {
-				if (!$occurrences[$month]) {
-					continue;
-				}
-				$notBefore = $wholeMonth
-					? sprintf('%04d-%02d-%02d', $year, $month, (int)date('t', mktime(0, 0, 0, $month, 1, $year)))
-					: $this->occurrenceDate($bill, $year, $month);
-				if ($notBefore < $createdOn) {
-					$occurrences[$month] = false;
-				}
-			}
-		}
-
-		// Apply end date constraint: remove occurrences after end date
-		$endDate = $bill->getEndDate();
-		if ($endDate !== null) {
-			$endYear = (int)date('Y', strtotime($endDate));
-			$endMonth = (int)date('n', strtotime($endDate));
-
-			for ($month = 1; $month <= 12; $month++) {
-				if ($year > $endYear || ($year === $endYear && $month > $endMonth)) {
-					$occurrences[$month] = false;
-				}
-			}
-		}
-
-		// Apply remaining payments constraint: cap number of future occurrences
-		// But keep past months visible for historical calendar view
-		$remaining = $bill->getRemainingPayments();
-		if ($remaining !== null && $remaining >= 0) {
-			$nextDueDate = $bill->getNextDueDate();
-			$nextDueYear = $nextDueDate ? (int)date('Y', strtotime($nextDueDate)) : $year;
-			$nextDueMonth = $nextDueDate ? (int)date('n', strtotime($nextDueDate)) : 1;
-
-			$count = 0;
-			for ($month = 1; $month <= 12; $month++) {
-				if (!$occurrences[$month]) {
-					continue;
-				}
-
-				// Keep past months visible (they were already paid)
-				if ($year < $nextDueYear || ($year === $nextDueYear && $month < $nextDueMonth)) {
-					continue;
-				}
-
-				$count++;
-				if ($count > $remaining) {
-					$occurrences[$month] = false;
-				}
-			}
-		}
-
 		return $occurrences;
 	}
 }

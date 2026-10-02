@@ -102,7 +102,8 @@ class BillIcsService {
 				$bill->getDueMonth(),
 				$date,
 				$bill->getCustomRecurrencePattern(),
-				true
+				true,
+				$bill->getStartDate()
 			);
 			if ($next <= $date) {
 				// Guard against non-advancing frequencies (would loop forever)

@@ -157,7 +157,7 @@ class BillServiceTest extends TestCase {
 		$bill->setDueMonth($overrides['dueMonth'] ?? null);
 		$bill->setIsActive($overrides['isActive'] ?? true);
 		$bill->setAccountId($overrides['accountId'] ?? 1);
-		$bill->setNextDueDate($overrides['nextDueDate'] ?? '2099-06-15');
+		$bill->setNextDueDate(array_key_exists('nextDueDate', $overrides) ? $overrides['nextDueDate'] : '2099-06-15');
 		$bill->setAutoPayEnabled($overrides['autoPayEnabled'] ?? false);
 		$bill->setAutoPayFailed($overrides['autoPayFailed'] ?? false);
 		$bill->setLastPaidDate($overrides['lastPaidDate'] ?? null);
@@ -291,6 +291,51 @@ class BillServiceTest extends TestCase {
 		$method = new \ReflectionMethod($this->service, 'calculateMonthlyOccurrences');
 		$method->setAccessible(true);
 		return array_keys(array_filter($method->invoke($this->service, $this->makeBill($billOverrides), $year)));
+	}
+
+	/** Every date the calendar puts a bill on in a year, by month. */
+	private function occurrenceDates(array $billOverrides, int $year = 2026): array {
+		$method = new \ReflectionMethod($this->service, 'occurrencesInYear');
+		$method->setAccessible(true);
+		return $method->invoke($this->service, $this->makeBill($billOverrides), $year);
+	}
+
+	public function testTheCalendarShowsSemiMonthlyBills(): void {
+		// The calendar had no case for them: they never appeared
+		$this->assertSame(range(1, 12), $this->occurringMonths(['frequency' => 'semi-monthly', 'dueDay' => 1]));
+		$this->assertSame(['2026-02-01', '2026-02-16'], $this->occurrenceDates(['frequency' => 'semi-monthly', 'dueDay' => 1])[2]);
+	}
+
+	public function testTheCalendarWrapsAQuarterlyBillRoundTheYear(): void {
+		// A November quarter showed only in November
+		$this->assertSame([2, 5, 8, 11], $this->occurringMonths(['frequency' => 'quarterly', 'dueDay' => 1, 'dueMonth' => 11]));
+	}
+
+	public function testTheCalendarTakesAQuarterlyBillsMonthFromItsDueDate(): void {
+		// With no month stored it fell back to January, whatever the bill said
+		$this->assertSame([2, 5, 8, 11], $this->occurringMonths([
+			'frequency' => 'quarterly', 'dueDay' => 10, 'dueMonth' => null, 'nextDueDate' => '2026-02-10',
+		]));
+	}
+
+	public function testTheCalendarShowsAOneTimeBillOnlyInItsYear(): void {
+		// It came back in the same month of every later year
+		$bill = ['frequency' => 'one-time', 'dueDay' => 20, 'dueMonth' => 8, 'startDate' => '2025-08-20', 'isActive' => false, 'nextDueDate' => null];
+		$this->assertSame([], $this->occurringMonths($bill, 2026));
+		$this->assertSame([8], $this->occurringMonths($bill, 2025));
+	}
+
+	public function testTheCalendarShowsACustomDatesPattern(): void {
+		$this->assertSame([1, 7], $this->occurringMonths([
+			'frequency' => 'custom', 'customRecurrencePattern' => '{"dates":[{"month":1,"day":15},{"month":7,"day":31}]}',
+		]));
+	}
+
+	public function testTheCalendarCountsEveryWeeklyPayment(): void {
+		// A weekly bill counted once a month in the totals and projection
+		$dates = $this->occurrenceDates(['frequency' => 'weekly', 'dueDay' => 5, 'startDate' => '2026-01-02']);
+		$this->assertCount(5, $dates[1]);
+		$this->assertCount(4, $dates[2]);
 	}
 
 	/** The old heuristic marked every month up to last_paid_date paid. Only months with a payment are. */
@@ -606,7 +651,10 @@ class BillServiceTest extends TestCase {
 	 */
 	public function testAnnualOverviewDrawsCellsFromPaymentsAndKeepsPaidInactiveBills(): void {
 		$monthly = $this->makeBill(['id' => 1, 'name' => 'Netflix', 'amount' => 15.99]);
-		$garage = $this->makeBill(['id' => 2, 'name' => 'Garage', 'amount' => 321.60, 'frequency' => 'one-time', 'dueMonth' => 8, 'isActive' => false]);
+		// Paid, so it has no next due date; from before one-time bills kept
+		// their date, so only its month says when it was due
+		$garage = $this->makeBill(['id' => 2, 'name' => 'Garage', 'amount' => 321.60, 'frequency' => 'one-time', 'dueMonth' => 8,
+			'isActive' => false, 'nextDueDate' => null, 'lastPaidDate' => '2026-09-03']);
 		$never = $this->makeBill(['id' => 3, 'name' => 'Old gym', 'amount' => 30.0, 'isActive' => false]);
 
 		// "active" fetches everything and narrows afterwards
