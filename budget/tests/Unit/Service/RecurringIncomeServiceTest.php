@@ -571,4 +571,27 @@ class RecurringIncomeServiceTest extends TestCase {
 		$this->assertNull($result->getExpectedMonth());
 		$this->assertSame('2026-04-15', $result->getNextExpectedDate());
 	}
+
+	public function testCreateFromDetectedSkipsABlankSuggestedName(): void {
+		// `suggestedName ?? description` kept '' and created a nameless income
+		$this->mapper->method('insert')->willReturnArgument(0);
+
+		$created = $this->service->createFromDetected('user1', [
+			['suggestedName' => '', 'description' => 'CREDIT', 'amount' => 200.0, 'frequency' => 'monthly'],
+			['name' => 'Rent from lodger', 'suggestedName' => 'Smith', 'amount' => 400.0, 'frequency' => 'monthly'],
+		]);
+
+		$this->assertSame('CREDIT', $created[0]->getName());
+		$this->assertSame('Rent from lodger', $created[1]->getName());
+	}
+
+	public function testCreateFromDetectedRefusesAnItemWithNoName(): void {
+		$this->mapper->expects($this->never())->method('insert');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->createFromDetected('user1', [
+			['suggestedName' => 'Salary', 'amount' => 2000.0, 'frequency' => 'monthly'],
+			['suggestedName' => '', 'description' => ' ', 'amount' => 200.0, 'frequency' => 'monthly'],
+		]);
+	}
 }

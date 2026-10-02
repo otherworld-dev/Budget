@@ -210,7 +210,7 @@ class RecurringIncomeDetector {
 
 			$detected[] = [
 				'description' => $data['description'],
-				'suggestedName' => $this->generateIncomeName($data['description']),
+				'suggestedName' => $this->candidateName($data['description']),
 				'source' => $this->generateIncomeSource($data['description']),
 				'amount' => round($avgAmount, 2),
 				'frequency' => $frequency,
@@ -261,6 +261,19 @@ class RecurringIncomeDetector {
 	private function rowText(Transaction $transaction): string {
 		$description = trim((string)$transaction->getDescription());
 		return $description !== '' ? $description : trim((string)$transaction->getVendor());
+	}
+
+	/**
+	 * A name for a candidate, never blank: when the cleanup strips the
+	 * whole description ("DEPOSIT", "TRANSFER FROM") the description itself
+	 * is used. The caller only passes text that normalizes to something.
+	 */
+	private function candidateName(string $description): string {
+		$name = $this->generateIncomeName($description);
+		if (preg_match('/\p{L}/u', $name) === 1) {
+			return $name;
+		}
+		return ucwords($this->normalizeDescription($description));
 	}
 
 	/**

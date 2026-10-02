@@ -771,4 +771,67 @@ class RecurringIncomeControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
 	}
+
+	// ── createFromDetected ──────────────────────────────────────────
+
+	private function controllerValidatingFor(): RecurringIncomeController {
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$granularShareService->method('resolveOwner')->willReturn('user1');
+		return new RecurringIncomeController(
+			$this->request, $this->service, new ValidationService($this->l), $granularShareService,
+			$this->l, 'user1', $this->logger
+		);
+	}
+
+	public function testCreateFromDetectedRefusesANamelessItemBeforeCreatingAny(): void {
+		// The create route refuses a blank name; this one saved nameless incomes
+		$this->request->method('getParams')->willReturn(['incomes' => [
+			['suggestedName' => 'Salary', 'amount' => 2000, 'frequency' => 'monthly'],
+			['suggestedName' => '', 'description' => '', 'amount' => 200, 'frequency' => 'monthly'],
+		]]);
+		$this->service->expects($this->never())->method('createFromDetected');
+
+		$response = $this->controllerValidatingFor()->createFromDetected();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Name is required', $response->getData()['error']);
+	}
+
+	public function testCreateFromDetectedRefusesAnUnknownFrequency(): void {
+		$this->request->method('getParams')->willReturn(['incomes' => [
+			['suggestedName' => 'Salary', 'amount' => 2000, 'frequency' => 'fortnightly'],
+		]]);
+		$this->service->expects($this->never())->method('createFromDetected');
+
+		$response = $this->controllerValidatingFor()->createFromDetected();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testCreateFromDetectedNamesEachItemFromTheFirstNonBlankField(): void {
+		$this->request->method('getParams')->willReturn(['incomes' => [
+			['suggestedName' => '', 'description' => '  DEPOSIT  ', 'amount' => 200, 'frequency' => 'monthly'],
+			['name' => 'Lodger', 'suggestedName' => 'Smith', 'amount' => 400, 'frequency' => 'weekly', 'startDate' => '2026-09-25'],
+		]]);
+		$this->service->expects($this->once())
+			->method('createFromDetected')
+			->with('user1', $this->callback(fn (array $items) => $items[0]['name'] === 'DEPOSIT' && $items[1]['name'] === 'Lodger'))
+			->willReturn([]);
+
+		$response = $this->controllerValidatingFor()->createFromDetected();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	public function testCreateFromDetectedRefusesABadStartDate(): void {
+		$this->request->method('getParams')->willReturn(['incomes' => [
+			['suggestedName' => 'Lodger', 'amount' => 400, 'frequency' => 'weekly', 'startDate' => '25/09/2026'],
+		]]);
+		$this->service->expects($this->never())->method('createFromDetected');
+
+		$response = $this->controllerValidatingFor()->createFromDetected();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
 }

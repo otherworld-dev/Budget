@@ -364,4 +364,22 @@ class RecurringIncomeDetectorTest extends TestCase {
 
 		$this->assertCount(1, $this->detector->detectRecurringIncome('user1'));
 	}
+
+	// ===== a usable name =====
+
+	public function testNameIsNeverBlankWhenCleanupStripsEverything(): void {
+		// The cleanup strips "DEPOSIT", "CREDIT", "TRANSFER FROM" ... and the
+		// panel showed a blank label for what remained
+		$rows = array_merge(
+			$this->credits(self::MONTHLY, ['description' => 'DEPOSIT 123']),
+			$this->credits(self::MONTHLY, ['description' => 'TRANSFER FROM', 'amount' => 150.0], 20)
+		);
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn($rows);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('monthly');
+
+		$names = array_column($this->detector->detectRecurringIncome('user1'), 'suggestedName');
+		sort($names);
+
+		$this->assertSame(['Deposit', 'Transfer From'], $names);
+	}
 }
