@@ -718,6 +718,41 @@ class TransactionServiceTest extends TestCase {
 		$this->service->unlinkBillAsAccountOwner(77);
 	}
 
+	public function testLinkingABillGivesTheRowTheBillsCategoryAndTags(): void {
+		// Only the bill id was set: a payment linked from an import landed
+		// in Uncategorised with none of the bill's tags
+		$tx = $this->makeTransaction(['id' => 78, 'accountId' => 10, 'categoryId' => null]);
+		$this->accountById[10] = $this->makeAccount(['id' => 10, 'userId' => 'account-owner']);
+		$this->mapper->method('findById')->with(78)->willReturn($tx);
+		$this->mapper->expects($this->once())->method('find')->with(78, 'account-owner')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->transactionTagMapper->expects($this->exactly(2))->method('insert');
+		$bill = $this->makeBill(['id' => 9, 'categoryId' => 5, 'tagIds' => '[3,4]']);
+
+		$linked = $this->service->linkBillAsAccountOwner(78, $bill);
+
+		$this->assertSame(9, $linked->getBillId());
+		$this->assertSame(5, $linked->getCategoryId());
+	}
+
+	public function testLinkingKeepsACategoryTheRowAlreadyHas(): void {
+		$tx = $this->makeTransaction(['id' => 79, 'accountId' => 10, 'categoryId' => 8]);
+		$this->mapper->method('findById')->willReturn($tx);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$this->assertSame(8, $this->service->linkBillAsAccountOwner(79, $this->makeBill(['id' => 9, 'categoryId' => 5]))->getCategoryId());
+	}
+
+	public function testARowOfAnotherBillIsNotLinkedAgain(): void {
+		$tx = $this->makeTransaction(['id' => 80, 'accountId' => 10, 'billId' => 2]);
+		$this->mapper->method('findById')->willReturn($tx);
+		$this->mapper->expects($this->never())->method('update');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->linkBillAsAccountOwner(80, $this->makeBill(['id' => 9]));
+	}
+
 	public function testUnlinkBillAsAccountOwnerIgnoresAMissingRow(): void {
 		$this->mapper->method('findById')->willReturn(null);
 		$this->mapper->expects($this->never())->method('update');

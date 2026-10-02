@@ -646,6 +646,47 @@ class TransactionService {
 	}
 
 	/**
+	 * Link an existing transaction to a bill as the payment of its current
+	 * occurrence, under the account owner's identity (#334): the row may sit
+	 * in an account shared with the bill's owner, whose own lookup can't see
+	 * it, and the link then failed while the bill moved on anyway.
+	 *
+	 * The row gets what the bill's own payment would have carried: its
+	 * category when the row has none, and its tags. Only the bill id used to
+	 * be set, so a payment linked from an import landed in Uncategorised.
+	 * A row already paying another bill is refused.
+	 *
+	 * @throws \InvalidArgumentException
+	 * @throws DoesNotExistException
+	 */
+	public function linkBillAsAccountOwner(int $id, Bill $bill): Transaction {
+		$transaction = $this->mapper->findById($id);
+		if ($transaction === null) {
+			throw new DoesNotExistException("Transaction {$id} does not exist");
+		}
+		if ($transaction->getBillId() !== null && $transaction->getBillId() !== $bill->getId()) {
+			throw new \InvalidArgumentException('This transaction already pays another bill');
+		}
+
+		$updates = ['billId' => $bill->getId()];
+		if ($transaction->getCategoryId() === null && !$transaction->getIsSplit() && $bill->getCategoryId() !== null) {
+			$updates['categoryId'] = $bill->getCategoryId();
+		}
+		$linked = $this->update($id, $this->ownerOf($transaction), $updates);
+
+		$tagIds = $bill->getTagIdsArray();
+		if (!empty($tagIds)) {
+			$existing = array_map(
+				fn ($tag) => (int)$tag->getTagId(),
+				$this->transactionTagMapper->findByTransaction($id)
+			);
+			$this->applyTagsToTransaction($id, array_values(array_diff(array_map('intval', $tagIds), $existing)));
+		}
+
+		return $linked;
+	}
+
+	/**
 	 * Apply tag IDs to a transaction (used when creating transactions from bills).
 	 * @param int $transactionId
 	 * @param int[] $tagIds
