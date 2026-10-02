@@ -60,10 +60,14 @@ class RecurringIncomeController extends Controller {
 			} else {
 				$incomes = $this->service->findAll($this->userId);
 			}
+			// Each row in its account's currency; it had none, so a euro
+			// salary showed with the default currency's symbol
+			$this->service->enrichWithCurrency($incomes, $this->userId);
 
 			// Merge shared recurring income
 			$shared = $this->granularShareService->getSharedRecurringIncome($this->userId);
 			if (!empty($shared)) {
+				$shared = $this->service->enrichSharedWithCurrency($shared);
 				$incomes = array_merge(
 					array_map(fn ($i) => $i->jsonSerialize(), $incomes),
 					$shared
@@ -92,6 +96,7 @@ class RecurringIncomeController extends Controller {
 			}
 
 			$income = $this->service->find($id, $owner);
+			$this->service->enrichWithCurrency([$income], $owner);
 			if ($owner === $this->userId) {
 				return new DataResponse($income);
 			}

@@ -234,9 +234,10 @@ class RecurringIncomeMapperTest extends TestCase {
 	 * Guards the whole class of bug (mirrors BillMapperTest): every column the
 	 * entity persists must be accepted by updateFields — a column added to the
 	 * entity/migrations but not whitelisted breaks every edit carrying it.
+	 * The currency is the account's, set for API responses, never stored.
 	 */
 	public function testUpdateFieldsAcceptsEveryPersistedColumn(): void {
-		$skip = ['id', 'userId', 'createdAt'];
+		$skip = ['id', 'userId', 'createdAt', 'currency'];
 		$reflection = new \ReflectionClass(RecurringIncome::class);
 		foreach ($reflection->getProperties(\ReflectionProperty::IS_PROTECTED) as $property) {
 			if ($property->getDeclaringClass()->getName() !== RecurringIncome::class) {
