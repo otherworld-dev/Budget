@@ -1248,7 +1248,9 @@ export default class TransfersModule {
         detectBtn.innerHTML = `<span class="icon-loading-small" aria-hidden="true"></span> ${t('budget', 'Detecting...')}`;
 
         try {
-            const detected = await apiFetch('/apps/budget/api/bills/detect?months=6');
+            // Detect Bills leaves out debits linked to a transfer's other leg;
+            // here they are exactly what we're looking for
+            const detected = await apiFetch('/apps/budget/api/bills/detect?months=6&transfers=true');
 
             if (!detected || detected.length === 0) {
                 showWarning(t('budget', 'No recurring transactions detected'));
@@ -1304,6 +1306,15 @@ export default class TransfersModule {
                 </div>
             `;
         }).join('');
+
+        // Linked legs show where the money went: start with that account
+        detected.forEach((item, index) => {
+            const select = list.querySelector(`.detected-dest-account[data-index="${index}"]`);
+            const suggested = item.suggestedDestinationAccountId;
+            if (select && suggested && accounts.some(a => a.id === suggested)) {
+                select.value = String(suggested);
+            }
+        });
 
         this._detectedTransfers = detected;
     }

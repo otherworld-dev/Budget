@@ -1552,6 +1552,15 @@ class BillServiceTest extends TestCase {
 		$this->assertSame($expected, $result);
 	}
 
+	public function testDetectRecurringBillsAsksForTransfersWhenFindingTransfers(): void {
+		$this->recurringDetector->expects($this->once())
+			->method('detectRecurringBills')
+			->with('user1', 6, true)
+			->willReturn([]);
+
+		$this->service->detectRecurringBills('user1', 6, true);
+	}
+
 	// ===== Auto-match bills from imported transactions (#274) =====
 
 	private function makeImportedTx(array $overrides = []): \OCA\Budget\Db\Transaction {

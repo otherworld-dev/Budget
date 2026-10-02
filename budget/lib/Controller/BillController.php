@@ -1010,12 +1010,14 @@ class BillController extends Controller {
 	}
 
 	/**
-	 * Auto-detect recurring bills from transaction history
+	 * Auto-detect recurring bills from transaction history. Find Transfers
+	 * sends transfers=true to also see debits linked to a transfer's other
+	 * leg; Detect Bills leaves those out.
 	 * @NoAdminRequired
 	 */
-	public function detect(int $months = 6): DataResponse {
+	public function detect(int $months = 6, $transfers = 'false'): DataResponse {
 		try {
-			$detected = $this->service->detectRecurringBills($this->getEffectiveUserId(), $months);
+			$detected = $this->service->detectRecurringBills($this->getEffectiveUserId(), $months, $this->toBool($transfers));
 			return new DataResponse($detected);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to detect recurring bills'));

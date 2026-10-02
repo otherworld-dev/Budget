@@ -1576,6 +1576,24 @@ class BillControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
+	public function testDetectAsksForTransfersWhenFindingTransfers(): void {
+		$this->service->expects($this->once())
+			->method('detectRecurringBills')
+			->with('user1', 6, true)
+			->willReturn([]);
+
+		$this->controller->detect(6, 'true');
+	}
+
+	public function testDetectLeavesTransfersOutByDefault(): void {
+		$this->service->expects($this->once())
+			->method('detectRecurringBills')
+			->with('user1', 6, false)
+			->willReturn([]);
+
+		$this->controller->detect();
+	}
+
 	public function testCreateFromDetectedServiceError(): void {
 		$this->mockInput(json_encode(['bills' => [['name' => 'X']]]));
 		$this->service->method('createFromDetected')

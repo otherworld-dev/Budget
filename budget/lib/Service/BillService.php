@@ -1450,9 +1450,11 @@ class BillService {
 
 	/**
 	 * Auto-detect recurring bills from transaction history.
+	 *
+	 * @param bool $includeTransfers Find Transfers: also offer debits linked to a transfer's other leg
 	 */
-	public function detectRecurringBills(string $userId, int $months = 6): array {
-		return $this->recurringDetector->detectRecurringBills($userId, $months);
+	public function detectRecurringBills(string $userId, int $months = 6, bool $includeTransfers = false): array {
+		return $this->recurringDetector->detectRecurringBills($userId, $months, $includeTransfers);
 	}
 
 	/**

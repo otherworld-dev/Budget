@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service\Bill;
 
+use OCA\Budget\Db\BillMapper;
+use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 
 /**
@@ -12,30 +14,42 @@ use OCA\Budget\Db\TransactionMapper;
 class RecurringBillDetector {
 	private TransactionMapper $transactionMapper;
 	private FrequencyCalculator $frequencyCalculator;
+	private BillMapper $billMapper;
 
 	public function __construct(
 		TransactionMapper $transactionMapper,
 		FrequencyCalculator $frequencyCalculator,
+		BillMapper $billMapper,
 	) {
 		$this->transactionMapper = $transactionMapper;
 		$this->frequencyCalculator = $frequencyCalculator;
+		$this->billMapper = $billMapper;
 	}
 
 	/**
-	 * Auto-detect recurring bills from transaction history.
+	 * Auto-detect recurring bills from transaction history: payments that
+	 * repeat and that no bill or transfer tracks yet.
 	 *
 	 * @param string $userId User ID
 	 * @param int $months Number of months to analyze
-	 * @param bool $excludeBilled Skip transactions already linked to a bill
-	 *                            (used by proactive suggestions; the manual
-	 *                            Detect flow keeps legacy behavior)
+	 * @param bool $includeTransfers Also offer debits already linked to a
+	 *                               transfer's other leg (Find Transfers).
+	 *                               Detect Bills and the suggestions leave
+	 *                               them out: as a bill, one books a debit
+	 *                               with no deposit.
 	 * @return array Detected recurring patterns
 	 */
-	public function detectRecurringBills(string $userId, int $months = 6, bool $excludeBilled = false): array {
+	public function detectRecurringBills(string $userId, int $months = 6, bool $includeTransfers = false): array {
 		$startDate = date('Y-m-d', strtotime("-{$months} months"));
 		$endDate = date('Y-m-d');
 
 		$transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate);
+
+		// Where each row sits, to tell a linked debit where its money went
+		$accountOf = [];
+		foreach ($transactions as $transaction) {
+			$accountOf[$transaction->getId()] = $transaction->getAccountId();
+		}
 
 		$grouped = [];
 
@@ -44,11 +58,22 @@ class RecurringBillDetector {
 			if ($transaction->getType() !== 'debit') {
 				continue;
 			}
-			if ($excludeBilled && $transaction->getBillId() !== null) {
+			if ($this->isAppBooked($transaction)) {
+				continue;
+			}
+			$linkedId = $transaction->getLinkedTransactionId();
+			if ($linkedId !== null && !$includeTransfers) {
 				continue;
 			}
 
-			$desc = $this->normalizeDescription($transaction->getDescription());
+			// A blank description falls back to the payee, and a row with
+			// neither isn't grouped at all: blank rows of different payees
+			// shared one '' key and merged into a made-up bill
+			$text = $this->rowText($transaction);
+			$desc = $this->normalizeDescription($text);
+			if ($desc === '') {
+				continue;
+			}
 			$amount = $transaction->getAmount();
 
 			// Create key with rounded amount (to handle slight variations)
@@ -58,19 +83,24 @@ class RecurringBillDetector {
 			if (!isset($grouped[$key])) {
 				$grouped[$key] = [
 					'patternKey' => $key,
-					'description' => $transaction->getDescription(),
+					'description' => $text,
 					'amount' => $amount,
 					'amounts' => [],
 					'dates' => [],
 					'categoryId' => $transaction->getCategoryId(),
 					'accountId' => $transaction->getAccountId(),
+					'destinations' => [],
 				];
 			}
 
 			$grouped[$key]['dates'][] = $transaction->getDate();
 			$grouped[$key]['amounts'][] = $amount;
+			if ($linkedId !== null && isset($accountOf[$linkedId])) {
+				$grouped[$key]['destinations'][] = $accountOf[$linkedId];
+			}
 		}
 
+		$trackedPatterns = $this->trackedPatterns($userId);
 		$detected = [];
 
 		foreach ($grouped as $data) {
@@ -95,6 +125,10 @@ class RecurringBillDetector {
 				continue;
 			}
 
+			if ($this->isTracked($data['description'], $trackedPatterns)) {
+				continue;
+			}
+
 			// Calculate average amount
 			$avgAmount = array_sum($data['amounts']) / count($data['amounts']);
 
@@ -114,7 +148,7 @@ class RecurringBillDetector {
 			$dueDays = array_map(fn ($ts) => (int)date('j', $ts), $dates);
 			$avgDueDay = (int)round(array_sum($dueDays) / count($dueDays));
 
-			$detected[] = [
+			$candidate = [
 				'patternKey' => $data['patternKey'],
 				'description' => $data['description'],
 				'suggestedName' => $this->generateBillName($data['description']),
@@ -128,12 +162,95 @@ class RecurringBillDetector {
 				'autoDetectPattern' => $this->generatePattern($data['description']),
 				'lastSeen' => date('Y-m-d', max($dates)),
 			];
+
+			// Linked legs show where the money went. Only a suggestion: Find
+			// Transfers asks for the destination, and a bill created from
+			// this must not turn into a transfer by itself
+			$destinations = array_unique($data['destinations']);
+			if (count($destinations) === 1 && reset($destinations) !== $data['accountId']) {
+				$candidate['suggestedDestinationAccountId'] = reset($destinations);
+			}
+
+			$detected[] = $candidate;
 		}
 
 		// Sort by confidence descending
 		usort($detected, fn ($a, $b) => $b['confidence'] <=> $a['confidence']);
 
 		return $detected;
+	}
+
+	/**
+	 * Rows the app booked itself, or that aren't payments yet. They are
+	 * already tracked and fed detection the user's own bills back to them:
+	 *  - a bill or transfer's payments and placeholders (bill_id)
+	 *  - anything still scheduled (a pre-booked row dated today isn't paid)
+	 *  - a pension contribution's bank leg, which its schedule books
+	 */
+	private function isAppBooked(Transaction $transaction): bool {
+		return $transaction->getBillId() !== null
+			|| $transaction->getStatus() === 'scheduled'
+			|| $transaction->getPensionContribId() !== null;
+	}
+
+	/** The row's description, or its payee when the description is blank */
+	private function rowText(Transaction $transaction): string {
+		$description = trim((string)$transaction->getDescription());
+		return $description !== '' ? $description : trim((string)$transaction->getVendor());
+	}
+
+	/**
+	 * What the user's existing bills and transfers match on, normalized:
+	 * the auto-detect and transfer patterns, matched the way bill
+	 * auto-detection links imported rows, and the name as whole words.
+	 *
+	 * @return array{patterns: string[], names: string[]}
+	 */
+	private function trackedPatterns(string $userId): array {
+		$patterns = [];
+		$names = [];
+		foreach ($this->billMapper->findAll($userId) as $bill) {
+			foreach ([$bill->getAutoDetectPattern(), $bill->getTransferDescriptionPattern()] as $raw) {
+				$normalized = $this->normalizeDescription((string)$raw);
+				if ($normalized !== '') {
+					$patterns[] = $normalized;
+				}
+			}
+			$name = $this->normalizeDescription((string)$bill->getName());
+			if ($name !== '') {
+				$names[] = $name;
+			}
+		}
+		return ['patterns' => $patterns, 'names' => $names];
+	}
+
+	/**
+	 * Whether an existing bill already covers payments with this
+	 * description. A pattern matches as a substring either way round; a
+	 * name only as whole words, so a bill called "Car" doesn't hide every
+	 * "CARD PAYMENT TO ...".
+	 */
+	private function isTracked(string $description, array $tracked): bool {
+		$normalized = $this->normalizeDescription($description);
+		if ($normalized === '') {
+			return false;
+		}
+		foreach ($tracked['patterns'] as $pattern) {
+			if (str_contains($normalized, $pattern) || str_contains($pattern, $normalized)) {
+				return true;
+			}
+		}
+		foreach ($tracked['names'] as $name) {
+			if (self::containsWords($normalized, $name) || self::containsWords($name, $normalized)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** Whether $needle appears in $haystack as whole words */
+	public static function containsWords(string $haystack, string $needle): bool {
+		return preg_match('/(?<![\p{L}\p{N}])' . preg_quote($needle, '/') . '(?![\p{L}\p{N}])/u', $haystack) === 1;
 	}
 
 	/**
