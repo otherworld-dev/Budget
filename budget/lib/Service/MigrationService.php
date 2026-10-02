@@ -18,6 +18,7 @@ use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Enum\AccountType;
 use OCA\Budget\Enum\Currency;
+use OCA\Budget\Migration\Version001000104Date20260916;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use OCP\IL10N;
@@ -1357,10 +1358,20 @@ class MigrationService {
 				}
 			}
 			$bill->setTagIdsArray($newTagIds);
-			$bill->setStartDate($billData['startDate'] ?? null);
+			$bill->setStartDate($this->billStartDate($billData));
 			$bill->setEndDate($billData['endDate'] ?? null);
 			$bill->setRemainingPayments($billData['remainingPayments'] ?? null);
-			$bill->setSplitTemplateArray(is_array($billData['splitTemplate'] ?? null) ? $billData['splitTemplate'] : null);
+			// A split bill keeps its categories in the template (category_id
+			// is NULL for it). Copied verbatim, every part pointed at a
+			// category id from before the restore, so each payment's split was
+			// refused and the payment was saved unsplit and uncategorised.
+			$bill->setSplitTemplateArray(is_array($billData['splitTemplate'] ?? null)
+				? $this->remapSplitTemplate($billData['splitTemplate'], $idMaps)
+				: null);
+			// The reminder job sends once per due date by remembering when it
+			// last sent; without this every bill inside its reminder window
+			// got the same reminder again after a restore.
+			$bill->setLastReminderSent($billData['lastReminderSent'] ?? null);
 			$bill->setExcludedFromForecast(filter_var($billData['excludedFromForecast'] ?? false, FILTER_VALIDATE_BOOLEAN));
 			$bill->setCreateTransaction(filter_var($billData['createTransaction'] ?? true, FILTER_VALIDATE_BOOLEAN));
 			$bill->setCreatedAt($billData['createdAt'] ?? date('Y-m-d H:i:s'));
@@ -1390,6 +1401,49 @@ class MigrationService {
 		}
 
 		return $map;
+	}
+
+	/**
+	 * A bill's start date. One-time bills from a backup made before 2.52 have
+	 * none: their date lived in next_due_date, which marking one paid
+	 * cleared. Migration 104 rebuilt it once, at the upgrade, and a restore
+	 * of such a backup brought the gap straight back, so the bill opened with
+	 * an empty Due Date. The same rule fills it in here.
+	 */
+	private function billStartDate(array $billData): ?string {
+		$startDate = $billData['startDate'] ?? null;
+		if (($startDate !== null && $startDate !== '') || ($billData['frequency'] ?? null) !== 'one-time') {
+			return $startDate;
+		}
+		return Version001000104Date20260916::dueDateFor(
+			isset($billData['dueDay']) ? (int)$billData['dueDay'] : null,
+			isset($billData['dueMonth']) ? (int)$billData['dueMonth'] : null,
+			isset($billData['nextDueDate']) ? (string)$billData['nextDueDate'] : null,
+			isset($billData['lastPaidDate']) ? (string)$billData['lastPaidDate'] : null
+		);
+	}
+
+	/**
+	 * A split template's parts with their categories moved to the restored
+	 * ids. A part whose category isn't in the backup stays, uncategorised,
+	 * so the parts still add up to the bill.
+	 *
+	 * @param array<mixed> $template
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function remapSplitTemplate(array $template, array $idMaps): array {
+		$parts = [];
+		foreach ($template as $part) {
+			if (!is_array($part)) {
+				continue;
+			}
+			$oldCategoryId = $part['categoryId'] ?? null;
+			if ($oldCategoryId !== null && $oldCategoryId !== '') {
+				$part['categoryId'] = $idMaps['categories'][(int)$oldCategoryId] ?? null;
+			}
+			$parts[] = $part;
+		}
+		return $parts;
 	}
 
 	/**
