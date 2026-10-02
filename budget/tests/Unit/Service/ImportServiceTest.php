@@ -403,6 +403,36 @@ class ImportServiceTest extends TestCase {
 		$this->assertEquals(1, $result['imported']);
 	}
 
+	// The import screen pairs up transfers among the rows it just imported,
+	// so it has to be told which those are; it used to sweep the whole ledger.
+	public function testProcessImportNamesTheRowsItCreated(): void {
+		$this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', 'csv data');
+		$this->parserFactory->method('detectFormat')->willReturn('csv');
+		$this->parserFactory->method('parse')->willReturn([['2026-08-04', '12.34', 'Coffee shop']]);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(1, 'Current'));
+		$this->normalizer->method('mapRowToTransaction')->willReturn([
+			'date' => '2026-08-04',
+			'amount' => 12.34,
+			'description' => 'Coffee shop',
+			'type' => 'debit',
+		]);
+		$this->normalizer->method('generateImportId')->willReturn('imp_ids');
+		$this->duplicateDetector->method('isDuplicateByImportId')->willReturn(false);
+		$this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+		$created = new \OCA\Budget\Db\Transaction();
+		$created->setId(41);
+		$this->transactionService->method('create')->willReturn($created);
+
+		$result = $this->service->processImport(
+			'user1',
+			'import_user1_0123456789abcdef0123456789abcdef.csv',
+			['date' => 0, 'amount' => 1, 'description' => 2],
+			1
+		);
+
+		$this->assertSame([41], $result['transactionIds']);
+	}
+
 	// ===== #333: rows with an empty account cell, and junk account names =====
 
 	// His source table left the account blank on half the rows, and every one

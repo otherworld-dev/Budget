@@ -2494,7 +2494,7 @@ export default class ImportModule {
             this.app.loadAccounts();
 
             // Auto-match transfers in the background
-            this.autoMatchTransfers();
+            this.autoMatchTransfers(result.transactionIds);
         } catch (error) {
             console.error('Failed to execute import:', error);
             showError(t('budget', 'Failed to import transactions: {message}', { message: error.message }));
@@ -2505,11 +2505,20 @@ export default class ImportModule {
         }
     }
 
-    async autoMatchTransfers() {
+    /**
+     * Pair up transfers among the rows just imported. Their other halves can
+     * be anywhere, but the search starts from these alone: sweeping the
+     * whole ledger linked unrelated rows of the same amount the moment
+     * anything was imported.
+     */
+    async autoMatchTransfers(transactionIds) {
+        if (!Array.isArray(transactionIds) || transactionIds.length === 0) {
+            return;
+        }
         try {
             const result = await apiFetch('/apps/budget/api/transactions/bulk-match', {
                 method: 'POST',
-                body: { dateWindow: 3 },
+                body: { dateWindow: 3, transactionIds },
             }).catch(() => null);
 
             if (result) {

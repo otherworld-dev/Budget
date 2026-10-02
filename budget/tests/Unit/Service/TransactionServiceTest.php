@@ -1253,6 +1253,148 @@ class TransactionServiceTest extends TestCase {
 		$this->service->findPotentialMatches(1, 'user1', 3, true);
 	}
 
+	/**
+	 * A bill's pre-booked row is a payment nobody has made yet. Paired with a
+	 * salary or a card credit, it took that row out of income and spending
+	 * as a "transfer", and Mark Paid then cleared it into a payment that was
+	 * still linked to the salary.
+	 */
+	public function testAPreBookedRowIsNeverMatchedAsATransfer(): void {
+		$tx = $this->makeTransaction(['billId' => 9]);
+		$tx->setStatus('scheduled');
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->expects($this->never())->method('findPotentialMatches');
+
+		$this->assertSame([], $this->service->findPotentialMatches(1, 'user1', 3, true, null, true));
+	}
+
+	public function testAFutureDatedRowIsNotMatchedEither(): void {
+		$tx = $this->makeTransaction();
+		$tx->setStatus('scheduled');
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->expects($this->never())->method('findPotentialMatches');
+
+		$this->assertSame([], $this->service->findPotentialMatches(1, 'user1'));
+	}
+
+	/**
+	 * A row a bill or an income booked stands for that bill or income. Auto
+	 * matching (after an import, Find transfers, link-as-transfer rules) turned
+	 * a salary paid in on the 28th and a rent bill paid on the 30th into a
+	 * transfer, so the month's income read nothing.
+	 */
+	public function testBillAndIncomeRowsAreNotMatchedAutomatically(): void {
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(['id' => 10, 'currency' => 'USD']));
+
+		foreach ([
+			['billId' => 9],
+			['notes' => 'Auto-generated from bill: Rent'],
+			['notes' => 'Auto-generated from income: Salary', 'type' => 'credit'],
+		] as $overrides) {
+			$tx = $this->makeTransaction($overrides);
+			$tx->setStatus('cleared');
+			// A fresh service per row: a stub set on the shared mapper can't
+			// be replaced, so each row gets a mapper of its own
+			$service = $this->serviceWithMapperReturning($tx);
+			$this->assertSame([], $service->findPotentialMatches(1, 'user1'), json_encode($overrides));
+		}
+	}
+
+	public function testTheMatchDialogStillOffersBillAndIncomeRows(): void {
+		// The user picks the pair there, and converting a recorded bill
+		// payment is how a loan or card with no feed gets its other side
+		$tx = $this->makeTransaction(['billId' => 9]);
+		$tx->setStatus('cleared');
+		$this->mapper->method('find')->willReturn($tx);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(['id' => 10, 'currency' => 'USD']));
+
+		$this->mapper->expects($this->once())
+			->method('findPotentialMatches')
+			->with('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'USD', 3, true, null, true)
+			->willReturn([]);
+
+		$this->service->findPotentialMatches(1, 'user1', 3, true, null, true);
+	}
+
+	public function testAutomaticMatchingAsksTheMapperToLeaveGeneratedRowsOut(): void {
+		$tx = $this->makeTransaction();
+		$tx->setStatus('cleared');
+		$this->mapper->method('find')->willReturn($tx);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(['id' => 10, 'currency' => 'USD']));
+
+		$this->mapper->expects($this->once())
+			->method('findPotentialMatches')
+			->with('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'USD', 3, false, null, false)
+			->willReturn([]);
+
+		$this->service->findPotentialMatches(1, 'user1');
+	}
+
+	public function testAPreBookedRowCannotBeLinkedToARowOutsideItsBill(): void {
+		$placeholder = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 300.00, 'type' => 'debit', 'billId' => 9]);
+		$placeholder->setStatus('scheduled');
+		$credit = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 300.00, 'type' => 'credit']);
+		$this->mapper->method('find')->willReturnCallback(fn (int $id) => $id === 1 ? $placeholder : $credit);
+		$this->mapper->expects($this->never())->method('linkTransactions');
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('upcoming payment');
+
+		$this->service->linkTransactions(2, 1, 'user1');
+	}
+
+	public function testATransferBillsOwnPreBookedLegsStillLink(): void {
+		$out = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 300.00, 'type' => 'debit', 'billId' => 9]);
+		$out->setStatus('scheduled');
+		$in = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 300.00, 'type' => 'credit', 'billId' => 9]);
+		$in->setStatus('scheduled');
+		$this->mapper->method('find')->willReturnCallback(fn (int $id) => $id === 1 ? $out : $in);
+
+		$this->mapper->expects($this->once())->method('linkTransactions')->with(1, 2);
+
+		$this->service->linkTransactions(1, 2, 'user1');
+	}
+
+	/**
+	 * Matching after an import used to sweep the whole ledger, so any two
+	 * same-amount rows in different accounts a few days apart were linked
+	 * the moment anything was imported.
+	 */
+	public function testMatchingAfterAnImportOnlyStartsFromTheImportedRows(): void {
+		$this->mapper->expects($this->once())
+			->method('findUnlinkedWithMatches')
+			->with('user1', 3, 100, 0, [10, 20], [7, 8])
+			->willReturn(['transactions' => [], 'total' => 0]);
+
+		$result = $this->service->bulkFindAndMatch('user1', 3, 100, [10, 20], [7, 8]);
+
+		$this->assertSame(0, $result['stats']['autoMatchedCount']);
+	}
+
+	public function testMatchingAfterAnImportOfNothingRunsNoQuery(): void {
+		$this->mapper->expects($this->never())->method('findUnlinkedWithMatches');
+
+		$this->service->bulkFindAndMatch('user1', 3, 100, [10, 20], []);
+	}
+
+	private function serviceWithMapperReturning(Transaction $tx): TransactionService {
+		$mapper = $this->createMock(TransactionMapper::class);
+		$mapper->method('find')->willReturn($tx);
+		$mapper->expects($this->never())->method('findPotentialMatches');
+		return new TransactionService(
+			$mapper,
+			$this->accountMapper,
+			$this->transactionTagMapper,
+			$this->splitMapper,
+			$this->expenseShareMapper,
+			$this->createMock(DismissedImportMapper::class),
+			$this->attachmentMapper,
+			$this->createMock(\OCA\Budget\Service\AuditService::class),
+			$this->createMock(\OCA\Budget\Db\PensionContributionMapper::class),
+			$this->userClock
+		);
+	}
+
 	// ===== bulkCategorize() =====
 
 	public function testBulkCategorizeCountsSuccessesAndFailures(): void {

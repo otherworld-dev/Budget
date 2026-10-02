@@ -593,13 +593,16 @@ class TransactionController extends Controller {
 			$this->requireWriteAccess('account', $source->getAccountId());
 
 			// Manual dialog: include cross-currency candidates — the user picks,
-			// and linkTransactions() accepts different amounts across currencies
+			// and linkTransactions() accepts different amounts across currencies.
+			// For the same reason it offers rows a bill or an income booked,
+			// which no automatic flow pairs.
 			$matches = $this->service->findPotentialMatches(
 				$id,
 				$this->userId,
 				$dateWindow,
 				true,
-				$this->getWritableAccountIds()
+				$this->getWritableAccountIds(),
+				true
 			);
 			return new DataResponse([
 				'matches' => $matches,
@@ -697,13 +700,24 @@ class TransactionController extends Controller {
 	 * Bulk find and match transactions
 	 * Auto-links single matches, returns multiple matches for manual review
 	 *
+	 * The import screen runs this after every import and passes the rows it
+	 * imported in $transactionIds, so only those are paired up. Without them
+	 * the whole ledger is searched.
+	 *
 	 * @NoAdminRequired
 	 * @deprecated Use scanMatches + bulkLink instead
+	 * @param int[]|null $transactionIds
 	 */
 	#[UserRateLimit(limit: 5, period: 60)]
-	public function bulkMatch(int $dateWindow = 3): DataResponse {
+	public function bulkMatch(int $dateWindow = 3, ?array $transactionIds = null): DataResponse {
 		try {
-			$result = $this->service->bulkFindAndMatch($this->userId, $dateWindow, 100, $this->getWritableAccountIds());
+			$result = $this->service->bulkFindAndMatch(
+				$this->userId,
+				$dateWindow,
+				100,
+				$this->getWritableAccountIds(),
+				$transactionIds === null ? null : array_map('intval', $transactionIds)
+			);
 			return new DataResponse($result);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to bulk match transactions'));

@@ -895,8 +895,10 @@ class TransactionControllerTest extends TestCase {
 
 	public function testGetMatchesSearchesEveryWritableAccount(): void {
 		$this->service->method('findForAccounts')->willReturn($this->transactionInAccount(9));
+		// The dialog is where the user picks the pair, so a bill's recorded
+		// payment is offered there, unlike in any automatic flow
 		$this->service->expects($this->once())->method('findPotentialMatches')
-			->with(5, 'user1', 3, true, [9, 10])
+			->with(5, 'user1', 3, true, [9, 10], true)
 			->willReturn([]);
 
 		$response = $this->controllerSeeing([9, 10])->getMatches(5);
@@ -922,6 +924,16 @@ class TransactionControllerTest extends TestCase {
 		$response = $this->controllerSeeing([9, 10], false)->getMatches(5);
 
 		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testBulkMatchAfterAnImportStartsFromTheImportedRows(): void {
+		$this->service->expects($this->once())->method('bulkFindAndMatch')
+			->with('user1', 3, 100, [9, 10], [41, 42])
+			->willReturn(['autoMatched' => [], 'needsReview' => [], 'stats' => []]);
+
+		$response = $this->controllerSeeing([9, 10])->bulkMatch(3, [41, 42]);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
 	public function testScanMatchesSearchesEveryWritableAccount(): void {

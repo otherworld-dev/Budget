@@ -24,6 +24,37 @@ abstract class TransactionQueryBuilder implements IQueryBuilder {
 	abstract public function escapeLikeParameter(string $parameter): string;
 }
 
+/**
+ * A composite expression that reads back as a label, so a test can see how
+ * the mocked expression builder's parts were combined.
+ */
+final class LabelledExpression implements ICompositeExpression {
+	public function __construct(
+		private string $label,
+	) {
+	}
+
+	public function addMultiple(array $parts = []): ICompositeExpression {
+		return $this;
+	}
+
+	public function add($part): ICompositeExpression {
+		return $this;
+	}
+
+	public function count(): int {
+		return 0;
+	}
+
+	public function getType(): string {
+		return 'AND';
+	}
+
+	public function __toString(): string {
+		return $this->label;
+	}
+}
+
 class TransactionMapperTest extends TestCase {
 	private TransactionMapper $mapper;
 	private IDBConnection $db;
@@ -843,32 +874,102 @@ class TransactionMapperTest extends TestCase {
 
 	// ===== findPotentialMatches =====
 
-	public function testFindPotentialMatchesIsStrictByDefault(): void {
-		// Same-currency-same-amount only: no OR branch in the query
-		$this->expr->expects($this->never())->method('orX');
+	/** @var string[][] one list per orX() call, filled by recordOrBranches() */
+	private array $orBranches = [];
 
+	/**
+	 * Record every OR branch the query builds as the strings the mocked
+	 * expression builder hands back ("neq:t.status", "notLike:t.notes", ...).
+	 */
+	private function recordOrBranches(): void {
+		$this->orBranches = [];
+		foreach (['eq', 'neq', 'notLike', 'isNull', 'in'] as $method) {
+			$this->expr->method($method)->willReturnCallback(fn ($x) => "{$method}:{$x}");
+		}
+		$this->expr->method('andX')->willReturnCallback(
+			fn (...$parts) => new LabelledExpression('and(' . implode(',', array_map('strval', $parts)) . ')')
+		);
+		$this->expr->method('orX')->willReturnCallback(function (...$parts) {
+			$this->orBranches[] = array_map('strval', $parts);
+			return new LabelledExpression('or(' . implode(',', array_map('strval', $parts)) . ')');
+		});
 		$this->result->method('fetch')->willReturn(false);
+		$this->result->method('fetchOne')->willReturn(0);
 		$this->result->method('closeCursor');
 		$this->qb->method('executeQuery')->willReturn($this->result);
+	}
+
+	public function testFindPotentialMatchesIsStrictByDefault(): void {
+		// Same-currency-same-amount only: no "different currency" branch
+		$this->recordOrBranches();
 
 		$result = $this->mapper->findPotentialMatches('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR');
 
 		$this->assertSame([], $result);
+		foreach ($this->orBranches as $parts) {
+			$this->assertNotContains('neq:a.currency', $parts);
+		}
 	}
 
 	public function testFindPotentialMatchesCrossCurrencyAddsOrBranch(): void {
 		// Cross-currency opt-in (#326): (same currency AND same amount) OR different currency
-		$this->expr->expects($this->once())->method('orX');
+		$this->recordOrBranches();
 
-		$this->result->method('fetch')
-			->willReturnOnConsecutiveCalls($this->makeTransactionRow(['type' => 'credit']), false);
-		$this->result->method('closeCursor');
-		$this->qb->method('executeQuery')->willReturn($this->result);
+		$this->mapper->findPotentialMatches('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR', 3, true);
 
-		$result = $this->mapper->findPotentialMatches('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR', 3, true);
+		$this->assertNotEmpty(array_filter($this->orBranches, fn ($parts) => in_array('neq:a.currency', $parts, true)));
+	}
 
-		$this->assertCount(1, $result);
-		$this->assertInstanceOf(Transaction::class, $result[0]);
+	public function testFindPotentialMatchesNeverOffersAScheduledRow(): void {
+		$this->recordOrBranches();
+
+		$this->mapper->findPotentialMatches('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR', 3, true, null, true);
+
+		$this->assertContains(['neq:t.status', 'isNull:t.status'], $this->orBranches);
+	}
+
+	public function testFindPotentialMatchesLeavesBillAndIncomeRowsOutUnlessAsked(): void {
+		$this->recordOrBranches();
+		$this->mapper->findPotentialMatches('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR');
+		$flat = array_merge(...$this->orBranches);
+		$this->assertContains('isNull:t.bill_id', $flat);
+		$this->assertContains('isNull:t.notes', $flat);
+	}
+
+	public function testTheMatchDialogStillSeesBillAndIncomeRows(): void {
+		$this->recordOrBranches();
+		$this->mapper->findPotentialMatches('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'EUR', 3, true, null, true);
+		$flat = array_merge([], ...$this->orBranches);
+		$this->assertNotContains('isNull:t.bill_id', $flat);
+		$this->assertNotContains('isNull:t.notes', $flat);
+	}
+
+	public function testFindUnlinkedWithMatchesStartsOnlyFromTheGivenRows(): void {
+		// Registered before recordOrBranches(): the first stub of a method wins
+		$inColumns = [];
+		$this->expr->method('in')->willReturnCallback(function ($x) use (&$inColumns) {
+			$inColumns[] = $x;
+			return "in:{$x}";
+		});
+		$this->recordOrBranches();
+
+		$this->mapper->findUnlinkedWithMatches('user1', 3, 100, 0, null, [7, 8]);
+
+		// The count query is the first to run; with nothing counted the
+		// batch never runs, but the filter must already be on the count
+		$flat = array_merge([], ...$this->orBranches);
+		$this->assertContains('t.id', $inColumns);
+		$this->assertContains('isNull:t.bill_id', $flat, 'bill rows are never a starting point');
+		$this->assertContains('neq:t.status', $flat, 'scheduled rows are never a starting point');
+	}
+
+	public function testFindUnlinkedWithMatchesRunsNoQueryForNoSourceRows(): void {
+		$this->qb->expects($this->never())->method('executeQuery');
+
+		$this->assertSame(
+			['transactions' => [], 'total' => 0],
+			$this->mapper->findUnlinkedWithMatches('user1', 3, 100, 0, null, [])
+		);
 	}
 
 	// ===== getNetChangeAll =====
