@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-02 17:34+0000\n"
-"PO-Revision-Date: 2026-10-02 06:51+0000\n"
+"PO-Revision-Date: 2026-10-02 18:21+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -1876,10 +1876,8 @@ msgid "A reconciliation is already in progress for this account"
 msgstr "Für dieses Konto ist bereits ein Kontenabgleich aktiv"
 
 #: /app/lib/Controller/ReconciliationController.php:159
-#, fuzzy
-#| msgid "Failed to load configuration"
 msgid "Failed to load reconciliation history"
-msgstr "Fehler beim Laden der Konfiguration"
+msgstr "Der Kontenabgleichsverlauf konnte nicht geladen werden"
 
 #: /app/lib/Controller/RecurringIncomeController.php:76
 msgid "Failed to retrieve recurring income"
@@ -1911,10 +1909,8 @@ msgid "Failed to create recurring income"
 msgstr "Laufende Einnahme konnte nicht erstellt werden"
 
 #: /app/lib/Controller/RecurringIncomeController.php:265
-#, fuzzy
-#| msgid "Not provided"
 msgid "No data provided"
-msgstr "Nicht angegeben"
+msgstr "Keine Daten angegeben"
 
 #: /app/lib/Controller/RecurringIncomeController.php:357
 msgid "Recurring income deleted"
@@ -1958,10 +1954,8 @@ msgid "Failed to generate income report"
 msgstr "Einnahmenbericht konnte nicht generiert werden"
 
 #: /app/lib/Controller/ReportController.php:185
-#, fuzzy
-#| msgid "Failed to generate income report"
 msgid "Failed to generate income and expenses report"
-msgstr "Einnahmenbericht konnte nicht generiert werden"
+msgstr "Der Einnahmen- und Ausgabenbericht konnte nicht erstellt werden"
 
 #: /app/lib/Controller/ReportController.php:226
 #: /app/src/modules/reports/ReportsModule.js:1612
@@ -2001,10 +1995,8 @@ msgid "Failed to generate tag set breakdown"
 msgstr "Fehler beim Erstellen der Aufschlüsselung der Schlagwort Gruppe"
 
 #: /app/lib/Controller/ReportController.php:556
-#, fuzzy
-#| msgid "Failed to generate comparison report"
 msgid "Failed to generate category monthly report"
-msgstr "Vergleichsbericht konnte nicht generiert werden"
+msgstr "Der monatliche Kategorienbericht konnte nicht erstellt werden"
 
 #: /app/lib/Controller/SavedReportController.php:48
 msgid "Failed to load saved reports"
@@ -2013,16 +2005,12 @@ msgstr "Gespeicherte Berichte konnten nicht geladen werden"
 #: /app/lib/Controller/SavedReportController.php:63
 #: /app/src/modules/reports/ReportsModule.js:381
 #: /app/src/modules/reports/ReportsModule.js:387
-#, fuzzy
-#| msgid "Failed to save rule"
 msgid "Failed to save report"
-msgstr "Fehler beim Speichern der Regel"
+msgstr "Der Bericht konnte nicht gespeichert werden"
 
 #: /app/lib/Controller/SavedReportController.php:79
-#, fuzzy
-#| msgid "Failed to update share"
 msgid "Failed to update saved report"
-msgstr "Fehler beim Aktualisieren des Anteils"
+msgstr "Der gespeicherte Bericht konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/SavedReportController.php:93
 #: /app/src/modules/reports/ReportsModule.js:411
@@ -10167,13 +10155,16 @@ msgstr "Suche leeren"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:373
 msgid "Sample data added. Have a look around."
-msgstr ""
+msgstr "Beispieldaten hinzugefügt. Sieh dich ruhig um."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:387
 msgid ""
 "This deletes everything in your budget: the sample data and anything you "
 "added while trying it. Your settings are kept."
 msgstr ""
+"Dadurch werden alle Daten in deinem Budget gelöscht: die Beispieldaten und "
+"alles, was du beim Ausprobieren hinzugefügt hast. Deine Einstellungen "
+"bleiben erhalten."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:389
 msgid "Clear sample data?"
@@ -10181,7 +10172,7 @@ msgstr "Beispieldaten löschen?"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:403
 msgid "Sample data cleared"
-msgstr ""
+msgstr "Beispieldaten gelöscht"
 
 #: /app/src/modules/pensions/PensionsModule.js:37
 #: /app/src/modules/pensions/PensionsModule.js:40
@@ -10238,6 +10229,8 @@ msgid ""
 "Set your date of birth in your Nextcloud profile for accurate retirement "
 "projections."
 msgstr ""
+"Hinterlege dein Geburtsdatum in deinem Nextcloud-Profil, um genaue Prognosen "
+"für deine Altersvorsorge zu erhalten."
 
 #: /app/src/modules/pensions/PensionsModule.js:396
 msgid "Edit Pension"
@@ -10278,6 +10271,8 @@ msgstr "Der Kontostandsverlauf ist nicht verfügbar."
 #: /app/src/modules/pensions/PensionsModule.js:587
 msgid "Add at least two balance updates to see history."
 msgstr ""
+"Füge mindestens zwei Kontostandsaktualisierungen hinzu, um den Verlauf "
+"anzuzeigen."
 
 #: /app/src/modules/pensions/PensionsModule.js:639
 #: /app/src/modules/pensions/PensionsModule.js:655
@@ -10307,12 +10302,12 @@ msgstr "Fälligkeitsdatum"
 
 #: /app/src/modules/pensions/PensionsModule.js:727
 msgid "Projected {projected} of {target} target ({pct} there)"
-msgstr ""
+msgstr "Prognostiziert: {projected} von {target} Ziel ({pct} erreicht)"
 
 #: /app/src/modules/pensions/PensionsModule.js:741
 #: /app/src/modules/pensions/PensionsModule.js:815
 msgid "Activity is unavailable."
-msgstr ""
+msgstr "Aktivitäten sind nicht verfügbar."
 
 #: /app/src/modules/pensions/PensionsModule.js:746
 msgid "No activity yet"
