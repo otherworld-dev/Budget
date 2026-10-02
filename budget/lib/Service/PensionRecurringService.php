@@ -173,7 +173,7 @@ class PensionRecurringService {
 	 * itself off, so the job doesn't fail every six hours forever, and the
 	 * result says so for the job to tell the user. Never throws.
 	 *
-	 * @return array{success: bool, count?: int, disabled?: bool, recurring?: PensionRecurringContribution, message?: string}
+	 * @return array{success: bool, count?: int, disabled?: bool, recurring?: PensionRecurringContribution, pensionName?: ?string, message?: string}
 	 */
 	public function processAutoPost(int $recurId, string $userId): array {
 		try {

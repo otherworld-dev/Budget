@@ -260,7 +260,7 @@ class BillReminderJob extends TimedJob {
 						$settingService,
 						$userId,
 						$result['recurring'] ?? $schedule,
-						(string)($result['pensionName'] ?? ''),
+						$result['pensionName'] ?? '',
 						(string)($result['message'] ?? '')
 					);
 				}
