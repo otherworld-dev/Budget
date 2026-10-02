@@ -39,6 +39,7 @@ class TransactionService {
 		private AuditService $auditService,
 		private \OCA\Budget\Db\PensionContributionMapper $pensionContributionMapper,
 		private UserClock $userClock,
+		private ?CurrencyConversionService $currencyConversion = null,
 	) {
 		$this->mapper = $mapper;
 		$this->accountMapper = $accountMapper;
@@ -198,13 +199,15 @@ class TransactionService {
 				throw new \Exception('Transfer must have a destination account');
 			}
 
+			[$withdrawalAmount, $depositAmount] = $this->transferLegAmounts($bill, $userId, $date);
+
 			// Create withdrawal from source account
 			$withdrawal = $this->create(
 				userId: $ownerUserId,
 				accountId: $bill->getAccountId(),
 				date: $date,
 				description: $bill->getDescription() ?? '',
-				amount: $bill->getAmount(),
+				amount: $withdrawalAmount,
 				type: 'debit',
 				categoryId: $bill->getCategoryId(),
 				vendor: $bill->getName(),
@@ -222,7 +225,7 @@ class TransactionService {
 				accountId: $bill->getDestinationAccountId(),
 				date: $date,
 				description: $bill->getDescription() ?? '',
-				amount: $bill->getAmount(),
+				amount: $depositAmount,
 				type: 'credit',
 				categoryId: $bill->getCategoryId(),
 				vendor: $bill->getName(),
@@ -273,6 +276,39 @@ class TransactionService {
 		}
 
 		return $transaction;
+	}
+
+	/**
+	 * What each leg of a recurring transfer books: [withdrawal, deposit].
+	 *
+	 * Between accounts in one currency both are the bill's amount. Across
+	 * currencies the same number used to be booked on both legs, so GBP 100
+	 * out arrived as EUR 100. The other leg is now converted at the bill
+	 * owner's rate for the day: a fixed amount is in the source account's
+	 * currency, while a statement or balance amount comes from the card it
+	 * pays, in the card's currency (#347).
+	 *
+	 * @return array{0: float, 1: float}
+	 * @throws \Exception when no rate between the two currencies is known,
+	 *                    rather than booking the same number in both
+	 */
+	private function transferLegAmounts(Bill $bill, string $userId, string $date): array {
+		$amount = (float)$bill->getAmount();
+		$from = strtoupper((string)$this->accountMapper->findById($bill->getAccountId())->getCurrency());
+		$to = strtoupper((string)$this->accountMapper->findById($bill->getDestinationAccountId())->getCurrency());
+		if ($from === '' || $to === '' || $from === $to || $this->currencyConversion === null) {
+			return [$amount, $amount];
+		}
+
+		$inDestinationCurrency = ($bill->getAmountType() ?? 'fixed') !== 'fixed';
+		[$amountCurrency, $otherCurrency] = $inDestinationCurrency ? [$to, $from] : [$from, $to];
+		$converted = $this->currencyConversion->convertBetween($amount, $amountCurrency, $otherCurrency, $userId, $date);
+		if ($converted === null) {
+			throw new \Exception("No exchange rate between {$amountCurrency} and {$otherCurrency} to book transfer {$bill->getName()}");
+		}
+		$converted = round((float)$converted, Currency::decimalsFor($otherCurrency));
+
+		return $inDestinationCurrency ? [$converted, $amount] : [$amount, $converted];
 	}
 
 	/**
