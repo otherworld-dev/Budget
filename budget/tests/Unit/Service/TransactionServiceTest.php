@@ -679,6 +679,12 @@ class TransactionServiceTest extends TestCase {
 		$this->assertSame(0, $this->service->countReconciledBillRows([57], 9));
 	}
 
+	public function testDetachingABillsPaymentsClearsTheirBillLink(): void {
+		$this->mapper->expects($this->once())->method('detachFromBill')->with(44)->willReturn(3);
+
+		$this->assertSame(3, $this->service->detachBillPayments(44));
+	}
+
 	public function testUnlinkBillAsAccountOwnerClearsTheBillLink(): void {
 		// Reverting a payment that LINKED an imported transaction must not
 		// delete the row — it predates the payment. Only the linkage goes.

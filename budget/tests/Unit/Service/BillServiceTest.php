@@ -2176,6 +2176,21 @@ class BillServiceTest extends TestCase {
 		$this->assertSame('2099-06-15', $restored->getNextDueDate());
 	}
 
+	/**
+	 * A deleted bill's payments kept its id, so a bill set up again in its
+	 * place never offered them in Mark Paid, and the payment was recorded a
+	 * second time.
+	 */
+	public function testDeletingABillLetsGoOfItsRecordedPayments(): void {
+		$bill = $this->makeBill();
+		$this->mapper->method('find')->willReturn($bill);
+		$this->transactionService->expects($this->once())->method('deleteScheduledBillTransactions')->with(1);
+		$this->transactionService->expects($this->once())->method('detachBillPayments')->with(1);
+		$this->mapper->expects($this->once())->method('delete')->with($bill);
+
+		$this->service->delete(1, 'user1');
+	}
+
 	public function testMarkUnpaidWithoutSnapshotThrows(): void {
 		$bill = $this->makeBill();
 		$this->mapper->method('find')->willReturn($bill);

@@ -827,6 +827,8 @@ class BillService {
 		$bill = $this->find($id, $userId);
 		// Remove scheduled transactions before deleting the bill
 		$this->transactionService->deleteScheduledBillTransactions($id);
+		// Its recorded payments stay, free for a bill set up in its place
+		$this->transactionService->detachBillPayments($id);
 		$this->mapper->delete($bill);
 	}
 

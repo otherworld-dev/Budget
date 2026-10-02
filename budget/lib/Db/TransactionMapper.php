@@ -1982,6 +1982,10 @@ class TransactionMapper extends QBMapper {
 	 * Searches for cleared debits in the same account, within a date window,
 	 * that aren't already linked to another bill.
 	 *
+	 * A row whose bill no longer exists counts as free: deleting a bill left
+	 * its payments carrying the dead id, so a bill set up again in its place
+	 * was never offered them and the payment got recorded a second time.
+	 *
 	 * @param int $accountId Account to search in
 	 * @param string $dueDate Bill's due date (center of search window)
 	 * @param int $dayWindow Days before/after dueDate to search
@@ -1992,28 +1996,45 @@ class TransactionMapper extends QBMapper {
 		$endDate = date('Y-m-d', strtotime($dueDate . " +{$dayWindow} days"));
 
 		$qb = $this->db->getQueryBuilder();
-		$qb->select('*')
-			->from($this->getTableName())
-			->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
-			->andWhere($qb->expr()->gte('date', $qb->createNamedParameter($startDate)))
-			->andWhere($qb->expr()->lte('date', $qb->createNamedParameter($endDate)))
-			->andWhere($qb->expr()->eq('type', $qb->createNamedParameter('debit')))
+		$qb->select('t.*')
+			->from($this->getTableName(), 't')
+			->leftJoin('t', 'budget_bills', 'b', $qb->expr()->eq('t.bill_id', 'b.id'))
+			->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+			->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
+			->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
 			->andWhere(
 				$qb->expr()->orX(
-					$qb->expr()->neq('status', $qb->createNamedParameter('scheduled')),
-					$qb->expr()->isNull('status')
+					$qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
+					$qb->expr()->isNull('t.status')
 				)
 			)
 			->andWhere(
 				$qb->expr()->orX(
-					$qb->expr()->isNull('bill_id'),
-					$qb->expr()->eq('bill_id', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT))
+					$qb->expr()->isNull('t.bill_id'),
+					$qb->expr()->eq('t.bill_id', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT)),
+					$qb->expr()->isNull('b.id')
 				)
 			)
-			->orderBy('date', 'DESC')
-			->addOrderBy('id', 'DESC');
+			->orderBy('t.date', 'DESC')
+			->addOrderBy('t.id', 'DESC');
 
 		return $this->findEntities($qb);
+	}
+
+	/**
+	 * Let go of every row that still names a bill, once the bill is deleted.
+	 * Its scheduled placeholders are deleted first; what is left are payments
+	 * that really happened, and they stay as ordinary transactions.
+	 */
+	public function detachFromBill(int $billId): int {
+		$qb = $this->db->getQueryBuilder();
+		$qb->update($this->getTableName())
+			->set('bill_id', $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
+			->set('updated_at', $qb->createNamedParameter(date('Y-m-d H:i:s')))
+			->where($qb->expr()->eq('bill_id', $qb->createNamedParameter($billId, IQueryBuilder::PARAM_INT)));
+
+		return $qb->executeStatement();
 	}
 
 	public function getNetChangeAll(int $accountId): float {

@@ -664,6 +664,17 @@ class TransactionService {
 	}
 
 	/**
+	 * A deleted bill's recorded payments stay as ordinary transactions. They
+	 * kept the dead bill's id, so a bill set up again in its place never
+	 * offered them in Mark Paid and the payment got recorded a second time.
+	 *
+	 * @return int how many rows were let go
+	 */
+	public function detachBillPayments(int $billId): int {
+		return $this->mapper->detachFromBill($billId);
+	}
+
+	/**
 	 * How many of the rows a bill revert would delete are reconciled against
 	 * a bank statement: the named rows that carry the bill, and the other
 	 * side of each, which deleteAsAccountOwner() takes with it.
