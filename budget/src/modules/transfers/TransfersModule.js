@@ -12,7 +12,7 @@ import { isoWeekday } from '../../utils/helpers.js';
 import { apiFetch } from '../../utils/api.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { showLoadError } from '../../utils/loading.js';
-import { openAccounts, pickableAccounts, accountOptionLabel } from '../../utils/accounts.js';
+import { openAccounts, pickableAccounts, accountOptionLabel, accountCurrency } from '../../utils/accounts.js';
 
 /**
  * The date to open the form on for a one-time transfer saved before the
@@ -347,7 +347,7 @@ export default class TransfersModule {
                             <h4 class="bill-name">${dom.escapeHtml(transfer.name)}</h4>
                             <span class="bill-frequency">${frequencyLabel}</span>
                         </div>
-                        <div class="bill-amount">${formatters.formatCurrency(transfer.amount, null, this.settings)}${this.amountTypeBadge(transfer.amountType)}</div>
+                        <div class="bill-amount">${formatters.formatCurrency(transfer.amount, transfer.currency || null, this.settings)}${this.amountTypeBadge(transfer.amountType)}</div>
                     </div>
                     <div class="bill-details">
                         <div class="bill-due-date">
@@ -428,7 +428,7 @@ export default class TransfersModule {
         });
     }
 
-    updateSummary() {
+    async updateSummary() {
         const activeCount = this.transfers.filter(tx => tx.isActive).length;
         const dueThisMonth = this.transfers.filter(tx => {
             if (!tx.isActive) return false;
@@ -443,15 +443,22 @@ export default class TransfersModule {
             return this.isTransferPaidThisMonth(tx);
         }).length;
 
-        const monthlyTotal = this.transfers
-            .filter(tx => tx.isActive)
-            .reduce((sum, tx) => sum + this.getMonthlyEquivalent(tx), 0);
-
         document.getElementById('transfers-active-count').textContent = activeCount;
         document.getElementById('transfers-due-count').textContent = dueThisMonth;
-        document.getElementById('transfers-monthly-total').textContent =
-            formatters.formatCurrency(monthlyTotal, null, this.settings);
         document.getElementById('transfers-completed-count').textContent = completedThisMonth;
+
+        // Monthly Total comes from the server, which converts each transfer
+        // from its account's currency to the base one. Adding the amounts
+        // here put euros and dollars into a pound total as they were.
+        try {
+            const summary = await apiFetch('/apps/budget/api/bills/summary?isTransfer=true');
+            const total = document.getElementById('transfers-monthly-total');
+            if (total) {
+                total.textContent = formatters.formatCurrency(summary.monthlyTotal || 0, summary.baseCurrency || null, this.settings);
+            }
+        } catch (error) {
+            console.error('Failed to load transfers summary:', error);
+        }
     }
 
     showTransferModal(transfer = null, prefill = null) {
@@ -1215,30 +1222,6 @@ export default class TransfersModule {
             .map(cb => parseInt(cb.value));
     }
 
-    getMonthlyEquivalent(transfer) {
-        const amount = transfer.amount;
-        const frequency = transfer.frequency;
-
-        switch (frequency) {
-            case 'weekly':
-                return amount * 52 / 12;
-            case 'biweekly':
-                return amount * 26 / 12;
-            case 'semi-monthly':
-                return amount * 2;
-            case 'monthly':
-                return amount;
-            case 'quarterly':
-                return amount / 3;
-            case 'semi-annually':
-                return amount / 6;
-            case 'yearly':
-                return amount / 12;
-            default:
-                return amount;
-        }
-    }
-
     // ── Detect Transfers ────────────────────────────────────
 
     async detectTransfers() {
@@ -1288,7 +1271,7 @@ export default class TransfersModule {
                     <div class="detected-bill-info">
                         <label for="detected-transfer-${index}" class="detected-bill-name">${dom.escapeHtml(item.description || item.suggestedName)}</label>
                         <div class="detected-bill-meta">
-                            <span class="detected-amount">${formatters.formatCurrency(item.amount, null, this.settings)}</span>
+                            <span class="detected-amount">${formatters.formatCurrency(item.amount, accountCurrency(this.accounts, item.accountId), this.settings)}</span>
                             <span class="detected-frequency">${item.frequency}</span>
                             <span class="detected-confidence ${confidenceClass}">${t('budget', '{percent}% confidence', { percent: confidencePercent })}</span>
                             <span>${t('budget', 'From: {account}', { account: sourceName })}</span>

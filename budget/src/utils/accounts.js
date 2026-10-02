@@ -85,3 +85,21 @@ export function selectAccountValue(select, accounts, value) {
     select.value = wanted;
     return true;
 }
+
+/**
+ * The currency of the account with this id, or null when it isn't one we
+ * know, so formatCurrency falls back to the default. Amounts that carry only
+ * an account id (detected bills, income and transfers) were all shown with
+ * the default currency's symbol, euro accounts included.
+ *
+ * @param {Array} accounts
+ * @param {number|string|null} accountId
+ * @returns {string|null}
+ */
+export function accountCurrency(accounts, accountId) {
+    if (accountId === null || accountId === undefined || accountId === '') {
+        return null;
+    }
+    const account = list(accounts).find(candidate => String(candidate.id) === String(accountId));
+    return account?.currency || null;
+}
