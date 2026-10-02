@@ -2332,6 +2332,43 @@ class BillServiceTest extends TestCase {
 		$this->assertEqualsWithDelta(30.0, $result['bill']->getAmount(), 0.001);
 	}
 
+	/**
+	 * "Minimum payment" to a card with no minimum stored resolved to
+	 * min(0, owed) = 0.00: a 0.00 pair booked every month, the transfer
+	 * shown paid, and the card never paid down (#399 review, F60).
+	 */
+	public function testCreateMinimumPaymentBillNeedsTheCardsMinimum(): void {
+		$this->accountMapper->method('findById')->willReturn($this->makeCardAccount());
+		$this->mapper->expects($this->never())->method('insert');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('minimum payment');
+
+		$this->service->create(
+			userId: 'user1', name: 'Visa payment', amount: 0.0, frequency: 'monthly',
+			dueDay: 15, accountId: 1, isTransfer: true, destinationAccountId: 20,
+			amountType: 'minimum_payment'
+		);
+	}
+
+	public function testPayingAMinimumPaymentBillRefusesOnceTheCardsMinimumIsCleared(): void {
+		$this->accountMapper->method('findById')->willReturn($this->makeCardAccount());
+		$bill = $this->makeBill([
+			'isTransfer' => true, 'destinationAccountId' => 20,
+			'amount' => 50.0, 'nextDueDate' => '2026-08-15',
+		]);
+		$bill->setAmountType('minimum_payment');
+		$this->mapper->method('find')->willReturn($bill);
+		$this->transactionService->method('getStatementAmountForAccount')->willReturn(500.0);
+		$this->transactionService->expects($this->never())->method('createFromBill');
+		$this->mapper->expects($this->never())->method('update');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('minimum payment');
+
+		$this->service->markPaid(1, 'user1', '2026-08-19');
+	}
+
 	public function testCreateCurrentBalanceBillRequiresCardDestination(): void {
 		$this->accountMapper->method('findById')->willReturn($this->makeCardAccount(20, 'savings'));
 

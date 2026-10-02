@@ -172,10 +172,26 @@ class BillService {
 		if (!$isTransfer || $destinationAccountId === null) {
 			throw new \InvalidArgumentException($this->l->t('This amount type requires a transfer with a destination account'));
 		}
-		$destinationType = $this->accountMapper->findById($destinationAccountId)->getType();
-		if (!in_array($destinationType, ['credit_card', 'line_of_credit'], true)) {
+		$destination = $this->accountMapper->findById($destinationAccountId);
+		if (!in_array($destination->getType(), ['credit_card', 'line_of_credit'], true)) {
 			throw new \InvalidArgumentException($this->l->t('This amount type is only available for transfers to a credit card'));
 		}
+		if ($amountType === 'minimum_payment') {
+			$this->cardMinimum($destination);
+		}
+	}
+
+	/**
+	 * The card's stored minimum payment. With none it resolved to
+	 * min(0, owed) = 0.00: a 0.00 pair booked every month, the transfer
+	 * shown paid, and the card never paid down (#399 review, F60).
+	 */
+	private function cardMinimum(Account $card): float {
+		$minimum = (float)($card->getMinimumPayment() ?? 0);
+		if ($minimum <= 0) {
+			throw new \InvalidArgumentException($this->l->t('The card has no minimum payment set. Set one on the card, or choose another amount.'));
+		}
+		return $minimum;
 	}
 
 	/**
@@ -196,8 +212,7 @@ class BillService {
 			return $owedNow;
 		}
 		// minimum_payment: the card's stored minimum, never more than is owed
-		$minimum = (float)($this->accountMapper->findById($destinationAccountId)->getMinimumPayment() ?? 0);
-		return min($minimum, $owedNow);
+		return min($this->cardMinimum($this->accountMapper->findById($destinationAccountId)), $owedNow);
 	}
 
 	public function findAll(string $userId): array {
