@@ -2225,11 +2225,10 @@ export default class TransactionsModule {
         // If still not found, fetch from API
         if (!transaction) {
             try {
-                const response = await this.app.api.get(`/apps/budget/api/transactions/${id}`);
-                transaction = response.data;
+                transaction = await apiFetch(`/apps/budget/api/transactions/${id}`);
             } catch (error) {
                 console.error('Failed to fetch transaction for editing:', error);
-                this.app.showNotification(t('budget', 'Failed to load transaction'), 'error');
+                showError(t('budget', 'Failed to load transaction'));
                 return;
             }
         }
@@ -2248,11 +2247,10 @@ export default class TransactionsModule {
 
         if (!transaction) {
             try {
-                const response = await this.app.api.get(`/apps/budget/api/transactions/${id}`);
-                transaction = response.data;
+                transaction = await apiFetch(`/apps/budget/api/transactions/${id}`);
             } catch (error) {
                 console.error('Failed to fetch transaction for duplicating:', error);
-                this.app.showNotification(t('budget', 'Failed to load transaction'), 'error');
+                showError(t('budget', 'Failed to load transaction'));
                 return;
             }
         }

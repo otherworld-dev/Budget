@@ -183,6 +183,26 @@ export default class Router {
     }
 
     /**
+     * What a deep link in the URL hash asks for: #/transactions?search=rent
+     * from unified search, or #transactions?id=42 from the Android app's
+     * Activity rows. null when the hash names no view.
+     *
+     * @param {string} hash
+     * @returns {{view: string, search: string|null, transactionId: number|null}|null}
+     */
+    static deepLink(hash) {
+        const m = (hash || '').match(/^#\/?([a-z-]+)(?:\?(.*))?$/);
+        if (!m || !Router.VIEW_LOADERS[m[1]]) return null;
+        const params = new URLSearchParams(m[2] || '');
+        const id = params.get('id');
+        return {
+            view: m[1],
+            search: params.get('search'),
+            transactionId: id && /^[1-9]\d*$/.test(id) ? parseInt(id, 10) : null,
+        };
+    }
+
+    /**
      * Read the view name from the URL hash (supports both #view and the
      * #/view?params deep-link form).
      */

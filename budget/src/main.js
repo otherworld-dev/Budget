@@ -237,14 +237,13 @@ class BudgetApp {
         // Honor a deep link in the URL hash (e.g. #/transactions?search=rent
         // from unified search results) instead of always landing on the
         // dashboard. Unknown hashes fall through to the dashboard.
-        const hashMatch = window.location.hash.match(/^#\/?([a-z-]+)(?:\?(.*))?$/);
+        const link = Router.deepLink(window.location.hash);
         let initialView = 'dashboard';
-        if (hashMatch && Router.VIEW_LOADERS[hashMatch[1]]) {
-            initialView = hashMatch[1];
-            if (initialView === 'transactions' && hashMatch[2]) {
-                const search = new URLSearchParams(hashMatch[2]).get('search');
+        if (link) {
+            initialView = link.view;
+            if (initialView === 'transactions' && link.search) {
                 const searchInput = document.getElementById('filter-search');
-                if (search && searchInput) searchInput.value = search;
+                if (searchInput) searchInput.value = link.search;
             }
         }
         // Seed the initial history entry with state (preserving any deep-link
@@ -252,6 +251,10 @@ class BudgetApp {
         // pushing a second entry on top of the page-load entry.
         window.history.replaceState({ view: initialView }, '', window.location.hash || `#${initialView}`);
         this.showView(initialView, { history: false });
+        // A link to one transaction opens it the way tapping its row does
+        if (link?.view === 'transactions' && link.transactionId !== null) {
+            this.transactionsModule.editTransaction(link.transactionId);
+        }
         // The dashboard asks for the checklist itself; elsewhere only the
         // sample-data banner needs it
         if (initialView !== 'dashboard') {
