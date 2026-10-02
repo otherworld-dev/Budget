@@ -201,6 +201,138 @@ class PensionServiceTest extends TestCase {
 		$this->assertSame('state', $pension->getType());
 	}
 
+	// ===== the pension's balance between balance updates =====
+
+	private function latestSnapshot(string $date, float $balance): void {
+		$this->snapshotMapper->method('findLatest')->willReturn($this->makeSnapshot($date, $balance));
+	}
+
+	/** Every pensionMapper->update() call's balance, in order */
+	private function balancesWritten(): \ArrayObject {
+		$written = new \ArrayObject();
+		$this->pensionMapper->method('update')->willReturnCallback(function (PensionAccount $p) use ($written) {
+			$written[] = $p->getCurrentBalance();
+			return $p;
+		});
+		return $written;
+	}
+
+	/**
+	 * A contribution paid from the bank takes the money out of the account
+	 * and puts it into the pension, so net worth stays where it was. The
+	 * pension's balance used to wait for the next balance update, so net
+	 * worth fell by every contribution until then.
+	 */
+	public function testABankFundedContributionRaisesThePensionBalance(): void {
+		$this->pensionMapper->method('find')->willReturn($this->makePension(['currentBalance' => 5000.0]));
+		$this->latestSnapshot('2026-09-30', 5000.0);
+		$account = new \OCA\Budget\Db\Account();
+		$account->setUserId('user1');
+		$account->setCurrency('GBP');
+		$this->accountMapper->method('findById')->willReturn($account);
+		$this->conversionService->method('convertLocal')->willReturnCallback(fn ($amt) => (string)$amt);
+		$tx = new \OCA\Budget\Db\Transaction();
+		$tx->setId(555);
+		$this->transactionService->method('create')->willReturn($tx);
+		$this->contributionMapper->method('insert')->willReturnArgument(0);
+		$written = $this->balancesWritten();
+
+		$this->service->createContributionWithTransfer(1, 'user1', 200.0, '2026-10-01', 10);
+
+		$this->assertSame([5200.0], $written->getArrayCopy());
+	}
+
+	public function testAWithdrawalLowersThePensionBalance(): void {
+		$this->pensionMapper->method('find')->willReturn($this->makePension(['currentBalance' => 5000.0]));
+		$this->latestSnapshot('2026-09-30', 5000.0);
+		$this->contributionMapper->method('insert')->willReturnArgument(0);
+		$written = $this->balancesWritten();
+
+		$this->service->createWithdrawal(1, 'user1', 1000.0, '2026-10-01');
+
+		$this->assertSame([4000.0], $written->getArrayCopy());
+	}
+
+	/**
+	 * A balance update dated on or after a contribution already counts it,
+	 * so a contribution entered late is not counted twice.
+	 */
+	public function testAContributionTheLatestBalanceUpdateCountsLeavesTheBalance(): void {
+		$this->pensionMapper->method('find')->willReturn($this->makePension(['currentBalance' => 5000.0]));
+		$this->latestSnapshot('2026-09-30', 5000.0);
+		$this->contributionMapper->method('insert')->willReturnArgument(0);
+		$this->pensionMapper->expects($this->never())->method('update');
+
+		$this->service->createContribution(1, 'user1', 200.0, '2026-09-30');
+	}
+
+	public function testAPensionWithNoPotKeepsItsFigures(): void {
+		$this->pensionMapper->method('find')->willReturn($this->makePension(['type' => 'defined_benefit', 'currentBalance' => null]));
+		$this->contributionMapper->method('insert')->willReturnArgument(0);
+		$this->pensionMapper->expects($this->never())->method('update');
+
+		$this->service->createContribution(1, 'user1', 200.0, '2026-10-01');
+	}
+
+	public function testDeletingAContributionTakesItBackOffTheBalance(): void {
+		$this->pensionMapper->method('find')->willReturn($this->makePension(['currentBalance' => 5200.0]));
+		$this->latestSnapshot('2026-09-30', 5000.0);
+		$contribution = $this->makeContribution('2026-10-01', 200.0, PensionContribution::KIND_CONTRIBUTION, null, null);
+		$contribution->setId(77);
+		$contribution->setPensionId(1);
+		$this->contributionMapper->method('find')->willReturn($contribution);
+		$written = $this->balancesWritten();
+
+		$this->service->deleteContribution(77, 'user1');
+
+		$this->assertSame([5000.0], $written->getArrayCopy());
+	}
+
+	/**
+	 * A balance update is the pension's value on its date; what was paid in
+	 * or taken out after that date is added to it.
+	 */
+	public function testABalanceUpdateCountsWhatMovedAfterItsDate(): void {
+		$this->pensionMapper->method('find')->willReturn($this->makePension(['currentBalance' => 4000.0]));
+		$this->latestSnapshot('2026-06-30', 4000.0);
+		$this->snapshotMapper->method('insert')->willReturnArgument(0);
+		$this->contributionMapper->method('findByPension')->willReturn([
+			$this->makeContribution('2026-09-15', 300.0, PensionContribution::KIND_CONTRIBUTION, null, null),
+			$this->makeContribution('2026-10-01', 200.0, PensionContribution::KIND_CONTRIBUTION, null, null),
+			$this->makeContribution('2026-10-02', 50.0, PensionContribution::KIND_WITHDRAWAL, null, null),
+		]);
+		$written = $this->balancesWritten();
+
+		$this->service->createSnapshot(1, 'user1', 5000.0, '2026-09-30');
+
+		$this->assertSame([5150.0], $written->getArrayCopy());
+	}
+
+	public function testAnOlderBalanceUpdateLeavesTheCurrentBalance(): void {
+		$this->pensionMapper->method('find')->willReturn($this->makePension(['currentBalance' => 5200.0]));
+		$this->latestSnapshot('2026-09-30', 5000.0);
+		$this->snapshotMapper->method('insert')->willReturnArgument(0);
+		$this->pensionMapper->expects($this->never())->method('update');
+
+		$this->service->createSnapshot(1, 'user1', 3000.0, '2026-01-31');
+	}
+
+	public function testDeletingTheLatestBalanceUpdateFallsBackToTheOneBefore(): void {
+		$deleted = $this->makeSnapshot('2026-09-30', 5000.0);
+		$deleted->setPensionId(1);
+		$this->snapshotMapper->method('find')->willReturn($deleted);
+		$this->pensionMapper->method('find')->willReturn($this->makePension(['currentBalance' => 5200.0]));
+		$this->latestSnapshot('2026-06-30', 4000.0);
+		$this->contributionMapper->method('findByPension')->willReturn([
+			$this->makeContribution('2026-10-01', 200.0, PensionContribution::KIND_CONTRIBUTION, null, null),
+		]);
+		$written = $this->balancesWritten();
+
+		$this->service->deleteSnapshot(9, 'user1');
+
+		$this->assertSame([4200.0], $written->getArrayCopy());
+	}
+
 	// ===== delete =====
 
 	public function testDeleteRemovesRelatedData(): void {

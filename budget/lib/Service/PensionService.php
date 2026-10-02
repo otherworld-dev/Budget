@@ -219,12 +219,13 @@ class PensionService {
 		$snapshot->setDate($date);
 		$snapshot->setCreatedAt(date('Y-m-d H:i:s'));
 
+		// The latest balance update decides the current balance; one dated
+		// before it is history and leaves today's figure alone
+		$latest = $this->latestSnapshot($pensionId, $userId);
 		$snapshot = $this->snapshotMapper->insert($snapshot);
-
-		// Update pension's current balance to match latest snapshot
-		$pension->setCurrentBalance($balance);
-		$pension->setUpdatedAt(date('Y-m-d H:i:s'));
-		$this->pensionMapper->update($pension);
+		if ($latest === null || $date >= (string)$latest->getDate()) {
+			$this->setBalanceFrom($pension, $userId, $balance, $date);
+		}
 
 		return $snapshot;
 	}
@@ -235,6 +236,67 @@ class PensionService {
 	public function deleteSnapshot(int $snapshotId, string $userId): void {
 		$snapshot = $this->snapshotMapper->find($snapshotId, $userId);
 		$this->snapshotMapper->delete($snapshot);
+
+		// The balance goes back to what the update before it says
+		try {
+			$pension = $this->pensionMapper->find((int)$snapshot->getPensionId(), $userId);
+		} catch (DoesNotExistException $e) {
+			return;
+		}
+		$latest = $this->latestSnapshot($pension->getId(), $userId);
+		if ($latest !== null && $pension->isDefinedContribution()) {
+			$this->setBalanceFrom($pension, $userId, (float)$latest->getBalance(), (string)$latest->getDate());
+		}
+	}
+
+	// =====================
+	// The balance between balance updates
+	// =====================
+	//
+	// A DC pension's current balance is its latest balance update plus what
+	// was paid in, less what was taken out, after that update's date. A
+	// contribution paid from the bank takes the money out of the account at
+	// once, so without this net worth fell by every contribution until the
+	// next balance update. Comparing dates, not the order things were
+	// entered, keeps an update that already counts a contribution entered
+	// late from counting it twice.
+
+	private function latestSnapshot(int $pensionId, string $userId): ?PensionSnapshot {
+		try {
+			return $this->snapshotMapper->findLatest($pensionId, $userId);
+		} catch (DoesNotExistException $e) {
+			return null;
+		}
+	}
+
+	/** Set the balance to $balance on $date plus what moved after that date */
+	private function setBalanceFrom(PensionAccount $pension, string $userId, float $balance, string $date): void {
+		foreach ($this->contributionMapper->findByPension($pension->getId(), $userId) as $entry) {
+			if ((string)$entry->getDate() > $date) {
+				$balance += $entry->isWithdrawal() ? -(float)$entry->getAmount() : (float)$entry->getAmount();
+			}
+		}
+		$pension->setCurrentBalance(round($balance, 2));
+		$pension->setUpdatedAt(date('Y-m-d H:i:s'));
+		$this->pensionMapper->update($pension);
+	}
+
+	/**
+	 * Move the balance by an entry, or by its removal ($sign -1), unless the
+	 * latest balance update is dated on or after it and so already counts it.
+	 */
+	private function applyToBalance(PensionAccount $pension, string $userId, PensionContribution $entry, int $sign = 1): void {
+		if (!$pension->isDefinedContribution()) {
+			return;
+		}
+		$latest = $this->latestSnapshot($pension->getId(), $userId);
+		if ($latest !== null && (string)$entry->getDate() <= (string)$latest->getDate()) {
+			return;
+		}
+		$amount = (float)$entry->getAmount() * ($entry->isWithdrawal() ? -1 : 1) * $sign;
+		$pension->setCurrentBalance(round((float)($pension->getCurrentBalance() ?? 0.0) + $amount, 2));
+		$pension->setUpdatedAt(date('Y-m-d H:i:s'));
+		$this->pensionMapper->update($pension);
 	}
 
 	// =====================
@@ -258,7 +320,7 @@ class PensionService {
 		?string $note = null,
 	): PensionContribution {
 		// Verify pension exists and belongs to user
-		$this->pensionMapper->find($pensionId, $userId);
+		$pension = $this->pensionMapper->find($pensionId, $userId);
 
 		$contribution = new PensionContribution();
 		$contribution->setUserId($userId);
@@ -269,7 +331,9 @@ class PensionService {
 		$contribution->setKind(PensionContribution::KIND_CONTRIBUTION);
 		$contribution->setCreatedAt(date('Y-m-d H:i:s'));
 
-		return $this->contributionMapper->insert($contribution);
+		$contribution = $this->contributionMapper->insert($contribution);
+		$this->applyToBalance($pension, $userId, $contribution);
+		return $contribution;
 	}
 
 	/**
@@ -278,9 +342,9 @@ class PensionService {
 	 * spending) and a pension contribution, created atomically.
 	 *
 	 * The entered amount is the contribution in the pension's currency; the bank
-	 * debit is converted to the account's currency. The pension's current_balance
-	 * is intentionally NOT changed (a snapshot is the valuation source of truth —
-	 * bumping it would double-count against the bank balance in net worth).
+	 * debit is converted to the account's currency. The pension's balance goes
+	 * up by it unless the latest balance update already counts it, so net
+	 * worth doesn't dip until the next update.
 	 *
 	 * @throws DoesNotExistException if the pension or account is not found
 	 */
@@ -322,7 +386,7 @@ class PensionService {
 		string $date,
 		?string $note = null,
 	): PensionContribution {
-		$this->pensionMapper->find($pensionId, $userId);
+		$pension = $this->pensionMapper->find($pensionId, $userId);
 
 		$withdrawal = new PensionContribution();
 		$withdrawal->setUserId($userId);
@@ -333,7 +397,9 @@ class PensionService {
 		$withdrawal->setKind(PensionContribution::KIND_WITHDRAWAL);
 		$withdrawal->setCreatedAt(date('Y-m-d H:i:s'));
 
-		return $this->contributionMapper->insert($withdrawal);
+		$withdrawal = $this->contributionMapper->insert($withdrawal);
+		$this->applyToBalance($pension, $userId, $withdrawal);
+		return $withdrawal;
 	}
 
 	/**
@@ -435,6 +501,7 @@ class PensionService {
 
 			// Mark the bank leg so it's excluded from spending/income aggregates.
 			$this->transactionService->markPensionContribLink($tx->getId(), $ownerId, $contribution->getId());
+			$this->applyToBalance($pension, $userId, $contribution);
 
 			$this->db->commit();
 			return $contribution;
@@ -467,6 +534,9 @@ class PensionService {
 			}
 			$this->contributionMapper->delete($contribution);
 			$this->rewindScheduleOf($contribution, $userId);
+			if ($contribution->getPensionId() !== null) {
+				$this->applyToBalance($this->pensionMapper->find($contribution->getPensionId(), $userId), $userId, $contribution, -1);
+			}
 			$this->db->commit();
 		} catch (\Throwable $e) {
 			$this->db->rollBack();
