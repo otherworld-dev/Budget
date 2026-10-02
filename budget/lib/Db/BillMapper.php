@@ -303,6 +303,32 @@ class BillMapper extends QBMapper {
 	}
 
 	/**
+	 * Take a deleted tag off every bill that applies it, whoever owns the
+	 * bill, see Bill::dropTagIds(). tag_ids is JSON, so a LIKE on the id
+	 * narrows the rows and the decode decides.
+	 *
+	 * @return int how many bills changed
+	 */
+	public function removeTagId(int $tagId): int {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->isNotNull('tag_ids'))
+			->andWhere($qb->expr()->like('tag_ids', $qb->createNamedParameter(
+				'%' . $this->db->escapeLikeParameter((string)$tagId) . '%'
+			)));
+
+		$changed = 0;
+		foreach ($this->findEntities($qb) as $bill) {
+			if ($bill->dropTagIds([$tagId])) {
+				$this->update($bill);
+				$changed++;
+			}
+		}
+		return $changed;
+	}
+
+	/**
 	 * Delete all bills for a user
 	 *
 	 * @param string $userId

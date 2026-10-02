@@ -1308,6 +1308,22 @@ class CategoryServiceTest extends TestCase {
 		], $cleared);
 	}
 
+	public function testDeletingACategoryTakesItsTagSetsTagsOffBills(): void {
+		$this->categoryMapper->method('find')->willReturn($this->makeCategory(['id' => 1]));
+		$this->categoryMapper->method('findChildren')->willReturn([]);
+		$this->transactionMapper->method('findByCategory')->willReturn([]);
+		$tagSet = new \OCA\Budget\Db\TagSet();
+		$tagSet->setId(3);
+		$this->tagSetMapper->method('findByCategory')->willReturn([$tagSet]);
+		$tag = new \OCA\Budget\Db\Tag();
+		$tag->setId(8);
+		$this->tagMapper->method('findByTagSet')->willReturn([$tag]);
+		$bills = $this->createMock(\OCA\Budget\Db\BillMapper::class);
+		$bills->expects($this->once())->method('removeTagId')->with(8);
+
+		$this->serviceWithScheduleMappers($bills, $this->createMock(\OCA\Budget\Db\RecurringIncomeMapper::class))->delete(1, 'user1');
+	}
+
 	public function testARefusedDeleteLeavesBillsAlone(): void {
 		$this->categoryMapper->method('find')->willReturn($this->makeCategory());
 		$this->categoryMapper->method('findChildren')->willReturn([]);

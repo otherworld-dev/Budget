@@ -632,6 +632,8 @@ class TransactionReportQueriesTest extends TestCase {
 		$this->assertSame(0, $tagJoins);
 		$sql = implode("\n", $where);
 		$this->assertStringContainsString('EXISTS (SELECT 1 FROM *PREFIX*budget_transaction_tags btt WHERE btt.transaction_id = t.id AND btt.tag_id IN (4, 9))', $sql);
-		$this->assertStringContainsString('NOT EXISTS (SELECT 1 FROM *PREFIX*budget_transaction_tags btu WHERE btu.transaction_id = t.id)', $sql);
+		// Only a link to a tag that still exists makes a row tagged: a bill's
+		// payment linked to a deleted tag fell out of "Include untagged"
+		$this->assertStringContainsString('NOT EXISTS (SELECT 1 FROM *PREFIX*budget_transaction_tags btu INNER JOIN *PREFIX*budget_tags btg ON btg.id = btu.tag_id WHERE btu.transaction_id = t.id)', $sql);
 	}
 }

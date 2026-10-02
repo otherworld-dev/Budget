@@ -238,7 +238,11 @@ final class ReportScope {
 		$tagged = "EXISTS (SELECT 1 FROM {$tagTable} btt WHERE btt.transaction_id = t.id AND btt.tag_id IN ({$ids}))";
 
 		if ($includeUntagged) {
-			$untagged = "NOT EXISTS (SELECT 1 FROM {$tagTable} btu WHERE btu.transaction_id = t.id)";
+			// Only a link to a tag that still exists makes a row tagged. A
+			// bill kept applying a deleted tag to its payments, and those rows
+			// were neither tagged nor untagged: every filtered report lost them.
+			$tags = $qb->getTableName('budget_tags');
+			$untagged = "NOT EXISTS (SELECT 1 FROM {$tagTable} btu INNER JOIN {$tags} btg ON btg.id = btu.tag_id WHERE btu.transaction_id = t.id)";
 			$qb->andWhere($qb->expr()->orX($tagged, $untagged));
 		} else {
 			$qb->andWhere($tagged);

@@ -260,8 +260,10 @@ class CategoryService extends AbstractCrudService {
 			// Delete tags in this tag set
 			$tags = $this->tagMapper->findByTagSet($tagSet->getId());
 			foreach ($tags as $tag) {
-				// Delete transaction tags first
+				// Delete transaction tags first, and take the tag off bills,
+				// which would link it to every payment they book from now on
 				$this->transactionTagMapper->deleteByTag($tag->getId());
+				$this->billMapper?->removeTagId($tag->getId());
 				// Then delete the tag
 				$this->tagMapper->delete($tag);
 			}

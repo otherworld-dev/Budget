@@ -23,6 +23,8 @@ class TagSetServiceTest extends TestCase {
 	private CategoryMapper $categoryMapper;
 	private TransactionTagMapper $transactionTagMapper;
 	private SavingsGoalMapper $savingsGoalMapper;
+	/** @var \OCA\Budget\Db\BillMapper&\PHPUnit\Framework\MockObject\MockObject */
+	private $billMapper;
 
 	protected function setUp(): void {
 		$this->tagSetMapper = $this->createMock(TagSetMapper::class);
@@ -30,13 +32,15 @@ class TagSetServiceTest extends TestCase {
 		$this->categoryMapper = $this->createMock(CategoryMapper::class);
 		$this->transactionTagMapper = $this->createMock(TransactionTagMapper::class);
 		$this->savingsGoalMapper = $this->createMock(SavingsGoalMapper::class);
+		$this->billMapper = $this->createMock(\OCA\Budget\Db\BillMapper::class);
 
 		$this->service = new TagSetService(
 			$this->tagSetMapper,
 			$this->tagMapper,
 			$this->categoryMapper,
 			$this->transactionTagMapper,
-			$this->savingsGoalMapper
+			$this->savingsGoalMapper,
+			$this->billMapper
 		);
 	}
 
@@ -300,6 +304,41 @@ class TagSetServiceTest extends TestCase {
 			->with($tag);
 
 		$this->service->deleteTag(5, 'user1', 1);
+	}
+
+	/**
+	 * A deleted tag stayed on bills and was linked to every payment they
+	 * booked afterwards, which then fell out of tag-filtered reports.
+	 */
+	public function testDeletingATagTakesItOffBills(): void {
+		$this->tagMapper->method('find')->willReturn($this->makeTag(['id' => 5]));
+		$this->billMapper->expects($this->once())->method('removeTagId')->with(5);
+
+		$this->service->deleteTag(5, 'user1', 1);
+	}
+
+	public function testDeletingAGlobalTagTakesItOffBills(): void {
+		$this->tagMapper->method('find')->willReturn($this->makeTag(['id' => 6, 'tagSetId' => null]));
+		$this->billMapper->expects($this->once())->method('removeTagId')->with(6);
+
+		$this->service->deleteGlobalTag(6, 'user1');
+	}
+
+	public function testDeletingATagSetTakesEachOfItsTagsOffBills(): void {
+		$this->tagSetMapper->method('find')->willReturn($this->makeTagSet(['id' => 1]));
+		$this->tagMapper->method('findByTagSet')->willReturn([
+			$this->makeTag(['id' => 10, 'tagSetId' => 1]),
+			$this->makeTag(['id' => 11, 'tagSetId' => 1]),
+		]);
+		$removed = [];
+		$this->billMapper->method('removeTagId')->willReturnCallback(function (int $id) use (&$removed) {
+			$removed[] = $id;
+			return 1;
+		});
+
+		$this->service->delete(1, 'user1');
+
+		$this->assertSame([10, 11], $removed);
 	}
 
 	public function testDeleteTagThrowsIfNotFound(): void {

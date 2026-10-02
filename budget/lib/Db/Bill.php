@@ -181,6 +181,24 @@ class Bill extends Entity implements JsonSerializable {
 	}
 
 	/**
+	 * Take deleted tags out of the list the bill applies to what it books.
+	 * Left in, every payment was linked to a tag that no longer existed and
+	 * fell out of tag-filtered reports, "Include untagged" or not.
+	 *
+	 * @param int[] $tagIds
+	 * @return bool whether the list named any of them
+	 */
+	public function dropTagIds(array $tagIds): bool {
+		$current = $this->getTagIdsArray();
+		$kept = array_values(array_diff($current, array_map('intval', $tagIds)));
+		if (count($kept) === count($current)) {
+			return false;
+		}
+		$this->setTagIdsArray($kept);
+		return true;
+	}
+
+	/**
 	 * A deleted category's part of the split template becomes uncategorised.
 	 * Left naming it, every split failed and the whole payment was booked
 	 * unsplit and uncategorised, the surviving parts' share included.
