@@ -177,6 +177,28 @@ class BackupRestoreLinksTest extends IntegrationTestCase {
 	}
 
 	/**
+	 * Bob restores a backup from before he set up Netflix. The restore
+	 * deletes his bills, and only rows in his own accounts went with them:
+	 * the bill's pending row stayed in Alice's account under a dead bill
+	 * id, and the scheduled-row job booked it against her on its date
+	 * (#399 review, F139). The payment it already made stays, as money that
+	 * really moved.
+	 */
+	public function testARecipientsRestoreWithoutTheBillTakesItsPendingRow(): void {
+		$w = $this->sharedWorld();
+		$archive = $this->rewriteArchive($this->migration->exportAll($this->bob)['content'], 'bills.json',
+			fn (array $bills) => array_values(array_filter($bills, fn (array $bill) => $bill['name'] !== 'Netflix')));
+
+		$this->migration->importAll($this->bob, $archive);
+
+		$this->assertNull($this->fetchRow('budget_transactions', $w['pending']));
+		$this->assertNotNull($this->fetchRow('budget_transactions', $w['paid']));
+		$this->assertSame(0, (int)$this->db()->executeQuery(
+			'SELECT COUNT(*) FROM *PREFIX*budget_transactions WHERE account_id = ? AND status = ?', [$w['joint'], 'scheduled']
+		)->fetchOne());
+	}
+
+	/**
 	 * A backup whose joint account isn't the one Alice has here (from
 	 * another server, say) can't vouch for anything that hung off it: the
 	 * share of it goes, Bob's bill loses it and stops auto-paying, and the
