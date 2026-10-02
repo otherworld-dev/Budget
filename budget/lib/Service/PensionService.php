@@ -708,7 +708,10 @@ class PensionService {
 	 * Remove an entry's bank leg as its account's owner, which is another
 	 * user when the account is shared. A leg in an account the user can no
 	 * longer write to stays in that ledger: it isn't theirs to change, and
-	 * it still counts as money moved to a pension there.
+	 * it still counts as money moved to a pension there. A leg that is the
+	 * bank's own imported row stays too, as a plain transaction: it records
+	 * money that really moved, and deleting it would put the account out of
+	 * step with its statement.
 	 */
 	private function deleteLeg(int $txId, string $userId): void {
 		$leg = $this->transactionMapper->findById($txId);
@@ -717,6 +720,11 @@ class PensionService {
 		}
 		$accountId = $leg->getAccountId();
 		if (!$this->granularShareService->canWrite($userId, ShareItem::TYPE_ACCOUNT, $accountId)) {
+			return;
+		}
+		if ($leg->getImportId() !== null && $leg->getImportId() !== '') {
+			$owner = $this->accountMapper->findById($accountId)->getUserId();
+			$this->transactionService->markPensionContribLink($txId, $owner, null);
 			return;
 		}
 		$this->transactionService->deleteAsAccountOwner($txId);
@@ -875,9 +883,13 @@ class PensionService {
 			} else {
 				$type = $c->getTransactionId() !== null ? 'transfer_in' : 'contribution';
 			}
-			// Deleting the entry deletes its bank leg: say when that leg was
-			// reconciled, so the confirm can warn as the Transactions page does
+			// Deleting the entry deletes a leg the app booked: say when that
+			// leg was reconciled, so the confirm can warn as the Transactions
+			// page does. An imported leg stays (see deleteLeg()).
 			$leg = $c->getTransactionId() !== null ? $this->transactionMapper->findById($c->getTransactionId()) : null;
+			if ($leg !== null && $leg->getImportId() !== null && $leg->getImportId() !== '') {
+				$leg = null;
+			}
 			$items[] = [
 				'type' => $type,
 				'id' => $c->getId(),

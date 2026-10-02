@@ -802,6 +802,29 @@ class PensionServiceTest extends TestCase {
 		$this->service->createContributionWithTransfer(1, 'user1', 200.0, '2026-10-01', 9);
 	}
 
+	/**
+	 * A contribution that took the bank's own imported row as its leg leaves
+	 * that row in the account when it goes: it is the bank's record of real
+	 * money, not something the app booked.
+	 */
+	public function testDeletingAContributionKeepsAnImportedBankRow(): void {
+		$contribution = $this->makeContribution('2026-10-01', 200.0, PensionContribution::KIND_CONTRIBUTION, 700, 10);
+		$contribution->setId(77);
+		$this->contributionMapper->method('find')->willReturn($contribution);
+		$leg = $this->leg(700, 10);
+		$leg->setImportId('csv-700');
+		$this->transactionMapper->method('findById')->willReturn($leg);
+		$this->shares->method('canWrite')->willReturn(true);
+		$account = new \OCA\Budget\Db\Account();
+		$account->setUserId('user1');
+		$this->accountMapper->method('findById')->willReturn($account);
+
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+		$this->transactionService->expects($this->once())->method('markPensionContribLink')->with(700, 'user1', null);
+
+		$this->service->deleteContribution(77, 'user1');
+	}
+
 	public function testDeletingAContributionLeavesTheLegInAnAccountNoLongerShared(): void {
 		// The other user's ledger isn't this user's to change any more
 		$contribution = $this->makeContribution('2026-03-01', 500.0, PensionContribution::KIND_CONTRIBUTION, 555, 9);

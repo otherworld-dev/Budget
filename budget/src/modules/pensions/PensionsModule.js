@@ -867,7 +867,7 @@ export default class PensionsModule {
         const isSnapshot = type === 'snapshot';
         let message = isSnapshot
             ? t('budget', 'Delete this balance update?')
-            : t('budget', 'Delete this entry? If it is linked to a bank transaction, that transaction will be removed too.');
+            : t('budget', 'Delete this entry? A bank transaction the app booked for it is removed too; one that came from a statement import or bank sync stays in its account.');
         const entry = isSnapshot ? null : (this.pensionActivity || []).find(a => a.type !== 'snapshot' && a.id === id);
         if (entry?.reconciled) {
             message += '\n\n' + t('budget', 'Its bank transaction was reconciled against a bank statement. Deleting it will make past reconciliations no longer match.');
