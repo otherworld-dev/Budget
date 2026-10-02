@@ -11,8 +11,223 @@ use OCA\Budget\Enum\Frequency;
  * Handles frequency-based date calculations for bills.
  */
 class FrequencyCalculator {
+	/** Days an occurrenceAfter() search looks ahead: a yearly item is always found */
+	private const SEARCH_DAYS = 800;
+
 	/**
-	 * Calculate the next due date based on frequency and settings.
+	 * Every date a schedule falls on between $from and $to, inclusive.
+	 *
+	 * The schedule alone decides: no "today" is involved, so a list, a
+	 * payment, a projection and a calendar export all see the same dates.
+	 *
+	 *  - $anchor is the start date. Nothing occurs before it, a weekly or
+	 *    bi-weekly schedule counts its 7 or 14 days from it, a one-time item
+	 *    falls on it, and it supplies the day or month a calendar schedule
+	 *    doesn't state.
+	 *  - A day past a month's end falls on that month's last day, and the
+	 *    next month goes back to the stated day.
+	 *  - Quarterly and half-yearly schedules repeat from their month round the
+	 *    year, so a November quarter also falls in February, May and August.
+	 *  - Semi-monthly falls twice a month fifteen days apart: the stated day
+	 *    and fifteen days later, or fifteen days earlier for a day past the 15th.
+	 *  - A custom schedule with no usable pattern runs monthly on its day.
+	 *
+	 * @return string[] Y-m-d dates in order
+	 */
+	public function occurrencesBetween(
+		string $frequency,
+		?int $dueDay,
+		?int $dueMonth,
+		string $from,
+		string $to,
+		?string $customPattern = null,
+		?string $anchor = null,
+	): array {
+		$from = $this->day($from);
+		$to = $this->day($to);
+		$anchor = ($anchor === null || $anchor === '') ? null : $this->day($anchor);
+		if ($anchor !== null && $anchor > $from) {
+			$from = $anchor;
+		}
+		if ($from > $to) {
+			return [];
+		}
+
+		switch ($frequency) {
+			case 'one-time':
+				return ($anchor !== null && $anchor >= $from && $anchor <= $to) ? [$anchor] : [];
+			case 'daily':
+				return $this->stepDays($from, $from, $to, 1);
+			case 'weekly':
+			case 'biweekly':
+				$interval = $frequency === 'biweekly' ? 14 : 7;
+				if ($anchor === null) {
+					// No start date: a fixed reference week keeps a bi-weekly
+					// schedule's week the same however it is asked
+					$weekday = ($dueDay !== null && $dueDay >= 1 && $dueDay <= 7) ? $dueDay : 1;
+					$anchor = (new \DateTimeImmutable('1970-01-05'))->modify('+' . ($weekday - 1) . ' days')->format('Y-m-d');
+				}
+				return $this->stepDays($anchor, $from, $to, $interval);
+		}
+
+		$dates = [];
+		$cursor = new \DateTimeImmutable(substr($from, 0, 7) . '-01');
+		$last = substr($to, 0, 7);
+		while ($cursor->format('Y-m') <= $last) {
+			foreach ($this->daysInMonth($frequency, $dueDay, $dueMonth, $customPattern, $anchor, (int)$cursor->format('Y'), (int)$cursor->format('n')) as $date) {
+				if ($date >= $from && $date <= $to) {
+					$dates[] = $date;
+				}
+			}
+			$cursor = $cursor->modify('+1 month');
+		}
+		return $dates;
+	}
+
+	/**
+	 * The first date the schedule falls on strictly after $date: the
+	 * occurrence after one just paid, received or skipped. Null when there
+	 * is none (a one-time item on or before its date).
+	 */
+	public function occurrenceAfter(
+		string $frequency,
+		?int $dueDay,
+		?int $dueMonth,
+		string $date,
+		?string $customPattern = null,
+		?string $anchor = null,
+	): ?string {
+		$next = (new \DateTimeImmutable($this->day($date)))->modify('+1 day')->format('Y-m-d');
+		return $this->occurrenceOnOrAfter($frequency, $dueDay, $dueMonth, $next, $customPattern, $anchor);
+	}
+
+	/**
+	 * The first date the schedule falls on on or after $date: due today is
+	 * due today. Null when there is none.
+	 */
+	public function occurrenceOnOrAfter(
+		string $frequency,
+		?int $dueDay,
+		?int $dueMonth,
+		string $date,
+		?string $customPattern = null,
+		?string $anchor = null,
+	): ?string {
+		$date = $this->day($date);
+		if ($anchor !== null && $anchor !== '' && $this->day($anchor) > $date) {
+			$date = $this->day($anchor);
+		}
+		$to = (new \DateTimeImmutable($date))->modify('+' . self::SEARCH_DAYS . ' days')->format('Y-m-d');
+		return $this->occurrencesBetween($frequency, $dueDay, $dueMonth, $date, $to, $customPattern, $anchor)[0] ?? null;
+	}
+
+	/**
+	 * Where the period of a pending occurrence begins, for moving it when its
+	 * schedule changes: the occurrence under the new schedule is the first
+	 * on or after this. For calendar schedules that is the month, so moving
+	 * a day from the 3rd to the 25th keeps October's payment in October; for
+	 * weekly ones it is half an interval back, so the nearest weekday wins.
+	 */
+	public function periodStart(string $frequency, string $occurrence): string {
+		$date = new \DateTimeImmutable($this->day($occurrence));
+		return match ($frequency) {
+			'daily', 'one-time' => $date->format('Y-m-d'),
+			'weekly' => $date->modify('-3 days')->format('Y-m-d'),
+			'biweekly' => $date->modify('-7 days')->format('Y-m-d'),
+			'semi-monthly' => max($date->format('Y-m-01'), $date->modify('-7 days')->format('Y-m-d')),
+			default => $date->format('Y-m-01'),
+		};
+	}
+
+	/** A date as Y-m-d, whatever time of day it came with */
+	private function day(string $date): string {
+		return (new \DateTimeImmutable($date))->format('Y-m-d');
+	}
+
+	/**
+	 * Dates $start + n * $interval days (n >= 0) between $from and $to.
+	 *
+	 * @return string[]
+	 */
+	private function stepDays(string $start, string $from, string $to, int $interval): array {
+		$cursor = new \DateTimeImmutable($start);
+		$fromDay = new \DateTimeImmutable($from);
+		if ($cursor < $fromDay) {
+			// Jump whole intervals at once, so an old start date stays cheap
+			$steps = intdiv((int)$cursor->diff($fromDay)->format('%a') + $interval - 1, $interval);
+			$cursor = $cursor->modify('+' . ($steps * $interval) . ' days');
+		}
+		$dates = [];
+		while (($d = $cursor->format('Y-m-d')) <= $to) {
+			$dates[] = $d;
+			$cursor = $cursor->modify("+{$interval} days");
+		}
+		return $dates;
+	}
+
+	/**
+	 * The dates a calendar schedule falls on within one month.
+	 *
+	 * @return string[]
+	 */
+	private function daysInMonth(string $frequency, ?int $dueDay, ?int $dueMonth, ?string $customPattern, ?string $anchor, int $year, int $month): array {
+		$day = $dueDay ?? ($anchor !== null ? (int)substr($anchor, 8, 2) : 1);
+		$baseMonth = $dueMonth ?? ($anchor !== null ? (int)substr($anchor, 5, 2) : 1);
+		$onCycle = fn (int $cycle): bool => (($month - $baseMonth) % $cycle + $cycle) % $cycle === 0;
+
+		switch ($frequency) {
+			case 'monthly':
+				return [$this->clamped($year, $month, $day)];
+			case 'quarterly':
+				return $onCycle(3) ? [$this->clamped($year, $month, $day)] : [];
+			case 'semi-annually':
+				return $onCycle(6) ? [$this->clamped($year, $month, $day)] : [];
+			case 'yearly':
+				return $month === $baseMonth ? [$this->clamped($year, $month, $day)] : [];
+			case 'semi-monthly':
+				[$first, $second] = $day <= 15 ? [$day, $day + 15] : [$day - 15, $day];
+				return array_values(array_unique([$this->clamped($year, $month, $first), $this->clamped($year, $month, $second)]));
+			case 'custom':
+				$pattern = $customPattern !== null && $customPattern !== '' ? json_decode($customPattern, true) : null;
+				if (is_array($pattern) && !empty($pattern['months']) && is_array($pattern['months'])) {
+					$months = array_map('intval', $pattern['months']);
+					return in_array($month, $months, true) ? [$this->clamped($year, $month, $dueDay ?? 1)] : [];
+				}
+				if (is_array($pattern) && !empty($pattern['dates']) && is_array($pattern['dates'])) {
+					$dates = [];
+					foreach ($pattern['dates'] as $spec) {
+						if (is_array($spec) && (int)($spec['month'] ?? 0) === $month && isset($spec['day'])) {
+							$dates[] = $this->clamped($year, $month, (int)$spec['day']);
+						}
+					}
+					sort($dates);
+					return array_values(array_unique($dates));
+				}
+				// No usable pattern: monthly on the day, never every day
+				return [$this->clamped($year, $month, $day)];
+			default:
+				return [];
+		}
+	}
+
+	/** $day of the month, or the month's last day when it has fewer */
+	private function clamped(int $year, int $month, int $day): string {
+		$last = (int)(new \DateTimeImmutable(sprintf('%04d-%02d-01', $year, $month)))->format('t');
+		return sprintf('%04d-%02d-%02d', $year, $month, max(1, min($day, $last)));
+	}
+
+	/**
+	 * The next due date for a bill, income or contribution.
+	 *
+	 *  - With $forceAdvance and a $fromDate (the occurrence just paid,
+	 *    received or skipped): the one occurrence after it. Exactly one, so a
+	 *    payment settles one occurrence whatever the frequency.
+	 *  - With only a $fromDate: the first occurrence on or after it that
+	 *    isn't before today.
+	 *  - Otherwise: the first occurrence on or after today.
+	 *
+	 * A one-time item is its date: the anchor, else $fromDate, else today.
+	 * It is never rolled forward to a year that nobody entered.
 	 *
 	 * @param string $frequency Bill frequency
 	 * @param int|null $dueDay Day of week (1-7) or day of month (1-31)
@@ -20,10 +235,8 @@ class FrequencyCalculator {
 	 * @param string|null $fromDate Base date to calculate from
 	 * @param string|null $customPattern JSON pattern for custom frequency
 	 * @param bool $forceAdvance Always advance past fromDate (used after payment)
-	 * @param string|null $anchorDate Recurrence anchor (start date) for weekly/
-	 *                                biweekly: occurrences fall on anchor + n*interval days, so the
-	 *                                anchor fixes both the weekday and the week parity and dueDay is
-	 *                                ignored (#363, #364). Other frequencies ignore the anchor.
+	 * @param string|null $anchorDate The start date (see occurrencesBetween())
+	 * @param string|null $today The owner's today, Y-m-d (defaults to the server's)
 	 * @return string Next due date in Y-m-d format
 	 */
 	public function calculateNextDueDate(
@@ -34,223 +247,28 @@ class FrequencyCalculator {
 		?string $customPattern = null,
 		bool $forceAdvance = false,
 		?string $anchorDate = null,
+		?string $today = null,
 	): string {
-		$today = new \DateTime();
+		$today = $today !== null ? $this->day($today) : date('Y-m-d');
+		$anchorDate = ($anchorDate === null || $anchorDate === '') ? null : $anchorDate;
+		$fromDate = ($fromDate === null || $fromDate === '') ? null : $this->day($fromDate);
 
-		// A one-time bill with an explicit date IS that date. The form offers
-		// the date field for exactly this case, and it may lie in the past: an
-		// invoice from August entered in September is due in August, overdue,
-		// not rolled forward to next August. Every other branch below moves a
-		// date past today, which is right for a schedule and wrong for a
-		// single dated occurrence (#375).
-		if ($frequency === 'one-time' && $anchorDate !== null && $anchorDate !== '') {
-			return (new \DateTime($anchorDate))->format('Y-m-d');
+		if ($frequency === 'one-time') {
+			return $anchorDate !== null ? $this->day($anchorDate) : ($fromDate ?? $today);
 		}
 
-		// For fixed-interval frequencies with forceAdvance, simply add one interval
-		// to the original date. The baseDate/today manipulation only works for
-		// calendar-anchored frequencies that use setDate().
-		if ($forceAdvance && $fromDate) {
-			$origin = new \DateTime($fromDate);
-			switch ($frequency) {
-				case 'daily':
-					$origin->modify('+1 day');
-					return $origin->format('Y-m-d');
-				case 'weekly':
-					$origin->modify('+7 days');
-					return $origin->format('Y-m-d');
-				case 'biweekly':
-					$origin->modify('+14 days');
-					return $origin->format('Y-m-d');
-			}
+		if ($forceAdvance && $fromDate !== null) {
+			// Without a start date, a weekly schedule counts on from the
+			// occurrence it just closed
+			$anchor = $anchorDate ?? (in_array($frequency, ['weekly', 'biweekly'], true) ? $fromDate : null);
+			$next = $this->occurrenceAfter($frequency, $dueDay, $dueMonth, $fromDate, $customPattern, $anchor);
+		} elseif ($fromDate !== null) {
+			$next = $this->occurrenceOnOrAfter($frequency, $dueDay, $dueMonth, max($fromDate, $today), $customPattern, $anchorDate);
+		} else {
+			$next = $this->occurrenceOnOrAfter($frequency, $dueDay, $dueMonth, $today, $customPattern, $anchorDate);
 		}
 
-		$baseDate = $fromDate ? new \DateTime($fromDate) : new \DateTime();
-
-		// For calendar-anchored frequencies with forceAdvance, move base date
-		// one day past current due so comparisons naturally advance.
-		if ($forceAdvance && $fromDate) {
-			$baseDate->modify('+1 day');
-			if ($today < $baseDate) {
-				$today = clone $baseDate;
-			}
-		}
-
-		switch ($frequency) {
-			case 'daily':
-				$next = clone $baseDate;
-				if ($next <= $today) {
-					$next->modify('+1 day');
-				}
-				return $next->format('Y-m-d');
-			case 'weekly':
-			case 'biweekly':
-				$interval = $frequency === 'biweekly' ? 14 : 7;
-				if ($anchorDate !== null && $anchorDate !== '') {
-					return $this->nextFromAnchor($anchorDate, $interval, $fromDate, $today);
-				}
-				$dayOfWeek = $dueDay ?? 1; // Default to Monday
-				$next = clone $baseDate;
-				$currentDayOfWeek = (int)$next->format('N');
-				$daysToAdd = ($dayOfWeek - $currentDayOfWeek + 7) % 7;
-				$next->modify("+{$daysToAdd} days");
-				while ($next <= $today) {
-					$next->modify("+{$interval} days");
-				}
-				return $next->format('Y-m-d');
-			case 'semi-monthly':
-				// Twice per month: on dueDay and dueDay+15 (e.g., 1st & 16th)
-				$day1 = $dueDay ?? 1;
-				$day2 = min($day1 + 15, 28); // Second date ~15 days later, capped at 28
-				$next = clone $baseDate;
-				// Try both dates in the current month, then advance
-				while (true) {
-					$maxDay = (int)$next->format('t');
-					$d1 = (clone $next)->setDate((int)$next->format('Y'), (int)$next->format('m'), min($day1, $maxDay));
-					$d2 = (clone $next)->setDate((int)$next->format('Y'), (int)$next->format('m'), min($day2, $maxDay));
-					if ($d1 > $today) {
-						return $d1->format('Y-m-d');
-					}
-					if ($d2 > $today) {
-						return $d2->format('Y-m-d');
-					}
-					$next->modify('+1 month');
-				}
-
-				// no break
-			case 'monthly':
-				$day = $dueDay ?? 1;
-				$next = clone $baseDate;
-				$maxDay = (int)$next->format('t');
-				$next->setDate(
-					(int)$next->format('Y'),
-					(int)$next->format('m'),
-					min($day, $maxDay)
-				);
-				while ($next <= $today) {
-					$next->modify('+1 month');
-					$maxDay = (int)$next->format('t');
-					$next->setDate(
-						(int)$next->format('Y'),
-						(int)$next->format('m'),
-						min($day, $maxDay)
-					);
-				}
-				return $next->format('Y-m-d');
-			case 'quarterly':
-				$day = $dueDay ?? 1;
-				$next = clone $baseDate;
-				$quarterMonth = $dueMonth ?? (((int)ceil((int)$next->format('n') / 3)) * 3 - 2);
-				$maxDay = (int)date('t', mktime(0, 0, 0, $quarterMonth, 1, (int)$next->format('Y')));
-				$next->setDate((int)$next->format('Y'), $quarterMonth, min($day, $maxDay));
-				while ($next <= $today) {
-					$next->modify('+3 months');
-					$maxDay = (int)$next->format('t');
-					$next->setDate(
-						(int)$next->format('Y'),
-						(int)$next->format('m'),
-						min($day, $maxDay)
-					);
-				}
-				return $next->format('Y-m-d');
-			case 'semi-annually':
-				$day = $dueDay ?? 1;
-				$month = $dueMonth ?? 1;
-				$next = clone $baseDate;
-				$maxDay = (int)date('t', mktime(0, 0, 0, $month, 1, (int)$next->format('Y')));
-				$next->setDate((int)$next->format('Y'), $month, min($day, $maxDay));
-				while ($next <= $today) {
-					$next->modify('+6 months');
-					$maxDay = (int)$next->format('t');
-					$next->setDate(
-						(int)$next->format('Y'),
-						(int)$next->format('m'),
-						min($day, $maxDay)
-					);
-				}
-				return $next->format('Y-m-d');
-			case 'yearly':
-				$day = $dueDay ?? 1;
-				$month = $dueMonth ?? 1;
-				$next = clone $baseDate;
-				$maxDay = (int)date('t', mktime(0, 0, 0, $month, 1, (int)$next->format('Y')));
-				$next->setDate((int)$next->format('Y'), $month, min($day, $maxDay));
-				while ($next <= $today) {
-					$next->modify('+1 year');
-					$maxDay = (int)date('t', mktime(0, 0, 0, $month, 1, (int)$next->format('Y')));
-					$next->setDate((int)$next->format('Y'), $month, min($day, $maxDay));
-				}
-				return $next->format('Y-m-d');
-			case 'one-time':
-				// One-time bills have a specific target date — don't advance past it
-				$day = $dueDay ?? 1;
-				$month = $dueMonth ?? 1;
-				$next = clone $baseDate;
-				$maxDay = (int)date('t', mktime(0, 0, 0, $month, 1, (int)$next->format('Y')));
-				$next->setDate((int)$next->format('Y'), $month, min($day, $maxDay));
-				// Only advance to next year if the date is in the past AND no fromDate
-				// was explicitly provided (i.e., this is a fresh creation, not a recalculation)
-				if ($next <= $today && $fromDate === null) {
-					$next->modify('+1 year');
-					$maxDay = (int)date('t', mktime(0, 0, 0, $month, 1, (int)$next->format('Y')));
-					$next->setDate((int)$next->format('Y'), $month, min($day, $maxDay));
-				}
-				return $next->format('Y-m-d');
-			case 'custom':
-				return $this->calculateCustomNextDueDate($customPattern, $dueDay, $fromDate, $forceAdvance);
-			default:
-				return $baseDate->format('Y-m-d');
-		}
-	}
-
-	/**
-	 * Next weekly/biweekly occurrence from an anchor date (#363, #364).
-	 *
-	 * Occurrences fall on anchor + n*interval days (n >= 0), so the anchor —
-	 * a bill's/income's start date — fixes the weekday and the week parity
-	 * for good, independent of when the entry was created or edited.
-	 *
-	 * Without a reference date the first occurrence on/after today is
-	 * returned (a future anchor IS the first occurrence; an anchor of today
-	 * is due today). With a reference date (advancing past a payment or a
-	 * received income) the first occurrence strictly after it is returned,
-	 * never earlier than today.
-	 *
-	 * @param string $anchorDate Anchor date (Y-m-d)
-	 * @param int $interval Days between occurrences (7 or 14)
-	 * @param string|null $fromDate Reference date to advance strictly past
-	 * @param \DateTime $today Today's date
-	 * @return string Next occurrence in Y-m-d format
-	 */
-	private function nextFromAnchor(string $anchorDate, int $interval, ?string $fromDate, \DateTime $today): string {
-		$next = new \DateTime($anchorDate);
-		$next->setTime(0, 0, 0);
-
-		$threshold = clone $today;
-		$threshold->setTime(0, 0, 0);
-		$strict = false;
-		if ($fromDate !== null && $fromDate !== '') {
-			$from = new \DateTime($fromDate);
-			$from->setTime(0, 0, 0);
-			if ($from > $threshold) {
-				$threshold = $from;
-			}
-			$strict = true;
-		}
-
-		if ($next < $threshold) {
-			// Jump whole intervals at once so a years-old anchor stays cheap
-			$daysBehind = (int)$next->diff($threshold)->format('%a');
-			$steps = intdiv($daysBehind, $interval);
-			if ($steps > 0) {
-				$next->modify('+' . ($steps * $interval) . ' days');
-			}
-		}
-		while ($next < $threshold || ($strict && $next == $threshold)) {
-			$next->modify("+{$interval} days");
-		}
-
-		return $next->format('Y-m-d');
+		return $next ?? ($fromDate ?? $today);
 	}
 
 	/**
@@ -358,148 +376,6 @@ class FrequencyCalculator {
 	 */
 	public function getYearlyTotal(float $amount, string $frequency): float {
 		return $amount * $this->getOccurrencesPerYear($frequency);
-	}
-
-	/**
-	 * Calculate next due date for custom frequency pattern.
-	 *
-	 * @param string|null $customPattern JSON pattern (e.g., {"months": [1, 6, 7]})
-	 * @param int|null $dueDay Day of the month for occurrences
-	 * @param string|null $fromDate Base date to calculate from
-	 * @param bool $forceAdvance Whether to force advance past fromDate
-	 * @return string Next due date in Y-m-d format
-	 */
-	private function calculateCustomNextDueDate(?string $customPattern, ?int $dueDay, ?string $fromDate = null, bool $forceAdvance = false): string {
-		$today = new \DateTime();
-		$baseDate = $fromDate ? new \DateTime($fromDate) : clone $today;
-		if ($forceAdvance && $fromDate) {
-			$baseDate->modify('+1 day');
-			if ($today < $baseDate) {
-				$today = clone $baseDate;
-			}
-		}
-
-		if (empty($customPattern)) {
-			// No pattern defined, default to monthly
-			return $baseDate->format('Y-m-d');
-		}
-
-		$pattern = json_decode($customPattern, true);
-		if (!is_array($pattern)) {
-			// Invalid pattern, default to monthly
-			return $baseDate->format('Y-m-d');
-		}
-
-		// Handle {"months": [1, 6, 7]} pattern
-		if (isset($pattern['months']) && is_array($pattern['months'])) {
-			return $this->findNextMonthOccurrence($pattern['months'], $dueDay ?? 1, $baseDate, $today);
-		}
-
-		// Handle {"dates": [{"month": 1, "day": 15}, ...]} pattern (future enhancement)
-		if (isset($pattern['dates']) && is_array($pattern['dates'])) {
-			return $this->findNextDateOccurrence($pattern['dates'], $baseDate, $today);
-		}
-
-		// No valid pattern found
-		return $baseDate->format('Y-m-d');
-	}
-
-	/**
-	 * Find next occurrence from a list of months.
-	 *
-	 * @param array $months List of month numbers (1-12)
-	 * @param int $day Day of the month
-	 * @param \DateTime $baseDate Base date
-	 * @param \DateTime $today Today's date
-	 * @return string Next due date
-	 */
-	private function findNextMonthOccurrence(array $months, int $day, \DateTime $baseDate, \DateTime $today): string {
-		if (empty($months)) {
-			return $baseDate->format('Y-m-d');
-		}
-
-		// Sort months in ascending order
-		sort($months);
-
-		$currentYear = (int)$today->format('Y');
-		$currentMonth = (int)$today->format('n');
-
-		// Try to find next occurrence in current year
-		foreach ($months as $month) {
-			if ($month < 1 || $month > 12) {
-				continue; // Skip invalid months
-			}
-
-			$candidate = new \DateTime();
-			$candidate->setDate($currentYear, $month, min($day, (int)date('t', mktime(0, 0, 0, $month, 1, $currentYear))));
-
-			if ($candidate > $today) {
-				return $candidate->format('Y-m-d');
-			}
-		}
-
-		// No occurrence found in current year, use first month of next year
-		$nextYear = $currentYear + 1;
-		$firstMonth = $months[0];
-		$next = new \DateTime();
-		$next->setDate($nextYear, $firstMonth, min($day, (int)date('t', mktime(0, 0, 0, $firstMonth, 1, $nextYear))));
-
-		return $next->format('Y-m-d');
-	}
-
-	/**
-	 * Find next occurrence from a list of specific dates.
-	 *
-	 * @param array $dates List of date objects with 'month' and 'day' keys
-	 * @param \DateTime $baseDate Base date
-	 * @param \DateTime $today Today's date
-	 * @return string Next due date
-	 */
-	private function findNextDateOccurrence(array $dates, \DateTime $baseDate, \DateTime $today): string {
-		if (empty($dates)) {
-			return $baseDate->format('Y-m-d');
-		}
-
-		$currentYear = (int)$today->format('Y');
-		$candidates = [];
-
-		// Build candidate dates for current and next year
-		foreach ($dates as $dateSpec) {
-			if (!isset($dateSpec['month']) || !isset($dateSpec['day'])) {
-				continue;
-			}
-
-			$month = (int)$dateSpec['month'];
-			$day = (int)$dateSpec['day'];
-
-			if ($month < 1 || $month > 12) {
-				continue;
-			}
-
-			// Try current year
-			$maxDay = (int)date('t', mktime(0, 0, 0, $month, 1, $currentYear));
-			$candidate = new \DateTime();
-			$candidate->setDate($currentYear, $month, min($day, $maxDay));
-
-			if ($candidate > $today) {
-				$candidates[] = $candidate;
-			}
-
-			// Also add next year occurrence
-			$nextYear = $currentYear + 1;
-			$maxDayNext = (int)date('t', mktime(0, 0, 0, $month, 1, $nextYear));
-			$candidateNext = new \DateTime();
-			$candidateNext->setDate($nextYear, $month, min($day, $maxDayNext));
-			$candidates[] = $candidateNext;
-		}
-
-		if (empty($candidates)) {
-			return $baseDate->format('Y-m-d');
-		}
-
-		// Sort and return earliest date
-		usort($candidates, fn ($a, $b) => $a <=> $b);
-		return $candidates[0]->format('Y-m-d');
 	}
 
 	/**

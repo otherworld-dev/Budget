@@ -36,10 +36,14 @@ class FrequencyCalculatorTest extends TestCase {
 		$this->assertSame('2099-01-09', $result);
 	}
 
-	public function testCalculateNextDueDateBiweeklyDefaultsToMonday(): void {
-		$result = $this->calculator->calculateNextDueDate('biweekly', null, null, '2099-01-05');
-		// null dueDay defaults to 1 (Monday), and 2099-01-05 is Monday
-		$this->assertSame('2099-01-05', $result);
+	public function testBiweeklyWithoutAStartDateKeepsOneFortnight(): void {
+		// null dueDay defaults to Monday. Without a start date the fortnight
+		// is fixed, not taken from whichever date it is asked from, which
+		// made a bill hop a week whenever it was recalculated (#363)
+		$a = $this->calculator->calculateNextDueDate('biweekly', null, null, '2099-01-05');
+		$b = $this->calculator->calculateNextDueDate('biweekly', null, null, '2099-01-06');
+		$this->assertSame('Mon', (new \DateTime($a))->format('D'));
+		$this->assertSame($a, $b);
 	}
 
 	public function testCalculateNextDueDateMonthlySpecificDay(): void {
@@ -75,9 +79,11 @@ class FrequencyCalculatorTest extends TestCase {
 		$this->assertSame('2099-01-01', $result);
 	}
 
-	public function testCalculateNextDueDateOneTime(): void {
+	public function testCalculateNextDueDateOneTimeWithoutAStartDateKeepsItsDate(): void {
+		// A one-time item's date lives in its start date. Without one, the
+		// date it was given is kept rather than one built from day and month
 		$result = $this->calculator->calculateNextDueDate('one-time', 15, 6, '2099-01-01');
-		$this->assertSame('2099-06-15', $result);
+		$this->assertSame('2099-01-01', $result);
 	}
 
 	// ── one-time bills with an explicit date (#375) ──────────────────
@@ -100,12 +106,15 @@ class FrequencyCalculatorTest extends TestCase {
 		$this->assertSame('2099-06-15', $result);
 	}
 
-	/** Without a date the old behaviour stands: a past day/month rolls to next year on creation. */
-	public function testOneTimeWithoutADateStillRollsAPastMonthForward(): void {
-		$lastMonth = (new \DateTime('first day of last month'));
-		$result = $this->calculator->calculateNextDueDate('one-time', 1, (int)$lastMonth->format('n'), null);
+	/**
+	 * Without a date there is nothing to roll forward: building one from day
+	 * and month put a one-time bill entered with no month on 1 January of
+	 * next year (#399).
+	 */
+	public function testOneTimeWithoutADateIsDueToday(): void {
+		$result = $this->calculator->calculateNextDueDate('one-time', 1, null, null, null, false, null, '2026-09-28');
 
-		$this->assertGreaterThan(date('Y-m-d'), $result);
+		$this->assertSame('2026-09-28', $result);
 	}
 
 	public function testCalculateNextDueDateUnknownFrequency(): void {
@@ -114,39 +123,28 @@ class FrequencyCalculatorTest extends TestCase {
 	}
 
 	public function testCalculateNextDueDateCustomMonthsPattern(): void {
-		// Custom patterns use $today internally, so assert on current-year future month
-		$currentYear = (int)date('Y');
 		$pattern = json_encode(['months' => [12]]);
 		$result = $this->calculator->calculateNextDueDate('custom', 25, null, '2099-01-01', $pattern);
-		// Should find December 25th of the current year (or next year if past)
-		$expected = new \DateTime();
-		$expected->setDate($currentYear, 12, 25);
-		if ($expected <= new \DateTime()) {
-			$expected->setDate($currentYear + 1, 12, 25);
-		}
-		$this->assertSame($expected->format('Y-m-d'), $result);
+		$this->assertSame('2099-12-25', $result);
 	}
 
 	public function testCalculateNextDueDateCustomDatesPattern(): void {
-		$currentYear = (int)date('Y');
 		$pattern = json_encode(['dates' => [['month' => 12, 'day' => 25]]]);
 		$result = $this->calculator->calculateNextDueDate('custom', null, null, '2099-01-01', $pattern);
-		$expected = new \DateTime();
-		$expected->setDate($currentYear, 12, 25);
-		if ($expected <= new \DateTime()) {
-			$expected->setDate($currentYear + 1, 12, 25);
-		}
-		$this->assertSame($expected->format('Y-m-d'), $result);
+		$this->assertSame('2099-12-25', $result);
 	}
 
-	public function testCalculateNextDueDateCustomEmptyPattern(): void {
-		$result = $this->calculator->calculateNextDueDate('custom', null, null, '2099-06-15', '');
-		$this->assertSame('2099-06-15', $result);
+	public function testCalculateNextDueDateCustomEmptyPatternRunsMonthly(): void {
+		// Returning the base date unchanged made every payment move the bill
+		// on by a single day: 366 calendar events a year (F83)
+		$result = $this->calculator->calculateNextDueDate('custom', 20, null, '2099-06-15', '');
+		$this->assertSame('2099-06-20', $result);
+		$this->assertSame('2099-07-20', $this->calculator->calculateNextDueDate('custom', 20, null, '2099-06-20', '', true));
 	}
 
-	public function testCalculateNextDueDateCustomInvalidJson(): void {
-		$result = $this->calculator->calculateNextDueDate('custom', null, null, '2099-06-15', 'not-json');
-		$this->assertSame('2099-06-15', $result);
+	public function testCalculateNextDueDateCustomInvalidJsonRunsMonthly(): void {
+		$result = $this->calculator->calculateNextDueDate('custom', 20, null, '2099-06-15', 'not-json');
+		$this->assertSame('2099-06-20', $result);
 	}
 
 	// ── calculateNextDueDate with an anchor date (#363, #364) ───────
@@ -204,7 +202,7 @@ class FrequencyCalculatorTest extends TestCase {
 	public function testBiweeklyAnchorAdvancesStrictlyPastFromDate(): void {
 		// 2099-01-05 is a Monday. Receiving/paying ON an occurrence advances
 		// to the next one, never returns the same date back.
-		$result = $this->calculator->calculateNextDueDate('biweekly', null, null, '2099-01-19', null, false, '2099-01-05');
+		$result = $this->calculator->calculateNextDueDate('biweekly', null, null, '2099-01-19', null, true, '2099-01-05');
 
 		$this->assertSame('2099-02-02', $result);
 	}
@@ -235,10 +233,11 @@ class FrequencyCalculatorTest extends TestCase {
 		$this->assertSame('2099-01-19', $result);
 	}
 
-	public function testMonthlyIgnoresAnchor(): void {
+	public function testMonthlyStartsOnItsFirstOccurrenceFromTheStartDate(): void {
+		// A bill only occurs on or after its start date (#268)
 		$result = $this->calculator->calculateNextDueDate('monthly', 15, null, '2099-06-01', null, false, '2099-06-20');
 
-		$this->assertSame('2099-06-15', $result);
+		$this->assertSame('2099-07-15', $result);
 	}
 
 	// ── getMonthlyEquivalentFromValues ──────────────────────────────
