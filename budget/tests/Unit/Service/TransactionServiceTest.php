@@ -445,6 +445,34 @@ class TransactionServiceTest extends TestCase {
 		$this->assertSame('scheduled', $result->getStatus());
 	}
 
+	public function testABillsPaymentCannotBeTurnedBackIntoItsPendingRow(): void {
+		// A bill's scheduled row is its next unpaid occurrence. A payment set
+		// to scheduled was taken for it: the next Mark Paid re-dated it and
+		// deleted the real pending row, and Skip or Mark Unpaid deleted it.
+		$tx = $this->makeTransaction(['billId' => 9]);
+		$tx->setStatus('cleared');
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+
+		$result = $this->service->update(1, 'user1', ['status' => 'scheduled', 'notes' => 'kept']);
+
+		$this->assertSame('cleared', $result->getStatus());
+		$this->assertSame('kept', $result->getNotes());
+	}
+
+	public function testAnOrdinaryRowCanStillBeScheduled(): void {
+		$tx = $this->makeTransaction();
+		$tx->setStatus('cleared');
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+
+		$this->assertSame('scheduled', $this->service->update(1, 'user1', ['status' => 'scheduled'])->getStatus());
+	}
+
 	public function testUpdateDateOnScheduledRowStillRecalculates(): void {
 		// Moving a scheduled row's date to today auto-clears it — that status
 		// flip changes the balance, so the recompute must still run even
