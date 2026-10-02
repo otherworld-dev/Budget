@@ -722,12 +722,42 @@ export default class DashboardModule {
         const checked = !!currentSettings.excludeSharedBills;
         const hasShared = (this.widgetData?.upcomingBills || []).some(bill => bill?._shared);
         if (!checked && !hasShared) return '';
+        return this._checkboxField('excludeSharedBills', t('budget', 'Exclude shared bills'), checked);
+    }
+
+    /**
+     * The Upcoming Bills tile's box for keeping bills that are more than a
+     * week overdue, which the tile otherwise drops. Off until the user
+     * turns it on.
+     *
+     * @param {object} schema - The tile's settingsSchema
+     * @param {object} currentSettings - The tile's saved settings
+     * @returns {string} Form-group markup, or '' when not offered
+     */
+    _showAllOverdueField(schema, currentSettings) {
+        if (!schema.showAllOverdue) return '';
+        return this._checkboxField(
+            'showAllOverdue',
+            t('budget', 'Show bills overdue for more than a week'),
+            !!currentSettings.showAllOverdue
+        );
+    }
+
+    /**
+     * A settings-modal checkbox.
+     *
+     * @param {string} setting - data-setting name the modal saves under
+     * @param {string} label - Label, already translated
+     * @param {boolean} checked - Current value
+     * @returns {string} Form-group markup
+     */
+    _checkboxField(setting, label, checked) {
         return `
                 <div class="form-group">
                     <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
-                        <input type="checkbox" class="tile-setting-input" data-setting="excludeSharedBills"
+                        <input type="checkbox" class="tile-setting-input" data-setting="${setting}"
                             style="width: auto; min-height: auto;" ${checked ? 'checked' : ''}>
-                        ${t('budget', 'Exclude shared bills')}
+                        ${label}
                     </label>
                 </div>
             `;
@@ -1759,9 +1789,11 @@ export default class DashboardModule {
         }
 
         const horizon = this._tileNumberSetting('upcomingBills', 'forwardHorizon', formatters.FORWARD_HORIZONS, 30);
-        bills = this.filterBillsByHorizon(bills, horizon);
+        const tileSettings = this.dashboardConfig?.widgets?.tileSettings?.upcomingBills || {};
+        // Bills more than a week overdue drop off unless the tile is set to keep them
+        bills = this.filterBillsByHorizon(bills, horizon, null, { keepAllOverdue: !!tileSettings.showAllOverdue });
         // Bills shared with the user are listed unless the tile leaves them out
-        if (this.dashboardConfig?.widgets?.tileSettings?.upcomingBills?.excludeSharedBills) {
+        if (tileSettings.excludeSharedBills) {
             bills = bills.filter(bill => !bill._shared);
         }
         if (bills.length === 0) {
@@ -2551,9 +2583,12 @@ export default class DashboardModule {
      * @param {Array} bills - Bills as the API returns them
      * @param {number} horizonDays - How far ahead to look
      * @param {string} [todayStr] - YYYY-MM-DD, for testing
+     * @param {object} [options]
+     * @param {boolean} [options.keepAllOverdue=false] - Keep every overdue
+     *   bill, however late, for a tile set to show them all
      * @returns {Array} Matching bills, soonest first
      */
-    filterBillsByHorizon(bills, horizonDays, todayStr = null) {
+    filterBillsByHorizon(bills, horizonDays, todayStr = null, { keepAllOverdue = false } = {}) {
         const today = todayStr || formatters.getTodayDateString();
         const dueOf = (b) => b.nextDueDate || b.next_due_date;
         return (Array.isArray(bills) ? bills : [])
@@ -2561,7 +2596,7 @@ export default class DashboardModule {
                 const due = dueOf(b);
                 if (!due) return false;
                 const days = formatters.daysBetweenDates(today, due);
-                return days >= -7 && days <= horizonDays;
+                return (keepAllOverdue || days >= -7) && days <= horizonDays;
             })
             .sort((a, b) => (dueOf(a) || '').localeCompare(dueOf(b) || ''));
     }
@@ -5157,9 +5192,11 @@ export default class DashboardModule {
             `);
         }
 
-        const sharedBillsField = this._excludeSharedBillsField(schema, currentSettings);
-        if (sharedBillsField) {
-            fields.push(sharedBillsField);
+        for (const field of [
+            this._excludeSharedBillsField(schema, currentSettings),
+            this._showAllOverdueField(schema, currentSettings),
+        ]) {
+            if (field) fields.push(field);
         }
 
         // Show legend (checkbox)

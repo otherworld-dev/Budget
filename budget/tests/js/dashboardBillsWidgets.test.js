@@ -161,3 +161,31 @@ describe('Upcoming Bills and bills shared with the user', () => {
         expect(withShared._excludeSharedBillsField({}, {})).toBe('');
     });
 });
+
+describe('Upcoming Bills and bills overdue for more than a week', () => {
+    it('hides them by default and shows them once the tile is set to, with no refetch', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(2026, 9, 2));
+        const dash = makeDashboard({ upcomingBills: [bill('Council tax', '2026-09-20'), bill('Water rates', '2026-10-03')] });
+
+        dash.updateUpcomingBillsWidget();
+        expect(document.getElementById('upcoming-bills').innerHTML).not.toContain('Council tax');
+        expect(document.getElementById('upcoming-bills').innerHTML).toContain('Water rates');
+
+        dash.dashboardConfig.widgets.tileSettings.upcomingBills = { showAllOverdue: true };
+        dash.refreshTileAfterSettingsChange('upcomingBills', 'widgets');
+
+        expect(document.getElementById('upcoming-bills').innerHTML).toContain('Council tax');
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('offers the setting on the tile, unticked until the user turns it on', () => {
+        const dash = makeDashboard({});
+        const schema = { showAllOverdue: true };
+
+        expect(dash._showAllOverdueField(schema, {})).toContain('data-setting="showAllOverdue"');
+        expect(dash._showAllOverdueField(schema, {})).not.toContain('checked');
+        expect(dash._showAllOverdueField(schema, { showAllOverdue: true })).toContain('checked');
+        expect(dash._showAllOverdueField({}, {})).toBe('');
+    });
+});
