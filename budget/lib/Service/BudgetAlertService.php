@@ -43,6 +43,7 @@ class BudgetAlertService {
 		private BudgetCarryoverService $carryoverService,
 		private INotificationManager $notificationManager,
 		private AmountFormatter $amountFormatter,
+		private ?GranularShareService $granularShareService = null,
 	) {
 		$this->categoryMapper = $categoryMapper;
 		$this->budgetSnapshotMapper = $budgetSnapshotMapper;
@@ -206,18 +207,44 @@ class BudgetAlertService {
 	}
 
 	/**
+	 * The accounts spending is measured over: the ones asked for, or every
+	 * account the user can see, own and shared, as on the Budget page.
+	 * The background notifications, the Nextcloud dashboard widget and the
+	 * digest ask with none, and measured the user's own accounts only, so a
+	 * bill paid from a shared account showed over budget on the alerts tile
+	 * while no notification came and the widget said nothing was spent.
+	 *
+	 * @param int[]|null $visibleAccountIds
+	 * @return int[]|null
+	 */
+	private function spendingScope(string $userId, ?array $visibleAccountIds): ?array {
+		return $visibleAccountIds ?? $this->granularShareService?->getVisibleAccountIds($userId);
+	}
+
+	/**
+	 * Whether a category has a spending budget the alerts and their totals
+	 * measure. An income category's target is money to come in, not a
+	 * limit: measured by net debits, a salary that arrived was "spent"
+	 * -3000, and its target swelled the budget totals.
+	 */
+	private function isSpendingBudget($category): bool {
+		return !$category->getExcludedFromReports() && $category->getType() !== 'income';
+	}
+
+	/**
 	 * Get all budget alerts for a user.
 	 *
 	 * @return array Array of alerts with category info, spent, budget, percentage, and severity
 	 */
 	public function getAlerts(string $userId, ?array $visibleAccountIds = null): array {
 		$alerts = [];
+		$visibleAccountIds = $this->spendingScope($userId, $visibleAccountIds);
 
 		// Get all categories and resolve effective budgets for current month
 		$categories = $this->categoryMapper->findAll($userId);
 		$currentMonth = $this->currentBudgetMonth($userId);
 		$snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $currentMonth);
-		$recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId);
+		$recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId, $currentMonth);
 		$carryovers = $this->carryoverService->getCarryovers($userId, $currentMonth, $categories, $visibleAccountIds);
 		$notBudgeted = BudgetScope::excludedCategoryIds($categories);
 		$alertScope = $this->getAlertScope($userId);
@@ -230,7 +257,7 @@ class BudgetAlertService {
 		$resolvedBudgets = [];
 		$budgetedIds = [];
 		foreach ($categories as $category) {
-			if ($category->getExcludedFromReports() || isset($notBudgeted[$category->getId()])) {
+			if (!$this->isSpendingBudget($category) || isset($notBudgeted[$category->getId()])) {
 				continue;
 			}
 			$resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);
@@ -411,11 +438,12 @@ class BudgetAlertService {
 	 */
 	public function getBudgetStatus(string $userId, ?array $visibleAccountIds = null): array {
 		$statuses = [];
+		$visibleAccountIds = $this->spendingScope($userId, $visibleAccountIds);
 
 		$categories = $this->categoryMapper->findAll($userId);
 		$currentMonth = $this->currentBudgetMonth($userId);
 		$snapshotOverrides = $this->budgetSnapshotMapper->findEffectiveBatch($userId, $currentMonth);
-		$recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId);
+		$recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId, $currentMonth);
 		$carryovers = $this->carryoverService->getCarryovers($userId, $currentMonth, $categories, $visibleAccountIds);
 		$notBudgeted = BudgetScope::excludedCategoryIds($categories);
 
@@ -424,7 +452,7 @@ class BudgetAlertService {
 		$resolvedBudgets = [];
 		$budgetedIds = [];
 		foreach ($categories as $category) {
-			if ($category->getExcludedFromReports() || isset($notBudgeted[$category->getId()])) {
+			if (!$this->isSpendingBudget($category) || isset($notBudgeted[$category->getId()])) {
 				continue;
 			}
 			$resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);

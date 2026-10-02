@@ -231,24 +231,25 @@ class GoalsService {
 	 * @return SavingsGoal[]
 	 */
 	private function enrichWithTagAmounts(array $goals, string $userId): array {
+		// A goal with a linked account is held to that account, one query
+		// each; the rest share one batch
 		$tagIds = [];
 		foreach ($goals as $goal) {
-			if ($goal->getTagId() !== null) {
+			if ($goal->getTagId() !== null && $goal->getAccountId() === null) {
 				$tagIds[] = $goal->getTagId();
 			}
 		}
 
-		if (empty($tagIds)) {
-			return $goals;
-		}
-
-		$sums = $this->transactionTagMapper->sumTransactionAmountsByTags($tagIds, $userId);
+		$sums = empty($tagIds) ? [] : $this->transactionTagMapper->sumTransactionAmountsByTags($tagIds, $userId);
 
 		foreach ($goals as $goal) {
 			$tagId = $goal->getTagId();
-			if ($tagId !== null) {
-				$goal->setCurrentAmount($sums[$tagId] ?? 0.0);
+			if ($tagId === null) {
+				continue;
 			}
+			$goal->setCurrentAmount($goal->getAccountId() !== null
+				? $this->transactionTagMapper->sumTransactionAmountsByTag($tagId, $userId, $goal->getAccountId())
+				: ($sums[$tagId] ?? 0.0));
 		}
 
 		return $goals;
@@ -258,7 +259,7 @@ class GoalsService {
 		if ($goal->getTagId() !== null) {
 			// Tag sums are always scoped to the goal's owner so that shared
 			// goals reflect the owner's tagged transactions, not the viewer's.
-			$sum = $this->transactionTagMapper->sumTransactionAmountsByTag($goal->getTagId(), $goal->getUserId());
+			$sum = $this->transactionTagMapper->sumTransactionAmountsByTag($goal->getTagId(), $goal->getUserId(), $goal->getAccountId());
 			$goal->setCurrentAmount($sum);
 		}
 		return $goal;

@@ -364,6 +364,25 @@ class CurrencyConversionServiceTest extends TestCase {
 
 	// ===== Helpers =====
 
+	/**
+	 * Between two currencies neither of which is the base one, at the
+	 * user's own rate where they set one. Unlike convert(), a missing rate
+	 * is no answer rather than the amount unchanged.
+	 */
+	public function testConvertBetweenUsesTheUsersRatesAndSaysWhenItCannot(): void {
+		$manual = new ManualExchangeRate();
+		$manual->setRatePerEur('1.2000000000');
+		$this->manualRateMapper->method('findByUserAndCurrency')
+			->willReturnCallback(fn ($userId, $currency) => $currency === 'USD' ? $manual : null);
+		$this->exchangeRateService->method('getRateLocal')
+			->willReturnCallback(fn (string $currency) => $currency === 'GBP' ? '0.8000000000' : null);
+
+		// 100 GBP = 125 EUR = 150 USD at the user's rate
+		$this->assertEqualsWithDelta(150.0, (float)$this->service->convertBetween(100.0, 'GBP', 'USD', 'user1'), 0.0001);
+		$this->assertSame('100', $this->service->convertBetween(100.0, 'GBP', 'gbp', 'user1'));
+		$this->assertNull($this->service->convertBetween(100.0, 'GBP', 'JPY', 'user1'));
+	}
+
 	private function makeAccount(?string $currency, int $id): Account {
 		$account = new Account();
 		$account->setId($id);

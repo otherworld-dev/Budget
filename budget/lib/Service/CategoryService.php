@@ -827,7 +827,7 @@ class CategoryService extends AbstractCrudService {
 
 		// Recurring fallback only applies to current/future months (#269)
 		$recurring = $month >= $this->carryoverService->currentBudgetMonth($userId)
-			? $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId)
+			? $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId, $month)
 			: [];
 
 		$result = [];

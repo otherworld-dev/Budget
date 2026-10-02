@@ -93,23 +93,23 @@ describe('the transfer list', () => {
         expect(shown()).toEqual(['3']);
     });
 
-    it('counts a monthly total without one-time transfers, and a daily one every day', () => {
-        const mod = makeModule([
-            transfer({ id: 1, frequency: 'one-time', amount: 500 }),
-            transfer({ id: 2, frequency: 'daily', amount: 1 }),
-            transfer({ id: 3, frequency: 'monthly', amount: 100, isActive: false }),
-        ]);
+    it('shows the monthly total the server works out', async () => {
+        // The server leaves out one-time transfers and converts each from its
+        // account's currency; adding the amounts here mixed currencies
+        const mod = makeModule([transfer({ id: 1, frequency: 'one-time', amount: 500 })]);
+        global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ monthlyTotal: 30.42, baseCurrency: 'GBP' }) }));
 
-        mod.updateSummary();
+        await mod.updateSummary();
 
-        // 365/12 days of 1.00
+        expect(global.fetch.mock.calls[0][0]).toContain('/apps/budget/api/bills/summary?isTransfer=true');
         expect(document.getElementById('transfers-monthly-total').textContent).toContain('30.42');
     });
 
-    it('counts what is due this month by the date itself', () => {
+    it('counts what is due this month by the date itself', async () => {
         const mod = makeModule([transfer({ nextDueDate: localDate(0) })]);
+        global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ monthlyTotal: 0 }) }));
 
-        mod.updateSummary();
+        await mod.updateSummary();
 
         expect(document.getElementById('transfers-due-count').textContent).toBe('1');
     });

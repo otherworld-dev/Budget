@@ -19,6 +19,7 @@ return [
 		['name' => 'account#summary', 'url' => '/api/accounts/summary', 'verb' => 'GET'],
 		['name' => 'account#getBalanceHistory', 'url' => '/api/accounts/{id}/balance-history', 'verb' => 'GET'],
 		['name' => 'account#getMetrics', 'url' => '/api/accounts/{id}/metrics', 'verb' => 'GET'],
+		['name' => 'account#paymentTransfers', 'url' => '/api/accounts/{id}/payment-transfers', 'verb' => 'GET'],
 		['name' => 'account#reconcile', 'url' => '/api/accounts/{id}/reconcile', 'verb' => 'POST'],
 		['name' => 'account#completeReconciliation', 'url' => '/api/accounts/{id}/reconcile/complete', 'verb' => 'POST'],
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service;
 
+use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\RecurringIncome;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\ShareItem;
@@ -39,6 +40,8 @@ class RecurringIncomeService extends AbstractCrudService {
 		?AutoShareService $autoShareService = null,
 		private ?UserClock $userClock = null,
 		private ?GranularShareService $granularShareService = null,
+		private ?AccountMapper $accountMapper = null,
+		private ?CurrencyConversionService $currencyConversion = null,
 	) {
 		$this->mapper = $mapper;
 		$this->frequencyCalculator = $frequencyCalculator;
@@ -483,8 +486,15 @@ class RecurringIncomeService extends AbstractCrudService {
 	/**
 	 * Get monthly summary of recurring income.
 	 */
-	public function getMonthlySummary(string $userId): array {
-		$incomes = $this->findActive($userId);
+	public function getMonthlySummary(string $userId, ?int $accountId = null): array {
+		// Held to one account for a dashboard tile set to it
+		$inAccount = static fn (RecurringIncome $i) => $accountId === null || $i->getAccountId() === $accountId;
+		$incomes = array_values(array_filter($this->findActive($userId), $inAccount));
+		// Each income is in its account's currency; the totals are in the
+		// user's base one, as the Bills page's are. Adding them as they
+		// were put euros and dollars into a pound total.
+		$baseCurrency = $this->baseCurrency($userId);
+		$currencies = $this->accountCurrencies(array_map(fn (RecurringIncome $i) => $i->getAccountId(), $incomes));
 		$totalMonthly = 0.0;
 		$expectedThisMonth = 0;
 		$receivedThisMonth = 0;
@@ -494,7 +504,12 @@ class RecurringIncomeService extends AbstractCrudService {
 		$endOfMonth = date('Y-m-t');
 
 		foreach ($incomes as $income) {
-			$monthlyEquiv = $this->getMonthlyEquivalent($income);
+			$monthlyEquiv = $this->toBase(
+				$this->getMonthlyEquivalent($income),
+				$currencies[$income->getAccountId() ?? 0] ?? $baseCurrency,
+				$baseCurrency,
+				$userId
+			);
 			$totalMonthly += $monthlyEquiv;
 
 			$freq = $income->getFrequency();
@@ -515,7 +530,7 @@ class RecurringIncomeService extends AbstractCrudService {
 
 		// Every income, not just active ones: receiving a one-time income
 		// completes it, which left it out of the count the moment it arrived
-		foreach ($this->mapper->findAll($userId) as $income) {
+		foreach (array_filter($this->findAll($userId), $inAccount) as $income) {
 			$lastReceived = $income->getLastReceivedDate();
 			if ($lastReceived && $lastReceived >= $startOfMonth && $lastReceived <= $endOfMonth) {
 				$receivedThisMonth++;
@@ -531,7 +546,75 @@ class RecurringIncomeService extends AbstractCrudService {
 			'totalMonthly' => round($totalMonthly, 2),
 			'totalYearly' => round($totalMonthly * 12, 2),
 			'byFrequency' => $byFrequency,
+			'baseCurrency' => $baseCurrency,
 		];
+	}
+
+	/**
+	 * Set each income's currency: its account's, whoever owns the account,
+	 * or the user's base currency when it has none.
+	 *
+	 * @param RecurringIncome[] $incomes
+	 * @return RecurringIncome[]
+	 */
+	public function enrichWithCurrency(array $incomes, string $userId): array {
+		$baseCurrency = $this->baseCurrency($userId);
+		$currencies = $this->accountCurrencies(array_map(fn (RecurringIncome $i) => $i->getAccountId(), $incomes));
+		foreach ($incomes as $income) {
+			$income->setCurrency($currencies[$income->getAccountId() ?? 0] ?? $baseCurrency);
+		}
+		return $incomes;
+	}
+
+	/**
+	 * enrichWithCurrency() for income other people shared: serialized rows
+	 * carrying their owner's userId, priced as the owner sees them.
+	 *
+	 * @param array[] $rows
+	 * @return array[]
+	 */
+	public function enrichSharedWithCurrency(array $rows): array {
+		$currencies = $this->accountCurrencies(array_column($rows, 'accountId'));
+		$bases = [];
+		foreach ($rows as &$row) {
+			$owner = (string)($row['userId'] ?? '');
+			$bases[$owner] ??= $this->baseCurrency($owner);
+			$row['currency'] = $currencies[(int)($row['accountId'] ?? 0)] ?? $bases[$owner];
+		}
+		unset($row);
+		return $rows;
+	}
+
+	/**
+	 * Account id => currency for the accounts named, whoever owns them: an
+	 * income can be paid into an account another user shared.
+	 *
+	 * @param array<int|null> $accountIds
+	 * @return array<int, string>
+	 */
+	private function accountCurrencies(array $accountIds): array {
+		$ids = array_values(array_unique(array_filter(array_map('intval', array_filter($accountIds, fn ($id) => $id !== null)))));
+		if ($ids === [] || $this->accountMapper === null) {
+			return [];
+		}
+		$map = [];
+		foreach ($this->accountMapper->findByIds($ids) as $account) {
+			if ($account->getCurrency()) {
+				$map[$account->getId()] = $account->getCurrency();
+			}
+		}
+		return $map;
+	}
+
+	private function baseCurrency(string $userId): ?string {
+		return $this->currencyConversion?->getBaseCurrency($userId);
+	}
+
+	private function toBase(float $amount, ?string $from, ?string $base, string $userId): float {
+		if ($this->currencyConversion === null || $from === null || $base === null || $from === $base) {
+			return $amount;
+		}
+		return $this->currencyConversion->convertToBaseFloat($amount, $from, $userId);
 	}
 
 	/**

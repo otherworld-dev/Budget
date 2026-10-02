@@ -562,6 +562,27 @@ class CategoryControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
 	}
 
+	// ── recurring budgets ───────────────────────────────────────────
+
+	/**
+	 * The page's "auto" hint is the month it shows, and a shared category's
+	 * is its owner's figure, the one its Remaining is measured against.
+	 */
+	public function testRecurringBudgetsAreTheViewersForTheMonthShown(): void {
+		$this->recurringBudgetService->expects($this->once())->method('getMonthlyBudgetsForViewer')
+			->with('user1', '2026-11')->willReturn([10 => 50.0]);
+
+		$response = $this->controller->recurringBudgets('2026-11');
+
+		$this->assertSame(['budgets' => [10 => 50.0]], $response->getData());
+	}
+
+	public function testRecurringBudgetsRefuseAMalformedMonth(): void {
+		$this->recurringBudgetService->expects($this->never())->method('getMonthlyBudgetsForViewer');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->recurringBudgets('2026-13')->getStatus());
+	}
+
 	// ── allSpending ─────────────────────────────────────────────────
 
 	public function testAllSpendingReturnsData(): void {

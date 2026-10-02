@@ -194,6 +194,7 @@ class BillControllerTest extends TestCase {
 		// Shared rows were merged in unfiltered: shared transfers showed on
 		// the Bills page, shared bills on Transfers, ended ones everywhere
 		$this->service->method('findByType')->willReturn([]);
+		$this->service->method('enrichSharedBillsWithCurrency')->willReturnArgument(0);
 		$this->granularShareService->method('getSharedBills')->willReturn([
 			['id' => 7, 'isTransfer' => false, 'isActive' => true],
 			['id' => 8, 'isTransfer' => true, 'isActive' => true],

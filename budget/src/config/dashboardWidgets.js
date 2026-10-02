@@ -82,7 +82,7 @@ export const DASHBOARD_WIDGETS = {
         // Phase 3 - Advanced Features (lazy loaded with charts)
         cashFlowForecast: { id: 'cash-flow-forecast-card', name: t('budget', 'Cash Flow Forecast'), defaultSize: 'l', allowedSizes: ['s', 'm', 'l'], defaultVisible: false, category: 'forecasting', settingsSchema: { forecastMonths: true, excludeShared: true } },
         yoyComparison: { id: 'yoy-comparison-card', name: t('budget', 'Year-over-Year'), defaultSize: 'l', allowedSizes: ['s', 'm', 'l'], defaultVisible: false, category: 'insights', settingsSchema: { yearsToCompare: true, accountSelector: true, excludeShared: true, showLegend: true } },
-        incomeTracking: { id: 'income-tracking-card', name: t('budget', 'Income Tracking'), defaultSize: 'hero', defaultVisible: false, category: 'income', settingsSchema: { accountSelector: true, showLegend: true } },
+        incomeTracking: { id: 'income-tracking-card', name: t('budget', 'Income Tracking'), defaultSize: 'hero', defaultVisible: false, category: 'income', settingsSchema: { accountSelector: true } },
         recentImports: { id: 'recent-imports-card', name: t('budget', 'Recent Imports'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: false, category: 'transactions', settingsSchema: {} },
         ruleEffectiveness: { id: 'rule-effectiveness-card', name: t('budget', 'Rule Effectiveness'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: false, category: 'insights', settingsSchema: {} },
         spendingVelocity: { id: 'spending-velocity-card', name: t('budget', 'Spending Velocity'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: false, category: 'insights', settingsSchema: {} },

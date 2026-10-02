@@ -124,6 +124,32 @@ class CurrencyConversionService {
 	}
 
 	/**
+	 * Convert an amount between any two currencies at the user's rates:
+	 * their own standing rate where they set one, else the automatic one.
+	 * Null when either rate is unknown - unlike convert(), which hands the
+	 * amount back unchanged, so a caller booking money can refuse rather
+	 * than book the same number in another currency.
+	 *
+	 * @param string|float $amount
+	 * @return string|null converted amount (bcmath precision)
+	 */
+	public function convertBetween($amount, string $fromCurrency, string $toCurrency, string $userId, ?string $date = null): ?string {
+		$fromCurrency = strtoupper($fromCurrency);
+		$toCurrency = strtoupper($toCurrency);
+		if ($fromCurrency === $toCurrency) {
+			return (string)$amount;
+		}
+
+		$fromRate = $this->getEffectiveRate($fromCurrency, $userId, $date);
+		$toRate = $this->getEffectiveRate($toCurrency, $userId, $date);
+		if ($fromRate === null || $toRate === null) {
+			return null;
+		}
+
+		return bcmul((string)$amount, bcdiv($toRate, $fromRate, 10), 10);
+	}
+
+	/**
 	 * Convert an amount to the user's base currency, returning a float.
 	 *
 	 * @param string|float $amount The amount to convert

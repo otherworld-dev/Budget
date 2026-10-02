@@ -755,11 +755,16 @@ class CategoryController extends Controller {
 	 * Get the monthly-normalized recurring total committed per category, derived
 	 * from active recurring bills and recurring income (#269). The budget view
 	 * uses these as an automatic fallback for categories with no manual budget.
+	 * For the month the page shows, and for a category shared with the user,
+	 * its owner's figure, the one its Remaining is measured against.
 	 * @NoAdminRequired
 	 */
-	public function recurringBudgets(): DataResponse {
+	public function recurringBudgets(?string $month = null): DataResponse {
 		try {
-			$budgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($this->userId);
+			if ($month !== null && !preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {
+				return new DataResponse(['error' => $this->l->t('Invalid month format. Use YYYY-MM')], Http::STATUS_BAD_REQUEST);
+			}
+			$budgets = $this->recurringBudgetService->getMonthlyBudgetsForViewer($this->userId, $month);
 			return new DataResponse(['budgets' => $budgets]);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to retrieve recurring budgets'));

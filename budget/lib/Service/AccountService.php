@@ -6,6 +6,7 @@ namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\InterestRateMapper;
 use OCA\Budget\Db\PensionRecurringContributionMapper;
 use OCA\Budget\Db\ShareItem;
@@ -13,6 +14,7 @@ use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Enum\AccountType;
 use OCA\Budget\Enum\Currency;
 use OCA\Budget\Exception\AccountInUseException;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\Entity;
 use OCP\IL10N;
 
@@ -42,6 +44,7 @@ class AccountService extends AbstractCrudService {
 		?AutoShareService $autoShareService = null,
 		?AccountClosureService $closureService = null,
 		?BudgetCarryoverService $carryoverService = null,
+		private ?BillMapper $billMapper = null,
 		private ?PensionRecurringContributionMapper $pensionRecurringMapper = null,
 	) {
 		$this->mapper = $mapper;
@@ -343,6 +346,10 @@ class AccountService extends AbstractCrudService {
 		$accountData = $account->toArrayMasked();
 		$accountData['balance'] = MoneyCalculator::toFloat($balance);
 		$accountData['storedBalance'] = MoneyCalculator::toFloat($storedBalance);
+		$accountData['projectedBalance'] = $this->projectedBalance(
+			$account,
+			$this->transactionMapper->getScheduledNetChangeForAccounts([$id])
+		);
 
 		// Add fiat equivalent for non-base-currency accounts
 		$baseCurrency = $this->conversionService->getBaseCurrency($userId);
@@ -361,10 +368,14 @@ class AccountService extends AbstractCrudService {
 		// Get future transaction adjustments for all accounts in one query
 		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, date('Y-m-d'));
 		$baseCurrency = $this->conversionService->getBaseCurrency($userId);
+		$accounts = $this->findAll($userId);
+		$scheduled = $this->transactionMapper->getScheduledNetChangeForAccounts(
+			array_map(fn (Account $account) => $account->getId(), $accounts)
+		);
 
 		return array_map(
-			fn (Account $account) => $this->withCurrentBalance($account, $futureChanges, $baseCurrency, $userId),
-			$this->findAll($userId)
+			fn (Account $account) => $this->withCurrentBalance($account, $futureChanges, $baseCurrency, $userId, $scheduled),
+			$accounts
 		);
 	}
 
@@ -385,12 +396,14 @@ class AccountService extends AbstractCrudService {
 		$futureChanges = $this->transactionMapper->getNetChangeAfterDateForAccounts($ids, date('Y-m-d'));
 		$baseCurrency = $this->conversionService->getBaseCurrency($userId);
 
+		$scheduled = $this->transactionMapper->getScheduledNetChangeForAccounts($ids);
+
 		/** @var AccountMapper $mapper */
 		$mapper = $this->mapper;
 		return array_map(
 			// _canWrite lets pickers for new activity leave out an account
 			// shared read-only, where anything posted can only be refused
-			fn (Account $account) => $this->withCurrentBalance($account, $futureChanges, $baseCurrency, $userId) + [
+			fn (Account $account) => $this->withCurrentBalance($account, $futureChanges, $baseCurrency, $userId, $scheduled) + [
 				'_shared' => true,
 				'_canWrite' => $this->granularShareService->canWrite($userId, ShareItem::TYPE_ACCOUNT, $account->getId()),
 			],
@@ -404,8 +417,9 @@ class AccountService extends AbstractCrudService {
 	 * crypto keeps its 8dp (#331), plus its base-currency equivalent.
 	 *
 	 * @param array<int, float> $futureChanges account id => net change after today
+	 * @param array<int, float>|null $scheduled account id => net of its scheduled rows, for projectedBalance
 	 */
-	private function withCurrentBalance(Account $account, array $futureChanges, string $baseCurrency, string $userId): array {
+	private function withCurrentBalance(Account $account, array $futureChanges, string $baseCurrency, string $userId, ?array $scheduled = null): array {
 		// Floats go to MoneyCalculator as they are: (string) writes a tiny one
 		// in scientific notation ("1.0E-5"), which bcmath refuses outright, so
 		// a crypto account holding dust failed the whole list
@@ -416,10 +430,30 @@ class AccountService extends AbstractCrudService {
 		$accountData = $account->toArrayMasked();
 		$balanceFloat = MoneyCalculator::toFloat($balance);
 		$accountData['balance'] = $balanceFloat;
+		if ($scheduled !== null) {
+			$accountData['projectedBalance'] = $this->projectedBalance($account, $scheduled);
+		}
 		// Fiat equivalent for non-base-currency accounts
 		$this->addConvertedBalance($accountData, $balanceFloat, $account->getCurrency(), $baseCurrency, $userId);
 
 		return $accountData;
+	}
+
+	/**
+	 * The balance once everything booked into the account has gone through:
+	 * the stored balance (future-dated real rows included) plus its
+	 * scheduled rows, the pre-booked bills, transfers and income (#163).
+	 * The account page showed it only when it differed from today's
+	 * balance, and was never given it.
+	 *
+	 * @param array<int, float> $scheduled account id => net of its scheduled rows
+	 */
+	private function projectedBalance(Account $account, array $scheduled): float {
+		return MoneyCalculator::toFloat(MoneyCalculator::add(
+			(float)($account->getBalance() ?? 0),
+			(float)($scheduled[$account->getId()] ?? 0),
+			Currency::decimalsFor($account->getCurrency())
+		));
 	}
 
 	/**
@@ -597,6 +631,46 @@ class AccountService extends AbstractCrudService {
 			'thisMonthExpenses' => $metrics['monthExpenses'],
 			'avgTransaction' => $metrics['average'],
 		];
+	}
+
+	/**
+	 * The active transfers paying into an account, set up by anyone who can
+	 * use it. A card shared between two people is paid by whichever of them
+	 * set the payment up; each saw only their own transfers, so the other
+	 * was offered to set up a second payment into the same card.
+	 *
+	 * @return array<array{nextDueDate: ?string, amount: float, amountType: string, mine: bool}>
+	 * @throws DoesNotExistException when the account isn't one the user can see
+	 */
+	public function getPaymentTransfers(int $accountId, string $userId): array {
+		if (!$this->canSee($userId, $accountId)) {
+			throw new DoesNotExistException('Account ' . $accountId . ' is not accessible to ' . $userId);
+		}
+		if ($this->billMapper === null) {
+			return [];
+		}
+
+		/** @var AccountMapper $mapper */
+		$mapper = $this->mapper;
+		$owner = $mapper->findById($accountId)->getUserId();
+		$payments = [];
+		foreach ($this->billMapper->findActiveTransfersInto($accountId) as $bill) {
+			// Someone the account is no longer shared with doesn't pay into it
+			if ($bill->getUserId() !== $owner && !$this->canSee($bill->getUserId(), $accountId)) {
+				continue;
+			}
+			$payments[] = [
+				'nextDueDate' => $bill->getNextDueDate(),
+				'amount' => (float)$bill->getAmount(),
+				'amountType' => $bill->getAmountType() ?? 'fixed',
+				'mine' => $bill->getUserId() === $userId,
+			];
+		}
+		return $payments;
+	}
+
+	private function canSee(string $userId, int $accountId): bool {
+		return in_array($accountId, array_map('intval', $this->granularShareService->getVisibleAccountIds($userId)), true);
 	}
 
 	public function reconcile(int $accountId, string $userId, float $statementBalance, ?string $statementDate = null): array {

@@ -205,7 +205,7 @@ export default class DashboardModule {
                 // 6-month summary for trend charts
                 apiFetch(`/apps/budget/api/reports/summary?startDate=${sixMonthsAgo}&endDate=${endOfMonth}&_=${cacheBuster}`).catch(orEmpty({})),
                 apiFetch(`/apps/budget/api/transactions?limit=${this._recentTxLimit()}`).catch(orEmpty([])),
-                apiFetch('/apps/budget/api/bills/upcoming').catch(() => null),
+                apiFetch(this.upcomingBillsUrl()).catch(() => null),
                 apiFetch(`/apps/budget/api/reports/budget?startDate=${periodStart}&endDate=${periodEnd}&snapshotMonth=${periodMonth}`).catch(() => null),
                 apiFetch('/apps/budget/api/savings-goals').catch(() => null),
                 apiFetch('/apps/budget/api/pensions/summary').catch(() => null),
@@ -942,7 +942,10 @@ export default class DashboardModule {
             return;
         }
 
-        const totalRemaining = budgetData.categories.reduce((sum, cat) => {
+        // Spending budgets only: an income target still to arrive is not
+        // money left to spend
+        const spending = budgetData.categories.filter(cat => cat.type !== 'income');
+        const totalRemaining = spending.reduce((sum, cat) => {
             const budget = cat.budgeted || cat.budget || 0;
             const spent = cat.spent || 0;
             const remaining = budget - spent;
@@ -954,7 +957,7 @@ export default class DashboardModule {
 
         const changeEl = document.getElementById('hero-budget-remaining-change');
         if (changeEl) {
-            const categoryCount = budgetData.categories.filter(c => {
+            const categoryCount = spending.filter(c => {
                 const budget = c.budgeted || c.budget || 0;
                 const spent = c.spent || 0;
                 return (budget - spent) > 0;
@@ -1778,6 +1781,38 @@ export default class DashboardModule {
         container.innerHTML = `<div class="empty-state-small">${message}</div>`;
     }
 
+    /**
+     * Upcoming Bills fetches as far ahead as its Look ahead setting can go
+     * and narrows at render time, so a settings change re-renders from
+     * cache. Without days the server's 30-day default applied, and a 60 or
+     * 90-day horizon showed nothing past 30 days.
+     */
+    upcomingBillsUrl() {
+        return `/apps/budget/api/bills/upcoming?days=${Math.max(...formatters.FORWARD_HORIZONS)}`;
+    }
+
+    /**
+     * A bills tile's Account and Rows settings: the bills paying from or
+     * into the account it is set to, as many as it is set to show. Both were
+     * offered and ignored, so the header named one account while the tile
+     * listed the first five bills of every account.
+     */
+    _tileBills(instanceId, bills) {
+        const settings = this.dashboardConfig?.widgets?.tileSettings?.[instanceId] || {};
+        const accountId = this._validAccountId(settings.accountId);
+        if (accountId) {
+            bills = bills.filter(bill => String(bill.accountId) === String(accountId)
+                || String(bill.destinationAccountId) === String(accountId));
+        }
+        return bills.slice(0, this._tileRowCount(instanceId));
+    }
+
+    /** A tile's Rows to show setting, five when unset. */
+    _tileRowCount(instanceId) {
+        const rowCount = parseInt(this.dashboardConfig?.widgets?.tileSettings?.[instanceId]?.rowCount, 10);
+        return rowCount > 0 ? rowCount : 5;
+    }
+
     updateUpcomingBillsWidget(bills) {
         const container = document.getElementById('upcoming-bills');
         if (!container) return;
@@ -1796,6 +1831,7 @@ export default class DashboardModule {
         if (tileSettings.excludeSharedBills) {
             bills = bills.filter(bill => !bill._shared);
         }
+        bills = this._tileBills('upcomingBills', bills);
         if (bills.length === 0) {
             this._emptyBillsState(container, t('budget', 'No upcoming bills'));
             return;
@@ -1803,7 +1839,7 @@ export default class DashboardModule {
 
         const todayStr = formatters.getTodayDateString();
 
-        container.innerHTML = bills.slice(0, 5).map(bill => {
+        container.innerHTML = bills.map(bill => {
             const dueDateStr = bill.nextDueDate || bill.next_due_date;
             const daysUntilDue = formatters.daysBetweenDates(todayStr, dueDateStr);
 
@@ -1874,8 +1910,11 @@ export default class DashboardModule {
                 : (spent > 0 ? 100 : 0);
             const actualPercentage = budgeted > 0 ? (spent / budgeted) * 100 : 0;
 
+            // An income target is money to come in: reaching or passing it
+            // is on track, never over budget
             let statusClass = 'good';
-            if (actualPercentage > 100 || (budgeted <= 0 && spent > 0)) statusClass = 'over';
+            if (cat.type === 'income') statusClass = 'good';
+            else if (actualPercentage > 100 || (budgeted <= 0 && spent > 0)) statusClass = 'over';
             else if (actualPercentage > 80) statusClass = 'danger';
             else if (actualPercentage > 50) statusClass = 'warning';
 
@@ -2536,7 +2575,7 @@ export default class DashboardModule {
         if (!container) return;
 
         const horizon = this._tileNumberSetting('billsDueSoon', 'forwardHorizon', formatters.FORWARD_HORIZONS, 30);
-        const bills = this.filterBillsByHorizon(this.widgetData.billsDueSoon, horizon);
+        const bills = this._tileBills('billsDueSoon', this.filterBillsByHorizon(this.widgetData.billsDueSoon, horizon));
         if (bills.length === 0) {
             this._emptyBillsState(container, t('budget', 'No bills due soon'));
             return;
@@ -2544,7 +2583,7 @@ export default class DashboardModule {
 
         const todayStr = formatters.getTodayDateString();
 
-        container.innerHTML = bills.slice(0, 5).map(bill => {
+        container.innerHTML = bills.map(bill => {
             const dueDateStr = bill.nextDueDate || bill.next_due_date;
             const daysUntilDue = formatters.daysBetweenDates(todayStr, dueDateStr);
 
@@ -2567,7 +2606,7 @@ export default class DashboardModule {
                         <div class="bill-widget-name">${dom.escapeHtml(bill.name)}</div>
                         <div class="bill-widget-due ${statusClass}">${dueText}</div>
                     </div>
-                    <div class="bill-widget-amount">${this.formatCurrency(bill.amount)}</div>
+                    <div class="bill-widget-amount">${this.formatCurrency(bill.amount, bill.currency)}</div>
                 </div>
             `;
         }).join('');
@@ -2601,31 +2640,49 @@ export default class DashboardModule {
             .sort((a, b) => (dueOf(a) || '').localeCompare(dueOf(b) || ''));
     }
 
+    /**
+     * Income Tracking: the monthly income rate in the base currency, how many
+     * of this month's payments have come in, and the next ones due, each in
+     * its account's currency. It was handed the summary endpoint and read it
+     * as a list, so it always said there was no recurring income.
+     */
     updateIncomeTrackingWidget() {
         const container = document.getElementById('income-tracking-content');
         if (!container) return;
 
-        const data = this.widgetData.incomeTracking;
-        if (!data || (!Array.isArray(data) && !data.incomes)) {
+        const { summary = null, incomes = [] } = this.widgetData.incomeTracking || {};
+        if (!summary || incomes.length === 0) {
             container.innerHTML = `<div class="empty-state-small">${t('budget', 'No recurring income set up')}</div>`;
             return;
         }
 
-        const incomes = Array.isArray(data) ? data : (data.incomes || []);
-        if (incomes.length === 0) {
-            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No recurring income set up')}</div>`;
-            return;
-        }
+        // Payments due this month: those still to come plus those already in
+        const received = summary.receivedThisMonth || 0;
+        const due = received + (summary.expectedThisMonth || 0);
+        const percent = due > 0 ? Math.round(received / due * 100) : 0;
+        const upcoming = [...incomes]
+            .sort((a, b) => (a.nextExpectedDate || '9999-12-31').localeCompare(b.nextExpectedDate || '9999-12-31'))
+            .slice(0, 5);
 
-        container.innerHTML = incomes.slice(0, 5).map(income => `
+        container.innerHTML = `
             <div class="widget-list-item">
                 <div class="widget-item-info">
-                    <div class="widget-item-name">${dom.escapeHtml(income.name)}</div>
-                    <div class="widget-item-meta">${income.frequency || 'monthly'}</div>
+                    <div class="widget-item-name">${t('budget', 'Monthly income')}</div>
+                    <div class="widget-item-meta">${t('budget', '{received} of {due} received this month', { received, due })}</div>
                 </div>
-                <div class="widget-item-amount positive">${this.formatCurrency(income.amount)}</div>
+                <div class="widget-item-amount positive">${this.formatCurrency(summary.monthlyTotal || 0, summary.baseCurrency || null)}</div>
             </div>
-        `).join('');
+            <div class="budget-progress-bar" ${progressBarAttrs(percent, t('budget', 'Income received this month'))}><div class="budget-progress-fill good" style="width: ${percent}%"></div></div>
+            ${upcoming.map(income => `
+                <div class="widget-list-item">
+                    <div class="widget-item-info">
+                        <div class="widget-item-name">${dom.escapeHtml(income.name)}</div>
+                        <div class="widget-item-meta">${income.nextExpectedDate ? dom.escapeHtml(formatters.formatDate(income.nextExpectedDate, this.settings)) : ''}</div>
+                    </div>
+                    <div class="widget-item-amount positive">${this.formatCurrency(income.amount, income.currency || null)}</div>
+                </div>
+            `).join('')}
+        `;
     }
 
     updateRecentImportsWidget() {
@@ -4632,7 +4689,19 @@ export default class DashboardModule {
                 }
 
                 case 'incomeTracking': {
-                    this.widgetData.incomeTracking = await apiFetch('/apps/budget/api/recurring-income/summary');
+                    // The headline from the summary, the list from the
+                    // incomes themselves, both held to the tile's account
+                    const accountId = this._validAccountId(this.dashboardConfig?.widgets?.tileSettings?.incomeTracking?.accountId);
+                    const [summary, incomes] = await Promise.all([
+                        apiFetch(`/apps/budget/api/recurring-income/summary${accountId ? `?accountId=${accountId}` : ''}`),
+                        apiFetch('/apps/budget/api/recurring-income?activeOnly=true'),
+                    ]);
+                    this.widgetData.incomeTracking = {
+                        summary,
+                        incomes: (Array.isArray(incomes) ? incomes : [])
+                            .filter(income => income.isActive !== false)
+                            .filter(income => !accountId || String(income.accountId) === String(accountId)),
+                    };
                     break;
                 }
 
@@ -4684,7 +4753,10 @@ export default class DashboardModule {
                     // Cached unfiltered: the horizon is applied at render time in
                     // updateBillsDueSoonWidget, so a settings change can re-render
                     // from cache instead of forcing a refetch.
-                    this.widgetData.billsDueSoon = await apiFetch('/apps/budget/api/bills?isTransfer=false');
+                    // Active bills and transfers, as Upcoming Bills and the
+                    // Nextcloud widget list them: it left transfers out and
+                    // kept inactive bills that still had a due date
+                    this.widgetData.billsDueSoon = await apiFetch('/apps/budget/api/bills?activeOnly=true');
                     break;
                 }
 
@@ -5414,7 +5486,8 @@ export default class DashboardModule {
             'weeklyTrend': () => this.loadWidgetData('weeklyTrend', true).then(() => this.updateWeeklyTrendWidget?.()),
             'categoryTrends': () => this.loadWidgetData('categoryTrends', true).then(() => this.updateCategoryTrendsWidget?.()),
             'billsDueSoon': () => this.updateBillsDueSoonWidget?.(),
-            'incomeTracking': () => this.updateIncomeTrackingWidget?.(),
+            // Its account is applied at fetch time
+            'incomeTracking': () => this.loadWidgetData('incomeTracking', true).then(() => this.updateIncomeTrackingWidget?.()),
             'cashFlowForecast': () => this.loadWidgetData('cashFlowForecast', true).then(() => this.updateCashFlowForecastWidget?.()),
             'yoyComparison': () => this.loadWidgetData('yoyComparison', true).then(() => this.updateYoyComparisonWidget?.()),
             // Hero widgets

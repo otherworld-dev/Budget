@@ -9,7 +9,7 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { isoWeekday } from '../../utils/helpers.js';
 import { apiFetch } from '../../utils/api.js';
-import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
+import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
 import { incomeRowState } from '../../utils/incomeStatus.js';
 import { selectPossiblyUnavailable, clearUnavailableOptions } from '../../utils/formSelects.js';
@@ -63,7 +63,8 @@ export default class IncomeModule {
 
             // Update summary cards
             document.getElementById('income-expected-count').textContent = summary.expectedThisMonth || 0;
-            document.getElementById('income-monthly-total').textContent = formatters.formatCurrency(summary.monthlyTotal || 0, null, this.settings);
+            // Converted to the base currency server-side
+            document.getElementById('income-monthly-total').textContent = formatters.formatCurrency(summary.monthlyTotal || 0, summary.baseCurrency || null, this.settings);
             document.getElementById('income-received-count').textContent = summary.receivedThisMonth || 0;
             document.getElementById('income-active-count').textContent = summary.activeCount || 0;
         } catch (error) {
@@ -114,7 +115,7 @@ export default class IncomeModule {
                             <span class="income-frequency">${frequencyLabel}</span>
                             ${source ? `<span class="income-source">${dom.escapeHtml(source)}</span>` : ''}
                         </div>
-                        <div class="income-amount">${formatters.formatCurrency(income.amount, null, this.settings)}</div>
+                        <div class="income-amount">${formatters.formatCurrency(income.amount, income.currency || accountCurrency(this.accounts, income.accountId), this.settings)}</div>
                     </div>
                     <div class="income-details">
                         <div class="income-next-date">
@@ -468,7 +469,9 @@ export default class IncomeModule {
             accountSelect.innerHTML = `<option value="">${t('budget', 'No specific account')}</option>`;
             // Closed accounts take no new income; one already selected stays (#372)
             pickableAccounts(this.accounts, currentValue).forEach(account => {
-                accountSelect.innerHTML += `<option value="${account.id}">${dom.escapeHtml(accountOptionLabel(account))}</option>`;
+                // Name the currency, as the bill form does: the income is in it
+                const currencyLabel = account.currency ? ` (${dom.escapeHtml(account.currency)})` : '';
+                accountSelect.innerHTML += `<option value="${account.id}">${dom.escapeHtml(accountOptionLabel(account))}${currencyLabel}</option>`;
             });
             if (currentValue) accountSelect.value = currentValue;
         }
@@ -720,6 +723,7 @@ export default class IncomeModule {
         list.innerHTML = detected.map((item, index) => {
             const confidenceClass = item.confidence >= 0.8 ? 'high' : item.confidence >= 0.5 ? 'medium' : 'low';
             const confidencePercent = Math.round(item.confidence * 100);
+            const currency = accountCurrency(this.accounts, item.accountId);
 
             return `
                 <div class="detected-bill-item" data-index="${index}">
@@ -729,14 +733,14 @@ export default class IncomeModule {
                     <div class="detected-bill-info">
                         <div class="detected-bill-name">${dom.escapeHtml(item.suggestedName)}</div>
                         <div class="detected-bill-meta">
-                            <span class="detected-bill-amount">${formatters.formatCurrency(item.amount, null, this.settings)}</span>
+                            <span class="detected-bill-amount">${formatters.formatCurrency(item.amount, currency, this.settings)}</span>
                             <span class="detected-bill-frequency">${item.frequency}</span>
                             <span class="detected-bill-occurrences">${n('budget', '%n occurrence', '%n occurrences', item.occurrences)}</span>
                             <span class="detected-bill-source">${t('budget', 'Source: {source}', { source: dom.escapeHtml(item.source) }, undefined, { escape: false })}</span>
                         </div>
                         <div class="detected-bill-confidence">
                             <span class="confidence-badge ${confidenceClass}">${t('budget', '{percent}% confidence', { percent: confidencePercent })}</span>
-                            ${item.amountVariance ? `<span class="variance-info">±${formatters.formatCurrency(item.amountVariance, null, this.settings)}</span>` : ''}
+                            ${item.amountVariance ? `<span class="variance-info">±${formatters.formatCurrency(item.amountVariance, currency, this.settings)}</span>` : ''}
                         </div>
                     </div>
                 </div>

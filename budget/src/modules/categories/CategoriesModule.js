@@ -1845,25 +1845,49 @@ export default class CategoriesModule {
     }
 
     /**
-     * Fetch the monthly-normalized recurring total committed per category (#269).
-     * Used as an automatic fallback budget for categories with no manual budget.
+     * Show another budget month. If the month changes again mid-load, the
+     * newer change loads and renders its own month; this one stops.
+     */
+    async changeBudgetMonth(month) {
+        this.budgetMonth = month;
+        await this.fetchEffectiveBudgets();
+        if (this.budgetMonth !== month) return;
+        // The auto budgets are the month's own: the bills running in it
+        await this.fetchRecurringBudgets();
+        if (this.budgetMonth !== month) return;
+        await this.calculateCategorySpending();
+        if (this.budgetMonth !== month) return;
+        this.renderBudgetTree();
+        this.updateBudgetSummary();
+        this.renderSnapshotControls();
+    }
+
+    /**
+     * Fetch the monthly-normalized recurring total committed per category (#269)
+     * for the month shown: the bills running in it, so a bill ending this
+     * month stops budgeting the next and its replacement starts. Used as an
+     * automatic fallback budget for categories with no manual budget; a
+     * category shared with the user carries its owner's figure.
      */
     async fetchRecurringBudgets() {
+        const month = this.budgetMonth;
         try {
-            const data = await apiFetch('/apps/budget/api/categories/recurring-budgets');
+            const query = month ? `?month=${encodeURIComponent(month)}` : '';
+            const data = await apiFetch(`/apps/budget/api/categories/recurring-budgets${query}`);
+            if (this.budgetMonth !== month) return;
             this._recurringBudgets = data.budgets || {};
         } catch (error) {
             console.error('Failed to fetch recurring budgets:', error);
-            this._recurringBudgets = {};
+            if (this.budgetMonth === month) this._recurringBudgets = {};
         }
     }
 
     /**
      * Recurring-derived budget for a category, converted from the monthly total
      * to the category's budget period. Returns 0 when there's no recurring item.
-     * Past months never get the fallback: the figures reflect TODAY's recurring
-     * bills/income, and applying them retroactively would rewrite history
-     * (including overriding budgets the user explicitly zeroed back then).
+     * Past months never get the fallback, as on the server: applying it
+     * retroactively would rewrite history (including overriding budgets the
+     * user explicitly zeroed back then).
      */
     _getRecurringBudgetAmount(categoryId, period) {
         if (this.budgetMonth && this.budgetMonth < this._currentBudgetMonth()) return 0;
@@ -2071,19 +2095,7 @@ export default class CategoriesModule {
         // Month selector
         const monthSelect = document.getElementById('budget-month');
         if (monthSelect) {
-            monthSelect.addEventListener('change', async (e) => {
-                const month = e.target.value;
-                this.budgetMonth = month;
-                // If the month changes again mid-load, the newer change
-                // loads and renders its own month; this one stops.
-                await this.fetchEffectiveBudgets();
-                if (this.budgetMonth !== month) return;
-                await this.calculateCategorySpending();
-                if (this.budgetMonth !== month) return;
-                this.renderBudgetTree();
-                this.updateBudgetSummary();
-                this.renderSnapshotControls();
-            });
+            monthSelect.addEventListener('change', (e) => this.changeBudgetMonth(e.target.value));
         }
 
         // Month navigation arrows

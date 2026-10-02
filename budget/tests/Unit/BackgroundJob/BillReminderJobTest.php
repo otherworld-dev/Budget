@@ -275,6 +275,44 @@ class BillReminderJobTest extends TestCase {
 		$this->invokeRun();
 	}
 
+	/**
+	 * A reminder for a bill on a dollar account said £50.00: the bills were
+	 * never given their account's currency, and the amount was formatted in
+	 * the user's default one.
+	 */
+	public function testRemindersAndAutoPayNoticesUseTheBillsCurrency(): void {
+		$this->mockGetAllUserIds(['user1']);
+		$this->settingService->method('get')->willReturn('GBP');
+		$tomorrow = (new \DateTime('+1 day'))->format('Y-m-d');
+		$reminded = $this->makeBill(['id' => 1, 'amount' => 50.0, 'reminderDays' => 3, 'nextDueDate' => $tomorrow]);
+		$autoPaid = $this->makeBill(['id' => 2, 'amount' => 20.0]);
+		$paidCopy = $this->makeBill(['id' => 2, 'amount' => 20.0]);
+		$this->billMapper->method('findActive')->willReturn([$reminded]);
+		$this->billMapper->method('findDueForAutoPay')->willReturn([$autoPaid]);
+		$this->billService->method('processAutoPay')->willReturn(['success' => true, 'bill' => $paidCopy]);
+		$this->billService->method('enrichBillsWithCurrency')->willReturnCallback(function (array $bills) {
+			foreach ($bills as $bill) {
+				$bill->setCurrency('USD');
+			}
+			return $bills;
+		});
+
+		$amounts = [];
+		$notification = $this->createMock(INotification::class);
+		foreach (['setApp', 'setUser', 'setDateTime', 'setObject'] as $method) {
+			$notification->method($method)->willReturnSelf();
+		}
+		$notification->method('setSubject')->willReturnCallback(function (string $subject, array $params) use (&$amounts, $notification) {
+			$amounts[$subject] = $params['amount'];
+			return $notification;
+		});
+		$this->notificationManager->method('createNotification')->willReturn($notification);
+
+		$this->invokeRun();
+
+		$this->assertSame(['bill_auto_paid' => '$20.00', 'bill_reminder' => '$50.00'], $amounts);
+	}
+
 	// ===== run() - Auto-Pay =====
 
 	public function testRunProcessesAutoPayBeforeReminders(): void {

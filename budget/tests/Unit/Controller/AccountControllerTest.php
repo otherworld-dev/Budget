@@ -197,6 +197,19 @@ class AccountControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
 	}
 
+	public function testPaymentTransfersComeFromTheService(): void {
+		$payments = [['nextDueDate' => '2026-10-25', 'amount' => 0.0, 'amountType' => 'statement', 'mine' => false]];
+		$this->service->method('getPaymentTransfers')->with(7, 'user1')->willReturn($payments);
+
+		$this->assertSame($payments, $this->controller->paymentTransfers(7)->getData());
+	}
+
+	public function testPaymentTransfersOfAnAccountOutOfReachAreNotFound(): void {
+		$this->service->method('getPaymentTransfers')->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException('no'));
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $this->controller->paymentTransfers(999)->getStatus());
+	}
+
 	// ── create ──────────────────────────────────────────────────────
 
 	public function testCreateSuccess(): void {

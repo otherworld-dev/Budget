@@ -12,7 +12,7 @@ import { apiFetch } from '../../utils/api.js';
 import { isoWeekday } from '../../utils/helpers.js';
 import { showMatchingTransactionDialog } from '../../utils/matchingDialog.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
-import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
+import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
 import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
 
@@ -199,7 +199,7 @@ export default class BillsModule {
                     <div class="bill-suggestion-row" data-index="${index}">
                         <div class="bill-suggestion-info">
                             <strong>${dom.escapeHtml(item.suggestedName || item.description)}</strong>
-                            <span class="bill-suggestion-meta">${formatters.formatCurrency(item.amount, null, this.settings)} &middot; ${item.frequency} &middot; <span class="detected-confidence ${confidenceClass}">${t('budget', '{percent}% confidence', { percent: Math.round(item.confidence * 100) })}</span></span>
+                            <span class="bill-suggestion-meta">${formatters.formatCurrency(item.amount, accountCurrency(this.accounts, item.accountId), this.settings)} &middot; ${item.frequency} &middot; <span class="detected-confidence ${confidenceClass}">${t('budget', '{percent}% confidence', { percent: Math.round(item.confidence * 100) })}</span></span>
                         </div>
                         <div class="bill-suggestion-actions">
                             <button class="primary bill-suggestion-create" data-index="${index}">${t('budget', 'Create bill')}</button>
@@ -991,16 +991,18 @@ export default class BillsModule {
         });
         const remaining = totalAmount - allocated;
         const el = document.getElementById('bill-split-remaining');
+        // In the chosen account's currency, the one the form's amount is in
+        const currency = accountCurrency(this.accounts, document.getElementById('bill-account')?.value);
         if (el) {
             const absRemaining = Math.abs(remaining);
             if (absRemaining < 0.01) {
                 el.textContent = t('budget', 'Balanced');
                 el.style.color = 'var(--color-success)';
             } else if (remaining > 0) {
-                el.textContent = t('budget', '{amount} remaining', { amount: formatters.formatCurrency(remaining, null, this.settings) });
+                el.textContent = t('budget', '{amount} remaining', { amount: formatters.formatCurrency(remaining, currency, this.settings) });
                 el.style.color = 'var(--color-warning)';
             } else {
-                el.textContent = t('budget', '{amount} over', { amount: formatters.formatCurrency(absRemaining, null, this.settings) });
+                el.textContent = t('budget', '{amount} over', { amount: formatters.formatCurrency(absRemaining, currency, this.settings) });
                 el.style.color = 'var(--color-error)';
             }
         }
@@ -1475,7 +1477,7 @@ export default class BillsModule {
                     <div class="detected-bill-info">
                         <label for="detected-${index}" class="detected-bill-name">${dom.escapeHtml(item.description || item.name)}</label>
                         <div class="detected-bill-meta">
-                            <span class="detected-amount">${formatters.formatCurrency(item.avgAmount || item.amount, null, this.settings)}</span>
+                            <span class="detected-amount">${formatters.formatCurrency(item.avgAmount || item.amount, accountCurrency(this.accounts, item.accountId), this.settings)}</span>
                             <span class="detected-frequency">${item.frequency}</span>
                             <span class="detected-confidence ${confidenceClass}">${t('budget', '{percent}% confidence', { percent: confidencePercent })}</span>
                         </div>

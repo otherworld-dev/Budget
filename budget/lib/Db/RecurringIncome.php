@@ -73,6 +73,9 @@ class RecurringIncome extends Entity implements JsonSerializable {
 	protected $excludedFromForecast;   // Extraordinary recurring item: keep its transactions out of the forecast
 	protected $receivedUndoState;      // JSON snapshot of the last markReceived, so undo really reverts it; internal, never serialized raw
 
+	// Non-persisted: the account's currency, set by RecurringIncomeService for API responses
+	protected ?string $currency = null;
+
 	public function __construct() {
 		$this->addType('id', 'integer');
 		$this->addType('amount', 'float');
@@ -108,7 +111,16 @@ class RecurringIncome extends Entity implements JsonSerializable {
 			'createdAt' => $this->getCreatedAt(),
 			'excludedFromForecast' => $this->getExcludedFromForecast() ?? false,
 			'canUndoReceived' => $this->canUndoReceived(),
+			'currency' => $this->getCurrency(),
 		];
+	}
+
+	public function getCurrency(): ?string {
+		return $this->currency;
+	}
+
+	public function setCurrency(?string $currency): void {
+		$this->currency = $currency;
 	}
 
 	/** Whether the last receipt can be reverted: it left a snapshot behind */

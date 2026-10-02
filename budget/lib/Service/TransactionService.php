@@ -39,6 +39,7 @@ class TransactionService {
 		private AuditService $auditService,
 		private \OCA\Budget\Db\PensionContributionMapper $pensionContributionMapper,
 		private UserClock $userClock,
+		private ?CurrencyConversionService $currencyConversion = null,
 	) {
 		$this->mapper = $mapper;
 		$this->accountMapper = $accountMapper;
@@ -198,13 +199,15 @@ class TransactionService {
 				throw new \Exception('Transfer must have a destination account');
 			}
 
+			[$withdrawalAmount, $depositAmount] = $this->transferLegAmounts($bill, $userId, $date);
+
 			// Create withdrawal from source account
 			$withdrawal = $this->create(
 				userId: $ownerUserId,
 				accountId: $bill->getAccountId(),
 				date: $date,
 				description: $bill->getDescription() ?? '',
-				amount: $bill->getAmount(),
+				amount: $withdrawalAmount,
 				type: 'debit',
 				categoryId: $bill->getCategoryId(),
 				vendor: $bill->getName(),
@@ -226,7 +229,7 @@ class TransactionService {
 				accountId: $bill->getDestinationAccountId(),
 				date: $date,
 				description: $bill->getDescription() ?? '',
-				amount: $bill->getAmount(),
+				amount: $depositAmount,
 				type: 'credit',
 				categoryId: $bill->getCategoryId(),
 				vendor: $bill->getName(),
@@ -282,6 +285,39 @@ class TransactionService {
 		}
 
 		return $transaction;
+	}
+
+	/**
+	 * What each leg of a recurring transfer books: [withdrawal, deposit].
+	 *
+	 * Between accounts in one currency both are the bill's amount. Across
+	 * currencies the same number used to be booked on both legs, so GBP 100
+	 * out arrived as EUR 100. The other leg is now converted at the bill
+	 * owner's rate for the day: a fixed amount is in the source account's
+	 * currency, while a statement or balance amount comes from the card it
+	 * pays, in the card's currency (#347).
+	 *
+	 * @return array{0: float, 1: float}
+	 * @throws \Exception when no rate between the two currencies is known,
+	 *                    rather than booking the same number in both
+	 */
+	private function transferLegAmounts(Bill $bill, string $userId, string $date): array {
+		$amount = (float)$bill->getAmount();
+		$from = strtoupper((string)$this->accountMapper->findById($bill->getAccountId())->getCurrency());
+		$to = strtoupper((string)$this->accountMapper->findById($bill->getDestinationAccountId())->getCurrency());
+		if ($from === '' || $to === '' || $from === $to || $this->currencyConversion === null) {
+			return [$amount, $amount];
+		}
+
+		$inDestinationCurrency = ($bill->getAmountType() ?? 'fixed') !== 'fixed';
+		[$amountCurrency, $otherCurrency] = $inDestinationCurrency ? [$to, $from] : [$from, $to];
+		$converted = $this->currencyConversion->convertBetween($amount, $amountCurrency, $otherCurrency, $userId, $date);
+		if ($converted === null) {
+			throw new \Exception("No exchange rate between {$amountCurrency} and {$otherCurrency} to book transfer {$bill->getName()}");
+		}
+		$converted = round((float)$converted, Currency::decimalsFor($otherCurrency));
+
+		return $inDestinationCurrency ? [$converted, $amount] : [$amount, $converted];
 	}
 
 	/**
@@ -1163,7 +1199,11 @@ class TransactionService {
 			// Compute running balance for each transaction on the current page
 			// by iterating over ALL account transactions chronologically.
 			// This avoids page-boundary issues entirely.
-			$allTx = $this->mapper->getAllTransactionsForBalance($accountId);
+			// Scheduled rows are not in the balance, so real rows carry the
+			// balance money has reached; a scheduled row carries where the
+			// balance will be once it and the scheduled rows before it go
+			// through (#163), shown as projected. They used to get none.
+			$allTx = $this->mapper->getAllTransactionsForBalance($accountId, true);
 
 			$pageIds = [];
 			foreach ($result['transactions'] as $tx) {
@@ -1171,16 +1211,20 @@ class TransactionService {
 			}
 
 			$running = $openingBalance;
+			$projected = $openingBalance;
 			$runningBalances = [];
 			foreach ($allTx as $row) {
 				$amount = (string)$row['amount'];
+				$isScheduled = ($row['status'] ?? null) === 'scheduled';
 				if ($row['type'] === 'credit') {
-					$running = MoneyCalculator::add($running, $amount);
+					$projected = MoneyCalculator::add($projected, $amount);
+					$running = $isScheduled ? $running : MoneyCalculator::add($running, $amount);
 				} else {
-					$running = MoneyCalculator::subtract($running, $amount);
+					$projected = MoneyCalculator::subtract($projected, $amount);
+					$running = $isScheduled ? $running : MoneyCalculator::subtract($running, $amount);
 				}
 				if (isset($pageIds[(int)$row['id']])) {
-					$runningBalances[(int)$row['id']] = $running;
+					$runningBalances[(int)$row['id']] = $isScheduled ? $projected : $running;
 				}
 			}
 

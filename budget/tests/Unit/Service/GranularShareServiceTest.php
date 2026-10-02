@@ -886,4 +886,23 @@ class GranularShareServiceTest extends TestCase {
 	public function testOwnerDisplayNameFallsBackToTheUid(): void {
 		$this->assertSame('owner', $this->service->ownerDisplayName('owner'));
 	}
+
+	/**
+	 * Who files into the owner's categories: the people they shared a
+	 * category with, and which ones. The automatic budget counts their bills.
+	 */
+	public function testCategoryShareRecipientsAreTheAcceptedSharesWithCategories(): void {
+		$this->shareMapper->method('findByOwner')->with('alice')->willReturn([
+			$this->makeShare(1, 'alice', 'bob', Share::STATUS_ACCEPTED),
+			$this->makeShare(2, 'alice', 'carol', Share::STATUS_PENDING),
+			$this->makeShare(3, 'alice', 'dan', Share::STATUS_ACCEPTED),
+		]);
+		$this->shareItemMapper->method('findSharedEntityIds')->willReturnMap([
+			[1, ShareItem::TYPE_CATEGORY, [10, 11]],
+			[2, ShareItem::TYPE_CATEGORY, [12]],
+			[3, ShareItem::TYPE_CATEGORY, []],
+		]);
+
+		$this->assertSame(['bob' => [10, 11]], $this->service->getCategoryShareRecipients('alice'));
+	}
 }

@@ -19,6 +19,8 @@ use OCP\Notification\IManager as INotificationManager;
  * notification pipeline and BudgetMailService.
  */
 class DigestService {
+	/** Bills the email lists in each of its bills sections */
+	private const LISTED_BILLS = 5;
 
 	public function __construct(
 		private BudgetAlertService $budgetAlertService,
@@ -52,9 +54,29 @@ class DigestService {
 
 		$budget = $this->budgetAlertService->getSummary($userId);
 
+		// Bills due in the coming week or month, and overdue ones apart. The
+		// list was cut to five before it was counted, so the notification
+		// never said more than 5, and overdue bills of any age sorted first
+		// and pushed out the ones really coming up.
 		$upcomingDays = $frequency === 'weekly' ? 7 : 30;
-		$bills = array_slice($this->billService->findUpcoming($userId, $upcomingDays), 0, 5);
-		$bills = $this->billService->enrichBillsWithCurrency($bills, $userId);
+		$today = $this->getNow()->format('Y-m-d');
+		$due = [];
+		$overdue = [];
+		foreach ($this->billService->findUpcoming($userId, $upcomingDays) as $bill) {
+			if (($bill->getNextDueDate() ?? '') < $today) {
+				$overdue[] = $bill;
+			} else {
+				$due[] = $bill;
+			}
+		}
+		$bills = $this->billService->enrichBillsWithCurrency(array_slice($due, 0, self::LISTED_BILLS), $userId);
+		$overdueBills = $this->billService->enrichBillsWithCurrency(array_slice($overdue, 0, self::LISTED_BILLS), $userId);
+		$serializeBill = fn ($bill) => [
+			'name' => $bill->getName(),
+			'amount' => (float)$bill->getAmount(),
+			'currency' => $bill->getCurrency(),
+			'dueDate' => $bill->getNextDueDate(),
+		];
 
 		$goals = [];
 		foreach (array_slice($this->goalsService->findAll($userId), 0, 5) as $goal) {
@@ -73,12 +95,10 @@ class DigestService {
 			'expenses' => round((float)($totals['expenses'] ?? 0), 2),
 			'net' => round((float)($totals['income'] ?? 0) - (float)($totals['expenses'] ?? 0), 2),
 			'budget' => $budget,
-			'upcomingBills' => array_map(fn ($bill) => [
-				'name' => $bill->getName(),
-				'amount' => (float)$bill->getAmount(),
-				'currency' => $bill->getCurrency(),
-				'dueDate' => $bill->getNextDueDate(),
-			], $bills),
+			'upcomingBills' => array_map($serializeBill, $bills),
+			'upcomingBillCount' => count($due),
+			'overdueBills' => array_map($serializeBill, $overdueBills),
+			'overdueBillCount' => count($overdue),
 			'goals' => $goals,
 			'anomalies' => $this->anomalyService->detectForPeriod($userId, $start, $end),
 			'suggestionCount' => $this->suggestionService->countSuggestions($userId),
@@ -112,7 +132,8 @@ class DigestService {
 				'income' => $this->amountFormatter->formatForUser($userId, $digest['income']),
 				'expenses' => $this->amountFormatter->formatForUser($userId, $digest['expenses']),
 				'net' => $this->amountFormatter->formatForUser($userId, $digest['net']),
-				'billCount' => (string)count($digest['upcomingBills']),
+				'billCount' => (string)$digest['upcomingBillCount'],
+				'overdueCount' => (string)$digest['overdueBillCount'],
 				'anomalyCount' => (string)count($digest['anomalies']),
 			]);
 		$this->notificationManager->notify($notification);
@@ -150,12 +171,21 @@ class DigestService {
 			$sections[] = ['heading' => $l->t('Budget'), 'lines' => $lines];
 		}
 
-		if (!empty($digest['upcomingBills'])) {
+		$billLines = function (array $bills, int $count) use ($l): array {
 			$lines = array_map(
 				fn ($bill) => $bill['name'] . ' — ' . $this->amountFormatter->format($bill['amount'], $bill['currency'] ?? 'USD') . ' (' . $bill['dueDate'] . ')',
-				$digest['upcomingBills']
+				$bills
 			);
-			$sections[] = ['heading' => $l->t('Upcoming bills'), 'lines' => $lines];
+			if ($count > count($bills)) {
+				$lines[] = $l->n('and %n more', 'and %n more', $count - count($bills));
+			}
+			return $lines;
+		};
+		if (!empty($digest['overdueBills'])) {
+			$sections[] = ['heading' => $l->t('Overdue bills'), 'lines' => $billLines($digest['overdueBills'], $digest['overdueBillCount'])];
+		}
+		if (!empty($digest['upcomingBills'])) {
+			$sections[] = ['heading' => $l->t('Upcoming bills'), 'lines' => $billLines($digest['upcomingBills'], $digest['upcomingBillCount'])];
 		}
 
 		if (!empty($digest['anomalies'])) {

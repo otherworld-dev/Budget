@@ -567,6 +567,27 @@ class GranularShareService {
 	// ==========================================
 
 	/**
+	 * The people $ownerId shared categories with, each with the category ids
+	 * shared: they can file their own bills into those categories, and the
+	 * owner's automatic budget for a category counts those bills too.
+	 *
+	 * @return array<string, int[]> recipient user id => shared category ids
+	 */
+	public function getCategoryShareRecipients(string $ownerId): array {
+		$recipients = [];
+		foreach ($this->shareMapper->findByOwner($ownerId) as $share) {
+			if ($share->getStatus() !== Share::STATUS_ACCEPTED) {
+				continue;
+			}
+			$ids = $this->shareItemMapper->findSharedEntityIds($share->getId(), ShareItem::TYPE_CATEGORY);
+			if (!empty($ids)) {
+				$recipients[$share->getSharedWithUserId()] = array_map('intval', $ids);
+			}
+		}
+		return $recipients;
+	}
+
+	/**
 	 * Get accepted incoming shares for a user (cached).
 	 *
 	 * @return Share[]
