@@ -2137,7 +2137,25 @@ export default class TransactionsModule {
             this._syncTypeToggle();
 
             modal.style.display = 'flex';
+            this._keepKeyboardDownWhenViewing(transaction);
         }
+    }
+
+    /**
+     * On a phone an existing transaction is often opened just to look at it
+     * (a tap on its card, or the Android app's link), and the dialog putting
+     * the cursor in Amount popped the keyboard up over half the form. Focus
+     * goes to the title instead, which the dialog handler takes as focus
+     * already placed. Adding a transaction still starts in Amount.
+     *
+     * @param {object|null} transaction - The transaction being opened
+     */
+    _keepKeyboardDownWhenViewing(transaction) {
+        if (!transaction?.id || !window.matchMedia?.(PHONE_CARD_QUERY).matches) return;
+        const title = document.getElementById('transaction-modal-title');
+        if (!title) return;
+        title.setAttribute('tabindex', '-1');
+        title.focus({ preventScroll: true });
     }
 
     /**

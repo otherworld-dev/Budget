@@ -709,6 +709,31 @@ export default class DashboardModule {
     }
 
     /**
+     * The Upcoming Bills tile's "Exclude shared bills" box. Offered when bills
+     * shared with the user are listed, or when it is already ticked so it can
+     * be unticked again.
+     *
+     * @param {object} schema - The tile's settingsSchema
+     * @param {object} currentSettings - The tile's saved settings
+     * @returns {string} Form-group markup, or '' when not offered
+     */
+    _excludeSharedBillsField(schema, currentSettings) {
+        if (!schema.excludeSharedBills) return '';
+        const checked = !!currentSettings.excludeSharedBills;
+        const hasShared = (this.widgetData?.upcomingBills || []).some(bill => bill?._shared);
+        if (!checked && !hasShared) return '';
+        return `
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                        <input type="checkbox" class="tile-setting-input" data-setting="excludeSharedBills"
+                            style="width: auto; min-height: auto;" ${checked ? 'checked' : ''}>
+                        ${t('budget', 'Exclude shared bills')}
+                    </label>
+                </div>
+            `;
+    }
+
+    /**
      * A numeric tile setting (forward horizon, forecast months, years to
      * compare), resolved against the choices the tile offers.
      *
@@ -1735,6 +1760,10 @@ export default class DashboardModule {
 
         const horizon = this._tileNumberSetting('upcomingBills', 'forwardHorizon', formatters.FORWARD_HORIZONS, 30);
         bills = this.filterBillsByHorizon(bills, horizon);
+        // Bills shared with the user are listed unless the tile leaves them out
+        if (this.dashboardConfig?.widgets?.tileSettings?.upcomingBills?.excludeSharedBills) {
+            bills = bills.filter(bill => !bill._shared);
+        }
         if (bills.length === 0) {
             this._emptyBillsState(container, t('budget', 'No upcoming bills'));
             return;
@@ -5126,6 +5155,11 @@ export default class DashboardModule {
                     </label>
                 </div>
             `);
+        }
+
+        const sharedBillsField = this._excludeSharedBillsField(schema, currentSettings);
+        if (sharedBillsField) {
+            fields.push(sharedBillsField);
         }
 
         // Show legend (checkbox)

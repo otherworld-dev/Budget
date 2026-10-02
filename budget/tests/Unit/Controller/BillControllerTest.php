@@ -24,12 +24,14 @@ class BillControllerTest extends TestCase {
 	private BillService $service;
 	private ValidationService $validationService;
 	private GranularShareService $granularShareService;
+	private \OCA\Budget\Service\UpcomingBillsService $upcomingBills;
 	private IRequest $request;
 	private LoggerInterface $logger;
 	private IL10N $l;
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(BillService::class);
+		$this->upcomingBills = $this->createMock(\OCA\Budget\Service\UpcomingBillsService::class);
 		$this->validationService = $this->createMock(ValidationService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
 		$this->l = $this->createMock(IL10N::class);
@@ -68,6 +70,7 @@ class BillControllerTest extends TestCase {
 			$this->validationService,
 			$granularShareService,
 			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
+			$this->upcomingBills,
 			$this->l,
 			'user1',
 			$this->logger
@@ -93,6 +96,7 @@ class BillControllerTest extends TestCase {
 			$vs,
 			$granularShareService,
 			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
+			$this->createMock(\OCA\Budget\Service\UpcomingBillsService::class),
 			$this->l,
 			'user1',
 			$this->logger
@@ -245,6 +249,7 @@ class BillControllerTest extends TestCase {
 		return new BillController(
 			$this->request, $this->service, $this->validationService, $granularShareService,
 			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
+			$this->createMock(\OCA\Budget\Service\UpcomingBillsService::class),
 			$this->l, 'user1', $this->logger
 		);
 	}
@@ -1381,17 +1386,20 @@ class BillControllerTest extends TestCase {
 
 	// ── upcoming ────────────────────────────────────────────────────
 
-	public function testUpcomingReturnsBills(): void {
-		$bills = [['id' => 1, 'dueDate' => '2026-03-15']];
-		$this->service->method('findUpcoming')->with('user1', 30)->willReturn($bills);
+	public function testUpcomingIncludesBillsSharedWithTheUser(): void {
+		// The dashboard tile lists shared bills too, as the Bills page and
+		// the phone do; the tile's own setting can leave them out
+		$bills = [['id' => 1, 'name' => 'Rent'], ['id' => 2, 'name' => 'Council tax', '_shared' => true]];
+		$this->upcomingBills->expects($this->once())->method('upcoming')->with('user1', 30)->willReturn($bills);
 
 		$response = $this->controller->upcoming(30);
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame($bills, $response->getData());
 	}
 
 	public function testUpcomingHandlesError(): void {
-		$this->service->method('findUpcoming')->willThrowException(new \RuntimeException('err'));
+		$this->upcomingBills->method('upcoming')->willThrowException(new \RuntimeException('err'));
 
 		$response = $this->controller->upcoming();
 
@@ -1399,10 +1407,7 @@ class BillControllerTest extends TestCase {
 	}
 
 	public function testUpcomingDefaultDays(): void {
-		$this->service->expects($this->once())
-			->method('findUpcoming')
-			->with('user1', 30)
-			->willReturn([]);
+		$this->upcomingBills->expects($this->once())->method('upcoming')->with('user1', 30)->willReturn([]);
 
 		$this->controller->upcoming();
 	}
@@ -1715,6 +1720,7 @@ class BillControllerTest extends TestCase {
 			$this->validationService,
 			$granularShareService,
 			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
+			$this->createMock(\OCA\Budget\Service\UpcomingBillsService::class),
 			$l,
 			'user1',
 			$this->logger
@@ -1903,6 +1909,7 @@ class BillControllerTest extends TestCase {
 			$this->validationService,
 			$granularShareService,
 			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
+			$this->createMock(\OCA\Budget\Service\UpcomingBillsService::class),
 			$this->l,
 			'user1',
 			$this->logger
@@ -2045,6 +2052,7 @@ class BillControllerTest extends TestCase {
 			$this->validationService,
 			$granularShareService,
 			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
+			$this->createMock(\OCA\Budget\Service\UpcomingBillsService::class),
 			$this->l,
 			'user1',
 			$this->logger
