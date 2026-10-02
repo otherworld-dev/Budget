@@ -500,6 +500,32 @@ class PensionServiceTest extends TestCase {
 		$this->assertSame('withdrawal', $result[2]['type']);
 	}
 
+	/**
+	 * Deleting an entry deletes its bank leg, so the list says when that leg
+	 * was reconciled and the confirm can warn that past reconciliations will
+	 * stop matching, as the Transactions page does.
+	 */
+	public function testActivitySaysWhenABankLegIsReconciled(): void {
+		$this->pensionMapper->method('find')->willReturn($this->makePension());
+		$this->contributionMapper->method('findByPension')->willReturn([
+			$this->makeContribution('2026-03-10', 500.0, PensionContribution::KIND_CONTRIBUTION, 99, 7),
+			$this->makeContribution('2026-02-10', 500.0, PensionContribution::KIND_CONTRIBUTION, 98, 7),
+			$this->makeContribution('2026-01-10', 500.0, PensionContribution::KIND_CONTRIBUTION, null, null),
+		]);
+		$this->snapshotMapper->method('findByPension')->willReturn([]);
+		$reconciled = $this->leg(99, 7);
+		$reconciled->setReconciled(true);
+		$open = $this->leg(98, 7);
+		$open->setReconciled(false);
+		$this->transactionMapper->method('findById')->willReturnMap([[99, $reconciled], [98, $open]]);
+
+		$result = $this->service->getActivity(1, 'user1');
+
+		$this->assertTrue($result[0]['reconciled']);
+		$this->assertFalse($result[1]['reconciled']);
+		$this->assertFalse($result[2]['reconciled']);
+	}
+
 	// ===== #304 contribution funded by a bank transfer =====
 
 	public function testCreateContributionWithTransferCreatesLinkedBankLeg(): void {

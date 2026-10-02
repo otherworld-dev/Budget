@@ -787,6 +787,7 @@ export default class PensionsModule {
                 return;
             }
 
+            this.pensionActivity = data || [];
             if (!data || data.length === 0) {
                 container.innerHTML = `<div class="no-data">${t('budget', 'No activity yet')}</div>`;
                 return;
@@ -864,9 +865,13 @@ export default class PensionsModule {
     /** Delete a contribution/withdrawal or snapshot from the activity list. */
     async deleteActivityItem(type, id) {
         const isSnapshot = type === 'snapshot';
-        const message = isSnapshot
+        let message = isSnapshot
             ? t('budget', 'Delete this balance update?')
             : t('budget', 'Delete this entry? If it is linked to a bank transaction, that transaction will be removed too.');
+        const entry = isSnapshot ? null : (this.pensionActivity || []).find(a => a.type !== 'snapshot' && a.id === id);
+        if (entry?.reconciled) {
+            message += '\n\n' + t('budget', 'Its bank transaction was reconciled against a bank statement. Deleting it will make past reconciliations no longer match.');
+        }
         if (!await confirmDialog(message, { destructive: true })) return;
 
         const url = isSnapshot

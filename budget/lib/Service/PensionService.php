@@ -715,6 +715,9 @@ class PensionService {
 			} else {
 				$type = $c->getTransactionId() !== null ? 'transfer_in' : 'contribution';
 			}
+			// Deleting the entry deletes its bank leg: say when that leg was
+			// reconciled, so the confirm can warn as the Transactions page does
+			$leg = $c->getTransactionId() !== null ? $this->transactionMapper->findById($c->getTransactionId()) : null;
 			$items[] = [
 				'type' => $type,
 				'id' => $c->getId(),
@@ -723,6 +726,7 @@ class PensionService {
 				'note' => $c->getNote(),
 				'transactionId' => $c->getTransactionId(),
 				'sourceAccountId' => $c->getSourceAccountId(),
+				'reconciled' => $leg !== null && (bool)$leg->getReconciled(),
 			];
 		}
 
@@ -735,6 +739,7 @@ class PensionService {
 				'note' => null,
 				'transactionId' => null,
 				'sourceAccountId' => null,
+				'reconciled' => false,
 			];
 		}
 
