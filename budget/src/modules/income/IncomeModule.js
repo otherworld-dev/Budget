@@ -737,7 +737,7 @@ export default class IncomeModule {
                             <span class="detected-bill-source">${t('budget', 'Source: {source}', { source: dom.escapeHtml(item.source) }, undefined, { escape: false })}</span>
                         </div>
                         <div class="detected-bill-confidence">
-                            <span class="confidence-badge ${confidenceClass}">${t('budget', '{percent}% confidence', { percent: confidencePercent })}</span>
+                            <span class="confidence-badge ${confidenceClass}">${/* xgettext:no-javascript-format */ t('budget', '{percent}% confidence', { percent: confidencePercent })}</span>
                             ${item.amountVariance ? `<span class="variance-info">±${formatters.formatCurrency(item.amountVariance, null, this.settings)}</span>` : ''}
                         </div>
                     </div>

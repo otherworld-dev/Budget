@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-10-02 17:49+0000\n"
+"POT-Creation-Date: 2026-10-02 19:48+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6266,7 +6266,7 @@ msgstr ""
 #: /app/src/modules/bills/BillsModule.js:1610
 #: /app/src/modules/income/IncomeModule.js:740
 #: /app/src/modules/transfers/TransfersModule.js:1293
-#, javascript-format
+#, no-javascript-format
 msgid "{percent}% confidence"
 msgstr ""
 
@@ -7248,7 +7248,7 @@ msgid "{percent}% vs last month"
 msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:442
-#, javascript-format
+#, no-javascript-format
 msgid "{percent}% savings rate"
 msgstr ""
 
@@ -7379,7 +7379,7 @@ msgid "No budget alerts from the budgets you set."
 msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:1462
-#, javascript-format
+#, no-javascript-format
 msgid "{percent}% over"
 msgstr ""
 
@@ -8561,7 +8561,7 @@ msgid "{matching} of {total} rows would be added as income"
 msgstr ""
 
 #: /app/src/modules/import/ImportModule.js:1935
-#, javascript-format
+#, no-javascript-format
 msgid ""
 "but {percent}% of what is already in {account} is an expense. If that looks "
 "wrong, go back and map the column holding the transaction type before "
@@ -8573,7 +8573,7 @@ msgid "{matching} of {total} rows would be added as an expense"
 msgstr ""
 
 #: /app/src/modules/import/ImportModule.js:1944
-#, javascript-format
+#, no-javascript-format
 msgid ""
 "but {percent}% of what is already in {account} is income. If that looks "
 "wrong, go back and map the column holding the transaction type before "

@@ -439,7 +439,7 @@ export default class DashboardModule {
             // Savings rate
             if (savingsRateEl && totals.totalIncome > 0) {
                 const savingsRate = (netSavings / totals.totalIncome * 100);
-                savingsRateEl.textContent = `${savingsRate >= 0 ? '' : '-'}${t('budget', '{percent}% savings rate', { percent: Math.abs(savingsRate).toFixed(1) })}`;
+                savingsRateEl.textContent = `${savingsRate >= 0 ? '' : '-'}${/* xgettext:no-javascript-format */ t('budget', '{percent}% savings rate', { percent: Math.abs(savingsRate).toFixed(1) })}`;
             }
         }
     }
@@ -1459,7 +1459,7 @@ export default class DashboardModule {
             // "Over" only when the budget was actually exceeded (danger). Spending
             // that exactly meets the budget is "100% used", not "0% over" (#293).
             const percentDisplay = alert.severity === 'danger'
-                ? t('budget', '{percent}% over', { percent: Math.max(0, Math.round(alert.percentage - 100)) })
+                ? /* xgettext:no-javascript-format */ t('budget', '{percent}% over', { percent: Math.max(0, Math.round(alert.percentage - 100)) })
                 : t('budget', '{percent}% used', { percent: Math.round(alert.percentage) });
 
             return `

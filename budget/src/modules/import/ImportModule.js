@@ -1932,7 +1932,7 @@ export default class ImportModule {
                     matching: warning.matching,
                     total: warning.total,
                 });
-                context = t('budget', 'but {percent}% of what is already in {account} is an expense. If that looks wrong, go back and map the column holding the transaction type before importing.', {
+                context = /* xgettext:no-javascript-format */ t('budget', 'but {percent}% of what is already in {account} is an expense. If that looks wrong, go back and map the column holding the transaction type before importing.', {
                     percent: warning.existingOppositePercent,
                     account: account,
                 }, undefined, { escape: false });
@@ -1941,7 +1941,7 @@ export default class ImportModule {
                     matching: warning.matching,
                     total: warning.total,
                 });
-                context = t('budget', 'but {percent}% of what is already in {account} is income. If that looks wrong, go back and map the column holding the transaction type before importing.', {
+                context = /* xgettext:no-javascript-format */ t('budget', 'but {percent}% of what is already in {account} is income. If that looks wrong, go back and map the column holding the transaction type before importing.', {
                     percent: warning.existingOppositePercent,
                     account: account,
                 }, undefined, { escape: false });
