@@ -24,6 +24,7 @@ class SetupControllerTest extends TestCase {
 	private FactoryResetService $factoryResetService;
 	private AuditService $auditService;
 	private AccountService $accountService;
+	private RepairService $repairService;
 	private IRequest $request;
 
 	protected function setUp(): void {
@@ -38,7 +39,7 @@ class SetupControllerTest extends TestCase {
 			return vsprintf($text, $parameters);
 		});
 
-		$repairService = $this->createMock(RepairService::class);
+		$this->repairService = $repairService = $this->createMock(RepairService::class);
 		$logger = $this->createMock(LoggerInterface::class);
 
 		$this->controller = new SetupController(
@@ -230,5 +231,22 @@ class SetupControllerTest extends TestCase {
 		$response = $this->controller->recalculateBalances();
 
 		$this->assertSame(Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus());
+	}
+
+	// ── repairData ──────────────────────────────────────────────────
+
+	public function testRepairDataPassesOnTheDuplicateRowsTheUserTicked(): void {
+		$this->request->method('getParams')->willReturn([
+			'categories' => ['duplicateTransactions'],
+			'accountIds' => [],
+			'transactionIds' => ['501', 0, 'x', 77],
+		]);
+		$this->repairService->expects($this->once())->method('repair')
+			->with('user1', ['duplicateTransactions'], ['accountIds' => [], 'transactionIds' => [501, 77]])
+			->willReturn(['duplicateTransactions' => ['deleted' => 2, 'found' => 3]]);
+
+		$response = $this->controller->repairData();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 }

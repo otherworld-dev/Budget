@@ -260,9 +260,9 @@ class BillService {
 		}
 
 		$billIds = array_map(static fn (Bill $b) => $b->getId(), $candidates);
-		$txDatesByBill = [];
+		$rowsByBill = [];
 		foreach ($this->transactionService->findRecordedBillTransactions($billIds) as $tx) {
-			$txDatesByBill[$tx->getBillId()][] = $tx->getDate();
+			$rowsByBill[$tx->getBillId()][] = $tx;
 		}
 
 		// Payments the user has dismissed as deliberately unrecorded (#394)
@@ -271,7 +271,7 @@ class BillService {
 		$currencyMap = $this->buildCurrencyMap($userId);
 		$unrecorded = [];
 		foreach ($candidates as $bill) {
-			if ($this->hasRecordedPayment($bill->getLastPaidDate(), $txDatesByBill[$bill->getId()] ?? [])) {
+			if ($this->hasRecordedPayment($bill, $rowsByBill[$bill->getId()] ?? [])) {
 				continue;
 			}
 			if (isset($dismissed[sha1($this->unrecordedPaymentKey($bill->getId(), $bill->getLastPaidDate()))])) {
@@ -322,16 +322,30 @@ class BillService {
 		}
 
 		// Idempotence guard: refuse when a payment transaction already exists
-		$existingDates = array_map(
-			static fn ($tx) => $tx->getDate(),
-			$this->transactionService->findRecordedBillTransactions([$id])
-		);
-		if ($this->hasRecordedPayment($lastPaid, $existingDates)) {
+		if ($this->hasRecordedPayment($bill, $this->transactionService->findRecordedBillTransactions([$id]))) {
 			throw new \InvalidArgumentException($this->l->t('A transaction for this payment already exists'));
 		}
 
 		$transaction = $this->transactionService->createFromBill($userId, $bill, $lastPaid, 'cleared');
 		$this->applySplitTemplate($bill, $transaction, $userId);
+
+		// The payment's snapshot now names this row, so the card sees the
+		// payment as recorded and Mark Unpaid takes the row back with it
+		$snapshot = $this->paymentSnapshot($bill);
+		if ($snapshot !== null) {
+			$ids = is_array($snapshot['createdTransactionIds'] ?? null) ? $snapshot['createdTransactionIds'] : [];
+			$ids[] = $transaction->getId();
+			if ($transaction->getLinkedTransactionId()) {
+				$ids[] = $transaction->getLinkedTransactionId();
+			}
+			$snapshot['createdTransactionIds'] = array_values(array_unique(array_map('intval', $ids)));
+			$bill->setPaidUndoState(json_encode($snapshot));
+			try {
+				$this->mapper->update($bill);
+			} catch (\Exception $e) {
+				$this->logger->warning("Failed to note the recorded payment on bill {$id}: {$e->getMessage()}");
+			}
+		}
 
 		return ['transaction' => $transaction];
 	}
@@ -359,20 +373,67 @@ class BillService {
 	}
 
 	/**
-	 * Whether any of the given transaction dates plausibly records a payment
-	 * made on $paidDate. Linked payments can be dated a few days off the
-	 * paid date (the matching dialog offers a ±7 day window), so allow slack.
+	 * Whether the bill's last payment has a transaction behind it (#274).
+	 *
+	 * The snapshot markPaid() leaves on the bill names the rows that payment
+	 * recorded or linked, so when it describes this payment the answer is
+	 * those rows, found by id. Moving one to the bank's date, or linking a
+	 * bank row from weeks before the click, can't hide it, and a row of an
+	 * earlier payment can't stand in for it, a few days off or the same day.
+	 *
+	 * Payments from before the snapshot existed are matched by date: a row of
+	 * the bill near the paid date, within half the bill's interval (14 days
+	 * at most), so a weekly bill's previous payment isn't taken for this one.
+	 *
+	 * @param \OCA\Budget\Db\Transaction[] $rows the bill's non-scheduled transactions
 	 */
-	private function hasRecordedPayment(?string $paidDate, array $txDates): bool {
+	private function hasRecordedPayment(Bill $bill, array $rows): bool {
+		$paidDate = $bill->getLastPaidDate();
 		if ($paidDate === null) {
 			return false;
 		}
-		foreach ($txDates as $txDate) {
-			if (abs(strtotime($txDate) - strtotime($paidDate)) <= 14 * 86400) {
+
+		$snapshot = $this->paymentSnapshot($bill);
+		// Early snapshots didn't record a linked row at all
+		if ($snapshot !== null && array_key_exists('linkedTransactionId', $snapshot)) {
+			$ids = is_array($snapshot['createdTransactionIds'] ?? null) ? $snapshot['createdTransactionIds'] : [];
+			if ($snapshot['linkedTransactionId'] !== null) {
+				$ids[] = $snapshot['linkedTransactionId'];
+			}
+			$ids = array_map('intval', array_filter($ids, 'is_numeric'));
+			foreach ($rows as $tx) {
+				if (in_array($tx->getId(), $ids, true)) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		$window = match ($bill->getFrequency()) {
+			'daily' => 0,
+			'weekly' => 3,
+			'biweekly', 'semi-monthly' => 6,
+			default => 14,
+		};
+		foreach ($rows as $tx) {
+			if (abs(strtotime($tx->getDate()) - strtotime($paidDate)) <= $window * 86400) {
 				return true;
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * The undo snapshot markPaid() left on the bill, when it describes the
+	 * bill's last payment.
+	 */
+	private function paymentSnapshot(Bill $bill): ?array {
+		$raw = $bill->getPaidUndoState();
+		$decoded = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
+		if (!is_array($decoded) || ($decoded['paidDate'] ?? null) !== $bill->getLastPaidDate()) {
+			return null;
+		}
+		return $decoded;
 	}
 
 	/**

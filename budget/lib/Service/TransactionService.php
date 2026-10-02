@@ -715,6 +715,16 @@ class TransactionService {
 			$this->accountMapper->find($updates['accountId'], $userId);
 		}
 
+		// A bill's scheduled row stands for its next unpaid occurrence, and
+		// the bill's own actions treat every scheduled row of it that way. A
+		// payment set back to scheduled was re-dated and merged by the next
+		// Mark Paid, or deleted by Skip and Mark Unpaid, so a settled bill
+		// row keeps its status.
+		if (($updates['status'] ?? null) === 'scheduled' && $oldStatus !== 'scheduled'
+			&& $transaction->getBillId() !== null) {
+			unset($updates['status']);
+		}
+
 		// Auto-clear scheduled transactions when date is moved to today or past.
 		// Not a bill's pre-booked row: it stands for an occurrence the bill
 		// hasn't settled, and clearing it here booked the money while the bill
