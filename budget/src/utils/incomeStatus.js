@@ -4,35 +4,14 @@
  */
 import { translate as t } from '@nextcloud/l10n';
 import * as formatters from './formatters.js';
-
-/** Roughly one interval of each schedule, in days */
-const CYCLE_DAYS = {
-    daily: 1,
-    weekly: 7,
-    biweekly: 14,
-    'semi-monthly': 16,
-    monthly: 31,
-    quarterly: 92,
-    'semi-annually': 183,
-    yearly: 366,
-};
-
-/** How close an expected date has to be to count as soon */
-const SOON_DAYS = 7;
+import { scheduleState } from './scheduleStatus.js';
 
 /**
  * The row follows the next expected occurrence, not the calendar month
- * (#399). "Received in this calendar month" put a Received badge beside a
- * date still to come, let weekly pay be marked only once a month, and left
- * a payment that never arrived reading "Upcoming".
- *
- *  - overdue: the expected date has passed and nothing was received
- *  - expected-soon: due today or within a week
- *  - received: the last payment arrived within the past cycle and the next
- *    one isn't close yet; Mark Received stays hidden so it can't be booked
- *    twice by accident
- *  - upcoming: anything further off
- *  - completed: a one-time income that arrived; inactive: a paused schedule
+ * (#399): see scheduleState(). Received is the settled state, when the last
+ * payment arrived within the past cycle and the next isn't close yet; Mark
+ * Received stays hidden then, so it can't be booked twice by accident. A
+ * one-time income that arrived is completed; a paused schedule inactive.
  *
  * @param {object} income recurring income row
  * @param {string} today Y-m-d, the user's local date
@@ -48,8 +27,9 @@ export function incomeRowState(income, today, settings) {
     const startDate = income.startDate || income.start_date || null;
     const fmt = (date) => formatters.formatDate(date, settings);
 
-    if (!isActive || !next) {
-        const completed = isOneTime;
+    const { status, recentlySettled } = scheduleState({ frequency, isActive, dueDate: next, lastDate: lastReceived }, today);
+
+    if (status === 'inactive') {
         let dateText;
         if (lastReceived) {
             dateText = t('budget', 'Received {date}', { date: fmt(lastReceived) });
@@ -59,47 +39,32 @@ export function incomeRowState(income, today, settings) {
             dateText = t('budget', 'No date set');
         }
         return {
-            status: completed ? 'completed' : 'inactive',
-            statusText: completed ? t('budget', 'Completed') : t('budget', 'Inactive'),
+            status: isOneTime ? 'completed' : 'inactive',
+            statusText: isOneTime ? t('budget', 'Completed') : t('budget', 'Inactive'),
             dateText,
             canReceive: false,
             canSkip: false,
         };
     }
 
-    const daysUntil = formatters.daysBetweenDates(today, next);
-    const sinceReceived = lastReceived ? formatters.daysBetweenDates(lastReceived, today) : null;
-    const recentlyReceived = sinceReceived !== null && sinceReceived >= 0
-        && sinceReceived <= (CYCLE_DAYS[frequency] ?? 31);
-
-    let status;
-    if (daysUntil < 0) {
-        status = 'overdue';
-    } else if (daysUntil <= SOON_DAYS) {
-        status = 'expected-soon';
-    } else if (recentlyReceived) {
-        status = 'received';
-    } else {
-        status = 'upcoming';
-    }
-
+    const key = { overdue: 'overdue', soon: 'expected-soon', settled: 'received', upcoming: 'upcoming' }[status];
     const statusText = {
         overdue: t('budget', 'Overdue'),
         'expected-soon': t('budget', 'Expected Soon'),
         received: t('budget', 'Received'),
         upcoming: t('budget', 'Upcoming'),
-    }[status];
+    }[key];
 
-    const dateText = recentlyReceived
+    const dateText = recentlySettled
         ? t('budget', 'Received {receivedDate}, next expected {expectedDate}', {
             receivedDate: fmt(lastReceived),
             expectedDate: fmt(next),
         })
         : fmt(next);
 
-    const canReceive = status !== 'received';
+    const canReceive = key !== 'received';
     return {
-        status,
+        status: key,
         statusText,
         dateText,
         canReceive,

@@ -3,6 +3,50 @@
  */
 import { translate as t } from '@nextcloud/l10n';
 import * as formatters from './formatters.js';
+import { scheduleState } from './scheduleStatus.js';
+
+/**
+ * Status, date text and actions of a bill or transfer row, from its next
+ * occurrence (see scheduleState()). An inactive bill only stays in the list
+ * to be reverted (#365): it reads as paid, never with Mark Paid or Skip,
+ * which would still execute on it.
+ *
+ * @param {object} bill bill or transfer
+ * @param {string} today the user's local date, Y-m-d
+ * @param {object} settings user settings, for date formatting
+ * @return {{status: string, statusText: string, dateText: string, dueDate: string|null, canPay: boolean, canSkip: boolean}}
+ */
+export function billRowState(bill, today, settings) {
+    const frequency = bill.frequency || 'monthly';
+    // A paid one-time bill has no next occurrence, but it still has the
+    // date it was due, kept as its start date (#333, #375)
+    const dueDate = bill.nextDueDate || bill.next_due_date
+        || (frequency === 'one-time' ? (bill.startDate || bill.start_date || null) : null);
+    const isActive = bill.isActive ?? bill.is_active ?? true;
+    const { status, recentlySettled } = scheduleState({
+        frequency,
+        isActive,
+        dueDate: isActive ? (bill.nextDueDate || bill.next_due_date || null) : null,
+        lastDate: bill.lastPaidDate || bill.last_paid_date || null,
+    }, today);
+
+    const key = { inactive: 'paid', settled: 'paid', overdue: 'overdue', soon: 'due-soon', upcoming: 'upcoming' }[status];
+    const statusText = {
+        paid: t('budget', 'Paid'),
+        overdue: t('budget', 'Overdue'),
+        'due-soon': t('budget', 'Due Soon'),
+        upcoming: t('budget', 'Upcoming'),
+    }[key];
+    const canPay = key !== 'paid';
+    return {
+        status: key,
+        statusText,
+        dateText: billRowDateText(bill, dueDate, key === 'paid' || recentlySettled, settings),
+        dueDate,
+        canPay,
+        canSkip: canPay && frequency !== 'one-time',
+    };
+}
 
 /**
  * The date shown on a bill or transfer row (#399). Paying a recurring bill

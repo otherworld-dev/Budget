@@ -4,11 +4,12 @@
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
-import { billRowDateText } from '../../utils/billDates.js';
+import { billRowState } from '../../utils/billDates.js';
 import { showSuccess, showError, showWarning, showInfo, showUndoNotification } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { apiFetch } from '../../utils/api.js';
+import { isoWeekday } from '../../utils/helpers.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
@@ -296,35 +297,14 @@ export default class BillsModule {
 
         emptyBills.style.display = 'none';
 
+        const today = formatters.getTodayDateString();
         billsList.innerHTML = bills.map(bill => {
-            // A paid one-time bill has no next occurrence, but it still has
-            // the date it was due - kept as its start date (#333, #375)
-            const dueDate = bill.nextDueDate || bill.next_due_date
-                || ((bill.frequency || 'monthly') === 'one-time' ? (bill.startDate || bill.start_date || null) : null);
-            // An inactive bill only stays in this list to be reverted (#365):
-            // it has no next occurrence, so it renders as paid — never as
-            // due/overdue, and never with actionable Mark Paid / Skip buttons
-            // (markPaid would happily execute on it).
-            const isActive = bill.isActive ?? bill.is_active ?? true;
-            const isPaid = !isActive || this.isBillPaidThisMonth(bill);
-            const isOverdue = !isPaid && dueDate && dueDate < formatters.getTodayDateString();
-            const isDueSoon = !isPaid && !isOverdue && dueDate && this.isDueSoon(dueDate);
-
-            let statusClass = '';
-            let statusText = '';
-            if (isPaid) {
-                statusClass = 'paid';
-                statusText = t('budget', 'Paid');
-            } else if (isOverdue) {
-                statusClass = 'overdue';
-                statusText = t('budget', 'Overdue');
-            } else if (isDueSoon) {
-                statusClass = 'due-soon';
-                statusText = t('budget', 'Due Soon');
-            } else {
-                statusClass = 'upcoming';
-                statusText = t('budget', 'Upcoming');
-            }
+            // Status, date and actions follow the bill's next occurrence, not
+            // the calendar month (#399); an inactive bill only stays in this
+            // list to be reverted (#365) and offers nothing to pay
+            const row = billRowState(bill, today, this.settings);
+            const statusClass = row.status;
+            const statusText = row.statusText;
 
             const frequency = bill.frequency || 'monthly';
             const frequencyLabels = {
@@ -357,7 +337,7 @@ export default class BillsModule {
                     <div class="bill-details">
                         <div class="bill-due-date">
                             <span class="icon-calendar" aria-hidden="true"></span>
-                            ${dom.escapeHtml(billRowDateText(bill, dueDate, isPaid, this.settings))}
+                            ${dom.escapeHtml(row.dateText)}
                         </div>
                         <div class="bill-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>
@@ -369,13 +349,13 @@ export default class BillsModule {
                         </div>
                     </div>
                     <div class="bill-actions">
-                        ${!isPaid ? `
+                        ${row.canPay ? `
                             <button class="bill-action-btn bill-paid-btn" data-bill-id="${bill.id}" title="${t('budget', 'Mark as paid')}">
                                 <span class="icon-checkmark" aria-hidden="true"></span>
                                 ${t('budget', 'Mark Paid')}
                             </button>
                         ` : ''}
-                        ${!isPaid && frequency !== 'one-time' ? `
+                        ${row.canSkip ? `
                             <button class="bill-action-btn bill-skip-btn" data-bill-id="${bill.id}" title="${t('budget', 'Skip this payment')}">
                                 <span aria-hidden="true">&#x23ED;</span>
                                 ${t('budget', 'Skip')}
@@ -397,29 +377,6 @@ export default class BillsModule {
                 </div>
             `;
         }).join('');
-    }
-
-    isBillPaidThisMonth(bill) {
-        const frequency = bill.frequency || 'monthly';
-
-        // One-time bills are "paid" only when deactivated after payment
-        if (frequency === 'one-time') {
-            const isActive = bill.isActive ?? bill.is_active ?? true;
-            return !isActive;
-        }
-
-        const lastPaid = bill.lastPaidDate || bill.last_paid_date;
-        if (!lastPaid) return false;
-
-        // For recurring bills, check if paid in current month
-        const [year, month] = lastPaid.split('-').map(Number);
-        const now = new Date();
-        return month === now.getMonth() + 1 && year === now.getFullYear();
-    }
-
-    isDueSoon(dateStr) {
-        const diffDays = formatters.daysBetweenDates(formatters.getTodayDateString(), dateStr);
-        return diffDays >= 0 && diffDays <= 7;
     }
 
     filterBills(filter) {
@@ -496,6 +453,12 @@ export default class BillsModule {
         const billFrequency = document.getElementById('bill-frequency');
         if (billFrequency) {
             billFrequency.addEventListener('change', () => this.updateBillFormFields());
+        }
+
+        // A weekly bill's start date sets its weekday
+        const billStartDate = document.getElementById('bill-start-date');
+        if (billStartDate) {
+            billStartDate.addEventListener('change', () => this.updateBillFormFields());
         }
 
         // Create transaction checkbox (show/hide date field)
@@ -675,8 +638,12 @@ export default class BillsModule {
                 document.querySelectorAll('#bill-custom-months input[type="checkbox"]').forEach(cb => cb.checked = false);
             }
 
-            // Set start / end date / remaining payments
-            setDateValue('bill-start-date', bill.startDate || bill.start_date || '');
+            // Set start / end date / remaining payments. A one-time bill's
+            // date lives in its start date; one stored only as its next due
+            // date (from before the date field) opened with the date empty
+            const storedStart = bill.startDate || bill.start_date || '';
+            setDateValue('bill-start-date', storedStart
+                || ((bill.frequency || 'monthly') === 'one-time' ? (bill.nextDueDate || bill.next_due_date || '') : ''));
             setDateValue('bill-end-date', bill.endDate || bill.end_date || '');
             const remainingPayments = bill.remainingPayments ?? bill.remaining_payments;
             document.getElementById('bill-remaining-payments').value = remainingPayments !== null && remainingPayments !== undefined ? remainingPayments.toString() : '';
@@ -696,14 +663,10 @@ export default class BillsModule {
             const billExcludeEl = document.getElementById('bill-excluded-from-forecast');
             if (billExcludeEl) billExcludeEl.checked = bill.excludedFromForecast ?? bill.excluded_from_forecast ?? false;
 
-            // Load tag sets for bill's category
-            const categoryId = bill.categoryId || bill.category_id;
-            if (categoryId) {
-                this.loadBillTagSets(categoryId, bill);
-            } else {
-                const tagsContainer = document.getElementById('bill-tags-container');
-                if (tagsContainer) tagsContainer.innerHTML = '';
-            }
+            // Load the tag picker: global tags always, the category's tag sets
+            // when it has one. Skipped for a bill with no category (every
+            // split bill), saving then read no boxes and wiped its tags
+            this.loadBillTagSets(bill.categoryId || bill.category_id || null, bill);
 
             // Populate split template
             const splitTemplate = bill.splitTemplate || bill.split_template || [];
@@ -848,7 +811,9 @@ export default class BillsModule {
             customMonthsGroup.style.display = 'none';
             dueDayGroup.style.display = 'none';
             dueMonthGroup.style.display = 'none';
-        } else if (frequency === 'yearly') {
+        } else if (frequency === 'yearly' || frequency === 'semi-annually' || frequency === 'quarterly') {
+            // The month the cycle starts from. Hidden for quarterly and
+            // half-yearly bills, they always fell on the January grid
             customMonthsGroup.style.display = 'none';
             dueDayGroup.style.display = 'block';
             dueMonthGroup.style.display = 'block';
@@ -888,10 +853,21 @@ export default class BillsModule {
         const dueDayLabel = dueDayGroup.querySelector('label');
         const dueDayHelp = document.getElementById('bill-due-day-help');
 
+        const dueDayInput = document.getElementById('bill-due-day');
+        dueDayInput.disabled = false;
         if (frequency === 'weekly' || frequency === 'biweekly') {
             dueDayLabel.textContent = t('budget', 'Due Day (1-7)');
             dueDayHelp.textContent = t('budget', 'Day of the week (1=Monday, 7=Sunday)');
-            document.getElementById('bill-due-day').max = 7;
+            dueDayInput.max = 7;
+            // With a start date the server counts the weeks from it and
+            // ignores the weekday field, so the field follows the date
+            // instead of contradicting it (as on the income and transfer forms)
+            const anchor = document.getElementById('bill-start-date')?.value || '';
+            if (anchor) {
+                dueDayInput.value = String(isoWeekday(anchor));
+                dueDayInput.disabled = true;
+                dueDayHelp.textContent = t('budget', 'Follows the start date');
+            }
         } else if (frequency === 'custom') {
             dueDayLabel.textContent = t('budget', 'Due Day');
             dueDayHelp.textContent = t('budget', 'Day of the selected months when bill is due');
@@ -1062,7 +1038,9 @@ export default class BillsModule {
             amount: parseFloat(document.getElementById('bill-amount').value),
             frequency: frequency,
             dueDay: document.getElementById('bill-due-day').value ? parseInt(document.getElementById('bill-due-day').value) : null,
-            dueMonth: document.getElementById('bill-due-month').value ? parseInt(document.getElementById('bill-due-month').value) : null,
+            // A month the form doesn't show is a stale value, not a schedule
+            dueMonth: ['yearly', 'semi-annually', 'quarterly'].includes(frequency) && document.getElementById('bill-due-month').value
+                ? parseInt(document.getElementById('bill-due-month').value) : null,
             categoryId: document.getElementById('bill-category').value ? parseInt(document.getElementById('bill-category').value) : null,
             accountId: document.getElementById('bill-account').value ? parseInt(document.getElementById('bill-account').value) : null,
             autoDetectPattern: document.getElementById('bill-auto-pattern').value || null,
@@ -1078,6 +1056,14 @@ export default class BillsModule {
             remainingPayments: document.getElementById('bill-remaining-payments').value ? parseInt(document.getElementById('bill-remaining-payments').value) : null,
             splitTemplate: this.getBillSplitTemplate()
         };
+
+        // The date input sits in a datepicker that hides the native one, so
+        // its required flag is never enforced by the browser; without a date
+        // the server put a one-time bill on 1 January next year (#399)
+        if (frequency === 'one-time' && !billData.startDate) {
+            showError(t('budget', 'Choose the date this bill is due'));
+            return;
+        }
 
         // A one-time bill's day and month follow its date (#375). The inputs
         // are hidden for it and may still hold a previous frequency's values
@@ -1245,7 +1231,7 @@ export default class BillsModule {
 
         } catch (error) {
             console.error('Failed to mark bill as paid:', error);
-            showError(t('budget', 'Failed to mark bill as paid'));
+            showError(error.message || t('budget', 'Failed to mark bill as paid'));
         }
     }
 
@@ -1270,17 +1256,18 @@ export default class BillsModule {
         } else {
             body.recordPayment = true;
         }
+        // The occurrence this row showed: a second click or a stale tab is
+        // refused by the server instead of paying it twice
+        body.dueDate = bill.nextDueDate || bill.next_due_date || null;
 
         const result = await apiFetch(`/apps/budget/api/bills/${billId}/paid`, {
             method: 'POST',
             body,
         });
 
-        // Store undo data from server response BEFORE reloading
-        this._undoData = {
-            billId: billId,
-            action: 'markPaid'
-        };
+        // Store undo data BEFORE reloading; the server keeps what to revert
+        const undoData = { billId: billId, action: 'markPaid' };
+        this._undoData = undoData;
 
         await this.loadBillsView();
 
@@ -1306,13 +1293,20 @@ export default class BillsModule {
             }
             message = t('budget', 'Bill marked as paid — without a transaction.');
         } else {
-            const isOneTime = (bill.frequency === 'one-time');
-            message = isOneTime
-                ? t('budget', 'Bill marked as paid. Transaction created.')
-                : t('budget', 'Bill marked as paid. Future transaction created.');
+            // Only say a future transaction was created when one was: the
+            // bill pre-books, has an account and has a next occurrence
+            const paid = result.bill || bill;
+            const preBooks = (paid.createTransaction ?? paid.create_transaction ?? bill.createTransaction ?? true)
+                && (paid.accountId || paid.account_id || bill.accountId || bill.account_id)
+                && (paid.isActive ?? paid.is_active ?? true)
+                && bill.frequency !== 'one-time';
+            message = preBooks
+                ? t('budget', 'Bill marked as paid. Future transaction created.')
+                : t('budget', 'Bill marked as paid. Transaction created.');
         }
+        // A later action may have replaced the undo data; only drop our own
         showUndoNotification(message, () => this.undoMarkBillPaid(), () => {
-            this._undoData = null;
+            if (this._undoData === undoData) this._undoData = null;
         });
     }
 

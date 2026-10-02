@@ -4,7 +4,7 @@
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
-import { billRowDateText } from '../../utils/billDates.js';
+import { billRowState } from '../../utils/billDates.js';
 import { showSuccess, showError, showWarning, showUndoNotification } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { initSingleDatePicker } from '../../utils/datepicker.js';
@@ -61,7 +61,9 @@ export default class TransfersModule {
      */
     async loadTransfers() {
         try {
-            this.transfers = await apiFetch('/apps/budget/api/bills?isTransfer=true');
+            // Active transfers, plus ended ones that can still be reverted
+            // (#365); every ended transfer used to stay listed as paid
+            this.transfers = await apiFetch('/apps/budget/api/bills?isTransfer=true&revertibleToo=true');
             return true;
         } catch (error) {
             console.error('Failed to load transfers:', error);
@@ -296,33 +298,14 @@ export default class TransfersModule {
 
         emptyTransfers.style.display = 'none';
 
+        const today = formatters.getTodayDateString();
         transfersList.innerHTML = this.transfers.map(transfer => {
-            // A paid one-time transfer has no next occurrence, but it still
-            // has the date it was due - kept as its start date (#375, #395)
-            const dueDate = transfer.nextDueDate || transfer.next_due_date
-                || ((transfer.frequency || 'monthly') === 'one-time' ? (transfer.startDate || transfer.start_date || null) : null);
-            // An inactive transfer has no next occurrence: never offer an
-            // actionable Mark Paid on it — markPaid would still execute (#365)
-            const isActive = transfer.isActive ?? transfer.is_active ?? true;
-            const isPaid = !isActive || this.isTransferPaidThisMonth(transfer);
-            const isOverdue = !isPaid && dueDate && dueDate < formatters.getTodayDateString();
-            const isDueSoon = !isPaid && !isOverdue && dueDate && this.isDueSoon(dueDate);
-
-            let statusClass = '';
-            let statusText = '';
-            if (isPaid) {
-                statusClass = 'paid';
-                statusText = t('budget', 'Paid');
-            } else if (isOverdue) {
-                statusClass = 'overdue';
-                statusText = t('budget', 'Overdue');
-            } else if (isDueSoon) {
-                statusClass = 'due-soon';
-                statusText = t('budget', 'Due Soon');
-            } else {
-                statusClass = 'upcoming';
-                statusText = t('budget', 'Upcoming');
-            }
+            // Status, date and actions follow the transfer's next occurrence,
+            // not the calendar month (#399); an inactive transfer offers
+            // nothing to pay, which markPaid would still execute (#365)
+            const row = billRowState(transfer, today, this.settings);
+            const statusClass = row.status;
+            const statusText = row.statusText;
 
             const frequency = transfer.frequency || 'monthly';
             const frequencyLabels = {
@@ -352,7 +335,7 @@ export default class TransfersModule {
                     <div class="bill-details">
                         <div class="bill-due-date">
                             <span class="icon-calendar" aria-hidden="true"></span>
-                            ${dom.escapeHtml(billRowDateText(transfer, dueDate, isPaid, this.settings))}
+                            ${dom.escapeHtml(row.dateText)}
                         </div>
                         <div class="bill-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>
@@ -361,13 +344,13 @@ export default class TransfersModule {
                         </div>
                     </div>
                     <div class="bill-actions">
-                        ${!isPaid ? `
+                        ${row.canPay ? `
                             <button class="bill-action-btn transfer-paid-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Mark as paid')}">
                                 <span class="icon-checkmark" aria-hidden="true"></span>
                                 ${t('budget', 'Mark Paid')}
                             </button>
                         ` : ''}
-                        ${!isPaid && frequency !== 'one-time' ? `
+                        ${row.canSkip ? `
                             <button class="bill-action-btn transfer-skip-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Skip this payment')}">
                                 <span aria-hidden="true">&#x23ED;</span>
                                 ${t('budget', 'Skip')}
@@ -392,55 +375,36 @@ export default class TransfersModule {
     }
 
     filterTransfers(filter) {
-        const transferItems = document.querySelectorAll('#transfers-list .bill-item');
-
-        transferItems.forEach(item => {
-            const transferId = parseInt(item.dataset.id);
-            const transfer = this.transfers.find(tx => tx.id === transferId);
-            if (!transfer) {
-                item.style.display = 'none';
-                return;
-            }
-
-            const dueDate = transfer.nextDueDate || transfer.next_due_date;
-            const isPaid = this.isTransferPaidThisMonth(transfer);
-            const isOverdue = !isPaid && dueDate && dueDate < formatters.getTodayDateString();
-            const isDueSoon = !isPaid && !isOverdue && dueDate && this.isDueSoon(dueDate);
-
-            let show = false;
-
-            switch (filter) {
-                case 'all':
-                    show = true;
-                    break;
-                case 'due':
-                    show = isDueSoon;
-                    break;
-                case 'overdue':
-                    show = isOverdue;
-                    break;
-                case 'completed':
-                    show = isPaid;
-                    break;
-            }
-
-            item.style.display = show ? '' : 'none';
+        // The cards carry their status. This looked for .bill-item cards with
+        // a data-id, which the list no longer renders, so no tab filtered
+        const shows = {
+            all: () => true,
+            due: (status) => status === 'due-soon',
+            overdue: (status) => status === 'overdue',
+            completed: (status) => status === 'paid',
+        };
+        const show = shows[filter] || shows.all;
+        document.querySelectorAll('#transfers-list .bill-card').forEach(card => {
+            card.style.display = show(card.dataset.status) ? '' : 'none';
         });
     }
 
     updateSummary() {
+        // Dates compared as Y-m-d text: parsed with new Date() they are UTC
+        // midnight, the evening before west of UTC, so a transfer due or
+        // paid on the 1st counted as last month's
+        const today = formatters.getTodayDateString();
+        const thisMonth = today.slice(0, 7);
         const activeCount = this.transfers.filter(tx => tx.isActive).length;
         const dueThisMonth = this.transfers.filter(tx => {
             if (!tx.isActive) return false;
             const dueDate = tx.nextDueDate || tx.next_due_date;
-            if (!dueDate) return false;
-            const due = new Date(dueDate);
-            const now = new Date();
-            return due.getMonth() === now.getMonth() && due.getFullYear() === now.getFullYear();
+            return !!dueDate && dueDate.slice(0, 7) === thisMonth;
         }).length;
 
         const completedThisMonth = this.transfers.filter(tx => {
-            return this.isTransferPaidThisMonth(tx);
+            const lastPaid = tx.lastPaidDate || tx.last_paid_date;
+            return !!lastPaid && lastPaid.slice(0, 7) === thisMonth;
         }).length;
 
         const monthlyTotal = this.transfers
@@ -500,12 +464,15 @@ export default class TransfersModule {
                                 <label for="transfer-frequency">${t('budget', 'Frequency')} <span class="required">*</span></label>
                                 <select id="transfer-frequency" required>
                                 <option value="one-time" ${isEdit && transfer.frequency === 'one-time' ? 'selected' : ''}>${t('budget', 'One-Time')}</option>
+                                <option value="daily" ${isEdit && transfer.frequency === 'daily' ? 'selected' : ''}>${t('budget', 'Daily')}</option>
                                 <option value="weekly" ${isEdit && transfer.frequency === 'weekly' ? 'selected' : ''}>${t('budget', 'Weekly')}</option>
                                 <option value="biweekly" ${isEdit && transfer.frequency === 'biweekly' ? 'selected' : ''}>${t('budget', 'Bi-Weekly')}</option>
                                 <option value="semi-monthly" ${isEdit && transfer.frequency === 'semi-monthly' ? 'selected' : ''}>${t('budget', 'Semi-Monthly')}</option>
                                 <option value="monthly" ${!isEdit || transfer.frequency === 'monthly' ? 'selected' : ''}>${t('budget', 'Monthly')}</option>
                                 <option value="quarterly" ${isEdit && transfer.frequency === 'quarterly' ? 'selected' : ''}>${t('budget', 'Quarterly')}</option>
+                                <option value="semi-annually" ${isEdit && transfer.frequency === 'semi-annually' ? 'selected' : ''}>${t('budget', 'Semi-Annually')}</option>
                                 <option value="yearly" ${isEdit && transfer.frequency === 'yearly' ? 'selected' : ''}>${t('budget', 'Yearly')}</option>
+                                ${isEdit && transfer.frequency === 'custom' ? `<option value="custom" selected>${t('budget', 'Custom')}</option>` : ''}
                                 </select>
                                 </div>
 
@@ -539,6 +506,14 @@ export default class TransfersModule {
                                 min="1" max="31" placeholder="${t('budget', 'e.g., 15')}"
                                 value="${isEdit && transfer.dueDay ? transfer.dueDay : ''}">
                                 <small class="form-text" id="transfer-due-day-help"></small>
+                                </div>
+
+                                <div class="form-group" id="transfer-due-month-group" style="display: none;">
+                                <label for="transfer-due-month">${t('budget', 'Due Month')}</label>
+                                <select id="transfer-due-month">
+                                ${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, i) => `<option value="${i + 1}" ${isEdit && transfer.dueMonth === i + 1 ? 'selected' : ''}>${t('budget', m)}</option>`).join('')}
+                                </select>
+                                <small class="form-text">${t('budget', 'The month the cycle starts from')}</small>
                                 </div>
 
                                 <div class="form-group" id="transfer-start-date-group" style="display: none;">
@@ -651,11 +626,11 @@ export default class TransfersModule {
             categorySelect.addEventListener('change', () => {
                 this.loadTransferTagSets(categorySelect.value || null, isEdit ? transfer : null);
             });
-            // Load tag sets for pre-selected category (edit mode)
-            if (categorySelect.value) {
-                this.loadTransferTagSets(categorySelect.value, isEdit ? transfer : null);
-            }
         }
+        // The picker always loads (global tags need no category): only
+        // loading it for a preselected category left a transfer without one
+        // with no boxes, and saving wiped its tags
+        this.loadTransferTagSets(categorySelect?.value || null, isEdit ? transfer : null);
 
         // Dynamic amount types: only offered for card-like destinations (#347)
         const toAccountSelect = document.getElementById('recurring-transfer-to-account');
@@ -756,6 +731,13 @@ export default class TransfersModule {
         // on save (#395)
         const isOneTime = frequency === 'one-time';
         if (dueDayGroup) dueDayGroup.style.display = isOneTime ? 'none' : 'block';
+        // The month a yearly, half-yearly or quarterly transfer's cycle
+        // starts from. There was no field: every yearly transfer fell in
+        // January and quarterly ones on the January grid
+        const dueMonthGroup = document.getElementById('transfer-due-month-group');
+        if (dueMonthGroup) {
+            dueMonthGroup.style.display = ['yearly', 'semi-annually', 'quarterly'].includes(frequency) ? 'block' : 'none';
+        }
         if (startDateGroup) startDateGroup.style.display = 'block';
         if (startDateLabel) {
             startDateLabel.textContent = isOneTime ? t('budget', 'Due Date') : t('budget', 'Start Date');
@@ -825,6 +807,9 @@ export default class TransfersModule {
                 dueMonth = month;
             }
         }
+        if (['yearly', 'semi-annually', 'quarterly'].includes(frequency)) {
+            dueMonth = parseInt(document.getElementById('transfer-due-month')?.value) || null;
+        }
         const transferDescriptionPattern = document.getElementById('transfer-description-pattern').value || null;
         const categoryId = document.getElementById('transfer-category')?.value ? parseInt(document.getElementById('transfer-category').value) : null;
         const tagIds = this.getSelectedTagIds();
@@ -863,11 +848,16 @@ export default class TransfersModule {
             categoryId,
             tagIds,
             notes,
-            createTransaction,
-            transactionDate,
             autoPayEnabled,
             isTransfer: true
         };
+        // "Also create transactions now" only applies when adding one. On the
+        // server createTransaction is the pre-booking setting, so sending the
+        // unticked box with every edit switched a transfer's pre-booking off
+        if (!existingTransfer) {
+            data.createTransaction = createTransaction;
+            data.transactionDate = transactionDate;
+        }
 
         try {
             const url = existingTransfer ?
@@ -954,24 +944,33 @@ export default class TransfersModule {
 
             // Use the dedicated mark-paid endpoint so the paired transfer
             // transactions are actually created. A plain PUT of lastPaidDate
-            // records the date but creates no account entries (#291).
-            await apiFetch(`/apps/budget/api/bills/${transferId}/paid`, {
+            // records the date but creates no account entries (#291). It
+            // names the occurrence the row showed, so a second click is
+            // refused rather than paid twice.
+            const result = await apiFetch(`/apps/budget/api/bills/${transferId}/paid`, {
                 method: 'POST',
                 body: {
                     paidDate: formattedDate,
-                    createNextTransaction: true
+                    recordPayment: true,
+                    dueDate: transfer.nextDueDate || transfer.next_due_date || null,
                 },
                 errorMessage: t('budget', 'Failed to mark transfer as paid'),
             });
 
-            showSuccess(t('budget', 'Transfer marked as paid'));
+            if (result && result.paymentTransactionRecorded === false) {
+                // Marked paid, but no money moved: say so rather than report
+                // a transfer that never reached either account
+                showWarning(t('budget', 'The transfer was marked as paid, but no transactions were recorded. Check both accounts, or add the transfer manually.'));
+            } else {
+                showSuccess(t('budget', 'Transfer marked as paid'));
+            }
 
             await this.loadTransfers();
             this.renderTransfers();
             this.updateSummary();
         } catch (error) {
             console.error('Failed to mark transfer as paid:', error);
-            showError(t('budget', 'Failed to mark transfer as paid'));
+            showError(error.message || t('budget', 'Failed to mark transfer as paid'));
         }
     }
 
@@ -1081,21 +1080,6 @@ export default class TransfersModule {
         };
         if (!labels[amountType]) return '';
         return `<span class="statement-badge" title="${t('budget', 'Amount is resolved from the card at each payment')}">${labels[amountType]}</span>`;
-    }
-
-    isTransferPaidThisMonth(transfer) {
-        const lastPaid = transfer.lastPaidDate || transfer.last_paid_date;
-        if (!lastPaid) return false;
-
-        const paidDate = new Date(lastPaid);
-        const now = new Date();
-        return paidDate.getMonth() === now.getMonth() &&
-               paidDate.getFullYear() === now.getFullYear();
-    }
-
-    isDueSoon(dueDate, days = 7) {
-        const diffDays = formatters.daysBetweenDates(formatters.getTodayDateString(), dueDate);
-        return diffDays >= 0 && diffDays <= days;
     }
 
     formatFrequency(frequency) {
@@ -1220,6 +1204,11 @@ export default class TransfersModule {
         const frequency = transfer.frequency;
 
         switch (frequency) {
+            case 'one-time':
+                // Not a monthly commitment, as on the Bills and Income pages
+                return 0;
+            case 'daily':
+                return amount * 365 / 12;
             case 'weekly':
                 return amount * 52 / 12;
             case 'biweekly':
