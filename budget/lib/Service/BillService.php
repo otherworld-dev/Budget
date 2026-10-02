@@ -12,6 +12,7 @@ use OCA\Budget\Db\DismissedSuggestionMapper;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Enum\Currency;
+use OCA\Budget\Exception\ReconciledPaymentException;
 use OCA\Budget\Service\Bill\BalanceProjector;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Bill\RecurringBillDetector;
@@ -1142,10 +1143,14 @@ class BillService {
 	 *
 	 * @param int $id Bill ID
 	 * @param string $userId User ID
+	 * @param bool $confirmReconciled The user has been told the payment was
+	 *                                reconciled and wants it reverted anyway
 	 * @return Bill Restored bill
 	 * @throws \InvalidArgumentException when no payment snapshot is stored
+	 * @throws ReconciledPaymentException when the revert would delete a
+	 *                                    reconciled row and isn't confirmed
 	 */
-	public function markUnpaid(int $id, string $userId): Bill {
+	public function markUnpaid(int $id, string $userId, bool $confirmReconciled = false): Bill {
 		$bill = $this->find($id, $userId);
 
 		$raw = $bill->getPaidUndoState();
@@ -1166,6 +1171,15 @@ class BillService {
 			|| !$allNumeric($createdIds) || !$allNumeric($scheduledIds)
 			|| ($linkedId !== null && !is_numeric($linkedId))) {
 			throw new \InvalidArgumentException($this->l->t('This bill has no recorded payment to undo'));
+		}
+
+		// Reverting deletes the payment, and one reconciled against a bank
+		// statement used to go with no warning: the account then stopped
+		// matching the statement. The user is asked first, as the
+		// Transactions page asks before deleting a reconciled row.
+		if (!$confirmReconciled
+			&& $this->transactionService->countReconciledBillRows(array_map('intval', $createdIds), $id) > 0) {
+			throw new ReconciledPaymentException($this->l->t('This payment has been reconciled against a bank statement. Marking the bill unpaid deletes it, so the account will no longer match that statement.'));
 		}
 
 		// undoPaid deletes the created transactions tolerantly, restores the

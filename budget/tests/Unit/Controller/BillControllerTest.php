@@ -1325,6 +1325,30 @@ class BillControllerTest extends TestCase {
 		$this->assertSame('This bill has no recorded payment to undo', $response->getData()['error']);
 	}
 
+	public function testMarkUnpaidAsksFirstWhenThePaymentWasReconciled(): void {
+		$this->service->method('markUnpaid')->willThrowException(
+			new \OCA\Budget\Exception\ReconciledPaymentException('This payment has been reconciled')
+		);
+
+		$response = $this->controller->markUnpaid(1);
+
+		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame('reconciled', $response->getData()['code']);
+		$this->assertSame('This payment has been reconciled', $response->getData()['error']);
+	}
+
+	public function testMarkUnpaidPassesTheUsersGoAhead(): void {
+		$bill = $this->createMock(Bill::class);
+		$this->service->expects($this->once())
+			->method('markUnpaid')
+			->with(1, 'user1', true)
+			->willReturn($bill);
+
+		$response = $this->controller->markUnpaid(1, true);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
 	public function testMarkUnpaidHidesUnexpectedFailures(): void {
 		$this->service->method('markUnpaid')->willThrowException(
 			new \RuntimeException('SQLSTATE[HY000]: disk I/O error')

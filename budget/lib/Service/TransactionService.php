@@ -664,6 +664,38 @@ class TransactionService {
 	}
 
 	/**
+	 * How many of the rows a bill revert would delete are reconciled against
+	 * a bank statement: the named rows that carry the bill, and the other
+	 * side of each, which deleteAsAccountOwner() takes with it.
+	 *
+	 * @param int[] $ids
+	 */
+	public function countReconciledBillRows(array $ids, int $billId): int {
+		$seen = [];
+		$count = 0;
+		foreach ($ids as $id) {
+			$row = $this->mapper->findById((int)$id);
+			if ($row === null || $row->getBillId() !== $billId) {
+				continue;
+			}
+			$rows = [$row];
+			if ($row->getLinkedTransactionId() !== null) {
+				$partner = $this->mapper->findById($row->getLinkedTransactionId());
+				if ($partner !== null && $partner->getBillId() === $billId) {
+					$rows[] = $partner;
+				}
+			}
+			foreach ($rows as $candidate) {
+				if (!isset($seen[$candidate->getId()]) && $candidate->getReconciled()) {
+					$count++;
+				}
+				$seen[$candidate->getId()] = true;
+			}
+		}
+		return $count;
+	}
+
+	/**
 	 * Detach a transaction from its bill under the account owner's identity
 	 * (#334). Used when reverting a payment that LINKED a pre-existing
 	 * (imported) transaction: the row predates the payment and must survive

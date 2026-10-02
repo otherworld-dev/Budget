@@ -660,6 +660,25 @@ class TransactionServiceTest extends TestCase {
 		$this->service->deleteAsAccountOwner(999);
 	}
 
+	/**
+	 * Mark Unpaid deletes the rows a payment booked. One reconciled against a
+	 * bank statement went with no warning, and the account stopped matching
+	 * the statement.
+	 */
+	public function testCountsTheReconciledRowsABillRevertWouldDelete(): void {
+		$payment = $this->makeTransaction(['id' => 55, 'billId' => 9, 'reconciled' => false, 'linkedTransactionId' => 56]);
+		$deposit = $this->makeTransaction(['id' => 56, 'accountId' => 20, 'billId' => 9, 'reconciled' => true]);
+		$otherBill = $this->makeTransaction(['id' => 57, 'billId' => 4, 'reconciled' => true]);
+		$rows = [55 => $payment, 56 => $deposit, 57 => $otherBill];
+		$this->mapper->method('findById')->willReturnCallback(fn (int $id) => $rows[$id] ?? null);
+
+		// The deposit is counted even when only the withdrawal is named: a
+		// revert takes a transfer's other side with it
+		$this->assertSame(1, $this->service->countReconciledBillRows([55], 9));
+		$this->assertSame(1, $this->service->countReconciledBillRows([55, 56, 57, 999], 9));
+		$this->assertSame(0, $this->service->countReconciledBillRows([57], 9));
+	}
+
 	public function testUnlinkBillAsAccountOwnerClearsTheBillLink(): void {
 		// Reverting a payment that LINKED an imported transaction must not
 		// delete the row — it predates the payment. Only the linkage goes.

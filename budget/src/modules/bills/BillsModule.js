@@ -12,6 +12,7 @@ import { apiFetch } from '../../utils/api.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
+import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
 
 export default class BillsModule {
     constructor(app) {
@@ -1493,10 +1494,10 @@ export default class BillsModule {
         }
 
         try {
-            await apiFetch(`/apps/budget/api/bills/${billId}/unpaid`, {
-                method: 'POST',
-                errorMessage: t('budget', 'Failed to mark bill as unpaid'),
-            });
+            // Asks again when the payment was reconciled against a statement
+            if (!await requestMarkUnpaid(billId, t('budget', 'Failed to mark bill as unpaid'))) {
+                return;
+            }
 
             await this.loadBillsView();
             showSuccess(t('budget', 'Payment reverted — the bill is marked as unpaid.'));
