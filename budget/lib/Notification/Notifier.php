@@ -372,24 +372,29 @@ class Notifier implements INotifier {
 					'bills' => ['type' => 'highlight', 'id' => 'bills', 'name' => $parameters['billCount']],
 				];
 
-				// Absent on notifications queued before the count was rendered
+				// Absent on notifications queued before the counts were rendered
 				$anomalyCount = (int)($parameters['anomalyCount'] ?? 0);
+				$overdueCount = (int)($parameters['overdueCount'] ?? 0);
 
+				// TRANSLATORS: {income}, {expenses}, {net} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
+				$sentences = [$l->t('Income {income}, spending {expenses} ({net} net).')];
+				// TRANSLATORS: {bills} is a placeholder (the number of bills) — do NOT translate it.
+				$sentences[] = $l->n('{bills} bill due soon.', '{bills} bills due soon.', (int)$parameters['billCount']);
+				if ($overdueCount > 0) {
+					$messageParameters['overdue'] = [
+						'type' => 'highlight', 'id' => 'overdue', 'name' => $parameters['overdueCount'],
+					];
+					// TRANSLATORS: {overdue} is a placeholder (the number of bills) — do NOT translate it.
+					$sentences[] = $l->n('{overdue} bill is overdue.', '{overdue} bills are overdue.', $overdueCount);
+				}
 				if ($anomalyCount > 0) {
 					$messageParameters['anomalies'] = [
 						'type' => 'highlight', 'id' => 'anomalies', 'name' => $parameters['anomalyCount'],
 					];
-
-					// TRANSLATORS: {income}, {expenses}, {net}, {bills}, {anomalies} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
-					$message = $l->n(
-						'Income {income}, spending {expenses} ({net} net). {bills} bills due soon, and one category is spending unusually.',
-						'Income {income}, spending {expenses} ({net} net). {bills} bills due soon, and {anomalies} categories are spending unusually.',
-						$anomalyCount
-					);
-				} else {
-					// TRANSLATORS: {income}, {expenses}, {net}, {bills} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
-					$message = $l->t('Income {income}, spending {expenses} ({net} net). {bills} bills due soon.');
+					// TRANSLATORS: {anomalies} is a placeholder (the number of categories) — do NOT translate it.
+					$sentences[] = $l->n('One category is spending unusually.', '{anomalies} categories are spending unusually.', $anomalyCount);
 				}
+				$message = implode(' ', $sentences);
 
 				$notification->setRichMessage($message, $messageParameters);
 

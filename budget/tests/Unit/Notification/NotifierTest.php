@@ -91,7 +91,18 @@ class NotifierTest extends TestCase {
 	public function testDigestMessageMentionsASingleUnusualCategory(): void {
 		$this->prepare('digest', $this->digestParameters('1'));
 
-		$this->assertStringContainsString('one category is spending unusually', $this->richMessage);
+		$this->assertStringContainsString('One category is spending unusually', $this->richMessage);
+	}
+
+	/** "1 bills due soon" read wrong, and overdue bills were counted as due soon */
+	public function testDigestMessageCountsOneBillAndOverdueBillsApart(): void {
+		$parameters = ['billCount' => '1', 'overdueCount' => '2'] + $this->digestParameters('0');
+
+		$this->prepare('digest', $parameters);
+
+		$this->assertStringContainsString('{bills} bill due soon.', $this->richMessage);
+		$this->assertStringContainsString('{overdue} bills are overdue.', $this->richMessage);
+		$this->assertSame('2', $this->richMessageParams['overdue']['name']);
 	}
 
 	public function testDigestMessageMentionsSeveralUnusualCategories(): void {
