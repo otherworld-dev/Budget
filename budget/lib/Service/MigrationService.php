@@ -50,6 +50,10 @@ class MigrationService {
 	 *   fk      [column => ['map' => idMapKey, 'onMissing' => 'null'|'drop']]
 	 *   jsonFk  [column => ['map' => idMapKey,
 	 *           'shape' => 'idList'|'idKeyedObject'|'idValuedObject']]
+	 *   undoSnapshot  ['column' => JSON column, 'required' => key a valid
+	 *           snapshot has, 'idLists' => keys holding transaction id lists,
+	 *           'accounts' => the row's account columns]: see
+	 *           remapUndoSnapshot()
 	 *
 	 * PRE entries import after categories/accounts, before transactions and
 	 * bills (bills remap their tagIds through the tags map). POST entries
@@ -102,6 +106,13 @@ class MigrationService {
 			'fk' => [
 				'account_id' => ['map' => 'accounts', 'onMissing' => 'null'],
 				'category_id' => ['map' => 'categories', 'onMissing' => 'null'],
+			],
+			// Mark Unreceived's snapshot names the credit it booked
+			'undoSnapshot' => [
+				'column' => 'received_undo_state',
+				'required' => 'nextExpectedDate',
+				'idLists' => ['transactionIds'],
+				'accounts' => ['account_id'],
 			],
 		],
 		'savings_goals' => [
@@ -390,9 +401,13 @@ class MigrationService {
 		$transactions = $this->transactionMapper->findAll($userId);
 		$transactionsData = array_map(fn (Transaction $t) => $t->jsonSerialize(), $transactions);
 
-		// Get bills
+		// Get bills. The undo snapshot of the last payment stays out of the
+		// API's JSON, so the backup adds it: without it no restored bill
+		// could be marked unpaid (#365).
 		$bills = $this->billMapper->findAll($userId);
-		$billsData = array_map(fn (Bill $b) => $b->jsonSerialize(), $bills);
+		$billsData = array_map(fn (Bill $b) => $b->jsonSerialize() + [
+			'paidUndoState' => self::decodeJsonColumn($b->getPaidUndoState()),
+		], $bills);
 
 		// Get import rules
 		$importRules = $this->importRuleMapper->findAll($userId);
@@ -1092,6 +1107,18 @@ class MigrationService {
 	 * @param array<string,mixed> $row raw column => value
 	 */
 	private function remapRow(array $row, array $spec, array $idMaps): ?array {
+		// Before the foreign keys: whether the row's accounts came with the
+		// backup is read off their archived ids
+		if (isset($spec['undoSnapshot'])) {
+			$snapshotSpec = $spec['undoSnapshot'];
+			$column = $snapshotSpec['column'];
+			if (($row[$column] ?? null) !== null) {
+				$accountIds = array_map(static fn (string $c) => $row[$c] ?? null, $snapshotSpec['accounts'] ?? []);
+				$snapshot = $this->remapUndoSnapshot($row[$column], $snapshotSpec['required'], $snapshotSpec['idLists'] ?? [], [], $accountIds, $idMaps);
+				$row[$column] = $snapshot === null ? null : json_encode($snapshot);
+			}
+		}
+
 		foreach ($spec['fk'] ?? [] as $column => $fkSpec) {
 			$value = $row[$column] ?? null;
 			if ($value === null || $value === '') {
@@ -1142,6 +1169,78 @@ class MigrationService {
 		}
 
 		return $row;
+	}
+
+	/**
+	 * An undo snapshot (a bill's last payment, an income's last receipt) with
+	 * the transactions it names moved to their restored ids.
+	 *
+	 * Copied as it was, a revert would delete whatever now holds the old
+	 * ids. A row the backup doesn't hold was deleted before it was made, so
+	 * it is left out, as a revert would have skipped it. If the item posted
+	 * into an account that isn't in the backup, its rows aren't either: a
+	 * revert would put it back to unpaid and leave the money where it was,
+	 * so it comes back with no snapshot at all, as does one that doesn't
+	 * read as a snapshot.
+	 *
+	 * @param mixed $raw the archived snapshot, decoded or as JSON
+	 * @param string $required a key every valid snapshot has
+	 * @param string[] $idLists keys holding lists of transaction ids
+	 * @param string[] $idSingles keys holding one transaction id or null
+	 * @param array<int|string|null> $accountIds the item's archived account ids
+	 * @return array<string, mixed>|null
+	 */
+	private function remapUndoSnapshot(mixed $raw, string $required, array $idLists, array $idSingles, array $accountIds, array $idMaps): ?array {
+		$snapshot = is_string($raw) ? json_decode($raw, true) : $raw;
+		if (!is_array($snapshot) || !array_key_exists($required, $snapshot)) {
+			return null;
+		}
+		foreach ($accountIds as $accountId) {
+			if ($accountId !== null && $accountId !== '' && !isset($idMaps['accounts'][(int)$accountId])) {
+				return null;
+			}
+		}
+
+		$transactionMap = $idMaps['transactions'] ?? [];
+		foreach ($idLists as $key) {
+			if (!array_key_exists($key, $snapshot)) {
+				continue;
+			}
+			if (!is_array($snapshot[$key])) {
+				return null;
+			}
+			$ids = [];
+			foreach ($snapshot[$key] as $oldId) {
+				if (!is_numeric($oldId)) {
+					return null;
+				}
+				if (isset($transactionMap[(int)$oldId])) {
+					$ids[] = $transactionMap[(int)$oldId];
+				}
+			}
+			$snapshot[$key] = $ids;
+		}
+		foreach ($idSingles as $key) {
+			$oldId = $snapshot[$key] ?? null;
+			if ($oldId === null) {
+				continue;
+			}
+			if (!is_numeric($oldId)) {
+				return null;
+			}
+			$snapshot[$key] = $transactionMap[(int)$oldId] ?? null;
+		}
+		return $snapshot;
+	}
+
+	/**
+	 * A JSON column's value, decoded; null when empty or not JSON.
+	 */
+	private static function decodeJsonColumn(?string $raw): mixed {
+		if ($raw === null || $raw === '') {
+			return null;
+		}
+		return json_decode($raw, true);
 	}
 
 	/**
@@ -1392,6 +1491,22 @@ class MigrationService {
 			$oldDestId = $billData['destinationAccountId'] ?? null;
 			if ($oldDestId !== null && isset($idMaps['accounts'][$oldDestId])) {
 				$bill->setDestinationAccountId($idMaps['accounts'][$oldDestId]);
+			}
+
+			// Mark Unpaid works from this, and a paid one-time bill is only
+			// listed while it has one (#365)
+			if (($billData['paidUndoState'] ?? null) !== null) {
+				$snapshot = $this->remapUndoSnapshot(
+					$billData['paidUndoState'],
+					'previousState',
+					['createdTransactionIds', 'scheduledTransactionIds'],
+					['linkedTransactionId'],
+					$bill->getIsTransfer() ? [$oldAccountId, $oldDestId] : [$oldAccountId],
+					$idMaps
+				);
+				if ($snapshot !== null && is_array($snapshot['previousState'])) {
+					$bill->setPaidUndoState(json_encode($snapshot));
+				}
 			}
 
 			$inserted = $this->billMapper->insert($bill);

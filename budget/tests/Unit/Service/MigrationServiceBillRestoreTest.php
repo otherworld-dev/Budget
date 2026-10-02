@@ -36,7 +36,23 @@ class MigrationServiceBillRestoreTest extends TestCase {
 			return $b;
 		});
 
+		// The table-level export runs raw query-builder statements; give it
+		// inert builders that find no rows
 		$db = $this->createMock(IDBConnection::class);
+		$db->method('getQueryBuilder')->willReturnCallback(function () {
+			$expr = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
+			$expr->method('eq')->willReturn('eq');
+			$qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
+			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin'] as $m) {
+				$qb->method($m)->willReturnSelf();
+			}
+			$qb->method('expr')->willReturn($expr);
+			$qb->method('createNamedParameter')->willReturn(':p');
+			$result = $this->createMock(\OCP\DB\IResult::class);
+			$result->method('fetch')->willReturn(false);
+			$qb->method('executeQuery')->willReturn($result);
+			return $qb;
+		});
 		$this->service = new MigrationService(
 			$this->createMock(AccountMapper::class),
 			$this->createMock(TransactionMapper::class),
@@ -128,5 +144,131 @@ class MigrationServiceBillRestoreTest extends TestCase {
 		$this->assertSame('2026-08-15', $this->inserted[1]->getStartDate());
 		$this->assertSame('2026-07-01', $this->inserted[2]->getStartDate());
 		$this->assertNull($this->inserted[3]->getStartDate());
+	}
+
+	private const SNAPSHOT = [
+		'previousState' => ['lastPaidDate' => '2026-08-01', 'nextDueDate' => '2026-09-01', 'isActive' => true, 'amount' => 812.5],
+		'createdTransactionIds' => [11, 12],
+		'scheduledTransactionIds' => [13],
+		'linkedTransactionId' => null,
+		'hadScheduledTransaction' => true,
+		'paidDate' => '2026-09-01',
+	];
+
+	/**
+	 * Mark Unpaid works from the snapshot the last payment left on the bill
+	 * (#365). The export left it out, so no restored bill could be marked
+	 * unpaid, and a paid one-time bill, which the Bills page only lists while
+	 * it has one, disappeared from the page.
+	 */
+	public function testTheExportCarriesTheUndoSnapshot(): void {
+		$bill = new Bill();
+		$bill->setId(40);
+		$bill->setName('Rent');
+		$bill->setPaidUndoState(json_encode(self::SNAPSHOT));
+		$this->billMapper->method('findAll')->willReturn([$bill]);
+
+		$bills = $this->exportedFile('bills.json');
+
+		$this->assertSame(self::SNAPSHOT['createdTransactionIds'], $bills[0]['paidUndoState']['createdTransactionIds']);
+		$this->assertSame(self::SNAPSHOT['previousState'], $bills[0]['paidUndoState']['previousState']);
+	}
+
+	/**
+	 * The snapshot names the rows the payment booked, and a restore gives
+	 * every row a new id. Copied as it was, a revert would delete whatever
+	 * now held the old ids, so the ids move to the restored rows.
+	 */
+	public function testTheUndoSnapshotPointsAtTheRestoredTransactions(): void {
+		$this->importBills([
+			['id' => 40, 'name' => 'Rent', 'amount' => 800.0, 'accountId' => 1, 'paidUndoState' => self::SNAPSHOT],
+			// The pre-existing row a payment linked, and a placeholder the
+			// user deleted before the backup was made (its id is gone)
+			['id' => 41, 'name' => 'Card', 'amount' => 50.0, 'accountId' => 1,
+				'paidUndoState' => json_encode(['linkedTransactionId' => 14, 'scheduledTransactionIds' => [99]] + self::SNAPSHOT)],
+		], ['accounts' => [1 => 5], 'transactions' => [11 => 111, 12 => 112, 13 => 113, 14 => 114]]);
+
+		$restored = json_decode((string)$this->inserted[0]->getPaidUndoState(), true);
+		$this->assertSame([111, 112], $restored['createdTransactionIds']);
+		$this->assertSame([113], $restored['scheduledTransactionIds']);
+		$this->assertNull($restored['linkedTransactionId']);
+		$this->assertSame(self::SNAPSHOT['previousState'], $restored['previousState']);
+		$this->assertTrue($restored['hadScheduledTransaction']);
+		$this->assertTrue($this->inserted[0]->canMarkUnpaid());
+
+		$linked = json_decode((string)$this->inserted[1]->getPaidUndoState(), true);
+		$this->assertSame(114, $linked['linkedTransactionId']);
+		$this->assertSame([], $linked['scheduledTransactionIds']);
+	}
+
+	/**
+	 * A bill paid into an account that isn't in the backup booked rows that
+	 * aren't in it either. Without them a revert would put the bill back to
+	 * unpaid and leave the payment standing, so the next payment books it
+	 * twice. Such a bill comes back without Mark Unpaid, as do snapshots
+	 * that don't read as one.
+	 */
+	public function testAnUndoSnapshotThatCannotBeCarriedIsDropped(): void {
+		$this->importBills([
+			['id' => 40, 'name' => 'Rent', 'amount' => 800.0, 'accountId' => 77, 'paidUndoState' => self::SNAPSHOT],
+			['id' => 41, 'name' => 'Savings', 'amount' => 100.0, 'accountId' => 1, 'isTransfer' => true,
+				'destinationAccountId' => 78, 'paidUndoState' => self::SNAPSHOT],
+			['id' => 42, 'name' => 'Phone', 'amount' => 20.0, 'accountId' => 1, 'paidUndoState' => '{not json'],
+			['id' => 43, 'name' => 'Water', 'amount' => 20.0, 'accountId' => 1,
+				'paidUndoState' => ['createdTransactionIds' => [11]]],
+			['id' => 44, 'name' => 'Gas', 'amount' => 20.0, 'accountId' => 1,
+				'paidUndoState' => ['createdTransactionIds' => ['x']] + self::SNAPSHOT],
+		], ['accounts' => [1 => 5], 'transactions' => [11 => 111, 12 => 112, 13 => 113]]);
+
+		foreach ($this->inserted as $bill) {
+			$this->assertNull($bill->getPaidUndoState(), $bill->getName() . ' must come back without a snapshot');
+		}
+	}
+
+	/**
+	 * Recurring income's Mark Unreceived keeps the same kind of snapshot,
+	 * in a table the backup copies column for column, so it came back
+	 * naming transactions from before the restore.
+	 */
+	public function testAnIncomeReceiptSnapshotPointsAtTheRestoredTransaction(): void {
+		$spec = MigrationService::EXTRA_TABLES_POST['recurring_income'];
+		$snapshot = ['nextExpectedDate' => '2026-09-25', 'lastReceivedDate' => '2026-08-25', 'isActive' => true,
+			'startDate' => null, 'transactionIds' => [11]];
+		$idMaps = ['accounts' => [1 => 5], 'categories' => [], 'transactions' => [11 => 111]];
+
+		$own = $this->remapRow(['id' => 3, 'account_id' => 1, 'received_undo_state' => json_encode($snapshot)], $spec, $idMaps);
+		$this->assertSame(5, $own['account_id']);
+		$this->assertSame(array_replace($snapshot, ['transactionIds' => [111]]), json_decode($own['received_undo_state'], true));
+
+		// Paid into an account the backup doesn't hold: the credit isn't in
+		// it, so there is nothing a revert could remove
+		$foreign = $this->remapRow(['id' => 4, 'account_id' => 77, 'received_undo_state' => json_encode($snapshot)], $spec, $idMaps);
+		$this->assertNull($foreign['received_undo_state']);
+
+		$corrupt = $this->remapRow(['id' => 5, 'account_id' => 1, 'received_undo_state' => '{"transactionIds":[11]}'], $spec, $idMaps);
+		$this->assertNull($corrupt['received_undo_state']);
+
+		$none = $this->remapRow(['id' => 6, 'account_id' => 1, 'received_undo_state' => null], $spec, $idMaps);
+		$this->assertNull($none['received_undo_state']);
+	}
+
+	private function remapRow(array $row, array $spec, array $idMaps): ?array {
+		$method = new \ReflectionMethod($this->service, 'remapRow');
+		$method->setAccessible(true);
+		return $method->invoke($this->service, $row, $spec, $idMaps);
+	}
+
+	/**
+	 * @return mixed the decoded contents of one file in a fresh export
+	 */
+	private function exportedFile(string $name): mixed {
+		$path = tempnam(sys_get_temp_dir(), 'test_export_');
+		file_put_contents($path, $this->service->exportAll('user1')['content']);
+		$zip = new \ZipArchive();
+		$zip->open($path);
+		$content = $zip->getFromName($name);
+		$zip->close();
+		unlink($path);
+		return json_decode((string)$content, true);
 	}
 }
