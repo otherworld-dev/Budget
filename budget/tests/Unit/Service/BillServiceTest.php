@@ -1726,6 +1726,125 @@ class BillServiceTest extends TestCase {
 		$this->service->recordMissedPayment(7, 'user1');
 	}
 
+	/**
+	 * What markPaid() leaves on the bill for the payment made on $paidDate:
+	 * the rows it recorded or linked.
+	 */
+	private function paymentSnapshot(string $paidDate, array $createdIds = [], ?int $linkedId = null): string {
+		return json_encode([
+			'previousState' => ['lastPaidDate' => null, 'nextDueDate' => $paidDate],
+			'createdTransactionIds' => $createdIds,
+			'scheduledTransactionIds' => [],
+			'linkedTransactionId' => $linkedId,
+			'hadScheduledTransaction' => false,
+			'paidDate' => $paidDate,
+		]);
+	}
+
+	private function billRow(int $id, int $billId, string $date): \OCA\Budget\Db\Transaction {
+		$tx = $this->makeImportedTx(['id' => $id, 'date' => $date]);
+		$tx->setBillId($billId);
+		return $tx;
+	}
+
+	public function testAPaymentMovedToItsBankDateStillCountsAsRecorded(): void {
+		// Marked paid today, then the row corrected to the day the bank took
+		// it, three weeks back
+		$paidDate = date('Y-m-d', strtotime('-1 day'));
+		$bill = $this->makeBill(['id' => 7, 'lastPaidDate' => $paidDate]);
+		$bill->setPaidUndoState($this->paymentSnapshot($paidDate, [900]));
+		$this->mapper->method('findAll')->willReturn([$bill]);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->transactionService->method('findRecordedBillTransactions')
+			->willReturn([$this->billRow(900, 7, date('Y-m-d', strtotime('-22 days')))]);
+
+		$this->assertSame([], $this->service->findUnrecordedPayments('user1'));
+
+		// ...and Record transaction won't book it a second time
+		$this->transactionService->expects($this->never())->method('createFromBill');
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->recordMissedPayment(7, 'user1');
+	}
+
+	public function testALinkedBankRowFromWeeksBeforeTheClickCountsAsRecorded(): void {
+		// An overdue bill marked paid by linking the bank's row from its due
+		// date, 20 days before the click
+		$paidDate = date('Y-m-d');
+		$bill = $this->makeBill(['id' => 7, 'lastPaidDate' => $paidDate]);
+		$bill->setPaidUndoState($this->paymentSnapshot($paidDate, [], 901));
+		$this->mapper->method('findAll')->willReturn([$bill]);
+		$this->transactionService->method('findRecordedBillTransactions')
+			->willReturn([$this->billRow(901, 7, date('Y-m-d', strtotime('-20 days')))]);
+
+		$this->assertSame([], $this->service->findUnrecordedPayments('user1'));
+	}
+
+	public function testAWeeklyPaymentWithoutATransactionIsFlaggedThoughLastWeeksHasOne(): void {
+		$paidDate = date('Y-m-d', strtotime('-2 days'));
+		$bill = $this->makeBill(['id' => 7, 'frequency' => 'weekly', 'lastPaidDate' => $paidDate]);
+		$bill->setPaidUndoState($this->paymentSnapshot($paidDate, []));
+		$this->mapper->method('findAll')->willReturn([$bill]);
+		// Last week's payment, recorded with a transaction
+		$this->transactionService->method('findRecordedBillTransactions')
+			->willReturn([$this->billRow(800, 7, date('Y-m-d', strtotime('-9 days')))]);
+
+		$result = $this->service->findUnrecordedPayments('user1');
+
+		$this->assertCount(1, $result);
+		$this->assertSame(7, $result[0]['billId']);
+	}
+
+	public function testOverdueOccurrencesCaughtUpOnOneDayAreEachChecked(): void {
+		// Two paid today: the first with a transaction, the second without
+		$paidDate = date('Y-m-d');
+		$bill = $this->makeBill(['id' => 7, 'lastPaidDate' => $paidDate]);
+		$bill->setPaidUndoState($this->paymentSnapshot($paidDate, []));
+		$this->mapper->method('findAll')->willReturn([$bill]);
+		$this->transactionService->method('findRecordedBillTransactions')
+			->willReturn([$this->billRow(800, 7, $paidDate)]);
+
+		$this->assertCount(1, $this->service->findUnrecordedPayments('user1'));
+	}
+
+	public function testWithoutASnapshotAWeeklyBillsPreviousPaymentDoesNotCount(): void {
+		// Payments from before bills kept a record of their rows: matched by
+		// date, within half the bill's interval
+		$paidDate = date('Y-m-d', strtotime('-2 days'));
+		$weekly = $this->makeBill(['id' => 7, 'frequency' => 'weekly', 'lastPaidDate' => $paidDate]);
+		$biweekly = $this->makeBill(['id' => 8, 'frequency' => 'biweekly', 'lastPaidDate' => $paidDate]);
+		$this->mapper->method('findAll')->willReturn([$weekly, $biweekly]);
+		$this->transactionService->method('findRecordedBillTransactions')->willReturn([
+			$this->billRow(800, 7, date('Y-m-d', strtotime('-9 days'))),
+			$this->billRow(801, 8, date('Y-m-d', strtotime('-16 days'))),
+		]);
+
+		$this->assertEqualsCanonicalizing([7, 8], array_column($this->service->findUnrecordedPayments('user1'), 'billId'));
+	}
+
+	public function testRecordingAMissedPaymentAddsItToThePaymentsSnapshot(): void {
+		// So the card sees it from then on, and Mark Unpaid takes it back
+		// along with the payment
+		$paidDate = date('Y-m-d', strtotime('-3 days'));
+		$bill = $this->makeBill(['id' => 7, 'lastPaidDate' => $paidDate]);
+		$bill->setPaidUndoState($this->paymentSnapshot($paidDate, []));
+		$this->mapper->method('find')->willReturn($bill);
+		$this->transactionService->method('findRecordedBillTransactions')->willReturn([]);
+		$this->transactionService->method('createFromBill')
+			->willReturn($this->makeImportedTx(['id' => 902, 'date' => $paidDate]));
+
+		$saved = null;
+		$this->mapper->expects($this->once())->method('update')
+			->willReturnCallback(function (Bill $b) use (&$saved) {
+				$saved = json_decode($b->getPaidUndoState(), true);
+				return $b;
+			});
+
+		$this->service->recordMissedPayment(7, 'user1');
+
+		$this->assertSame([902], $saved['createdTransactionIds']);
+		$this->assertSame($paidDate, $saved['paidDate']);
+	}
+
 	public function testRecordMissedPaymentRefusesWithoutAccount(): void {
 		// makeBill's `?? 1` default swallows a null override, so unset explicitly
 		$bill = $this->makeBill(['id' => 7, 'lastPaidDate' => date('Y-m-d')]);
