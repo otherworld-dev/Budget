@@ -380,11 +380,12 @@ class RepairService {
 	private function paymentsSharingAnOccurrence(Bill $bill, array $rows): array {
 		usort($rows, fn (Transaction $a, Transaction $b) => [$a->getDate(), $a->getId()] <=> [$b->getDate(), $b->getId()]);
 		$early = self::EARLY_PAYMENT_DAYS[$bill->getFrequency()] ?? 15;
-		$first = $rows[0]->getDate();
+		$dates = array_map(fn (Transaction $tx) => $tx->getDate(), $rows);
+		$first = min($dates);
 
 		// Settled: up to the last payment, and before the due date of a bill
 		// still running
-		$until = self::addDays($rows[count($rows) - 1]->getDate(), $early);
+		$until = self::addDays(max($dates), $early);
 		$nextDue = $bill->getIsActive() ? $bill->getNextDueDate() : null;
 		if ($nextDue !== null && $nextDue !== '') {
 			$until = min($until, self::addDays($nextDue, -1));
@@ -410,13 +411,15 @@ class RepairService {
 		$occurrences = array_values(array_slice($occurrences, $floor));
 
 		$pairs = [];
-		$holders = [];
+		// The payment holding the latest occurrence taken, and that occurrence
+		$held = null;
 		$next = 0;
 		foreach ($rows as $row) {
 			if ($next < count($occurrences) && $occurrences[$next] <= self::addDays($row->getDate(), $early)) {
-				$holders[$next++] = $row;
-			} elseif ($next > 0) {
-				$pairs[] = [$row, $holders[$next - 1], $occurrences[$next - 1]];
+				$held = [$row, $occurrences[$next]];
+				$next++;
+			} elseif ($held !== null) {
+				$pairs[] = [$row, $held[0], $held[1]];
 			}
 		}
 
