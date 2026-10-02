@@ -153,6 +153,12 @@ describe('DashboardModule.filterBillsByHorizon', () => {
         expect(kept).toHaveLength(0);
     });
 
+    it('keeps a long-overdue bill when the tile asks for every overdue bill', () => {
+        const dash = makeDashboard();
+        const kept = dash.filterBillsByHorizon([bill('2026-06-01')], 30, '2026-08-24', { keepAllOverdue: true });
+        expect(kept).toHaveLength(1);
+    });
+
     it('sorts by due date', () => {
         const dash = makeDashboard();
         const kept = dash.filterBillsByHorizon(
