@@ -125,7 +125,7 @@ class ApiV1TransactionController extends OCSController {
 
 			return new DataResponse([
 				'transactions' => ApiSerializer::map(
-					$this->hideUnseenLinkedAccounts($result['transactions'], $visible),
+					TransactionService::hideUnseenLinkedAccounts($result['transactions'], $visible),
 					[ApiSerializer::class, 'transaction']
 				),
 				'total' => (int)$result['total'],
@@ -168,7 +168,7 @@ class ApiV1TransactionController extends OCSController {
 			);
 
 			return new DataResponse(ApiSerializer::map(
-				$this->hideUnseenLinkedAccounts($result['transactions'], $visible),
+				TransactionService::hideUnseenLinkedAccounts($result['transactions'], $visible),
 				[ApiSerializer::class, 'recentTransaction']
 			));
 		} catch (\Exception $e) {
@@ -693,26 +693,6 @@ class ApiV1TransactionController extends OCSController {
 		}
 
 		return $splits;
-	}
-
-	/**
-	 * Clear the name of a transfer's other account when the caller cannot
-	 * see that account. findWithFilters() joins it without a scope, and the
-	 * other half of a transfer on a shared account can sit in one of the
-	 * owner's accounts that was never shared. The link itself stays (#407).
-	 *
-	 * @param array<int, array<string, mixed>> $rows
-	 * @param int[] $visibleAccountIds
-	 * @return array<int, array<string, mixed>>
-	 */
-	private function hideUnseenLinkedAccounts(array $rows, array $visibleAccountIds): array {
-		foreach ($rows as &$row) {
-			if (!in_array((int)($row['linkedAccountId'] ?? 0), $visibleAccountIds, true)) {
-				$row['linkedAccountName'] = null;
-			}
-		}
-		unset($row);
-		return $rows;
 	}
 
 	/**

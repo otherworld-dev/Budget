@@ -88,6 +88,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A receipt that failed to attach to a new transaction** now shows the warning saying so, where the failure used to go unnoticed.
 
 ### Security
+- **A transfer no longer names an account that wasn't shared with you.** On an account someone shared with you, a transfer to one of their other accounts showed that account's name in the transactions list, "Transfer → Owner savings", although the account itself was never shared. It now reads "Transfer", as it already did over the API.
 - **Names are always shown as text.** Payees and vendors from imports and bank sync, and the names of shared categories and accounts, were put into some lists as HTML, so markup in a name was rendered.
 - **Tags in shared categories.** Someone with write access to one of your shared categories could edit or delete the tags in your other categories.
 - **Categories must belong to the ledger.** Transactions, splits, bills and recurring income accepted a category id belonging to another user, and that category's name then showed in the transaction list. Only categories the account owner can see are accepted now.
