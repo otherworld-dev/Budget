@@ -25,6 +25,8 @@ class TransactionServiceTest extends TestCase {
 	private TransactionTagMapper $transactionTagMapper;
 	private ExpenseShareMapper $expenseShareMapper;
 	private \OCA\Budget\Db\AttachmentMapper $attachmentMapper;
+	/** @var \OCA\Budget\Service\AuditService&\PHPUnit\Framework\MockObject\MockObject */
+	private $auditService;
 	/** @var \OCA\Budget\Db\TransactionSplitMapper&\PHPUnit\Framework\MockObject\MockObject */
 	private $splitMapper;
 	/** @var array<int, Account> per-test accounts served by the findById stub */
@@ -54,6 +56,7 @@ class TransactionServiceTest extends TestCase {
 		$dismissedImportMapper = $this->createMock(DismissedImportMapper::class);
 		$this->attachmentMapper = $this->createMock(\OCA\Budget\Db\AttachmentMapper::class);
 		$auditService = $this->createMock(\OCA\Budget\Service\AuditService::class);
+		$this->auditService = $auditService;
 		$pensionContributionMapper = $this->createMock(\OCA\Budget\Db\PensionContributionMapper::class);
 		// Real UserClock over a config that stores no timezone: "today" is
 		// the server's, which is what these tests have always assumed.
@@ -730,6 +733,31 @@ class TransactionServiceTest extends TestCase {
 		$this->service->deleteAsAccountOwner(999);
 	}
 
+	/**
+	 * Mark Unpaid deletes the rows a payment booked. One reconciled against a
+	 * bank statement went with no warning, and the account stopped matching
+	 * the statement.
+	 */
+	public function testCountsTheReconciledRowsABillRevertWouldDelete(): void {
+		$payment = $this->makeTransaction(['id' => 55, 'billId' => 9, 'reconciled' => false, 'linkedTransactionId' => 56]);
+		$deposit = $this->makeTransaction(['id' => 56, 'accountId' => 20, 'billId' => 9, 'reconciled' => true]);
+		$otherBill = $this->makeTransaction(['id' => 57, 'billId' => 4, 'reconciled' => true]);
+		$rows = [55 => $payment, 56 => $deposit, 57 => $otherBill];
+		$this->mapper->method('findById')->willReturnCallback(fn (int $id) => $rows[$id] ?? null);
+
+		// The deposit is counted even when only the withdrawal is named: a
+		// revert takes a transfer's other side with it
+		$this->assertSame(1, $this->service->countReconciledBillRows([55], 9));
+		$this->assertSame(1, $this->service->countReconciledBillRows([55, 56, 57, 999], 9));
+		$this->assertSame(0, $this->service->countReconciledBillRows([57], 9));
+	}
+
+	public function testDetachingABillsPaymentsClearsTheirBillLink(): void {
+		$this->mapper->expects($this->once())->method('detachFromBill')->with(44)->willReturn(3);
+
+		$this->assertSame(3, $this->service->detachBillPayments(44));
+	}
+
 	public function testUnlinkBillAsAccountOwnerClearsTheBillLink(): void {
 		// Reverting a payment that LINKED an imported transaction must not
 		// delete the row — it predates the payment. Only the linkage goes.
@@ -1318,6 +1346,92 @@ class TransactionServiceTest extends TestCase {
 		$this->assertSame($source->getDate(), $counterpart->getDate());
 	}
 
+	/**
+	 * The counterpart of a converted placeholder had no bill id, so Skip,
+	 * deleting the bill or an import match removed the placeholder and left
+	 * the counterpart behind: the card was credited for a payment that was
+	 * skipped or never made.
+	 */
+	public function testABillsPreBookedRowCannotBeConverted(): void {
+		$source = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'billId' => 9]);
+		$source->setStatus('scheduled');
+		$this->mapper->method('find')->willReturn($source);
+		$this->mapper->expects($this->never())->method('insert');
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('upcoming payment');
+
+		$this->service->convertToTransfer(1, 20, 'user1');
+	}
+
+	public function testTheOtherSideOfABillPaymentBelongsToTheBillToo(): void {
+		// So Mark Unpaid takes it away with the payment, instead of leaving
+		// the card credited for a bill that is no longer paid
+		$source = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 300.00, 'type' => 'debit', 'billId' => 9]);
+		$source->setStatus('cleared');
+		$counterpart = null;
+		$this->mapper->method('find')->willReturnCallback(
+			function (int $id) use ($source, &$counterpart) {
+				return $id === 1 ? $source : $counterpart;
+			}
+		);
+		$this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) use (&$counterpart) {
+			$tx->setId(2);
+			$counterpart = $tx;
+			return $tx;
+		});
+		$this->accountMapper->method('find')->willReturnCallback(
+			fn (int $id) => $this->makeAccount(['id' => $id, 'currency' => 'USD'])
+		);
+
+		$this->service->convertToTransfer(1, 20, 'user1');
+
+		$this->assertSame(9, $counterpart->getBillId());
+		$this->assertSame('cleared', $counterpart->getStatus());
+	}
+
+	public function testABillRevertTakesTheOtherSideOfItsPaymentWithIt(): void {
+		$payment = $this->makeTransaction(['id' => 58, 'accountId' => 10, 'billId' => 9, 'linkedTransactionId' => 59]);
+		$otherSide = $this->makeTransaction(['id' => 59, 'accountId' => 20, 'type' => 'credit', 'billId' => 9]);
+		$rows = [58 => $payment, 59 => $otherSide];
+		$this->mapper->method('findById')->willReturnCallback(function (int $id) use (&$rows) {
+			return $rows[$id] ?? null;
+		});
+		$this->mapper->method('find')->willReturnCallback(function (int $id) use (&$rows) {
+			return $rows[$id];
+		});
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+
+		$deleted = [];
+		$this->mapper->method('delete')->willReturnCallback(function (Transaction $tx) use (&$deleted, &$rows) {
+			$deleted[] = $tx->getId();
+			unset($rows[$tx->getId()]);
+			return $tx;
+		});
+
+		$this->assertTrue($this->service->deleteAsAccountOwner(58, false, 9));
+		// Already gone with the payment: nothing left to do, and no error
+		$this->assertFalse($this->service->deleteAsAccountOwner(59, false, 9));
+
+		$this->assertSame([58, 59], $deleted);
+	}
+
+	public function testABillRevertLeavesARowItDidNotBookAlone(): void {
+		// An imported card credit matched to the payment is not the bill's
+		$payment = $this->makeTransaction(['id' => 58, 'accountId' => 10, 'billId' => 9, 'linkedTransactionId' => 59]);
+		$imported = $this->makeTransaction(['id' => 59, 'accountId' => 20, 'type' => 'credit']);
+		$rows = [58 => $payment, 59 => $imported];
+		$this->mapper->method('findById')->willReturnCallback(fn (int $id) => $rows[$id] ?? null);
+		$this->mapper->method('find')->willReturnCallback(fn (int $id) => $rows[$id]);
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+
+		$this->mapper->expects($this->once())->method('delete')->with($payment);
+
+		$this->service->deleteAsAccountOwner(58, false, 9);
+	}
+
 	public function testConvertToTransferRejectsSameAccount(): void {
 		$source = $this->makeTransaction(['id' => 1, 'accountId' => 10]);
 		$this->mapper->method('find')->willReturn($source);
@@ -1420,6 +1534,148 @@ class TransactionServiceTest extends TestCase {
 			->willReturn([]);
 
 		$this->service->findPotentialMatches(1, 'user1', 3, true);
+	}
+
+	/**
+	 * A bill's pre-booked row is a payment nobody has made yet. Paired with a
+	 * salary or a card credit, it took that row out of income and spending
+	 * as a "transfer", and Mark Paid then cleared it into a payment that was
+	 * still linked to the salary.
+	 */
+	public function testAPreBookedRowIsNeverMatchedAsATransfer(): void {
+		$tx = $this->makeTransaction(['billId' => 9]);
+		$tx->setStatus('scheduled');
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->expects($this->never())->method('findPotentialMatches');
+
+		$this->assertSame([], $this->service->findPotentialMatches(1, 'user1', 3, true, null, true));
+	}
+
+	public function testAFutureDatedRowIsNotMatchedEither(): void {
+		$tx = $this->makeTransaction();
+		$tx->setStatus('scheduled');
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->expects($this->never())->method('findPotentialMatches');
+
+		$this->assertSame([], $this->service->findPotentialMatches(1, 'user1'));
+	}
+
+	/**
+	 * A row a bill or an income booked stands for that bill or income. Auto
+	 * matching (after an import, Find transfers, link-as-transfer rules) turned
+	 * a salary paid in on the 28th and a rent bill paid on the 30th into a
+	 * transfer, so the month's income read nothing.
+	 */
+	public function testBillAndIncomeRowsAreNotMatchedAutomatically(): void {
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(['id' => 10, 'currency' => 'USD']));
+
+		foreach ([
+			['billId' => 9],
+			['notes' => 'Auto-generated from bill: Rent'],
+			['notes' => 'Auto-generated from income: Salary', 'type' => 'credit'],
+		] as $overrides) {
+			$tx = $this->makeTransaction($overrides);
+			$tx->setStatus('cleared');
+			// A fresh service per row: a stub set on the shared mapper can't
+			// be replaced, so each row gets a mapper of its own
+			$service = $this->serviceWithMapperReturning($tx);
+			$this->assertSame([], $service->findPotentialMatches(1, 'user1'), json_encode($overrides));
+		}
+	}
+
+	public function testTheMatchDialogStillOffersBillAndIncomeRows(): void {
+		// The user picks the pair there, and converting a recorded bill
+		// payment is how a loan or card with no feed gets its other side
+		$tx = $this->makeTransaction(['billId' => 9]);
+		$tx->setStatus('cleared');
+		$this->mapper->method('find')->willReturn($tx);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(['id' => 10, 'currency' => 'USD']));
+
+		$this->mapper->expects($this->once())
+			->method('findPotentialMatches')
+			->with('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'USD', 3, true, null, true)
+			->willReturn([]);
+
+		$this->service->findPotentialMatches(1, 'user1', 3, true, null, true);
+	}
+
+	public function testAutomaticMatchingAsksTheMapperToLeaveGeneratedRowsOut(): void {
+		$tx = $this->makeTransaction();
+		$tx->setStatus('cleared');
+		$this->mapper->method('find')->willReturn($tx);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(['id' => 10, 'currency' => 'USD']));
+
+		$this->mapper->expects($this->once())
+			->method('findPotentialMatches')
+			->with('user1', 1, 10, 50.00, 'debit', '2026-01-15', 'USD', 3, false, null, false)
+			->willReturn([]);
+
+		$this->service->findPotentialMatches(1, 'user1');
+	}
+
+	public function testAPreBookedRowCannotBeLinkedToARowOutsideItsBill(): void {
+		$placeholder = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 300.00, 'type' => 'debit', 'billId' => 9]);
+		$placeholder->setStatus('scheduled');
+		$credit = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 300.00, 'type' => 'credit']);
+		$this->mapper->method('find')->willReturnCallback(fn (int $id) => $id === 1 ? $placeholder : $credit);
+		$this->mapper->expects($this->never())->method('linkTransactions');
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('upcoming payment');
+
+		$this->service->linkTransactions(2, 1, 'user1');
+	}
+
+	public function testATransferBillsOwnPreBookedLegsStillLink(): void {
+		$out = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'amount' => 300.00, 'type' => 'debit', 'billId' => 9]);
+		$out->setStatus('scheduled');
+		$in = $this->makeTransaction(['id' => 2, 'accountId' => 20, 'amount' => 300.00, 'type' => 'credit', 'billId' => 9]);
+		$in->setStatus('scheduled');
+		$this->mapper->method('find')->willReturnCallback(fn (int $id) => $id === 1 ? $out : $in);
+
+		$this->mapper->expects($this->once())->method('linkTransactions')->with(1, 2);
+
+		$this->service->linkTransactions(1, 2, 'user1');
+	}
+
+	/**
+	 * Matching after an import used to sweep the whole ledger, so any two
+	 * same-amount rows in different accounts a few days apart were linked
+	 * the moment anything was imported.
+	 */
+	public function testMatchingAfterAnImportOnlyStartsFromTheImportedRows(): void {
+		$this->mapper->expects($this->once())
+			->method('findUnlinkedWithMatches')
+			->with('user1', 3, 100, 0, [10, 20], [7, 8])
+			->willReturn(['transactions' => [], 'total' => 0]);
+
+		$result = $this->service->bulkFindAndMatch('user1', 3, 100, [10, 20], [7, 8]);
+
+		$this->assertSame(0, $result['stats']['autoMatchedCount']);
+	}
+
+	public function testMatchingAfterAnImportOfNothingRunsNoQuery(): void {
+		$this->mapper->expects($this->never())->method('findUnlinkedWithMatches');
+
+		$this->service->bulkFindAndMatch('user1', 3, 100, [10, 20], []);
+	}
+
+	private function serviceWithMapperReturning(Transaction $tx): TransactionService {
+		$mapper = $this->createMock(TransactionMapper::class);
+		$mapper->method('find')->willReturn($tx);
+		$mapper->expects($this->never())->method('findPotentialMatches');
+		return new TransactionService(
+			$mapper,
+			$this->accountMapper,
+			$this->transactionTagMapper,
+			$this->splitMapper,
+			$this->expenseShareMapper,
+			$this->createMock(DismissedImportMapper::class),
+			$this->attachmentMapper,
+			$this->createMock(\OCA\Budget\Service\AuditService::class),
+			$this->createMock(\OCA\Budget\Db\PensionContributionMapper::class),
+			$this->userClock
+		);
 	}
 
 	// ===== bulkCategorize() =====
@@ -1888,6 +2144,43 @@ class TransactionServiceTest extends TestCase {
 		$this->assertEqualsWithDelta(440.0, $deposit->getAmount(), 0.001);
 	}
 
+	/**
+	 * Unlinking one leg of a recurring transfer's pre-booked pair left two
+	 * unrelated scheduled rows, and the next Mark Paid cleared the withdrawal
+	 * and deleted the deposit as a "duplicate": the source paid out, the
+	 * destination was never credited, and the payment was reported recorded.
+	 */
+	public function testAPreBookedTransferPairCannotBeUnlinked(): void {
+		[$withdrawal, $deposit] = $this->makeScheduledPair();
+		$this->mapper->method('find')->willReturn($withdrawal);
+		$this->mapper->method('findById')->with(102)->willReturn($deposit);
+		$this->mapper->expects($this->never())->method('unlinkTransaction');
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('recurring transfer');
+
+		$this->service->unlinkTransaction(101, 'user1');
+	}
+
+	public function testMarkPaidPutsBackAPreBookedPairThatWasUnlinked(): void {
+		[$withdrawal, $deposit] = $this->makeScheduledPair();
+		$withdrawal->setLinkedTransactionId(null);
+		$deposit->setLinkedTransactionId(null);
+		$this->mapper->method('findAllScheduledByBillId')->with(7)->willReturn([$withdrawal, $deposit]);
+		$this->mapper->method('find')->willReturnCallback(
+			fn ($id) => $id === 101 ? $withdrawal : $deposit
+		);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->expects($this->never())->method('delete');
+		$this->mapper->expects($this->once())->method('linkTransactions')->with(101, 102);
+
+		$cleared = $this->service->clearScheduledBillTransaction('user1', 7, '2026-08-15');
+
+		$this->assertSame('cleared', $deposit->getStatus());
+		$this->assertSame('2026-08-15', $deposit->getDate());
+		$this->assertSame(102, $cleared->getLinkedTransactionId());
+	}
+
 	public function testClearScheduledStillDeletesUnlinkedDuplicates(): void {
 		[$withdrawal, $deposit] = $this->makeScheduledPair();
 		$stray = $this->makeTransaction(['id' => 103, 'accountId' => 10, 'billId' => 7]);
@@ -2179,6 +2472,52 @@ class TransactionServiceTest extends TestCase {
 			->with(11, 'user1');
 
 		$this->service->deleteScheduledBillTransactions(44);
+	}
+
+	/**
+	 * A placeholder ticked into a statement before ticking them was refused
+	 * went with Skip or a bill delete without a trace, unlike any other
+	 * reconciled row.
+	 */
+	public function testDeletingAReconciledPlaceholderLeavesAnAuditTrail(): void {
+		$placeholder = $this->makeTransaction(['id' => 11, 'billId' => 44, 'reconciled' => true]);
+		$placeholder->setStatus('scheduled');
+		$this->mapper->method('findAllScheduledByBillId')->willReturn([$placeholder]);
+
+		$this->auditService->expects($this->once())->method('log')
+			->with('user1', 'reconciled_tx_deleted', 'transaction', 11, $this->anything());
+
+		$this->service->deleteScheduledBillTransactions(44);
+	}
+
+	/**
+	 * A placeholder that had been matched to a row in another account (a card
+	 * credit) used to go without unlinking it, so the credit kept a link to a
+	 * row that no longer existed: it could never be matched to the real
+	 * payment, and the totals counted it as income.
+	 */
+	public function testDeletingABillsPlaceholderUnlinksItsTransferPartner(): void {
+		$placeholder = $this->makeTransaction(['id' => 11, 'billId' => 44, 'linkedTransactionId' => 500]);
+		$placeholder->setStatus('scheduled');
+		$this->mapper->method('findAllScheduledByBillId')->willReturn([$placeholder]);
+
+		$this->mapper->expects($this->once())->method('unlinkTransaction')->with(11);
+
+		$this->service->deleteScheduledBillTransactions(44);
+	}
+
+	public function testClearingAPlaceholderUnlinksTheDuplicateItDeletes(): void {
+		$kept = $this->makeTransaction(['id' => 11, 'billId' => 44]);
+		$kept->setStatus('scheduled');
+		$duplicate = $this->makeTransaction(['id' => 12, 'billId' => 44, 'linkedTransactionId' => 500]);
+		$duplicate->setStatus('scheduled');
+		$this->mapper->method('findAllScheduledByBillId')->willReturn([$kept, $duplicate]);
+		$this->mapper->method('find')->willReturn($kept);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$this->mapper->expects($this->once())->method('unlinkTransaction')->with(12);
+
+		$this->service->clearScheduledBillTransaction('user1', 44, '2026-08-15');
 	}
 
 	// ===== transfer matching across shared accounts (#378) =====

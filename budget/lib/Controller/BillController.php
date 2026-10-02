@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Exception\ReconciledPaymentException;
 use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\Export\CsvSafe;
 use OCA\Budget\Service\GranularShareService;
@@ -895,11 +896,13 @@ class BillController extends Controller {
 	 * @NoAdminRequired
 	 */
 	#[UserRateLimit(limit: 30, period: 60)]
-	public function undoPaid(int $id): DataResponse {
+	public function undoPaid(int $id, bool $confirmReconciled = false): DataResponse {
 		try {
 			$this->requireWriteAccess('bill', $id);
-			$bill = $this->service->markUnpaid($id, $this->billOwner($id));
+			$bill = $this->service->markUnpaid($id, $this->billOwner($id), $confirmReconciled);
 			return new DataResponse($bill);
+		} catch (ReconciledPaymentException $e) {
+			return $this->reconciledPaymentResponse($e);
 		} catch (\InvalidArgumentException $e) {
 			// Service-only validation keeps its message (#362)
 			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
@@ -914,17 +917,30 @@ class BillController extends Controller {
 	 * @NoAdminRequired
 	 */
 	#[UserRateLimit(limit: 30, period: 60)]
-	public function markUnpaid(int $id): DataResponse {
+	public function markUnpaid(int $id, bool $confirmReconciled = false): DataResponse {
 		try {
 			$this->requireWriteAccess('bill', $id);
-			$bill = $this->service->markUnpaid($id, $this->billOwner($id));
+			$bill = $this->service->markUnpaid($id, $this->billOwner($id), $confirmReconciled);
 			return new DataResponse($bill);
+		} catch (ReconciledPaymentException $e) {
+			return $this->reconciledPaymentResponse($e);
 		} catch (\InvalidArgumentException $e) {
 			// Service-only validation keeps its message (#362)
 			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to mark bill as unpaid'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
 		}
+	}
+
+	/**
+	 * The revert would delete a payment reconciled against a bank statement.
+	 * The code lets the client warn and send it again with confirmReconciled.
+	 */
+	private function reconciledPaymentResponse(ReconciledPaymentException $e): DataResponse {
+		return new DataResponse(
+			['error' => $e->getMessage(), 'code' => 'reconciled'],
+			Http::STATUS_CONFLICT
+		);
 	}
 
 	/**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service;
 
+use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\BudgetSnapshot;
 use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Db\Category;
@@ -11,6 +12,7 @@ use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\CategoryMuteMapper;
 use OCA\Budget\Db\ProjectAllocationMapper;
 use OCA\Budget\Db\ProjectMapper;
+use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Db\TagMapper;
 use OCA\Budget\Db\TagSetMapper;
@@ -48,6 +50,8 @@ class CategoryService extends AbstractCrudService {
 		private ?TransactionSplitMapper $splitMapper = null,
 		private ?ProjectMapper $projectMapper = null,
 		private ?ProjectAllocationMapper $projectAllocationMapper = null,
+		private ?BillMapper $billMapper = null,
+		private ?RecurringIncomeMapper $incomeMapper = null,
 	) {
 		$this->mapper = $mapper;
 		$this->transactionMapper = $transactionMapper;
@@ -245,6 +249,7 @@ class CategoryService extends AbstractCrudService {
 		// on a deleted category id (#360). This also covers deleteWithReassign()
 		// below, which calls delete() per category through the cascade above.
 		$this->splitMapper?->clearCategory([$entity->getId()]);
+		$this->releaseScheduleReferences($entity->getId());
 
 		// Cascade delete: Delete budget snapshots for this category
 		$this->budgetSnapshotMapper->deleteByCategory($entity->getId(), $userId);
@@ -255,14 +260,31 @@ class CategoryService extends AbstractCrudService {
 			// Delete tags in this tag set
 			$tags = $this->tagMapper->findByTagSet($tagSet->getId());
 			foreach ($tags as $tag) {
-				// Delete transaction tags first
+				// Delete transaction tags first, and take the tag off bills,
+				// which would link it to every payment they book from now on
 				$this->transactionTagMapper->deleteByTag($tag->getId());
+				$this->billMapper?->removeTagId($tag->getId());
 				// Then delete the tag
 				$this->tagMapper->delete($tag);
 			}
 			// Finally delete the tag set
 			$this->tagSetMapper->delete($tagSet);
 		}
+	}
+
+	/**
+	 * Bills, recurring income and bill split templates name a category too.
+	 * Left on a deleted one, every row they booked afterwards carried the dead
+	 * id: in no category and not under Uncategorized either, counted in totals
+	 * but in no breakdown. Saving such a bill failed with "Category not found",
+	 * and a split template naming it made every split fail, so the whole
+	 * payment went unsplit and uncategorised. They go to No category, like
+	 * the category's transactions do.
+	 */
+	private function releaseScheduleReferences(int $categoryId): void {
+		$this->billMapper?->clearCategory([$categoryId]);
+		$this->incomeMapper?->clearCategory([$categoryId]);
+		$this->billMapper?->clearSplitTemplateCategory($categoryId);
 	}
 
 	/**
@@ -1254,6 +1276,7 @@ class CategoryService extends AbstractCrudService {
 					$children = $this->getCategoryMapper()->findChildren($userId, $category->getId());
 					if (empty($children)) {
 						// Safe to delete
+						$this->releaseScheduleReferences($category->getId());
 						$this->mapper->delete($category);
 						$deleted[] = $category->getName();
 					}
@@ -1310,6 +1333,7 @@ class CategoryService extends AbstractCrudService {
 		foreach ($children as $category) {
 			$transactions = $this->transactionMapper->findByCategory($category->getId(), $userId, 1);
 			if (empty($transactions)) {
+				$this->releaseScheduleReferences($category->getId());
 				$this->mapper->delete($category);
 				$count++;
 			}
@@ -1320,6 +1344,7 @@ class CategoryService extends AbstractCrudService {
 			$remainingChildren = $this->getCategoryMapper()->findChildren($userId, $category->getId());
 			$transactions = $this->transactionMapper->findByCategory($category->getId(), $userId, 1);
 			if (empty($remainingChildren) && empty($transactions)) {
+				$this->releaseScheduleReferences($category->getId());
 				$this->mapper->delete($category);
 				$count++;
 			}

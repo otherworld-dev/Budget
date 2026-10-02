@@ -13,6 +13,7 @@ import { apiFetch } from '../../utils/api.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { showLoadError } from '../../utils/loading.js';
 import { openAccounts, pickableAccounts, accountOptionLabel } from '../../utils/accounts.js';
+import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
 
 /**
  * The date to open the form on for a one-time transfer saved before the
@@ -1056,10 +1057,10 @@ export default class TransfersModule {
         }
 
         try {
-            await apiFetch(`/apps/budget/api/bills/${transferId}/unpaid`, {
-                method: 'POST',
-                errorMessage: t('budget', 'Failed to mark transfer as unpaid'),
-            });
+            // Asks again when the payment was reconciled against a statement
+            if (!await requestMarkUnpaid(transferId, t('budget', 'Failed to mark transfer as unpaid'))) {
+                return;
+            }
 
             await this.loadTransfers();
             this.renderTransfers();

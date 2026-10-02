@@ -40,6 +40,7 @@ class AccountClosureService {
 		private BankAccountMappingMapper $bankAccountMappingMapper,
 		private ImportRuleMapper $importRuleMapper,
 		private IL10N $l,
+		private ?TransactionService $transactionService = null,
 	) {
 	}
 
@@ -115,15 +116,17 @@ class AccountClosureService {
 		];
 
 		// Bills and transfers share a table; a transfer touches the account
-		// from either end.
-		foreach ($this->billMapper->findActive($userId) as $bill) {
+		// from either end. Everyone's: someone the account is shared with
+		// can set up bills and income on it, and only the owner's were looked
+		// at, so a closed shared account went on receiving their payments.
+		foreach ($this->billMapper->findActiveByAccount($id) as $bill) {
 			if ((int)$bill->getAccountId() !== $id && (int)$bill->getDestinationAccountId() !== $id) {
 				continue;
 			}
 			$refs[$bill->getIsTransfer() ? 'transfers' : 'bills'][] = (string)$bill->getName();
 		}
 
-		foreach ($this->recurringIncomeMapper->findActive($userId) as $income) {
+		foreach ($this->recurringIncomeMapper->findActiveByAccount($id) as $income) {
 			if ((int)$income->getAccountId() === $id) {
 				$refs['income'][] = (string)$income->getName();
 			}
@@ -152,6 +155,47 @@ class AccountClosureService {
 		}
 
 		return array_filter($refs, static fn (array $names) => $names !== []);
+	}
+
+	/**
+	 * Stop every bill, transfer and recurring income that pays into or out of
+	 * an account being deleted, whoever owns them. Unlike closing, a delete
+	 * isn't refused over them (the user has already chosen to lose the
+	 * ledger), but left alone they went on running against a deleted id: a
+	 * card-statement transfer failed on every Mark Paid and auto-pay, a
+	 * foreign-currency bill showed in the base currency, and the edit form
+	 * called the account "not shared with you". Each is switched off and lets
+	 * go of the deleted account, its pre-booked rows in other accounts go,
+	 * and a stored Mark Unpaid goes too: what it would revert is gone.
+	 *
+	 * @return array<string, string[]> what was stopped, by kind
+	 */
+	public function stopSchedulesFor(Account $account): array {
+		$id = (int)$account->getId();
+		$stopped = ['bills' => [], 'transfers' => [], 'income' => []];
+
+		foreach ($this->billMapper->findActiveByAccount($id) as $bill) {
+			$this->transactionService?->deleteScheduledBillTransactions((int)$bill->getId());
+			if ((int)$bill->getAccountId() === $id) {
+				$bill->setAccountId(null);
+			}
+			if ((int)$bill->getDestinationAccountId() === $id) {
+				$bill->setDestinationAccountId(null);
+			}
+			$bill->setIsActive(false);
+			$bill->setPaidUndoState(null);
+			$this->billMapper->update($bill);
+			$stopped[$bill->getIsTransfer() ? 'transfers' : 'bills'][] = (string)$bill->getName();
+		}
+
+		foreach ($this->recurringIncomeMapper->findActiveByAccount($id) as $income) {
+			$income->setAccountId(null);
+			$income->setIsActive(false);
+			$this->recurringIncomeMapper->update($income);
+			$stopped['income'][] = (string)$income->getName();
+		}
+
+		return array_filter($stopped, static fn (array $names) => $names !== []);
 	}
 
 	/** v2 action lists only; the legacy flat shape has no account action. */

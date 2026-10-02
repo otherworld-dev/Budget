@@ -1245,6 +1245,98 @@ class CategoryServiceTest extends TestCase {
 		);
 	}
 
+	private function serviceWithScheduleMappers(\OCA\Budget\Db\BillMapper $bills, \OCA\Budget\Db\RecurringIncomeMapper $incomes): CategoryService {
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(fn (string $text, array $params = []) => $text);
+
+		return new CategoryService(
+			$this->categoryMapper,
+			$this->transactionMapper,
+			$this->createMock(BudgetSnapshotMapper::class),
+			$this->tagSetMapper,
+			$this->tagMapper,
+			$this->transactionTagMapper,
+			$l,
+			$this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class),
+			$this->createMock(\OCA\Budget\Service\RecurringBudgetService::class),
+			null,
+			null,
+			$this->splitMapper,
+			billMapper: $bills,
+			incomeMapper: $incomes,
+		);
+	}
+
+	/**
+	 * A bill or recurring income kept a deleted category and copied it onto
+	 * every row it booked afterwards: those rows sat in no category, not even
+	 * under Uncategorized, and saving the bill failed with "Category not
+	 * found". A split template naming it broke every split from then on.
+	 */
+	public function testDeletingACategoryTakesItOffBillsIncomesAndSplitTemplates(): void {
+		$parent = $this->makeCategory(['id' => 1]);
+		$child = $this->makeCategory(['id' => 2, 'parentId' => 1]);
+		$this->categoryMapper->method('find')->willReturnCallback(fn (int $id) => $id === 1 ? $parent : $child);
+		$this->categoryMapper->method('findChildren')->willReturnCallback(
+			fn (string $userId, int $parentId) => $parentId === 1 ? [$child] : []
+		);
+		$this->transactionMapper->method('findByCategory')->willReturn([]);
+		$this->tagSetMapper->method('findByCategory')->willReturn([]);
+
+		$bills = $this->createMock(\OCA\Budget\Db\BillMapper::class);
+		$incomes = $this->createMock(\OCA\Budget\Db\RecurringIncomeMapper::class);
+		$cleared = [];
+		$bills->method('clearCategory')->willReturnCallback(function (array $ids) use (&$cleared) {
+			$cleared[] = ['bills', $ids];
+			return 1;
+		});
+		$incomes->method('clearCategory')->willReturnCallback(function (array $ids) use (&$cleared) {
+			$cleared[] = ['income', $ids];
+			return 1;
+		});
+		$bills->method('clearSplitTemplateCategory')->willReturnCallback(function (int $id) use (&$cleared) {
+			$cleared[] = ['templates', $id];
+			return 1;
+		});
+
+		$this->serviceWithScheduleMappers($bills, $incomes)->delete(1, 'user1');
+
+		// The subcategory goes first through the cascade, then the parent
+		$this->assertSame([
+			['bills', [2]], ['income', [2]], ['templates', 2],
+			['bills', [1]], ['income', [1]], ['templates', 1],
+		], $cleared);
+	}
+
+	public function testDeletingACategoryTakesItsTagSetsTagsOffBills(): void {
+		$this->categoryMapper->method('find')->willReturn($this->makeCategory(['id' => 1]));
+		$this->categoryMapper->method('findChildren')->willReturn([]);
+		$this->transactionMapper->method('findByCategory')->willReturn([]);
+		$tagSet = new \OCA\Budget\Db\TagSet();
+		$tagSet->setId(3);
+		$this->tagSetMapper->method('findByCategory')->willReturn([$tagSet]);
+		$tag = new \OCA\Budget\Db\Tag();
+		$tag->setId(8);
+		$this->tagMapper->method('findByTagSet')->willReturn([$tag]);
+		$bills = $this->createMock(\OCA\Budget\Db\BillMapper::class);
+		$bills->expects($this->once())->method('removeTagId')->with(8);
+
+		$this->serviceWithScheduleMappers($bills, $this->createMock(\OCA\Budget\Db\RecurringIncomeMapper::class))->delete(1, 'user1');
+	}
+
+	public function testARefusedDeleteLeavesBillsAlone(): void {
+		$this->categoryMapper->method('find')->willReturn($this->makeCategory());
+		$this->categoryMapper->method('findChildren')->willReturn([]);
+		$this->transactionMapper->method('findByCategory')->willReturn([['id' => 1]]);
+		$bills = $this->createMock(\OCA\Budget\Db\BillMapper::class);
+		$bills->expects($this->never())->method('clearCategory');
+		$bills->expects($this->never())->method('clearSplitTemplateCategory');
+
+		$this->expectException(\OCA\Budget\Exception\CategoryInUseException::class);
+
+		$this->serviceWithScheduleMappers($bills, $this->createMock(\OCA\Budget\Db\RecurringIncomeMapper::class))->delete(1, 'user1');
+	}
+
 	private function namedProject(int $id, string $name): Project {
 		$project = new Project();
 		$project->setId($id);

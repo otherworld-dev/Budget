@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service;
 
+use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\Category;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\SavingsGoalMapper;
@@ -30,6 +31,7 @@ class TagSetService extends AbstractCrudService {
 		CategoryMapper $categoryMapper,
 		TransactionTagMapper $transactionTagMapper,
 		SavingsGoalMapper $savingsGoalMapper,
+		private ?BillMapper $billMapper = null,
 	) {
 		$this->mapper = $mapper;
 		$this->tagMapper = $tagMapper;
@@ -233,6 +235,7 @@ class TagSetService extends AbstractCrudService {
 
 		// Clear tag references on savings goals linked to this tag
 		$this->savingsGoalMapper->clearTagReference($tagId);
+		$this->billMapper?->removeTagId($tagId);
 
 		// Delete associated transaction tags first (cascade delete)
 		$this->transactionTagMapper->deleteByTag($tagId);
@@ -269,6 +272,9 @@ class TagSetService extends AbstractCrudService {
 		foreach ($tags as $tag) {
 			// Clear savings goal references to this tag
 			$this->savingsGoalMapper->clearTagReference($tag->getId());
+			// Bills apply their tags to every payment they book; a deleted
+			// one would be linked to each of them from now on
+			$this->billMapper?->removeTagId($tag->getId());
 			// Delete associated transaction tags first
 			$this->transactionTagMapper->deleteByTag($tag->getId());
 			// Then delete the tag itself
@@ -343,6 +349,7 @@ class TagSetService extends AbstractCrudService {
 		}
 
 		$this->savingsGoalMapper->clearTagReference($tagId);
+		$this->billMapper?->removeTagId($tagId);
 		$this->transactionTagMapper->deleteByTag($tagId);
 		$this->tagMapper->delete($tag);
 	}

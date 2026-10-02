@@ -136,6 +136,10 @@ class AccountService extends AbstractCrudService {
 		// Pension schedules funded from it would fail every run trying to
 		// post into an account that no longer exists
 		$this->pensionRecurringMapper?->detachSourceAccount($entity->getId());
+
+		// Bills, transfers and recurring income on the account (anyone's)
+		// would otherwise go on running against a deleted id
+		$this->closureService?->stopSchedulesFor($entity);
 	}
 
 	/**

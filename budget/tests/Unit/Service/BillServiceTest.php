@@ -2486,6 +2486,51 @@ class BillServiceTest extends TestCase {
 		$this->service->markUnpaid(1, 'user1');
 	}
 
+	/**
+	 * A payment reconciled against a bank statement was deleted by Mark
+	 * Unpaid with no warning, and the account stopped matching the statement.
+	 */
+	public function testMarkUnpaidAsksBeforeDeletingAReconciledPayment(): void {
+		$bill = $this->makeBill(['nextDueDate' => '2099-07-15', 'lastPaidDate' => '2099-06-15']);
+		$bill->setPaidUndoState($this->makePaidUndoSnapshot());
+		$this->mapper->method('find')->willReturn($bill);
+		$this->transactionService->method('countReconciledBillRows')->with([55, 56], 1)->willReturn(1);
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+		$this->mapper->expects($this->never())->method('update');
+
+		$this->expectException(\OCA\Budget\Exception\ReconciledPaymentException::class);
+
+		$this->service->markUnpaid(1, 'user1');
+	}
+
+	public function testMarkUnpaidGoesAheadOnceTheUserConfirms(): void {
+		$bill = $this->makeBill(['nextDueDate' => '2099-07-15', 'lastPaidDate' => '2099-06-15']);
+		$bill->setPaidUndoState($this->makePaidUndoSnapshot());
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->transactionService->method('countReconciledBillRows')->willReturn(1);
+		$this->transactionService->expects($this->atLeastOnce())->method('deleteAsAccountOwner');
+
+		$restored = $this->service->markUnpaid(1, 'user1', true);
+
+		$this->assertSame('2099-06-15', $restored->getNextDueDate());
+	}
+
+	/**
+	 * A deleted bill's payments kept its id, so a bill set up again in its
+	 * place never offered them in Mark Paid, and the payment was recorded a
+	 * second time.
+	 */
+	public function testDeletingABillLetsGoOfItsRecordedPayments(): void {
+		$bill = $this->makeBill();
+		$this->mapper->method('find')->willReturn($bill);
+		$this->transactionService->expects($this->once())->method('deleteScheduledBillTransactions')->with(1);
+		$this->transactionService->expects($this->once())->method('detachBillPayments')->with(1);
+		$this->mapper->expects($this->once())->method('delete')->with($bill);
+
+		$this->service->delete(1, 'user1');
+	}
+
 	public function testMarkUnpaidWithoutSnapshotThrows(): void {
 		$bill = $this->makeBill();
 		$this->mapper->method('find')->willReturn($bill);

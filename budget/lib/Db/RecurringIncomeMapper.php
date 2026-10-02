@@ -207,6 +207,41 @@ class RecurringIncomeMapper extends QBMapper {
 	}
 
 	/**
+	 * Every active recurring income paid into an account, whoever owns it.
+	 *
+	 * @return RecurringIncome[]
+	 */
+	public function findActiveByAccount(int $accountId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+			->andWhere($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+			->orderBy('name', 'ASC');
+
+		return $this->findEntities($qb);
+	}
+
+	/**
+	 * Take deleted categories off every recurring income that names them,
+	 * whoever owns it. Left in place, every payment it booked carried the
+	 * dead id and showed in no category, not even under Uncategorized.
+	 *
+	 * @param int[] $categoryIds
+	 */
+	public function clearCategory(array $categoryIds): int {
+		if (empty($categoryIds)) {
+			return 0;
+		}
+		$qb = $this->db->getQueryBuilder();
+		$qb->update($this->getTableName())
+			->set('category_id', $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
+			->where($qb->expr()->in('category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)));
+
+		return $qb->executeStatement();
+	}
+
+	/**
 	 * Delete all recurring income for a user
 	 *
 	 * @param string $userId

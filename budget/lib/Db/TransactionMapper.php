@@ -415,6 +415,13 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
+	 * Every caller is a category-delete guard, so this sees every row on the
+	 * category - scheduled ones and pension-funding legs included. It used
+	 * the report scope, which hides those: a category used only by a bill's
+	 * pre-booked payment or a future-dated row was deleted with no prompt,
+	 * and the rows kept the dead id. Split-blind on purpose: a category used
+	 * only by split parts stays deletable, and the delete clears those parts.
+	 *
 	 * @return Transaction[]
 	 */
 	public function findByCategory(int $categoryId, string $userId, int $limit = 100): array {
@@ -426,8 +433,6 @@ class TransactionMapper extends QBMapper {
 			->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
 			->orderBy('t.date', 'DESC')
 			->setMaxResults($limit);
-
-		ReportScope::excludeScheduledFuture($qb);
 
 		return $this->findEntities($qb);
 	}
@@ -1982,6 +1987,10 @@ class TransactionMapper extends QBMapper {
 	 * Searches for cleared debits in the same account, within a date window,
 	 * that aren't already linked to another bill.
 	 *
+	 * A row whose bill no longer exists counts as free: deleting a bill left
+	 * its payments carrying the dead id, so a bill set up again in its place
+	 * was never offered them and the payment got recorded a second time.
+	 *
 	 * @param int $accountId Account to search in
 	 * @param string $dueDate Bill's due date (center of search window)
 	 * @param int $dayWindow Days before/after dueDate to search
@@ -1992,28 +2001,45 @@ class TransactionMapper extends QBMapper {
 		$endDate = date('Y-m-d', strtotime($dueDate . " +{$dayWindow} days"));
 
 		$qb = $this->db->getQueryBuilder();
-		$qb->select('*')
-			->from($this->getTableName())
-			->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
-			->andWhere($qb->expr()->gte('date', $qb->createNamedParameter($startDate)))
-			->andWhere($qb->expr()->lte('date', $qb->createNamedParameter($endDate)))
-			->andWhere($qb->expr()->eq('type', $qb->createNamedParameter('debit')))
+		$qb->select('t.*')
+			->from($this->getTableName(), 't')
+			->leftJoin('t', 'budget_bills', 'b', $qb->expr()->eq('t.bill_id', 'b.id'))
+			->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
+			->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
+			->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
 			->andWhere(
 				$qb->expr()->orX(
-					$qb->expr()->neq('status', $qb->createNamedParameter('scheduled')),
-					$qb->expr()->isNull('status')
+					$qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
+					$qb->expr()->isNull('t.status')
 				)
 			)
 			->andWhere(
 				$qb->expr()->orX(
-					$qb->expr()->isNull('bill_id'),
-					$qb->expr()->eq('bill_id', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT))
+					$qb->expr()->isNull('t.bill_id'),
+					$qb->expr()->eq('t.bill_id', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT)),
+					$qb->expr()->isNull('b.id')
 				)
 			)
-			->orderBy('date', 'DESC')
-			->addOrderBy('id', 'DESC');
+			->orderBy('t.date', 'DESC')
+			->addOrderBy('t.id', 'DESC');
 
 		return $this->findEntities($qb);
+	}
+
+	/**
+	 * Let go of every row that still names a bill, once the bill is deleted.
+	 * Its scheduled placeholders are deleted first; what is left are payments
+	 * that really happened, and they stay as ordinary transactions.
+	 */
+	public function detachFromBill(int $billId): int {
+		$qb = $this->db->getQueryBuilder();
+		$qb->update($this->getTableName())
+			->set('bill_id', $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
+			->set('updated_at', $qb->createNamedParameter(date('Y-m-d H:i:s')))
+			->where($qb->expr()->eq('bill_id', $qb->createNamedParameter($billId, IQueryBuilder::PARAM_INT)));
+
+		return $qb->executeStatement();
 	}
 
 	public function getNetChangeAll(int $accountId): float {
@@ -2411,6 +2437,51 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
+	 * Notes a bill or a recurring income writes on the rows it books. Income
+	 * rows have no other link back to the income that made them.
+	 */
+	public const GENERATED_NOTE_PREFIXES = [
+		'Auto-generated from bill:',
+		'Auto-generated transfer:',
+		'Auto-generated from income:',
+	];
+
+	/**
+	 * Rows the transfer search never pairs on its own.
+	 *
+	 * A scheduled row is a payment nobody has made yet - most often a bill's
+	 * pre-booked next payment - and is never a candidate: matched to a salary
+	 * or a card credit it took that row out of income and spending, and the
+	 * bill's later Mark Paid cleared it into a payment still tied to it.
+	 *
+	 * A row a bill or an income booked is only offered where the user picks
+	 * the pair ($includeGenerated, the match dialog). Left to the automatic
+	 * flows, a salary paid in on the 28th and a rent bill of the same amount
+	 * on the 30th became a "transfer" and the month showed no income.
+	 */
+	private function excludeFromTransferMatching(IQueryBuilder $qb, bool $includeGenerated): void {
+		$qb->andWhere($qb->expr()->orX(
+			$qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
+			$qb->expr()->isNull('t.status')
+		));
+		if ($includeGenerated) {
+			return;
+		}
+		$qb->andWhere($qb->expr()->orX(
+			$qb->expr()->isNull('t.bill_id'),
+			$qb->expr()->eq('t.bill_id', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT))
+		));
+		$notGenerated = array_map(
+			fn (string $prefix) => $qb->expr()->notLike('t.notes', $qb->createNamedParameter($prefix . '%')),
+			self::GENERATED_NOTE_PREFIXES
+		);
+		$qb->andWhere($qb->expr()->orX(
+			$qb->expr()->isNull('t.notes'),
+			$qb->expr()->andX(...$notGenerated)
+		));
+	}
+
+	/**
 	 * Find potential transfer matches for a transaction
 	 * Matches on: same amount, opposite type, different account, same currency, within date window
 	 *
@@ -2418,7 +2489,8 @@ class TransactionMapper extends QBMapper {
 	 * currency are also returned regardless of amount (the exchanged amount is
 	 * never equal, so amount equality cannot apply) — linkTransactions()
 	 * already accepts such pairs (#326). Auto-link flows must keep this off;
-	 * only the manual match dialog opts in.
+	 * only the manual match dialog opts in. The same goes for
+	 * $includeGenerated, see excludeFromTransferMatching().
 	 *
 	 * @param int[]|null $accountIds Account scope (own + writable shared); null = own only
 	 * @return Transaction[]
@@ -2434,6 +2506,7 @@ class TransactionMapper extends QBMapper {
 		int $dateWindowDays = 3,
 		bool $includeCrossCurrency = false,
 		?array $accountIds = null,
+		bool $includeGenerated = false,
 	): array {
 		if ($accountIds === []) {
 			return [];
@@ -2479,6 +2552,7 @@ class TransactionMapper extends QBMapper {
 			// Not the same transaction
 			->andWhere($qb->expr()->neq('t.id', $qb->createNamedParameter($transactionId, IQueryBuilder::PARAM_INT)))
 			->orderBy('t.date', 'ASC');
+		$this->excludeFromTransferMatching($qb, $includeGenerated);
 
 		return $this->findEntities($qb);
 	}
@@ -2566,6 +2640,7 @@ class TransactionMapper extends QBMapper {
 	 * @param int $dateWindowDays
 	 * @param int $limit Batch size limit
 	 * @param int $offset Batch offset
+	 * @param int[]|null $sourceIds Only start from these rows (their matches can be anywhere)
 	 * @return array Array with 'transactions' (unlinked transactions with matches) and 'total' count
 	 */
 	public function findUnlinkedWithMatches(
@@ -2574,10 +2649,23 @@ class TransactionMapper extends QBMapper {
 		int $limit = 100,
 		int $offset = 0,
 		?array $accountIds = null,
+		?array $sourceIds = null,
 	): array {
-		if ($accountIds === []) {
+		if ($accountIds === [] || $sourceIds === []) {
 			return ['transactions' => [], 'total' => 0];
 		}
+
+		// Every caller here links or offers pairs without looking at them one
+		// by one, so bill, income and scheduled rows are never a starting point
+		$sources = function (IQueryBuilder $qb) use ($sourceIds): void {
+			$this->excludeFromTransferMatching($qb, false);
+			if ($sourceIds !== null) {
+				$qb->andWhere($qb->expr()->in('t.id', $qb->createNamedParameter(
+					array_map('intval', $sourceIds),
+					IQueryBuilder::PARAM_INT_ARRAY
+				)));
+			}
+		};
 
 		// First, get count of all unlinked transactions
 		$countQb = $this->db->getQueryBuilder();
@@ -2587,6 +2675,7 @@ class TransactionMapper extends QBMapper {
 			->where($this->matchScope($countQb, $userId, $accountIds))
 			->andWhere($countQb->expr()->isNull('t.linked_transaction_id'))
 			->andWhere($countQb->expr()->isNull('t.pension_contrib_id'));
+		$sources($countQb);
 
 		$countResult = $countQb->executeQuery();
 		$total = (int)$countResult->fetchOne();
@@ -2607,6 +2696,7 @@ class TransactionMapper extends QBMapper {
 			->orderBy('t.date', 'DESC')
 			->setFirstResult($offset)
 			->setMaxResults($limit);
+		$sources($qb);
 
 		$result = $qb->executeQuery();
 		$unlinkedTransactions = $result->fetchAll();

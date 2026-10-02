@@ -1322,6 +1322,8 @@ class ImportService {
 			'accountResults' => array_values($accountResults),
 			'transfersLinked' => $transfersLinked,
 			'billsMarkedPaid' => $billsMarkedPaid,
+			// The import screen pairs up transfers among these rows only
+			'transactionIds' => array_map(fn ($tx) => $tx->getId(), $createdForBillMatch),
 		];
 	}
 
@@ -1644,6 +1646,8 @@ class ImportService {
 		if ($transfersLinked > 0) {
 			$result['transfersLinked'] = $transfersLinked;
 		}
+		// The import screen pairs up transfers among these rows only
+		$result['transactionIds'] = array_map(fn ($tx) => $tx->getId(), $createdForBillMatch);
 
 		return $result;
 	}

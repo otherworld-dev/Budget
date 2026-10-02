@@ -465,6 +465,26 @@ class TransactionService {
 		$cleared = null;
 		$partnerId = null;
 
+		// A pre-booked transfer pair whose link was undone (Unlink transfer
+		// allowed it until now) reads as two unrelated rows, and the deposit
+		// went as a duplicate below. The other leg of the same occurrence -
+		// opposite side, other account, same day - is the partner, so it is
+		// linked back and cleared with it.
+		$first = $allScheduled[0] ?? null;
+		if ($first !== null && $first->getLinkedTransactionId() === null) {
+			foreach (array_slice($allScheduled, 1) as $candidate) {
+				if ($candidate->getLinkedTransactionId() === null
+					&& $candidate->getType() !== $first->getType()
+					&& $candidate->getAccountId() !== $first->getAccountId()
+					&& $candidate->getDate() === $first->getDate()) {
+					$this->mapper->linkTransactions($first->getId(), $candidate->getId());
+					$first->setLinkedTransactionId($candidate->getId());
+					$candidate->setLinkedTransactionId($first->getId());
+					break;
+				}
+			}
+		}
+
 		// A transfer's pre-booked rows only stand for the payment as a pair.
 		// With a leg deleted, clearing the other alone moved money out of one
 		// account and into none: drop what's left and let the payment book a
@@ -542,6 +562,27 @@ class TransactionService {
 	private function deleteWithChildren(Transaction $transaction, string $userId): void {
 		$id = $transaction->getId();
 
+		// Deleting a reconciled transaction breaks past statement
+		// reconciliations — allowed, but audit-logged (the UI warns first).
+		// Here rather than in delete(), so a bill's Skip or delete that takes
+		// a reconciled row with it leaves the same trail.
+		if ($transaction->getReconciled()) {
+			$this->auditService->log($userId, 'reconciled_tx_deleted', 'transaction', $id, [
+				'amount' => $transaction->getAmount(),
+				'date' => $transaction->getDate(),
+				'reconSessionId' => $transaction->getReconSessionId(),
+			]);
+		}
+
+		// The other half of a transfer keeps its own row, so it has to let go
+		// of this one. A bill's placeholder matched to a card credit used to be
+		// deleted without this when the bill was paid or skipped, leaving the
+		// credit linked to nothing: it could never be matched to the real
+		// payment and the totals counted it as income.
+		if ($transaction->getLinkedTransactionId() !== null) {
+			$this->mapper->unlinkTransaction($id);
+		}
+
 		$this->transactionTagMapper->deleteByTransaction($id);
 		$this->expenseShareMapper->deleteByTransaction($id, $userId);
 		$this->attachmentMapper->deleteByTransaction($id, $userId);
@@ -605,16 +646,25 @@ class TransactionService {
 	 * alone and false is returned. With $onlyForBillId, so is a row that
 	 * doesn't carry that bill's id.
 	 *
+	 * With $onlyForBillId the other side of a transfer goes too when it carries
+	 * the same bill: a recurring transfer's deposit, or the other side Convert
+	 * to transfer created for a bill's payment. A row of that bill that is
+	 * already gone (deleted by hand, or with its other side) is nothing to do.
+	 *
 	 * Goes through delete() and thus deleteWithChildren() — never the mapper
 	 * directly (#359).
 	 *
 	 * @return bool true when the row was deleted, false when it was
 	 *              deliberately left alone
 	 * @throws DoesNotExistException when the transaction no longer exists
+	 *                               (only without $onlyForBillId)
 	 */
 	public function deleteAsAccountOwner(int $id, bool $onlyIfScheduled = false, ?int $onlyForBillId = null): bool {
 		$transaction = $this->mapper->findById($id);
 		if ($transaction === null) {
+			if ($onlyForBillId !== null) {
+				return false;
+			}
 			throw new DoesNotExistException("Transaction {$id} does not exist");
 		}
 		if ($onlyIfScheduled && ($transaction->getStatus() ?? 'cleared') !== 'scheduled') {
@@ -626,8 +676,60 @@ class TransactionService {
 		if ($onlyForBillId !== null && $transaction->getBillId() !== $onlyForBillId) {
 			return false;
 		}
+		$partnerId = $transaction->getLinkedTransactionId();
 		$this->delete($id, $this->ownerOf($transaction));
+
+		if ($onlyForBillId !== null && $partnerId !== null) {
+			$partner = $this->mapper->findById($partnerId);
+			if ($partner !== null && $partner->getBillId() === $onlyForBillId
+				&& (!$onlyIfScheduled || ($partner->getStatus() ?? 'cleared') === 'scheduled')) {
+				$this->delete($partnerId, $this->ownerOf($partner));
+			}
+		}
 		return true;
+	}
+
+	/**
+	 * A deleted bill's recorded payments stay as ordinary transactions. They
+	 * kept the dead bill's id, so a bill set up again in its place never
+	 * offered them in Mark Paid and the payment got recorded a second time.
+	 *
+	 * @return int how many rows were let go
+	 */
+	public function detachBillPayments(int $billId): int {
+		return $this->mapper->detachFromBill($billId);
+	}
+
+	/**
+	 * How many of the rows a bill revert would delete are reconciled against
+	 * a bank statement: the named rows that carry the bill, and the other
+	 * side of each, which deleteAsAccountOwner() takes with it.
+	 *
+	 * @param int[] $ids
+	 */
+	public function countReconciledBillRows(array $ids, int $billId): int {
+		$seen = [];
+		$count = 0;
+		foreach ($ids as $id) {
+			$row = $this->mapper->findById((int)$id);
+			if ($row === null || $row->getBillId() !== $billId) {
+				continue;
+			}
+			$rows = [$row];
+			if ($row->getLinkedTransactionId() !== null) {
+				$partner = $this->mapper->findById($row->getLinkedTransactionId());
+				if ($partner !== null && $partner->getBillId() === $billId) {
+					$rows[] = $partner;
+				}
+			}
+			foreach ($rows as $candidate) {
+				if (!isset($seen[$candidate->getId()]) && $candidate->getReconciled()) {
+					$count++;
+				}
+				$seen[$candidate->getId()] = true;
+			}
+		}
+		return $count;
 	}
 
 	/**
@@ -863,22 +965,6 @@ class TransactionService {
 	 */
 	public function delete(int $id, string $userId, bool $dismiss = true, bool $recalculate = true): int {
 		$transaction = $this->find($id, $userId);
-
-		// Deleting a reconciled transaction breaks past statement
-		// reconciliations — allowed, but audit-logged (the UI warns first)
-		if ($transaction->getReconciled()) {
-			$this->auditService->log($userId, 'reconciled_tx_deleted', 'transaction', $id, [
-				'amount' => $transaction->getAmount(),
-				'date' => $transaction->getDate(),
-				'reconSessionId' => $transaction->getReconSessionId(),
-			]);
-		}
-
-		// Unlink counterpart transfer before deleting — prevents dangling
-		// linked_transaction_id references that break dashboard/tag queries
-		if ($transaction->getLinkedTransactionId() !== null) {
-			$this->mapper->unlinkTransaction($id);
-		}
 
 		// If this bank leg funded a pension contribution/withdrawal (#304),
 		// detach it so the pension record survives as a plain manual entry
@@ -1324,14 +1410,25 @@ class TransactionService {
 	 * lookups find neither the source nor any candidate — pass the scope and
 	 * matching spans shared accounts the way linking already does (#378).
 	 *
+	 * Rows a bill or a recurring income booked are left out unless
+	 * $includeGenerated is set, which only the manual match dialog does: there
+	 * the user picks the pair, and everywhere else nobody looks before the link
+	 * is made. A scheduled row is never matched, see the mapper.
+	 *
 	 * @param int[]|null $visibleAccountIds
 	 * @return Transaction[]
 	 */
-	public function findPotentialMatches(int $transactionId, string $userId, int $dateWindowDays = 3, bool $includeCrossCurrency = false, ?array $visibleAccountIds = null): array {
+	public function findPotentialMatches(int $transactionId, string $userId, int $dateWindowDays = 3, bool $includeCrossCurrency = false, ?array $visibleAccountIds = null, bool $includeGenerated = false): array {
 		$transaction = $this->findScoped($transactionId, $userId, $visibleAccountIds);
 
 		// Don't find matches if already linked
 		if ($transaction->getLinkedTransactionId() !== null) {
+			return [];
+		}
+		if (($transaction->getStatus() ?? 'cleared') === 'scheduled') {
+			return [];
+		}
+		if (!$includeGenerated && self::isScheduleGenerated($transaction)) {
 			return [];
 		}
 
@@ -1348,8 +1445,27 @@ class TransactionService {
 			$account->getCurrency(),
 			$dateWindowDays,
 			$includeCrossCurrency,
-			$visibleAccountIds
+			$visibleAccountIds,
+			$includeGenerated
 		);
+	}
+
+	/**
+	 * Whether a bill or a recurring income booked this row, rather than the
+	 * user or an import. Income rows carry no link back to their income, so
+	 * the note they are created with is all there is to go on.
+	 */
+	private static function isScheduleGenerated(Transaction $transaction): bool {
+		if ((int)($transaction->getBillId() ?? 0) !== 0) {
+			return true;
+		}
+		$notes = $transaction->getNotes() ?? '';
+		foreach (TransactionMapper::GENERATED_NOTE_PREFIXES as $prefix) {
+			if (str_starts_with($notes, $prefix)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -1387,6 +1503,17 @@ class TransactionService {
 			throw new \Exception('Target transaction is already linked to another transaction');
 		}
 
+		// A bill's pre-booked row is a payment nobody has made yet. Linked to
+		// a real row it took that row out of income and spending, and Mark
+		// Paid then cleared it into a payment still tied to that row. Only a
+		// recurring transfer's own two legs are linked while pre-booked.
+		foreach ([[$transaction, $target], [$target, $transaction]] as [$leg, $other]) {
+			if (($leg->getStatus() ?? 'cleared') === 'scheduled' && $leg->getBillId() !== null
+				&& $other->getBillId() !== $leg->getBillId()) {
+				throw new \Exception('This is the upcoming payment of a bill, so it cannot be matched yet. Mark the bill paid first, or make it a recurring transfer.');
+			}
+		}
+
 		$this->mapper->linkTransactions($transactionId, $targetId);
 
 		// Return updated transactions
@@ -1415,6 +1542,13 @@ class TransactionService {
 		if ($transaction->getAccountId() === $targetAccountId) {
 			throw new \Exception('Cannot transfer within the same account');
 		}
+		// A bill's pre-booked row is a payment nobody has made yet. Its new
+		// other side outlived it whenever the bill was skipped, deleted or
+		// matched to an import, and was cleared on the old due date: the card
+		// was credited for a payment that never happened.
+		if (($transaction->getStatus() ?? 'cleared') === 'scheduled' && $transaction->getBillId() !== null) {
+			throw new \Exception('This is the upcoming payment of a bill, so it has no other side yet. Mark the bill paid first, or make it a recurring transfer.');
+		}
 
 		// Also verifies both accounts are ones the caller may use
 		$sourceAccount = $this->accountFor($transaction->getAccountId(), $userId, $visibleAccountIds);
@@ -1434,6 +1568,10 @@ class TransactionService {
 			type: $transaction->getType() === 'debit' ? 'credit' : 'debit',
 			vendor: $transaction->getVendor(),
 			notes: 'Auto-created transfer counterpart',
+			// The other side of a bill's payment is part of that payment, so
+			// Mark Unpaid takes it away too rather than leaving the card
+			// credited for a bill that is no longer paid
+			billId: $transaction->getBillId(),
 			status: $transaction->getStatus()
 		);
 
@@ -1448,6 +1586,16 @@ class TransactionService {
 
 		if ($transaction->getLinkedTransactionId() === null) {
 			throw new \Exception('Transaction is not linked');
+		}
+
+		// The two pre-booked legs of a recurring transfer are one payment the
+		// transfer hasn't made yet. Unlinked, Mark Paid took the deposit for a
+		// duplicate and deleted it: the source paid out and the destination
+		// was never credited.
+		$partner = $this->mapper->findById($transaction->getLinkedTransactionId());
+		if (($transaction->getStatus() ?? 'cleared') === 'scheduled' && $transaction->getBillId() !== null
+			&& $partner !== null && $partner->getBillId() === $transaction->getBillId()) {
+			throw new \InvalidArgumentException('This is the upcoming payment of a recurring transfer, so its two sides stay linked. Edit or skip the transfer instead.');
 		}
 
 		$linkedId = $this->mapper->unlinkTransaction($transactionId);
@@ -1513,25 +1661,42 @@ class TransactionService {
 	 * Bulk find and match transactions
 	 * Auto-links transactions with exactly one match, returns others for manual review
 	 *
+	 * $sourceIds limits the rows the search starts from (their counterparts can
+	 * be anywhere). The import screen passes the rows it just imported: it used
+	 * to sweep the whole ledger, so two unrelated rows of the same amount a
+	 * few days apart in different accounts were linked whenever anything at
+	 * all was imported.
+	 *
 	 * @param string $userId
 	 * @param int $dateWindowDays
 	 * @param int $batchSize
+	 * @param int[]|null $sourceIds
 	 * @return array Results with autoMatched, needsReview, and stats
 	 */
-	public function bulkFindAndMatch(string $userId, int $dateWindowDays = 3, int $batchSize = 100, ?array $visibleAccountIds = null): array {
+	public function bulkFindAndMatch(string $userId, int $dateWindowDays = 3, int $batchSize = 100, ?array $visibleAccountIds = null, ?array $sourceIds = null): array {
 		$autoMatched = [];
 		$needsReview = [];
 		$processedIds = []; // Track IDs we've already processed to avoid duplicates
 
 		$offset = 0;
 		$hasMore = true;
+		// Batches of the given ids replace the paging over the whole ledger
+		$sourceBatches = $sourceIds === null
+			? null
+			: array_chunk(array_values(array_unique(array_map('intval', $sourceIds))), max(1, $batchSize));
 
 		while ($hasMore) {
-			$result = $this->mapper->findUnlinkedWithMatches($userId, $dateWindowDays, $batchSize, $offset, $visibleAccountIds);
-
-			if (empty($result['transactions'])) {
-				$hasMore = false;
-				break;
+			if ($sourceBatches !== null) {
+				if ($sourceBatches === []) {
+					break;
+				}
+				$result = $this->mapper->findUnlinkedWithMatches($userId, $dateWindowDays, $batchSize, 0, $visibleAccountIds, array_shift($sourceBatches));
+			} else {
+				$result = $this->mapper->findUnlinkedWithMatches($userId, $dateWindowDays, $batchSize, $offset, $visibleAccountIds);
+				if (empty($result['transactions'])) {
+					$hasMore = false;
+					break;
+				}
 			}
 
 			foreach ($result['transactions'] as $item) {
@@ -1585,6 +1750,10 @@ class TransactionService {
 						$processedIds[$match['id']] = true;
 					}
 				}
+			}
+
+			if ($sourceBatches !== null) {
+				continue;
 			}
 
 			// Move to next batch
