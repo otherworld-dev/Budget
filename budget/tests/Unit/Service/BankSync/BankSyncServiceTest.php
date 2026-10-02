@@ -31,6 +31,7 @@ class BankSyncServiceTest extends TestCase {
 	private IL10N $l;
 	private LoggerInterface $logger;
 	private BankSyncProviderInterface $provider;
+	private \OCA\Budget\Service\BillService $billService;
 
 	private const USER_ID = 'user1';
 
@@ -55,6 +56,7 @@ class BankSyncServiceTest extends TestCase {
 		$ruleApplicator->method('applyRules')->willReturnArgument(1);
 
 		$transactionTagService = $this->createMock(\OCA\Budget\Service\TransactionTagService::class);
+		$this->billService = $this->createMock(\OCA\Budget\Service\BillService::class);
 
 		$this->service = new BankSyncService(
 			$this->connectionMapper,
@@ -67,7 +69,7 @@ class BankSyncServiceTest extends TestCase {
 			$dismissedImportMapper,
 			$ruleApplicator,
 			$transactionTagService,
-			$this->createMock(\OCA\Budget\Service\BillService::class),
+			$this->billService,
 			$this->l,
 			$this->logger
 		);
@@ -914,6 +916,448 @@ class BankSyncServiceTest extends TestCase {
 		$this->transactionService->method('findPendingImported')->willReturn([$stale, $recent]);
 
 		// Only the stale hold is removed, and without dismissing it.
+		$this->transactionService->expects($this->once())
+			->method('delete')
+			->with(9, self::USER_ID, false);
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	/** A bank-sync hold as findPendingImported() returns it. */
+	private function makeHold(int $id, string $providerId, float $amount, string $date, string $description = 'Store', ?int $billId = null): \OCA\Budget\Db\Transaction {
+		$hold = new \OCA\Budget\Db\Transaction();
+		$hold->setId($id);
+		$hold->setAccountId(100);
+		$hold->setStatus('pending');
+		$hold->setImportId('simplefin:' . $providerId);
+		$hold->setType('debit');
+		$hold->setAmount($amount);
+		$hold->setDate($date);
+		$hold->setDescription($description);
+		$hold->setBillId($billId);
+		$hold->setCreatedAt($date . ' 08:00:00');
+		return $hold;
+	}
+
+	// ===== which hold a posted row with a new id belongs to =====
+
+	public function testAPostedRowNeverTakesAHoldTheBankStillLists(): void {
+		// Spotify posts under a new id, listed before Netflix's hold, which is
+		// still pending under its old id. Netflix's hold is closer in date, and
+		// taking it cleared Netflix's row under Spotify's id, re-imported the
+		// Netflix hold as a new row and later deleted the real Spotify hold.
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$connection->setIncludePending(true);
+		$this->setUpPendingSync($connection, [
+			['id' => 's2', 'date' => '2026-09-26', 'amount' => '-9.99', 'description' => 'SPOTIFY P1234'],
+			['id' => 'n1', 'date' => '2026-09-25', 'amount' => '-9.99', 'description' => 'NETFLIX.COM', 'pending' => true],
+		]);
+
+		$spotify = $this->makeHold(3404, 's1', 9.99, '2026-09-22', 'SPOTIFY P1234', 1);
+		$netflix = $this->makeHold(3405, 'n1', 9.99, '2026-09-25', 'NETFLIX.COM', 2);
+		$this->transactionService->method('findByImportId')->willReturnMap([
+			[100, 'simplefin:s2', null],
+			[100, 'simplefin:n1', $netflix],
+		]);
+		$this->transactionService->method('findPendingImported')->willReturn([$spotify, $netflix]);
+
+		$this->transactionService->expects($this->once())
+			->method('reconcilePendingToPosted')
+			->with($spotify, 'simplefin:s2', '2026-09-26');
+		$this->transactionService->expects($this->never())->method('create');
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testAPostedRowPrefersTheHoldWithTheSameMerchant(): void {
+		// Both holds have dropped off the feed: the matching merchant wins over
+		// the closer date.
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$connection->setIncludePending(true);
+		$this->setUpPendingSync($connection, [
+			['id' => 's2', 'date' => '2026-09-26', 'amount' => '-9.99', 'description' => 'SPOTIFY P1234'],
+		]);
+
+		$spotify = $this->makeHold(3404, 's1', 9.99, '2026-09-22', 'SPOTIFY P1234', 1);
+		$netflix = $this->makeHold(3405, 'n1', 9.99, '2026-09-25', 'NETFLIX.COM', 2);
+		$this->transactionService->method('findByImportId')->willReturn(null);
+		$this->transactionService->method('findPendingImported')->willReturn([$spotify, $netflix]);
+
+		$this->transactionService->expects($this->once())
+			->method('reconcilePendingToPosted')
+			->with($spotify, 'simplefin:s2', '2026-09-26');
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	// ===== a hold posting under a new id with changed figures =====
+
+	/**
+	 * @return array{0: \OCA\Budget\Db\Transaction[], 1: \OCA\Budget\Db\Transaction[]} reconciled holds, created rows
+	 */
+	private function syncAgainstHolds(array $feed, array $holds, array $existingByImportId = []): array {
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$connection->setIncludePending(true);
+		$this->setUpPendingSync($connection, $feed);
+		$this->transactionService->method('findByImportId')->willReturnCallback(
+			fn (int $accountId, string $importId) => $existingByImportId[$importId] ?? null
+		);
+		$this->transactionService->method('findPendingImported')->willReturn($holds);
+
+		$reconciled = [];
+		$this->transactionService->method('reconcilePendingToPosted')->willReturnCallback(
+			function (\OCA\Budget\Db\Transaction $hold) use (&$reconciled) {
+				$reconciled[] = $hold;
+				return $hold;
+			}
+		);
+		$created = [];
+		$this->transactionService->method('create')->willReturnCallback(function (...$args) use (&$created) {
+			$row = new \OCA\Budget\Db\Transaction();
+			$row->setId(900 + count($created));
+			$row->setStatus($args[10] ?? 'cleared');
+			$created[] = $row;
+			return $row;
+		});
+
+		$this->service->sync(self::USER_ID, 1);
+
+		return [$reconciled, $created];
+	}
+
+	public function testAHoldPostingWithADifferentAmountIsReconciled(): void {
+		// Hold 50.00 posts two days later as 51.00 under a new id. It used to
+		// import as a separate row, leaving the bill tied to the hold, which
+		// was then deleted as stale.
+		$hold = $this->makeHold(3387, 'h2', 50.0, '2026-09-22', 'ACME ENERGY', 42);
+		[$reconciled, $created] = $this->syncAgainstHolds(
+			[['id' => 'p2', 'date' => '2026-09-24', 'amount' => '-51.00', 'description' => 'ACME ENERGY DD']],
+			[$hold]
+		);
+
+		$this->assertSame([$hold], $reconciled);
+		$this->assertSame([], $created);
+	}
+
+	public function testAHoldPostingMoreThanFiveDaysLaterIsReconciled(): void {
+		$hold = $this->makeHold(3387, 'h2', 20.0, '2026-09-20', 'PUREGYM', 7);
+		[$reconciled, $created] = $this->syncAgainstHolds(
+			[['id' => 'p2', 'date' => '2026-09-26', 'amount' => '-20.00', 'description' => 'PUREGYM LTD']],
+			[$hold]
+		);
+
+		$this->assertSame([$hold], $reconciled);
+		$this->assertSame([], $created);
+	}
+
+	public function testAHoldSettlingForAFewPenceMoreIsReconciledWhateverItsText(): void {
+		// An FX settlement a few pence off, posted under the merchant's name
+		// rather than the authorisation's
+		$hold = $this->makeHold(3387, 'h2', 50.0, '2026-09-22', 'CARD AUTH 4471', 42);
+		[$reconciled, $created] = $this->syncAgainstHolds(
+			[['id' => 'p2', 'date' => '2026-09-23', 'amount' => '-50.03', 'description' => 'ACME LTD']],
+			[$hold]
+		);
+
+		$this->assertSame([$hold], $reconciled);
+		$this->assertSame([], $created);
+	}
+
+	public function testAPostedRowUnlikeTheHoldIsImportedAsANewRow(): void {
+		$hold = $this->makeHold(3387, 'h2', 50.0, '2026-09-22', 'ACME ENERGY', 42);
+		[$reconciled, $created] = $this->syncAgainstHolds(
+			[
+				// another merchant, a quarter more
+				['id' => 'p2', 'date' => '2026-09-24', 'amount' => '-62.50', 'description' => 'TESCO STORES'],
+				// the same merchant, but nearly double
+				['id' => 'p3', 'date' => '2026-09-24', 'amount' => '-95.00', 'description' => 'ACME ENERGY'],
+			],
+			[$hold]
+		);
+
+		$this->assertSame([], $reconciled);
+		$this->assertCount(2, $created);
+	}
+
+	public function testAPostedCopyOfAListedBillHoldIsNotMatchedToTheBillAgain(): void {
+		// The bank still lists the weekly gym hold as pending while the same
+		// payment also shows as posted under a new id. The posted row was
+		// matched as the NEXT week's payment: one payment, two weeks paid.
+		$hold = $this->makeHold(3390, 'h1', 20.0, '2026-09-22', 'PUREGYM', 7);
+		$this->billService->expects($this->never())->method('autoMatchPaidFromImport');
+
+		[$reconciled, $created] = $this->syncAgainstHolds(
+			[
+				['id' => 'h1', 'date' => '2026-09-22', 'amount' => '-20.00', 'description' => 'PUREGYM', 'pending' => true],
+				['id' => 'p1', 'date' => '2026-09-25', 'amount' => '-20.00', 'description' => 'PUREGYM'],
+			],
+			[$hold],
+			['simplefin:h1' => $hold]
+		);
+
+		$this->assertSame([], $reconciled, 'a hold the bank still lists is never merged');
+		$this->assertCount(1, $created);
+	}
+
+	public function testAnUnrelatedPostedRowIsStillMatchedToBillsBesideABillHold(): void {
+		$hold = $this->makeHold(3390, 'h1', 20.0, '2026-09-22', 'PUREGYM', 7);
+		$this->billService->expects($this->once())
+			->method('autoMatchPaidFromImport')
+			->with(self::USER_ID, $this->countOf(1));
+
+		$this->syncAgainstHolds(
+			[
+				['id' => 'h1', 'date' => '2026-09-22', 'amount' => '-20.00', 'description' => 'PUREGYM', 'pending' => true],
+				['id' => 'p1', 'date' => '2026-09-25', 'amount' => '-9.99', 'description' => 'NETFLIX.COM'],
+			],
+			[$hold],
+			['simplefin:h1' => $hold]
+		);
+	}
+
+	public function testAStaleBillHoldHandsOverToItsPostedCopyImportedEarlier(): void {
+		// The posted copy came in while the bank still listed the hold, so it
+		// was imported as its own row. Once the hold drops off, the hold takes
+		// over the copy's import id and figures, keeping its bill link and
+		// edits, rather than being deleted with the bill left pointing at it.
+		$holdDate = date('Y-m-d', strtotime('-8 days'));
+		$postedDate = date('Y-m-d', strtotime('-6 days'));
+		$hold = $this->makeHold(3390, 'h1', 20.0, $holdDate, 'PUREGYM', 7);
+
+		$copy = new \OCA\Budget\Db\Transaction();
+		$copy->setId(3391);
+		$copy->setAccountId(100);
+		$copy->setStatus('cleared');
+		$copy->setImportId('simplefin:p1');
+		$copy->setType('debit');
+		$copy->setAmount(20.40);
+		$copy->setDate($postedDate);
+		$copy->setDescription('PUREGYM LTD');
+		$copy->setCreatedAt($postedDate . ' 09:00:00');
+
+		$deleted = [];
+		$this->transactionService->method('delete')->willReturnCallback(
+			function (int $id) use (&$deleted) {
+				$deleted[] = $id;
+				return 100;
+			}
+		);
+
+		[$reconciled] = $this->syncAgainstHolds(
+			[['id' => 'p1', 'date' => $postedDate, 'amount' => '-20.40', 'description' => 'PUREGYM LTD']],
+			[$hold],
+			['simplefin:p1' => $copy]
+		);
+
+		$this->assertSame([3391], $deleted, 'the copy goes, the hold stays');
+		$this->assertSame([$hold], $reconciled);
+	}
+
+	public function testAStaleBillHoldNeverTakesOverARowImportedBeforeIt(): void {
+		// Last week's payment is older than the hold: it is not its posted copy
+		$holdDate = date('Y-m-d', strtotime('-8 days'));
+		$hold = $this->makeHold(3390, 'h1', 20.0, $holdDate, 'PUREGYM', 7);
+
+		$older = new \OCA\Budget\Db\Transaction();
+		$older->setId(3300);
+		$older->setAccountId(100);
+		$older->setStatus('cleared');
+		$older->setImportId('simplefin:p0');
+		$older->setType('debit');
+		$older->setAmount(20.0);
+		$older->setDate(date('Y-m-d', strtotime('-11 days')));
+		$older->setDescription('PUREGYM');
+		$older->setCreatedAt(date('Y-m-d', strtotime('-10 days')) . ' 09:00:00');
+
+		$deleted = [];
+		$this->transactionService->method('delete')->willReturnCallback(
+			function (int $id) use (&$deleted) {
+				$deleted[] = $id;
+				return 100;
+			}
+		);
+
+		[$reconciled] = $this->syncAgainstHolds(
+			[['id' => 'p0', 'date' => $older->getDate(), 'amount' => '-20.00', 'description' => 'PUREGYM']],
+			[$hold],
+			['simplefin:p0' => $older]
+		);
+
+		$this->assertSame([], $reconciled);
+		$this->assertSame([3390], $deleted);
+	}
+
+	// ===== a cancelled hold that paid a bill =====
+
+	public function testACancelledHoldUndoesTheBillPaymentBeforeItIsDeleted(): void {
+		// The hold paid the ACME bill, then the bank dropped it. It was
+		// deleted with the bill left paid and moved on a month.
+		$hold = $this->makeHold(3387, 'h1', 50.0, date('Y-m-d', strtotime('-10 days')), 'ACME ENERGY', 42);
+
+		$calls = [];
+		$this->billService->expects($this->once())
+			->method('revertCancelledPayment')
+			->with(42, 3387)
+			->willReturnCallback(function () use (&$calls) {
+				$calls[] = 'revert';
+				return true;
+			});
+		$this->transactionService->expects($this->once())
+			->method('delete')
+			->with(3387, self::USER_ID, false)
+			->willReturnCallback(function () use (&$calls) {
+				$calls[] = 'delete';
+				return 100;
+			});
+
+		$this->syncAgainstHolds([], [$hold]);
+
+		$this->assertSame(['revert', 'delete'], $calls);
+	}
+
+	public function testACancelledHoldIsStillDeletedWhenItsBillCanNotBeReverted(): void {
+		$hold = $this->makeHold(3387, 'h1', 50.0, date('Y-m-d', strtotime('-10 days')), 'ACME ENERGY', 42);
+		$this->billService->method('revertCancelledPayment')
+			->willThrowException(new \Exception('account no longer writable'));
+
+		$this->transactionService->expects($this->once())->method('delete')->with(3387);
+
+		$this->syncAgainstHolds([], [$hold]);
+	}
+
+	public function testACancelledHoldWithoutABillTouchesNoBill(): void {
+		$hold = $this->makeHold(3387, 'h1', 50.0, date('Y-m-d', strtotime('-10 days')));
+		$this->billService->expects($this->never())->method('revertCancelledPayment');
+		$this->transactionService->expects($this->once())->method('delete')->with(3387);
+
+		$this->syncAgainstHolds([], [$hold]);
+	}
+
+	public function testAHoldThatTookOverItsPostedCopyLeavesItsBillPaid(): void {
+		$holdDate = date('Y-m-d', strtotime('-8 days'));
+		$postedDate = date('Y-m-d', strtotime('-6 days'));
+		$hold = $this->makeHold(3390, 'h1', 20.0, $holdDate, 'PUREGYM', 7);
+		$copy = $this->makeHold(3391, 'p1', 20.0, $postedDate, 'PUREGYM');
+		$copy->setStatus('cleared');
+
+		$this->billService->expects($this->never())->method('revertCancelledPayment');
+
+		$this->syncAgainstHolds(
+			[['id' => 'p1', 'date' => $postedDate, 'amount' => '-20.00', 'description' => 'PUREGYM']],
+			[$hold],
+			['simplefin:p1' => $copy]
+		);
+	}
+
+	// ===== a hold posting takes the bank's final figures =====
+
+	public function testAHoldPostingUnderTheSameIdTakesThePostedAmountAndDescription(): void {
+		// Hold for 58.00 "CARD AUTH 4471" posts as 50.00 "ACME ENERGY DD".
+		// The row kept 58.00 for good and never reached bill matching, so the
+		// ACME bill stayed unpaid and its pre-booked row booked it a second time.
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$connection->setIncludePending(true);
+		$this->setUpPendingSync($connection, [
+			['id' => 'h4', 'date' => '2026-09-27', 'amount' => '-50.00', 'description' => 'ACME ENERGY DD'],
+		]);
+
+		$hold = $this->makeHold(7, 'h4', 58.0, '2026-09-25', 'CARD AUTH 4471');
+		$this->transactionService->method('findByImportId')->willReturn($hold);
+		$this->transactionService->method('findPendingImported')->willReturn([$hold]);
+
+		$this->transactionService->expects($this->once())
+			->method('reconcilePendingToPosted')
+			->with($hold, null, '2026-09-27', $this->callback(function (array $posted) {
+				return abs($posted['amount'] - 50.0) < 0.001
+					&& $posted['type'] === 'debit'
+					&& $posted['description'] === 'ACME ENERGY DD';
+			}))
+			->willReturnArgument(0);
+		$this->transactionService->expects($this->once())
+			->method('recalculateAccountBalance')
+			->with(100, self::USER_ID);
+		$this->billService->expects($this->once())
+			->method('autoMatchPaidFromImport')
+			->with(self::USER_ID, [$hold]);
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testAHoldPostingUnderANewIdIsOfferedToBillMatching(): void {
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$connection->setIncludePending(true);
+		$this->setUpPendingSync($connection, [
+			['id' => 'NEW', 'date' => '2026-05-19', 'amount' => '-30.00', 'description' => 'STORE LTD 0042'],
+		]);
+
+		$hold = $this->makeHold(8, 'OLD', 30.0, '2026-05-18', 'PENDING STORE');
+		$this->transactionService->method('findByImportId')->willReturn(null);
+		$this->transactionService->method('findPendingImported')->willReturn([$hold]);
+
+		$this->transactionService->expects($this->once())
+			->method('reconcilePendingToPosted')
+			->with($hold, 'simplefin:NEW', '2026-05-19', $this->callback(
+				fn (array $posted) => $posted['description'] === 'STORE LTD 0042'
+			))
+			->willReturnArgument(0);
+		$this->billService->expects($this->once())
+			->method('autoMatchPaidFromImport')
+			->with(self::USER_ID, [$hold]);
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testAHoldThatAlreadyPaidABillIsNotMatchedAgainWhenItPosts(): void {
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$connection->setIncludePending(true);
+		$this->setUpPendingSync($connection, [
+			['id' => 'h4', 'date' => '2026-09-24', 'amount' => '-51.00', 'description' => 'ACME ENERGY'],
+		]);
+
+		$hold = $this->makeHold(7, 'h4', 50.0, '2026-09-22', 'ACME ENERGY', 42);
+		$this->transactionService->method('findByImportId')->willReturn($hold);
+		$this->transactionService->method('findPendingImported')->willReturn([$hold]);
+		$this->transactionService->method('reconcilePendingToPosted')->willReturnArgument(0);
+
+		$this->billService->expects($this->never())->method('autoMatchPaidFromImport');
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	// ===== Include pending switched off (holds imported while it was on) =====
+
+	public function testHoldsStillReconcileAfterIncludePendingIsTurnedOff(): void {
+		// The hold came in while Include pending was on. With it off the feed
+		// has no pending rows, and the posted version under a new id used to
+		// be inserted beside the hold, counting the payment twice.
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$connection->setIncludePending(false);
+		$this->setUpPendingSync($connection, [
+			['id' => 'NEW', 'date' => '2026-05-19', 'amount' => '-30.00', 'description' => 'Store'],
+		]);
+
+		$hold = $this->makeHold(8, 'OLD', 30.0, '2026-05-18');
+		$this->transactionService->method('findByImportId')->willReturn(null);
+		$this->transactionService->method('findPendingImported')->willReturn([$hold]);
+
+		$this->transactionService->expects($this->once())
+			->method('reconcilePendingToPosted')
+			->with($hold, 'simplefin:NEW', '2026-05-19');
+		$this->transactionService->expects($this->never())->method('create');
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testStaleHoldsAreStillCleanedUpAfterIncludePendingIsTurnedOff(): void {
+		// A hold cancelled after the option was switched off stayed pending
+		// for good, its amount still taken off the balance.
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$connection->setIncludePending(false);
+		$this->setUpPendingSync($connection, []);
+
+		$stale = $this->makeHold(9, 'GONE', 5.0, '2020-01-01');
+		$this->transactionService->method('findPendingImported')->willReturn([$stale]);
+
 		$this->transactionService->expects($this->once())
 			->method('delete')
 			->with(9, self::USER_ID, false);

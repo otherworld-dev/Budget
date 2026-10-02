@@ -235,15 +235,36 @@ class BankSyncService {
 			$imported = 0;
 			$transferLinkIds = [];
 			$skipped = 0;
-			$createdAny = false;
+			$balanceDirty = false;
 
 			// Load existing pending bank-sync holds on this account so we can
-			// reconcile them against their posted versions (issue #257).
+			// reconcile them against their posted versions (issue #257). This
+			// runs whatever the connection's Include pending setting is now:
+			// holds imported while it was on still post or get cancelled after
+			// it is switched off, and skipping them left each one pending for
+			// good, beside its posted copy or long after the bank dropped it.
 			$importPrefix = $connection->getProvider() . ':';
-			$existingPending = $includePending
-				? $this->transactionService->findPendingImported($budgetAccountId, $importPrefix)
-				: [];
+			$existingPending = $this->transactionService->findPendingImported($budgetAccountId, $importPrefix);
 			$seenPendingIds = [];
+			$postedHoldIds = [];
+			// Rows imported in earlier syncs that the bank lists as posted
+			$postedInFeed = [];
+
+			// A hold the bank still lists anywhere in this feed is a separate,
+			// still-pending payment, so it can never be the hold a posted row
+			// with a new id came from. Marking only the rows processed so far
+			// let a posted row listed before another hold take that hold: it
+			// cleared the wrong merchant's row, re-imported the other hold as
+			// a new row, and the real hold was later deleted as stale.
+			$feedImportIds = [];
+			foreach ($externalAccount['transactions'] as $tx) {
+				$feedImportIds[$importPrefix . $tx['id']] = true;
+			}
+			foreach ($existingPending as $pendingTx) {
+				if (isset($feedImportIds[(string)$pendingTx->getImportId()])) {
+					$seenPendingIds[$pendingTx->getId()] = true;
+				}
+			}
 
 			foreach ($externalAccount['transactions'] as $tx) {
 				$importId = $connection->getProvider() . ':' . $tx['id'];
@@ -252,9 +273,17 @@ class BankSyncService {
 				// Already imported under this exact import ID?
 				$existing = $this->transactionService->findByImportId($budgetAccountId, $importId);
 				if ($existing !== null) {
+					$existingStatus = $existing->getStatus() ?? 'cleared';
 					// A previously-pending hold has now posted (same ID): clear it.
-					if (!$isPending && ($existing->getStatus() ?? 'cleared') === 'pending') {
-						$this->transactionService->reconcilePendingToPosted($existing, null, $tx['date']);
+					if (!$isPending && $existingStatus === 'pending') {
+						$posted = $this->postHold($existing, null, $tx, $userId, $connection);
+						$postedHoldIds[$existing->getId()] = true;
+						$balanceDirty = true;
+						if ($posted->getBillId() === null) {
+							$createdForBillMatch[] = $posted;
+						}
+					} elseif (!$isPending && $existingStatus === 'cleared') {
+						$postedInFeed[] = $existing;
 					}
 					$seenPendingIds[$existing->getId()] = true;
 					$skipped++;
@@ -269,38 +298,23 @@ class BankSyncService {
 
 				// A posted transaction with a NEW id may be the posted version of a
 				// pending hold whose id changed. Reconcile it instead of duplicating.
-				if (!$isPending && $includePending) {
+				if (!$isPending) {
 					$match = $this->matchPendingHold($existingPending, $seenPendingIds, $tx);
 					if ($match !== null) {
-						$this->transactionService->reconcilePendingToPosted($match, $importId, $tx['date']);
+						$posted = $this->postHold($match, $importId, $tx, $userId, $connection);
+						$postedHoldIds[$match->getId()] = true;
+						$balanceDirty = true;
+						if ($posted->getBillId() === null) {
+							$createdForBillMatch[] = $posted;
+						}
 						$seenPendingIds[$match->getId()] = true;
 						$imported++;
 						continue;
 					}
 				}
 
-				// Determine type: negative amount = debit (outflow), positive = credit (inflow)
-				$amount = (float)$tx['amount'];
-				$type = $amount < 0 ? 'debit' : 'credit';
-				$absAmount = abs($amount);
-
 				try {
-					// Build transaction array for rule matching
-					$txData = [
-						'date' => $tx['date'],
-						'description' => $tx['description'] ?? '',
-						'amount' => $absAmount,
-						'type' => $type,
-						'vendor' => $tx['vendor'] ?? null,
-						'categoryId' => null,
-						'notes' => null,
-						'source' => 'Bank Sync',
-					];
-
-					// Apply import rules if enabled for this connection
-					if ($connection->getApplyRules()) {
-						$txData = $this->ruleApplicator->applyRules($userId, $txData);
-					}
+					$txData = $this->importData($userId, $connection, $tx);
 
 					$createdTx = $this->transactionService->create(
 						userId: $userId,
@@ -320,8 +334,10 @@ class BankSyncService {
 					// Set immediately after create: a later failure (e.g. tag
 					// application) is swallowed by the catch below, and the
 					// persisted row must still get its balance recompute.
-					$createdAny = true;
-					$createdForBillMatch[] = $createdTx;
+					$balanceDirty = true;
+					if ($isPending || !$this->isCopyOfBillHold($existingPending, $postedHoldIds, $tx)) {
+						$createdForBillMatch[] = $createdTx;
+					}
 
 					// Apply deferred tag actions from import rules
 					if (!empty($txData['_deferred_tags'])) {
@@ -353,8 +369,52 @@ class BankSyncService {
 				}
 			}
 
-			// Balance updates were deferred per-row; recompute once for this account
-			if ($createdAny) {
+			// Clean up pending holds that dropped off the feed without posting
+			// (e.g. a canceled authorization). Only remove ones not seen this
+			// sync and older than a few days, to avoid deleting a hold the
+			// provider momentarily omitted. Non-dismissing so a re-appearing
+			// hold can still be re-imported. With Include pending off the feed
+			// lists no holds at all, so every leftover one ages out here.
+			$staleCutoff = date('Y-m-d', strtotime('-5 days'));
+			$takenCopyIds = [];
+			foreach ($existingPending as $pendingTx) {
+				if (isset($seenPendingIds[$pendingTx->getId()])) {
+					continue;
+				}
+				if ($pendingTx->getDate() > $staleCutoff) {
+					continue;
+				}
+				// A hold that paid a bill may have posted as a separate row
+				// while the bank still listed it. It takes that row over, so
+				// the bill stays paid by the payment the bank actually took.
+				if ($pendingTx->getBillId() !== null
+					&& $this->takeOverPostedCopy($pendingTx, $postedInFeed, $takenCopyIds, $userId)) {
+					$balanceDirty = true;
+					continue;
+				}
+				// Otherwise the payment it made on a bill never happened: undo
+				// it, or the bill stays paid and moved on for money the bank
+				// never took. Best-effort, the hold goes either way.
+				if ($pendingTx->getBillId() !== null) {
+					try {
+						if (!$this->billService->revertCancelledPayment($pendingTx->getBillId(), $pendingTx->getId())) {
+							$this->logger->info("Bank sync: cancelled hold {$pendingTx->getId()} is not the latest payment of bill {$pendingTx->getBillId()}, so the bill was left as it is", ['app' => 'budget']);
+						}
+					} catch (\Exception $e) {
+						$this->logger->warning("Bank sync: could not undo the bill payment of cancelled hold {$pendingTx->getId()}: {$e->getMessage()}", ['app' => 'budget']);
+					}
+				}
+				try {
+					$this->transactionService->delete($pendingTx->getId(), $userId, false, false);
+					$balanceDirty = true;
+				} catch (\Exception $e) {
+					// Best-effort cleanup; ignore failures
+				}
+			}
+
+			// Balance updates were deferred per-row (and a posted hold may have
+			// changed amount); recompute once for this account
+			if ($balanceDirty) {
 				$this->transactionService->recalculateAccountBalance($budgetAccountId, $userId);
 			}
 
@@ -367,28 +427,6 @@ class BankSyncService {
 					}
 				} catch (\Exception $e) {
 					// Silently skip
-				}
-			}
-
-			// Clean up pending holds that dropped off the feed without posting
-			// (e.g. a canceled authorization). Only remove ones not seen this
-			// sync and older than a few days, to avoid deleting a hold the
-			// provider momentarily omitted. Non-dismissing so a re-appearing
-			// hold can still be re-imported.
-			if ($includePending) {
-				$staleCutoff = date('Y-m-d', strtotime('-5 days'));
-				foreach ($existingPending as $pendingTx) {
-					if (isset($seenPendingIds[$pendingTx->getId()])) {
-						continue;
-					}
-					if ($pendingTx->getDate() > $staleCutoff) {
-						continue;
-					}
-					try {
-						$this->transactionService->delete($pendingTx->getId(), $userId, false);
-					} catch (\Exception $e) {
-						// Best-effort cleanup; ignore failures
-					}
 				}
 			}
 
@@ -607,6 +645,58 @@ class BankSyncService {
 	}
 
 	/**
+	 * A bank row as the sync would store it: the normalized provider fields,
+	 * with the user's import rules applied when the connection uses them.
+	 *
+	 * @param array $tx Normalized incoming transaction
+	 */
+	private function importData(string $userId, BankConnection $connection, array $tx): array {
+		// Negative amount = debit (outflow), positive = credit (inflow)
+		$amount = (float)$tx['amount'];
+		$txData = [
+			'date' => $tx['date'],
+			'description' => $tx['description'] ?? '',
+			'amount' => abs($amount),
+			'type' => $amount < 0 ? 'debit' : 'credit',
+			'vendor' => $tx['vendor'] ?? null,
+			'categoryId' => null,
+			'notes' => null,
+			'source' => 'Bank Sync',
+		];
+
+		if ($connection->getApplyRules()) {
+			$txData = $this->ruleApplicator->applyRules($userId, $txData);
+		}
+
+		return $txData;
+	}
+
+	/**
+	 * Clear a hold as its posted version, taking the bank's final amount and
+	 * text (through the import rules, as a fresh import would get them) and
+	 * keeping everything the user added to the hold. The caller recomputes
+	 * the balance, since the amount may have changed.
+	 *
+	 * A returned row with no bill yet goes to bill matching like a new import:
+	 * the posted text or amount can match a bill the hold's didn't, and the
+	 * bill otherwise stayed unpaid while its pre-booked row booked it again.
+	 * A row that already paid a bill is that bill's payment and must not be
+	 * offered again, or it would settle a second occurrence.
+	 *
+	 * @param array $tx Normalized posted transaction
+	 */
+	private function postHold(\OCA\Budget\Db\Transaction $hold, ?string $newImportId, array $tx, string $userId, BankConnection $connection): \OCA\Budget\Db\Transaction {
+		$data = $this->importData($userId, $connection, $tx);
+
+		return $this->transactionService->reconcilePendingToPosted($hold, $newImportId, $tx['date'], [
+			'amount' => (float)$data['amount'],
+			'type' => $data['type'],
+			'description' => $data['description'],
+			'vendor' => $data['vendor'] ?? null,
+		]);
+	}
+
+	/**
 	 * Find an existing pending hold that matches a newly-posted transaction whose
 	 * provider id changed when it posted. Matches on type + amount and a date
 	 * within a few days. Returns the matched (still-pending, not-yet-seen)
@@ -617,13 +707,8 @@ class BankSyncService {
 	 * @param array $tx Normalized incoming transaction
 	 */
 	private function matchPendingHold(array $existingPending, array $seenPendingIds, array $tx): ?\OCA\Budget\Db\Transaction {
-		$amount = (float)$tx['amount'];
-		$incomingType = $amount < 0 ? 'debit' : 'credit';
-		$incomingAbs = abs($amount);
-		$incomingTs = strtotime($tx['date']);
-
 		$best = null;
-		$bestDiff = null;
+		$bestRank = null;
 		foreach ($existingPending as $pendingTx) {
 			if (isset($seenPendingIds[$pendingTx->getId()])) {
 				continue;
@@ -631,24 +716,206 @@ class BankSyncService {
 			if (($pendingTx->getStatus() ?? '') !== 'pending') {
 				continue; // already reconciled this sync
 			}
-			if ($pendingTx->getType() !== $incomingType) {
-				continue;
-			}
-			if (abs((float)$pendingTx->getAmount() - $incomingAbs) > 0.001) {
-				continue;
-			}
-			$dayDiff = abs(($incomingTs - strtotime($pendingTx->getDate())) / 86400);
-			if ($dayDiff > 5) {
-				continue;
-			}
-			// Prefer the closest date among candidates.
-			if ($bestDiff === null || $dayDiff < $bestDiff) {
+			$rank = $this->postedVersionRank($pendingTx, $tx);
+			if ($rank !== null && ($bestRank === null || ($rank <=> $bestRank) < 0)) {
 				$best = $pendingTx;
-				$bestDiff = $dayDiff;
+				$bestRank = $rank;
 			}
 		}
 
 		return $best;
+	}
+
+	/** Days either side of a hold within which any posted row may be its copy */
+	private const POSTED_COPY_DAYS = 5;
+	/** ...and how far the amount may move without the merchant agreeing (FX) */
+	private const POSTED_COPY_DRIFT = 0.03;
+	/** Days and amount drift allowed when the merchant agrees (tips, pre-auths) */
+	private const POSTED_COPY_DAYS_SAME_MERCHANT = 10;
+	private const POSTED_COPY_DRIFT_SAME_MERCHANT = 0.25;
+
+	/**
+	 * How well a posted bank row fits as the posted version of a hold, or null
+	 * when it doesn't fit at all. A lower rank is a better fit: the same
+	 * merchant first, then the same amount, then the closest date.
+	 *
+	 * Holds don't always post as they were authorised. An FX settlement moves
+	 * the amount by a few pence, a tip or a fuel or hotel pre-auth by more,
+	 * and some post a week later. Asking for the exact amount within five
+	 * days imported each of those as a second row beside the hold, and a
+	 * bill the hold had paid was left tied to a row later deleted as stale.
+	 * A row within a few days may now differ by a few percent whatever its
+	 * text, and a row naming the same merchant may differ by up to a quarter
+	 * and post up to ten days later.
+	 *
+	 * @param array $tx Normalized posted transaction (signed amount)
+	 * @return array|null
+	 */
+	private function postedVersionRank(\OCA\Budget\Db\Transaction $hold, array $tx): ?array {
+		$amount = (float)$tx['amount'];
+		if ($hold->getType() !== ($amount < 0 ? 'debit' : 'credit')) {
+			return null;
+		}
+		$holdAmount = (float)$hold->getAmount();
+		$amountDiff = abs($holdAmount - abs($amount));
+		$sameAmount = $amountDiff <= 0.001;
+		$drift = $holdAmount > 0 ? $amountDiff / $holdAmount : ($sameAmount ? 0.0 : INF);
+		$dayDiff = abs((strtotime($tx['date']) - strtotime($hold->getDate())) / 86400);
+
+		$sameMerchant = self::descriptionsShareAWord(
+			$hold->getDescription() . ' ' . ($hold->getVendor() ?? ''),
+			($tx['description'] ?? '') . ' ' . ($tx['vendor'] ?? '')
+		);
+
+		$fits = ($dayDiff <= self::POSTED_COPY_DAYS && ($sameAmount || $drift <= self::POSTED_COPY_DRIFT))
+			|| ($sameMerchant && $dayDiff <= self::POSTED_COPY_DAYS_SAME_MERCHANT
+				&& $drift <= self::POSTED_COPY_DRIFT_SAME_MERCHANT);
+		if (!$fits) {
+			return null;
+		}
+
+		return [$sameMerchant ? 0 : 1, $sameAmount ? 0 : 1, $dayDiff, $amountDiff];
+	}
+
+	/**
+	 * Whether a newly posted row looks like the posted copy of a hold that
+	 * already paid a bill and hasn't posted itself. The bank sometimes lists
+	 * a payment as pending and posted at once, under two ids. That hold can't
+	 * be merged while the bank still lists it, but the posted row must not
+	 * reach bill matching either: the bill has already moved on to its next
+	 * occurrence, and for a weekly or daily bill the same payment then paid
+	 * that one too. Once the hold drops off, the stale cleanup hands the bill
+	 * over to this row.
+	 *
+	 * @param \OCA\Budget\Db\Transaction[] $existingPending
+	 * @param array<int,bool> $postedHoldIds holds already posted this sync
+	 * @param array $tx Normalized posted transaction
+	 */
+	private function isCopyOfBillHold(array $existingPending, array $postedHoldIds, array $tx): bool {
+		foreach ($existingPending as $hold) {
+			if ($hold->getBillId() === null || isset($postedHoldIds[$hold->getId()])) {
+				continue;
+			}
+			if ($this->postedVersionRank($hold, $tx) !== null) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Let a stale bill-paying hold take over its posted copy: the copy is
+	 * deleted and the hold takes its import id and figures, so the bill link,
+	 * the bill's undo snapshot and anything the user added to the hold all
+	 * carry on, and the payment is counted once. The copy goes first, as two
+	 * rows can't share an import id. Returns false when there is no copy or
+	 * it couldn't be removed, leaving the hold to the usual cleanup.
+	 *
+	 * @param \OCA\Budget\Db\Transaction[] $postedInFeed
+	 * @param array<int,bool> $takenIds copies already taken this sync
+	 */
+	private function takeOverPostedCopy(\OCA\Budget\Db\Transaction $hold, array $postedInFeed, array &$takenIds, string $userId): bool {
+		$copy = $this->findPostedCopy($hold, $postedInFeed, $takenIds);
+		if ($copy === null) {
+			return false;
+		}
+		try {
+			$this->transactionService->delete($copy->getId(), $userId, false, false);
+		} catch (\Exception $e) {
+			$this->logger->warning("Bank sync: could not merge hold {$hold->getId()} into its posted copy {$copy->getId()}: {$e->getMessage()}", ['app' => 'budget']);
+			return false;
+		}
+		$takenIds[$copy->getId()] = true;
+
+		try {
+			$this->transactionService->reconcilePendingToPosted($hold, $copy->getImportId(), $copy->getDate(), [
+				'amount' => (float)$copy->getAmount(),
+				'type' => $copy->getType(),
+				'description' => $copy->getDescription(),
+				'vendor' => $copy->getVendor(),
+			]);
+		} catch (\Exception $e) {
+			// The copy's import id is free again, so the next sync imports
+			// it afresh and the hold goes through the cleanup once more
+			$this->logger->warning("Bank sync: could not post hold {$hold->getId()} as its copy: {$e->getMessage()}", ['app' => 'budget']);
+		}
+		return true;
+	}
+
+	/**
+	 * The posted copy of a bill-paying hold that the bank has stopped listing,
+	 * among the posted rows it does list: a row imported separately while the
+	 * hold was still listed beside it. Only a row imported after the hold
+	 * qualifies (an older one is an earlier payment), and only a plain one:
+	 * the copy is deleted when the hold takes it over, so a row with its own
+	 * bill, transfer, pension, split or reconciliation is left alone.
+	 *
+	 * @param \OCA\Budget\Db\Transaction[] $postedInFeed
+	 * @param array<int,bool> $takenIds
+	 */
+	private function findPostedCopy(\OCA\Budget\Db\Transaction $hold, array $postedInFeed, array $takenIds): ?\OCA\Budget\Db\Transaction {
+		$best = null;
+		$bestRank = null;
+		foreach ($postedInFeed as $row) {
+			if (isset($takenIds[$row->getId()])
+				|| $row->getBillId() !== null
+				|| $row->getLinkedTransactionId() !== null
+				|| $row->getPensionContribId() !== null
+				|| $row->getReconciled()
+				|| $row->getIsSplit()
+				|| (string)$row->getCreatedAt() < (string)$hold->getCreatedAt()) {
+				continue;
+			}
+			$rank = $this->postedVersionRank($hold, [
+				'amount' => ($row->getType() === 'debit' ? -1 : 1) * (float)$row->getAmount(),
+				'date' => $row->getDate(),
+				'description' => $row->getDescription(),
+				'vendor' => $row->getVendor(),
+			]);
+			if ($rank !== null && ($bestRank === null || ($rank <=> $bestRank) < 0)) {
+				$best = $row;
+				$bestRank = $rank;
+			}
+		}
+		return $best;
+	}
+
+	/** Card-network and banking filler that says nothing about the merchant. */
+	private const DESCRIPTION_NOISE = [
+		'PENDING', 'CARD', 'DEBIT', 'CREDIT', 'PAYMENT', 'PURCHASE', 'AUTH',
+		'AUTHORIZATION', 'AUTHORISATION', 'VISA', 'MASTERCARD', 'AMEX',
+		'TRANSACTION', 'CONTACTLESS', 'ONLINE', 'DIRECT', 'TRANSFER',
+		'RECURRING', 'FROM', 'WITH', 'PAYPAL', 'CHECKCARD', 'HTTP', 'HTTPS',
+	];
+
+	/**
+	 * Whether two bank descriptions name the same merchant: a word of four or
+	 * more letters from one appears in the other, ignoring filler and
+	 * numbers. Spacing and punctuation are ignored on the other side, because
+	 * a hold's text and its posted text are often run together differently
+	 * ("ACME*ENERGY" against "ACMEENERGY DD").
+	 */
+	private static function descriptionsShareAWord(string $a, string $b): bool {
+		$words = static function (string $text): array {
+			$parts = preg_split('/[^A-Z0-9]+/', strtoupper($text), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+			return array_filter($parts, static fn (string $w) => strlen($w) >= 4
+				&& !ctype_digit($w)
+				&& !in_array($w, self::DESCRIPTION_NOISE, true));
+		};
+		$compactA = preg_replace('/[^A-Z0-9]/', '', strtoupper($a));
+		$compactB = preg_replace('/[^A-Z0-9]/', '', strtoupper($b));
+
+		foreach ($words($a) as $word) {
+			if (str_contains($compactB, $word)) {
+				return true;
+			}
+		}
+		foreach ($words($b) as $word) {
+			if (str_contains($compactA, $word)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private function requireEnabled(): void {

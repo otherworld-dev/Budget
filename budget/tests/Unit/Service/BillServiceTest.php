@@ -2460,6 +2460,79 @@ class BillServiceTest extends TestCase {
 		$this->assertSame('2099-06-15', $restored->getNextDueDate());
 	}
 
+	// ── a bank-sync hold that paid the bill is cancelled ────────────
+
+	private function billPaidByHold(int $holdId, array $snapshotOverrides = [], array $billOverrides = []): Bill {
+		$bill = $this->makeBill(array_merge([
+			'userId' => 'owner1', 'nextDueDate' => '2099-07-15', 'lastPaidDate' => '2099-06-12',
+		], $billOverrides));
+		$bill->setPaidUndoState($this->makePaidUndoSnapshot(array_merge([
+			'createdTransactionIds' => [],
+			'scheduledTransactionIds' => [3390],
+			'linkedTransactionId' => $holdId,
+		], $snapshotOverrides)));
+		$this->mapper->method('findByIds')->with([1])->willReturn([$bill]);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		return $bill;
+	}
+
+	public function testACancelledHoldUndoesTheBillPaymentItMade(): void {
+		// The hold paid the bill (auto-match or the Mark Paid dialog), then
+		// the bank dropped it. Deleting it left the bill paid and moved on,
+		// with the unrecorded-payments card offering to record a payment the
+		// bank never took.
+		$bill = $this->billPaidByHold(3387);
+
+		$this->transactionService->expects($this->once())
+			->method('unlinkBillAsAccountOwner')
+			->with(3387);
+
+		$this->assertTrue($this->service->revertCancelledPayment(1, 3387));
+		$this->assertSame('2099-06-15', $bill->getNextDueDate());
+		$this->assertNull($bill->getLastPaidDate());
+		$this->assertNull($bill->getPaidUndoState());
+	}
+
+	public function testACancelledHoldIsRevertedAsTheBillsOwner(): void {
+		$this->billPaidByHold(3387);
+		$this->mapper->expects($this->atLeastOnce())->method('find')->with(1, 'owner1');
+
+		$this->service->revertCancelledPayment(1, 3387);
+	}
+
+	public function testACancelledHoldBringsBackThePreBookedRowItsLinkRemoved(): void {
+		// Linking the hold removed the pre-booked row for the occurrence it
+		// paid without recording that, so the revert alone left the restored
+		// occurrence with no row at all.
+		$bill = $this->billPaidByHold(3387);
+
+		$this->transactionService->expects($this->once())
+			->method('createFromBill')
+			->with('owner1', $bill, null);
+
+		$this->service->revertCancelledPayment(1, 3387);
+	}
+
+	public function testACancelledHoldBooksNoRowForABillThatDoesNotPreBook(): void {
+		$this->billPaidByHold(3387, [], ['createTransaction' => false]);
+
+		$this->transactionService->expects($this->never())->method('createFromBill');
+
+		$this->service->revertCancelledPayment(1, 3387);
+	}
+
+	public function testACancelledHoldLeavesABillPaidSinceByAnotherPayment(): void {
+		// The snapshot only covers the latest payment: a hold behind it can't
+		// be undone without also undoing the later one.
+		$this->billPaidByHold(88);
+
+		$this->mapper->expects($this->never())->method('update');
+		$this->transactionService->expects($this->never())->method('unlinkBillAsAccountOwner');
+
+		$this->assertFalse($this->service->revertCancelledPayment(1, 3387));
+	}
+
 	public function testMarkUnpaidWithNonArrayTransactionIdsThrows(): void {
 		// A corrupt blob must fail like a missing snapshot, not TypeError past
 		// the controller's catches.

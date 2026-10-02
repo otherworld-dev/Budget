@@ -1182,10 +1182,21 @@ class TransactionService {
 	 * Mark an existing pending bank-sync transaction as posted (cleared),
 	 * optionally re-pointing it at the posted version's import ID and date.
 	 *
-	 * Balance is unaffected: pending and cleared both count toward the balance,
-	 * and the amount/type are unchanged — so we update fields directly.
+	 * $posted carries the bank's final figures: 'amount', 'type',
+	 * 'description' and 'vendor', each applied when present. A tip, a fuel or
+	 * hotel pre-auth or an FX settlement posts for a different amount than the
+	 * hold, often under the merchant's real name, and keeping the hold's
+	 * figures left the balance off from the bank's for good. Everything the
+	 * user added to the hold (category, notes, tags, splits, receipts, the
+	 * bill it paid) stays on the row.
+	 *
+	 * Pending and cleared both count toward the balance, but the amount or
+	 * type may change here, so the caller recomputes the account balance (bank
+	 * sync does that once per account).
 	 */
-	public function reconcilePendingToPosted(\OCA\Budget\Db\Transaction $transaction, ?string $newImportId = null, ?string $newDate = null): \OCA\Budget\Db\Transaction {
+	public function reconcilePendingToPosted(\OCA\Budget\Db\Transaction $transaction, ?string $newImportId = null, ?string $newDate = null, array $posted = []): \OCA\Budget\Db\Transaction {
+		$oldAmount = (float)$transaction->getAmount();
+
 		$transaction->setStatus('cleared');
 		if ($newImportId !== null) {
 			$transaction->setImportId($newImportId);
@@ -1193,8 +1204,27 @@ class TransactionService {
 		if ($newDate !== null) {
 			$transaction->setDate($newDate);
 		}
+		if (isset($posted['amount'])) {
+			$transaction->setAmount((float)$posted['amount']);
+		}
+		if (isset($posted['type'])) {
+			$transaction->setType($posted['type']);
+		}
+		if (isset($posted['description']) && trim((string)$posted['description']) !== '') {
+			$transaction->setDescription((string)$posted['description']);
+		}
+		if (isset($posted['vendor']) && trim((string)$posted['vendor']) !== '') {
+			$transaction->setVendor((string)$posted['vendor']);
+		}
 		$transaction->setUpdatedAt(date('Y-m-d H:i:s'));
-		return $this->mapper->update($transaction);
+		$transaction = $this->mapper->update($transaction);
+
+		// Split parts must keep summing to the row, as on an amount edit
+		if ($transaction->getIsSplit() && abs($oldAmount - (float)$transaction->getAmount()) > 0.001) {
+			$this->rescaleSplits($transaction->getId(), $oldAmount, (float)$transaction->getAmount());
+		}
+
+		return $transaction;
 	}
 
 	/**
