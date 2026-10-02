@@ -429,6 +429,22 @@ class TransactionServiceTest extends TestCase {
 		$this->service->update(1, 'user1', ['reconciled' => true, 'categoryId' => 5, 'vendor' => 'Shop']);
 	}
 
+	public function testMovingAnUnpaidBillsRowToTodayKeepsItPending(): void {
+		// The row stands for an occurrence the bill hasn't settled. Clearing it
+		// on a date edit booked the money while the bill stayed unpaid, so the
+		// next Mark Paid recorded the occurrence a second time.
+		$tx = $this->makeTransaction(['billId' => 9]);
+		$tx->setStatus('scheduled');
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+
+		$result = $this->service->update(1, 'user1', ['date' => date('Y-m-d')]);
+
+		$this->assertSame('scheduled', $result->getStatus());
+	}
+
 	public function testUpdateDateOnScheduledRowStillRecalculates(): void {
 		// Moving a scheduled row's date to today auto-clears it — that status
 		// flip changes the balance, so the recompute must still run even

@@ -184,7 +184,10 @@ final class ReportScope {
 	/**
 	 * Exclude rows that must not count toward spending/income/report aggregates:
 	 *  - scheduled future transactions (allows cleared, NULL status (pre-migration),
-	 *    and scheduled transactions whose date has arrived); and
+	 *    and scheduled transactions whose date has arrived);
+	 *  - a bill's pre-booked row, whatever its date: it stands for an
+	 *    occurrence the bill hasn't settled, and an overdue unpaid bill isn't
+	 *    spending (the payment that settles it is); and
 	 *  - bank legs that fund a pension contribution / withdrawal (#304) — the money
 	 *    moved to/from a pension, so it is a transfer, never spending or income.
 	 *
@@ -198,7 +201,10 @@ final class ReportScope {
 			$qb->expr()->orX(
 				$qb->expr()->neq("{$alias}.status", $qb->createNamedParameter('scheduled')),
 				$qb->expr()->isNull("{$alias}.status"),
-				$qb->expr()->lte("{$alias}.date", $qb->createNamedParameter($today))
+				$qb->expr()->andX(
+					$qb->expr()->lte("{$alias}.date", $qb->createNamedParameter($today)),
+					$qb->expr()->isNull("{$alias}.bill_id")
+				)
 			)
 		);
 		$qb->andWhere($qb->expr()->isNull("{$alias}.pension_contrib_id"));

@@ -643,8 +643,12 @@ class TransactionService {
 			$this->accountMapper->find($updates['accountId'], $userId);
 		}
 
-		// Auto-clear scheduled transactions when date is moved to today or past
-		if (isset($updates['date']) && $oldStatus === 'scheduled' && !isset($updates['status'])) {
+		// Auto-clear scheduled transactions when date is moved to today or past.
+		// Not a bill's pre-booked row: it stands for an occurrence the bill
+		// hasn't settled, and clearing it here booked the money while the bill
+		// stayed unpaid, so Mark Paid then recorded the occurrence twice.
+		if (isset($updates['date']) && $oldStatus === 'scheduled' && !isset($updates['status'])
+			&& $transaction->getBillId() === null) {
 			if (!$this->userClock->isFutureDate($updates['date'], $userId)) {
 				$updates['status'] = 'cleared';
 			}

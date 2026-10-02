@@ -2760,7 +2760,12 @@ class TransactionMapper extends QBMapper {
 		$qb->select('*')
 			->from($this->getTableName())
 			->where($qb->expr()->eq('status', $qb->createNamedParameter('scheduled')))
-			->andWhere($qb->expr()->lte('date', $qb->createNamedParameter(date('Y-m-d'))));
+			->andWhere($qb->expr()->lte('date', $qb->createNamedParameter(date('Y-m-d'))))
+			// A bill's pre-booked row is the bill's to settle (Mark Paid,
+			// auto-pay, an import match). Cleared here on its due date, it
+			// booked the money while the bill stayed unpaid, and settling the
+			// bill then recorded the same occurrence a second time.
+			->andWhere($qb->expr()->isNull('bill_id'));
 
 		return $this->findEntities($qb);
 	}
