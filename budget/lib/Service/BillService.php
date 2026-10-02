@@ -242,7 +242,10 @@ class BillService {
 		// Payments the user has dismissed as deliberately unrecorded (#394)
 		$dismissed = array_flip($this->dismissedMapper->findHashes($userId, self::UNRECORDED_DISMISS_TYPE));
 
-		$currencyMap = $this->buildCurrencyMap($userId);
+		$currencyMap = $this->withAccountsOf(
+			$this->buildCurrencyMap($userId),
+			array_map(static fn (Bill $b) => $b->getAccountId(), $candidates)
+		);
 		$unrecorded = [];
 		foreach ($candidates as $bill) {
 			if ($this->hasRecordedPayment($bill->getLastPaidDate(), $txDatesByBill[$bill->getId()] ?? [])) {
@@ -369,13 +372,40 @@ class BillService {
 	}
 
 	/**
+	 * Add to a currency map the accounts it doesn't hold yet among the ones
+	 * named, whoever owns them. A bill can be paid from an account another
+	 * user shared with its owner, which the owner's own account list never
+	 * holds, so such a bill was shown in the base currency and totalled
+	 * unconverted.
+	 *
+	 * @param array<int, string|null> $map account id => currency code
+	 * @param array<int|null> $accountIds
+	 * @return array<int, string|null>
+	 */
+	private function withAccountsOf(array $map, array $accountIds): array {
+		$missing = [];
+		foreach ($accountIds as $id) {
+			if ($id !== null && !array_key_exists((int)$id, $map)) {
+				$missing[(int)$id] = true;
+			}
+		}
+		if ($missing === []) {
+			return $map;
+		}
+		return $map + $this->currencyMapFor($this->accountMapper->findByIds(array_keys($missing)));
+	}
+
+	/**
 	 * Set the non-persisted currency property on each bill from its linked account.
 	 *
 	 * @param Bill[] $bills
 	 * @return Bill[]
 	 */
 	public function enrichBillsWithCurrency(array $bills, string $userId): array {
-		$currencyMap = $this->buildCurrencyMap($userId);
+		$currencyMap = $this->withAccountsOf(
+			$this->buildCurrencyMap($userId),
+			array_map(static fn (Bill $b) => $b->getAccountId(), $bills)
+		);
 		$baseCurrency = $this->currencyConversion->getBaseCurrency($userId);
 		foreach ($bills as $bill) {
 			$accountId = $bill->getAccountId();
@@ -402,6 +432,7 @@ class BillService {
 			$maps[$owner] ??= $this->buildCurrencyMap($owner);
 			$bases[$owner] ??= $this->currencyConversion->getBaseCurrency($owner);
 			$accountId = $bill['accountId'] ?? null;
+			$maps[$owner] = $this->withAccountsOf($maps[$owner], [$accountId]);
 			$bill['currency'] = $accountId !== null && isset($maps[$owner][$accountId])
 				? $maps[$owner][$accountId]
 				: $bases[$owner];
@@ -1292,12 +1323,20 @@ class BillService {
 	 *                            active ones too. Each is priced from its
 	 *                            owner's account (or the owner's base
 	 *                            currency) and converted to $userId's.
+	 * @param bool|null $isTransfer which page the cards are for: false for
+	 *                              the Bills page (the default), true for the
+	 *                              Transfers page, null for both. Each page
+	 *                              lists one kind only, and the Bills cards
+	 *                              counted every transfer as well.
 	 */
-	public function getMonthlySummary(string $userId, array $sharedBills = []): array {
-		$bills = array_merge(
-			$this->findActive($userId),
-			array_values(array_filter($sharedBills, static fn (Bill $bill) => (bool)$bill->getIsActive()))
-		);
+	public function getMonthlySummary(string $userId, array $sharedBills = [], ?bool $isTransfer = false): array {
+		$bills = array_values(array_filter(
+			array_merge(
+				$this->findActive($userId),
+				array_filter($sharedBills, static fn (Bill $bill) => (bool)$bill->getIsActive())
+			),
+			static fn (Bill $bill) => $isTransfer === null || (bool)$bill->getIsTransfer() === $isTransfer
+		));
 		$baseCurrency = $this->currencyConversion->getBaseCurrency($userId);
 		$currencyMaps = [$userId => $this->buildCurrencyMap($userId)];
 		$ownerBases = [$userId => $baseCurrency];
@@ -1325,12 +1364,20 @@ class BillService {
 		$endOfMonth = date('Y-m-t');
 
 		foreach ($bills as $bill) {
-			$monthlyAmount = $this->frequencyCalculator->getMonthlyEquivalent($bill);
+			// A one-time bill is not a monthly commitment: a twelfth of an
+			// unpaid invoice sat in Monthly Total until it was paid, where
+			// recurring income and budgets count one-off items as nothing.
+			// It still counts as due, overdue or paid below.
+			$monthlyAmount = $bill->getFrequency() === 'one-time'
+				? 0.0
+				: $this->frequencyCalculator->getMonthlyEquivalent($bill);
 
 			// Convert to base currency if the bill's account uses a different
-			// currency. A shared bill's account is its owner's.
+			// currency. A shared bill's account is its owner's, or one shared
+			// with its owner.
 			$owner = (string)($bill->getUserId() ?? $userId);
 			$currencyMaps[$owner] ??= $this->buildCurrencyMap($owner);
+			$currencyMaps[$owner] = $this->withAccountsOf($currencyMaps[$owner], [$bill->getAccountId()]);
 			$ownerBases[$owner] ??= $this->currencyConversion->getBaseCurrency($owner);
 			$billCurrency = ($bill->getAccountId() !== null && isset($currencyMaps[$owner][$bill->getAccountId()]))
 				? $currencyMaps[$owner][$bill->getAccountId()]
@@ -1800,6 +1847,7 @@ class BillService {
 		if ($billStatus === 'active') {
 			$bills = array_filter($bills, fn (Bill $bill) => $bill->getIsActive() || isset($paymentsByBill[$bill->getId()]));
 		}
+		$currencyMap = $this->withAccountsOf($currencyMap, array_map(fn (Bill $bill) => $bill->getAccountId(), $bills));
 
 		// Calculate monthly occurrences for each bill
 		$billsData = [];
@@ -1854,6 +1902,17 @@ class BillService {
 				'expectedAmounts' => array_fill_keys(array_keys(array_filter($occurrences)), (float)$bill->getAmount()),
 			];
 
+			$billsData[] = $billData;
+
+			// A transfer into the picked account is money arriving, not a
+			// bill it pays: it stays in the table, but adding it to the
+			// monthly totals gave a savings account a bill the size of every
+			// transfer it receives. The projected balance counts it as money in.
+			if ($accountId !== null && ($bill->getIsTransfer() ?? false)
+				&& $bill->getDestinationAccountId() === $accountId && $bill->getAccountId() !== $accountId) {
+				continue;
+			}
+
 			// Monthly totals: what was paid where a payment exists, the
 			// expected amount otherwise
 			$convertedAmount = $this->convertToBase($bill->getAmount(), $billCurrency, $baseCurrency, $userId);
@@ -1865,8 +1924,6 @@ class BillService {
 					? $this->convertToBase($paidAmounts[$month], $billCurrency, $baseCurrency, $userId)
 					: $convertedAmount;
 			}
-
-			$billsData[] = $billData;
 		}
 
 		return [$billsData, $monthlyTotals];

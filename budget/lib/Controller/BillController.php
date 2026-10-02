@@ -85,9 +85,16 @@ class BillController extends Controller {
 			}
 			$bills = $this->service->enrichBillsWithCurrency($bills, $this->userId);
 
-			// Merge shared bills
-			$shared = $this->granularShareService->getSharedBills($this->userId);
+			// Merge shared bills, held to the same filters as the user's own
+			// (a shared transfer turned up on the Bills page and a shared
+			// bill on the Transfers page) and priced in their own account's
+			// currency, which they came without
+			$shared = array_values(array_filter(
+				$this->granularShareService->getSharedBills($this->userId),
+				fn (array $bill) => $this->sharedBillMatches($bill, $activeOnlyBool, $isTransferBool, $revertibleTooBool)
+			));
 			if (!empty($shared)) {
+				$shared = $this->service->enrichSharedBillsWithCurrency($shared);
 				$bills = array_merge(
 					array_map(fn ($b) => $b->jsonSerialize(), $bills),
 					$shared
@@ -98,6 +105,24 @@ class BillController extends Controller {
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to retrieve bills'));
 		}
+	}
+
+	/**
+	 * Whether a shared bill belongs in a list fetched with these filters,
+	 * the ones the user's own bills were fetched with.
+	 */
+	private function sharedBillMatches(array $bill, bool $activeOnly, ?bool $isTransfer, bool $revertibleToo): bool {
+		if ($isTransfer !== null && (bool)($bill['isTransfer'] ?? false) !== $isTransfer) {
+			return false;
+		}
+		$isActive = (bool)($bill['isActive'] ?? false);
+		if ($activeOnly) {
+			return $isActive;
+		}
+		if ($revertibleToo) {
+			return $isActive || (bool)($bill['canMarkUnpaid'] ?? false);
+		}
+		return true;
 	}
 
 	/**
@@ -980,15 +1005,17 @@ class BillController extends Controller {
 	}
 
 	/**
-	 * Get monthly summary of bills
+	 * Get monthly summary of bills, or of transfers for the Transfers page
 	 * @NoAdminRequired
+	 * @param string|bool $isTransfer true for the Transfers page's cards
 	 */
-	public function summary(): DataResponse {
+	public function summary($isTransfer = false): DataResponse {
 		try {
 			// The cards count the shared bills the list under them shows
 			$summary = $this->service->getMonthlySummary(
 				$this->getEffectiveUserId(),
-				$this->granularShareService->getSharedBillEntities($this->getEffectiveUserId())
+				$this->granularShareService->getSharedBillEntities($this->getEffectiveUserId()),
+				$this->toBool($isTransfer)
 			);
 			return new DataResponse($summary);
 		} catch (\Exception $e) {
