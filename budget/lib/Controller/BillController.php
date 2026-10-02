@@ -371,6 +371,7 @@ class BillController extends Controller {
 			}
 
 			$this->requireUsableCategories($this->getEffectiveUserId(), $categoryId, $splitTemplate);
+			$this->requireSplitsUsableByAccountOwner($this->getEffectiveUserId(), $accountId, $splitTemplate);
 
 			$bill = $this->service->create(
 				$this->getEffectiveUserId(),
@@ -753,6 +754,14 @@ class BillController extends Controller {
 				array_key_exists('categoryId', $updates) ? $updates['categoryId'] : null,
 				isset($data['splitTemplate']) && is_array($data['splitTemplate']) ? $data['splitTemplate'] : null
 			);
+			if (isset($data['splitTemplate']) || array_key_exists('accountId', $updates)) {
+				$storedBill = $storedBill ?? $this->service->find($id, $ownerId);
+				$this->requireSplitsUsableByAccountOwner(
+					$ownerId,
+					array_key_exists('accountId', $updates) ? $updates['accountId'] : $storedBill->getAccountId(),
+					isset($data['splitTemplate']) && is_array($data['splitTemplate']) ? $data['splitTemplate'] : $storedBill->getSplitTemplateArray()
+				);
+			}
 
 			$bill = $this->service->update($id, $ownerId, $updates);
 			return new DataResponse($bill);
@@ -1425,6 +1434,29 @@ class BillController extends Controller {
 	 *
 	 * @throws \InvalidArgumentException
 	 */
+	/**
+	 * A split bill paying from another user's account (shared with its
+	 * owner) splits its payments in that user's ledger, so every split
+	 * category has to be one they can see. With the bill owner's own
+	 * categories every payment landed unsplit and uncategorised, silently.
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	private function requireSplitsUsableByAccountOwner(string $billOwner, ?int $accountId, ?array $splitTemplate): void {
+		if ($accountId === null || empty($splitTemplate)) {
+			return;
+		}
+		$accountOwner = $this->granularShareService->resolveOwner($this->userId, 'account', $accountId);
+		if ($accountOwner === null || $accountOwner === $billOwner) {
+			return;
+		}
+		try {
+			$this->requireUsableCategories($accountOwner, null, $splitTemplate);
+		} catch (\InvalidArgumentException $e) {
+			throw new \InvalidArgumentException($this->l->t('This account belongs to someone else, who cannot see one of the split categories. Split with categories shared with them, or pay from one of your own accounts.'));
+		}
+	}
+
 	private function requireUsableCategories(string $ownerId, mixed $categoryId, ?array $splitTemplate): void {
 		$normalise = static fn (mixed $raw): ?int
 			=> ($raw === null || $raw === '' || (int)$raw <= 0) ? null : (int)$raw;

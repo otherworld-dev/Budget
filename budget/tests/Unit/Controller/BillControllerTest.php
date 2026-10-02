@@ -164,6 +164,32 @@ class BillControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	public function testASplitBillOnAnotherUsersAccountNeedsCategoriesTheyCanSee(): void {
+		// The splits are written in the account owner's ledger: with your own
+		// categories, which they can't see, every payment landed unsplit and
+		// uncategorised without a word
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canAccess')->willReturn(true);
+		$shares->method('canWrite')->willReturn(true);
+		$shares->method('resolveOwner')->willReturnCallback(fn ($user, $type, $id) => $type === 'account' ? 'alice' : 'user1');
+		$shares->method('requireUsableCategory')->willReturnCallback(function (string $owner, ?int $categoryId) {
+			if ($owner === 'alice' && $categoryId === 7) {
+				throw new \InvalidArgumentException('Category not found');
+			}
+		});
+		$controller = new BillController($this->request, $this->service, $this->validationService, $shares,
+			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class), $this->upcomingBills,
+			$this->l, 'user1', $this->logger);
+		$this->mockInput(json_encode(['name' => 'Shop', 'amount' => 50, 'accountId' => 4,
+			'splitTemplate' => [['categoryId' => 7, 'amount' => 30], ['categoryId' => 8, 'amount' => 20]]]));
+		$this->service->expects($this->never())->method('create');
+
+		$response = $controller->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('split', strtolower($response->getData()['error']));
+	}
+
 	public function testIndexFiltersSharedRowsLikeOwnOnes(): void {
 		// Shared rows were merged in unfiltered: shared transfers showed on
 		// the Bills page, shared bills on Transfers, ended ones everywhere
