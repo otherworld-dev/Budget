@@ -789,6 +789,27 @@ class GranularShareServiceTest extends TestCase {
 		$this->assertFalse($result[0]['canMarkUnpaid'], 'recipients must never be offered the action');
 	}
 
+	public function testGetSharedBillEntitiesReturnsTheBillsThemselves(): void {
+		// The Bills page summary works on entities, so it needs the shared
+		// bills unserialised
+		$share = $this->makeShare(100, 'bob', 'alice', Share::STATUS_ACCEPTED);
+		$this->shareMapper->method('findByRecipient')->with('alice')->willReturn([$share]);
+		$this->shareItemMapper->method('findSharedEntityIds')->with(100, ShareItem::TYPE_BILL)->willReturn([7]);
+		$bill = new Bill();
+		$bill->setId(7);
+		$bill->setUserId('bob');
+		$this->billMapper->method('findByIds')->with([7])->willReturn([$bill]);
+
+		$this->assertSame([$bill], $this->service->getSharedBillEntities('alice'));
+	}
+
+	public function testGetSharedBillEntitiesWithNothingShared(): void {
+		$this->shareMapper->method('findByRecipient')->willReturn([]);
+		$this->billMapper->expects($this->never())->method('findByIds');
+
+		$this->assertSame([], $this->service->getSharedBillEntities('alice'));
+	}
+
 	// =============================================
 	// getWritableAccountIds
 	// =============================================

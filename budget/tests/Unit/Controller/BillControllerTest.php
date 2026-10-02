@@ -23,6 +23,7 @@ class BillControllerTest extends TestCase {
 	private BillController $controller;
 	private BillService $service;
 	private ValidationService $validationService;
+	private GranularShareService $granularShareService;
 	private IRequest $request;
 	private LoggerInterface $logger;
 	private IL10N $l;
@@ -59,6 +60,7 @@ class BillControllerTest extends TestCase {
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn(true);
 		$granularShareService->method('resolveOwner')->willReturn('user1');
+		$this->granularShareService = $granularShareService;
 
 		$this->controller = new BillController(
 			$this->request,
@@ -1452,6 +1454,16 @@ class BillControllerTest extends TestCase {
 		$response = $this->controller->summary();
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testSummaryIncludesBillsSharedWithTheUser(): void {
+		$shared = new \OCA\Budget\Db\Bill();
+		$shared->setId(2);
+		$this->granularShareService->method('getSharedBillEntities')->willReturn([$shared]);
+		$this->service->expects($this->once())->method('getMonthlySummary')
+			->with($this->anything(), [$shared])->willReturn(['overdue' => 1]);
+
+		$this->assertSame(['overdue' => 1], $this->controller->summary()->getData());
 	}
 
 	public function testSummaryHandlesError(): void {

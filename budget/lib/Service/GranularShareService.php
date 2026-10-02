@@ -461,11 +461,6 @@ class GranularShareService {
 	 * @return array[]
 	 */
 	public function getSharedBills(string $userId): array {
-		$ids = $this->getSharedIds($userId, ShareItem::TYPE_BILL);
-		if (empty($ids)) {
-			return [];
-		}
-		$bills = $this->billMapper->findByIds($ids);
 		return array_map(function ($b) use ($userId) {
 			$canWrite = $this->canWrite($userId, ShareItem::TYPE_BILL, $b->getId());
 			$serialized = $b->jsonSerialize();
@@ -480,7 +475,22 @@ class GranularShareService {
 				// may write. Read-only recipients still never see the action.
 				'canMarkUnpaid' => $canWrite && ($serialized['canMarkUnpaid'] ?? false),
 			]);
-		}, $bills);
+		}, $this->getSharedBillEntities($userId));
+	}
+
+	/**
+	 * The bills shared with $userId, as entities. The Bills page summary
+	 * works on entities, and its cards left shared bills out while the list
+	 * under them showed them.
+	 *
+	 * @return \OCA\Budget\Db\Bill[]
+	 */
+	public function getSharedBillEntities(string $userId): array {
+		$ids = $this->getSharedIds($userId, ShareItem::TYPE_BILL);
+		if (empty($ids)) {
+			return [];
+		}
+		return $this->billMapper->findByIds($ids);
 	}
 
 	/**
