@@ -574,22 +574,43 @@ class RecurringIncomeService extends AbstractCrudService {
 
 	/**
 	 * Create recurring income entries from detected patterns.
+	 *
+	 * @throws \InvalidArgumentException when an item has no name
 	 */
 	public function createFromDetected(string $userId, array $detected): array {
+		// Every item needs a name before any is created. `suggestedName ??
+		// description` kept a blank suggested name and created nameless income
+		$names = [];
+		foreach ($detected as $i => $item) {
+			$names[$i] = '';
+			foreach (['name', 'suggestedName', 'description'] as $field) {
+				if (is_string($item[$field] ?? null) && trim($item[$field]) !== '') {
+					$names[$i] = trim($item[$field]);
+					break;
+				}
+			}
+			if ($names[$i] === '') {
+				throw new \InvalidArgumentException($this->l->t('%1$s is required', [$this->l->t('Name')]));
+			}
+		}
+
 		$created = [];
 
-		foreach ($detected as $item) {
+		foreach ($detected as $i => $item) {
 			$income = $this->create(
 				$userId,
-				$item['suggestedName'] ?? $item['description'],
+				$names[$i],
 				$item['amount'],
 				$item['frequency'],
 				$item['expectedDay'] ?? null,
-				null, // expectedMonth
+				// The schedule the payments showed: the month a quarterly or
+				// yearly income arrives in, and the payment weekly pay counts from
+				isset($item['expectedMonth']) ? (int)$item['expectedMonth'] : null,
 				$item['categoryId'] ?? null,
 				$item['accountId'] ?? null,
 				$item['source'] ?? null,
-				$item['autoDetectPattern'] ?? null
+				$item['autoDetectPattern'] ?? null,
+				startDate: isset($item['startDate']) && $item['startDate'] !== '' ? (string)$item['startDate'] : null,
 			);
 			$created[] = $income;
 		}

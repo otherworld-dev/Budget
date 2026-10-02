@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Tests\Unit\Service\Income;
 
+use OCA\Budget\Db\RecurringIncome;
+use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
@@ -14,16 +16,51 @@ class RecurringIncomeDetectorTest extends TestCase {
 	private RecurringIncomeDetector $detector;
 	private TransactionMapper $transactionMapper;
 	private FrequencyCalculator $frequencyCalculator;
+	/** @var RecurringIncome[] */
+	private array $incomes = [];
+
+	private const MONTHLY = ['2026-04-25', '2026-05-25', '2026-06-25', '2026-07-25', '2026-08-25', '2026-09-25'];
 
 	protected function setUp(): void {
 		$this->transactionMapper = $this->createMock(TransactionMapper::class);
 		$this->frequencyCalculator = $this->createMock(FrequencyCalculator::class);
+		$incomeMapper = $this->createMock(RecurringIncomeMapper::class);
+		$incomeMapper->method('findAll')->willReturnCallback(fn () => $this->incomes);
 
 		$this->detector = new RecurringIncomeDetector(
 			$this->transactionMapper,
 			$this->frequencyCalculator,
+			$incomeMapper,
 			10.0 // minAmount
 		);
+	}
+
+	/**
+	 * Credits on the given dates.
+	 *
+	 * @return Transaction[]
+	 */
+	private function credits(array $dates, array $o = [], int $firstId = 1): array {
+		$rows = [];
+		foreach (array_values($dates) as $i => $date) {
+			$txn = $this->makeTransaction($o['description'] ?? 'SALARY ACME', $o['amount'] ?? 2000.0, $date, $o['type'] ?? 'credit', null, $o['accountId'] ?? 1);
+			$txn->setId($firstId + $i);
+			$txn->setVendor($o['vendor'] ?? null);
+			$txn->setNotes($o['notes'] ?? null);
+			$txn->setBillId($o['billId'] ?? null);
+			$txn->setStatus($o['status'] ?? 'cleared');
+			$txn->setLinkedTransactionId($o['linkedTransactionId'] ?? null);
+			$txn->setPensionContribId($o['pensionContribId'] ?? null);
+			$rows[] = $txn;
+		}
+		return $rows;
+	}
+
+	private function makeIncome(string $name, ?string $pattern = null): RecurringIncome {
+		$income = new RecurringIncome();
+		$income->setName($name);
+		$income->setAutoDetectPattern($pattern);
+		return $income;
 	}
 
 	private function makeTransaction(string $description, float $amount, string $date, string $type = 'credit', ?int $categoryId = null, int $accountId = 1): Transaction {
@@ -215,5 +252,202 @@ class RecurringIncomeDetectorTest extends TestCase {
 		if (count($result) >= 2) {
 			$this->assertGreaterThanOrEqual($result[1]['confidence'], $result[0]['confidence']);
 		}
+	}
+
+	// ===== the app's own rows and transfers are not income =====
+
+	public function testTransferDepositLegsAreNotIncome(): void {
+		// A Transfers-page transfer books its deposit with a blank description
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->credits(self::MONTHLY, ['description' => '', 'amount' => 500.0, 'billId' => 7, 'accountId' => 2])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('monthly');
+
+		$this->assertSame([], $this->detector->detectRecurringIncome('user1'));
+	}
+
+	public function testLinkedTransferCreditsAreNotIncome(): void {
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->credits(self::MONTHLY, ['description' => 'TRANSFER FROM CURRENT ACCOUNT', 'amount' => 300.0, 'linkedTransactionId' => 99, 'accountId' => 2])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('monthly');
+
+		$this->assertSame([], $this->detector->detectRecurringIncome('user1'));
+	}
+
+	public function testRowsBookedFromAnExistingIncomeAreNotOfferedAgain(): void {
+		// Auto-create and Mark received book these; offering them again
+		// created a second copy of the income
+		$rows = array_merge(
+			$this->credits(self::MONTHLY, ['description' => '', 'notes' => 'Auto-generated from income: Salary']),
+			$this->credits(self::MONTHLY, ['description' => 'Pension', 'amount' => 800.0, 'notes' => 'Auto-generated from income: State pension'], 20)
+		);
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn($rows);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('monthly');
+
+		$this->assertSame([], $this->detector->detectRecurringIncome('user1'));
+	}
+
+	public function testPensionWithdrawalLegsAreNotIncome(): void {
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->credits(self::MONTHLY, ['description' => 'Pension withdrawal', 'amount' => 400.0, 'pensionContribId' => 3])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('monthly');
+
+		$this->assertSame([], $this->detector->detectRecurringIncome('user1'));
+	}
+
+	public function testScheduledRowsAreNotReceivedYet(): void {
+		$rows = $this->credits(['2026-09-25'], ['description' => 'DIVIDEND XYZ', 'amount' => 120.0]);
+		$rows = array_merge($rows, $this->credits(['2026-12-25'], ['description' => 'DIVIDEND XYZ', 'amount' => 120.0, 'status' => 'scheduled'], 5));
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn($rows);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('quarterly');
+
+		$this->assertSame([], $this->detector->detectRecurringIncome('user1'));
+	}
+
+	public function testBlankCreditsFromDifferentPayersNeverShareAGroup(): void {
+		// Six blank transfer deposits outnumbered five blank salary credits in
+		// one '' group, and the median filter kept the transfer
+		$rows = array_merge(
+			$this->credits(self::MONTHLY, ['description' => '', 'amount' => 500.0, 'billId' => 7, 'accountId' => 2]),
+			$this->credits(array_slice(self::MONTHLY, 1), ['description' => '', 'vendor' => 'ACME LTD', 'amount' => 2000.0], 20)
+		);
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn($rows);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('monthly');
+
+		$result = $this->detector->detectRecurringIncome('user1');
+
+		$this->assertCount(1, $result);
+		$this->assertEquals(2000.0, $result[0]['amount']);
+		$this->assertSame(1, $result[0]['accountId']);
+		$this->assertSame('Acme', $result[0]['suggestedName']);
+	}
+
+	public function testCreditsWithNothingToNameThemAreNotOffered(): void {
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->credits(self::MONTHLY, ['description' => '', 'amount' => 650.0])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('monthly');
+
+		$this->assertSame([], $this->detector->detectRecurringIncome('user1'));
+	}
+
+	// ===== already tracked by an income =====
+
+	public function testCreditsMatchingAnExistingIncomePatternAreNotOffered(): void {
+		$this->incomes = [$this->makeIncome('Salary', 'ACME LTD SALARY')];
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->credits(self::MONTHLY, ['description' => 'ACME LTD SALARY'])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('monthly');
+
+		$this->assertSame([], $this->detector->detectRecurringIncome('user1'));
+	}
+
+	public function testCreditsMatchingAnExistingIncomeNameAreNotOffered(): void {
+		$this->incomes = [$this->makeIncome('Acme Salary')];
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->credits(self::MONTHLY, ['description' => 'ACME SALARY 0925'])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('monthly');
+
+		$this->assertSame([], $this->detector->detectRecurringIncome('user1'));
+	}
+
+	public function testAShortIncomeNameHidesOnlyWholeWords(): void {
+		$this->incomes = [$this->makeIncome('Pay'), $this->makeIncome('', '')];
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->credits(self::MONTHLY, ['description' => 'PAYPAL PAYOUT'])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('monthly');
+
+		$this->assertCount(1, $this->detector->detectRecurringIncome('user1'));
+	}
+
+	// ===== a usable name =====
+
+	public function testNameIsNeverBlankWhenCleanupStripsEverything(): void {
+		// The cleanup strips "DEPOSIT", "CREDIT", "TRANSFER FROM" ... and the
+		// panel showed a blank label for what remained
+		$rows = array_merge(
+			$this->credits(self::MONTHLY, ['description' => 'DEPOSIT 123']),
+			$this->credits(self::MONTHLY, ['description' => 'TRANSFER FROM', 'amount' => 150.0], 20)
+		);
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn($rows);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('monthly');
+
+		$names = array_column($this->detector->detectRecurringIncome('user1'), 'suggestedName');
+		sort($names);
+
+		$this->assertSame(['Deposit', 'Transfer From'], $names);
+	}
+
+	// ===== the schedule a candidate carries =====
+
+	public function testWeeklyIncomeIsAnchoredOnTheLastPaymentAndItsWeekday(): void {
+		// A Thursday pension averaged to the 16th, read as a Tuesday
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->credits(['2026-09-03', '2026-09-10', '2026-09-17', '2026-09-24'], ['description' => 'STATE PENSION', 'amount' => 230.0])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('weekly');
+
+		$c = $this->detector->detectRecurringIncome('user1')[0];
+
+		$this->assertSame(4, $c['expectedDay']);
+		$this->assertSame('2026-09-24', $c['startDate']);
+		$this->assertNull($c['expectedMonth']);
+		$this->assertSame('2026-10-01', (new FrequencyCalculator())->occurrenceOnOrAfter('weekly', $c['expectedDay'], $c['expectedMonth'], '2026-09-30', null, $c['startDate']));
+	}
+
+	public function testBiweeklyPayKeepsItsRealFortnight(): void {
+		// Friday payroll: it came out on Wednesday the 30th instead of Friday the 9th
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->credits(['2026-08-14', '2026-08-28', '2026-09-11', '2026-09-25'], ['description' => 'ACME PAYROLL', 'amount' => 1400.0])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('biweekly');
+
+		$c = $this->detector->detectRecurringIncome('user1')[0];
+
+		$this->assertSame(5, $c['expectedDay']);
+		$this->assertSame('2026-09-25', $c['startDate']);
+		$this->assertSame('2026-10-09', (new FrequencyCalculator())->occurrenceOnOrAfter('biweekly', $c['expectedDay'], $c['expectedMonth'], '2026-09-26', null, $c['startDate']));
+	}
+
+	public function testBenefitBroughtForwardOverMonthEndKeepsItsDay(): void {
+		// Paid on the 1st, once brought forward to 31 July: it averaged to the 6th
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->credits(['2026-04-01', '2026-05-01', '2026-06-01', '2026-07-01', '2026-07-31', '2026-09-01'], ['description' => 'DWP UC', 'amount' => 600.0])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('monthly');
+
+		$c = $this->detector->detectRecurringIncome('user1')[0];
+
+		$this->assertSame(1, $c['expectedDay']);
+		$this->assertNull($c['startDate']);
+	}
+
+	public function testQuarterlyIncomeKeepsTheMonthsItArrivesIn(): void {
+		// A Jun/Sep dividend fell into Jan/Apr/Jul/Oct
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->credits(['2026-06-15', '2026-09-15'], ['description' => 'DIVIDEND XYZ PLC', 'amount' => 120.0])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('quarterly');
+
+		$c = $this->detector->detectRecurringIncome('user1')[0];
+
+		$this->assertSame(15, $c['expectedDay']);
+		$this->assertSame(9, $c['expectedMonth']);
+		$this->assertSame('2026-12-15', (new FrequencyCalculator())->occurrenceOnOrAfter('quarterly', $c['expectedDay'], $c['expectedMonth'], '2026-10-02', null, $c['startDate']));
+	}
+
+	public function testDailyCreditsAreNotOfferedAsIncome(): void {
+		// The income form has no daily schedule to show it with
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->credits(['2026-09-21', '2026-09-22', '2026-09-23'], ['description' => 'CASHBACK', 'amount' => 12.0])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('daily');
+
+		$this->assertSame([], $this->detector->detectRecurringIncome('user1'));
 	}
 }

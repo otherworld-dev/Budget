@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Tests\Unit\Service\Bill;
 
-use OCA\Budget\Db\Bill;
-use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\DismissedSuggestionMapper;
 use OCA\Budget\Service\Bill\BillSuggestionService;
 use OCA\Budget\Service\Bill\RecurringBillDetector;
@@ -14,31 +12,25 @@ use PHPUnit\Framework\TestCase;
 class BillSuggestionServiceTest extends TestCase {
 	private BillSuggestionService $service;
 	private RecurringBillDetector $detector;
-	private BillMapper $billMapper;
 	private DismissedSuggestionMapper $dismissedMapper;
 
 	/** @var array[] */
 	private array $detected = [];
-	/** @var Bill[] */
-	private array $bills = [];
 	/** @var string[] */
 	private array $dismissedHashes = [];
 
 	protected function setUp(): void {
+		// Bills only: the detector leaves out linked transfer legs, and the
+		// rows and payees existing bills already track
 		$this->detector = $this->createMock(RecurringBillDetector::class);
 		$this->detector->method('detectRecurringBills')
-			->with('alice', 6, true)
+			->with('alice', 6, false)
 			->willReturnCallback(fn () => $this->detected);
-		$this->detector->method('normalizeDescription')
-			->willReturnCallback(fn (string $d) => strtolower(trim(preg_replace('/\s+/', ' ', preg_replace('/\d+/', '', $d)))));
-		$this->billMapper = $this->createMock(BillMapper::class);
-		$this->billMapper->method('findAll')->willReturnCallback(fn () => $this->bills);
 		$this->dismissedMapper = $this->createMock(DismissedSuggestionMapper::class);
 		$this->dismissedMapper->method('findHashes')->willReturnCallback(fn () => $this->dismissedHashes);
 
 		$this->service = new BillSuggestionService(
 			$this->detector,
-			$this->billMapper,
 			$this->dismissedMapper
 		);
 	}
@@ -58,13 +50,6 @@ class BillSuggestionServiceTest extends TestCase {
 			'autoDetectPattern' => 'NETFLIX',
 			'lastSeen' => '2026-06-01',
 		], $overrides);
-	}
-
-	private function makeBill(string $name, ?string $pattern = null): Bill {
-		$bill = new Bill();
-		$bill->setName($name);
-		$bill->setAutoDetectPattern($pattern);
-		return $bill;
 	}
 
 	public function testNewCandidateSurfaces(): void {
@@ -92,34 +77,6 @@ class BillSuggestionServiceTest extends TestCase {
 		$result = $this->service->getSuggestions('alice');
 
 		$this->assertSame(0, $result['total']);
-	}
-
-	public function testExistingBillPatternExcluded(): void {
-		$this->detected = [$this->makeCandidate()];
-		$this->bills = [$this->makeBill('Streaming', 'NETFLIX 999')];
-
-		$result = $this->service->getSuggestions('alice');
-
-		$this->assertSame(0, $result['total']);
-	}
-
-	public function testExistingBillNameFallbackExcluded(): void {
-		// Bill without autoDetectPattern — its name still excludes matches
-		$this->detected = [$this->makeCandidate(['description' => 'Netflix subscription'])];
-		$this->bills = [$this->makeBill('Netflix', null)];
-
-		$result = $this->service->getSuggestions('alice');
-
-		$this->assertSame(0, $result['total']);
-	}
-
-	public function testUnrelatedBillDoesNotExclude(): void {
-		$this->detected = [$this->makeCandidate()];
-		$this->bills = [$this->makeBill('Rent', 'LANDLORD CO')];
-
-		$result = $this->service->getSuggestions('alice');
-
-		$this->assertSame(1, $result['total']);
 	}
 
 	public function testLimitAndTotal(): void {
