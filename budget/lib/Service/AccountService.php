@@ -636,7 +636,9 @@ class AccountService extends AbstractCrudService {
 			return [];
 		}
 
-		$owner = $this->mapper->findById($accountId)->getUserId();
+		/** @var AccountMapper $mapper */
+		$mapper = $this->mapper;
+		$owner = $mapper->findById($accountId)->getUserId();
 		$payments = [];
 		foreach ($this->billMapper->findActiveTransfersInto($accountId) as $bill) {
 			// Someone the account is no longer shared with doesn't pay into it

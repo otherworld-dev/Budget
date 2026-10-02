@@ -522,7 +522,7 @@ class RecurringIncomeService extends AbstractCrudService {
 
 		// Every income, not just active ones: receiving a one-time income
 		// completes it, which left it out of the count the moment it arrived
-		foreach (array_filter($this->mapper->findAll($userId), $inAccount) as $income) {
+		foreach (array_filter($this->findAll($userId), $inAccount) as $income) {
 			$lastReceived = $income->getLastReceivedDate();
 			if ($lastReceived && $lastReceived >= $startOfMonth && $lastReceived <= $endOfMonth) {
 				$receivedThisMonth++;

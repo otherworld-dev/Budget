@@ -133,7 +133,7 @@ class RecurringBudgetService {
 
 		$idsByOwner = [];
 		foreach ($this->granularShareService?->getSharedCategories($userId) ?? [] as $category) {
-			$idsByOwner[(string)$category['userId']][] = (int)$category['id'];
+			$idsByOwner[$category['userId']][] = (int)$category['id'];
 		}
 		foreach ($idsByOwner as $owner => $ids) {
 			$ownerBudgets = $this->getMonthlyBudgetsByCategory((string)$owner, $month);
