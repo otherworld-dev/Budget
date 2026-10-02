@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 
 use OCA\Budget\Controller\PageController;
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\Category;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\SchemaVersionService;
@@ -19,12 +20,14 @@ use PHPUnit\Framework\TestCase;
 class PageControllerTest extends TestCase {
 	private PageController $controller;
 	private IAppManager $appManager;
+	private CategoryMapper $categoryMapper;
+	private GranularShareService $granularShareService;
 
 	protected function setUp(): void {
 		$request = $this->createMock(IRequest::class);
 		$accountMapper = $this->createMock(AccountMapper::class);
-		$categoryMapper = $this->createMock(CategoryMapper::class);
-		$granularShareService = $this->createMock(GranularShareService::class);
+		$categoryMapper = $this->categoryMapper = $this->createMock(CategoryMapper::class);
+		$granularShareService = $this->granularShareService = $this->createMock(GranularShareService::class);
 		$schemaVersionService = $this->createMock(SchemaVersionService::class);
 		$this->appManager = $this->createMock(IAppManager::class);
 
@@ -111,6 +114,94 @@ class PageControllerTest extends TestCase {
 		foreach ($icons as $src) {
 			$this->assertFileExists(__DIR__ . '/../../../img/' . basename($src));
 		}
+	}
+
+	public function testQuickAddListsSubcategoriesIndentedUnderTheirParent(): void {
+		// Two subcategories with the same name under different parents were
+		// indistinguishable in a flat list (#409).
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->category(1, 'Food', 'expense', null),
+			$this->category(2, 'Travel', 'expense', null),
+			$this->category(3, 'Other', 'expense', 1),
+			$this->category(4, 'Other', 'expense', 2),
+			$this->category(5, 'Snacks', 'expense', 3),
+		]);
+		$this->granularShareService->method('getSharedCategories')->willReturn([]);
+
+		$this->assertSame([
+			[1, 'Food', 0],
+			[3, 'Other', 1],
+			[5, 'Snacks', 2],
+			[2, 'Travel', 0],
+			[4, 'Other', 1],
+		], $this->quickAddRows());
+	}
+
+	public function testQuickAddIndentsOnlyUnderParentsOfTheSameType(): void {
+		// The page shows one type at a time, so an income subcategory of an
+		// expense parent sits at the top level, as in the main app's pickers.
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->category(1, 'Work', 'expense', null),
+			$this->category(2, 'Refunds', 'income', 1),
+			$this->category(3, 'Expenses refunds', 'income', 2),
+		]);
+		$this->granularShareService->method('getSharedCategories')->willReturn([]);
+
+		$this->assertSame([
+			[1, 'Work', 0],
+			[2, 'Refunds', 0],
+			[3, 'Expenses refunds', 1],
+		], $this->quickAddRows());
+	}
+
+	public function testQuickAddNestsSharedCategoriesAndKeepsOrphansAtTheTop(): void {
+		// A shared subcategory whose parent wasn't shared has nothing to sit under.
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->category(1, 'Food', 'expense', null),
+		]);
+		$this->granularShareService->method('getSharedCategories')->willReturn([
+			['id' => 10, 'name' => 'House', 'type' => 'expense', 'parentId' => null],
+			['id' => 11, 'name' => 'Repairs', 'type' => 'expense', 'parentId' => 10],
+			['id' => 12, 'name' => 'Garden', 'type' => 'expense', 'parentId' => 99],
+		]);
+
+		$this->assertSame([
+			[1, 'Food', 0],
+			[10, 'House', 0],
+			[11, 'Repairs', 1],
+			[12, 'Garden', 0],
+		], $this->quickAddRows());
+	}
+
+	public function testQuickAddStillListsCategoriesCaughtInAParentLoop(): void {
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->category(1, 'Food', 'expense', null),
+			$this->category(2, 'Loop A', 'expense', 3),
+			$this->category(3, 'Loop B', 'expense', 2),
+		]);
+		$this->granularShareService->method('getSharedCategories')->willReturn([]);
+
+		$this->assertSame([
+			[1, 'Food', 0],
+			[2, 'Loop A', 0],
+			[3, 'Loop B', 1],
+		], $this->quickAddRows());
+	}
+
+	/** @return list<array{int, string, int}> */
+	private function quickAddRows(): array {
+		// quickAdd() itself calls Util::addStyle, which needs a running server.
+		$rows = (new \ReflectionMethod(PageController::class, 'quickAddCategories'))->invoke($this->controller);
+		return array_map(fn (array $r) => [$r['id'], $r['name'], $r['level']], $rows);
+	}
+
+	private function category(int $id, string $name, string $type, ?int $parentId): Category {
+		$category = new Category();
+		$category->setId($id);
+		$category->setName($name);
+		$category->setType($type);
+		$category->setParentId($parentId);
+		return $category;
 	}
 
 	/** @return array<string, mixed> */

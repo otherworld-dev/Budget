@@ -102,6 +102,19 @@ describe('dashboard hero tiles: Move earlier / later', () => {
         expect(mod.saveDashboardVisibility).toHaveBeenCalledWith('hero');
     });
 
+    it('shows the move at once below 1200px, where the tiles carry a CSS order', () => {
+        // applyDashboardLayout pins each hero tile's place with style.order
+        // at narrow widths, so moving the element alone changed nothing on
+        // screen until a reload.
+        const mod = hero();
+        document.querySelectorAll('.hero-card').forEach((c, i) => { c.style.order = String(i); });
+        const a = document.querySelector('[data-widget-id="a"]');
+
+        mod.moveHeroTile(a, 1);
+
+        document.querySelectorAll('.hero-card').forEach(c => expect(c.style.order).toBe(''));
+    });
+
     it('does nothing at the start of the row', () => {
         const mod = hero();
         const a = document.querySelector('[data-widget-id="a"]');

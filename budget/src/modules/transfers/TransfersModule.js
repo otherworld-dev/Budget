@@ -1285,7 +1285,7 @@ export default class TransfersModule {
                         <div class="detected-bill-meta">
                             <span class="detected-amount">${formatters.formatCurrency(item.amount, accountCurrency(this.accounts, item.accountId), this.settings)}</span>
                             <span class="detected-frequency">${item.frequency}</span>
-                            <span class="detected-confidence ${confidenceClass}">${t('budget', '{percent}% confidence', { percent: confidencePercent })}</span>
+                            <span class="detected-confidence ${confidenceClass}">${/* xgettext:no-javascript-format */ t('budget', '{percent}% confidence', { percent: confidencePercent })}</span>
                             <span>${t('budget', 'From: {account}', { account: sourceName })}</span>
                         </div>
                         <div class="detected-transfer-dest" style="margin-top: 4px;">

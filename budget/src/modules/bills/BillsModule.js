@@ -200,7 +200,7 @@ export default class BillsModule {
                     <div class="bill-suggestion-row" data-index="${index}">
                         <div class="bill-suggestion-info">
                             <strong>${dom.escapeHtml(item.suggestedName || item.description)}</strong>
-                            <span class="bill-suggestion-meta">${formatters.formatCurrency(item.amount, accountCurrency(this.accounts, item.accountId), this.settings)} &middot; ${item.frequency} &middot; <span class="detected-confidence ${confidenceClass}">${t('budget', '{percent}% confidence', { percent: Math.round(item.confidence * 100) })}</span></span>
+                            <span class="bill-suggestion-meta">${formatters.formatCurrency(item.amount, accountCurrency(this.accounts, item.accountId), this.settings)} &middot; ${item.frequency} &middot; <span class="detected-confidence ${confidenceClass}">${/* xgettext:no-javascript-format */ t('budget', '{percent}% confidence', { percent: Math.round(item.confidence * 100) })}</span></span>
                         </div>
                         <div class="bill-suggestion-actions">
                             <button class="primary bill-suggestion-create" data-index="${index}">${t('budget', 'Create bill')}</button>
@@ -1512,7 +1512,7 @@ export default class BillsModule {
                         <div class="detected-bill-meta">
                             <span class="detected-amount">${formatters.formatCurrency(item.avgAmount || item.amount, accountCurrency(this.accounts, item.accountId), this.settings)}</span>
                             <span class="detected-frequency">${item.frequency}</span>
-                            <span class="detected-confidence ${confidenceClass}">${t('budget', '{percent}% confidence', { percent: confidencePercent })}</span>
+                            <span class="detected-confidence ${confidenceClass}">${/* xgettext:no-javascript-format */ t('budget', '{percent}% confidence', { percent: confidencePercent })}</span>
                         </div>
                     </div>
                 </div>

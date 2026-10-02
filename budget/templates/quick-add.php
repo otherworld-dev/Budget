@@ -56,7 +56,7 @@ $categories = json_decode($_['categories'], true);
             <select id="qa-category">
                 <option value=""><?php p($l->t('Uncategorized')); ?></option>
                 <?php foreach ($categories as $cat): ?>
-                    <option value="<?php p($cat['id']); ?>" data-type="<?php p($cat['type']); ?>"><?php p($cat['name']); ?></option>
+                    <option value="<?php p($cat['id']); ?>" data-type="<?php p($cat['type']); ?>"><?php p(str_repeat("\u{00A0}\u{00A0}", $cat['level']) . $cat['name']); ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
