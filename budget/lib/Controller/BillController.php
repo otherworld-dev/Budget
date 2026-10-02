@@ -40,6 +40,7 @@ class BillController extends Controller {
 		ValidationService $validationService,
 		GranularShareService $granularShareService,
 		private \OCA\Budget\Service\Bill\BillSuggestionService $suggestionService,
+		private \OCA\Budget\Service\UpcomingBillsService $upcomingBills,
 		IL10N $l,
 		string $userId,
 		LoggerInterface $logger,
@@ -950,9 +951,9 @@ class BillController extends Controller {
 	 */
 	public function upcoming(int $days = 30): DataResponse {
 		try {
-			$bills = $this->service->findUpcoming($this->getEffectiveUserId(), $days);
-			$bills = $this->service->enrichBillsWithCurrency($bills, $this->getEffectiveUserId());
-			return new DataResponse($bills);
+			// Own and shared bills, as the Bills page and the public API list
+			// them; the dashboard tile has a setting to leave shared ones out
+			return new DataResponse($this->upcomingBills->upcoming($this->getEffectiveUserId(), $days));
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to retrieve upcoming bills'));
 		}
