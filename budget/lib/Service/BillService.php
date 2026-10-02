@@ -1705,6 +1705,14 @@ class BillService {
 			}
 
 			foreach ($bills as $key => $bill) {
+				// The bank's copy of a payment already booked by Mark Paid or
+				// auto-pay takes that payment's place rather than sitting
+				// beside it, which booked the money twice
+				if ($this->replaceBookedPayment($bill, $transaction)) {
+					$marked++;
+					$bills[$key] = $this->find($bill->getId(), $userId);
+					break;
+				}
 				if (!$this->importedTransactionMatchesBill($bill, $transaction)) {
 					continue;
 				}
@@ -1770,9 +1778,15 @@ class BillService {
 	 * can't advance bills through future periods).
 	 */
 	private function importedTransactionMatchesBill(Bill $bill, \OCA\Budget\Db\Transaction $transaction): bool {
+		return $this->importedTransactionLooksLikeBill($bill, $transaction)
+			&& $this->withinDueWindow($bill, $transaction->getDate(), (string)$bill->getNextDueDate());
+	}
+
+	/** Pattern, amount within 10% and the bill's account: everything but the date */
+	private function importedTransactionLooksLikeBill(Bill $bill, \OCA\Budget\Db\Transaction $transaction): bool {
 		$pattern = (string)$bill->getAutoDetectPattern();
 		$haystack = $transaction->getDescription() . ' ' . ($transaction->getVendor() ?? '');
-		if (stripos($haystack, $pattern) === false) {
+		if ($pattern === '' || stripos($haystack, $pattern) === false) {
 			return false;
 		}
 
@@ -1781,14 +1795,67 @@ class BillService {
 			return false;
 		}
 
-		if ($bill->getAccountId() !== null && $bill->getAccountId() !== $transaction->getAccountId()) {
+		return $bill->getAccountId() === null || $bill->getAccountId() === $transaction->getAccountId();
+	}
+
+	private function withinDueWindow(Bill $bill, string $date, string $around): bool {
+		$daysOff = abs((strtotime($date) - strtotime($around)) / 86400);
+		return $daysOff <= $this->dueDateToleranceDays($bill->getFrequency());
+	}
+
+	/**
+	 * Put an imported bank row in place of the payment Mark Paid or auto-pay
+	 * already booked for the bill's last occurrence.
+	 *
+	 * Only that payment, the one the bill's undo snapshot names, and only a
+	 * row the app generated: not a bank row, not one linked to anything,
+	 * not reconciled. The generated row goes, the bank row is linked in its
+	 * place with the bill's category, splits and tags, and the snapshot
+	 * then names the bank row, so Mark Unpaid unlinks it rather than
+	 * deleting the bank's own record. The bill stays where it is.
+	 */
+	private function replaceBookedPayment(Bill $bill, \OCA\Budget\Db\Transaction $imported): bool {
+		if (($bill->getIsTransfer() ?? false) || !$this->importedTransactionLooksLikeBill($bill, $imported)) {
+			return false;
+		}
+		$raw = $bill->getPaidUndoState();
+		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
+		$ids = is_array($snapshot) && is_array($snapshot['createdTransactionIds'] ?? null) ? $snapshot['createdTransactionIds'] : [];
+		if ($ids === [] || ($snapshot['linkedTransactionId'] ?? null) !== null
+			|| !$this->withinDueWindow($bill, $imported->getDate(), (string)($snapshot['paidDate'] ?? ''))) {
 			return false;
 		}
 
-		$dueDate = $bill->getNextDueDate();
-		$daysOff = abs((strtotime($transaction->getDate()) - strtotime($dueDate)) / 86400);
+		$booked = null;
+		foreach ($ids as $id) {
+			$row = $this->transactionService->findTransaction((int)$id);
+			if ($row !== null && $row->getBillId() === $bill->getId() && $row->getType() === 'debit') {
+				$booked = $row;
+				break;
+			}
+		}
+		if ($booked === null || $booked->getReconciled() || ($booked->getImportId() ?? '') !== ''
+			|| !str_starts_with((string)$booked->getNotes(), 'Auto-generated from bill:')
+			|| abs((float)$booked->getAmount() - (float)$imported->getAmount()) > (float)$bill->getAmount() * 0.1) {
+			return false;
+		}
 
-		return $daysOff <= $this->dueDateToleranceDays($bill->getFrequency());
+		try {
+			$linked = $this->transactionService->linkBillAsAccountOwner($imported->getId(), $bill);
+			if (!$linked->getIsSplit()) {
+				$this->applySplitTemplate($bill, $linked, $bill->getUserId());
+			}
+			$this->transactionService->deleteAsAccountOwner($booked->getId(), false, $bill->getId());
+		} catch (\Exception $e) {
+			$this->logger->warning("Failed to put imported transaction {$imported->getId()} in place of bill {$bill->getId()}'s payment: {$e->getMessage()}");
+			return false;
+		}
+
+		$snapshot['createdTransactionIds'] = array_values(array_filter($ids, fn ($id) => (int)$id !== $booked->getId()));
+		$snapshot['linkedTransactionId'] = $imported->getId();
+		$bill->setPaidUndoState(json_encode($snapshot));
+		$this->mapper->update($bill);
+		return true;
 	}
 
 	/**

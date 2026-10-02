@@ -1731,6 +1731,48 @@ class BillServiceTest extends TestCase {
 		$this->assertSame('2026-07-15', $bill->getNextDueDate());
 	}
 
+	public function testAnImportReplacesThePaymentMarkPaidAlreadyBooked(): void {
+		// Marked paid on the due date, then the statement came in: the bank
+		// row was added beside the payment and the balance dropped twice
+		$bill = $this->setupAutoMatchBill(['nextDueDate' => '2026-07-15', 'lastPaidDate' => '2026-06-15']);
+		$bill->setPaidUndoState(json_encode([
+			'previousState' => ['nextDueDate' => '2026-06-15'],
+			'createdTransactionIds' => [600],
+			'scheduledTransactionIds' => [601],
+			'linkedTransactionId' => null,
+			'paidDate' => '2026-06-15',
+		]));
+		$booked = $this->makeImportedTx(['id' => 600, 'date' => '2026-06-15', 'description' => '']);
+		$booked->setNotes('Auto-generated from bill: Netflix');
+		$booked->setBillId(1);
+		$imported = $this->makeImportedTx(['id' => 500, 'date' => '2026-06-16']);
+		$imported->setImportId('bank-1');
+		$this->linkable($booked, $imported);
+		$this->transactionService->expects($this->once())->method('deleteAsAccountOwner')->with(600, false, 1)->willReturn(true);
+
+		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$imported]));
+
+		$this->assertSame(1, $imported->getBillId());
+		$this->assertSame('2026-07-15', $bill->getNextDueDate(), 'Not paid a second time');
+		$snapshot = json_decode($bill->getPaidUndoState(), true);
+		$this->assertSame(500, $snapshot['linkedTransactionId']);
+		$this->assertSame([], $snapshot['createdTransactionIds']);
+	}
+
+	public function testAnImportLeavesAReconciledPaymentAlone(): void {
+		$bill = $this->setupAutoMatchBill(['nextDueDate' => '2026-07-15', 'lastPaidDate' => '2026-06-15']);
+		$bill->setPaidUndoState(json_encode(['previousState' => [], 'createdTransactionIds' => [600], 'paidDate' => '2026-06-15']));
+		$booked = $this->makeImportedTx(['id' => 600, 'date' => '2026-06-15']);
+		$booked->setNotes('Auto-generated from bill: Netflix');
+		$booked->setBillId(1);
+		$booked->setReconciled(true);
+		$imported = $this->makeImportedTx(['id' => 500, 'date' => '2026-06-16']);
+		$this->linkable($booked, $imported);
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+
+		$this->service->autoMatchPaidFromImport('user1', [$imported]);
+	}
+
 	public function testAutoMatchMatchesPatternInVendor(): void {
 		$this->setupAutoMatchBill();
 		$tx = $this->makeImportedTx(['description' => 'Card payment 9912', 'vendor' => 'Netflix Inc']);
