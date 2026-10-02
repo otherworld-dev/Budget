@@ -585,8 +585,28 @@ class AccountService extends AbstractCrudService {
 	 * Get balance history for an account over a number of days.
 	 * OPTIMIZED: Uses aggregated SQL query instead of O(days × transactions) algorithm.
 	 */
+	/**
+	 * The account, when the user owns it or it is shared with them. find()
+	 * is the owner's alone, so the account page's tiles and balance chart
+	 * came back empty for an account shared with the viewer.
+	 *
+	 * @throws DoesNotExistException when the user can't see it
+	 */
+	private function findVisible(int $accountId, string $userId): Account {
+		try {
+			return $this->find($accountId, $userId);
+		} catch (DoesNotExistException $e) {
+			if (!$this->granularShareService->canAccess($userId, ShareItem::TYPE_ACCOUNT, $accountId)) {
+				throw $e;
+			}
+			/** @var AccountMapper $mapper */
+			$mapper = $this->mapper;
+			return $mapper->findById($accountId);
+		}
+	}
+
 	public function getBalanceHistory(int $accountId, string $userId, int $days = 30): array {
-		$account = $this->find($accountId, $userId);
+		$account = $this->findVisible($accountId, $userId);
 		$today = new \DateTimeImmutable($this->today($userId));
 		$endDate = $today->format('Y-m-d');
 		$startDate = $today->modify("-{$days} days")->format('Y-m-d');
@@ -628,7 +648,7 @@ class AccountService extends AbstractCrudService {
 	 */
 	public function getAccountMetrics(int $accountId, string $userId): array {
 		// Access check (throws if the account is not owned by / shared with the user)
-		$this->find($accountId, $userId);
+		$this->findVisible($accountId, $userId);
 
 		[$monthStart, $monthEnd] = $this->carryoverService !== null
 			? $this->carryoverService->budgetMonthRange($userId, $this->carryoverService->currentBudgetMonth($userId))
