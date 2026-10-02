@@ -375,6 +375,55 @@ class PensionServiceTest extends TestCase {
 		$this->service->deleteContribution(77, 'user1');
 	}
 
+	private function scheduleLastPosted(int $contributionId, string $date, float $amount): \OCA\Budget\Db\PensionRecurringContribution {
+		$recur = new \OCA\Budget\Db\PensionRecurringContribution();
+		$recur->setId(5);
+		$recur->setPensionId(1);
+		$recur->setNextDueDate('2026-11-01');
+		$recur->setLastPostedDate($date);
+		$recur->setIsActive(true);
+		$recur->setPostUndoState(json_encode([
+			'nextDueDate' => '2026-10-01',
+			'lastPostedDate' => '2026-09-01',
+			'isActive' => true,
+			'contributionId' => $contributionId,
+			'contributionDate' => $date,
+			'amount' => $amount,
+		]));
+		return $recur;
+	}
+
+	public function testDeletingTheContributionPostNowRecordedPutsTheScheduleBack(): void {
+		// The extra contribution of a double post: it is still owed
+		$contribution = $this->makeContribution('2026-10-02', 200.0, PensionContribution::KIND_CONTRIBUTION, null, null);
+		$contribution->setId(77);
+		$contribution->setPensionId(1);
+		$this->contributionMapper->method('find')->willReturn($contribution);
+		$recur = $this->scheduleLastPosted(77, '2026-10-02', 200.0);
+		$this->recurringMapper->method('findByPension')->willReturn([$recur]);
+		$this->recurringMapper->expects($this->once())->method('update')->with($recur);
+
+		$this->service->deleteContribution(77, 'user1');
+
+		$this->assertSame('2026-10-01', $recur->getNextDueDate());
+		$this->assertSame('2026-09-01', $recur->getLastPostedDate());
+		$this->assertNull($recur->getPostUndoState());
+	}
+
+	public function testDeletingAnotherContributionLeavesTheScheduleAlone(): void {
+		$contribution = $this->makeContribution('2026-09-02', 200.0, PensionContribution::KIND_CONTRIBUTION, null, null);
+		$contribution->setId(76);
+		$contribution->setPensionId(1);
+		$this->contributionMapper->method('find')->willReturn($contribution);
+		$recur = $this->scheduleLastPosted(77, '2026-10-02', 200.0);
+		$this->recurringMapper->method('findByPension')->willReturn([$recur]);
+		$this->recurringMapper->expects($this->never())->method('update');
+
+		$this->service->deleteContribution(76, 'user1');
+
+		$this->assertSame('2026-11-01', $recur->getNextDueDate());
+	}
+
 	public function testDeletePensionClearsLinkedMarkersAndRecurring(): void {
 		$pension = $this->makePension();
 		$this->pensionMapper->method('find')->willReturn($pension);

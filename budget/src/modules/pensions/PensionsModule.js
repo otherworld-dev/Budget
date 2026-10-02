@@ -4,7 +4,7 @@
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
-import { showSuccess, showError } from '../../utils/notifications.js';
+import { showSuccess, showError, showUndoNotification } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import Chart from '../../utils/chart.js';
@@ -428,8 +428,32 @@ export default class PensionsModule {
         document.getElementById('pension-modal').style.display = 'none';
     }
 
-    async savePension() {
-        const form = document.getElementById('pension-form');
+    /**
+     * Run a form's save once at a time: a double click or a second Enter
+     * while the first save is still on its way used to create the entry
+     * twice (two schedules, two contributions, each with its own bank leg).
+     */
+    async _guardedSubmit(formId, save) {
+        const form = document.getElementById(formId);
+        if (!form || form.dataset.saving === '1') {
+            return;
+        }
+        form.dataset.saving = '1';
+        const submit = form.querySelector('[type="submit"]');
+        if (submit) submit.disabled = true;
+        try {
+            await save(form);
+        } finally {
+            delete form.dataset.saving;
+            if (submit) submit.disabled = false;
+        }
+    }
+
+    savePension() {
+        return this._guardedSubmit('pension-form', form => this._savePension(form));
+    }
+
+    async _savePension(form) {
         const formData = new FormData(form);
         const pensionId = formData.get('id');
 
@@ -864,8 +888,11 @@ export default class PensionsModule {
         document.getElementById('pension-balance-modal').style.display = 'none';
     }
 
-    async saveSnapshot() {
-        const form = document.getElementById('pension-balance-form');
+    saveSnapshot() {
+        return this._guardedSubmit('pension-balance-form', form => this._saveSnapshot(form));
+    }
+
+    async _saveSnapshot(form) {
         const formData = new FormData(form);
         const pensionId = formData.get('pensionId');
 
@@ -920,8 +947,11 @@ export default class PensionsModule {
         document.getElementById('pension-contribution-modal').style.display = 'none';
     }
 
-    async saveContribution() {
-        const form = document.getElementById('pension-contribution-form');
+    saveContribution() {
+        return this._guardedSubmit('pension-contribution-form', form => this._saveContribution(form));
+    }
+
+    async _saveContribution(form) {
         const formData = new FormData(form);
         const pensionId = formData.get('pensionId');
         const sourceAccountId = formData.get('sourceAccountId');
@@ -966,8 +996,11 @@ export default class PensionsModule {
         document.getElementById('pension-withdrawal-modal').style.display = 'none';
     }
 
-    async saveWithdrawal() {
-        const form = document.getElementById('pension-withdrawal-form');
+    saveWithdrawal() {
+        return this._guardedSubmit('pension-withdrawal-form', form => this._saveWithdrawal(form));
+    }
+
+    async _saveWithdrawal(form) {
         const formData = new FormData(form);
         const pensionId = formData.get('pensionId');
         const destAccountId = formData.get('destAccountId');
@@ -1008,6 +1041,7 @@ export default class PensionsModule {
                 container.innerHTML = '';
                 return;
             }
+            this.recurringSchedules = schedules || [];
             this.renderPensionRecurring(schedules);
         } catch (error) {
             console.error('Failed to load recurring contributions:', error);
@@ -1061,8 +1095,11 @@ export default class PensionsModule {
         document.getElementById('pension-recurring-modal').style.display = 'none';
     }
 
-    async saveRecurring() {
-        const form = document.getElementById('pension-recurring-form');
+    saveRecurring() {
+        return this._guardedSubmit('pension-recurring-form', form => this._saveRecurring(form));
+    }
+
+    async _saveRecurring(form) {
         const formData = new FormData(form);
         const pensionId = formData.get('pensionId');
         const sourceAccountId = formData.get('sourceAccountId');
@@ -1102,20 +1139,75 @@ export default class PensionsModule {
         }
     }
 
+    /**
+     * Post a schedule's next occurrence now. It asks first, as one click
+     * moves money, and names the occurrence the row showed so the server
+     * refuses one already posted; a click while a post is on its way is
+     * ignored. The toast's undo removes the contribution and its bank leg
+     * and puts the schedule's date back.
+     */
     async postRecurringNow(recurId) {
+        this._postingRecurring = this._postingRecurring || new Set();
+        if (this._postingRecurring.has(recurId)) {
+            return;
+        }
+        const schedule = (this.recurringSchedules || []).find(s => s.id === recurId);
+        if (!schedule) {
+            return;
+        }
+        this._postingRecurring.add(recurId);
+        const button = document.querySelector(`.recurring-post-btn[data-id="${recurId}"]`);
+        if (button) button.disabled = true;
         try {
+            const currency = this.currentPension?.currency || formatters.getPrimaryCurrency(this.app.accounts, this.settings);
+            const params = {
+                amount: formatters.formatCurrency(schedule.amount, currency, this.settings),
+                date: formatters.formatDate(schedule.nextDueDate, this.settings),
+            };
+            const account = schedule.sourceAccountId
+                ? (this.app.accounts || []).find(a => a.id === schedule.sourceAccountId)
+                : null;
+            const message = account
+                ? t('budget', 'Post the {date} contribution of {amount} from {account} now? It is recorded with today\'s date.', { ...params, account: account.name })
+                : t('budget', 'Post the {date} contribution of {amount} now? It is recorded with today\'s date.', params);
+            if (!await confirmDialog(message, { confirmLabel: t('budget', 'Post now') })) {
+                return;
+            }
+
             await apiFetch(`/apps/budget/api/pensions/recurring/${recurId}/post`, {
                 method: 'POST',
+                body: { expectedDate: schedule.nextDueDate },
                 errorMessage: t('budget', 'Failed to post contribution'),
             });
-            await this.loadPensions();
-            this.renderPensions();
-            if (this.currentPension) await this.showPensionDetails(this.currentPension.id);
-            if (this.app.loadAccounts) await this.app.loadAccounts();
-            showSuccess(t('budget', 'Contribution posted'));
+            await this._reloadAfterPensionChange();
+            showUndoNotification(t('budget', 'Contribution posted'), () => this.undoRecurringPost(recurId));
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            this._postingRecurring.delete(recurId);
+            if (button) button.disabled = false;
+        }
+    }
+
+    async undoRecurringPost(recurId) {
+        try {
+            await apiFetch(`/apps/budget/api/pensions/recurring/${recurId}/unpost`, {
+                method: 'POST',
+                errorMessage: t('budget', 'Failed to undo the contribution'),
+            });
+            await this._reloadAfterPensionChange();
+            showSuccess(t('budget', 'Contribution undone'));
         } catch (error) {
             showError(error.message);
         }
+    }
+
+    /** Pensions, the open pension and account balances, after money moved */
+    async _reloadAfterPensionChange() {
+        await this.loadPensions();
+        this.renderPensions();
+        if (this.currentPension) await this.showPensionDetails(this.currentPension.id);
+        if (this.app.loadAccounts) await this.app.loadAccounts();
     }
 
     async loadDashboardPensionSummary() {

@@ -393,6 +393,13 @@ class PensionService {
 	/**
 	 * @throws DoesNotExistException
 	 */
+	public function findContribution(int $contributionId, string $userId): PensionContribution {
+		return $this->contributionMapper->find($contributionId, $userId);
+	}
+
+	/**
+	 * @throws DoesNotExistException
+	 */
 	public function deleteContribution(int $contributionId, string $userId): void {
 		$contribution = $this->contributionMapper->find($contributionId, $userId);
 
@@ -409,10 +416,30 @@ class PensionService {
 				}
 			}
 			$this->contributionMapper->delete($contribution);
+			$this->rewindScheduleOf($contribution, $userId);
 			$this->db->commit();
 		} catch (\Throwable $e) {
 			$this->db->rollBack();
 			throw $e;
+		}
+	}
+
+	/**
+	 * A contribution the last Post now recorded takes its schedule back with
+	 * it, so deleting an accidental post leaves that occurrence still owed
+	 * rather than skipped. Older posts, and the job's, leave the schedule
+	 * where it is.
+	 */
+	private function rewindScheduleOf(PensionContribution $contribution, string $userId): void {
+		if ($contribution->getPensionId() === null) {
+			return;
+		}
+		foreach ($this->recurringMapper->findByPension($contribution->getPensionId(), $userId) as $recur) {
+			if ($recur->isLastPost($contribution)) {
+				$recur->revertPost();
+				$this->recurringMapper->update($recur);
+				return;
+			}
 		}
 	}
 

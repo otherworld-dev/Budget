@@ -63,10 +63,11 @@ class PensionRecurringContributionMapper extends QBMapper {
 	/**
 	 * Active, auto-post-enabled schedules whose next due date has arrived.
 	 *
+	 * @param string|null $today the user's date (Y-m-d); the server's if not given
 	 * @return PensionRecurringContribution[]
 	 */
-	public function findDueForAutoPost(string $userId): array {
-		$today = date('Y-m-d');
+	public function findDueForAutoPost(string $userId, ?string $today = null): array {
+		$today ??= date('Y-m-d');
 
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')
