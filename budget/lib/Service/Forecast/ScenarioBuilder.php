@@ -89,10 +89,12 @@ class ScenarioBuilder {
 		// scenario projections stay consistent with the main forecast, #270).
 		$endDate = date('Y-m-d');
 		$startDate = date('Y-m-d', strtotime('-6 months'));
-		$transactions = array_filter(
+		// Transfers between the user's accounts are neither income nor
+		// spending, as in the main forecast
+		$transactions = PatternAnalyzer::withoutInternalTransfers(array_filter(
 			$this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate),
 			fn ($t) => !($t->getExcludedFromForecast() ?? false)
-		);
+		));
 
 		$monthlyIncome = 0.0;
 		$monthlyExpenses = 0.0;

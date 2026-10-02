@@ -191,6 +191,8 @@ class ForecastService {
 		// projection averages. They still affect the real (current) balance
 		// above — we only exclude them from the historical pattern (#270).
 		$transactions = $this->filterForecastTransactions($transactions);
+		// Transfers between the accounts forecast are neither income nor spending
+		$transactions = PatternAnalyzer::withoutInternalTransfers($transactions);
 
 		// Analyze patterns
 		$monthlyData = $this->patternAnalyzer->aggregateMonthlyData($transactions);

@@ -81,6 +81,29 @@ class ScenarioBuilderTest extends TestCase {
 		$this->assertEqualsWithDelta(34000.0, $result, 1.0);
 	}
 
+	/** A transfer between the user's accounts is not income the growth factor can grow */
+	public function testCalculateScenarioBalanceLeavesTransfersBetweenAccountsOut(): void {
+		$this->accountMapper->method('findAll')->willReturn([$this->makeAccount(1, 0.0)]);
+		$this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
+		$out = $this->makeTransaction('2025-10-20', 1000.0, 'debit');
+		$out->setId(3);
+		$out->setLinkedTransactionId(4);
+		$in = $this->makeTransaction('2025-10-20', 1000.0, 'credit');
+		$in->setId(4);
+		$in->setLinkedTransactionId(3);
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn([
+			$this->makeTransaction('2025-10-15', 3000.0, 'credit'),
+			$this->makeTransaction('2025-10-18', 2000.0, 'debit'),
+			$out,
+			$in,
+		]);
+
+		$result = $this->builder->calculateScenarioBalance('user1', null, 0.1, 0.0);
+
+		// (3000 * 1.1 - 2000) * 12, the transfer neither grown nor spent
+		$this->assertEqualsWithDelta(15600.0, $result, 1.0);
+	}
+
 	public function testCalculateScenarioBalanceWithAccountFilter(): void {
 		$account = $this->makeAccount(5, 8000.0);
 		$this->accountMapper->expects($this->once())->method('find')

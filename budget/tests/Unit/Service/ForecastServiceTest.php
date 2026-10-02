@@ -123,6 +123,48 @@ class ForecastServiceTest extends TestCase {
 		$this->assertArrayHasKey('dataQuality', $result);
 	}
 
+	/**
+	 * A transfer between two accounts the forecast covers is neither income
+	 * nor spending: its credit leg was counted as income and its debit leg
+	 * as an expense, so a 1000 monthly transfer to savings added 1000 to both
+	 * averages and showed as spending in the category list. A transfer to
+	 * an account outside the forecast is still money out.
+	 */
+	public function testTransfersBetweenForecastAccountsAreLeftOutOfIncomeAndSpending(): void {
+		$this->cache->method('get')->willReturn(null);
+		$this->accountMapper->method('findAll')->willReturn([$this->makeAccount(1, 100.0)]);
+		$this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
+		$tx = function (int $id, string $type, ?int $linked) {
+			$t = $this->makeTransaction(false, $type);
+			$t->setId($id);
+			$t->setLinkedTransactionId($linked);
+			return $t;
+		};
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn([
+			$tx(1, 'credit', null),   // salary
+			$tx(2, 'debit', 3),       // to savings ...
+			$tx(3, 'credit', 2),      // ... and arriving there
+			$tx(4, 'debit', 99),      // to an account the forecast doesn't cover
+		]);
+		$seen = [];
+		$this->patternAnalyzer->method('aggregateMonthlyData')->willReturnCallback(function (array $transactions) use (&$seen) {
+			$seen['monthly'] = array_map(fn ($t) => $t->getId(), $transactions);
+			return [];
+		});
+		$this->patternAnalyzer->method('getCategoryBreakdown')->willReturnCallback(function ($user, array $transactions) use (&$seen) {
+			$seen['categories'] = array_map(fn ($t) => $t->getId(), $transactions);
+			return [];
+		});
+		$this->trendCalculator->method('calculateTrend')->willReturn(0.0);
+		$this->trendCalculator->method('getTrendDirection')->willReturn('stable');
+		$this->projector->method('calculateDataConfidence')->willReturn(50.0);
+
+		$this->service->getLiveForecast('user1');
+
+		$this->assertSame([1, 4], $seen['monthly']);
+		$this->assertSame([1, 4], $seen['categories']);
+	}
+
 	public function testLiveForecastProjectionsCarryAYearMonthForTheUi(): void {
 		$this->cache->method('get')->willReturn(null);
 		$this->accountMapper->method('findAll')->willReturn([$this->makeAccount(1, 100.0, 'GBP')]);

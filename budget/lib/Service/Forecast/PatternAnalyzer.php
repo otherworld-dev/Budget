@@ -132,6 +132,30 @@ class PatternAnalyzer {
 	}
 
 	/**
+	 * The transactions less both legs of every transfer between two accounts
+	 * they cover. Such a transfer is money moving, not income or spending:
+	 * counted, its credit leg inflated income and its debit leg expenses by
+	 * the same amount, and it showed as monthly spending in its category.
+	 * The reports leave linked transfers out the same way (#262). A leg
+	 * whose partner isn't in the list left the covered accounts, and stays.
+	 *
+	 * @param array $transactions transaction entities
+	 * @return array
+	 */
+	public static function withoutInternalTransfers(array $transactions): array {
+		$ids = [];
+		foreach ($transactions as $transaction) {
+			if ($transaction->getId() !== null) {
+				$ids[(int)$transaction->getId()] = true;
+			}
+		}
+		return array_values(array_filter(
+			$transactions,
+			static fn ($t) => $t->getLinkedTransactionId() === null || !isset($ids[(int)$t->getLinkedTransactionId()])
+		));
+	}
+
+	/**
 	 * Aggregate transactions into monthly totals.
 	 *
 	 * @param array $transactions List of transaction entities
