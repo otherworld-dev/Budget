@@ -749,6 +749,67 @@ class TransactionServiceTest extends TestCase {
 		$this->assertEquals(500.00, $result->getAmount());
 	}
 
+	/** A transfer bill whose two accounts may belong to different people. */
+	private function transferSetup(string $destinationOwner, array &$inserted): Bill {
+		$bill = $this->makeBill(['isTransfer' => true, 'destinationAccountId' => 20]);
+		$this->accountById[10] = $this->makeAccount(['id' => 10, 'userId' => 'user1']);
+		$this->accountById[20] = $this->makeAccount(['id' => 20, 'userId' => $destinationOwner]);
+		$this->accountMapper->method('find')->willReturnCallback(function (int $id, string $user) {
+			$account = $this->accountById[$id];
+			if ($account->getUserId() !== $user) {
+				throw new \OCP\AppFramework\Db\DoesNotExistException('not yours');
+			}
+			return $account;
+		});
+		$this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) use (&$inserted) {
+			$tx->setId(count($inserted) + 1);
+			$inserted[] = $tx;
+			return $tx;
+		});
+		$this->accountMapper->method('updateBalance')->willReturnCallback(fn (int $id) => $this->accountById[$id]);
+		return $bill;
+	}
+
+	public function testATransferIntoAnotherUsersAccountBooksBothLegs(): void {
+		// The deposit was booked as the source account's owner, whose lookup
+		// can't see the destination: it failed and only the withdrawal stood
+		$inserted = [];
+		$bill = $this->transferSetup('partner', $inserted);
+		$this->mapper->expects($this->once())->method('linkTransactions')->with(1, 2);
+
+		$this->service->createFromBill('user1', $bill, '2026-02-01', 'cleared');
+
+		$this->assertCount(2, $inserted);
+		$this->assertSame(20, $inserted[1]->getAccountId());
+	}
+
+	public function testATransferComesBackWithItsPartnerLeg(): void {
+		// The withdrawal was returned before the legs were linked, so the
+		// payment never knew its deposit, and undo left the deposit behind
+		$inserted = [];
+		$bill = $this->transferSetup('user1', $inserted);
+
+		$withdrawal = $this->service->createFromBill('user1', $bill, '2026-02-01', 'cleared');
+
+		$this->assertSame(2, $withdrawal->getLinkedTransactionId());
+	}
+
+	public function testAHalfPreBookedTransferIsDroppedForAWholeOne(): void {
+		// With one leg deleted, paying cleared the other alone: money left
+		// one account and never arrived in the other
+		$withdrawal = $this->makeTransaction(['id' => 31, 'accountId' => 10, 'billId' => 1]);
+		$withdrawal->setStatus('scheduled');
+		$withdrawal->setLinkedTransactionId(32);
+		$this->mapper->method('findAllScheduledByBillId')->with(1)->willReturn([$withdrawal]);
+		$this->mapper->method('find')->willReturn($withdrawal);
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		$this->mapper->expects($this->once())->method('delete');
+		$this->mapper->expects($this->never())->method('update');
+
+		$this->assertNull($this->service->clearScheduledBillTransaction('user1', 1, '2026-02-01', null, true));
+	}
+
 	public function testCreateFromBillCreatesTransferPair(): void {
 		$bill = $this->makeBill([
 			'isTransfer' => true,

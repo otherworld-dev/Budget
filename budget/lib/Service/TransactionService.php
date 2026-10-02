@@ -216,9 +216,13 @@ class TransactionService {
 				excludedFromForecast: $bill->getExcludedFromForecast() ?? false
 			);
 
-			// Create deposit to destination account (same category as source for consistency)
+			// Create deposit to destination account (same category as source
+			// for consistency), as that account's owner: it may be another
+			// user's, shared with the bill's owner, and booked as the source's
+			// owner the deposit failed and only the withdrawal stood
+			$destinationOwner = $this->accountMapper->findById($bill->getDestinationAccountId())->getUserId();
 			$deposit = $this->create(
-				userId: $ownerUserId,
+				userId: $destinationOwner,
 				accountId: $bill->getDestinationAccountId(),
 				date: $date,
 				description: $bill->getDescription() ?? '',
@@ -234,8 +238,13 @@ class TransactionService {
 				excludedFromForecast: $bill->getExcludedFromForecast() ?? false
 			);
 
-			// Link the two transactions
-			$this->linkTransactions($withdrawal->getId(), $deposit->getId(), $ownerUserId);
+			// Link the two legs. Directly: they were just created as two
+			// different owners, which the user-scoped linkTransactions() can't
+			// both see. The returned withdrawal carries its partner, or the
+			// payment never knew its deposit and undo left it behind.
+			$this->mapper->linkTransactions($withdrawal->getId(), $deposit->getId());
+			$withdrawal->setLinkedTransactionId($deposit->getId());
+			$deposit->setLinkedTransactionId($withdrawal->getId());
 
 			// Apply bill's tags to both transactions
 			$tagIds = $bill->getTagIdsArray();
@@ -451,10 +460,27 @@ class TransactionService {
 	 *
 	 * @return Transaction|null The cleared withdrawal leg, or null if none found
 	 */
-	public function clearScheduledBillTransaction(string $userId, int $billId, string $clearedDate, ?float $amount = null): ?Transaction {
+	public function clearScheduledBillTransaction(string $userId, int $billId, string $clearedDate, ?float $amount = null, bool $isTransfer = false): ?Transaction {
 		$allScheduled = $this->mapper->findAllScheduledByBillId($billId);
 		$cleared = null;
 		$partnerId = null;
+
+		// A transfer's pre-booked rows only stand for the payment as a pair.
+		// With a leg deleted, clearing the other alone moved money out of one
+		// account and into none: drop what's left and let the payment book a
+		// whole pair instead.
+		if ($isTransfer && $allScheduled !== []) {
+			$ids = array_map(fn (Transaction $t) => $t->getId(), $allScheduled);
+			$paired = array_filter($allScheduled, fn (Transaction $t) => in_array($t->getLinkedTransactionId(), $ids, true));
+			if ($paired === []) {
+				foreach ($allScheduled as $scheduled) {
+					$this->deleteWithChildren($scheduled, $this->ownerOf($scheduled));
+				}
+				return null;
+			}
+			// Clear a leg of the pair first, so its partner follows
+			usort($allScheduled, fn (Transaction $a, Transaction $b) => (int)in_array($b, $paired, true) <=> (int)in_array($a, $paired, true));
+		}
 
 		foreach ($allScheduled as $scheduled) {
 			$isPartner = $partnerId !== null && $scheduled->getId() === $partnerId;
