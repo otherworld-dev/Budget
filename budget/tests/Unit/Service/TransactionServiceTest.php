@@ -2012,6 +2012,36 @@ class TransactionServiceTest extends TestCase {
 		$this->service->deleteScheduledBillTransactions(44);
 	}
 
+	/**
+	 * A placeholder that had been matched to a row in another account (a card
+	 * credit) used to go without unlinking it, so the credit kept a link to a
+	 * row that no longer existed: it could never be matched to the real
+	 * payment, and the totals counted it as income.
+	 */
+	public function testDeletingABillsPlaceholderUnlinksItsTransferPartner(): void {
+		$placeholder = $this->makeTransaction(['id' => 11, 'billId' => 44, 'linkedTransactionId' => 500]);
+		$placeholder->setStatus('scheduled');
+		$this->mapper->method('findAllScheduledByBillId')->willReturn([$placeholder]);
+
+		$this->mapper->expects($this->once())->method('unlinkTransaction')->with(11);
+
+		$this->service->deleteScheduledBillTransactions(44);
+	}
+
+	public function testClearingAPlaceholderUnlinksTheDuplicateItDeletes(): void {
+		$kept = $this->makeTransaction(['id' => 11, 'billId' => 44]);
+		$kept->setStatus('scheduled');
+		$duplicate = $this->makeTransaction(['id' => 12, 'billId' => 44, 'linkedTransactionId' => 500]);
+		$duplicate->setStatus('scheduled');
+		$this->mapper->method('findAllScheduledByBillId')->willReturn([$kept, $duplicate]);
+		$this->mapper->method('find')->willReturn($kept);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$this->mapper->expects($this->once())->method('unlinkTransaction')->with(12);
+
+		$this->service->clearScheduledBillTransaction('user1', 44, '2026-08-15');
+	}
+
 	// ===== transfer matching across shared accounts (#378) =====
 
 	public function testFindPotentialMatchesResolvesASourceInASharedAccount(): void {

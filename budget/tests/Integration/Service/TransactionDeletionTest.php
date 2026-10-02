@@ -89,6 +89,24 @@ class TransactionDeletionTest extends IntegrationTestCase {
 		$this->assertNull($partner['linked_transaction_id']);
 	}
 
+	public function testDeletingABillsPlaceholderUnlinksTheRowItWasMatchedTo(): void {
+		$card = $this->makeAccount(['name' => 'Card', 'type' => 'credit_card'])->getId();
+		$bill = $this->insertRow('budget_bills', [
+			'user_id' => $this->userId, 'name' => 'Card payment', 'amount' => '300.00', 'frequency' => 'monthly',
+			'account_id' => $this->accountId, 'is_active' => true, 'created_at' => $this->now(),
+		]);
+		$placeholder = $this->makeTransaction($this->accountId, [
+			'bill_id' => $bill, 'status' => 'scheduled', 'amount' => '300.00', 'date' => date('Y-m-d', strtotime('+3 days')),
+		]);
+		$credit = $this->makeTransaction($card, ['amount' => '300.00', 'type' => 'credit', 'linked_transaction_id' => $placeholder]);
+		$this->db()->executeStatement('UPDATE *PREFIX*budget_transactions SET linked_transaction_id = ? WHERE id = ?', [$credit, $placeholder]);
+
+		$this->transactions->deleteScheduledBillTransactions($bill);
+
+		$this->assertNull($this->fetchRow('budget_transactions', $placeholder));
+		$this->assertNull($this->fetchRow('budget_transactions', $credit)['linked_transaction_id']);
+	}
+
 	public function testDeletingAPensionFundingLegKeepsTheContributionButDetachesIt(): void {
 		$pension = $this->insertRow('budget_pensions', [
 			'user_id' => $this->userId, 'name' => 'SIPP', 'type' => 'personal', 'currency' => 'GBP',

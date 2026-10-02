@@ -516,6 +516,15 @@ class TransactionService {
 	private function deleteWithChildren(Transaction $transaction, string $userId): void {
 		$id = $transaction->getId();
 
+		// The other half of a transfer keeps its own row, so it has to let go
+		// of this one. A bill's placeholder matched to a card credit used to be
+		// deleted without this when the bill was paid or skipped, leaving the
+		// credit linked to nothing: it could never be matched to the real
+		// payment and the totals counted it as income.
+		if ($transaction->getLinkedTransactionId() !== null) {
+			$this->mapper->unlinkTransaction($id);
+		}
+
 		$this->transactionTagMapper->deleteByTransaction($id);
 		$this->expenseShareMapper->deleteByTransaction($id, $userId);
 		$this->attachmentMapper->deleteByTransaction($id, $userId);
@@ -787,12 +796,6 @@ class TransactionService {
 				'date' => $transaction->getDate(),
 				'reconSessionId' => $transaction->getReconSessionId(),
 			]);
-		}
-
-		// Unlink counterpart transfer before deleting — prevents dangling
-		// linked_transaction_id references that break dashboard/tag queries
-		if ($transaction->getLinkedTransactionId() !== null) {
-			$this->mapper->unlinkTransaction($id);
 		}
 
 		// If this bank leg funded a pension contribution/withdrawal (#304),
