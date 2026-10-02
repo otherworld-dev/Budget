@@ -748,6 +748,17 @@ class TransactionService {
 	}
 
 	/**
+	 * Credits the app booked for recurring income (Mark Received, auto-
+	 * create) in an account between two dates, for matching the bank's own
+	 * row of the same payment.
+	 *
+	 * @return Transaction[]
+	 */
+	public function findGeneratedIncomeCredits(int $accountId, string $from, string $to): array {
+		return $this->mapper->findGeneratedIncomeCredits($accountId, $from, $to);
+	}
+
+	/**
 	 * A transaction by id with no owner scoping, for callers that check
 	 * access themselves. Null when it doesn't exist.
 	 */

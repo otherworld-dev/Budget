@@ -42,6 +42,8 @@ class ImportServiceTest extends TestCase {
 	private \OCA\Budget\Service\SettingService $settingService;
 	/** @var \OCA\Budget\Service\PensionService&\PHPUnit\Framework\MockObject\MockObject */
 	private $pensionService;
+	/** @var \OCA\Budget\Service\RecurringIncomeService&\PHPUnit\Framework\MockObject\MockObject */
+	private $incomeService;
 
 	protected function setUp(): void {
 		$this->appData = $this->createMock(IAppData::class);
@@ -94,6 +96,7 @@ class ImportServiceTest extends TestCase {
 			$l,
 			$this->createMock(LoggerInterface::class),
 			pensionService: $this->pensionService = $this->createMock(\OCA\Budget\Service\PensionService::class),
+			incomeService: $this->incomeService = $this->createMock(\OCA\Budget\Service\RecurringIncomeService::class),
 		);
 	}
 
@@ -380,6 +383,8 @@ class ImportServiceTest extends TestCase {
 		$this->transactionService->method('create')->willReturn($created);
 
 		$this->pensionService->expects($this->once())->method('adoptImportedDuplicates')->with('user1', [$created]);
+		// ...and to recurring income, which the same row may be paying
+		$this->incomeService->expects($this->once())->method('autoMatchReceivedFromImport')->with('user1', [$created]);
 
 		$this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 'date'], 1);
 	}

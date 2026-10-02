@@ -626,6 +626,118 @@ class RecurringIncomeService extends AbstractCrudService {
 	}
 
 	/**
+	 * Mark recurring income received from credits an import or bank sync
+	 * just brought in.
+	 *
+	 * Nothing matched imported income: it stayed expected, and Mark Received
+	 * or auto-create then booked a second credit beside the bank's. A credit
+	 * now pays the income whose auto-detect pattern it carries, when it is
+	 * within 20% of the amount, in the income's account and near its next
+	 * expected date. That payment is settled, dated the row's own date, with
+	 * nothing more booked. When auto-create already booked the payment, the
+	 * bank's row takes the place of that credit instead.
+	 *
+	 * @param \OCA\Budget\Db\Transaction[] $transactions
+	 * @return int how many payments were matched
+	 */
+	public function autoMatchReceivedFromImport(string $userId, array $transactions): int {
+		$incomes = array_filter(
+			$this->findActive($userId),
+			fn (RecurringIncome $income) => !empty($income->getAutoDetectPattern())
+				&& $income->getNextExpectedDate() !== null
+		);
+		if ($incomes === []) {
+			return 0;
+		}
+
+		$matched = 0;
+		foreach ($transactions as $transaction) {
+			if ($transaction->getType() !== 'credit' || ($transaction->getStatus() ?? 'cleared') === 'scheduled'
+				|| $transaction->getBillId() !== null || $transaction->getLinkedTransactionId() !== null) {
+				continue;
+			}
+			foreach ($incomes as $key => $income) {
+				if (!$this->creditLooksLikeIncome($income, $transaction)) {
+					continue;
+				}
+				try {
+					if ($this->replaceGeneratedCredit($income, $transaction)) {
+						$matched++;
+						break;
+					}
+					if (!$this->withinExpectedWindow($income, $transaction->getDate(), (string)$income->getNextExpectedDate())) {
+						continue;
+					}
+					$incomes[$key] = $this->markReceived(
+						$income->getId(), $income->getUserId(), $transaction->getDate(), false, $income->getNextExpectedDate()
+					);
+					if (!$incomes[$key]->getIsActive()) {
+						unset($incomes[$key]);
+					}
+					$matched++;
+				} catch (\Exception $e) {
+					$this->logger->warning("Matching imported transaction {$transaction->getId()} to income {$income->getId()} failed: {$e->getMessage()}");
+				}
+				break; // one income per transaction
+			}
+		}
+		return $matched;
+	}
+
+	/** Pattern, amount within 20% and the income's account: everything but the date */
+	private function creditLooksLikeIncome(RecurringIncome $income, \OCA\Budget\Db\Transaction $transaction): bool {
+		$pattern = (string)$income->getAutoDetectPattern();
+		$haystack = ($transaction->getDescription() ?? '') . ' ' . ($transaction->getVendor() ?? '');
+		if ($pattern === '' || stripos($haystack, $pattern) === false) {
+			return false;
+		}
+		$amount = (float)$income->getAmount();
+		if ($amount <= 0 || abs((float)$transaction->getAmount() - $amount) > $amount * 0.2) {
+			return false;
+		}
+		return $income->getAccountId() === null || $income->getAccountId() === $transaction->getAccountId();
+	}
+
+	/** Roughly half an interval either side of an expected date, at most two weeks */
+	private function withinExpectedWindow(RecurringIncome $income, string $date, string $expected): bool {
+		$tolerance = match ($income->getFrequency()) {
+			'daily' => 1,
+			'weekly' => 3,
+			'biweekly' => 6,
+			'semi-monthly' => 7,
+			default => 15,
+		};
+		return abs((strtotime($date) - strtotime($expected)) / 86400) <= $tolerance;
+	}
+
+	/**
+	 * Put the bank's row in place of a credit auto-create (or Mark Received)
+	 * already booked for the income's last payment: the app's credit goes,
+	 * the bank's stays, and the income isn't received a second time.
+	 */
+	private function replaceGeneratedCredit(RecurringIncome $income, \OCA\Budget\Db\Transaction $imported): bool {
+		$last = $income->getLastReceivedDate();
+		if ($last === null || $income->getAccountId() === null
+			|| !$this->withinExpectedWindow($income, $imported->getDate(), $last)) {
+			return false;
+		}
+		$prefix = 'Auto-generated from income: ' . $income->getName();
+		foreach ($this->transactionService->findGeneratedIncomeCredits((int)$income->getAccountId(), $last, $last) as $generated) {
+			if ($generated->getId() === $imported->getId() || $generated->getReconciled()
+				|| (string)$generated->getNotes() !== $prefix
+				|| abs((float)$generated->getAmount() - (float)$imported->getAmount()) > (float)$income->getAmount() * 0.2) {
+				continue;
+			}
+			$this->transactionService->deleteAsAccountOwner($generated->getId());
+			// The undo snapshot named the credit just removed
+			$income->setReceivedUndoState(null);
+			$this->mapper->updateFields($income->getId(), $income->getUserId(), ['received_undo_state' => null]);
+			return true;
+		}
+		return false;
+	}
+
+	/**
 	 * Check if a transaction matches any income's auto-detect pattern.
 	 */
 	public function matchTransactionToIncome(string $userId, string $description, float $amount): ?RecurringIncome {

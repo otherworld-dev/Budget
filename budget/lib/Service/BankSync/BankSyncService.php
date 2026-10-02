@@ -35,6 +35,7 @@ class BankSyncService {
 		private IL10N $l,
 		private LoggerInterface $logger,
 		private ?\OCA\Budget\Service\PensionService $pensionService = null,
+		private ?\OCA\Budget\Service\RecurringIncomeService $incomeService = null,
 	) {
 	}
 
@@ -461,6 +462,7 @@ class BankSyncService {
 			// replaces the app's leg rather than doubling it
 			try {
 				$this->pensionService?->adoptImportedDuplicates($userId, $createdForBillMatch);
+				$this->incomeService?->autoMatchReceivedFromImport($userId, $createdForBillMatch);
 			} catch (\Exception $e) {
 				$this->logger->warning('Pension leg match after sync failed: ' . $e->getMessage(), ['app' => 'budget']);
 			}

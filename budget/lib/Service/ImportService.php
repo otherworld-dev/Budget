@@ -67,6 +67,7 @@ class ImportService {
 		IL10N $l,
 		LoggerInterface $logger,
 		private ?PensionService $pensionService = null,
+		private ?RecurringIncomeService $incomeService = null,
 	) {
 		$this->appData = $appData;
 		$this->transactionService = $transactionService;
@@ -1297,6 +1298,15 @@ class ImportService {
 			// ignore
 		}
 
+		// A credit can be a recurring income arriving: it marks that payment
+		// received instead of leaving it expected for Mark Received or
+		// auto-create to book a second time. Best-effort, like the bill match.
+		try {
+			$this->incomeService?->autoMatchReceivedFromImport($userId, $createdForBillMatch);
+		} catch (\Exception $e) {
+			// ignore
+		}
+
 		// A pension payment the app already booked arrives again as the
 		// statement's row: that row replaces the app's leg rather than the
 		// money leaving the account twice. Best-effort, like the bill match.
@@ -1598,6 +1608,15 @@ class ImportService {
 		$billsMarkedPaid = 0;
 		try {
 			$billsMarkedPaid = $this->billService->autoMatchPaidFromImport($userId, $createdForBillMatch);
+		} catch (\Exception $e) {
+			// ignore
+		}
+
+		// A credit can be a recurring income arriving: it marks that payment
+		// received instead of leaving it expected for Mark Received or
+		// auto-create to book a second time. Best-effort, like the bill match.
+		try {
+			$this->incomeService?->autoMatchReceivedFromImport($userId, $createdForBillMatch);
 		} catch (\Exception $e) {
 			// ignore
 		}

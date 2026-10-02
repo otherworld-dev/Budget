@@ -2851,6 +2851,28 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
+	 * Credits the app booked for recurring income in an account between two
+	 * dates (by their "Auto-generated from income:" notes, as the income has
+	 * no column on the row), never an imported one.
+	 *
+	 * @return Transaction[]
+	 */
+	public function findGeneratedIncomeCredits(int $accountId, string $from, string $to): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('type', $qb->createNamedParameter('credit')))
+			->andWhere($qb->expr()->like('notes', $qb->createNamedParameter('Auto-generated from income:%')))
+			->andWhere($qb->expr()->isNull('import_id'))
+			->andWhere($qb->expr()->gte('date', $qb->createNamedParameter($from)))
+			->andWhere($qb->expr()->lte('date', $qb->createNamedParameter($to)))
+			->orderBy('date', 'ASC');
+
+		return $this->findEntities($qb);
+	}
+
+	/**
 	 * Find scheduled transactions whose date has arrived (for background job transition).
 	 *
 	 * @return Transaction[]

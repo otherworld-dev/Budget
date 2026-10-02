@@ -260,6 +260,66 @@ class RecurringIncomeLifecycleTest extends TestCase {
 		$this->assertFalse($this->stored->getAutoCreateEnabled());
 	}
 
+	// ── imported credits ────────────────────────────────────────────
+
+	private function bankCredit(array $fields): Transaction {
+		$tx = new Transaction();
+		$tx->setId($fields['id'] ?? 900);
+		$tx->setAccountId($fields['accountId'] ?? 7);
+		$tx->setType($fields['type'] ?? 'credit');
+		$tx->setStatus('cleared');
+		$tx->setDate($fields['date'] ?? '2026-10-02');
+		$tx->setAmount($fields['amount'] ?? 14.90);
+		$tx->setDescription($fields['description'] ?? 'SWISSCOM REFUND 1234');
+		return $tx;
+	}
+
+	public function testAnImportedPaymentMarksTheIncomeReceived(): void {
+		// Nothing matched imported income: it stayed expected, and Mark
+		// Received or auto-create then booked a second credit
+		$income = $this->income(['nextExpectedDate' => '2026-10-03']);
+		$income->setAutoDetectPattern('SWISSCOM');
+		$this->mapper->method('findActive')->willReturnCallback(fn () => [$this->stored]);
+
+		$matched = $this->service->autoMatchReceivedFromImport('user1', [$this->bankCredit([])]);
+
+		$this->assertSame(1, $matched);
+		$this->assertSame('2026-10-02', $this->stored->getLastReceivedDate());
+		$this->assertSame('2026-11-03', $this->stored->getNextExpectedDate());
+		$this->assertSame([], $this->booked, 'The bank row is the payment; nothing more is booked');
+	}
+
+	public function testAnImportedPaymentReplacesTheCreditAutoCreateBooked(): void {
+		// Auto-create booked it on the expected date and moved on, then the
+		// bank's row came in beside it
+		$income = $this->income(['nextExpectedDate' => '2026-10-03', 'lastReceivedDate' => '2026-09-03', 'autoCreateEnabled' => true]);
+		$income->setAutoDetectPattern('SWISSCOM');
+		$this->mapper->method('findActive')->willReturnCallback(fn () => [$this->stored]);
+		$generated = $this->bankCredit(['id' => 300, 'date' => '2026-09-03', 'description' => '']);
+		$generated->setNotes('Auto-generated from income: Salary');
+		$this->transactions->method('findGeneratedIncomeCredits')->willReturn([$generated]);
+		$this->transactions->expects($this->once())->method('deleteAsAccountOwner')->with(300);
+
+		$matched = $this->service->autoMatchReceivedFromImport('user1', [$this->bankCredit(['date' => '2026-09-04'])]);
+
+		$this->assertSame(1, $matched);
+		$this->assertSame('2026-10-03', $this->stored->getNextExpectedDate(), 'Not received a second time');
+	}
+
+	public function testAnImportedCreditThatDoesNotFitIsLeftAlone(): void {
+		$income = $this->income(['nextExpectedDate' => '2026-10-03']);
+		$income->setAutoDetectPattern('SWISSCOM');
+		$this->mapper->method('findActive')->willReturnCallback(fn () => [$this->stored]);
+
+		$this->assertSame(0, $this->service->autoMatchReceivedFromImport('user1', [
+			$this->bankCredit(['amount' => 99.0]),
+			$this->bankCredit(['type' => 'debit']),
+			$this->bankCredit(['accountId' => 8]),
+			$this->bankCredit(['date' => '2026-12-01']),
+		]));
+		$this->assertSame('2026-10-03', $this->stored->getNextExpectedDate());
+	}
+
 	// ── edit ────────────────────────────────────────────────────────
 
 	public function testAnEditThatKeepsTheScheduleKeepsTheDate(): void {
