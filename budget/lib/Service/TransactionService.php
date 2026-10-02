@@ -456,6 +456,26 @@ class TransactionService {
 		$cleared = null;
 		$partnerId = null;
 
+		// A pre-booked transfer pair whose link was undone (Unlink transfer
+		// allowed it until now) reads as two unrelated rows, and the deposit
+		// went as a duplicate below. The other leg of the same occurrence -
+		// opposite side, other account, same day - is the partner, so it is
+		// linked back and cleared with it.
+		$first = $allScheduled[0] ?? null;
+		if ($first !== null && $first->getLinkedTransactionId() === null) {
+			foreach (array_slice($allScheduled, 1) as $candidate) {
+				if ($candidate->getLinkedTransactionId() === null
+					&& $candidate->getType() !== $first->getType()
+					&& $candidate->getAccountId() !== $first->getAccountId()
+					&& $candidate->getDate() === $first->getDate()) {
+					$this->mapper->linkTransactions($first->getId(), $candidate->getId());
+					$first->setLinkedTransactionId($candidate->getId());
+					$candidate->setLinkedTransactionId($first->getId());
+					break;
+				}
+			}
+		}
+
 		foreach ($allScheduled as $scheduled) {
 			$isPartner = $partnerId !== null && $scheduled->getId() === $partnerId;
 			if ($cleared === null || $isPartner) {
@@ -1377,6 +1397,16 @@ class TransactionService {
 
 		if ($transaction->getLinkedTransactionId() === null) {
 			throw new \Exception('Transaction is not linked');
+		}
+
+		// The two pre-booked legs of a recurring transfer are one payment the
+		// transfer hasn't made yet. Unlinked, Mark Paid took the deposit for a
+		// duplicate and deleted it: the source paid out and the destination
+		// was never credited.
+		$partner = $this->mapper->findById($transaction->getLinkedTransactionId());
+		if (($transaction->getStatus() ?? 'cleared') === 'scheduled' && $transaction->getBillId() !== null
+			&& $partner !== null && $partner->getBillId() === $transaction->getBillId()) {
+			throw new \InvalidArgumentException('This is the upcoming payment of a recurring transfer, so its two sides stay linked. Edit or skip the transfer instead.');
 		}
 
 		$linkedId = $this->mapper->unlinkTransaction($transactionId);

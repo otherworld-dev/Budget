@@ -1861,6 +1861,43 @@ class TransactionServiceTest extends TestCase {
 		$this->assertEqualsWithDelta(440.0, $deposit->getAmount(), 0.001);
 	}
 
+	/**
+	 * Unlinking one leg of a recurring transfer's pre-booked pair left two
+	 * unrelated scheduled rows, and the next Mark Paid cleared the withdrawal
+	 * and deleted the deposit as a "duplicate": the source paid out, the
+	 * destination was never credited, and the payment was reported recorded.
+	 */
+	public function testAPreBookedTransferPairCannotBeUnlinked(): void {
+		[$withdrawal, $deposit] = $this->makeScheduledPair();
+		$this->mapper->method('find')->willReturn($withdrawal);
+		$this->mapper->method('findById')->with(102)->willReturn($deposit);
+		$this->mapper->expects($this->never())->method('unlinkTransaction');
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('recurring transfer');
+
+		$this->service->unlinkTransaction(101, 'user1');
+	}
+
+	public function testMarkPaidPutsBackAPreBookedPairThatWasUnlinked(): void {
+		[$withdrawal, $deposit] = $this->makeScheduledPair();
+		$withdrawal->setLinkedTransactionId(null);
+		$deposit->setLinkedTransactionId(null);
+		$this->mapper->method('findAllScheduledByBillId')->with(7)->willReturn([$withdrawal, $deposit]);
+		$this->mapper->method('find')->willReturnCallback(
+			fn ($id) => $id === 101 ? $withdrawal : $deposit
+		);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->expects($this->never())->method('delete');
+		$this->mapper->expects($this->once())->method('linkTransactions')->with(101, 102);
+
+		$cleared = $this->service->clearScheduledBillTransaction('user1', 7, '2026-08-15');
+
+		$this->assertSame('cleared', $deposit->getStatus());
+		$this->assertSame('2026-08-15', $deposit->getDate());
+		$this->assertSame(102, $cleared->getLinkedTransactionId());
+	}
+
 	public function testClearScheduledStillDeletesUnlinkedDuplicates(): void {
 		[$withdrawal, $deposit] = $this->makeScheduledPair();
 		$stray = $this->makeTransaction(['id' => 103, 'accountId' => 10, 'billId' => 7]);

@@ -891,6 +891,18 @@ class TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	public function testUnlinkSaysWhyAPreBookedTransferStaysLinked(): void {
+		$this->service->method('findForAccounts')->willReturn($this->transactionInAccount(9));
+		$this->service->method('unlinkTransaction')->willThrowException(
+			new \InvalidArgumentException('This is the upcoming payment of a recurring transfer, so its two sides stay linked.')
+		);
+
+		$response = $this->controllerSeeing([9, 10])->unlink(5);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('recurring transfer', $response->getData()['error']);
+	}
+
 	// ── transfer matching across shared accounts (#378) ─────────────
 
 	public function testGetMatchesSearchesEveryWritableAccount(): void {

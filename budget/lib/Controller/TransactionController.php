@@ -691,6 +691,9 @@ class TransactionController extends Controller {
 
 			$result = $this->service->unlinkTransaction($id, $this->userId, $visibleAccountIds);
 			return new DataResponse($result);
+		} catch (\InvalidArgumentException $e) {
+			// A refusal says why (a recurring transfer's pre-booked pair)
+			return $this->handleValidationError($e);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to unlink transaction'), Http::STATUS_BAD_REQUEST);
 		}
