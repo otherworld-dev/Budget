@@ -512,23 +512,32 @@ class ReportAggregator {
 				$remaining = round((float)MoneyCalculator::subtract($budgeted, $spent, self::SUM_SCALE), 2);
 				// Depleted envelope (available <= 0): any spending is over budget
 				$percentage = $budgeted > 0 ? ($spent / $budgeted) * 100 : ($spent > 0 ? 100 : 0);
+				// An income target is money to come in: reaching it, or
+				// going past it, is no danger
+				$isIncome = $category->getType() === 'income';
 
 				$budgetReport[] = [
 					'categoryId' => $categoryId,
 					'categoryName' => $category->getName(),
+					'type' => $isIncome ? 'income' : 'expense',
 					'budgeted' => $budgeted,
 					'baseBudget' => $resolvedBases[$categoryId],
 					'carried' => round($budgeted - $resolvedBases[$categoryId], 2),
 					'spent' => $spent,
 					'remaining' => $remaining,
 					'percentage' => $percentage,
-					'status' => $this->calculator->getBudgetStatus($percentage),
+					'status' => $isIncome ? 'good' : $this->calculator->getBudgetStatus($percentage),
 					'color' => $category->getColor()
 				];
 
-				$sum['budgeted'] = MoneyCalculator::add($sum['budgeted'], $budgeted, self::SUM_SCALE);
-				$sum['spent'] = MoneyCalculator::add($sum['spent'], $spent, self::SUM_SCALE);
-				$sum['remaining'] = MoneyCalculator::add($sum['remaining'], $remaining, self::SUM_SCALE);
+				// The totals are spending budgets only: an income target
+				// added in made a received salary read as spending, and
+				// counted unreceived income as budget left
+				if (!$isIncome) {
+					$sum['budgeted'] = MoneyCalculator::add($sum['budgeted'], $budgeted, self::SUM_SCALE);
+					$sum['spent'] = MoneyCalculator::add($sum['spent'], $spent, self::SUM_SCALE);
+					$sum['remaining'] = MoneyCalculator::add($sum['remaining'], $remaining, self::SUM_SCALE);
+				}
 			}
 		}
 		$totals = array_map(static fn (string $amount) => round((float)$amount, 2), $sum);

@@ -591,6 +591,40 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertSame(340.0, $result['categories'][0]['budgeted']);
 	}
 
+	/**
+	 * An income target was added into the spending totals, so a received
+	 * salary read as spending (3025 of 3165) and turned the report "danger".
+	 * Income rows stay listed, marked as income, out of the totals.
+	 */
+	public function testBudgetReportKeepsIncomeTargetsOutOfTheSpendingTotals(): void {
+		$groceries = new \OCA\Budget\Db\Category();
+		$groceries->setId(5);
+		$groceries->setName('Groceries');
+		$groceries->setType('expense');
+		$groceries->setBudgetAmount(165.0);
+		$groceries->setBudgetPeriod('monthly');
+		$salary = new \OCA\Budget\Db\Category();
+		$salary->setId(6);
+		$salary->setName('Salary');
+		$salary->setType('income');
+		$salary->setBudgetAmount(3000.0);
+		$salary->setBudgetPeriod('monthly');
+		$this->categoryMapper->method('findAll')->willReturn([$groceries, $salary]);
+		$this->budgetSnapshotMapper->method('findEffectiveBatch')->willReturn([]);
+		$this->transactionMapper->method('getCategorySpendingBatch')
+			->willReturnCallback(fn (array $ids, $from, $to, string $type) => $type === 'debit' ? [5 => 25.0] : [6 => 3000.0]);
+		$this->calculator->method('getBudgetStatus')->willReturnCallback(fn (float $pct) => $pct > 100 ? 'over' : ($pct > 80 ? 'danger' : 'good'));
+
+		$result = $this->aggregator->getBudgetReport('user1', '2026-09-01', '2026-09-30');
+
+		$this->assertSame(['budgeted' => 165.0, 'spent' => 25.0, 'remaining' => 140.0], $result['totals']);
+		$this->assertSame('good', $result['overallStatus']);
+		$rows = array_column($result['categories'], null, 'categoryId');
+		$this->assertSame('income', $rows[6]['type']);
+		$this->assertSame('good', $rows[6]['status'], 'all of the salary arriving is no danger');
+		$this->assertSame('expense', $rows[5]['type']);
+	}
+
 	public function testBudgetReportHoldsSpentToTheAccountsInView(): void {
 		// The carryover was scoped to the visible accounts and spent was not,
 		// so with shared accounts excluded the report still counted spending
