@@ -939,6 +939,57 @@ class BankSyncServiceTest extends TestCase {
 		return $hold;
 	}
 
+	// ===== which hold a posted row with a new id belongs to =====
+
+	public function testAPostedRowNeverTakesAHoldTheBankStillLists(): void {
+		// Spotify posts under a new id, listed before Netflix's hold, which is
+		// still pending under its old id. Netflix's hold is closer in date, and
+		// taking it cleared Netflix's row under Spotify's id, re-imported the
+		// Netflix hold as a new row and later deleted the real Spotify hold.
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$connection->setIncludePending(true);
+		$this->setUpPendingSync($connection, [
+			['id' => 's2', 'date' => '2026-09-26', 'amount' => '-9.99', 'description' => 'SPOTIFY P1234'],
+			['id' => 'n1', 'date' => '2026-09-25', 'amount' => '-9.99', 'description' => 'NETFLIX.COM', 'pending' => true],
+		]);
+
+		$spotify = $this->makeHold(3404, 's1', 9.99, '2026-09-22', 'SPOTIFY P1234', 1);
+		$netflix = $this->makeHold(3405, 'n1', 9.99, '2026-09-25', 'NETFLIX.COM', 2);
+		$this->transactionService->method('findByImportId')->willReturnMap([
+			[100, 'simplefin:s2', null],
+			[100, 'simplefin:n1', $netflix],
+		]);
+		$this->transactionService->method('findPendingImported')->willReturn([$spotify, $netflix]);
+
+		$this->transactionService->expects($this->once())
+			->method('reconcilePendingToPosted')
+			->with($spotify, 'simplefin:s2', '2026-09-26');
+		$this->transactionService->expects($this->never())->method('create');
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testAPostedRowPrefersTheHoldWithTheSameMerchant(): void {
+		// Both holds have dropped off the feed: the matching merchant wins over
+		// the closer date.
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$connection->setIncludePending(true);
+		$this->setUpPendingSync($connection, [
+			['id' => 's2', 'date' => '2026-09-26', 'amount' => '-9.99', 'description' => 'SPOTIFY P1234'],
+		]);
+
+		$spotify = $this->makeHold(3404, 's1', 9.99, '2026-09-22', 'SPOTIFY P1234', 1);
+		$netflix = $this->makeHold(3405, 'n1', 9.99, '2026-09-25', 'NETFLIX.COM', 2);
+		$this->transactionService->method('findByImportId')->willReturn(null);
+		$this->transactionService->method('findPendingImported')->willReturn([$spotify, $netflix]);
+
+		$this->transactionService->expects($this->once())
+			->method('reconcilePendingToPosted')
+			->with($spotify, 'simplefin:s2', '2026-09-26');
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
 	// ===== Include pending switched off (holds imported while it was on) =====
 
 	public function testHoldsStillReconcileAfterIncludePendingIsTurnedOff(): void {

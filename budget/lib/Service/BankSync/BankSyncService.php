@@ -247,6 +247,22 @@ class BankSyncService {
 			$existingPending = $this->transactionService->findPendingImported($budgetAccountId, $importPrefix);
 			$seenPendingIds = [];
 
+			// A hold the bank still lists anywhere in this feed is a separate,
+			// still-pending payment, so it can never be the hold a posted row
+			// with a new id came from. Marking only the rows processed so far
+			// let a posted row listed before another hold take that hold: it
+			// cleared the wrong merchant's row, re-imported the other hold as
+			// a new row, and the real hold was later deleted as stale.
+			$feedImportIds = [];
+			foreach ($externalAccount['transactions'] as $tx) {
+				$feedImportIds[$importPrefix . $tx['id']] = true;
+			}
+			foreach ($existingPending as $pendingTx) {
+				if (isset($feedImportIds[(string)$pendingTx->getImportId()])) {
+					$seenPendingIds[$pendingTx->getId()] = true;
+				}
+			}
+
 			foreach ($externalAccount['transactions'] as $tx) {
 				$importId = $connection->getProvider() . ':' . $tx['id'];
 				$isPending = !empty($tx['pending']);
@@ -618,13 +634,8 @@ class BankSyncService {
 	 * @param array $tx Normalized incoming transaction
 	 */
 	private function matchPendingHold(array $existingPending, array $seenPendingIds, array $tx): ?\OCA\Budget\Db\Transaction {
-		$amount = (float)$tx['amount'];
-		$incomingType = $amount < 0 ? 'debit' : 'credit';
-		$incomingAbs = abs($amount);
-		$incomingTs = strtotime($tx['date']);
-
 		$best = null;
-		$bestDiff = null;
+		$bestRank = null;
 		foreach ($existingPending as $pendingTx) {
 			if (isset($seenPendingIds[$pendingTx->getId()])) {
 				continue;
@@ -632,24 +643,81 @@ class BankSyncService {
 			if (($pendingTx->getStatus() ?? '') !== 'pending') {
 				continue; // already reconciled this sync
 			}
-			if ($pendingTx->getType() !== $incomingType) {
-				continue;
-			}
-			if (abs((float)$pendingTx->getAmount() - $incomingAbs) > 0.001) {
-				continue;
-			}
-			$dayDiff = abs(($incomingTs - strtotime($pendingTx->getDate())) / 86400);
-			if ($dayDiff > 5) {
-				continue;
-			}
-			// Prefer the closest date among candidates.
-			if ($bestDiff === null || $dayDiff < $bestDiff) {
+			$rank = $this->postedVersionRank($pendingTx, $tx);
+			if ($rank !== null && ($bestRank === null || ($rank <=> $bestRank) < 0)) {
 				$best = $pendingTx;
-				$bestDiff = $dayDiff;
+				$bestRank = $rank;
 			}
 		}
 
 		return $best;
+	}
+
+	/**
+	 * How well a posted bank row fits as the posted version of a hold, or null
+	 * when it doesn't fit at all. A lower rank is a better fit: the same
+	 * merchant first, then the closest date.
+	 *
+	 * @param array $tx Normalized posted transaction
+	 * @return array|null
+	 */
+	private function postedVersionRank(\OCA\Budget\Db\Transaction $hold, array $tx): ?array {
+		$amount = (float)$tx['amount'];
+		if ($hold->getType() !== ($amount < 0 ? 'debit' : 'credit')) {
+			return null;
+		}
+		if (abs((float)$hold->getAmount() - abs($amount)) > 0.001) {
+			return null;
+		}
+		$dayDiff = abs((strtotime($tx['date']) - strtotime($hold->getDate())) / 86400);
+		if ($dayDiff > 5) {
+			return null;
+		}
+
+		$sameMerchant = self::descriptionsShareAWord(
+			$hold->getDescription() . ' ' . ($hold->getVendor() ?? ''),
+			($tx['description'] ?? '') . ' ' . ($tx['vendor'] ?? '')
+		);
+
+		return [$sameMerchant ? 0 : 1, $dayDiff];
+	}
+
+	/** Card-network and banking filler that says nothing about the merchant. */
+	private const DESCRIPTION_NOISE = [
+		'PENDING', 'CARD', 'DEBIT', 'CREDIT', 'PAYMENT', 'PURCHASE', 'AUTH',
+		'AUTHORIZATION', 'AUTHORISATION', 'VISA', 'MASTERCARD', 'AMEX',
+		'TRANSACTION', 'CONTACTLESS', 'ONLINE', 'DIRECT', 'TRANSFER',
+		'RECURRING', 'FROM', 'WITH', 'PAYPAL', 'CHECKCARD', 'HTTP', 'HTTPS',
+	];
+
+	/**
+	 * Whether two bank descriptions name the same merchant: a word of four or
+	 * more letters from one appears in the other, ignoring filler and
+	 * numbers. Spacing and punctuation are ignored on the other side, because
+	 * a hold's text and its posted text are often run together differently
+	 * ("ACME*ENERGY" against "ACMEENERGY DD").
+	 */
+	private static function descriptionsShareAWord(string $a, string $b): bool {
+		$words = static function (string $text): array {
+			$parts = preg_split('/[^A-Z0-9]+/', strtoupper($text), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+			return array_filter($parts, static fn (string $w) => strlen($w) >= 4
+				&& !ctype_digit($w)
+				&& !in_array($w, self::DESCRIPTION_NOISE, true));
+		};
+		$compactA = preg_replace('/[^A-Z0-9]/', '', strtoupper($a));
+		$compactB = preg_replace('/[^A-Z0-9]/', '', strtoupper($b));
+
+		foreach ($words($a) as $word) {
+			if (str_contains($compactB, $word)) {
+				return true;
+			}
+		}
+		foreach ($words($b) as $word) {
+			if (str_contains($compactA, $word)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private function requireEnabled(): void {
