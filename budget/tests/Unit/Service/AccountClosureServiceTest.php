@@ -54,16 +54,39 @@ class AccountClosureServiceTest extends TestCase {
 	private array $mappings = [];
 	/** @var ImportRule[] */
 	private array $rules = [];
+	/** @var BillMapper&\PHPUnit\Framework\MockObject\MockObject */
+	private $billMapper;
+	/** @var RecurringIncomeMapper&\PHPUnit\Framework\MockObject\MockObject */
+	private $incomeMapper;
+	/** @var \OCA\Budget\Service\TransactionService&\PHPUnit\Framework\MockObject\MockObject */
+	private $transactionService;
 
 	protected function setUp(): void {
 		$transactionMapper = $this->createMock(TransactionMapper::class);
 		$transactionMapper->method('hasRowsAfterDate')->willReturnCallback(fn () => $this->futureRows);
 
+		// Both lookups behave like their queries: findActive() is one user's,
+		// findActiveByAccount() is everyone's that touch the account
 		$billMapper = $this->createMock(BillMapper::class);
-		$billMapper->method('findActive')->willReturnCallback(fn () => $this->bills);
+		$billMapper->method('findActive')->willReturnCallback(
+			fn (string $userId) => array_values(array_filter($this->bills, fn (Bill $b) => $b->getUserId() === $userId))
+		);
+		$billMapper->method('findActiveByAccount')->willReturnCallback(
+			fn (int $accountId) => array_values(array_filter($this->bills, fn (Bill $b) => $b->getIsActive()
+				&& ((int)$b->getAccountId() === $accountId || (int)$b->getDestinationAccountId() === $accountId)))
+		);
+		$this->billMapper = $billMapper;
 
 		$incomeMapper = $this->createMock(RecurringIncomeMapper::class);
-		$incomeMapper->method('findActive')->willReturnCallback(fn () => $this->incomes);
+		$incomeMapper->method('findActive')->willReturnCallback(
+			fn (string $userId) => array_values(array_filter($this->incomes, fn (RecurringIncome $i) => $i->getUserId() === $userId))
+		);
+		$incomeMapper->method('findActiveByAccount')->willReturnCallback(
+			fn (int $accountId) => array_values(array_filter($this->incomes, fn (RecurringIncome $i) => $i->getIsActive()
+				&& (int)$i->getAccountId() === $accountId))
+		);
+		$this->incomeMapper = $incomeMapper;
+		$this->transactionService = $this->createMock(\OCA\Budget\Service\TransactionService::class);
 
 		$contributionMapper = $this->createMock(PensionRecurringContributionMapper::class);
 		$contributionMapper->method('findActive')->willReturnCallback(fn () => $this->contributions);
@@ -103,7 +126,8 @@ class AccountClosureServiceTest extends TestCase {
 			$connectionMapper,
 			$mappingMapper,
 			$ruleMapper,
-			$l
+			$l,
+			$this->transactionService
 		);
 	}
 
@@ -131,9 +155,9 @@ class AccountClosureServiceTest extends TestCase {
 		return $bill;
 	}
 
-	private function income(string $name, ?int $accountId): RecurringIncome {
+	private function income(string $name, ?int $accountId, string $owner = 'alice'): RecurringIncome {
 		$income = new RecurringIncome();
-		$income->setUserId('alice');
+		$income->setUserId($owner);
 		$income->setName($name);
 		$income->setAccountId($accountId);
 		$income->setIsActive(true);
@@ -249,6 +273,82 @@ class AccountClosureServiceTest extends TestCase {
 		$this->expectExceptionMessageMatches('/Savings top-up/');
 
 		$this->service->assertClosable($this->account());
+	}
+
+	/**
+	 * A bill or income someone the account is shared with set up posts into
+	 * it just the same, but only the owner's were looked at: a closed shared
+	 * account went on receiving their payments.
+	 */
+	public function testRefusesWhenSomeoneItIsSharedWithPaysFromIt(): void {
+		$bill = $this->bill('Bob gym', 7);
+		$bill->setUserId('bob');
+		$this->bills[] = $bill;
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessageMatches('/Bob gym/');
+
+		$this->service->assertClosable($this->account());
+	}
+
+	public function testRefusesWhenSomeoneItIsSharedWithIsPaidIntoIt(): void {
+		$this->incomes[] = $this->income('Bob salary', 7, 'bob');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessageMatches('/Bob salary/');
+
+		$this->service->assertClosable($this->account());
+	}
+
+	// -- deleting the account (it can't be refused like closing) --
+
+	/**
+	 * Deleting an account never looked at what used it: bills and transfers
+	 * stayed active on a deleted id, a card-statement transfer failed on
+	 * every Mark Paid and auto-pay, and the deposit leg it had pre-booked in
+	 * the other account stayed behind.
+	 */
+	public function testDeletingAnAccountStopsEverythingThatPaysIntoOrOutOfIt(): void {
+		$rent = $this->bill('Rent', 7);
+		$rent->setId(1);
+		$rent->setPaidUndoState('{"previousState":{}}');
+		$topUp = $this->bill('Card payment', 3, 7, true);
+		$topUp->setId(2);
+		$topUp->setUserId('bob');
+		$elsewhere = $this->bill('Water', 3);
+		$elsewhere->setId(3);
+		$this->bills = [$rent, $topUp, $elsewhere];
+		$salary = $this->income('Salary', 7);
+		$this->incomes[] = $salary;
+
+		$cleared = [];
+		$this->transactionService->method('deleteScheduledBillTransactions')
+			->willReturnCallback(function (int $billId) use (&$cleared) {
+				$cleared[] = $billId;
+			});
+		$this->billMapper->method('update')->willReturnArgument(0);
+		$this->incomeMapper->method('update')->willReturnArgument(0);
+
+		$stopped = $this->service->stopSchedulesFor($this->account());
+
+		$this->assertSame(['bills' => ['Rent'], 'transfers' => ['Card payment'], 'income' => ['Salary']], $stopped);
+		$this->assertSame([1, 2], $cleared, 'their pre-booked rows elsewhere go too');
+		$this->assertFalse($rent->getIsActive());
+		$this->assertNull($rent->getAccountId());
+		$this->assertNull($rent->getPaidUndoState(), 'nothing left to revert into');
+		$this->assertFalse($topUp->getIsActive());
+		$this->assertSame(3, $topUp->getAccountId(), 'the source account still exists');
+		$this->assertNull($topUp->getDestinationAccountId());
+		$this->assertTrue($elsewhere->getIsActive());
+		$this->assertFalse($salary->getIsActive());
+		$this->assertNull($salary->getAccountId());
+	}
+
+	public function testDeletingAnUnusedAccountStopsNothing(): void {
+		$this->bills[] = $this->bill('Water', 3);
+		$this->billMapper->expects($this->never())->method('update');
+
+		$this->assertSame([], $this->service->stopSchedulesFor($this->account()));
 	}
 
 	public function testIgnoresBillsOnOtherAccounts(): void {

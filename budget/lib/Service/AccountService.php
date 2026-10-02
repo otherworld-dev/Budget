@@ -131,6 +131,10 @@ class AccountService extends AbstractCrudService {
 		}
 		// Clean up interest rate records
 		$this->interestRateMapper->deleteByAccount($entity->getId(), $userId);
+
+		// Bills, transfers and recurring income on the account (anyone's)
+		// would otherwise go on running against a deleted id
+		$this->closureService?->stopSchedulesFor($entity);
 	}
 
 	/**

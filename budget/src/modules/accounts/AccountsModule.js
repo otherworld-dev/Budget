@@ -708,7 +708,8 @@ export default class AccountsModule {
             n('budget',
                 'Delete %n account? Accounts that still have transactions are kept back and asked about separately.',
                 'Delete %n accounts? Accounts that still have transactions are kept back and asked about separately.',
-                ids.length),
+                ids.length)
+                + '\n\n' + t('budget', 'Any bills, transfers or recurring income that use them are switched off.'),
             { destructive: true }
         )) {
             return;
@@ -2987,7 +2988,11 @@ export default class AccountsModule {
     }
 
     async deleteAccount(id) {
-        if (!await confirmDialog(t('budget', 'Are you sure you want to delete this account? This action cannot be undone.'), { destructive: true })) {
+        if (!await confirmDialog(
+            t('budget', 'Are you sure you want to delete this account? This action cannot be undone.')
+                + '\n\n' + t('budget', 'Any bills, transfers or recurring income that use it are switched off.'),
+            { destructive: true }
+        )) {
             return;
         }
 

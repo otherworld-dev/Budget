@@ -282,6 +282,44 @@ class AccountServiceTest extends TestCase {
 		$this->service->delete(1, 'user1');
 	}
 
+	private function serviceWithClosure(AccountClosureService $closure): AccountService {
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnArgument(0);
+		return new AccountService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->createMock(InterestRateMapper::class),
+			$this->conversionService,
+			$this->granularShareService,
+			$this->transactionService,
+			$l,
+			null,
+			$closure
+		);
+	}
+
+	public function testDeletingAnAccountStopsTheBillsThatUseIt(): void {
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->transactionMapper->method('findByAccount')->willReturn([]);
+		$closure = $this->createMock(AccountClosureService::class);
+		$closure->expects($this->once())->method('stopSchedulesFor')->with($account)->willReturn([]);
+		$this->accountMapper->expects($this->once())->method('delete')->with($account);
+
+		$this->serviceWithClosure($closure)->delete(1, 'user1');
+	}
+
+	public function testARefusedAccountDeleteStopsNothing(): void {
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		$this->transactionMapper->method('findByAccount')->willReturn([['id' => 1]]);
+		$closure = $this->createMock(AccountClosureService::class);
+		$closure->expects($this->never())->method('stopSchedulesFor');
+
+		$this->expectException(\OCA\Budget\Exception\AccountInUseException::class);
+
+		$this->serviceWithClosure($closure)->delete(1, 'user1');
+	}
+
 	// ===== deleteWithTransactions() (#336) =====
 
 	public function testDeleteWithTransactionsClearsLedgerThenDeletesAccount(): void {

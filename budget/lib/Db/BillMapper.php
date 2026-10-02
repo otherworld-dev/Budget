@@ -258,6 +258,27 @@ class BillMapper extends QBMapper {
 	}
 
 	/**
+	 * Every active bill and transfer that pays into or out of an account,
+	 * whoever owns it: someone an account is shared with can set up bills on
+	 * it too, and those post into it just the same.
+	 *
+	 * @return Bill[]
+	 */
+	public function findActiveByAccount(int $accountId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+			->andWhere($qb->expr()->orX(
+				$qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)),
+				$qb->expr()->eq('destination_account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT))
+			))
+			->orderBy('name', 'ASC');
+
+		return $this->findEntities($qb);
+	}
+
+	/**
 	 * Take deleted categories off every bill that names them, whoever owns
 	 * the bill: a shared category can be used by the recipients' bills too.
 	 * Left in place, every payment the bill booked carried the dead id.
