@@ -235,7 +235,7 @@ class BankSyncService {
 			$imported = 0;
 			$transferLinkIds = [];
 			$skipped = 0;
-			$createdAny = false;
+			$balanceDirty = false;
 
 			// Load existing pending bank-sync holds on this account so we can
 			// reconcile them against their posted versions (issue #257). This
@@ -272,7 +272,11 @@ class BankSyncService {
 				if ($existing !== null) {
 					// A previously-pending hold has now posted (same ID): clear it.
 					if (!$isPending && ($existing->getStatus() ?? 'cleared') === 'pending') {
-						$this->transactionService->reconcilePendingToPosted($existing, null, $tx['date']);
+						$posted = $this->postHold($existing, null, $tx, $userId, $connection);
+						$balanceDirty = true;
+						if ($posted->getBillId() === null) {
+							$createdForBillMatch[] = $posted;
+						}
 					}
 					$seenPendingIds[$existing->getId()] = true;
 					$skipped++;
@@ -290,35 +294,19 @@ class BankSyncService {
 				if (!$isPending) {
 					$match = $this->matchPendingHold($existingPending, $seenPendingIds, $tx);
 					if ($match !== null) {
-						$this->transactionService->reconcilePendingToPosted($match, $importId, $tx['date']);
+						$posted = $this->postHold($match, $importId, $tx, $userId, $connection);
+						$balanceDirty = true;
+						if ($posted->getBillId() === null) {
+							$createdForBillMatch[] = $posted;
+						}
 						$seenPendingIds[$match->getId()] = true;
 						$imported++;
 						continue;
 					}
 				}
 
-				// Determine type: negative amount = debit (outflow), positive = credit (inflow)
-				$amount = (float)$tx['amount'];
-				$type = $amount < 0 ? 'debit' : 'credit';
-				$absAmount = abs($amount);
-
 				try {
-					// Build transaction array for rule matching
-					$txData = [
-						'date' => $tx['date'],
-						'description' => $tx['description'] ?? '',
-						'amount' => $absAmount,
-						'type' => $type,
-						'vendor' => $tx['vendor'] ?? null,
-						'categoryId' => null,
-						'notes' => null,
-						'source' => 'Bank Sync',
-					];
-
-					// Apply import rules if enabled for this connection
-					if ($connection->getApplyRules()) {
-						$txData = $this->ruleApplicator->applyRules($userId, $txData);
-					}
+					$txData = $this->importData($userId, $connection, $tx);
 
 					$createdTx = $this->transactionService->create(
 						userId: $userId,
@@ -338,7 +326,7 @@ class BankSyncService {
 					// Set immediately after create: a later failure (e.g. tag
 					// application) is swallowed by the catch below, and the
 					// persisted row must still get its balance recompute.
-					$createdAny = true;
+					$balanceDirty = true;
 					$createdForBillMatch[] = $createdTx;
 
 					// Apply deferred tag actions from import rules
@@ -371,8 +359,9 @@ class BankSyncService {
 				}
 			}
 
-			// Balance updates were deferred per-row; recompute once for this account
-			if ($createdAny) {
+			// Balance updates were deferred per-row (and a posted hold may have
+			// changed amount); recompute once for this account
+			if ($balanceDirty) {
 				$this->transactionService->recalculateAccountBalance($budgetAccountId, $userId);
 			}
 
@@ -621,6 +610,58 @@ class BankSyncService {
 		return [
 			'authorizationUrl' => $result['authorizationUrl'] ?? null,
 		];
+	}
+
+	/**
+	 * A bank row as the sync would store it: the normalized provider fields,
+	 * with the user's import rules applied when the connection uses them.
+	 *
+	 * @param array $tx Normalized incoming transaction
+	 */
+	private function importData(string $userId, BankConnection $connection, array $tx): array {
+		// Negative amount = debit (outflow), positive = credit (inflow)
+		$amount = (float)$tx['amount'];
+		$txData = [
+			'date' => $tx['date'],
+			'description' => $tx['description'] ?? '',
+			'amount' => abs($amount),
+			'type' => $amount < 0 ? 'debit' : 'credit',
+			'vendor' => $tx['vendor'] ?? null,
+			'categoryId' => null,
+			'notes' => null,
+			'source' => 'Bank Sync',
+		];
+
+		if ($connection->getApplyRules()) {
+			$txData = $this->ruleApplicator->applyRules($userId, $txData);
+		}
+
+		return $txData;
+	}
+
+	/**
+	 * Clear a hold as its posted version, taking the bank's final amount and
+	 * text (through the import rules, as a fresh import would get them) and
+	 * keeping everything the user added to the hold. The caller recomputes
+	 * the balance, since the amount may have changed.
+	 *
+	 * A returned row with no bill yet goes to bill matching like a new import:
+	 * the posted text or amount can match a bill the hold's didn't, and the
+	 * bill otherwise stayed unpaid while its pre-booked row booked it again.
+	 * A row that already paid a bill is that bill's payment and must not be
+	 * offered again, or it would settle a second occurrence.
+	 *
+	 * @param array $tx Normalized posted transaction
+	 */
+	private function postHold(\OCA\Budget\Db\Transaction $hold, ?string $newImportId, array $tx, string $userId, BankConnection $connection): \OCA\Budget\Db\Transaction {
+		$data = $this->importData($userId, $connection, $tx);
+
+		return $this->transactionService->reconcilePendingToPosted($hold, $newImportId, $tx['date'], [
+			'amount' => (float)$data['amount'],
+			'type' => $data['type'],
+			'description' => $data['description'],
+			'vendor' => $data['vendor'] ?? null,
+		]);
 	}
 
 	/**

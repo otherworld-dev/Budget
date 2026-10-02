@@ -509,6 +509,51 @@ class TransactionServiceTest extends TestCase {
 		$this->assertEquals('55', $s3->getAmount());
 	}
 
+	public function testReconcilingAHoldTakesThePostedAmountAndDescription(): void {
+		// A pre-auth, tip or FX settlement posts for a different amount than
+		// the hold, often under the merchant's real name. Only the status and
+		// date used to change, so the balance stayed off by the difference.
+		$hold = $this->makeTransaction([
+			'amount' => 58.00, 'description' => 'CARD AUTH 4471', 'importId' => 'simplefin:h4',
+		]);
+		$hold->setStatus('pending');
+		$hold->setCategoryId(12);
+		$this->mapper->expects($this->once())->method('update')->willReturnArgument(0);
+
+		$posted = $this->service->reconcilePendingToPosted($hold, null, '2026-09-27', [
+			'amount' => 50.00, 'type' => 'debit', 'description' => 'ACME ENERGY DD',
+		]);
+
+		$this->assertSame('cleared', $posted->getStatus());
+		$this->assertSame('2026-09-27', $posted->getDate());
+		$this->assertEqualsWithDelta(50.00, $posted->getAmount(), 0.001);
+		$this->assertSame('ACME ENERGY DD', $posted->getDescription());
+		$this->assertSame('simplefin:h4', $posted->getImportId());
+		$this->assertSame(12, $posted->getCategoryId(), 'what the user set on the hold stays');
+	}
+
+	public function testReconcilingASplitHoldRescalesItsSplitsToThePostedAmount(): void {
+		$hold = $this->makeTransaction(['amount' => 100.00]);
+		$hold->setStatus('pending');
+		$hold->setIsSplit(true);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$s1 = new \OCA\Budget\Db\TransactionSplit();
+		$s1->setId(1);
+		$s1->setTransactionId(1);
+		$s1->setAmount('60');
+		$s2 = new \OCA\Budget\Db\TransactionSplit();
+		$s2->setId(2);
+		$s2->setTransactionId(1);
+		$s2->setAmount('40');
+		$this->splitMapper->method('findByTransaction')->with(1)->willReturn([$s1, $s2]);
+
+		$this->service->reconcilePendingToPosted($hold, null, null, ['amount' => 120.00]);
+
+		$this->assertEquals('72', $s1->getAmount());
+		$this->assertEquals('48', $s2->getAmount());
+	}
+
 	public function testUpdateDoesNotRescaleNonSplitTransaction(): void {
 		$tx = $this->makeTransaction(['amount' => 1000.00, 'type' => 'debit']); // not a split
 		$this->mapper->method('find')->willReturn($tx);

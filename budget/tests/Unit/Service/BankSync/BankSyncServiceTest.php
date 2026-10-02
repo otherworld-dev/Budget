@@ -990,6 +990,81 @@ class BankSyncServiceTest extends TestCase {
 		$this->service->sync(self::USER_ID, 1);
 	}
 
+	// ===== a hold posting takes the bank's final figures =====
+
+	public function testAHoldPostingUnderTheSameIdTakesThePostedAmountAndDescription(): void {
+		// Hold for 58.00 "CARD AUTH 4471" posts as 50.00 "ACME ENERGY DD".
+		// The row kept 58.00 for good and never reached bill matching, so the
+		// ACME bill stayed unpaid and its pre-booked row booked it a second time.
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$connection->setIncludePending(true);
+		$this->setUpPendingSync($connection, [
+			['id' => 'h4', 'date' => '2026-09-27', 'amount' => '-50.00', 'description' => 'ACME ENERGY DD'],
+		]);
+
+		$hold = $this->makeHold(7, 'h4', 58.0, '2026-09-25', 'CARD AUTH 4471');
+		$this->transactionService->method('findByImportId')->willReturn($hold);
+		$this->transactionService->method('findPendingImported')->willReturn([$hold]);
+
+		$this->transactionService->expects($this->once())
+			->method('reconcilePendingToPosted')
+			->with($hold, null, '2026-09-27', $this->callback(function (array $posted) {
+				return abs($posted['amount'] - 50.0) < 0.001
+					&& $posted['type'] === 'debit'
+					&& $posted['description'] === 'ACME ENERGY DD';
+			}))
+			->willReturnArgument(0);
+		$this->transactionService->expects($this->once())
+			->method('recalculateAccountBalance')
+			->with(100, self::USER_ID);
+		$this->billService->expects($this->once())
+			->method('autoMatchPaidFromImport')
+			->with(self::USER_ID, [$hold]);
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testAHoldPostingUnderANewIdIsOfferedToBillMatching(): void {
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$connection->setIncludePending(true);
+		$this->setUpPendingSync($connection, [
+			['id' => 'NEW', 'date' => '2026-05-19', 'amount' => '-30.00', 'description' => 'STORE LTD 0042'],
+		]);
+
+		$hold = $this->makeHold(8, 'OLD', 30.0, '2026-05-18', 'PENDING STORE');
+		$this->transactionService->method('findByImportId')->willReturn(null);
+		$this->transactionService->method('findPendingImported')->willReturn([$hold]);
+
+		$this->transactionService->expects($this->once())
+			->method('reconcilePendingToPosted')
+			->with($hold, 'simplefin:NEW', '2026-05-19', $this->callback(
+				fn (array $posted) => $posted['description'] === 'STORE LTD 0042'
+			))
+			->willReturnArgument(0);
+		$this->billService->expects($this->once())
+			->method('autoMatchPaidFromImport')
+			->with(self::USER_ID, [$hold]);
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testAHoldThatAlreadyPaidABillIsNotMatchedAgainWhenItPosts(): void {
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$connection->setIncludePending(true);
+		$this->setUpPendingSync($connection, [
+			['id' => 'h4', 'date' => '2026-09-24', 'amount' => '-51.00', 'description' => 'ACME ENERGY'],
+		]);
+
+		$hold = $this->makeHold(7, 'h4', 50.0, '2026-09-22', 'ACME ENERGY', 42);
+		$this->transactionService->method('findByImportId')->willReturn($hold);
+		$this->transactionService->method('findPendingImported')->willReturn([$hold]);
+		$this->transactionService->method('reconcilePendingToPosted')->willReturnArgument(0);
+
+		$this->billService->expects($this->never())->method('autoMatchPaidFromImport');
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
 	// ===== Include pending switched off (holds imported while it was on) =====
 
 	public function testHoldsStillReconcileAfterIncludePendingIsTurnedOff(): void {
