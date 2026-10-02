@@ -19,6 +19,7 @@ class UpcomingBillsService {
 		private BillService $billService,
 		private GranularShareService $granularShareService,
 		private AccountMapper $accountMapper,
+		private ?UserClock $userClock = null,
 	) {
 	}
 
@@ -30,7 +31,7 @@ class UpcomingBillsService {
 	 *                 when the bill's account is one the user can see
 	 */
 	public function upcoming(string $userId, int $days): array {
-		$today = $this->today();
+		$today = $this->userClock?->today($userId) ?? date('Y-m-d');
 		$until = (new \DateTimeImmutable($today))->modify("+{$days} days")->format('Y-m-d');
 
 		$own = array_map(
@@ -61,10 +62,5 @@ class UpcomingBillsService {
 			=> [$a['nextDueDate'] ?? '9999-12-31', (int)$a['id']] <=> [$b['nextDueDate'] ?? '9999-12-31', (int)$b['id']]);
 
 		return $bills;
-	}
-
-	/** Today (Y-m-d). Overridable in tests. */
-	protected function today(): string {
-		return date('Y-m-d');
 	}
 }

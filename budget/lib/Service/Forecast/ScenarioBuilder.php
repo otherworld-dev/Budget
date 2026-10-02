@@ -6,6 +6,7 @@ namespace OCA\Budget\Service\Forecast;
 
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Service\UserClock;
 
 /**
  * Builds and calculates forecast scenarios.
@@ -17,6 +18,7 @@ class ScenarioBuilder {
 	public function __construct(
 		AccountMapper $accountMapper,
 		TransactionMapper $transactionMapper,
+		private ?UserClock $userClock = null,
 	) {
 		$this->accountMapper = $accountMapper;
 		$this->transactionMapper = $transactionMapper;
@@ -75,7 +77,8 @@ class ScenarioBuilder {
 		}
 
 		// Get future transaction adjustments to calculate balance as of today
-		$today = date('Y-m-d');
+		// (the user's: a purchase dated it is already in the stored balance)
+		$today = $this->userClock?->today($userId) ?? date('Y-m-d');
 		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
 
 		$currentBalance = 0.0;
@@ -204,7 +207,8 @@ class ScenarioBuilder {
 		}
 
 		// Get future transaction adjustments to calculate balance as of today
-		$today = date('Y-m-d');
+		// (the user's: a purchase dated it is already in the stored balance)
+		$today = $this->userClock?->today($userId) ?? date('Y-m-d');
 		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
 
 		$currentBalance = 0.0;

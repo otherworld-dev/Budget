@@ -183,11 +183,12 @@ class BillMapper extends QBMapper {
 	}
 
 	/**
-	 * Find overdue bills (next_due_date < today)
+	 * Find overdue bills (next_due_date < today). $today is the user's own
+	 * date (UserClock); the server's is UTC, a day off either side of it.
 	 * @return Bill[]
 	 */
-	public function findOverdue(string $userId): array {
-		$today = date('Y-m-d');
+	public function findOverdue(string $userId, ?string $today = null): array {
+		$today = $today ?? date('Y-m-d');
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')
 			->from($this->getTableName())

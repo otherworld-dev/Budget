@@ -10,6 +10,7 @@ use OCA\Budget\Db\Bill;
 use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\UpcomingBillsService;
+use OCA\Budget\Service\UserClock;
 use PHPUnit\Framework\TestCase;
 
 class UpcomingBillsServiceTest extends TestCase {
@@ -29,11 +30,10 @@ class UpcomingBillsServiceTest extends TestCase {
 		$this->accounts = $this->createMock(AccountMapper::class);
 		$this->accounts->method('findByIds')->with([1, 9])->willReturn([self::account(1, 'Current'), self::account(9, 'Joint')]);
 
-		$this->service = new class($this->bills, $this->shares, $this->accounts) extends UpcomingBillsService {
-			protected function today(): string {
-				return '2026-09-28';
-			}
-		};
+		// The user's own date, not the server's
+		$clock = $this->createMock(UserClock::class);
+		$clock->method('today')->willReturn('2026-09-28');
+		$this->service = new UpcomingBillsService($this->bills, $this->shares, $this->accounts, $clock);
 	}
 
 	private static function account(int $id, string $name): Account {

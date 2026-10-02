@@ -8,6 +8,7 @@ use OCA\Budget\Dashboard\UpcomingBillsWidget;
 use OCA\Budget\Db\Bill;
 use OCA\Budget\Service\AmountFormatter;
 use OCA\Budget\Service\BillService;
+use OCA\Budget\Service\UserClock;
 use OCP\Dashboard\Model\WidgetButton;
 use OCP\IL10N;
 use OCP\IURLGenerator;
@@ -34,11 +35,16 @@ class UpcomingBillsWidgetTest extends TestCase {
 		$this->amountFormatter->method('formatForUser')
 			->willReturnCallback(fn (string $u, float $a) => '$' . number_format($a, 2));
 
+		// The user's calendar, years from the server's (#399 review, F88)
+		$clock = $this->createMock(UserClock::class);
+		$clock->method('today')->with('alice')->willReturn('2030-06-15');
+
 		$this->widget = new UpcomingBillsWidget(
 			$this->billService,
 			$this->amountFormatter,
 			$l,
-			$urlGenerator
+			$urlGenerator,
+			$clock
 		);
 	}
 
@@ -82,11 +88,12 @@ class UpcomingBillsWidgetTest extends TestCase {
 		$this->assertSame('No upcoming bills', $result->getEmptyContentMessage());
 	}
 
+	/** Judged on the user's date: on the server's UTC one a bill due today said "overdue" every evening in Los Angeles */
 	public function testDueDateWording(): void {
 		$bills = [
-			$this->makeBill(1, 'Overdue', 5.0, date('Y-m-d', strtotime('-3 days'))),
-			$this->makeBill(2, 'Today', 5.0, date('Y-m-d')),
-			$this->makeBill(3, 'Future', 5.0, date('Y-m-d', strtotime('+3 days'))),
+			$this->makeBill(1, 'Overdue', 5.0, '2030-06-12'),
+			$this->makeBill(2, 'Today', 5.0, '2030-06-15'),
+			$this->makeBill(3, 'Future', 5.0, '2030-06-18'),
 		];
 		$this->billService->method('findUpcoming')->willReturn($bills);
 		$this->billService->method('enrichBillsWithCurrency')->willReturnArgument(0);

@@ -6,6 +6,7 @@ namespace OCA\Budget\Db;
 
 use OCA\Budget\Service\MoneyCalculator;
 use OCP\DB\QueryBuilder\IQueryBuilder;
+use OCA\Budget\Service\UserClock;
 use OCP\IDBConnection;
 
 /**
@@ -26,7 +27,31 @@ class TransactionReportQueries {
 
 	public function __construct(
 		private IDBConnection $db,
+		private ?UserClock $userClock = null,
 	) {
+	}
+
+	/**
+	 * ReportScope::fetchReportHalves() on the user's own date: a scheduled
+	 * row counts once it has arrived on their calendar, not the server's.
+	 *
+	 * @param int[]|null $visibleAccountIds
+	 * @param callable(IQueryBuilder, string): void $build
+	 * @return array{0: array[], 1: array[]}
+	 */
+	private function reportHalves(
+		string $userId,
+		?int $accountId,
+		string $startDate,
+		string $endDate,
+		?array $visibleAccountIds,
+		bool $excludeTransfers,
+		callable $build,
+	): array {
+		return ReportScope::fetchReportHalves(
+			$this->db, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $excludeTransfers, $build,
+			$this->userClock?->today($userId)
+		);
 	}
 
 	// ==================== Spending and income groupings ====================
@@ -80,8 +105,8 @@ class TransactionReportQueries {
 	 * @return array<int, array{month: string, total: float, count: int}>
 	 */
 	private function getTotalsByMonth(string $userId, ?int $accountId, string $startDate, string $endDate, ?array $visibleAccountIds, string $type): array {
-		[$direct, $split] = ReportScope::fetchReportHalves(
-			$this->db, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
+		[$direct, $split] = $this->reportHalves(
+			$userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
 			function (IQueryBuilder $qb, string $alloc) use ($type): void {
 				$qb->select($qb->createFunction(ReportScope::monthExpr() . ' as month'))
 					->selectAlias($qb->func()->sum("{$alloc}.amount"), 'total')
@@ -119,8 +144,8 @@ class TransactionReportQueries {
 		bool $includeUnnamed,
 		string $unnamedLabel,
 	): array {
-		[$direct, $split] = ReportScope::fetchReportHalves(
-			$this->db, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
+		[$direct, $split] = $this->reportHalves(
+			$userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
 			function (IQueryBuilder $qb, string $alloc) use ($type, $includeUnnamed): void {
 				$qb->select('t.vendor')
 					->selectAlias($qb->func()->sum("{$alloc}.amount"), 'total')
@@ -157,8 +182,8 @@ class TransactionReportQueries {
 	 * @param int[]|null $visibleAccountIds
 	 */
 	public function getSpendingByAccountAggregated(string $userId, string $startDate, string $endDate, ?array $visibleAccountIds = null, ?int $accountId = null): array {
-		[$direct, $split] = ReportScope::fetchReportHalves(
-			$this->db, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
+		[$direct, $split] = $this->reportHalves(
+			$userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
 			function (IQueryBuilder $qb, string $alloc): void {
 				$qb->select('a.id', 'a.name')
 					->selectAlias($qb->func()->sum("{$alloc}.amount"), 'total')
@@ -204,8 +229,8 @@ class TransactionReportQueries {
 		bool $excludeTransfers = false,
 		?array $visibleAccountIds = null,
 	): array {
-		[$direct, $split] = ReportScope::fetchReportHalves(
-			$this->db, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $excludeTransfers,
+		[$direct, $split] = $this->reportHalves(
+			$userId, $accountId, $startDate, $endDate, $visibleAccountIds, $excludeTransfers,
 			function (IQueryBuilder $qb, string $alloc) use ($tagIds, $includeUntagged): void {
 				$qb->select($qb->createFunction(ReportScope::monthExpr() . ' as month'));
 				ReportScope::selectIncomeExpenses($qb, $alloc);
@@ -245,8 +270,8 @@ class TransactionReportQueries {
 		bool $excludeTransfers = false,
 		?array $visibleAccountIds = null,
 	): array {
-		[$direct, $split] = ReportScope::fetchReportHalves(
-			$this->db, $userId, null, $startDate, $endDate, $visibleAccountIds, $excludeTransfers,
+		[$direct, $split] = $this->reportHalves(
+			$userId, null, $startDate, $endDate, $visibleAccountIds, $excludeTransfers,
 			function (IQueryBuilder $qb, string $alloc) use ($tagIds, $includeUntagged): void {
 				$qb->select('t.account_id')
 					->addSelect($qb->createFunction(ReportScope::monthExpr() . ' as month'));
@@ -392,8 +417,8 @@ class TransactionReportQueries {
 		?array $visibleAccountIds,
 		string $type,
 	): array {
-		[$direct, $split] = ReportScope::fetchReportHalves(
-			$this->db, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
+		[$direct, $split] = $this->reportHalves(
+			$userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
 			function (IQueryBuilder $qb, string $alloc) use ($tagSetId, $categoryId, $type): void {
 				$qb->select('tag.id', 'tag.name', 'tag.color')
 					->selectAlias($qb->func()->sum("{$alloc}.amount"), 'total')
@@ -444,8 +469,8 @@ class TransactionReportQueries {
 		?int $accountId = null,
 		?array $visibleAccountIds = null,
 	): array {
-		[$direct, $split] = ReportScope::fetchReportHalves(
-			$this->db, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
+		[$direct, $split] = $this->reportHalves(
+			$userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
 			function (IQueryBuilder $qb, string $alloc) use ($categoryId): void {
 				$qb->select('ts.id as tag_set_id', 'ts.name as tag_set_name', 'tag.id as tag_id', 'tag.name as tag_name', 'tag.color')
 					->selectAlias($qb->func()->sum("{$alloc}.amount"), 'total')
@@ -511,8 +536,8 @@ class TransactionReportQueries {
 		?array $tagSetIds,
 		?array $visibleAccountIds,
 	): array {
-		[$direct, $split] = ReportScope::fetchReportHalves(
-			$this->db, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
+		[$direct, $split] = $this->reportHalves(
+			$userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
 			function (IQueryBuilder $qb, string $alloc) use ($categoryId, $tagSetIds): void {
 				$qb->select('t.id', 'tag.id as tag_id', 'tag.name as tag_name', 'tag.color', 'tag.tag_set_id')
 					->selectAlias($qb->func()->sum("{$alloc}.amount"), 'amount')
@@ -715,8 +740,8 @@ class TransactionReportQueries {
 			return [];
 		}
 
-		[$direct, $split] = ReportScope::fetchReportHalves(
-			$this->db, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
+		[$direct, $split] = $this->reportHalves(
+			$userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
 			function (IQueryBuilder $qb, string $alloc) use ($tagIds): void {
 				$qb->select($qb->createFunction(ReportScope::monthExpr() . ' as month'))
 					->addSelect('tag.id as tag_id', 'tag.name as tag_name', 'tag.color')
@@ -768,8 +793,8 @@ class TransactionReportQueries {
 		?int $accountId = null,
 		?array $visibleAccountIds = null,
 	): array {
-		[$direct, $split] = ReportScope::fetchReportHalves(
-			$this->db, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
+		[$direct, $split] = $this->reportHalves(
+			$userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
 			function (IQueryBuilder $qb, string $alloc): void {
 				$qb->select("{$alloc}.category_id")
 					->addSelect($qb->createFunction(ReportScope::monthExpr() . ' as month'))

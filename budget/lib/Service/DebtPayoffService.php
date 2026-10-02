@@ -32,6 +32,7 @@ class DebtPayoffService {
 		AccountMapper $accountMapper,
 		TransactionMapper $transactionMapper,
 		?DebtScenarioMapper $scenarioMapper = null,
+		private ?UserClock $userClock = null,
 	) {
 		$this->accountMapper = $accountMapper;
 		$this->transactionMapper = $transactionMapper;
@@ -57,7 +58,8 @@ class DebtPayoffService {
 		$debts = $this->getDebts($userId);
 
 		// Get future transaction adjustments to calculate balance as of today
-		$today = date('Y-m-d');
+		// (the user's: a payment dated it is already in the stored balance)
+		$today = $this->userClock?->today($userId) ?? date('Y-m-d');
 		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
 
 		$totalBalance = '0.00';
@@ -134,7 +136,8 @@ class DebtPayoffService {
 		$extraPayment = $extraPayment ?? 0;
 
 		// Get future transaction adjustments to calculate balance as of today
-		$today = date('Y-m-d');
+		// (the user's: a payment dated it is already in the stored balance)
+		$today = $this->userClock?->today($userId) ?? date('Y-m-d');
 		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
 
 		// Filter to debts with balance > 0 (after adjustment)

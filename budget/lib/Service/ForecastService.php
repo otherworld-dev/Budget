@@ -37,6 +37,7 @@ class ForecastService {
 		ScenarioBuilder $scenarioBuilder,
 		ForecastProjector $projector,
 		?ICacheFactory $cacheFactory = null,
+		private ?UserClock $userClock = null,
 	) {
 		$this->accountMapper = $accountMapper;
 		$this->transactionMapper = $transactionMapper;
@@ -49,6 +50,15 @@ class ForecastService {
 		if ($cacheFactory !== null) {
 			$this->cache = $cacheFactory->createDistributed(self::CACHE_PREFIX);
 		}
+	}
+
+	/**
+	 * Today in the user's own calendar. A purchase dated their today is
+	 * stored cleared; judged against the server's UTC date, the "balance as
+	 * of today" took it off again until UTC midnight caught up (#399).
+	 */
+	private function today(string $userId): string {
+		return $this->userClock?->today($userId) ?? date('Y-m-d');
 	}
 
 	/**
@@ -88,7 +98,7 @@ class ForecastService {
 		}
 
 		// Get future transaction adjustments to calculate balance as of today
-		$today = date('Y-m-d');
+		$today = $this->today($userId);
 		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
 
 		$forecast = [
@@ -158,7 +168,7 @@ class ForecastService {
 		$accounts = array_values(array_filter($accounts, static fn ($a) => !$a->getExcludedFromReports()));
 
 		// Get future transaction adjustments to calculate balance as of today
-		$today = date('Y-m-d');
+		$today = $this->today($userId);
 		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
 
 		$currentBalance = 0.0;
@@ -183,8 +193,8 @@ class ForecastService {
 		}
 
 		// Get historical transactions
-		$endDate = date('Y-m-d');
-		$startDate = date('Y-m-d', strtotime('-12 months'));
+		$endDate = $today;
+		$startDate = (new \DateTimeImmutable($today))->modify('-12 months')->format('Y-m-d');
 		$transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate, null, $visibleAccountIds);
 
 		// Drop extraordinary/one-time transactions so they don't skew the
@@ -217,9 +227,12 @@ class ForecastService {
 		$cumulativeSavings = 0;
 		$savingsMonthlyData = [];
 
+		// Months after the user's own, stepped from the 1st: from the 31st,
+		// "+1 month" skipped any shorter month
+		$thisMonth = new \DateTimeImmutable(substr($today, 0, 8) . '01');
 		for ($i = 1; $i <= $forecastMonths; $i++) {
-			$projectionDate = strtotime("+{$i} months");
-			$monthLabel = date('M Y', $projectionDate);
+			$projectionDate = $thisMonth->modify("+{$i} months");
+			$monthLabel = $projectionDate->format('M Y');
 
 			$projectedIncome = max(0, $avgIncome + ($incomeTrend * $i));
 			$projectedExpenses = max(0, $avgExpenses + ($expenseTrend * $i));
@@ -234,7 +247,7 @@ class ForecastService {
 				// own language; `month` stays the English "M Y" label for the
 				// forecast-warning notification and anything else reading it.
 				'month' => $monthLabel,
-				'yearMonth' => date('Y-m', $projectionDate),
+				'yearMonth' => $projectionDate->format('Y-m'),
 				'balance' => round($projectedBalance, 2),
 				'income' => round($projectedIncome, 2),
 				'expenses' => round($projectedExpenses, 2),
@@ -309,9 +322,9 @@ class ForecastService {
 	): array {
 		$accountId = $account->getId();
 
-		// Get historical data
-		$endDate = date('Y-m-d');
-		$startDate = date('Y-m-d', strtotime("-{$basedOnMonths} months"));
+		// Get historical data, up to the user's today
+		$endDate = $this->today($userId);
+		$startDate = (new \DateTimeImmutable($endDate))->modify("-{$basedOnMonths} months")->format('Y-m-d');
 		$transactions = $this->transactionMapper->findByDateRange($accountId, $startDate, $endDate);
 
 		// Exclude extraordinary/one-time transactions from the pattern (#270).

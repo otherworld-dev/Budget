@@ -7,6 +7,7 @@ namespace OCA\Budget\Dashboard;
 use OCA\Budget\Db\Bill;
 use OCA\Budget\Service\AmountFormatter;
 use OCA\Budget\Service\BillService;
+use OCA\Budget\Service\UserClock;
 use OCP\Dashboard\IAPIWidget;
 use OCP\Dashboard\IAPIWidgetV2;
 use OCP\Dashboard\IButtonWidget;
@@ -31,6 +32,7 @@ class UpcomingBillsWidget implements IAPIWidget, IAPIWidgetV2, IIconWidget, IBut
 		private AmountFormatter $amountFormatter,
 		private IL10N $l,
 		private IURLGenerator $urlGenerator,
+		private ?UserClock $userClock = null,
 	) {
 	}
 
@@ -99,7 +101,7 @@ class UpcomingBillsWidget implements IAPIWidget, IAPIWidgetV2, IIconWidget, IBut
 			return new WidgetItem(
 				$bill->getName(),
 				$this->amountFormatter->formatForUser($userId, (float)$bill->getAmount(), $bill->getCurrency())
-					. ' · ' . $this->formatDueDate($bill->getNextDueDate()),
+					. ' · ' . $this->formatDueDate($bill->getNextDueDate(), $userId),
 				$this->getUrl(),
 				$this->getIconUrl(),
 				(string)$bill->getId()
@@ -107,11 +109,13 @@ class UpcomingBillsWidget implements IAPIWidget, IAPIWidgetV2, IIconWidget, IBut
 		}, $bills);
 	}
 
-	private function formatDueDate(?string $dueDate): string {
+	private function formatDueDate(?string $dueDate, string $userId): string {
 		if ($dueDate === null) {
 			return '';
 		}
-		$today = date('Y-m-d');
+		// The user's today: on the server's UTC date a bill due today said
+		// "overdue" every evening west of UTC
+		$today = $this->userClock?->today($userId) ?? date('Y-m-d');
 		if ($dueDate < $today) {
 			return $this->l->t('overdue');
 		}

@@ -1427,7 +1427,7 @@ export default class AccountsModule {
             return;
         }
 
-        const effectiveDate = await promptDialog(t('budget', 'Effective date (YYYY-MM-DD)'), { defaultValue: new Date().toISOString().split('T')[0] });
+        const effectiveDate = await promptDialog(t('budget', 'Effective date (YYYY-MM-DD)'), { defaultValue: formatters.getTodayDateString() });
         if (!effectiveDate) return;
 
         const compounding = await promptDialog(t('budget', 'Compounding frequency (daily, monthly, yearly, simple)'), { defaultValue: 'daily' });

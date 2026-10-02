@@ -31,6 +31,7 @@ class NetWorthService {
 		CurrencyConversionService $conversionService,
 		AssetService $assetService,
 		PensionService $pensionService,
+		private ?UserClock $userClock = null,
 	) {
 		$this->snapshotMapper = $snapshotMapper;
 		$this->accountMapper = $accountMapper;
@@ -55,8 +56,9 @@ class NetWorthService {
 		// Accounts flagged excluded_from_reports contribute nothing to net worth (#286)
 		$accounts = array_values(array_filter($accounts, static fn ($a) => !$a->getExcludedFromReports()));
 
-		// Get future transaction adjustments for all accounts in one query
-		$today = date('Y-m-d');
+		// Get future transaction adjustments for all accounts in one query.
+		// The user's today: a purchase dated it is in the stored balance.
+		$today = $this->userClock?->today($userId) ?? date('Y-m-d');
 		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
 
 		$baseCurrency = $this->conversionService->getBaseCurrency($userId);

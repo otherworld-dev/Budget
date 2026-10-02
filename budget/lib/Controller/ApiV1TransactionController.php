@@ -15,6 +15,7 @@ use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\MoneyCalculator;
 use OCA\Budget\Service\TransactionService;
 use OCA\Budget\Service\TransactionSplitService;
+use OCA\Budget\Service\UserClock;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\SharedAccessTrait;
@@ -63,6 +64,7 @@ class ApiV1TransactionController extends OCSController {
 		private IL10N $l,
 		?string $userId,
 		LoggerInterface $logger,
+		private ?UserClock $userClock = null,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 		$this->setLogger($logger);
@@ -160,7 +162,9 @@ class ApiV1TransactionController extends OCSController {
 					'direction' => 'desc',
 					// Recorded activity only: a glanceable capture list led
 					// by next week's scheduled bills buries today's capture.
-					'dateTo' => date('Y-m-d'),
+					// The user's today: a capture is cleared on their date,
+					// which the server's UTC one hid until it caught up.
+					'dateTo' => $this->userClock?->today($this->userId) ?? date('Y-m-d'),
 				],
 				$limit,
 				0,

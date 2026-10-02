@@ -131,9 +131,10 @@ class RecurringIncomeMapper extends QBMapper {
 	 * Find upcoming income (within next N days)
 	 * @return RecurringIncome[]
 	 */
-	public function findUpcoming(string $userId, int $days = 30): array {
-		$today = date('Y-m-d');
-		$endDate = date('Y-m-d', strtotime("+{$days} days"));
+	public function findUpcoming(string $userId, int $days = 30, ?string $today = null): array {
+		// $today is the user's own date (UserClock), not the server's UTC one
+		$today = $today ?? date('Y-m-d');
+		$endDate = (new \DateTimeImmutable($today))->modify("+{$days} days")->format('Y-m-d');
 
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')
@@ -152,8 +153,9 @@ class RecurringIncomeMapper extends QBMapper {
 	 *
 	 * @return RecurringIncome[]
 	 */
-	public function findDueForAutoCreate(string $userId): array {
-		$today = date('Y-m-d');
+	public function findDueForAutoCreate(string $userId, ?string $today = null): array {
+		// $today is the user's own date (UserClock), not the server's UTC one
+		$today = $today ?? date('Y-m-d');
 
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')

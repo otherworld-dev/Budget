@@ -229,7 +229,7 @@ class BillService {
 			return [];
 		}
 
-		$dueDate = $bill->getNextDueDate() ?? date('Y-m-d');
+		$dueDate = $bill->getNextDueDate() ?? $this->today($userId);
 
 		return $this->transactionService->findBillPaymentCandidates(
 			$bill->getAccountId(),
@@ -249,7 +249,7 @@ class BillService {
 	 * not flagged, and neither is a payment dismissed from the card (#394).
 	 */
 	public function findUnrecordedPayments(string $userId, int $sinceDays = 60): array {
-		$cutoff = date('Y-m-d', strtotime("-{$sinceDays} days"));
+		$cutoff = (new \DateTimeImmutable($this->today($userId)))->modify("-{$sinceDays} days")->format('Y-m-d');
 		$candidates = [];
 		foreach ($this->mapper->findAll($userId) as $bill) {
 			$lastPaid = $bill->getLastPaidDate();
@@ -535,22 +535,23 @@ class BillService {
 	}
 
 	public function findOverdue(string $userId): array {
-		return $this->mapper->findOverdue($userId);
+		return $this->mapper->findOverdue($userId, $this->today($userId));
 	}
 
 	public function findDueThisMonth(string $userId): array {
-		$startDate = date('Y-m-01');
-		$endDate = date('Y-m-t');
-		return $this->mapper->findDueInRange($userId, $startDate, $endDate);
+		$today = new \DateTimeImmutable($this->today($userId));
+		return $this->mapper->findDueInRange($userId, $today->format('Y-m-01'), $today->format('Y-m-t'));
 	}
 
 	/**
 	 * Find upcoming bills (including overdue) sorted by due date.
 	 */
 	public function findUpcoming(string $userId, int $days = 30): array {
-		$overdue = $this->mapper->findOverdue($userId);
-		$startDate = date('Y-m-d');
-		$endDate = date('Y-m-d', strtotime("+{$days} days"));
+		// The user's today: on the server's UTC date a bill due today was
+		// "overdue" every evening west of UTC
+		$startDate = $this->today($userId);
+		$overdue = $this->mapper->findOverdue($userId, $startDate);
+		$endDate = (new \DateTimeImmutable($startDate))->modify("+{$days} days")->format('Y-m-d');
 		$upcoming = $this->mapper->findDueInRange($userId, $startDate, $endDate);
 
 		$allBills = array_merge($overdue, $upcoming);
@@ -623,7 +624,7 @@ class BillService {
 		if ($amountType !== 'fixed') {
 			// Initial estimate: resolved against the card right now. Refined to
 			// the actual amount on every markPaid().
-			$amount = $this->resolveDynamicAmount($amountType, $destinationAccountId, null, date('Y-m-d')) ?? $amount;
+			$amount = $this->resolveDynamicAmount($amountType, $destinationAccountId, null, $this->today($userId)) ?? $amount;
 		}
 
 		$bill = new Bill();
@@ -2074,14 +2075,15 @@ class BillService {
 		$projection = null;
 		$account = $accountId === null ? null : $this->accountAmong($accounts, $accountId);
 		if ($account !== null) {
-			$balance = $this->transactionService->getBalanceAsOf($account->getId(), date('Y-m-d'));
+			// The user's today: a purchase dated it is already in the balance
+			$balance = $this->transactionService->getBalanceAsOf($account->getId(), $this->today($userId));
 			$accountSummary = [
 				'id' => $account->getId(),
 				'name' => $account->getName(),
 				'currency' => $account->getCurrency() ?: $baseCurrency,
 				'balance' => $balance,
 			];
-			if ($year === (int)date('Y')) {
+			if ($year === (int)substr($this->today($userId), 0, 4)) {
 				// The money moves whatever the table is set to show, so a
 				// view without transfers, or of inactive bills only, is
 				// projected from every bill that is still live
@@ -2287,7 +2289,7 @@ class BillService {
 	 */
 	private function projectBalance(string $userId, array $billsData, Account $account, float $balance): array {
 		$scale = Currency::decimalsFor($account->getCurrency());
-		$today = date('Y-m-d');
+		$today = $this->today($userId);
 		$projector = new BalanceProjector($this->frequencyCalculator);
 		$incomes = $this->incomeMapper?->findActive($userId) ?? [];
 		// Scheduled pension contributions paid from the account come out of it
@@ -2308,7 +2310,7 @@ class BillService {
 			$account->getId(),
 			$balance,
 			$projector->incomeByMonth($incomes, $account->getId(), $today, $scale),
-			(int)date('n'),
+			(int)substr($today, 5, 2),
 			$scale
 		);
 	}

@@ -16,6 +16,7 @@ use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\TransactionService;
 use OCA\Budget\Service\TransactionSplitService;
+use OCA\Budget\Service\UserClock;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
@@ -90,8 +91,16 @@ class ApiV1TransactionControllerTest extends TestCase {
 			$keys,
 			$l,
 			'user1',
-			$this->createMock(LoggerInterface::class)
+			$this->createMock(LoggerInterface::class),
+			$this->clock()
 		);
+	}
+
+	/** The user's calendar, years from the server's */
+	private function clock(): UserClock {
+		$clock = $this->createMock(UserClock::class);
+		$clock->method('today')->with('user1')->willReturn('2030-06-15');
+		return $clock;
 	}
 
 	private function transaction(int $id = 10): Transaction {
@@ -276,10 +285,12 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 	public function testRecentExcludesFutureScheduledRows(): void {
 		// A glanceable capture list led by next week's scheduled bills
-		// buries today's capture.
+		// buries today's capture. Today is the user's: on the server's UTC
+		// date a capture made after midnight in Auckland was missing until
+		// noon, and Los Angeles saw tomorrow's rows every evening.
 		$this->service->expects($this->once())
 			->method('findWithFilters')
-			->with('user1', $this->callback(fn ($f) => ($f['dateTo'] ?? null) === date('Y-m-d')),
+			->with('user1', $this->callback(fn ($f) => ($f['dateTo'] ?? null) === '2030-06-15'),
 				$this->anything(), $this->anything(), $this->anything())
 			->willReturn(['transactions' => [], 'total' => 0]);
 

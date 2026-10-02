@@ -195,8 +195,11 @@ final class ReportScope {
 	 * never by balance or list queries, where the pension leg must still appear),
 	 * so it is the single place both exclusions belong.
 	 */
-	public static function excludeScheduledFuture(IQueryBuilder $qb, string $alias = 't'): void {
-		$today = date('Y-m-d');
+	public static function excludeScheduledFuture(IQueryBuilder $qb, string $alias = 't', ?string $today = null): void {
+		// "Arrived" on the user's calendar (UserClock), which callers pass;
+		// the server's UTC date counted a Los Angeles user's tomorrow every
+		// evening and left out an Auckland user's today until noon (#399)
+		$today = $today ?? date('Y-m-d');
 		$qb->andWhere(
 			$qb->expr()->orX(
 				$qb->expr()->neq("{$alias}.status", $qb->createNamedParameter('scheduled')),
@@ -322,6 +325,7 @@ final class ReportScope {
 		string $endDate,
 		?array $visibleAccountIds,
 		bool $excludeTransfers,
+		?string $today = null,
 	): string {
 		$qb->from('budget_transactions', 't')
 			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
@@ -336,7 +340,7 @@ final class ReportScope {
 		$qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
 			->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
 
-		self::excludeScheduledFuture($qb);
+		self::excludeScheduledFuture($qb, 't', $today);
 		if ($excludeTransfers) {
 			$qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
 		}
@@ -375,11 +379,12 @@ final class ReportScope {
 		?array $visibleAccountIds,
 		bool $excludeTransfers,
 		callable $build,
+		?string $today = null,
 	): array {
-		$run = static function (bool $splitHalf) use ($db, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $excludeTransfers, $build): array {
+		$run = static function (bool $splitHalf) use ($db, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $excludeTransfers, $build, $today): array {
 			$qb = $db->getQueryBuilder();
 			$alloc = self::scopeReportHalf(
-				$qb, $splitHalf, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $excludeTransfers
+				$qb, $splitHalf, $userId, $accountId, $startDate, $endDate, $visibleAccountIds, $excludeTransfers, $today
 			);
 			$build($qb, $alloc);
 

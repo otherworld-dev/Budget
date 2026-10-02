@@ -57,16 +57,15 @@ class RecurringIncomeService extends AbstractCrudService {
 	}
 
 	public function findExpectedThisMonth(string $userId): array {
-		$startDate = date('Y-m-01');
-		$endDate = date('Y-m-t');
-		return $this->mapper->findExpectedInRange($userId, $startDate, $endDate);
+		$today = new \DateTimeImmutable($this->today($userId));
+		return $this->mapper->findExpectedInRange($userId, $today->format('Y-m-01'), $today->format('Y-m-t'));
 	}
 
 	/**
 	 * Find upcoming income sorted by expected date.
 	 */
 	public function findUpcoming(string $userId, int $days = 30): array {
-		return $this->mapper->findUpcoming($userId, $days);
+		return $this->mapper->findUpcoming($userId, $days, $this->today($userId));
 	}
 
 	public function create(
@@ -500,8 +499,11 @@ class RecurringIncomeService extends AbstractCrudService {
 		$receivedThisMonth = 0;
 		$byFrequency = [];
 
-		$startOfMonth = date('Y-m-01');
-		$endOfMonth = date('Y-m-t');
+		// The user's month: on the server's UTC date the cards still counted
+		// last month for the first hours of a month east of UTC
+		$thisMonth = new \DateTimeImmutable($this->today($userId));
+		$startOfMonth = $thisMonth->format('Y-m-01');
+		$endOfMonth = $thisMonth->format('Y-m-t');
 
 		foreach ($incomes as $income) {
 			$monthlyEquiv = $this->toBase(

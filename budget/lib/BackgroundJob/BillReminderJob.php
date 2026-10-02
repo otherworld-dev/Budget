@@ -71,7 +71,7 @@ class BillReminderJob extends TimedJob {
 					$autoPayFailedCount += $autoPay['failed'];
 
 					// Process auto-create for recurring income
-					$autoCreate = $this->processAutoCreateIncomeForUser($userId, $incomeMapper, $incomeService, $notificationManager, $settingService, $logger);
+					$autoCreate = $this->processAutoCreateIncomeForUser($userId, $today->format('Y-m-d'), $incomeMapper, $incomeService, $notificationManager, $settingService, $logger);
 					$autoCreateIncomeCount += $autoCreate['success'];
 					$autoCreateIncomeFailedCount += $autoCreate['failed'];
 
@@ -417,6 +417,7 @@ class BillReminderJob extends TimedJob {
 	 */
 	private function processAutoCreateIncomeForUser(
 		string $userId,
+		string $today,
 		RecurringIncomeMapper $incomeMapper,
 		RecurringIncomeService $incomeService,
 		INotificationManager $notificationManager,
@@ -427,7 +428,7 @@ class BillReminderJob extends TimedJob {
 		$failedCount = 0;
 
 		try {
-			$dueIncome = $incomeMapper->findDueForAutoCreate($userId);
+			$dueIncome = $incomeMapper->findDueForAutoCreate($userId, $today);
 			$incomeService->enrichWithCurrency($dueIncome, $userId);
 
 			foreach ($dueIncome as $income) {

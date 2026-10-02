@@ -17,6 +17,7 @@ use OCA\Budget\Service\CurrencyConversionService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\MoneyCalculator;
 use OCA\Budget\Service\RecurringBudgetService;
+use OCA\Budget\Service\UserClock;
 
 /**
  * Aggregates data to generate summary reports.
@@ -49,6 +50,7 @@ class ReportAggregator {
 		private TransactionReportQueries $reportQueries,
 		private ?GranularShareService $granularShareService = null,
 		private ?CategoryMuteMapper $categoryMuteMapper = null,
+		private ?UserClock $userClock = null,
 	) {
 		$this->accountMapper = $accountMapper;
 		$this->transactionMapper = $transactionMapper;
@@ -165,7 +167,8 @@ class ReportAggregator {
 		}
 
 		// Get future transaction adjustments to calculate balance as of today
-		$today = date('Y-m-d');
+		// (the user's: a purchase dated it is already in the stored balance)
+		$today = $this->userClock?->today($userId) ?? date('Y-m-d');
 		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
 
 		// Money accumulates through MoneyCalculator, never float += (#274),
@@ -278,7 +281,8 @@ class ReportAggregator {
 				$startDate,
 				$endDate,
 				$accountId,
-				$accountId === null
+				$accountId === null,
+				$today
 			);
 			foreach ($excludedByAccount as $accId => $excluded) {
 				$excludedIncome = $excluded['income'];

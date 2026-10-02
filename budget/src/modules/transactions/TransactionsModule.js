@@ -1884,7 +1884,9 @@ export default class TransactionsModule {
     async createReconciliationAdjustment(type, amount) {
         if (!this.reconcileSession) return;
         const accountId = this.reconcileSession.session.accountId;
-        const today = new Date().toISOString().split('T')[0];
+        // The user's local date: toISOString()'s UTC one is tomorrow every
+        // evening west of UTC, which stored the adjustment scheduled
+        const today = formatters.getTodayDateString();
 
         try {
             const created = await apiFetch('/apps/budget/api/transactions', {

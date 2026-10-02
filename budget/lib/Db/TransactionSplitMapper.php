@@ -8,13 +8,17 @@ use OCA\Budget\Service\MoneyCalculator;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\QBMapper;
 use OCP\DB\QueryBuilder\IQueryBuilder;
+use OCA\Budget\Service\UserClock;
 use OCP\IDBConnection;
 
 /**
  * @extends QBMapper<TransactionSplit>
  */
 class TransactionSplitMapper extends QBMapper {
-	public function __construct(IDBConnection $db) {
+	public function __construct(
+		IDBConnection $db,
+		private ?UserClock $userClock = null,
+	) {
 		parent::__construct($db, 'budget_tx_splits', TransactionSplit::class);
 	}
 
@@ -242,7 +246,8 @@ class TransactionSplitMapper extends QBMapper {
 			->andWhere(ReportScope::splitParentPredicate($qb))
 			->groupBy('s.category_id')
 			->addGroupBy($qb->createFunction($bucketExpr));
-		ReportScope::excludeScheduledFuture($qb);
+		// "Arrived" on the user's calendar, not the server's
+		ReportScope::excludeScheduledFuture($qb, 't', $this->userClock?->today($userId));
 
 		$result = $qb->executeQuery();
 		$totals = [];

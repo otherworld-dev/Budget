@@ -46,6 +46,7 @@ class AccountService extends AbstractCrudService {
 		?BudgetCarryoverService $carryoverService = null,
 		private ?BillMapper $billMapper = null,
 		private ?PensionRecurringContributionMapper $pensionRecurringMapper = null,
+		private ?UserClock $userClock = null,
 	) {
 		$this->mapper = $mapper;
 		$this->transactionMapper = $transactionMapper;
@@ -326,6 +327,15 @@ class AccountService extends AbstractCrudService {
 	}
 
 	/**
+	 * Today in the user's own calendar. A purchase dated their today is
+	 * stored cleared; judged against the server's UTC date, the "balance as
+	 * of today" took it off again until UTC midnight caught up (#399).
+	 */
+	private function today(string $userId): string {
+		return $this->userClock?->today($userId) ?? date('Y-m-d');
+	}
+
+	/**
 	 * Get a single account with balance adjusted to exclude future transactions.
 	 *
 	 * @return array Account data array with adjusted balance
@@ -334,7 +344,7 @@ class AccountService extends AbstractCrudService {
 		$account = $this->find($id, $userId);
 
 		// Get future transaction adjustment for this account
-		$today = date('Y-m-d');
+		$today = $this->today($userId);
 		$futureChange = $this->transactionMapper->getNetChangeAfterDate($id, $today);
 
 		// Calculate balance as of today (stored balance minus future transactions),
@@ -366,7 +376,7 @@ class AccountService extends AbstractCrudService {
 	 */
 	public function findAllWithCurrentBalances(string $userId): array {
 		// Get future transaction adjustments for all accounts in one query
-		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, date('Y-m-d'));
+		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $this->today($userId));
 		$baseCurrency = $this->conversionService->getBaseCurrency($userId);
 		$accounts = $this->findAll($userId);
 		$scheduled = $this->transactionMapper->getScheduledNetChangeForAccounts(
@@ -393,7 +403,7 @@ class AccountService extends AbstractCrudService {
 		if ($ids === []) {
 			return [];
 		}
-		$futureChanges = $this->transactionMapper->getNetChangeAfterDateForAccounts($ids, date('Y-m-d'));
+		$futureChanges = $this->transactionMapper->getNetChangeAfterDateForAccounts($ids, $this->today($userId));
 		$baseCurrency = $this->conversionService->getBaseCurrency($userId);
 
 		$scheduled = $this->transactionMapper->getScheduledNetChangeForAccounts($ids);
@@ -521,7 +531,7 @@ class AccountService extends AbstractCrudService {
 		$accountsWithAdjustedBalance = [];
 
 		// Get future transaction adjustments for owned accounts
-		$today = date('Y-m-d');
+		$today = $this->today($userId);
 		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
 
 		// Get future transaction adjustments for shared accounts
@@ -577,8 +587,9 @@ class AccountService extends AbstractCrudService {
 	 */
 	public function getBalanceHistory(int $accountId, string $userId, int $days = 30): array {
 		$account = $this->find($accountId, $userId);
-		$endDate = date('Y-m-d');
-		$startDate = date('Y-m-d', strtotime("-{$days} days"));
+		$today = new \DateTimeImmutable($this->today($userId));
+		$endDate = $today->format('Y-m-d');
+		$startDate = $today->modify("-{$days} days")->format('Y-m-d');
 
 		// Single aggregated query for daily balance changes
 		$dailyChanges = $this->transactionMapper->getDailyBalanceChanges($accountId, $startDate, $endDate);
@@ -588,7 +599,7 @@ class AccountService extends AbstractCrudService {
 
 		// Work backwards from current balance - O(days) instead of O(days × transactions)
 		for ($i = 0; $i < $days; $i++) {
-			$date = date('Y-m-d', strtotime("-{$i} days"));
+			$date = $today->modify("-{$i} days")->format('Y-m-d');
 
 			// Reverse the day's net change to get the balance at start of day
 			if (isset($dailyChanges[$date])) {
@@ -621,9 +632,9 @@ class AccountService extends AbstractCrudService {
 
 		[$monthStart, $monthEnd] = $this->carryoverService !== null
 			? $this->carryoverService->budgetMonthRange($userId, $this->carryoverService->currentBudgetMonth($userId))
-			: [date('Y-m-01'), date('Y-m-t')];
+			: [substr($this->today($userId), 0, 8) . '01', (new \DateTimeImmutable($this->today($userId)))->format('Y-m-t')];
 
-		$metrics = $this->transactionMapper->getAccountMetrics($accountId, $monthStart, $monthEnd);
+		$metrics = $this->transactionMapper->getAccountMetrics($accountId, $monthStart, $monthEnd, $this->today($userId));
 
 		return [
 			'totalTransactions' => $metrics['count'],
@@ -678,7 +689,7 @@ class AccountService extends AbstractCrudService {
 
 		// Calculate balance as of the statement date (excluding transactions after that date).
 		// If no date provided, use today.
-		$asOfDate = $statementDate ?: date('Y-m-d');
+		$asOfDate = $statementDate ?: $this->today($userId);
 		$scale = Currency::decimalsFor($account->getCurrency());
 		$futureChange = $this->transactionMapper->getNetChangeAfterDate($accountId, $asOfDate);
 		$storedBalance = (string)$account->getBalance();

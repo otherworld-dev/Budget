@@ -8,6 +8,7 @@ use OCA\Budget\Service\MoneyCalculator;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\QBMapper;
 use OCP\DB\QueryBuilder\IQueryBuilder;
+use OCA\Budget\Service\UserClock;
 use OCP\IDBConnection;
 
 /**
@@ -16,9 +17,21 @@ use OCP\IDBConnection;
 class TransactionMapper extends QBMapper {
 	private QueryFilterBuilder $filterBuilder;
 
-	public function __construct(IDBConnection $db, ?QueryFilterBuilder $filterBuilder = null) {
+	public function __construct(
+		IDBConnection $db,
+		?QueryFilterBuilder $filterBuilder = null,
+		private ?UserClock $userClock = null,
+	) {
 		parent::__construct($db, 'budget_transactions', Transaction::class);
 		$this->filterBuilder = $filterBuilder ?? new QueryFilterBuilder($db);
+	}
+
+	/**
+	 * The date a report judges "arrived" by: the user's own (UserClock),
+	 * null for ReportScope's server-date fallback when there is no user.
+	 */
+	private function reportToday(?string $userId): ?string {
+		return $userId !== null && $userId !== '' ? $this->userClock?->today($userId) : null;
 	}
 
 	/**
@@ -483,7 +496,7 @@ class TransactionMapper extends QBMapper {
 		// below — the direct/split partition directRowPredicate() explains (#360).
 		$qb->andWhere(ReportScope::directRowPredicate($qb));
 
-		ReportScope::excludeScheduledFuture($qb);
+		ReportScope::excludeScheduledFuture($qb, 't', $this->reportToday($userId));
 		ReportScope::excludeReportExcludedAccounts($qb);
 
 		$result = $qb->executeQuery();
@@ -517,7 +530,7 @@ class TransactionMapper extends QBMapper {
 			->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
 			->andWhere(ReportScope::splitParentPredicate($qb));
 
-		ReportScope::excludeScheduledFuture($qb);
+		ReportScope::excludeScheduledFuture($qb, 't', $this->reportToday($userId));
 		ReportScope::excludeReportExcludedAccounts($qb);
 
 		$result = $qb->executeQuery();
@@ -579,7 +592,7 @@ class TransactionMapper extends QBMapper {
 		// below — the direct/split partition directRowPredicate() explains (#360).
 		$qb->andWhere(ReportScope::directRowPredicate($qb));
 
-		ReportScope::excludeScheduledFuture($qb);
+		ReportScope::excludeScheduledFuture($qb, 't', $this->reportToday($userId));
 		ReportScope::excludeReportExcludedAccounts($qb);
 
 		$qb->groupBy($qb->createFunction($bucketExpr))
@@ -638,7 +651,7 @@ class TransactionMapper extends QBMapper {
 			$qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
 		}
 
-		ReportScope::excludeScheduledFuture($qb);
+		ReportScope::excludeScheduledFuture($qb, 't', $this->reportToday($userId));
 		ReportScope::excludeReportExcludedAccounts($qb);
 
 		$qb->groupBy($qb->createFunction($bucketExpr));
@@ -738,7 +751,7 @@ class TransactionMapper extends QBMapper {
 		// below — the direct/split partition directRowPredicate() explains (#360).
 		$qb->andWhere(ReportScope::directRowPredicate($qb));
 
-		ReportScope::excludeScheduledFuture($qb);
+		ReportScope::excludeScheduledFuture($qb, 't', $this->reportToday($userId));
 		ReportScope::excludeReportExcludedAccounts($qb);
 
 		// The id tiebreaker matters: without it, which of several same-day rows
@@ -783,7 +796,7 @@ class TransactionMapper extends QBMapper {
 			->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
 			->andWhere(ReportScope::splitParentPredicate($qb));
 
-		ReportScope::excludeScheduledFuture($qb);
+		ReportScope::excludeScheduledFuture($qb, 't', $this->reportToday($userId));
 		ReportScope::excludeReportExcludedAccounts($qb);
 
 		// Every selected column is grouped explicitly rather than leaning on the
@@ -834,7 +847,7 @@ class TransactionMapper extends QBMapper {
 		// parts is counted once.
 		$qb->andWhere(ReportScope::directRowPredicate($qb));
 
-		ReportScope::excludeScheduledFuture($qb);
+		ReportScope::excludeScheduledFuture($qb, 't', $this->reportToday($userId));
 
 		$qb->groupBy('t.category_id');
 
@@ -882,7 +895,7 @@ class TransactionMapper extends QBMapper {
 		$qb->andWhere($qb->expr()->isNotNull('s.category_id'))
 			->andWhere(ReportScope::splitParentPredicate($qb));
 
-		ReportScope::excludeScheduledFuture($qb);
+		ReportScope::excludeScheduledFuture($qb, 't', $this->reportToday($userId));
 
 		$qb->groupBy('s.category_id');
 
@@ -1224,7 +1237,7 @@ class TransactionMapper extends QBMapper {
 			$qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)));
 		}
 
-		ReportScope::excludeScheduledFuture($qb);
+		ReportScope::excludeScheduledFuture($qb, 't', $this->reportToday($userId));
 		ReportScope::excludeReportExcludedCategories($qb, 'c', $userId);
 
 		if ($accountId !== null) {
@@ -1307,7 +1320,7 @@ class TransactionMapper extends QBMapper {
 			$qb->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($transactionType)));
 		}
 
-		ReportScope::excludeScheduledFuture($qb);
+		ReportScope::excludeScheduledFuture($qb, 't', $this->reportToday($userId));
 		ReportScope::excludeReportExcludedCategories($qb, 'c', $userId);
 
 		if ($accountId !== null) {
@@ -1393,7 +1406,7 @@ class TransactionMapper extends QBMapper {
 		$qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
 			->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
 
-		ReportScope::excludeScheduledFuture($qb);
+		ReportScope::excludeScheduledFuture($qb, 't', $this->reportToday($userId));
 
 		// Apply tag filtering if requested
 		ReportScope::applyTagFilter($qb, $tagIds, $includeUntagged);
@@ -1454,7 +1467,7 @@ class TransactionMapper extends QBMapper {
 			->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
 			->andWhere($qb->expr()->isNotNull('t.linked_transaction_id'));
 
-		ReportScope::excludeScheduledFuture($qb);
+		ReportScope::excludeScheduledFuture($qb, 't', $this->reportToday($userId));
 		ReportScope::applyTagFilter($qb, $tagIds, $includeUntagged);
 
 		$result = $qb->executeQuery();
@@ -1504,7 +1517,7 @@ class TransactionMapper extends QBMapper {
 			->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
 			->andWhere($qb->expr()->isNotNull('t.linked_transaction_id'));
 
-		ReportScope::excludeScheduledFuture($qb);
+		ReportScope::excludeScheduledFuture($qb, 't', $this->reportToday($userId));
 		ReportScope::applyTagFilter($qb, $tagIds, $includeUntagged);
 
 		$qb->groupBy('t.account_id');
@@ -1604,7 +1617,7 @@ class TransactionMapper extends QBMapper {
 			$qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
 		}
 
-		ReportScope::excludeScheduledFuture($qb);
+		ReportScope::excludeScheduledFuture($qb, 't', $this->reportToday($userId));
 		if ($excludeReportCategories) {
 			ReportScope::leftJoinExcludeReportCategories($qb, 't', 'exc', $userId);
 		}
@@ -1703,7 +1716,7 @@ class TransactionMapper extends QBMapper {
 			$qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
 		}
 
-		ReportScope::excludeScheduledFuture($qb);
+		ReportScope::excludeScheduledFuture($qb, 't', $this->reportToday($userId));
 		if ($excludeReportCategories) {
 			ReportScope::leftJoinExcludeReportCategories($qb, 's', 'exc', $userId);
 		}
@@ -1739,7 +1752,7 @@ class TransactionMapper extends QBMapper {
 	 * @param int[] $categoryIds
 	 * @return array<int, array{income: float, expenses: float}> accountId => totals
 	 */
-	public function getCategoryTotalsByAccount(array $categoryIds, string $startDate, string $endDate, ?int $accountId = null, bool $excludeDeductedTransfers = false): array {
+	public function getCategoryTotalsByAccount(array $categoryIds, string $startDate, string $endDate, ?int $accountId = null, bool $excludeDeductedTransfers = false, ?string $today = null): array {
 		if (empty($categoryIds)) {
 			return [];
 		}
@@ -1772,7 +1785,7 @@ class TransactionMapper extends QBMapper {
 			$qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
 		}
 
-		ReportScope::excludeScheduledFuture($qb);
+		ReportScope::excludeScheduledFuture($qb, 't', $today);
 
 		// Leave the transactions the companion query speaks for to it -- the
 		// direct/split partition directRowPredicate() explains (#360).
@@ -1793,7 +1806,7 @@ class TransactionMapper extends QBMapper {
 		}
 
 		foreach ($this->getSplitCategoryTotalsByAccount(
-			$categoryIds, $startDate, $endDate, $accountId, $excludeDeductedTransfers
+			$categoryIds, $startDate, $endDate, $accountId, $excludeDeductedTransfers, $today
 		) as $splitAccountId => $splitTotals) {
 			if (!isset($totals[$splitAccountId])) {
 				$totals[$splitAccountId] = ['income' => 0.0, 'expenses' => 0.0];
@@ -1828,6 +1841,7 @@ class TransactionMapper extends QBMapper {
 		string $endDate,
 		?int $accountId,
 		bool $excludeDeductedTransfers,
+		?string $today = null,
 	): array {
 		$qb = $this->db->getQueryBuilder();
 
@@ -1858,7 +1872,7 @@ class TransactionMapper extends QBMapper {
 			$qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
 		}
 
-		ReportScope::excludeScheduledFuture($qb);
+		ReportScope::excludeScheduledFuture($qb, 't', $today);
 
 		$qb->groupBy('t.account_id');
 
@@ -2417,7 +2431,7 @@ class TransactionMapper extends QBMapper {
 	 *
 	 * @return array{count: int, average: float, monthIncome: float, monthExpenses: float}
 	 */
-	public function getAccountMetrics(int $accountId, string $monthStart, string $monthEnd): array {
+	public function getAccountMetrics(int $accountId, string $monthStart, string $monthEnd, ?string $today = null): array {
 		// Count + average absolute amount over the whole account
 		$qb = $this->db->getQueryBuilder();
 		$qb->selectAlias($qb->func()->count('t.id'), 'cnt')
@@ -2431,8 +2445,8 @@ class TransactionMapper extends QBMapper {
 		return [
 			'count' => (int)($row['cnt'] ?? 0),
 			'average' => (float)($row['avg_amt'] ?? 0),
-			'monthIncome' => $this->sumAccountByTypeInRange($accountId, 'credit', $monthStart, $monthEnd),
-			'monthExpenses' => $this->sumAccountByTypeInRange($accountId, 'debit', $monthStart, $monthEnd),
+			'monthIncome' => $this->sumAccountByTypeInRange($accountId, 'credit', $monthStart, $monthEnd, $today),
+			'monthExpenses' => $this->sumAccountByTypeInRange($accountId, 'debit', $monthStart, $monthEnd, $today),
 		];
 	}
 
@@ -2443,7 +2457,7 @@ class TransactionMapper extends QBMapper {
 	 * income) before any money had moved, unlike the balance beside it and
 	 * every report.
 	 */
-	private function sumAccountByTypeInRange(int $accountId, string $type, string $startDate, string $endDate): float {
+	private function sumAccountByTypeInRange(int $accountId, string $type, string $startDate, string $endDate, ?string $today = null): float {
 		$qb = $this->db->getQueryBuilder();
 		$qb->selectAlias($qb->func()->sum('t.amount'), 'total')
 			->from($this->getTableName(), 't')
@@ -2451,7 +2465,7 @@ class TransactionMapper extends QBMapper {
 			->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($type)))
 			->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
 			->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-		ReportScope::excludeScheduledFuture($qb);
+		ReportScope::excludeScheduledFuture($qb, 't', $today);
 		$result = $qb->executeQuery();
 		$total = $result->fetchOne();
 		$result->closeCursor();
@@ -2853,7 +2867,7 @@ class TransactionMapper extends QBMapper {
 		// carried its whole budget forward (#341). applyUserScope also drops
 		// report-excluded accounts, as the explicit call here used to.
 		ReportScope::applyUserScope($qb, $userId, $visibleAccountIds);
-		ReportScope::excludeScheduledFuture($qb);
+		ReportScope::excludeScheduledFuture($qb, 't', $this->reportToday($userId));
 
 		$result = $qb->executeQuery();
 		$totals = [];
@@ -2950,12 +2964,14 @@ class TransactionMapper extends QBMapper {
 	 *
 	 * @return Transaction[]
 	 */
-	public function findScheduledDueForTransition(): array {
+	public function findScheduledDueForTransition(?string $latest = null): array {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')
 			->from($this->getTableName())
 			->where($qb->expr()->eq('status', $qb->createNamedParameter('scheduled')))
-			->andWhere($qb->expr()->lte('date', $qb->createNamedParameter(date('Y-m-d'))))
+			// $latest: the furthest-ahead date any user can be on. Each row is
+			// then held to its own owner's date by the caller.
+			->andWhere($qb->expr()->lte('date', $qb->createNamedParameter($latest ?? date('Y-m-d'))))
 			// A bill's pre-booked row is the bill's to settle (Mark Paid,
 			// auto-pay, an import match). Cleared here on its due date, it
 			// booked the money while the bill stayed unpaid, and settling the
