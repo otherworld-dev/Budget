@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-02 19:48+0000\n"
-"PO-Revision-Date: 2026-10-02 18:21+0000\n"
+"PO-Revision-Date: 2026-10-02 22:28+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -2014,10 +2014,8 @@ msgstr "Der gespeicherte Bericht konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/SavedReportController.php:93
 #: /app/src/modules/reports/ReportsModule.js:411
-#, fuzzy
-#| msgid "Failed to delete share"
 msgid "Failed to delete saved report"
-msgstr "Fehler beim Löschen des Anteils"
+msgstr "Der gespeicherte Bericht konnte nicht gelöscht werden"
 
 #: /app/lib/Controller/SettingController.php:103
 msgid "Failed to retrieve settings"
@@ -2034,10 +2032,9 @@ msgstr "Einstellung konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/SettingController.php:158
 #: /app/lib/Controller/SettingController.php:212
-#, fuzzy, php-format
-#| msgid "Invalid sort code: %1$s"
+#, php-format
 msgid "Invalid receipts folder: %1$s"
-msgstr "Ungültige Bankleitzahl: %1$s"
+msgstr "Ungültiger Belegordner: %1$s"
 
 #: /app/lib/Controller/SettingController.php:183
 msgid "Settings updated successfully"
@@ -2144,16 +2141,12 @@ msgid "Budget app initialized successfully"
 msgstr "Initialisierung der Budget App erfolgreich"
 
 #: /app/lib/Controller/SetupController.php:70
-#, fuzzy
-#| msgid "Failed to share budget"
 msgid "Failed to initialize budget app"
-msgstr "Fehler beim Teilen des Budgets"
+msgstr "Die Budget-App konnte nicht initialisiert werden"
 
 #: /app/lib/Controller/SetupController.php:88
-#, fuzzy
-#| msgid "Failed to get auth status"
 msgid "Failed to get setup status"
-msgstr "Der Authentifizierungsstatus konnte nicht ermittelt werden"
+msgstr "Der Einrichtungsstatus konnte nicht abgerufen werden"
 
 #: /app/lib/Controller/SetupController.php:102
 #, php-format
