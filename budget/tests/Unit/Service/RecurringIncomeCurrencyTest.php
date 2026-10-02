@@ -100,6 +100,27 @@ class RecurringIncomeCurrencyTest extends TestCase {
 		$this->assertSame('GBP', $summary['baseCurrency']);
 	}
 
+	/**
+	 * The dashboard's Income Tracking tile offers an account; its headline
+	 * must then be that account's income only.
+	 */
+	public function testTheSummaryCanBeHeldToOneAccount(): void {
+		$received = $this->income(5, 50.0, 2);
+		$received->setIsActive(false);
+		$received->setLastReceivedDate(date('Y-m-d'));
+		$this->mapper->method('findActive')->willReturn([
+			$this->income(1, 2000.0, 1),
+			$this->income(2, 1000.0, 2),
+		]);
+		$this->mapper->method('findAll')->willReturn([$received, $this->income(1, 2000.0, 1)]);
+
+		$summary = $this->service->getMonthlySummary('alice', 2);
+
+		$this->assertEqualsWithDelta(500.0, $summary['monthlyTotal'], 0.001);
+		$this->assertSame(1, $summary['activeCount']);
+		$this->assertSame(1, $summary['receivedThisMonth']);
+	}
+
 	public function testEachIncomeCarriesItsAccountsCurrency(): void {
 		$incomes = $this->service->enrichWithCurrency([
 			$this->income(1, 10.0, 2),

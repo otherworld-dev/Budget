@@ -478,8 +478,10 @@ class RecurringIncomeService extends AbstractCrudService {
 	/**
 	 * Get monthly summary of recurring income.
 	 */
-	public function getMonthlySummary(string $userId): array {
-		$incomes = $this->findActive($userId);
+	public function getMonthlySummary(string $userId, ?int $accountId = null): array {
+		// Held to one account for a dashboard tile set to it
+		$inAccount = static fn (RecurringIncome $i) => $accountId === null || $i->getAccountId() === $accountId;
+		$incomes = array_values(array_filter($this->findActive($userId), $inAccount));
 		// Each income is in its account's currency; the totals are in the
 		// user's base one, as the Bills page's are. Adding them as they
 		// were put euros and dollars into a pound total.
@@ -520,7 +522,7 @@ class RecurringIncomeService extends AbstractCrudService {
 
 		// Every income, not just active ones: receiving a one-time income
 		// completes it, which left it out of the count the moment it arrived
-		foreach ($this->mapper->findAll($userId) as $income) {
+		foreach (array_filter($this->mapper->findAll($userId), $inAccount) as $income) {
 			$lastReceived = $income->getLastReceivedDate();
 			if ($lastReceived && $lastReceived >= $startOfMonth && $lastReceived <= $endOfMonth) {
 				$receivedThisMonth++;

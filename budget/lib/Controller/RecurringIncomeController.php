@@ -395,12 +395,12 @@ class RecurringIncomeController extends Controller {
 	}
 
 	/**
-	 * Get monthly summary of recurring income
+	 * Get monthly summary of recurring income, of one account's when asked
 	 * @NoAdminRequired
 	 */
-	public function summary(): DataResponse {
+	public function summary(?int $accountId = null): DataResponse {
 		try {
-			$summary = $this->service->getMonthlySummary($this->getEffectiveUserId());
+			$summary = $this->service->getMonthlySummary($this->getEffectiveUserId(), $accountId);
 			return new DataResponse($summary);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to retrieve income summary'));
