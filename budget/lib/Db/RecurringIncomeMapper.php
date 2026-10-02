@@ -207,6 +207,25 @@ class RecurringIncomeMapper extends QBMapper {
 	}
 
 	/**
+	 * Take deleted categories off every recurring income that names them,
+	 * whoever owns it. Left in place, every payment it booked carried the
+	 * dead id and showed in no category, not even under Uncategorized.
+	 *
+	 * @param int[] $categoryIds
+	 */
+	public function clearCategory(array $categoryIds): int {
+		if (empty($categoryIds)) {
+			return 0;
+		}
+		$qb = $this->db->getQueryBuilder();
+		$qb->update($this->getTableName())
+			->set('category_id', $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
+			->where($qb->expr()->in('category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)));
+
+		return $qb->executeStatement();
+	}
+
+	/**
 	 * Delete all recurring income for a user
 	 *
 	 * @param string $userId

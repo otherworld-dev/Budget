@@ -180,6 +180,28 @@ class Bill extends Entity implements JsonSerializable {
 		$this->setSplitTemplate(empty($splits) ? null : json_encode(array_values($splits)));
 	}
 
+	/**
+	 * A deleted category's part of the split template becomes uncategorised.
+	 * Left naming it, every split failed and the whole payment was booked
+	 * unsplit and uncategorised, the surviving parts' share included.
+	 *
+	 * @return bool whether the template named the category
+	 */
+	public function dropSplitTemplateCategory(int $categoryId): bool {
+		$parts = $this->getSplitTemplateArray();
+		$changed = false;
+		foreach ($parts as $i => $part) {
+			if (is_array($part) && isset($part['categoryId']) && (int)$part['categoryId'] === $categoryId) {
+				$parts[$i]['categoryId'] = null;
+				$changed = true;
+			}
+		}
+		if ($changed) {
+			$this->setSplitTemplateArray($parts);
+		}
+		return $changed;
+	}
+
 	public function jsonSerialize(): array {
 		return [
 			'id' => $this->getId(),

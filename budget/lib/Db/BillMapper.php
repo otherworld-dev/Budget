@@ -258,6 +258,51 @@ class BillMapper extends QBMapper {
 	}
 
 	/**
+	 * Take deleted categories off every bill that names them, whoever owns
+	 * the bill: a shared category can be used by the recipients' bills too.
+	 * Left in place, every payment the bill booked carried the dead id.
+	 *
+	 * @param int[] $categoryIds
+	 */
+	public function clearCategory(array $categoryIds): int {
+		if (empty($categoryIds)) {
+			return 0;
+		}
+		$qb = $this->db->getQueryBuilder();
+		$qb->update($this->getTableName())
+			->set('category_id', $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
+			->where($qb->expr()->in('category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)));
+
+		return $qb->executeStatement();
+	}
+
+	/**
+	 * Make a deleted category's part of every split template uncategorised,
+	 * see Bill::dropSplitTemplateCategory(). The template is JSON, so a LIKE
+	 * on the id narrows the rows and the decode decides.
+	 *
+	 * @return int how many bills changed
+	 */
+	public function clearSplitTemplateCategory(int $categoryId): int {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->isNotNull('split_template'))
+			->andWhere($qb->expr()->like('split_template', $qb->createNamedParameter(
+				'%' . $this->db->escapeLikeParameter((string)$categoryId) . '%'
+			)));
+
+		$changed = 0;
+		foreach ($this->findEntities($qb) as $bill) {
+			if ($bill->dropSplitTemplateCategory($categoryId)) {
+				$this->update($bill);
+				$changed++;
+			}
+		}
+		return $changed;
+	}
+
+	/**
 	 * Delete all bills for a user
 	 *
 	 * @param string $userId
