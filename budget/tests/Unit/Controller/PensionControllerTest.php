@@ -29,6 +29,8 @@ class PensionControllerTest extends TestCase {
 	private IRequest $request;
 	private LoggerInterface $logger;
 	private IL10N $l;
+	/** @var PensionRecurringService&\PHPUnit\Framework\MockObject\MockObject */
+	private $recurringService;
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
 		$this->service = $this->createMock(PensionService::class);
@@ -52,7 +54,7 @@ class PensionControllerTest extends TestCase {
 		$granularShareService->method('canAccess')->willReturn(true);
 		$accountManager = $this->createMock(IAccountManager::class);
 		$userManager = $this->createMock(IUserManager::class);
-		$recurringService = $this->createMock(PensionRecurringService::class);
+		$this->recurringService = $this->createMock(PensionRecurringService::class);
 
 		$this->controller = new PensionController(
 			$this->request,
@@ -65,7 +67,7 @@ class PensionControllerTest extends TestCase {
 			$this->l,
 			'user1',
 			$this->logger,
-			$recurringService
+			$this->recurringService
 		);
 	}
 
@@ -409,6 +411,37 @@ class PensionControllerTest extends TestCase {
 		$response = $this->controller->update(1);
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testCreateContributionShowsWhyAnAccountIsRefused(): void {
+		$this->mockInput('{"amount": 200, "date": "2026-10-01", "sourceAccountId": 9}');
+		$this->service->method('createContributionWithTransfer')
+			->willThrowException(new \InvalidArgumentException('Joint is shared with you read-only'));
+
+		$response = $this->controller->createContribution(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Joint is shared with you read-only', $response->getData()['error']);
+	}
+
+	public function testCreateWithdrawalShowsWhyAnAccountIsRefused(): void {
+		$this->mockInput('{"amount": 200, "date": "2026-10-01", "destAccountId": 9}');
+		$this->service->method('createWithdrawalWithTransfer')
+			->willThrowException(new \InvalidArgumentException('Joint is shared with you read-only'));
+
+		$response = $this->controller->createWithdrawal(1);
+
+		$this->assertSame('Joint is shared with you read-only', $response->getData()['error']);
+	}
+
+	public function testUpdateShowsWhyATypeChangeIsRefused(): void {
+		$this->mockInput(json_encode(['type' => 'defined_benefit']));
+		$this->service->method('update')->willThrowException(new \InvalidArgumentException('Delete its scheduled contributions first'));
+
+		$response = $this->controller->update(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Delete its scheduled contributions first', $response->getData()['error']);
 	}
 
 	public function testUpdateServiceException(): void {
@@ -795,6 +828,60 @@ class PensionControllerTest extends TestCase {
 		$response = $this->controller->combinedProjection(40);
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	// ── scheduled contributions ─────────────────────────────────────
+
+	public function testPostRecurringNamesTheOccurrenceThePageShowed(): void {
+		$this->mockInput('{"expectedDate": "2026-10-01"}');
+		$recur = new \OCA\Budget\Db\PensionRecurringContribution();
+		$this->recurringService->expects($this->once())->method('postNow')
+			->with(7, 'user1', '2026-10-01')->willReturn($recur);
+
+		$response = $this->controller->postRecurring(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testPostRecurringShowsWhyItWasRefused(): void {
+		$this->mockInput('{"expectedDate": "2026-10-01"}');
+		$this->recurringService->method('postNow')
+			->willThrowException(new \InvalidArgumentException('This contribution was already posted. Reload the page to see the next one.'));
+
+		$response = $this->controller->postRecurring(7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('This contribution was already posted. Reload the page to see the next one.', $response->getData()['error']);
+	}
+
+	public function testUndoPostRecurringRevertsThroughTheService(): void {
+		$recur = new \OCA\Budget\Db\PensionRecurringContribution();
+		$this->recurringService->expects($this->once())->method('undoPost')->with(7, 'user1')->willReturn($recur);
+
+		$response = $this->controller->undoPostRecurring(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testCreateRecurringShowsWhyAFrequencyIsRefused(): void {
+		$this->mockInput('{"amount": 200, "frequency": "monthy", "nextDueDate": "2026-11-01"}');
+		$this->recurringService->method('create')
+			->willThrowException(new \InvalidArgumentException('Choose how often the contribution is made'));
+
+		$response = $this->controller->createRecurring(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Choose how often the contribution is made', $response->getData()['error']);
+	}
+
+	public function testUpdateRecurringShowsWhyItWasRefused(): void {
+		$this->mockInput('{"frequency": "fortnightly"}');
+		$this->recurringService->method('update')
+			->willThrowException(new \InvalidArgumentException('Choose how often the contribution is made'));
+
+		$response = $this->controller->updateRecurring(7);
+
+		$this->assertSame('Choose how often the contribution is made', $response->getData()['error']);
 	}
 
 	// ── null userId ─────────────────────────────────────────────────

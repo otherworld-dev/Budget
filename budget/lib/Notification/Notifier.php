@@ -323,6 +323,51 @@ class Notifier implements INotifier {
 
 				break;
 
+			case 'pension_auto_post_failed':
+				// TRANSLATORS: {pension} is replaced with the pension name. Do NOT translate {pension} — keep it exactly as-is.
+				$notification->setRichSubject(
+					$l->t('Scheduled contribution stopped: {pension}'),
+					[
+						'pension' => [
+							'type' => 'highlight',
+							'id' => (string)$parameters['pensionId'],
+							'name' => (string)$parameters['pensionName'],
+						],
+					]
+				);
+
+				// TRANSLATORS: {pension}, {amount}, {reason} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
+				$notification->setRichMessage(
+					$l->t('The {amount} contribution to {pension} could not be posted, so auto-post has been turned off. Reason: {reason}'),
+					[
+						'pension' => [
+							'type' => 'highlight',
+							'id' => (string)$parameters['pensionId'],
+							'name' => (string)$parameters['pensionName'],
+						],
+						'amount' => [
+							'type' => 'highlight',
+							'id' => 'amount',
+							'name' => (string)$parameters['amount'],
+						],
+						'reason' => [
+							'type' => 'highlight',
+							'id' => 'reason',
+							'name' => (string)$parameters['reason'],
+						],
+					]
+				);
+
+				$notification->setIcon($this->urlGenerator->getAbsoluteURL(
+					$this->urlGenerator->imagePath(Application::APP_ID, 'app.svg')
+				));
+
+				$notification->setLink($this->urlGenerator->linkToRouteAbsolute(
+					Application::APP_ID . '.page.index'
+				) . '#pensions');
+
+				break;
+
 			case 'share_invitation':
 				// TRANSLATORS: {user} is replaced with the username. Do NOT translate {user} — keep it exactly as-is.
 				$notification->setRichSubject(

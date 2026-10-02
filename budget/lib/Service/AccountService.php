@@ -7,6 +7,7 @@ namespace OCA\Budget\Service;
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\InterestRateMapper;
+use OCA\Budget\Db\PensionRecurringContributionMapper;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Enum\AccountType;
@@ -41,6 +42,7 @@ class AccountService extends AbstractCrudService {
 		?AutoShareService $autoShareService = null,
 		?AccountClosureService $closureService = null,
 		?BudgetCarryoverService $carryoverService = null,
+		private ?PensionRecurringContributionMapper $pensionRecurringMapper = null,
 	) {
 		$this->mapper = $mapper;
 		$this->transactionMapper = $transactionMapper;
@@ -131,6 +133,9 @@ class AccountService extends AbstractCrudService {
 		}
 		// Clean up interest rate records
 		$this->interestRateMapper->deleteByAccount($entity->getId(), $userId);
+		// Pension schedules funded from it would fail every run trying to
+		// post into an account that no longer exists
+		$this->pensionRecurringMapper?->detachSourceAccount($entity->getId());
 	}
 
 	/**
@@ -379,7 +384,12 @@ class AccountService extends AbstractCrudService {
 		/** @var AccountMapper $mapper */
 		$mapper = $this->mapper;
 		return array_map(
-			fn (Account $account) => $this->withCurrentBalance($account, $futureChanges, $baseCurrency, $userId) + ['_shared' => true],
+			// _canWrite lets pickers for new activity leave out an account
+			// shared read-only, where anything posted can only be refused
+			fn (Account $account) => $this->withCurrentBalance($account, $futureChanges, $baseCurrency, $userId) + [
+				'_shared' => true,
+				'_canWrite' => $this->granularShareService->canWrite($userId, ShareItem::TYPE_ACCOUNT, $account->getId()),
+			],
 			$mapper->findByIds($ids)
 		);
 	}

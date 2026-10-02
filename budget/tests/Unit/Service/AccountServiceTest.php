@@ -94,6 +94,29 @@ class AccountServiceTest extends TestCase {
 		$this->assertTrue($accounts[0]['_shared']);
 	}
 
+	/**
+	 * Pickers for new activity leave out an account shared read-only: an
+	 * entry posted into it can only be refused.
+	 */
+	public function testASharedAccountSaysWhetherItCanBeWrittenTo(): void {
+		$joint = new Account();
+		$joint->setId(9);
+		$joint->setCurrency('GBP');
+		$joint->setBalance(0.0);
+		$this->accountMapper->method('findByIds')->willReturn([$joint]);
+		$this->transactionMapper->method('getNetChangeAfterDateForAccounts')->willReturn([]);
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('getSharedAccountIds')->willReturn([9]);
+		$shares->method('canWrite')->with('user1', 'account', 9)->willReturn(false);
+		$service = new AccountService($this->accountMapper, $this->transactionMapper, $this->createMock(InterestRateMapper::class),
+			$this->conversionService, $shares, $this->transactionService, $this->createMock(IL10N::class));
+
+		$account = $service->findSharedWithCurrentBalances('user1')[0];
+
+		$this->assertFalse($account['_canWrite']);
+	}
+
 	public function testASharedAccountIsConvertedToTheViewersBaseCurrency(): void {
 		$usd = new Account();
 		$usd->setId(9);
@@ -280,6 +303,32 @@ class AccountServiceTest extends TestCase {
 			->with($account);
 
 		$this->service->delete(1, 'user1');
+	}
+
+	/**
+	 * A pension schedule funded from a deleted account kept auto-posting into
+	 * an account that no longer existed and failed quietly every six hours.
+	 * Deleting the account takes it off those schedules and turns their
+	 * auto-post off.
+	 */
+	public function testDeletingAnAccountTakesItOffThePensionSchedulesFundedFromIt(): void {
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->transactionMapper->method('findByAccount')->willReturn([]);
+		$schedules = $this->createMock(\OCA\Budget\Db\PensionRecurringContributionMapper::class);
+		$schedules->expects($this->once())->method('detachSourceAccount')->with(1);
+		$service = new AccountService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->createMock(InterestRateMapper::class),
+			$this->conversionService,
+			$this->granularShareService,
+			$this->transactionService,
+			$this->createMock(IL10N::class),
+			pensionRecurringMapper: $schedules,
+		);
+
+		$service->delete(1, 'user1');
 	}
 
 	// ===== deleteWithTransactions() (#336) =====

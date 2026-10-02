@@ -61,12 +61,30 @@ class PensionRecurringContributionMapper extends QBMapper {
 	}
 
 	/**
-	 * Active, auto-post-enabled schedules whose next due date has arrived.
+	 * Active schedules funded from an account, whoever's they are: every one
+	 * of them takes money out of it.
 	 *
 	 * @return PensionRecurringContribution[]
 	 */
-	public function findDueForAutoPost(string $userId): array {
-		$today = date('Y-m-d');
+	public function findActiveBySourceAccount(int $accountId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('source_account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+			->orderBy('next_due_date', 'ASC');
+
+		return $this->findEntities($qb);
+	}
+
+	/**
+	 * Active, auto-post-enabled schedules whose next due date has arrived.
+	 *
+	 * @param string|null $today the user's date (Y-m-d); the server's if not given
+	 * @return PensionRecurringContribution[]
+	 */
+	public function findDueForAutoPost(string $userId, ?string $today = null): array {
+		$today ??= date('Y-m-d');
 
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')
@@ -77,6 +95,25 @@ class PensionRecurringContributionMapper extends QBMapper {
 			->andWhere($qb->expr()->lte('next_due_date', $qb->createNamedParameter($today)));
 
 		return $this->findEntities($qb);
+	}
+
+	/**
+	 * Take a deleted account off the schedules it funded, whoever's they are
+	 * (a shared account can fund another user's schedule). Auto-post goes off
+	 * with it: the schedule now posts with no bank leg, and only when its
+	 * owner chooses to.
+	 *
+	 * @return int Number of schedules changed
+	 */
+	public function detachSourceAccount(int $accountId): int {
+		$qb = $this->db->getQueryBuilder();
+		$qb->update($this->getTableName())
+			->set('source_account_id', $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
+			->set('auto_post_enabled', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL))
+			->set('updated_at', $qb->createNamedParameter(date('Y-m-d H:i:s')))
+			->where($qb->expr()->eq('source_account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+
+		return $qb->executeStatement();
 	}
 
 	/**

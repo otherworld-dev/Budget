@@ -403,6 +403,59 @@ class BillReminderJobTest extends TestCase {
 
 	// ===== Helpers =====
 
+	/**
+	 * A pension auto-post that can't post switches itself off and says so.
+	 * It used to log a warning and fail again every six hours, with the
+	 * schedule still showing a normal next date.
+	 */
+	public function testAPensionAutoPostThatSwitchedItselfOffTellsTheUser(): void {
+		$this->mockGetAllUserIds(['user1']);
+		$schedule = new \OCA\Budget\Db\PensionRecurringContribution();
+		$schedule->setId(7);
+		$schedule->setPensionId(2);
+		$schedule->setAmount(200.0);
+		$this->pensionRecurService->method('findDueForAutoPost')->with('user1')->willReturn([$schedule]);
+		$this->pensionRecurService->method('processAutoPost')->willReturn([
+			'success' => false,
+			'disabled' => true,
+			'recurring' => $schedule,
+			'pensionName' => 'Work',
+			'message' => 'The account this contribution comes from no longer exists',
+		]);
+
+		$notification = $this->createMock(INotification::class);
+		$notification->method('setApp')->willReturnSelf();
+		$notification->method('setUser')->willReturnSelf();
+		$notification->method('setDateTime')->willReturnSelf();
+		$notification->method('setObject')->willReturnSelf();
+		$notification->expects($this->once())->method('setSubject')
+			->with('pension_auto_post_failed', $this->callback(function (array $params) {
+				return $params['pensionName'] === 'Work'
+					&& $params['recurringId'] === 7
+					&& $params['reason'] === 'The account this contribution comes from no longer exists';
+			}))
+			->willReturnSelf();
+		$this->notificationManager->method('createNotification')->willReturn($notification);
+		$this->notificationManager->expects($this->once())->method('notify');
+		$this->billMapper->method('findActive')->willReturn([]);
+
+		$this->invokeRun();
+	}
+
+	public function testAPensionScheduleWithNothingDueSendsNothing(): void {
+		$this->mockGetAllUserIds(['user1']);
+		$schedule = new \OCA\Budget\Db\PensionRecurringContribution();
+		$schedule->setId(7);
+		$this->pensionRecurService->method('findDueForAutoPost')->willReturn([$schedule]);
+		$this->pensionRecurService->method('processAutoPost')->willReturn([
+			'success' => false, 'disabled' => false, 'message' => 'Nothing due',
+		]);
+		$this->notificationManager->expects($this->never())->method('notify');
+		$this->billMapper->method('findActive')->willReturn([]);
+
+		$this->invokeRun();
+	}
+
 	private function makeBill(array $overrides = []): Bill {
 		$bill = new Bill();
 		$bill->setId($overrides['id'] ?? 1);

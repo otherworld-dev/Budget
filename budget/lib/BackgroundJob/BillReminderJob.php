@@ -7,7 +7,6 @@ namespace OCA\Budget\BackgroundJob;
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\BackgroundJob\Support\JobUsers;
 use OCA\Budget\Db\BillMapper;
-use OCA\Budget\Db\PensionRecurringContributionMapper;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\PensionRecurringService;
@@ -43,7 +42,6 @@ class BillReminderJob extends TimedJob {
 		$billService = Server::get(BillService::class);
 		$incomeMapper = Server::get(RecurringIncomeMapper::class);
 		$incomeService = Server::get(RecurringIncomeService::class);
-		$pensionRecurMapper = Server::get(PensionRecurringContributionMapper::class);
 		$pensionRecurService = Server::get(PensionRecurringService::class);
 		$notificationManager = Server::get(INotificationManager::class);
 		$db = Server::get(IDBConnection::class);
@@ -78,7 +76,7 @@ class BillReminderJob extends TimedJob {
 					$autoCreateIncomeFailedCount += $autoCreate['failed'];
 
 					// Process auto-post for recurring pension contributions (#251)
-					$pensionPost = $this->processAutoPostPensionsForUser($userId, $pensionRecurMapper, $pensionRecurService, $logger);
+					$pensionPost = $this->processAutoPostPensionsForUser($userId, $pensionRecurService, $notificationManager, $settingService, $logger);
 					$pensionPostCount += $pensionPost['success'];
 					$pensionPostFailedCount += $pensionPost['failed'];
 
@@ -239,28 +237,41 @@ class BillReminderJob extends TimedJob {
 	/**
 	 * Auto-post due recurring pension contributions for a user (#251).
 	 *
+	 * A schedule that can't post switches its auto-post off, and the user is
+	 * told, rather than it failing quietly every run with a normal-looking
+	 * next date. One with nothing due by the user's own date is left alone.
+	 *
 	 * @return array{success: int, failed: int}
 	 */
 	private function processAutoPostPensionsForUser(
 		string $userId,
-		PensionRecurringContributionMapper $recurMapper,
 		PensionRecurringService $recurService,
+		INotificationManager $notificationManager,
+		SettingService $settingService,
 		LoggerInterface $logger,
 	): array {
 		$successCount = 0;
 		$failedCount = 0;
 
 		try {
-			$due = $recurMapper->findDueForAutoPost($userId);
+			$due = $recurService->findDueForAutoPost($userId);
 			foreach ($due as $schedule) {
 				$result = $recurService->processAutoPost($schedule->getId(), $userId);
 				if ($result['success']) {
 					$successCount++;
-				} else {
+				} elseif ($result['disabled'] ?? false) {
 					$failedCount++;
 					$logger->warning(
-						"Pension auto-post failed for schedule {$schedule->getId()} (user {$userId}): " . ($result['message'] ?? 'unknown'),
+						"Pension auto-post failed for schedule {$schedule->getId()} (user {$userId}), turned off: " . ($result['message'] ?? 'unknown'),
 						['app' => 'budget']
+					);
+					$this->sendPensionAutoPostFailureNotification(
+						$notificationManager,
+						$settingService,
+						$userId,
+						$result['recurring'] ?? $schedule,
+						$result['pensionName'] ?? '',
+						(string)($result['message'] ?? '')
 					);
 				}
 			}
@@ -269,6 +280,31 @@ class BillReminderJob extends TimedJob {
 		}
 
 		return ['success' => $successCount, 'failed' => $failedCount];
+	}
+
+	private function sendPensionAutoPostFailureNotification(
+		INotificationManager $notificationManager,
+		SettingService $settingService,
+		string $userId,
+		$schedule,
+		string $pensionName,
+		string $reason,
+	): void {
+		$notification = $notificationManager->createNotification();
+
+		$notification->setApp(Application::APP_ID)
+			->setUser($userId)
+			->setDateTime(new \DateTime())
+			->setObject('pension_recurring', (string)$schedule->getId())
+			->setSubject('pension_auto_post_failed', [
+				'recurringId' => $schedule->getId(),
+				'pensionId' => $schedule->getPensionId(),
+				'pensionName' => $pensionName,
+				'amount' => $this->formatAmount($settingService, $userId, (float)$schedule->getAmount()),
+				'reason' => $reason,
+			]);
+
+		$notificationManager->notify($notification);
 	}
 
 	/**

@@ -13721,6 +13721,35 @@ tr.pending-transaction td:first-child {
     color: var(--color-text-maxcontrast);
 }
 
+/* A scheduled contribution that is due, overdue or paused */
+.recurring-status {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 1px 6px;
+    margin-left: 4px;
+    border-radius: var(--border-radius-element, 8px);
+}
+
+.recurring-status-overdue {
+    background: var(--color-error);
+    color: var(--budget-color-on-status, white);
+}
+
+.recurring-status-due {
+    background: var(--color-warning);
+    color: var(--budget-color-on-status, white);
+}
+
+.recurring-status-paused {
+    background: var(--color-background-darker, rgba(127, 127, 127, 0.15));
+    color: var(--color-text-maxcontrast);
+}
+
+.recurring-item.overdue .recurring-sub {
+    color: var(--color-error-text, var(--color-error));
+}
+
 button.secondary.compact {
     padding: 4px 8px;
     font-size: 12px;

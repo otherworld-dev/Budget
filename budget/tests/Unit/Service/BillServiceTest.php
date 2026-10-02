@@ -766,6 +766,50 @@ class BillServiceTest extends TestCase {
 		$this->assertEqualsWithDelta(2200.0, $result['projectedBalance'][12], 0.001);
 	}
 
+	/**
+	 * A scheduled pension contribution paid from the account comes out of
+	 * its projected balance like a bill. It was left out, so the projection
+	 * overstated the account by every contribution still to come.
+	 */
+	public function testAnnualOverviewTakesScheduledPensionContributionsOffTheBalance(): void {
+		$current = (int)date('n');
+		$byMonth = [$current => 200.0];
+		if ($current < 12) {
+			$byMonth[12] = 200.0;
+		}
+		$pensions = $this->createMock(\OCA\Budget\Service\PensionRecurringService::class);
+		$pensions->expects($this->once())->method('upcomingDebitsByMonth')->with(5, date('Y-m-d'))->willReturn($byMonth);
+		$accounts = $this->createMock(AccountMapper::class);
+		$accounts->method('findAll')->willReturn([$this->makeAccount(5, 'Current')]);
+		$this->transactionService->method('getBalanceAsOf')->willReturn(1000.0);
+		$this->mapper->method('findByType')->willReturn([]);
+		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
+		$this->incomeMapper->method('findActive')->willReturn([]);
+		$currency = $this->createMock(\OCA\Budget\Service\CurrencyConversionService::class);
+		$currency->method('getBaseCurrency')->willReturn('CHF');
+		$service = new BillService(
+			$this->mapper,
+			$this->frequencyCalculator,
+			$this->recurringDetector,
+			$this->transactionService,
+			$this->createMock(IL10N::class),
+			$accounts,
+			$currency,
+			$this->createMock(TransactionSplitService::class),
+			$this->createMock(LoggerInterface::class),
+			$this->dismissedMapper,
+			null,
+			$this->incomeMapper,
+			pensionRecurringService: $pensions,
+		);
+
+		$result = $service->getAnnualOverview('user1', (int)date('Y'), false, 'active', 5);
+
+		$this->assertEqualsWithDelta(200.0, $result['projectedFlows'][$current]['bills'], 0.001);
+		$this->assertEqualsWithDelta(800.0, $result['projectedBalance'][$current], 0.001);
+		$this->assertEqualsWithDelta(1000.0 - array_sum($byMonth), $result['projectedBalance'][12], 0.001);
+	}
+
 	/** Another year has no today to start from, so the account is named but nothing is projected. */
 	public function testAnnualOverviewProjectsNothingForAnotherYear(): void {
 		$this->accountMapper->method('findAll')->willReturn([$this->makeAccount(5, 'Current')]);

@@ -56,6 +56,7 @@ class BillService {
 		?GranularShareService $granularShareService = null,
 		?UserClock $userClock = null,
 		?INotificationManager $notificationManager = null,
+		private ?PensionRecurringService $pensionRecurringService = null,
 	) {
 		$this->mapper = $mapper;
 		$this->frequencyCalculator = $frequencyCalculator;
@@ -2187,6 +2188,19 @@ class BillService {
 		$today = date('Y-m-d');
 		$projector = new BalanceProjector($this->frequencyCalculator);
 		$incomes = $this->incomeMapper?->findActive($userId) ?? [];
+		// Scheduled pension contributions paid from the account come out of it
+		// like a bill nobody has paid yet
+		$pensionDebits = $this->pensionRecurringService?->upcomingDebitsByMonth($account->getId(), $today) ?? [];
+		if ($pensionDebits !== []) {
+			$billsData[] = [
+				'accountId' => $account->getId(),
+				'isTransfer' => false,
+				'destinationAccountId' => null,
+				'paidMonths' => [],
+				'unrecordedMonths' => [],
+				'expectedAmounts' => $pensionDebits,
+			];
+		}
 		return $projector->project(
 			$billsData,
 			$account->getId(),

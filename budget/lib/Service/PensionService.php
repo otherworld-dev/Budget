@@ -4,18 +4,30 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service;
 
+use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\PensionAccount;
 use OCA\Budget\Db\PensionAccountMapper;
 use OCA\Budget\Db\PensionContribution;
 use OCA\Budget\Db\PensionContributionMapper;
+use OCA\Budget\Db\PensionLegQueries;
 use OCA\Budget\Db\PensionRecurringContributionMapper;
 use OCA\Budget\Db\PensionSnapshot;
 use OCA\Budget\Db\PensionSnapshotMapper;
+use OCA\Budget\Db\ShareItem;
+use OCA\Budget\Db\Transaction;
+use OCA\Budget\Db\TransactionMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IDBConnection;
+use OCP\IL10N;
 
 class PensionService {
+	/**
+	 * How far apart, in days, the bank's row of a pension payment and the
+	 * date the app booked it on may be and still be the same payment
+	 */
+	private const SAME_PAYMENT_DAYS = 5;
+
 	private PensionAccountMapper $pensionMapper;
 	private PensionSnapshotMapper $snapshotMapper;
 	private PensionContributionMapper $contributionMapper;
@@ -30,6 +42,10 @@ class PensionService {
 		private AccountMapper $accountMapper,
 		private PensionRecurringContributionMapper $recurringMapper,
 		private IDBConnection $db,
+		private IL10N $l,
+		private GranularShareService $granularShareService,
+		private TransactionMapper $transactionMapper,
+		private PensionLegQueries $legQueries,
 	) {
 		$this->pensionMapper = $pensionMapper;
 		$this->snapshotMapper = $snapshotMapper;
@@ -124,6 +140,13 @@ class PensionService {
 			$pension->setName($name);
 		}
 		if ($type !== null) {
+			// A defined benefit or state pension has no pot to pay into, and
+			// its page doesn't show scheduled contributions, so a schedule
+			// left on it would go on moving money where nobody can see it
+			if (!in_array($type, PensionAccount::DC_TYPES, true) && $pension->isDefinedContribution()
+				&& $this->recurringMapper->findByPension($id, $userId) !== []) {
+				throw new \InvalidArgumentException($this->l->t('Delete this pension\'s scheduled contributions before making it a defined benefit or state pension'));
+			}
 			$pension->setType($type);
 		}
 		if ($provider !== null) {
@@ -162,13 +185,11 @@ class PensionService {
 	public function delete(int $id, string $userId): void {
 		$pension = $this->pensionMapper->find($id, $userId);
 
-		// Detach any bank legs that funded contributions/withdrawals (#304) so
-		// they survive as plain transactions rather than dangling pension markers.
-		$linked = $this->contributionMapper->findLinkedByPension($id, $userId);
-		if (!empty($linked)) {
-			$contribIds = array_map(static fn ($c) => $c->getId(), $linked);
-			$this->transactionService->clearPensionContribMarkers($contribIds);
-		}
+		// The bank legs that paid into or out of it (#304) stay in their
+		// accounts with their pension marker: the money did move to or from a
+		// pension, tracked or not. The marker is what keeps a leg out of
+		// spending and income, and clearing it turned every past contribution
+		// into spending (and every withdrawal into income) in every report.
 
 		// Delete related snapshots, contributions and recurring schedules
 		$this->snapshotMapper->deleteByPension($id, $userId);
@@ -207,12 +228,13 @@ class PensionService {
 		$snapshot->setDate($date);
 		$snapshot->setCreatedAt(date('Y-m-d H:i:s'));
 
+		// The latest balance update decides the current balance; one dated
+		// before it is history and leaves today's figure alone
+		$latest = $this->latestSnapshot($pensionId, $userId);
 		$snapshot = $this->snapshotMapper->insert($snapshot);
-
-		// Update pension's current balance to match latest snapshot
-		$pension->setCurrentBalance($balance);
-		$pension->setUpdatedAt(date('Y-m-d H:i:s'));
-		$this->pensionMapper->update($pension);
+		if ($latest === null || $date >= (string)$latest->getDate()) {
+			$this->setBalanceFrom($pension, $userId, $balance, $date);
+		}
 
 		return $snapshot;
 	}
@@ -223,6 +245,67 @@ class PensionService {
 	public function deleteSnapshot(int $snapshotId, string $userId): void {
 		$snapshot = $this->snapshotMapper->find($snapshotId, $userId);
 		$this->snapshotMapper->delete($snapshot);
+
+		// The balance goes back to what the update before it says
+		try {
+			$pension = $this->pensionMapper->find((int)$snapshot->getPensionId(), $userId);
+		} catch (DoesNotExistException $e) {
+			return;
+		}
+		$latest = $this->latestSnapshot($pension->getId(), $userId);
+		if ($latest !== null && $pension->isDefinedContribution()) {
+			$this->setBalanceFrom($pension, $userId, (float)$latest->getBalance(), (string)$latest->getDate());
+		}
+	}
+
+	// =====================
+	// The balance between balance updates
+	// =====================
+	//
+	// A DC pension's current balance is its latest balance update plus what
+	// was paid in, less what was taken out, after that update's date. A
+	// contribution paid from the bank takes the money out of the account at
+	// once, so without this net worth fell by every contribution until the
+	// next balance update. Comparing dates, not the order things were
+	// entered, keeps an update that already counts a contribution entered
+	// late from counting it twice.
+
+	private function latestSnapshot(int $pensionId, string $userId): ?PensionSnapshot {
+		try {
+			return $this->snapshotMapper->findLatest($pensionId, $userId);
+		} catch (DoesNotExistException $e) {
+			return null;
+		}
+	}
+
+	/** Set the balance to $balance on $date plus what moved after that date */
+	private function setBalanceFrom(PensionAccount $pension, string $userId, float $balance, string $date): void {
+		foreach ($this->contributionMapper->findByPension($pension->getId(), $userId) as $entry) {
+			if ((string)$entry->getDate() > $date) {
+				$balance += $entry->isWithdrawal() ? -(float)$entry->getAmount() : (float)$entry->getAmount();
+			}
+		}
+		$pension->setCurrentBalance(round($balance, 2));
+		$pension->setUpdatedAt(date('Y-m-d H:i:s'));
+		$this->pensionMapper->update($pension);
+	}
+
+	/**
+	 * Move the balance by an entry, or by its removal ($sign -1), unless the
+	 * latest balance update is dated on or after it and so already counts it.
+	 */
+	private function applyToBalance(PensionAccount $pension, string $userId, PensionContribution $entry, int $sign = 1): void {
+		if (!$pension->isDefinedContribution()) {
+			return;
+		}
+		$latest = $this->latestSnapshot($pension->getId(), $userId);
+		if ($latest !== null && (string)$entry->getDate() <= (string)$latest->getDate()) {
+			return;
+		}
+		$amount = (float)$entry->getAmount() * ($entry->isWithdrawal() ? -1 : 1) * $sign;
+		$pension->setCurrentBalance(round((float)($pension->getCurrentBalance() ?? 0.0) + $amount, 2));
+		$pension->setUpdatedAt(date('Y-m-d H:i:s'));
+		$this->pensionMapper->update($pension);
 	}
 
 	// =====================
@@ -246,7 +329,7 @@ class PensionService {
 		?string $note = null,
 	): PensionContribution {
 		// Verify pension exists and belongs to user
-		$this->pensionMapper->find($pensionId, $userId);
+		$pension = $this->pensionMapper->find($pensionId, $userId);
 
 		$contribution = new PensionContribution();
 		$contribution->setUserId($userId);
@@ -257,7 +340,9 @@ class PensionService {
 		$contribution->setKind(PensionContribution::KIND_CONTRIBUTION);
 		$contribution->setCreatedAt(date('Y-m-d H:i:s'));
 
-		return $this->contributionMapper->insert($contribution);
+		$contribution = $this->contributionMapper->insert($contribution);
+		$this->applyToBalance($pension, $userId, $contribution);
+		return $contribution;
 	}
 
 	/**
@@ -266,9 +351,9 @@ class PensionService {
 	 * spending) and a pension contribution, created atomically.
 	 *
 	 * The entered amount is the contribution in the pension's currency; the bank
-	 * debit is converted to the account's currency. The pension's current_balance
-	 * is intentionally NOT changed (a snapshot is the valuation source of truth —
-	 * bumping it would double-count against the bank balance in net worth).
+	 * debit is converted to the account's currency. The pension's balance goes
+	 * up by it unless the latest balance update already counts it, so net
+	 * worth doesn't dip until the next update.
 	 *
 	 * @throws DoesNotExistException if the pension or account is not found
 	 */
@@ -310,7 +395,7 @@ class PensionService {
 		string $date,
 		?string $note = null,
 	): PensionContribution {
-		$this->pensionMapper->find($pensionId, $userId);
+		$pension = $this->pensionMapper->find($pensionId, $userId);
 
 		$withdrawal = new PensionContribution();
 		$withdrawal->setUserId($userId);
@@ -321,7 +406,54 @@ class PensionService {
 		$withdrawal->setKind(PensionContribution::KIND_WITHDRAWAL);
 		$withdrawal->setCreatedAt(date('Y-m-d H:i:s'));
 
-		return $this->contributionMapper->insert($withdrawal);
+		$withdrawal = $this->contributionMapper->insert($withdrawal);
+		$this->applyToBalance($pension, $userId, $withdrawal);
+		return $withdrawal;
+	}
+
+	/**
+	 * The account a pension entry moves money through: the user's own, or
+	 * one shared with them that they can write to. Its rows belong to the
+	 * account's owner, as a bill's do (#334). One that is gone or shared
+	 * read-only is refused with the reason, rather than failing on a lookup
+	 * that can never find it.
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	public function requireUsableAccount(int $accountId, string $userId): Account {
+		try {
+			$account = $this->accountMapper->findById($accountId);
+		} catch (DoesNotExistException $e) {
+			$account = null;
+		}
+		if ($account === null
+			|| ($account->getUserId() !== $userId && !$this->granularShareService->canAccess($userId, ShareItem::TYPE_ACCOUNT, $accountId))) {
+			throw new \InvalidArgumentException($this->l->t('The account for this contribution no longer exists or is no longer shared with you'));
+		}
+		if ($account->getUserId() !== $userId && !$this->granularShareService->canWrite($userId, ShareItem::TYPE_ACCOUNT, $accountId)) {
+			throw new \InvalidArgumentException($this->l->t('%1$s is shared with you read-only, so pension money cannot be paid into or out of it', [$account->getName()]));
+		}
+		return $account;
+	}
+
+	/**
+	 * What a contribution of $amount (in the pension's currency) takes out of
+	 * an account, in the account's currency, as its bank leg would book it.
+	 *
+	 * @throws DoesNotExistException when the account is gone
+	 */
+	public function bankAmount(PensionAccount $pension, int $accountId, float $amount, string $date): float {
+		return $this->convertForAccount($pension, $this->accountMapper->findById($accountId), $amount, $date);
+	}
+
+	/**
+	 * The contribution is recorded in the pension's currency, the bank leg in
+	 * the account's (converted with cached rates, graceful fallback).
+	 */
+	private function convertForAccount(PensionAccount $pension, Account $account, float $amount, string $date): float {
+		$pensionCurrency = $pension->getCurrency() ?: ($account->getCurrency() ?: 'GBP');
+		$accountCurrency = $account->getCurrency() ?: $pensionCurrency;
+		return round((float)$this->conversionService->convertLocal($amount, $pensionCurrency, $accountCurrency, $date), 2);
 	}
 
 	/**
@@ -337,16 +469,13 @@ class PensionService {
 		string $kind,
 	): PensionContribution {
 		$pension = $this->pensionMapper->find($pensionId, $userId);
-		$account = $this->accountMapper->find($accountId, $userId); // verifies ownership
+		$account = $this->requireUsableAccount($accountId, $userId);
+		$ownerId = $account->getUserId();
 
 		$isWithdrawal = $kind === PensionContribution::KIND_WITHDRAWAL;
 		$bankType = $isWithdrawal ? 'credit' : 'debit';
 
-		// Contribution is recorded in the pension's currency; the bank leg in the
-		// account's currency (converted with cached rates, graceful fallback).
-		$pensionCurrency = $pension->getCurrency() ?: ($account->getCurrency() ?: 'GBP');
-		$accountCurrency = $account->getCurrency() ?: $pensionCurrency;
-		$bankAmount = round((float)$this->conversionService->convertLocal($amount, $pensionCurrency, $accountCurrency, $date), 2);
+		$bankAmount = $this->convertForAccount($pension, $account, $amount, $date);
 
 		$description = $isWithdrawal
 			? 'Pension withdrawal: ' . $pension->getName()
@@ -354,18 +483,24 @@ class PensionService {
 
 		$this->db->beginTransaction();
 		try {
-			$tx = $this->transactionService->create(
-				$userId,
-				$accountId,
-				$date,
-				$description,
-				$bankAmount,
-				$bankType,
-				null,            // categoryId — keep out of category spending
-				$pension->getName(), // vendor
-				null,            // reference
-				$note            // notes
-			);
+			// When a statement import or bank sync already brought the
+			// payment in, that row is the bank leg: booking another would
+			// take the money out of the account twice
+			$legId = $this->banksOwnRecord($pension, $accountId, $bankType, $bankAmount, $date);
+			if ($legId === null) {
+				$legId = $this->transactionService->create(
+					$ownerId,
+					$accountId,
+					$date,
+					$description,
+					$bankAmount,
+					$bankType,
+					null,            // categoryId — keep out of category spending
+					$pension->getName(), // vendor
+					null,            // reference
+					$note            // notes
+				)->getId();
+			}
 
 			$contribution = new PensionContribution();
 			$contribution->setUserId($userId);
@@ -373,14 +508,15 @@ class PensionService {
 			$contribution->setAmount($amount);
 			$contribution->setDate($date);
 			$contribution->setNote($note);
-			$contribution->setTransactionId($tx->getId());
+			$contribution->setTransactionId($legId);
 			$contribution->setSourceAccountId($accountId);
 			$contribution->setKind($kind);
 			$contribution->setCreatedAt(date('Y-m-d H:i:s'));
 			$contribution = $this->contributionMapper->insert($contribution);
 
 			// Mark the bank leg so it's excluded from spending/income aggregates.
-			$this->transactionService->markPensionContribLink($tx->getId(), $userId, $contribution->getId());
+			$this->transactionService->markPensionContribLink($legId, $ownerId, $contribution->getId());
+			$this->applyToBalance($pension, $userId, $contribution);
 
 			$this->db->commit();
 			return $contribution;
@@ -388,6 +524,13 @@ class PensionService {
 			$this->db->rollBack();
 			throw $e;
 		}
+	}
+
+	/**
+	 * @throws DoesNotExistException
+	 */
+	public function findContribution(int $contributionId, string $userId): PensionContribution {
+		return $this->contributionMapper->find($contributionId, $userId);
 	}
 
 	/**
@@ -402,17 +545,207 @@ class PensionService {
 		$this->db->beginTransaction();
 		try {
 			if ($txId !== null) {
-				try {
-					$this->transactionService->delete($txId, $userId);
-				} catch (DoesNotExistException $e) {
-					// Bank leg already gone — nothing to clean up.
-				}
+				$this->deleteLeg($txId, $userId);
 			}
 			$this->contributionMapper->delete($contribution);
+			$this->rewindScheduleOf($contribution, $userId);
+			if ($contribution->getPensionId() !== null) {
+				$this->applyToBalance($this->pensionMapper->find($contribution->getPensionId(), $userId), $userId, $contribution, -1);
+			}
 			$this->db->commit();
 		} catch (\Throwable $e) {
 			$this->db->rollBack();
 			throw $e;
+		}
+	}
+
+	// =====================
+	// The bank's own record of a pension payment
+	// =====================
+	//
+	// An account fed by statement imports or bank sync gets the bank's own row
+	// for a pension payment as well as the leg the app books, and with both
+	// the money left the account twice. Whichever arrives second gives way:
+	// an entry takes an imported row it finds as its leg, and an import
+	// replaces a leg the app booked with its own row. A match is the same
+	// account, direction and amount within a few days, and when several rows
+	// could be it, the one naming the pension or its provider, else the
+	// nearest in date; rows that can't be told apart are left alone.
+
+	/**
+	 * An imported row in the account that is this payment, or null.
+	 */
+	private function banksOwnRecord(PensionAccount $pension, int $accountId, string $type, float $amount, string $date): ?int {
+		$candidates = $this->legQueries->findImportedCandidates(
+			$accountId, $type, $amount, $this->shiftDays($date, -self::SAME_PAYMENT_DAYS), $this->shiftDays($date, self::SAME_PAYMENT_DAYS)
+		);
+		return $this->pickSamePayment($candidates, $pension, $date);
+	}
+
+	/**
+	 * Replace the legs the app booked for pension entries with the bank's
+	 * own rows of the same payments, among rows an import or bank sync just
+	 * created. The entry keeps its date and amount; only its leg changes, so
+	 * the money is counted once and a re-import recognises it.
+	 *
+	 * @param Transaction[] $transactions freshly imported rows
+	 * @return int legs replaced
+	 */
+	public function adoptImportedDuplicates(string $userId, array $transactions): int {
+		$byAccount = [];
+		foreach ($transactions as $tx) {
+			if ($tx->getImportId() === null || $tx->getImportId() === '' || ($tx->getStatus() ?? 'cleared') === 'scheduled') {
+				continue;
+			}
+			$byAccount[$tx->getAccountId()][] = $tx;
+		}
+
+		$replaced = 0;
+		foreach ($byAccount as $accountId => $imported) {
+			$dates = array_map(static fn (Transaction $tx) => (string)$tx->getDate(), $imported);
+			$legs = $this->legQueries->findAppCreatedLegs(
+				$accountId, $this->shiftDays(min($dates), -self::SAME_PAYMENT_DAYS), $this->shiftDays(max($dates), self::SAME_PAYMENT_DAYS)
+			);
+			$taken = [];
+			foreach ($legs as $leg) {
+				// A reconciled leg was matched to a statement by hand: not ours to swap
+				if ($leg['reconciled']) {
+					continue;
+				}
+				$contribution = $this->contributionMapper->findById($leg['pensionContribId']);
+				if ($contribution === null) {
+					continue;
+				}
+				try {
+					$pension = $this->pensionMapper->find($contribution->getPensionId(), $contribution->getUserId());
+				} catch (DoesNotExistException $e) {
+					continue;
+				}
+				$candidates = [];
+				foreach ($imported as $tx) {
+					if (isset($taken[$tx->getId()]) || $tx->getType() !== $leg['type']
+						|| abs((float)$tx->getAmount() - $leg['amount']) >= 0.005
+						|| abs($this->daysBetween((string)$tx->getDate(), $leg['date'])) > self::SAME_PAYMENT_DAYS) {
+						continue;
+					}
+					// A bill or transfer may have claimed it since it was imported
+					$fresh = $this->transactionMapper->findById($tx->getId());
+					if ($fresh === null || $fresh->getPensionContribId() !== null || $fresh->getLinkedTransactionId() !== null
+						|| ($fresh->getBillId() !== null && $fresh->getBillId() !== 0)) {
+						continue;
+					}
+					$candidates[] = ['id' => $fresh->getId(), 'date' => (string)$fresh->getDate(), 'description' => $fresh->getDescription(), 'vendor' => $fresh->getVendor()];
+				}
+				$pick = $this->pickSamePayment($candidates, $pension, $leg['date']);
+				if ($pick === null) {
+					continue;
+				}
+				$this->swapLeg($contribution, $leg['id'], $pick, $accountId);
+				$taken[$pick] = true;
+				$replaced++;
+			}
+		}
+		return $replaced;
+	}
+
+	private function swapLeg(PensionContribution $contribution, int $oldLegId, int $newLegId, int $accountId): void {
+		$this->db->beginTransaction();
+		try {
+			// Deleting the old leg unlinks the entry from it first
+			$this->transactionService->deleteAsAccountOwner($oldLegId);
+			$contribution->setTransactionId($newLegId);
+			$this->contributionMapper->update($contribution);
+			$owner = $this->accountMapper->findById($accountId)->getUserId();
+			$this->transactionService->markPensionContribLink($newLegId, $owner, $contribution->getId());
+			$this->db->commit();
+		} catch (\Throwable $e) {
+			$this->db->rollBack();
+			throw $e;
+		}
+	}
+
+	/**
+	 * @param array<int, array{id: int, date: string, description: ?string, vendor: ?string}> $candidates
+	 */
+	private function pickSamePayment(array $candidates, PensionAccount $pension, string $date): ?int {
+		if (count($candidates) <= 1) {
+			return $candidates[0]['id'] ?? null;
+		}
+		$named = array_values(array_filter($candidates, fn (array $row) => $this->namesPension($pension, $row)));
+		if (count($named) === 1) {
+			return $named[0]['id'];
+		}
+		$pool = $named !== [] ? $named : $candidates;
+		usort($pool, fn (array $a, array $b) => abs($this->daysBetween($a['date'], $date)) <=> abs($this->daysBetween($b['date'], $date)));
+		if (abs($this->daysBetween($pool[0]['date'], $date)) === abs($this->daysBetween($pool[1]['date'], $date))) {
+			return null;
+		}
+		return $pool[0]['id'];
+	}
+
+	/** Whether a bank row's text names the pension or its provider */
+	private function namesPension(PensionAccount $pension, array $row): bool {
+		$text = mb_strtolower(($row['description'] ?? '') . ' ' . ($row['vendor'] ?? ''));
+		foreach ([$pension->getProvider(), $pension->getName()] as $name) {
+			$name = mb_strtolower(trim((string)$name));
+			if (mb_strlen($name) >= 3 && str_contains($text, $name)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private function shiftDays(string $date, int $days): string {
+		return (new \DateTimeImmutable($date))->modify(sprintf('%+d days', $days))->format('Y-m-d');
+	}
+
+	/** Whole days from $from to $to */
+	private function daysBetween(string $from, string $to): int {
+		return (int)(new \DateTimeImmutable(substr($from, 0, 10)))->diff(new \DateTimeImmutable(substr($to, 0, 10)))->format('%r%a');
+	}
+
+	/**
+	 * Remove an entry's bank leg as its account's owner, which is another
+	 * user when the account is shared. A leg in an account the user can no
+	 * longer write to stays in that ledger: it isn't theirs to change, and
+	 * it still counts as money moved to a pension there. A leg that is the
+	 * bank's own imported row stays too, as a plain transaction: it records
+	 * money that really moved, and deleting it would put the account out of
+	 * step with its statement.
+	 */
+	private function deleteLeg(int $txId, string $userId): void {
+		$leg = $this->transactionMapper->findById($txId);
+		if ($leg === null) {
+			return; // Bank leg already gone — nothing to clean up.
+		}
+		$accountId = $leg->getAccountId();
+		if (!$this->granularShareService->canWrite($userId, ShareItem::TYPE_ACCOUNT, $accountId)) {
+			return;
+		}
+		if ($leg->getImportId() !== null && $leg->getImportId() !== '') {
+			$owner = $this->accountMapper->findById($accountId)->getUserId();
+			$this->transactionService->markPensionContribLink($txId, $owner, null);
+			return;
+		}
+		$this->transactionService->deleteAsAccountOwner($txId);
+	}
+
+	/**
+	 * A contribution the last Post now recorded takes its schedule back with
+	 * it, so deleting an accidental post leaves that occurrence still owed
+	 * rather than skipped. Older posts, and the job's, leave the schedule
+	 * where it is.
+	 */
+	private function rewindScheduleOf(PensionContribution $contribution, string $userId): void {
+		if ($contribution->getPensionId() === null) {
+			return;
+		}
+		foreach ($this->recurringMapper->findByPension($contribution->getPensionId(), $userId) as $recur) {
+			if ($recur->isLastPost($contribution)) {
+				$recur->revertPost();
+				$this->recurringMapper->update($recur);
+				return;
+			}
 		}
 	}
 
@@ -550,6 +883,13 @@ class PensionService {
 			} else {
 				$type = $c->getTransactionId() !== null ? 'transfer_in' : 'contribution';
 			}
+			// Deleting the entry deletes a leg the app booked: say when that
+			// leg was reconciled, so the confirm can warn as the Transactions
+			// page does. An imported leg stays (see deleteLeg()).
+			$leg = $c->getTransactionId() !== null ? $this->transactionMapper->findById($c->getTransactionId()) : null;
+			if ($leg !== null && $leg->getImportId() !== null && $leg->getImportId() !== '') {
+				$leg = null;
+			}
 			$items[] = [
 				'type' => $type,
 				'id' => $c->getId(),
@@ -558,6 +898,7 @@ class PensionService {
 				'note' => $c->getNote(),
 				'transactionId' => $c->getTransactionId(),
 				'sourceAccountId' => $c->getSourceAccountId(),
+				'reconciled' => $leg !== null && (bool)$leg->getReconciled(),
 			];
 		}
 
@@ -570,6 +911,7 @@ class PensionService {
 				'note' => null,
 				'transactionId' => null,
 				'sourceAccountId' => null,
+				'reconciled' => false,
 			];
 		}
 

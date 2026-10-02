@@ -275,6 +275,7 @@ return [
 		['name' => 'pension#updateRecurring', 'url' => '/api/pensions/recurring/{recurId}', 'verb' => 'PUT'],
 		['name' => 'pension#destroyRecurring', 'url' => '/api/pensions/recurring/{recurId}', 'verb' => 'DELETE'],
 		['name' => 'pension#postRecurring', 'url' => '/api/pensions/recurring/{recurId}/post', 'verb' => 'POST'],
+		['name' => 'pension#undoPostRecurring', 'url' => '/api/pensions/recurring/{recurId}/unpost', 'verb' => 'POST'],
 
 		// Asset routes - specific paths before {id} wildcard
 		['name' => 'asset#index', 'url' => '/api/assets', 'verb' => 'GET'],

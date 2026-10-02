@@ -18,6 +18,23 @@ class PensionContributionMapper extends QBMapper {
 	}
 
 	/**
+	 * A contribution by id, whoever's it is: a bank leg in a shared account
+	 * can belong to another user's pension. Null when there is none.
+	 */
+	public function findById(int $id): ?PensionContribution {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
+
+		try {
+			return $this->findEntity($qb);
+		} catch (DoesNotExistException $e) {
+			return null;
+		}
+	}
+
+	/**
 	 * @throws DoesNotExistException
 	 */
 	public function find(int $id, string $userId): PensionContribution {

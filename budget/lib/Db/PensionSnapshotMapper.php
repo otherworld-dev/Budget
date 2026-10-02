@@ -76,6 +76,7 @@ class PensionSnapshotMapper extends QBMapper {
 			->where($qb->expr()->eq('pension_id', $qb->createNamedParameter($pensionId, IQueryBuilder::PARAM_INT)))
 			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
 			->orderBy('date', 'DESC')
+			->addOrderBy('id', 'DESC')
 			->setMaxResults(1);
 
 		return $this->findEntity($qb);

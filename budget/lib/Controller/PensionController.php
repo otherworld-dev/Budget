@@ -293,6 +293,8 @@ class PensionController extends Controller {
 				$projectionTarget
 			);
 			return new DataResponse($pension);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleValidationError($e);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to update pension'), Http::STATUS_BAD_REQUEST, ['pensionId' => $id]);
 		}
@@ -445,6 +447,8 @@ class PensionController extends Controller {
 				$contribution = $this->service->createContribution($id, $this->getEffectiveUserId(), $amount, $date, $note);
 			}
 			return new DataResponse($contribution, Http::STATUS_CREATED);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleValidationError($e);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to create contribution'), Http::STATUS_BAD_REQUEST, ['pensionId' => $id]);
 		}
@@ -493,6 +497,8 @@ class PensionController extends Controller {
 				$withdrawal = $this->service->createWithdrawal($id, $this->getEffectiveUserId(), $amount, $date, $note);
 			}
 			return new DataResponse($withdrawal, Http::STATUS_CREATED);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleValidationError($e);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to record withdrawal'), Http::STATUS_BAD_REQUEST, ['pensionId' => $id]);
 		}
@@ -607,6 +613,8 @@ class PensionController extends Controller {
 				$note
 			);
 			return new DataResponse($recur, Http::STATUS_CREATED);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleValidationError($e);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to create recurring contribution'), Http::STATUS_BAD_REQUEST, ['pensionId' => $id]);
 		}
@@ -621,6 +629,8 @@ class PensionController extends Controller {
 			$data = $this->request->getParams();
 			$recur = $this->recurringService->update($recurId, $this->getEffectiveUserId(), $data);
 			return new DataResponse($recur);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleValidationError($e);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to update recurring contribution'), Http::STATUS_BAD_REQUEST, ['recurId' => $recurId]);
 		}
@@ -640,17 +650,44 @@ class PensionController extends Controller {
 	}
 
 	/**
-	 * Post a scheduled contribution now (#251 "by hand").
+	 * Post a scheduled contribution now (#251 "by hand"). The page names the
+	 * occurrence it showed (expectedDate), so a second click or a stale tab
+	 * is refused rather than posting twice.
 	 *
 	 * @NoAdminRequired
 	 */
 	#[UserRateLimit(limit: 30, period: 60)]
 	public function postRecurring(int $recurId): DataResponse {
 		try {
-			$recur = $this->recurringService->postNow($recurId, $this->getEffectiveUserId());
+			$expectedDate = $this->request->getParams()['expectedDate'] ?? null;
+			$recur = $this->recurringService->postNow(
+				$recurId,
+				$this->getEffectiveUserId(),
+				is_string($expectedDate) && $expectedDate !== '' ? $expectedDate : null
+			);
 			return new DataResponse($recur);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleValidationError($e);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to post contribution'), Http::STATUS_BAD_REQUEST, ['recurId' => $recurId]);
+		}
+	}
+
+	/**
+	 * Undo the last Post now: its contribution (and bank leg) go and the
+	 * schedule's dates go back.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function undoPostRecurring(int $recurId): DataResponse {
+		try {
+			$recur = $this->recurringService->undoPost($recurId, $this->getEffectiveUserId());
+			return new DataResponse($recur);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleValidationError($e);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to undo the contribution'), Http::STATUS_BAD_REQUEST, ['recurId' => $recurId]);
 		}
 	}
 
