@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-10-02 17:49+0000\n"
+"POT-Creation-Date: 2026-10-02 19:48+0000\n"
 "PO-Revision-Date: 2026-10-02 06:51+0000\n"
 "Last-Translator: Christophe <tophe.perso@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -6593,7 +6593,7 @@ msgstr "Opération enregistrée"
 #: /app/src/modules/bills/BillsModule.js:1610
 #: /app/src/modules/income/IncomeModule.js:740
 #: /app/src/modules/transfers/TransfersModule.js:1293
-#, javascript-format
+#, no-javascript-format
 msgid "{percent}% confidence"
 msgstr "{percent} % confiant"
 
@@ -7638,7 +7638,7 @@ msgid "{percent}% vs last month"
 msgstr "{percent} % par rapport au mois dernier"
 
 #: /app/src/modules/dashboard/DashboardModule.js:442
-#, javascript-format
+#, no-javascript-format
 msgid "{percent}% savings rate"
 msgstr "{percent}% de taux d'épargne"
 
@@ -7771,7 +7771,7 @@ msgid "No budget alerts from the budgets you set."
 msgstr "Aucune alerte budgétaire concernant les budgets que vous avez définis."
 
 #: /app/src/modules/dashboard/DashboardModule.js:1462
-#, javascript-format
+#, no-javascript-format
 msgid "{percent}% over"
 msgstr "{percent}% de dépassement"
 
@@ -9086,7 +9086,7 @@ msgid "{matching} of {total} rows would be added as income"
 msgstr "{matching} lignes sur {total} seraient ajoutées en tant que revenus"
 
 #: /app/src/modules/import/ImportModule.js:1935
-#, javascript-format
+#, no-javascript-format
 msgid ""
 "but {percent}% of what is already in {account} is an expense. If that looks "
 "wrong, go back and map the column holding the transaction type before "
@@ -9101,7 +9101,7 @@ msgid "{matching} of {total} rows would be added as an expense"
 msgstr "{matching} lignes sur {total} seraient ajoutées en tant que dépense"
 
 #: /app/src/modules/import/ImportModule.js:1944
-#, javascript-format
+#, no-javascript-format
 msgid ""
 "but {percent}% of what is already in {account} is income. If that looks "
 "wrong, go back and map the column holding the transaction type before "

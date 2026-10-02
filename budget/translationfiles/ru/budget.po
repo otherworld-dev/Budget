@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-10-02 17:49+0000\n"
+"POT-Creation-Date: 2026-10-02 19:48+0000\n"
 "PO-Revision-Date: 2026-09-21 19:51+0000\n"
 "Last-Translator: Leonid Zaliubovskyi <la399fox@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -6620,7 +6620,7 @@ msgstr "Транзакция зарегистрирована"
 #: /app/src/modules/bills/BillsModule.js:1610
 #: /app/src/modules/income/IncomeModule.js:740
 #: /app/src/modules/transfers/TransfersModule.js:1293
-#, javascript-format
+#, no-javascript-format
 msgid "{percent}% confidence"
 msgstr "{percent}% достоверность"
 
@@ -7671,7 +7671,7 @@ msgid "{percent}% vs last month"
 msgstr "{percent}% по сравнению с прошлым месяцем"
 
 #: /app/src/modules/dashboard/DashboardModule.js:442
-#, javascript-format
+#, no-javascript-format
 msgid "{percent}% savings rate"
 msgstr "{percent}% - доля сбережений"
 
@@ -7806,7 +7806,7 @@ msgid "No budget alerts from the budgets you set."
 msgstr "Нет оповещений от установленных вами бюджетов."
 
 #: /app/src/modules/dashboard/DashboardModule.js:1462
-#, javascript-format
+#, no-javascript-format
 msgid "{percent}% over"
 msgstr "{percent}% выше бюджета"
 
@@ -9094,7 +9094,7 @@ msgid "{matching} of {total} rows would be added as income"
 msgstr "Как доход будет добавлено строк: {matching} из {total}"
 
 #: /app/src/modules/import/ImportModule.js:1935
-#, javascript-format
+#, no-javascript-format
 msgid ""
 "but {percent}% of what is already in {account} is an expense. If that looks "
 "wrong, go back and map the column holding the transaction type before "
@@ -9109,7 +9109,7 @@ msgid "{matching} of {total} rows would be added as an expense"
 msgstr "Как расход будет добавлено строк: {matching} из {total}"
 
 #: /app/src/modules/import/ImportModule.js:1944
-#, javascript-format
+#, no-javascript-format
 msgid ""
 "but {percent}% of what is already in {account} is income. If that looks "
 "wrong, go back and map the column holding the transaction type before "
