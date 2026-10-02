@@ -223,13 +223,35 @@ class TransactionTagMapper extends QBMapper {
 	}
 
 	/**
+	 * Hold a savings goal's tag sum to what the goal is owed.
+	 *
+	 * With the goal's account linked, it is the tagged money that went in
+	 * and out of that account. Without one, a linked transfer whose two legs
+	 * both carry the tag counts once, as the money arriving: a recurring
+	 * transfer puts its tags on both legs, and the net of the two came to
+	 * nothing, so a goal fed by monthly transfers stayed at 0.
+	 */
+	private function scopeGoalContribution(IQueryBuilder $qb, ?int $accountId): void {
+		if ($accountId !== null) {
+			$qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+			return;
+		}
+		$qb->andWhere(
+			"NOT (t.type = 'debit' AND t.linked_transaction_id IS NOT NULL AND EXISTS (SELECT 1 FROM "
+			. $qb->getTableName('budget_transaction_tags') . ' ttl'
+			. ' WHERE ttl.transaction_id = t.linked_transaction_id AND ttl.tag_id = tt.tag_id))'
+		);
+	}
+
+	/**
 	 * Calculate the sum of transaction amounts for a specific tag.
 	 *
 	 * @param int $tagId
 	 * @param string $userId
+	 * @param int|null $accountId the goal's linked account, see scopeGoalContribution()
 	 * @return float
 	 */
-	public function sumTransactionAmountsByTag(int $tagId, string $userId): float {
+	public function sumTransactionAmountsByTag(int $tagId, string $userId, ?int $accountId = null): float {
 		$qb = $this->db->getQueryBuilder();
 		// Net contribution: credits add, debits subtract. Amounts are stored as
 		// absolute values + a type, so summing raw amounts counts deposits and
@@ -245,6 +267,7 @@ class TransactionTagMapper extends QBMapper {
 				$qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
 				$qb->expr()->isNull('t.status')
 			));
+		$this->scopeGoalContribution($qb, $accountId);
 
 		$result = $qb->executeQuery();
 		$sum = $result->fetchOne();
@@ -278,8 +301,9 @@ class TransactionTagMapper extends QBMapper {
 			->andWhere($qb->expr()->orX(
 				$qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
 				$qb->expr()->isNull('t.status')
-			))
-			->groupBy('tt.tag_id');
+			));
+		$this->scopeGoalContribution($qb, null);
+		$qb->groupBy('tt.tag_id');
 
 		$result = $qb->executeQuery();
 		$rows = $result->fetchAll();
