@@ -32,6 +32,10 @@ class PensionServiceTest extends TestCase {
 	private $recurringMapper;
 	/** @var IDBConnection&\PHPUnit\Framework\MockObject\MockObject */
 	private $db;
+	/** @var \OCA\Budget\Service\GranularShareService&\PHPUnit\Framework\MockObject\MockObject */
+	private $shares;
+	/** @var \OCA\Budget\Db\TransactionMapper&\PHPUnit\Framework\MockObject\MockObject */
+	private $transactionMapper;
 
 	protected function setUp(): void {
 		$this->pensionMapper = $this->createMock(PensionAccountMapper::class);
@@ -42,6 +46,8 @@ class PensionServiceTest extends TestCase {
 		$this->accountMapper = $this->createMock(AccountMapper::class);
 		$this->recurringMapper = $this->createMock(PensionRecurringContributionMapper::class);
 		$this->db = $this->createMock(IDBConnection::class);
+		$this->shares = $this->createMock(\OCA\Budget\Service\GranularShareService::class);
+		$this->transactionMapper = $this->createMock(\OCA\Budget\Db\TransactionMapper::class);
 
 		$this->service = new PensionService(
 			$this->pensionMapper,
@@ -52,7 +58,9 @@ class PensionServiceTest extends TestCase {
 			$this->accountMapper,
 			$this->recurringMapper,
 			$this->db,
-			$this->l10n()
+			$this->l10n(),
+			$this->shares,
+			$this->transactionMapper
 		);
 	}
 
@@ -366,14 +374,19 @@ class PensionServiceTest extends TestCase {
 		$this->pensionMapper->method('find')->willReturn($this->makePension(['id' => 1, 'name' => 'Work', 'currency' => 'GBP']));
 
 		$account = new \OCA\Budget\Db\Account();
+		$account->setId(10);
+		$account->setUserId('user1');
 		$account->setCurrency('GBP');
-		$this->accountMapper->method('find')->willReturn($account);
+		$this->accountMapper->method('findById')->willReturn($account);
+		$this->shares->method('canAccess')->willReturn(true);
+		$this->shares->method('canWrite')->willReturn(true);
 		$this->conversionService->method('convertLocal')->willReturnCallback(fn ($amt) => (string)$amt);
 
 		$tx = new \OCA\Budget\Db\Transaction();
 		$tx->setId(555);
 		$this->transactionService->expects($this->once())->method('create')
 			->willReturnCallback(function (...$args) use ($tx) {
+				$this->assertSame('user1', $args[0]);
 				$this->assertSame('debit', $args[5]);   // bank leg is a debit
 				$this->assertNull($args[6]);            // no category
 				return $tx;
@@ -399,8 +412,95 @@ class PensionServiceTest extends TestCase {
 		$contribution = $this->makeContribution('2026-03-01', 500.0, PensionContribution::KIND_CONTRIBUTION, 555, 10);
 		$contribution->setId(77);
 		$this->contributionMapper->method('find')->willReturn($contribution);
+		$this->transactionMapper->method('findById')->with(555)->willReturn($this->leg(555, 10));
+		$this->shares->method('canWrite')->willReturn(true);
 
-		$this->transactionService->expects($this->once())->method('delete')->with(555, 'user1');
+		$this->transactionService->expects($this->once())->method('deleteAsAccountOwner')->with(555);
+		$this->contributionMapper->expects($this->once())->method('delete')->with($contribution);
+
+		$this->service->deleteContribution(77, 'user1');
+	}
+
+	private function leg(int $id, int $accountId): \OCA\Budget\Db\Transaction {
+		$leg = new \OCA\Budget\Db\Transaction();
+		$leg->setId($id);
+		$leg->setAccountId($accountId);
+		return $leg;
+	}
+
+	private function sharedAccount(int $id, string $owner): \OCA\Budget\Db\Account {
+		$account = new \OCA\Budget\Db\Account();
+		$account->setId($id);
+		$account->setUserId($owner);
+		$account->setName('Joint');
+		$account->setCurrency('GBP');
+		return $account;
+	}
+
+	/**
+	 * A contribution from an account another user shares with this one at
+	 * write access is booked in that account as its owner, as bills and
+	 * transactions are (#334). It was looked up as the acting user's own
+	 * account and never found, so it never posted.
+	 */
+	public function testAContributionFromASharedAccountIsBookedAsItsOwner(): void {
+		$this->pensionMapper->method('find')->willReturn($this->makePension());
+		$this->accountMapper->method('findById')->with(9)->willReturn($this->sharedAccount(9, 'alice'));
+		$this->shares->method('canAccess')->with('user1', 'account', 9)->willReturn(true);
+		$this->shares->method('canWrite')->with('user1', 'account', 9)->willReturn(true);
+		$this->conversionService->method('convertLocal')->willReturnCallback(fn ($amt) => (string)$amt);
+		$tx = new \OCA\Budget\Db\Transaction();
+		$tx->setId(556);
+		$this->transactionService->expects($this->once())->method('create')
+			->with('alice', 9)->willReturn($tx);
+		$this->contributionMapper->method('insert')->willReturnCallback(function (PensionContribution $c) {
+			$c->setId(78);
+			return $c;
+		});
+		$this->transactionService->expects($this->once())->method('markPensionContribLink')->with(556, 'alice', 78);
+
+		$this->service->createContributionWithTransfer(1, 'user1', 200.0, '2026-10-01', 9);
+	}
+
+	public function testAReadOnlySharedAccountIsRefused(): void {
+		$this->pensionMapper->method('find')->willReturn($this->makePension());
+		$this->accountMapper->method('findById')->willReturn($this->sharedAccount(9, 'alice'));
+		$this->shares->method('canAccess')->willReturn(true);
+		$this->shares->method('canWrite')->willReturn(false);
+		$this->transactionService->expects($this->never())->method('create');
+		$this->expectException(\InvalidArgumentException::class);
+
+		$this->service->createContributionWithTransfer(1, 'user1', 200.0, '2026-10-01', 9);
+	}
+
+	public function testAnAccountThatIsGoneIsRefusedWithAReason(): void {
+		$this->pensionMapper->method('find')->willReturn($this->makePension());
+		$this->accountMapper->method('findById')->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException('gone'));
+		$this->transactionService->expects($this->never())->method('create');
+		$this->expectException(\InvalidArgumentException::class);
+
+		$this->service->createContributionWithTransfer(1, 'user1', 200.0, '2026-10-01', 9);
+	}
+
+	public function testAnotherUsersAccountThatIsNotSharedIsRefused(): void {
+		$this->pensionMapper->method('find')->willReturn($this->makePension());
+		$this->accountMapper->method('findById')->willReturn($this->sharedAccount(9, 'alice'));
+		$this->shares->method('canAccess')->willReturn(false);
+		$this->transactionService->expects($this->never())->method('create');
+		$this->expectException(\InvalidArgumentException::class);
+
+		$this->service->createContributionWithTransfer(1, 'user1', 200.0, '2026-10-01', 9);
+	}
+
+	public function testDeletingAContributionLeavesTheLegInAnAccountNoLongerShared(): void {
+		// The other user's ledger isn't this user's to change any more
+		$contribution = $this->makeContribution('2026-03-01', 500.0, PensionContribution::KIND_CONTRIBUTION, 555, 9);
+		$contribution->setId(77);
+		$this->contributionMapper->method('find')->willReturn($contribution);
+		$this->transactionMapper->method('findById')->willReturn($this->leg(555, 9));
+		$this->shares->method('canWrite')->willReturn(false);
+
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
 		$this->contributionMapper->expects($this->once())->method('delete')->with($contribution);
 
 		$this->service->deleteContribution(77, 'user1');

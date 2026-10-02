@@ -379,6 +379,25 @@ class PensionRecurringServiceTest extends TestCase {
 		return $l;
 	}
 
+	public function testCreateRefusesAnAccountTheUserCannotPayFrom(): void {
+		$this->pensionService->method('requireUsableAccount')
+			->willThrowException(new \InvalidArgumentException('Joint is shared with you read-only'));
+		$this->recurringMapper->expects($this->never())->method('insert');
+		$this->expectException(\InvalidArgumentException::class);
+
+		$this->service->create(1, 'user1', 200.0, 'monthly', 9, true, '2026-11-01');
+	}
+
+	public function testUpdateRefusesAnAccountTheUserCannotPayFrom(): void {
+		$this->recurringMapper->method('find')->willReturn($this->makeRecur());
+		$this->pensionService->method('requireUsableAccount')
+			->willThrowException(new \InvalidArgumentException('Joint is shared with you read-only'));
+		$this->recurringMapper->expects($this->never())->method('update');
+		$this->expectException(\InvalidArgumentException::class);
+
+		$this->service->update(5, 'user1', ['sourceAccountId' => 9]);
+	}
+
 	public function testProcessAutoPostReturnsFailureWhenTheScheduleIsGone(): void {
 		$this->recurringMapper->method('find')->willThrowException(new \RuntimeException('boom'));
 

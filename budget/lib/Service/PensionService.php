@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service;
 
+use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\PensionAccount;
 use OCA\Budget\Db\PensionAccountMapper;
@@ -12,6 +13,8 @@ use OCA\Budget\Db\PensionContributionMapper;
 use OCA\Budget\Db\PensionRecurringContributionMapper;
 use OCA\Budget\Db\PensionSnapshot;
 use OCA\Budget\Db\PensionSnapshotMapper;
+use OCA\Budget\Db\ShareItem;
+use OCA\Budget\Db\TransactionMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IDBConnection;
 use OCP\IL10N;
@@ -32,6 +35,8 @@ class PensionService {
 		private PensionRecurringContributionMapper $recurringMapper,
 		private IDBConnection $db,
 		private IL10N $l,
+		private GranularShareService $granularShareService,
+		private TransactionMapper $transactionMapper,
 	) {
 		$this->pensionMapper = $pensionMapper;
 		$this->snapshotMapper = $snapshotMapper;
@@ -334,6 +339,31 @@ class PensionService {
 	}
 
 	/**
+	 * The account a pension entry moves money through: the user's own, or
+	 * one shared with them that they can write to. Its rows belong to the
+	 * account's owner, as a bill's do (#334). One that is gone or shared
+	 * read-only is refused with the reason, rather than failing on a lookup
+	 * that can never find it.
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	public function requireUsableAccount(int $accountId, string $userId): Account {
+		try {
+			$account = $this->accountMapper->findById($accountId);
+		} catch (DoesNotExistException $e) {
+			$account = null;
+		}
+		if ($account === null
+			|| ($account->getUserId() !== $userId && !$this->granularShareService->canAccess($userId, ShareItem::TYPE_ACCOUNT, $accountId))) {
+			throw new \InvalidArgumentException($this->l->t('The account for this contribution no longer exists or is no longer shared with you'));
+		}
+		if ($account->getUserId() !== $userId && !$this->granularShareService->canWrite($userId, ShareItem::TYPE_ACCOUNT, $accountId)) {
+			throw new \InvalidArgumentException($this->l->t('%1$s is shared with you read-only, so pension money cannot be paid into or out of it', [$account->getName()]));
+		}
+		return $account;
+	}
+
+	/**
 	 * Shared implementation for contribution/withdrawal funded by a bank leg.
 	 */
 	private function createLinkedEntry(
@@ -346,7 +376,8 @@ class PensionService {
 		string $kind,
 	): PensionContribution {
 		$pension = $this->pensionMapper->find($pensionId, $userId);
-		$account = $this->accountMapper->find($accountId, $userId); // verifies ownership
+		$account = $this->requireUsableAccount($accountId, $userId);
+		$ownerId = $account->getUserId();
 
 		$isWithdrawal = $kind === PensionContribution::KIND_WITHDRAWAL;
 		$bankType = $isWithdrawal ? 'credit' : 'debit';
@@ -364,7 +395,7 @@ class PensionService {
 		$this->db->beginTransaction();
 		try {
 			$tx = $this->transactionService->create(
-				$userId,
+				$ownerId,
 				$accountId,
 				$date,
 				$description,
@@ -389,7 +420,7 @@ class PensionService {
 			$contribution = $this->contributionMapper->insert($contribution);
 
 			// Mark the bank leg so it's excluded from spending/income aggregates.
-			$this->transactionService->markPensionContribLink($tx->getId(), $userId, $contribution->getId());
+			$this->transactionService->markPensionContribLink($tx->getId(), $ownerId, $contribution->getId());
 
 			$this->db->commit();
 			return $contribution;
@@ -418,11 +449,7 @@ class PensionService {
 		$this->db->beginTransaction();
 		try {
 			if ($txId !== null) {
-				try {
-					$this->transactionService->delete($txId, $userId);
-				} catch (DoesNotExistException $e) {
-					// Bank leg already gone — nothing to clean up.
-				}
+				$this->deleteLeg($txId, $userId);
 			}
 			$this->contributionMapper->delete($contribution);
 			$this->rewindScheduleOf($contribution, $userId);
@@ -431,6 +458,24 @@ class PensionService {
 			$this->db->rollBack();
 			throw $e;
 		}
+	}
+
+	/**
+	 * Remove an entry's bank leg as its account's owner, which is another
+	 * user when the account is shared. A leg in an account the user can no
+	 * longer write to stays in that ledger: it isn't theirs to change, and
+	 * it still counts as money moved to a pension there.
+	 */
+	private function deleteLeg(int $txId, string $userId): void {
+		$leg = $this->transactionMapper->findById($txId);
+		if ($leg === null) {
+			return; // Bank leg already gone — nothing to clean up.
+		}
+		$accountId = $leg->getAccountId();
+		if (!$this->granularShareService->canWrite($userId, ShareItem::TYPE_ACCOUNT, $accountId)) {
+			return;
+		}
+		$this->transactionService->deleteAsAccountOwner($txId);
 	}
 
 	/**

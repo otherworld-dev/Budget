@@ -94,6 +94,29 @@ class AccountServiceTest extends TestCase {
 		$this->assertTrue($accounts[0]['_shared']);
 	}
 
+	/**
+	 * Pickers for new activity leave out an account shared read-only: an
+	 * entry posted into it can only be refused.
+	 */
+	public function testASharedAccountSaysWhetherItCanBeWrittenTo(): void {
+		$joint = new Account();
+		$joint->setId(9);
+		$joint->setCurrency('GBP');
+		$joint->setBalance(0.0);
+		$this->accountMapper->method('findByIds')->willReturn([$joint]);
+		$this->transactionMapper->method('getNetChangeAfterDateForAccounts')->willReturn([]);
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('getSharedAccountIds')->willReturn([9]);
+		$shares->method('canWrite')->with('user1', 'account', 9)->willReturn(false);
+		$service = new AccountService($this->accountMapper, $this->transactionMapper, $this->createMock(InterestRateMapper::class),
+			$this->conversionService, $shares, $this->transactionService, $this->createMock(IL10N::class));
+
+		$account = $service->findSharedWithCurrentBalances('user1')[0];
+
+		$this->assertFalse($account['_canWrite']);
+	}
+
 	public function testASharedAccountIsConvertedToTheViewersBaseCurrency(): void {
 		$usd = new Account();
 		$usd->setId(9);

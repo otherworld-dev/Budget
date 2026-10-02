@@ -413,6 +413,27 @@ class PensionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
+	public function testCreateContributionShowsWhyAnAccountIsRefused(): void {
+		$this->mockInput('{"amount": 200, "date": "2026-10-01", "sourceAccountId": 9}');
+		$this->service->method('createContributionWithTransfer')
+			->willThrowException(new \InvalidArgumentException('Joint is shared with you read-only'));
+
+		$response = $this->controller->createContribution(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Joint is shared with you read-only', $response->getData()['error']);
+	}
+
+	public function testCreateWithdrawalShowsWhyAnAccountIsRefused(): void {
+		$this->mockInput('{"amount": 200, "date": "2026-10-01", "destAccountId": 9}');
+		$this->service->method('createWithdrawalWithTransfer')
+			->willThrowException(new \InvalidArgumentException('Joint is shared with you read-only'));
+
+		$response = $this->controller->createWithdrawal(1);
+
+		$this->assertSame('Joint is shared with you read-only', $response->getData()['error']);
+	}
+
 	public function testUpdateShowsWhyATypeChangeIsRefused(): void {
 		$this->mockInput(json_encode(['type' => 'defined_benefit']));
 		$this->service->method('update')->willThrowException(new \InvalidArgumentException('Delete its scheduled contributions first'));

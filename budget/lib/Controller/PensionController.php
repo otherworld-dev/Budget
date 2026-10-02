@@ -447,6 +447,8 @@ class PensionController extends Controller {
 				$contribution = $this->service->createContribution($id, $this->getEffectiveUserId(), $amount, $date, $note);
 			}
 			return new DataResponse($contribution, Http::STATUS_CREATED);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleValidationError($e);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to create contribution'), Http::STATUS_BAD_REQUEST, ['pensionId' => $id]);
 		}
@@ -495,6 +497,8 @@ class PensionController extends Controller {
 				$withdrawal = $this->service->createWithdrawal($id, $this->getEffectiveUserId(), $amount, $date, $note);
 			}
 			return new DataResponse($withdrawal, Http::STATUS_CREATED);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleValidationError($e);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to record withdrawal'), Http::STATUS_BAD_REQUEST, ['pensionId' => $id]);
 		}

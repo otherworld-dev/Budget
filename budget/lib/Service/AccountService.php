@@ -384,7 +384,12 @@ class AccountService extends AbstractCrudService {
 		/** @var AccountMapper $mapper */
 		$mapper = $this->mapper;
 		return array_map(
-			fn (Account $account) => $this->withCurrentBalance($account, $futureChanges, $baseCurrency, $userId) + ['_shared' => true],
+			// _canWrite lets pickers for new activity leave out an account
+			// shared read-only, where anything posted can only be refused
+			fn (Account $account) => $this->withCurrentBalance($account, $futureChanges, $baseCurrency, $userId) + [
+				'_shared' => true,
+				'_canWrite' => $this->granularShareService->canWrite($userId, ShareItem::TYPE_ACCOUNT, $account->getId()),
+			],
 			$mapper->findByIds($ids)
 		);
 	}

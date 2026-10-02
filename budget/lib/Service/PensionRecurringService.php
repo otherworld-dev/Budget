@@ -75,6 +75,9 @@ class PensionRecurringService {
 	): PensionRecurringContribution {
 		$this->requireContributions($this->pensionMapper->find($pensionId, $userId)); // verifies ownership too
 		$this->validateFrequency($frequency);
+		if ($sourceAccountId !== null) {
+			$this->pensionService->requireUsableAccount($sourceAccountId, $userId);
+		}
 
 		$recur = new PensionRecurringContribution();
 		$recur->setUserId($userId);
@@ -122,7 +125,11 @@ class PensionRecurringService {
 			$datesChanged = true;
 		}
 		if (array_key_exists('sourceAccountId', $fields)) {
-			$recur->setSourceAccountId($fields['sourceAccountId'] !== null && $fields['sourceAccountId'] !== '' ? (int)$fields['sourceAccountId'] : null);
+			$sourceAccountId = $fields['sourceAccountId'] !== null && $fields['sourceAccountId'] !== '' ? (int)$fields['sourceAccountId'] : null;
+			if ($sourceAccountId !== null && $sourceAccountId !== $recur->getSourceAccountId()) {
+				$this->pensionService->requireUsableAccount($sourceAccountId, $userId);
+			}
+			$recur->setSourceAccountId($sourceAccountId);
 		}
 		if (array_key_exists('autoPostEnabled', $fields) && $fields['autoPostEnabled'] !== null) {
 			$recur->setAutoPostEnabled(filter_var($fields['autoPostEnabled'], FILTER_VALIDATE_BOOLEAN));

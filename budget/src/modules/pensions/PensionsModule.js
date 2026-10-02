@@ -938,11 +938,14 @@ export default class PensionsModule {
     /**
      * Populate a <select> with the user's accounts. The first option is a
      * blank "no account" choice (for the optional source-account selectors).
+     * An account shared read-only is left out: money can't be moved
+     * through it, so a contribution from it could only be refused.
      */
     _populateAccountSelect(selectId, blankLabel) {
         const select = document.getElementById(selectId);
         if (!select) return;
-        const accounts = openAccounts(this.app.accounts); // closed ones take nothing new (#372)
+        const accounts = openAccounts(this.app.accounts) // closed ones take nothing new (#372)
+            .filter(a => !a._shared || a._canWrite === true);
         const opts = [`<option value="">${dom.escapeHtml(blankLabel)}</option>`];
         accounts.forEach(a => {
             opts.push(`<option value="${a.id}">${dom.escapeHtml(a.name)}</option>`);
