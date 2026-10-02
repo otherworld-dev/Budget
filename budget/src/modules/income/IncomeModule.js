@@ -2,6 +2,7 @@
  * Income Module - Recurring income tracking and detection
  */
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
+import { once } from '../../utils/submitGuard.js';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo, showUndoNotification } from '../../utils/notifications.js';
@@ -477,7 +478,12 @@ export default class IncomeModule {
         }
     }
 
-    async saveIncome() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveIncome() {
+        return once('income-save', document.querySelector('#income-form [type="submit"]'), () => this._saveIncome());
+    }
+
+    async _saveIncome() {
         try {
             const id = document.getElementById('income-id').value;
             const isNew = !id;
@@ -748,7 +754,12 @@ export default class IncomeModule {
         }).join('');
     }
 
-    async addSelectedDetectedIncome() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    addSelectedDetectedIncome() {
+        return once('income-add-detected', document.getElementById('add-selected-income-btn'), () => this._addSelectedDetectedIncome());
+    }
+
+    async _addSelectedDetectedIncome() {
         const checkboxes = document.querySelectorAll('#detected-income-list input[type="checkbox"]:checked');
         const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.id.replace('detected-income-', '')));
 

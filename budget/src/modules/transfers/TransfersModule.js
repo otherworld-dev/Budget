@@ -2,6 +2,7 @@
  * Transfers Module - Recurring transfer tracking between accounts
  */
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
+import { once } from '../../utils/submitGuard.js';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { billRowState } from '../../utils/billDates.js';
@@ -789,7 +790,12 @@ export default class TransfersModule {
         }
     }
 
-    async saveTransfer(existingTransfer = null) {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveTransfer(existingTransfer = null) {
+        return once('transfer-save', document.querySelector('#transfer-form [type="submit"]'), () => this._saveTransfer(existingTransfer));
+    }
+
+    async _saveTransfer(existingTransfer = null) {
         const name = document.getElementById('transfer-name').value;
         const amountType = document.getElementById('transfer-amount-type')?.value || 'fixed';
         const amountValue = parseFloat(document.getElementById('transfer-amount').value);
@@ -1306,7 +1312,12 @@ export default class TransfersModule {
         this._detectedTransfers = detected;
     }
 
-    async addSelectedDetectedTransfers() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    addSelectedDetectedTransfers() {
+        return once('transfers-add-detected', document.getElementById('add-detected-transfers-btn'), () => this._addSelectedDetectedTransfers());
+    }
+
+    async _addSelectedDetectedTransfers() {
         const checkboxes = document.querySelectorAll('#detected-transfers-list input[type="checkbox"]:checked');
         const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.id.replace('detected-transfer-', '')));
 

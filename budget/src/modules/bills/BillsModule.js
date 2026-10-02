@@ -2,6 +2,7 @@
  * Bills Module - Recurring bill tracking and detection
  */
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
+import { once } from '../../utils/submitGuard.js';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { billRowState } from '../../utils/billDates.js';
@@ -227,7 +228,12 @@ export default class BillsModule {
         }
     }
 
-    async createBillFromSuggestion(index) {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    createBillFromSuggestion(index) {
+        return once(`bill-suggestion-${index}`, document.querySelector(`.bill-suggestion-create[data-index="${index}"]`), () => this._createBillFromSuggestion(index));
+    }
+
+    async _createBillFromSuggestion(index) {
         const item = this._billSuggestions?.[index];
         if (!item) return;
         try {
@@ -1029,7 +1035,12 @@ export default class BillsModule {
         return splits.length >= 2 ? splits : null;
     }
 
-    async saveBill() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveBill() {
+        return once('bill-save', document.querySelector('#bill-form [type="submit"]'), () => this._saveBill());
+    }
+
+    async _saveBill() {
         const billId = document.getElementById('bill-id').value;
         const isNew = !billId;
 
@@ -1490,7 +1501,12 @@ export default class BillsModule {
         this._detectedBills = detected;
     }
 
-    async addSelectedDetectedBills() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    addSelectedDetectedBills() {
+        return once('bills-add-detected', document.getElementById('add-selected-bills-btn'), () => this._addSelectedDetectedBills());
+    }
+
+    async _addSelectedDetectedBills() {
         const checkboxes = document.querySelectorAll('#detected-bills-list input[type="checkbox"]:checked');
         const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.id.replace('detected-', '')));
 
