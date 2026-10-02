@@ -28,7 +28,9 @@ class UserTableCleaner {
 	 * restore that cleared them would destroy them for good:
 	 *   - shares the user GRANTED, with their items and auto-share config.
 	 *     Shares granted TO the user belong to the other user and survive
-	 *     both (they are matched on owner_user_id only);
+	 *     both (they are matched on owner_user_id only). A restore moves the
+	 *     items to the restored rows, or removes those it can't match
+	 *     (CrossUserLinks);
 	 *   - bank connections and their account mappings. Deleted as rows, the
 	 *     encrypted credentials are never read, so an unreadable secret
 	 *     cannot block the reset;

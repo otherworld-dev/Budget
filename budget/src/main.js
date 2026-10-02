@@ -2422,6 +2422,7 @@ class BudgetApp {
                         <div class="result-count"><strong>${data.counts.importRules}</strong> ${t('budget', 'import rules')}</div>
                         <div class="result-count"><strong>${data.counts.settings}</strong> ${t('budget', 'settings')}</div>
                     </div>
+                    ${(Array.isArray(data.warnings) ? data.warnings : []).map(warning => `<p class="result-hint">${dom.escapeHtml(warning)}</p>`).join('')}
                 </div>
             `;
             result.style.display = 'block';

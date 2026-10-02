@@ -365,7 +365,10 @@ class MigrationServiceTest extends TestCase {
 				$this->assertSame('2026-01-01', $b->getStartDate());
 				$this->assertSame('2030-12-31', $b->getEndDate());
 				$this->assertSame(12, $b->getRemainingPayments());
-				$this->assertSame([['categoryId' => 100, 'percent' => 100]], $b->getSplitTemplateArray());
+				// The template's categories remap like every other category
+				// reference; this archive carries no categories, so the part
+				// stays and loses its category
+				$this->assertSame([['categoryId' => null, 'percent' => 100]], $b->getSplitTemplateArray());
 				$this->assertTrue((bool)$b->getExcludedFromForecast());
 				$this->assertFalse((bool)$b->getCreateTransaction());
 				$this->assertSame('2026-06-28', $b->getLastPaidDate());
