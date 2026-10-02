@@ -308,6 +308,13 @@ class RecurringIncomeService extends AbstractCrudService {
 			$this->requireWritableAccount($income);
 		}
 		foreach ($ids as $transactionId) {
+			// Only this income's own credit: the snapshot holds ids, and
+			// after a backup restore they can name anyone's rows
+			$row = $this->transactionService->findTransaction((int)$transactionId);
+			if ($row === null || $row->getAccountId() !== $income->getAccountId() || $row->getType() !== 'credit'
+				|| !str_starts_with((string)$row->getNotes(), 'Auto-generated from income:')) {
+				continue;
+			}
 			try {
 				$this->transactionService->deleteAsAccountOwner((int)$transactionId);
 			} catch (\Exception $e) {

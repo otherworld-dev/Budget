@@ -35,6 +35,8 @@ class RecurringIncomeLifecycleTest extends TestCase {
 	private ?RecurringIncome $stored = null;
 	/** @var list<array{date: string, status: ?string}> */
 	private array $booked = [];
+	/** @var array<int, Transaction> */
+	private array $rows = [];
 	private bool $accountWritable = true;
 
 	protected function setUp(): void {
@@ -57,9 +59,15 @@ class RecurringIncomeLifecycleTest extends TestCase {
 				$this->booked[] = ['date' => $date, 'status' => $status];
 				$tx = new Transaction();
 				$tx->setId(100 + count($this->booked));
+				$tx->setAccountId($income->getAccountId());
+				$tx->setType('credit');
+				$tx->setNotes('Auto-generated from income: ' . $income->getName());
+				$this->rows[$tx->getId()] = $tx;
 				return $tx;
 			}
 		);
+
+		$this->transactions->method('findTransaction')->willReturnCallback(fn (int $id) => $this->rows[$id] ?? null);
 
 		$clock = $this->createMock(UserClock::class);
 		$clock->method('today')->willReturn(self::TODAY);
@@ -191,6 +199,24 @@ class RecurringIncomeLifecycleTest extends TestCase {
 		$this->assertSame('2026-10-03', $income->getNextExpectedDate());
 		$this->assertSame('2026-09-03', $income->getLastReceivedDate());
 		$this->assertTrue($income->getIsActive());
+	}
+
+	public function testUndoOnlyRemovesTheIncomesOwnCredit(): void {
+		// The snapshot holds transaction ids. After a backup restore they
+		// can name anyone's rows, so only this income's own credit goes
+		$this->income(['nextExpectedDate' => '2026-10-03']);
+		$this->stored->setReceivedUndoState(json_encode([
+			'nextExpectedDate' => '2026-10-03', 'lastReceivedDate' => null, 'isActive' => true,
+			'transactionIds' => [55],
+		]));
+		$stranger = new Transaction();
+		$stranger->setId(55);
+		$stranger->setAccountId(99);
+		$stranger->setType('debit');
+		$this->rows[55] = $stranger;
+		$this->transactions->expects($this->never())->method('deleteAsAccountOwner');
+
+		$this->service->markUnreceived(1, 'user1');
 	}
 
 	public function testReceivingIntoAnAccountNoLongerWritableIsRefused(): void {
