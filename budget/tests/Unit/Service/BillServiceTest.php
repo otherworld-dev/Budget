@@ -912,12 +912,6 @@ class BillServiceTest extends TestCase {
 		// quarterly one keeps its months: both were dropped, so the weekly
 		// one fell on the wrong weekday and the quarterly one in Jan/Apr/Jul/Oct
 		$this->mapper->method('insert')->willReturnArgument(0);
-		$calls = [];
-		$this->frequencyCalculator->method('calculateNextDueDate')
-			->willReturnCallback(function (...$args) use (&$calls) {
-				$calls[] = $args;
-				return '2099-07-01';
-			});
 
 		[$weekly, $quarterly] = $this->service->createFromDetected('user1', [
 			['suggestedName' => 'Gym', 'amount' => 9.99, 'frequency' => 'weekly', 'dueDay' => 5, 'dueMonth' => null, 'startDate' => '2026-09-25'],
@@ -926,10 +920,13 @@ class BillServiceTest extends TestCase {
 
 		$this->assertSame('2026-09-25', $weekly->getStartDate());
 		$this->assertSame(5, $weekly->getDueDay());
-		$this->assertSame('2026-09-25', $calls[0][6]);
+		// On the Friday fortnight of the payment it last saw...
+		$this->assertSame('Fri', (new \DateTime($weekly->getNextDueDate()))->format('D'));
+		$this->assertSame(0, (new \DateTime('2026-09-25'))->diff(new \DateTime($weekly->getNextDueDate()))->days % 7);
+		// ...and in the quarter's own months
 		$this->assertSame(9, $quarterly->getDueMonth());
 		$this->assertNull($quarterly->getStartDate());
-		$this->assertSame(9, $calls[1][2]);
+		$this->assertContains((int)substr($quarterly->getNextDueDate(), 5, 2), [3, 6, 9, 12]);
 	}
 
 	public function testCreateFromDetectedSkipsABlankSuggestedName(): void {
