@@ -48,6 +48,26 @@ class UnpaidPlaceholderRestoreMigrationTest extends IntegrationTestCase {
 		$this->assertEqualsWithDelta(200.0, (float)\OCP\Server::get(AccountMapper::class)->findById($account->getId())->getBalance(), 0.001);
 	}
 
+	/**
+	 * A weekly bill due 1 September, paid a week late: the payment is dated
+	 * the 8th, which is also the next occurrence. The bill's snapshot names
+	 * it as the payment, so it stays a payment.
+	 */
+	public function testAPaymentOnTheNextDueDateIsLeftAlone(): void {
+		$account = $this->makeAccount()->getId();
+		$bill = $this->bill($account, '2026-09-08', ['frequency' => 'weekly', 'due_day' => 2]);
+		$payment = $this->row($account, $bill, '2026-09-08');
+		$this->db()->executeStatement('UPDATE *PREFIX*budget_bills SET paid_undo_state = ? WHERE id = ?', [
+			json_encode(['previousState' => ['nextDueDate' => '2026-09-01'], 'createdTransactionIds' => [$payment],
+				'scheduledTransactionIds' => [], 'linkedTransactionId' => null, 'paidDate' => '2026-09-08']),
+			$bill,
+		]);
+
+		$this->runMigration();
+
+		$this->assertSame('cleared', $this->fetchRow('budget_transactions', $payment)['status']);
+	}
+
 	public function testBothLegsOfAnUnpaidTransferGoBack(): void {
 		$from = $this->makeAccount()->getId();
 		$to = $this->makeAccount(['name' => 'Savings', 'type' => 'savings'])->getId();
