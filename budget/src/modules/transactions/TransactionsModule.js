@@ -3457,7 +3457,14 @@ export default class TransactionsModule {
                 ? t('budget', 'This will decrease the account balance by {amount}.', { amount })
                 : t('budget', 'This will increase the account balance by {amount}.', { amount });
 
-            if (transaction.billId) {
+            // A scheduled row is in no balance yet, and a bill's one is the
+            // payment it hasn't made: neither the balance line nor the "real
+            // payment" warning is true of it
+            if (transaction.status === 'scheduled') {
+                message = transaction.billId
+                    ? t('budget', 'This is the upcoming payment of a bill, not money that has moved. Deleting it removes the scheduled entry until the bill is next paid; the bill itself stays, and the account balance does not change. Are you sure?')
+                    : t('budget', 'This transaction is scheduled and not in the account balance yet, so the balance does not change. Are you sure you want to delete it?');
+            } else if (transaction.billId) {
                 message = t('budget', 'This transaction was auto-generated from a bill payment.') + `\n\n${balanceEffect}\n\n` + t('budget', 'If this is a real payment, deleting it will cause your balance to diverge from your bank statement. Are you sure?');
             } else {
                 message = t('budget', 'Are you sure you want to delete this transaction?') + `\n\n${balanceEffect}`;
