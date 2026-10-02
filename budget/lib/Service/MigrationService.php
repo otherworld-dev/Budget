@@ -14,6 +14,7 @@ use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
+use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Enum\AccountType;
@@ -47,7 +48,10 @@ class MigrationService {
 	 *   scope   'user' (has a user_id column), or ['joins' => [[table,
 	 *           localColumn], …]] — a chain ending at a table with user_id
 	 *   idMap   record this table's old => new ids under this key
-	 *   fk      [column => ['map' => idMapKey, 'onMissing' => 'null'|'drop']]
+	 *   fk      [column => ['map' => idMapKey, 'onMissing' => 'null'|'drop',
+	 *           'shared' => keep an id another user shares with this one,
+	 *           while CrossUserLinks::keepsReference() allows it]]
+	 *   entity  the share item type of the table's rows, for 'shared'
 	 *   jsonFk  [column => ['map' => idMapKey,
 	 *           'shape' => 'idList'|'idKeyedObject'|'idValuedObject']]
 	 *   undoSnapshot  ['column' => JSON column, 'required' => key a valid
@@ -105,9 +109,14 @@ class MigrationService {
 		'recurring_income' => [
 			'table' => 'budget_recurring_income',
 			'scope' => 'user',
+			// Share items follow it to its new id (CrossUserLinks)
+			'idMap' => 'recurring_income',
+			'entity' => ShareItem::TYPE_RECURRING_INCOME,
 			'fk' => [
-				'account_id' => ['map' => 'accounts', 'onMissing' => 'null'],
-				'category_id' => ['map' => 'categories', 'onMissing' => 'null'],
+				// An account or category shared with the user is kept while it
+				// still is (CrossUserLinks::keepsReference())
+				'account_id' => ['map' => 'accounts', 'onMissing' => 'null', 'shared' => true],
+				'category_id' => ['map' => 'categories', 'onMissing' => 'null', 'shared' => true],
 			],
 			// Mark Unreceived's snapshot names the credit it booked
 			'undoSnapshot' => [
@@ -120,6 +129,8 @@ class MigrationService {
 		'savings_goals' => [
 			'table' => 'budget_savings_goals',
 			'scope' => 'user',
+			// Share items follow it to its new id (CrossUserLinks)
+			'idMap' => 'savings_goals',
 			'fk' => [
 				'account_id' => ['map' => 'accounts', 'onMissing' => 'null'],
 				'tag_id' => ['map' => 'tags', 'onMissing' => 'null'],
@@ -267,6 +278,9 @@ class MigrationService {
 	/** @var array<string, array<string, 'bool'|'int'|'string'>|null> table => column bindings, per restore */
 	private array $bindingCache = [];
 
+	/** Restored bills that lost an account they used, per restore */
+	private int $billsDetached = 0;
+
 	public function __construct(
 		private AccountMapper $accountMapper,
 		private TransactionMapper $transactionMapper,
@@ -277,6 +291,9 @@ class MigrationService {
 		private IDBConnection $db,
 		private ?IL10N $l = null,
 		private ?SchemaProbe $schemaProbe = null,
+		// Always wired through DI; without it a restore leaves links to
+		// other users' data out, as it did before
+		private ?CrossUserLinks $crossUserLinks = null,
 	) {
 		$this->tableCleaner = new UserTableCleaner($db);
 	}
@@ -284,6 +301,13 @@ class MigrationService {
 	/** Translate when a translator is wired (always, through DI). */
 	private function t(string $text, array $parameters = []): string {
 		return $this->l !== null ? $this->l->t($text, $parameters) : vsprintf($text, $parameters);
+	}
+
+	/** Translate a count, as t() does */
+	private function n(string $singular, string $plural, int $count): string {
+		return $this->l !== null
+			? $this->l->n($singular, $plural, $count)
+			: str_replace('%n', (string)$count, $count === 1 ? $singular : $plural);
 	}
 
 	/**
@@ -307,7 +331,7 @@ class MigrationService {
 	 * This performs a full replacement of existing data.
 	 *
 	 * @param string $zipContent The raw ZIP file content
-	 * @return array{success: bool, message: string, counts: array}
+	 * @return array{success: bool, message: string, counts: array, warnings: string[]}
 	 */
 	public function importAll(string $userId, string $zipContent): array {
 		$importData = $this->parseZipArchive($zipContent);
@@ -318,11 +342,19 @@ class MigrationService {
 		$this->db->beginTransaction();
 
 		try {
+			// What links this user's data to other users' (shares, bills on
+			// shared accounts), read before it is deleted
+			$this->crossUserLinks?->capture($userId);
+			$this->billsDetached = 0;
+
 			// Delete all existing data for user
 			$this->clearUserData($userId);
 
 			// Import in dependency order with ID remapping
 			$idMaps = $this->importData($userId, $importData);
+
+			// Point those links at the restored rows, or cut them
+			$links = $this->crossUserLinks?->apply($idMaps) ?? ['sharesDropped' => 0, 'othersDetached' => 0];
 
 			// Restore the ledger invariant for imported accounts:
 			// opening_balance := exported balance − net(imported transactions).
@@ -344,11 +376,44 @@ class MigrationService {
 				'success' => true,
 				'message' => 'Import completed successfully',
 				'counts' => $this->countData($importData),
+				'warnings' => $this->restoreWarnings($links['sharesDropped'], $this->billsDetached, $links['othersDetached']),
 			];
 		} catch (\Exception $e) {
 			$this->db->rollBack();
 			throw $e;
 		}
+	}
+
+	/**
+	 * What a restore couldn't keep of the links between this user's data
+	 * and other people's, said in words.
+	 *
+	 * @return string[]
+	 */
+	private function restoreWarnings(int $sharesDropped, int $billsDetached, int $othersDetached): array {
+		$warnings = [];
+		if ($sharesDropped > 0) {
+			$warnings[] = $this->n(
+				'%n item you shared could not be matched to the restored data, so it is no longer shared. Share it again in Settings if you still want to.',
+				'%n items you shared could not be matched to the restored data, so they are no longer shared. Share them again in Settings if you still want to.',
+				$sharesDropped
+			);
+		}
+		if ($billsDetached > 0) {
+			$warnings[] = $this->n(
+				'%n bill or transfer lost its account in the restore: the account is not in this backup, or not shared with you any more. Its auto-pay is off; edit it to choose an account.',
+				'%n bills or transfers lost their account in the restore: the account is not in this backup, or not shared with you any more. Their auto-pay is off; edit them to choose an account.',
+				$billsDetached
+			);
+		}
+		if ($othersDetached > 0) {
+			$warnings[] = $this->n(
+				'%n item of someone you share with used an account, category or bill that did not come back in this restore, and has been unlinked from it.',
+				'%n items of people you share with used an account, category or bill that did not come back in this restore, and have been unlinked from it.',
+				$othersDetached
+			);
+		}
+		return $warnings;
 	}
 
 	/**
@@ -687,7 +752,19 @@ class MigrationService {
 		}
 
 		// 3. Import transactions with ID remapping
-		$txResult = $this->importTransactions($userId, $data['transactions'] ?? [], $idMaps);
+		$archivedBillIds = [];
+		foreach ($data['bills'] ?? [] as $billData) {
+			if (isset($billData['id'])) {
+				$archivedBillIds[] = (int)$billData['id'];
+			}
+		}
+		$archivedAccounts = [];
+		foreach ($data['accounts'] ?? [] as $accountData) {
+			if (isset($accountData['id'])) {
+				$archivedAccounts[(int)$accountData['id']] = $accountData;
+			}
+		}
+		$txResult = $this->importTransactions($userId, $data['transactions'] ?? [], $idMaps, $archivedBillIds, $archivedAccounts);
 		$idMaps['transactions'] = $txResult['map'];
 		// Restore transfer pair links between the freshly imported rows (#351)
 		$this->fixupTransactionColumn('linked_transaction_id', $txResult['links'], $txResult['map']);
@@ -696,7 +773,7 @@ class MigrationService {
 		$idMaps['bills'] = $this->importBills($userId, $data['bills'] ?? [], $idMaps);
 
 		// 5. Import import rules with ID remapping
-		$this->importImportRules($userId, $data['import_rules'] ?? [], $idMaps);
+		$idMaps['import_rules'] = $this->importImportRules($userId, $data['import_rules'] ?? [], $idMaps);
 
 		// 6. Import settings
 		$this->importSettings($userId, $data['settings'] ?? []);
@@ -947,19 +1024,50 @@ class MigrationService {
 	 *                                                                                     restored in a fixup pass once both sides have new ids — dropping
 	 *                                                                                     them unlinked every transfer pair on migration (#351), which then
 	 *                                                                                     counted as income/expense in reports.
+	 *
+	 * @param int[]|null $archivedBillIds the archive's bill ids: a row carrying
+	 *                                    any other bill id was booked by another user's bill (see below).
+	 *                                    Null treats every bill id as the archive's own.
+	 * @param array<int, array<string, mixed>> $archivedAccounts the archive's accounts by id
 	 */
-	private function importTransactions(string $userId, array $transactions, array $idMaps): array {
+	private function importTransactions(string $userId, array $transactions, array $idMaps, ?array $archivedBillIds = null, array $archivedAccounts = []): array {
 		$map = [];
 		$links = [];
 		$billRefs = [];
 		$reconRefs = [];
 		$pensionRefs = [];
+		$ownBills = $archivedBillIds === null ? null : array_flip($archivedBillIds);
+		$archivedIds = [];
+		foreach ($transactions as $txnData) {
+			if (isset($txnData['id'])) {
+				$archivedIds[(int)$txnData['id']] = true;
+			}
+		}
 		foreach ($transactions as $txnData) {
 			// Skip if account doesn't exist in map (shouldn't happen with valid export)
 			$oldAccountId = $txnData['accountId'];
 			if (!isset($idMaps['accounts'][$oldAccountId])) {
 				continue;
 			}
+
+			// A row booked into this user's account by someone else's bill
+			// (the account is shared with them) keeps that bill only if it is
+			// the row the user had here; the bill, not being this user's, is
+			// untouched by the restore. Otherwise a pending one is left out:
+			// restored without its bill, nothing could clear or remove it,
+			// and it went on to charge the account on its date.
+			$billId = !empty($txnData['billId']) ? (int)$txnData['billId'] : null;
+			$foreignBill = $billId !== null && $ownBills !== null && !isset($ownBills[$billId]);
+			$account = $archivedAccounts[(int)$oldAccountId] ?? [];
+			$keepsForeignBill = $foreignBill && $this->keepsTransactionLink($txnData, $account, 'billId', $billId);
+			if ($foreignBill && !$keepsForeignBill && ($txnData['status'] ?? null) === 'scheduled') {
+				continue;
+			}
+			// Likewise the other leg of a transfer to or from an account of
+			// someone else's
+			$linkedId = !empty($txnData['linkedTransactionId']) ? (int)$txnData['linkedTransactionId'] : null;
+			$keepsForeignLeg = $linkedId !== null && !isset($archivedIds[$linkedId])
+				&& $this->keepsTransactionLink($txnData, $account, 'linkedId', $linkedId);
 
 			$transaction = new Transaction();
 			$transaction->setAccountId($idMaps['accounts'][$oldAccountId]);
@@ -988,15 +1096,22 @@ class MigrationService {
 				$transaction->setCategoryId($idMaps['categories'][$oldCategoryId]);
 			}
 
+			if ($keepsForeignBill) {
+				$transaction->setBillId($billId);
+			}
+			if ($keepsForeignLeg) {
+				$transaction->setLinkedTransactionId($linkedId);
+			}
+
 			$inserted = $this->transactionMapper->insert($transaction);
 			if (isset($txnData['id'])) {
 				$map[(int)$txnData['id']] = $inserted->getId();
 			}
-			if (!empty($txnData['linkedTransactionId'])) {
-				$links[$inserted->getId()] = (int)$txnData['linkedTransactionId'];
+			if ($linkedId !== null && !$keepsForeignLeg) {
+				$links[$inserted->getId()] = $linkedId;
 			}
-			if (!empty($txnData['billId'])) {
-				$billRefs[$inserted->getId()] = (int)$txnData['billId'];
+			if ($billId !== null && !$foreignBill) {
+				$billRefs[$inserted->getId()] = $billId;
 			}
 			if (!empty($txnData['reconSessionId'])) {
 				$reconRefs[$inserted->getId()] = (int)$txnData['reconSessionId'];
@@ -1013,6 +1128,19 @@ class MigrationService {
 			'reconRefs' => $reconRefs,
 			'pensionRefs' => $pensionRefs,
 		];
+	}
+
+	/**
+	 * Whether an archived transaction keeps its link to another user's bill
+	 * or transfer leg (CrossUserLinks::keepsTransactionLink()).
+	 */
+	private function keepsTransactionLink(array $txnData, array $account, string $link, int $value): bool {
+		return $this->crossUserLinks !== null && isset($txnData['id'])
+			&& $this->crossUserLinks->keepsTransactionLink(
+				(int)$txnData['id'], $txnData['date'] ?? null, $txnData['amount'] ?? null, $txnData['type'] ?? 'debit',
+				(int)$txnData['accountId'], $account['name'] ?? null, $account['createdAt'] ?? null,
+				$link, $value
+			);
 	}
 
 	/**
@@ -1111,18 +1239,9 @@ class MigrationService {
 	 * @param array<string,mixed> $row raw column => value
 	 */
 	private function remapRow(array $row, array $spec, array $idMaps): ?array {
-		// Before the foreign keys: whether the row's accounts came with the
-		// backup is read off their archived ids
-		if (isset($spec['undoSnapshot'])) {
-			$snapshotSpec = $spec['undoSnapshot'];
-			$column = $snapshotSpec['column'];
-			if (($row[$column] ?? null) !== null) {
-				$accountIds = array_map(static fn (string $c) => $row[$c] ?? null, $snapshotSpec['accounts'] ?? []);
-				$snapshot = $this->remapUndoSnapshot($row[$column], $snapshotSpec['required'], $snapshotSpec['idLists'] ?? [], [], $accountIds, $idMaps);
-				$row[$column] = $snapshot === null ? null : json_encode($snapshot);
-			}
-		}
-
+		$archived = $row;
+		// Columns kept on another user's id, still shared with this user
+		$keptShared = [];
 		foreach ($spec['fk'] ?? [] as $column => $fkSpec) {
 			$value = $row[$column] ?? null;
 			if ($value === null || $value === '') {
@@ -1131,10 +1250,33 @@ class MigrationService {
 			$mapped = $idMaps[$fkSpec['map']][(int)$value] ?? null;
 			if ($mapped !== null) {
 				$row[$column] = $mapped;
+			} elseif (!empty($fkSpec['shared']) && $this->keepsSharedReference($spec, $archived, $column, (int)$value)) {
+				$row[$column] = (int)$value;
+				$keptShared[$column] = true;
 			} elseif (($fkSpec['onMissing'] ?? 'null') === 'drop') {
 				return null;
 			} else {
 				$row[$column] = null;
+			}
+		}
+
+		if (isset($spec['undoSnapshot'])) {
+			$snapshotSpec = $spec['undoSnapshot'];
+			$column = $snapshotSpec['column'];
+			if (($row[$column] ?? null) !== null) {
+				$accountsCarried = true;
+				$sharedAccount = false;
+				foreach ($snapshotSpec['accounts'] ?? [] as $accountColumn) {
+					$hadOne = ($archived[$accountColumn] ?? null) !== null && $archived[$accountColumn] !== '';
+					$accountsCarried = $accountsCarried && (!$hadOne || $row[$accountColumn] !== null);
+					$sharedAccount = $sharedAccount || isset($keptShared[$accountColumn]);
+				}
+				$entity = $spec['entity'] ?? null;
+				$keepUnmapped = $sharedAccount && $entity !== null && isset($archived['id'])
+					? fn (int $id): bool => $this->crossUserLinks->keepsSnapshotTransaction($entity, (int)$archived['id'], $archived['name'] ?? null, $archived['created_at'] ?? null, $id)
+					: null;
+				$snapshot = $this->remapUndoSnapshot($row[$column], $snapshotSpec['required'], $snapshotSpec['idLists'] ?? [], [], $accountsCarried, $keepUnmapped, $idMaps);
+				$row[$column] = $snapshot === null ? null : json_encode($snapshot);
 			}
 		}
 
@@ -1180,36 +1322,54 @@ class MigrationService {
 	}
 
 	/**
+	 * Whether a registry row may keep a reference to another user's account
+	 * or category that is still shared with this user (CrossUserLinks).
+	 */
+	private function keepsSharedReference(array $spec, array $archived, string $column, int $value): bool {
+		return $this->crossUserLinks !== null && isset($spec['entity'], $archived['id'])
+			&& $this->crossUserLinks->keepsReference($spec['entity'], (int)$archived['id'], $archived['name'] ?? null, $archived['created_at'] ?? null, $column, $value);
+	}
+
+	/**
 	 * An undo snapshot (a bill's last payment, an income's last receipt) with
 	 * the transactions it names moved to their restored ids.
 	 *
 	 * Copied as it was, a revert would delete whatever now holds the old
 	 * ids. A row the backup doesn't hold was deleted before it was made, so
 	 * it is left out, as a revert would have skipped it. If the item posted
-	 * into an account that isn't in the backup, its rows aren't either: a
-	 * revert would put it back to unpaid and leave the money where it was,
+	 * into an account the restore couldn't keep, its rows are out of reach:
+	 * a revert would put it back to unpaid and leave the money where it was,
 	 * so it comes back with no snapshot at all, as does one that doesn't
-	 * read as a snapshot.
+	 * read as a snapshot. On an account still shared with the user its rows
+	 * sit in the other user's ledger, outside the backup, and each must be
+	 * one $keepUnmapped vouches for, or the snapshot goes.
 	 *
 	 * @param mixed $raw the archived snapshot, decoded or as JSON
 	 * @param string $required a key every valid snapshot has
 	 * @param string[] $idLists keys holding lists of transaction ids
 	 * @param string[] $idSingles keys holding one transaction id or null
-	 * @param array<int|string|null> $accountIds the item's archived account ids
+	 * @param bool $accountsCarried every account the item posts into came through
+	 * @param (callable(int): bool)|null $keepUnmapped for an item on a shared
+	 *                                                 account: whether an id the backup doesn't hold stays
 	 * @return array<string, mixed>|null
 	 */
-	private function remapUndoSnapshot(mixed $raw, string $required, array $idLists, array $idSingles, array $accountIds, array $idMaps): ?array {
+	private function remapUndoSnapshot(mixed $raw, string $required, array $idLists, array $idSingles, bool $accountsCarried, ?callable $keepUnmapped, array $idMaps): ?array {
 		$snapshot = is_string($raw) ? json_decode($raw, true) : $raw;
-		if (!is_array($snapshot) || !array_key_exists($required, $snapshot)) {
+		if (!is_array($snapshot) || !array_key_exists($required, $snapshot) || !$accountsCarried) {
 			return null;
-		}
-		foreach ($accountIds as $accountId) {
-			if ($accountId !== null && $accountId !== '' && !isset($idMaps['accounts'][(int)$accountId])) {
-				return null;
-			}
 		}
 
 		$transactionMap = $idMaps['transactions'] ?? [];
+		// The restored id, the id itself when it stays, or null when it goes
+		$resolve = static function (int $oldId) use ($transactionMap, $keepUnmapped): int|false|null {
+			if (isset($transactionMap[$oldId])) {
+				return $transactionMap[$oldId];
+			}
+			if ($keepUnmapped === null) {
+				return null;
+			}
+			return $keepUnmapped($oldId) ? $oldId : false;
+		};
 		foreach ($idLists as $key) {
 			if (!array_key_exists($key, $snapshot)) {
 				continue;
@@ -1222,8 +1382,12 @@ class MigrationService {
 				if (!is_numeric($oldId)) {
 					return null;
 				}
-				if (isset($transactionMap[(int)$oldId])) {
-					$ids[] = $transactionMap[(int)$oldId];
+				$id = $resolve((int)$oldId);
+				if ($id === false) {
+					return null;
+				}
+				if ($id !== null) {
+					$ids[] = $id;
 				}
 			}
 			$snapshot[$key] = $ids;
@@ -1236,7 +1400,11 @@ class MigrationService {
 			if (!is_numeric($oldId)) {
 				return null;
 			}
-			$snapshot[$key] = $transactionMap[(int)$oldId] ?? null;
+			$id = $resolve((int)$oldId);
+			if ($id === false) {
+				return null;
+			}
+			$snapshot[$key] = $id;
 		}
 		return $snapshot;
 	}
@@ -1499,7 +1667,7 @@ class MigrationService {
 			// category id from before the restore, so each payment's split was
 			// refused and the payment was saved unsplit and uncategorised.
 			$bill->setSplitTemplateArray(is_array($billData['splitTemplate'] ?? null)
-				? $this->remapSplitTemplate($billData['splitTemplate'], $idMaps)
+				? $this->remapSplitTemplate($billData, $idMaps)
 				: null);
 			// The reminder job sends once per due date by remembering when it
 			// last sent; without this every bill inside its reminder window
@@ -1509,33 +1677,41 @@ class MigrationService {
 			$bill->setCreateTransaction(filter_var($billData['createTransaction'] ?? true, FILTER_VALIDATE_BOOLEAN));
 			$bill->setCreatedAt($billData['createdAt'] ?? date('Y-m-d H:i:s'));
 
-			// Remap category ID
-			$oldCategoryId = $billData['categoryId'] ?? null;
-			if ($oldCategoryId !== null && isset($idMaps['categories'][$oldCategoryId])) {
-				$bill->setCategoryId($idMaps['categories'][$oldCategoryId]);
-			}
-
-			// Remap account ID
+			// Category and accounts move to the restored ids. One that
+			// belongs to another user, shared with this one, isn't in the
+			// backup: it is kept while it is still shared (an account
+			// writable), and only for the bill this user had here, pointing
+			// at it before. It used to be dropped every time, and a bill
+			// paid from a shared account came back with no account.
+			$bill->setCategoryId($this->restoredBillReference($billData, $idMaps, 'categoryId', 'category_id', 'categories'));
 			$oldAccountId = $billData['accountId'] ?? null;
-			if ($oldAccountId !== null && isset($idMaps['accounts'][$oldAccountId])) {
-				$bill->setAccountId($idMaps['accounts'][$oldAccountId]);
-			}
-
-			// Remap destination account ID (transfer bills)
+			$bill->setAccountId($this->restoredBillReference($billData, $idMaps, 'accountId', 'account_id', 'accounts'));
 			$oldDestId = $billData['destinationAccountId'] ?? null;
-			if ($oldDestId !== null && isset($idMaps['accounts'][$oldDestId])) {
-				$bill->setDestinationAccountId($idMaps['accounts'][$oldDestId]);
+			$bill->setDestinationAccountId($this->restoredBillReference($billData, $idMaps, 'destinationAccountId', 'destination_account_id', 'accounts'));
+
+			$lostAccount = ($oldAccountId !== null && $bill->getAccountId() === null)
+				|| ($bill->getIsTransfer() && $oldDestId !== null && $bill->getDestinationAccountId() === null);
+			if ($lostAccount) {
+				// With no account auto-pay only marks the bill paid and
+				// records nothing, while still showing as on
+				$bill->setAutoPayEnabled(false);
+				$this->billsDetached++;
 			}
 
 			// Mark Unpaid works from this, and a paid one-time bill is only
 			// listed while it has one (#365)
 			if (($billData['paidUndoState'] ?? null) !== null) {
+				$sharedAccount = ($oldAccountId !== null && !isset($idMaps['accounts'][(int)$oldAccountId]) && $bill->getAccountId() !== null)
+					|| ($oldDestId !== null && !isset($idMaps['accounts'][(int)$oldDestId]) && $bill->getDestinationAccountId() !== null);
 				$snapshot = $this->remapUndoSnapshot(
 					$billData['paidUndoState'],
 					'previousState',
 					['createdTransactionIds', 'scheduledTransactionIds'],
 					['linkedTransactionId'],
-					$bill->getIsTransfer() ? [$oldAccountId, $oldDestId] : [$oldAccountId],
+					!$lostAccount,
+					$sharedAccount && isset($billData['id'])
+						? fn (int $id): bool => $this->crossUserLinks->keepsSnapshotTransaction(ShareItem::TYPE_BILL, (int)$billData['id'], $billData['name'] ?? null, $billData['createdAt'] ?? null, $id)
+						: null,
 					$idMaps
 				);
 				if ($snapshot !== null && is_array($snapshot['previousState'])) {
@@ -1573,22 +1749,47 @@ class MigrationService {
 	}
 
 	/**
+	 * A restored bill's category, account or destination: the restored id,
+	 * another user's id it may keep (see importBills()), or null.
+	 */
+	private function restoredBillReference(array $billData, array $idMaps, string $key, string $column, string $map): ?int {
+		$oldId = $billData[$key] ?? null;
+		if ($oldId === null || $oldId === '') {
+			return null;
+		}
+		if (isset($idMaps[$map][(int)$oldId])) {
+			return $idMaps[$map][(int)$oldId];
+		}
+		return $this->billKeepsShared($billData, $column, (int)$oldId) ? (int)$oldId : null;
+	}
+
+	private function billKeepsShared(array $billData, string $column, int $value): bool {
+		return $this->crossUserLinks !== null && isset($billData['id'])
+			&& $this->crossUserLinks->keepsReference(ShareItem::TYPE_BILL, (int)$billData['id'], $billData['name'] ?? null, $billData['createdAt'] ?? null, $column, $value);
+	}
+
+	/**
 	 * A split template's parts with their categories moved to the restored
 	 * ids. A part whose category isn't in the backup stays, uncategorised,
-	 * so the parts still add up to the bill.
+	 * so the parts still add up to the bill, unless it is a category still
+	 * shared with the user (as for the bill's own category).
 	 *
-	 * @param array<mixed> $template
 	 * @return array<int, array<string, mixed>>
 	 */
-	private function remapSplitTemplate(array $template, array $idMaps): array {
+	private function remapSplitTemplate(array $billData, array $idMaps): array {
 		$parts = [];
-		foreach ($template as $part) {
+		foreach ($billData['splitTemplate'] as $part) {
 			if (!is_array($part)) {
 				continue;
 			}
 			$oldCategoryId = $part['categoryId'] ?? null;
 			if ($oldCategoryId !== null && $oldCategoryId !== '') {
-				$part['categoryId'] = $idMaps['categories'][(int)$oldCategoryId] ?? null;
+				$categoryId = (int)$oldCategoryId;
+				$part['categoryId'] = $idMaps['categories'][$categoryId]
+					?? ($this->crossUserLinks !== null && isset($billData['id'])
+						&& $this->crossUserLinks->keepsSplitCategory((int)$billData['id'], $billData['name'] ?? null, $billData['createdAt'] ?? null, $categoryId)
+						? $categoryId
+						: null);
 			}
 			$parts[] = $part;
 		}
@@ -1597,8 +1798,11 @@ class MigrationService {
 
 	/**
 	 * Import import rules with ID remapping.
+	 *
+	 * @return array<int, int> old id => new id, which share items follow
 	 */
-	private function importImportRules(string $userId, array $rules, array $idMaps): void {
+	private function importImportRules(string $userId, array $rules, array $idMaps): array {
+		$map = [];
 		foreach ($rules as $ruleData) {
 			$rule = new ImportRule();
 			$rule->setUserId($userId);
@@ -1655,8 +1859,12 @@ class MigrationService {
 				$rule->setCriteriaFromArray($ruleData['criteria']);
 			}
 
-			$this->importRuleMapper->insert($rule);
+			$inserted = $this->importRuleMapper->insert($rule);
+			if (isset($ruleData['id'])) {
+				$map[(int)$ruleData['id']] = $inserted->getId();
+			}
 		}
+		return $map;
 	}
 
 	/**
