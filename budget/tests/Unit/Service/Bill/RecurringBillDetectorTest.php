@@ -627,4 +627,123 @@ class RecurringBillDetectorTest extends TestCase {
 
 		$this->assertSame([], $this->detector->detectRecurringBills('user1'));
 	}
+
+	// ── the schedule a candidate carries ────────────────────────────
+
+	public function testWeeklyIsAnchoredOnTheLastPaymentAndItsWeekday(): void {
+		// Fridays: the averaged day of the month (18) was read as a weekday
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->series(['2026-09-04', '2026-09-11', '2026-09-18', '2026-09-25'], ['description' => 'PUREGYM', 'amount' => 9.99])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('weekly');
+
+		$c = $this->detector->detectRecurringBills('user1')[0];
+
+		$this->assertSame(5, $c['dueDay']);
+		$this->assertSame('2026-09-25', $c['startDate']);
+		$this->assertNull($c['dueMonth']);
+		$this->assertSame('2026-10-02', (new FrequencyCalculator())->occurrenceOnOrAfter('weekly', $c['dueDay'], $c['dueMonth'], '2026-09-30', null, $c['startDate']));
+	}
+
+	public function testBiweeklyKeepsTheRealFortnight(): void {
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->series(['2026-08-14', '2026-08-28', '2026-09-11', '2026-09-25'], ['description' => 'SO SAVINGS CLUB', 'amount' => 50.0])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('biweekly');
+
+		$c = $this->detector->detectRecurringBills('user1')[0];
+
+		$this->assertSame(5, $c['dueDay']);
+		$this->assertSame('2026-09-25', $c['startDate']);
+		$this->assertSame('2026-10-09', (new FrequencyCalculator())->occurrenceOnOrAfter('biweekly', $c['dueDay'], $c['dueMonth'], '2026-10-02', null, $c['startDate']));
+	}
+
+	public function testWeeklyAnchorIgnoresAOneOffDayMove(): void {
+		// The last one went a day early (bank holiday): the schedule stays on Fridays
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->series(['2026-09-04', '2026-09-11', '2026-09-18', '2026-09-24'], ['description' => 'PUREGYM', 'amount' => 9.99])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('weekly');
+
+		$c = $this->detector->detectRecurringBills('user1')[0];
+
+		$this->assertSame(5, $c['dueDay']);
+		$this->assertSame('2026-09-18', $c['startDate']);
+		$this->assertSame('2026-09-24', $c['lastSeen']);
+	}
+
+	public function testMonthlyPaymentsStraddlingMonthEndKeepTheirDay(): void {
+		// Due on the 1st, twice brought forward to the last day of the month
+		// before: the plain average put it on the 11th
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->series(['2026-04-01', '2026-04-30', '2026-06-01', '2026-07-01', '2026-07-31', '2026-09-01'], ['description' => 'RENT', 'amount' => 900.0])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('monthly');
+
+		$c = $this->detector->detectRecurringBills('user1')[0];
+
+		$this->assertSame(1, $c['dueDay']);
+		$this->assertNull($c['startDate']);
+		$this->assertNull($c['dueMonth']);
+	}
+
+	public function testMonthEndPaymentsStayAtMonthEnd(): void {
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->series(['2026-05-31', '2026-06-30', '2026-07-31', '2026-08-31', '2026-09-30'], ['description' => 'MORTGAGE', 'amount' => 700.0])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('monthly');
+
+		$this->assertSame(31, $this->detector->detectRecurringBills('user1')[0]['dueDay']);
+	}
+
+	public function testQuarterlyKeepsTheMonthsItIsPaidIn(): void {
+		// Mar/Jun/Sep on the 10th: without a month it fell into Jan/Apr/Jul/Oct
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->series(['2026-03-10', '2026-06-10', '2026-09-10'], ['description' => 'WATER RATES', 'amount' => 120.0])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('quarterly');
+
+		$c = $this->detector->detectRecurringBills('user1')[0];
+
+		$this->assertSame(10, $c['dueDay']);
+		$this->assertSame(9, $c['dueMonth']);
+		$this->assertSame('2026-12-10', (new FrequencyCalculator())->occurrenceOnOrAfter('quarterly', $c['dueDay'], $c['dueMonth'], '2026-10-02', null, $c['startDate']));
+	}
+
+	public function testQuarterlyNearMonthEndKeepsItsQuarter(): void {
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->series(['2026-03-30', '2026-06-29', '2026-09-28'], ['description' => 'WATER RATES', 'amount' => 120.0])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('quarterly');
+
+		$c = $this->detector->detectRecurringBills('user1')[0];
+
+		$next = (new FrequencyCalculator())->occurrenceOnOrAfter('quarterly', $c['dueDay'], $c['dueMonth'], '2026-10-02', null, $c['startDate']);
+		$this->assertStringStartsWith('2026-12-', $next);
+		$this->assertGreaterThanOrEqual(28, (int)substr($next, 8, 2));
+	}
+
+	public function testYearlyKeepsItsMonthWhenTheLastPaymentSlippedIntoTheNext(): void {
+		// Due at the end of January; last year's went out on 1 February
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->series(['2024-01-31', '2025-02-01', '2026-01-31'], ['description' => 'TV LICENCE', 'amount' => 174.5])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('yearly');
+
+		$c = $this->detector->detectRecurringBills('user1', 36)[0];
+
+		$this->assertSame(1, $c['dueMonth']);
+		$this->assertSame(31, $c['dueDay']);
+	}
+
+	public function testDailyPatternsAreNotOfferedAsBills(): void {
+		// No bill or transfer form offers a daily schedule, and a same-amount
+		// debit every day is spending (coffee, fares), not a bill
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->series(['2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24'], ['description' => 'COSTA COFFEE', 'amount' => 3.2])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('daily');
+
+		$this->assertSame([], $this->detector->detectRecurringBills('user1'));
+	}
 }

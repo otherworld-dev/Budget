@@ -855,6 +855,31 @@ class BillServiceTest extends TestCase {
 		$this->assertNull($created[0]->getCategoryId());
 	}
 
+	public function testCreateFromDetectedKeepsTheDetectedSchedule(): void {
+		// A weekly bill counts from the payment the detector last saw, and a
+		// quarterly one keeps its months: both were dropped, so the weekly
+		// one fell on the wrong weekday and the quarterly one in Jan/Apr/Jul/Oct
+		$this->mapper->method('insert')->willReturnArgument(0);
+		$calls = [];
+		$this->frequencyCalculator->method('calculateNextDueDate')
+			->willReturnCallback(function (...$args) use (&$calls) {
+				$calls[] = $args;
+				return '2099-07-01';
+			});
+
+		[$weekly, $quarterly] = $this->service->createFromDetected('user1', [
+			['suggestedName' => 'Gym', 'amount' => 9.99, 'frequency' => 'weekly', 'dueDay' => 5, 'dueMonth' => null, 'startDate' => '2026-09-25'],
+			['suggestedName' => 'Water', 'amount' => 120.0, 'frequency' => 'quarterly', 'dueDay' => 10, 'dueMonth' => 9, 'startDate' => null],
+		]);
+
+		$this->assertSame('2026-09-25', $weekly->getStartDate());
+		$this->assertSame(5, $weekly->getDueDay());
+		$this->assertSame('2026-09-25', $calls[0][6]);
+		$this->assertSame(9, $quarterly->getDueMonth());
+		$this->assertNull($quarterly->getStartDate());
+		$this->assertSame(9, $calls[1][2]);
+	}
+
 	public function testCreateFromDetectedSkipsABlankSuggestedName(): void {
 		// `suggestedName ?? description` kept '' and created a nameless bill
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-01');

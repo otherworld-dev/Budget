@@ -1495,11 +1495,15 @@ class BillService {
 				amount: (float)$item['amount'],
 				frequency: $item['frequency'] ?? 'monthly',
 				dueDay: isset($item['dueDay']) ? (int)$item['dueDay'] : null,
+				// The schedule the payments showed: the month a quarterly or
+				// yearly bill falls in, and the payment a weekly one counts from
+				dueMonth: isset($item['dueMonth']) ? (int)$item['dueMonth'] : null,
 				categoryId: $isTransfer ? null : (isset($item['categoryId']) ? (int)$item['categoryId'] : null),
 				accountId: isset($item['accountId']) ? (int)$item['accountId'] : null,
 				autoDetectPattern: $item['autoDetectPattern'] ?? null,
 				isTransfer: $isTransfer,
 				destinationAccountId: $destinationAccountId,
+				startDate: isset($item['startDate']) && $item['startDate'] !== '' ? (string)$item['startDate'] : null,
 			);
 			$created[] = $bill;
 		}

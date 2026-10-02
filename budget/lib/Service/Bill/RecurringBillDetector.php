@@ -121,7 +121,9 @@ class RecurringBillDetector {
 			$avgInterval = array_sum($intervals) / count($intervals);
 			$frequency = $this->frequencyCalculator->detectFrequency($avgInterval);
 
-			if ($frequency === null) {
+			// No bill or transfer form offers a daily schedule, and the same
+			// debit every day is spending (coffee, fares) rather than a bill
+			if ($frequency === null || $frequency === 'daily') {
 				continue;
 			}
 
@@ -144,9 +146,9 @@ class RecurringBillDetector {
 				$confidence *= 0.9;
 			}
 
-			// Detect typical due day
-			$dueDays = array_map(fn ($ts) => (int)date('j', $ts), $dates);
-			$avgDueDay = (int)round(array_sum($dueDays) / count($dueDays));
+			// The schedule as the payments show it: a weekday and a real
+			// first date for weekly ones, the month for quarterly and yearly
+			$schedule = DetectedSchedule::fromDates($frequency, array_map(fn ($ts) => date('Y-m-d', $ts), $dates));
 
 			$candidate = [
 				'patternKey' => $data['patternKey'],
@@ -154,7 +156,9 @@ class RecurringBillDetector {
 				'suggestedName' => $this->candidateName($data['description']),
 				'amount' => round($avgAmount, 2),
 				'frequency' => $frequency,
-				'dueDay' => $avgDueDay,
+				'dueDay' => $schedule['day'],
+				'dueMonth' => $schedule['month'],
+				'startDate' => $schedule['startDate'],
 				'categoryId' => $data['categoryId'],
 				'accountId' => $data['accountId'],
 				'occurrences' => count($data['dates']),
