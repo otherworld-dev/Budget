@@ -983,6 +983,28 @@ class TransactionMapperTest extends TestCase {
 		$this->assertEquals(100.00, $changes['2026-01-16']);
 	}
 
+	/**
+	 * The balance history walks back from the stored balance, which counts a
+	 * pension contribution's bank leg, so the walk must reverse it too. It
+	 * used the report scope, which leaves pension legs out of spending, and
+	 * understated every day before a contribution by its amount.
+	 */
+	public function testDailyBalanceChangesKeepPensionLegs(): void {
+		$nullChecks = [];
+		$this->expr->method('isNull')->willReturnCallback(function (string $column) use (&$nullChecks) {
+			$nullChecks[] = $column;
+			return "{$column} IS NULL";
+		});
+		$this->result->method('fetchAll')->willReturn([]);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$this->mapper->getDailyBalanceChanges(10, '2026-01-01', '2026-01-31');
+
+		$this->assertNotContains('t.pension_contrib_id', $nullChecks);
+		$this->assertContains('t.status', $nullChecks, 'Scheduled rows are not in the balance, so they stay out');
+	}
+
 	// ===== linkTransactions =====
 
 	public function testLinkTransactionsExecutesTwoStatements(): void {

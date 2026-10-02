@@ -2299,6 +2299,12 @@ class TransactionMapper extends QBMapper {
 
 	/**
 	 * Get daily balance changes for an account (for efficient balance history calculation)
+	 *
+	 * The rows the stored balance counts, and only those (getNetChangeAll()'s
+	 * scope): the history walks back from that balance. The report scope
+	 * leaves out pension legs, which are in the balance, so every day before
+	 * a pension contribution came out short by its amount.
+	 *
 	 * @return array<string, float> date => net change (credits positive, debits negative)
 	 */
 	public function getDailyBalanceChanges(int $accountId, string $startDate, string $endDate): array {
@@ -2312,9 +2318,13 @@ class TransactionMapper extends QBMapper {
 			->from($this->getTableName(), 't')
 			->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
 			->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
-			->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
-
-		ReportScope::excludeScheduledFuture($qb);
+			->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
+			->andWhere(
+				$qb->expr()->orX(
+					$qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
+					$qb->expr()->isNull('t.status')
+				)
+			);
 
 		$qb->groupBy('t.date')
 			->orderBy('t.date', 'DESC');

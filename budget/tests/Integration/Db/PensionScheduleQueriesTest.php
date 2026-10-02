@@ -51,6 +51,25 @@ class PensionScheduleQueriesTest extends IntegrationTestCase {
 		$this->assertTrue((bool)$row['auto_post_enabled']);
 	}
 
+	/**
+	 * A pension contribution's bank leg is in the account balance, so the
+	 * balance history before it is higher by its amount.
+	 */
+	public function testBalanceHistoryReversesAPensionLeg(): void {
+		$account = $this->makeAccount(['openingBalance' => 1000.0, 'balance' => 1000.0]);
+		$yesterday = date('Y-m-d', strtotime('-1 day'));
+		$this->makeTransaction($account->getId(), [
+			'date' => $yesterday, 'amount' => '200.00', 'type' => 'debit', 'pension_contrib_id' => 999001,
+		]);
+		$this->service(\OCA\Budget\Service\TransactionService::class)->recalculateAccountBalance($account->getId(), $this->userId);
+
+		$history = $this->service(\OCA\Budget\Service\AccountService::class)->getBalanceHistory($account->getId(), $this->userId, 3);
+		$byDate = array_column($history, 'balance', 'date');
+
+		$this->assertEqualsWithDelta(800.0, $byDate[date('Y-m-d')], 0.001);
+		$this->assertEqualsWithDelta(1000.0, $byDate[$yesterday], 0.001, 'The day began before the contribution left');
+	}
+
 	/** The job asks with the user's own date */
 	public function testFindDueForAutoPostUsesTheDateItIsGiven(): void {
 		$due = $this->makeSchedule(['next_due_date' => '2026-10-02']);
