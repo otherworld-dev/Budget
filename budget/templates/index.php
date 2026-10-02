@@ -6298,6 +6298,7 @@ style('budget', 'budget-app');
                     <label for="bill-start-date"><?php p($l->t('Start Date')); ?></label>
                     <input type="date" id="bill-start-date" aria-describedby="bill-start-date-help">
                     <small id="bill-start-date-help" class="form-text"><?php p($l->t('Bill only occurs on or after this date (optional)')); ?></small>
+                    <small id="bill-start-date-unconfirmed" class="form-text form-hint-warning" role="status" style="display: none;"></small>
                     </div>
 
                     <div class="form-group" id="end-date-group">

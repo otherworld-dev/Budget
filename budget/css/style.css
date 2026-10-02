@@ -20571,6 +20571,13 @@ th.sortable:focus-visible {
     color: var(--budget-color-on-status, white);
 }
 
+/* A one-time bill's date filled in for it, not entered (#399) */
+.bill-status .status-badge.badge-unconfirmed,
+.status-badge.badge-unconfirmed {
+    background: var(--color-warning);
+    color: var(--budget-color-on-status, white);
+}
+
 .bill-status .status-badge.badge-neutral,
 .status-badge.badge-neutral {
     background: var(--color-background-dark);

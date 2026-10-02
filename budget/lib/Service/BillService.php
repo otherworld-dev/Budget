@@ -1019,6 +1019,8 @@ class BillService {
 			'isActive' => $bill->getIsActive(),
 			'autoPayFailed' => $bill->getAutoPayFailed(),
 			'amount' => $bill->getAmount(),
+			// Paying an undated one-time bill keeps its due date here
+			'startDate' => $bill->getStartDate(),
 		];
 		$createdTransactionIds = [];
 		// The next-occurrence placeholder is tracked separately from the
@@ -1298,6 +1300,11 @@ class BillService {
 		$bill->setLastPaidDate($previousState['lastPaidDate'] ?? null);
 		$bill->setNextDueDate($previousState['nextDueDate'] ?? null);
 		$bill->setIsActive($previousState['isActive'] ?? true);
+		// Left behind, a date the server once made up for an undated bill
+		// came back as if it had been entered (#399 review)
+		if (array_key_exists('startDate', $previousState)) {
+			$bill->setStartDate($previousState['startDate']);
+		}
 		if (array_key_exists('remainingPayments', $previousState)) {
 			$bill->setRemainingPayments($previousState['remainingPayments']);
 		}

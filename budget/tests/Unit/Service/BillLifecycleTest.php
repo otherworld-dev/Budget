@@ -322,6 +322,23 @@ class BillLifecycleTest extends TestCase {
 		$this->assertContains('create:next:2026-10-15', $this->calls);
 	}
 
+	/**
+	 * Paying an undated one-time bill keeps its due date as its start date
+	 * (#333). Mark Unpaid left that behind, so a date the server had once
+	 * made up (1 January next year) came back as if the user had entered
+	 * it (#399 review, F69).
+	 */
+	public function testUnpayingPutsTheStartDateBack(): void {
+		$this->bill(['frequency' => 'one-time', 'dueDay' => null, 'nextDueDate' => '2027-01-01', 'startDate' => null]);
+		$this->service->markPaid(1, 'user1', self::TODAY, false);
+		$this->assertSame('2027-01-01', $this->stored->getStartDate());
+
+		$this->service->markUnpaid(1, 'user1');
+
+		$this->assertNull($this->stored->getStartDate());
+		$this->assertSame('2027-01-01', $this->stored->getNextDueDate());
+	}
+
 	private function bankRow(int $id, int $accountId, string $date): Transaction {
 		$row = new Transaction();
 		$row->setId($id);

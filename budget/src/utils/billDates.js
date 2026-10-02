@@ -45,7 +45,29 @@ export function billRowState(bill, today, settings) {
         dueDate,
         canPay,
         canSkip: canPay && frequency !== 'one-time',
+        dateUnconfirmed: oneTimeDateUnconfirmed(bill),
     };
+}
+
+/**
+ * Whether a one-time bill's date was filled in for it rather than entered
+ * (#399 review). Before the Due Date field a one-time bill could be saved
+ * with no month, and the server made a date up: 1 January next year, or
+ * the invoice's day rolled into the next year. An upgrade, or paying it,
+ * then kept that guess as the bill's date. Saving the form always sets a
+ * due month, so a one-time bill without one never had its date confirmed.
+ * There is no telling a guess from a real 1 January, so the page asks.
+ *
+ * @param {object} bill
+ * @return {boolean}
+ */
+export function oneTimeDateUnconfirmed(bill) {
+    if ((bill.frequency || 'monthly') !== 'one-time') {
+        return false;
+    }
+    const month = bill.dueMonth ?? bill.due_month ?? null;
+    const date = bill.startDate || bill.start_date || bill.nextDueDate || bill.next_due_date || null;
+    return month === null && date !== null;
 }
 
 /**

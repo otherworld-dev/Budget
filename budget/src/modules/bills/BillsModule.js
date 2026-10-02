@@ -5,7 +5,7 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { once } from '../../utils/submitGuard.js';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
-import { billRowState } from '../../utils/billDates.js';
+import { billRowState, oneTimeDateUnconfirmed } from '../../utils/billDates.js';
 import { showSuccess, showError, showWarning, showInfo, showUndoNotification } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
@@ -349,6 +349,7 @@ export default class BillsModule {
                         </div>
                         <div class="bill-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>
+                            ${row.dateUnconfirmed ? `<span class="status-badge badge-extra badge-unconfirmed" title="${t('budget', 'This date was filled in for the bill, not entered. Edit the bill to check it.')}">${t('budget', 'Check date')}</span>` : ''}
                             ${hasSplits ? `<span class="status-badge badge-extra badge-split" title="${t('budget', 'Split across categories')}">${t('budget', 'Split')}</span>` : ''}
                             ${autoPayEnabled ? `<span class="status-badge badge-extra auto-pay" title="${t('budget', 'Auto-pay enabled')}"><span class="icon-checkmark"></span> ${t('budget', 'Auto-pay')}</span>` : ''}
                             ${autoPayFailed ? `<span class="status-badge badge-extra auto-pay-failed" title="${t('budget', 'Auto-pay failed - disabled')}"><span class="icon-error"></span> ${t('budget', 'Auto-pay Failed')}</span>` : ''}
@@ -463,10 +464,14 @@ export default class BillsModule {
             billFrequency.addEventListener('change', () => this.updateBillFormFields());
         }
 
-        // A weekly bill's start date sets its weekday
+        // A weekly bill's start date sets its weekday. Picking a date also
+        // confirms one that was filled in for the bill.
         const billStartDate = document.getElementById('bill-start-date');
         if (billStartDate) {
-            billStartDate.addEventListener('change', () => this.updateBillFormFields());
+            billStartDate.addEventListener('change', () => {
+                this.showDateUnconfirmed(false);
+                this.updateBillFormFields();
+            });
         }
 
         // Create transaction checkbox (show/hide date field)
@@ -600,6 +605,21 @@ export default class BillsModule {
         });
     }
 
+    /**
+     * The note under a one-time bill's date when the date was filled in for
+     * it rather than entered (see oneTimeDateUnconfirmed()).
+     *
+     * @param {boolean} show
+     */
+    showDateUnconfirmed(show) {
+        const note = document.getElementById('bill-start-date-unconfirmed');
+        if (!note) return;
+        note.textContent = show
+            ? t('budget', 'This date was filled in for the bill when it was saved without one. Check it, then save.')
+            : '';
+        note.style.display = show ? '' : 'none';
+    }
+
     showBillModal(bill = null) {
         const modal = document.getElementById('bill-modal');
         const title = document.getElementById('bill-modal-title');
@@ -652,6 +672,7 @@ export default class BillsModule {
             const storedStart = bill.startDate || bill.start_date || '';
             setDateValue('bill-start-date', storedStart
                 || ((bill.frequency || 'monthly') === 'one-time' ? (bill.nextDueDate || bill.next_due_date || '') : ''));
+            this.showDateUnconfirmed(oneTimeDateUnconfirmed(bill));
             setDateValue('bill-end-date', bill.endDate || bill.end_date || '');
             const remainingPayments = bill.remainingPayments ?? bill.remaining_payments;
             document.getElementById('bill-remaining-payments').value = remainingPayments !== null && remainingPayments !== undefined ? remainingPayments.toString() : '';
@@ -701,6 +722,7 @@ export default class BillsModule {
 
             // Clear start / end date / remaining payments
             clearDateValue('bill-start-date');
+            this.showDateUnconfirmed(false);
             clearDateValue('bill-end-date');
             document.getElementById('bill-remaining-payments').value = '';
 
