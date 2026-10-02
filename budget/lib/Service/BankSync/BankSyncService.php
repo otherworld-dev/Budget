@@ -392,6 +392,18 @@ class BankSyncService {
 					$balanceDirty = true;
 					continue;
 				}
+				// Otherwise the payment it made on a bill never happened: undo
+				// it, or the bill stays paid and moved on for money the bank
+				// never took. Best-effort, the hold goes either way.
+				if ($pendingTx->getBillId() !== null) {
+					try {
+						if (!$this->billService->revertCancelledPayment($pendingTx->getBillId(), $pendingTx->getId())) {
+							$this->logger->info("Bank sync: cancelled hold {$pendingTx->getId()} is not the latest payment of bill {$pendingTx->getBillId()}, so the bill was left as it is", ['app' => 'budget']);
+						}
+					} catch (\Exception $e) {
+						$this->logger->warning("Bank sync: could not undo the bill payment of cancelled hold {$pendingTx->getId()}: {$e->getMessage()}", ['app' => 'budget']);
+					}
+				}
 				try {
 					$this->transactionService->delete($pendingTx->getId(), $userId, false, false);
 					$balanceDirty = true;

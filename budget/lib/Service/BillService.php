@@ -1575,6 +1575,53 @@ class BillService {
 	}
 
 	/**
+	 * Undo the payment a bank-sync hold made on a bill, when the bank drops
+	 * the hold without it posting (a cancelled authorisation). The hold is
+	 * about to be deleted, and leaving the bill paid kept it moved on to its
+	 * next due date for money that never left the account, with the
+	 * unrecorded-payments card inviting the user to record it.
+	 *
+	 * Only the bill's latest payment can be undone, since that is all the
+	 * snapshot covers: a hold that paid an earlier occurrence returns false
+	 * and the bill is left alone. The revert runs as the bill's owner, who
+	 * isn't necessarily the user whose bank account is syncing.
+	 *
+	 * @return bool true when the bill was reverted
+	 */
+	public function revertCancelledPayment(int $billId, int $transactionId): bool {
+		$bill = $this->mapper->findByIds([$billId])[0] ?? null;
+		if ($bill === null) {
+			return false;
+		}
+		$raw = $bill->getPaidUndoState();
+		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
+		if (!is_array($snapshot) || !is_numeric($snapshot['linkedTransactionId'] ?? null)
+			|| (int)$snapshot['linkedTransactionId'] !== $transactionId) {
+			return false;
+		}
+
+		$ownerId = $bill->getUserId();
+		$bill = $this->markUnpaid($billId, $ownerId);
+
+		// Linking the hold removed the pre-booked row for the occurrence it
+		// paid without noting it (hadScheduledTransaction is only set when a
+		// payment clears that row into itself), so the revert alone leaves
+		// the restored occurrence with no row.
+		if (!($snapshot['hadScheduledTransaction'] ?? false)
+			&& ($bill->getCreateTransaction() ?? true)
+			&& $bill->getIsActive() && $bill->getAccountId() !== null && $bill->getNextDueDate() !== null) {
+			try {
+				$placeholder = $this->transactionService->createFromBill($ownerId, $bill, null);
+				$this->applySplitTemplate($bill, $placeholder, $ownerId);
+			} catch (\Exception $e) {
+				$this->logger->warning("Failed to restore the scheduled transaction for bill {$billId} after its hold was cancelled: {$e->getMessage()}");
+			}
+		}
+
+		return true;
+	}
+
+	/**
 	 * Match an imported transaction against a bill: pattern in description
 	 * or vendor, amount within 10%, account agreement, and the transaction
 	 * date inside the bill's current due window (so historical re-imports

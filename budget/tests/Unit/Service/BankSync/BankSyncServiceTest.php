@@ -1187,6 +1187,68 @@ class BankSyncServiceTest extends TestCase {
 		$this->assertSame([3390], $deleted);
 	}
 
+	// ===== a cancelled hold that paid a bill =====
+
+	public function testACancelledHoldUndoesTheBillPaymentBeforeItIsDeleted(): void {
+		// The hold paid the ACME bill, then the bank dropped it. It was
+		// deleted with the bill left paid and moved on a month.
+		$hold = $this->makeHold(3387, 'h1', 50.0, date('Y-m-d', strtotime('-10 days')), 'ACME ENERGY', 42);
+
+		$calls = [];
+		$this->billService->expects($this->once())
+			->method('revertCancelledPayment')
+			->with(42, 3387)
+			->willReturnCallback(function () use (&$calls) {
+				$calls[] = 'revert';
+				return true;
+			});
+		$this->transactionService->expects($this->once())
+			->method('delete')
+			->with(3387, self::USER_ID, false)
+			->willReturnCallback(function () use (&$calls) {
+				$calls[] = 'delete';
+				return 100;
+			});
+
+		$this->syncAgainstHolds([], [$hold]);
+
+		$this->assertSame(['revert', 'delete'], $calls);
+	}
+
+	public function testACancelledHoldIsStillDeletedWhenItsBillCanNotBeReverted(): void {
+		$hold = $this->makeHold(3387, 'h1', 50.0, date('Y-m-d', strtotime('-10 days')), 'ACME ENERGY', 42);
+		$this->billService->method('revertCancelledPayment')
+			->willThrowException(new \Exception('account no longer writable'));
+
+		$this->transactionService->expects($this->once())->method('delete')->with(3387);
+
+		$this->syncAgainstHolds([], [$hold]);
+	}
+
+	public function testACancelledHoldWithoutABillTouchesNoBill(): void {
+		$hold = $this->makeHold(3387, 'h1', 50.0, date('Y-m-d', strtotime('-10 days')));
+		$this->billService->expects($this->never())->method('revertCancelledPayment');
+		$this->transactionService->expects($this->once())->method('delete')->with(3387);
+
+		$this->syncAgainstHolds([], [$hold]);
+	}
+
+	public function testAHoldThatTookOverItsPostedCopyLeavesItsBillPaid(): void {
+		$holdDate = date('Y-m-d', strtotime('-8 days'));
+		$postedDate = date('Y-m-d', strtotime('-6 days'));
+		$hold = $this->makeHold(3390, 'h1', 20.0, $holdDate, 'PUREGYM', 7);
+		$copy = $this->makeHold(3391, 'p1', 20.0, $postedDate, 'PUREGYM');
+		$copy->setStatus('cleared');
+
+		$this->billService->expects($this->never())->method('revertCancelledPayment');
+
+		$this->syncAgainstHolds(
+			[['id' => 'p1', 'date' => $postedDate, 'amount' => '-20.00', 'description' => 'PUREGYM']],
+			[$hold],
+			['simplefin:p1' => $copy]
+		);
+	}
+
 	// ===== a hold posting takes the bank's final figures =====
 
 	public function testAHoldPostingUnderTheSameIdTakesThePostedAmountAndDescription(): void {
