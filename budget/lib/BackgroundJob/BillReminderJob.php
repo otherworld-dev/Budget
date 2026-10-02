@@ -79,6 +79,8 @@ class BillReminderJob extends TimedJob {
 					$pensionPostFailedCount += $pensionPost['failed'];
 
 					$bills = $billMapper->findActive($userId);
+					// Each in its account's currency, not the user's default
+					$billService->enrichBillsWithCurrency($bills, $userId);
 
 					foreach ($bills as $bill) {
 						// Skip if no reminder configured
@@ -171,7 +173,7 @@ class BillReminderJob extends TimedJob {
 			->setSubject('bill_reminder', [
 				'billId' => $bill->getId(),
 				'billName' => $bill->getName(),
-				'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount()),
+				'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount(), $bill->getCurrency()),
 				'daysUntilDue' => $daysUntilDue,
 			]);
 
@@ -194,7 +196,7 @@ class BillReminderJob extends TimedJob {
 			->setSubject('bill_overdue', [
 				'billId' => $bill->getId(),
 				'billName' => $bill->getName(),
-				'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount()),
+				'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount(), $bill->getCurrency()),
 				'daysOverdue' => $daysOverdue,
 			]);
 
@@ -206,9 +208,13 @@ class BillReminderJob extends TimedJob {
 		$billMapper->update($bill);
 	}
 
-	private function formatAmount(SettingService $settingService, string $userId, float $amount): string {
+	/**
+	 * @param string|null $currency the bill's or income's account currency;
+	 *                              null falls back to the user's default
+	 */
+	private function formatAmount(SettingService $settingService, string $userId, float $amount, ?string $currency = null): string {
 		// Shared implementation with the dashboard widgets and calendar feed
-		return (new \OCA\Budget\Service\AmountFormatter($settingService))->formatForUser($userId, $amount);
+		return (new \OCA\Budget\Service\AmountFormatter($settingService))->formatForUser($userId, $amount, $currency);
 	}
 
 	/**
@@ -279,12 +285,14 @@ class BillReminderJob extends TimedJob {
 
 		try {
 			$dueForAutoPay = $billMapper->findDueForAutoPay($userId);
+			$billService->enrichBillsWithCurrency($dueForAutoPay, $userId);
 
 			foreach ($dueForAutoPay as $bill) {
 				$result = $billService->processAutoPay($bill->getId(), $userId);
 
 				if ($result['success']) {
 					$successCount++;
+					$billService->enrichBillsWithCurrency([$result['bill']], $userId);
 					$this->sendAutoPaySuccessNotification(
 						$notificationManager,
 						$settingService,
@@ -325,7 +333,7 @@ class BillReminderJob extends TimedJob {
 			->setSubject('bill_auto_paid', [
 				'billId' => $bill->getId(),
 				'billName' => $bill->getName(),
-				'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount()),
+				'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount(), $bill->getCurrency()),
 				'nextDueDate' => $bill->getNextDueDate(),
 			]);
 
@@ -348,7 +356,7 @@ class BillReminderJob extends TimedJob {
 			->setSubject('bill_auto_pay_failed', [
 				'billId' => $bill->getId(),
 				'billName' => $bill->getName(),
-				'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount()),
+				'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount(), $bill->getCurrency()),
 				'reason' => $reason,
 			]);
 
@@ -373,12 +381,14 @@ class BillReminderJob extends TimedJob {
 
 		try {
 			$dueIncome = $incomeMapper->findDueForAutoCreate($userId);
+			$incomeService->enrichWithCurrency($dueIncome, $userId);
 
 			foreach ($dueIncome as $income) {
 				$result = $incomeService->processAutoCreate($income->getId(), $userId);
 
 				if ($result['success']) {
 					$successCount++;
+					$incomeService->enrichWithCurrency([$result['income']], $userId);
 					$this->sendAutoCreateIncomeSuccessNotification(
 						$notificationManager,
 						$settingService,
@@ -418,7 +428,7 @@ class BillReminderJob extends TimedJob {
 			->setSubject('income_auto_created', [
 				'incomeId' => $income->getId(),
 				'incomeName' => $income->getName(),
-				'amount' => $this->formatAmount($settingService, $userId, $income->getAmount()),
+				'amount' => $this->formatAmount($settingService, $userId, $income->getAmount(), $income->getCurrency()),
 				'nextExpectedDate' => $income->getNextExpectedDate(),
 			]);
 
@@ -441,7 +451,7 @@ class BillReminderJob extends TimedJob {
 			->setSubject('income_auto_create_failed', [
 				'incomeId' => $income->getId(),
 				'incomeName' => $income->getName(),
-				'amount' => $this->formatAmount($settingService, $userId, $income->getAmount()),
+				'amount' => $this->formatAmount($settingService, $userId, $income->getAmount(), $income->getCurrency()),
 				'reason' => $reason,
 			]);
 
