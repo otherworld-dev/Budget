@@ -1594,6 +1594,64 @@ class BillControllerTest extends TestCase {
 		$this->controller->detect();
 	}
 
+	public function testCreateFromDetectedRefusesANamelessItemBeforeCreatingAny(): void {
+		// The normal create route refuses a blank name; this one created
+		// "Untitled" bills from candidates whose name cleaned away to nothing
+		$this->mockInput(json_encode([
+			'bills' => [
+				['suggestedName' => 'Netflix', 'amount' => 15.99, 'frequency' => 'monthly'],
+				['suggestedName' => '', 'description' => '', 'amount' => 20, 'frequency' => 'monthly'],
+			],
+		]));
+		$this->service->expects($this->never())->method('createFromDetected');
+
+		$response = $this->controllerWithValidation(new ValidationService($this->l))->createFromDetected();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Name is required', $response->getData()['error']);
+	}
+
+	public function testCreateFromDetectedRefusesAnUnknownFrequency(): void {
+		$this->mockInput(json_encode([
+			'bills' => [['suggestedName' => 'Netflix', 'amount' => 15.99, 'frequency' => 'fortnightly']],
+		]));
+		$this->service->expects($this->never())->method('createFromDetected');
+
+		$response = $this->controllerWithValidation(new ValidationService($this->l))->createFromDetected();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testCreateFromDetectedNamesEachItemFromTheFirstNonBlankField(): void {
+		$this->mockInput(json_encode([
+			'bills' => [
+				['suggestedName' => '', 'description' => '  DIRECT DEBIT  ', 'amount' => 20, 'frequency' => 'monthly'],
+				['name' => 'Phone', 'suggestedName' => 'Ee', 'amount' => 30, 'frequency' => 'monthly', 'startDate' => '2026-09-25'],
+			],
+		]));
+		$this->service->expects($this->once())
+			->method('createFromDetected')
+			->with('user1', $this->callback(function (array $items) {
+				return $items[0]['name'] === 'DIRECT DEBIT' && $items[1]['name'] === 'Phone';
+			}))
+			->willReturn([]);
+
+		$response = $this->controllerWithValidation(new ValidationService($this->l))->createFromDetected();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	public function testCreateFromDetectedRefusesABadStartDate(): void {
+		$this->mockInput(json_encode([
+			'bills' => [['suggestedName' => 'Gym', 'amount' => 9.99, 'frequency' => 'weekly', 'startDate' => '25/09/2026']],
+		]));
+		$this->service->expects($this->never())->method('createFromDetected');
+
+		$response = $this->controllerWithValidation(new ValidationService($this->l))->createFromDetected();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
 	public function testCreateFromDetectedServiceError(): void {
 		$this->mockInput(json_encode(['bills' => [['name' => 'X']]]));
 		$this->service->method('createFromDetected')

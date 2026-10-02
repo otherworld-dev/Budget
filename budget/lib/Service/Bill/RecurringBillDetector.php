@@ -151,7 +151,7 @@ class RecurringBillDetector {
 			$candidate = [
 				'patternKey' => $data['patternKey'],
 				'description' => $data['description'],
-				'suggestedName' => $this->generateBillName($data['description']),
+				'suggestedName' => $this->candidateName($data['description']),
 				'amount' => round($avgAmount, 2),
 				'frequency' => $frequency,
 				'dueDay' => $avgDueDay,
@@ -197,6 +197,19 @@ class RecurringBillDetector {
 	private function rowText(Transaction $transaction): string {
 		$description = trim((string)$transaction->getDescription());
 		return $description !== '' ? $description : trim((string)$transaction->getVendor());
+	}
+
+	/**
+	 * A name for a candidate, never blank: when the cleanup strips the
+	 * whole description ("DIRECT DEBIT") the description itself is used.
+	 * The caller only passes text that normalizes to something.
+	 */
+	private function candidateName(string $description): string {
+		$name = $this->generateBillName($description);
+		if (preg_match('/\p{L}/u', $name) === 1) {
+			return $name;
+		}
+		return ucwords($this->normalizeDescription($description));
 	}
 
 	/**

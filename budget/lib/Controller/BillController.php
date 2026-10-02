@@ -1067,15 +1067,28 @@ class BillController extends Controller {
 				return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
 			}
 
+			$items = [];
 			foreach ((array)$data['bills'] as $item) {
+				if (!is_array($item)) {
+					return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
+				}
 				$this->requireWritableAccounts(
 					isset($item['accountId']) ? (int)$item['accountId'] : null,
 					isset($item['destinationAccountId']) ? (int)$item['destinationAccountId'] : null
 				);
-				$this->requireUsableCategories($this->getEffectiveUserId(), is_array($item) ? ($item['categoryId'] ?? null) : null, null);
+				$this->requireUsableCategories($this->getEffectiveUserId(), $item['categoryId'] ?? null, null);
+
+				// Checked like a bill created by hand, every item before any is
+				// created: a candidate whose description cleaned away to nothing
+				// was saved with no name
+				$error = $this->validateDetectedItem($item);
+				if ($error !== null) {
+					return new DataResponse(['error' => $error], Http::STATUS_BAD_REQUEST);
+				}
+				$items[] = $item;
 			}
 
-			$created = $this->service->createFromDetected($this->getEffectiveUserId(), $data['bills']);
+			$created = $this->service->createFromDetected($this->getEffectiveUserId(), $items);
 			return new DataResponse([
 				'created' => count($created),
 				'bills' => $created,
@@ -1085,6 +1098,58 @@ class BillController extends Controller {
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to create bills from detected patterns'));
 		}
+	}
+
+	/**
+	 * Validate one detected bill or transfer the way create() validates a
+	 * form, writing back the cleaned values. Its name is the first of name,
+	 * suggestedName and description that isn't blank.
+	 *
+	 * @return string|null The error, or null when the item is fine
+	 */
+	private function validateDetectedItem(array &$item): ?string {
+		$name = '';
+		foreach (['name', 'suggestedName', 'description'] as $field) {
+			if (is_string($item[$field] ?? null) && trim($item[$field]) !== '') {
+				$name = $item[$field];
+				break;
+			}
+		}
+		$nameValidation = $this->validationService->validateName($name, true);
+		if (!$nameValidation['valid']) {
+			return $nameValidation['error'];
+		}
+		$item['name'] = $nameValidation['sanitized'];
+
+		$frequencyValidation = $this->validationService->validateFrequency((string)($item['frequency'] ?? 'monthly'));
+		if (!$frequencyValidation['valid']) {
+			return $frequencyValidation['error'];
+		}
+		$item['frequency'] = $frequencyValidation['formatted'];
+
+		if (isset($item['dueDay']) && ((int)$item['dueDay'] < 1 || (int)$item['dueDay'] > 31)) {
+			return $this->l->t('Due day must be between 1 and 31');
+		}
+		if (isset($item['dueMonth']) && ((int)$item['dueMonth'] < 1 || (int)$item['dueMonth'] > 12)) {
+			return $this->l->t('Due month must be between 1 and 12');
+		}
+
+		if (isset($item['startDate']) && $item['startDate'] !== '') {
+			$startDateValidation = $this->validationService->validateDate((string)$item['startDate'], $this->l->t('Start date'), false);
+			if (!$startDateValidation['valid']) {
+				return $startDateValidation['error'];
+			}
+		}
+
+		if (isset($item['autoDetectPattern']) && $item['autoDetectPattern'] !== '') {
+			$patternValidation = $this->validationService->validatePattern((string)$item['autoDetectPattern'], false);
+			if (!$patternValidation['valid']) {
+				return $patternValidation['error'];
+			}
+			$item['autoDetectPattern'] = $patternValidation['sanitized'];
+		}
+
+		return null;
 	}
 
 	/**

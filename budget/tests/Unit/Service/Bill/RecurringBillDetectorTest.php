@@ -592,6 +592,18 @@ class RecurringBillDetectorTest extends TestCase {
 
 	// ── a usable name ───────────────────────────────────────────────
 
+	public function testNameIsNeverBlankWhenCleanupStripsEverything(): void {
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn(
+			$this->series(['2026-07-15', '2026-08-15', '2026-09-15'], ['description' => 'DIRECT DEBIT 123456'])
+		);
+		$this->frequencyCalculator->method('detectFrequency')->willReturn('monthly');
+
+		$result = $this->detector->detectRecurringBills('user1');
+
+		$this->assertCount(1, $result);
+		$this->assertSame('Direct Debit', $result[0]['suggestedName']);
+	}
+
 	public function testBlankDescriptionsAreGroupedAndNamedByVendor(): void {
 		$rows = array_merge(
 			$this->series(['2026-07-05', '2026-08-05', '2026-09-05'], ['description' => '', 'vendor' => 'PureGym', 'amount' => 24.99]),

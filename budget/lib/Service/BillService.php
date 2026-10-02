@@ -1459,11 +1459,29 @@ class BillService {
 
 	/**
 	 * Create bills from detected patterns.
+	 *
+	 * @throws \InvalidArgumentException when an item has no name
 	 */
 	public function createFromDetected(string $userId, array $detected): array {
+		// Every item needs a name before any is created. `suggestedName ??
+		// description` kept a blank suggested name and created nameless bills
+		$names = [];
+		foreach ($detected as $i => $item) {
+			$names[$i] = '';
+			foreach (['name', 'suggestedName', 'description'] as $field) {
+				if (is_string($item[$field] ?? null) && trim($item[$field]) !== '') {
+					$names[$i] = trim($item[$field]);
+					break;
+				}
+			}
+			if ($names[$i] === '') {
+				throw new \InvalidArgumentException($this->l->t('%1$s is required', [$this->l->t('Name')]));
+			}
+		}
+
 		$created = [];
 
-		foreach ($detected as $item) {
+		foreach ($detected as $i => $item) {
 			$isTransfer = !empty($item['isTransfer']);
 			$destinationAccountId = isset($item['destinationAccountId']) ? (int)$item['destinationAccountId'] : null;
 
@@ -1473,9 +1491,9 @@ class BillService {
 			// detect-and-add). Names keep this aligned.
 			$bill = $this->create(
 				userId: $userId,
-				name: $item['suggestedName'] ?? $item['description'],
+				name: $names[$i],
 				amount: (float)$item['amount'],
-				frequency: $item['frequency'],
+				frequency: $item['frequency'] ?? 'monthly',
 				dueDay: isset($item['dueDay']) ? (int)$item['dueDay'] : null,
 				categoryId: $isTransfer ? null : (isset($item['categoryId']) ? (int)$item['categoryId'] : null),
 				accountId: isset($item['accountId']) ? (int)$item['accountId'] : null,

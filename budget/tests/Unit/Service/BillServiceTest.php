@@ -855,6 +855,29 @@ class BillServiceTest extends TestCase {
 		$this->assertNull($created[0]->getCategoryId());
 	}
 
+	public function testCreateFromDetectedSkipsABlankSuggestedName(): void {
+		// `suggestedName ?? description` kept '' and created a nameless bill
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-01');
+		$this->mapper->method('insert')->willReturnArgument(0);
+
+		$created = $this->service->createFromDetected('user1', [
+			['suggestedName' => '', 'description' => 'DIRECT DEBIT', 'amount' => 20.0, 'frequency' => 'monthly'],
+			['name' => 'Phone', 'suggestedName' => 'Ee', 'description' => 'EE LTD', 'amount' => 30.0, 'frequency' => 'monthly'],
+		]);
+
+		$this->assertSame('DIRECT DEBIT', $created[0]->getName());
+		$this->assertSame('Phone', $created[1]->getName());
+	}
+
+	public function testCreateFromDetectedRefusesAnItemWithNoName(): void {
+		$this->mapper->expects($this->never())->method('insert');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->createFromDetected('user1', [
+			['suggestedName' => ' ', 'description' => '', 'amount' => 20.0, 'frequency' => 'monthly'],
+		]);
+	}
+
 	// ── markPaid ────────────────────────────────────────────────────
 
 	public function testMarkPaidAdvancesNextDueDate(): void {
