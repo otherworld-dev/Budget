@@ -13,6 +13,7 @@ use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\PensionRecurringService;
 use OCA\Budget\Service\RecurringIncomeService;
 use OCA\Budget\Service\SettingService;
+use OCA\Budget\Service\UserClock;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\TimedJob;
 use OCP\IDBConnection;
@@ -48,6 +49,7 @@ class BillReminderJob extends TimedJob {
 		$db = Server::get(IDBConnection::class);
 		$logger = Server::get(LoggerInterface::class);
 		$settingService = Server::get(SettingService::class);
+		$clock = Server::get(UserClock::class);
 
 		try {
 			$userIds = $this->getAllUserIds($db);
@@ -58,13 +60,15 @@ class BillReminderJob extends TimedJob {
 			$autoCreateIncomeFailedCount = 0;
 			$pensionPostCount = 0;
 			$pensionPostFailedCount = 0;
-			$today = new \DateTime();
-			$today->setTime(0, 0, 0);
-
 			foreach ($userIds as $userId) {
 				try {
+					// The user's today: the server's date put reminders and
+					// overdue notices a day off either side of UTC
+					$today = new \DateTime($clock instanceof UserClock ? $clock->today($userId) : date('Y-m-d'));
+					$today->setTime(0, 0, 0);
+
 					// Process auto-pay BEFORE reminders to avoid sending reminder for auto-paid bill
-					$autoPay = $this->processAutoPayForUser($userId, $billMapper, $billService, $notificationManager, $settingService, $logger);
+					$autoPay = $this->processAutoPayForUser($userId, $today->format('Y-m-d'), $billMapper, $billService, $notificationManager, $settingService, $logger);
 					$autoPayCount += $autoPay['success'];
 					$autoPayFailedCount += $autoPay['failed'];
 
@@ -99,7 +103,7 @@ class BillReminderJob extends TimedJob {
 						// Check if we should send a reminder
 						if ($daysUntilDue < 0) {
 							// Bill is overdue - send overdue notification if not already sent
-							if ($this->shouldSendReminder($bill, $dueDate)) {
+							if ($this->shouldSendReminder($bill, $dueDate, true)) {
 								$this->sendOverdueNotification($notificationManager, $settingService, $userId, $bill, $daysUntilDue);
 								$this->markReminderSent($billMapper, $bill);
 								$notificationCount++;
@@ -136,23 +140,29 @@ class BillReminderJob extends TimedJob {
 	}
 
 	/**
-	 * Check if we should send a reminder for this bill.
-	 * Avoids sending duplicate reminders for the same due date.
+	 * Whether this occurrence still needs its reminder, or its overdue
+	 * notice: one of each per due date.
+	 *
+	 * A reminder for the occurrence went out once the last one was sent
+	 * inside its reminder window; the overdue notice once one was sent after
+	 * the due date. "More than a week before the due date" read every
+	 * reminder sent 8 to 30 days out as an old one and resent it every six
+	 * hours, and a reminder two days out stopped the overdue notice for good.
 	 */
-	private function shouldSendReminder($bill, \DateTime $dueDate): bool {
+	private function shouldSendReminder($bill, \DateTime $dueDate, bool $overdue = false): bool {
 		$lastReminderSent = $bill->getLastReminderSent();
 		if (!$lastReminderSent) {
 			return true;
 		}
 
-		// Only send one reminder per due date period
 		$lastReminder = new \DateTime($lastReminderSent);
 		$lastReminder->setTime(0, 0, 0);
 
-		// If the last reminder was sent more than a week before the due date,
-		// it was for a previous occurrence - send a new reminder
-		$daysSinceReminder = (int)$lastReminder->diff($dueDate)->format('%R%a');
-		return $daysSinceReminder > 7;
+		if ($overdue) {
+			return $lastReminder <= $dueDate;
+		}
+		$windowStart = (clone $dueDate)->modify('-' . max(0, $bill->getReminderDays() ?? 7) . ' days');
+		return $lastReminder < $windowStart;
 	}
 
 	private function sendReminderNotification(
@@ -268,6 +278,7 @@ class BillReminderJob extends TimedJob {
 	 */
 	private function processAutoPayForUser(
 		string $userId,
+		string $today,
 		BillMapper $billMapper,
 		BillService $billService,
 		INotificationManager $notificationManager,
@@ -278,7 +289,7 @@ class BillReminderJob extends TimedJob {
 		$failedCount = 0;
 
 		try {
-			$dueForAutoPay = $billMapper->findDueForAutoPay($userId);
+			$dueForAutoPay = $billMapper->findDueForAutoPay($userId, $today);
 
 			foreach ($dueForAutoPay as $bill) {
 				$result = $billService->processAutoPay($bill->getId(), $userId);

@@ -38,6 +38,7 @@ class BillLifecycleTest extends TestCase {
 	private ?Bill $stored = null;
 	/** @var string[] */
 	private array $calls = [];
+	private bool $bookingFails = false;
 
 	protected function setUp(): void {
 		$this->mapper = $this->createMock(BillMapper::class);
@@ -59,6 +60,9 @@ class BillLifecycleTest extends TestCase {
 
 		$this->transactions = $this->createMock(TransactionService::class);
 		$this->transactions->method('createFromBill')->willReturnCallback(function (string $user, Bill $bill, ?string $date = null) {
+			if ($this->bookingFails) {
+				throw new \RuntimeException('account gone');
+			}
 			$this->calls[] = 'create:' . ($date ?? 'next:' . $bill->getNextDueDate());
 			$tx = new Transaction();
 			$tx->setId(500 + count($this->calls));
@@ -272,6 +276,47 @@ class BillLifecycleTest extends TestCase {
 		$this->service->markUnpaid(1, 'user1');
 
 		$this->assertContains('create:next:2026-10-15', $this->calls);
+	}
+
+	public function testAutoPayThatRecordsNothingIsRevertedAndSwitchedOff(): void {
+		// Auto-pay reported success and moved the bill on while no
+		// transaction was booked
+		$bill = $this->bill(['nextDueDate' => '2026-09-15']);
+		$bill->setAutoPayEnabled(true);
+		$this->bookingFails = true;
+
+		$result = $this->service->processAutoPay(1, 'user1');
+
+		$this->assertFalse($result['success']);
+		$this->assertSame('2026-09-15', $this->stored->getNextDueDate());
+		$this->assertFalse($this->stored->getAutoPayEnabled());
+	}
+
+	public function testPayingABillWithdrawsItsReminders(): void {
+		// A reminder or overdue notice stayed up after the bill was paid
+		$notifications = $this->createMock(\OCP\Notification\IManager::class);
+		$notifications->method('createNotification')->willReturnCallback(fn () => $this->createConfiguredMock(
+			\OCP\Notification\INotification::class, []
+		));
+		$notifications->expects($this->once())->method('markProcessed');
+		$service = $this->serviceWith($notifications);
+		$this->bill(['nextDueDate' => '2026-09-15']);
+
+		$service->markPaid(1, 'user1', self::TODAY, false);
+	}
+
+	private function serviceWith(\OCP\Notification\IManager $notifications): BillService {
+		$clock = $this->createMock(UserClock::class);
+		$clock->method('today')->willReturn(self::TODAY);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnArgument(0);
+		return new BillService(
+			$this->mapper, new FrequencyCalculator(), $this->createMock(RecurringBillDetector::class),
+			$this->transactions, $l, $this->createMock(AccountMapper::class),
+			$this->createMock(CurrencyConversionService::class), $this->createMock(TransactionSplitService::class),
+			$this->createMock(LoggerInterface::class), $this->createMock(DismissedSuggestionMapper::class),
+			null, $this->createMock(RecurringIncomeMapper::class), null, $clock, $notifications,
+		);
 	}
 
 	public function testUndoDoesNotBookARowForABillThatStoppedPreBooking(): void {

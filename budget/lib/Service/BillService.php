@@ -17,6 +17,7 @@ use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Bill\RecurringBillDetector;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IL10N;
+use OCP\Notification\IManager as INotificationManager;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -37,6 +38,7 @@ class BillService {
 	private ?RecurringIncomeMapper $incomeMapper;
 	private ?GranularShareService $granularShareService;
 	private ?UserClock $userClock;
+	private ?INotificationManager $notificationManager;
 
 	public function __construct(
 		BillMapper $mapper,
@@ -53,6 +55,7 @@ class BillService {
 		?RecurringIncomeMapper $incomeMapper = null,
 		?GranularShareService $granularShareService = null,
 		?UserClock $userClock = null,
+		?INotificationManager $notificationManager = null,
 	) {
 		$this->mapper = $mapper;
 		$this->frequencyCalculator = $frequencyCalculator;
@@ -68,6 +71,26 @@ class BillService {
 		$this->incomeMapper = $incomeMapper;
 		$this->granularShareService = $granularShareService;
 		$this->userClock = $userClock;
+		$this->notificationManager = $notificationManager;
+	}
+
+	/**
+	 * Take down the bill's reminder and overdue notices: they stayed up
+	 * after it was paid, skipped or deleted.
+	 */
+	private function withdrawNotifications(Bill $bill): void {
+		if ($this->notificationManager === null) {
+			return;
+		}
+		try {
+			$notification = $this->notificationManager->createNotification();
+			$notification->setApp('budget')
+				->setUser($bill->getUserId())
+				->setObject('bill', (string)$bill->getId());
+			$this->notificationManager->markProcessed($notification);
+		} catch (\Throwable $e) {
+			// Only a nicety: never a reason for the action itself to fail
+		}
 	}
 
 	/** Amount types whose figure is resolved from the destination card at payment time (#347) */
@@ -840,6 +863,7 @@ class BillService {
 		// Remove scheduled transactions before deleting the bill
 		$this->transactionService->deleteScheduledBillTransactions($id);
 		$this->mapper->delete($bill);
+		$this->withdrawNotifications($bill);
 	}
 
 	/**
@@ -1015,6 +1039,7 @@ class BillService {
 		}
 
 		$bill = $this->mapper->update($bill);
+		$this->withdrawNotifications($bill);
 
 		// Auto-create transaction for next occurrence if bill has account
 		// Skip for deactivated bills (one-time, end date reached, remaining payments exhausted)
@@ -1252,6 +1277,7 @@ class BillService {
 		$bill->setPaidUndoState(null);
 
 		$bill = $this->mapper->update($bill);
+		$this->withdrawNotifications($bill);
 
 		// Create scheduled transaction for the new next occurrence,
 		// unless the bill opted out of pre-created transactions
@@ -1676,6 +1702,18 @@ class BillService {
 
 			// Mark bill as paid
 			$result = $this->markPaid($id, $userId, null, true);
+
+			// Paid with nothing booked (the account is gone, the row failed):
+			// put the bill back and fail, rather than report success and move
+			// the bill on while the money never shows
+			if (!($result['paymentTransactionRecorded'] ?? false)) {
+				try {
+					$this->markUnpaid($id, $userId);
+				} catch (\Exception $e) {
+					$this->logger->warning("Failed to revert auto-pay of bill {$id}: {$e->getMessage()}");
+				}
+				throw new \RuntimeException($this->l->t('The payment could not be recorded'));
+			}
 
 			return [
 				'success' => true,

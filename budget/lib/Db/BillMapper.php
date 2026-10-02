@@ -188,9 +188,8 @@ class BillMapper extends QBMapper {
 	 *
 	 * @return Bill[]
 	 */
-	public function findDueForAutoPay(string $userId): array {
-		$today = date('Y-m-d');
-		$startOfMonth = date('Y-m-01');
+	public function findDueForAutoPay(string $userId, ?string $today = null): array {
+		$today = $today ?? date('Y-m-d');
 
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')
@@ -201,14 +200,11 @@ class BillMapper extends QBMapper {
 			->andWhere($qb->expr()->eq('auto_pay_failed', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)))
 			->andWhere($qb->expr()->isNotNull('account_id'))
 			->andWhere($qb->expr()->isNotNull('next_due_date'))
+			// Due by its own date. "Not paid since the 1st" let a weekly bill
+			// auto-pay once a month, and held a monthly bill paid late in one
+			// month back from the next. Paying moves the due date on, so
+			// a bill already paid is no longer due.
 			->andWhere($qb->expr()->lte('next_due_date', $qb->createNamedParameter($today)))
-			// Exclude bills already paid this month
-			->andWhere(
-				$qb->expr()->orX(
-					$qb->expr()->isNull('last_paid_date'),
-					$qb->expr()->lt('last_paid_date', $qb->createNamedParameter($startOfMonth))
-				)
-			)
 			->orderBy('next_due_date', 'ASC');
 
 		return $this->findEntities($qb);

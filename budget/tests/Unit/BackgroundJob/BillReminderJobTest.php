@@ -115,6 +115,34 @@ class BillReminderJobTest extends TestCase {
 		$this->assertFalse($result);
 	}
 
+	public function testALongReminderWindowRemindsOnce(): void {
+		// "More than a week before the due date" read every reminder sent
+		// 8 to 30 days out as an old one, and resent it every six hours
+		$bill = $this->makeBill(['reminderDays' => 20, 'lastReminderSent' => '2026-03-26 10:00:00']);
+
+		$this->assertFalse($this->invokeShouldSendReminder($bill, new \DateTime('2026-04-15')));
+	}
+
+	public function testTheOverdueNoticeFollowsAReminder(): void {
+		// A reminder two days before the due date suppressed the overdue
+		// notice for good
+		$bill = $this->makeBill(['reminderDays' => 3, 'lastReminderSent' => '2026-04-13 10:00:00']);
+
+		$this->assertTrue($this->invokeShouldSendReminder($bill, new \DateTime('2026-04-15'), true));
+	}
+
+	public function testTheOverdueNoticeIsSentOnce(): void {
+		$bill = $this->makeBill(['reminderDays' => 3, 'lastReminderSent' => '2026-04-16 10:00:00']);
+
+		$this->assertFalse($this->invokeShouldSendReminder($bill, new \DateTime('2026-04-15'), true));
+	}
+
+	public function testAWeeklyBillIsRemindedEveryWeek(): void {
+		$bill = $this->makeBill(['reminderDays' => 2, 'lastReminderSent' => '2026-04-06 10:00:00']);
+
+		$this->assertTrue($this->invokeShouldSendReminder($bill, new \DateTime('2026-04-15')));
+	}
+
 	// ===== formatAmount() =====
 
 	public function testFormatAmountWithUsd(): void {
@@ -413,9 +441,9 @@ class BillReminderJobTest extends TestCase {
 		$this->db->method('getQueryBuilder')->willReturn($qb);
 	}
 
-	private function invokeShouldSendReminder($bill, \DateTime $dueDate): bool {
+	private function invokeShouldSendReminder($bill, \DateTime $dueDate, bool $overdue = false): bool {
 		$method = new \ReflectionMethod($this->job, 'shouldSendReminder');
-		return $method->invoke($this->job, $bill, $dueDate);
+		return $method->invoke($this->job, $bill, $dueDate, $overdue);
 	}
 
 	private function invokeFormatAmount(string $userId, float $amount): string {
