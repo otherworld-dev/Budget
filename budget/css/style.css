@@ -17839,6 +17839,15 @@ button.secondary.compact {
         margin-bottom: 12px;
         justify-content: flex-end;
     }
+
+    /* Unlocked, Add Tiles, Columns and Lock are too wide for a phone and ran
+       under the nav toggle ("A≡d Tiles"), so keep the same clear space as
+       the page headings and wrap */
+    .dashboard-header-actions {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        padding-left: 48px;
+    }
 }
 
 /* Danger Zone Styles */
@@ -20512,6 +20521,29 @@ th.sortable:focus-visible {
     .contact-actions-hover,
     .widget-tile-controls {
         opacity: 1;
+    }
+
+    /* Always showing, the dashboard tile toolbar would sit on the tile's
+       title ("Upco…"), so on touch screens it is a strip across the top of
+       the tile instead, with the title below it */
+    .widget-tile-controls {
+        position: static;
+        flex: none;
+        width: 100%;
+        box-sizing: border-box;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+        padding: 0 0 8px;
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid var(--color-border);
+        border-radius: 0;
+        box-shadow: none;
+    }
+    /* Hero cards lay out in a row, so the strip needs a line of its own */
+    .hero-card:has(> .widget-tile-controls) {
+        flex-wrap: wrap;
     }
 }
 

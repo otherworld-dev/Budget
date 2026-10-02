@@ -4120,9 +4120,10 @@ export default class DashboardModule {
         // Re-flow to a single full-width column on phones and back on resize.
         this._setupResponsiveColumns();
 
-        // Disable dragging if dashboard is locked (must be done after init
-        // so that drag handlers are created and can be toggled later)
-        if (this.dashboardLocked) {
+        // Disable dragging if dashboard is locked or on a touch screen (must
+        // be done after init so that drag handlers are created and can be
+        // toggled later)
+        if (!this._tilesDraggable()) {
             this.gridstack.disable();
         }
 
@@ -4450,8 +4451,12 @@ export default class DashboardModule {
         const container = document.querySelector('.dashboard-hero');
         if (!container) return;
 
-        const order = Array.from(container.querySelectorAll('[data-widget-category="hero"]'))
-            .map(card => card.dataset.widgetId);
+        const cards = Array.from(container.querySelectorAll('[data-widget-category="hero"]'));
+        const order = cards.map(card => card.dataset.widgetId);
+        // Below 1200px applyDashboardLayout pins each tile's place with a
+        // CSS order, which would keep showing the old order until a reload.
+        // The elements are in the new order now, so let that show.
+        cards.forEach(card => { card.style.order = ''; });
 
         if (!this.dashboardConfig.hero) this.dashboardConfig.hero = {};
         this.dashboardConfig.hero.order = order;
@@ -4821,6 +4826,16 @@ export default class DashboardModule {
         });
     }
 
+    /**
+     * Whether tiles can be dragged right now. Never on a touch screen:
+     * gridstack takes a swipe anywhere on a tile as a drag, so the page
+     * would hardly scroll while unlocked. The toolbar's Move earlier / Move
+     * later buttons reorder tiles there instead.
+     */
+    _tilesDraggable() {
+        return !this.dashboardLocked && !window.matchMedia?.('(hover: none)').matches;
+    }
+
     async toggleDashboardLock() {
         this.app.dashboardLocked = !this.app.dashboardLocked;
 
@@ -4829,18 +4844,18 @@ export default class DashboardModule {
 
         // Update Gridstack static mode
         if (this.gridstack) {
-            if (this.app.dashboardLocked) {
-                this.gridstack.disable();
-            } else {
+            if (this._tilesDraggable()) {
                 this.gridstack.enable();
+            } else {
+                this.gridstack.disable();
             }
         }
 
         // Toggle hero tile drag-and-drop
-        if (this.app.dashboardLocked) {
-            this.teardownHeroDragAndDrop();
-        } else {
+        if (this._tilesDraggable()) {
             this.setupHeroDragAndDrop();
+        } else {
+            this.teardownHeroDragAndDrop();
         }
 
         // Save state to backend
@@ -4895,7 +4910,9 @@ export default class DashboardModule {
         } else {
             // Unlocked state
             btnText.textContent = t('budget', 'Lock Dashboard');
-            hint.querySelector('span:last-child').textContent = t('budget', 'Drag tiles to reorder your dashboard');
+            hint.querySelector('span:last-child').textContent = window.matchMedia?.('(hover: none)').matches
+                ? t('budget', 'Use the arrows on each tile to reorder your dashboard')
+                : t('budget', 'Drag tiles to reorder your dashboard');
             if (icon) icon.innerHTML = unlockedSvg;
             // Show Add Tiles button, column picker, and tile settings buttons
             if (addTilesDropdown) addTilesDropdown.style.display = 'block';
@@ -5005,12 +5022,12 @@ export default class DashboardModule {
                     this.openTileSettingsModal(widgetId, category);
                 };
                 controls.appendChild(gearBtn);
-            }
 
-            // Divider before remove
-            const div2 = document.createElement('div');
-            div2.className = 'tile-controls-divider';
-            controls.appendChild(div2);
+                // Divider before remove
+                const div2 = document.createElement('div');
+                div2.className = 'tile-controls-divider';
+                controls.appendChild(div2);
+            }
 
             // Remove button
             const removeBtn = document.createElement('button');
@@ -5029,7 +5046,10 @@ export default class DashboardModule {
             controls.appendChild(removeBtn);
 
             card.style.position = 'relative';
-            card.appendChild(controls);
+            // First in the card: on a touch screen the CSS takes it out of
+            // its corner overlay and lays it above the header (it would
+            // otherwise sit on the title, as nothing hides it there)
+            card.prepend(controls);
         };
 
         document.querySelectorAll('.hero-card').forEach(card => addControls(card, 'hero'));
