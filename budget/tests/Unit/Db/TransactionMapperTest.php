@@ -271,6 +271,22 @@ class TransactionMapperTest extends TestCase {
 		$this->assertEquals(5, $txs[0]->getCategoryId());
 	}
 
+	/**
+	 * findByCategory() guards category deletes, so it must see every row.
+	 * It used the report scope, which hides scheduled rows dated after today
+	 * and pension-funding legs: a category used only by a bill's pre-booked
+	 * payment was deleted with no prompt and the row kept the dead id.
+	 */
+	public function testFindByCategorySeesScheduledAndPensionRows(): void {
+		$this->recordOrBranches();
+
+		$this->mapper->findByCategory(5, 'user1', 1);
+
+		$flat = array_merge([], ...$this->orBranches);
+		$this->assertNotContains('neq:t.status', $flat);
+		$this->assertNotContains('isNull:t.pension_contrib_id', $this->conditionsSeen());
+	}
+
 	// ===== existsByImportId =====
 
 	public function testExistsByImportIdReturnsTrueWhenExists(): void {
@@ -876,6 +892,13 @@ class TransactionMapperTest extends TestCase {
 
 	/** @var string[][] one list per orX() call, filled by recordOrBranches() */
 	private array $orBranches = [];
+	/** @var string[] every comparison built, filled by recordOrBranches() */
+	private array $exprCalls = [];
+
+	/** @return string[] */
+	private function conditionsSeen(): array {
+		return $this->exprCalls;
+	}
 
 	/**
 	 * Record every OR branch the query builds as the strings the mocked
@@ -883,8 +906,12 @@ class TransactionMapperTest extends TestCase {
 	 */
 	private function recordOrBranches(): void {
 		$this->orBranches = [];
+		$this->exprCalls = [];
 		foreach (['eq', 'neq', 'notLike', 'isNull', 'in'] as $method) {
-			$this->expr->method($method)->willReturnCallback(fn ($x) => "{$method}:{$x}");
+			$this->expr->method($method)->willReturnCallback(function ($x) use ($method) {
+				$this->exprCalls[] = "{$method}:{$x}";
+				return "{$method}:{$x}";
+			});
 		}
 		$this->expr->method('andX')->willReturnCallback(
 			fn (...$parts) => new LabelledExpression('and(' . implode(',', array_map('strval', $parts)) . ')')

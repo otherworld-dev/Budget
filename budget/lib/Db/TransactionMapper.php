@@ -415,6 +415,13 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
+	 * Every caller is a category-delete guard, so this sees every row on the
+	 * category - scheduled ones and pension-funding legs included. It used
+	 * the report scope, which hides those: a category used only by a bill's
+	 * pre-booked payment or a future-dated row was deleted with no prompt,
+	 * and the rows kept the dead id. Split-blind on purpose: a category used
+	 * only by split parts stays deletable, and the delete clears those parts.
+	 *
 	 * @return Transaction[]
 	 */
 	public function findByCategory(int $categoryId, string $userId, int $limit = 100): array {
@@ -426,8 +433,6 @@ class TransactionMapper extends QBMapper {
 			->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
 			->orderBy('t.date', 'DESC')
 			->setMaxResults($limit);
-
-		ReportScope::excludeScheduledFuture($qb);
 
 		return $this->findEntities($qb);
 	}
