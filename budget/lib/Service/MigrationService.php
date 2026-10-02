@@ -54,6 +54,8 @@ class MigrationService {
 	 *           snapshot has, 'idLists' => keys holding transaction id lists,
 	 *           'accounts' => the row's account columns]: see
 	 *           remapUndoSnapshot()
+	 *   billKeyedType  dismissals of this suggestion_type are keyed by a
+	 *           bill id: see remapBillKeyedDismissal()
 	 *
 	 * PRE entries import after categories/accounts, before transactions and
 	 * bills (bills remap their tagIds through the tags map). POST entries
@@ -234,6 +236,8 @@ class MigrationService {
 		'dismissed_sugg' => [
 			'table' => 'budget_dismissed_sugg',
 			'scope' => 'user',
+			// A dismissed unrecorded payment (#394) is keyed by its bill's id
+			'billKeyedType' => 'unrecorded',
 		],
 		'dismiss_imp' => [
 			'table' => 'budget_dismiss_imp',
@@ -1134,6 +1138,10 @@ class MigrationService {
 			}
 		}
 
+		if (isset($spec['billKeyedType']) && ($row['suggestion_type'] ?? null) === $spec['billKeyedType']) {
+			return $this->remapBillKeyedDismissal($row, $idMaps);
+		}
+
 		foreach ($spec['jsonFk'] ?? [] as $column => $fkSpec) {
 			$raw = $row[$column] ?? null;
 			if ($raw === null || $raw === '') {
@@ -1231,6 +1239,32 @@ class MigrationService {
 			$snapshot[$key] = $transactionMap[(int)$oldId] ?? null;
 		}
 		return $snapshot;
+	}
+
+	/**
+	 * A dismissed unrecorded payment moved to its bill's restored id, or null
+	 * to leave it out.
+	 *
+	 * The dismissal is keyed "billId:paidDate" (and its sha1), as
+	 * BillService::unrecordedPaymentKey() builds it. Copied as it was, the
+	 * payment came back on the card after every restore, and on a new server
+	 * a different bill holding the old id could have its own payment hidden.
+	 * One whose bill isn't in the backup applies to nothing.
+	 *
+	 * @param array<string, mixed> $row
+	 * @return array<string, mixed>|null
+	 */
+	private function remapBillKeyedDismissal(array $row, array $idMaps): ?array {
+		if (!is_string($row['pattern'] ?? null) || preg_match('/^(\d+):(.+)$/', $row['pattern'], $m) !== 1) {
+			return null;
+		}
+		$newBillId = $idMaps['bills'][(int)$m[1]] ?? null;
+		if ($newBillId === null) {
+			return null;
+		}
+		$row['pattern'] = $newBillId . ':' . $m[2];
+		$row['pattern_hash'] = sha1($row['pattern']);
+		return $row;
 	}
 
 	/**

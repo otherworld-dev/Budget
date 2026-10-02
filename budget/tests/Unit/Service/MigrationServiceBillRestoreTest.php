@@ -252,6 +252,35 @@ class MigrationServiceBillRestoreTest extends TestCase {
 		$this->assertNull($none['received_undo_state']);
 	}
 
+	/**
+	 * Dismissing a payment on the unrecorded-payments card (#394) stores the
+	 * bill's id inside the dismissal, and the restore copied it as it was.
+	 * The payment came back on the card after every restore, and on a new
+	 * server, where a different bill can get the old id, it could hide that
+	 * bill's payment instead.
+	 */
+	public function testAnUnrecordedPaymentDismissalFollowsItsBill(): void {
+		$spec = MigrationService::EXTRA_TABLES_POST['dismissed_sugg'];
+		$idMaps = ['bills' => [40 => 500, 41 => 501]];
+		$row = static fn (string $type, ?string $pattern) => [
+			'id' => 9, 'suggestion_type' => $type, 'pattern' => $pattern,
+			'pattern_hash' => $pattern === null ? 'x' : sha1($pattern), 'dismissed_at' => '2026-09-02 10:00:00',
+		];
+
+		$moved = $this->remapRow($row('unrecorded', '40:2026-09-01'), $spec, $idMaps);
+		$this->assertSame('500:2026-09-01', $moved['pattern']);
+		$this->assertSame(sha1('500:2026-09-01'), $moved['pattern_hash']);
+
+		// The bill isn't in the backup: the dismissal can't apply to anything
+		$this->assertNull($this->remapRow($row('unrecorded', '77:2026-09-01'), $spec, $idMaps));
+		$this->assertNull($this->remapRow($row('unrecorded', 'nonsense'), $spec, $idMaps));
+		$this->assertNull($this->remapRow($row('unrecorded', null), $spec, $idMaps));
+
+		// Dismissed bill suggestions are keyed by the payee, not an id
+		$suggestion = $row('bill', md5('netflix'));
+		$this->assertSame($suggestion, $this->remapRow($suggestion, $spec, $idMaps));
+	}
+
 	private function remapRow(array $row, array $spec, array $idMaps): ?array {
 		$method = new \ReflectionMethod($this->service, 'remapRow');
 		$method->setAccessible(true);
