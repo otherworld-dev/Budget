@@ -334,6 +334,10 @@ class AccountService extends AbstractCrudService {
 		$accountData = $account->toArrayMasked();
 		$accountData['balance'] = MoneyCalculator::toFloat($balance);
 		$accountData['storedBalance'] = MoneyCalculator::toFloat($storedBalance);
+		$accountData['projectedBalance'] = $this->projectedBalance(
+			$account,
+			$this->transactionMapper->getScheduledNetChangeForAccounts([$id])
+		);
 
 		// Add fiat equivalent for non-base-currency accounts
 		$baseCurrency = $this->conversionService->getBaseCurrency($userId);
@@ -352,10 +356,14 @@ class AccountService extends AbstractCrudService {
 		// Get future transaction adjustments for all accounts in one query
 		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, date('Y-m-d'));
 		$baseCurrency = $this->conversionService->getBaseCurrency($userId);
+		$accounts = $this->findAll($userId);
+		$scheduled = $this->transactionMapper->getScheduledNetChangeForAccounts(
+			array_map(fn (Account $account) => $account->getId(), $accounts)
+		);
 
 		return array_map(
-			fn (Account $account) => $this->withCurrentBalance($account, $futureChanges, $baseCurrency, $userId),
-			$this->findAll($userId)
+			fn (Account $account) => $this->withCurrentBalance($account, $futureChanges, $baseCurrency, $userId, $scheduled),
+			$accounts
 		);
 	}
 
@@ -376,10 +384,12 @@ class AccountService extends AbstractCrudService {
 		$futureChanges = $this->transactionMapper->getNetChangeAfterDateForAccounts($ids, date('Y-m-d'));
 		$baseCurrency = $this->conversionService->getBaseCurrency($userId);
 
+		$scheduled = $this->transactionMapper->getScheduledNetChangeForAccounts($ids);
+
 		/** @var AccountMapper $mapper */
 		$mapper = $this->mapper;
 		return array_map(
-			fn (Account $account) => $this->withCurrentBalance($account, $futureChanges, $baseCurrency, $userId) + ['_shared' => true],
+			fn (Account $account) => $this->withCurrentBalance($account, $futureChanges, $baseCurrency, $userId, $scheduled) + ['_shared' => true],
 			$mapper->findByIds($ids)
 		);
 	}
@@ -390,8 +400,9 @@ class AccountService extends AbstractCrudService {
 	 * crypto keeps its 8dp (#331), plus its base-currency equivalent.
 	 *
 	 * @param array<int, float> $futureChanges account id => net change after today
+	 * @param array<int, float>|null $scheduled account id => net of its scheduled rows, for projectedBalance
 	 */
-	private function withCurrentBalance(Account $account, array $futureChanges, string $baseCurrency, string $userId): array {
+	private function withCurrentBalance(Account $account, array $futureChanges, string $baseCurrency, string $userId, ?array $scheduled = null): array {
 		// Floats go to MoneyCalculator as they are: (string) writes a tiny one
 		// in scientific notation ("1.0E-5"), which bcmath refuses outright, so
 		// a crypto account holding dust failed the whole list
@@ -402,10 +413,30 @@ class AccountService extends AbstractCrudService {
 		$accountData = $account->toArrayMasked();
 		$balanceFloat = MoneyCalculator::toFloat($balance);
 		$accountData['balance'] = $balanceFloat;
+		if ($scheduled !== null) {
+			$accountData['projectedBalance'] = $this->projectedBalance($account, $scheduled);
+		}
 		// Fiat equivalent for non-base-currency accounts
 		$this->addConvertedBalance($accountData, $balanceFloat, $account->getCurrency(), $baseCurrency, $userId);
 
 		return $accountData;
+	}
+
+	/**
+	 * The balance once everything booked into the account has gone through:
+	 * the stored balance (future-dated real rows included) plus its
+	 * scheduled rows, the pre-booked bills, transfers and income (#163).
+	 * The account page showed it only when it differed from today's
+	 * balance, and was never given it.
+	 *
+	 * @param array<int, float> $scheduled account id => net of its scheduled rows
+	 */
+	private function projectedBalance(Account $account, array $scheduled): float {
+		return MoneyCalculator::toFloat(MoneyCalculator::add(
+			(float)($account->getBalance() ?? 0),
+			(float)($scheduled[$account->getId()] ?? 0),
+			Currency::decimalsFor($account->getCurrency())
+		));
 	}
 
 	/**

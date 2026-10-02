@@ -906,7 +906,11 @@ class TransactionService {
 			// Compute running balance for each transaction on the current page
 			// by iterating over ALL account transactions chronologically.
 			// This avoids page-boundary issues entirely.
-			$allTx = $this->mapper->getAllTransactionsForBalance($accountId);
+			// Scheduled rows are not in the balance, so real rows carry the
+			// balance money has reached; a scheduled row carries where the
+			// balance will be once it and the scheduled rows before it go
+			// through (#163), shown as projected. They used to get none.
+			$allTx = $this->mapper->getAllTransactionsForBalance($accountId, true);
 
 			$pageIds = [];
 			foreach ($result['transactions'] as $tx) {
@@ -914,16 +918,20 @@ class TransactionService {
 			}
 
 			$running = $openingBalance;
+			$projected = $openingBalance;
 			$runningBalances = [];
 			foreach ($allTx as $row) {
 				$amount = (string)$row['amount'];
+				$isScheduled = ($row['status'] ?? null) === 'scheduled';
 				if ($row['type'] === 'credit') {
-					$running = MoneyCalculator::add($running, $amount);
+					$projected = MoneyCalculator::add($projected, $amount);
+					$running = $isScheduled ? $running : MoneyCalculator::add($running, $amount);
 				} else {
-					$running = MoneyCalculator::subtract($running, $amount);
+					$projected = MoneyCalculator::subtract($projected, $amount);
+					$running = $isScheduled ? $running : MoneyCalculator::subtract($running, $amount);
 				}
 				if (isset($pageIds[(int)$row['id']])) {
-					$runningBalances[(int)$row['id']] = $running;
+					$runningBalances[(int)$row['id']] = $isScheduled ? $projected : $running;
 				}
 			}
 

@@ -2101,19 +2101,23 @@ class TransactionMapper extends QBMapper {
 	 * @param int $accountId
 	 * @return array Array of rows with 'id', 'amount', 'type' keys
 	 */
-	public function getAllTransactionsForBalance(int $accountId): array {
+	public function getAllTransactionsForBalance(int $accountId, bool $includeScheduled = false): array {
 		$qb = $this->db->getQueryBuilder();
 
-		$qb->select('t.id', 't.amount', 't.type')
+		$qb->select('t.id', 't.amount', 't.type', 't.status')
 			->from($this->getTableName(), 't')
-			->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
-			->andWhere(
+			->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+		// Scheduled rows stay out of the balance; a caller projecting the
+		// balance past them asks for them too
+		if (!$includeScheduled) {
+			$qb->andWhere(
 				$qb->expr()->orX(
 					$qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
 					$qb->expr()->isNull('t.status')
 				)
-			)
-			->orderBy('t.date', 'ASC')
+			);
+		}
+		$qb->orderBy('t.date', 'ASC')
 			->addOrderBy('t.id', 'ASC');
 
 		$result = $qb->executeQuery();
@@ -2262,6 +2266,41 @@ class TransactionMapper extends QBMapper {
 	 * @param int[] $accountIds
 	 * @return array<int, float> accountId => netChange
 	 */
+	/**
+	 * Net of the scheduled rows in each account, whatever their date: the
+	 * pre-booked bills, transfers and income not yet booked into its
+	 * balance (#163's projected balance). Accounts with none are absent.
+	 *
+	 * @param int[] $accountIds
+	 * @return array<int, float> account id => net (credits positive)
+	 */
+	public function getScheduledNetChangeForAccounts(array $accountIds): array {
+		if (empty($accountIds)) {
+			return [];
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('t.account_id')
+			->selectAlias(
+				$qb->createFunction('SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE -t.amount END)'),
+				'net_change'
+			)
+			->from($this->getTableName(), 't')
+			->where($qb->expr()->in('t.account_id', $qb->createNamedParameter($accountIds, IQueryBuilder::PARAM_INT_ARRAY)))
+			->andWhere($qb->expr()->eq('t.status', $qb->createNamedParameter('scheduled')))
+			->groupBy('t.account_id');
+
+		$result = $qb->executeQuery();
+		$data = $result->fetchAll();
+		$result->closeCursor();
+
+		$changes = [];
+		foreach ($data as $row) {
+			$changes[(int)$row['account_id']] = (float)$row['net_change'];
+		}
+		return $changes;
+	}
+
 	public function getNetChangeAfterDateForAccounts(array $accountIds, string $afterDate): array {
 		if (empty($accountIds)) {
 			return [];
@@ -2362,7 +2401,11 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
-	 * Sum of transaction amounts for one account, of a given type, within a date range.
+	 * Sum of transaction amounts for one account, of a given type, within a
+	 * date range. Only what happened: a pre-booked bill or transfer later in
+	 * the month counted as spent (or, in the account it was going to, as
+	 * income) before any money had moved, unlike the balance beside it and
+	 * every report.
 	 */
 	private function sumAccountByTypeInRange(int $accountId, string $type, string $startDate, string $endDate): float {
 		$qb = $this->db->getQueryBuilder();
@@ -2372,6 +2415,7 @@ class TransactionMapper extends QBMapper {
 			->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter($type)))
 			->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
 			->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+		ReportScope::excludeScheduledFuture($qb);
 		$result = $qb->executeQuery();
 		$total = $result->fetchOne();
 		$result->closeCursor();

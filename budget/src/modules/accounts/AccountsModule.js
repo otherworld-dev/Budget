@@ -1250,15 +1250,17 @@ export default class AccountsModule {
         document.getElementById('account-available-balance').textContent = this.formatCurrency(displayAvailable, currency);
         document.getElementById('account-available-balance').className = `balance-amount ${isLiabilityAccount ? (availableBalance < 0 ? 'negative' : 'positive') : (availableBalance >= 0 ? 'positive' : 'negative')}`;
 
-        // Show projected balance (including scheduled future transactions) if different from current
+        // Show projected balance (including scheduled future transactions) if
+        // different from current. The server works it out: the stored
+        // balance plus the pre-booked bills, transfers and income (#163).
         const projectedInfo = document.getElementById('projected-balance-info');
         const projectedEl = document.getElementById('account-projected-balance');
         if (projectedInfo && projectedEl) {
-            const storedBalance = parseFloat(account.storedBalance ?? account.balance) || 0;
-            if (Math.abs(storedBalance - currentBalance) > 0.01) {
+            const projectedBalance = parseFloat(account.projectedBalance ?? account.storedBalance ?? account.balance) || 0;
+            if (Math.abs(projectedBalance - currentBalance) > 0.01) {
                 projectedInfo.style.display = 'block';
-                projectedEl.textContent = this.formatCurrency(storedBalance, currency);
-                projectedEl.className = `balance-amount projected ${storedBalance >= 0 ? 'positive' : 'negative'}`;
+                projectedEl.textContent = this.formatCurrency(projectedBalance, currency);
+                projectedEl.className = `balance-amount projected ${projectedBalance >= 0 ? 'positive' : 'negative'}`;
             } else {
                 projectedInfo.style.display = 'none';
             }
