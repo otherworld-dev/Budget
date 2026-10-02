@@ -1085,9 +1085,7 @@ class BillServiceTest extends TestCase {
 		$this->mapper->method('update')->willReturnArgument(0);
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-15');
 
-		$this->transactionService->expects($this->once())
-			->method('update')
-			->with(42, 'user1', ['billId' => 1]);
+		$this->linkable($this->makeImportedTx(['id' => 42]));
 		$this->transactionService->expects($this->once())
 			->method('createFromBill')
 			->with('user1', $bill, null);
@@ -1672,6 +1670,22 @@ class BillServiceTest extends TestCase {
 
 	// ===== Auto-match bills from imported transactions (#274) =====
 
+	/**
+	 * Rows a payment may link: findTransaction() finds them, and linking
+	 * hands the row back with the bill's id, as the real service does.
+	 */
+	private function linkable(\OCA\Budget\Db\Transaction ...$rows): void {
+		$byId = [];
+		foreach ($rows as $row) {
+			$byId[$row->getId()] = $row;
+		}
+		$this->transactionService->method('findTransaction')->willReturnCallback(fn (int $id) => $byId[$id] ?? null);
+		$this->transactionService->method('linkBillAsAccountOwner')->willReturnCallback(function (int $id, Bill $bill) use ($byId) {
+			$byId[$id]->setBillId($bill->getId());
+			return $byId[$id];
+		});
+	}
+
 	private function makeImportedTx(array $overrides = []): \OCA\Budget\Db\Transaction {
 		$tx = new \OCA\Budget\Db\Transaction();
 		$tx->setId($overrides['id'] ?? 500);
@@ -1705,13 +1719,14 @@ class BillServiceTest extends TestCase {
 		$tx = $this->makeImportedTx();
 
 		// The existing transaction gets LINKED — no new money movement
-		$this->transactionService->expects($this->once())
-			->method('update')
-			->with(500, 'user1', ['billId' => 1]);
+		$this->linkable($tx);
+		// Nothing is booked for this payment; only the next occurrence pre-books
+		$this->transactionService->expects($this->once())->method('createFromBill')->with('user1', $bill, null);
 
 		$marked = $this->service->autoMatchPaidFromImport('user1', [$tx]);
 
 		$this->assertSame(1, $marked);
+		$this->assertSame(1, $tx->getBillId());
 		$this->assertSame('2026-06-14', $bill->getLastPaidDate());
 		$this->assertSame('2026-07-15', $bill->getNextDueDate());
 	}
@@ -1719,6 +1734,7 @@ class BillServiceTest extends TestCase {
 	public function testAutoMatchMatchesPatternInVendor(): void {
 		$this->setupAutoMatchBill();
 		$tx = $this->makeImportedTx(['description' => 'Card payment 9912', 'vendor' => 'Netflix Inc']);
+		$this->linkable($tx);
 
 		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$tx]));
 	}
@@ -1762,9 +1778,10 @@ class BillServiceTest extends TestCase {
 		// outside the new window
 		$tx1 = $this->makeImportedTx(['id' => 500, 'date' => '2026-06-14']);
 		$tx2 = $this->makeImportedTx(['id' => 501, 'date' => '2026-06-16']);
+		$this->linkable($tx1, $tx2);
 
-		$this->transactionService->expects($this->once())->method('update');
 		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$tx1, $tx2]));
+		$this->assertNull($tx2->getBillId());
 	}
 
 	public function testAutoMatchIgnoresTransferAndPatternlessBills(): void {
@@ -2603,9 +2620,7 @@ class BillServiceTest extends TestCase {
 		$this->mapper->method('update')->willReturnArgument(0);
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-15');
 
-		$this->transactionService->expects($this->once())
-			->method('update')
-			->with(77, 'user1', ['billId' => 1]);
+		$this->linkable($this->makeImportedTx(['id' => 77]));
 
 		$result = $this->service->markPaid(1, 'user1', null, false, 77);
 

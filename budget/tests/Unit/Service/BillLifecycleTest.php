@@ -270,12 +270,78 @@ class BillLifecycleTest extends TestCase {
 		// Linking a bank row removed the pre-booked one, and undo never put
 		// it back
 		$this->bill(['nextDueDate' => '2026-10-15']);
+		$this->transactions->method('findTransaction')->willReturn($this->bankRow(77, 3, '2026-10-14'));
+		$this->transactions->method('linkBillAsAccountOwner')->willReturnCallback(fn () => $this->bankRow(77, 3, '2026-10-14'));
 		$this->service->markPaid(1, 'user1', self::TODAY, false, 77);
 		$this->calls = [];
 
 		$this->service->markUnpaid(1, 'user1');
 
 		$this->assertContains('create:next:2026-10-15', $this->calls);
+	}
+
+	private function bankRow(int $id, int $accountId, string $date): Transaction {
+		$row = new Transaction();
+		$row->setId($id);
+		$row->setAccountId($accountId);
+		$row->setDate($date);
+		$row->setAmount(800.0);
+		$row->setType('debit');
+		$row->setIsSplit(false);
+		return $row;
+	}
+
+	public function testLinkingABankRowPaysTheBillOnTheRowsDate(): void {
+		// It was dated the day the user clicked, so the card listed the
+		// payment as unrecorded and offered to book it again
+		$this->bill(['nextDueDate' => '2026-09-15']);
+		$this->transactions->method('findTransaction')->willReturn($this->bankRow(77, 3, '2026-09-14'));
+		$this->transactions->expects($this->once())->method('linkBillAsAccountOwner')->with(77)
+			->willReturnCallback(fn () => $this->bankRow(77, 3, '2026-09-14'));
+
+		$result = $this->service->markPaid(1, 'user1', null, false, 77);
+
+		$this->assertSame('2026-09-14', $result['bill']->getLastPaidDate());
+		$this->assertSame('2026-10-15', $result['bill']->getNextDueDate());
+		$this->assertTrue($result['paymentTransactionRecorded']);
+	}
+
+	public function testABillWithNoAccountCanBePaidByLinkingARow(): void {
+		// Import auto-match marked it paid but never linked the row, and the
+		// card then offered to book the payment a second time
+		$this->bill(['nextDueDate' => '2026-09-15', 'accountId' => null]);
+		$this->transactions->method('findTransaction')->willReturn($this->bankRow(77, 3, '2026-09-14'));
+		$this->transactions->expects($this->once())->method('linkBillAsAccountOwner')
+			->willReturnCallback(fn () => $this->bankRow(77, 3, '2026-09-14'));
+
+		$this->service->markPaid(1, 'user1', null, false, 77);
+	}
+
+	public function testALinkThatFailsLeavesTheBillWhereItWas(): void {
+		// The failure was only logged: the pre-booked row was already gone
+		// and the bill moved on with nothing linked
+		$this->bill(['nextDueDate' => '2026-09-15']);
+		$this->transactions->method('findTransaction')->willReturn($this->bankRow(77, 3, '2026-09-14'));
+		$this->transactions->method('linkBillAsAccountOwner')->willThrowException(new \InvalidArgumentException('This transaction already pays another bill'));
+
+		try {
+			$this->service->markPaid(1, 'user1', null, false, 77);
+			$this->fail('The failed link was swallowed');
+		} catch (\InvalidArgumentException $e) {
+		}
+
+		$this->assertSame('2026-09-15', $this->stored->getNextDueDate());
+		$this->assertNotContains('drop-pending', $this->calls);
+	}
+
+	public function testARowFromAnotherAccountIsNotLinked(): void {
+		// The id comes from the browser: it could name anyone's transaction
+		$this->bill(['nextDueDate' => '2026-09-15']);
+		$this->transactions->method('findTransaction')->willReturn($this->bankRow(77, 99, '2026-09-14'));
+		$this->transactions->expects($this->never())->method('linkBillAsAccountOwner');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->markPaid(1, 'user1', null, false, 77);
 	}
 
 	public function testAutoPayThatRecordsNothingIsRevertedAndSwitchedOff(): void {

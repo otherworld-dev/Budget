@@ -646,6 +646,14 @@ class TransactionService {
 	}
 
 	/**
+	 * A transaction by id with no owner scoping, for callers that check
+	 * access themselves. Null when it doesn't exist.
+	 */
+	public function findTransaction(int $id): ?Transaction {
+		return $this->mapper->findById($id);
+	}
+
+	/**
 	 * Link an existing transaction to a bill as the payment of its current
 	 * occurrence, under the account owner's identity (#334): the row may sit
 	 * in an account shared with the bill's owner, whose own lookup can't see

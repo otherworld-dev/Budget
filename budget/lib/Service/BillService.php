@@ -987,11 +987,30 @@ class BillService {
 			$bill->setAutoPayFailed(false);
 		}
 
-		// Use today's date as the paid/transaction date so the payment appears
-		// immediately in the account balance, regardless of when the bill was due.
-		// The user's today, not the server's: a payment marked in the evening
-		// west of UTC was filed under tomorrow.
-		$paidDate = $paidDate ?? $this->today($userId);
+		// A payment made by linking a transaction that already exists (the
+		// Mark Paid dialog or an import match). The row must sit in the bill's
+		// account, or for a bill with no account in one its owner can write
+		// to: the id comes from the browser and could name anyone's row.
+		$existingRow = null;
+		if ($existingTransactionId !== null) {
+			$existingRow = $this->transactionService->findTransaction($existingTransactionId);
+			$rowAccount = $existingRow?->getAccountId();
+			$allowed = $existingRow !== null && ($bill->getAccountId() !== null
+				? $rowAccount === $bill->getAccountId()
+				: ($this->granularShareService === null
+					|| $this->granularShareService->canWrite($bill->getUserId(), ShareItem::TYPE_ACCOUNT, (int)$rowAccount)));
+			if (!$allowed) {
+				throw new \InvalidArgumentException($this->l->t('That transaction can\'t pay this bill'));
+			}
+		}
+
+		// The payment's date: a linked row's own, else today so the payment
+		// appears in the account balance at once, regardless of when the bill
+		// was due. The user's today, not the server's: a payment marked in the
+		// evening west of UTC was filed under tomorrow. Dated the day of the
+		// click, a linked row read as a different payment, and the card
+		// listed it as unrecorded.
+		$paidDate = $paidDate ?? ($existingRow?->getDate() ?: $this->today($userId));
 		$bill->setLastPaidDate($paidDate);
 
 		// Dynamic-amount bills resolve their amount now: what the card calls
@@ -1012,21 +1031,23 @@ class BillService {
 		}
 
 		// Handle transaction: either link existing or create new
-		if ($existingTransactionId !== null && $bill->getAccountId() !== null) {
-			// User chose to link an existing transaction instead of creating a new one
+		if ($existingRow !== null) {
+			// Link first, and only then drop the pre-booked row: a failed
+			// link used to be logged and ignored, with the row already gone
+			// and the bill moved on. The link runs as the account's owner, so
+			// a row in an account shared with the bill's owner can be linked,
+			// and gives the row the bill's category, tags and splits.
 			try {
-				// Clear any pre-existing scheduled transactions for this bill
-				$this->transactionService->deleteScheduledBillTransactions($bill->getId());
-
-				// Link the existing transaction to this bill
-				$this->transactionService->update($existingTransactionId, $userId, [
-					'billId' => $bill->getId(),
-				]);
-				$linkedExistingTransaction = true;
-				$linkedTransactionId = $existingTransactionId;
-			} catch (\Exception $e) {
-				$this->logger->warning("Failed to link existing transaction {$existingTransactionId} to bill {$id}: {$e->getMessage()}");
+				$linked = $this->transactionService->linkBillAsAccountOwner($existingRow->getId(), $bill);
+			} catch (\InvalidArgumentException $e) {
+				throw new \InvalidArgumentException($this->l->t('That transaction already pays another bill'));
 			}
+			if (!$linked->getIsSplit()) {
+				$this->applySplitTemplate($bill, $linked, $userId);
+			}
+			$this->transactionService->deleteScheduledBillTransactions($bill->getId());
+			$linkedExistingTransaction = true;
+			$linkedTransactionId = $existingRow->getId();
 		} elseif ($recordPayment && $bill->getAccountId() !== null) {
 			try {
 				// Clear pre-existing scheduled transaction(s), or create new cleared one
