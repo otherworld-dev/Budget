@@ -10,16 +10,24 @@ use OCA\Budget\Db\PensionAccount;
 use OCA\Budget\Db\PensionAccountMapper;
 use OCA\Budget\Db\PensionContribution;
 use OCA\Budget\Db\PensionContributionMapper;
+use OCA\Budget\Db\PensionLegQueries;
 use OCA\Budget\Db\PensionRecurringContributionMapper;
 use OCA\Budget\Db\PensionSnapshot;
 use OCA\Budget\Db\PensionSnapshotMapper;
 use OCA\Budget\Db\ShareItem;
+use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IDBConnection;
 use OCP\IL10N;
 
 class PensionService {
+	/**
+	 * How far apart, in days, the bank's row of a pension payment and the
+	 * date the app booked it on may be and still be the same payment
+	 */
+	private const SAME_PAYMENT_DAYS = 5;
+
 	private PensionAccountMapper $pensionMapper;
 	private PensionSnapshotMapper $snapshotMapper;
 	private PensionContributionMapper $contributionMapper;
@@ -37,6 +45,7 @@ class PensionService {
 		private IL10N $l,
 		private GranularShareService $granularShareService,
 		private TransactionMapper $transactionMapper,
+		private PensionLegQueries $legQueries,
 	) {
 		$this->pensionMapper = $pensionMapper;
 		$this->snapshotMapper = $snapshotMapper;
@@ -474,18 +483,24 @@ class PensionService {
 
 		$this->db->beginTransaction();
 		try {
-			$tx = $this->transactionService->create(
-				$ownerId,
-				$accountId,
-				$date,
-				$description,
-				$bankAmount,
-				$bankType,
-				null,            // categoryId — keep out of category spending
-				$pension->getName(), // vendor
-				null,            // reference
-				$note            // notes
-			);
+			// When a statement import or bank sync already brought the
+			// payment in, that row is the bank leg: booking another would
+			// take the money out of the account twice
+			$legId = $this->banksOwnRecord($pension, $accountId, $bankType, $bankAmount, $date);
+			if ($legId === null) {
+				$legId = $this->transactionService->create(
+					$ownerId,
+					$accountId,
+					$date,
+					$description,
+					$bankAmount,
+					$bankType,
+					null,            // categoryId — keep out of category spending
+					$pension->getName(), // vendor
+					null,            // reference
+					$note            // notes
+				)->getId();
+			}
 
 			$contribution = new PensionContribution();
 			$contribution->setUserId($userId);
@@ -493,14 +508,14 @@ class PensionService {
 			$contribution->setAmount($amount);
 			$contribution->setDate($date);
 			$contribution->setNote($note);
-			$contribution->setTransactionId($tx->getId());
+			$contribution->setTransactionId($legId);
 			$contribution->setSourceAccountId($accountId);
 			$contribution->setKind($kind);
 			$contribution->setCreatedAt(date('Y-m-d H:i:s'));
 			$contribution = $this->contributionMapper->insert($contribution);
 
 			// Mark the bank leg so it's excluded from spending/income aggregates.
-			$this->transactionService->markPensionContribLink($tx->getId(), $ownerId, $contribution->getId());
+			$this->transactionService->markPensionContribLink($legId, $ownerId, $contribution->getId());
 			$this->applyToBalance($pension, $userId, $contribution);
 
 			$this->db->commit();
@@ -542,6 +557,151 @@ class PensionService {
 			$this->db->rollBack();
 			throw $e;
 		}
+	}
+
+	// =====================
+	// The bank's own record of a pension payment
+	// =====================
+	//
+	// An account fed by statement imports or bank sync gets the bank's own row
+	// for a pension payment as well as the leg the app books, and with both
+	// the money left the account twice. Whichever arrives second gives way:
+	// an entry takes an imported row it finds as its leg, and an import
+	// replaces a leg the app booked with its own row. A match is the same
+	// account, direction and amount within a few days, and when several rows
+	// could be it, the one naming the pension or its provider, else the
+	// nearest in date; rows that can't be told apart are left alone.
+
+	/**
+	 * An imported row in the account that is this payment, or null.
+	 */
+	private function banksOwnRecord(PensionAccount $pension, int $accountId, string $type, float $amount, string $date): ?int {
+		$candidates = $this->legQueries->findImportedCandidates(
+			$accountId, $type, $amount, $this->shiftDays($date, -self::SAME_PAYMENT_DAYS), $this->shiftDays($date, self::SAME_PAYMENT_DAYS)
+		);
+		return $this->pickSamePayment($candidates, $pension, $date);
+	}
+
+	/**
+	 * Replace the legs the app booked for pension entries with the bank's
+	 * own rows of the same payments, among rows an import or bank sync just
+	 * created. The entry keeps its date and amount; only its leg changes, so
+	 * the money is counted once and a re-import recognises it.
+	 *
+	 * @param Transaction[] $transactions freshly imported rows
+	 * @return int legs replaced
+	 */
+	public function adoptImportedDuplicates(string $userId, array $transactions): int {
+		$byAccount = [];
+		foreach ($transactions as $tx) {
+			if ($tx->getImportId() === null || $tx->getImportId() === '' || ($tx->getStatus() ?? 'cleared') === 'scheduled') {
+				continue;
+			}
+			$byAccount[$tx->getAccountId()][] = $tx;
+		}
+
+		$replaced = 0;
+		foreach ($byAccount as $accountId => $imported) {
+			$dates = array_map(static fn (Transaction $tx) => (string)$tx->getDate(), $imported);
+			$legs = $this->legQueries->findAppCreatedLegs(
+				$accountId, $this->shiftDays(min($dates), -self::SAME_PAYMENT_DAYS), $this->shiftDays(max($dates), self::SAME_PAYMENT_DAYS)
+			);
+			$taken = [];
+			foreach ($legs as $leg) {
+				// A reconciled leg was matched to a statement by hand: not ours to swap
+				if ($leg['reconciled']) {
+					continue;
+				}
+				$contribution = $this->contributionMapper->findById($leg['pensionContribId']);
+				if ($contribution === null) {
+					continue;
+				}
+				try {
+					$pension = $this->pensionMapper->find($contribution->getPensionId(), $contribution->getUserId());
+				} catch (DoesNotExistException $e) {
+					continue;
+				}
+				$candidates = [];
+				foreach ($imported as $tx) {
+					if (isset($taken[$tx->getId()]) || $tx->getType() !== $leg['type']
+						|| abs((float)$tx->getAmount() - $leg['amount']) >= 0.005
+						|| abs($this->daysBetween((string)$tx->getDate(), $leg['date'])) > self::SAME_PAYMENT_DAYS) {
+						continue;
+					}
+					// A bill or transfer may have claimed it since it was imported
+					$fresh = $this->transactionMapper->findById($tx->getId());
+					if ($fresh === null || $fresh->getPensionContribId() !== null || $fresh->getLinkedTransactionId() !== null
+						|| ($fresh->getBillId() !== null && $fresh->getBillId() !== 0)) {
+						continue;
+					}
+					$candidates[] = ['id' => $fresh->getId(), 'date' => (string)$fresh->getDate(), 'description' => $fresh->getDescription(), 'vendor' => $fresh->getVendor()];
+				}
+				$pick = $this->pickSamePayment($candidates, $pension, $leg['date']);
+				if ($pick === null) {
+					continue;
+				}
+				$this->swapLeg($contribution, $leg['id'], $pick, $accountId);
+				$taken[$pick] = true;
+				$replaced++;
+			}
+		}
+		return $replaced;
+	}
+
+	private function swapLeg(PensionContribution $contribution, int $oldLegId, int $newLegId, int $accountId): void {
+		$this->db->beginTransaction();
+		try {
+			// Deleting the old leg unlinks the entry from it first
+			$this->transactionService->deleteAsAccountOwner($oldLegId);
+			$contribution->setTransactionId($newLegId);
+			$this->contributionMapper->update($contribution);
+			$owner = $this->accountMapper->findById($accountId)->getUserId();
+			$this->transactionService->markPensionContribLink($newLegId, $owner, $contribution->getId());
+			$this->db->commit();
+		} catch (\Throwable $e) {
+			$this->db->rollBack();
+			throw $e;
+		}
+	}
+
+	/**
+	 * @param array<int, array{id: int, date: string, description: ?string, vendor: ?string}> $candidates
+	 */
+	private function pickSamePayment(array $candidates, PensionAccount $pension, string $date): ?int {
+		if (count($candidates) <= 1) {
+			return $candidates[0]['id'] ?? null;
+		}
+		$named = array_values(array_filter($candidates, fn (array $row) => $this->namesPension($pension, $row)));
+		if (count($named) === 1) {
+			return $named[0]['id'];
+		}
+		$pool = $named !== [] ? $named : $candidates;
+		usort($pool, fn (array $a, array $b) => abs($this->daysBetween($a['date'], $date)) <=> abs($this->daysBetween($b['date'], $date)));
+		if (abs($this->daysBetween($pool[0]['date'], $date)) === abs($this->daysBetween($pool[1]['date'], $date))) {
+			return null;
+		}
+		return $pool[0]['id'];
+	}
+
+	/** Whether a bank row's text names the pension or its provider */
+	private function namesPension(PensionAccount $pension, array $row): bool {
+		$text = mb_strtolower(($row['description'] ?? '') . ' ' . ($row['vendor'] ?? ''));
+		foreach ([$pension->getProvider(), $pension->getName()] as $name) {
+			$name = mb_strtolower(trim((string)$name));
+			if (mb_strlen($name) >= 3 && str_contains($text, $name)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private function shiftDays(string $date, int $days): string {
+		return (new \DateTimeImmutable($date))->modify(sprintf('%+d days', $days))->format('Y-m-d');
+	}
+
+	/** Whole days from $from to $to */
+	private function daysBetween(string $from, string $to): int {
+		return (int)(new \DateTimeImmutable(substr($from, 0, 10)))->diff(new \DateTimeImmutable(substr($to, 0, 10)))->format('%r%a');
 	}
 
 	/**

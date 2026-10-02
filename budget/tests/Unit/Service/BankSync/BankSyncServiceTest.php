@@ -348,6 +348,49 @@ class BankSyncServiceTest extends TestCase {
 		$this->assertEquals('ext-1', $result['accounts'][0]['externalAccountId']);
 	}
 
+	/**
+	 * Synced rows are offered to pension entries the app already booked, so
+	 * the bank's row replaces the app's instead of doubling the payment.
+	 */
+	public function testSyncedRowsAreOfferedToPensionEntriesTheAppBooked(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$this->connectionMapper->method('find')->willReturn($connection);
+		$this->providerFactory->method('getProvider')->willReturn($this->provider);
+		$this->provider->method('requiresReauthorization')->willReturn(false);
+		$this->provider->method('fetchAccounts')->willReturn([
+			'accounts' => [[
+				'id' => 'ext-1', 'name' => 'Checking', 'balance' => '1200.00', 'currency' => 'USD',
+				'transactions' => [['id' => 'tx-pen', 'date' => '2026-10-02', 'amount' => '-200.00', 'description' => 'NEST PENSIONS']],
+			]],
+		]);
+		$mapping = $this->createMapping(10, 1, 'ext-1', 100, true);
+		$this->mappingMapper->method('findByConnection')->willReturn([$mapping]);
+		$this->mappingMapper->method('findEnabledByConnection')->willReturn([$mapping]);
+		$account = new \OCA\Budget\Db\Account();
+		$account->setId(100);
+		$account->setUserId(self::USER_ID);
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->transactionService->method('findByImportId')->willReturn(null);
+		$tx = new \OCA\Budget\Db\Transaction();
+		$tx->setId(999);
+		$this->transactionService->method('create')->willReturn($tx);
+		$pensions = $this->createMock(\OCA\Budget\Service\PensionService::class);
+		$pensions->expects($this->once())->method('adoptImportedDuplicates')->with(self::USER_ID, [$tx]);
+		$service = new BankSyncService(
+			$this->connectionMapper, $this->mappingMapper, $this->providerFactory, $this->transactionService,
+			$this->auditService, $this->adminSettings, $this->accountMapper,
+			$this->createMock(\OCA\Budget\Db\DismissedImportMapper::class),
+			$this->createMock(\OCA\Budget\Service\Import\ImportRuleApplicator::class),
+			$this->createMock(\OCA\Budget\Service\TransactionTagService::class),
+			$this->createMock(\OCA\Budget\Service\BillService::class),
+			$this->l, $this->logger,
+			pensionService: $pensions,
+		);
+
+		$service->sync(self::USER_ID, 1);
+	}
+
 	public function testSyncNegativeAmountCreatesDebitPositiveCreatesCredit(): void {
 		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
 

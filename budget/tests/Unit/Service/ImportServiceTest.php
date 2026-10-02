@@ -40,6 +40,8 @@ class ImportServiceTest extends TestCase {
 	private ImportRuleApplicator $ruleApplicator;
 	private AccountService $accountService;
 	private \OCA\Budget\Service\SettingService $settingService;
+	/** @var \OCA\Budget\Service\PensionService&\PHPUnit\Framework\MockObject\MockObject */
+	private $pensionService;
 
 	protected function setUp(): void {
 		$this->appData = $this->createMock(IAppData::class);
@@ -90,7 +92,8 @@ class ImportServiceTest extends TestCase {
 			$this->createMock(\OCA\Budget\Service\BillService::class),
 			$this->settingService,
 			$l,
-			$this->createMock(LoggerInterface::class)
+			$this->createMock(LoggerInterface::class),
+			pensionService: $this->pensionService = $this->createMock(\OCA\Budget\Service\PensionService::class),
 		);
 	}
 
@@ -351,6 +354,34 @@ class ImportServiceTest extends TestCase {
 		$this->assertEquals(1, $result['imported']);
 		$this->assertEquals(0, $result['skipped']);
 		$this->assertEquals(1, $result['totalProcessed']);
+	}
+
+	/**
+	 * A pension contribution the app already booked and the statement's row
+	 * of the same payment: the import hands its new rows over so the
+	 * statement's row can replace the app's, rather than the money leaving
+	 * the account twice.
+	 */
+	public function testImportedRowsAreOfferedToPensionEntriesTheAppBooked(): void {
+		$this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', 'csv data');
+		$this->parserFactory->method('detectFormat')->willReturn('csv');
+		$this->parserFactory->method('parse')->willReturn([
+			['date' => '2026-10-02', 'amount' => '-200', 'description' => 'NEST PENSIONS'],
+		]);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(1, 'Checking'));
+		$this->normalizer->method('mapRowToTransaction')->willReturn([
+			'date' => '2026-10-02', 'amount' => 200.0, 'description' => 'NEST PENSIONS', 'type' => 'debit',
+		]);
+		$this->normalizer->method('generateImportId')->willReturn('imp_pen');
+		$this->duplicateDetector->method('isDuplicateByImportId')->willReturn(false);
+		$this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+		$created = new Transaction();
+		$created->setId(42);
+		$this->transactionService->method('create')->willReturn($created);
+
+		$this->pensionService->expects($this->once())->method('adoptImportedDuplicates')->with('user1', [$created]);
+
+		$this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 'date'], 1);
 	}
 
 	// #340: the CSV branch of the import loop is a different call site from the

@@ -36,6 +36,8 @@ class PensionServiceTest extends TestCase {
 	private $shares;
 	/** @var \OCA\Budget\Db\TransactionMapper&\PHPUnit\Framework\MockObject\MockObject */
 	private $transactionMapper;
+	/** @var \OCA\Budget\Db\PensionLegQueries&\PHPUnit\Framework\MockObject\MockObject */
+	private $legQueries;
 
 	protected function setUp(): void {
 		$this->pensionMapper = $this->createMock(PensionAccountMapper::class);
@@ -48,6 +50,7 @@ class PensionServiceTest extends TestCase {
 		$this->db = $this->createMock(IDBConnection::class);
 		$this->shares = $this->createMock(\OCA\Budget\Service\GranularShareService::class);
 		$this->transactionMapper = $this->createMock(\OCA\Budget\Db\TransactionMapper::class);
+		$this->legQueries = $this->createMock(\OCA\Budget\Db\PensionLegQueries::class);
 
 		$this->service = new PensionService(
 			$this->pensionMapper,
@@ -60,7 +63,8 @@ class PensionServiceTest extends TestCase {
 			$this->db,
 			$this->l10n(),
 			$this->shares,
-			$this->transactionMapper
+			$this->transactionMapper,
+			$this->legQueries
 		);
 	}
 
@@ -331,6 +335,154 @@ class PensionServiceTest extends TestCase {
 		$this->service->deleteSnapshot(9, 'user1');
 
 		$this->assertSame([4200.0], $written->getArrayCopy());
+	}
+
+	// ===== the bank's own record of a pension payment =====
+
+	private function ownAccount(): void {
+		$account = new \OCA\Budget\Db\Account();
+		$account->setId(10);
+		$account->setUserId('user1');
+		$account->setCurrency('GBP');
+		$this->accountMapper->method('findById')->willReturn($account);
+		$this->conversionService->method('convertLocal')->willReturnCallback(fn ($amt) => (string)$amt);
+		$this->contributionMapper->method('insert')->willReturnCallback(function (PensionContribution $c) {
+			$c->setId(78);
+			return $c;
+		});
+	}
+
+	private function candidate(int $id, string $date, ?string $description = 'DIRECT DEBIT'): array {
+		return ['id' => $id, 'date' => $date, 'description' => $description, 'vendor' => null];
+	}
+
+	/**
+	 * The statement came first: the contribution takes the imported row as
+	 * its bank leg instead of booking the same money a second time.
+	 */
+	public function testAContributionTakesTheBanksOwnRecordOfIt(): void {
+		$this->pensionMapper->method('find')->willReturn($this->makePension());
+		$this->ownAccount();
+		$this->legQueries->method('findImportedCandidates')
+			->with(10, 'debit', 200.0, '2026-09-26', '2026-10-06')
+			->willReturn([$this->candidate(700, '2026-10-02')]);
+		$this->transactionService->expects($this->never())->method('create');
+		$this->transactionService->expects($this->once())->method('markPensionContribLink')->with(700, 'user1', 78);
+
+		$contribution = $this->service->createContributionWithTransfer(1, 'user1', 200.0, '2026-10-01', 10);
+
+		$this->assertSame(700, $contribution->getTransactionId());
+	}
+
+	public function testTheCandidateNamingThePensionWins(): void {
+		$pension = $this->makePension();
+		$pension->setProvider('Nest');
+		$this->pensionMapper->method('find')->willReturn($pension);
+		$this->ownAccount();
+		$this->legQueries->method('findImportedCandidates')->willReturn([
+			$this->candidate(700, '2026-10-01', 'RENT'),
+			$this->candidate(701, '2026-10-03', 'NEST PENSIONS DD'),
+		]);
+		$this->transactionService->expects($this->never())->method('create');
+		$this->transactionService->expects($this->once())->method('markPensionContribLink')->with(701, 'user1', 78);
+
+		$this->service->createContributionWithTransfer(1, 'user1', 200.0, '2026-10-01', 10);
+	}
+
+	public function testCandidatesThatCannotBeToldApartAreLeftAlone(): void {
+		$this->pensionMapper->method('find')->willReturn($this->makePension());
+		$this->ownAccount();
+		$this->legQueries->method('findImportedCandidates')->willReturn([
+			$this->candidate(700, '2026-09-30'),
+			$this->candidate(701, '2026-10-02'),
+		]);
+		$tx = new \OCA\Budget\Db\Transaction();
+		$tx->setId(555);
+		$this->transactionService->expects($this->once())->method('create')->willReturn($tx);
+
+		$contribution = $this->service->createContributionWithTransfer(1, 'user1', 200.0, '2026-10-01', 10);
+
+		$this->assertSame(555, $contribution->getTransactionId());
+	}
+
+	private function importedRow(int $id, string $date, float $amount = 200.0, string $type = 'debit'): \OCA\Budget\Db\Transaction {
+		$tx = new \OCA\Budget\Db\Transaction();
+		$tx->setId($id);
+		$tx->setAccountId(10);
+		$tx->setDate($date);
+		$tx->setAmount($amount);
+		$tx->setType($type);
+		$tx->setStatus('cleared');
+		$tx->setImportId('csv-' . $id);
+		$tx->setDescription('NEST PENSIONS');
+		return $tx;
+	}
+
+	private function appLeg(int $id, string $date, int $contribId, bool $reconciled = false): array {
+		return ['id' => $id, 'date' => $date, 'type' => 'debit', 'amount' => 200.0, 'pensionContribId' => $contribId, 'reconciled' => $reconciled];
+	}
+
+	/**
+	 * The contribution came first: the statement's row of the same payment
+	 * replaces the leg the app booked, so the money is counted once and a
+	 * re-import of the statement recognises it.
+	 */
+	public function testAnImportedRowReplacesTheLegTheAppBooked(): void {
+		$this->ownAccount();
+		$imported = $this->importedRow(900, '2026-10-02');
+		$this->transactionMapper->method('findById')->with(900)->willReturn($imported);
+		$this->legQueries->method('findAppCreatedLegs')
+			->with(10, '2026-09-27', '2026-10-07')
+			->willReturn([$this->appLeg(555, '2026-10-01', 77)]);
+		$contribution = $this->makeContribution('2026-10-01', 200.0, PensionContribution::KIND_CONTRIBUTION, 555, 10);
+		$contribution->setId(77);
+		$contribution->setUserId('user1');
+		$contribution->setPensionId(1);
+		$this->contributionMapper->method('findById')->with(77)->willReturn($contribution);
+		$this->pensionMapper->method('find')->willReturn($this->makePension());
+
+		$this->transactionService->expects($this->once())->method('deleteAsAccountOwner')->with(555);
+		$this->contributionMapper->expects($this->once())->method('update')
+			->with($this->callback(fn (PensionContribution $c) => $c->getTransactionId() === 900));
+		$this->transactionService->expects($this->once())->method('markPensionContribLink')->with(900, 'user1', 77);
+
+		$this->assertSame(1, $this->service->adoptImportedDuplicates('user1', [$imported]));
+	}
+
+	public function testAReconciledLegIsLeftAlone(): void {
+		$this->ownAccount();
+		$imported = $this->importedRow(900, '2026-10-02');
+		$this->transactionMapper->method('findById')->willReturn($imported);
+		$this->legQueries->method('findAppCreatedLegs')->willReturn([$this->appLeg(555, '2026-10-01', 77, true)]);
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+
+		$this->assertSame(0, $this->service->adoptImportedDuplicates('user1', [$imported]));
+	}
+
+	public function testAnImportedRowABillAlreadyClaimedIsLeftAlone(): void {
+		$this->ownAccount();
+		$imported = $this->importedRow(900, '2026-10-02');
+		$claimed = $this->importedRow(900, '2026-10-02');
+		$claimed->setBillId(12);
+		$this->transactionMapper->method('findById')->willReturn($claimed);
+		$this->legQueries->method('findAppCreatedLegs')->willReturn([$this->appLeg(555, '2026-10-01', 77)]);
+		$contribution = $this->makeContribution('2026-10-01', 200.0, PensionContribution::KIND_CONTRIBUTION, 555, 10);
+		$contribution->setId(77);
+		$contribution->setUserId('user1');
+		$contribution->setPensionId(1);
+		$this->contributionMapper->method('findById')->willReturn($contribution);
+		$this->pensionMapper->method('find')->willReturn($this->makePension());
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+
+		$this->assertSame(0, $this->service->adoptImportedDuplicates('user1', [$imported]));
+	}
+
+	public function testRowsTypedInByHandAreNotTakenForTheBanks(): void {
+		$manual = $this->importedRow(900, '2026-10-02');
+		$manual->setImportId(null);
+		$this->legQueries->expects($this->never())->method('findAppCreatedLegs');
+
+		$this->assertSame(0, $this->service->adoptImportedDuplicates('user1', [$manual]));
 	}
 
 	// ===== delete =====

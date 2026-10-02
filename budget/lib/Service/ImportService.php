@@ -66,6 +66,7 @@ class ImportService {
 		SettingService $settingService,
 		IL10N $l,
 		LoggerInterface $logger,
+		private ?PensionService $pensionService = null,
 	) {
 		$this->appData = $appData;
 		$this->transactionService = $transactionService;
@@ -1296,6 +1297,15 @@ class ImportService {
 			// ignore
 		}
 
+		// A pension payment the app already booked arrives again as the
+		// statement's row: that row replaces the app's leg rather than the
+		// money leaving the account twice. Best-effort, like the bill match.
+		try {
+			$this->pensionService?->adoptImportedDuplicates($userId, $createdForBillMatch);
+		} catch (\Exception $e) {
+			// ignore
+		}
+
 		// Remember the routing so the next same-format import can pre-fill it.
 		// Best-effort: never let this break a completed import.
 		try {
@@ -1586,6 +1596,15 @@ class ImportService {
 		$billsMarkedPaid = 0;
 		try {
 			$billsMarkedPaid = $this->billService->autoMatchPaidFromImport($userId, $createdForBillMatch);
+		} catch (\Exception $e) {
+			// ignore
+		}
+
+		// A pension payment the app already booked arrives again as the
+		// statement's row: that row replaces the app's leg rather than the
+		// money leaving the account twice. Best-effort, like the bill match.
+		try {
+			$this->pensionService?->adoptImportedDuplicates($userId, $createdForBillMatch);
 		} catch (\Exception $e) {
 			// ignore
 		}
