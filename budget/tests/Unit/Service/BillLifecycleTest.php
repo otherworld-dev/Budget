@@ -241,6 +241,48 @@ class BillLifecycleTest extends TestCase {
 		$this->service->update(1, 'user1', ['frequency' => 'one-time']);
 	}
 
+	// ── summary ─────────────────────────────────────────────────────
+
+	public function testTheSummaryCountsAnOccurrenceStillOwedAsOverdue(): void {
+		// Paid this month for August, September's occurrence was still owed
+		// but the card counted the bill as paid, never overdue
+		$late = $this->bill(['nextDueDate' => '2026-09-15', 'lastPaidDate' => '2026-09-05']);
+		$this->mapper->method('findActive')->willReturn([$late]);
+		$this->mapper->method('findByType')->willReturn([$late]);
+
+		$summary = $this->service->getMonthlySummary('user1');
+
+		$this->assertSame(1, $summary['overdue']);
+	}
+
+	public function testTheSummaryCountsAOneTimeBillPaidThisMonth(): void {
+		// Paying it switched it off, which took it out of the count
+		$recurring = $this->bill(['nextDueDate' => '2026-10-15', 'lastPaidDate' => '2026-09-14']);
+		$paidInvoice = clone $recurring;
+		$paidInvoice->setId(2);
+		$paidInvoice->setFrequency('one-time');
+		$paidInvoice->setIsActive(false);
+		$paidInvoice->setNextDueDate(null);
+		$paidInvoice->setLastPaidDate('2026-09-20');
+		$this->mapper->method('findActive')->willReturn([$recurring]);
+		$this->mapper->method('findByType')->willReturn([$recurring, $paidInvoice]);
+
+		$this->assertSame(2, $this->service->getMonthlySummary('user1')['paidThisMonth']);
+	}
+
+	public function testTheMonthsStatusFollowsTheOccurrence(): void {
+		// The listed date is the bill's next due date, which is unpaid by
+		// definition; a payment earlier in the month for an older occurrence
+		// read it as paid
+		$bill = $this->bill(['nextDueDate' => '2026-09-15', 'lastPaidDate' => '2026-09-05']);
+		$this->mapper->method('findDueInRange')->willReturn([$bill]);
+
+		$status = $this->service->getBillStatusForMonth('user1', '2026-09');
+
+		$this->assertFalse($status[0]['isPaid']);
+		$this->assertTrue($status[0]['isOverdue']);
+	}
+
 	// ── pay ─────────────────────────────────────────────────────────
 
 	public function testAnInactiveBillCannotBePaidAgain(): void {

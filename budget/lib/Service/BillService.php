@@ -1517,9 +1517,10 @@ class BillService {
 			'custom' => 0.0,
 		];
 
-		$today = date('Y-m-d');
-		$startOfMonth = date('Y-m-01');
-		$endOfMonth = date('Y-m-t');
+		// The user's month, not the server's
+		$today = $this->today($userId);
+		$startOfMonth = substr($today, 0, 8) . '01';
+		$endOfMonth = (new \DateTimeImmutable($startOfMonth))->format('Y-m-t');
 
 		foreach ($bills as $bill) {
 			// A one-time bill is not a monthly commitment: a twelfth of an
@@ -1562,15 +1563,21 @@ class BillService {
 				$dueThisMonth++;
 			}
 
-			// Check if overdue
+			// Overdue: the next due date is the first occurrence not yet paid,
+			// so a date gone by is owed. A payment this month for an earlier
+			// occurrence used to hide a later one still owed.
 			if ($nextDue && $nextDue < $today) {
-				$isPaid = $this->checkIfPaidInPeriod($bill, $startOfMonth, $endOfMonth);
-				if (!$isPaid) {
-					$overdue++;
-				}
+				$overdue++;
 			}
+		}
 
-			// Check if paid this month
+		// Paid this month, over every bill: paying a one-time bill switches
+		// it off, which took it out of the count the moment it was paid
+		$allBills = array_merge(
+			$this->mapper->findByType($userId, $isTransfer, null),
+			array_filter($sharedBills, static fn (Bill $bill) => $isTransfer === null || (bool)$bill->getIsTransfer() === $isTransfer)
+		);
+		foreach ($allBills as $bill) {
 			if ($this->checkIfPaidInPeriod($bill, $startOfMonth, $endOfMonth)) {
 				$paidThisMonth++;
 			}
@@ -1632,7 +1639,8 @@ class BillService {
 	 * Get bill status for current month showing paid/unpaid.
 	 */
 	public function getBillStatusForMonth(string $userId, ?string $month = null): array {
-		$month = $month ?? date('Y-m');
+		$today = $this->today($userId);
+		$month = $month ?? substr($today, 0, 7);
 		$startDate = $month . '-01';
 		$endDate = date('Y-m-t', strtotime($startDate));
 
@@ -1640,13 +1648,14 @@ class BillService {
 		$result = [];
 
 		foreach ($bills as $bill) {
-			$isPaid = $this->checkIfPaidInPeriod($bill, $startDate, $endDate);
-
+			// The listed date is the bill's next due date: the first
+			// occurrence not yet paid. "Paid sometime this month" read it as
+			// paid when the payment was for an earlier occurrence.
 			$result[] = [
 				'bill' => $bill,
-				'isPaid' => $isPaid,
+				'isPaid' => false,
 				'dueDate' => $bill->getNextDueDate(),
-				'isOverdue' => !$isPaid && $bill->getNextDueDate() < date('Y-m-d'),
+				'isOverdue' => $bill->getNextDueDate() < $today,
 			];
 		}
 
