@@ -9,10 +9,13 @@ use OCA\Budget\Db\AttachmentMapper;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\ImportRuleMapper;
+use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\SettingMapper;
+use OCA\Budget\Db\ShareMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\FactoryResetService;
 use OCA\Budget\Service\MigrationService;
+use OCA\Budget\Service\TransactionService;
 use OCP\DB\QueryBuilder\IExpressionBuilder;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
@@ -129,6 +132,55 @@ class FactoryResetServiceTest extends TestCase {
 		foreach ($this->deletes as $delete) {
 			$this->assertContains('user1', $delete['params'], "{$delete['table']} delete must be scoped to the user");
 		}
+	}
+
+	private function serviceWith(TransactionService $transactions, ?ShareMapper $shares = null): FactoryResetService {
+		return new FactoryResetService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->billMapper,
+			$this->categoryMapper,
+			$this->importRuleMapper,
+			$this->settingMapper,
+			$this->attachmentMapper,
+			$this->db,
+			null,
+			$transactions,
+			$shares,
+		);
+	}
+
+	public function testResetRemovesTheUsersPendingBillRowsFromOtherUsersAccounts(): void {
+		// A share recipient's bill pre-books into the owner's account. The
+		// transactions delete only reaches the user's own accounts, so those
+		// rows outlived the bill and the scheduled job booked them later.
+		$transactions = $this->createMock(TransactionService::class);
+		$rent = new Bill();
+		$rent->setId(4);
+		$gym = new Bill();
+		$gym->setId(5);
+		$this->billMapper->method('findAll')->with('user1')->willReturn([$rent, $gym]);
+		$deleted = [];
+		$transactions->method('deleteScheduledBillTransactions')
+			->willReturnCallback(function (int $billId) use (&$deleted) {
+				$deleted[] = $billId;
+			});
+
+		$this->serviceWith($transactions)->executeFactoryReset('user1');
+
+		$this->assertSame([4, 5], $deleted);
+	}
+
+	public function testPurgingADeletedUserAlsoRemovesSharesGrantedToThem(): void {
+		// A reset keeps shares other users granted to this user; a deleted
+		// user's must go, or a re-created uid inherits write access to them
+		$shares = $this->createMock(ShareMapper::class);
+		$shares->expects($this->once())->method('deleteAllForUser')->with('gone');
+		$this->billMapper->method('findAll')->willReturn([]);
+
+		$this->serviceWith($this->createMock(TransactionService::class), $shares)->purgeDeletedUser('gone');
+
+		$this->assertContains('budget_accounts', $this->deletedTables());
 	}
 
 	public function testResetClearsTheBespokeEntitiesAndAttachmentRows(): void {

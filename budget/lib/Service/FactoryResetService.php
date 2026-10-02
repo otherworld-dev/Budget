@@ -10,6 +10,7 @@ use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\SettingMapper;
+use OCA\Budget\Db\ShareMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
@@ -45,6 +46,8 @@ class FactoryResetService {
 		private AttachmentMapper $attachmentMapper,
 		private IDBConnection $db,
 		private ?INotificationManager $notificationManager = null,
+		private ?TransactionService $transactionService = null,
+		private ?ShareMapper $shareMapper = null,
 	) {
 		$this->tableCleaner = new UserTableCleaner($db);
 	}
@@ -62,6 +65,12 @@ class FactoryResetService {
 		// Recipients of the shares this user granted, read before the rows go
 		// so their pending invitations can be dismissed afterwards
 		$grantedShares = $this->findGrantedShares($userId);
+
+		// A bill can pre-book into another user's account shared with this
+		// one. The transactions delete below only reaches the user's own
+		// accounts, so those pending rows outlived the bill, and the
+		// scheduled job later booked them into the other user's balance.
+		$this->dropPendingBillRows($userId);
 
 		// Use database transaction for atomicity - all deletions succeed or all rollback
 		$this->db->beginTransaction();
@@ -101,6 +110,35 @@ class FactoryResetService {
 		$this->dismissShareInvitations($grantedShares);
 
 		return $counts;
+	}
+
+	/**
+	 * Remove everything a deleted Nextcloud user had in the app.
+	 *
+	 * A factory reset, plus the shares other users granted TO them, which a
+	 * reset keeps: left in place, a re-created account with the same uid
+	 * inherited write access to other people's accounts.
+	 */
+	public function purgeDeletedUser(string $userId): void {
+		$this->executeFactoryReset($userId);
+		$this->shareMapper?->deleteAllForUser($userId);
+	}
+
+	private function dropPendingBillRows(string $userId): void {
+		if ($this->transactionService === null) {
+			return;
+		}
+		try {
+			$bills = $this->billMapper->findAll($userId);
+		} catch (\Exception $e) {
+			if (UserTableCleaner::isMissingTable($e)) {
+				return;
+			}
+			throw $e;
+		}
+		foreach ($bills as $bill) {
+			$this->transactionService->deleteScheduledBillTransactions($bill->getId());
+		}
 	}
 
 	/**

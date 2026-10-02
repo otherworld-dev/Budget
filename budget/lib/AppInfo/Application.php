@@ -6,6 +6,7 @@ namespace OCA\Budget\AppInfo;
 
 use OCA\Budget\Dashboard\BudgetOverviewWidget;
 use OCA\Budget\Dashboard\UpcomingBillsWidget;
+use OCA\Budget\Listener\UserDeletedListener;
 use OCA\Budget\Notification\Notifier;
 use OCA\Budget\Search\TransactionSearchProvider;
 use OCA\Budget\Service\SchemaVersionService;
@@ -20,6 +21,7 @@ use OCP\Files\IAppData;
 use OCP\IConfig;
 use OCP\IDBConnection;
 use OCP\IL10N;
+use OCP\User\Events\UserDeletedEvent;
 
 class Application extends App implements IBootstrap {
 	public const APP_ID = 'budget';
@@ -40,6 +42,7 @@ class Application extends App implements IBootstrap {
 		$context->registerDashboardWidget(UpcomingBillsWidget::class);
 		$context->registerDashboardWidget(BudgetOverviewWidget::class);
 		$context->registerSetupCheck(BudgetSchemaCheck::class);
+		$context->registerEventListener(UserDeletedEvent::class, UserDeletedListener::class);
 
 		// IAppData cannot be autowired — it requires the app ID via factory
 		$context->registerService(IAppData::class, function ($c) {
