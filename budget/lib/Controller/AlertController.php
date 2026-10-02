@@ -71,7 +71,7 @@ class AlertController extends Controller {
 	 */
 	public function summary(): DataResponse {
 		try {
-			$summary = $this->alertService->getSummary($this->getEffectiveUserId());
+			$summary = $this->alertService->getSummary($this->getEffectiveUserId(), $this->getEffectiveAccountIds());
 			return new DataResponse($summary);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to retrieve budget summary'));
