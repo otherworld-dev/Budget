@@ -106,23 +106,69 @@ class PageController extends Controller {
 			$accountList[] = ['id' => $sa['id'], 'name' => $sa['name']];
 		}
 
-		$categories = $this->categoryMapper->findAll($this->userId);
-		$sharedCategories = $this->granularShareService->getSharedCategories($this->userId);
+		return new TemplateResponse(Application::APP_ID, 'quick-add', [
+			'accounts' => json_encode($accountList),
+			'categories' => json_encode($this->quickAddCategories()),
+			'touchIcon' => $this->urlGenerator->imagePath(Application::APP_ID, 'quick-add-180.png'),
+		]);
+	}
 
-		$categoryList = array_map(fn ($c) => [
+	/**
+	 * The quick-add category picker's rows, each subcategory straight after
+	 * its parent with a nesting level to indent by. A flat list made two
+	 * subcategories of the same name under different parents look identical
+	 * (#409).
+	 *
+	 * The page shows one type at a time, so a level counts only ancestors of
+	 * the row's own type, the same rule as the main app's pickers
+	 * (populateCategorySelect). A shared subcategory whose parent wasn't
+	 * shared goes at the top level.
+	 *
+	 * @return list<array{id: int, name: string, type: string, level: int}>
+	 */
+	private function quickAddCategories(): array {
+		$rows = array_map(fn ($c) => [
 			'id' => $c->getId(),
 			'name' => $c->getName(),
 			'type' => $c->getType(),
-		], $categories);
-		foreach ($sharedCategories as $sc) {
-			$categoryList[] = ['id' => $sc['id'], 'name' => $sc['name'], 'type' => $sc['type'] ?? 'expense'];
+			'parentId' => $c->getParentId(),
+		], $this->categoryMapper->findAll($this->userId));
+		foreach ($this->granularShareService->getSharedCategories($this->userId) as $sc) {
+			$rows[] = [
+				'id' => $sc['id'],
+				'name' => $sc['name'],
+				'type' => $sc['type'] ?? 'expense',
+				'parentId' => $sc['parentId'] ?? null,
+			];
 		}
 
-		return new TemplateResponse(Application::APP_ID, 'quick-add', [
-			'accounts' => json_encode($accountList),
-			'categories' => json_encode($categoryList),
-			'touchIcon' => $this->urlGenerator->imagePath(Application::APP_ID, 'quick-add-180.png'),
-		]);
+		$ids = array_column($rows, 'id', 'id');
+		$children = [];
+		foreach ($rows as $row) {
+			$parentKey = $row['parentId'] !== null && isset($ids[$row['parentId']]) ? $row['parentId'] : 0;
+			$children[$parentKey][] = $row;
+		}
+
+		$list = [];
+		$seen = [];
+		// $levels maps a type to the level its next row of that type sits at
+		$walk = function (array $branch, array $levels) use (&$walk, &$list, &$seen, $children): void {
+			foreach ($branch as $row) {
+				if (isset($seen[$row['id']])) {
+					continue;
+				}
+				$seen[$row['id']] = true;
+				$level = $levels[$row['type']] ?? 0;
+				$list[] = ['id' => $row['id'], 'name' => $row['name'], 'type' => $row['type'], 'level' => $level];
+				$walk($children[$row['id']] ?? [], [$row['type'] => $level + 1] + $levels);
+			}
+		};
+		$walk($children[0] ?? [], []);
+		// Rows in a parent loop are never reached from the top; list them
+		// rather than lose them
+		$walk($rows, []);
+
+		return $list;
 	}
 
 	/**
