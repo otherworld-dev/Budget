@@ -176,13 +176,11 @@ class PensionService {
 	public function delete(int $id, string $userId): void {
 		$pension = $this->pensionMapper->find($id, $userId);
 
-		// Detach any bank legs that funded contributions/withdrawals (#304) so
-		// they survive as plain transactions rather than dangling pension markers.
-		$linked = $this->contributionMapper->findLinkedByPension($id, $userId);
-		if (!empty($linked)) {
-			$contribIds = array_map(static fn ($c) => $c->getId(), $linked);
-			$this->transactionService->clearPensionContribMarkers($contribIds);
-		}
+		// The bank legs that paid into or out of it (#304) stay in their
+		// accounts with their pension marker: the money did move to or from a
+		// pension, tracked or not. The marker is what keeps a leg out of
+		// spending and income, and clearing it turned every past contribution
+		// into spending (and every withdrawal into income) in every report.
 
 		// Delete related snapshots, contributions and recurring schedules
 		$this->snapshotMapper->deleteByPension($id, $userId);

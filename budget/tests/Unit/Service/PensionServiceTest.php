@@ -555,14 +555,22 @@ class PensionServiceTest extends TestCase {
 		$this->assertSame('2026-11-01', $recur->getNextDueDate());
 	}
 
-	public function testDeletePensionClearsLinkedMarkersAndRecurring(): void {
+	/**
+	 * The bank legs that paid into or out of a deleted pension keep their
+	 * pension marker, which is what keeps them out of spending and income.
+	 * Clearing it turned every past contribution into uncategorised spending
+	 * (and every withdrawal into income) in every report.
+	 */
+	public function testDeletingAPensionKeepsItsBankLegsOutOfSpending(): void {
 		$pension = $this->makePension();
 		$this->pensionMapper->method('find')->willReturn($pension);
 		$linked = $this->makeContribution('2026-03-01', 500.0, PensionContribution::KIND_CONTRIBUTION, 555, 10);
 		$linked->setId(77);
 		$this->contributionMapper->method('findLinkedByPension')->willReturn([$linked]);
 
-		$this->transactionService->expects($this->once())->method('clearPensionContribMarkers')->with([77]);
+		$this->transactionService->expects($this->never())->method('clearPensionContribMarkers');
+		$this->transactionService->expects($this->never())->method('delete');
+		$this->contributionMapper->expects($this->once())->method('deleteByPension')->with(1, 'user1');
 		$this->recurringMapper->expects($this->once())->method('deleteByPension')->with(1, 'user1');
 		$this->pensionMapper->expects($this->once())->method('delete')->with($pension);
 

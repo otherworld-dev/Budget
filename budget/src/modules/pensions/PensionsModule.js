@@ -525,7 +525,9 @@ export default class PensionsModule {
     }
 
     async deletePension(pensionId) {
-        if (!await confirmDialog(t('budget', 'Are you sure you want to delete this pension? This action cannot be undone.'), { destructive: true })) {
+        const message = t('budget', 'Are you sure you want to delete this pension? This action cannot be undone.')
+            + '\n\n' + t('budget', 'Its balance updates, contributions and schedules are deleted with it. Any bank transactions that paid into or out of it stay in your accounts, and still count as money moved to or from a pension rather than spending or income.');
+        if (!await confirmDialog(message, { destructive: true })) {
             return;
         }
 
