@@ -364,6 +364,26 @@ class PensionService {
 	}
 
 	/**
+	 * What a contribution of $amount (in the pension's currency) takes out of
+	 * an account, in the account's currency, as its bank leg would book it.
+	 *
+	 * @throws DoesNotExistException when the account is gone
+	 */
+	public function bankAmount(PensionAccount $pension, int $accountId, float $amount, string $date): float {
+		return $this->convertForAccount($pension, $this->accountMapper->findById($accountId), $amount, $date);
+	}
+
+	/**
+	 * The contribution is recorded in the pension's currency, the bank leg in
+	 * the account's (converted with cached rates, graceful fallback).
+	 */
+	private function convertForAccount(PensionAccount $pension, Account $account, float $amount, string $date): float {
+		$pensionCurrency = $pension->getCurrency() ?: ($account->getCurrency() ?: 'GBP');
+		$accountCurrency = $account->getCurrency() ?: $pensionCurrency;
+		return round((float)$this->conversionService->convertLocal($amount, $pensionCurrency, $accountCurrency, $date), 2);
+	}
+
+	/**
 	 * Shared implementation for contribution/withdrawal funded by a bank leg.
 	 */
 	private function createLinkedEntry(
@@ -382,11 +402,7 @@ class PensionService {
 		$isWithdrawal = $kind === PensionContribution::KIND_WITHDRAWAL;
 		$bankType = $isWithdrawal ? 'credit' : 'debit';
 
-		// Contribution is recorded in the pension's currency; the bank leg in the
-		// account's currency (converted with cached rates, graceful fallback).
-		$pensionCurrency = $pension->getCurrency() ?: ($account->getCurrency() ?: 'GBP');
-		$accountCurrency = $account->getCurrency() ?: $pensionCurrency;
-		$bankAmount = round((float)$this->conversionService->convertLocal($amount, $pensionCurrency, $accountCurrency, $date), 2);
+		$bankAmount = $this->convertForAccount($pension, $account, $amount, $date);
 
 		$description = $isWithdrawal
 			? 'Pension withdrawal: ' . $pension->getName()

@@ -285,6 +285,45 @@ class PensionRecurringService {
 	}
 
 	/**
+	 * What the schedules funded from an account will take out of it from
+	 * today to the end of the year, by month, in the account's currency:
+	 * every occurrence not yet posted. One still owed from before today
+	 * comes out now, so it counts in the current month. Feeds the Bills
+	 * Calendar's projected balance, which left them out.
+	 *
+	 * @return array<int, float> month => amount
+	 */
+	public function upcomingDebitsByMonth(int $accountId, string $today): array {
+		$yearEnd = substr($today, 0, 4) . '-12-31';
+		$currentMonth = (int)substr($today, 5, 2);
+		$byMonth = [];
+		foreach ($this->recurringMapper->findActiveBySourceAccount($accountId) as $recur) {
+			try {
+				$pension = $this->pensionMapper->find($recur->getPensionId(), $recur->getUserId());
+			} catch (DoesNotExistException $e) {
+				continue;
+			}
+			if (!$pension->isDefinedContribution()) {
+				continue;
+			}
+			$dates = $this->frequencyCalculator->occurrencesBetween(
+				$recur->getFrequency(), null, null, $recur->getNextDueDate(), $yearEnd, null, $this->anchorOf($recur)
+			);
+			foreach ($dates as $date) {
+				try {
+					$amount = $this->pensionService->bankAmount($pension, $accountId, (float)$recur->getAmount(), $date);
+				} catch (DoesNotExistException $e) {
+					continue 2;
+				}
+				$month = $date < $today ? $currentMonth : (int)substr($date, 5, 2);
+				$byMonth[$month] = round(($byMonth[$month] ?? 0.0) + $amount, 2);
+			}
+		}
+		ksort($byMonth);
+		return $byMonth;
+	}
+
+	/**
 	 * Record one contribution, with its bank leg when the schedule has a
 	 * source account.
 	 */

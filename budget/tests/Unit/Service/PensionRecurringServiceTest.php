@@ -398,6 +398,42 @@ class PensionRecurringServiceTest extends TestCase {
 		$this->service->update(5, 'user1', ['sourceAccountId' => 9]);
 	}
 
+	// ── Projection ──────────────────────────────────────────────────
+
+	/**
+	 * What the schedules funded from an account will take out of it for the
+	 * rest of the year, for the Bills Calendar's projected balance. One
+	 * still owed from before today comes out now, in the current month.
+	 */
+	public function testUpcomingDebitsByMonthCountsEveryContributionStillToBePosted(): void {
+		$this->recurringMapper->method('findActiveBySourceAccount')->with(5)->willReturn([
+			$this->makeRecur(['sourceAccountId' => 5, 'nextDueDate' => '2099-08-31']),
+			$this->makeRecur(['id' => 6, 'pensionId' => 2, 'sourceAccountId' => 5, 'frequency' => 'quarterly', 'amount' => 50.0, 'nextDueDate' => '2099-11-15']),
+		]);
+		$this->pensionService->method('bankAmount')->willReturnCallback(fn ($pension, $accountId, $amount) => $amount);
+
+		$byMonth = $this->service->upcomingDebitsByMonth(5, '2099-09-20');
+
+		// August's and September's are both still owed: they come out now
+		$this->assertEqualsWithDelta(400.0, $byMonth[9], 0.001);
+		$this->assertEqualsWithDelta(200.0, $byMonth[10], 0.001);
+		$this->assertEqualsWithDelta(250.0, $byMonth[11], 0.001);
+		$this->assertEqualsWithDelta(200.0, $byMonth[12], 0.001);
+		$this->assertArrayNotHasKey(8, $byMonth);
+	}
+
+	public function testUpcomingDebitsLeaveOutAPensionThatTakesNoContributions(): void {
+		$this->recurringMapper->method('findActiveBySourceAccount')->willReturn([
+			$this->makeRecur(['pensionId' => 3, 'sourceAccountId' => 5, 'nextDueDate' => '2099-10-01']),
+		]);
+		$pensionMapper = $this->createMock(PensionAccountMapper::class);
+		$pensionMapper->method('find')->willReturn($this->makePension(3, 'state'));
+		$service = new PensionRecurringService($this->recurringMapper, $pensionMapper, $this->pensionService,
+			new FrequencyCalculator(), $this->userClock, $this->l10n());
+
+		$this->assertSame([], $service->upcomingDebitsByMonth(5, '2099-09-20'));
+	}
+
 	public function testProcessAutoPostReturnsFailureWhenTheScheduleIsGone(): void {
 		$this->recurringMapper->method('find')->willThrowException(new \RuntimeException('boom'));
 

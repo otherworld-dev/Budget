@@ -61,6 +61,23 @@ class PensionRecurringContributionMapper extends QBMapper {
 	}
 
 	/**
+	 * Active schedules funded from an account, whoever's they are: every one
+	 * of them takes money out of it.
+	 *
+	 * @return PensionRecurringContribution[]
+	 */
+	public function findActiveBySourceAccount(int $accountId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('source_account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+			->orderBy('next_due_date', 'ASC');
+
+		return $this->findEntities($qb);
+	}
+
+	/**
 	 * Active, auto-post-enabled schedules whose next due date has arrived.
 	 *
 	 * @param string|null $today the user's date (Y-m-d); the server's if not given
