@@ -31,6 +31,7 @@ class BankSyncServiceTest extends TestCase {
 	private IL10N $l;
 	private LoggerInterface $logger;
 	private BankSyncProviderInterface $provider;
+	private \OCA\Budget\Service\BillService $billService;
 
 	private const USER_ID = 'user1';
 
@@ -55,6 +56,7 @@ class BankSyncServiceTest extends TestCase {
 		$ruleApplicator->method('applyRules')->willReturnArgument(1);
 
 		$transactionTagService = $this->createMock(\OCA\Budget\Service\TransactionTagService::class);
+		$this->billService = $this->createMock(\OCA\Budget\Service\BillService::class);
 
 		$this->service = new BankSyncService(
 			$this->connectionMapper,
@@ -67,7 +69,7 @@ class BankSyncServiceTest extends TestCase {
 			$dismissedImportMapper,
 			$ruleApplicator,
 			$transactionTagService,
-			$this->createMock(\OCA\Budget\Service\BillService::class),
+			$this->billService,
 			$this->l,
 			$this->logger
 		);
@@ -914,6 +916,63 @@ class BankSyncServiceTest extends TestCase {
 		$this->transactionService->method('findPendingImported')->willReturn([$stale, $recent]);
 
 		// Only the stale hold is removed, and without dismissing it.
+		$this->transactionService->expects($this->once())
+			->method('delete')
+			->with(9, self::USER_ID, false);
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	/** A bank-sync hold as findPendingImported() returns it. */
+	private function makeHold(int $id, string $providerId, float $amount, string $date, string $description = 'Store', ?int $billId = null): \OCA\Budget\Db\Transaction {
+		$hold = new \OCA\Budget\Db\Transaction();
+		$hold->setId($id);
+		$hold->setAccountId(100);
+		$hold->setStatus('pending');
+		$hold->setImportId('simplefin:' . $providerId);
+		$hold->setType('debit');
+		$hold->setAmount($amount);
+		$hold->setDate($date);
+		$hold->setDescription($description);
+		$hold->setBillId($billId);
+		$hold->setCreatedAt($date . ' 08:00:00');
+		return $hold;
+	}
+
+	// ===== Include pending switched off (holds imported while it was on) =====
+
+	public function testHoldsStillReconcileAfterIncludePendingIsTurnedOff(): void {
+		// The hold came in while Include pending was on. With it off the feed
+		// has no pending rows, and the posted version under a new id used to
+		// be inserted beside the hold, counting the payment twice.
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$connection->setIncludePending(false);
+		$this->setUpPendingSync($connection, [
+			['id' => 'NEW', 'date' => '2026-05-19', 'amount' => '-30.00', 'description' => 'Store'],
+		]);
+
+		$hold = $this->makeHold(8, 'OLD', 30.0, '2026-05-18');
+		$this->transactionService->method('findByImportId')->willReturn(null);
+		$this->transactionService->method('findPendingImported')->willReturn([$hold]);
+
+		$this->transactionService->expects($this->once())
+			->method('reconcilePendingToPosted')
+			->with($hold, 'simplefin:NEW', '2026-05-19');
+		$this->transactionService->expects($this->never())->method('create');
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testStaleHoldsAreStillCleanedUpAfterIncludePendingIsTurnedOff(): void {
+		// A hold cancelled after the option was switched off stayed pending
+		// for good, its amount still taken off the balance.
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$connection->setIncludePending(false);
+		$this->setUpPendingSync($connection, []);
+
+		$stale = $this->makeHold(9, 'GONE', 5.0, '2020-01-01');
+		$this->transactionService->method('findPendingImported')->willReturn([$stale]);
+
 		$this->transactionService->expects($this->once())
 			->method('delete')
 			->with(9, self::USER_ID, false);

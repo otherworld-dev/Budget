@@ -238,11 +238,13 @@ class BankSyncService {
 			$createdAny = false;
 
 			// Load existing pending bank-sync holds on this account so we can
-			// reconcile them against their posted versions (issue #257).
+			// reconcile them against their posted versions (issue #257). This
+			// runs whatever the connection's Include pending setting is now:
+			// holds imported while it was on still post or get cancelled after
+			// it is switched off, and skipping them left each one pending for
+			// good, beside its posted copy or long after the bank dropped it.
 			$importPrefix = $connection->getProvider() . ':';
-			$existingPending = $includePending
-				? $this->transactionService->findPendingImported($budgetAccountId, $importPrefix)
-				: [];
+			$existingPending = $this->transactionService->findPendingImported($budgetAccountId, $importPrefix);
 			$seenPendingIds = [];
 
 			foreach ($externalAccount['transactions'] as $tx) {
@@ -269,7 +271,7 @@ class BankSyncService {
 
 				// A posted transaction with a NEW id may be the posted version of a
 				// pending hold whose id changed. Reconcile it instead of duplicating.
-				if (!$isPending && $includePending) {
+				if (!$isPending) {
 					$match = $this->matchPendingHold($existingPending, $seenPendingIds, $tx);
 					if ($match !== null) {
 						$this->transactionService->reconcilePendingToPosted($match, $importId, $tx['date']);
@@ -374,21 +376,20 @@ class BankSyncService {
 			// (e.g. a canceled authorization). Only remove ones not seen this
 			// sync and older than a few days, to avoid deleting a hold the
 			// provider momentarily omitted. Non-dismissing so a re-appearing
-			// hold can still be re-imported.
-			if ($includePending) {
-				$staleCutoff = date('Y-m-d', strtotime('-5 days'));
-				foreach ($existingPending as $pendingTx) {
-					if (isset($seenPendingIds[$pendingTx->getId()])) {
-						continue;
-					}
-					if ($pendingTx->getDate() > $staleCutoff) {
-						continue;
-					}
-					try {
-						$this->transactionService->delete($pendingTx->getId(), $userId, false);
-					} catch (\Exception $e) {
-						// Best-effort cleanup; ignore failures
-					}
+			// hold can still be re-imported. With Include pending off the feed
+			// lists no holds at all, so every leftover one ages out here.
+			$staleCutoff = date('Y-m-d', strtotime('-5 days'));
+			foreach ($existingPending as $pendingTx) {
+				if (isset($seenPendingIds[$pendingTx->getId()])) {
+					continue;
+				}
+				if ($pendingTx->getDate() > $staleCutoff) {
+					continue;
+				}
+				try {
+					$this->transactionService->delete($pendingTx->getId(), $userId, false);
+				} catch (\Exception $e) {
+					// Best-effort cleanup; ignore failures
 				}
 			}
 
