@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-10-02 19:48+0000\n"
+"POT-Creation-Date: 2026-10-02 21:08+0000\n"
 "PO-Revision-Date: 2026-10-02 06:51+0000\n"
 "Last-Translator: Christophe <tophe.perso@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -41,8 +41,8 @@ msgstr "Compte non-trouvé"
 #: /app/lib/Service/Export/TransactionCsvExporter.php:32
 #: /app/lib/Service/Report/ReportExporter.php:255
 #: /app/lib/Service/Report/ReportExporter.php:468
-#: /app/src/modules/dashboard/DashboardModule.js:5173
-#: /app/src/modules/dashboard/DashboardModule.js:5174
+#: /app/src/modules/dashboard/DashboardModule.js:5189
+#: /app/src/modules/dashboard/DashboardModule.js:5190
 #: /app/src/modules/rules/components/CriteriaBuilder.js:195
 #: /app/templates/index.php:508 /app/templates/index.php:524
 #: /app/templates/index.php:593 /app/templates/index.php:615
@@ -1588,13 +1588,13 @@ msgstr "Aucune donnée d'échantillon n'est chargée."
 msgid "Failed to clear the sample data"
 msgstr "Échec de l'effacement des données d'échantillon"
 
-#: /app/lib/Controller/PageController.php:155
+#: /app/lib/Controller/PageController.php:201
 #: /app/src/config/dashboardWidgets.js:91 /app/templates/index.php:1025
 #: /app/templates/quick-add.php:9
 msgid "Quick Add Transaction"
 msgstr "Ajout rapide d'une opération"
 
-#: /app/lib/Controller/PageController.php:156 /app/templates/quick-add.php:98
+#: /app/lib/Controller/PageController.php:202 /app/templates/quick-add.php:98
 msgid "Quick Add"
 msgstr "Ajour repide"
 
@@ -2667,7 +2667,7 @@ msgstr "Année"
 #: /app/src/modules/dashboard/DashboardModule.js:2921
 #: /app/src/modules/dashboard/DashboardModule.js:3246
 #: /app/src/modules/dashboard/DashboardModule.js:3309
-#: /app/src/modules/dashboard/DashboardModule.js:5568
+#: /app/src/modules/dashboard/DashboardModule.js:5584
 #: /app/src/modules/help/HelpModule.js:33
 #: /app/src/modules/reports/ReportsModule.js:751
 #: /app/src/modules/reports/ReportsModule.js:1145
@@ -2724,7 +2724,7 @@ msgstr "Épargne"
 #: /app/lib/Service/Report/ReportExporter.php:573
 #: /app/lib/Service/Report/ReportExporter.php:616
 #: /app/src/core/KeyboardShortcuts.js:350
-#: /app/src/modules/dashboard/DashboardModule.js:5567
+#: /app/src/modules/dashboard/DashboardModule.js:5583
 #: /app/src/modules/help/HelpModule.js:29 /app/templates/index.php:63
 #: /app/templates/index.php:1422 /app/templates/index.php:1572
 #: /app/templates/index.php:2002 /app/templates/index.php:2596
@@ -3071,7 +3071,7 @@ msgstr ""
 #: /app/lib/Service/AccountClosureService.php:79
 #: /app/lib/Service/Bill/BillIcsService.php:54
 #: /app/src/core/KeyboardShortcuts.js:355
-#: /app/src/modules/dashboard/DashboardModule.js:5571
+#: /app/src/modules/dashboard/DashboardModule.js:5587
 #: /app/src/modules/help/HelpModule.js:34
 #: /app/src/modules/sharing/SharingModule.js:274 /app/templates/index.php:113
 #: /app/templates/index.php:2610 /app/templates/index.php:4765
@@ -4705,7 +4705,7 @@ msgid "Dashboard"
 msgstr "Tableau de bord"
 
 #: /app/src/core/KeyboardShortcuts.js:351
-#: /app/src/modules/dashboard/DashboardModule.js:5221
+#: /app/src/modules/dashboard/DashboardModule.js:5237
 #: /app/src/modules/help/HelpModule.js:30
 #: /app/src/modules/sharing/SharingModule.js:273 /app/templates/index.php:73
 #: /app/templates/index.php:1871 /app/templates/index.php:4753
@@ -6189,7 +6189,7 @@ msgstr "Objets de collection"
 
 #: /app/src/modules/assets/AssetsModule.js:109
 #: /app/src/modules/dashboard/DashboardModule.js:2313
-#: /app/src/modules/dashboard/DashboardModule.js:5574
+#: /app/src/modules/dashboard/DashboardModule.js:5590
 #: /app/templates/index.php:5595
 msgid "Other"
 msgstr "Autre"
@@ -7255,7 +7255,7 @@ msgid "Category reordered successfully"
 msgstr "Catégorie réorganisée avec succès"
 
 #: /app/src/modules/categories/CategoriesModule.js:700
-#: /app/src/modules/dashboard/DashboardModule.js:5165
+#: /app/src/modules/dashboard/DashboardModule.js:5181
 #: /app/src/modules/reports/ReportsModule.js:204
 #: /app/src/modules/reports/ReportsModule.js:207
 #: /app/src/modules/reports/ReportsModule.js:209
@@ -8129,230 +8129,236 @@ msgstr ""
 msgid "View All"
 msgstr "Tout afficher"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4853
+#: /app/src/modules/dashboard/DashboardModule.js:4864
 msgid "Failed to save dashboard lock state"
 msgstr "Échec de l'enregistrement de l'état de verrouillage du tableau de bord"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4871
 #: /app/src/modules/dashboard/DashboardModule.js:4882
+#: /app/src/modules/dashboard/DashboardModule.js:4893
 #: /app/templates/index.php:352
 msgid "Unlock Dashboard"
 msgstr "Déverrouiller le tableau de bord"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4871
-#: /app/src/modules/dashboard/DashboardModule.js:4897
+#: /app/src/modules/dashboard/DashboardModule.js:4882
+#: /app/src/modules/dashboard/DashboardModule.js:4908
 msgid "Lock Dashboard"
 msgstr "Verrouiller le tableau de bord"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4883
+#: /app/src/modules/dashboard/DashboardModule.js:4894
 #: /app/templates/index.php:329
 msgid "Dashboard is locked. Click unlock to reorder tiles."
 msgstr ""
 "Le tableau de bord est verrouillé. Cliquez sur « Déverrouiller » pour "
 "réorganiser les tuiles."
 
-#: /app/src/modules/dashboard/DashboardModule.js:4898
+#: /app/src/modules/dashboard/DashboardModule.js:4910
+#, fuzzy
+#| msgid "Drag tiles to reorder your dashboard"
+msgid "Use the arrows on each tile to reorder your dashboard"
+msgstr "Faites glisser les tuiles pour réorganiser votre tableau de bord"
+
+#: /app/src/modules/dashboard/DashboardModule.js:4911
 msgid "Drag tiles to reorder your dashboard"
 msgstr "Faites glisser les tuiles pour réorganiser votre tableau de bord"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4943
+#: /app/src/modules/dashboard/DashboardModule.js:4956
 msgid "Extra small"
 msgstr "Très petit"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4944
+#: /app/src/modules/dashboard/DashboardModule.js:4957
 msgid "Small"
 msgstr "Petit"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4945
+#: /app/src/modules/dashboard/DashboardModule.js:4958
 msgid "Medium"
 msgstr "Moyen"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4946
+#: /app/src/modules/dashboard/DashboardModule.js:4959
 msgid "Large"
 msgstr "Grand"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4973
+#: /app/src/modules/dashboard/DashboardModule.js:4986
 msgid "Move earlier"
 msgstr "Déplacé plus tôt"
 
-#: /app/src/modules/dashboard/DashboardModule.js:4973
+#: /app/src/modules/dashboard/DashboardModule.js:4986
 msgid "Move later"
 msgstr "Reporté à plus tard"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5001
-#: /app/src/modules/dashboard/DashboardModule.js:5095
+#: /app/src/modules/dashboard/DashboardModule.js:5014
+#: /app/src/modules/dashboard/DashboardModule.js:5111
 #: /app/templates/index.php:7437
 msgid "Tile Settings"
 msgstr "Paramètres des tuiles"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5019
+#: /app/src/modules/dashboard/DashboardModule.js:5032
 msgid "Remove tile"
 msgstr "Retirer la tuile"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5019
+#: /app/src/modules/dashboard/DashboardModule.js:5032
 msgid "Hide tile"
 msgstr "Masquer la tuile"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5125
+#: /app/src/modules/dashboard/DashboardModule.js:5141
 msgid "Look ahead"
 msgstr "Regarder vers l'avenir"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5128
+#: /app/src/modules/dashboard/DashboardModule.js:5144
 msgid "Next 30 days"
 msgstr "30 prochains jours"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5129
+#: /app/src/modules/dashboard/DashboardModule.js:5145
 msgid "Next 60 days"
 msgstr "60 prochains jours"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5130
+#: /app/src/modules/dashboard/DashboardModule.js:5146
 msgid "Next 90 days"
 msgstr "90 prochains jours"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5139
+#: /app/src/modules/dashboard/DashboardModule.js:5155
 msgid "Forecast horizon"
 msgstr "Horizon prévisionnel"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5142
+#: /app/src/modules/dashboard/DashboardModule.js:5158
 msgid "Next 3 months"
 msgstr "Les 3 prochains mois"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5143
+#: /app/src/modules/dashboard/DashboardModule.js:5159
 msgid "Next 6 months"
 msgstr "Les 6 prochains mois"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5144
+#: /app/src/modules/dashboard/DashboardModule.js:5160
 msgid "Next 12 months"
 msgstr "Les 12 prochains mois"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5153
+#: /app/src/modules/dashboard/DashboardModule.js:5169
 msgid "Years to compare"
 msgstr "Années à comparer"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5156
+#: /app/src/modules/dashboard/DashboardModule.js:5172
 msgid "Last 2 years"
 msgstr "Les 2 dernières années"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5157
+#: /app/src/modules/dashboard/DashboardModule.js:5173
 msgid "Last 3 years"
 msgstr "Les 3 dernières années"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5158
+#: /app/src/modules/dashboard/DashboardModule.js:5174
 msgid "Last 5 years"
 msgstr "Les 5 dernières années"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5189
+#: /app/src/modules/dashboard/DashboardModule.js:5205
 #: /app/templates/index.php:3222
 msgid "Exclude shared accounts"
 msgstr "Exclure les comptes partagés"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5210
+#: /app/src/modules/dashboard/DashboardModule.js:5226
 msgid "Show legend"
 msgstr "Afficher la légende"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5225
+#: /app/src/modules/dashboard/DashboardModule.js:5241
 msgid "Show top-level categories only"
 msgstr "Afficher uniquement les catégories de niveau supérieur"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5240
-#: /app/src/modules/dashboard/DashboardModule.js:5241
+#: /app/src/modules/dashboard/DashboardModule.js:5256
+#: /app/src/modules/dashboard/DashboardModule.js:5257
 msgid "Chart Type"
 msgstr "Type de graphique"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5251
-#: /app/src/modules/dashboard/DashboardModule.js:5252
+#: /app/src/modules/dashboard/DashboardModule.js:5267
+#: /app/src/modules/dashboard/DashboardModule.js:5268
 msgid "Rows to show"
 msgstr "Lignes à afficher"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5267
-#: /app/src/modules/dashboard/DashboardModule.js:5268
+#: /app/src/modules/dashboard/DashboardModule.js:5283
+#: /app/src/modules/dashboard/DashboardModule.js:5284
 msgid "Display Format"
 msgstr "Format d'affichage"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5280
+#: /app/src/modules/dashboard/DashboardModule.js:5296
 msgid "Show change indicator"
 msgstr "Afficher l'indicateur de modification"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5294
+#: /app/src/modules/dashboard/DashboardModule.js:5310
 msgid "No settings available for this tile."
 msgstr "Aucun paramètre disponible pour cette tuile."
 
-#: /app/src/modules/dashboard/DashboardModule.js:5301
+#: /app/src/modules/dashboard/DashboardModule.js:5317
 msgid "Drag to reorder. Toggle visibility for each item."
 msgstr ""
 "Faites glisser pour réorganiser. Basculez la visibilité de chaque élément."
 
-#: /app/src/modules/dashboard/DashboardModule.js:5319
+#: /app/src/modules/dashboard/DashboardModule.js:5335
 msgid "Only categories with a budget I set"
 msgstr "Uniquement les catégories pour lesquelles j'ai défini un budget"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5321
+#: /app/src/modules/dashboard/DashboardModule.js:5337
 msgid "Leaves out the budgets worked out from your bills and recurring income."
 msgstr ""
 "Ne tient pas compte des budgets établis à partir de vos factures et de vos "
 "revenus réguliers."
 
-#: /app/src/modules/dashboard/DashboardModule.js:5322
+#: /app/src/modules/dashboard/DashboardModule.js:5338
 msgid "Untick a category to stop it alerting, here and in notifications."
 msgstr ""
 "Décochez une catégorie pour désactiver ses alertes, ici et dans les "
 "notifications."
 
-#: /app/src/modules/dashboard/DashboardModule.js:5558
+#: /app/src/modules/dashboard/DashboardModule.js:5574
 msgid "All tiles are visible"
 msgstr "Toutes les tuiles sont visibles"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5564
+#: /app/src/modules/dashboard/DashboardModule.js:5580
 msgid "Insights & Analytics"
 msgstr "Perspectives et analyses"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5565
+#: /app/src/modules/dashboard/DashboardModule.js:5581
 msgid "Budgeting"
 msgstr "Établissement du budget"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5566
+#: /app/src/modules/dashboard/DashboardModule.js:5582
 msgid "Forecasting"
 msgstr "Prévision"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5569
+#: /app/src/modules/dashboard/DashboardModule.js:5585
 #: /app/templates/index.php:5736
 msgid "Debts"
 msgstr "Dettes"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5570
+#: /app/src/modules/dashboard/DashboardModule.js:5586
 msgid "Goals"
 msgstr "Objectifs"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5572
+#: /app/src/modules/dashboard/DashboardModule.js:5588
 msgid "Alerts"
 msgstr "Alertes"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5573
+#: /app/src/modules/dashboard/DashboardModule.js:5589
 msgid "Interactive"
 msgstr "Interactif"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5595
+#: /app/src/modules/dashboard/DashboardModule.js:5611
 msgid "Hero"
 msgstr "Bandeau"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5604
-#: /app/src/modules/dashboard/DashboardModule.js:5638
+#: /app/src/modules/dashboard/DashboardModule.js:5620
+#: /app/src/modules/dashboard/DashboardModule.js:5654
 msgid "Add {name}"
 msgstr "Ajouter {name}"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5626
+#: /app/src/modules/dashboard/DashboardModule.js:5642
 msgid "Add Another"
 msgstr "En ajouter un autre"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5700
+#: /app/src/modules/dashboard/DashboardModule.js:5716
 msgid "Maximum of {max} instances reached"
 msgstr "Nombre maximal d'instances ({max}) atteint"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5770
+#: /app/src/modules/dashboard/DashboardModule.js:5786
 msgid "Tile added"
 msgstr "Tuile ajoutée"
 
-#: /app/src/modules/dashboard/DashboardModule.js:5808
+#: /app/src/modules/dashboard/DashboardModule.js:5824
 msgid "Tile removed"
 msgstr "Tuile supprimée"
 
