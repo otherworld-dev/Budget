@@ -1650,23 +1650,9 @@ class BillService {
 			return false;
 		}
 
-		$ownerId = $bill->getUserId();
-		$bill = $this->markUnpaid($billId, $ownerId);
-
-		// Linking the hold removed the pre-booked row for the occurrence it
-		// paid without noting it (hadScheduledTransaction is only set when a
-		// payment clears that row into itself), so the revert alone leaves
-		// the restored occurrence with no row.
-		if (!($snapshot['hadScheduledTransaction'] ?? false)
-			&& ($bill->getCreateTransaction() ?? true)
-			&& $bill->getIsActive() && $bill->getAccountId() !== null && $bill->getNextDueDate() !== null) {
-			try {
-				$placeholder = $this->transactionService->createFromBill($ownerId, $bill, null);
-				$this->applySplitTemplate($bill, $placeholder, $ownerId);
-			} catch (\Exception $e) {
-				$this->logger->warning("Failed to restore the scheduled transaction for bill {$billId} after its hold was cancelled: {$e->getMessage()}");
-			}
-		}
+		// The revert also puts back the pre-booked row of the restored
+		// occurrence, which linking the hold had removed
+		$this->markUnpaid($billId, $bill->getUserId());
 
 		return true;
 	}
