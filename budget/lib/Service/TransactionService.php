@@ -295,11 +295,16 @@ class TransactionService {
 			throw new \Exception('Income must have an account to create transaction');
 		}
 
+		// The row lands in the income's account, which may be another user's
+		// shared with the income's owner: book it as the account owner, as
+		// createFromBill() does (#334), or the owner-scoped lookup throws
+		$ownerUserId = $this->accountMapper->findById($income->getAccountId())->getUserId();
+
 		$date = $transactionDate ?? $income->getNextExpectedDate();
-		$status = $status ?? ($this->userClock->isFutureDate($date, $userId) ? 'scheduled' : 'cleared');
+		$status = $status ?? ($this->userClock->isFutureDate($date, $ownerUserId) ? 'scheduled' : 'cleared');
 
 		return $this->create(
-			userId: $userId,
+			userId: $ownerUserId,
 			accountId: $income->getAccountId(),
 			date: $date,
 			description: $income->getDescription() ?? '',

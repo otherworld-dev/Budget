@@ -318,9 +318,12 @@ class RecurringIncomeController extends Controller {
 				}
 			}
 
-			// Coerce the forecast-exclude flag to a real boolean (#270)
-			if (array_key_exists('excludedFromForecast', $data)) {
-				$data['excludedFromForecast'] = filter_var($data['excludedFromForecast'], FILTER_VALIDATE_BOOLEAN);
+			// Coerce the flags to real booleans (#270): the setters took the
+			// string "false" as true
+			foreach (['excludedFromForecast', 'autoCreateEnabled', 'isActive'] as $flag) {
+				if (array_key_exists($flag, $data)) {
+					$data[$flag] = filter_var($data[$flag], FILTER_VALIDATE_BOOLEAN);
+				}
 			}
 
 			$ownerId = $this->incomeOwner($id);
@@ -408,10 +411,33 @@ class RecurringIncomeController extends Controller {
 		try {
 			$this->requireWriteAccess('recurring_income', $id);
 			$params = $this->request->getParams();
-			$createTransaction = (bool)($params['createTransaction'] ?? false);
+			// filter_var, not a cast: (bool)"false" is true
+			$createTransaction = filter_var($params['createTransaction'] ?? false, FILTER_VALIDATE_BOOLEAN);
+			// The occurrence the page showed, so a second click or a stale tab
+			// is refused instead of booking the money twice
+			$expectedDate = is_string($params['expectedDate'] ?? null) ? $params['expectedDate'] : null;
 
-			$income = $this->service->markReceived($id, $this->incomeOwner($id), $receivedDate, $createTransaction);
+			$income = $this->service->markReceived($id, $this->incomeOwner($id), $receivedDate, $createTransaction, $expectedDate);
 			return new DataResponse($income);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['incomeId' => $id]);
+		} catch (\Exception $e) {
+			return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);
+		}
+	}
+
+	/**
+	 * Revert the last Mark Received: dates, active state and the credit it booked
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function markUnreceived(int $id): DataResponse {
+		try {
+			$this->requireWriteAccess('recurring_income', $id);
+			$income = $this->service->markUnreceived($id, $this->incomeOwner($id));
+			return new DataResponse($income);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['incomeId' => $id]);
 		} catch (\Exception $e) {
 			return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);
 		}

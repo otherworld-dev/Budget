@@ -640,6 +640,54 @@ class RecurringIncomeControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	public function testMarkReceivedPassesTheShownDateAndReadsFalseAsFalse(): void {
+		// A bare (bool) cast turned the string "false" into true and booked
+		// a transaction nobody asked for
+		$this->request->method('getParams')->willReturn(['createTransaction' => 'false', 'expectedDate' => '2026-10-03']);
+		$this->service->expects($this->once())->method('markReceived')
+			->with(7, 'owner1', null, false, '2026-10-03')
+			->willReturn(new RecurringIncome());
+
+		$response = $this->controllerOwnedBy('owner1')->markReceived(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testMarkReceivedShowsWhyItWasRefused(): void {
+		$this->request->method('getParams')->willReturn([]);
+		$this->service->method('markReceived')->willThrowException(new \InvalidArgumentException('This payment was already recorded'));
+
+		$response = $this->controllerOwnedBy('owner1')->markReceived(7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('This payment was already recorded', $response->getData()['error']);
+	}
+
+	public function testMarkUnreceivedRevertsTheLastReceipt(): void {
+		$this->service->expects($this->once())->method('markUnreceived')->with(7, 'owner1')->willReturn(new RecurringIncome());
+
+		$response = $this->controllerOwnedBy('owner1')->markUnreceived(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testMarkUnreceivedIsRefusedOnAReadOnlyShare(): void {
+		$this->service->expects($this->never())->method('markUnreceived');
+
+		$response = $this->controllerOwnedBy('owner1', false)->markUnreceived(7);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testUpdateReadsTheFlagsFalseAsFalse(): void {
+		$this->request->method('getParams')->willReturn(['autoCreateEnabled' => 'false', 'isActive' => '0']);
+		$this->service->expects($this->once())->method('update')
+			->with(7, 'owner1', ['autoCreateEnabled' => false, 'isActive' => false])
+			->willReturn(new RecurringIncome());
+
+		$this->controllerOwnedBy('owner1')->update(7);
+	}
+
 	public function testMarkReceivedIsRefusedOnAReadOnlyShare(): void {
 		$this->request->method('getParams')->willReturn([]);
 		$this->service->expects($this->never())->method('markReceived');

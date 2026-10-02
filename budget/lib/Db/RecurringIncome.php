@@ -48,6 +48,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCreatedAt(string $createdAt)
  * @method bool getExcludedFromForecast()
  * @method void setExcludedFromForecast(bool $excludedFromForecast)
+ * @method string|null getReceivedUndoState()
+ * @method void setReceivedUndoState(?string $receivedUndoState)
  */
 class RecurringIncome extends Entity implements JsonSerializable {
 	protected $userId;
@@ -69,6 +71,7 @@ class RecurringIncome extends Entity implements JsonSerializable {
 	protected $notes;
 	protected $createdAt;
 	protected $excludedFromForecast;   // Extraordinary recurring item: keep its transactions out of the forecast
+	protected $receivedUndoState;      // JSON snapshot of the last markReceived, so undo really reverts it; internal, never serialized raw
 
 	public function __construct() {
 		$this->addType('id', 'integer');
@@ -104,6 +107,12 @@ class RecurringIncome extends Entity implements JsonSerializable {
 			'notes' => $this->getNotes(),
 			'createdAt' => $this->getCreatedAt(),
 			'excludedFromForecast' => $this->getExcludedFromForecast() ?? false,
+			'canUndoReceived' => $this->canUndoReceived(),
 		];
+	}
+
+	/** Whether the last receipt can be reverted: it left a snapshot behind */
+	public function canUndoReceived(): bool {
+		return $this->getReceivedUndoState() !== null && $this->getReceivedUndoState() !== '';
 	}
 }

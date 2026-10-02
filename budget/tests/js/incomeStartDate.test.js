@@ -87,16 +87,23 @@ describe('income first payment date field', () => {
         expect(startDateGroup().style.display).toBe('block');
     });
 
-    it('is hidden for monthly and one-time frequencies', () => {
+    it('is hidden for monthly frequencies', () => {
         const mod = makeModule();
 
         setFrequency('monthly');
         mod.updateIncomeFormFields();
         expect(startDateGroup().style.display).toBe('none');
+    });
+
+    it('asks a one-time income for its date, and requires it', () => {
+        // Without a date the server put it on 1 January next year (#399)
+        const mod = makeModule();
 
         setFrequency('one-time');
         mod.updateIncomeFormFields();
-        expect(startDateGroup().style.display).toBe('none');
+
+        expect(startDateGroup().style.display).toBe('block');
+        expect(document.getElementById('income-start-date').required).toBe(true);
     });
 });
 

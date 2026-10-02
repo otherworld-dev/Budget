@@ -11,6 +11,8 @@ import { isoWeekday } from '../../utils/helpers.js';
 import { apiFetch } from '../../utils/api.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
+import { incomeRowState } from '../../utils/incomeStatus.js';
+import { selectPossiblyUnavailable, clearUnavailableOptions } from '../../utils/formSelects.js';
 
 export default class IncomeModule {
     constructor(app) {
@@ -81,29 +83,13 @@ export default class IncomeModule {
 
         emptyIncome.style.display = 'none';
 
+        const today = formatters.getTodayDateString();
         incomeList.innerHTML = incomeItems.map(income => {
-            const nextDate = income.nextExpectedDate || income.next_expected_date;
-            const isReceivedThisMonth = this.isIncomeReceivedThisMonth(income);
-            const isExpectedSoon = !isReceivedThisMonth && nextDate && this.isExpectedSoon(nextDate);
-
-            const isActive = income.isActive ?? income.is_active ?? true;
-            const isOneTime = (income.frequency || 'monthly') === 'one-time';
-
-            let statusClass = '';
-            let statusText = '';
-            if (!isActive && isOneTime) {
-                statusClass = 'received';
-                statusText = t('budget', 'Completed');
-            } else if (isReceivedThisMonth) {
-                statusClass = 'received';
-                statusText = t('budget', 'Received');
-            } else if (isExpectedSoon) {
-                statusClass = 'expected-soon';
-                statusText = t('budget', 'Expected Soon');
-            } else {
-                statusClass = 'upcoming';
-                statusText = t('budget', 'Upcoming');
-            }
+            // Status, date and actions follow the next expected occurrence,
+            // not the calendar month (#399)
+            const row = incomeRowState(income, today, this.settings);
+            const statusClass = row.status;
+            const statusText = row.statusText;
 
             const frequency = income.frequency || 'monthly';
             const frequencyLabels = {
@@ -133,7 +119,7 @@ export default class IncomeModule {
                     <div class="income-details">
                         <div class="income-next-date">
                             <span class="icon-calendar" aria-hidden="true"></span>
-                            ${nextDate ? formatters.formatDate(nextDate, this.settings) : t('budget', 'No date set')}
+                            ${dom.escapeHtml(row.dateText)}
                         </div>
                         <div class="income-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>
@@ -141,13 +127,13 @@ export default class IncomeModule {
                         </div>
                     </div>
                     <div class="income-actions">
-                        ${!isReceivedThisMonth && isActive ? `
+                        ${row.canReceive ? `
                             <button class="income-action-btn income-received-btn" data-income-id="${income.id}" title="${t('budget', 'Mark as received')}">
                                 <span class="icon-checkmark" aria-hidden="true"></span>
                                 ${t('budget', 'Mark Received')}
                             </button>
                         ` : ''}
-                        ${!isReceivedThisMonth && isActive && !isOneTime ? `
+                        ${row.canSkip ? `
                             <button class="income-action-btn income-skip-btn" data-income-id="${income.id}" title="${t('budget', 'Skip this payment')}">
                                 <span aria-hidden="true">&#x23ED;</span>
                                 ${t('budget', 'Skip')}
@@ -165,20 +151,6 @@ export default class IncomeModule {
         }).join('');
     }
 
-    isIncomeReceivedThisMonth(income) {
-        const lastReceived = income.lastReceivedDate || income.last_received_date;
-        if (!lastReceived) return false;
-
-        const receivedDate = new Date(lastReceived);
-        const now = new Date();
-        return receivedDate.getMonth() === now.getMonth() && receivedDate.getFullYear() === now.getFullYear();
-    }
-
-    isExpectedSoon(dateStr) {
-        const diffDays = formatters.daysBetweenDates(formatters.getTodayDateString(), dateStr);
-        return diffDays >= 0 && diffDays <= 7;
-    }
-
     filterIncome(filter) {
         const incomeCards = document.querySelectorAll('.income-card');
         incomeCards.forEach(card => {
@@ -190,10 +162,10 @@ export default class IncomeModule {
                     show = true;
                     break;
                 case 'expected':
-                    show = status === 'expected-soon' || status === 'upcoming';
+                    show = status === 'expected-soon' || status === 'upcoming' || status === 'overdue';
                     break;
                 case 'received':
-                    show = status === 'received';
+                    show = status === 'received' || status === 'completed';
                     break;
                 default:
                     show = true;
@@ -344,6 +316,7 @@ export default class IncomeModule {
 
         form.reset();
         document.getElementById('income-id').value = '';
+        clearUnavailableOptions(['income-category', 'income-account']);
 
         if (income) {
             title.textContent = t('budget', 'Edit Recurring Income');
@@ -355,8 +328,19 @@ export default class IncomeModule {
             document.getElementById('income-frequency').value = income.frequency || 'monthly';
             document.getElementById('income-expected-day').value = income.expectedDay || income.expected_day || '';
             document.getElementById('income-expected-month').value = income.expectedMonth || income.expected_month || '';
-            document.getElementById('income-category').value = income.categoryId || income.category_id || '';
-            selectAccountValue(document.getElementById('income-account'), this.accounts, income.accountId || income.account_id || null);
+            // Both dropdowns only list what this user can see: an income shared
+            // without its category or account used to save them as null,
+            // stripping them (and with the account, auto-create) off the
+            // owner's income. Keep the real id selected instead (#370)
+            selectPossiblyUnavailable(
+                document.getElementById('income-category'),
+                income.categoryId ?? income.category_id ?? null
+            );
+            const incomeAccountSelect = document.getElementById('income-account');
+            const incomeAccountId = income.accountId ?? income.account_id ?? null;
+            if (!selectAccountValue(incomeAccountSelect, this.accounts, incomeAccountId)) {
+                selectPossiblyUnavailable(incomeAccountSelect, incomeAccountId);
+            }
             document.getElementById('income-auto-pattern').value = income.autoDetectPattern || income.auto_detect_pattern || '';
             document.getElementById('income-notes').value = income.notes || '';
             setDateValue('income-start-date', income.startDate || income.start_date || '');
@@ -404,11 +388,23 @@ export default class IncomeModule {
         }
 
         // First payment date anchors weekly/biweekly schedules: occurrences
-        // repeat from it, fixing the weekday and the week parity (#363)
+        // repeat from it, fixing the weekday and the week parity (#363). A
+        // one-time income's date goes in the same field, and is required:
+        // without it the server put the income on 1 January next year (#399)
         const startDateGroup = document.getElementById('income-start-date-group');
+        const startDateInput = document.getElementById('income-start-date');
         if (startDateGroup) {
             startDateGroup.style.display =
-                (frequency === 'weekly' || frequency === 'biweekly') ? 'block' : 'none';
+                (frequency === 'weekly' || frequency === 'biweekly' || isOneTime) ? 'block' : 'none';
+            const label = startDateGroup.querySelector('label');
+            const help = document.getElementById('income-start-date-help');
+            if (label) label.textContent = isOneTime ? t('budget', 'Date') : t('budget', 'First payment date');
+            if (help) {
+                help.textContent = isOneTime
+                    ? t('budget', 'The date this income is expected. It can be in the past.')
+                    : t('budget', 'Payments repeat from this date (optional)');
+            }
+            if (startDateInput) startDateInput.required = isOneTime;
         }
 
         // Hide day/month fields for one-time income
@@ -420,12 +416,10 @@ export default class IncomeModule {
 
         expectedDayGroup.style.display = 'block';
 
-        // Show expected month only for yearly income
-        if (frequency === 'yearly') {
-            expectedMonthGroup.style.display = 'block';
-        } else {
-            expectedMonthGroup.style.display = 'none';
-        }
+        // The month a yearly, half-yearly or quarterly income starts its
+        // cycle from: hidden, quarterly income always fell in Jan/Apr/Jul/Oct
+        expectedMonthGroup.style.display =
+            (frequency === 'yearly' || frequency === 'semi-annually' || frequency === 'quarterly') ? 'block' : 'none';
 
         // Update expected day label based on frequency
         const expectedDayLabel = expectedDayGroup.querySelector('label');
@@ -487,6 +481,15 @@ export default class IncomeModule {
 
             const frequency = document.getElementById('income-frequency').value;
             const isAnchored = frequency === 'weekly' || frequency === 'biweekly';
+            const isOneTime = frequency === 'one-time';
+            const startDateValue = document.getElementById('income-start-date')?.value || null;
+            // The input sits in a datepicker that hides the native one, so
+            // its required flag is never enforced by the browser
+            if (isOneTime && !startDateValue) {
+                showError(t('budget', 'Choose the date this income is expected'));
+                return;
+            }
+            const usesMonth = frequency === 'yearly' || frequency === 'semi-annually' || frequency === 'quarterly';
 
             const data = {
                 name: document.getElementById('income-name').value.trim(),
@@ -495,16 +498,18 @@ export default class IncomeModule {
                 source: document.getElementById('income-source').value.trim() || null,
                 frequency: frequency,
                 expectedDay: parseInt(document.getElementById('income-expected-day').value) || null,
-                expectedMonth: parseInt(document.getElementById('income-expected-month').value) || null,
+                // A month the form doesn't show is a stale value, not a schedule
+                expectedMonth: usesMonth ? (parseInt(document.getElementById('income-expected-month').value) || null) : null,
                 categoryId: parseInt(document.getElementById('income-category').value) || null,
                 accountId: parseInt(document.getElementById('income-account').value) || null,
                 autoDetectPattern: document.getElementById('income-auto-pattern').value.trim() || null,
                 notes: document.getElementById('income-notes').value.trim() || null,
                 autoCreateEnabled: document.getElementById('income-auto-create')?.checked || false,
                 excludedFromForecast: document.getElementById('income-excluded-from-forecast')?.checked || false,
-                // The anchor only means something for weekly/biweekly; null
-                // clears any stale value when the frequency changed (#363)
-                startDate: isAnchored ? (document.getElementById('income-start-date')?.value || null) : null
+                // The anchor means something for weekly/biweekly, and is the
+                // date of a one-time income; null clears any stale value when
+                // the frequency changed (#363)
+                startDate: (isAnchored || isOneTime) ? startDateValue : null
             };
 
             const url = isNew
@@ -549,21 +554,23 @@ export default class IncomeModule {
                 throw new Error('Income not found');
             }
 
-            const previousReceivedDate = income.lastReceivedDate || income.last_received_date || null;
             const currentDate = formatters.getTodayDateString();
 
-            // Mark as received on the server
+            // Mark as received on the server. It is told which occurrence the
+            // row showed, so a second click or a stale tab is refused rather
+            // than booking the money twice.
             await apiFetch(`/apps/budget/api/recurring-income/${incomeId}/received`, {
                 method: 'POST',
-                body: { receivedDate: currentDate, createTransaction: true },
+                body: {
+                    receivedDate: currentDate,
+                    createTransaction: true,
+                    expectedDate: income.nextExpectedDate || income.next_expected_date || null,
+                },
             });
 
-            // Store undo data BEFORE reloading
-            this._undoData = {
-                incomeId: incomeId,
-                previousReceivedDate: previousReceivedDate,
-                action: 'markReceived'
-            };
+            // Store undo data BEFORE reloading; the server keeps what to revert
+            const undoData = { incomeId: incomeId, action: 'markReceived' };
+            this._undoData = undoData;
 
             // Update local state immediately
             await this.loadIncomeView();
@@ -577,17 +584,16 @@ export default class IncomeModule {
             const message = income.accountId
                 ? t('budget', 'Income marked as received. Transaction created.')
                 : t('budget', 'Income marked as received.');
-            showUndoNotification(message, () => this.undoMarkReceived());
-
-            // Set timer to clear undo data after 5 seconds
-            this._undoTimer = setTimeout(() => {
-                this._undoData = null;
-                this._undoTimer = null;
-            }, 5000);
+            showUndoNotification(
+                message,
+                () => this.undoMarkReceived(),
+                // A later action may have replaced it; only drop our own
+                () => { if (this._undoData === undoData) this._undoData = null; }
+            );
 
         } catch (error) {
             console.error('Failed to mark income as received:', error);
-            showError(t('budget', 'Failed to mark income as received'));
+            showError(error.message || t('budget', 'Failed to mark income as received'));
         }
     }
 
@@ -597,19 +603,11 @@ export default class IncomeModule {
         }
 
         try {
-            const { incomeId, previousReceivedDate } = this._undoData;
+            const { incomeId } = this._undoData;
 
-            // Clear the undo timer
-            if (this._undoTimer) {
-                clearTimeout(this._undoTimer);
-                this._undoTimer = null;
-            }
-
-            // Use the update endpoint to restore the previous state
-            // This allows us to set lastReceivedDate to null if needed
-            await apiFetch(`/apps/budget/api/recurring-income/${incomeId}`, {
-                method: 'PUT',
-                body: { lastReceivedDate: previousReceivedDate },
+            // The server puts back the dates and removes the credit it booked
+            await apiFetch(`/apps/budget/api/recurring-income/${incomeId}/unreceived`, {
+                method: 'POST',
             });
 
             // Clear undo data

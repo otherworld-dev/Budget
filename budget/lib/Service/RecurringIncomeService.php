@@ -26,6 +26,9 @@ class RecurringIncomeService extends AbstractCrudService {
 	private IL10N $l;
 	private ?AutoShareService $autoShareService;
 
+	/** Most occurrences one auto-create run books, so a years-old date can't flood the ledger */
+	private const MAX_AUTO_CREATE_CATCH_UP = 60;
+
 	public function __construct(
 		RecurringIncomeMapper $mapper,
 		FrequencyCalculator $frequencyCalculator,
@@ -34,6 +37,8 @@ class RecurringIncomeService extends AbstractCrudService {
 		LoggerInterface $logger,
 		IL10N $l,
 		?AutoShareService $autoShareService = null,
+		private ?UserClock $userClock = null,
+		private ?GranularShareService $granularShareService = null,
 	) {
 		$this->mapper = $mapper;
 		$this->frequencyCalculator = $frequencyCalculator;
@@ -78,6 +83,9 @@ class RecurringIncomeService extends AbstractCrudService {
 		bool $excludedFromForecast = false,
 		?string $startDate = null,
 	): RecurringIncome {
+		$startDate = ($startDate === null || $startDate === '') ? null : $startDate;
+		$this->validateSchedule($frequency, $startDate);
+
 		$income = new RecurringIncome();
 		$income->setUserId($userId);
 		$income->setName($name);
@@ -97,11 +105,12 @@ class RecurringIncomeService extends AbstractCrudService {
 		$income->setStartDate($startDate);
 		$income->setCreatedAt(date('Y-m-d H:i:s'));
 
-		// startDate anchors weekly/biweekly schedules: occurrences fall on
-		// startDate + n*interval, so week parity comes from the user's first
-		// payment date, not from the week the entry was created in (#363)
-		$nextExpected = $this->frequencyCalculator->calculateNextDueDate($frequency, $expectedDay, $expectedMonth, null, null, false, $startDate);
-		$income->setNextExpectedDate($nextExpected);
+		// The first occurrence from today, never before the start date. A
+		// one-time income is its date, past or not. startDate anchors
+		// weekly/biweekly schedules: occurrences fall on startDate +
+		// n*interval, so week parity comes from the user's first payment
+		// date, not from the week the entry was created in (#363)
+		$income->setNextExpectedDate($this->firstOccurrence($income, $this->today($userId)));
 
 		$income = $this->mapper->insert($income);
 		if ($this->autoShareService !== null) {
@@ -112,15 +121,20 @@ class RecurringIncomeService extends AbstractCrudService {
 
 	public function update(int $id, string $userId, array $updates): RecurringIncome {
 		$income = $this->find($id, $userId);
-		$needsRecalculation = false;
+		$before = clone $income;
 		$directDbUpdates = [];
 
-		foreach ($updates as $key => $value) {
-			// Track if we need to recalculate next expected date
-			if (in_array($key, ['frequency', 'expectedDay', 'expectedMonth', 'lastReceivedDate', 'startDate'])) {
-				$needsRecalculation = true;
+		// The schedule changed only if one of its fields did, not because the
+		// form sent them back unchanged: recalculating on every edit dropped
+		// an overdue payment and undid a skip
+		$scheduleChanged = false;
+		foreach (['frequency', 'expectedDay', 'expectedMonth', 'startDate'] as $key) {
+			if (array_key_exists($key, $updates) && $income->{'get' . ucfirst($key)}() != $updates[$key]) {
+				$scheduleChanged = true;
 			}
+		}
 
+		foreach ($updates as $key => $value) {
 			// Special handling for null values - use direct DB update to bypass Entity change detection
 			if ($value === null) {
 				// Convert camelCase to snake_case for database column names
@@ -139,35 +153,23 @@ class RecurringIncomeService extends AbstractCrudService {
 			}
 		}
 
+		if ($scheduleChanged) {
+			$this->validateSchedule($income->getFrequency(), $income->getStartDate());
+			// A settled income stays settled; an active one moves its pending
+			// occurrence within its own month (or week) under the new schedule
+			if ($income->getIsActive()) {
+				$income->setNextExpectedDate($this->rescheduled($before, $income, $this->today($userId)));
+				// Undoing an earlier receipt would restore a date of the old schedule
+				if ($income->canUndoReceived()) {
+					$income->setReceivedUndoState(null);
+					$directDbUpdates['received_undo_state'] = null;
+				}
+			}
+		}
+
 		// Apply direct database updates for null values first
 		if (!empty($directDbUpdates)) {
 			$this->mapper->updateFields($id, $userId, $directDbUpdates);
-		}
-
-		// Recalculate next expected date if needed. The startDate anchors
-		// weekly/biweekly parity (#363).
-		if ($needsRecalculation) {
-			// The last received date only means "advance strictly past this"
-			// while it is today or later: a receipt weeks ago must not push
-			// the expectation past an anchor that falls due today — setting
-			// First payment date = today has to yield today, not
-			// today + interval (#363 review). markReceived keeps its own
-			// strictly-after semantics for the date it just recorded.
-			$referenceDate = $income->getLastReceivedDate();
-			if ($referenceDate !== null && $referenceDate < date('Y-m-d')) {
-				$referenceDate = null;
-			}
-
-			$nextExpected = $this->frequencyCalculator->calculateNextDueDate(
-				$income->getFrequency(),
-				$income->getExpectedDay(),
-				$income->getExpectedMonth(),
-				$referenceDate,
-				null,
-				false,
-				$income->getStartDate()
-			);
-			$income->setNextExpectedDate($nextExpected);
 		}
 
 		// Save any non-null changes
@@ -178,97 +180,245 @@ class RecurringIncomeService extends AbstractCrudService {
 	}
 
 	/**
-	 * Process auto-create for a recurring income entry.
-	 * Creates a transaction and advances the next expected date.
+	 * Book a recurring income that is due, without anyone marking it.
 	 *
-	 * @param int $incomeId Income ID
-	 * @param string $userId User ID
+	 * Every occurrence due by today is booked once, on its expected date, so
+	 * a run after a gap catches up rather than booking the oldest and
+	 * jumping past the rest. A one-time income is completed after it. When it
+	 * can't book (no account, or one its owner can no longer write to) auto-
+	 * create switches itself off, so the job doesn't fail and notify every
+	 * six hours forever.
+	 *
 	 * @return array ['success' => bool, 'message' => string, 'income' => ?RecurringIncome]
 	 */
 	public function processAutoCreate(int $incomeId, string $userId): array {
 		try {
 			$income = $this->find($incomeId, $userId);
-
-			if (!$income->getAutoCreateEnabled()) {
-				return ['success' => false, 'message' => 'Auto-create not enabled'];
-			}
-
-			if (!$income->getAccountId()) {
-				return ['success' => false, 'message' => 'No account set for income'];
-			}
-
-			// Capture the current expected date before advancing (used as transaction date)
-			$transactionDate = $income->getNextExpectedDate() ?? date('Y-m-d');
-
-			$this->transactionService->createFromIncome($userId, $income, $transactionDate, 'cleared');
-
-			// Advance next expected date (startDate anchors parity, #363)
-			$nextDate = $this->frequencyCalculator->calculateNextDueDate(
-				$income->getFrequency(),
-				$income->getExpectedDay(),
-				$income->getExpectedMonth(),
-				$transactionDate,
-				null,
-				false,
-				$income->getStartDate()
-			);
-			$income->setNextExpectedDate($nextDate);
-			$income->setLastReceivedDate($transactionDate);
-			$this->mapper->update($income);
-
-			return ['success' => true, 'income' => $income];
 		} catch (\Exception $e) {
 			$this->logger->warning("Auto-create failed for income {$incomeId}: {$e->getMessage()}");
 			return ['success' => false, 'message' => $e->getMessage()];
 		}
+		if (!$income->getAutoCreateEnabled() || !$income->getIsActive()) {
+			return ['success' => false, 'message' => 'Auto-create not enabled'];
+		}
+
+		$today = $this->today($userId);
+		$booked = 0;
+		try {
+			if (!$income->getAccountId()) {
+				throw new \InvalidArgumentException($this->l->t('No account set for income'));
+			}
+			$this->requireWritableAccount($income);
+
+			while ($booked < self::MAX_AUTO_CREATE_CATCH_UP
+				&& $income->getIsActive()
+				&& $income->getNextExpectedDate() !== null
+				&& $income->getNextExpectedDate() <= $today) {
+				$date = $income->getNextExpectedDate();
+				$this->transactionService->createFromIncome($userId, $income, $date, 'cleared');
+				$this->settle($income, $date);
+				$income->setLastReceivedDate($date);
+				$income->setReceivedUndoState(null);
+				$income = $this->mapper->update($income);
+				$booked++;
+			}
+		} catch (\Exception $e) {
+			$this->logger->warning("Auto-create failed for income {$incomeId}: {$e->getMessage()}");
+			// Whatever booked before the failure stays booked and settled
+			$income->setAutoCreateEnabled(false);
+			$this->mapper->update($income);
+			return ['success' => false, 'message' => $e->getMessage(), 'income' => $income];
+		}
+
+		if ($booked === 0) {
+			return ['success' => false, 'message' => 'Nothing due', 'income' => $income];
+		}
+		return ['success' => true, 'income' => $income, 'count' => $booked];
 	}
 
 	/**
-	 * Mark income as received and advance to next expected date.
+	 * Mark the income's next expected occurrence as received.
+	 *
+	 * Settles exactly that one occurrence and moves on to the next. The money
+	 * is dated the day it arrived: dated on the stored expected date, a stale
+	 * date filed September's payment under August, and an early receipt was
+	 * booked in the future while the date stayed put (#399).
+	 *
+	 * @param string|null $expectedDate The occurrence the page showed. A
+	 *                                  stale tab or a second click names one already settled and is
+	 *                                  refused, instead of booking the money twice.
+	 * @throws \InvalidArgumentException
 	 */
-	public function markReceived(int $id, string $userId, ?string $receivedDate = null, bool $createTransaction = false): RecurringIncome {
+	public function markReceived(int $id, string $userId, ?string $receivedDate = null, bool $createTransaction = false, ?string $expectedDate = null): RecurringIncome {
 		$income = $this->find($id, $userId);
 
-		// Capture the current expected date before advancing (used as transaction date)
-		$transactionDate = $income->getNextExpectedDate() ?? date('Y-m-d');
+		if (!$income->getIsActive() || $income->getNextExpectedDate() === null) {
+			throw new \InvalidArgumentException($this->l->t('This income has no payment to receive'));
+		}
+		if ($expectedDate !== null && $expectedDate !== '' && $expectedDate !== $income->getNextExpectedDate()) {
+			throw new \InvalidArgumentException($this->l->t('This payment was already recorded. Reload the page to see the next one.'));
+		}
+		$willBook = $createTransaction && $income->getAccountId() !== null;
+		if ($willBook) {
+			$this->requireWritableAccount($income);
+		}
 
-		$received = $receivedDate ?? date('Y-m-d');
+		$received = $receivedDate ?? $this->today($userId);
+		$snapshot = [
+			'nextExpectedDate' => $income->getNextExpectedDate(),
+			'lastReceivedDate' => $income->getLastReceivedDate(),
+			'isActive' => $income->getIsActive(),
+			'startDate' => $income->getStartDate(),
+			'transactionIds' => [],
+		];
+
+		$this->settle($income, $income->getNextExpectedDate());
 		$income->setLastReceivedDate($received);
-
-		// With a startDate anchor the calculator recomputes from the anchor
-		// (first occurrence after the received date), so an early or late
-		// receipt cannot shift the week parity (#363); without one the
-		// received date remains the base as before.
-		$nextExpected = $this->frequencyCalculator->calculateNextDueDate(
-			$income->getFrequency(),
-			$income->getExpectedDay(),
-			$income->getExpectedMonth(),
-			$received,
-			null,
-			false,
-			$income->getStartDate()
-		);
-		$income->setNextExpectedDate($nextExpected);
-
 		$income = $this->mapper->update($income);
 
-		// Create a cleared transaction for the received income if requested
-		if ($createTransaction && $income->getAccountId() !== null) {
+		if ($willBook) {
 			try {
-				$this->transactionService->createFromIncome($userId, $income, $transactionDate, 'cleared');
+				$transaction = $this->transactionService->createFromIncome($userId, $income, $received, 'cleared');
+				$snapshot['transactionIds'][] = $transaction->getId();
 			} catch (\Exception $e) {
 				$this->logger->warning("Failed to create transaction for income {$id}: {$e->getMessage()}");
 			}
 		}
 
-		// Auto-deactivate one-time income after receiving
-		if ($income->getFrequency() === 'one-time') {
-			$income->setIsActive(false);
-			$income->setNextExpectedDate(null);
-			$income = $this->mapper->update($income);
+		$income->setReceivedUndoState(json_encode($snapshot));
+		return $this->mapper->update($income);
+	}
+
+	/**
+	 * Revert the last Mark Received: the dates and active state go back and
+	 * the credit it booked is removed.
+	 *
+	 * @throws \InvalidArgumentException when there is nothing to revert
+	 */
+	public function markUnreceived(int $id, string $userId): RecurringIncome {
+		$income = $this->find($id, $userId);
+		$raw = $income->getReceivedUndoState();
+		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
+		if (!is_array($snapshot) || !array_key_exists('nextExpectedDate', $snapshot)) {
+			throw new \InvalidArgumentException($this->l->t('This income has no recorded receipt to undo'));
 		}
 
-		return $income;
+		$ids = is_array($snapshot['transactionIds'] ?? null) ? $snapshot['transactionIds'] : [];
+		if ($ids !== []) {
+			$this->requireWritableAccount($income);
+		}
+		foreach ($ids as $transactionId) {
+			try {
+				$this->transactionService->deleteAsAccountOwner((int)$transactionId);
+			} catch (\Exception $e) {
+				$this->logger->warning("Failed to delete transaction {$transactionId} while undoing a receipt of income {$id}: {$e->getMessage()}");
+			}
+		}
+
+		$income->setNextExpectedDate($snapshot['nextExpectedDate']);
+		$income->setLastReceivedDate($snapshot['lastReceivedDate'] ?? null);
+		$income->setIsActive((bool)($snapshot['isActive'] ?? true));
+		if (array_key_exists('startDate', $snapshot)) {
+			$income->setStartDate($snapshot['startDate']);
+		}
+		$income->setReceivedUndoState(null);
+		// Restored values may be null, which the entity's change tracking skips
+		$this->mapper->updateFields($id, $userId, [
+			'next_expected_date' => $income->getNextExpectedDate(),
+			'last_received_date' => $income->getLastReceivedDate(),
+			'start_date' => $income->getStartDate(),
+			'received_undo_state' => null,
+		]);
+		return $this->mapper->update($income);
+	}
+
+	/**
+	 * Close the occurrence on $occurrence and move to the one after it, or
+	 * complete a one-time income (keeping its date in startDate, where a
+	 * one-time income's date lives).
+	 */
+	private function settle(RecurringIncome $income, string $occurrence): void {
+		if ($income->getFrequency() === 'one-time') {
+			if ($income->getStartDate() === null || $income->getStartDate() === '') {
+				$income->setStartDate($occurrence);
+			}
+			$income->setIsActive(false);
+			$income->setNextExpectedDate(null);
+			return;
+		}
+		$income->setNextExpectedDate($this->frequencyCalculator->calculateNextDueDate(
+			$income->getFrequency(),
+			$income->getExpectedDay(),
+			$income->getExpectedMonth(),
+			$occurrence,
+			null,
+			true,
+			$income->getStartDate()
+		));
+	}
+
+	/** The first occurrence on or after $today, never before the start date */
+	private function firstOccurrence(RecurringIncome $income, string $today): ?string {
+		if ($income->getFrequency() === 'one-time') {
+			return $income->getStartDate();
+		}
+		return $this->frequencyCalculator->occurrenceOnOrAfter(
+			$income->getFrequency(), $income->getExpectedDay(), $income->getExpectedMonth(),
+			$today, null, $income->getStartDate()
+		);
+	}
+
+	/**
+	 * The pending occurrence after a schedule change: the same month's (or
+	 * week's) occurrence under the new schedule, so moving pay day from the
+	 * 3rd to the 25th makes October's payment the 25th rather than reviving
+	 * September's or skipping October's.
+	 */
+	private function rescheduled(RecurringIncome $before, RecurringIncome $after, string $today): ?string {
+		if ($after->getFrequency() === 'one-time') {
+			return $after->getStartDate();
+		}
+		$pending = $before->getNextExpectedDate();
+		if ($pending === null || $before->getFrequency() === 'one-time') {
+			return $this->firstOccurrence($after, $today);
+		}
+		return $this->frequencyCalculator->occurrenceOnOrAfter(
+			$after->getFrequency(), $after->getExpectedDay(), $after->getExpectedMonth(),
+			$this->frequencyCalculator->periodStart($after->getFrequency(), $pending),
+			null, $after->getStartDate()
+		) ?? $this->firstOccurrence($after, $today);
+	}
+
+	/**
+	 * One-time income needs its date, and income has no pattern to run a
+	 * custom schedule on.
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	private function validateSchedule(string $frequency, ?string $startDate): void {
+		if ($frequency === 'custom') {
+			throw new \InvalidArgumentException($this->l->t('Recurring income cannot use a custom schedule'));
+		}
+		if ($frequency === 'one-time' && ($startDate === null || $startDate === '')) {
+			throw new \InvalidArgumentException($this->l->t('A one-time income needs the date it is expected'));
+		}
+	}
+
+	/**
+	 * Refuse to book into an account the income's owner can no longer write
+	 * to: shared with them once, since revoked, left or cut to read.
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	private function requireWritableAccount(RecurringIncome $income): void {
+		if ($this->granularShareService !== null && $income->getAccountId() !== null
+			&& !$this->granularShareService->canWrite($income->getUserId(), ShareItem::TYPE_ACCOUNT, (int)$income->getAccountId())) {
+			throw new \InvalidArgumentException($this->l->t('This income uses an account you can no longer change. Edit it and choose another account.'));
+		}
+	}
+
+	private function today(string $userId): string {
+		return $this->userClock !== null ? $this->userClock->today($userId) : date('Y-m-d');
 	}
 
 	/**
@@ -303,6 +453,8 @@ class RecurringIncomeService extends AbstractCrudService {
 			$income->getStartDate()
 		);
 		$income->setNextExpectedDate($nextExpected);
+		// Undoing an earlier receipt now would bring back a pre-skip date
+		$income->setReceivedUndoState(null);
 		$income = $this->mapper->update($income);
 
 		return [
@@ -351,7 +503,11 @@ class RecurringIncomeService extends AbstractCrudService {
 			if ($nextExpected && $nextExpected >= $startOfMonth && $nextExpected <= $endOfMonth) {
 				$expectedThisMonth++;
 			}
+		}
 
+		// Every income, not just active ones: receiving a one-time income
+		// completes it, which left it out of the count the moment it arrived
+		foreach ($this->mapper->findAll($userId) as $income) {
 			$lastReceived = $income->getLastReceivedDate();
 			if ($lastReceived && $lastReceived >= $startOfMonth && $lastReceived <= $endOfMonth) {
 				$receivedThisMonth++;

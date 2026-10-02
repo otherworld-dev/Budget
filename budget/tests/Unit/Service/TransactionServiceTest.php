@@ -967,6 +967,23 @@ class TransactionServiceTest extends TestCase {
 		$this->assertEquals(3000.00, $result->getAmount());
 	}
 
+	public function testCreateFromIncomeBooksIntoASharedAccountAsItsOwner(): void {
+		// Income paid into an account shared with its owner never recorded:
+		// the owner-scoped account lookup ran as the income's owner and
+		// threw, while Mark Received reported success (#334 for income)
+		$income = $this->makeIncome(['userId' => 'recipient']);
+		$this->accountById[10] = $this->makeAccount(['id' => 10, 'userId' => 'account-owner']);
+		$this->accountMapper->expects($this->atLeastOnce())->method('find')
+			->with(10, 'account-owner')->willReturn($this->accountById[10]);
+		$this->mapper->expects($this->once())->method('insert')->willReturnCallback(function (Transaction $tx) {
+			$tx->setId(1);
+			return $tx;
+		});
+		$this->accountMapper->method('updateBalance')->willReturn($this->accountById[10]);
+
+		$this->service->createFromIncome('recipient', $income, '2026-03-25', 'cleared');
+	}
+
 	public function testCreateFromIncomeThrowsWithoutAccount(): void {
 		$income = $this->makeIncome(['accountId' => null]);
 
