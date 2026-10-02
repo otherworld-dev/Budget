@@ -81,6 +81,25 @@ class PensionRecurringContributionMapper extends QBMapper {
 	}
 
 	/**
+	 * Take a deleted account off the schedules it funded, whoever's they are
+	 * (a shared account can fund another user's schedule). Auto-post goes off
+	 * with it: the schedule now posts with no bank leg, and only when its
+	 * owner chooses to.
+	 *
+	 * @return int Number of schedules changed
+	 */
+	public function detachSourceAccount(int $accountId): int {
+		$qb = $this->db->getQueryBuilder();
+		$qb->update($this->getTableName())
+			->set('source_account_id', $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
+			->set('auto_post_enabled', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL))
+			->set('updated_at', $qb->createNamedParameter(date('Y-m-d H:i:s')))
+			->where($qb->expr()->eq('source_account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+
+		return $qb->executeStatement();
+	}
+
+	/**
 	 * Delete all schedules for a pension.
 	 */
 	public function deleteByPension(int $pensionId, string $userId): void {

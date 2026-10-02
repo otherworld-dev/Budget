@@ -12,6 +12,29 @@ import { apiFetch } from '../../utils/api.js';
 import { openAccounts } from '../../utils/accounts.js';
 import { showLoading, showLoadError } from '../../utils/loading.js';
 
+/**
+ * What a scheduled contribution's row shows. A manual schedule whose date
+ * had passed looked exactly like one still to come, so a missed
+ * contribution went unnoticed.
+ *
+ * @param {object} schedule a recurring contribution
+ * @param {string} today Y-m-d, the user's local date
+ * @return {{status: string, statusText: string, canPost: boolean}}
+ */
+export function scheduleRowState(schedule, today) {
+    if (!(schedule.isActive ?? true)) {
+        return { status: 'paused', statusText: t('budget', 'Paused'), canPost: false };
+    }
+    const next = schedule.nextDueDate;
+    if (next && next < today) {
+        return { status: 'overdue', statusText: t('budget', 'Overdue'), canPost: true };
+    }
+    if (next === today) {
+        return { status: 'due', statusText: t('budget', 'Due today'), canPost: true };
+    }
+    return { status: 'upcoming', statusText: '', canPost: true };
+}
+
 export default class PensionsModule {
     constructor(app) {
         this.app = app;
@@ -568,16 +591,12 @@ export default class PensionsModule {
         // Withdrawals only make sense for DC pensions (they have a pot).
         const withdrawalBtn = document.getElementById('record-withdrawal-btn');
         if (withdrawalBtn) withdrawalBtn.style.display = pension.isDefinedContribution ? '' : 'none';
-        const recurringSection = document.getElementById('pension-recurring-section');
-        if (recurringSection) recurringSection.style.display = pension.isDefinedContribution ? '' : 'none';
 
         // Load charts, activity and schedules
         await this.loadPensionBalanceChart(pensionId);
         await this.loadPensionProjectionChart(pensionId);
         await this.loadPensionActivity(pensionId);
-        if (pension.isDefinedContribution) {
-            await this.loadPensionRecurring(pensionId);
-        }
+        await this.loadPensionRecurring(pensionId, pension.isDefinedContribution);
     }
 
     closePensionDetails() {
@@ -1030,9 +1049,17 @@ export default class PensionsModule {
 
     // ===== Recurring contributions (#251) =====
 
-    async loadPensionRecurring(pensionId) {
+    /**
+     * Only a pension with a pot takes new schedules, but any schedules a
+     * pension has are listed: one left on a pension changed to defined
+     * benefit or state was hidden while it went on posting.
+     */
+    async loadPensionRecurring(pensionId, isDefinedContribution = this.currentPension?.isDefinedContribution ?? true) {
         const container = document.getElementById('pension-recurring-list');
         if (!container) return;
+        const section = document.getElementById('pension-recurring-section');
+        const addButton = document.getElementById('add-recurring-btn');
+        if (addButton) addButton.style.display = isDefinedContribution ? '' : 'none';
         try {
             let schedules;
             try {
@@ -1042,6 +1069,7 @@ export default class PensionsModule {
                 return;
             }
             this.recurringSchedules = schedules || [];
+            if (section) section.style.display = (isDefinedContribution || this.recurringSchedules.length > 0) ? '' : 'none';
             this.renderPensionRecurring(schedules);
         } catch (error) {
             console.error('Failed to load recurring contributions:', error);
@@ -1061,19 +1089,31 @@ export default class PensionsModule {
             quarterly: t('budget', 'Quarterly'),
             yearly: t('budget', 'Yearly'),
         };
+        const today = formatters.getTodayDateString();
         container.innerHTML = schedules.map(s => {
+            const state = scheduleRowState(s, today);
             const freq = freqLabels[s.frequency] || s.frequency;
             const amount = formatters.formatCurrency(s.amount, currency, this.settings);
             const next = formatters.formatDate(s.nextDueDate, this.settings);
             const auto = s.autoPostEnabled ? t('budget', 'auto') : t('budget', 'manual');
+            const account = s.sourceAccountId
+                ? (this.app.accounts || []).find(a => a.id === s.sourceAccountId)
+                : null;
+            const from = account ? ` · ${dom.escapeHtml(t('budget', 'from {account}', { account: account.name }))}` : '';
+            const status = state.statusText
+                ? ` <span class="recurring-status recurring-status-${state.status}">${dom.escapeHtml(state.statusText)}</span>`
+                : '';
+            const postButton = state.canPost
+                ? `<button class="icon-button recurring-post-btn" data-id="${s.id}" title="${t('budget', 'Post now')}" aria-label="${t('budget', 'Post now')}"><span class="icon-confirm" aria-hidden="true"></span></button>`
+                : '';
             return `
-                <div class="recurring-item" data-id="${s.id}">
+                <div class="recurring-item ${state.status}" data-id="${s.id}">
                     <div class="recurring-details">
-                        <div class="recurring-main">${amount} · ${freq} <span class="recurring-badge">${auto}</span></div>
+                        <div class="recurring-main">${amount} · ${freq}${from} <span class="recurring-badge">${auto}</span>${status}</div>
                         <div class="recurring-sub">${t('budget', 'Next: {date}', { date: next })}</div>
                     </div>
                     <div class="recurring-actions">
-                        <button class="icon-button recurring-post-btn" data-id="${s.id}" title="${t('budget', 'Post now')}" aria-label="${t('budget', 'Post now')}"><span class="icon-confirm" aria-hidden="true"></span></button>
+                        ${postButton}
                         <button class="icon-button recurring-delete-btn" data-id="${s.id}" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}"><span class="icon-delete" aria-hidden="true"></span></button>
                     </div>
                 </div>

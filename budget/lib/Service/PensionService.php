@@ -14,6 +14,7 @@ use OCA\Budget\Db\PensionSnapshot;
 use OCA\Budget\Db\PensionSnapshotMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IDBConnection;
+use OCP\IL10N;
 
 class PensionService {
 	private PensionAccountMapper $pensionMapper;
@@ -30,6 +31,7 @@ class PensionService {
 		private AccountMapper $accountMapper,
 		private PensionRecurringContributionMapper $recurringMapper,
 		private IDBConnection $db,
+		private IL10N $l,
 	) {
 		$this->pensionMapper = $pensionMapper;
 		$this->snapshotMapper = $snapshotMapper;
@@ -124,6 +126,13 @@ class PensionService {
 			$pension->setName($name);
 		}
 		if ($type !== null) {
+			// A defined benefit or state pension has no pot to pay into, and
+			// its page doesn't show scheduled contributions, so a schedule
+			// left on it would go on moving money where nobody can see it
+			if (!in_array($type, PensionAccount::DC_TYPES, true) && $pension->isDefinedContribution()
+				&& $this->recurringMapper->findByPension($id, $userId) !== []) {
+				throw new \InvalidArgumentException($this->l->t('Delete this pension\'s scheduled contributions before making it a defined benefit or state pension'));
+			}
 			$pension->setType($type);
 		}
 		if ($provider !== null) {

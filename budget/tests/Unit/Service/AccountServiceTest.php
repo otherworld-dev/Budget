@@ -282,6 +282,32 @@ class AccountServiceTest extends TestCase {
 		$this->service->delete(1, 'user1');
 	}
 
+	/**
+	 * A pension schedule funded from a deleted account kept auto-posting into
+	 * an account that no longer existed and failed quietly every six hours.
+	 * Deleting the account takes it off those schedules and turns their
+	 * auto-post off.
+	 */
+	public function testDeletingAnAccountTakesItOffThePensionSchedulesFundedFromIt(): void {
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->transactionMapper->method('findByAccount')->willReturn([]);
+		$schedules = $this->createMock(\OCA\Budget\Db\PensionRecurringContributionMapper::class);
+		$schedules->expects($this->once())->method('detachSourceAccount')->with(1);
+		$service = new AccountService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->createMock(InterestRateMapper::class),
+			$this->conversionService,
+			$this->granularShareService,
+			$this->transactionService,
+			$this->createMock(IL10N::class),
+			pensionRecurringMapper: $schedules,
+		);
+
+		$service->delete(1, 'user1');
+	}
+
 	// ===== deleteWithTransactions() (#336) =====
 
 	public function testDeleteWithTransactionsClearsLedgerThenDeletesAccount(): void {

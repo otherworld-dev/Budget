@@ -181,6 +181,7 @@ class NotifierTest extends TestCase {
 			'bill_auto_pay_failed' => ['bill_auto_pay_failed', ['billId' => 9, 'billName' => 'Gym', 'amount' => '$30.00', 'reason' => 'Account not found']],
 			'income_auto_created' => ['income_auto_created', ['incomeId' => 3, 'incomeName' => 'Salary', 'amount' => '$2,500.00', 'nextExpectedDate' => null]],
 			'income_auto_create_failed' => ['income_auto_create_failed', ['incomeId' => 4, 'incomeName' => 'Rental', 'amount' => '$600.00', 'reason' => 'Account closed']],
+			'pension_auto_post_failed' => ['pension_auto_post_failed', ['recurringId' => 7, 'pensionId' => 2, 'pensionName' => 'Work', 'amount' => '$200.00', 'reason' => 'The account this contribution comes from no longer exists']],
 			'share_invitation' => ['share_invitation', ['ownerUserId' => 'alice', 'ownerDisplayName' => 'Alice', 'shareId' => 5]],
 			'digest' => ['digest', ['frequency' => 'weekly', 'income' => '$1.00', 'expenses' => '$1.00', 'net' => '$0.00', 'billCount' => '2', 'anomalyCount' => '1']],
 			'spending_anomaly' => ['spending_anomaly', ['categoryName' => 'Groceries', 'percentAbove' => '45', 'amount' => '$320.00']],

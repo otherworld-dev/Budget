@@ -51,8 +51,15 @@ class PensionServiceTest extends TestCase {
 			$this->transactionService,
 			$this->accountMapper,
 			$this->recurringMapper,
-			$this->db
+			$this->db,
+			$this->l10n()
 		);
+	}
+
+	private function l10n(): \OCP\IL10N {
+		$l = $this->createMock(\OCP\IL10N::class);
+		$l->method('t')->willReturnCallback(fn ($text, $params = []) => vsprintf($text, $params));
+		return $l;
 	}
 
 	private function makePension(array $overrides = []): PensionAccount {
@@ -160,6 +167,30 @@ class PensionServiceTest extends TestCase {
 			});
 
 		$this->service->update(1, 'user1', 'Updated Name');
+	}
+
+	/**
+	 * A defined benefit or state pension has no pot to pay into, and its page
+	 * hides scheduled contributions, so a schedule left on it went on moving
+	 * money from the bank every month where the user could no longer see it.
+	 */
+	public function testChangingToAPensionWithNoPotIsRefusedWhileItHasSchedules(): void {
+		$this->pensionMapper->method('find')->willReturn($this->makePension(['type' => 'workplace']));
+		$this->recurringMapper->method('findByPension')->willReturn([new \OCA\Budget\Db\PensionRecurringContribution()]);
+		$this->pensionMapper->expects($this->never())->method('update');
+		$this->expectException(\InvalidArgumentException::class);
+
+		$this->service->update(1, 'user1', null, 'defined_benefit');
+	}
+
+	public function testChangingToAPensionWithNoPotIsAllowedWithoutSchedules(): void {
+		$this->pensionMapper->method('find')->willReturn($this->makePension(['type' => 'workplace']));
+		$this->recurringMapper->method('findByPension')->willReturn([]);
+		$this->pensionMapper->expects($this->once())->method('update')->willReturnArgument(0);
+
+		$pension = $this->service->update(1, 'user1', null, 'state');
+
+		$this->assertSame('state', $pension->getType());
 	}
 
 	// ===== delete =====

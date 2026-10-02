@@ -345,6 +345,40 @@ class PensionRecurringServiceTest extends TestCase {
 		$this->assertSame('2026-10-01', $recur->getNextDueDate(), 'Nothing posted, so nothing settled');
 	}
 
+	public function testAutoPostForAPensionThatNoLongerTakesContributionsSwitchesOff(): void {
+		// Changed to a defined benefit pension before such changes were refused
+		$recur = $this->makeRecur(['pensionId' => 3, 'nextDueDate' => '2026-10-01']);
+		$this->recurringMapper->method('find')->willReturn($recur);
+		$pensionMapper = $this->createMock(PensionAccountMapper::class);
+		$pensionMapper->method('find')->willReturn($this->makePension(3, 'defined_benefit'));
+		$service = new PensionRecurringService($this->recurringMapper, $pensionMapper, $this->pensionService,
+			new FrequencyCalculator(), $this->userClock, $this->l10n());
+		$this->pensionService->expects($this->never())->method('createContribution');
+
+		$result = $service->processAutoPost(5, 'user1');
+
+		$this->assertTrue($result['disabled']);
+		$this->assertSame('Work', $result['pensionName']);
+		$this->assertFalse($recur->getAutoPostEnabled());
+	}
+
+	public function testCreateRefusesAScheduleOnAPensionWithNoPot(): void {
+		$pensionMapper = $this->createMock(PensionAccountMapper::class);
+		$pensionMapper->method('find')->willReturn($this->makePension(3, 'state'));
+		$service = new PensionRecurringService($this->recurringMapper, $pensionMapper, $this->pensionService,
+			new FrequencyCalculator(), $this->userClock, $this->l10n());
+		$this->recurringMapper->expects($this->never())->method('insert');
+		$this->expectException(\InvalidArgumentException::class);
+
+		$service->create(3, 'user1', 200.0, 'monthly', null, true, '2026-11-01');
+	}
+
+	private function l10n(): IL10N {
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(fn ($text, $params = []) => vsprintf($text, $params));
+		return $l;
+	}
+
 	public function testProcessAutoPostReturnsFailureWhenTheScheduleIsGone(): void {
 		$this->recurringMapper->method('find')->willThrowException(new \RuntimeException('boom'));
 

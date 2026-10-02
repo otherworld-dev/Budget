@@ -293,6 +293,8 @@ class PensionController extends Controller {
 				$projectionTarget
 			);
 			return new DataResponse($pension);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleValidationError($e);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to update pension'), Http::STATUS_BAD_REQUEST, ['pensionId' => $id]);
 		}

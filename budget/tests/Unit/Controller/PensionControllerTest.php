@@ -413,6 +413,16 @@ class PensionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
+	public function testUpdateShowsWhyATypeChangeIsRefused(): void {
+		$this->mockInput(json_encode(['type' => 'defined_benefit']));
+		$this->service->method('update')->willThrowException(new \InvalidArgumentException('Delete its scheduled contributions first'));
+
+		$response = $this->controller->update(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Delete its scheduled contributions first', $response->getData()['error']);
+	}
+
 	public function testUpdateServiceException(): void {
 		$this->mockInput(json_encode(['name' => 'Updated']));
 		$this->service->method('update')->willThrowException(new \RuntimeException('err'));

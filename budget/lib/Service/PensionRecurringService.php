@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service;
 
+use OCA\Budget\Db\PensionAccount;
 use OCA\Budget\Db\PensionAccountMapper;
 use OCA\Budget\Db\PensionRecurringContribution;
 use OCA\Budget\Db\PensionRecurringContributionMapper;
@@ -72,7 +73,7 @@ class PensionRecurringService {
 		string $nextDueDate,
 		?string $note = null,
 	): PensionRecurringContribution {
-		$this->pensionMapper->find($pensionId, $userId); // verify ownership
+		$this->requireContributions($this->pensionMapper->find($pensionId, $userId)); // verifies ownership too
 		$this->validateFrequency($frequency);
 
 		$recur = new PensionRecurringContribution();
@@ -179,7 +180,11 @@ class PensionRecurringService {
 
 		$today = $this->userClock->today($userId);
 		$posted = 0;
+		$pensionName = null;
 		try {
+			$pension = $this->pensionMapper->find($recur->getPensionId(), $userId);
+			$pensionName = $pension->getName();
+			$this->requireContributions($pension);
 			while ($posted < self::MAX_AUTO_POST_CATCH_UP
 				&& $recur->getIsActive()
 				&& $recur->getNextDueDate() <= $today) {
@@ -198,13 +203,13 @@ class PensionRecurringService {
 			$recur->setAutoPostEnabled(false);
 			$recur->setUpdatedAt(date('Y-m-d H:i:s'));
 			$this->recurringMapper->update($recur);
-			return ['success' => false, 'disabled' => true, 'recurring' => $recur, 'message' => $e->getMessage()];
+			return ['success' => false, 'disabled' => true, 'recurring' => $recur, 'pensionName' => $pensionName, 'message' => $e->getMessage()];
 		}
 
 		if ($posted === 0) {
-			return ['success' => false, 'disabled' => false, 'recurring' => $recur, 'message' => 'Nothing due'];
+			return ['success' => false, 'disabled' => false, 'recurring' => $recur, 'pensionName' => $pensionName, 'message' => 'Nothing due'];
 		}
-		return ['success' => true, 'count' => $posted, 'recurring' => $recur];
+		return ['success' => true, 'count' => $posted, 'recurring' => $recur, 'pensionName' => $pensionName];
 	}
 
 	/**
@@ -312,6 +317,18 @@ class PensionRecurringService {
 	private function anchorOf(PensionRecurringContribution $recur): string {
 		$anchor = $recur->getAnchorDate();
 		return ($anchor !== null && $anchor !== '') ? $anchor : $recur->getNextDueDate();
+	}
+
+	/**
+	 * Only a pension with a pot (defined contribution) takes contributions;
+	 * a defined benefit or state pension hides its schedules.
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	private function requireContributions(PensionAccount $pension): void {
+		if (!$pension->isDefinedContribution()) {
+			throw new \InvalidArgumentException($this->l->t('%1$s is a defined benefit or state pension, which takes no contributions', [$pension->getName()]));
+		}
 	}
 
 	/**
