@@ -1950,10 +1950,17 @@ export default class ReportsModule {
      * months already gone are blank. Each cell's tooltip breaks the month
      * down and the row's gives the starting balance and the lowest point.
      * With no account picked, or another year, there is no balance to start
-     * from, so a hint stands in for the row.
+     * from, so a hint stands in for the row. An account shared with the user
+     * gets none either: the server knows only the user's own bills and
+     * income, so the other person's bills on it would be missing.
      */
     renderProjectedBalanceRow(account, projectedBalance, projectedFlows) {
         if (!account) {
+            const pickedId = document.getElementById('bills-calendar-account')?.value || '';
+            const picked = pickedId ? (this.accounts || []).find(a => String(a.id) === String(pickedId)) : null;
+            if (picked && picked._shared) {
+                return `<tr class="balance-hint-row"><td colspan="13">${t('budget', 'The projected balance is only shown for your own accounts, not ones shared with you.')}</td></tr>`;
+            }
             return `<tr class="balance-hint-row"><td colspan="13">${t('budget', 'Pick an account above to see its projected balance for the rest of the year.')}</td></tr>`;
         }
         if (!projectedBalance) {
