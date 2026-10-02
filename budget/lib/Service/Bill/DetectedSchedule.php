@@ -13,12 +13,14 @@ namespace OCA\Budget\Service\Bill;
  */
 class DetectedSchedule {
 	/**
+	 * The day is an ISO weekday (1-7) for weekly and bi-weekly schedules,
+	 * else a day of the month. The month is the one a quarterly, half-yearly
+	 * or yearly cycle runs from, and the start date the anchor a weekly or
+	 * bi-weekly schedule counts from.
+	 *
 	 * @param string $frequency A detected frequency
 	 * @param string[] $dates Y-m-d dates the payments were seen on
 	 * @return array{day: int, month: ?int, startDate: ?string}
-	 *   day: ISO weekday (1-7) for weekly/bi-weekly, else day of the month
-	 *   month: the month a quarterly, half-yearly or yearly cycle runs from
-	 *   startDate: the anchor a weekly or bi-weekly schedule counts from
 	 */
 	public static function fromDates(string $frequency, array $dates): array {
 		sort($dates);
