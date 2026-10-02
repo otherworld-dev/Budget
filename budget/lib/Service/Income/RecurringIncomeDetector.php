@@ -4,29 +4,39 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service\Income;
 
+use OCA\Budget\Db\RecurringIncomeMapper;
+use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
+use OCA\Budget\Service\Bill\RecurringBillDetector;
 
 /**
  * Detects recurring income from transaction patterns.
  */
 class RecurringIncomeDetector {
+	/** How TransactionService::createFromIncome() marks the rows it books */
+	private const INCOME_NOTE_PREFIX = 'Auto-generated from income:';
+
 	private TransactionMapper $transactionMapper;
 	private FrequencyCalculator $frequencyCalculator;
+	private RecurringIncomeMapper $incomeMapper;
 	private float $minAmount;
 
 	public function __construct(
 		TransactionMapper $transactionMapper,
 		FrequencyCalculator $frequencyCalculator,
+		RecurringIncomeMapper $incomeMapper,
 		float $minAmount = 10.0,
 	) {
 		$this->transactionMapper = $transactionMapper;
 		$this->frequencyCalculator = $frequencyCalculator;
+		$this->incomeMapper = $incomeMapper;
 		$this->minAmount = $minAmount;
 	}
 
 	/**
-	 * Auto-detect recurring income from transaction history.
+	 * Auto-detect recurring income from transaction history: credits that
+	 * repeat and that no recurring income tracks yet.
 	 *
 	 * @param string $userId User ID
 	 * @param int $months Number of months to analyze
@@ -53,7 +63,19 @@ class RecurringIncomeDetector {
 				continue;
 			}
 
-			$desc = $this->normalizeDescription($transaction->getDescription());
+			if ($this->isNotIncome($transaction)) {
+				continue;
+			}
+
+			// A blank description falls back to the payer, and a row with
+			// neither isn't grouped at all: blank credits of different
+			// sources shared one '' group, and the median filter could keep
+			// a transfer and drop the salary
+			$text = $this->rowText($transaction);
+			$desc = $this->normalizeDescription($text);
+			if ($desc === '') {
+				continue;
+			}
 			$amount = abs($transaction->getAmount());
 
 			// For income, group by description only (no amount bucketing)
@@ -62,7 +84,7 @@ class RecurringIncomeDetector {
 
 			if (!isset($grouped[$key])) {
 				$grouped[$key] = [
-					'description' => $transaction->getDescription(),
+					'description' => $text,
 					'amount' => $amount,
 					'amounts' => [],
 					'dates' => [],
@@ -75,6 +97,7 @@ class RecurringIncomeDetector {
 			$grouped[$key]['amounts'][] = $amount;
 		}
 
+		$tracked = $this->trackedPatterns($userId);
 		$detected = [];
 		$debugRejected = [];
 
@@ -147,6 +170,20 @@ class RecurringIncomeDetector {
 				continue;
 			}
 
+			// Already an income: offering it again made a second copy that
+			// doubled the monthly total and every projection
+			if ($this->isTracked($data['description'], $tracked)) {
+				if ($debug) {
+					$debugRejected[] = [
+						'description' => $data['description'],
+						'occurrences' => count($data['dates']),
+						'avgInterval' => round($avgInterval, 1),
+						'reason' => 'already_tracked',
+					];
+				}
+				continue;
+			}
+
 			// Calculate average amount
 			$avgAmount = array_sum($data['amounts']) / count($data['amounts']);
 
@@ -201,6 +238,74 @@ class RecurringIncomeDetector {
 		}
 
 		return $detected;
+	}
+
+	/**
+	 * Credits that aren't income, or that an income already books:
+	 *  - a transfer's deposit leg, whether a scheduled transfer booked it
+	 *    (bill_id) or two imported rows were linked as one
+	 *  - a pension withdrawal's bank leg
+	 *  - the rows an income's auto-create or Mark received books (there's no
+	 *    income id on a transaction, only the note it is written with)
+	 *  - anything still scheduled, which hasn't arrived
+	 */
+	private function isNotIncome(Transaction $transaction): bool {
+		return $transaction->getBillId() !== null
+			|| $transaction->getLinkedTransactionId() !== null
+			|| $transaction->getPensionContribId() !== null
+			|| $transaction->getStatus() === 'scheduled'
+			|| str_starts_with((string)$transaction->getNotes(), self::INCOME_NOTE_PREFIX);
+	}
+
+	/** The row's description, or its payer when the description is blank */
+	private function rowText(Transaction $transaction): string {
+		$description = trim((string)$transaction->getDescription());
+		return $description !== '' ? $description : trim((string)$transaction->getVendor());
+	}
+
+	/**
+	 * What the user's existing incomes match on, normalized: the
+	 * auto-detect pattern as a substring, the name as whole words.
+	 *
+	 * @return array{patterns: string[], names: string[]}
+	 */
+	private function trackedPatterns(string $userId): array {
+		$patterns = [];
+		$names = [];
+		foreach ($this->incomeMapper->findAll($userId) as $income) {
+			$pattern = $this->normalizeDescription((string)$income->getAutoDetectPattern());
+			if ($pattern !== '') {
+				$patterns[] = $pattern;
+			}
+			$name = $this->normalizeDescription((string)$income->getName());
+			if ($name !== '') {
+				$names[] = $name;
+			}
+		}
+		return ['patterns' => $patterns, 'names' => $names];
+	}
+
+	/**
+	 * Whether an existing income already covers credits with this
+	 * description. A name only matches as whole words, so an income called
+	 * "Pay" doesn't hide "PAYPAL".
+	 */
+	private function isTracked(string $description, array $tracked): bool {
+		$normalized = $this->normalizeDescription($description);
+		if ($normalized === '') {
+			return false;
+		}
+		foreach ($tracked['patterns'] as $pattern) {
+			if (str_contains($normalized, $pattern) || str_contains($pattern, $normalized)) {
+				return true;
+			}
+		}
+		foreach ($tracked['names'] as $name) {
+			if (RecurringBillDetector::containsWords($normalized, $name) || RecurringBillDetector::containsWords($name, $normalized)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
