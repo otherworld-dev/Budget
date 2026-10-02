@@ -800,7 +800,7 @@ class BillService {
 			// A one-time bill's date is its schedule (#375): day and month follow it
 			$date = new \DateTimeImmutable($edited->getStartDate());
 			foreach (['dueDay' => (int)$date->format('j'), 'dueMonth' => (int)$date->format('n')] as $key => $value) {
-				if ($edited->{'get' . ucfirst($key)}() !== $value) {
+				if ($value !== $edited->{'get' . ucfirst($key)}()) {
 					$edited->{'set' . ucfirst($key)}($value);
 					$updates[$key] = $value;
 				}

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace OCA\Budget\Db;
 
 use OCA\Budget\Service\MoneyCalculator;
-use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCA\Budget\Service\UserClock;
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 
 /**

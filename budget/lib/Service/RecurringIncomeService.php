@@ -131,7 +131,7 @@ class RecurringIncomeService extends AbstractCrudService {
 		// an overdue payment and undid a skip
 		$scheduleChanged = false;
 		foreach (['frequency', 'expectedDay', 'expectedMonth', 'startDate'] as $key) {
-			if (array_key_exists($key, $updates) && $income->{'get' . ucfirst($key)}() != $updates[$key]) {
+			if (array_key_exists($key, $updates) && $updates[$key] != $income->{'get' . ucfirst($key)}()) {
 				$scheduleChanged = true;
 			}
 		}
@@ -332,7 +332,7 @@ class RecurringIncomeService extends AbstractCrudService {
 		}
 		$income->setReceivedUndoState(null);
 		// Restored values may be null, which the entity's change tracking skips
-		$this->mapper->updateFields($id, $userId, [
+		$this->writeFields($id, $userId, [
 			'next_expected_date' => $income->getNextExpectedDate(),
 			'last_received_date' => $income->getLastReceivedDate(),
 			'start_date' => $income->getStartDate(),
@@ -425,6 +425,13 @@ class RecurringIncomeService extends AbstractCrudService {
 			&& !$this->granularShareService->canWrite($income->getUserId(), ShareItem::TYPE_ACCOUNT, (int)$income->getAccountId())) {
 			throw new \InvalidArgumentException($this->l->t('This income uses an account you can no longer change. Edit it and choose another account.'));
 		}
+	}
+
+	/** Columns written straight to the row, nulls included (see RecurringIncomeMapper::updateFields()) */
+	private function writeFields(int $id, string $userId, array $fields): void {
+		/** @var RecurringIncomeMapper $mapper */
+		$mapper = $this->mapper;
+		$mapper->updateFields($id, $userId, $fields);
 	}
 
 	private function today(string $userId): string {
@@ -816,7 +823,7 @@ class RecurringIncomeService extends AbstractCrudService {
 			$this->transactionService->deleteAsAccountOwner($generated->getId());
 			// The undo snapshot named the credit just removed
 			$income->setReceivedUndoState(null);
-			$this->mapper->updateFields($income->getId(), $income->getUserId(), ['received_undo_state' => null]);
+			$this->writeFields($income->getId(), $income->getUserId(), ['received_undo_state' => null]);
 			return true;
 		}
 		return false;

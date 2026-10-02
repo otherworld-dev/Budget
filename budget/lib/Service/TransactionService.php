@@ -826,8 +826,8 @@ class TransactionService {
 			$on->modify('+3 days')->format('Y-m-d')
 		);
 		if ($arrivals !== []) {
-			usort($arrivals, fn (Transaction $a, Transaction $b) =>
-				abs(strtotime($a->getDate()) - $on->getTimestamp()) <=> abs(strtotime($b->getDate()) - $on->getTimestamp()));
+			usort($arrivals, fn (Transaction $a, Transaction $b)
+				=> abs(strtotime($a->getDate()) - $on->getTimestamp()) <=> abs(strtotime($b->getDate()) - $on->getTimestamp()));
 			$arrival = $arrivals[0];
 			$this->mapper->linkTransactions($withdrawal->getId(), $arrival->getId());
 			$this->update($arrival->getId(), $this->ownerOf($arrival), ['billId' => $bill->getId()]);

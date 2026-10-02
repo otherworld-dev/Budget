@@ -6,10 +6,10 @@ namespace OCA\Budget\Tests\Unit\Service;
 
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\AttachmentMapper;
+use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\ImportRuleMapper;
-use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Db\ShareMapper;
 use OCA\Budget\Db\TransactionMapper;

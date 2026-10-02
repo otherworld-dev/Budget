@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace OCA\Budget\Db;
 
 use OCA\Budget\Service\MoneyCalculator;
+use OCA\Budget\Service\UserClock;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\QBMapper;
 use OCP\DB\QueryBuilder\IQueryBuilder;
-use OCA\Budget\Service\UserClock;
 use OCP\IDBConnection;
 
 /**
