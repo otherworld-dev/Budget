@@ -202,6 +202,31 @@ class CrossUserLinksTest extends TestCase {
 	}
 
 	/**
+	 * Alice resets her data (or her account is deleted): nothing comes back,
+	 * so everything of Bob's that used her accounts, category, bill and rows
+	 * is cut, the way her own single deletes do it.
+	 */
+	public function testAResetWithNothingToCarryCutsEveryLink(): void {
+		$this->links->capture('alice');
+		$this->links->clearUser('alice');
+
+		$this->links->apply([]);
+		$t = $this->links->tables;
+
+		foreach ([40, 41] as $billId) {
+			$this->assertNull($t['budget_bills'][$billId]['account_id']);
+			$this->assertFalse($t['budget_bills'][$billId]['auto_pay_enabled']);
+		}
+		$this->assertNull($t['budget_bills'][40]['category_id']);
+		$this->assertSame([['categoryId' => null, 'amount' => 5.5]], json_decode($t['budget_bills'][40]['split_template'], true));
+		$this->assertNull($t['budget_bills'][42]['destination_account_id']);
+		$this->assertNull($t['budget_transactions'][102]['linked_transaction_id']);
+		$this->assertNull($t['budget_transactions'][106]['category_id']);
+		$this->assertArrayNotHasKey(104, $t['budget_transactions']);
+		$this->assertNull($t['budget_transactions'][105]['bill_id']);
+	}
+
+	/**
 	 * Bob restores his own backup: his bills on Alice's accounts may keep
 	 * them while he can still write to them, and only if each is the bill
 	 * he had here, pointing at the same account before.

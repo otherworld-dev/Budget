@@ -344,13 +344,13 @@ class CategoryService extends AbstractCrudService {
 		$category = $this->find($id, $userId);
 		$target = $this->find($targetId, $userId);
 
-		if ($position === 'child') {
-			if (in_array($targetId, $this->collectSelfAndDescendantIds($id, $userId), true)) {
-				throw new \InvalidArgumentException($this->l->t('A category cannot be nested inside itself'));
-			}
-			$newParentId = $targetId;
-		} else {
-			$newParentId = $target->getParentId();
+		// Next to one of its own subcategories puts it under its own branch
+		// just as nesting does: dropped above its child, a category became its
+		// own parent and the whole branch dropped out of the tree
+		$newParentId = $position === 'child' ? $targetId : $target->getParentId();
+		if ($newParentId !== null
+			&& in_array($newParentId, $this->collectSelfAndDescendantIds($id, $userId), true)) {
+			throw new \InvalidArgumentException($this->l->t('A category cannot be nested inside itself'));
 		}
 
 		// The owner's full sibling group at the destination level, excluding the
@@ -394,14 +394,25 @@ class CategoryService extends AbstractCrudService {
 	}
 
 	/**
-	 * This category id plus every descendant category id (recursive).
+	 * This category id plus every descendant category id.
+	 *
+	 * Each id is visited once, so a parent chain that loops back on itself
+	 * (left by a reorder before 3.0) ends the walk instead of recursing
+	 * forever.
 	 *
 	 * @return int[]
 	 */
 	private function collectSelfAndDescendantIds(int $id, string $userId): array {
 		$ids = [$id];
-		foreach ($this->getCategoryMapper()->findChildren($userId, $id) as $child) {
-			$ids = array_merge($ids, $this->collectSelfAndDescendantIds($child->getId(), $userId));
+		$seen = [$id => true];
+		for ($i = 0; $i < count($ids); $i++) {
+			foreach ($this->getCategoryMapper()->findChildren($userId, $ids[$i]) as $child) {
+				$childId = $child->getId();
+				if (!isset($seen[$childId])) {
+					$seen[$childId] = true;
+					$ids[] = $childId;
+				}
+			}
 		}
 		return $ids;
 	}

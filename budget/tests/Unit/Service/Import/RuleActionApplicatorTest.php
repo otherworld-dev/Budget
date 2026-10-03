@@ -1192,6 +1192,53 @@ class RuleActionApplicatorTest extends TestCase {
 		$this->assertStringContainsString("account 999 is not available to the rule's owner", strtolower($result['errors'][0]));
 	}
 
+	/**
+	 * Moving rows into an account writes to its ledger, so a rule may only
+	 * target a shared account the rule's owner can write to.
+	 */
+	public function testValidateRefusesAReadOnlySharedAccount(): void {
+		$this->accountMapper->method('find')->willThrowException(new \Exception('Account not found'));
+		$this->granularShareService->method('canAccess')->willReturn(true);
+		$this->granularShareService->method('canWrite')->willReturn(false);
+
+		$result = $this->applicator->validateActions([
+			'version' => 2,
+			'actions' => [['type' => 'set_account', 'value' => 8, 'behavior' => 'always', 'priority' => 100]],
+		], 'user123');
+
+		$this->assertFalse($result['valid']);
+		$this->assertStringContainsString('write access', $result['errors'][0]);
+	}
+
+	public function testValidateAcceptsAWritableSharedAccount(): void {
+		$this->accountMapper->method('find')->willThrowException(new \Exception('Account not found'));
+		$this->granularShareService->method('canWrite')->with('user123', 'account', 8)->willReturn(true);
+
+		$result = $this->applicator->validateActions([
+			'version' => 2,
+			'actions' => [['type' => 'set_account', 'value' => 8, 'behavior' => 'always', 'priority' => 100]],
+		], 'user123');
+
+		$this->assertTrue($result['valid']);
+	}
+
+	public function testARuleDoesNotMoveARowIntoAReadOnlySharedAccount(): void {
+		// A share made read-only after the rule was saved
+		$transaction = $this->createTransaction(['accountId' => 1]);
+		$this->accountMapper->method('find')->willThrowException(new \Exception('Account not found'));
+		$this->granularShareService->method('canAccess')->willReturn(true);
+		$this->granularShareService->method('canWrite')->willReturn(false);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [['type' => 'set_account', 'value' => 8, 'behavior' => 'always', 'priority' => 100]],
+		]);
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayNotHasKey('account', $changes);
+		$this->assertSame(1, $transaction->getAccountId());
+	}
+
 	public function testValidateInvalidTransactionType(): void {
 		$actions = [
 			'version' => 2,

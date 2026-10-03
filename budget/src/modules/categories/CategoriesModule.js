@@ -480,7 +480,7 @@ export default class CategoriesModule {
                 const draggedId = parseInt(e.dataTransfer.getData('text/plain'));
                 const targetId = parseInt(item.dataset.categoryId);
 
-                if (draggedId !== targetId) {
+                if (draggedId !== targetId && !this.isDropInOwnBranch(draggedId, item)) {
                     this.reorderCategory(draggedId, targetId, this.getDropPosition(e, item));
                 }
             });
@@ -501,6 +501,22 @@ export default class CategoriesModule {
                 });
             });
         });
+    }
+
+    /**
+     * Whether a drop on targetItem lands inside the dragged category's own
+     * branch. Any position next to or under one of its own subcategories
+     * would make it a descendant of itself, so such a drop is ignored.
+     *
+     * @param {number} draggedId - the category being dragged
+     * @param {HTMLElement} targetItem - the .category-item dropped on
+     * @returns {boolean}
+     */
+    isDropInOwnBranch(draggedId, targetItem) {
+        const draggedNode = document
+            .querySelector(`.category-item[data-category-id="${draggedId}"]`)
+            ?.closest('.category-node');
+        return !!draggedNode && draggedNode.contains(targetItem);
     }
 
     /**

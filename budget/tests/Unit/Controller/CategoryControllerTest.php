@@ -453,6 +453,108 @@ class CategoryControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	/** The service finds each id under the owner with the given parent. */
+	private function givenParents(array $parents): void {
+		$this->service->method('find')->willReturnCallback(function (int $id) use ($parents) {
+			$category = $this->makeCategory(['id' => $id, 'userId' => 'owner1']);
+			$category->setParentId($parents[$id] ?? null);
+			return $category;
+		});
+	}
+
+	public function testWriteRecipientCannotMoveACategoryToAnotherLevelByDroppingItNextToOne(): void {
+		// 1 is a top-level category, 2 sits under 9: above 2 would put 1 under 9
+		$this->granularShareService->method('resolveOwner')->willReturn('owner1');
+		$this->givenParents([2 => 9]);
+		$this->request->method('getParams')->willReturn(['targetId' => 2, 'position' => 'above']);
+		$this->service->expects($this->never())->method('reorderCategory');
+
+		$response = $this->controller->reorder(1);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+		$this->assertSame('Only the owner can move a shared category to another level', $response->getData()['error']);
+	}
+
+	public function testWriteRecipientCanStillReorderAmongSiblings(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn('owner1');
+		$this->givenParents([1 => 9, 2 => 9]);
+		$this->request->method('getParams')->willReturn(['targetId' => 2, 'position' => 'below']);
+		$this->service->expects($this->once())
+			->method('reorderCategory')->with(1, 'owner1', 2, 'below')
+			->willReturn($this->makeCategory());
+
+		$response = $this->controller->reorder(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testReorderRefusesATargetThisUserCannotSee(): void {
+		// 2 is one of owner1's categories that was never shared with user1
+		$this->granularShareService->method('resolveOwner')->willReturnCallback(
+			fn (string $userId, string $type, int $id) => $id === 2 ? null : 'owner1'
+		);
+		$this->request->method('getParams')->willReturn(['targetId' => 2, 'position' => 'below']);
+		$this->service->expects($this->never())->method('reorderCategory');
+
+		$response = $this->controller->reorder(1);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	public function testReorderRefusesATargetInAnotherPersonsTree(): void {
+		// 1 is user1's own, 7 is owner1's: next to it would mix the two trees
+		$this->givenFullControlOf([7]);
+		$this->request->method('getParams')->willReturn(['targetId' => 7, 'position' => 'above']);
+		$this->service->expects($this->never())->method('reorderCategory');
+
+		$response = $this->controller->reorder(1);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testFullControlCannotMoveNextToACategoryUnderAnUnsharedParent(): void {
+		// 7 and 8 are shared at Full control; 8's parent 99 never was
+		$this->granularShareService->method('resolveOwner')->willReturnCallback(
+			fn (string $userId, string $type, int $id) => in_array($id, [7, 8], true) ? 'owner1' : null
+		);
+		$this->granularShareService->method('canManage')->willReturn(true);
+		$this->givenParents([8 => 99]);
+		$this->request->method('getParams')->willReturn(['targetId' => 8, 'position' => 'above']);
+		$this->service->expects($this->never())->method('reorderCategory');
+
+		$response = $this->controller->reorder(7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Parent category not found', $response->getData()['error']);
+	}
+
+	public function testFullControlCannotEditACategoryUnderAnUnsharedParent(): void {
+		$this->granularShareService->method('resolveOwner')->willReturnCallback(
+			fn (string $userId, string $type, int $id) => $id === 7 ? 'owner1' : null
+		);
+		$this->granularShareService->method('canManage')->willReturn(true);
+		$this->request->method('getParams')->willReturn(['parentId' => 99]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controller->update(7, null, null, 99);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Parent category not found', $response->getData()['error']);
+	}
+
+	public function testReorderShowsWhyAMoveIntoItsOwnBranchWasRefused(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
+		$this->givenParents([6 => 5]);
+		$this->request->method('getParams')->willReturn(['targetId' => 6, 'position' => 'above']);
+		$this->service->method('reorderCategory')
+			->willThrowException(new \InvalidArgumentException('A category cannot be nested inside itself'));
+
+		$response = $this->controller->reorder(5);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('A category cannot be nested inside itself', $response->getData()['error']);
+	}
+
 	public function testCreatorCanDeleteASubcategoryTheyAdded(): void {
 		$this->givenFullControlOf([42]);
 		$this->service->expects($this->once())->method('deleteAsCreator')->with(42, 'owner1', 'user1');
