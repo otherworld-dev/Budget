@@ -41,7 +41,12 @@ class ShareService {
 		$this->l = $l;
 	}
 
-	private function mayShareWith(string $ownerUserId, \OCP\IUser $recipient): bool {
+	/**
+	 * Whether the admin's "only share with group members" setting lets
+	 * $ownerUserId share with $recipient: they need a group in common,
+	 * ignoring the groups the admin excluded from it.
+	 */
+	public function mayShareWith(string $ownerUserId, \OCP\IUser $recipient): bool {
 		if (!$this->shareManager->shareWithGroupMembersOnly()) {
 			return true;
 		}
