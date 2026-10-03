@@ -43,7 +43,7 @@ class MigrationServiceTest extends TestCase {
 			$expr = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
 			$expr->method('eq')->willReturn('eq');
 			$qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
-			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin', 'delete', 'insert', 'update', 'set', 'setValue'] as $m) {
+			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin', 'leftJoin', 'delete', 'insert', 'update', 'set', 'setValue'] as $m) {
 				$qb->method($m)->willReturnSelf();
 			}
 			$qb->method('expr')->willReturn($expr);
@@ -829,7 +829,7 @@ class MigrationServiceTest extends TestCase {
 			$expr = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
 			$expr->method('eq')->willReturn('eq');
 			$qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
-			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin', 'insert', 'update', 'set', 'setValue'] as $m) {
+			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin', 'leftJoin', 'insert', 'update', 'set', 'setValue'] as $m) {
 				$qb->method($m)->willReturnSelf();
 			}
 			$qb->method('delete')->willReturnCallback(function (string $table) use (&$deletedTables, $qb) {
@@ -1059,5 +1059,30 @@ class MigrationServiceTest extends TestCase {
 		// Not a snapshot at all
 		$row = $method->invoke($this->service, ['id' => 5, 'pension_id' => 3, 'post_undo_state' => 'garbage'], $spec, $idMaps);
 		$this->assertNull($row['post_undo_state']);
+	}
+
+	/**
+	 * A restore keeps bank connections but gives every account a new id, so
+	 * a mapping left alone pointed at nothing and bank sync silently stopped.
+	 * It follows its account only when the backup holds that same account.
+	 */
+	public function testBankMappingsFollowTheirAccountOnlyWhenItIsTheSameOne(): void {
+		$created = '2026-01-01 10:00:00';
+		$archived = [
+			['id' => 7, 'name' => 'Current', 'createdAt' => '2026-01-01T10:00:00+00:00'],
+			['id' => 8, 'name' => 'Savings', 'createdAt' => $created],
+		];
+		$mappings = [
+			// The same account, restored under a new id
+			['id' => 1, 'accountId' => 7, 'name' => 'Current', 'createdAt' => $created],
+			// Same id, but a different account (a backup from another server)
+			['id' => 2, 'accountId' => 8, 'name' => 'Joint', 'createdAt' => $created],
+			// An account the backup doesn't hold
+			['id' => 3, 'accountId' => 9, 'name' => 'Old card', 'createdAt' => $created],
+		];
+
+		$targets = MigrationService::bankMappingTargets($mappings, $archived, [7 => 70, 8 => 80]);
+
+		$this->assertSame([1 => 70, 2 => null, 3 => null], $targets);
 	}
 }

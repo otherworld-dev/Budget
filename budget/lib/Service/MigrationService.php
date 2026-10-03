@@ -73,7 +73,8 @@ class MigrationService {
 	 *
 	 * Deliberately NOT exported: audit log and idempotency keys (instance
 	 * state), bank-sync connections/mappings (provider agreements and
-	 * credentials are instance-specific), shares (reference other Nextcloud
+	 * credentials are instance-specific; a restore keeps them and moves the
+	 * mappings to the restored accounts, see bankMappingTargets()), shares (reference other Nextcloud
 	 * users), attachments (file ids do not survive), fetched exchange-rate
 	 * cache (manual rates ARE exported), legacy tables nothing reads.
 	 */
@@ -351,12 +352,17 @@ class MigrationService {
 			// shared accounts), read before it is deleted
 			$this->crossUserLinks?->capture($userId);
 			$this->billsDetached = 0;
+			// Bank connections stay through a restore, so their account
+			// mappings must follow the accounts to their new ids
+			$bankMappings = $this->readBankMappings($userId);
 
 			// Delete all existing data for user
 			$this->clearUserData($userId);
 
 			// Import in dependency order with ID remapping
 			$idMaps = $this->importData($userId, $importData);
+
+			$this->rePointBankMappings(self::bankMappingTargets($bankMappings, $importData['accounts'] ?? [], $idMaps['accounts'] ?? []));
 
 			// Point those links at the restored rows, or cut them
 			$links = $this->crossUserLinks?->apply($idMaps) ?? ['sharesDropped' => 0, 'othersDetached' => 0];
@@ -386,6 +392,84 @@ class MigrationService {
 		} catch (\Exception $e) {
 			$this->db->rollBack();
 			throw $e;
+		}
+	}
+
+	/**
+	 * The user's bank account mappings that point at an account, with that
+	 * account's name and creation time, read before the restore clears it.
+	 *
+	 * @return list<array{id: int, accountId: int, name: mixed, createdAt: mixed}>
+	 */
+	private function readBankMappings(string $userId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('m.id', 'm.budget_account_id', 'a.name', 'a.created_at')
+			->from('budget_bam', 'm')
+			->innerJoin('m', 'budget_bc', 'c', $qb->expr()->eq('m.connection_id', 'c.id'))
+			->leftJoin('m', 'budget_accounts', 'a', $qb->expr()->eq('m.budget_account_id', 'a.id'))
+			->where($qb->expr()->eq('c.user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->isNotNull('m.budget_account_id'));
+		$result = $qb->executeQuery();
+		$rows = [];
+		while ($row = $result->fetch()) {
+			$rows[] = [
+				'id' => (int)$row['id'],
+				'accountId' => (int)$row['budget_account_id'],
+				'name' => $row['name'] ?? null,
+				'createdAt' => $row['created_at'] ?? null,
+			];
+		}
+		$result->closeCursor();
+		return $rows;
+	}
+
+	/**
+	 * Where each bank account mapping points after a restore: the restored
+	 * id of the account it pointed at, or null to unlink it.
+	 *
+	 * Bank connections aren't in the backup and a restore keeps them, but
+	 * every account comes back under a new id, so a mapping left alone
+	 * pointed at an account that no longer existed and bank sync silently
+	 * stopped importing into it. A mapping follows its account only when the
+	 * backup holds that account under the id it had here, with the same name
+	 * and creation time (CrossUserLinks::fingerprint()): true for the user's
+	 * own backup restored on the same server, and never for one from
+	 * another server, where the same id meant a different account. Anything
+	 * else is unlinked, and the user picks the account again in bank sync.
+	 *
+	 * @param list<array{id: int, accountId: int, name: mixed, createdAt: mixed}> $mappings
+	 * @param array<int, array<string, mixed>> $archivedAccounts the archive's accounts
+	 * @param array<int, int> $accountMap old account id => restored id
+	 * @return array<int, int|null> mapping id => account id, or null to unlink
+	 */
+	public static function bankMappingTargets(array $mappings, array $archivedAccounts, array $accountMap): array {
+		$archived = [];
+		foreach ($archivedAccounts as $account) {
+			if (is_array($account) && isset($account['id'])) {
+				$archived[(int)$account['id']] = CrossUserLinks::fingerprint($account['name'] ?? null, $account['createdAt'] ?? null);
+			}
+		}
+		$targets = [];
+		foreach ($mappings as $mapping) {
+			$oldId = $mapping['accountId'];
+			$before = CrossUserLinks::fingerprint($mapping['name'], $mapping['createdAt']);
+			$targets[$mapping['id']] = $before !== null && ($archived[$oldId] ?? null) === $before
+				? ($accountMap[$oldId] ?? null)
+				: null;
+		}
+		return $targets;
+	}
+
+	/**
+	 * @param array<int, int|null> $targets mapping id => account id, or null
+	 */
+	private function rePointBankMappings(array $targets): void {
+		foreach ($targets as $mappingId => $accountId) {
+			$qb = $this->db->getQueryBuilder();
+			$qb->update('budget_bam')
+				->set('budget_account_id', $qb->createNamedParameter($accountId, $accountId === null ? IQueryBuilder::PARAM_NULL : IQueryBuilder::PARAM_INT))
+				->where($qb->expr()->eq('id', $qb->createNamedParameter($mappingId, IQueryBuilder::PARAM_INT)));
+			$qb->executeStatement();
 		}
 	}
 

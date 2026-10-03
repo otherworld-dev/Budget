@@ -206,6 +206,62 @@ class MigrationRoundTripTest extends IntegrationTestCase {
 	}
 
 	/**
+	 * Bank connections stay through a restore, but every account comes back
+	 * under a new id: a mapping left alone pointed at an account that no
+	 * longer existed and bank sync silently stopped importing into it.
+	 */
+	public function testABankMappingFollowsItsAccountThroughARestore(): void {
+		$ids = $this->seedEveryTable($this->userId);
+		$archive = $this->migration->exportAll($this->userId)['content'];
+
+		$this->migration->importAll($this->userId, $archive);
+
+		$mapped = $this->db()->executeQuery(
+			'SELECT a.name, a.user_id FROM *PREFIX*budget_bam m'
+			. ' INNER JOIN *PREFIX*budget_bc c ON c.id = m.connection_id'
+			. ' INNER JOIN *PREFIX*budget_accounts a ON a.id = m.budget_account_id'
+			. ' WHERE c.user_id = ?',
+			[$this->userId]
+		)->fetchAll();
+		$this->assertSame([['name' => 'Current', 'user_id' => $this->userId]], $mapped);
+		$this->assertNotContains($ids['current'], array_map('intval', $this->db()->executeQuery(
+			'SELECT id FROM *PREFIX*budget_accounts WHERE user_id = ?', [$this->userId]
+		)->fetchFirstColumn()), 'The account really came back under a new id');
+	}
+
+	/**
+	 * A backup of a different account that happens to carry the same id (one
+	 * from another server) must not inherit the bank feed: the mapping is
+	 * unlinked instead, for the user to choose the account again.
+	 */
+	public function testABankMappingIsUnlinkedWhenTheBackupHoldsADifferentAccount(): void {
+		$this->seedEveryTable($this->userId);
+		$archive = $this->renameArchivedAccounts($this->migration->exportAll($this->userId)['content']);
+
+		$this->migration->importAll($this->userId, $archive);
+
+		$this->assertSame(1, $this->countRows('budget_bam', ['budget_account_id' => null]));
+		$this->assertSame([], $this->danglingReferences());
+	}
+
+	private function renameArchivedAccounts(string $zipContent): string {
+		$path = tempnam(sys_get_temp_dir(), 'budget-it-');
+		file_put_contents($path, $zipContent);
+		$zip = new \ZipArchive();
+		$zip->open($path);
+		$accounts = json_decode((string)$zip->getFromName('accounts.json'), true);
+		foreach ($accounts as &$account) {
+			$account['name'] .= ' (other server)';
+		}
+		unset($account);
+		$zip->addFromString('accounts.json', json_encode($accounts));
+		$zip->close();
+		$content = (string)file_get_contents($path);
+		unlink($path);
+		return $content;
+	}
+
+	/**
 	 * The table-level import used to bind every value as a string, so a
 	 * boolean false reached PostgreSQL as '' and any backup holding a tag
 	 * failed to restore there. The archive also carries booleans in whatever
