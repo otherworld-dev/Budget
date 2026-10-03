@@ -1202,9 +1202,9 @@ class TransactionMapper extends QBMapper {
 	 *                          negative total, and 'count' counts BOTH
 	 *                          directions, not just the primary one.
 	 * @param bool $includeUncategorized When true, money with no category (a
-	 *                          split part with none included) comes back as one
-	 *                          more row with a null id, flagged 'uncategorized',
-	 *                          so a report's category rows add up to its total.
+	 *                                   split part with none included) comes back as one
+	 *                                   more row with a null id, flagged 'uncategorized',
+	 *                                   so a report's category rows add up to its total.
 	 */
 	public function getSpendingSummary(
 		string $userId,
