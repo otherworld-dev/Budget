@@ -28,7 +28,15 @@ use OCP\IL10N;
  * Service for exporting and importing all user data for migration between instances.
  */
 class MigrationService {
-	private const EXPORT_VERSION = '1.2.0';
+	/**
+	 * The archive format. Bump the minor version whenever the archive gains
+	 * columns or files: 2.54's importer writes every key it finds into its
+	 * tables, so a newer archive fails there with SQL errors, and only a
+	 * newer version number makes its preview warn first. 1.3.0 added the
+	 * pension post undo state and anchor date, the recurring income receipt
+	 * undo state and the category creator.
+	 */
+	public const EXPORT_VERSION = '1.3.0';
 	private const APP_ID = 'budget';
 
 	/**
@@ -524,10 +532,11 @@ class MigrationService {
 		$importData = $this->parseZipArchive($zipContent);
 		$warnings = [];
 
-		// Check version compatibility
-		$version = $importData['manifest']['version'] ?? 'unknown';
+		// Older formats import (missing data takes its defaults); a newer one
+		// may hold data this version can't restore
+		$version = (string)($importData['manifest']['version'] ?? 'unknown');
 		if (version_compare($version, self::EXPORT_VERSION, '>')) {
-			$warnings[] = "Export version ($version) is newer than supported (" . self::EXPORT_VERSION . ')';
+			$warnings[] = $this->t('This backup was made by a newer version of Budget (backup format %1$s, this server reads up to %2$s). Some of its data may not be restored. Update Budget first if you can.', [$version, self::EXPORT_VERSION]);
 		}
 
 		return [

@@ -110,6 +110,34 @@ class MigrationServiceTest extends TestCase {
 		$this->assertStringContainsString('newer', $result['warnings'][0]);
 	}
 
+	/**
+	 * 3.0's archive carries columns 2.54 doesn't have, and 2.54 writes every
+	 * key it finds, so the format version must move on for 2.54's preview to
+	 * warn. Older backups still import here without a warning.
+	 */
+	public function testTheFormatVersionMovedOnAndOlderBackupsDoNotWarn(): void {
+		$this->assertTrue(version_compare(MigrationService::EXPORT_VERSION, '1.2.0', '>'), 'The archive gained columns since 1.2.0');
+
+		foreach (['1.0.0', '1.2.0', MigrationService::EXPORT_VERSION] as $version) {
+			$result = $this->service->previewImport($this->createTestZip([
+				'manifest.json' => json_encode(['version' => $version, 'appId' => 'budget']),
+				'categories.json' => '[]',
+				'accounts.json' => '[]',
+				'transactions.json' => '[]',
+			]));
+			$this->assertSame([], $result['warnings'], "A $version backup previews without a warning");
+		}
+
+		$result = $this->service->previewImport($this->createTestZip([
+			'manifest.json' => json_encode(['version' => '1.4.0', 'appId' => 'budget']),
+			'categories.json' => '[]',
+			'accounts.json' => '[]',
+			'transactions.json' => '[]',
+		]));
+		$this->assertCount(1, $result['warnings']);
+		$this->assertStringContainsString('1.4.0', $result['warnings'][0]);
+	}
+
 	public function testPreviewImportCountsEntities(): void {
 		$zipContent = $this->createTestZip([
 			'manifest.json' => json_encode(['version' => '1.0.0', 'appId' => 'budget']),
@@ -478,7 +506,7 @@ class MigrationServiceTest extends TestCase {
 
 		$manifest = json_decode($zip->getFromName('manifest.json'), true);
 		$this->assertEquals('budget', $manifest['appId']);
-		$this->assertEquals('1.2.0', $manifest['version']);
+		$this->assertEquals(MigrationService::EXPORT_VERSION, $manifest['version']);
 		$this->assertEquals(1, $manifest['counts']['categories']);
 		$this->assertEquals(1, $manifest['counts']['accounts']);
 
