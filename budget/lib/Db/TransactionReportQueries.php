@@ -259,7 +259,7 @@ class TransactionReportQueries {
 	 *
 	 * @param int[] $tagIds Optional tag filter (OR logic)
 	 * @param bool $includeUntagged Include untagged transactions when filtering by tags
-	 * @return array<int, array{month: string, account_id: int, income: float, expenses: float, net: float}>
+	 * @return array<int, array{month: string, account_id: int, income: float, expenses: float, net: float, count: int}>
 	 */
 	public function getCashFlowByMonthByAccount(
 		string $userId,

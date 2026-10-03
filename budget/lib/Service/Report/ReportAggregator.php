@@ -671,7 +671,7 @@ class ReportAggregator {
 			$byMonth[$month]['income'] = MoneyCalculator::add($byMonth[$month]['income'], $income, self::SUM_SCALE);
 			$byMonth[$month]['expenses'] = MoneyCalculator::add($byMonth[$month]['expenses'], $expenses, self::SUM_SCALE);
 			// A transaction is in one account, so the per-account counts add up
-			$byMonth[$month]['count'] += (int)($row['count'] ?? 0);
+			$byMonth[$month]['count'] += $row['count'];
 		}
 
 		// Recalculate net after aggregation
