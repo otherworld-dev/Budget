@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-10-03 01:04+0000\n"
+"POT-Creation-Date: 2026-10-03 18:45+0000\n"
 "PO-Revision-Date: 2026-09-26 12:51+0000\n"
 "Last-Translator: marcosab1991 <marcosab1991@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -27,7 +27,7 @@ msgstr "Error al obtener las cuentas"
 
 #: /app/lib/Controller/AccountController.php:90
 #: /app/lib/Controller/AccountController.php:657
-#: /app/lib/Controller/ApiV1TransactionController.php:458
+#: /app/lib/Controller/ApiV1TransactionController.php:460
 #, fuzzy
 msgid "Account not found"
 msgstr "Cuenta no encontrada"
@@ -140,6 +140,7 @@ msgid "Invalid request data"
 msgstr "Datos de solicitud no válidos"
 
 #: /app/lib/Controller/AccountController.php:481
+#: /app/lib/Controller/ApiV1TransactionController.php:773
 #: /app/lib/Controller/BillController.php:758
 #: /app/lib/Controller/CategoryController.php:353
 #: /app/lib/Controller/CategoryController.php:449
@@ -290,7 +291,7 @@ msgid "Failed to retrieve categories"
 msgstr "Error al obtener las categorías"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:73
-#: /app/lib/Controller/ApiV1TransactionController.php:731
+#: /app/lib/Controller/ApiV1TransactionController.php:732
 #: /app/lib/Controller/AttachmentController.php:91
 #: /app/lib/Controller/ImportController.php:111
 #: /app/lib/Controller/MigrationController.php:83
@@ -320,31 +321,33 @@ msgid ""
 "the transaction manually"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:102
+#: /app/lib/Controller/ApiV1TransactionController.php:104
 msgid "Invalid date. Use the YYYY-MM-DD format"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:138
-#: /app/lib/Controller/ApiV1TransactionController.php:179
+#: /app/lib/Controller/ApiV1TransactionController.php:140
+#: /app/lib/Controller/ApiV1TransactionController.php:181
 #: /app/lib/Controller/TransactionController.php:129
 #: /app/lib/Controller/TransactionController.php:184
 msgid "Failed to retrieve transactions"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:193
-#: /app/lib/Controller/ApiV1TransactionController.php:210
+#: /app/lib/Controller/ApiV1TransactionController.php:195
+#: /app/lib/Controller/ApiV1TransactionController.php:212
 msgid "Failed to retrieve transaction"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:306
+#: /app/lib/Controller/ApiV1TransactionController.php:308
+#: /app/lib/Controller/ApiV1TransactionController.php:908
 msgid "Amount must be a number"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:311
+#: /app/lib/Controller/ApiV1TransactionController.php:313
 msgid "An account is required"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:316
+#: /app/lib/Controller/ApiV1TransactionController.php:318
+#: /app/lib/Controller/ApiV1TransactionController.php:898
 #: /app/lib/Controller/AssetController.php:326
 #: /app/lib/Controller/PensionController.php:358
 #: /app/lib/Controller/PensionController.php:430
@@ -368,63 +371,103 @@ msgstr ""
 msgid "Date"
 msgstr "Fecha"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:336
+#: /app/lib/Controller/ApiV1TransactionController.php:338
+#: /app/lib/Controller/ApiV1TransactionController.php:916
 #: /app/lib/Controller/TransactionController.php:321
 #: /app/lib/Controller/TransactionController.php:431
 msgid "Invalid transaction type. Must be credit or debit"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:348
+#: /app/lib/Controller/ApiV1TransactionController.php:350
 msgid "Idempotency key too long (64 characters maximum)"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:426
-#: /app/lib/Controller/ApiV1TransactionController.php:578
+#: /app/lib/Controller/ApiV1TransactionController.php:428
+#: /app/lib/Controller/ApiV1TransactionController.php:580
 msgid "The transaction was recorded, but the photo could not be attached"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:452
+#: /app/lib/Controller/ApiV1TransactionController.php:454
 msgid "The transaction was recorded, but it could not be split"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:462
+#: /app/lib/Controller/ApiV1TransactionController.php:464
 #: /app/lib/Controller/TransactionController.php:382
 msgid "Failed to create transaction"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:541
+#: /app/lib/Controller/ApiV1TransactionController.php:543
 msgid "This idempotency key was already used for a different transaction"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:550
+#: /app/lib/Controller/ApiV1TransactionController.php:552
 msgid "This request is still being processed. Try again shortly"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:625
+#: /app/lib/Controller/ApiV1TransactionController.php:627
 msgid ""
 "splits must be an array of {\"amount\", \"category_id\", \"description\"} "
 "objects"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:646
+#: /app/lib/Controller/ApiV1TransactionController.php:647
 msgid "Failed to split the transaction"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:718
+#: /app/lib/Controller/ApiV1TransactionController.php:719
 #: /app/lib/Controller/AttachmentController.php:46
 #: /app/lib/Controller/AttachmentController.php:59
 #: /app/src/modules/transactions/TransactionsModule.js:2819
 msgid "Failed to load attachments"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:743
+#: /app/lib/Controller/ApiV1TransactionController.php:744
 #: /app/lib/Controller/AttachmentController.php:101
 #: /app/src/modules/transactions/TransactionsModule.js:2830
 #: /app/src/modules/transactions/TransactionsModule.js:2835
 msgid "Failed to upload receipt"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:749
+#: /app/lib/Controller/ApiV1TransactionController.php:793
+#: /app/lib/Controller/ApiV1TransactionController.php:852
+#: /app/lib/Controller/TransactionController.php:514
+#: /app/src/modules/transactions/TransactionsModule.js:5147
+msgid "Failed to update transaction"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:823
+#: /app/src/modules/transactions/TransactionsModule.js:3492
+#: /app/src/modules/transactions/TransactionsModule.js:3515
+msgid "Failed to delete transaction"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:888
+#, php-format
+msgid "%s cannot be changed through the API"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:970
+msgid ""
+"This transaction is one side of a transfer, so its amount, type and date "
+"cannot be changed on their own"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:987
+msgid ""
+"This transaction is split, so its categories are changed through its splits"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:1002
+msgid ""
+"This transaction has been reconciled against a statement. Send "
+"confirm_reconciled to go ahead"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:1024
+msgid "category_id must be a category id or null"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:1031
 #: /app/lib/Controller/AttachmentController.php:57
 #: /app/lib/Controller/AttachmentController.php:72
 #: /app/lib/Controller/AttachmentController.php:97 /app/src/main.js:3326
@@ -977,6 +1020,7 @@ msgstr ""
 #: /app/lib/Controller/BillController.php:1356
 #: /app/src/modules/dashboard/DashboardModule.js:3359
 #: /app/src/modules/reports/ReportsModule.js:2006
+#: /app/src/modules/transactions/transactionRow.js:137
 msgid "Projected balance"
 msgstr ""
 
@@ -2694,11 +2738,6 @@ msgstr ""
 msgid "Invalid status. Must be cleared, scheduled or pending"
 msgstr "Estado no válido. Debe ser liquidado, programado o pendiente"
 
-#: /app/lib/Controller/TransactionController.php:514
-#: /app/src/modules/transactions/TransactionsModule.js:5147
-msgid "Failed to update transaction"
-msgstr ""
-
 #: /app/lib/Controller/TransactionController.php:551
 msgid "Failed to search transactions"
 msgstr ""
@@ -2794,8 +2833,8 @@ msgstr ""
 #: /app/src/modules/rules/RulesModule.js:1001
 #: /app/src/modules/transactions/TransactionsModule.js:5300
 #: /app/src/modules/transactions/transactionRow.js:68
-#: /app/src/modules/transactions/transactionRow.js:182
-#: /app/src/modules/transactions/transactionRow.js:224
+#: /app/src/modules/transactions/transactionRow.js:188
+#: /app/src/modules/transactions/transactionRow.js:230
 #: /app/templates/index.php:1474 /app/templates/index.php:1638
 msgid "Split"
 msgstr ""
@@ -4400,8 +4439,8 @@ msgstr ""
 #: /app/src/modules/transactions/TransactionsModule.js:3845
 #: /app/src/modules/transactions/TransactionsModule.js:4692
 #: /app/src/modules/transactions/transactionRow.js:122
-#: /app/src/modules/transactions/transactionRow.js:183
-#: /app/src/modules/transactions/transactionRow.js:225
+#: /app/src/modules/transactions/transactionRow.js:189
+#: /app/src/modules/transactions/transactionRow.js:231
 #: /app/templates/index.php:539 /app/templates/index.php:1464
 #: /app/templates/index.php:1628 /app/templates/quick-add.php:57
 msgid "Uncategorized"
@@ -5681,7 +5720,7 @@ msgstr ""
 
 #: /app/src/main.js:3345
 #: /app/src/modules/transactions/TransactionsModule.js:3661
-#: /app/src/modules/transactions/transactionRow.js:287
+#: /app/src/modules/transactions/transactionRow.js:293
 msgid "Unknown Account"
 msgstr ""
 
@@ -12075,9 +12114,9 @@ msgid "Select account..."
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:2002
-#: /app/src/modules/transactions/transactionRow.js:211
-#: /app/src/modules/transactions/transactionRow.js:293
-#: /app/src/modules/transactions/transactionRow.js:294
+#: /app/src/modules/transactions/transactionRow.js:217
+#: /app/src/modules/transactions/transactionRow.js:299
+#: /app/src/modules/transactions/transactionRow.js:300
 msgid "Edit transaction"
 msgstr ""
 
@@ -12328,11 +12367,6 @@ msgstr ""
 msgid ""
 "This transaction funds a pension contribution. Deleting it will unlink it "
 "from that contribution (the contribution itself is kept)."
-msgstr ""
-
-#: /app/src/modules/transactions/TransactionsModule.js:3492
-#: /app/src/modules/transactions/TransactionsModule.js:3515
-msgid "Failed to delete transaction"
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:3502
@@ -12628,30 +12662,30 @@ msgstr ""
 msgid "Funds a pension contribution — excluded from spending"
 msgstr ""
 
-#: /app/src/modules/transactions/transactionRow.js:167
+#: /app/src/modules/transactions/transactionRow.js:173
 msgid "No description"
 msgstr ""
 
-#: /app/src/modules/transactions/transactionRow.js:204
-#: /app/src/modules/transactions/transactionRow.js:280
+#: /app/src/modules/transactions/transactionRow.js:210
+#: /app/src/modules/transactions/transactionRow.js:286
 msgid "of {total}"
 msgstr ""
 
-#: /app/src/modules/transactions/transactionRow.js:214
+#: /app/src/modules/transactions/transactionRow.js:220
 msgid "Delete transaction"
 msgstr ""
 
-#: /app/src/modules/transactions/transactionRow.js:231
+#: /app/src/modules/transactions/transactionRow.js:237
 msgid "Select {description}"
 msgstr ""
 
-#: /app/src/modules/transactions/transactionRow.js:278
+#: /app/src/modules/transactions/transactionRow.js:284
 msgid ""
 "This amount is set by the transaction split. Open the split to change it."
 msgstr ""
 
-#: /app/src/modules/transactions/transactionRow.js:299
-#: /app/src/modules/transactions/transactionRow.js:300
+#: /app/src/modules/transactions/transactionRow.js:305
+#: /app/src/modules/transactions/transactionRow.js:306
 #: /app/templates/index.php:1587
 msgid "More actions"
 msgstr ""
