@@ -259,6 +259,24 @@ class FrequencyCalculator {
 		}
 	}
 
+	/**
+	 * The semi-monthly occurrence a stored date stands for.
+	 *
+	 * Before 3.0 the second date was the day plus fifteen but never past the
+	 * 28th, so a schedule on the 13th to 15th has due dates saved on the
+	 * 28th that are now the 28th to 30th. Paying the one on the 28th then
+	 * found the same occurrence again a day or two later and auto-pay paid
+	 * it twice. Such a date is that month's second occurrence.
+	 */
+	private function semiMonthlyLegacySlot(?int $dueDay, ?string $anchor, string $date): string {
+		$day = $dueDay ?? ($anchor !== null ? (int)substr($anchor, 8, 2) : 1);
+		if ($day < 13 || $day > 15 || substr($date, 8, 2) !== '28') {
+			return $date;
+		}
+		$second = $this->clamped((int)substr($date, 0, 4), (int)substr($date, 5, 2), $day + 15);
+		return max($date, $second);
+	}
+
 	/** $day of the month, or the month's last day when it has fewer */
 	private function clamped(int $year, int $month, int $day): string {
 		$last = (int)(new \DateTimeImmutable(sprintf('%04d-%02d-01', $year, $month)))->format('t');
@@ -310,6 +328,9 @@ class FrequencyCalculator {
 			// Without a start date, a weekly schedule counts on from the
 			// occurrence it just closed
 			$anchor = $anchorDate ?? (in_array($frequency, ['weekly', 'biweekly'], true) ? $fromDate : null);
+			if ($frequency === 'semi-monthly') {
+				$fromDate = $this->semiMonthlyLegacySlot($dueDay, $anchorDate, $fromDate);
+			}
 			$next = $this->occurrenceAfter($frequency, $dueDay, $dueMonth, $fromDate, $customPattern, $anchor);
 		} elseif ($fromDate !== null) {
 			$next = $this->occurrenceOnOrAfter($frequency, $dueDay, $dueMonth, max($fromDate, $today), $customPattern, $anchorDate);
