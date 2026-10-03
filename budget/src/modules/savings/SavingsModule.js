@@ -266,7 +266,7 @@ export default class SavingsModule {
         // A goal tracks a balance rather than posting into the account, so a
         // closed one is not offered anew but stays if already linked (#372).
         dropdown.innerHTML = `<option value="">${t('budget', 'No linked account')}</option>` +
-            pickableAccounts(this.accounts, dropdown.value).map(a =>
+            pickableAccounts(this.accounts, dropdown.value, { readOnlyShares: true }).map(a =>
                 `<option value="${a.id}">${dom.escapeHtml(accountOptionLabel(a))}</option>`
             ).join('');
     }
