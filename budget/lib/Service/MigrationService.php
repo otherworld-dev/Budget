@@ -58,6 +58,9 @@ class MigrationService {
 	 *           snapshot has, 'idLists' => keys holding transaction id lists,
 	 *           'accounts' => the row's account columns]: see
 	 *           remapUndoSnapshot()
+	 *   snapshotRefs  [JSON column => [key => idMapKey]]: an undo snapshot
+	 *           naming one row by id, moved to its restored id, or dropped
+	 *           whole when that row didn't come back: see remapSnapshotRefs()
 	 *   billKeyedType  dismissals of this suggestion_type are keyed by a
 	 *           bill id: see remapBillKeyedDismissal()
 	 *
@@ -168,6 +171,8 @@ class MigrationService {
 				'pension_id' => ['map' => 'pensions', 'onMissing' => 'drop'],
 				'source_account_id' => ['map' => 'accounts', 'onMissing' => 'null'],
 			],
+			// Undo of the last Post now deletes the contribution it names
+			'snapshotRefs' => ['post_undo_state' => ['contributionId' => 'pen_contribs']],
 		],
 		'pen_snaps' => [
 			'table' => 'budget_pen_snaps',
@@ -1280,6 +1285,12 @@ class MigrationService {
 			}
 		}
 
+		foreach ($spec['snapshotRefs'] ?? [] as $column => $refs) {
+			if (($row[$column] ?? null) !== null && $row[$column] !== '') {
+				$row[$column] = $this->remapSnapshotRefs($row[$column], $refs, $idMaps);
+			}
+		}
+
 		if (isset($spec['billKeyedType']) && ($row['suggestion_type'] ?? null) === $spec['billKeyedType']) {
 			return $this->remapBillKeyedDismissal($row, $idMaps);
 		}
@@ -1407,6 +1418,34 @@ class MigrationService {
 			$snapshot[$key] = $id;
 		}
 		return $snapshot;
+	}
+
+	/**
+	 * An undo snapshot whose keys name rows by id, with each moved to the
+	 * row's restored id, as JSON; null when any of them didn't come back or
+	 * it doesn't read as a snapshot.
+	 *
+	 * Copied as it was, a pension schedule's Undo looked for the contribution
+	 * under its old id, didn't find it, and put the schedule's dates back
+	 * anyway, so the occurrence posted again with the first one's money
+	 * still in place.
+	 *
+	 * @param mixed $raw the archived snapshot, decoded or as JSON
+	 * @param array<string, string> $refs snapshot key => id map key
+	 */
+	private function remapSnapshotRefs(mixed $raw, array $refs, array $idMaps): ?string {
+		$snapshot = is_string($raw) ? json_decode($raw, true) : $raw;
+		if (!is_array($snapshot)) {
+			return null;
+		}
+		foreach ($refs as $key => $map) {
+			$oldId = $snapshot[$key] ?? null;
+			if (!is_numeric($oldId) || !isset($idMaps[$map][(int)$oldId])) {
+				return null;
+			}
+			$snapshot[$key] = $idMaps[$map][(int)$oldId];
+		}
+		return json_encode($snapshot);
 	}
 
 	/**

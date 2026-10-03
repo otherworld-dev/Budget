@@ -773,6 +773,12 @@ class MigrationServiceTest extends TestCase {
 				$this->assertArrayHasKey($fkSpec['map'], $produced,
 					"post-phase $key.$col references map '{$fkSpec['map']}' not yet produced");
 			}
+			foreach ($spec['snapshotRefs'] ?? [] as $col => $refs) {
+				foreach ($refs as $ref => $map) {
+					$this->assertArrayHasKey($map, $produced,
+						"post-phase $key.$col.$ref references map '$map' not yet produced");
+				}
+			}
 			if (isset($spec['idMap'])) {
 				$produced[$spec['idMap']] = 1;
 			}
@@ -1024,5 +1030,34 @@ class MigrationServiceTest extends TestCase {
 		$this->assertFalse((bool)$groceries->getExcludedFromBudget());
 		$this->assertFalse((bool)$groceries->getBudgetRollover());
 		$this->assertNull($groceries->getRolloverStart());
+	}
+
+	/**
+	 * A pension schedule's Post now undo state names the contribution it
+	 * recorded. Copied as it was, the old id named nothing after a restore,
+	 * and Undo put the dates back while the money stayed, so the occurrence
+	 * posted twice.
+	 */
+	public function testPensionScheduleUndoStateFollowsItsContribution(): void {
+		$method = new \ReflectionMethod($this->service, 'remapRow');
+		$spec = MigrationService::EXTRA_TABLES_POST['pen_recur'];
+		$idMaps = ['pensions' => [3 => 30], 'accounts' => [], 'pen_contribs' => [41 => 410]];
+		$state = ['nextDueDate' => '2026-10-01', 'lastPostedDate' => null, 'isActive' => true,
+			'contributionId' => 41, 'contributionDate' => '2026-10-02', 'amount' => 200.0];
+
+		$row = $method->invoke($this->service, ['id' => 5, 'pension_id' => 3, 'post_undo_state' => json_encode($state)], $spec, $idMaps);
+		$restored = json_decode($row['post_undo_state'], true);
+		$this->assertSame(410, $restored['contributionId']);
+		$this->assertSame('2026-10-01', $restored['nextDueDate']);
+
+		// A contribution the backup doesn't hold: nothing left to undo
+		$state['contributionId'] = 99;
+		$row = $method->invoke($this->service, ['id' => 5, 'pension_id' => 3, 'post_undo_state' => json_encode($state)], $spec, $idMaps);
+		$this->assertNotNull($row, 'The schedule itself is kept');
+		$this->assertNull($row['post_undo_state']);
+
+		// Not a snapshot at all
+		$row = $method->invoke($this->service, ['id' => 5, 'pension_id' => 3, 'post_undo_state' => 'garbage'], $spec, $idMaps);
+		$this->assertNull($row['post_undo_state']);
 	}
 }
