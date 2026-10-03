@@ -822,6 +822,35 @@ class ReportAggregatorTest extends TestCase {
 		);
 	}
 
+	/**
+	 * Money under a category shared with the viewer was counted in Net but
+	 * had no row, so the rows didn't add up. It now gets a row by name, and
+	 * money under a category the viewer can't see at all joins Uncategorized.
+	 */
+	public function testCategoryMonthlyRowsAddUpWithSharedAndUnknownCategories(): void {
+		$this->conversionService->method('getBaseCurrency')->willReturn('USD');
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(1, 'Salary', 'income'),
+		]);
+		$this->granularShareService->method('getSharedCategoryIds')->willReturn([1, 5]);
+		$this->categoryMapper->method('findByIdsUnscoped')->with([5])->willReturn([
+			$this->makeCategory(5, 'Joint groceries', 'expense'),
+		]);
+		$this->reportQueries->method('getCategoryNetByMonth')->willReturn([
+			1 => ['2026-01' => 3000.0],
+			5 => ['2026-01' => -400.0],
+			9 => ['2026-01' => -50.0],
+			TransactionReportQueries::UNCATEGORIZED => ['2026-01' => -25.0],
+		]);
+
+		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-01-01', '2026-01-31');
+
+		$this->assertSame(['Joint groceries', 'Salary', null], array_column($r['rows'], 'name'));
+		$this->assertEqualsWithDelta(-75.0, $r['rows'][2]['total'], 0.001);
+		$this->assertEqualsWithDelta(2525.0, $r['totals']['total'], 0.001);
+		$this->assertEqualsWithDelta($r['totals']['total'], array_sum(array_column($r['rows'], 'total')), 0.001);
+	}
+
 	public function testCategoryMonthlyHasNoUncategorizedRowWhenItNetsToZero(): void {
 		$this->conversionService->method('getBaseCurrency')->willReturn('USD');
 		$this->categoryMapper->method('findAll')->willReturn([
