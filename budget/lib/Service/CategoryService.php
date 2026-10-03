@@ -22,6 +22,7 @@ use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Exception\CategoryInUseException;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\Entity;
+use OCP\DB\Exception as DbException;
 use OCP\IL10N;
 
 /**
@@ -726,15 +727,9 @@ class CategoryService extends AbstractCrudService {
 				$period = $category->getBudgetPeriod() ?? 'monthly';
 			}
 
-			$snapshot = new BudgetSnapshot();
-			$snapshot->setUserId($userId);
-			$snapshot->setCategoryId($catId);
-			$snapshot->setEffectiveFrom($month);
-			$snapshot->setAmount($amount);
-			$snapshot->setPeriod($period);
-			$snapshot->setCreatedAt($now);
-
-			$snapshots[] = $this->budgetSnapshotMapper->insert($snapshot);
+			$snapshots[] = $this->budgetSnapshotMapper->insert(
+				$this->newSnapshot($userId, $catId, $month, $amount, $period, $now)
+			);
 		}
 
 		return $snapshots;
@@ -767,35 +762,80 @@ class CategoryService extends AbstractCrudService {
 	 * Update a single category's budget within a snapshot month.
 	 */
 	public function updateSnapshotBudget(string $userId, int $categoryId, string $month, ?float $amount, ?string $period = null): BudgetSnapshot {
-		$snapshots = $this->budgetSnapshotMapper->findByMonth($userId, $month);
-		foreach ($snapshots as $snapshot) {
-			if ($snapshot->getCategoryId() === $categoryId) {
-				if ($amount !== null) {
-					$snapshot->setAmount($amount);
-				}
-				if ($period !== null) {
-					$snapshot->setPeriod($period);
-				}
-				return $this->budgetSnapshotMapper->update($snapshot);
-			}
+		if ($amount === null && $period === null) {
+			throw new \InvalidArgumentException($this->l->t('No valid fields to update'));
 		}
 
+		$snapshots = $this->budgetSnapshotMapper->findByMonth($userId, $month);
 		if ($snapshots === []) {
 			throw new \Exception($this->l->t('No budget snapshot found for this category and month'));
 		}
 
-		$category = $this->find($categoryId, $userId);
-		$effective = $this->budgetSnapshotMapper->findEffective($categoryId, $userId, $month);
+		$snapshot = self::rowFor($snapshots, $categoryId)
+			?? $this->addToSnapshot($userId, $categoryId, $month);
+		if ($amount !== null) {
+			$snapshot->setAmount($amount);
+		}
+		if ($period !== null) {
+			$snapshot->setPeriod($period);
+		}
 
+		return $this->budgetSnapshotMapper->update($snapshot);
+	}
+
+	/**
+	 * A category created after a month's adjustment was made has no row in
+	 * it (#416). Give it one, holding the budget the month already shows for
+	 * it, for the caller to change.
+	 */
+	private function addToSnapshot(string $userId, int $categoryId, string $month): BudgetSnapshot {
+		try {
+			$this->find($categoryId, $userId);
+		} catch (DoesNotExistException $e) {
+			// The mapper's own message carries the SQL, and this one reaches
+			// the browser
+			throw new \Exception($this->l->t('No budget snapshot found for this category and month'));
+		}
+		$current = $this->resolveEffectiveBudget($categoryId, $userId, $month);
+
+		try {
+			return $this->budgetSnapshotMapper->insert(
+				$this->newSnapshot($userId, $categoryId, $month, $current['amount'], $current['period'])
+			);
+		} catch (DbException $e) {
+			// An overlapping save (the page sends the amount and the period
+			// separately) added the row first: use theirs
+			$added = $e->getReason() === DbException::REASON_UNIQUE_CONSTRAINT_VIOLATION
+				? self::rowFor($this->budgetSnapshotMapper->findByMonth($userId, $month), $categoryId)
+				: null;
+			if ($added === null) {
+				throw $e;
+			}
+			return $added;
+		}
+	}
+
+	private function newSnapshot(string $userId, int $categoryId, string $month, ?float $amount, string $period, ?string $now = null): BudgetSnapshot {
 		$snapshot = new BudgetSnapshot();
 		$snapshot->setUserId($userId);
 		$snapshot->setCategoryId($categoryId);
 		$snapshot->setEffectiveFrom($month);
-		$snapshot->setAmount($amount ?? $effective?->getAmount() ?? $category->getBudgetAmount());
-		$snapshot->setPeriod($period ?? $effective?->getPeriod() ?? $category->getBudgetPeriod() ?? 'monthly');
-		$snapshot->setCreatedAt((new \DateTime())->format('Y-m-d H:i:s'));
+		$snapshot->setAmount($amount);
+		$snapshot->setPeriod($period);
+		$snapshot->setCreatedAt($now ?? (new \DateTime())->format('Y-m-d H:i:s'));
 
-		return $this->budgetSnapshotMapper->insert($snapshot);
+		return $snapshot;
+	}
+
+	/** @param BudgetSnapshot[] $snapshots */
+	private static function rowFor(array $snapshots, int $categoryId): ?BudgetSnapshot {
+		foreach ($snapshots as $snapshot) {
+			if ($snapshot->getCategoryId() === $categoryId) {
+				return $snapshot;
+			}
+		}
+
+		return null;
 	}
 
 	/**

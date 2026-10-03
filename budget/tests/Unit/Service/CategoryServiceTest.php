@@ -1428,33 +1428,152 @@ class CategoryServiceTest extends TestCase {
 		$this->serviceWithProjects($projects, $allocations)->delete(1, 'user1');
 	}
 
-	public function testUpdateSnapshotBudgetInsertsCategoryMissingFromExistingMonth(): void {
-		$existing = new BudgetSnapshot();
-		$existing->setCategoryId(1);
-		$this->budgetSnapshotMapper->method('findByMonth')
-			->with('user1', '2026-10')
-			->willReturn([$existing]);
-		$this->categoryMapper->expects($this->once())
-			->method('find')
-			->with(140, 'user1')
-			->willReturn($this->makeCategory(['id' => 140]));
-		$this->budgetSnapshotMapper->method('findEffective')
-			->with(140, 'user1', '2026-10')
-			->willReturn(null);
-		$this->budgetSnapshotMapper->expects($this->once())
-			->method('insert')
-			->willReturnCallback(function (BudgetSnapshot $snapshot): BudgetSnapshot {
-				$this->assertSame('user1', $snapshot->getUserId());
-				$this->assertSame(140, $snapshot->getCategoryId());
-				$this->assertSame('2026-10', $snapshot->getEffectiveFrom());
-				$this->assertSame(119.0, $snapshot->getAmount());
-				$this->assertSame('monthly', $snapshot->getPeriod());
-				return $snapshot;
-			});
+	// ── updateSnapshotBudget (#416) ─────────────────────────────────
 
-		$result = $this->service->updateSnapshotBudget('user1', 140, '2026-10', 119.0, 'monthly');
-
-		$this->assertSame(140, $result->getCategoryId());
+	private function snapshotRow(int $categoryId, ?float $amount = 50.0, ?string $period = 'monthly', string $month = '2026-10'): BudgetSnapshot {
+		$row = new BudgetSnapshot();
+		$row->setUserId('user1');
+		$row->setCategoryId($categoryId);
+		$row->setEffectiveFrom($month);
+		$row->setAmount($amount);
+		$row->setPeriod($period);
+		return $row;
 	}
 
+	/** Category 140, created after October's adjustment was made. */
+	private function laterCategory(?float $budget = 80.0, ?string $period = 'quarterly'): void {
+		$category = $this->makeCategory(['id' => 140, 'budgetAmount' => $budget]);
+		$category->setBudgetPeriod($period);
+		$this->categoryMapper->method('find')->with(140, 'user1')->willReturn($category);
+	}
+
+	/** Saves pass through, so a test can read what was written. */
+	private function recordWrites(): void {
+		$this->budgetSnapshotMapper->method('insert')->willReturnArgument(0);
+		$this->budgetSnapshotMapper->method('update')->willReturnArgument(0);
+	}
+
+	public function testUpdateSnapshotBudgetChangesTheCategorysRowInThatMonth(): void {
+		$row = $this->snapshotRow(140, 50.0, 'quarterly');
+		$this->budgetSnapshotMapper->method('findByMonth')->with('user1', '2026-10')
+			->willReturn([$this->snapshotRow(1), $row]);
+		$this->budgetSnapshotMapper->expects($this->never())->method('insert');
+		$this->budgetSnapshotMapper->expects($this->once())->method('update')->with($row)->willReturnArgument(0);
+
+		$result = $this->service->updateSnapshotBudget('user1', 140, '2026-10', 119.0);
+
+		$this->assertSame(119.0, $result->getAmount());
+		$this->assertSame('quarterly', $result->getPeriod());
+	}
+
+	public function testUpdateSnapshotBudgetAddsALaterCategoryAtTheBudgetTheMonthShows(): void {
+		// Only the amount is sent, as the Budget page does: the period stays
+		// what the month was already showing for the category
+		$this->budgetSnapshotMapper->method('findByMonth')->willReturn([$this->snapshotRow(1)]);
+		$this->laterCategory(80.0, 'quarterly');
+		$this->budgetSnapshotMapper->method('findEffective')->with(140, 'user1', '2026-10')->willReturn(null);
+		$this->recordWrites();
+
+		$result = $this->service->updateSnapshotBudget('user1', 140, '2026-10', 119.0);
+
+		$this->assertSame('user1', $result->getUserId());
+		$this->assertSame(140, $result->getCategoryId());
+		$this->assertSame('2026-10', $result->getEffectiveFrom());
+		$this->assertSame(119.0, $result->getAmount());
+		$this->assertSame('quarterly', $result->getPeriod());
+	}
+
+	public function testUpdateSnapshotBudgetKeepsAnEarlierNoBudgetWhenOnlyThePeriodChanges(): void {
+		// An earlier adjustment said "no budget"; changing only the period
+		// must not bring the category's own default back
+		$this->budgetSnapshotMapper->method('findByMonth')->willReturn([$this->snapshotRow(1)]);
+		$this->laterCategory(300.0, 'monthly');
+		$this->budgetSnapshotMapper->method('findEffective')
+			->willReturn($this->snapshotRow(140, null, 'monthly', '2026-08'));
+		$this->recordWrites();
+
+		$result = $this->service->updateSnapshotBudget('user1', 140, '2026-10', null, 'yearly');
+
+		$this->assertNull($result->getAmount());
+		$this->assertSame('yearly', $result->getPeriod());
+	}
+
+	public function testUpdateSnapshotBudgetReadsAMissingEarlierPeriodAsMonthly(): void {
+		// Every reader shows a NULL period as monthly, so that is what the
+		// month showed and what an amount-only save keeps
+		$this->budgetSnapshotMapper->method('findByMonth')->willReturn([$this->snapshotRow(1)]);
+		$this->laterCategory(300.0, 'yearly');
+		$this->budgetSnapshotMapper->method('findEffective')
+			->willReturn($this->snapshotRow(140, 40.0, null, '2026-08'));
+		$this->recordWrites();
+
+		$result = $this->service->updateSnapshotBudget('user1', 140, '2026-10', 45.0);
+
+		$this->assertSame(45.0, $result->getAmount());
+		$this->assertSame('monthly', $result->getPeriod());
+	}
+
+	public function testUpdateSnapshotBudgetWithNothingToChangeWritesNothing(): void {
+		$this->budgetSnapshotMapper->method('findByMonth')->willReturn([$this->snapshotRow(1)]);
+		$this->laterCategory();
+		$this->budgetSnapshotMapper->expects($this->never())->method('insert');
+		$this->budgetSnapshotMapper->expects($this->never())->method('update');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->updateSnapshotBudget('user1', 140, '2026-10', null, null);
+	}
+
+	public function testUpdateSnapshotBudgetStillRefusesAMonthWithNoAdjustment(): void {
+		$this->budgetSnapshotMapper->method('findByMonth')->willReturn([]);
+		$this->budgetSnapshotMapper->expects($this->never())->method('insert');
+
+		$this->expectExceptionMessage('No budget snapshot found for this category and month');
+		$this->service->updateSnapshotBudget('user1', 140, '2026-10', 119.0);
+	}
+
+	public function testUpdateSnapshotBudgetForAnUnknownCategoryKeepsTheReadableError(): void {
+		// The mapper's own message carries the SQL, and the controller hands
+		// the message to the browser
+		$this->budgetSnapshotMapper->method('findByMonth')->willReturn([$this->snapshotRow(1)]);
+		$this->categoryMapper->method('find')
+			->willThrowException(new DoesNotExistException('Did expect one result but found none when executing: query "SELECT *"'));
+		$this->budgetSnapshotMapper->expects($this->never())->method('insert');
+
+		$this->expectExceptionMessage('No budget snapshot found for this category and month');
+		$this->service->updateSnapshotBudget('user1', 999, '2026-10', 119.0);
+	}
+
+	public function testUpdateSnapshotBudgetUsesTheRowAnOverlappingSaveAdded(): void {
+		// Two quick saves (amount, then period) both find no row. The second
+		// insert hits the unique index and must update the row the first one
+		// added, not fail with the database error.
+		$added = $this->snapshotRow(140, 119.0, 'quarterly');
+		$this->budgetSnapshotMapper->method('findByMonth')
+			->willReturnOnConsecutiveCalls([$this->snapshotRow(1)], [$this->snapshotRow(1), $added]);
+		$this->laterCategory(80.0, 'quarterly');
+		$this->budgetSnapshotMapper->method('findEffective')->willReturn(null);
+
+		$duplicate = $this->createMock(\OCP\DB\Exception::class);
+		$duplicate->method('getReason')->willReturn(\OCP\DB\Exception::REASON_UNIQUE_CONSTRAINT_VIOLATION);
+		$this->budgetSnapshotMapper->method('insert')->willThrowException($duplicate);
+		$this->budgetSnapshotMapper->expects($this->once())->method('update')->with($added)->willReturnArgument(0);
+
+		$result = $this->service->updateSnapshotBudget('user1', 140, '2026-10', null, 'yearly');
+
+		// The first save's amount survives, the second save's period lands
+		$this->assertSame(119.0, $result->getAmount());
+		$this->assertSame('yearly', $result->getPeriod());
+	}
+
+	public function testUpdateSnapshotBudgetPassesOnOtherDatabaseErrors(): void {
+		$this->budgetSnapshotMapper->method('findByMonth')->willReturn([$this->snapshotRow(1)]);
+		$this->laterCategory();
+		$this->budgetSnapshotMapper->method('findEffective')->willReturn(null);
+		$failure = $this->createMock(\OCP\DB\Exception::class);
+		$failure->method('getReason')->willReturn(null);
+		$this->budgetSnapshotMapper->method('insert')->willThrowException($failure);
+
+		$this->expectException(\OCP\DB\Exception::class);
+		$this->service->updateSnapshotBudget('user1', 140, '2026-10', 119.0);
+	}
 }
