@@ -859,7 +859,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$account = new Account();
 		$account->setId(1);
 		$account->setUserId($ownerId);
-		$this->service->method('find')->willReturn($this->splitTransaction($id));
+		$this->service->method('findForAccounts')->willReturn($this->splitTransaction($id));
 		$this->service->method('findAccountById')->willReturn($account);
 	}
 
@@ -980,7 +980,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->params = $this->captureParams([
 			'splits' => json_encode([['amount' => '1.00'], ['amount' => '2.00']]),
 		]);
-		$this->service->method('find')->willThrowException(new DoesNotExistException('nope'));
+		$this->service->method('findForAccounts')->willThrowException(new DoesNotExistException('nope'));
 
 		$this->assertSame(Http::STATUS_NOT_FOUND, $this->controller->createSplits(5)->getStatus());
 	}
@@ -1191,5 +1191,489 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertTrue($data['is_split']);
 		// Splitting clears the transaction's own category; the parts carry it.
 		$this->assertNull($data['category_id']);
+	}
+
+	// ── edit and delete (discussion 412) ────────────────────────────
+
+	/**
+	 * The row an edit finds, in an account owned by $owner. One call per
+	 * test: a stub set here can't be re-stubbed later.
+	 */
+	private function existing(array $set = [], string $owner = 'user1'): Transaction {
+		$transaction = $this->transaction();
+		foreach ($set as $field => $value) {
+			$transaction->{'set' . ucfirst($field)}($value);
+		}
+		$account = new Account();
+		$account->setId($transaction->getAccountId());
+		$account->setUserId($owner);
+
+		$this->service->method('findForAccounts')->willReturn($transaction);
+		$this->service->method('findAccountById')->willReturn($account);
+
+		return $transaction;
+	}
+
+	/**
+	 * Validation that hands back what it was given. The shared stub turns
+	 * every value into one fixed string, which would hide a field reaching
+	 * the service under the wrong key.
+	 */
+	private function echoValidation(bool $validDate = true): ValidationService {
+		$validation = $this->createMock(ValidationService::class);
+		$echo = static fn (?string $value) => ['valid' => true, 'sanitized' => $value === '' ? null : $value];
+		$validation->method('validateDescription')
+			->willReturnCallback(static fn (?string $value) => ['valid' => true, 'sanitized' => $value]);
+		$validation->method('validateDate')
+			->willReturn($validDate ? ['valid' => true] : ['valid' => false, 'error' => 'Invalid date']);
+		$validation->method('validateVendor')->willReturnCallback($echo);
+		$validation->method('validateReference')->willReturnCallback($echo);
+		$validation->method('validateNotes')->willReturnCallback($echo);
+
+		return $validation;
+	}
+
+	private function editor(bool $validDate = true): ApiV1TransactionController {
+		return $this->buildController($this->idempotencyKeys, $this->echoValidation($validDate));
+	}
+
+	private function readOnlyShare(): void {
+		$this->granularShareService->method('requireWriteAccess')
+			->willThrowException(new ReadOnlyShareException());
+	}
+
+	// ── update ──────────────────────────────────────────────────────
+
+	public function testUpdateChangesOnlyTheFieldsSent(): void {
+		$this->existing();
+		// The route's {id} arrives among the params too
+		$this->params = ['id' => 10, 'category_id' => 15];
+
+		$this->granularShareService->expects($this->once())->method('requireUsableCategory')->with('user1', 15);
+		$this->service->expects($this->once())->method('update')
+			->with(10, 'user1', ['categoryId' => 15])
+			->willReturn($this->transaction());
+
+		$response = $this->editor()->update(10);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(10, $response->getData()['id']);
+	}
+
+	public function testUpdateMapsEveryEditableFieldToTheService(): void {
+		$this->existing();
+		$this->params = [
+			'date' => '2026-09-28', 'amount' => '75.00', 'type' => 'credit',
+			'description' => 'Supermarket', 'vendor' => 'Example Market',
+			'reference' => 'R-9', 'notes' => 'Updated transaction',
+		];
+
+		$this->service->expects($this->once())->method('update')
+			->with(10, 'user1', $this->identicalTo([
+				'date' => '2026-09-28', 'amount' => 75.0, 'type' => 'credit',
+				'description' => 'Supermarket', 'vendor' => 'Example Market',
+				'reference' => 'R-9', 'notes' => 'Updated transaction',
+			]))
+			->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	public function testUpdateMerchantSetsTheDescriptionAndVendorLikeCreate(): void {
+		$this->existing();
+		$this->params = ['merchant' => 'Corner Deli'];
+
+		$this->service->expects($this->once())->method('update')
+			->with(10, 'user1', ['description' => 'Corner Deli', 'vendor' => 'Corner Deli'])
+			->willReturn($this->transaction());
+
+		$this->editor()->update(10);
+	}
+
+	public function testUpdateDescriptionAndVendorWinOverMerchant(): void {
+		$this->existing();
+		$this->params = ['merchant' => 'Corner Deli', 'vendor' => 'Deli Ltd'];
+
+		$this->service->expects($this->once())->method('update')
+			->with(10, 'user1', ['description' => 'Corner Deli', 'vendor' => 'Deli Ltd'])
+			->willReturn($this->transaction());
+
+		$this->editor()->update(10);
+	}
+
+	public function testUpdateClearsAFieldSentAsNullOrEmpty(): void {
+		$this->existing(['vendor' => 'Tesco', 'notes' => 'old', 'categoryId' => 4]);
+		$this->params = ['vendor' => null, 'notes' => '', 'category_id' => null];
+
+		$this->service->expects($this->once())->method('update')
+			->with(10, 'user1', ['vendor' => null, 'notes' => null, 'categoryId' => null])
+			->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	public function testUpdateRejectsMalformedValues(): void {
+		$this->existing();
+		$this->service->expects($this->never())->method('update');
+
+		foreach ([['amount' => 'lots'], ['type' => 'sideways'], ['category_id' => 'groceries']] as $params) {
+			$this->params = $params;
+			$this->assertSame(
+				Http::STATUS_BAD_REQUEST,
+				$this->editor()->update(10)->getStatus(),
+				json_encode($params)
+			);
+		}
+	}
+
+	public function testUpdateRejectsAnInvalidDate(): void {
+		$this->existing();
+		$this->params = ['date' => '28/09/2026'];
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->editor(validDate: false)->update(10);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Invalid date', $response->getData()['error']);
+	}
+
+	public function testUpdateWithNothingItCanChangeIsABadRequest(): void {
+		$this->existing();
+		$this->params = ['id' => 10, 'colour' => 'blue'];
+		$this->service->expects($this->never())->method('update');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->editor()->update(10)->getStatus());
+	}
+
+	public function testUpdateRefusesToChangeTheAccountStatusOrReconciledFlag(): void {
+		$this->existing();
+		$this->service->expects($this->never())->method('update');
+
+		foreach ([['account_id' => 2], ['status' => 'scheduled'], ['reconciled' => true]] as $params) {
+			$this->params = $params + ['notes' => 'x'];
+			$response = $this->editor()->update(10);
+
+			$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus(), json_encode($params));
+			$this->assertSame('field_not_editable', $response->getData()['error_code']);
+		}
+	}
+
+	public function testUpdateAcceptsTheWholeTransactionSentBackWithOneChange(): void {
+		// A client PATCHing back the object it read must not trip over the
+		// fields it can't change, or the checks on a transfer and a
+		// reconciled row, when it sends them back unchanged.
+		$this->existing(['linkedTransactionId' => 56, 'reconciled' => true, 'status' => 'cleared']);
+		$this->params = [
+			'id' => 10, 'account_id' => 1, 'category_id' => null, 'date' => '2026-08-01',
+			'description' => 'Weekly shop', 'vendor' => null, 'amount' => '42.50', 'type' => 'debit',
+			'reference' => null, 'notes' => 'Now with a note', 'status' => 'cleared', 'reconciled' => true,
+			'is_split' => false, 'linked_transaction_id' => 56, 'splits' => [],
+		];
+
+		$this->service->expects($this->once())->method('update')
+			->with(10, 'user1', $this->callback(static fn (array $u): bool => $u['notes'] === 'Now with a note'))
+			->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	public function testUpdateRefusesToChangeTheMoneyOnOneSideOfATransfer(): void {
+		$this->existing(['linkedTransactionId' => 56]);
+		$this->service->expects($this->never())->method('update');
+
+		// A penny counts: the two sides must keep matching exactly
+		foreach ([['amount' => '42.51'], ['type' => 'credit'], ['date' => '2026-08-02']] as $params) {
+			$this->params = $params;
+			$response = $this->editor()->update(10);
+
+			$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus(), json_encode($params));
+			$this->assertSame('transfer_leg', $response->getData()['error_code']);
+		}
+	}
+
+	public function testUpdateLetsATransferLegChangeItsCategoryAndNotes(): void {
+		$this->existing(['linkedTransactionId' => 56]);
+		$this->params = ['category_id' => 15, 'notes' => 'Rent share'];
+
+		$this->service->expects($this->once())->method('update')
+			->with(10, 'user1', ['categoryId' => 15, 'notes' => 'Rent share'])
+			->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	public function testUpdateRefusesAMoneyChangeOnAReconciledRowUnlessConfirmed(): void {
+		$this->existing(['reconciled' => true]);
+		$this->params = ['amount' => '50.00'];
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->editor()->update(10);
+
+		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame('reconciled', $response->getData()['error_code']);
+	}
+
+	public function testUpdateMakesAMoneyChangeOnAReconciledRowOnceConfirmed(): void {
+		$this->existing(['reconciled' => true]);
+		$this->params = ['amount' => '50.00', 'confirm_reconciled' => 'true'];
+
+		$this->service->expects($this->once())->method('update')
+			->with(10, 'user1', ['amount' => 50.0])
+			->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	public function testUpdateRecategorisesAReconciledRowWithoutConfirmation(): void {
+		$this->existing(['reconciled' => true]);
+		$this->params = ['category_id' => 15];
+
+		$this->service->expects($this->once())->method('update')->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	public function testUpdateRefusesACategoryOnASplitTransaction(): void {
+		$this->existing(['isSplit' => true]);
+		$this->splitService->method('getSplits')->with(10, 'user1')
+			->willReturn([$this->part(1, 10, 30.0, null), $this->part(2, 10, 12.5, null)]);
+		$this->params = ['category_id' => 15];
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->editor()->update(10);
+
+		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame('split', $response->getData()['error_code']);
+	}
+
+	public function testUpdateLetsASplitFlagWithNoPartsTakeACategory(): void {
+		// Restored rows can claim split with nothing behind them (#360); the
+		// service corrects the flag on the same write.
+		$this->existing(['isSplit' => true]);
+		$this->splitService->method('getSplits')->willReturn([]);
+		$this->params = ['category_id' => 15];
+
+		$this->service->expects($this->once())->method('update')->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	public function testUpdateWritesASharedAccountRowAsItsOwner(): void {
+		$this->existing(['accountId' => 9], 'owner2');
+		$this->params = ['category_id' => 15];
+
+		$this->granularShareService->expects($this->once())->method('requireWriteAccess')->with('user1', 'account', 9);
+		$this->granularShareService->expects($this->once())->method('requireUsableCategory')->with('owner2', 15);
+		$this->service->expects($this->once())->method('update')
+			->with(10, 'owner2', ['categoryId' => 15])
+			->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	public function testUpdateOnAReadOnlyShareIsForbidden(): void {
+		$this->existing(['accountId' => 9], 'owner2');
+		$this->readOnlyShare();
+		$this->params = ['notes' => 'x'];
+		$this->service->expects($this->never())->method('update');
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $this->editor()->update(10)->getStatus());
+	}
+
+	public function testUpdateOfATransactionTheCallerCannotSeeIsNotFound(): void {
+		$this->service->method('findForAccounts')->with(999, [1, 2, 9])
+			->willThrowException(new DoesNotExistException('nope'));
+		$this->params = ['notes' => 'x'];
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $this->editor()->update(999)->getStatus());
+	}
+
+	public function testUpdateRejectsACategoryTheOwnerCannotSee(): void {
+		$this->existing();
+		$this->granularShareService->method('requireUsableCategory')
+			->willThrowException(new \InvalidArgumentException('Category not found'));
+		$this->params = ['category_id' => 999];
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->editor()->update(10);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Category not found', $response->getData()['error']);
+	}
+
+	public function testUpdateAnswersWithTheUpdatedTransaction(): void {
+		$this->existing();
+		$updated = $this->transaction();
+		$updated->setAmount(75.0);
+		$this->service->method('update')->willReturn($updated);
+		$this->params = ['amount' => 75];
+
+		$this->assertSame('75.00', $this->editor()->update(10)->getData()['amount']);
+	}
+
+	// ── destroy ─────────────────────────────────────────────────────
+
+	public function testDestroyDeletesTheTransaction(): void {
+		$this->existing();
+		$this->service->expects($this->once())->method('delete')->with(10, 'user1');
+
+		$response = $this->controller->destroy(10);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(['id' => 10, 'deleted' => true, 'unlinked_transaction_id' => null], $response->getData());
+	}
+
+	public function testDestroyingOneSideOfATransferNamesTheSideLeftBehind(): void {
+		$this->existing(['linkedTransactionId' => 56]);
+		$this->service->expects($this->once())->method('delete');
+
+		$this->assertSame(56, $this->controller->destroy(10)->getData()['unlinked_transaction_id']);
+	}
+
+	public function testDestroyRefusesAReconciledRowUnlessConfirmed(): void {
+		$this->existing(['reconciled' => true]);
+		$this->service->expects($this->never())->method('delete');
+
+		$response = $this->controller->destroy(10);
+
+		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame('reconciled', $response->getData()['error_code']);
+	}
+
+	public function testDestroyDeletesAReconciledRowOnceConfirmed(): void {
+		$this->existing(['reconciled' => true]);
+		$this->params = ['confirm_reconciled' => '1'];
+		$this->service->expects($this->once())->method('delete');
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->destroy(10)->getStatus());
+	}
+
+	public function testDestroyDeletesASharedAccountRowAsItsOwner(): void {
+		$this->existing(['accountId' => 9], 'owner2');
+		$this->granularShareService->expects($this->once())->method('requireWriteAccess')->with('user1', 'account', 9);
+		$this->service->expects($this->once())->method('delete')->with(10, 'owner2');
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->destroy(10)->getStatus());
+	}
+
+	public function testDestroyOnAReadOnlyShareIsForbidden(): void {
+		$this->existing(['accountId' => 9], 'owner2');
+		$this->readOnlyShare();
+		$this->service->expects($this->never())->method('delete');
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $this->controller->destroy(10)->getStatus());
+	}
+
+	public function testARepeatedDestroyIsNotFound(): void {
+		// What a retry after a lost response sees; documented as "already deleted"
+		$this->service->method('findForAccounts')->willThrowException(new DoesNotExistException('gone'));
+		$this->service->expects($this->never())->method('delete');
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $this->controller->destroy(10)->getStatus());
+	}
+
+	// ── unsplit ─────────────────────────────────────────────────────
+
+	public function testUnsplitRemovesTheParts(): void {
+		$this->existing(['isSplit' => true]);
+		$unsplit = $this->transaction();
+		$unsplit->setIsSplit(false);
+		$this->splitService->expects($this->once())->method('unsplitTransaction')
+			->with(10, 'user1', null)
+			->willReturn($unsplit);
+
+		$response = $this->controller->unsplit(10);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertFalse($response->getData()['is_split']);
+	}
+
+	public function testUnsplitCanGiveTheWholeTransactionOneCategory(): void {
+		$this->existing(['isSplit' => true]);
+		$this->params = ['category_id' => '15'];
+		$this->splitService->expects($this->once())->method('unsplitTransaction')
+			->with(10, 'user1', 15)
+			->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->unsplit(10)->getStatus());
+	}
+
+	public function testUnsplittingAnUnsplitTransactionChangesNothing(): void {
+		// Where a retry of a successful unsplit lands, so it has to be harmless
+		$this->existing(['isSplit' => false]);
+		$this->splitService->expects($this->never())->method('unsplitTransaction');
+
+		$response = $this->controller->unsplit(10);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(10, $response->getData()['id']);
+	}
+
+	public function testUnsplitOnASharedAccountRunsAsItsOwner(): void {
+		$this->existing(['accountId' => 9, 'isSplit' => true], 'owner2');
+		$this->granularShareService->expects($this->once())->method('requireWriteAccess')->with('user1', 'account', 9);
+		$this->splitService->expects($this->once())->method('unsplitTransaction')
+			->with(10, 'owner2', null)
+			->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->unsplit(10)->getStatus());
+	}
+
+	public function testUnsplitOnAReadOnlyShareIsForbidden(): void {
+		$this->existing(['accountId' => 9, 'isSplit' => true], 'owner2');
+		$this->readOnlyShare();
+		$this->splitService->expects($this->never())->method('unsplitTransaction');
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $this->controller->unsplit(10)->getStatus());
+	}
+
+	public function testUnsplitOfAnUnknownTransactionIsNotFound(): void {
+		$this->service->method('findForAccounts')->willThrowException(new DoesNotExistException('nope'));
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $this->controller->unsplit(999)->getStatus());
+	}
+
+	public function testUnsplitRejectsAMalformedCategory(): void {
+		$this->existing(['isSplit' => true]);
+		$this->params = ['category_id' => 'groceries'];
+		$this->splitService->expects($this->never())->method('unsplitTransaction');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->unsplit(10)->getStatus());
+	}
+
+	public function testUnsplitPassesOnTheReasonForARefusedCategory(): void {
+		$this->existing(['isSplit' => true]);
+		$this->params = ['category_id' => 999];
+		$this->splitService->method('unsplitTransaction')
+			->willThrowException(new \InvalidArgumentException('Category not found'));
+
+		$response = $this->controller->unsplit(10);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Category not found', $response->getData()['error']);
+	}
+
+	// ── createSplits on a shared account ────────────────────────────
+
+	public function testSplitsOnASharedAccountAreWrittenAsItsOwner(): void {
+		// The endpoint an edit is pointed at for a split's categories has to
+		// work wherever the edit does
+		$this->existing(['accountId' => 9], 'owner2');
+		$this->params = ['splits' => json_encode([['amount' => '30.00'], ['amount' => '12.50']])];
+		$this->granularShareService->expects($this->once())->method('requireWriteAccess')->with('user1', 'account', 9);
+		$this->splitService->expects($this->once())->method('splitTransaction')
+			->with(10, 'owner2', $this->anything())
+			->willReturn([]);
+
+		$this->assertSame(Http::STATUS_CREATED, $this->controller->createSplits(10)->getStatus());
+	}
+
+	public function testSplittingOnAReadOnlyShareIsForbidden(): void {
+		$this->existing(['accountId' => 9], 'owner2');
+		$this->readOnlyShare();
+		$this->params = ['splits' => json_encode([['amount' => '30.00'], ['amount' => '12.50']])];
+		$this->splitService->expects($this->never())->method('splitTransaction');
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $this->controller->createSplits(10)->getStatus());
 	}
 }

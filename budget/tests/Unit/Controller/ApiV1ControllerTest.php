@@ -103,6 +103,7 @@ class ApiV1ControllerTest extends TestCase {
 			'ocr_available' => true,
 			'splits_available' => true,
 			'check_available' => true,
+			'edit_available' => true,
 			'currency' => 'GBP',
 			'version' => '2.41.0',
 		], $data);
@@ -128,6 +129,21 @@ class ApiV1ControllerTest extends TestCase {
 		$this->appManager->method('getAppVersion')->willReturn('2.41.0');
 
 		$this->assertTrue($this->controller->capabilities()->getData()['check_available']);
+	}
+
+	public function testCapabilitiesAnnounceEditAndDelete(): void {
+		// Gates the app's edit and delete actions (discussion 412); an older
+		// server omits it and a client reads false
+		$this->appManager->method('getAppVersion')->willReturn('2.41.0');
+
+		$this->assertTrue($this->controller->capabilities()->getData()['edit_available']);
+	}
+
+	public function testInfoListsEditAndDelete(): void {
+		$features = $this->controller->info()->getData()['features'];
+
+		$this->assertTrue($features['edit_transaction']);
+		$this->assertTrue($features['delete_transaction']);
 	}
 
 	public function testInfoListsTheCheckFeatures(): void {

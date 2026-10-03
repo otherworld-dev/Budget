@@ -248,6 +248,19 @@ final class ApiSerializer {
 	}
 
 	/**
+	 * DELETE /transactions/{id} (discussion 412). When the deleted row was
+	 * one side of a transfer, the other side survives as a plain transaction
+	 * and its id is here, so a client can offer to delete that too.
+	 */
+	public static function deletion(int $id, ?int $unlinkedTransactionId): array {
+		return [
+			'id' => $id,
+			'deleted' => true,
+			'unlinked_transaction_id' => $unlinkedTransactionId,
+		];
+	}
+
+	/**
 	 * GET /budget/status (#767): a month's budget, figure for figure as the
 	 * web Budget page shows it. `totals` covers expense categories only;
 	 * `categories` lists every budgeted row, income included.
