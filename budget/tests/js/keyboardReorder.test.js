@@ -77,6 +77,45 @@ describe('category tree: Alt+Arrow targets', () => {
     });
 });
 
+describe('category tree: drops inside the dragged branch', () => {
+    function tree() {
+        document.body.innerHTML = `<div id="categories-tree">${node(1)}${node(2, node(21, node(211)) + node(22))}${node(3)}</div>`;
+        const mod = Object.create(CategoriesModule.prototype);
+        mod.reorderCategory = vi.fn().mockResolvedValue();
+        mod.getDropPosition = vi.fn().mockReturnValue('above');
+        mod.showDropIndicator = vi.fn();
+        mod.setupDragAndDrop();
+        const item = (id) => document.querySelector(`.category-item[data-category-id="${id}"]`);
+        const drop = (draggedId, targetId) => {
+            const event = new Event('drop', { bubbles: true, cancelable: true });
+            event.dataTransfer = { getData: () => String(draggedId) };
+            item(targetId).dispatchEvent(event);
+        };
+        return { mod, item, drop };
+    }
+
+    it("knows which items sit inside a category's own branch", () => {
+        const { mod, item } = tree();
+        expect(mod.isDropInOwnBranch(2, item(21))).toBe(true);
+        expect(mod.isDropInOwnBranch(2, item(211))).toBe(true);
+        expect(mod.isDropInOwnBranch(2, item(3))).toBe(false);
+        expect(mod.isDropInOwnBranch(21, item(2))).toBe(false);
+    });
+
+    it("ignores a drop on one of the dragged category's own subcategories", () => {
+        const { mod, drop } = tree();
+        drop(2, 21);
+        drop(2, 211);
+        expect(mod.reorderCategory).not.toHaveBeenCalled();
+    });
+
+    it('still reorders onto a category outside the branch', () => {
+        const { mod, drop } = tree();
+        drop(21, 3);
+        expect(mod.reorderCategory).toHaveBeenCalledWith(21, 3, 'above');
+    });
+});
+
 describe('dashboard hero tiles: Move earlier / later', () => {
     function hero() {
         document.body.innerHTML = `<div class="dashboard-hero">
