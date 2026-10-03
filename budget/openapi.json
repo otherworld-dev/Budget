@@ -373,7 +373,7 @@
             }
           },
           "400": {
-            "description": "Invalid input; ocs.data.error says what. This includes a `category_id` the account owner cannot use (see NewTransaction.category_id), answered with the error \"Category not found\".",
+            "description": "Invalid input; ocs.data.error says what. This includes a negative amount (error_code invalid_amount), and a `category_id` the account owner cannot use (see NewTransaction.category_id), answered with the error \"Category not found. It must be one of the account owner's categories\".",
             "content": {
               "application/json": {
                 "schema": {
@@ -513,7 +513,7 @@
             }
           },
           "400": {
-            "description": "A malformed value, nothing editable in the body, or account_id, status or reconciled sent with a different value (error_code field_not_editable). A category_id the account owner cannot use answers \"Category not found\".",
+            "description": "A malformed value, nothing editable in the body, an amount that is not more than zero (error_code invalid_amount), or account_id, status or reconciled sent with a different value (error_code field_not_editable). A category_id the account owner cannot use answers \"Category not found. It must be one of the account owner's categories\".",
             "content": {
               "application/json": {
                 "schema": {
@@ -1631,6 +1631,7 @@
           "currency",
           "balance",
           "shared",
+          "owner",
           "closed"
         ],
         "properties": {
@@ -1677,6 +1678,11 @@
             "type": "boolean",
             "description": "True for an account another user shared. It may be read-only — handle 403 on create."
           },
+          "owner": {
+            "type": "string",
+            "example": "alice",
+            "description": "The Nextcloud user id of the account's owner: yours for your own accounts, the sharer's for one shared with you. A transaction is recorded in the owner's ledger, so its category_id must be one of the owner's categories: offer the categories whose owner matches this."
+          },
           "closed": {
             "type": "boolean",
             "description": "True once the user has closed the account. It keeps its history and its balance is zero; leave it out of any picker for new transactions."
@@ -1694,7 +1700,8 @@
           "id",
           "name",
           "type",
-          "shared"
+          "shared",
+          "owner"
         ],
         "properties": {
           "id": {
@@ -1728,6 +1735,11 @@
           },
           "shared": {
             "type": "boolean"
+          },
+          "owner": {
+            "type": "string",
+            "example": "alice",
+            "description": "The Nextcloud user id of the category's owner. On an account shared with you, only categories whose owner matches the account's owner can be used."
           }
         }
       },
@@ -1918,7 +1930,7 @@
           },
           "category_id": {
             "type": "integer",
-            "description": "Omit to file as uncategorised. Must be a category the account owner can use: one of their own categories, or one shared with them. On an account shared with you that means the owner's categories, not yours; any other id is refused with 400 and the error \"Category not found\", and nothing is recorded."
+            "description": "Omit to file as uncategorised. Must be a category the account owner can use: one of their own categories, or one shared with them. On an account shared with you that means the owner's categories, not yours (match Category.owner against Account.owner); any other id is refused with 400 and the error \"Category not found. It must be one of the account owner's categories\", and nothing is recorded."
           },
           "description": {
             "type": "string",
@@ -2540,7 +2552,7 @@
           "category_id": {
             "type": "integer",
             "nullable": true,
-            "description": "null for uncategorised. Refused (409 split) on a split transaction."
+            "description": "null for uncategorised. Refused (409 split) on a split transaction. Must be a category the account owner can use, as on create."
           },
           "confirm_reconciled": {
             "type": "boolean",

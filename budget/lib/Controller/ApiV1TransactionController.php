@@ -383,7 +383,7 @@ class ApiV1TransactionController extends OCSController {
 				// The row lands in the owner's ledger: a category the owner
 				// cannot see is refused rather than stored (its name would
 				// come back on every read)
-				$this->granularShareService->requireUsableCategory($effectiveUserId, $categoryId);
+				$this->requireOwnersCategory($effectiveUserId, $categoryId);
 
 				$transaction = $this->service->create(
 					$effectiveUserId,
@@ -784,7 +784,7 @@ class ApiV1TransactionController extends OCSController {
 			}
 
 			if (array_key_exists('categoryId', $updates)) {
-				$this->granularShareService->requireUsableCategory($ownerId, $updates['categoryId']);
+				$this->requireOwnersCategory($ownerId, $updates['categoryId']);
 			}
 
 			$updated = $this->service->update($id, $ownerId, $updates);
@@ -878,6 +878,26 @@ class ApiV1TransactionController extends OCSController {
 		}
 
 		return [$transaction, $this->service->findAccountById($accountId)->getUserId()];
+	}
+
+	/**
+	 * The category check every write makes, with a refusal a client can act
+	 * on. The row lands in the account owner's ledger, so on an account
+	 * shared with the caller their own categories are refused too, and a
+	 * bare "Category not found" read as if the id were wrong.
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	private function requireOwnersCategory(string $ownerId, ?int $categoryId): void {
+		try {
+			$this->granularShareService->requireUsableCategory($ownerId, $categoryId);
+		} catch (\InvalidArgumentException $e) {
+			throw new \InvalidArgumentException(
+				$this->l->t("Category not found. It must be one of the account owner's categories"),
+				0,
+				$e
+			);
+		}
 	}
 
 	/** The service updates a PATCH body asks for, or the 400 that refuses it. */

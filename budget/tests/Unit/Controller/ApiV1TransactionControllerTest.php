@@ -470,7 +470,9 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$response = $this->controller->create();
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
-		$this->assertSame('Category not found', $response->getData()['error']);
+		// Says whose category it must be: a share recipient's own category
+		// is refused too, and "not found" alone read as a wrong id
+		$this->assertSame("Category not found. It must be one of the account owner's categories", $response->getData()['error']);
 	}
 
 	public function testCreateChecksTheCategoryAgainstTheAccountOwner(): void {
@@ -1548,7 +1550,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$response = $this->editor()->update(10);
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
-		$this->assertSame('Category not found', $response->getData()['error']);
+		$this->assertSame("Category not found. It must be one of the account owner's categories", $response->getData()['error']);
 	}
 
 	public function testUpdateAnswersWithTheUpdatedTransaction(): void {
