@@ -20,6 +20,7 @@ import 'gridstack/dist/gridstack.min.css';
 import { groupProjects, progressFor } from '../projects/projectMath.js';
 import { progressBarAttrs, overBudgetText } from '../../utils/budgetProgress.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
+import { hiddenCategoryBranch, withoutHiddenCategories, categoryPickerRows } from '../../utils/categoryVisibility.js';
 
 const GRIDSTACK_SIZE_MAP = {
     xs: { w: 1, h: 1 },
@@ -1598,6 +1599,68 @@ export default class DashboardModule {
         }
     }
 
+    /**
+     * Fill the tile settings modal's list with a tick per expense category
+     * for a Spending by Category tile (#413). The tile saves the ones that
+     * are unticked, so a category made later shows without being ticked. A
+     * category hidden along with its parent is shown unticked and greyed out,
+     * keeping its own choice for when the parent is ticked again.
+     */
+    renderSpendingTileCategoryList(widgetId) {
+        const listEl = document.getElementById('tile-settings-modal-list');
+        if (!listEl) return;
+
+        const categories = this.app.categories || [];
+        const rows = categoryPickerRows(categories);
+        if (rows.length === 0) {
+            listEl.innerHTML = `<div class="empty-state-small">${t('budget', 'No categories yet')}</div>`;
+            return;
+        }
+
+        const saved = this.dashboardConfig.widgets?.tileSettings?.[widgetId]?.hiddenCategories || [];
+        const ownChoice = new Set(saved.map(id => parseInt(id, 10)));
+        const branch = hiddenCategoryBranch(saved, categories);
+
+        listEl.innerHTML = rows.map(row => {
+            const withParent = branch.has(row.id) && !ownChoice.has(row.id);
+            return `
+                <div class="tile-config-item tile-config-item--static" style="padding-left: ${8 + row.depth * 16}px;">
+                    <span class="tile-config-name">${dom.escapeHtml(row.name)}</span>
+                    <label class="tile-config-toggle">
+                        <input type="checkbox" data-category-id="${row.id}"
+                            aria-label="${dom.escapeHtml(row.name)}"
+                            ${branch.has(row.id) ? '' : 'checked'} ${withParent ? 'disabled' : ''}>
+                    </label>
+                </div>
+            `;
+        }).join('');
+
+        listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('change', () => {
+                this.saveSpendingTileCategory(widgetId, parseInt(cb.dataset.categoryId, 10), cb.checked);
+            });
+        });
+    }
+
+    /** Tick or untick one category on a Spending by Category tile and redraw it */
+    saveSpendingTileCategory(widgetId, categoryId, shown) {
+        const widgets = this.dashboardConfig.widgets;
+        if (!widgets.tileSettings) widgets.tileSettings = {};
+        if (!widgets.tileSettings[widgetId]) widgets.tileSettings[widgetId] = {};
+        const settings = widgets.tileSettings[widgetId];
+
+        const hidden = (settings.hiddenCategories || [])
+            .map(id => parseInt(id, 10))
+            .filter(id => id !== categoryId);
+        if (!shown) hidden.push(categoryId);
+        settings.hiddenCategories = hidden;
+
+        this.saveDashboardVisibility();
+        // Redraw the list so the categories under this one follow it
+        this.renderSpendingTileCategoryList(widgetId);
+        this.refreshTileAfterSettingsChange(widgetId, 'widgets');
+    }
+
     updateDebtPayoffWidget(summary) {
         const card = document.getElementById('debt-payoff-card');
         if (!card) return;
@@ -2822,8 +2885,16 @@ export default class DashboardModule {
             return;
         }
 
-        // Aggregate to top-level categories if setting is enabled
+        // Leave out the categories unticked in the tile's settings, before the
+        // top-level rollup so a hidden subcategory doesn't come back inside
+        // its parent's slice (#413)
         const spendingSettings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
+        const hiddenBranch = hiddenCategoryBranch(spendingSettings.hiddenCategories, this.app.categories || []);
+        const shownData = withoutHiddenCategories(spendingData, spendingSettings.hiddenCategories, this.app.categories || []);
+        const hiddenCount = spendingData.length - shownData.length;
+        spendingData = shownData;
+
+        // Aggregate to top-level categories if setting is enabled
         if (spendingSettings.topLevelOnly) {
             spendingData = this.aggregateToTopLevel(spendingData);
         }
@@ -2848,7 +2919,7 @@ export default class DashboardModule {
             if (!item) return;
             let catId = item.id ?? item.categoryId ?? null;
             if (catId && spendingSettings.topLevelOnly) {
-                catId = this.categoryWithDescendants(catId);
+                catId = this.categoryWithDescendants(catId).filter(id => !hiddenBranch.has(id));
             }
             this.app.openTransactionsForCategory(catId, {
                 dateFrom: range?.dateFrom || '',
@@ -2902,16 +2973,21 @@ export default class DashboardModule {
         if (legendContainer) {
             // Total across ALL categories, not just the top 10 shown in the chart,
             // so the header total and per-category percentages reflect real
-            // spending. spendingData still holds the full set here (slice copies).
+            // spending. spendingData still holds the full set here (slice copies),
+            // less any hidden categories, so the percentages add up to 100.
             const totalSpending = spendingData.reduce(
                 (sum, item) => sum + Math.abs(item.total || item.amount || 0), 0
             );
+            const hiddenNote = hiddenCount > 0
+                ? `<div class="spending-hidden-note">${n('budget', '%n category hidden', '%n categories hidden', hiddenCount)}</div>`
+                : '';
             legendContainer.innerHTML = `
                 <div class="spending-breakdown">
                     <div class="spending-breakdown-header">
                         <strong>${t('budget', 'Total Spending')}</strong>
                         <strong>${this.formatCurrency(totalSpending)}</strong>
                     </div>
+                    ${hiddenNote}
                     ${sortedData.map((item, index) => {
                         const amount = data[index];
                         const percentage = totalSpending > 0 ? ((amount / totalSpending) * 100).toFixed(1) : 0;
@@ -5423,6 +5499,20 @@ export default class DashboardModule {
                 }
             }
             this.renderBudgetAlertsTileConfigList();
+        }
+
+        // Spending by Category: which categories this tile shows (#413). A
+        // list of ticks rather than one field, so it's wired like the above.
+        if (schema.categoryPicker) {
+            if (specificSection) {
+                specificSection.innerHTML = `
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label>${t('budget', 'Categories to show')}</label>
+                        <p class="tile-config-hint" style="margin-bottom: 0;">${t('budget', 'Untick a category to leave it off this tile, along with its subcategories. Reports and totals still count it.')}</p>
+                    </div>
+                `;
+            }
+            this.renderSpendingTileCategoryList(widgetId);
         }
 
         // Wire change handlers (save immediately on change)

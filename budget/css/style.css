@@ -1035,6 +1035,13 @@
     font-size: 14px;
 }
 
+/* Under the total when the tile's settings leave categories out (#413) */
+.spending-hidden-note {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    padding-bottom: 4px;
+}
+
 .spending-breakdown-item {
     display: flex;
     justify-content: space-between;
