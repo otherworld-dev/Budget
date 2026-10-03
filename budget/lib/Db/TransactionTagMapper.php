@@ -222,24 +222,41 @@ class TransactionTagMapper extends QBMapper {
 		return $qb->executeStatement();
 	}
 
+	/** Account types a goal's money sits in, as against the ones it is paid from. */
+	private const SAVINGS_TYPES = "('savings', 'money_market', 'investment', 'cryptocurrency')";
+
 	/**
 	 * Hold a savings goal's tag sum to what the goal is owed.
 	 *
 	 * With the goal's account linked, it is the tagged money that went in
 	 * and out of that account. Without one, a linked transfer whose two legs
-	 * both carry the tag counts once, as the money arriving: a recurring
-	 * transfer puts its tags on both legs, and the net of the two came to
-	 * nothing, so a goal fed by monthly transfers stayed at 0.
+	 * both carry the tag counts once: a recurring transfer puts its tags on
+	 * both legs, and the net of the two came to nothing, so a goal fed by
+	 * monthly transfers stayed at 0.
+	 *
+	 * The leg that counts is the one on the savings side, as a linked
+	 * account would hold it: money arriving in savings adds, money leaving
+	 * savings comes off. Keeping the credit leg whatever the direction made
+	 * a withdrawal from savings, arriving in the current account, raise the
+	 * goal. When both accounts or neither are savings-type there is no
+	 * savings side, and the money arriving counts, as before.
 	 */
 	private function scopeGoalContribution(IQueryBuilder $qb, ?int $accountId): void {
 		if ($accountId !== null) {
 			$qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
 			return;
 		}
+		$sav = self::SAVINGS_TYPES;
+		$goalSide = "((a.type IN {$sav} AND la.type NOT IN {$sav})"
+			. " OR (a.type IN {$sav} AND la.type IN {$sav} AND t.type = 'credit')"
+			. " OR (a.type NOT IN {$sav} AND la.type NOT IN {$sav} AND t.type = 'credit'))";
+		// Drop this row when it is the other half of a transfer whose linked
+		// leg carries the same tag
 		$qb->andWhere(
-			"NOT (t.type = 'debit' AND t.linked_transaction_id IS NOT NULL AND EXISTS (SELECT 1 FROM "
-			. $qb->getTableName('budget_transaction_tags') . ' ttl'
-			. ' WHERE ttl.transaction_id = t.linked_transaction_id AND ttl.tag_id = tt.tag_id))'
+			'NOT EXISTS (SELECT 1 FROM ' . $qb->getTableName('budget_transaction_tags') . ' ttl'
+			. ' INNER JOIN ' . $qb->getTableName('budget_transactions') . ' lt ON lt.id = ttl.transaction_id'
+			. ' INNER JOIN ' . $qb->getTableName('budget_accounts') . ' la ON la.id = lt.account_id'
+			. " WHERE ttl.transaction_id = t.linked_transaction_id AND ttl.tag_id = tt.tag_id AND NOT {$goalSide})"
 		);
 	}
 
