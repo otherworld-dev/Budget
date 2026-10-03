@@ -9,10 +9,12 @@ use OCA\Budget\Db\AttachmentMapper;
 use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\ContactMapper;
 use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Db\ShareMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Service\CrossUserLinks;
 use OCA\Budget\Service\FactoryResetService;
 use OCA\Budget\Service\MigrationService;
 use OCA\Budget\Service\TransactionService;
@@ -181,6 +183,99 @@ class FactoryResetServiceTest extends TestCase {
 		$this->serviceWith($this->createMock(TransactionService::class), $shares)->purgeDeletedUser('gone');
 
 		$this->assertContains('budget_accounts', $this->deletedTables());
+	}
+
+	private function purgingService(ShareMapper $shares, ContactMapper $contacts, ?CrossUserLinks $links = null): FactoryResetService {
+		return new FactoryResetService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->billMapper,
+			$this->categoryMapper,
+			$this->importRuleMapper,
+			$this->settingMapper,
+			$this->attachmentMapper,
+			$this->db,
+			null,
+			$this->createMock(TransactionService::class),
+			$shares,
+			$contacts,
+			$links,
+		);
+	}
+
+	/**
+	 * Shared expenses reach their recipient through a contact linked to
+	 * their uid, so a new account given a deleted user's uid saw everything
+	 * shared with the old one. Access goes before any data, so a reset that
+	 * fails part way can't leave it in place.
+	 */
+	public function testPurgingADeletedUserRevokesAccessBeforeTheDataGoes(): void {
+		$this->billMapper->method('findAll')->willReturn([]);
+		$shares = $this->createMock(ShareMapper::class);
+		$shares->expects($this->once())->method('deleteAllForUser')->with('gone')
+			->willReturnCallback(function () {
+				$this->deletes[] = ['table' => 'shares', 'sql' => null, 'params' => []];
+			});
+		$contacts = $this->createMock(ContactMapper::class);
+		$contacts->expects($this->once())->method('unlinkNextcloudUser')->with('gone')
+			->willReturnCallback(function () {
+				$this->deletes[] = ['table' => 'contacts', 'sql' => null, 'params' => []];
+				return 2;
+			});
+
+		$this->purgingService($shares, $contacts)->purgeDeletedUser('gone');
+
+		$this->assertSame(['shares', 'contacts'], array_slice($this->deletedTables(), 0, 2));
+	}
+
+	public function testAFailedPurgeStillRevokesAccess(): void {
+		$this->billMapper->method('findAll')->willReturn([]);
+		$this->failingTables['budget_expense_shares'] = 'DB error';
+		$shares = $this->createMock(ShareMapper::class);
+		$shares->expects($this->once())->method('deleteAllForUser')->with('gone');
+		$contacts = $this->createMock(ContactMapper::class);
+		$contacts->expects($this->once())->method('unlinkNextcloudUser')->with('gone');
+
+		$this->expectExceptionMessage('DB error');
+		$this->purgingService($shares, $contacts)->purgeDeletedUser('gone');
+	}
+
+	public function testAResetLeavesContactLinksToTheUserAlone(): void {
+		// The user still exists after a reset: other people's contacts for
+		// them are still right
+		$contacts = $this->createMock(ContactMapper::class);
+		$contacts->expects($this->never())->method('unlinkNextcloudUser');
+		$shares = $this->createMock(ShareMapper::class);
+		$shares->expects($this->never())->method('deleteAllForUser');
+		$this->billMapper->method('findAll')->willReturn([]);
+
+		$this->purgingService($shares, $contacts)->executeFactoryReset('user1');
+	}
+
+	/**
+	 * Other users' rows that used the user's shared accounts and categories
+	 * are read before anything goes and cut loose inside the reset, so a
+	 * failure rolls the cut back with the rest.
+	 */
+	public function testOtherUsersLinksAreReadFirstAndCutBeforeTheCommit(): void {
+		$this->billMapper->method('findAll')->willReturn([]);
+		$links = $this->createMock(CrossUserLinks::class);
+		$links->expects($this->once())->method('capture')->with('user1')
+			->willReturnCallback(function () {
+				$this->assertSame([], $this->deletes, 'links are read before anything is deleted');
+			});
+		$links->expects($this->once())->method('apply')->with([])
+			->willReturnCallback(function () {
+				$this->assertContains('budget_categories', $this->deletedTables());
+				$this->deletes[] = ['table' => 'links cut', 'sql' => null, 'params' => []];
+				return ['sharesDropped' => 0, 'othersDetached' => 0];
+			});
+		$this->db->expects($this->once())->method('commit')->willReturnCallback(function () {
+			$this->assertContains('links cut', $this->deletedTables());
+		});
+
+		$this->purgingService($this->createMock(ShareMapper::class), $this->createMock(ContactMapper::class), $links)
+			->executeFactoryReset('user1');
 	}
 
 	public function testResetClearsTheBespokeEntitiesAndAttachmentRows(): void {
