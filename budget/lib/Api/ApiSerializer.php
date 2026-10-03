@@ -42,6 +42,10 @@ final class ApiSerializer {
 			'base_currency' => $a['baseCurrency'] ?? null,
 			'institution' => $a['institution'] ?? null,
 			'shared' => (bool)($a['_shared'] ?? false),
+			// The owner's Nextcloud user id. A transaction lands in the owner's
+			// ledger, so its category must be one of theirs: a client matches
+			// this against a category's owner to offer only usable ones.
+			'owner' => (string)($a['userId'] ?? ''),
 			// Closed accounts keep their history but take no new activity (#372);
 			// a capture client should leave them out of its own picker.
 			'closed' => (bool)($a['closed'] ?? false),
@@ -60,6 +64,8 @@ final class ApiSerializer {
 			'icon' => $c['icon'] ?? null,
 			'color' => $c['color'] ?? null,
 			'shared' => (bool)($c['_shared'] ?? false),
+			// Whose category it is; see account()'s owner for why
+			'owner' => (string)($c['userId'] ?? ''),
 		];
 	}
 

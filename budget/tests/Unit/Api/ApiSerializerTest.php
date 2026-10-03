@@ -27,8 +27,17 @@ class ApiSerializerTest extends TestCase {
 
 		$this->assertSame([
 			'id', 'name', 'type', 'currency', 'balance', 'balance_in_base_currency',
-			'base_currency', 'institution', 'shared', 'closed', 'updated_at',
+			'base_currency', 'institution', 'shared', 'owner', 'closed', 'updated_at',
 		], array_keys($result));
+	}
+
+	public function testAccountOwnerIsTheOwnersUserId(): void {
+		// A share recipient must pick one of the owner's categories, so the
+		// owner is on the wire (as `owner`, never the internal userId key)
+		$result = ApiSerializer::account(['id' => 9, 'userId' => 'owner2', '_shared' => true]);
+
+		$this->assertSame('owner2', $result['owner']);
+		$this->assertArrayNotHasKey('userId', $result);
 	}
 
 	public function testAccountCoercesTypes(): void {
@@ -96,9 +105,19 @@ class ApiSerializerTest extends TestCase {
 		$result = ApiSerializer::category(['id' => 1, 'name' => 'Food', 'type' => 'expense']);
 
 		$this->assertSame(
-			['id', 'name', 'type', 'parent_id', 'icon', 'color', 'shared'],
+			['id', 'name', 'type', 'parent_id', 'icon', 'color', 'shared', 'owner'],
 			array_keys($result)
 		);
+	}
+
+	public function testCategoryOwnerMatchesItsAccountsOwner(): void {
+		$own = new Category();
+		$own->setId(7);
+		$own->setUserId('user1');
+
+		$this->assertSame('user1', ApiSerializer::category($own)['owner']);
+		// A shared category arrives as an array row carrying the owner's id
+		$this->assertSame('owner2', ApiSerializer::category(['id' => 8, 'userId' => 'owner2', '_shared' => true])['owner']);
 	}
 
 	public function testCategoryAcceptsAnEntity(): void {

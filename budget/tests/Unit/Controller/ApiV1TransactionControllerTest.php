@@ -358,6 +358,28 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
+	public function testCreateRefusesANegativeAmount(): void {
+		// type carries the direction; a negative amount stored the row reversed
+		$this->service->expects($this->never())->method('create');
+
+		foreach (['-42.50', -1, '-0.01'] as $amount) {
+			$this->params = $this->captureParams(['amount' => $amount]);
+			$response = $this->controller->create();
+
+			$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus(), var_export($amount, true));
+			$this->assertSame('invalid_amount', $response->getData()['error_code']);
+		}
+	}
+
+	public function testCreateAcceptsAZeroAmountLikeTheWebForm(): void {
+		$this->params = $this->captureParams(['amount' => '0.00']);
+		$this->service->expects($this->once())->method('create')
+			->with('user1', 1, $this->anything(), $this->anything(), 0.0, 'debit')
+			->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_CREATED, $this->controller->create()->getStatus());
+	}
+
 	public function testCreateRequiresAnAccount(): void {
 		$this->params = $this->captureParams(['account_id' => '0']);
 		$this->service->expects($this->never())->method('create');
@@ -448,7 +470,9 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$response = $this->controller->create();
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
-		$this->assertSame('Category not found', $response->getData()['error']);
+		// Says whose category it must be: a share recipient's own category
+		// is refused too, and "not found" alone read as a wrong id
+		$this->assertSame("Category not found. It must be one of the account owner's categories", $response->getData()['error']);
 	}
 
 	public function testCreateChecksTheCategoryAgainstTheAccountOwner(): void {
@@ -957,9 +981,12 @@ class ApiV1TransactionControllerTest extends TestCase {
 			->willThrowException(new \InvalidArgumentException('Split amounts (3.00) must equal transaction amount (23.77)'));
 
 		$response = $this->controller->createSplits(5);
+		$data = $response->getData();
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
-		$this->assertStringContainsString('must equal transaction amount', $response->getData()['message']);
+		// `error` is the documented envelope; `message` stays for older clients
+		$this->assertStringContainsString('must equal transaction amount', $data['error']);
+		$this->assertSame($data['error'], $data['message']);
 	}
 
 	public function testMissingOrUnusableSplitsIsABadRequest(): void {
@@ -968,11 +995,14 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 		foreach (['', 'not json', json_encode([]), json_encode(['nope']), json_encode([['category_id' => 3]])] as $payload) {
 			$this->params = $this->captureParams($payload === '' ? [] : ['splits' => $payload]);
+			$response = $this->controller->createSplits(5);
 			$this->assertSame(
 				Http::STATUS_BAD_REQUEST,
-				$this->controller->createSplits(5)->getStatus(),
+				$response->getStatus(),
 				'payload: ' . var_export($payload, true)
 			);
+			$this->assertArrayHasKey('error', $response->getData());
+			$this->assertArrayHasKey('message', $response->getData());
 		}
 	}
 
@@ -1009,6 +1039,9 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertStringContainsString('must equal transaction amount', $data['splits_error']);
 		// The transaction itself is still returned in full.
 		$this->assertSame(5, $data['id']);
+		// No parts beside the error, and the row says it is not split
+		$this->assertSame([], $data['splits']);
+		$this->assertFalse($data['is_split']);
 	}
 
 	// ── check: transfer links and split parts on list rows (#767) ──
@@ -1092,6 +1125,28 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertSame(['12.50', '7.50'], array_column($response->getData()['splits'], 'amount'));
+	}
+
+	public function testSplitsOfAnUnsplitTransactionIgnoreLeftoverParts(): void {
+		// Parts stay behind on purpose when a row stops being split (#356);
+		// show() already ignores them, and this endpoint has to agree
+		$this->service->method('findForAccounts')->willReturn($this->checkTransaction(55, 1, false));
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
+		$this->splitService->method('getSplits')->willReturn([$this->part(1, 55, 12.5, 'Old'), $this->part(2, 55, 7.5, 'Parts')]);
+
+		$response = $this->controller->splits(55);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame([], $response->getData()['splits']);
+	}
+
+	public function testSplitsOfAPreSplitColumnRowComeFromItsParts(): void {
+		// is_split NULL predates the column (#360): the parts decide
+		$this->service->method('findForAccounts')->willReturn($this->checkTransaction(55, 1, null));
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
+		$this->splitService->method('getSplits')->willReturn([$this->part(1, 55, 10.0, null), $this->part(2, 55, 10.0, null)]);
+
+		$this->assertCount(2, $this->controller->splits(55)->getData()['splits']);
 	}
 
 	public function testShowCarriesItsPartsAndTheVisibleLinkedAccount(): void {
@@ -1326,6 +1381,34 @@ class ApiV1TransactionControllerTest extends TestCase {
 		}
 	}
 
+	public function testUpdateRefusesAnAmountThatIsNotMoreThanZero(): void {
+		// A negative amount answered 200 and moved the balance the wrong way,
+		// and on a split turned every part negative
+		$this->existing();
+		$this->service->expects($this->never())->method('update');
+
+		foreach (['-12.50', -42.5, '0', 0, '0.00'] as $amount) {
+			$this->params = ['amount' => $amount];
+			$response = $this->editor()->update(10);
+
+			$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus(), var_export($amount, true));
+			$this->assertSame('invalid_amount', $response->getData()['error_code']);
+		}
+	}
+
+	public function testUpdateAcceptsAStoredNegativeAmountSentBackUnchanged(): void {
+		// Imports can store a negative row; the read shape sent back with
+		// another field edited must not be refused for it
+		$this->existing(['amount' => -5.0]);
+		$this->params = ['amount' => '-5.00', 'notes' => 'Refund line'];
+
+		$this->service->expects($this->once())->method('update')
+			->with(10, 'user1', $this->callback(static fn (array $u): bool => $u['notes'] === 'Refund line'))
+			->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
 	public function testUpdateRejectsAnInvalidDate(): void {
 		$this->existing();
 		$this->params = ['date' => '28/09/2026'];
@@ -1498,7 +1581,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$response = $this->editor()->update(10);
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
-		$this->assertSame('Category not found', $response->getData()['error']);
+		$this->assertSame("Category not found. It must be one of the account owner's categories", $response->getData()['error']);
 	}
 
 	public function testUpdateAnswersWithTheUpdatedTransaction(): void {
