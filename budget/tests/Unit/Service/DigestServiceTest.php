@@ -14,22 +14,25 @@ use OCA\Budget\Service\DigestService;
 use OCA\Budget\Service\GoalsService;
 use OCA\Budget\Service\Mail\BudgetMailService;
 use OCA\Budget\Service\SettingService;
+use OCA\Budget\Service\UserClock;
 use OCP\L10N\IFactory;
 use OCP\Notification\IManager as INotificationManager;
 use OCP\Notification\INotification;
 use PHPUnit\Framework\TestCase;
 
 class TestableDigestService extends DigestService {
-	public string $now = '2026-06-03'; // a Wednesday
+	/** null = ask the user's clock */
+	public ?string $now = '2026-06-03'; // a Wednesday
 
-	protected function getNow(): \DateTimeImmutable {
-		return new \DateTimeImmutable($this->now);
+	protected function getNow(?string $userId = null): \DateTimeImmutable {
+		return $this->now !== null ? new \DateTimeImmutable($this->now) : parent::getNow($userId);
 	}
 }
 
 class DigestServiceTest extends TestCase {
 	private TestableDigestService $service;
 	private AnomalyDetectionService $anomalyService;
+	private UserClock $clock;
 
 	/** [$start, $end] the service asked anomalies for */
 	private array $periodAsked = [];
@@ -99,6 +102,7 @@ class DigestServiceTest extends TestCase {
 			['income' => 3000.0, 'expenses' => 2000.0],
 		]);
 
+		$this->clock = $this->createMock(UserClock::class);
 		$this->service = new TestableDigestService(
 			$budgetAlertService,
 			$billService,
@@ -110,8 +114,24 @@ class DigestServiceTest extends TestCase {
 			$this->createMock(BudgetMailService::class),
 			$notificationManager,
 			$this->createMock(IFactory::class),
-			$transactionMapper
+			$transactionMapper,
+			$this->clock
 		);
+	}
+
+	/**
+	 * "Last month" is the user's: on the morning of the 1st in Sydney the
+	 * server is still in the month the digest should be about.
+	 */
+	public function testThePeriodIsTheUsersLastMonth(): void {
+		$this->clock->method('now')->with('alice')
+			->willReturn(new \DateTimeImmutable('2030-07-01 08:00', new \DateTimeZone('Australia/Sydney')));
+		$this->service->now = null;
+
+		$digest = $this->service->buildDigest('alice', 'monthly');
+
+		$this->assertSame('2030-06-01', $digest['periodStart']);
+		$this->assertSame('2030-06-30', $digest['periodEnd']);
 	}
 
 	public function testWeeklyDigestCoversLastMondayToSunday(): void {

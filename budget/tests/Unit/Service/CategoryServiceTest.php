@@ -65,6 +65,7 @@ class CategoryServiceTest extends TestCase {
 		$this->currentBudgetMonth = date('Y-m');
 		$carryoverService = $this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class);
 		$carryoverService->method('getCarryovers')->willReturn([]);
+		$carryoverService->method('today')->willReturn('2026-01-15');
 		$carryoverService->method('currentBudgetMonth')
 			->willReturnCallback(fn () => $this->currentBudgetMonth);
 		$carryoverService->method('budgetStartDay')

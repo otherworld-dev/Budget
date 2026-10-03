@@ -10,6 +10,7 @@ use OCA\Budget\Service\BudgetAlertService;
 use OCA\Budget\Service\DigestService;
 use OCA\Budget\Service\Forecast\ForecastWarningService;
 use OCA\Budget\Service\SettingService;
+use OCA\Budget\Service\UserClock;
 use OCP\AppFramework\Utility\ITimeFactory;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
@@ -25,6 +26,8 @@ class UserDigestJobTest extends TestCase {
 	private array $settings = [];
 	/** @var array<string, string> settings written */
 	private array $written = [];
+	/** The user's clock: years from the server's, in Sydney */
+	private \DateTimeImmutable $now;
 
 	protected function setUp(): void {
 		$this->digestService = $this->createMock(DigestService::class);
@@ -41,6 +44,10 @@ class UserDigestJobTest extends TestCase {
 				return new \OCA\Budget\Db\Setting();
 			});
 
+		$this->now = new \DateTimeImmutable('2030-07-01 08:00', new \DateTimeZone('Australia/Sydney'));
+		$clock = $this->createMock(UserClock::class);
+		$clock->method('now')->with('alice')->willReturnCallback(fn () => $this->now);
+
 		$container = $this->createMock(ContainerInterface::class);
 		$container->method('get')->willReturnMap([
 			[SettingService::class, $settingService],
@@ -49,6 +56,7 @@ class UserDigestJobTest extends TestCase {
 			[BudgetAlertService::class, $this->budgetAlertService],
 			[ForecastWarningService::class, $this->forecastWarningService],
 			[LoggerInterface::class, $this->createMock(LoggerInterface::class)],
+			[UserClock::class, $clock],
 		]);
 		\OC::$server = $container;
 
@@ -134,7 +142,8 @@ class UserDigestJobTest extends TestCase {
 		$this->digestService->expects($this->once())->method('sendDigest')->with('alice', 'weekly');
 
 		$this->runFor();
-		$this->assertSame(date('o-\WW'), $this->written['digest_last_period']);
+		// The period on the user's calendar, not the server's
+		$this->assertSame($this->now->format('o-\WW'), $this->written['digest_last_period']);
 
 		// The period key now matches: the next run sends nothing
 		$this->settings['digest_last_period'] = $this->written['digest_last_period'];
@@ -148,7 +157,7 @@ class UserDigestJobTest extends TestCase {
 
 		$this->runFor();
 
-		$this->assertSame(date('Y-m'), $this->written['digest_last_period']);
+		$this->assertSame('2030-07', $this->written['digest_last_period']);
 	}
 
 	public function testIgnoresAJobWithoutAUser(): void {

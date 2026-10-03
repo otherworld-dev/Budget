@@ -924,7 +924,8 @@ class CategoryService extends AbstractCrudService {
 
 	public function getBudgetAnalysis(string $userId, ?string $month = null, ?array $visibleAccountIds = null): array {
 		if (!$month) {
-			$month = date('Y-m');
+			// This month on the user's calendar, not the server's
+			$month = substr($this->carryoverService->today($userId), 0, 7);
 		}
 
 		$startDate = $month . '-01';

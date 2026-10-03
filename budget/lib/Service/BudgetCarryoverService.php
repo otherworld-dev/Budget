@@ -57,6 +57,7 @@ class BudgetCarryoverService {
 		private TransactionSplitMapper $splitMapper,
 		private RecurringBudgetService $recurringBudgetService,
 		private SettingService $settingService,
+		private ?UserClock $userClock = null,
 	) {
 	}
 
@@ -418,7 +419,14 @@ class BudgetCarryoverService {
 	 * start day that can be the calendar month before or after this one.
 	 */
 	public function currentBudgetMonth(string $userId): string {
-		return BudgetPeriod::monthContaining($this->getToday(), $this->budgetStartDay($userId));
+		return BudgetPeriod::monthContaining($this->getToday($userId), $this->budgetStartDay($userId));
+	}
+
+	/**
+	 * Today (Y-m-d) on the user's calendar.
+	 */
+	public function today(string $userId): string {
+		return $this->getToday($userId);
 	}
 
 	/**
@@ -431,9 +439,12 @@ class BudgetCarryoverService {
 	}
 
 	/**
-	 * Today (Y-m-d). Overridable in tests.
+	 * Today (Y-m-d) on the user's calendar, not the server's: in Sydney the
+	 * server is still on last month until mid-morning on the 1st, and the
+	 * budget tile, alerts and budget status showed that month. Overridable
+	 * in tests.
 	 */
-	protected function getToday(): string {
-		return date('Y-m-d');
+	protected function getToday(?string $userId = null): string {
+		return $this->userClock?->today($userId) ?? date('Y-m-d');
 	}
 }

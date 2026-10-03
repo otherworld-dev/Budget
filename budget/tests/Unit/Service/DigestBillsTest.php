@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
 class DigestBillsTestService extends DigestService {
 	public string $now = '2026-06-03';
 
-	protected function getNow(): \DateTimeImmutable {
+	protected function getNow(?string $userId = null): \DateTimeImmutable {
 		return new \DateTimeImmutable($this->now);
 	}
 }
