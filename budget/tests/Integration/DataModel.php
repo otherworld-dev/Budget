@@ -106,6 +106,7 @@ final class DataModel {
 		'budget_cat_mutes' => ['category_id' => 'budget_categories'],
 		'budget_dismiss_imp' => ['account_id' => 'budget_accounts'],
 		'budget_imp_links' => ['budget_account_id' => 'budget_accounts'],
+		'budget_bam' => ['budget_account_id' => 'budget_accounts'],
 		'budget_import_templates' => ['account_id' => 'budget_accounts'],
 	];
 }

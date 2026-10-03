@@ -17,6 +17,11 @@ namespace OCA\Budget\Service\Import\Preset;
  *
  * Columns are read by name: 6.x moved and added currency columns, so their
  * position is not stable between versions.
+ *
+ * A journal's amount and currency_code are in its source account's
+ * currency. A transfer between accounts in two currencies carries the
+ * destination's own figures in foreign_amount and foreign_currency_code, so
+ * that side is imported from those.
  */
 class FireflyIIIPreset extends AbstractAppExportPreset {
 	/** Firefly III account types that are the user's own accounts. */
@@ -106,9 +111,17 @@ class FireflyIIIPreset extends AbstractAppExportPreset {
 			$row['_accountType'] = $accountType ?? $this->inferAccountType($accountName);
 		}
 
-		$currency = strtoupper($this->cell($rawCsvRow, 'currency_code'));
+		$otherOwn = $this->isOwnAccount($this->cell($rawCsvRow, $other . '_type'));
+		$foreign = $this->foreignFigures($rawCsvRow);
+		// The receiving side of a transfer across currencies
+		$inForeign = $own === 'destination' && $otherOwn && $foreign !== null;
+
+		$currency = $inForeign ? $foreign['currency'] : strtoupper($this->cell($rawCsvRow, 'currency_code'));
 		if ($currency !== '') {
 			$row['_currency'] = $currency;
+		}
+		if ($inForeign) {
+			$row['amount'] = $foreign['amount'];
 		}
 
 		// Money leaves the source account and arrives in the destination,
@@ -132,14 +145,21 @@ class FireflyIIIPreset extends AbstractAppExportPreset {
 			$row['description'] = $description;
 		}
 
-		$foreign = $this->foreignAmountNote($rawCsvRow);
-		$notes = $this->joinNotes($this->cell($rawCsvRow, 'notes'), $foreign ?? '');
+		// The figures in the other currency, kept as a note: the transaction
+		// is imported in the account's own currency
+		$otherFigures = $inForeign
+			? $this->amountNote($this->cell($rawCsvRow, 'amount'), $this->cell($rawCsvRow, 'currency_code'))
+			: $this->foreignAmountNote($rawCsvRow);
+		$notes = $this->joinNotes($this->cell($rawCsvRow, 'notes'), $otherFigures ?? '');
 		if ($notes !== null || array_key_exists('notes', $row)) {
 			$row['notes'] = $notes;
 		}
 
-		if ($this->isOwnAccount($this->cell($rawCsvRow, $other . '_type'))) {
+		if ($otherOwn) {
 			$row = $this->markTransfer($row, $otherName);
+			// Both sides come from this one journal. Across currencies their
+			// amounts differ, so this is how they find each other.
+			$row['_transferPair'] = 'firefly:' . $this->cell($rawCsvRow, 'journal_id');
 		} else {
 			// The expense or revenue account is who was paid, or who paid
 			if ($otherName !== '' && !$this->isPseudoAccount($this->cell($rawCsvRow, $other . '_type'))) {
@@ -185,11 +205,33 @@ class FireflyIIIPreset extends AbstractAppExportPreset {
 	 * imported in the account's own currency.
 	 */
 	private function foreignAmountNote(array $raw): ?string {
-		$amount = ltrim($this->cell($raw, 'foreign_amount'), '-');
-		$currency = $this->cell($raw, 'foreign_currency_code');
+		return $this->amountNote($this->cell($raw, 'foreign_amount'), $this->cell($raw, 'foreign_currency_code'));
+	}
+
+	private function amountNote(string $amount, string $currency): ?string {
+		$amount = ltrim($amount, '-');
 		if ($amount === '' || $currency === '' || (float)$amount == 0.0) {
 			return null;
 		}
 		return 'Foreign amount: ' . $amount . ' ' . strtoupper($currency);
+	}
+
+	/**
+	 * The journal's figures in a second currency, when it has them: the
+	 * destination's own amount and currency for a transfer across
+	 * currencies. Raw file text only, so the import ID derived from the
+	 * amount stays the same on every import of the file.
+	 *
+	 * @return array{amount: float, currency: string}|null
+	 */
+	private function foreignFigures(array $raw): ?array {
+		$amount = ltrim($this->cell($raw, 'foreign_amount'), '-');
+		$currency = strtoupper($this->cell($raw, 'foreign_currency_code'));
+		if ($amount === '' || !is_numeric($amount) || (float)$amount == 0.0
+			|| preg_match('/^[A-Z]{3}$/', $currency) !== 1
+			|| $currency === strtoupper($this->cell($raw, 'currency_code'))) {
+			return null;
+		}
+		return ['amount' => abs((float)$amount), 'currency' => $currency];
 	}
 }
