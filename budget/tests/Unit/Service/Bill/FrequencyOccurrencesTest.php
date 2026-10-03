@@ -112,6 +112,19 @@ class FrequencyOccurrencesTest extends TestCase {
 		$this->assertSame('2026-10-09', $this->calc->periodStart('daily', '2026-10-09'));
 	}
 
+	public function testALegacySemiMonthlyDueDateOnThe28thIsTheSecondOccurrence(): void {
+		// Before 3.0 the second date stopped at the 28th. A bill or income on
+		// the 15th due 28 October went to the 30th when paid, the same
+		// occurrence again, and auto-pay paid it twice
+		$this->assertSame('2026-11-15', $this->calc->calculateNextDueDate('semi-monthly', 15, null, '2026-10-28', null, true));
+		$this->assertSame('2026-11-14', $this->calc->calculateNextDueDate('semi-monthly', 14, null, '2026-10-28', null, true));
+		$this->assertSame('2026-11-15', $this->calc->calculateNextDueDate('semi-monthly', null, null, '2026-10-28', null, true, '2026-01-15'));
+		// Dates on today's schedule are untouched
+		$this->assertSame('2026-11-13', $this->calc->calculateNextDueDate('semi-monthly', 13, null, '2026-10-28', null, true));
+		$this->assertSame('2026-10-30', $this->calc->calculateNextDueDate('semi-monthly', 15, null, '2026-10-15', null, true));
+		$this->assertSame('2026-11-15', $this->calc->calculateNextDueDate('semi-monthly', 15, null, '2026-10-30', null, true));
+	}
+
 	public function testOccurrenceBeforeIsTheLastOneEarlier(): void {
 		$this->assertSame('2026-10-15', $this->calc->occurrenceBefore('monthly', 15, null, '2026-11-15'));
 		$this->assertSame('2026-02-28', $this->calc->occurrenceBefore('monthly', 31, null, '2026-03-31'));

@@ -22,27 +22,47 @@ export function isClosedAccount(account) {
     return !!(account && account.closed);
 }
 
+/**
+ * An account someone shared with you read-only: the server refuses anything
+ * posted into it. An account with no _canWrite flag counts as writable.
+ */
+export function isReadOnlyShare(account) {
+    return !!(account && account._shared && account._canWrite === false);
+}
+
+function takesNewActivity(account) {
+    return !isClosedAccount(account) && !isReadOnlyShare(account);
+}
+
 /** Accounts that can take new activity. */
 export function openAccounts(accounts) {
-    return list(accounts).filter(account => !isClosedAccount(account));
+    return list(accounts).filter(takesNewActivity);
 }
 
 /**
- * The accounts a picker for new activity should list: the open ones, plus any
- * closed account the record being edited already points at. Without that, an
+ * The accounts a picker for new activity should list: the open ones you can
+ * write to, plus any closed or read-only account the record being edited
+ * already points at. Without that, an
  * old record's account would have no <option>, the select would silently read
  * "" and the save would strip the account off the record (the #370 failure).
  *
  * @param {Array} accounts
  * @param {number|string|Array|null} keepIds The edited record's account id(s)
+ * @param {object} [options]
+ * @param {boolean} [options.readOnlyShares=false] Also list accounts shared
+ *   read-only, for a picker that only reads the account (a savings goal
+ *   tracking its balance) rather than posting into it
  */
-export function pickableAccounts(accounts, keepIds = []) {
+export function pickableAccounts(accounts, keepIds = [], { readOnlyShares = false } = {}) {
     const keep = new Set(
         (Array.isArray(keepIds) ? keepIds : [keepIds])
             .filter(id => id !== null && id !== undefined && id !== '')
             .map(String)
     );
-    return list(accounts).filter(account => !isClosedAccount(account) || keep.has(String(account.id)));
+    const offered = readOnlyShares
+        ? account => !isClosedAccount(account)
+        : takesNewActivity;
+    return list(accounts).filter(account => offered(account) || keep.has(String(account.id)));
 }
 
 /** Display text for an account option; a closed one says so. */

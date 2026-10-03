@@ -224,6 +224,27 @@ class CrossUserLinks {
 	}
 
 	/**
+	 * Whether a restored import rule may keep its reference to another
+	 * user's account or category (an action or a condition): the rule is the
+	 * one the user had here, and the user can still use what it names (write
+	 * to it, for an account). The rule's references live inside JSON, so
+	 * unlike keepsReference() there is no column to compare with what it
+	 * pointed at before.
+	 */
+	public function ruleKeepsReference(int $oldRuleId, mixed $name, mixed $createdAt, string $type, int $value): bool {
+		return $this->isSameEntity(ShareItem::TYPE_IMPORT_RULE, $oldRuleId, $name, $createdAt)
+			&& $this->usable($type, $value);
+	}
+
+	/**
+	 * Whether another user's account or category is shared with the user,
+	 * with any permission. Saved report filters name such accounts.
+	 */
+	public function isSharedWithUser(string $type, int $id): bool {
+		return !isset($this->owned[$type][$id]) && isset($this->sharedWithUser[$type][$id]);
+	}
+
+	/**
 	 * Whether a restored bill's split template may keep a part's category
 	 * that belongs to another user, by the same rules as keepsReference().
 	 */

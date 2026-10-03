@@ -535,9 +535,48 @@ class TransactionServiceTest extends TestCase {
 		$this->service->update(1, 'user1', ['amount' => 1100.00]);
 
 		// Proportional rescale to 1100 (×1.1); last split absorbs the remainder.
-		$this->assertEquals('935', $s1->getAmount());
-		$this->assertEquals('110', $s2->getAmount());
-		$this->assertEquals('55', $s3->getAmount());
+		$this->assertSame('935.00', $s1->getAmount());
+		$this->assertSame('110.00', $s2->getAmount());
+		$this->assertSame('55.00', $s3->getAmount());
+	}
+
+	/**
+	 * Rescales in pennies with BCMath (#274): each part rounds half away
+	 * from zero, and the last takes what is left, so the parts always sum
+	 * to the new amount exactly.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('rescaleCases')]
+	public function testRescaledSplitsSumExactlyToTheNewAmount(float $old, array $parts, float $new, array $expected): void {
+		$tx = $this->makeTransaction(['amount' => $old, 'type' => 'debit']);
+		$tx->setIsSplit(true);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(['openingBalance' => 0.0]));
+
+		$splits = [];
+		foreach ($parts as $i => $amount) {
+			$s = new \OCA\Budget\Db\TransactionSplit();
+			$s->setId($i + 1);
+			$s->setTransactionId(1);
+			$s->setAmount($amount);
+			$splits[] = $s;
+		}
+		$this->splitMapper->method('findByTransaction')->with(1)->willReturn($splits);
+
+		$this->service->update(1, 'user1', ['amount' => $new]);
+
+		$this->assertSame($expected, array_map(static fn ($s) => $s->getAmount(), $splits));
+	}
+
+	public static function rescaleCases(): array {
+		return [
+			'thirds leave a penny for the last part' => [3.00, ['1.00', '1.00', '1.00'], 10.00, ['3.33', '3.33', '3.34']],
+			'a half penny rounds up' => [2.00, ['1.00', '1.00'], 0.05, ['0.03', '0.02']],
+			'float-unfriendly shares' => [0.30, ['0.10', '0.20'], 0.70, ['0.23', '0.47']],
+			'no old amount splits evenly' => [0.00, ['0.00', '0.00', '0.00'], 10.00, ['3.33', '3.33', '3.34']],
+			'many parts' => [7.00, ['1.00', '1.00', '1.00', '1.00', '1.00', '1.00', '1.00'], 1.00, ['0.14', '0.14', '0.14', '0.14', '0.14', '0.14', '0.16']],
+		];
 	}
 
 	public function testReconcilingAHoldTakesThePostedAmountAndDescription(): void {
@@ -581,8 +620,8 @@ class TransactionServiceTest extends TestCase {
 
 		$this->service->reconcilePendingToPosted($hold, null, null, ['amount' => 120.00]);
 
-		$this->assertEquals('72', $s1->getAmount());
-		$this->assertEquals('48', $s2->getAmount());
+		$this->assertSame('72.00', $s1->getAmount());
+		$this->assertSame('48.00', $s2->getAmount());
 	}
 
 	public function testUpdateDoesNotRescaleNonSplitTransaction(): void {

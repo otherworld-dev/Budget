@@ -377,6 +377,42 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertEqualsWithDelta(300.00, $result['totals']['totalExpenses'], 0.01);
 	}
 
+	/**
+	 * A tile showing a subset of accounts, or filtered by tag, built its
+	 * totals from those alone but had excluded-category money deducted from
+	 * every account (another user's too, through a shared category), so the
+	 * totals lost money they never counted and could go negative.
+	 */
+	public function testExcludedCategoryDeductionOnlyTouchesAccountsInView(): void {
+		$this->accountMapper->method('findByIds')->with([1])->willReturn([
+			$this->makeAccount(1, 'Checking', 'checking', 1000.00, 'GBP'),
+		]);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([
+			1 => ['income' => 100, 'expenses' => 80, 'count' => 5],
+		]);
+		$this->transactionMapper->method('getTransferTotals')->willReturn(['income' => 0, 'expenses' => 0]);
+		$this->setupDefaultMocks();
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->conversionService->method('needsConversion')->willReturn(false);
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(7, 'Internal', 'expense', null, true),
+		]);
+
+		$this->transactionMapper->expects($this->once())
+			->method('getCategoryTotalsByAccount')
+			->with([7], '2026-01-01', '2026-01-31', null, true, $this->anything(), [1], [4], false)
+			// Account 2 is not on the tile: its row must be ignored even if returned
+			->willReturn([
+				1 => ['income' => 0, 'expenses' => 30],
+				2 => ['income' => 0, 'expenses' => 500],
+			]);
+
+		$result = $this->aggregator->generateSummary('user1', null, '2026-01-01', '2026-01-31', [4], false, [1]);
+
+		$this->assertEqualsWithDelta(100.00, $result['totals']['totalIncome'], 0.01);
+		$this->assertEqualsWithDelta(50.00, $result['totals']['totalExpenses'], 0.01);
+	}
+
 	public function testExcludedCategoryDeductionScopedToSelectedAccount(): void {
 		$account = $this->makeAccount(1, 'Checking', 'checking', 1000.00, 'EUR');
 
@@ -786,6 +822,35 @@ class ReportAggregatorTest extends TestCase {
 		);
 	}
 
+	/**
+	 * Money under a category shared with the viewer was counted in Net but
+	 * had no row, so the rows didn't add up. It now gets a row by name, and
+	 * money under a category the viewer can't see at all joins Uncategorized.
+	 */
+	public function testCategoryMonthlyRowsAddUpWithSharedAndUnknownCategories(): void {
+		$this->conversionService->method('getBaseCurrency')->willReturn('USD');
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(1, 'Salary', 'income'),
+		]);
+		$this->granularShareService->method('getSharedCategoryIds')->willReturn([1, 5]);
+		$this->categoryMapper->method('findByIdsUnscoped')->with([5])->willReturn([
+			$this->makeCategory(5, 'Joint groceries', 'expense'),
+		]);
+		$this->reportQueries->method('getCategoryNetByMonth')->willReturn([
+			1 => ['2026-01' => 3000.0],
+			5 => ['2026-01' => -400.0],
+			9 => ['2026-01' => -50.0],
+			TransactionReportQueries::UNCATEGORIZED => ['2026-01' => -25.0],
+		]);
+
+		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-01-01', '2026-01-31');
+
+		$this->assertSame(['Joint groceries', 'Salary', null], array_column($r['rows'], 'name'));
+		$this->assertEqualsWithDelta(-75.0, $r['rows'][2]['total'], 0.001);
+		$this->assertEqualsWithDelta(2525.0, $r['totals']['total'], 0.001);
+		$this->assertEqualsWithDelta($r['totals']['total'], array_sum(array_column($r['rows'], 'total')), 0.001);
+	}
+
 	public function testCategoryMonthlyHasNoUncategorizedRowWhenItNetsToZero(): void {
 		$this->conversionService->method('getBaseCurrency')->willReturn('USD');
 		$this->categoryMapper->method('findAll')->willReturn([
@@ -957,6 +1022,31 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertSame(0.12345678, $result['totals']['totalIncome']);
 		$this->assertSame(0.00000001, $result['totals']['totalExpenses']);
 		$this->assertSame(0.12345677, $result['totals']['netIncome']);
+	}
+
+	/**
+	 * Converted cash flow keeps each month's transaction count, as the
+	 * single-currency rows do (Year over Year reads it).
+	 */
+	public function testConvertedCashFlowKeepsTheTransactionCount(): void {
+		$this->accountMapper->method('findAll')->willReturn([
+			$this->makeAccount(1, 'GBP', 'checking', 0.0, 'GBP'),
+			$this->makeAccount(2, 'EUR', 'checking', 0.0, 'EUR'),
+		]);
+		$this->conversionService->method('needsConversion')->willReturn(true);
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->conversionService->method('getAccountCurrencyMap')->willReturn([1 => 'GBP', 2 => 'EUR']);
+		$this->conversionService->method('convertToBaseFloat')
+			->willReturnCallback(fn ($amount, $currency) => $currency === 'EUR' ? (float)$amount * 0.5 : (float)$amount);
+		$this->reportQueries->method('getCashFlowByMonthByAccount')->willReturn([
+			['month' => '2026-01', 'account_id' => 1, 'income' => 100.0, 'expenses' => 10.0, 'net' => 90.0, 'count' => 2],
+			['month' => '2026-01', 'account_id' => 2, 'income' => 100.0, 'expenses' => 0.0, 'net' => 100.0, 'count' => 1],
+		]);
+
+		$row = $this->aggregator->getCashFlowReport('user1', null, '2026-01-01', '2026-01-31')['data'][0];
+
+		$this->assertSame(150.0, $row['income']);
+		$this->assertSame(3, $row['count']);
 	}
 
 	public function testCashFlowTotalsAddWithoutFloatDrift(): void {

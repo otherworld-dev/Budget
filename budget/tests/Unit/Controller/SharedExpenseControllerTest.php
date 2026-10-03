@@ -10,6 +10,7 @@ use OCA\Budget\Db\ExpenseShare;
 use OCA\Budget\Db\Settlement;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\SharedExpenseService;
+use OCA\Budget\Service\ShareService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\Collaboration\Collaborators\ISearch;
@@ -27,6 +28,8 @@ class SharedExpenseControllerTest extends TestCase {
 	private IRequest $request;
 	private LoggerInterface $logger;
 	private ISearch $collaboratorSearch;
+	private IUserManager $userManager;
+	private ShareService $shareService;
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
@@ -40,7 +43,9 @@ class SharedExpenseControllerTest extends TestCase {
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn(true);
 		$userManager = $this->createMock(IUserManager::class);
+		$this->userManager = $userManager;
 		$this->collaboratorSearch = $this->createMock(ISearch::class);
+		$this->shareService = $this->createMock(ShareService::class);
 
 		$this->controller = new SharedExpenseController(
 			$this->request,
@@ -50,7 +55,8 @@ class SharedExpenseControllerTest extends TestCase {
 			$l,
 			'user1',
 			$this->logger,
-			$this->collaboratorSearch
+			$this->collaboratorSearch,
+			$this->shareService
 		);
 	}
 
@@ -189,6 +195,64 @@ class SharedExpenseControllerTest extends TestCase {
 		$response = $this->controller->createContact('Alice', 'alice@example.com');
 
 		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	private function givenUser(string $uid, string $displayName): void {
+		$user = $this->createMock(\OCP\IUser::class);
+		$user->method('getUID')->willReturn($uid);
+		$user->method('getDisplayName')->willReturn($displayName);
+		$this->userManager->method('get')->willReturnCallback(fn (string $id) => $id === $uid ? $user : null);
+	}
+
+	public function testLinkingAContactToAUserThePickerOffersFillsInTheirName(): void {
+		$this->givenUser('bob', 'Bob Smith');
+		$this->shareService->method('mayShareWith')->willReturn(true);
+		$this->collaboratorSearch->method('search')->with('bob', [IShare::TYPE_USER], false, 50, 0)
+			->willReturn([['exact' => ['users' => [self::sharee('bob', 'Bob Smith')]], 'users' => []], false]);
+		$this->request->method('getParams')->willReturn(['nextcloudUserId' => 'bob']);
+		$this->service->expects($this->once())->method('createContact')
+			->with('user1', 'Bob Smith', null, 'bob')
+			->willReturn($this->makeContact());
+
+		$response = $this->controller->createContact('bob');
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	/**
+	 * "Only share with group members" applies to linking a contact, as it
+	 * does to sharing a budget.
+	 */
+	public function testLinkingAContactRespectsOnlyShareWithGroupMembers(): void {
+		$this->givenUser('bob', 'Bob Smith');
+		$this->shareService->method('mayShareWith')->willReturn(false);
+		$this->collaboratorSearch->method('search')
+			->willReturn([['exact' => ['users' => [self::sharee('bob', 'Bob Smith')]], 'users' => []], false]);
+		$this->request->method('getParams')->willReturn(['nextcloudUserId' => 'bob']);
+		$this->service->expects($this->never())->method('createContact');
+
+		$response = $this->controller->createContact('bob');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Nextcloud user not found', $response->getData()['error']);
+	}
+
+	/**
+	 * With user enumeration off, a guessed user id the picker keeps hidden
+	 * answers like one that doesn't exist, and its display name never comes
+	 * back.
+	 */
+	public function testLinkingAContactToAUserThePickerHidesLooksLikeNoSuchUser(): void {
+		$this->givenUser('bob', 'Bob Smith');
+		$this->shareService->method('mayShareWith')->willReturn(true);
+		$this->collaboratorSearch->method('search')->willReturn([['exact' => ['users' => []], 'users' => []], false]);
+		$this->request->method('getParams')->willReturn(['nextcloudUserId' => 'bob']);
+		$this->service->expects($this->never())->method('createContact');
+
+		$response = $this->controller->createContact('bob');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringNotContainsString('Bob Smith', json_encode($response->getData()));
 	}
 
 	public function testCreateContactHandlesError(): void {

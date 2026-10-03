@@ -449,6 +449,54 @@ class PensionServiceTest extends TestCase {
 		$this->assertSame(1, $this->service->adoptImportedDuplicates('user1', [$imported]));
 	}
 
+	private function adoptingSetup(\OCA\Budget\Db\Transaction $fresh, string $provider = ''): void {
+		$this->ownAccount();
+		$this->transactionMapper->method('findById')->willReturn($fresh);
+		$this->legQueries->method('findAppCreatedLegs')->willReturn([$this->appLeg(555, '2026-10-01', 77)]);
+		$contribution = $this->makeContribution('2026-10-01', 200.0, PensionContribution::KIND_CONTRIBUTION, 555, 10);
+		$contribution->setId(77);
+		$contribution->setUserId('user1');
+		$contribution->setPensionId(1);
+		$this->contributionMapper->method('findById')->willReturn($contribution);
+		$pension = $this->makePension();
+		$pension->setProvider($provider);
+		$this->pensionMapper->method('find')->willReturn($pension);
+	}
+
+	/**
+	 * Years of another app's history can hold an unrelated payment of the
+	 * same amount near a pension date. One already filed as something else
+	 * is not taken for the pension's leg.
+	 */
+	public function testAnImportedRowAlreadyCategorisedIsLeftAloneUnlessItNamesThePension(): void {
+		$imported = $this->importedRow(900, '2026-10-02');
+		$imported->setDescription('CAR INSURANCE');
+		$imported->setCategoryId(4);
+		$this->adoptingSetup($imported);
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+
+		$this->assertSame(0, $this->service->adoptImportedDuplicates('user1', [$imported]));
+	}
+
+	public function testAnUnnamedRowFurtherAwayThanABanksDelayIsLeftAlone(): void {
+		$imported = $this->importedRow(900, '2026-10-05');
+		$imported->setDescription('DIRECT DEBIT');
+		$this->adoptingSetup($imported);
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+
+		$this->assertSame(0, $this->service->adoptImportedDuplicates('user1', [$imported]));
+	}
+
+	public function testARowNamingTheProviderIsTakenEvenWhenCategorisedAndLate(): void {
+		$imported = $this->importedRow(900, '2026-10-05');
+		$imported->setDescription('NEST PENSIONS DD');
+		$imported->setCategoryId(4);
+		$this->adoptingSetup($imported, 'Nest');
+		$this->transactionService->expects($this->once())->method('deleteAsAccountOwner')->with(555);
+
+		$this->assertSame(1, $this->service->adoptImportedDuplicates('user1', [$imported]));
+	}
+
 	public function testAReconciledLegIsLeftAlone(): void {
 		$this->ownAccount();
 		$imported = $this->importedRow(900, '2026-10-02');

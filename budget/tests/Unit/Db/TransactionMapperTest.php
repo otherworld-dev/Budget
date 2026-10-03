@@ -1283,6 +1283,52 @@ class TransactionMapperTest extends TestCase {
 		$this->assertNotContains('t.type', $eqCalls, 'netting must include both directions, not filter t.type');
 	}
 
+	/**
+	 * Asked to keep uncategorised money, both queries LEFT join the category
+	 * and the direct and split rows with no category merge into one row,
+	 * flagged for the renderer to label.
+	 */
+	public function testGetSpendingSummaryCanKeepUncategorisedMoney(): void {
+		$joins = [];
+		$this->qb->method('leftJoin')->willReturnCallback(function ($from, $table) use (&$joins) {
+			$joins[] = $table;
+			return $this->qb;
+		});
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+			$this->resultOf([
+				['id' => 5, 'name' => 'Salary', 'color' => '#f00', 'icon' => null, 'total' => '1000.00', 'count' => '1'],
+				['id' => null, 'name' => null, 'color' => null, 'icon' => null, 'total' => '2000.00', 'count' => '1'],
+			]),
+			$this->resultOf([
+				['id' => null, 'name' => null, 'color' => null, 'icon' => null, 'total' => '3.00', 'count' => '1'],
+			])
+		);
+
+		$summary = $this->mapper->getSpendingSummary(
+			'user1', '2026-01-01', '2026-01-31', transactionType: 'credit', includeUncategorized: true
+		);
+
+		$this->assertSame(2, count(array_keys($joins, 'budget_categories', true)));
+		$this->assertCount(2, $summary);
+		$this->assertNull($summary[0]['id']);
+		$this->assertTrue($summary[0]['uncategorized']);
+		$this->assertEqualsWithDelta(2003.0, (float)$summary[0]['total'], 0.001);
+		$this->assertSame(2, (int)$summary[0]['count']);
+		$this->assertArrayNotHasKey('uncategorized', $summary[1]);
+	}
+
+	/** Direct and split totals add through MoneyCalculator, never float + (#274). */
+	public function testGetSpendingSummaryMergesWithoutFloatDrift(): void {
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+			$this->resultOf([['id' => 5, 'name' => 'Food', 'color' => null, 'icon' => null, 'total' => '0.1', 'count' => '1']]),
+			$this->resultOf([['id' => 5, 'name' => 'Food', 'color' => null, 'icon' => null, 'total' => '0.2', 'count' => '1']])
+		);
+
+		$summary = $this->mapper->getSpendingSummary('user1', '2026-01-01', '2026-01-31');
+
+		$this->assertSame(0.3, $summary[0]['total']);
+	}
+
 	public function testGetSpendingSummaryStaysGrossByDefault(): void {
 		$eqCalls = [];
 		$this->expr->method('eq')->willReturnCallback(function (string $col, $val) use (&$eqCalls) {

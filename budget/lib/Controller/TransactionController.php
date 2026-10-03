@@ -506,6 +506,16 @@ class TransactionController extends Controller {
 				$this->granularShareService->requireUsableCategory($effectiveUserId, $updates['categoryId']);
 			}
 
+			// The service only checks the new account against the ledger
+			// owner's accounts, so on a shared account any of the owner's,
+			// shared or not, would do. It has to be one this user can write to.
+			if (isset($updates['accountId'])) {
+				if (!$this->granularShareService->canAccess($this->userId, 'account', $updates['accountId'])) {
+					return new DataResponse(['error' => $this->l->t('Account not found')], Http::STATUS_NOT_FOUND);
+				}
+				$this->requireWriteAccess('account', $updates['accountId']);
+			}
+
 			$transaction = $this->service->update($id, $effectiveUserId, $updates);
 			return new DataResponse($transaction);
 		} catch (\InvalidArgumentException $e) {

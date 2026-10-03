@@ -7,6 +7,7 @@ namespace OCA\Budget\Controller;
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\SharedExpenseService;
+use OCA\Budget\Service\ShareService;
 use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Db\DoesNotExistException;
@@ -38,6 +39,7 @@ class SharedExpenseController extends Controller {
 		string $userId,
 		LoggerInterface $logger,
 		private ISearch $collaboratorSearch,
+		private ShareService $shareService,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 		$this->service = $service;
@@ -83,10 +85,16 @@ class SharedExpenseController extends Controller {
 			$params = $this->request->getParams();
 			$nextcloudUserId = $params['nextcloudUserId'] ?? null;
 
-			// If linking to a Nextcloud user, validate they exist and auto-fill name
+			// If linking to a Nextcloud user, validate they exist and auto-fill
+			// name. Only someone the user picker would offer: the admin's
+			// sharing settings apply, and a guessed user id that the picker
+			// keeps hidden gets the same answer as one that doesn't exist, so
+			// it can't be used to look up who is on the server and their name.
 			if ($nextcloudUserId) {
-				$ncUser = $this->userManager->get($nextcloudUserId);
-				if ($ncUser === null) {
+				$ncUser = is_string($nextcloudUserId) ? $this->userManager->get($nextcloudUserId) : null;
+				if ($ncUser === null
+					|| !$this->shareService->mayShareWith($this->getEffectiveUserId(), $ncUser)
+					|| !$this->isOfferedByUserSearch($nextcloudUserId)) {
 					return new DataResponse(
 						['error' => $this->l->t('Nextcloud user not found')],
 						Http::STATUS_BAD_REQUEST
@@ -156,6 +164,26 @@ class SharedExpenseController extends Controller {
 		}
 
 		return new DataResponse($results);
+	}
+
+	/**
+	 * Whether the sharee search behind searchUsers() returns this user id
+	 * for a search on it, so linking a contact sees no more of the server's
+	 * users than the picker does.
+	 */
+	private function isOfferedByUserSearch(string $uid): bool {
+		try {
+			[$found] = $this->collaboratorSearch->search($uid, [IShare::TYPE_USER], false, 50, 0);
+		} catch (\Exception $e) {
+			$this->logger->error('User search failed', ['exception' => $e]);
+			return false;
+		}
+		foreach (array_merge($found['exact']['users'] ?? [], $found['users'] ?? []) as $entry) {
+			if (($entry['value']['shareWith'] ?? null) === $uid) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

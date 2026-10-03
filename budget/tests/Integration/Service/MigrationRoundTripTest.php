@@ -206,6 +206,111 @@ class MigrationRoundTripTest extends IntegrationTestCase {
 	}
 
 	/**
+	 * Import rules and saved reports name accounts, categories and tags by
+	 * id inside JSON. The restore used to copy those ids as they were, and
+	 * never read a rule's group back at all.
+	 */
+	public function testRulesAndSavedReportsPointAtTheRestoredRows(): void {
+		$ids = $this->seedEveryTable($this->userId);
+		$now = $this->now();
+		$this->insertRow('budget_import_rules', [
+			'user_id' => $this->userId, 'name' => 'Coffee', 'pattern' => '', 'field' => 'description',
+			'match_type' => 'contains', 'priority' => 1, 'active' => true, 'created_at' => $now,
+			'schema_version' => 2, 'group_name' => 'Eating out',
+			'actions' => json_encode(['version' => 2, 'actions' => [
+				['type' => 'set_category', 'value' => $ids['takeaway']],
+				['type' => 'add_tags', 'value' => [$ids['tag']], 'behavior' => 'merge'],
+			]]),
+			'criteria' => json_encode(['version' => 2, 'root' => ['operator' => 'AND', 'conditions' => [
+				['type' => 'condition', 'field' => 'account', 'matchType' => 'equals', 'pattern' => (string)$ids['current']],
+			]]]),
+		]);
+		$this->insertRow('budget_saved_reports', [
+			'user_id' => $this->userId, 'name' => 'Card only', 'created_at' => $now, 'updated_at' => $now,
+			'config' => json_encode(['reportType' => 'summary', 'accountIds' => [$ids['card']], 'tagIds' => [$ids['tag']]]),
+		]);
+		$target = $this->newUserId();
+
+		$this->migration->importAll($target, $this->migration->exportAll($this->userId)['content']);
+
+		$idOf = fn (string $table, string $name): int => (int)$this->db()->executeQuery(
+			'SELECT id FROM *PREFIX*' . $table . ' WHERE user_id = ? AND name = ?', [$target, $name]
+		)->fetchOne();
+		$tag = (int)$this->db()->executeQuery('SELECT id FROM *PREFIX*budget_tags WHERE user_id = ?', [$target])->fetchOne();
+
+		$rule = $this->db()->executeQuery(
+			'SELECT group_name, actions, criteria FROM *PREFIX*budget_import_rules WHERE user_id = ? AND name = ?', [$target, 'Coffee']
+		)->fetch();
+		$this->assertSame('Eating out', $rule['group_name']);
+		$actions = json_decode($rule['actions'], true)['actions'];
+		$this->assertSame($idOf('budget_categories', 'Takeaway'), $actions[0]['value']);
+		$this->assertSame([$tag], $actions[1]['value']);
+		$this->assertSame((string)$idOf('budget_accounts', 'Current'), json_decode($rule['criteria'], true)['root']['conditions'][0]['pattern']);
+
+		$config = json_decode((string)$this->db()->executeQuery(
+			'SELECT config FROM *PREFIX*budget_saved_reports WHERE user_id = ? AND name = ?', [$target, 'Card only']
+		)->fetchOne(), true);
+		$this->assertSame([$idOf('budget_accounts', 'Card')], $config['accountIds']);
+		$this->assertSame([$tag], $config['tagIds']);
+	}
+
+	/**
+	 * Bank connections stay through a restore, but every account comes back
+	 * under a new id: a mapping left alone pointed at an account that no
+	 * longer existed and bank sync silently stopped importing into it.
+	 */
+	public function testABankMappingFollowsItsAccountThroughARestore(): void {
+		$ids = $this->seedEveryTable($this->userId);
+		$archive = $this->migration->exportAll($this->userId)['content'];
+
+		$this->migration->importAll($this->userId, $archive);
+
+		$mapped = $this->db()->executeQuery(
+			'SELECT a.name, a.user_id FROM *PREFIX*budget_bam m'
+			. ' INNER JOIN *PREFIX*budget_bc c ON c.id = m.connection_id'
+			. ' INNER JOIN *PREFIX*budget_accounts a ON a.id = m.budget_account_id'
+			. ' WHERE c.user_id = ?',
+			[$this->userId]
+		)->fetchAll();
+		$this->assertSame([['name' => 'Current', 'user_id' => $this->userId]], $mapped);
+		$this->assertNotContains($ids['current'], array_map('intval', $this->db()->executeQuery(
+			'SELECT id FROM *PREFIX*budget_accounts WHERE user_id = ?', [$this->userId]
+		)->fetchFirstColumn()), 'The account really came back under a new id');
+	}
+
+	/**
+	 * A backup of a different account that happens to carry the same id (one
+	 * from another server) must not inherit the bank feed: the mapping is
+	 * unlinked instead, for the user to choose the account again.
+	 */
+	public function testABankMappingIsUnlinkedWhenTheBackupHoldsADifferentAccount(): void {
+		$this->seedEveryTable($this->userId);
+		$archive = $this->renameArchivedAccounts($this->migration->exportAll($this->userId)['content']);
+
+		$this->migration->importAll($this->userId, $archive);
+
+		$this->assertSame(1, $this->countRows('budget_bam', ['budget_account_id' => null]));
+		$this->assertSame([], $this->danglingReferences());
+	}
+
+	private function renameArchivedAccounts(string $zipContent): string {
+		$path = tempnam(sys_get_temp_dir(), 'budget-it-');
+		file_put_contents($path, $zipContent);
+		$zip = new \ZipArchive();
+		$zip->open($path);
+		$accounts = json_decode((string)$zip->getFromName('accounts.json'), true);
+		foreach ($accounts as &$account) {
+			$account['name'] .= ' (other server)';
+		}
+		unset($account);
+		$zip->addFromString('accounts.json', json_encode($accounts));
+		$zip->close();
+		$content = (string)file_get_contents($path);
+		unlink($path);
+		return $content;
+	}
+
+	/**
 	 * The table-level import used to bind every value as a string, so a
 	 * boolean false reached PostgreSQL as '' and any backup holding a tag
 	 * failed to restore there. The archive also carries booleans in whatever

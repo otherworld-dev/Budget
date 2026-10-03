@@ -76,7 +76,7 @@ class InterestService {
 			$events[] = [
 				'date' => $tx->getDate(),
 				'type' => 'transaction',
-				'amount' => (string)$tx->getAmount(),
+				'amount' => MoneyCalculator::plain($tx->getAmount()),
 				'txType' => $tx->getType(), // 'credit' or 'debit'
 			];
 		}
@@ -84,7 +84,7 @@ class InterestService {
 			$events[] = [
 				'date' => $rp->getEffectiveDate(),
 				'type' => 'rate_change',
-				'rate' => (string)$rp->getRate(),
+				'rate' => MoneyCalculator::plain($rp->getRate()),
 				'compounding' => $rp->getCompoundingFrequency(),
 			];
 		}
@@ -110,7 +110,7 @@ class InterestService {
 		// Set initial rate from the first rate period that's <= opening date
 		foreach ($ratePeriods as $rp) {
 			if ($rp->getEffectiveDate() <= $openingDate) {
-				$currentRate = (string)$rp->getRate();
+				$currentRate = MoneyCalculator::plain($rp->getRate());
 				$currentCompounding = $rp->getCompoundingFrequency();
 			}
 		}

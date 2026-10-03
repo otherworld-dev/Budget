@@ -37,6 +37,7 @@ class RecurringBudgetService {
 		private ?AccountMapper $accountMapper = null,
 		private ?GranularShareService $granularShareService = null,
 		private ?SettingService $settingService = null,
+		private ?UserClock $userClock = null,
 	) {
 		$this->billService = $billService;
 		$this->recurringIncomeService = $recurringIncomeService;
@@ -155,7 +156,9 @@ class RecurringBudgetService {
 	 */
 	private function monthRange(string $userId, ?string $month): array {
 		$startDay = max(1, min(31, (int)($this->settingService?->get($userId, 'budget_start_day') ?? 1)));
-		$month ??= BudgetPeriod::monthContaining(date('Y-m-d'), $startDay);
+		// The user's today, not the server's (a Sydney user's 1st is still
+		// the server's last day of the month until mid-morning)
+		$month ??= BudgetPeriod::monthContaining($this->userClock?->today($userId) ?? date('Y-m-d'), $startDay);
 		return BudgetPeriod::range($month, $startDay);
 	}
 

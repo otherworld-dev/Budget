@@ -335,6 +335,40 @@ class AppExportImportTest extends TestCase {
 		$this->assertSecondImportAddsNothing('firefly-iii-export.csv', 'firefly-iii');
 	}
 
+	/**
+	 * 100 EUR sent to a USD account arriving as 108 USD: the receiving side
+	 * used to take the EUR figures, crediting the USD account 100 and, as
+	 * its first row, creating it in EUR.
+	 */
+	public function testFireflyTransferAcrossCurrenciesUsesEachSidesOwnFigures(): void {
+		$result = $this->import('firefly-iii-export-cross-currency.csv', 'firefly-iii');
+
+		$this->assertSame([], $result['errors']);
+		$this->assertSame('USD', $this->accounts[$this->accountId('Dollar account')]->getCurrency());
+		$this->assertSame('EUR', $this->accounts[$this->accountId('Euro account')]->getCurrency());
+
+		$out = $this->rowWhere('Move to dollars', 'Euro account');
+		$in = $this->rowWhere('Move to dollars', 'Dollar account');
+		$this->assertSame(100.0, $out['amount']);
+		$this->assertSame('debit', $out['type']);
+		$this->assertSame(108.0, $in['amount']);
+		$this->assertSame('credit', $in['type']);
+		$this->assertStringContainsString('Foreign amount: 108.00 USD', (string)$out['notes']);
+		$this->assertStringContainsString('Foreign amount: 100.00 EUR', (string)$in['notes']);
+
+		$this->assertEqualsWithDelta(900.0, $this->balance('Euro account'), 0.001);
+		$this->assertEqualsWithDelta(108.0, $this->balance('Dollar account'), 0.001);
+
+		// One journal: the two sides are linked though their amounts differ
+		$this->assertSame([[$out['id'], $in['id']]], $this->links);
+		$this->assertSame(1, $result['transfersLinked']);
+	}
+
+	public function testFireflyCrossCurrencyReimportAddsNothing(): void {
+		$this->import('firefly-iii-export-cross-currency.csv', 'firefly-iii');
+		$this->assertSecondImportAddsNothing('firefly-iii-export-cross-currency.csv', 'firefly-iii');
+	}
+
 	public function testFireflyReadsColumnsByNameWhateverTheirOrder(): void {
 		$result = $this->import('firefly-iii-export-v6.0.csv', 'firefly-iii');
 

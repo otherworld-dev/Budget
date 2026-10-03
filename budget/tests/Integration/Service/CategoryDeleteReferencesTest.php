@@ -77,6 +77,32 @@ class CategoryDeleteReferencesTest extends IntegrationTestCase {
 	}
 
 	/**
+	 * Setup's remove-duplicates and delete-all deleted rows straight through
+	 * the mapper: a split part filed under the removed category kept its id,
+	 * in no category and not under Uncategorized either.
+	 */
+	public function testSetupsBulkDeletesLetGoOfSplitParts(): void {
+		$this->makeCategory(['name' => 'Food']);
+		$duplicate = $this->makeCategory(['name' => 'Food']);
+		$parent = $this->makeSplitTransaction($this->accountId, [[$duplicate, '4.00']]);
+		$part = (int)$this->db()->executeQuery(
+			'SELECT id FROM *PREFIX*budget_tx_splits WHERE transaction_id = ?', [$parent]
+		)->fetchOne();
+
+		$this->assertSame(['Food'], $this->categories->removeDuplicates($this->userId));
+		$this->assertNull($this->fetchRow('budget_categories', $duplicate));
+		$this->assertNull($this->fetchRow('budget_tx_splits', $part)['category_id']);
+
+		$other = $this->makeCategory(['name' => 'Fuel']);
+		$parent = $this->makeSplitTransaction($this->accountId, [[$other, '9.00']]);
+		$this->categories->deleteAll($this->userId);
+		$this->assertNull($this->fetchRow('budget_categories', $other));
+		$this->assertSame(0, (int)$this->db()->executeQuery(
+			'SELECT COUNT(*) FROM *PREFIX*budget_tx_splits WHERE transaction_id = ? AND category_id IS NOT NULL', [$parent]
+		)->fetchOne());
+	}
+
+	/**
 	 * @param array<string, mixed> $overrides
 	 */
 	private function insertBill(array $overrides): int {

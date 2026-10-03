@@ -44,6 +44,7 @@ class BudgetAlertService {
 		private INotificationManager $notificationManager,
 		private AmountFormatter $amountFormatter,
 		private ?GranularShareService $granularShareService = null,
+		private ?UserClock $userClock = null,
 	) {
 		$this->categoryMapper = $categoryMapper;
 		$this->budgetSnapshotMapper = $budgetSnapshotMapper;
@@ -281,7 +282,7 @@ class BudgetAlertService {
 
 		// Calculate date ranges for each period type
 		$startDay = $this->getBudgetStartDay($userId);
-		$periodRanges = $this->calculatePeriodRanges($startDay);
+		$periodRanges = $this->calculatePeriodRanges($startDay, $userId);
 		$alertThreshold = $this->getAlertThreshold($userId);
 
 		// Spending for every branch in its current period, one batch per period
@@ -469,7 +470,7 @@ class BudgetAlertService {
 		$branches = BudgetScope::spendingBranches($categories, $budgetedIds);
 
 		$startDay = $this->getBudgetStartDay($userId);
-		$periodRanges = $this->calculatePeriodRanges($startDay);
+		$periodRanges = $this->calculatePeriodRanges($startDay, $userId);
 		$alertThreshold = $this->getAlertThreshold($userId);
 
 		// Spending for every branch in its current period, one batch per period
@@ -573,21 +574,24 @@ class BudgetAlertService {
 	 * snapshot and carryover are that month's, as on the Budget page.
 	 */
 	private function currentBudgetMonth(string $userId): string {
-		return BudgetPeriod::monthContaining($this->getNow()->format('Y-m-d'), $this->getBudgetStartDay($userId));
+		return BudgetPeriod::monthContaining($this->getNow($userId)->format('Y-m-d'), $this->getBudgetStartDay($userId));
 	}
 
 	/**
-	 * Get the current date. Overridable in tests.
+	 * The current date and time on the user's clock, not the server's: in
+	 * Sydney the server is still on last month until mid-morning on the 1st.
+	 * Overridable in tests.
 	 */
-	protected function getNow(): \DateTime {
-		return new \DateTime();
+	protected function getNow(?string $userId = null): \DateTime {
+		$now = $this->userClock?->now($userId);
+		return $now !== null ? \DateTime::createFromImmutable($now) : new \DateTime();
 	}
 
 	/**
 	 * Calculate period date ranges.
 	 */
-	private function calculatePeriodRanges(int $startDay = 1): array {
-		$now = $this->getNow();
+	private function calculatePeriodRanges(int $startDay = 1, ?string $userId = null): array {
+		$now = $this->getNow($userId);
 		$ranges = [];
 
 		// Monthly: custom start day support

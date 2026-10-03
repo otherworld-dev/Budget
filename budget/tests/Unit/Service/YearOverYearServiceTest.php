@@ -121,6 +121,28 @@ class YearOverYearServiceTest extends TestCase {
 	}
 
 	/**
+	 * The all-accounts view takes the Cash Flow report's figures, converted
+	 * to the base currency, so a multi-currency year matches Cash Flow. It
+	 * used to add raw euros to pounds.
+	 */
+	public function testAllAccountsUsesTheCashFlowReportsConvertedFigures(): void {
+		$aggregator = $this->createMock(\OCA\Budget\Service\Report\ReportAggregator::class);
+		$aggregator->expects($this->once())->method('getCashFlowReport')
+			->with('user1', null, $this->anything(), $this->anything(), [], true, [4, 5])
+			->willReturn(['data' => [$this->month(date('Y') . '-03', 850.0, 85.0, 3)]]);
+		$this->reportQueries->expects($this->never())->method('getCashFlowByMonth');
+		$service = new YearOverYearService(
+			$this->transactionMapper, $this->categoryMapper, $this->reportQueries, null, $aggregator
+		);
+
+		$result = $service->compareMonth('user1', 3, 1, null, [4, 5]);
+
+		$this->assertSame(850.0, $result['years'][0]['income']);
+		$this->assertSame(85.0, $result['years'][0]['expenses']);
+		$this->assertSame(3, $result['years'][0]['transactionCount']);
+	}
+
+	/**
 	 * Money adds through MoneyCalculator (#274): 0.1 + 0.2 must not come back
 	 * as 0.30000000000000004.
 	 */

@@ -64,14 +64,17 @@ class RuleActionApplicator {
 	}
 
 	/**
-	 * Whether the acting user may target an account in a rule action (own or shared).
+	 * Whether the acting user may move transactions into an account with a
+	 * rule action: their own, or one shared with them that they can write
+	 * to. Moving a row in writes to that account's ledger, so a read-only
+	 * share is not enough.
 	 */
 	private function canUseAccount(int $accountId, string $userId): bool {
 		try {
 			$this->accountMapper->find($accountId, $userId);
 			return true;
 		} catch (\Exception $e) {
-			return $this->granularShareService->canAccess($userId, ShareItem::TYPE_ACCOUNT, $accountId);
+			return $this->granularShareService->canWrite($userId, ShareItem::TYPE_ACCOUNT, $accountId);
 		}
 	}
 
@@ -314,7 +317,7 @@ class RuleActionApplicator {
 
 			case 'set_account':
 				if ($this->shouldApply($type, $behavior, $transaction->getAccountId(), $appliedActions)) {
-					// Account must be accessible to the acting user (own or shared)
+					// Account must be writable by the acting user (own or shared to write)
 					if ($this->canUseAccount((int)$value, $userId)) {
 						$oldValue = $transaction->getAccountId();
 						$transaction->setAccountId((int)$value);
@@ -617,7 +620,7 @@ class RuleActionApplicator {
 
 				case 'set_account':
 					if ($value !== null && !$this->canUseAccount((int)$value, $userId)) {
-						$errors[] = "Action $idx: account $value is not available to the rule's owner (it must be theirs or shared with them)";
+						$errors[] = "Action $idx: account $value is not available to the rule's owner (it must be theirs or shared with them with write access)";
 					}
 					break;
 

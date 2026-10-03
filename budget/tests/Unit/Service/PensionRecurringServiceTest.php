@@ -289,6 +289,44 @@ class PensionRecurringServiceTest extends TestCase {
 		$this->assertNull($recur->getPostUndoState());
 	}
 
+	/**
+	 * A restored backup's undo state named a contribution id from before the
+	 * restore. Putting the dates back anyway posted the occurrence a second
+	 * time while the first contribution and its bank debit stayed.
+	 */
+	public function testUndoPostRefusesWhenItsContributionIsGoneAndKeepsTheDates(): void {
+		$recur = $this->makeRecur(['nextDueDate' => '2026-11-01']);
+		$recur->setLastPostedDate('2026-10-02');
+		$recur->setPostUndoState(json_encode([
+			'nextDueDate' => '2026-10-01', 'lastPostedDate' => '2026-09-01', 'isActive' => true,
+			'contributionId' => 4242, 'contributionDate' => '2026-10-02', 'amount' => 200.0,
+		]));
+		$this->recurringMapper->method('find')->willReturn($recur);
+		$this->pensionService->expects($this->never())->method('deleteContribution');
+
+		try {
+			$this->service->undoPost(5, 'user1');
+			$this->fail('The undo must be refused');
+		} catch (\InvalidArgumentException $e) {
+		}
+
+		$this->assertSame('2026-11-01', $recur->getNextDueDate());
+		$this->assertSame('2026-10-02', $recur->getLastPostedDate());
+		$this->assertNull($recur->getPostUndoState(), 'The stale undo state is dropped');
+	}
+
+	public function testUndoPostRefusesWhenTheIdNowHoldsAnotherContribution(): void {
+		$recur = $this->makeRecur(['nextDueDate' => '2026-10-01']);
+		$this->recurringMapper->method('find')->willReturn($recur);
+		$this->service->postNow(5, 'user1', '2026-10-01');
+		// Same id, but not what that post recorded
+		$this->contributions[100]->setAmount(999.0);
+		$this->pensionService->expects($this->never())->method('deleteContribution');
+		$this->expectException(\InvalidArgumentException::class);
+
+		$this->service->undoPost(5, 'user1');
+	}
+
 	public function testUndoPostRefusesWhenThereIsNothingToUndo(): void {
 		$this->recurringMapper->method('find')->willReturn($this->makeRecur());
 		$this->expectException(\InvalidArgumentException::class);

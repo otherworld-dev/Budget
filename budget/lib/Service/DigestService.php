@@ -34,6 +34,7 @@ class DigestService {
 		private INotificationManager $notificationManager,
 		private IFactory $l10nFactory,
 		private \OCA\Budget\Db\TransactionMapper $transactionMapper,
+		private ?UserClock $userClock = null,
 	) {
 	}
 
@@ -43,7 +44,7 @@ class DigestService {
 	 * @param string $frequency 'weekly'|'monthly'
 	 */
 	public function buildDigest(string $userId, string $frequency): array {
-		[$start, $end] = $this->periodRange($frequency);
+		[$start, $end] = $this->periodRange($frequency, $userId);
 
 		// Income/expenses over the period (all accounts, scheduled excluded)
 		$totals = ['income' => 0.0, 'expenses' => 0.0];
@@ -59,7 +60,7 @@ class DigestService {
 		// never said more than 5, and overdue bills of any age sorted first
 		// and pushed out the ones really coming up.
 		$upcomingDays = $frequency === 'weekly' ? 7 : 30;
-		$today = $this->getNow()->format('Y-m-d');
+		$today = $this->getNow($userId)->format('Y-m-d');
 		$due = [];
 		$overdue = [];
 		foreach ($this->billService->findUpcoming($userId, $upcomingDays) as $bill) {
@@ -222,8 +223,8 @@ class DigestService {
 	 *
 	 * @return array{0: string, 1: string}
 	 */
-	private function periodRange(string $frequency): array {
-		$now = $this->getNow();
+	private function periodRange(string $frequency, string $userId): array {
+		$now = $this->getNow($userId);
 		if ($frequency === 'weekly') {
 			$start = $now->modify('monday last week');
 			$end = $start->modify('+6 days');
@@ -235,9 +236,10 @@ class DigestService {
 	}
 
 	/**
-	 * Overridable in tests.
+	 * Now on the user's clock: "last week" and "last month" are theirs, not
+	 * the server's. Overridable in tests.
 	 */
-	protected function getNow(): \DateTimeImmutable {
-		return new \DateTimeImmutable();
+	protected function getNow(?string $userId = null): \DateTimeImmutable {
+		return $this->userClock?->now($userId) ?? new \DateTimeImmutable();
 	}
 }

@@ -43,7 +43,7 @@ class MigrationServiceTest extends TestCase {
 			$expr = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
 			$expr->method('eq')->willReturn('eq');
 			$qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
-			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin', 'delete', 'insert', 'update', 'set', 'setValue'] as $m) {
+			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin', 'leftJoin', 'delete', 'insert', 'update', 'set', 'setValue'] as $m) {
 				$qb->method($m)->willReturnSelf();
 			}
 			$qb->method('expr')->willReturn($expr);
@@ -108,6 +108,34 @@ class MigrationServiceTest extends TestCase {
 		$this->assertTrue($result['valid']);
 		$this->assertNotEmpty($result['warnings']);
 		$this->assertStringContainsString('newer', $result['warnings'][0]);
+	}
+
+	/**
+	 * 3.0's archive carries columns 2.54 doesn't have, and 2.54 writes every
+	 * key it finds, so the format version must move on for 2.54's preview to
+	 * warn. Older backups still import here without a warning.
+	 */
+	public function testTheFormatVersionMovedOnAndOlderBackupsDoNotWarn(): void {
+		$this->assertTrue(version_compare(MigrationService::EXPORT_VERSION, '1.2.0', '>'), 'The archive gained columns since 1.2.0');
+
+		foreach (['1.0.0', '1.2.0', MigrationService::EXPORT_VERSION] as $version) {
+			$result = $this->service->previewImport($this->createTestZip([
+				'manifest.json' => json_encode(['version' => $version, 'appId' => 'budget']),
+				'categories.json' => '[]',
+				'accounts.json' => '[]',
+				'transactions.json' => '[]',
+			]));
+			$this->assertSame([], $result['warnings'], "A $version backup previews without a warning");
+		}
+
+		$result = $this->service->previewImport($this->createTestZip([
+			'manifest.json' => json_encode(['version' => '1.4.0', 'appId' => 'budget']),
+			'categories.json' => '[]',
+			'accounts.json' => '[]',
+			'transactions.json' => '[]',
+		]));
+		$this->assertCount(1, $result['warnings']);
+		$this->assertStringContainsString('1.4.0', $result['warnings'][0]);
 	}
 
 	public function testPreviewImportCountsEntities(): void {
@@ -478,7 +506,7 @@ class MigrationServiceTest extends TestCase {
 
 		$manifest = json_decode($zip->getFromName('manifest.json'), true);
 		$this->assertEquals('budget', $manifest['appId']);
-		$this->assertEquals('1.2.0', $manifest['version']);
+		$this->assertEquals(MigrationService::EXPORT_VERSION, $manifest['version']);
 		$this->assertEquals(1, $manifest['counts']['categories']);
 		$this->assertEquals(1, $manifest['counts']['accounts']);
 
@@ -773,6 +801,18 @@ class MigrationServiceTest extends TestCase {
 				$this->assertArrayHasKey($fkSpec['map'], $produced,
 					"post-phase $key.$col references map '{$fkSpec['map']}' not yet produced");
 			}
+			foreach ($spec['jsonKeyFk'] ?? [] as $col => $keys) {
+				foreach ($keys as $ref => $fkSpec) {
+					$this->assertArrayHasKey($fkSpec['map'], $produced,
+						"post-phase $key.$col.$ref references map '{$fkSpec['map']}' not yet produced");
+				}
+			}
+			foreach ($spec['snapshotRefs'] ?? [] as $col => $refs) {
+				foreach ($refs as $ref => $map) {
+					$this->assertArrayHasKey($map, $produced,
+						"post-phase $key.$col.$ref references map '$map' not yet produced");
+				}
+			}
 			if (isset($spec['idMap'])) {
 				$produced[$spec['idMap']] = 1;
 			}
@@ -823,7 +863,7 @@ class MigrationServiceTest extends TestCase {
 			$expr = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
 			$expr->method('eq')->willReturn('eq');
 			$qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
-			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin', 'insert', 'update', 'set', 'setValue'] as $m) {
+			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin', 'leftJoin', 'insert', 'update', 'set', 'setValue'] as $m) {
 				$qb->method($m)->willReturnSelf();
 			}
 			$qb->method('delete')->willReturnCallback(function (string $table) use (&$deletedTables, $qb) {
@@ -1024,5 +1064,157 @@ class MigrationServiceTest extends TestCase {
 		$this->assertFalse((bool)$groceries->getExcludedFromBudget());
 		$this->assertFalse((bool)$groceries->getBudgetRollover());
 		$this->assertNull($groceries->getRolloverStart());
+	}
+
+	/**
+	 * A pension schedule's Post now undo state names the contribution it
+	 * recorded. Copied as it was, the old id named nothing after a restore,
+	 * and Undo put the dates back while the money stayed, so the occurrence
+	 * posted twice.
+	 */
+	public function testPensionScheduleUndoStateFollowsItsContribution(): void {
+		$method = new \ReflectionMethod($this->service, 'remapRow');
+		$spec = MigrationService::EXTRA_TABLES_POST['pen_recur'];
+		$idMaps = ['pensions' => [3 => 30], 'accounts' => [], 'pen_contribs' => [41 => 410]];
+		$state = ['nextDueDate' => '2026-10-01', 'lastPostedDate' => null, 'isActive' => true,
+			'contributionId' => 41, 'contributionDate' => '2026-10-02', 'amount' => 200.0];
+
+		$row = $method->invoke($this->service, ['id' => 5, 'pension_id' => 3, 'post_undo_state' => json_encode($state)], $spec, $idMaps);
+		$restored = json_decode($row['post_undo_state'], true);
+		$this->assertSame(410, $restored['contributionId']);
+		$this->assertSame('2026-10-01', $restored['nextDueDate']);
+
+		// A contribution the backup doesn't hold: nothing left to undo
+		$state['contributionId'] = 99;
+		$row = $method->invoke($this->service, ['id' => 5, 'pension_id' => 3, 'post_undo_state' => json_encode($state)], $spec, $idMaps);
+		$this->assertNotNull($row, 'The schedule itself is kept');
+		$this->assertNull($row['post_undo_state']);
+
+		// Not a snapshot at all
+		$row = $method->invoke($this->service, ['id' => 5, 'pension_id' => 3, 'post_undo_state' => 'garbage'], $spec, $idMaps);
+		$this->assertNull($row['post_undo_state']);
+	}
+
+	/**
+	 * A restore keeps bank connections but gives every account a new id, so
+	 * a mapping left alone pointed at nothing and bank sync silently stopped.
+	 * It follows its account only when the backup holds that same account.
+	 */
+	public function testBankMappingsFollowTheirAccountOnlyWhenItIsTheSameOne(): void {
+		$created = '2026-01-01 10:00:00';
+		$archived = [
+			['id' => 7, 'name' => 'Current', 'createdAt' => '2026-01-01T10:00:00+00:00'],
+			['id' => 8, 'name' => 'Savings', 'createdAt' => $created],
+		];
+		$mappings = [
+			// The same account, restored under a new id
+			['id' => 1, 'accountId' => 7, 'name' => 'Current', 'createdAt' => $created],
+			// Same id, but a different account (a backup from another server)
+			['id' => 2, 'accountId' => 8, 'name' => 'Joint', 'createdAt' => $created],
+			// An account the backup doesn't hold
+			['id' => 3, 'accountId' => 9, 'name' => 'Old card', 'createdAt' => $created],
+		];
+
+		$targets = MigrationService::bankMappingTargets($mappings, $archived, [7 => 70, 8 => 80]);
+
+		$this->assertSame([1 => 70, 2 => null, 3 => null], $targets);
+	}
+
+	/**
+	 * Import rules lost their group, kept tag ids that no longer existed (a
+	 * matching import row then failed after it was saved), and kept the old
+	 * account id in conditions on the account, so they never matched again.
+	 */
+	public function testImportRulesComeBackWithTheirGroupAndRestoredIds(): void {
+		$inserted = [];
+		$this->importRuleMapper->method('insert')->willReturnCallback(function (\OCA\Budget\Db\ImportRule $r) use (&$inserted) {
+			$r->setId(100 + count($inserted));
+			$inserted[] = $r;
+			return $r;
+		});
+		$idMaps = ['categories' => [3 => 30], 'accounts' => [1 => 10, 2 => 20], 'tags' => [7 => 70, 8 => 80]];
+		$rule = [
+			'id' => 5, 'name' => 'Coffee', 'pattern' => '', 'field' => 'description', 'matchType' => 'contains',
+			'schemaVersion' => 2, 'groupName' => 'Eating out', 'categoryId' => 3,
+			'actions' => ['version' => 2, 'actions' => [
+				['type' => 'set_category', 'value' => 3],
+				['type' => 'set_account', 'value' => 2],
+				['type' => 'add_tags', 'value' => [7, 8, 999], 'behavior' => 'merge'],
+				['type' => 'add_tags', 'value' => [999]],
+				['type' => 'set_category', 'value' => 999],
+				['type' => 'set_vendor', 'value' => 'Cafe'],
+			]],
+			'criteria' => ['version' => 2, 'root' => ['operator' => 'AND', 'conditions' => [
+				['type' => 'condition', 'field' => 'description', 'matchType' => 'contains', 'pattern' => '1'],
+				['type' => 'condition', 'field' => 'account', 'matchType' => 'equals', 'pattern' => '1'],
+				['operator' => 'OR', 'conditions' => [
+					['type' => 'condition', 'field' => 'account', 'matchType' => 'equals', 'pattern' => 2, 'negate' => true],
+					['type' => 'condition', 'field' => 'account', 'matchType' => 'equals', 'pattern' => '999'],
+				]],
+			]]],
+		];
+
+		$method = new \ReflectionMethod($this->service, 'importImportRules');
+		$method->invoke($this->service, 'user1', [$rule], $idMaps);
+
+		$restored = $inserted[0];
+		$this->assertSame('Eating out', $restored->getGroupName());
+		$this->assertSame(30, $restored->getCategoryId());
+		$this->assertSame([
+			['type' => 'set_category', 'value' => 30],
+			['type' => 'set_account', 'value' => 20],
+			['type' => 'add_tags', 'value' => [70, 80], 'behavior' => 'merge'],
+			['type' => 'set_vendor', 'value' => 'Cafe'],
+		], $restored->getParsedActions()['actions'], 'Targets that did not come back are left out');
+
+		$conditions = $restored->getParsedCriteria()['root']['conditions'];
+		$this->assertSame('1', $conditions[0]['pattern'], 'Only account conditions are ids');
+		$this->assertSame('10', $conditions[1]['pattern']);
+		$this->assertSame(20, $conditions[2]['conditions'][0]['pattern']);
+		$this->assertTrue($conditions[2]['conditions'][0]['negate']);
+		$this->assertSame('0', $conditions[2]['conditions'][1]['pattern'], 'An account the backup does not hold matches nothing');
+	}
+
+	public function testLegacyFlatRuleActionsAreRemappedToo(): void {
+		$inserted = [];
+		$this->importRuleMapper->method('insert')->willReturnCallback(function (\OCA\Budget\Db\ImportRule $r) use (&$inserted) {
+			$r->setId(100 + count($inserted));
+			$inserted[] = $r;
+			return $r;
+		});
+		$method = new \ReflectionMethod($this->service, 'importImportRules');
+		$method->invoke($this->service, 'user1', [
+			['id' => 1, 'name' => 'A', 'actions' => ['categoryId' => 3, 'vendor' => 'X']],
+			['id' => 2, 'name' => 'B', 'categoryId' => 999, 'actions' => ['categoryId' => 999, 'vendor' => 'Y']],
+		], ['categories' => [3 => 30], 'accounts' => []]);
+
+		$this->assertSame(['categoryId' => 30, 'vendor' => 'X'], $inserted[0]->getParsedActions());
+		$this->assertNull($inserted[1]->getCategoryId());
+		$this->assertSame(['vendor' => 'Y'], $inserted[1]->getParsedActions());
+		$this->assertNull($inserted[1]->getGroupName());
+	}
+
+	/**
+	 * A saved report's account and tag filters name ids, which a restore
+	 * changes; copied as they were the report filtered on nothing (or on
+	 * someone else's account on another server).
+	 */
+	public function testSavedReportFiltersFollowTheRestoredIds(): void {
+		$method = new \ReflectionMethod($this->service, 'remapRow');
+		$spec = MigrationService::EXTRA_TABLES_POST['saved_reports'];
+		$config = ['reportType' => 'summary', 'accountIds' => [1, 2, 999], 'tagIds' => [7, 999], 'includeUntagged' => true];
+
+		$row = $method->invoke($this->service, ['id' => 3, 'name' => 'Monthly', 'config' => json_encode($config)], $spec,
+			['accounts' => [1 => 10, 2 => 20], 'tags' => [7 => 70]]);
+
+		$restored = json_decode($row['config'], true);
+		$this->assertSame([10, 20], $restored['accountIds']);
+		$this->assertSame([70], $restored['tagIds']);
+		$this->assertSame('summary', $restored['reportType']);
+		$this->assertTrue($restored['includeUntagged']);
+
+		// An older config without the keys, or one that isn't JSON, is left alone
+		$row = $method->invoke($this->service, ['id' => 3, 'config' => '{"type":"summary"}'], $spec, ['accounts' => [], 'tags' => []]);
+		$this->assertSame(['type' => 'summary'], json_decode($row['config'], true));
 	}
 }

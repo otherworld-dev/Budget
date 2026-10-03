@@ -492,11 +492,15 @@ class TransactionService {
 	 * bill's placeholder is a LINKED PAIR — both legs are cleared (deleting
 	 * the second leg used to drop the deposit from the destination account).
 	 * $amount, when given, overwrites both legs: statement bills resolve
-	 * their amount at payment time (#347).
+	 * their amount at payment time (#347). It is the card's figure, in the
+	 * card's currency, so with $bill given a transfer between currencies
+	 * converts the withdrawal as createFromBill() does; the card's figure on
+	 * both legs took 500 GBP out to pay a 500 EUR statement.
 	 *
 	 * @return Transaction|null The cleared withdrawal leg, or null if none found
+	 * @throws \Exception when the legs are in two currencies with no rate between them
 	 */
-	public function clearScheduledBillTransaction(string $userId, int $billId, string $clearedDate, ?float $amount = null, bool $isTransfer = false): ?Transaction {
+	public function clearScheduledBillTransaction(string $userId, int $billId, string $clearedDate, ?float $amount = null, bool $isTransfer = false, ?Bill $bill = null): ?Transaction {
 		$allScheduled = $this->mapper->findAllScheduledByBillId($billId);
 		$cleared = null;
 		$partnerId = null;
@@ -538,6 +542,15 @@ class TransactionService {
 			usort($allScheduled, fn (Transaction $a, Transaction $b) => (int)in_array($b, $paired, true) <=> (int)in_array($a, $paired, true));
 		}
 
+		// Priced before anything is cleared: with no rate, nothing is
+		$legAmounts = null;
+		if ($amount !== null && $isTransfer && $bill !== null && $allScheduled !== []) {
+			$priced = clone $bill;
+			$priced->setAmount($amount);
+			[$withdrawalAmount, $depositAmount] = $this->transferLegAmounts($priced, $userId, $clearedDate);
+			$legAmounts = ['debit' => $withdrawalAmount, 'credit' => $depositAmount];
+		}
+
 		foreach ($allScheduled as $scheduled) {
 			$isPartner = $partnerId !== null && $scheduled->getId() === $partnerId;
 			if ($cleared === null || $isPartner) {
@@ -547,7 +560,7 @@ class TransactionService {
 				$ownerUserId = $this->accountMapper->findById($scheduled->getAccountId())->getUserId();
 				$updates = ['status' => 'cleared', 'date' => $clearedDate];
 				if ($amount !== null) {
-					$updates['amount'] = $amount;
+					$updates['amount'] = $legAmounts[$scheduled->getType()] ?? $amount;
 				}
 				$updated = $this->update($scheduled->getId(), $ownerUserId, $updates);
 				if ($cleared === null) {
@@ -1060,18 +1073,28 @@ class TransactionService {
 			return;
 		}
 
-		$running = 0.0;
+		// BCMath throughout (#274): each part is worked out at 10 places and
+		// rounded half away from zero, as round() did, then the last part
+		// takes the new total less the others, so the sum is exact.
+		$scale = 10;
+		// bcadd truncates toward zero, so nudging by half a penny away from
+		// zero first rounds to the nearest penny
+		$toPenny = static fn (string $exact): string => MoneyCalculator::add(
+			$exact,
+			MoneyCalculator::compare($exact, '0', $scale) < 0 ? '-0.005' : '0.005'
+		);
+		$proportional = MoneyCalculator::compare($oldAmount, '0', $scale) > 0;
+		$running = '0';
 		foreach (array_values($splits) as $i => $split) {
 			if ($i === $count - 1) {
-				$amount = round($newAmount - $running, 2);
+				$amount = $toPenny(MoneyCalculator::subtract($newAmount, $running, $scale));
 			} else {
-				$share = $oldAmount > 0
-					? ((float)$split->getAmount() / $oldAmount)
-					: (1.0 / $count);
-				$amount = round($newAmount * $share, 2);
-				$running += $amount;
+				$amount = $toPenny($proportional
+					? MoneyCalculator::divide(MoneyCalculator::multiply($newAmount, $split->getAmount(), $scale), $oldAmount, $scale)
+					: MoneyCalculator::divide($newAmount, (string)$count, $scale));
+				$running = MoneyCalculator::add($running, $amount);
 			}
-			$split->setAmount((string)$amount);
+			$split->setAmount($amount);
 			$this->splitMapper->update($split);
 		}
 	}

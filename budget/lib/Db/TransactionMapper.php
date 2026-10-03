@@ -1201,6 +1201,10 @@ class TransactionMapper extends QBMapper {
 	 *                          activity is opposite-direction appears with a
 	 *                          negative total, and 'count' counts BOTH
 	 *                          directions, not just the primary one.
+	 * @param bool $includeUncategorized When true, money with no category (a
+	 *                                   split part with none included) comes back as one
+	 *                                   more row with a null id, flagged 'uncategorized',
+	 *                                   so a report's category rows add up to its total.
 	 */
 	public function getSpendingSummary(
 		string $userId,
@@ -1213,6 +1217,7 @@ class TransactionMapper extends QBMapper {
 		?array $visibleAccountIds = null,
 		string $transactionType = 'debit',
 		bool $netOpposite = false,
+		bool $includeUncategorized = false,
 	): array {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('c.id', 'c.name', 'c.color', 'c.icon');
@@ -1225,8 +1230,14 @@ class TransactionMapper extends QBMapper {
 		}
 		$qb->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
 			->from($this->getTableName(), 't')
-			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-			->innerJoin('t', 'budget_categories', 'c', $qb->expr()->eq('t.category_id', 'c.id'));
+			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
+		// A LEFT join keeps money with no category (c.id NULL); the exclusion
+		// below never drops it, since a missing category is never excluded
+		if ($includeUncategorized) {
+			$qb->leftJoin('t', 'budget_categories', 'c', $qb->expr()->eq('t.category_id', 'c.id'));
+		} else {
+			$qb->innerJoin('t', 'budget_categories', 'c', $qb->expr()->eq('t.category_id', 'c.id'));
+		}
 
 		ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
 
@@ -1271,7 +1282,7 @@ class TransactionMapper extends QBMapper {
 		$splitSummary = $this->getSplitSpendingSummary(
 			$userId, $startDate, $endDate, $accountId, $tagIds,
 			$includeUntagged, $excludeTransfers, $visibleAccountIds, $transactionType,
-			$netOpposite
+			$netOpposite, $includeUncategorized
 		);
 
 		return $this->mergeSpendingSummaries($summary, $splitSummary);
@@ -1293,6 +1304,7 @@ class TransactionMapper extends QBMapper {
 		?array $visibleAccountIds,
 		string $transactionType,
 		bool $netOpposite = false,
+		bool $includeUncategorized = false,
 	): array {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('c.id', 'c.name', 'c.color', 'c.icon');
@@ -1307,8 +1319,12 @@ class TransactionMapper extends QBMapper {
 		$qb->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
 			->from($this->getTableName(), 't')
 			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-			->innerJoin('t', 'budget_tx_splits', 's', $qb->expr()->eq('s.transaction_id', 't.id'))
-			->innerJoin('s', 'budget_categories', 'c', $qb->expr()->eq('s.category_id', 'c.id'));
+			->innerJoin('t', 'budget_tx_splits', 's', $qb->expr()->eq('s.transaction_id', 't.id'));
+		if ($includeUncategorized) {
+			$qb->leftJoin('s', 'budget_categories', 'c', $qb->expr()->eq('s.category_id', 'c.id'));
+		} else {
+			$qb->innerJoin('s', 'budget_categories', 'c', $qb->expr()->eq('s.category_id', 'c.id'));
+		}
 
 		ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
 
@@ -1348,27 +1364,44 @@ class TransactionMapper extends QBMapper {
 	 */
 	private function mergeSpendingSummaries(array $direct, array $split): array {
 		if (empty($split)) {
-			return $direct;
+			return array_map(self::flagUncategorized(...), $direct);
 		}
 
+		// Uncategorised money (null id) keys as 0; category ids start at 1
 		$byId = [];
 		foreach ($direct as $row) {
-			$byId[(int)$row['id']] = $row;
+			$byId[(int)($row['id'] ?? 0)] = $row;
 		}
 		foreach ($split as $row) {
-			$id = (int)$row['id'];
+			$id = (int)($row['id'] ?? 0);
 			if (isset($byId[$id])) {
-				$byId[$id]['total'] = (float)$byId[$id]['total'] + (float)$row['total'];
+				// Through MoneyCalculator, never a float + (#274)
+				$byId[$id]['total'] = MoneyCalculator::toFloat(MoneyCalculator::add(
+					ReportScope::sqlMoney($byId[$id]['total']), ReportScope::sqlMoney($row['total']), ReportScope::MERGE_SCALE
+				));
 				$byId[$id]['count'] = (int)$byId[$id]['count'] + (int)$row['count'];
 			} else {
 				$byId[$id] = $row;
 			}
 		}
 
-		$merged = array_values($byId);
+		$merged = array_map(self::flagUncategorized(...), array_values($byId));
 		usort($merged, fn ($a, $b) => (float)$b['total'] <=> (float)$a['total']);
 
 		return $merged;
+	}
+
+	/**
+	 * Mark the row getSpendingSummary(includeUncategorized: true) keeps for
+	 * money with no category. The label is the renderer's to translate.
+	 */
+	private static function flagUncategorized(array $row): array {
+		if (($row['id'] ?? null) === null) {
+			$row['id'] = null;
+			$row['name'] = null;
+			$row['uncategorized'] = true;
+		}
+		return $row;
 	}
 
 	/**
@@ -1749,11 +1782,29 @@ class TransactionMapper extends QBMapper {
 	 * -- getSplitCategoryTotalsByAccount() is the companion query that adds it
 	 * back, on the same direct/split partition as getCategorySpendingBatch.
 	 *
+	 * $accountIds and the tag filter must be the ones the totals being
+	 * deducted from were built with. Without them this summed every account
+	 * using the categories - other users' too, when a category is shared -
+	 * and untagged rows under a tag filter, so a dashboard showing a subset
+	 * of accounts lost money it never counted and could go negative.
+	 *
 	 * @param int[] $categoryIds
+	 * @param int[]|null $accountIds only these accounts (the ones in view); null = no limit
+	 * @param int[] $tagIds tag filter (OR logic), as applied to the totals
 	 * @return array<int, array{income: float, expenses: float}> accountId => totals
 	 */
-	public function getCategoryTotalsByAccount(array $categoryIds, string $startDate, string $endDate, ?int $accountId = null, bool $excludeDeductedTransfers = false, ?string $today = null): array {
-		if (empty($categoryIds)) {
+	public function getCategoryTotalsByAccount(
+		array $categoryIds,
+		string $startDate,
+		string $endDate,
+		?int $accountId = null,
+		bool $excludeDeductedTransfers = false,
+		?string $today = null,
+		?array $accountIds = null,
+		array $tagIds = [],
+		bool $includeUntagged = true,
+	): array {
+		if (empty($categoryIds) || ($accountIds !== null && empty($accountIds))) {
 			return [];
 		}
 
@@ -1785,6 +1836,7 @@ class TransactionMapper extends QBMapper {
 			$qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
 		}
 
+		$this->scopeDeductionToTotals($qb, $accountIds, $tagIds, $includeUntagged);
 		ReportScope::excludeScheduledFuture($qb, 't', $today);
 
 		// Leave the transactions the companion query speaks for to it -- the
@@ -1806,7 +1858,8 @@ class TransactionMapper extends QBMapper {
 		}
 
 		foreach ($this->getSplitCategoryTotalsByAccount(
-			$categoryIds, $startDate, $endDate, $accountId, $excludeDeductedTransfers, $today
+			$categoryIds, $startDate, $endDate, $accountId, $excludeDeductedTransfers, $today,
+			$accountIds, $tagIds, $includeUntagged
 		) as $splitAccountId => $splitTotals) {
 			if (!isset($totals[$splitAccountId])) {
 				$totals[$splitAccountId] = ['income' => 0.0, 'expenses' => 0.0];
@@ -1842,6 +1895,9 @@ class TransactionMapper extends QBMapper {
 		?int $accountId,
 		bool $excludeDeductedTransfers,
 		?string $today = null,
+		?array $accountIds = null,
+		array $tagIds = [],
+		bool $includeUntagged = true,
 	): array {
 		$qb = $this->db->getQueryBuilder();
 
@@ -1872,6 +1928,7 @@ class TransactionMapper extends QBMapper {
 			$qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
 		}
 
+		$this->scopeDeductionToTotals($qb, $accountIds, $tagIds, $includeUntagged);
 		ReportScope::excludeScheduledFuture($qb, 't', $today);
 
 		$qb->groupBy('t.account_id');
@@ -1889,6 +1946,20 @@ class TransactionMapper extends QBMapper {
 		}
 
 		return $totals;
+	}
+
+	/**
+	 * Limit an excluded-category deduction to the accounts and tags the totals
+	 * it comes off were built from (see getCategoryTotalsByAccount()).
+	 *
+	 * @param int[]|null $accountIds
+	 * @param int[] $tagIds
+	 */
+	private function scopeDeductionToTotals(IQueryBuilder $qb, ?array $accountIds, array $tagIds, bool $includeUntagged): void {
+		if ($accountIds !== null) {
+			$qb->andWhere($qb->expr()->in('t.account_id', $qb->createNamedParameter(array_values(array_map('intval', $accountIds)), IQueryBuilder::PARAM_INT_ARRAY)));
+		}
+		ReportScope::applyTagFilter($qb, $tagIds, $includeUntagged);
 	}
 
 	/**

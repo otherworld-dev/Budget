@@ -100,6 +100,8 @@ class BillService {
 
 	/** suggestion_type under which dismissed unrecorded payments are stored (#394) */
 	private const UNRECORDED_DISMISS_TYPE = 'unrecorded';
+	/** Most occurrences one auto-pay run pays for a bill that fell behind */
+	private const MAX_AUTO_PAY_CATCH_UP = 60;
 
 	/**
 	 * @throws DoesNotExistException
@@ -405,6 +407,13 @@ class BillService {
 	 * the bill near the paid date, within half the bill's interval (14 days
 	 * at most), so a weekly bill's previous payment isn't taken for this one.
 	 *
+	 * So are payments whose snapshot names no row of them: 2.54.0's Record
+	 * transaction booked the row without adding it to the snapshot, and the
+	 * card listed the payment again and Record booked it twice. The row must
+	 * then sit nearer this payment than the one before it, so an earlier
+	 * payment's row (two overdue occurrences paid the same day) still can't
+	 * stand in for this one.
+	 *
 	 * @param \OCA\Budget\Db\Transaction[] $rows the bill's non-scheduled transactions
 	 */
 	private function hasRecordedPayment(Bill $bill, array $rows): bool {
@@ -413,6 +422,7 @@ class BillService {
 			return false;
 		}
 
+		$previousPaid = null;
 		$snapshot = $this->paymentSnapshot($bill);
 		// Early snapshots didn't record a linked row at all
 		if ($snapshot !== null && array_key_exists('linkedTransactionId', $snapshot)) {
@@ -426,7 +436,8 @@ class BillService {
 					return true;
 				}
 			}
-			return false;
+			$previous = $snapshot['previousState']['lastPaidDate'] ?? null;
+			$previousPaid = is_string($previous) && $previous !== '' ? $previous : null;
 		}
 
 		$window = match ($bill->getFrequency()) {
@@ -436,9 +447,14 @@ class BillService {
 			default => 14,
 		};
 		foreach ($rows as $tx) {
-			if (abs(strtotime($tx->getDate()) - strtotime($paidDate)) <= $window * 86400) {
-				return true;
+			$distance = abs(strtotime($tx->getDate()) - strtotime($paidDate));
+			if ($distance > $window * 86400) {
+				continue;
 			}
+			if ($previousPaid !== null && $distance >= abs(strtotime($tx->getDate()) - strtotime($previousPaid))) {
+				continue;
+			}
+			return true;
 		}
 		return false;
 	}
@@ -1113,7 +1129,7 @@ class BillService {
 		} elseif ($recordPayment && $bill->getAccountId() !== null) {
 			try {
 				// Clear pre-existing scheduled transaction(s), or create new cleared one
-				$transaction = $this->transactionService->clearScheduledBillTransaction($userId, $bill->getId(), $paidDate, $statementAmount, (bool)($bill->getIsTransfer() ?? false));
+				$transaction = $this->transactionService->clearScheduledBillTransaction($userId, $bill->getId(), $paidDate, $statementAmount, (bool)($bill->getIsTransfer() ?? false), $bill);
 				if ($transaction) {
 					$hadScheduledTransaction = true;
 				} else {
@@ -1159,7 +1175,11 @@ class BillService {
 				$bill->getDueMonth(),
 				$bill->getNextDueDate(),
 				$bill->getCustomRecurrencePattern(),
-				true // Always force advance — the bill was just paid
+				true, // Always force advance — the bill was just paid
+				// The start date supplies the day and month the form left
+				// out, as at creation and in the calendar: without it a
+				// yearly bill due 14 March moved to 1 January
+				$bill->getStartDate()
 			);
 			$bill->setNextDueDate($nextDue);
 
@@ -1423,7 +1443,8 @@ class BillService {
 			$bill->getDueMonth(),
 			$bill->getNextDueDate(),
 			$bill->getCustomRecurrencePattern(),
-			true // forceAdvance: always advance one cycle, even if not yet overdue
+			true, // forceAdvance: always advance one cycle, even if not yet overdue
+			$bill->getStartDate() // the same anchor creation and the calendar use
 		);
 		$bill->setNextDueDate($nextDue);
 
@@ -1929,11 +1950,19 @@ class BillService {
 	 * place with the bill's category, splits and tags, and the snapshot
 	 * then names the bank row, so Mark Unpaid unlinks it rather than
 	 * deleting the bank's own record. The bill stays where it is.
+	 *
+	 * A recurring transfer's booked pair goes as a whole, and the bank row
+	 * gets its arrival as Mark Paid's link does: the bank's own credit in the
+	 * destination, or a deposit booked for it. Transfers used to skip this,
+	 * so the bank's copy of a payment marked late fell inside the next
+	 * occurrence's window and paid that one too.
 	 */
 	private function replaceBookedPayment(Bill $bill, \OCA\Budget\Db\Transaction $imported): bool {
-		if (($bill->getIsTransfer() ?? false) || !$this->importedTransactionLooksLikeBill($bill, $imported)) {
+		if (!$this->importedTransactionLooksLikeBill($bill, $imported)) {
 			return false;
 		}
+		$isTransfer = (bool)($bill->getIsTransfer() ?? false);
+		$generatedNote = $isTransfer ? 'Auto-generated transfer:' : 'Auto-generated from bill:';
 		$raw = $bill->getPaidUndoState();
 		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
 		$ids = is_array($snapshot) && is_array($snapshot['createdTransactionIds'] ?? null) ? $snapshot['createdTransactionIds'] : [];
@@ -1951,23 +1980,36 @@ class BillService {
 			}
 		}
 		if ($booked === null || $booked->getReconciled() || ($booked->getImportId() ?? '') !== ''
-			|| !str_starts_with((string)$booked->getNotes(), 'Auto-generated from bill:')
+			|| !str_starts_with((string)$booked->getNotes(), $generatedNote)
 			|| abs((float)$booked->getAmount() - (float)$imported->getAmount()) > (float)$bill->getAmount() * 0.1) {
 			return false;
 		}
 
+		$removed = [$booked->getId()];
+		if ($isTransfer && $booked->getLinkedTransactionId() !== null) {
+			// deleteAsAccountOwner() takes the booked deposit with it
+			$removed[] = $booked->getLinkedTransactionId();
+		}
+		$deposit = null;
 		try {
 			$linked = $this->transactionService->linkBillAsAccountOwner($imported->getId(), $bill);
 			if (!$linked->getIsSplit()) {
 				$this->applySplitTemplate($bill, $linked, $bill->getUserId());
 			}
 			$this->transactionService->deleteAsAccountOwner($booked->getId(), false, $bill->getId());
+			if ($isTransfer) {
+				$deposit = $this->transactionService->completeTransferPayment($linked, $bill);
+			}
 		} catch (\Exception $e) {
 			$this->logger->warning("Failed to put imported transaction {$imported->getId()} in place of bill {$bill->getId()}'s payment: {$e->getMessage()}");
 			return false;
 		}
 
-		$snapshot['createdTransactionIds'] = array_values(array_filter($ids, fn ($id) => (int)$id !== $booked->getId()));
+		$kept = array_values(array_filter($ids, fn ($id) => !in_array((int)$id, $removed, true)));
+		if ($deposit !== null) {
+			$kept[] = $deposit;
+		}
+		$snapshot['createdTransactionIds'] = $kept;
 		$snapshot['linkedTransactionId'] = $imported->getId();
 		$bill->setPaidUndoState(json_encode($snapshot));
 		$this->mapper->update($bill);
@@ -1992,9 +2034,13 @@ class BillService {
 	/**
 	 * Attempt to auto-pay a bill and handle success/failure.
 	 *
+	 * Pays every occurrence due by the owner's today (at most
+	 * MAX_AUTO_PAY_CATCH_UP), each dated on its own due date. Payments made
+	 * before a failure stay paid; auto-pay then switches itself off.
+	 *
 	 * @param int $id Bill ID
 	 * @param string $userId User ID
-	 * @return array ['success' => bool, 'message' => string, 'bill' => ?Bill]
+	 * @return array ['success' => bool, 'message' => string, 'bill' => ?Bill, 'count' => int occurrences paid (on success)]
 	 */
 	public function processAutoPay(int $id, string $userId): array {
 		try {
@@ -2022,25 +2068,42 @@ class BillService {
 				];
 			}
 
-			// Mark bill as paid
-			$result = $this->markPaid($id, $userId, null, true);
+			// Pay every occurrence owed by the owner's today, each on its own
+			// due date, as income auto-create and pension auto-post do. Paying
+			// one per run, dated the day of the run, left a weekly bill weeks
+			// behind and then caught it up in a burst of rows all dated today.
+			// The caller only asks for a bill already due, so the first
+			// occurrence is always paid (dated no later than today).
+			$today = $this->today($userId);
+			$paid = 0;
+			$result = null;
+			do {
+				$due = (string)$bill->getNextDueDate();
+				$result = $this->markPaid($id, $userId, min($due, $today), true, null, $due);
 
-			// Paid with nothing booked (the account is gone, the row failed):
-			// put the bill back and fail, rather than report success and move
-			// the bill on while the money never shows
-			if (!($result['paymentTransactionRecorded'] ?? false)) {
-				try {
-					$this->markUnpaid($id, $userId);
-				} catch (\Exception $e) {
-					$this->logger->warning("Failed to revert auto-pay of bill {$id}: {$e->getMessage()}");
+				// Paid with nothing booked (the account is gone, the row failed):
+				// put the bill back and fail, rather than report success and move
+				// the bill on while the money never shows
+				if (!($result['paymentTransactionRecorded'] ?? false)) {
+					try {
+						$this->markUnpaid($id, $userId);
+					} catch (\Exception $e) {
+						$this->logger->warning("Failed to revert auto-pay of bill {$id}: {$e->getMessage()}");
+					}
+					throw new \RuntimeException($this->l->t('The payment could not be recorded'));
 				}
-				throw new \RuntimeException($this->l->t('The payment could not be recorded'));
-			}
+				$paid++;
+				$bill = $result['bill'];
+			} while ($paid < self::MAX_AUTO_PAY_CATCH_UP
+				&& $bill->getIsActive()
+				&& $bill->getNextDueDate() !== null
+				&& $bill->getNextDueDate() <= $today);
 
 			return [
 				'success' => true,
 				'message' => $this->l->t('Bill auto-paid successfully'),
 				'bill' => $result['bill'],
+				'count' => $paid,
 			];
 
 		} catch (\Exception $e) {

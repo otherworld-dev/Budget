@@ -9,6 +9,7 @@ use OCA\Budget\Service\BudgetAlertService;
 use OCA\Budget\Service\DigestService;
 use OCA\Budget\Service\Forecast\ForecastWarningService;
 use OCA\Budget\Service\SettingService;
+use OCA\Budget\Service\UserClock;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\QueuedJob;
 use OCP\Server;
@@ -52,7 +53,10 @@ class UserDigestJob extends QueuedJob {
 		if ($settingService->get($userId, 'digest_enabled') === 'true') {
 			try {
 				$frequency = $settingService->get($userId, 'digest_frequency') === 'monthly' ? 'monthly' : 'weekly';
-				$currentPeriod = $frequency === 'monthly' ? date('Y-m') : date('o-\WW');
+				// The period on this user's calendar, so a digest for the month
+				// that just ended doesn't wait for the server's midnight
+				$now = Server::get(UserClock::class)->now($userId);
+				$currentPeriod = $frequency === 'monthly' ? $now->format('Y-m') : $now->format('o-\WW');
 
 				if ($settingService->get($userId, 'digest_last_period') !== $currentPeriod) {
 					Server::get(DigestService::class)->sendDigest($userId, $frequency);

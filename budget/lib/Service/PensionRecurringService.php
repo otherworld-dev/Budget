@@ -270,16 +270,25 @@ class PensionRecurringService {
 			throw new \InvalidArgumentException($this->l->t('This scheduled contribution has no post to undo'));
 		}
 
+		// Only ever the contribution that post recorded. Deleting it by hand
+		// already puts the dates back and clears this state, so one that
+		// can't be found or isn't that post means the state is stale (a
+		// restored backup's, say). Putting the dates back then would post
+		// the occurrence again while its money stays where it is, so the
+		// undo is refused and the stale state dropped instead.
 		try {
 			$contribution = $this->pensionService->findContribution((int)($snapshot['contributionId'] ?? 0), $userId);
-			// Only ever the contribution that post recorded
-			if ($recur->isLastPost($contribution)) {
-				$this->pensionService->deleteContribution($contribution->getId(), $userId);
-			}
 		} catch (DoesNotExistException $e) {
-			// Already deleted: only the dates are left to put back
+			$contribution = null;
+		}
+		if ($contribution === null || !$recur->isLastPost($contribution)) {
+			$recur->setPostUndoState(null);
+			$recur->setUpdatedAt(date('Y-m-d H:i:s'));
+			$this->recurringMapper->update($recur);
+			throw new \InvalidArgumentException($this->l->t('This post can no longer be undone, as the contribution it recorded was not found. Check the pension\'s contributions.'));
 		}
 
+		$this->pensionService->deleteContribution($contribution->getId(), $userId);
 		$recur->revertPost();
 		return $this->recurringMapper->update($recur);
 	}

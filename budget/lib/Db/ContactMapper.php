@@ -73,6 +73,23 @@ class ContactMapper extends QBMapper {
 	}
 
 	/**
+	 * Unlink every contact, whoever's, from a Nextcloud user. Run when that
+	 * user is deleted: shared expenses are matched to a recipient by this
+	 * column, so a new account given the same uid would otherwise see
+	 * everything shared with the old one.
+	 *
+	 * @return int Number of contacts unlinked
+	 */
+	public function unlinkNextcloudUser(string $nextcloudUserId): int {
+		$qb = $this->db->getQueryBuilder();
+		$qb->update($this->getTableName())
+			->set('nextcloud_user_id', $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
+			->where($qb->expr()->eq('nextcloud_user_id', $qb->createNamedParameter($nextcloudUserId, IQueryBuilder::PARAM_STR)));
+
+		return $qb->executeStatement();
+	}
+
+	/**
 	 * Delete all contacts for a user
 	 *
 	 * @param string $userId

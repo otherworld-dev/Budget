@@ -162,6 +162,24 @@ class CurrencyConversionServiceTest extends TestCase {
 		$this->assertEqualsWithDelta(0.81, $resultFloat, 0.01);
 	}
 
+	/**
+	 * A crypto balance holding dust reaches here as a float; (string) wrote it
+	 * as "1.0E-5" and bcmul() threw a ValueError, so the account page and the
+	 * accounts list failed for a BTC account worth almost nothing.
+	 */
+	public function testConvertToBaseAcceptsDust(): void {
+		$this->settingService->method('get')->with('user1', 'default_currency')->willReturn('GBP');
+		$this->manualRateMapper->method('findByUserAndCurrency')->willReturn(null);
+		$this->exchangeRateService->method('getRateLocal')
+			->willReturnMap([
+				['BTC', null, '0.0000100000'],
+				['GBP', null, '0.8500000000'],
+			]);
+
+		$this->assertEqualsWithDelta(0.85, (float)$this->service->convertToBase(0.00001, 'BTC', 'user1'), 0.0001);
+		$this->assertSame('0.00001', $this->service->convert(0.00001, 'BTC', 'BTC'));
+	}
+
 	public function testConvertToBaseFallsBackToAutoWhenNoManualRate(): void {
 		$this->settingService->method('get')
 			->with('user1', 'default_currency')

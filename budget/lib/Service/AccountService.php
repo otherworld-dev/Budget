@@ -349,13 +349,14 @@ class AccountService extends AbstractCrudService {
 
 		// Calculate balance as of today (stored balance minus future transactions),
 		// at the account currency's precision so crypto keeps its 8dp (#331).
-		$storedBalance = (string)$account->getBalance();
-		$balance = MoneyCalculator::subtract($storedBalance, (string)$futureChange, Currency::decimalsFor($account->getCurrency()));
+		// Floats go in uncast: (string) writes dust as "1.0E-5", which bcmath refuses.
+		$storedBalance = (float)($account->getBalance() ?? 0);
+		$balance = MoneyCalculator::subtract($storedBalance, $futureChange, Currency::decimalsFor($account->getCurrency()));
 
 		// Convert account to array and override balance with adjusted value
 		$accountData = $account->toArrayMasked();
 		$accountData['balance'] = MoneyCalculator::toFloat($balance);
-		$accountData['storedBalance'] = MoneyCalculator::toFloat($storedBalance);
+		$accountData['storedBalance'] = $storedBalance;
 		$accountData['projectedBalance'] = $this->projectedBalance(
 			$account,
 			$this->transactionMapper->getScheduledNetChangeForAccounts([$id])
@@ -544,8 +545,9 @@ class AccountService extends AbstractCrudService {
 			// Calculate balance as of today (stored balance minus future transactions),
 			// at the account currency's precision so crypto keeps its 8dp (#331).
 			$accountScale = Currency::decimalsFor($account->getCurrency());
-			$storedBalance = (string)$account->getBalance();
-			$futureChange = (string)($futureChanges[$account->getId()] ?? 0);
+			// Floats go in uncast: (string) writes dust as "1.0E-5", which bcmath refuses.
+			$storedBalance = (float)($account->getBalance() ?? 0);
+			$futureChange = (float)($futureChanges[$account->getId()] ?? 0);
 			$balance = MoneyCalculator::subtract($storedBalance, $futureChange, $accountScale);
 			$balanceFloat = MoneyCalculator::toFloat($balance);
 
@@ -614,7 +616,7 @@ class AccountService extends AbstractCrudService {
 		// Single aggregated query for daily balance changes
 		$dailyChanges = $this->transactionMapper->getDailyBalanceChanges($accountId, $startDate, $endDate);
 
-		$balance = (string)$account->getBalance();
+		$balance = (float)($account->getBalance() ?? 0);
 		$history = [];
 
 		// Work backwards from current balance - O(days) instead of O(days × transactions)
@@ -623,13 +625,12 @@ class AccountService extends AbstractCrudService {
 
 			// Reverse the day's net change to get the balance at start of day
 			if (isset($dailyChanges[$date])) {
-				$netChange = (string)$dailyChanges[$date];
-				$balance = MoneyCalculator::subtract($balance, $netChange);
+				$balance = MoneyCalculator::subtract($balance, (float)$dailyChanges[$date], Currency::decimalsFor($account->getCurrency()));
 			}
 
 			$history[] = [
 				'date' => $date,
-				'balance' => MoneyCalculator::toFloat($balance)
+				'balance' => (float)$balance
 			];
 		}
 
@@ -712,17 +713,16 @@ class AccountService extends AbstractCrudService {
 		$asOfDate = $statementDate ?: $this->today($userId);
 		$scale = Currency::decimalsFor($account->getCurrency());
 		$futureChange = $this->transactionMapper->getNetChangeAfterDate($accountId, $asOfDate);
-		$storedBalance = (string)$account->getBalance();
-		$currentBalance = MoneyCalculator::subtract($storedBalance, (string)$futureChange, $scale);
+		$storedBalance = (float)($account->getBalance() ?? 0);
+		$currentBalance = MoneyCalculator::subtract($storedBalance, $futureChange, $scale);
 
-		$statementBalanceStr = (string)$statementBalance;
-		$difference = MoneyCalculator::subtract($statementBalanceStr, $currentBalance, $scale);
+		$difference = MoneyCalculator::subtract($statementBalance, $currentBalance, $scale);
 
 		return [
 			'currentBalance' => MoneyCalculator::toFloat($currentBalance),
 			'statementBalance' => $statementBalance,
 			'difference' => MoneyCalculator::toFloat($difference),
-			'isBalanced' => MoneyCalculator::equals($currentBalance, $statementBalanceStr, '0.01')
+			'isBalanced' => MoneyCalculator::equals($currentBalance, $statementBalance, '0.01')
 		];
 	}
 
@@ -762,7 +762,7 @@ class AccountService extends AbstractCrudService {
 
 		foreach ($accounts as $account) {
 			$accountId = $account->getId();
-			$oldBalance = (string)$account->getBalance();
+			$oldBalance = (float)($account->getBalance() ?? 0);
 
 			// new_balance = opening_balance + net transaction effect, at the
 			// account currency's precision so crypto keeps its 8dp (#331).
@@ -779,7 +779,7 @@ class AccountService extends AbstractCrudService {
 			$updatedAccounts[] = [
 				'id' => $accountId,
 				'name' => $account->getName(),
-				'oldBalance' => MoneyCalculator::toFloat($oldBalance),
+				'oldBalance' => $oldBalance,
 				'newBalance' => MoneyCalculator::toFloat($newBalance),
 				'difference' => MoneyCalculator::toFloat($diff),
 				'changed' => $changed,

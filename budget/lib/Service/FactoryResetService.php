@@ -8,6 +8,7 @@ use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\AttachmentMapper;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\ContactMapper;
 use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Db\ShareMapper;
@@ -32,6 +33,12 @@ use OCP\Notification\IManager as INotificationManager;
  * restore therefore keeps (UserTableCleaner::FACTORY_RESET_ONLY): shares the
  * user granted, bank connections and their mappings, idempotency keys. Shares
  * other users granted TO this user are theirs and stay.
+ *
+ * Other users' data that pointed into what was deleted is cut loose the way
+ * a restore cuts what it can't carry (CrossUserLinks): their transactions,
+ * splits, bills, income and rules under the user's shared categories go to
+ * No category, their bills on the user's shared accounts stop auto-paying,
+ * and their transfer legs paired with the user's rows are unlinked.
  */
 class FactoryResetService {
 	private UserTableCleaner $tableCleaner;
@@ -48,6 +55,8 @@ class FactoryResetService {
 		private ?INotificationManager $notificationManager = null,
 		private ?TransactionService $transactionService = null,
 		private ?ShareMapper $shareMapper = null,
+		private ?ContactMapper $contactMapper = null,
+		private ?CrossUserLinks $crossUserLinks = null,
 	) {
 		$this->tableCleaner = new UserTableCleaner($db);
 	}
@@ -62,9 +71,42 @@ class FactoryResetService {
 	 * @throws \Exception If deletion fails
 	 */
 	public function executeFactoryReset(string $userId): array {
+		return $this->reset($userId, false);
+	}
+
+	/**
+	 * Remove everything a deleted Nextcloud user had in the app.
+	 *
+	 * A factory reset, plus the shares other users granted TO them, which a
+	 * reset keeps: left in place, a re-created account with the same uid
+	 * inherited write access to other people's accounts. Other users'
+	 * contacts linked to the uid are unlinked for the same reason, since
+	 * shared expenses reach their recipient through that link.
+	 */
+	public function purgeDeletedUser(string $userId): void {
+		$this->reset($userId, true);
+	}
+
+	/**
+	 * @param bool $userDeleted also revoke the access the uid was given
+	 * @return array<string, int>
+	 */
+	private function reset(string $userId, bool $userDeleted): array {
 		// Recipients of the shares this user granted, read before the rows go
 		// so their pending invitations can be dismissed afterwards
 		$grantedShares = $this->findGrantedShares($userId);
+
+		// What other users' data points at in this user's, read while the
+		// shares that put it there still exist
+		$this->crossUserLinks?->capture($userId);
+
+		// Access goes before the data, and outside its transaction: if the
+		// reset fails part way, a re-created account with this uid must not
+		// be left holding it
+		if ($userDeleted) {
+			$this->shareMapper?->deleteAllForUser($userId);
+			$this->contactMapper?->unlinkNextcloudUser($userId);
+		}
 
 		// A bill can pre-book into another user's account shared with this
 		// one. The transactions delete below only reaches the user's own
@@ -97,6 +139,10 @@ class FactoryResetService {
 			//    granted, bank connections and mappings, idempotency keys
 			$counts += $this->tableCleaner->clearFactoryResetOnlyTables($userId, true);
 
+			// 5. Other users' rows that pointed at what just went: nothing
+			//    of this user's comes back, so every link is cut
+			$this->crossUserLinks?->apply([]);
+
 			// IMPORTANT: AuditLog is NOT deleted - preserved for compliance
 
 			// Commit the transaction - all deletions were successful
@@ -110,18 +156,6 @@ class FactoryResetService {
 		$this->dismissShareInvitations($grantedShares);
 
 		return $counts;
-	}
-
-	/**
-	 * Remove everything a deleted Nextcloud user had in the app.
-	 *
-	 * A factory reset, plus the shares other users granted TO them, which a
-	 * reset keeps: left in place, a re-created account with the same uid
-	 * inherited write access to other people's accounts.
-	 */
-	public function purgeDeletedUser(string $userId): void {
-		$this->executeFactoryReset($userId);
-		$this->shareMapper?->deleteAllForUser($userId);
 	}
 
 	private function dropPendingBillRows(string $userId): void {

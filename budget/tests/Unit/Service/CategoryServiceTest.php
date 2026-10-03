@@ -65,6 +65,7 @@ class CategoryServiceTest extends TestCase {
 		$this->currentBudgetMonth = date('Y-m');
 		$carryoverService = $this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class);
 		$carryoverService->method('getCarryovers')->willReturn([]);
+		$carryoverService->method('today')->willReturn('2026-01-15');
 		$carryoverService->method('currentBudgetMonth')
 			->willReturnCallback(fn () => $this->currentBudgetMonth);
 		$carryoverService->method('budgetStartDay')
@@ -589,6 +590,83 @@ class CategoryServiceTest extends TestCase {
 		$this->assertSame(2, $saved[2]); // B third
 	}
 
+	/**
+	 * Dropping a category above or below one of its own subcategories moves
+	 * it under its own branch: above its child it became its own parent, and
+	 * the whole branch vanished from the tree.
+	 */
+	public function testReorderRefusesAPlaceNextToItsOwnChild(): void {
+		$parent = $this->makeCategory(['id' => 5]);
+		$child = $this->makeCategory(['id' => 6, 'parentId' => 5]);
+		$this->categoryMapper->method('find')->willReturnCallback(
+			fn (int $id) => $id === 5 ? $parent : $child
+		);
+		$this->categoryMapper->method('findChildren')->willReturnCallback(
+			fn (string $userId, int $parentId) => $parentId === 5 ? [$child] : []
+		);
+		$this->categoryMapper->expects($this->never())->method('update');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('cannot be nested inside itself');
+		$this->service->reorderCategory(5, 'user1', 6, 'above');
+	}
+
+	public function testReorderRefusesAPlaceNextToItsOwnGrandchild(): void {
+		$parent = $this->makeCategory(['id' => 5]);
+		$child = $this->makeCategory(['id' => 6, 'parentId' => 5]);
+		$grandchild = $this->makeCategory(['id' => 7, 'parentId' => 6]);
+		$this->categoryMapper->method('find')->willReturnCallback(
+			fn (int $id) => [5 => $parent, 6 => $child, 7 => $grandchild][$id]
+		);
+		$this->categoryMapper->method('findChildren')->willReturnCallback(
+			fn (string $userId, int $parentId) => [5 => [$child], 6 => [$grandchild]][$parentId] ?? []
+		);
+		$this->categoryMapper->expects($this->never())->method('update');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('cannot be nested inside itself');
+		$this->service->reorderCategory(5, 'user1', 7, 'below');
+	}
+
+	public function testReorderStillMovesACategoryNextToAnotherBranch(): void {
+		$a = $this->makeCategory(['id' => 1, 'parentId' => 9]);
+		$b = $this->makeCategory(['id' => 2]);
+		$this->categoryMapper->method('find')->willReturnCallback(
+			fn (int $id) => [1 => $a, 2 => $b][$id]
+		);
+		$this->categoryMapper->method('findChildren')->willReturn([]);
+		$this->categoryMapper->method('findRootCategories')->willReturn([$b]);
+		$this->categoryMapper->method('update')->willReturnArgument(0);
+
+		$this->service->reorderCategory(1, 'user1', 2, 'below');
+
+		$this->assertNull($a->getParentId());
+		$this->assertSame(1, $a->getSortOrder());
+	}
+
+	/**
+	 * A parent chain that already loops (left by the reorder bug before 3.0)
+	 * must not hang the descendant walk that update, reassign-delete and
+	 * nesting all run.
+	 */
+	public function testDescendantWalkEndsOnALoopInExistingData(): void {
+		$x = $this->makeCategory(['id' => 5, 'parentId' => 6]);
+		$y = $this->makeCategory(['id' => 6, 'parentId' => 5]);
+		$other = $this->makeCategory(['id' => 9]);
+		$this->categoryMapper->method('find')->willReturnCallback(
+			fn (int $id) => [5 => $x, 6 => $y, 9 => $other][$id]
+		);
+		$this->categoryMapper->method('findChildren')->willReturnCallback(
+			fn (string $userId, int $parentId) => [5 => [$y], 6 => [$x]][$parentId] ?? []
+		);
+		$this->categoryMapper->method('existsDuplicate')->willReturn(false);
+		$this->categoryMapper->method('update')->willReturnArgument(0);
+
+		$this->service->update(5, 'user1', ['parentId' => 9]);
+
+		$this->assertSame(9, $x->getParentId());
+	}
+
 	// ===== findByType() =====
 
 	public function testFindByTypeDelegatesToMapper(): void {
@@ -828,6 +906,39 @@ class CategoryServiceTest extends TestCase {
 		$result = $this->service->removeDuplicates('user1');
 
 		$this->assertContains('Food', $result);
+	}
+
+	/**
+	 * Setup's bulk deletes went straight to the mapper and left split parts,
+	 * snapshots and tag sets naming the deleted category. They now release
+	 * every reference delete() does.
+	 */
+	public function testSetupBulkDeletesReleaseSplitPartsLikeDelete(): void {
+		$original = $this->makeCategory(['id' => 1, 'name' => 'Food', 'type' => 'expense']);
+		$duplicate = $this->makeCategory(['id' => 2, 'name' => 'Food', 'type' => 'expense']);
+		$this->categoryMapper->method('findAll')->willReturn([$original, $duplicate]);
+		$this->transactionMapper->method('findByCategory')->willReturn([]);
+		$this->categoryMapper->method('findChildren')->willReturn([]);
+		$this->tagSetMapper->method('findByCategory')->willReturn([]);
+
+		$cleared = [];
+		$this->splitMapper->method('clearCategory')->willReturnCallback(function (array $ids) use (&$cleared) {
+			$cleared = array_merge($cleared, $ids);
+			return count($ids);
+		});
+		$snapshots = [];
+		$this->budgetSnapshotMapper->method('deleteByCategory')->willReturnCallback(function (int $id) use (&$snapshots) {
+			$snapshots[] = $id;
+			return 0;
+		});
+
+		$this->service->removeDuplicates('user1');
+		$this->assertSame([2], $cleared);
+		$this->assertSame([2], $snapshots);
+
+		$this->service->deleteAll('user1');
+		$this->assertSame([2, 1, 2], $cleared);
+		$this->assertSame([2, 1, 2], $snapshots);
 	}
 
 	public function testRemoveDuplicatesKeepsDuplicateWithTransactions(): void {

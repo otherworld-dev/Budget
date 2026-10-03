@@ -338,7 +338,9 @@ class BillReminderJob extends TimedJob {
 				$result = $billService->processAutoPay($bill->getId(), $userId);
 
 				if ($result['success']) {
-					$successCount++;
+					// A bill that fell behind catches up every occurrence it
+					// owes in one go; it still gets one notification
+					$successCount += $result['count'] ?? 1;
 					$billService->enrichBillsWithCurrency([$result['bill']], $userId);
 					$this->sendAutoPaySuccessNotification(
 						$notificationManager,
