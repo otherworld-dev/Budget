@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Db\Bill;
 use OCA\Budget\Exception\ReconciledPaymentException;
 use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\Export\CsvSafe;
@@ -381,6 +382,11 @@ class BillController extends Controller {
 
 			$this->requireUsableCategories($this->getEffectiveUserId(), $categoryId, $splitTemplate);
 			$this->requireSplitsUsableByAccountOwner($this->getEffectiveUserId(), $accountId, $splitTemplate);
+			$this->requireCategoryUsableByAccountOwners(
+				$this->getEffectiveUserId(),
+				$categoryId,
+				[$accountId, $isTransfer ? $destinationAccountId : null]
+			);
 
 			$bill = $this->service->create(
 				$this->getEffectiveUserId(),
@@ -771,6 +777,11 @@ class BillController extends Controller {
 					isset($data['splitTemplate']) && is_array($data['splitTemplate']) ? $data['splitTemplate'] : $storedBill->getSplitTemplateArray()
 				);
 			}
+			if (array_key_exists('categoryId', $updates) || $accountInUpdates || $destinationInUpdates
+				|| array_key_exists('isTransfer', $updates)) {
+				$storedBill = $storedBill ?? $this->service->find($id, $ownerId);
+				$this->requireChangedCategoryUsableByAccountOwners($ownerId, $storedBill, $updates);
+			}
 
 			$bill = $this->service->update($id, $ownerId, $updates);
 			return new DataResponse($bill);
@@ -1134,6 +1145,10 @@ class BillController extends Controller {
 					isset($item['destinationAccountId']) ? (int)$item['destinationAccountId'] : null
 				);
 				$this->requireUsableCategories($this->getEffectiveUserId(), $item['categoryId'] ?? null, null);
+				$this->requireCategoryUsableByAccountOwners($this->getEffectiveUserId(), $item['categoryId'] ?? null, [
+					isset($item['accountId']) ? (int)$item['accountId'] : null,
+					isset($item['destinationAccountId']) ? (int)$item['destinationAccountId'] : null,
+				]);
 
 				// Checked like a bill created by hand, every item before any is
 				// created: a candidate whose description cleaned away to nothing
@@ -1480,6 +1495,57 @@ class BillController extends Controller {
 			$this->requireUsableCategories($accountOwner, null, $splitTemplate);
 		} catch (\InvalidArgumentException $e) {
 			throw new \InvalidArgumentException($this->l->t('This account belongs to someone else, who cannot see one of the split categories. Split with categories shared with them, or pay from one of your own accounts.'));
+		}
+	}
+
+	/**
+	 * A bill's own category is booked into the ledger of the account it pays
+	 * from, and for a transfer the account it pays into, as that account's
+	 * owner. When one of them belongs to someone else (shared with the
+	 * bill's owner), they have to be able to see the category too: with
+	 * the bill owner's own category, its name reached a ledger it was never
+	 * shared with.
+	 *
+	 * @param array<int|null> $accountIds
+	 * @throws \InvalidArgumentException
+	 */
+	private function requireCategoryUsableByAccountOwners(string $billOwner, mixed $categoryId, array $accountIds): void {
+		$categoryId = ($categoryId === null || $categoryId === '' || (int)$categoryId <= 0) ? null : (int)$categoryId;
+		if ($categoryId === null) {
+			return;
+		}
+		foreach (array_unique(array_filter($accountIds, static fn ($id) => $id !== null)) as $accountId) {
+			$accountOwner = $this->granularShareService->resolveOwner($billOwner, 'account', (int)$accountId);
+			if ($accountOwner === null || $accountOwner === $billOwner) {
+				continue;
+			}
+			try {
+				$this->granularShareService->requireUsableCategory($accountOwner, $categoryId);
+			} catch (\InvalidArgumentException $e) {
+				throw new \InvalidArgumentException($this->l->t('This account belongs to someone else, who cannot see this category. Choose a category shared with them, or no category.'));
+			}
+		}
+	}
+
+	/**
+	 * requireCategoryUsableByAccountOwners() for an edit, once the category
+	 * or an account actually changes: a shared bill's form sends back what
+	 * is stored, and an unchanged bill has to keep saving (#370).
+	 *
+	 * @param array<string, mixed> $updates
+	 */
+	private function requireChangedCategoryUsableByAccountOwners(string $billOwner, Bill $stored, array $updates): void {
+		$categoryId = array_key_exists('categoryId', $updates) ? $updates['categoryId'] : $stored->getCategoryId();
+		$accountId = array_key_exists('accountId', $updates) ? $updates['accountId'] : $stored->getAccountId();
+		$isTransfer = array_key_exists('isTransfer', $updates) ? (bool)$updates['isTransfer'] : (bool)$stored->getIsTransfer();
+		$destinationId = array_key_exists('destinationAccountId', $updates) ? $updates['destinationAccountId'] : $stored->getDestinationAccountId();
+
+		$changed = $categoryId !== $stored->getCategoryId()
+			|| $accountId !== $stored->getAccountId()
+			|| $isTransfer !== (bool)$stored->getIsTransfer()
+			|| ($isTransfer && $destinationId !== $stored->getDestinationAccountId());
+		if ($changed) {
+			$this->requireCategoryUsableByAccountOwners($billOwner, $categoryId, [$accountId, $isTransfer ? $destinationId : null]);
 		}
 	}
 

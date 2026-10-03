@@ -190,6 +190,90 @@ class BillControllerTest extends TestCase {
 		$this->assertStringContainsString('split', strtolower($response->getData()['error']));
 	}
 
+	/**
+	 * Account 4 is Alice's, shared with user1; Alice can't see user1's
+	 * category 7, but can see 8 (shared with her).
+	 */
+	private function controllerOnAlicesAccount(): BillController {
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canAccess')->willReturn(true);
+		$shares->method('canWrite')->willReturn(true);
+		$shares->method('resolveOwner')->willReturnCallback(
+			fn ($user, $type, $id) => $type === 'account' && $id === 4 ? 'alice' : 'user1'
+		);
+		$shares->method('requireUsableCategory')->willReturnCallback(function (string $owner, ?int $categoryId) {
+			if ($owner === 'alice' && $categoryId === 7) {
+				throw new \InvalidArgumentException('Category not found');
+			}
+		});
+		return new BillController($this->request, $this->service, $this->validationService, $shares,
+			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class), $this->upcomingBills,
+			$this->l, 'user1', $this->logger);
+	}
+
+	public function testABillOnAnotherUsersAccountNeedsACategoryTheyCanSee(): void {
+		// Every payment is booked into Alice's ledger under the bill's category
+		$this->mockInput(json_encode(['name' => 'Gym', 'amount' => 30, 'accountId' => 4, 'categoryId' => 7]));
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controllerOnAlicesAccount()->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('cannot see this category', $response->getData()['error']);
+	}
+
+	public function testATransferIntoAnotherUsersAccountNeedsACategoryTheyCanSee(): void {
+		// The deposit leg lands in Alice's ledger with the same category
+		$this->mockInput(json_encode(['name' => 'Into joint', 'amount' => 100, 'accountId' => 2,
+			'isTransfer' => true, 'destinationAccountId' => 4, 'categoryId' => 7]));
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controllerOnAlicesAccount()->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('cannot see this category', $response->getData()['error']);
+	}
+
+	public function testABillOnAnotherUsersAccountMayUseACategorySharedWithThem(): void {
+		$this->mockInput(json_encode(['name' => 'Gym', 'amount' => 30, 'accountId' => 4, 'categoryId' => 8]));
+		$this->service->expects($this->once())->method('create')->willReturn(new \OCA\Budget\Db\Bill());
+
+		$response = $this->controllerOnAlicesAccount()->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	private function storedBillOnAlicesAccount(?int $categoryId): \OCA\Budget\Db\Bill {
+		$bill = new \OCA\Budget\Db\Bill();
+		$bill->setId(5);
+		$bill->setAccountId(4);
+		$bill->setCategoryId($categoryId);
+		$bill->setIsTransfer(false);
+		return $bill;
+	}
+
+	public function testChangingABillsCategoryOnAnotherUsersAccountIsChecked(): void {
+		$this->service->method('find')->willReturn($this->storedBillOnAlicesAccount(8));
+		$this->mockInput(json_encode(['categoryId' => 7]));
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerOnAlicesAccount()->update(5);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('cannot see this category', $response->getData()['error']);
+	}
+
+	public function testABillSavedWithItsStoredCategoryAndAccountStillSaves(): void {
+		// A form sends back what is stored; an existing bill must keep saving
+		$this->service->method('find')->willReturn($this->storedBillOnAlicesAccount(7));
+		$this->mockInput(json_encode(['name' => 'Gym', 'categoryId' => 7, 'accountId' => 4]));
+		$this->service->expects($this->once())->method('update')->willReturn(new \OCA\Budget\Db\Bill());
+
+		$response = $this->controllerOnAlicesAccount()->update(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
 	public function testIndexFiltersSharedRowsLikeOwnOnes(): void {
 		// Shared rows were merged in unfiltered: shared transfers showed on
 		// the Bills page, shared bills on Transfers, ended ones everywhere

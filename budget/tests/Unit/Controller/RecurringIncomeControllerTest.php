@@ -151,6 +151,68 @@ class RecurringIncomeControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
+	/** Account 4 is Alice's, shared with user1; Alice can't see category 7 */
+	private function controllerOnAlicesAccount(): RecurringIncomeController {
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canAccess')->willReturn(true);
+		$shares->method('canWrite')->willReturn(true);
+		$shares->method('resolveOwner')->willReturnCallback(
+			fn ($user, $type, $id) => $type === 'account' && $id === 4 ? 'alice' : 'user1'
+		);
+		$shares->method('requireUsableCategory')->willReturnCallback(function (string $owner, ?int $categoryId) {
+			if ($owner === 'alice' && $categoryId === 7) {
+				throw new \InvalidArgumentException('Category not found');
+			}
+		});
+		return new RecurringIncomeController($this->request, $this->service, $this->validationService, $shares, $this->l, 'user1', $this->logger);
+	}
+
+	public function testIncomeIntoAnotherUsersAccountNeedsACategoryTheyCanSee(): void {
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controllerOnAlicesAccount()->create('Salary', 2000.0, categoryId: 7, accountId: 4);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('cannot see this category', $response->getData()['error']);
+	}
+
+	public function testIncomeIntoAnotherUsersAccountMayUseACategorySharedWithThem(): void {
+		$this->service->expects($this->once())->method('create')->willReturn(new RecurringIncome());
+
+		$response = $this->controllerOnAlicesAccount()->create('Salary', 2000.0, categoryId: 8, accountId: 4);
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	private function storedIncomeOnAlicesAccount(int $categoryId): RecurringIncome {
+		$income = new RecurringIncome();
+		$income->setId(3);
+		$income->setAccountId(4);
+		$income->setCategoryId($categoryId);
+		return $income;
+	}
+
+	public function testMovingIncomeToACategoryTheAccountOwnerCannotSeeIsRefused(): void {
+		$this->service->method('find')->willReturn($this->storedIncomeOnAlicesAccount(8));
+		$this->request->method('getParams')->willReturn(['categoryId' => 7]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerOnAlicesAccount()->update(3);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('cannot see this category', $response->getData()['error']);
+	}
+
+	public function testIncomeSavedWithItsStoredCategoryStillSaves(): void {
+		$this->service->method('find')->willReturn($this->storedIncomeOnAlicesAccount(7));
+		$this->request->method('getParams')->willReturn(['name' => 'Salary', 'categoryId' => 7, 'accountId' => 4]);
+		$this->service->expects($this->once())->method('update')->willReturn(new RecurringIncome());
+
+		$response = $this->controllerOnAlicesAccount()->update(3);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
 	public function testCreatePassesAllArguments(): void {
 		$income = $this->createMock(RecurringIncome::class);
 		$this->service->expects($this->once())

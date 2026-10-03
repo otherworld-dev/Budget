@@ -126,6 +126,34 @@ class RecurringIncomeController extends Controller {
 	}
 
 	/**
+	 * Income is booked into the ledger of the account it arrives in, as that
+	 * account's owner. When the account belongs to someone else (shared with
+	 * the income's owner), they have to be able to see its category too, or
+	 * the owner's category name reached a ledger it was never shared with.
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	private function requireCategoryUsableByAccountOwner(string $incomeOwner, ?int $categoryId, ?int $accountId): void {
+		if ($categoryId === null || $categoryId <= 0 || $accountId === null) {
+			return;
+		}
+		$accountOwner = $this->granularShareService->resolveOwner($incomeOwner, 'account', $accountId);
+		if ($accountOwner === null || $accountOwner === $incomeOwner) {
+			return;
+		}
+		try {
+			$this->granularShareService->requireUsableCategory($accountOwner, $categoryId);
+		} catch (\InvalidArgumentException $e) {
+			throw new \InvalidArgumentException($this->l->t('This account belongs to someone else, who cannot see this category. Choose a category shared with them, or no category.'));
+		}
+	}
+
+	/** A client id, with null, empty and 0 meaning none */
+	private static function idOrNull(mixed $raw): ?int {
+		return ($raw === null || $raw === '' || (int)$raw <= 0) ? null : (int)$raw;
+	}
+
+	/**
 	 * Create a new recurring income entry
 	 * @NoAdminRequired
 	 */
@@ -216,6 +244,7 @@ class RecurringIncomeController extends Controller {
 				$this->getEffectiveUserId(),
 				$categoryId !== null && $categoryId > 0 ? $categoryId : null
 			);
+			$this->requireCategoryUsableByAccountOwner($this->getEffectiveUserId(), $categoryId, $accountId);
 
 			$income = $this->service->create(
 				$this->getEffectiveUserId(),
@@ -338,6 +367,17 @@ class RecurringIncomeController extends Controller {
 					$ownerId,
 					($raw === null || $raw === '' || (int)$raw <= 0) ? null : (int)$raw
 				);
+			}
+
+			// Only once the category or the account changes: a shared entry's
+			// form sends back what is stored, and that has to keep saving
+			if (array_key_exists('categoryId', $data) || array_key_exists('accountId', $data)) {
+				$stored = $this->service->find($id, $ownerId);
+				$categoryId = array_key_exists('categoryId', $data) ? self::idOrNull($data['categoryId']) : $stored->getCategoryId();
+				$accountId = array_key_exists('accountId', $data) ? self::idOrNull($data['accountId']) : $stored->getAccountId();
+				if ($categoryId !== $stored->getCategoryId() || $accountId !== $stored->getAccountId()) {
+					$this->requireCategoryUsableByAccountOwner($ownerId, $categoryId, $accountId);
+				}
 			}
 
 			$income = $this->service->update($id, $ownerId, $data);
@@ -522,6 +562,11 @@ class RecurringIncomeController extends Controller {
 				$this->granularShareService->requireUsableCategory(
 					$this->getEffectiveUserId(),
 					($raw === null || $raw === '' || (int)$raw <= 0) ? null : (int)$raw
+				);
+				$this->requireCategoryUsableByAccountOwner(
+					$this->getEffectiveUserId(),
+					self::idOrNull($raw),
+					self::idOrNull($item['accountId'] ?? null)
 				);
 
 				// Checked like an income created by hand, every item before any
