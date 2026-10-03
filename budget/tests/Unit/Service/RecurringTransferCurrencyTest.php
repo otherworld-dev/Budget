@@ -24,6 +24,8 @@ class RecurringTransferCurrencyTest extends TestCase {
 	private array $inserted = [];
 	private CurrencyConversionService $conversion;
 	private TransactionService $service;
+	/** @var Transaction[] the bill's pre-booked rows */
+	private array $scheduled = [];
 
 	protected function setUp(): void {
 		$accounts = [
@@ -42,6 +44,8 @@ class RecurringTransferCurrencyTest extends TestCase {
 			return $tx;
 		});
 		$mapper->method('find')->willReturnCallback(fn (int $id) => $this->inserted[$id - 1]);
+		$mapper->method('update')->willReturnArgument(0);
+		$mapper->method('findAllScheduledByBillId')->willReturnCallback(fn () => $this->scheduled);
 
 		$this->conversion = $this->createMock(CurrencyConversionService::class);
 
@@ -114,5 +118,25 @@ class RecurringTransferCurrencyTest extends TestCase {
 			$this->assertStringContainsString('exchange rate', $e->getMessage());
 		}
 		$this->assertSame([], $this->inserted);
+	}
+
+	/**
+	 * Paying a EUR card's 500 statement from a GBP account by clearing the
+	 * pre-booked pair (the default) booked 500 on both legs: 500 GBP out
+	 */
+	public function testClearingThePreBookedPairConvertsTheWithdrawal(): void {
+		$this->conversion->method('convertBetween')->willReturnCallback(
+			fn (float $amount, string $from, string $to) => $amount === 500.0 && $from === 'EUR' && $to === 'GBP' ? '426.1' : (string)$amount
+		);
+		$this->service->createFromBill('alice', $this->transfer('statement'), null, 'scheduled');
+		$this->scheduled = $this->inserted;
+		$bill = $this->transfer('statement');
+		$bill->setAmount(500.0);
+
+		$cleared = $this->service->clearScheduledBillTransaction('alice', 9, '2026-02-03', 500.0, true, $bill);
+
+		$this->assertSame(1, $cleared->getId());
+		$this->assertSame(['debit', 426.1, 'cleared'], [$this->inserted[0]->getType(), (float)$this->inserted[0]->getAmount(), $this->inserted[0]->getStatus()]);
+		$this->assertSame(['credit', 500.0, 'cleared'], [$this->inserted[1]->getType(), (float)$this->inserted[1]->getAmount(), $this->inserted[1]->getStatus()]);
 	}
 }

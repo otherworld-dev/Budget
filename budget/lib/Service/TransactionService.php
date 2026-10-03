@@ -492,11 +492,15 @@ class TransactionService {
 	 * bill's placeholder is a LINKED PAIR — both legs are cleared (deleting
 	 * the second leg used to drop the deposit from the destination account).
 	 * $amount, when given, overwrites both legs: statement bills resolve
-	 * their amount at payment time (#347).
+	 * their amount at payment time (#347). It is the card's figure, in the
+	 * card's currency, so with $bill given a transfer between currencies
+	 * converts the withdrawal as createFromBill() does; the card's figure on
+	 * both legs took 500 GBP out to pay a 500 EUR statement.
 	 *
 	 * @return Transaction|null The cleared withdrawal leg, or null if none found
+	 * @throws \Exception when the legs are in two currencies with no rate between them
 	 */
-	public function clearScheduledBillTransaction(string $userId, int $billId, string $clearedDate, ?float $amount = null, bool $isTransfer = false): ?Transaction {
+	public function clearScheduledBillTransaction(string $userId, int $billId, string $clearedDate, ?float $amount = null, bool $isTransfer = false, ?Bill $bill = null): ?Transaction {
 		$allScheduled = $this->mapper->findAllScheduledByBillId($billId);
 		$cleared = null;
 		$partnerId = null;
@@ -538,6 +542,15 @@ class TransactionService {
 			usort($allScheduled, fn (Transaction $a, Transaction $b) => (int)in_array($b, $paired, true) <=> (int)in_array($a, $paired, true));
 		}
 
+		// Priced before anything is cleared: with no rate, nothing is
+		$legAmounts = null;
+		if ($amount !== null && $isTransfer && $bill !== null && $allScheduled !== []) {
+			$priced = clone $bill;
+			$priced->setAmount($amount);
+			[$withdrawalAmount, $depositAmount] = $this->transferLegAmounts($priced, $userId, $clearedDate);
+			$legAmounts = ['debit' => $withdrawalAmount, 'credit' => $depositAmount];
+		}
+
 		foreach ($allScheduled as $scheduled) {
 			$isPartner = $partnerId !== null && $scheduled->getId() === $partnerId;
 			if ($cleared === null || $isPartner) {
@@ -547,7 +560,7 @@ class TransactionService {
 				$ownerUserId = $this->accountMapper->findById($scheduled->getAccountId())->getUserId();
 				$updates = ['status' => 'cleared', 'date' => $clearedDate];
 				if ($amount !== null) {
-					$updates['amount'] = $amount;
+					$updates['amount'] = $legAmounts[$scheduled->getType()] ?? $amount;
 				}
 				$updated = $this->update($scheduled->getId(), $ownerUserId, $updates);
 				if ($cleared === null) {

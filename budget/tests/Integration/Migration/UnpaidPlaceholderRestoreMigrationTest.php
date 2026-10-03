@@ -68,6 +68,46 @@ class UnpaidPlaceholderRestoreMigrationTest extends IntegrationTestCase {
 		$this->assertSame('cleared', $this->fetchRow('budget_transactions', $payment)['status']);
 	}
 
+	/**
+	 * 2.54.0: a weekly bill due 26 September is marked paid on 3 October
+	 * without recording a payment, so the paid date and the next due date
+	 * are both the 3rd. Record transaction then books the payment on the
+	 * 3rd, and 2.54.0 never named that row in the snapshot. It is a real
+	 * payment and stays booked; only the row the snapshot names as pending
+	 * goes back.
+	 */
+	public function testA254PaymentOnTheLastPaidDateIsLeftAlone(): void {
+		$account = $this->makeAccount()->getId();
+		$bill = $this->bill($account, '2026-10-03', ['frequency' => 'weekly', 'due_day' => 6, 'last_paid_date' => '2026-10-03']);
+		$pending = $this->row($account, $bill, '2026-10-03');
+		$recorded = $this->row($account, $bill, '2026-10-03');
+		$this->db()->executeStatement('UPDATE *PREFIX*budget_bills SET paid_undo_state = ? WHERE id = ?', [
+			json_encode(['previousState' => ['nextDueDate' => '2026-09-26'], 'createdTransactionIds' => [],
+				'scheduledTransactionIds' => [$pending], 'linkedTransactionId' => null, 'paidDate' => '2026-10-03']),
+			$bill,
+		]);
+
+		$this->runMigration();
+
+		$this->assertSame('cleared', $this->fetchRow('budget_transactions', $recorded)['status']);
+		$this->assertSame('scheduled', $this->fetchRow('budget_transactions', $pending)['status']);
+	}
+
+	/**
+	 * Skip wipes the snapshot, so after skip and undo skip on a bill paid
+	 * late nothing says which row is pending. A row on the last paid date
+	 * is then kept as the payment.
+	 */
+	public function testARowOnTheLastPaidDateWithNoSnapshotIsLeftAlone(): void {
+		$account = $this->makeAccount()->getId();
+		$bill = $this->bill($account, '2026-10-03', ['frequency' => 'weekly', 'due_day' => 6, 'last_paid_date' => '2026-10-03']);
+		$payment = $this->row($account, $bill, '2026-10-03');
+
+		$this->runMigration();
+
+		$this->assertSame('cleared', $this->fetchRow('budget_transactions', $payment)['status']);
+	}
+
 	public function testBothLegsOfAnUnpaidTransferGoBack(): void {
 		$from = $this->makeAccount()->getId();
 		$to = $this->makeAccount(['name' => 'Savings', 'type' => 'savings'])->getId();
