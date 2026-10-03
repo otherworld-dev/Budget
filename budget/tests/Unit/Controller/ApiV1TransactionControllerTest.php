@@ -1127,6 +1127,28 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame(['12.50', '7.50'], array_column($response->getData()['splits'], 'amount'));
 	}
 
+	public function testSplitsOfAnUnsplitTransactionIgnoreLeftoverParts(): void {
+		// Parts stay behind on purpose when a row stops being split (#356);
+		// show() already ignores them, and this endpoint has to agree
+		$this->service->method('findForAccounts')->willReturn($this->checkTransaction(55, 1, false));
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
+		$this->splitService->method('getSplits')->willReturn([$this->part(1, 55, 12.5, 'Old'), $this->part(2, 55, 7.5, 'Parts')]);
+
+		$response = $this->controller->splits(55);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame([], $response->getData()['splits']);
+	}
+
+	public function testSplitsOfAPreSplitColumnRowComeFromItsParts(): void {
+		// is_split NULL predates the column (#360): the parts decide
+		$this->service->method('findForAccounts')->willReturn($this->checkTransaction(55, 1, null));
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
+		$this->splitService->method('getSplits')->willReturn([$this->part(1, 55, 10.0, null), $this->part(2, 55, 10.0, null)]);
+
+		$this->assertCount(2, $this->controller->splits(55)->getData()['splits']);
+	}
+
 	public function testShowCarriesItsPartsAndTheVisibleLinkedAccount(): void {
 		$this->service->method('findForAccounts')->willReturnMap([
 			[55, [1, 2, 9], $this->checkTransaction(55, 9, true, 56)],

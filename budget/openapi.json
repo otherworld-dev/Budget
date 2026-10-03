@@ -947,7 +947,7 @@
         ],
         "operationId": "getSplits",
         "summary": "A transaction's split parts",
-        "description": "The same parts list rows carry inline as `splits`; [] when the transaction isn't split. On a shared account the parts are read as the account's owner.",
+        "description": "The same parts list rows carry inline as `splits`; [] when the transaction isn't split (is_split false), even if parts from an earlier split are still stored. On a shared account the parts are read as the account's owner.",
         "parameters": [
           {
             "name": "id",

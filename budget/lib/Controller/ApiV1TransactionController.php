@@ -204,8 +204,11 @@ class ApiV1TransactionController extends OCSController {
 	public function splits(int $id): DataResponse {
 		try {
 			$transaction = $this->service->findForAccounts($id, $this->getEffectiveAccountIds());
+			// Same guard as serializeOne(): parts left behind on a row that is
+			// no longer split (kept on purpose, #356) are not its splits
+			$parts = $transaction->getIsSplit() === false ? [] : $this->splitsOf($transaction);
 
-			return new DataResponse(['splits' => ApiSerializer::splits($this->splitsOf($transaction))]);
+			return new DataResponse(['splits' => ApiSerializer::splits($parts)]);
 		} catch (DoesNotExistException $e) {
 			return $this->notFound();
 		} catch (\Exception $e) {
