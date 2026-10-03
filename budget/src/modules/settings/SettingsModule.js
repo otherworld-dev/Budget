@@ -311,9 +311,21 @@ export default class SettingsModule {
 
         view.addEventListener('change', (e) => {
             const el = e.target.closest('.setting-input');
-            if (el) this.saveSetting(el);
+            if (!el) return;
+            // The preview is the only feedback these controls give, so it
+            // follows the change at once rather than waiting for the save.
+            if (SettingsModule.PREVIEW_INPUTS.includes(el.id)) this.updateNumberFormatPreview();
+            this.saveSetting(el);
         });
     }
+
+    /** Controls the number format preview is drawn from. */
+    static PREVIEW_INPUTS = [
+        'setting-number-format-decimals',
+        'setting-number-format-decimal-sep',
+        'setting-number-format-thousands-sep',
+        'setting-default-currency',
+    ];
 
     /** Scroll to a section from the jump list at the top of the page. */
     setupJumpList() {

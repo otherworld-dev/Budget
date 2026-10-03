@@ -1670,20 +1670,6 @@ class BudgetApp {
         // Reset has a button, in the Danger Zone.
         document.getElementById('reset-settings-btn')?.addEventListener('click', () => this.resetSettings());
 
-        // Number format preview update
-        const numberFormatInputs = [
-            'setting-number-format-decimals',
-            'setting-number-format-decimal-sep',
-            'setting-number-format-thousands-sep'
-        ];
-
-        numberFormatInputs.forEach(id => {
-            const element = document.getElementById(id);
-            if (element) {
-                element.addEventListener('change', () => this.updateNumberFormatPreview());
-            }
-        });
-
         // Migration event listeners
         this.setupMigrationEventListeners();
 

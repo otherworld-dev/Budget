@@ -115,6 +115,34 @@ describe('settings auto-save', () => {
         expect(mod.settings.date_format).toBe('Y-m-d');
     });
 
+    it('redraws the number format preview when a format setting changes', async () => {
+        globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ settings: {} }) });
+        document.getElementById('settings-view').insertAdjacentHTML('beforeend', `
+            <div class="setting-item">
+                <select id="setting-number-format-decimal-sep" class="setting-input">
+                    <option value=".">.</option>
+                    <option value=",">,</option>
+                </select>
+                <select id="setting-number-format-thousands-sep" class="setting-input">
+                    <option value=",">,</option>
+                    <option value=".">.</option>
+                </select>
+                <select id="setting-default-currency" class="setting-input">
+                    <option value="GBP">GBP</option>
+                </select>
+            </div>
+            <span id="number-format-preview">£1,234.56</span>`);
+        makeModule();
+        const decimalSep = document.getElementById('setting-number-format-decimal-sep');
+        const thousandsSep = document.getElementById('setting-number-format-thousands-sep');
+
+        thousandsSep.value = '.';
+        decimalSep.value = ',';
+        change(decimalSep);
+
+        expect(document.getElementById('number-format-preview').textContent).toBe('£1.234,56');
+    });
+
     it('ignores changes to controls that are not settings', async () => {
         globalThis.fetch = vi.fn();
         makeModule();
