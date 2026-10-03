@@ -355,7 +355,43 @@ export default class SettingsModule {
         return [key, value];
     }
 
-    async saveSetting(element) {
+    /**
+     * One save in flight per setting. Arrowing through a select or toggling a
+     * checkbox twice fires several changes; sent side by side, their replies
+     * could land in any order and leave the stored value (and this.settings)
+     * on an older choice. A change made while a save is running is sent once
+     * that save finishes, and only if it differs from what was just stored.
+     */
+    saveSetting(element) {
+        const [key] = this.settingEntry(element);
+        this.savesInFlight = this.savesInFlight || {};
+        const running = this.savesInFlight[key];
+        if (running) {
+            running.element = element;
+            running.again = true;
+            return running.promise;
+        }
+
+        const slot = { element, again: false };
+        this.savesInFlight[key] = slot;
+        slot.promise = (async () => {
+            try {
+                let first = true;
+                while (first || slot.again) {
+                    const [, value] = this.settingEntry(slot.element);
+                    if (!first && value === String(this.settings?.[key])) break;
+                    first = false;
+                    slot.again = false;
+                    await this.sendSetting(slot.element, slot);
+                }
+            } finally {
+                delete this.savesInFlight[key];
+            }
+        })();
+        return slot.promise;
+    }
+
+    async sendSetting(element, slot) {
         const [key, value] = this.settingEntry(element);
         const item = element.closest('.setting-item') || element.parentElement;
 
@@ -367,7 +403,8 @@ export default class SettingsModule {
             });
             // The server may normalise a value (the receipts folder does).
             const saved = result?.settings?.[key] ?? value;
-            if (element.type !== 'checkbox' && saved !== value) element.value = saved;
+            // A newer change is queued; leave the control showing it.
+            if (!slot.again && element.type !== 'checkbox' && saved !== value) element.value = saved;
 
             this.settings[key] = saved;
             this.applySettingSideEffects({ [key]: saved });
@@ -375,6 +412,8 @@ export default class SettingsModule {
         } catch (error) {
             console.error('Error saving setting:', key, error);
             showError(error.message || t('budget', 'Failed to save settings'));
+            // A newer change is queued and will be sent next; don't undo it.
+            if (slot.again) return;
             // Put the control back to what is actually stored.
             const stored = this.settings?.[key];
             if (stored !== undefined) {
