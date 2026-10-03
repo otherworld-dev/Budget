@@ -33,6 +33,13 @@ export default class SettingsModule {
     }
 
     async loadAdminSettings() {
+        // Only admins may read these. Asking anyway got everyone else a 403
+        // in the browser console on every visit to Settings, so skip the
+        // request when Nextcloud says this user isn't one.
+        if (typeof globalThis.OC?.isUserAdmin === 'function' && !globalThis.OC.isUserAdmin()) {
+            return;
+        }
+
         try {
             // Non-admin users get a 403 — hide the section
             const adminSettings = await apiFetch('/apps/budget/api/admin/settings').catch(() => null);

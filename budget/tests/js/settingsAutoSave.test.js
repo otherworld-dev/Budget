@@ -246,3 +246,26 @@ describe('settings auto-save', () => {
         expect(globalThis.fetch).not.toHaveBeenCalled();
     });
 });
+
+describe('admin settings', () => {
+    it('are not requested for a user who is not an admin', async () => {
+        globalThis.OC.isUserAdmin = () => false;
+        globalThis.fetch = vi.fn();
+
+        await makeModule().loadAdminSettings();
+
+        expect(globalThis.fetch).not.toHaveBeenCalled();
+    });
+
+    it('are requested and shown for an admin', async () => {
+        globalThis.OC.isUserAdmin = () => true;
+        document.body.insertAdjacentHTML('beforeend', '<div id="admin-settings-section" style="display:none"></div>');
+        globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ bankSyncEnabled: false }) });
+
+        await makeModule().loadAdminSettings();
+
+        expect(globalThis.fetch).toHaveBeenCalledOnce();
+        expect(globalThis.fetch.mock.calls[0][0]).toContain('/apps/budget/api/admin/settings');
+        expect(document.getElementById('admin-settings-section').style.display).toBe('block');
+    });
+});
