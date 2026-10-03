@@ -274,17 +274,29 @@ class ReportAggregator {
 		// account so each account's amounts get the same currency conversion as
 		// the income/expense totals they are deducted from, and so a selected
 		// account only has its own excluded transactions deducted (#326).
+		//
+		// Only the accounts in view, under the same tag filter: the totals were
+		// summed over exactly those, so deducting anything else (an account
+		// left off a tile, another user's account using a shared category,
+		// an untagged row) took off money that was never added.
 		if (!empty($excludedCategoryIds)) {
 			$excludedIds = array_keys($excludedCategoryIds);
+			$accountsInView = array_map(static fn ($a) => (int)$a->getId(), $accounts);
 			$excludedByAccount = $this->transactionMapper->getCategoryTotalsByAccount(
 				$excludedIds,
 				$startDate,
 				$endDate,
 				$accountId,
 				$accountId === null,
-				$today
+				$today,
+				$accountsInView,
+				$tagIds,
+				$includeUntagged
 			);
 			foreach ($excludedByAccount as $accId => $excluded) {
+				if (!in_array((int)$accId, $accountsInView, true)) {
+					continue;
+				}
 				$excludedIncome = $excluded['income'];
 				$excludedExpenses = $excluded['expenses'];
 				if ($needsConversion) {
@@ -654,10 +666,12 @@ class ReportAggregator {
 			$expenses = $this->conversionService->convertToBaseFloat($row['expenses'], $accCurrency, $userId);
 
 			if (!isset($byMonth[$month])) {
-				$byMonth[$month] = ['month' => $month, 'income' => '0', 'expenses' => '0', 'net' => 0];
+				$byMonth[$month] = ['month' => $month, 'income' => '0', 'expenses' => '0', 'net' => 0, 'count' => 0];
 			}
 			$byMonth[$month]['income'] = MoneyCalculator::add($byMonth[$month]['income'], $income, self::SUM_SCALE);
 			$byMonth[$month]['expenses'] = MoneyCalculator::add($byMonth[$month]['expenses'], $expenses, self::SUM_SCALE);
+			// A transaction is in one account, so the per-account counts add up
+			$byMonth[$month]['count'] += $row['count'];
 		}
 
 		// Recalculate net after aggregation
@@ -793,7 +807,17 @@ class ReportAggregator {
 		// carries no money (the query dropped it) and is not shown either;
 		// its non-excluded children are promoted to the nearest shown
 		// ancestor (or to the root). Orphans (parent missing) are roots.
+		// Categories shared with the viewer carry money too (the query counts
+		// every category on the accounts in view), so they get rows as well,
+		// with their owner's exclude flag, as generateSummary() reads them.
 		$categories = $this->categoryMapper->findAll($userId);
+		$sharedIds = array_values(array_diff(
+			array_map('intval', $this->granularShareService?->getSharedCategoryIds($userId) ?? []),
+			array_map(static fn ($c) => (int)$c->getId(), $categories)
+		));
+		if (!empty($sharedIds)) {
+			$categories = array_merge($categories, $this->categoryMapper->findByIdsUnscoped($sharedIds));
+		}
 		$excluded = [];
 		$parentOf = [];
 		foreach ($categories as $c) {
@@ -882,8 +906,18 @@ class ReportAggregator {
 		}
 
 		// Uncategorised money gets its own last row, so the rows add up to
-		// the Net total. The label is the renderer's to translate.
+		// the Net total. The label is the renderer's to translate. Money under
+		// a category the viewer has no row for (another user's, on an account
+		// shared with them) goes there too rather than vanish from the rows.
 		$uncategorized = $own[TransactionReportQueries::UNCATEGORIZED] ?? [];
+		foreach ($own as $catId => $monthMap) {
+			if ($catId === TransactionReportQueries::UNCATEGORIZED || isset($byId[$catId])) {
+				continue;
+			}
+			foreach ($monthMap as $m => $v) {
+				$uncategorized[$m] = ($uncategorized[$m] ?? 0.0) + $v;
+			}
+		}
 		$uncatMonthly = [];
 		$uncatTotal = 0.0;
 		foreach ($months as $m) {

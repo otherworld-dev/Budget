@@ -52,6 +52,33 @@ class GoalTagSumTest extends IntegrationTestCase {
 		$this->assertEqualsWithDelta(270.0, $mapper->sumTransactionAmountsByTags([$this->tag], $this->userId)[$this->tag], 0.001);
 	}
 
+	/**
+	 * Without a linked account, a tagged transfer counts on the savings
+	 * side, whichever way it goes: taking 50 back out of savings lowers the
+	 * goal, as it does for a goal with the account linked. It used to keep
+	 * the credit leg, so the withdrawal arriving in Current raised the goal.
+	 */
+	public function testATaggedWithdrawalFromSavingsLowersTheGoal(): void {
+		$this->transfer($this->current, $this->savings, '100.00');
+		$this->transfer($this->current, $this->savings, '100.00');
+		$this->transfer($this->savings, $this->current, '50.00');
+
+		$mapper = $this->service(TransactionTagMapper::class);
+
+		$this->assertEqualsWithDelta(150.0, $mapper->sumTransactionAmountsByTag($this->tag, $this->userId), 0.001);
+		$this->assertEqualsWithDelta(150.0, $mapper->sumTransactionAmountsByTags([$this->tag], $this->userId)[$this->tag], 0.001);
+	}
+
+	/** Between two accounts of the same kind there is no savings side: the money arriving counts. */
+	public function testATransferBetweenLikeAccountsCountsTheMoneyArriving(): void {
+		$other = $this->makeAccount(['name' => 'Second current'])->getId();
+		$this->transfer($this->current, $other, '40.00');
+
+		$mapper = $this->service(TransactionTagMapper::class);
+
+		$this->assertEqualsWithDelta(40.0, $mapper->sumTransactionAmountsByTag($this->tag, $this->userId), 0.001);
+	}
+
 	/** With the goal's account linked, it is what went in and out of that account. */
 	public function testAGoalWithALinkedAccountCountsThatAccountsMoneyOnly(): void {
 		$this->transfer($this->current, $this->savings, '100.00');

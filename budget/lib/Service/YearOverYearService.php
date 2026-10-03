@@ -7,6 +7,7 @@ namespace OCA\Budget\Service;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionReportQueries;
+use OCA\Budget\Service\Report\ReportAggregator;
 
 /**
  * Service for year-over-year comparison calculations.
@@ -27,6 +28,8 @@ class YearOverYearService {
 		TransactionMapper $transactionMapper,
 		CategoryMapper $categoryMapper,
 		TransactionReportQueries $reportQueries,
+		private ?UserClock $userClock = null,
+		private ?ReportAggregator $reportAggregator = null,
 	) {
 		$this->transactionMapper = $transactionMapper;
 		$this->categoryMapper = $categoryMapper;
@@ -43,7 +46,7 @@ class YearOverYearService {
 	 * @return array Year comparison data
 	 */
 	public function compareMonth(string $userId, int $month, int $years = 3, ?int $accountId = null, ?array $visibleAccountIds = null): array {
-		$currentYear = (int)date('Y');
+		$currentYear = (int)substr($this->today($userId), 0, 4);
 		$results = [];
 
 		for ($i = 0; $i < $years; $i++) {
@@ -86,7 +89,8 @@ class YearOverYearService {
 	 * @return array Year comparison data
 	 */
 	public function compareYears(string $userId, int $years = 3, ?int $accountId = null, ?array $visibleAccountIds = null): array {
-		$currentYear = (int)date('Y');
+		$today = $this->today($userId);
+		$currentYear = (int)substr($today, 0, 4);
 		$results = [];
 
 		for ($i = 0; $i < $years; $i++) {
@@ -96,7 +100,7 @@ class YearOverYearService {
 
 			// For current year, only include up to current date
 			if ($year === $currentYear) {
-				$endDate = date('Y-m-d');
+				$endDate = $today;
 			}
 
 			$yearData = $this->getYearSummary($userId, $year, $startDate, $endDate, $accountId, $visibleAccountIds);
@@ -128,11 +132,19 @@ class YearOverYearService {
 	 *
 	 * @return array{start: string, end: string}
 	 */
-	private function yearRange(int $year, int $currentYear): array {
+	private function yearRange(int $year, int $currentYear, string $today): array {
 		return [
 			'start' => sprintf('%04d-01-01', $year),
-			'end' => $year === $currentYear ? date('Y-m-d') : sprintf('%04d-12-31', $year),
+			'end' => $year === $currentYear ? $today : sprintf('%04d-12-31', $year),
 		];
+	}
+
+	/**
+	 * Today (Y-m-d) on the user's calendar, not the server's: on New Year's
+	 * morning in Sydney the server is still in last year.
+	 */
+	private function today(string $userId): string {
+		return $this->userClock?->today($userId) ?? date('Y-m-d');
 	}
 
 	/**
@@ -144,7 +156,8 @@ class YearOverYearService {
 	 * @return array Category comparison data
 	 */
 	public function compareCategorySpending(string $userId, int $years = 2, ?int $accountId = null, ?array $visibleAccountIds = null): array {
-		$currentYear = (int)date('Y');
+		$today = $this->today($userId);
+		$currentYear = (int)substr($today, 0, 4);
 		$expenseCategories = array_values(array_filter(
 			$this->categoryMapper->findAll($userId),
 			static fn ($category) => $category->getType() === 'expense'
@@ -158,7 +171,7 @@ class YearOverYearService {
 		$spendingByYear = [];
 		for ($i = 0; $i < $years; $i++) {
 			$year = $currentYear - $i;
-			$range = $this->yearRange($year, $currentYear);
+			$range = $this->yearRange($year, $currentYear, $today);
 			$spendingByYear[$year] = $categoryIds === [] ? [] : $this->transactionMapper->getCategorySpendingBatch(
 				$categoryIds,
 				$range['start'],
@@ -233,8 +246,9 @@ class YearOverYearService {
 	 * @return array Monthly data for each year
 	 */
 	public function getMonthlyTrends(string $userId, int $years = 2, ?int $accountId = null, ?array $visibleAccountIds = null): array {
-		$currentYear = (int)date('Y');
-		$currentMonth = (int)date('n');
+		$today = $this->today($userId);
+		$currentYear = (int)substr($today, 0, 4);
+		$currentMonth = (int)substr($today, 5, 2);
 		$result = [];
 
 		for ($i = 0; $i < $years; $i++) {
@@ -281,14 +295,22 @@ class YearOverYearService {
 	 * 'YYYY-MM'. The all-accounts view leaves transfers out (#349); a single
 	 * account keeps its own legs, as the cash-flow report does.
 	 *
+	 * The all-accounts view is the Cash Flow report's own figures, converted
+	 * to the base currency when accounts are in more than one: summing the
+	 * raw amounts added euros to pounds, so a year here never matched Cash
+	 * Flow for a multi-currency user. A single account is in one currency.
+	 *
 	 * @param int[]|null $visibleAccountIds
 	 * @return array<string, array{month: string, income: float, expenses: float, net: float, count: int}>
 	 */
 	private function cashFlowByMonth(string $userId, string $startDate, string $endDate, ?int $accountId, ?array $visibleAccountIds): array {
+		$rows = $accountId === null && $this->reportAggregator !== null
+			? $this->reportAggregator->getCashFlowReport($userId, null, $startDate, $endDate, [], true, $visibleAccountIds)['data']
+			: $this->reportQueries->getCashFlowByMonth(
+				$userId, $accountId, $startDate, $endDate, [], true, $accountId === null, $visibleAccountIds
+			);
 		$byMonth = [];
-		foreach ($this->reportQueries->getCashFlowByMonth(
-			$userId, $accountId, $startDate, $endDate, [], true, $accountId === null, $visibleAccountIds
-		) as $row) {
+		foreach ($rows as $row) {
 			$byMonth[$row['month']] = $row;
 		}
 		return $byMonth;

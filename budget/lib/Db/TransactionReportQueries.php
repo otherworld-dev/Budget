@@ -259,7 +259,7 @@ class TransactionReportQueries {
 	 *
 	 * @param int[] $tagIds Optional tag filter (OR logic)
 	 * @param bool $includeUntagged Include untagged transactions when filtering by tags
-	 * @return array<int, array{month: string, account_id: int, income: float, expenses: float, net: float}>
+	 * @return array<int, array{month: string, account_id: int, income: float, expenses: float, net: float, count: int}>
 	 */
 	public function getCashFlowByMonthByAccount(
 		string $userId,
@@ -276,12 +276,13 @@ class TransactionReportQueries {
 				$qb->select('t.account_id')
 					->addSelect($qb->createFunction(ReportScope::monthExpr() . ' as month'));
 				ReportScope::selectIncomeExpenses($qb, $alloc);
+				$qb->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count');
 				ReportScope::applyTagFilter($qb, $tagIds, $includeUntagged);
 				$qb->groupBy('t.account_id', $qb->createFunction(ReportScope::monthExpr()));
 			}
 		);
 
-		$rows = ReportScope::mergeReportHalves($direct, $split, ['account_id', 'month'], ['income', 'expenses']);
+		$rows = ReportScope::mergeReportHalves($direct, $split, ['account_id', 'month'], ['income', 'expenses'], ['count']);
 		usort($rows, static fn (array $a, array $b) => strcmp((string)$a['month'], (string)$b['month']));
 
 		return array_map(static fn (array $row) => [
@@ -290,6 +291,7 @@ class TransactionReportQueries {
 			'income' => $row['income'],
 			'expenses' => $row['expenses'],
 			'net' => MoneyCalculator::toFloat(MoneyCalculator::subtract($row['income'], $row['expenses'], ReportScope::MERGE_SCALE)),
+			'count' => (int)($row['count'] ?? 0),
 		], $rows);
 	}
 

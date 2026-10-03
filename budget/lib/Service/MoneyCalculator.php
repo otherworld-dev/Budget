@@ -172,6 +172,21 @@ class MoneyCalculator {
 	}
 
 	/**
+	 * An amount as a plain decimal string that bcmath accepts. (string) on a
+	 * small float writes it in exponent form ("1.0E-5"), and bcmath throws a
+	 * ValueError on that, so a crypto balance holding dust took whole pages
+	 * down. Anything else comes back exactly as (string) would give it.
+	 */
+	public static function plain(float|int|string|null $amount): string {
+		$text = (string)($amount ?? '0');
+		if (stripos($text, 'e') === false || !is_numeric($text)) {
+			return $text;
+		}
+		$plain = rtrim(rtrim(sprintf('%.12F', (float)$text), '0'), '.');
+		return $plain === '-0' ? '0' : $plain;
+	}
+
+	/**
 	 * Normalize input to string format suitable for BCMath.
 	 *
 	 * @param float|string $amount
@@ -182,6 +197,7 @@ class MoneyCalculator {
 			// Use sprintf to avoid scientific notation
 			return sprintf('%.10f', $amount);
 		}
-		return (string)$amount;
+		// A string can carry the exponent form too, from a (string) cast upstream
+		return self::plain($amount);
 	}
 }

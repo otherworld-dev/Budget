@@ -231,6 +231,16 @@ class ReportExporterTest extends TestCase {
 		$this->assertStringContainsString('"Total Expenses",3000,40', $csv);
 	}
 
+	public function testIncomeExpenseLabelsTheUncategorizedRowInTheUsersLanguage(): void {
+		$exporter = $this->exporterTranslating(['Uncategorized' => 'Nicht kategorisiert']);
+		$data = $this->incomeExpenseData();
+		$data['income']['data'][] = ['id' => null, 'name' => null, 'uncategorized' => true, 'total' => 800.0, 'count' => 3];
+
+		$csv = $exporter->export($data, 'income-expense', 'csv')['stream'];
+
+		$this->assertStringContainsString('"Nicht kategorisiert",800,3', $csv);
+	}
+
 	public function testIncomeExpenseCsvEndsWithTheNet(): void {
 		$csv = $this->exporter->export($this->incomeExpenseData(), 'income-expense', 'csv')['stream'];
 

@@ -65,6 +65,7 @@ class CategoryServiceTest extends TestCase {
 		$this->currentBudgetMonth = date('Y-m');
 		$carryoverService = $this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class);
 		$carryoverService->method('getCarryovers')->willReturn([]);
+		$carryoverService->method('today')->willReturn('2026-01-15');
 		$carryoverService->method('currentBudgetMonth')
 			->willReturnCallback(fn () => $this->currentBudgetMonth);
 		$carryoverService->method('budgetStartDay')
@@ -905,6 +906,39 @@ class CategoryServiceTest extends TestCase {
 		$result = $this->service->removeDuplicates('user1');
 
 		$this->assertContains('Food', $result);
+	}
+
+	/**
+	 * Setup's bulk deletes went straight to the mapper and left split parts,
+	 * snapshots and tag sets naming the deleted category. They now release
+	 * every reference delete() does.
+	 */
+	public function testSetupBulkDeletesReleaseSplitPartsLikeDelete(): void {
+		$original = $this->makeCategory(['id' => 1, 'name' => 'Food', 'type' => 'expense']);
+		$duplicate = $this->makeCategory(['id' => 2, 'name' => 'Food', 'type' => 'expense']);
+		$this->categoryMapper->method('findAll')->willReturn([$original, $duplicate]);
+		$this->transactionMapper->method('findByCategory')->willReturn([]);
+		$this->categoryMapper->method('findChildren')->willReturn([]);
+		$this->tagSetMapper->method('findByCategory')->willReturn([]);
+
+		$cleared = [];
+		$this->splitMapper->method('clearCategory')->willReturnCallback(function (array $ids) use (&$cleared) {
+			$cleared = array_merge($cleared, $ids);
+			return count($ids);
+		});
+		$snapshots = [];
+		$this->budgetSnapshotMapper->method('deleteByCategory')->willReturnCallback(function (int $id) use (&$snapshots) {
+			$snapshots[] = $id;
+			return 0;
+		});
+
+		$this->service->removeDuplicates('user1');
+		$this->assertSame([2], $cleared);
+		$this->assertSame([2], $snapshots);
+
+		$this->service->deleteAll('user1');
+		$this->assertSame([2, 1, 2], $cleared);
+		$this->assertSame([2, 1, 2], $snapshots);
 	}
 
 	public function testRemoveDuplicatesKeepsDuplicateWithTransactions(): void {

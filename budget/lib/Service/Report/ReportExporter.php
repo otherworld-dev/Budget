@@ -217,11 +217,15 @@ class ReportExporter {
 	/**
 	 * A row's label. A month-grouped row is re-labelled from its month key
 	 * (the aggregator's own 'name' is English), a placeholder for "no vendor"
-	 * is translated (the mapper flags it), and a real name is used as is.
+	 * is translated (the mapper flags it), as is the row for money with no
+	 * category, and a real name is used as is.
 	 */
 	private function itemLabel(array $item): string {
 		if (!empty($item['unknown'])) {
 			return $this->l->t('Unknown');
+		}
+		if (!empty($item['uncategorized'])) {
+			return $this->l->t('Uncategorized');
 		}
 		if (isset($item['month'])) {
 			return MonthNames::shortWithYear($this->l, (string)$item['month']);

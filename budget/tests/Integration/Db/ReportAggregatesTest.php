@@ -151,6 +151,60 @@ class ReportAggregatesTest extends IntegrationTestCase {
 		$this->assertSame(2, (int)$byCategory[$this->food]['count']);
 	}
 
+	/**
+	 * The Income & Expenses report reads this with includeUncategorized: salary
+	 * not filed yet, and a split part with no category, must land in one
+	 * null-id row so the report's total matches Cash Flow.
+	 */
+	public function testSpendingSummaryCanKeepUncategorisedMoneyAsOneRow(): void {
+		$this->makeTransaction($this->accountId, ['category_id' => $this->food, 'amount' => '10.00', 'type' => 'credit']);
+		$this->makeTransaction($this->accountId, ['amount' => '2000.00', 'type' => 'credit']);
+		$this->makeSplitTransaction($this->accountId, [[$this->food, '7.00'], [null, '3.00']], ['type' => 'credit']);
+		$this->makeTransaction($this->accountId, ['category_id' => $this->hidden, 'amount' => '99.00', 'type' => 'credit']);
+
+		$rows = $this->mapper->getSpendingSummary($this->userId, '2026-01-01', '2026-12-31', transactionType: 'credit', includeUncategorized: true);
+
+		$byKey = [];
+		foreach ($rows as $row) {
+			$byKey[$row['id'] === null ? 'none' : (int)$row['id']] = $row;
+		}
+		$this->assertEqualsWithDelta(17.0, (float)$byKey[$this->food]['total'], 0.001);
+		$this->assertTrue($byKey['none']['uncategorized']);
+		$this->assertEqualsWithDelta(2003.0, (float)$byKey['none']['total'], 0.001);
+		$this->assertArrayNotHasKey($this->hidden, $byKey);
+
+		// Without the flag the category grouping stays as it was
+		$plain = $this->mapper->getSpendingSummary($this->userId, '2026-01-01', '2026-12-31', transactionType: 'credit');
+		$this->assertSame([$this->food], array_map(static fn ($r) => (int)$r['id'], $plain));
+	}
+
+	/**
+	 * The dashboard deducts excluded-category money from totals built over
+	 * the accounts in view under a tag filter; the deduction must be built
+	 * over the same rows, split parts included.
+	 */
+	public function testCategoryTotalsByAccountStayWithinTheAccountsAndTagsInView(): void {
+		$other = $this->makeAccount(['name' => 'Not on the tile'])->getId();
+		$tag = $this->makeTag($this->makeTagSet($this->food));
+		$tagged = $this->makeTransaction($this->accountId, ['category_id' => $this->hidden, 'amount' => '30.00']);
+		$this->tagTransaction($tagged, $tag);
+		$this->makeTransaction($this->accountId, ['category_id' => $this->hidden, 'amount' => '7.00']);
+		$split = $this->makeSplitTransaction($this->accountId, [[$this->hidden, '4.00'], [$this->food, '6.00']]);
+		$this->tagTransaction($split, $tag);
+		$this->makeTransaction($other, ['category_id' => $this->hidden, 'amount' => '500.00']);
+
+		$all = $this->mapper->getCategoryTotalsByAccount([$this->hidden], '2026-01-01', '2026-12-31');
+		$this->assertArrayHasKey($other, $all);
+
+		$inView = $this->mapper->getCategoryTotalsByAccount(
+			[$this->hidden], '2026-01-01', '2026-12-31', null, true, null, [$this->accountId], [$tag], false
+		);
+		$this->assertSame([$this->accountId], array_keys($inView));
+		$this->assertEqualsWithDelta(34.0, $inView[$this->accountId]['expenses'], 0.001);
+
+		$this->assertSame([], $this->mapper->getCategoryTotalsByAccount([$this->hidden], '2026-01-01', '2026-12-31', null, true, null, []));
+	}
+
 	public function testCashFlowByMonthDropsExcludedAccountsFutureScheduledRowsAndPensionLegs(): void {
 		$this->makeTransaction($this->accountId, ['amount' => '100.00', 'type' => 'credit', 'date' => '2026-02-01']);
 		$this->makeTransaction($this->accountId, ['amount' => '40.00', 'date' => '2026-02-03']);
@@ -166,6 +220,21 @@ class ReportAggregatesTest extends IntegrationTestCase {
 		$this->assertEqualsWithDelta(100.0, $flow[0]['income'], 0.001);
 		$this->assertEqualsWithDelta(40.0, $flow[0]['expenses'], 0.001);
 		$this->assertEqualsWithDelta(60.0, $flow[0]['net'], 0.001);
+	}
+
+	/**
+	 * The per-account cash flow (what multi-currency conversion and Year over
+	 * Year read) counts each transaction once, split or not.
+	 */
+	public function testCashFlowByMonthByAccountCountsEachTransactionOnce(): void {
+		$this->makeTransaction($this->accountId, ['amount' => '40.00', 'date' => '2026-02-03']);
+		$this->makeSplitTransaction($this->accountId, [[$this->food, '7.00'], [$this->food, '3.00']], ['date' => '2026-02-04']);
+
+		$rows = $this->reports->getCashFlowByMonthByAccount($this->userId, '2026-02-01', '2026-02-28');
+
+		$this->assertCount(1, $rows);
+		$this->assertSame(2, $rows[0]['count']);
+		$this->assertEqualsWithDelta(50.0, (float)$rows[0]['expenses'], 0.001);
 	}
 
 	public function testCashFlowByMonthCanDropLinkedTransfers(): void {

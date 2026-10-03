@@ -34,7 +34,8 @@ class ReportCalculator {
 	 * month, vendor, account and tag groupings do (#349): a transfer filed
 	 * under a category is still money that never left the household, and
 	 * counting it here made the category view of a period larger than every
-	 * other view of the same period.
+	 * other view of the same period. Money with no category is one more row
+	 * flagged 'uncategorized', so the rows add up to the period's total.
 	 */
 	public function getSpendingByCategory(
 		string $userId,
@@ -46,7 +47,8 @@ class ReportCalculator {
 		return $this->transactionMapper->getSpendingSummary(
 			$userId, $startDate, $endDate, $accountId,
 			excludeTransfers: $accountId === null,
-			visibleAccountIds: $visibleAccountIds
+			visibleAccountIds: $visibleAccountIds,
+			includeUncategorized: true
 		);
 	}
 
@@ -103,7 +105,8 @@ class ReportCalculator {
 	 * This used to answer with income by source (the 15 largest payers) as a
 	 * stand-in, so the Income & Expenses report listed payers under a
 	 * "category" heading and its income total left out every payer below the
-	 * top fifteen.
+	 * top fifteen. Income with no category (salary not filed yet) is one
+	 * more row flagged 'uncategorized', so the total still counts it.
 	 */
 	public function getIncomeByCategory(
 		string $userId,
@@ -116,7 +119,8 @@ class ReportCalculator {
 			$userId, $startDate, $endDate, $accountId,
 			excludeTransfers: $accountId === null,
 			visibleAccountIds: $visibleAccountIds,
-			transactionType: 'credit'
+			transactionType: 'credit',
+			includeUncategorized: true
 		);
 	}
 

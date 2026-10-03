@@ -25,8 +25,8 @@ class TestableBudgetAlertService extends BudgetAlertService {
 		$this->fakeNow = $now;
 	}
 
-	protected function getNow(): \DateTime {
-		return $this->fakeNow ? clone $this->fakeNow : parent::getNow();
+	protected function getNow(?string $userId = null): \DateTime {
+		return $this->fakeNow ? clone $this->fakeNow : parent::getNow($userId);
 	}
 }
 

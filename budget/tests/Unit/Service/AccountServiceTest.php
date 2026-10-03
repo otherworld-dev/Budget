@@ -154,6 +154,28 @@ class AccountServiceTest extends TestCase {
 		$this->assertSame(0.00001, $account['balance']);
 	}
 
+	/**
+	 * The account page, the summary and the dashboard widget made the same
+	 * (string) cast as the list, so a BTC account holding 0.00001 threw a
+	 * ValueError from bcsub() there too.
+	 */
+	public function testDustDoesNotBreakTheAccountPageOrTheSummary(): void {
+		$dust = $this->makeAccount(['id' => 1, 'balance' => 0.00001, 'currency' => 'BTC']);
+		$this->accountMapper->method('find')->willReturn($dust);
+		$this->accountMapper->method('findAll')->willReturn([$dust]);
+		$this->transactionMapper->method('getNetChangeAfterDate')->willReturn(0.0);
+		$this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([1 => 0.1 + 0.2 - 0.3]);
+		$this->transactionMapper->method('getDailyBalanceChanges')->willReturn([date('Y-m-d') => 0.000002]);
+		$this->conversionService->method('getBaseCurrency')->willReturn('BTC');
+
+		$this->assertSame(0.00001, $this->service->findWithCurrentBalance(1, 'user1')['balance']);
+		$summary = $this->service->getSummary('user1');
+		$this->assertSame(0.00001, $summary['accounts'][0]['balance']);
+		$this->assertSame(0.00001, $summary['currencyBreakdown']['BTC']);
+		$this->assertCount(2, $this->service->getBalanceHistory(1, 'user1', 2));
+		$this->assertTrue($this->service->reconcile(1, 'user1', 0.00001)['isBalanced']);
+	}
+
 	public function testNoSharedAccountsMeansNoQueries(): void {
 		$this->granularShareService->method('getSharedAccountIds')->willReturn([]);
 		$this->transactionMapper->expects($this->never())->method('getNetChangeAfterDateForAccounts');

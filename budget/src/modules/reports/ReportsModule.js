@@ -13,6 +13,12 @@ import MultiSelect from '../../utils/multiselect.js';
 import { buildMoneyFlows, CENTER_KEY } from './moneyFlow.js';
 import { apiFetch } from '../../utils/api.js';
 
+/**
+ * A category row's label. The server flags the row for money with no
+ * category and leaves its name to us to translate.
+ */
+const categoryRowName = (row) => (row.uncategorized ? t('budget', 'Uncategorized') : (row.name || ''));
+
 Chart.register(SankeyController, Flow);
 
 export default class ReportsModule {
@@ -858,7 +864,7 @@ export default class ReportsModule {
         this.reportCharts.spending = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: sortedData.map(d => d.name),
+                labels: sortedData.map(d => categoryRowName(d)),
                 datasets: [{
                     data: sortedData.map(d => d.total),
                     backgroundColor: colors,
@@ -919,7 +925,7 @@ export default class ReportsModule {
             return `
                 <div class="spending-legend-item">
                     <span class="spending-legend-color" style="background: ${dom.escapeHtml(color)}"></span>
-                    <span class="spending-legend-name">${dom.escapeHtml(item.name)}</span>
+                    <span class="spending-legend-name">${dom.escapeHtml(categoryRowName(item))}</span>
                     <span class="spending-legend-value">${this.formatCurrency(item.total)}</span>
                     <span class="spending-legend-pct">${pct}%</span>
                 </div>
@@ -939,7 +945,7 @@ export default class ReportsModule {
                 <tr>
                     <td>
                         <span class="category-color" style="background: ${dom.escapeHtml(cat.color || '#888')}"></span>
-                        ${dom.escapeHtml(cat.name)}
+                        ${dom.escapeHtml(categoryRowName(cat))}
                     </td>
                     <td class="text-right">${this.formatCurrency(cat.total, currency)}</td>
                     <td class="text-right">${pct}%</td>
@@ -998,7 +1004,7 @@ export default class ReportsModule {
             <tr>
                 <td>
                     <span class="category-color" style="background: ${dom.escapeHtml(item.color || '#888')}"></span>
-                    ${dom.escapeHtml(item.name || '')}
+                    ${dom.escapeHtml(categoryRowName(item))}
                 </td>
                 <td class="text-right">${this.formatCurrency(item.total, currency)}</td>
                 <td class="text-right">${item.count || 0}</td>
@@ -1086,7 +1092,7 @@ export default class ReportsModule {
         const bodyRows = rows.map(row => {
             const indent = (row.depth || 0) * 16;
             const monthCells = months.map(m => cell(row.monthly?.[m])).join('');
-            const name = row.uncategorized ? t('budget', 'Uncategorized') : (row.name || '');
+            const name = categoryRowName(row);
             return `<tr class="${row.isParent ? 'cm-parent' : ''}">
                 <td class="cm-name" style="padding-left:${8 + indent}px">${dom.escapeHtml(name)}</td>
                 ${monthCells}

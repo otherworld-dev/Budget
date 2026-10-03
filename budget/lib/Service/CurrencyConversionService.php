@@ -47,7 +47,7 @@ class CurrencyConversionService {
 
 		// Short-circuit: same currency
 		if ($fromCurrency === $toCurrency) {
-			return (string)$amount;
+			return MoneyCalculator::plain($amount);
 		}
 
 		$fromRate = $this->exchangeRateService->getRate($fromCurrency, $date);
@@ -55,12 +55,12 @@ class CurrencyConversionService {
 
 		// If either rate is unavailable, return amount unchanged (graceful degradation)
 		if ($fromRate === null || $toRate === null) {
-			return (string)$amount;
+			return MoneyCalculator::plain($amount);
 		}
 
 		// amount_target = amount * (target_rate / source_rate)
 		$ratio = bcdiv($toRate, $fromRate, 10);
-		return bcmul((string)$amount, $ratio, 10);
+		return bcmul(MoneyCalculator::plain($amount), $ratio, 10);
 	}
 
 	/**
@@ -80,18 +80,18 @@ class CurrencyConversionService {
 		$toCurrency = strtoupper($toCurrency);
 
 		if ($fromCurrency === $toCurrency) {
-			return (string)$amount;
+			return MoneyCalculator::plain($amount);
 		}
 
 		$fromRate = $this->exchangeRateService->getRateLocal($fromCurrency, $date);
 		$toRate = $this->exchangeRateService->getRateLocal($toCurrency, $date);
 
 		if ($fromRate === null || $toRate === null) {
-			return (string)$amount;
+			return MoneyCalculator::plain($amount);
 		}
 
 		$ratio = bcdiv($toRate, $fromRate, 10);
-		return bcmul((string)$amount, $ratio, 10);
+		return bcmul(MoneyCalculator::plain($amount), $ratio, 10);
 	}
 
 	/**
@@ -109,18 +109,18 @@ class CurrencyConversionService {
 		$fromCurrency = strtoupper($fromCurrency);
 
 		if ($fromCurrency === $baseCurrency) {
-			return (string)$amount;
+			return MoneyCalculator::plain($amount);
 		}
 
 		$fromRate = $this->getEffectiveRate($fromCurrency, $userId, $date);
 		$toRate = $this->getEffectiveRate($baseCurrency, $userId, $date);
 
 		if ($fromRate === null || $toRate === null) {
-			return (string)$amount;
+			return MoneyCalculator::plain($amount);
 		}
 
 		$ratio = bcdiv($toRate, $fromRate, 10);
-		return bcmul((string)$amount, $ratio, 10);
+		return bcmul(MoneyCalculator::plain($amount), $ratio, 10);
 	}
 
 	/**
@@ -137,7 +137,7 @@ class CurrencyConversionService {
 		$fromCurrency = strtoupper($fromCurrency);
 		$toCurrency = strtoupper($toCurrency);
 		if ($fromCurrency === $toCurrency) {
-			return (string)$amount;
+			return MoneyCalculator::plain($amount);
 		}
 
 		$fromRate = $this->getEffectiveRate($fromCurrency, $userId, $date);
@@ -146,7 +146,7 @@ class CurrencyConversionService {
 			return null;
 		}
 
-		return bcmul((string)$amount, bcdiv($toRate, $fromRate, 10), 10);
+		return bcmul(MoneyCalculator::plain($amount), bcdiv($toRate, $fromRate, 10), 10);
 	}
 
 	/**

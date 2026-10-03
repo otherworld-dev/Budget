@@ -21,7 +21,7 @@ class TestableBudgetCarryoverService extends BudgetCarryoverService {
 	/** Overrides $currentMonth when set */
 	public ?string $today = null;
 
-	protected function getToday(): string {
+	protected function getToday(?string $userId = null): string {
 		// The 15th of a month always lies in that budget month
 		return $this->today ?? $this->currentMonth . '-15';
 	}

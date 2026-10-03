@@ -54,7 +54,7 @@ class InvestmentService {
 		$conversionFailures = 0;
 
 		foreach ($transactions as $tx) {
-			$amount = (string)$tx->getAmount();
+			$amount = MoneyCalculator::plain($tx->getAmount());
 			$date = $tx->getDate();
 
 			// Convert the transaction amount to base currency at the historical rate.
