@@ -170,6 +170,60 @@ class SettingControllerTest extends TestCase {
 		$this->assertSame('custom_value', $data['settings']['custom_key']);
 	}
 
+	public function testUpdateUpdatesRowAddedByAnOverlappingSave(): void {
+		// Two saves of a never-stored setting: both find nothing, the other
+		// one inserts first, and this insert hits the unique index.
+		$this->request->method('getParams')->willReturn(['date_format' => 'd/m/Y']);
+		$added = $this->makeSetting('date_format', 'Y-m-d');
+		$this->mapper->method('findByKey')
+			->willReturnOnConsecutiveCalls(
+				$this->throwException(new DoesNotExistException('')),
+				$added
+			);
+		$duplicate = $this->createMock(\OCP\DB\Exception::class);
+		$duplicate->method('getReason')->willReturn(\OCP\DB\Exception::REASON_UNIQUE_CONSTRAINT_VIOLATION);
+		$this->mapper->method('insert')->willThrowException($duplicate);
+		$this->mapper->expects($this->once())->method('update')->with($added)->willReturnArgument(0);
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame('d/m/Y', $added->getValue());
+		$this->assertSame('d/m/Y', $response->getData()['settings']['date_format']);
+	}
+
+	public function testUpdateStillFailsOnOtherDatabaseErrors(): void {
+		$this->request->method('getParams')->willReturn(['date_format' => 'd/m/Y']);
+		$this->mapper->method('findByKey')->willThrowException(new DoesNotExistException(''));
+		$other = $this->createMock(\OCP\DB\Exception::class);
+		$other->method('getReason')->willReturn(\OCP\DB\Exception::REASON_NOT_NULL_CONSTRAINT_VIOLATION);
+		$this->mapper->method('insert')->willThrowException($other);
+		$this->mapper->expects($this->never())->method('update');
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus());
+	}
+
+	public function testUpdateKeyUpdatesRowAddedByAnOverlappingSave(): void {
+		$this->request->method('getParam')->with('value')->willReturn('EUR');
+		$added = $this->makeSetting('default_currency', 'GBP');
+		$this->mapper->method('findByKey')
+			->willReturnOnConsecutiveCalls(
+				$this->throwException(new DoesNotExistException('')),
+				$added
+			);
+		$duplicate = $this->createMock(\OCP\DB\Exception::class);
+		$duplicate->method('getReason')->willReturn(\OCP\DB\Exception::REASON_UNIQUE_CONSTRAINT_VIOLATION);
+		$this->mapper->method('insert')->willThrowException($duplicate);
+		$this->mapper->expects($this->once())->method('update')->with($added)->willReturnArgument(0);
+
+		$response = $this->controller->updateKey('default_currency');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame('EUR', $added->getValue());
+	}
+
 	public function testUpdateSkipsInternalParameters(): void {
 		$this->request->method('getParams')->willReturn([
 			'_route' => 'some_route',

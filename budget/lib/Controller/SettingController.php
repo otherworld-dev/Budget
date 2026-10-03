@@ -17,6 +17,7 @@ use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\DB\Exception as DbException;
 use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
@@ -159,22 +160,7 @@ class SettingController extends Controller {
 					}
 				}
 
-				try {
-					// Try to find existing setting
-					$setting = $this->mapper->findByKey($this->getEffectiveUserId(), $key);
-					$setting->setValue((string)$value);
-					$setting->setUpdatedAt($now);
-					$this->mapper->update($setting);
-				} catch (DoesNotExistException $e) {
-					// Create new setting
-					$setting = new Setting();
-					$setting->setUserId($this->getEffectiveUserId());
-					$setting->setKey($key);
-					$setting->setValue((string)$value);
-					$setting->setCreatedAt($now);
-					$setting->setUpdatedAt($now);
-					$this->mapper->insert($setting);
-				}
+				$this->storeSetting($this->getEffectiveUserId(), (string)$key, (string)$value, $now);
 
 				$updated[$key] = $value;
 			}
@@ -215,22 +201,7 @@ class SettingController extends Controller {
 
 			$now = date('Y-m-d H:i:s');
 
-			try {
-				// Try to find existing setting
-				$setting = $this->mapper->findByKey($this->getEffectiveUserId(), $key);
-				$setting->setValue((string)$value);
-				$setting->setUpdatedAt($now);
-				$this->mapper->update($setting);
-			} catch (DoesNotExistException $e) {
-				// Create new setting
-				$setting = new Setting();
-				$setting->setUserId($this->getEffectiveUserId());
-				$setting->setKey($key);
-				$setting->setValue((string)$value);
-				$setting->setCreatedAt($now);
-				$setting->setUpdatedAt($now);
-				$this->mapper->insert($setting);
-			}
+			$this->storeSetting($this->getEffectiveUserId(), $key, (string)$value, $now);
 
 			return new DataResponse([
 				'message' => $this->l->t('Setting updated successfully'),
@@ -240,6 +211,38 @@ class SettingController extends Controller {
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to update setting'), Http::STATUS_INTERNAL_SERVER_ERROR, ['key' => $key]);
 		}
+	}
+
+	/**
+	 * Create or update one setting. Two saves of a setting that has never
+	 * been stored can overlap (the settings page saves on every change), and
+	 * then both find nothing and both insert: the second hits the unique
+	 * (user_id, key) index. That row is the one this save should have
+	 * updated, so update it rather than failing with a 500.
+	 */
+	private function storeSetting(string $userId, string $key, string $value, string $now): void {
+		try {
+			$setting = $this->mapper->findByKey($userId, $key);
+		} catch (DoesNotExistException $e) {
+			$setting = new Setting();
+			$setting->setUserId($userId);
+			$setting->setKey($key);
+			$setting->setValue($value);
+			$setting->setCreatedAt($now);
+			$setting->setUpdatedAt($now);
+			try {
+				$this->mapper->insert($setting);
+				return;
+			} catch (DbException $e) {
+				if ($e->getReason() !== DbException::REASON_UNIQUE_CONSTRAINT_VIOLATION) {
+					throw $e;
+				}
+				$setting = $this->mapper->findByKey($userId, $key);
+			}
+		}
+		$setting->setValue($value);
+		$setting->setUpdatedAt($now);
+		$this->mapper->update($setting);
 	}
 
 	/**
