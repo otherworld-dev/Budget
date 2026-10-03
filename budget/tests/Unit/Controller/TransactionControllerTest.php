@@ -386,6 +386,58 @@ class TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	/**
+	 * user1 edits a row in owner1's account 4, shared with them to write.
+	 * owner1 also has account 9, never shared with user1, and account 6,
+	 * shared read-only.
+	 */
+	private function controllerOnASharedRow(): TransactionController {
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('getVisibleAccountIds')->willReturn([4, 6]);
+		$shares->method('canAccess')->willReturnCallback(fn ($user, $type, $id) => in_array($id, [4, 6], true));
+		$shares->method('canWrite')->willReturnCallback(fn ($user, $type, $id) => $id === 4);
+		$shares->method('requireWriteAccess')->willReturnCallback(function ($user, $type, $id) {
+			if ($id !== 4) {
+				throw new \OCA\Budget\Exception\ReadOnlyShareException();
+			}
+		});
+		$this->service->method('find')->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException(''));
+		$row = new Transaction();
+		$row->setAccountId(4);
+		$this->service->method('findForAccounts')->willReturn($row);
+		$account = new \OCA\Budget\Db\Account();
+		$account->setUserId('owner1');
+		$this->service->method('findAccountById')->willReturn($account);
+		return new TransactionController($this->request, $this->service, $this->splitService, $this->tagService,
+			$this->validationService, $shares, new TransactionCsvExporter($this->l), $this->l, 'user1', $this->logger);
+	}
+
+	public function testASharedRowCannotMoveIntoAnAccountOfTheOwnersNeverShared(): void {
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerOnASharedRow()->update(1, accountId: 9);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	public function testASharedRowCannotMoveIntoAReadOnlyAccount(): void {
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerOnASharedRow()->update(1, accountId: 6);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testASharedRowStillSavesInItsOwnAccount(): void {
+		$this->service->expects($this->once())->method('update')
+			->with(1, 'owner1', ['accountId' => 4])
+			->willReturn(new Transaction());
+
+		$response = $this->controllerOnASharedRow()->update(1, accountId: 4);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
 	public function testBulkEditRejectsACategoryTheOwnerCannotSee(): void {
 		$this->service->expects($this->never())->method('bulkEdit');
 		$controller = $this->controllerWithCategories([1, 2, 3]);
