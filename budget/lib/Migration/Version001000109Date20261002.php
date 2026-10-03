@@ -25,6 +25,12 @@ use OCP\Migration\SimpleMigrationStep;
  * next due date, the occurrence the bill still owes, and its snapshot doesn't
  * name it as the payment: a weekly bill paid a week late is paid on its next
  * due date. Reconciled rows stay as they are.
+ *
+ * A row that is also on the bill's last paid date is a payment unless the
+ * snapshot names it as the pending row: 2.54.0 recorded late payments (the
+ * missed-payment row and Record transaction) on the paid date without ever
+ * naming them in the snapshot, and Skip wipes the snapshot altogether. When
+ * nothing vouches for it as a placeholder, it is left booked.
  */
 class Version001000109Date20261002 extends SimpleMigrationStep {
 	public function __construct(
@@ -41,7 +47,7 @@ class Version001000109Date20261002 extends SimpleMigrationStep {
 		}
 
 		$qb = $this->db->getQueryBuilder();
-		$qb->select('t.id', 't.account_id')
+		$qb->select('t.id', 't.account_id', 't.date', 'b.last_paid_date', 'b.paid_undo_state')
 			->from('budget_transactions', 't')
 			->innerJoin('t', 'budget_bills', 'b', $qb->expr()->eq('b.id', 't.bill_id'))
 			->where($qb->expr()->eq('t.status', $qb->createNamedParameter('cleared')))
@@ -61,6 +67,9 @@ class Version001000109Date20261002 extends SimpleMigrationStep {
 		$accounts = [];
 		while ($row = $result->fetch()) {
 			if (isset($payments[(int)$row['id']])) {
+				continue;
+			}
+			if ($this->onLastPaidDate($row) && !$this->namedAsPending($row)) {
 				continue;
 			}
 			$ids[] = (int)$row['id'];
@@ -89,5 +98,25 @@ class Version001000109Date20261002 extends SimpleMigrationStep {
 		}
 
 		$output->info('Put ' . count($ids) . ' pre-booked bill row(s) of unpaid occurrences back to pending');
+	}
+
+	private function onLastPaidDate(array $row): bool {
+		if ($row['last_paid_date'] === null || $row['last_paid_date'] === '') {
+			return false;
+		}
+		return substr((string)$row['date'], 0, 10) === substr((string)$row['last_paid_date'], 0, 10);
+	}
+
+	private function namedAsPending(array $row): bool {
+		$snapshot = $row['paid_undo_state'] === null ? null : json_decode((string)$row['paid_undo_state'], true);
+		if (!is_array($snapshot) || !is_array($snapshot['scheduledTransactionIds'] ?? null)) {
+			return false;
+		}
+		foreach ($snapshot['scheduledTransactionIds'] as $id) {
+			if (is_numeric($id) && (int)$id === (int)$row['id']) {
+				return true;
+			}
+		}
+		return false;
 	}
 }
