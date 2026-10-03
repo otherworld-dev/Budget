@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-10-03 01:04+0000\n"
-"PO-Revision-Date: 2026-10-02 06:51+0000\n"
+"POT-Creation-Date: 2026-10-03 18:45+0000\n"
+"PO-Revision-Date: 2026-10-03 19:43+0000\n"
 "Last-Translator: Christophe <tophe.perso@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 2026.10\n"
+"X-Generator: Weblate 2026.10.1.dev0\n"
 
 #: /app/lib/Controller/AccountController.php:80
 #: /app/lib/Controller/ApiV1AccountController.php:57
@@ -26,7 +26,7 @@ msgstr "La récupération des comptes a échoué"
 
 #: /app/lib/Controller/AccountController.php:90
 #: /app/lib/Controller/AccountController.php:657
-#: /app/lib/Controller/ApiV1TransactionController.php:458
+#: /app/lib/Controller/ApiV1TransactionController.php:460
 msgid "Account not found"
 msgstr "Compte non-trouvé"
 
@@ -131,6 +131,7 @@ msgid "Invalid request data"
 msgstr "Requête invalide"
 
 #: /app/lib/Controller/AccountController.php:481
+#: /app/lib/Controller/ApiV1TransactionController.php:773
 #: /app/lib/Controller/BillController.php:758
 #: /app/lib/Controller/CategoryController.php:353
 #: /app/lib/Controller/CategoryController.php:449
@@ -272,7 +273,7 @@ msgid "Failed to retrieve categories"
 msgstr "Impossible de récupérer les catégories"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:73
-#: /app/lib/Controller/ApiV1TransactionController.php:731
+#: /app/lib/Controller/ApiV1TransactionController.php:732
 #: /app/lib/Controller/AttachmentController.php:91
 #: /app/lib/Controller/ImportController.php:111
 #: /app/lib/Controller/MigrationController.php:83
@@ -304,31 +305,33 @@ msgstr ""
 "Le reçu n'a pas pu être lu — le fournisseur OCR a échoué. Réessayez, ou "
 "entrez la transaction manuellement"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:102
+#: /app/lib/Controller/ApiV1TransactionController.php:104
 msgid "Invalid date. Use the YYYY-MM-DD format"
 msgstr "Format de date invalide. Utilisez AAAA-MM-JJ"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:138
-#: /app/lib/Controller/ApiV1TransactionController.php:179
+#: /app/lib/Controller/ApiV1TransactionController.php:140
+#: /app/lib/Controller/ApiV1TransactionController.php:181
 #: /app/lib/Controller/TransactionController.php:129
 #: /app/lib/Controller/TransactionController.php:184
 msgid "Failed to retrieve transactions"
 msgstr "Échec de la récupération des opérations"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:193
-#: /app/lib/Controller/ApiV1TransactionController.php:210
+#: /app/lib/Controller/ApiV1TransactionController.php:195
+#: /app/lib/Controller/ApiV1TransactionController.php:212
 msgid "Failed to retrieve transaction"
 msgstr "Échec de la récupération de l'opération"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:306
+#: /app/lib/Controller/ApiV1TransactionController.php:308
+#: /app/lib/Controller/ApiV1TransactionController.php:908
 msgid "Amount must be a number"
 msgstr "Le montant doit être un nombre"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:311
+#: /app/lib/Controller/ApiV1TransactionController.php:313
 msgid "An account is required"
 msgstr "Un compte est obligatoire"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:316
+#: /app/lib/Controller/ApiV1TransactionController.php:318
+#: /app/lib/Controller/ApiV1TransactionController.php:898
 #: /app/lib/Controller/AssetController.php:326
 #: /app/lib/Controller/PensionController.php:358
 #: /app/lib/Controller/PensionController.php:430
@@ -351,41 +354,42 @@ msgstr "Un compte est obligatoire"
 msgid "Date"
 msgstr "Date"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:336
+#: /app/lib/Controller/ApiV1TransactionController.php:338
+#: /app/lib/Controller/ApiV1TransactionController.php:916
 #: /app/lib/Controller/TransactionController.php:321
 #: /app/lib/Controller/TransactionController.php:431
 msgid "Invalid transaction type. Must be credit or debit"
 msgstr "Type d'opération invalide. Doit être \"crédit\" ou \"débit\""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:348
+#: /app/lib/Controller/ApiV1TransactionController.php:350
 msgid "Idempotency key too long (64 characters maximum)"
 msgstr "Clé d'idempotence trop longue (64 caractères maximum)"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:426
-#: /app/lib/Controller/ApiV1TransactionController.php:578
+#: /app/lib/Controller/ApiV1TransactionController.php:428
+#: /app/lib/Controller/ApiV1TransactionController.php:580
 msgid "The transaction was recorded, but the photo could not be attached"
 msgstr ""
 "La transaction a été enregistrée, mais la photo n'a pas pu être attachée"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:452
+#: /app/lib/Controller/ApiV1TransactionController.php:454
 msgid "The transaction was recorded, but it could not be split"
 msgstr "L'opération a été enregistrée, mais n'a pas pu être ventilée"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:462
+#: /app/lib/Controller/ApiV1TransactionController.php:464
 #: /app/lib/Controller/TransactionController.php:382
 msgid "Failed to create transaction"
 msgstr "Échec de la création de l'opération"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:541
+#: /app/lib/Controller/ApiV1TransactionController.php:543
 msgid "This idempotency key was already used for a different transaction"
 msgstr "Cette clé d'idempotence a déjà été utilisée pour une autre opération"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:550
+#: /app/lib/Controller/ApiV1TransactionController.php:552
 msgid "This request is still being processed. Try again shortly"
 msgstr ""
 "Cette requête est toujours en cours de traitement. Réessayez dans un instant"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:625
+#: /app/lib/Controller/ApiV1TransactionController.php:627
 msgid ""
 "splits must be an array of {\"amount\", \"category_id\", \"description\"} "
 "objects"
@@ -393,25 +397,76 @@ msgstr ""
 "les ventilations doivent être un tableau d'objets de type {\"amount\", "
 "\"category_id\", \"description\"}"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:646
+#: /app/lib/Controller/ApiV1TransactionController.php:647
 msgid "Failed to split the transaction"
 msgstr "Impossible de ventiler l'opération"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:718
+#: /app/lib/Controller/ApiV1TransactionController.php:719
 #: /app/lib/Controller/AttachmentController.php:46
 #: /app/lib/Controller/AttachmentController.php:59
 #: /app/src/modules/transactions/TransactionsModule.js:2819
 msgid "Failed to load attachments"
 msgstr "Échec du chargement des pièces jointes"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:743
+#: /app/lib/Controller/ApiV1TransactionController.php:744
 #: /app/lib/Controller/AttachmentController.php:101
 #: /app/src/modules/transactions/TransactionsModule.js:2830
 #: /app/src/modules/transactions/TransactionsModule.js:2835
 msgid "Failed to upload receipt"
 msgstr "Échec du téléchargement du reçu"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:749
+#: /app/lib/Controller/ApiV1TransactionController.php:793
+#: /app/lib/Controller/ApiV1TransactionController.php:852
+#: /app/lib/Controller/TransactionController.php:514
+#: /app/src/modules/transactions/TransactionsModule.js:5147
+msgid "Failed to update transaction"
+msgstr "Échec de la mise à jour de l'opération"
+
+#: /app/lib/Controller/ApiV1TransactionController.php:823
+#: /app/src/modules/transactions/TransactionsModule.js:3492
+#: /app/src/modules/transactions/TransactionsModule.js:3515
+msgid "Failed to delete transaction"
+msgstr "Échec de la suppression de l'opération"
+
+#: /app/lib/Controller/ApiV1TransactionController.php:888
+#, php-format
+msgid "%s cannot be changed through the API"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:970
+#, fuzzy
+#| msgid ""
+#| "This transaction is scheduled, so it is not on a statement yet and cannot "
+#| "be ticked."
+msgid ""
+"This transaction is one side of a transfer, so its amount, type and date "
+"cannot be changed on their own"
+msgstr ""
+"Cette opération est programmée ; elle n'apparaît donc pas encore sur le "
+"relevé et ne peut pas être cochée."
+
+#: /app/lib/Controller/ApiV1TransactionController.php:987
+msgid ""
+"This transaction is split, so its categories are changed through its splits"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:1002
+#, fuzzy
+#| msgid ""
+#| "This transaction was reconciled against a bank statement. Deleting it "
+#| "will make past reconciliations no longer match."
+msgid ""
+"This transaction has been reconciled against a statement. Send "
+"confirm_reconciled to go ahead"
+msgstr ""
+"Cette opération a été rapprochée d'un relevé bancaire. Sa suppression rendra "
+"les rapprochements antérieurs incohérents."
+
+#: /app/lib/Controller/ApiV1TransactionController.php:1024
+msgid "category_id must be a category id or null"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:1031
 #: /app/lib/Controller/AttachmentController.php:57
 #: /app/lib/Controller/AttachmentController.php:72
 #: /app/lib/Controller/AttachmentController.php:97 /app/src/main.js:3326
@@ -924,6 +979,7 @@ msgstr "Total"
 #: /app/lib/Controller/BillController.php:1356
 #: /app/src/modules/dashboard/DashboardModule.js:3359
 #: /app/src/modules/reports/ReportsModule.js:2006
+#: /app/src/modules/transactions/transactionRow.js:137
 msgid "Projected balance"
 msgstr "Solde prévisionnel"
 
@@ -942,6 +998,10 @@ msgid ""
 "categories. Split with categories shared with them, or pay from one of your "
 "own accounts."
 msgstr ""
+"Ce compte appartient à quelqu'un d'autre, qui ne peut pas voir l'une des "
+"catégories de partage. Effectuez le partage en utilisant des catégories "
+"qu'il partage avec vous, ou effectuez le paiement depuis l'un de vos propres "
+"comptes."
 
 #: /app/lib/Controller/BillController.php:1500
 msgid "Split template must have at least 2 splits"
@@ -2517,11 +2577,6 @@ msgstr "Opération"
 msgid "Invalid status. Must be cleared, scheduled or pending"
 msgstr "Statut invalide. Doit être réglé, planifié ou en attente"
 
-#: /app/lib/Controller/TransactionController.php:514
-#: /app/src/modules/transactions/TransactionsModule.js:5147
-msgid "Failed to update transaction"
-msgstr "Échec de la mise à jour de l'opération"
-
 #: /app/lib/Controller/TransactionController.php:551
 msgid "Failed to search transactions"
 msgstr "Échec de la recherche d'opérations"
@@ -2617,8 +2672,8 @@ msgstr "Ventilation %1$s : Le montant ne peut pas être négatif"
 #: /app/src/modules/rules/RulesModule.js:1001
 #: /app/src/modules/transactions/TransactionsModule.js:5300
 #: /app/src/modules/transactions/transactionRow.js:68
-#: /app/src/modules/transactions/transactionRow.js:182
-#: /app/src/modules/transactions/transactionRow.js:224
+#: /app/src/modules/transactions/transactionRow.js:188
+#: /app/src/modules/transactions/transactionRow.js:230
 #: /app/templates/index.php:1474 /app/templates/index.php:1638
 msgid "Split"
 msgstr "Ventilée"
@@ -2973,16 +3028,16 @@ msgstr ""
 "Motif : {reason}"
 
 #: /app/lib/Notification/Notifier.php:329
-#, fuzzy
-#| msgid "Scheduled Contributions"
 msgid "Scheduled contribution stopped: {pension}"
-msgstr "Cotisations programmées"
+msgstr "Arrêt de la cotisation régulière : {pension}"
 
 #: /app/lib/Notification/Notifier.php:341
 msgid ""
 "The {amount} contribution to {pension} could not be posted, so auto-post has "
 "been turned off. Reason: {reason}"
 msgstr ""
+"La cotisation de {amount} à {pension} n'a pas pu être comptabilisée ; la "
+"comptabilisation automatique a donc été désactivée. Motif : {reason}"
 
 #: /app/lib/Notification/Notifier.php:374
 msgid "{user} shared their budget with you"
@@ -3008,36 +3063,29 @@ msgstr "Votre récapitulatif budgétaire hebdomadaire"
 
 #. TRANSLATORS: {income}, {expenses}, {net} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
 #: /app/lib/Notification/Notifier.php:425
-#, fuzzy
-#| msgid ""
-#| "Income {income}, spending {expenses} ({net} net). {bills} bills due soon."
 msgid "Income {income}, spending {expenses} ({net} net)."
-msgstr ""
-"Revenus {income}, dépenses {expenses} ({net} net). Factures à régler "
-"prochainement : {bills}."
+msgstr "Revenus {income}, dépenses {expenses} ({net} net)."
 
 #. TRANSLATORS: {bills} is a placeholder (the number of bills) — do NOT translate it.
 #: /app/lib/Notification/Notifier.php:427
-#, fuzzy
-#| msgid "No bills due soon"
 msgid "{bills} bill due soon."
 msgid_plural "{bills} bills due soon."
-msgstr[0] "Aucune facture à payer prochainement"
-msgstr[1] "Aucune facture à payer prochainement"
+msgstr[0] "{bills} facture à régler prochainement."
+msgstr[1] "{bills} factures à régler prochainement."
 
 #. TRANSLATORS: {overdue} is a placeholder (the number of bills) — do NOT translate it.
 #: /app/lib/Notification/Notifier.php:433
 msgid "{overdue} bill is overdue."
 msgid_plural "{overdue} bills are overdue."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{overdue} facture est en retard."
+msgstr[1] "{overdue} factures sont en retard."
 
 #. TRANSLATORS: {anomalies} is a placeholder (the number of categories) — do NOT translate it.
 #: /app/lib/Notification/Notifier.php:440
 msgid "One category is spending unusually."
 msgid_plural "{anomalies} categories are spending unusually."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Une catégorie affiche des dépenses inhabituelles."
+msgstr[1] "{anomalies} catégories affichent des dépenses inhabituelles."
 
 #: /app/lib/Notification/Notifier.php:459
 msgid "Unusual spending in {category}"
@@ -3226,6 +3274,8 @@ msgid ""
 "The card has no minimum payment set. Set one on the card, or choose another "
 "amount."
 msgstr ""
+"La carte n'a pas de montant minimum de paiement défini. Définissez-en un "
+"pour cette carte ou choisissez un autre montant."
 
 #: /app/lib/Service/BillService.php:328 /app/lib/Service/BillService.php:384
 msgid "This bill has never been marked as paid"
@@ -3248,10 +3298,8 @@ msgid "A transaction for this payment already exists"
 msgstr "Une opération pour ce paiement existe déjà"
 
 #: /app/lib/Service/BillService.php:691 /app/lib/Service/BillService.php:798
-#, fuzzy
-#| msgid "{count} one-time bills deactivated"
 msgid "A one-time bill needs its due date"
-msgstr "{count} factures ponctuelles désactivées"
+msgstr "Une facture ponctuelle doit comporter une date d'échéance"
 
 #: /app/lib/Service/BillService.php:1004
 #, fuzzy
@@ -3473,18 +3521,14 @@ msgstr[0] "%n catégorie en dépassement."
 msgstr[1] "%n catégories en dépassement."
 
 #: /app/lib/Service/DigestService.php:180
-#, fuzzy
-#| msgid "Read only"
 msgid "and %n more"
 msgid_plural "and %n more"
-msgstr[0] "Lecture seule"
-msgstr[1] "Lecture seule"
+msgstr[0] "et %n de plus"
+msgstr[1] "et %n de plus"
 
 #: /app/lib/Service/DigestService.php:185
-#, fuzzy
-#| msgid "Overdue bill: {bill}"
 msgid "Overdue bills"
-msgstr "Échéance dépassée : {bill}"
+msgstr "Factures impayées"
 
 #: /app/lib/Service/DigestService.php:188
 msgid "Upcoming bills"
@@ -3792,7 +3836,13 @@ msgid_plural ""
 "%n items you shared could not be matched to the restored data, so they are "
 "no longer shared. Share them again in Settings if you still want to."
 msgstr[0] ""
+"%n élément que vous avez partagé n'a pas pu être associé aux données "
+"restaurées ; il n'est donc plus partagé. Si vous le souhaitez toujours, "
+"partagez-le à nouveau dans les Paramètres."
 msgstr[1] ""
+"%n éléments que vous avez partagés n'ont pas pu être associés avec les "
+"données restaurées ; ils ne sont donc plus partagés. Si vous le souhaitez, "
+"partagez-les à nouveau dans les Paramètres."
 
 #: /app/lib/Service/MigrationService.php:404
 msgid ""
@@ -3804,7 +3854,15 @@ msgid_plural ""
 "in this backup, or not shared with you any more. Their auto-pay is off; edit "
 "them to choose an account."
 msgstr[0] ""
+"%n facture ou virement a perdu son compte lors de la restauration : le "
+"compte ne figure pas dans cette sauvegarde ou n'est plus partagé avec vous. "
+"Son paiement automatique est désactivé ; modifiez-le pour sélectionner un "
+"compte."
 msgstr[1] ""
+"%n factures ou virements ont perdu leur compte lors de la restauration : le "
+"compte ne figure pas dans cette sauvegarde ou n'est plus partagé avec vous. "
+"Leur paiement automatique est désactivé ; modifiez-le pour sélectionner un "
+"compte."
 
 #: /app/lib/Service/MigrationService.php:411
 msgid ""
@@ -3814,7 +3872,13 @@ msgid_plural ""
 "%n items of people you share with used an account, category or bill that did "
 "not come back in this restore, and have been unlinked from it."
 msgstr[0] ""
+"%n élément d'un utilisateur avec lequel vous partagez un compte a utilisé un "
+"compte, une catégorie ou une facture qui n'a pas été récupérée lors de cette "
+"restauration et qui a donc été dissociée de celui-ci."
 msgstr[1] ""
+"%n éléments appartenant à des personnes avec lesquelles vous partagez un "
+"compte, une catégorie ou une facture n'ont pas été récupérés lors de cette "
+"restauration et ont été dissociés de celle-ci."
 
 #: /app/lib/Service/MigrationService.php:643
 #, php-format
@@ -3857,18 +3921,24 @@ msgstr "Aucune cotisation prévue"
 msgid ""
 "%1$s is a defined benefit or state pension, which takes no contributions"
 msgstr ""
+"%1$s est une retraite à prestations définies ou une retraite d'État, qui ne "
+"nécessite aucune cotisation"
 
 #: /app/lib/Service/PensionRecurringService.php:385
 msgid ""
 "Choose how often the contribution is made: weekly, every two weeks, monthly, "
 "quarterly, every six months or yearly"
 msgstr ""
+"Choisissez la fréquence de la cotisation : hebdomadaire, toutes les deux "
+"semaines, mensuelle, trimestrielle, semestrielle ou annuelle"
 
 #: /app/lib/Service/PensionService.php:148
 msgid ""
 "Delete this pension's scheduled contributions before making it a defined "
 "benefit or state pension"
 msgstr ""
+"Supprimez les cotisations prévues pour cette retraite avant de la "
+"transformer en retraite à prestations définies ou en retraite d'État"
 
 #: /app/lib/Service/PensionService.php:431
 #, fuzzy
@@ -3888,6 +3958,8 @@ msgid ""
 "%1$s is shared with you read-only, so pension money cannot be paid into or "
 "out of it"
 msgstr ""
+"%1$s vous est mis à disposition en lecture seule ; il n'est donc pas "
+"possible d'y verser ou d'en retirer de l'argent destiné à la retraite"
 
 #: /app/lib/Service/ReconciliationService.php:68
 #: /app/lib/Service/ReconciliationService.php:99
@@ -3935,6 +4007,7 @@ msgstr "Revenu récurrent supprimé"
 #: /app/lib/Service/RecurringIncomeService.php:413
 msgid "A one-time income needs the date it is expected"
 msgstr ""
+"Pour un revenu ponctuel, il faut indiquer la date à laquelle il est prévu"
 
 #: /app/lib/Service/RecurringIncomeService.php:426
 #, fuzzy
@@ -4331,8 +4404,8 @@ msgstr "Catégories de revenus et de dépenses mois"
 #: /app/src/modules/transactions/TransactionsModule.js:3845
 #: /app/src/modules/transactions/TransactionsModule.js:4692
 #: /app/src/modules/transactions/transactionRow.js:122
-#: /app/src/modules/transactions/transactionRow.js:183
-#: /app/src/modules/transactions/transactionRow.js:225
+#: /app/src/modules/transactions/transactionRow.js:189
+#: /app/src/modules/transactions/transactionRow.js:231
 #: /app/templates/index.php:539 /app/templates/index.php:1464
 #: /app/templates/index.php:1628 /app/templates/quick-add.php:57
 msgid "Uncategorized"
@@ -5324,6 +5397,8 @@ msgstr "{count} problème(s) trouvé(s) dans {categories} catégories."
 #: /app/src/main.js:1789
 msgid "Looks like a second payment for {occurrence} (other payment on {date})"
 msgstr ""
+"Il semble qu'il s'agisse d'un deuxième paiement pour {occurrence} (autre "
+"paiement effectué le {date})"
 
 #: /app/src/main.js:1790 /app/src/main.js:1797 /app/src/main.js:1867
 msgid "(unnamed)"
@@ -5331,7 +5406,7 @@ msgstr "(anonyme)"
 
 #: /app/src/main.js:1790
 msgid "Also recorded as {description} on {date}"
-msgstr ""
+msgstr "Également enregistré comme {description} le {date}"
 
 #: /app/src/main.js:1792
 #, fuzzy
@@ -5350,6 +5425,12 @@ msgid ""
 "only look like duplicates and may be real payments: check them in the "
 "account first, and tick only the ones you are sure about."
 msgstr ""
+"Seules les lignes cochées sont supprimées. Les lignes déjà cochées "
+"correspondent à des paiements de factures que l'application a enregistrés et "
+"qui figurent également dans les relevés bancaires importés. Les autres ne "
+"sont qu'apparemment des doublons et peuvent correspondre à de véritables "
+"paiements : vérifiez-les d'abord dans votre compte, puis ne cochez que ceux "
+"dont vous êtes certain."
 
 #: /app/src/main.js:1824
 msgid "Due: {date}"
@@ -5373,6 +5454,12 @@ msgid ""
 "payment still owed looks. If that payment was made, use Skip on the Bills "
 "page."
 msgstr ""
+"La fonction « Réparer » reporte la date d'échéance de ces factures à la "
+"prochaine échéance, avec leur transaction en attente. Les factures marquées "
+"« Vérifier » restent telles quelles : leur date d'échéance est antérieure au "
+"dernier paiement, ce qui correspond également à l'apparence d'une facture en "
+"retard pour laquelle un autre paiement est encore dû. Si ce paiement a été "
+"effectué, utilisez la fonction « Ignorer » sur la page « Factures »."
 
 #: /app/src/main.js:1836
 msgid "Bills with Stuck Due Dates"
@@ -5388,6 +5475,10 @@ msgid ""
 "date. Bill payments and reconciled transactions marked Check are left as "
 "they are: check their dates on the Transactions page."
 msgstr ""
+"La fonction « Réparer » marque ces opérations comme « planifiées » ; elles "
+"sont donc prises en compte dans le solde à compter de leur date. Les "
+"paiements de factures et les opérations rapprochées marquées « Chèque » "
+"restent inchangés : vérifiez leurs dates sur la page « Opérations »."
 
 #: /app/src/main.js:1882
 msgid "Future Transactions Not Marked as Scheduled"
@@ -5756,7 +5847,7 @@ msgstr "Afficher"
 
 #: /app/src/main.js:3345
 #: /app/src/modules/transactions/TransactionsModule.js:3661
-#: /app/src/modules/transactions/transactionRow.js:287
+#: /app/src/modules/transactions/transactionRow.js:293
 msgid "Unknown Account"
 msgstr "Compte inconnu"
 
@@ -6006,6 +6097,8 @@ msgstr[1] ""
 msgid ""
 "Any bills, transfers or recurring income that use them are switched off."
 msgstr ""
+"Toutes les factures, tous les virements ou tous les revenus récurrents qui "
+"les utilisent sont désactivés."
 
 #: /app/src/modules/accounts/AccountsModule.js:734
 msgid ""
@@ -6380,6 +6473,8 @@ msgstr ""
 #: /app/src/modules/accounts/AccountsModule.js:2998
 msgid "Any bills, transfers or recurring income that use it are switched off."
 msgstr ""
+"Toutes les factures, tous les virements ou tous les revenus récurrents qui "
+"l'utilisent sont désactivés."
 
 #: /app/src/modules/accounts/AccountsModule.js:3017
 msgid ""
@@ -7052,6 +7147,9 @@ msgid ""
 "This date was filled in for the bill when it was saved without one. Check "
 "it, then save."
 msgstr ""
+"Cette date a été renseignée automatiquement dans la facture lors de son "
+"enregistrement, alors qu'elle n'était pas indiquée. Vérifiez-la, puis "
+"enregistrez."
 
 #: /app/src/modules/bills/BillsModule.js:633
 msgid "Edit Bill"
@@ -7926,7 +8024,7 @@ msgstr "Exclure les comptes partagés"
 
 #: /app/src/modules/dashboard/DashboardModule.js:742
 msgid "Show bills overdue for more than a week"
-msgstr ""
+msgstr "Afficher les factures en retard depuis plus d'une semaine"
 
 #: /app/src/modules/dashboard/DashboardModule.js:845
 #: /app/src/modules/dashboard/DashboardModule.js:847
@@ -8235,7 +8333,7 @@ msgstr "Revenu mensuel moyen"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2734
 msgid "{received} of {due} received this month"
-msgstr ""
+msgstr "{received} sur {due} perçu ce mois-ci"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2738
 #, fuzzy
@@ -8573,6 +8671,9 @@ msgid ""
 "Untick a category to leave it off this tile, along with its subcategories. "
 "Reports and totals still count it."
 msgstr ""
+"Décochez une catégorie pour qu'elle n'apparaisse plus sur cette tuile, ainsi "
+"que ses sous-catégories. Elle sera toutefois toujours prise en compte dans "
+"les rapports et les totaux."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5741
 msgid "All tiles are visible"
@@ -9879,7 +9980,7 @@ msgstr "Données d'échantillon effacées"
 
 #: /app/src/modules/pensions/PensionsModule.js:26
 msgid "Paused"
-msgstr ""
+msgstr "En pause"
 
 #: /app/src/modules/pensions/PensionsModule.js:30
 #: /app/src/modules/transfers/TransfersModule.js:144
@@ -9981,6 +10082,11 @@ msgid ""
 "still count as money moved to or from a pension rather than spending or "
 "income."
 msgstr ""
+"Son solde, ses cotisations et ses échéanciers sont supprimés en même temps. "
+"Toutes les opérations bancaires correspondant à des versements sur ce compte "
+"ou à des retraits de celui-ci restent enregistrées sur vos comptes et "
+"continuent d'être considérées comme des mouvements de fonds vers ou depuis "
+"un régime de retraite, et non comme des dépenses ou des revenus."
 
 #: /app/src/modules/pensions/PensionsModule.js:543
 msgid "Pension deleted"
@@ -10070,6 +10176,10 @@ msgid ""
 "Delete this entry? A bank transaction the app booked for it is removed too; "
 "one that came from a statement import or bank sync stays in its account."
 msgstr ""
+"Supprimer cette entrée ? Une opération bancaire enregistrée par "
+"l'application pour cette entrée sera également supprimée ; celle issue d'une "
+"importation de relevé ou d'une synchronisation bancaire restera dans son "
+"compte."
 
 #: /app/src/modules/pensions/PensionsModule.js:873
 #, fuzzy
@@ -10159,12 +10269,16 @@ msgid ""
 "Post the {date} contribution of {amount} from {account} now? It is recorded "
 "with today's date."
 msgstr ""
+"Enregistrer dès maintenant le versement de {amount} provenant de {account} "
+"en date du {date} ? Il sera enregistré avec la date d'aujourd'hui."
 
 #: /app/src/modules/pensions/PensionsModule.js:1222
 msgid ""
 "Post the {date} contribution of {amount} now? It is recorded with today's "
 "date."
 msgstr ""
+"Enregistrer dès maintenant la cotisation du {date} d'un montant de "
+"{amount} ? Elle sera enregistrée à la date d'aujourd'hui."
 
 #: /app/src/modules/pensions/PensionsModule.js:1233
 msgid "Contribution posted"
@@ -10573,19 +10687,15 @@ msgstr "Définir une référence"
 
 #: /app/src/modules/rules/RulesModule.js:270
 msgid "Regular expression: {source} → {target}"
-msgstr ""
+msgstr "Expression régulière : {source} → {target}"
 
 #: /app/src/modules/rules/RulesModule.js:274
-#, fuzzy
-#| msgid "Rate change deleted"
 msgid "Case change on {field}"
-msgstr "Modification du taux supprimée"
+msgstr "Changement de cas dans le champ {field}"
 
 #: /app/src/modules/rules/RulesModule.js:277
-#, fuzzy
-#| msgid "Replace notes"
 msgid "Replace in {field}"
-msgstr "Remplacer les remarques"
+msgstr "Remplacer dans {field}"
 
 #: /app/src/modules/rules/RulesModule.js:300
 msgid "No actions"
@@ -10938,7 +11048,7 @@ msgstr "Définir la référence"
 #: /app/src/modules/rules/components/ActionBuilder.js:99
 #: /app/src/modules/rules/components/ActionBuilder.js:135
 msgid "Regex Replace"
-msgstr ""
+msgstr "Remplacement par Regex"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:100
 #: /app/src/modules/rules/components/ActionBuilder.js:136
@@ -10949,10 +11059,8 @@ msgstr "Modifier"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:101
 #: /app/src/modules/rules/components/ActionBuilder.js:137
-#, fuzzy
-#| msgid "Replace notes"
 msgid "Replace Text"
-msgstr "Remplacer les remarques"
+msgstr "Remplacer le texte"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:102
 #: /app/src/modules/rules/components/ActionBuilder.js:138
@@ -11029,14 +11137,12 @@ msgid "Pattern: /\\d+/"
 msgstr "Occurence"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:220
-#, fuzzy
-#| msgid "Replace notes"
 msgid "Replacement"
-msgstr "Remplacer les remarques"
+msgstr "Remplacement"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:221
 msgid "Replacement: e.g., X or $1"
-msgstr ""
+msgstr "Remplacement : par exemple, X ou 1 $"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:230
 #: /app/src/modules/rules/components/ActionBuilder.js:231
@@ -11056,24 +11162,24 @@ msgstr "Modèle"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:241
 msgid "Uppercase"
-msgstr ""
+msgstr "Majuscules"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:242
 msgid "Lowercase"
-msgstr ""
+msgstr "Minuscules"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:243
 msgid "Title Case"
-msgstr ""
+msgstr "Initiales majuscules"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:244
 msgid "Sentence case"
-msgstr ""
+msgstr "Majuscules de fin de phrase"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:261
 #: /app/src/modules/rules/components/ActionBuilder.js:262
 msgid "Find:"
-msgstr ""
+msgstr "Rechercher :"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:263
 #, fuzzy
@@ -11083,10 +11189,8 @@ msgstr "par exemple, 15"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:266
 #: /app/src/modules/rules/components/ActionBuilder.js:267
-#, fuzzy
-#| msgid "Replace notes"
 msgid "Replace:"
-msgstr "Remplacer les remarques"
+msgstr "Remplacer :"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:268
 #, fuzzy
@@ -11312,10 +11416,8 @@ msgid "Action {number}: Replace text target is empty"
 msgstr "Action {number} : Le texte des remarques est vide"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:155
-#, fuzzy
-#| msgid "condition {number}"
 msgid "How conditions combine"
-msgstr "condition {number}"
+msgstr "Comment les conditions se combinent"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:156
 msgid "All conditions must match (AND)"
@@ -11992,13 +12094,16 @@ msgstr "Échec du chargement de la configuration"
 
 #: /app/src/modules/sharing/SharingModule.js:270
 msgid "Read & Write, plus deleting them."
-msgstr ""
+msgstr "Lire & Ecrire, plus les supprimer."
 
 #: /app/src/modules/sharing/SharingModule.js:273
 msgid ""
 "Read & Write, plus the type, parent, subcategories, budget and report "
 "settings. Only you can delete."
 msgstr ""
+"Lire & Ecrire, plus les paramètres relatifs au type, au parent, aux sous-"
+"catégories, au budget et aux rapports. Vous seul pouvez supprimer ces "
+"éléments."
 
 #: /app/src/modules/sharing/SharingModule.js:275 /app/templates/index.php:2831
 msgid "Recurring Income"
@@ -12034,7 +12139,7 @@ msgstr "Lecture et écriture"
 
 #: /app/src/modules/sharing/SharingModule.js:302
 msgid "Full control"
-msgstr ""
+msgstr "Contrôle total"
 
 #: /app/src/modules/sharing/SharingModule.js:327
 msgid "Save Configuration"
@@ -12286,6 +12391,8 @@ msgid ""
 "This transaction is scheduled, so it is not on a statement yet and cannot be "
 "ticked."
 msgstr ""
+"Cette opération est programmée ; elle n'apparaît donc pas encore sur le "
+"relevé et ne peut pas être cochée."
 
 #: /app/src/modules/transactions/TransactionsModule.js:502
 msgid "{category} + {count} subcategory"
@@ -12663,9 +12770,9 @@ msgid "Select account..."
 msgstr "Sélectionner un compte..."
 
 #: /app/src/modules/transactions/TransactionsModule.js:2002
-#: /app/src/modules/transactions/transactionRow.js:211
-#: /app/src/modules/transactions/transactionRow.js:293
-#: /app/src/modules/transactions/transactionRow.js:294
+#: /app/src/modules/transactions/transactionRow.js:217
+#: /app/src/modules/transactions/transactionRow.js:299
+#: /app/src/modules/transactions/transactionRow.js:300
 msgid "Edit transaction"
 msgstr "Modifier l'opération"
 
@@ -12911,12 +13018,20 @@ msgid ""
 "it removes the scheduled entry until the bill is next paid; the bill itself "
 "stays, and the account balance does not change. Are you sure?"
 msgstr ""
+"Il s'agit du prochain paiement d'une facture, et non d'une somme déjà "
+"transférée. Si vous supprimez cette opération, l'écriture programmée sera "
+"supprimée jusqu'au prochain paiement de la facture ; la facture elle-même "
+"reste inchangée et le solde du compte ne change pas. Êtes-vous sûr de "
+"vouloir continuer ?"
 
 #: /app/src/modules/transactions/TransactionsModule.js:3468
 msgid ""
 "This transaction is scheduled and not in the account balance yet, so the "
 "balance does not change. Are you sure you want to delete it?"
 msgstr ""
+"Cette opération est programmée et n'apparaît pas encore dans le solde du "
+"compte ; son solde ne change donc pas. Êtes-vous sûr de vouloir la "
+"supprimer ?"
 
 #: /app/src/modules/transactions/TransactionsModule.js:3470
 msgid "This transaction was auto-generated from a bill payment."
@@ -12947,11 +13062,6 @@ msgid ""
 msgstr ""
 "Cette opération finance une cotisation de retraite. Sa suppression rompra le "
 "lien avec cette cotisation (la cotisation elle-même est conservée)."
-
-#: /app/src/modules/transactions/TransactionsModule.js:3492
-#: /app/src/modules/transactions/TransactionsModule.js:3515
-msgid "Failed to delete transaction"
-msgstr "Échec de la suppression de l'opération"
 
 #: /app/src/modules/transactions/TransactionsModule.js:3502
 msgid "Transaction deleted"
@@ -13268,34 +13378,32 @@ msgstr "Dépenses partagées – réglées"
 msgid "Funds a pension contribution — excluded from spending"
 msgstr "Verser une cotisation de retraite — exclue des dépenses"
 
-#: /app/src/modules/transactions/transactionRow.js:167
+#: /app/src/modules/transactions/transactionRow.js:173
 msgid "No description"
 msgstr "Aucune description"
 
-#: /app/src/modules/transactions/transactionRow.js:204
-#: /app/src/modules/transactions/transactionRow.js:280
+#: /app/src/modules/transactions/transactionRow.js:210
+#: /app/src/modules/transactions/transactionRow.js:286
 msgid "of {total}"
 msgstr "de {total}"
 
-#: /app/src/modules/transactions/transactionRow.js:214
+#: /app/src/modules/transactions/transactionRow.js:220
 msgid "Delete transaction"
 msgstr "Supprimer l'opération"
 
-#: /app/src/modules/transactions/transactionRow.js:231
-#, fuzzy
-#| msgid "Set Description"
+#: /app/src/modules/transactions/transactionRow.js:237
 msgid "Select {description}"
-msgstr "Définir la description"
+msgstr "Sélectionnez {description}"
 
-#: /app/src/modules/transactions/transactionRow.js:278
+#: /app/src/modules/transactions/transactionRow.js:284
 msgid ""
 "This amount is set by the transaction split. Open the split to change it."
 msgstr ""
 "Ce montant est défini par la ventilation de l'opération. Ouvrez la "
 "ventilation pour le modifier."
 
-#: /app/src/modules/transactions/transactionRow.js:299
-#: /app/src/modules/transactions/transactionRow.js:300
+#: /app/src/modules/transactions/transactionRow.js:305
+#: /app/src/modules/transactions/transactionRow.js:306
 #: /app/templates/index.php:1587
 msgid "More actions"
 msgstr "Plus d'actions"
@@ -13456,7 +13564,7 @@ msgstr "Mois d'échéance"
 
 #: /app/src/modules/transfers/TransfersModule.js:526
 msgid "The month the cycle starts from"
-msgstr ""
+msgstr "Le mois à partir duquel le cycle commence"
 
 #: /app/src/modules/transfers/TransfersModule.js:539
 #: /app/templates/index.php:712 /app/templates/index.php:734
@@ -13751,10 +13859,8 @@ msgid "Week of {date}"
 msgstr "Échéance le {date}"
 
 #: /app/src/utils/incomeStatus.js:35
-#, fuzzy
-#| msgid "Received"
 msgid "Received {date}"
-msgstr "Reçu"
+msgstr "Reçu le {date}"
 
 #: /app/src/utils/incomeStatus.js:39
 msgid "No date set"
@@ -13769,10 +13875,8 @@ msgid "Expected Soon"
 msgstr "Attendu prochainement"
 
 #: /app/src/utils/incomeStatus.js:59
-#, fuzzy
-#| msgid "Paid {paidDate}, next due {dueDate}"
 msgid "Received {receivedDate}, next expected {expectedDate}"
-msgstr "Payé le {paidDate}, prochaine échéance le {dueDate}"
+msgstr "Reçu le {receivedDate}, prochaine date prévue le {expectedDate}"
 
 #: /app/src/utils/loading.js:84
 msgid "Retry"
@@ -16365,22 +16469,19 @@ msgid "Subscription"
 msgstr "Abonnement"
 
 #: /app/templates/index.php:4893
-#, fuzzy, php-format
-#| msgid "Standard — £2.99/month (500 scans)"
+#, php-format
 msgid "Standard — %s/month (500 scans)"
-msgstr "Formule Standard — 2,99 £ par mois (500 numérisations)"
+msgstr "Formule Standard — %s par mois (500 numérisations)"
 
 #: /app/templates/index.php:4894
-#, fuzzy, php-format
-#| msgid "Standard — £29/year (500 scans a month)"
+#, php-format
 msgid "Standard — %s/year (500 scans a month)"
-msgstr "Formule Standard — 29 £ par an (500 numérisations par mois)"
+msgstr "Formule Standard — %s par an (500 numérisations par mois)"
 
 #: /app/templates/index.php:4895
-#, fuzzy, php-format
-#| msgid "Business — £7.99/month (1,500 scans)"
+#, php-format
 msgid "Business — %s/month (1,500 scans)"
-msgstr "Entreprise — 7,99 £/mois (1 500 numérisations)"
+msgstr "Entreprise — %s par mois (1 500 numérisations)"
 
 #: /app/templates/index.php:4896
 #, fuzzy, php-format

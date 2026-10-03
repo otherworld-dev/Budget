@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-10-03 01:04+0000\n"
-"PO-Revision-Date: 2026-10-02 22:28+0000\n"
+"POT-Creation-Date: 2026-10-03 18:45+0000\n"
+"PO-Revision-Date: 2026-10-03 19:43+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2026.10\n"
+"X-Generator: Weblate 2026.10.1.dev0\n"
 
 #: /app/lib/Controller/AccountController.php:80
 #: /app/lib/Controller/ApiV1AccountController.php:57
@@ -26,7 +26,7 @@ msgstr "Konten konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/AccountController.php:90
 #: /app/lib/Controller/AccountController.php:657
-#: /app/lib/Controller/ApiV1TransactionController.php:458
+#: /app/lib/Controller/ApiV1TransactionController.php:460
 msgid "Account not found"
 msgstr "Konto nicht gefunden"
 
@@ -131,6 +131,7 @@ msgid "Invalid request data"
 msgstr "Ungültige Anfragedaten"
 
 #: /app/lib/Controller/AccountController.php:481
+#: /app/lib/Controller/ApiV1TransactionController.php:773
 #: /app/lib/Controller/BillController.php:758
 #: /app/lib/Controller/CategoryController.php:353
 #: /app/lib/Controller/CategoryController.php:449
@@ -275,7 +276,7 @@ msgid "Failed to retrieve categories"
 msgstr "Kategorien konnten nicht abgefragt werden"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:73
-#: /app/lib/Controller/ApiV1TransactionController.php:731
+#: /app/lib/Controller/ApiV1TransactionController.php:732
 #: /app/lib/Controller/AttachmentController.php:91
 #: /app/lib/Controller/ImportController.php:111
 #: /app/lib/Controller/MigrationController.php:83
@@ -309,31 +310,33 @@ msgstr ""
 "Der Beleg konnte nicht gelesen werden – die Texterkennung ist "
 "fehlgeschlagen. Versuche es erneut oder erfasse die Transaktion manuell"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:102
+#: /app/lib/Controller/ApiV1TransactionController.php:104
 msgid "Invalid date. Use the YYYY-MM-DD format"
 msgstr "Ungültiges Datum. Verwende das Format YYYY-MM-DD"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:138
-#: /app/lib/Controller/ApiV1TransactionController.php:179
+#: /app/lib/Controller/ApiV1TransactionController.php:140
+#: /app/lib/Controller/ApiV1TransactionController.php:181
 #: /app/lib/Controller/TransactionController.php:129
 #: /app/lib/Controller/TransactionController.php:184
 msgid "Failed to retrieve transactions"
 msgstr "Abruf der Buchungen fehlgeschlagen"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:193
-#: /app/lib/Controller/ApiV1TransactionController.php:210
+#: /app/lib/Controller/ApiV1TransactionController.php:195
+#: /app/lib/Controller/ApiV1TransactionController.php:212
 msgid "Failed to retrieve transaction"
 msgstr "Abruf der Buchung fehlgeschlagen"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:306
+#: /app/lib/Controller/ApiV1TransactionController.php:308
+#: /app/lib/Controller/ApiV1TransactionController.php:908
 msgid "Amount must be a number"
 msgstr "Betrag muss eine Zahl sein"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:311
+#: /app/lib/Controller/ApiV1TransactionController.php:313
 msgid "An account is required"
 msgstr "Ein Konto ist erforderlich"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:316
+#: /app/lib/Controller/ApiV1TransactionController.php:318
+#: /app/lib/Controller/ApiV1TransactionController.php:898
 #: /app/lib/Controller/AssetController.php:326
 #: /app/lib/Controller/PensionController.php:358
 #: /app/lib/Controller/PensionController.php:430
@@ -356,42 +359,43 @@ msgstr "Ein Konto ist erforderlich"
 msgid "Date"
 msgstr "Datum"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:336
+#: /app/lib/Controller/ApiV1TransactionController.php:338
+#: /app/lib/Controller/ApiV1TransactionController.php:916
 #: /app/lib/Controller/TransactionController.php:321
 #: /app/lib/Controller/TransactionController.php:431
 msgid "Invalid transaction type. Must be credit or debit"
 msgstr "Ungültiger Buchungstyp. Dieser muss Kredit oder Debit sein"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:348
+#: /app/lib/Controller/ApiV1TransactionController.php:350
 msgid "Idempotency key too long (64 characters maximum)"
 msgstr "Idempotenzschlüssel ist zu lang (maximal 64 Zeichen)"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:426
-#: /app/lib/Controller/ApiV1TransactionController.php:578
+#: /app/lib/Controller/ApiV1TransactionController.php:428
+#: /app/lib/Controller/ApiV1TransactionController.php:580
 msgid "The transaction was recorded, but the photo could not be attached"
 msgstr ""
 "Die Transaktion wurde erfasst, aber das Foto konnte nicht angehängt werden"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:452
+#: /app/lib/Controller/ApiV1TransactionController.php:454
 msgid "The transaction was recorded, but it could not be split"
 msgstr "Die Transaktion wurde erfasst, konnte aber nicht aufgeteilt werden"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:462
+#: /app/lib/Controller/ApiV1TransactionController.php:464
 #: /app/lib/Controller/TransactionController.php:382
 msgid "Failed to create transaction"
 msgstr "Erstellen der Buchung fehlgeschlagen"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:541
+#: /app/lib/Controller/ApiV1TransactionController.php:543
 msgid "This idempotency key was already used for a different transaction"
 msgstr ""
 "Dieser Idempotenzschlüssel wurde bereits für eine andere Transaktion "
 "verwendet"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:550
+#: /app/lib/Controller/ApiV1TransactionController.php:552
 msgid "This request is still being processed. Try again shortly"
 msgstr "Diese Anfrage wird noch verarbeitet. Versuche es in Kürze erneut"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:625
+#: /app/lib/Controller/ApiV1TransactionController.php:627
 msgid ""
 "splits must be an array of {\"amount\", \"category_id\", \"description\"} "
 "objects"
@@ -399,25 +403,64 @@ msgstr ""
 "splits muss ein Array aus Objekten mit den Feldern {\"amount\", "
 "\"category_id\", \"description\"} sein"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:646
+#: /app/lib/Controller/ApiV1TransactionController.php:647
 msgid "Failed to split the transaction"
 msgstr "Die Transaktion konnte nicht aufgeteilt werden"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:718
+#: /app/lib/Controller/ApiV1TransactionController.php:719
 #: /app/lib/Controller/AttachmentController.php:46
 #: /app/lib/Controller/AttachmentController.php:59
 #: /app/src/modules/transactions/TransactionsModule.js:2819
 msgid "Failed to load attachments"
 msgstr "Anhänge konnten nicht geladen werden"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:743
+#: /app/lib/Controller/ApiV1TransactionController.php:744
 #: /app/lib/Controller/AttachmentController.php:101
 #: /app/src/modules/transactions/TransactionsModule.js:2830
 #: /app/src/modules/transactions/TransactionsModule.js:2835
 msgid "Failed to upload receipt"
 msgstr "Beleg konnte nicht hochgeladen werden"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:749
+#: /app/lib/Controller/ApiV1TransactionController.php:793
+#: /app/lib/Controller/ApiV1TransactionController.php:852
+#: /app/lib/Controller/TransactionController.php:514
+#: /app/src/modules/transactions/TransactionsModule.js:5147
+msgid "Failed to update transaction"
+msgstr "Aktualisierung der Buchung fehlgeschlagen"
+
+#: /app/lib/Controller/ApiV1TransactionController.php:823
+#: /app/src/modules/transactions/TransactionsModule.js:3492
+#: /app/src/modules/transactions/TransactionsModule.js:3515
+msgid "Failed to delete transaction"
+msgstr "Fehler beim Löschen der Buchung"
+
+#: /app/lib/Controller/ApiV1TransactionController.php:888
+#, php-format
+msgid "%s cannot be changed through the API"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:970
+msgid ""
+"This transaction is one side of a transfer, so its amount, type and date "
+"cannot be changed on their own"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:987
+msgid ""
+"This transaction is split, so its categories are changed through its splits"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:1002
+msgid ""
+"This transaction has been reconciled against a statement. Send "
+"confirm_reconciled to go ahead"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:1024
+msgid "category_id must be a category id or null"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:1031
 #: /app/lib/Controller/AttachmentController.php:57
 #: /app/lib/Controller/AttachmentController.php:72
 #: /app/lib/Controller/AttachmentController.php:97 /app/src/main.js:3326
@@ -931,6 +974,7 @@ msgstr "Summe"
 #: /app/lib/Controller/BillController.php:1356
 #: /app/src/modules/dashboard/DashboardModule.js:3359
 #: /app/src/modules/reports/ReportsModule.js:2006
+#: /app/src/modules/transactions/transactionRow.js:137
 msgid "Projected balance"
 msgstr "Prognostizierter Kontostand"
 
@@ -1775,10 +1819,8 @@ msgstr "Beitrag konnte nicht verbucht werden"
 
 #: /app/lib/Controller/PensionController.php:690
 #: /app/src/modules/pensions/PensionsModule.js:1246
-#, fuzzy
-#| msgid "Failed to delete contribution"
 msgid "Failed to undo the contribution"
-msgstr "Beitrag konnte nicht gelöscht werden"
+msgstr "Der Beitrag konnte nicht rückgängig gemacht werden"
 
 #: /app/lib/Controller/PensionController.php:706
 msgid "Failed to retrieve pension summary"
@@ -2180,10 +2222,8 @@ msgid "%1$s duplicate categories removed"
 msgstr "%1$s doppelte Kategorien entfernt"
 
 #: /app/lib/Controller/SetupController.php:105
-#, fuzzy
-#| msgid "Failed to create default categories"
 msgid "Failed to remove duplicate categories"
-msgstr "Standardkategorien konnten nicht erstellt werden"
+msgstr "Doppelte Kategorien konnten nicht entfernt werden"
 
 #: /app/lib/Controller/SetupController.php:120
 #, php-format
@@ -2191,10 +2231,8 @@ msgid "Reset complete: deleted %1$s, created %2$s"
 msgstr "Zurücksetzen erfolgreich: %1$s entfernt, %2$s erstellt"
 
 #: /app/lib/Controller/SetupController.php:123
-#, fuzzy
-#| msgid "Failed to retrieve categories"
 msgid "Failed to reset categories"
-msgstr "Kategorien konnten nicht abgefragt werden"
+msgstr "Die Kategorien konnten nicht zurückgesetzt werden"
 
 #: /app/lib/Controller/SetupController.php:140
 msgid ""
@@ -2217,40 +2255,28 @@ msgid "Factory reset failed"
 msgstr "Zurücksetzen auf Werkseinstellung fehlgeschlagen"
 
 #: /app/lib/Controller/SetupController.php:186
-#, fuzzy
-#| msgid "Balance recalculation failed: %1$s"
 msgid "Balance recalculation failed"
-msgstr "Neuberechnung Saldo fehlgeschlagen: %1$s"
+msgstr "Die Neuberechnung der Kontostände ist fehlgeschlagen"
 
 #: /app/lib/Controller/SetupController.php:201 /app/src/main.js:1742
-#, fuzzy
-#| msgid "Download failed"
 msgid "Diagnosis failed"
-msgstr "Download fehlgeschlagen"
+msgstr "Die Diagnose ist fehlgeschlagen"
 
 #: /app/lib/Controller/SetupController.php:218
-#, fuzzy
-#| msgid "No categories found"
 msgid "No repair categories specified"
-msgstr "Keine Kategorien gefunden"
+msgstr "Keine Reparaturkategorien angegeben"
 
 #: /app/lib/Controller/SetupController.php:229
-#, fuzzy
-#| msgid "No valid pairs provided"
 msgid "No valid repair categories specified"
-msgstr "Keine gültigen Wertepaare angegeben"
+msgstr "Keine gültigen Reparaturkategorien angegeben"
 
 #: /app/lib/Controller/SetupController.php:264 /app/src/main.js:2037
-#, fuzzy
-#| msgid "Export failed"
 msgid "Repair failed"
-msgstr "Export fehlgeschlagen"
+msgstr "Die Reparatur ist fehlgeschlagen"
 
 #: /app/lib/Controller/SetupController.php:379
-#, fuzzy
-#| msgid "Failed to get settlements"
 msgid "Failed to get system info"
-msgstr "Abrechnungen konnten nicht abgerufen werden"
+msgstr "Systeminformationen konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/ShareController.php:61
 #: /app/lib/Controller/ShareController.php:75
@@ -2311,16 +2337,15 @@ msgid "Failed to update share configuration"
 msgstr "Aktualisieren Aktieneinstellung fehlgeschlagen"
 
 #: /app/lib/Controller/ShareController.php:264
-#, fuzzy
-#| msgid "Failed to retrieve share configuration"
 msgid "Failed to retrieve auto-share configuration"
-msgstr "Konfiguration Aktie konnte nicht abgerufen werden"
+msgstr ""
+"Die Konfiguration für die automatische Freigabe konnte nicht abgerufen werden"
 
 #: /app/lib/Controller/ShareController.php:283
-#, fuzzy
-#| msgid "Failed to update share configuration"
 msgid "Failed to update auto-share configuration"
-msgstr "Aktualisieren Aktieneinstellung fehlgeschlagen"
+msgstr ""
+"Die Konfiguration für die automatische Freigabe konnte nicht aktualisiert "
+"werden"
 
 #: /app/lib/Controller/SharedExpenseController.php:69
 msgid "Failed to get contacts"
@@ -2328,10 +2353,8 @@ msgstr "Kontakte konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/SharedExpenseController.php:91
 #: /app/src/utils/userPicker.js:114
-#, fuzzy
-#| msgid "Account not found"
 msgid "Nextcloud user not found"
-msgstr "Konto nicht gefunden"
+msgstr "Nextcloud-Benutzer nicht gefunden"
 
 #: /app/lib/Controller/SharedExpenseController.php:109
 msgid "Failed to create contact"
@@ -2355,10 +2378,8 @@ msgid "Failed to get balances"
 msgstr "Salden konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/SharedExpenseController.php:267
-#, fuzzy
-#| msgid "Failed to share expense"
 msgid "Failed to get shared expenses"
-msgstr "Fehler beim Teilen der Ausgabe"
+msgstr "Geteilte Ausgaben konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/SharedExpenseController.php:289
 msgid "Failed to get shared transactions"
@@ -2402,10 +2423,8 @@ msgid "Failed to save the split"
 msgstr "Die Aufteilung konnte nicht gespeichert werden"
 
 #: /app/lib/Controller/SharedExpenseController.php:392
-#, fuzzy
-#| msgid "Transaction not found"
 msgid "Transaction or contact not found"
-msgstr "Buchung nicht gefunden"
+msgstr ""
 
 #: /app/lib/Controller/SharedExpenseController.php:423
 msgid "Failed to get shares"
@@ -2532,10 +2551,8 @@ msgstr "Fehler beim löschen des globalen Schlagwortes"
 #: /app/lib/Controller/TransactionController.php:251
 #: /app/src/modules/accounts/AccountsModule.js:3461
 #: /app/src/modules/transactions/TransactionsModule.js:983
-#, fuzzy
-#| msgid "Failed to search transactions"
 msgid "Failed to export transactions"
-msgstr "Suchen von Buchungen fehlgeschlagen"
+msgstr "Transaktionen konnten nicht exportiert werden"
 
 #: /app/lib/Controller/TransactionController.php:284
 #: /app/lib/Controller/TransactionController.php:539
@@ -2552,15 +2569,9 @@ msgid "Transaction"
 msgstr "Buchung"
 
 #: /app/lib/Controller/TransactionController.php:483
-#, fuzzy
-#| msgid "Invalid status. Must be cleared or scheduled"
 msgid "Invalid status. Must be cleared, scheduled or pending"
-msgstr "Ungültiger Status. Dieser Muss geklärt oder geplant sein"
-
-#: /app/lib/Controller/TransactionController.php:514
-#: /app/src/modules/transactions/TransactionsModule.js:5147
-msgid "Failed to update transaction"
-msgstr "Aktualisierung der Buchung fehlgeschlagen"
+msgstr ""
+"Ungültiger Status. Muss „Abgeschlossen“, „Geplant“ oder „Ausstehend“ sein"
 
 #: /app/lib/Controller/TransactionController.php:551
 msgid "Failed to search transactions"
@@ -2626,16 +2637,12 @@ msgid "Failed to bulk edit transactions"
 msgstr "Massenbearbeitung der Buchungen fehlgeschlagen"
 
 #: /app/lib/Controller/TransactionController.php:889
-#, fuzzy
-#| msgid "Not provided"
 msgid "No tags provided"
-msgstr "Nicht angegeben"
+msgstr "Keine Tags angegeben"
 
 #: /app/lib/Controller/TransactionController.php:901
-#, fuzzy
-#| msgid "Failed to update transactions"
 msgid "Failed to update transaction tags"
-msgstr "Fehler beim Aktualisieren der Buchungen"
+msgstr "Transaktions-Tags konnten nicht aktualisiert werden"
 
 #: /app/lib/Controller/TransactionController.php:928
 msgid "Failed to load tag options"
@@ -2651,10 +2658,9 @@ msgid "Split %1$s: amount is required"
 msgstr "Aufteilung %1$s: Betrag ist notwendig"
 
 #: /app/lib/Controller/TransactionController.php:975
-#, fuzzy, php-format
-#| msgid "Split %1$s: amount must be positive"
+#, php-format
 msgid "Split %1$s: amount cannot be zero"
-msgstr "Aufteilung %1$s: Betrag muss positiv sein"
+msgstr "Aufteilung %1$s: Der Betrag darf nicht null sein"
 
 #: /app/lib/Controller/TransactionController.php:1024
 #: /app/src/modules/bills/BillsModule.js:353
@@ -2662,8 +2668,8 @@ msgstr "Aufteilung %1$s: Betrag muss positiv sein"
 #: /app/src/modules/rules/RulesModule.js:1001
 #: /app/src/modules/transactions/TransactionsModule.js:5300
 #: /app/src/modules/transactions/transactionRow.js:68
-#: /app/src/modules/transactions/transactionRow.js:182
-#: /app/src/modules/transactions/transactionRow.js:224
+#: /app/src/modules/transactions/transactionRow.js:188
+#: /app/src/modules/transactions/transactionRow.js:230
 #: /app/templates/index.php:1474 /app/templates/index.php:1638
 msgid "Split"
 msgstr "Aufteilung"
@@ -2701,10 +2707,8 @@ msgid "Failed to export YoY data"
 msgstr "Export Vorjahresvergleich fehlgeschlagen"
 
 #: /app/lib/Controller/YearOverYearController.php:233
-#, fuzzy
-#| msgid "Full Year Comparison"
 msgid "Year Comparison"
-msgstr "Vergleich über das gesamte Jahr"
+msgstr "Jahresvergleich"
 
 #: /app/lib/Controller/YearOverYearController.php:238
 #: /app/lib/Service/Report/ReportExporter.php:306
@@ -2808,23 +2812,20 @@ msgid "Transactions"
 msgstr "Buchungen"
 
 #: /app/lib/Controller/YearOverYearController.php:252
-#, fuzzy, php-format
-#| msgid "Income Name"
+#, php-format
 msgid "Income Change %%"
-msgstr "Name der Einnahme"
+msgstr "Einnahmenänderung %%"
 
 #: /app/lib/Controller/YearOverYearController.php:253
-#, fuzzy, php-format
-#| msgid "Expense shared"
+#, php-format
 msgid "Expense Change %%"
-msgstr "Ausgabe aufgeteilt"
+msgstr "Ausgabenänderung %%"
 
 #: /app/lib/Controller/YearOverYearController.php:291
 #: /app/lib/Controller/YearOverYearController.php:393
-#, fuzzy, php-format
-#| msgid "Change"
+#, php-format
 msgid "Change %%"
-msgstr "Ändern"
+msgstr "Änderung %%"
 
 #: /app/lib/Controller/YearOverYearController.php:295
 #: /app/lib/Controller/YearOverYearController.php:403
@@ -2844,22 +2845,16 @@ msgid "Unknown"
 msgstr "Unbekannt"
 
 #: /app/lib/Controller/YearOverYearController.php:317
-#, fuzzy
-#| msgid "Year-over-Year"
 msgid "Year-over-Year Report"
-msgstr "Jährlicher Vergleich"
+msgstr "Jahresvergleichsbericht"
 
 #: /app/lib/Controller/YearOverYearController.php:369
-#, fuzzy
-#| msgid "Category Spending"
 msgid "Category Spending Comparison"
-msgstr "Ausgaben nach Kategorien"
+msgstr "Kategorien-Ausgabenvergleich"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:43
-#, fuzzy
-#| msgid "Budget Period"
 msgid "Budget: Overview"
-msgstr "Budgetzeitraum"
+msgstr "Budget: Übersicht"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:79
 #: /app/src/modules/dashboard/DashboardModule.js:1079
@@ -2870,10 +2865,8 @@ msgstr "Noch keine Konten"
 #: /app/lib/Service/Mail/BudgetMailService.php:67
 #: /app/src/modules/onboarding/OnboardingModule.js:82
 #: /app/templates/quick-add.php:11
-#, fuzzy
-#| msgid "Budget"
 msgid "Open Budget"
-msgstr "Budget"
+msgstr "Budget öffnen"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:117
 #, php-format
@@ -2881,16 +2874,12 @@ msgid "(excludes %1$s — no exchange rate)"
 msgstr "(%1$s ausgeschlossen – kein Wechselkurs verfügbar)"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:121
-#, fuzzy
-#| msgid "Total Income"
 msgid "Total balance"
-msgstr "Gesamteinnahmen"
+msgstr "Gesamtsaldo"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:131
-#, fuzzy
-#| msgid "Due This Month"
 msgid "Budget this month"
-msgstr "Diesen Monat fällig"
+msgstr "Budget für diesen Monat"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:132
 #, php-format
@@ -2898,13 +2887,10 @@ msgid "%1$s of %2$s spent (%3$s%%)"
 msgstr "%1$s von %2$s ausgegeben (%3$s %%)"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:147
-#, fuzzy
-#| msgid "%n category under budget"
-#| msgid_plural "%n categories under budget"
 msgid "%n category over budget"
 msgid_plural "%n categories over budget"
-msgstr[0] "Kategorie unter dem Budget"
-msgstr[1] "Kategorien unter dem Budget"
+msgstr[0] "%n Kategorie über dem Budget"
+msgstr[1] "%n Kategorien über dem Budget"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:150
 msgid "%n warning"
@@ -2913,10 +2899,8 @@ msgstr[0] "%n Warnung"
 msgstr[1] "%n Warnungen"
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:153
-#, fuzzy
-#| msgid "Actions"
 msgid "Attention"
-msgstr "Aktionen"
+msgstr "Achtung"
 
 #: /app/lib/Dashboard/UpcomingBillsWidget.php:44
 msgid "Budget: Upcoming bills"
@@ -2929,8 +2913,6 @@ msgid "No upcoming bills"
 msgstr "Keine fällige Zahlungen"
 
 #: /app/lib/Dashboard/UpcomingBillsWidget.php:89
-#, fuzzy
-#| msgid "All Bills"
 msgid "All bills"
 msgstr "Alle Rechnungen"
 
@@ -3045,10 +3027,8 @@ msgstr ""
 "werden. Grund: {reason}"
 
 #: /app/lib/Notification/Notifier.php:329
-#, fuzzy
-#| msgid "Monthly Contribution"
 msgid "Scheduled contribution stopped: {pension}"
-msgstr "Monatlicher Beitrag"
+msgstr "Geplanter Beitrag gestoppt: {pension}"
 
 #: /app/lib/Notification/Notifier.php:341
 msgid ""
@@ -3080,22 +3060,15 @@ msgstr "Deine wöchentliche Budgetübersicht"
 
 #. TRANSLATORS: {income}, {expenses}, {net} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
 #: /app/lib/Notification/Notifier.php:425
-#, fuzzy
-#| msgid ""
-#| "Income {income}, spending {expenses} ({net} net). {bills} bills due soon."
 msgid "Income {income}, spending {expenses} ({net} net)."
-msgstr ""
-"Einnahmen: {income}, Ausgaben: {expenses} ({net} Saldo). {bills} Rechnungen "
-"sind bald fällig."
+msgstr "Einnahmen {income}, Ausgaben {expenses} ({net} netto)."
 
 #. TRANSLATORS: {bills} is a placeholder (the number of bills) — do NOT translate it.
 #: /app/lib/Notification/Notifier.php:427
-#, fuzzy
-#| msgid "Bills Due Soon"
 msgid "{bills} bill due soon."
 msgid_plural "{bills} bills due soon."
-msgstr[0] "Bald fällige Rechnungen"
-msgstr[1] "Bald fällige Rechnungen"
+msgstr[0] "{bills} Rechnung bald fällig."
+msgstr[1] "{bills} Rechnungen bald fällig."
 
 #. TRANSLATORS: {overdue} is a placeholder (the number of bills) — do NOT translate it.
 #: /app/lib/Notification/Notifier.php:433
@@ -3286,16 +3259,12 @@ msgid "Bill due: %1$s"
 msgstr "Rechnung fällig: %1$s"
 
 #: /app/lib/Service/BillService.php:126
-#, fuzzy
-#| msgid ""
-#| "The account linked to this bill no longer exists. Edit the bill and "
-#| "choose an account."
 msgid ""
 "This bill uses an account you can no longer change. Edit the bill and choose "
 "another account."
 msgstr ""
-"Das mit dieser Rechnung verknüpfte Konto existiert nicht mehr. Bearbeite die "
-"Rechnung und wähle ein Konto aus."
+"Diese Rechnung verwendet ein Konto, das du nicht mehr ändern kannst. "
+"Bearbeite die Rechnung und wähle ein anderes Konto."
 
 #: /app/lib/Service/BillService.php:173
 #, fuzzy
@@ -3315,10 +3284,8 @@ msgid ""
 msgstr ""
 
 #: /app/lib/Service/BillService.php:328 /app/lib/Service/BillService.php:384
-#, fuzzy
-#| msgid "Transfer marked as paid"
 msgid "This bill has never been marked as paid"
-msgstr "Umbuchung wurde als bezahlt markiert"
+msgstr "Diese Rechnung wurde noch nie als bezahlt markiert"
 
 #: /app/lib/Service/BillService.php:331
 msgid "Assign an account to the bill first"
@@ -3339,16 +3306,12 @@ msgid "A transaction for this payment already exists"
 msgstr "Eine Kategorie mit diesem Namen existiert bereits in dieser Ebene"
 
 #: /app/lib/Service/BillService.php:691 /app/lib/Service/BillService.php:798
-#, fuzzy
-#| msgid "{count} one-time bills deactivated"
 msgid "A one-time bill needs its due date"
-msgstr "{count} einmalige Rechnungen deaktiviert"
+msgstr "Eine einmalige Rechnung benötigt ein Fälligkeitsdatum"
 
 #: /app/lib/Service/BillService.php:1004
-#, fuzzy
-#| msgid "Transfer marked as paid"
 msgid "This bill has nothing left to pay"
-msgstr "Umbuchung wurde als bezahlt markiert"
+msgstr "Bei dieser Rechnung ist nichts mehr zu bezahlen"
 
 #: /app/lib/Service/BillService.php:1010
 #: /app/lib/Service/RecurringIncomeService.php:261
@@ -3374,10 +3337,9 @@ msgid "That transaction already pays another bill"
 msgstr "Buchung als Transfer verknüpft"
 
 #: /app/lib/Service/BillService.php:1356 /app/lib/Service/BillService.php:1370
-#, fuzzy
-#| msgid "Transfer marked as paid"
 msgid "This bill has no recorded payment to undo"
-msgstr "Umbuchung wurde als bezahlt markiert"
+msgstr ""
+"Für diese Rechnung ist keine erfasste Zahlung zum Rückgängigmachen vorhanden"
 
 #: /app/lib/Service/BillService.php:1379
 msgid ""
@@ -3500,10 +3462,8 @@ msgstr "Nur wenn leer"
 #: /app/lib/Service/CategoryTransferService.php:139
 #: /app/lib/Service/CategoryTransferService.php:152
 #: /app/lib/Service/CategoryTransferService.php:187
-#, fuzzy
-#| msgid "No categories found"
 msgid "No categories found in the file"
-msgstr "Keine Kategorien gefunden"
+msgstr "Keine Kategorien in der Datei gefunden"
 
 #: /app/lib/Service/CategoryTransferService.php:147
 msgid "The file is not valid JSON"
@@ -3579,18 +3539,14 @@ msgstr[0] "%n Kategorie ist über dem Budget."
 msgstr[1] "%n Kategorien sind über dem Budget."
 
 #: /app/lib/Service/DigestService.php:180
-#, fuzzy
-#| msgid "Read only"
 msgid "and %n more"
 msgid_plural "and %n more"
-msgstr[0] "Lesezugriff"
-msgstr[1] "Lesezugriff"
+msgstr[0] "und %n weiterer"
+msgstr[1] "und %n weitere"
 
 #: /app/lib/Service/DigestService.php:185
-#, fuzzy
-#| msgid "Overdue bill: {bill}"
 msgid "Overdue bills"
-msgstr "Überfällige Rechnung: {bill}"
+msgstr "Überfällige Rechnungen"
 
 #: /app/lib/Service/DigestService.php:188
 #, fuzzy
@@ -3985,16 +3941,12 @@ msgid ""
 msgstr ""
 
 #: /app/lib/Service/PensionService.php:431
-#, fuzzy
-#| msgid ""
-#| "The account linked to this bill no longer exists. Edit the bill and "
-#| "choose an account."
 msgid ""
 "The account for this contribution no longer exists or is no longer shared "
 "with you"
 msgstr ""
-"Das mit dieser Rechnung verknüpfte Konto existiert nicht mehr. Bearbeite die "
-"Rechnung und wähle ein Konto aus."
+"Das Konto für diesen Beitrag existiert nicht mehr oder ist nicht mehr für "
+"dich freigegeben"
 
 #: /app/lib/Service/PensionService.php:434
 #, php-format
@@ -4032,16 +3984,12 @@ msgid "No account set for income"
 msgstr "Kein Konto für die Korrekturbuchung ausgewählt"
 
 #: /app/lib/Service/RecurringIncomeService.php:258
-#, fuzzy
-#| msgid "Transfer marked as paid"
 msgid "This income has no payment to receive"
-msgstr "Umbuchung wurde als bezahlt markiert"
+msgstr "Für diese Einnahme ist keine Zahlung zu erhalten"
 
 #: /app/lib/Service/RecurringIncomeService.php:305
-#, fuzzy
-#| msgid "Transfer marked as paid"
 msgid "This income has no recorded receipt to undo"
-msgstr "Umbuchung wurde als bezahlt markiert"
+msgstr "Transfer marked as paid"
 
 #: /app/lib/Service/RecurringIncomeService.php:410
 #, fuzzy
@@ -4054,16 +4002,12 @@ msgid "A one-time income needs the date it is expected"
 msgstr ""
 
 #: /app/lib/Service/RecurringIncomeService.php:426
-#, fuzzy
-#| msgid ""
-#| "The account linked to this bill no longer exists. Edit the bill and "
-#| "choose an account."
 msgid ""
 "This income uses an account you can no longer change. Edit it and choose "
 "another account."
 msgstr ""
-"Das mit dieser Rechnung verknüpfte Konto existiert nicht mehr. Bearbeite die "
-"Rechnung und wähle ein Konto aus."
+"Diese Einnahme verwendet ein Konto, das du nicht mehr ändern kannst. "
+"Bearbeite sie und wähle ein anderes Konto."
 
 #: /app/lib/Service/RecurringIncomeService.php:452
 #, fuzzy
@@ -4078,10 +4022,8 @@ msgid "Cannot skip an inactive income"
 msgstr "Ruhende Rechnung kann nicht übersprungen werden"
 
 #: /app/lib/Service/RecurringIncomeService.php:460
-#, fuzzy
-#| msgid "Transfer marked as paid"
 msgid "This income has no expected date to skip"
-msgstr "Umbuchung wurde als bezahlt markiert"
+msgstr "Für diese Einnahme gibt es kein erwartetes Datum zum Überspringen"
 
 #: /app/lib/Service/Report/MonthNames.php:21 /app/templates/index.php:3650
 #: /app/templates/index.php:6204
@@ -4272,10 +4214,8 @@ msgstr "Nahe am Limit"
 
 #: /app/lib/Service/Report/ReportExporter.php:212
 #: /app/src/utils/budgetProgress.js:47
-#, fuzzy
-#| msgid "Budget"
 msgid "Over budget"
-msgstr "Budget"
+msgstr "Über dem Budget"
 
 #: /app/lib/Service/Report/ReportExporter.php:236
 #: /app/src/modules/assets/AssetsModule.js:551
@@ -4401,10 +4341,8 @@ msgstr "Zusammenfassung"
 
 #: /app/lib/Service/Report/ReportExporter.php:401
 #: /app/lib/Service/Report/ReportExporter.php:640
-#, fuzzy
-#| msgid "Budget"
 msgid "Budgeted"
-msgstr "Budget"
+msgstr "Budgetiert"
 
 #: /app/lib/Service/Report/ReportExporter.php:402
 #: /app/lib/Service/Report/ReportExporter.php:641
@@ -4486,8 +4424,8 @@ msgstr "Einnahmen & Ausgaben nach Jahr"
 #: /app/src/modules/transactions/TransactionsModule.js:3845
 #: /app/src/modules/transactions/TransactionsModule.js:4692
 #: /app/src/modules/transactions/transactionRow.js:122
-#: /app/src/modules/transactions/transactionRow.js:183
-#: /app/src/modules/transactions/transactionRow.js:225
+#: /app/src/modules/transactions/transactionRow.js:189
+#: /app/src/modules/transactions/transactionRow.js:231
 #: /app/templates/index.php:539 /app/templates/index.php:1464
 #: /app/templates/index.php:1628 /app/templates/quick-add.php:57
 msgid "Uncategorized"
@@ -5983,7 +5921,7 @@ msgstr "Anzeigen"
 
 #: /app/src/main.js:3345
 #: /app/src/modules/transactions/TransactionsModule.js:3661
-#: /app/src/modules/transactions/transactionRow.js:287
+#: /app/src/modules/transactions/transactionRow.js:293
 msgid "Unknown Account"
 msgstr "Unbekanntes Konto"
 
@@ -7300,15 +7238,11 @@ msgid "One-Time"
 msgstr "Einmalig"
 
 #: /app/src/modules/bills/BillsModule.js:352
-#, fuzzy
-#| msgid ""
-#| "The account linked to this bill no longer exists. Edit the bill and "
-#| "choose an account."
 msgid ""
 "This date was filled in for the bill, not entered. Edit the bill to check it."
 msgstr ""
-"Das mit dieser Rechnung verknüpfte Konto existiert nicht mehr. Bearbeite die "
-"Rechnung und wähle ein Konto aus."
+"Dieses Datum wurde für die Rechnung automatisch eingetragen und nicht "
+"manuell eingegeben. Bearbeite die Rechnung, um es zu überprüfen."
 
 #: /app/src/modules/bills/BillsModule.js:352
 #, fuzzy
@@ -7968,13 +7902,10 @@ msgstr[1] ""
 "%n Kategorien eine neue Farbe zuweisen? Die aktuellen Farben werden ersetzt."
 
 #: /app/src/modules/categories/CategoriesModule.js:1421
-#, fuzzy
-#| msgid "%n category under budget"
-#| msgid_plural "%n categories under budget"
 msgid "%n category recolored"
 msgid_plural "%n categories recolored"
-msgstr[0] "Kategorie unter dem Budget"
-msgstr[1] "Kategorien unter dem Budget"
+msgstr[0] "%n Kategorie neu eingefärbt"
+msgstr[1] "%n Kategorien neu eingefärbt"
 
 #: /app/src/modules/categories/CategoriesModule.js:1427
 #, fuzzy
@@ -8731,13 +8662,10 @@ msgid "Click to view transactions"
 msgstr "Speichern der Buchungen fehlgeschlagen"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2982
-#, fuzzy
-#| msgid "%n category under budget"
-#| msgid_plural "%n categories under budget"
 msgid "%n category hidden"
 msgid_plural "%n categories hidden"
-msgstr[0] "Kategorie unter dem Budget"
-msgstr[1] "Kategorien unter dem Budget"
+msgstr[0] "%n Kategorie ausgeblendet"
+msgstr[1] "%n Kategorien ausgeblendet"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2987
 msgid "Total Spending"
@@ -8997,10 +8925,8 @@ msgid "Show legend"
 msgstr "Ohne Kategorie anzeigen"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5393
-#, fuzzy
-#| msgid "No categories found"
 msgid "Show top-level categories only"
-msgstr "Keine Kategorien gefunden"
+msgstr "Nur übergeordnete Kategorien anzeigen"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5408
 #: /app/src/modules/dashboard/DashboardModule.js:5409
@@ -9054,10 +8980,8 @@ msgstr ""
 "Benachrichtigungen zu deaktivieren."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5510
-#, fuzzy
-#| msgid "Categories to create:"
 msgid "Categories to show"
-msgstr "Zu erstellende Kategorien:"
+msgstr "Anzuzeigende Kategorien"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5511
 msgid ""
@@ -10132,10 +10056,10 @@ msgid "First payment date"
 msgstr "Ungültige Anfragedaten"
 
 #: /app/src/modules/income/IncomeModule.js:406
-#, fuzzy
-#| msgid "Transfer marked as paid"
 msgid "The date this income is expected. It can be in the past."
-msgstr "Umbuchung wurde als bezahlt markiert"
+msgstr ""
+"Das Datum, an dem diese Einnahme erwartet wird. Es kann in der Vergangenheit "
+"liegen."
 
 #: /app/src/modules/income/IncomeModule.js:407 /app/templates/index.php:6700
 #, fuzzy
@@ -10279,10 +10203,8 @@ msgid "Open settings"
 msgstr "Einstellungen speichern"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:53
-#, fuzzy
-#| msgid "Failed to create default categories"
 msgid "Create the default categories"
-msgstr "Standardkategorien konnten nicht erstellt werden"
+msgstr "Die Standardkategorien erstellen"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:54
 msgid ""
@@ -10293,10 +10215,8 @@ msgstr ""
 "später ändern kannst."
 
 #: /app/src/modules/onboarding/OnboardingModule.js:56
-#, fuzzy
-#| msgid "Failed to create default categories"
 msgid "Create default categories"
-msgstr "Standardkategorien konnten nicht erstellt werden"
+msgstr "Standardkategorien erstellen"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:61
 #: /app/src/modules/onboarding/OnboardingModule.js:64
@@ -11556,10 +11476,8 @@ msgstr ""
 
 #: /app/src/modules/rules/components/ActionBuilder.js:100
 #: /app/src/modules/rules/components/ActionBuilder.js:136
-#, fuzzy
-#| msgid "Change"
 msgid "Change Case"
-msgstr "Ändern"
+msgstr "Groß-/Kleinschreibung ändern"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:101
 #: /app/src/modules/rules/components/ActionBuilder.js:137
@@ -13284,9 +13202,9 @@ msgid "Select account..."
 msgstr "Konto auswählen..."
 
 #: /app/src/modules/transactions/TransactionsModule.js:2002
-#: /app/src/modules/transactions/transactionRow.js:211
-#: /app/src/modules/transactions/transactionRow.js:293
-#: /app/src/modules/transactions/transactionRow.js:294
+#: /app/src/modules/transactions/transactionRow.js:217
+#: /app/src/modules/transactions/transactionRow.js:299
+#: /app/src/modules/transactions/transactionRow.js:300
 msgid "Edit transaction"
 msgstr "Buchung editieren"
 
@@ -13429,10 +13347,8 @@ msgid "Remove attachment"
 msgstr "Aktion löschen"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2799
-#, fuzzy
-#| msgid "Received"
 msgid "Receipt"
-msgstr "Empfangen"
+msgstr "Beleg"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2801
 msgid "The file no longer exists in your Files"
@@ -13571,11 +13487,6 @@ msgid ""
 "This transaction funds a pension contribution. Deleting it will unlink it "
 "from that contribution (the contribution itself is kept)."
 msgstr ""
-
-#: /app/src/modules/transactions/TransactionsModule.js:3492
-#: /app/src/modules/transactions/TransactionsModule.js:3515
-msgid "Failed to delete transaction"
-msgstr "Fehler beim Löschen der Buchung"
 
 #: /app/src/modules/transactions/TransactionsModule.js:3502
 msgid "Transaction deleted"
@@ -13901,32 +13812,32 @@ msgstr ""
 "Dient der Finanzierung eines Altersvorsorgebeitrags – wird nicht als Ausgabe "
 "berücksichtigt"
 
-#: /app/src/modules/transactions/transactionRow.js:167
+#: /app/src/modules/transactions/transactionRow.js:173
 msgid "No description"
 msgstr "Keine Beschreibung"
 
-#: /app/src/modules/transactions/transactionRow.js:204
-#: /app/src/modules/transactions/transactionRow.js:280
+#: /app/src/modules/transactions/transactionRow.js:210
+#: /app/src/modules/transactions/transactionRow.js:286
 msgid "of {total}"
 msgstr "von {total}"
 
-#: /app/src/modules/transactions/transactionRow.js:214
+#: /app/src/modules/transactions/transactionRow.js:220
 msgid "Delete transaction"
 msgstr "Buchung löschen"
 
-#: /app/src/modules/transactions/transactionRow.js:231
+#: /app/src/modules/transactions/transactionRow.js:237
 msgid "Select {description}"
 msgstr "{description} auswählen"
 
-#: /app/src/modules/transactions/transactionRow.js:278
+#: /app/src/modules/transactions/transactionRow.js:284
 msgid ""
 "This amount is set by the transaction split. Open the split to change it."
 msgstr ""
 "Dieser Betrag wird durch die Aufteilung der Transaktion festgelegt. Öffne "
 "die Aufteilung, um ihn zu ändern."
 
-#: /app/src/modules/transactions/transactionRow.js:299
-#: /app/src/modules/transactions/transactionRow.js:300
+#: /app/src/modules/transactions/transactionRow.js:305
+#: /app/src/modules/transactions/transactionRow.js:306
 #: /app/templates/index.php:1587
 msgid "More actions"
 msgstr "Mehr Aktionen"
@@ -14410,10 +14321,8 @@ msgid "Week of {date}"
 msgstr "Fällig am {date}"
 
 #: /app/src/utils/incomeStatus.js:35
-#, fuzzy
-#| msgid "Received"
 msgid "Received {date}"
-msgstr "Empfangen"
+msgstr "Erhalten am {date}"
 
 #: /app/src/utils/incomeStatus.js:39
 msgid "No date set"
@@ -14430,10 +14339,9 @@ msgid "Expected Soon"
 msgstr "In Kürze"
 
 #: /app/src/utils/incomeStatus.js:59
-#, fuzzy
-#| msgid "Paid {paidDate}, next due {dueDate}"
 msgid "Received {receivedDate}, next expected {expectedDate}"
-msgstr "Bezahlt am {paidDate}, nächste Fälligkeit am {dueDate}"
+msgstr ""
+"Erhalten am {receivedDate}, nächste erwartete Zahlung am {expectedDate}"
 
 #: /app/src/utils/loading.js:84
 msgid "Retry"
@@ -14669,7 +14577,7 @@ msgstr "Noch keine Vermögenshistorie vorhanden"
 
 #: /app/templates/index.php:976
 msgid "Year-over-Year Comparison"
-msgstr "Jahresvergleich"
+msgstr "Jahresvergleich im Vorjahresvergleich"
 
 #: /app/templates/index.php:982
 #, fuzzy
@@ -15275,10 +15183,8 @@ msgid "Previous month"
 msgstr "Zurück"
 
 #: /app/templates/index.php:2151
-#, fuzzy
-#| msgid "Due This Month"
 msgid "Budget month"
-msgstr "Diesen Monat fällig"
+msgstr "Budgetmonat"
 
 #: /app/templates/index.php:2154
 #, fuzzy
@@ -15435,10 +15341,8 @@ msgid "Match your file columns to budget fields"
 msgstr "Ordne die Spalten aus der Datei den entsprechenden Budget-Feldern zu"
 
 #: /app/templates/index.php:2371
-#, fuzzy
-#| msgid "Category Spending"
 msgid "Character Encoding"
-msgstr "Ausgaben nach Kategorien"
+msgstr "Zeichenkodierung"
 
 #: /app/templates/index.php:2375
 msgid ""
@@ -16243,10 +16147,8 @@ msgid "Today's money"
 msgstr ""
 
 #: /app/templates/index.php:3885
-#, fuzzy
-#| msgid "Monthly Contribution"
 msgid "Scheduled Contributions"
-msgstr "Monatlicher Beitrag"
+msgstr "Geplante Beiträge"
 
 #: /app/templates/index.php:3888
 msgid "Set up recurring"
@@ -17581,10 +17483,8 @@ msgid "Record"
 msgstr "Jetzt aufzeichnen"
 
 #: /app/templates/index.php:5518
-#, fuzzy
-#| msgid "Monthly Contribution"
 msgid "Scheduled Contribution"
-msgstr "Monatlicher Beitrag"
+msgstr "Geplanter Beitrag"
 
 #: /app/templates/index.php:5535
 #, fuzzy
