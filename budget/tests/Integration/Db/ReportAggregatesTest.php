@@ -178,6 +178,33 @@ class ReportAggregatesTest extends IntegrationTestCase {
 		$this->assertSame([$this->food], array_map(static fn ($r) => (int)$r['id'], $plain));
 	}
 
+	/**
+	 * The dashboard deducts excluded-category money from totals built over
+	 * the accounts in view under a tag filter; the deduction must be built
+	 * over the same rows, split parts included.
+	 */
+	public function testCategoryTotalsByAccountStayWithinTheAccountsAndTagsInView(): void {
+		$other = $this->makeAccount(['name' => 'Not on the tile'])->getId();
+		$tag = $this->makeTag($this->makeTagSet($this->food));
+		$tagged = $this->makeTransaction($this->accountId, ['category_id' => $this->hidden, 'amount' => '30.00']);
+		$this->tagTransaction($tagged, $tag);
+		$this->makeTransaction($this->accountId, ['category_id' => $this->hidden, 'amount' => '7.00']);
+		$split = $this->makeSplitTransaction($this->accountId, [[$this->hidden, '4.00'], [$this->food, '6.00']]);
+		$this->tagTransaction($split, $tag);
+		$this->makeTransaction($other, ['category_id' => $this->hidden, 'amount' => '500.00']);
+
+		$all = $this->mapper->getCategoryTotalsByAccount([$this->hidden], '2026-01-01', '2026-12-31');
+		$this->assertArrayHasKey($other, $all);
+
+		$inView = $this->mapper->getCategoryTotalsByAccount(
+			[$this->hidden], '2026-01-01', '2026-12-31', null, true, null, [$this->accountId], [$tag], false
+		);
+		$this->assertSame([$this->accountId], array_keys($inView));
+		$this->assertEqualsWithDelta(34.0, $inView[$this->accountId]['expenses'], 0.001);
+
+		$this->assertSame([], $this->mapper->getCategoryTotalsByAccount([$this->hidden], '2026-01-01', '2026-12-31', null, true, null, []));
+	}
+
 	public function testCashFlowByMonthDropsExcludedAccountsFutureScheduledRowsAndPensionLegs(): void {
 		$this->makeTransaction($this->accountId, ['amount' => '100.00', 'type' => 'credit', 'date' => '2026-02-01']);
 		$this->makeTransaction($this->accountId, ['amount' => '40.00', 'date' => '2026-02-03']);

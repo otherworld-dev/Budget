@@ -1779,11 +1779,29 @@ class TransactionMapper extends QBMapper {
 	 * -- getSplitCategoryTotalsByAccount() is the companion query that adds it
 	 * back, on the same direct/split partition as getCategorySpendingBatch.
 	 *
+	 * $accountIds and the tag filter must be the ones the totals being
+	 * deducted from were built with. Without them this summed every account
+	 * using the categories - other users' too, when a category is shared -
+	 * and untagged rows under a tag filter, so a dashboard showing a subset
+	 * of accounts lost money it never counted and could go negative.
+	 *
 	 * @param int[] $categoryIds
+	 * @param int[]|null $accountIds only these accounts (the ones in view); null = no limit
+	 * @param int[] $tagIds tag filter (OR logic), as applied to the totals
 	 * @return array<int, array{income: float, expenses: float}> accountId => totals
 	 */
-	public function getCategoryTotalsByAccount(array $categoryIds, string $startDate, string $endDate, ?int $accountId = null, bool $excludeDeductedTransfers = false, ?string $today = null): array {
-		if (empty($categoryIds)) {
+	public function getCategoryTotalsByAccount(
+		array $categoryIds,
+		string $startDate,
+		string $endDate,
+		?int $accountId = null,
+		bool $excludeDeductedTransfers = false,
+		?string $today = null,
+		?array $accountIds = null,
+		array $tagIds = [],
+		bool $includeUntagged = true,
+	): array {
+		if (empty($categoryIds) || ($accountIds !== null && empty($accountIds))) {
 			return [];
 		}
 
@@ -1815,6 +1833,7 @@ class TransactionMapper extends QBMapper {
 			$qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
 		}
 
+		$this->scopeDeductionToTotals($qb, $accountIds, $tagIds, $includeUntagged);
 		ReportScope::excludeScheduledFuture($qb, 't', $today);
 
 		// Leave the transactions the companion query speaks for to it -- the
@@ -1836,7 +1855,8 @@ class TransactionMapper extends QBMapper {
 		}
 
 		foreach ($this->getSplitCategoryTotalsByAccount(
-			$categoryIds, $startDate, $endDate, $accountId, $excludeDeductedTransfers, $today
+			$categoryIds, $startDate, $endDate, $accountId, $excludeDeductedTransfers, $today,
+			$accountIds, $tagIds, $includeUntagged
 		) as $splitAccountId => $splitTotals) {
 			if (!isset($totals[$splitAccountId])) {
 				$totals[$splitAccountId] = ['income' => 0.0, 'expenses' => 0.0];
@@ -1872,6 +1892,9 @@ class TransactionMapper extends QBMapper {
 		?int $accountId,
 		bool $excludeDeductedTransfers,
 		?string $today = null,
+		?array $accountIds = null,
+		array $tagIds = [],
+		bool $includeUntagged = true,
 	): array {
 		$qb = $this->db->getQueryBuilder();
 
@@ -1902,6 +1925,7 @@ class TransactionMapper extends QBMapper {
 			$qb->andWhere($qb->expr()->isNull('t.linked_transaction_id'));
 		}
 
+		$this->scopeDeductionToTotals($qb, $accountIds, $tagIds, $includeUntagged);
 		ReportScope::excludeScheduledFuture($qb, 't', $today);
 
 		$qb->groupBy('t.account_id');
@@ -1919,6 +1943,20 @@ class TransactionMapper extends QBMapper {
 		}
 
 		return $totals;
+	}
+
+	/**
+	 * Limit an excluded-category deduction to the accounts and tags the totals
+	 * it comes off were built from (see getCategoryTotalsByAccount()).
+	 *
+	 * @param int[]|null $accountIds
+	 * @param int[] $tagIds
+	 */
+	private function scopeDeductionToTotals(IQueryBuilder $qb, ?array $accountIds, array $tagIds, bool $includeUntagged): void {
+		if ($accountIds !== null) {
+			$qb->andWhere($qb->expr()->in('t.account_id', $qb->createNamedParameter(array_values(array_map('intval', $accountIds)), IQueryBuilder::PARAM_INT_ARRAY)));
+		}
+		ReportScope::applyTagFilter($qb, $tagIds, $includeUntagged);
 	}
 
 	/**

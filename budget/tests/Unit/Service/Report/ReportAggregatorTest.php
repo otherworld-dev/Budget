@@ -377,6 +377,42 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertEqualsWithDelta(300.00, $result['totals']['totalExpenses'], 0.01);
 	}
 
+	/**
+	 * A tile showing a subset of accounts, or filtered by tag, built its
+	 * totals from those alone but had excluded-category money deducted from
+	 * every account (another user's too, through a shared category), so the
+	 * totals lost money they never counted and could go negative.
+	 */
+	public function testExcludedCategoryDeductionOnlyTouchesAccountsInView(): void {
+		$this->accountMapper->method('findByIds')->with([1])->willReturn([
+			$this->makeAccount(1, 'Checking', 'checking', 1000.00, 'GBP'),
+		]);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([
+			1 => ['income' => 100, 'expenses' => 80, 'count' => 5],
+		]);
+		$this->transactionMapper->method('getTransferTotals')->willReturn(['income' => 0, 'expenses' => 0]);
+		$this->setupDefaultMocks();
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->conversionService->method('needsConversion')->willReturn(false);
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(7, 'Internal', 'expense', null, true),
+		]);
+
+		$this->transactionMapper->expects($this->once())
+			->method('getCategoryTotalsByAccount')
+			->with([7], '2026-01-01', '2026-01-31', null, true, $this->anything(), [1], [4], false)
+			// Account 2 is not on the tile: its row must be ignored even if returned
+			->willReturn([
+				1 => ['income' => 0, 'expenses' => 30],
+				2 => ['income' => 0, 'expenses' => 500],
+			]);
+
+		$result = $this->aggregator->generateSummary('user1', null, '2026-01-01', '2026-01-31', [4], false, [1]);
+
+		$this->assertEqualsWithDelta(100.00, $result['totals']['totalIncome'], 0.01);
+		$this->assertEqualsWithDelta(50.00, $result['totals']['totalExpenses'], 0.01);
+	}
+
 	public function testExcludedCategoryDeductionScopedToSelectedAccount(): void {
 		$account = $this->makeAccount(1, 'Checking', 'checking', 1000.00, 'EUR');
 

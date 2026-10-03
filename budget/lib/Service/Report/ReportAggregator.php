@@ -274,17 +274,29 @@ class ReportAggregator {
 		// account so each account's amounts get the same currency conversion as
 		// the income/expense totals they are deducted from, and so a selected
 		// account only has its own excluded transactions deducted (#326).
+		//
+		// Only the accounts in view, under the same tag filter: the totals were
+		// summed over exactly those, so deducting anything else (an account
+		// left off a tile, another user's account using a shared category,
+		// an untagged row) took off money that was never added.
 		if (!empty($excludedCategoryIds)) {
 			$excludedIds = array_keys($excludedCategoryIds);
+			$accountsInView = array_map(static fn ($a) => (int)$a->getId(), $accounts);
 			$excludedByAccount = $this->transactionMapper->getCategoryTotalsByAccount(
 				$excludedIds,
 				$startDate,
 				$endDate,
 				$accountId,
 				$accountId === null,
-				$today
+				$today,
+				$accountsInView,
+				$tagIds,
+				$includeUntagged
 			);
 			foreach ($excludedByAccount as $accId => $excluded) {
+				if (!in_array((int)$accId, $accountsInView, true)) {
+					continue;
+				}
 				$excludedIncome = $excluded['income'];
 				$excludedExpenses = $excluded['expenses'];
 				if ($needsConversion) {
