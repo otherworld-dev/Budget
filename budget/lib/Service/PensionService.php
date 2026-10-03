@@ -28,6 +28,13 @@ class PensionService {
 	 */
 	private const SAME_PAYMENT_DAYS = 5;
 
+	/**
+	 * The same, for an imported row that doesn't name the pension or its
+	 * provider: only a bank's usual posting delay over a weekend or bank
+	 * holiday, see adoptImportedDuplicates()
+	 */
+	private const UNNAMED_PAYMENT_DAYS = 3;
+
 	private PensionAccountMapper $pensionMapper;
 	private PensionSnapshotMapper $snapshotMapper;
 	private PensionContributionMapper $contributionMapper;
@@ -588,6 +595,15 @@ class PensionService {
 	 * created. The entry keeps its date and amount; only its leg changes, so
 	 * the money is counted once and a re-import recognises it.
 	 *
+	 * Adopting a row turns it into the pension's leg, so the test is strict:
+	 * an import can bring years of another app's history, where some
+	 * unrelated payment of the same amount is bound to sit near a pension
+	 * date. A row naming the pension or its provider may be up to
+	 * SAME_PAYMENT_DAYS away. One that doesn't must also be uncategorised
+	 * (nothing has said what it is) and within UNNAMED_PAYMENT_DAYS. Leaving
+	 * a real duplicate alone costs a row the user can delete; adopting the
+	 * wrong one relabels a real payment and deletes the app's leg.
+	 *
 	 * @param Transaction[] $transactions freshly imported rows
 	 * @return int legs replaced
 	 */
@@ -634,7 +650,13 @@ class PensionService {
 						|| ($fresh->getBillId() !== null && $fresh->getBillId() !== 0)) {
 						continue;
 					}
-					$candidates[] = ['id' => $fresh->getId(), 'date' => (string)$fresh->getDate(), 'description' => $fresh->getDescription(), 'vendor' => $fresh->getVendor()];
+					$candidate = ['id' => $fresh->getId(), 'date' => (string)$fresh->getDate(), 'description' => $fresh->getDescription(), 'vendor' => $fresh->getVendor()];
+					if (!$this->namesPension($pension, $candidate)
+						&& ($fresh->getCategoryId() !== null || $fresh->getIsSplit() === true
+							|| abs($this->daysBetween($candidate['date'], $leg['date'])) > self::UNNAMED_PAYMENT_DAYS)) {
+						continue;
+					}
+					$candidates[] = $candidate;
 				}
 				$pick = $this->pickSamePayment($candidates, $pension, $leg['date']);
 				if ($pick === null) {
