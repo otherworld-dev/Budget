@@ -1201,6 +1201,10 @@ class TransactionMapper extends QBMapper {
 	 *                          activity is opposite-direction appears with a
 	 *                          negative total, and 'count' counts BOTH
 	 *                          directions, not just the primary one.
+	 * @param bool $includeUncategorized When true, money with no category (a
+	 *                          split part with none included) comes back as one
+	 *                          more row with a null id, flagged 'uncategorized',
+	 *                          so a report's category rows add up to its total.
 	 */
 	public function getSpendingSummary(
 		string $userId,
@@ -1213,6 +1217,7 @@ class TransactionMapper extends QBMapper {
 		?array $visibleAccountIds = null,
 		string $transactionType = 'debit',
 		bool $netOpposite = false,
+		bool $includeUncategorized = false,
 	): array {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('c.id', 'c.name', 'c.color', 'c.icon');
@@ -1225,8 +1230,14 @@ class TransactionMapper extends QBMapper {
 		}
 		$qb->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
 			->from($this->getTableName(), 't')
-			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-			->innerJoin('t', 'budget_categories', 'c', $qb->expr()->eq('t.category_id', 'c.id'));
+			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
+		// A LEFT join keeps money with no category (c.id NULL); the exclusion
+		// below never drops it, since a missing category is never excluded
+		if ($includeUncategorized) {
+			$qb->leftJoin('t', 'budget_categories', 'c', $qb->expr()->eq('t.category_id', 'c.id'));
+		} else {
+			$qb->innerJoin('t', 'budget_categories', 'c', $qb->expr()->eq('t.category_id', 'c.id'));
+		}
 
 		ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
 
@@ -1271,7 +1282,7 @@ class TransactionMapper extends QBMapper {
 		$splitSummary = $this->getSplitSpendingSummary(
 			$userId, $startDate, $endDate, $accountId, $tagIds,
 			$includeUntagged, $excludeTransfers, $visibleAccountIds, $transactionType,
-			$netOpposite
+			$netOpposite, $includeUncategorized
 		);
 
 		return $this->mergeSpendingSummaries($summary, $splitSummary);
@@ -1293,6 +1304,7 @@ class TransactionMapper extends QBMapper {
 		?array $visibleAccountIds,
 		string $transactionType,
 		bool $netOpposite = false,
+		bool $includeUncategorized = false,
 	): array {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('c.id', 'c.name', 'c.color', 'c.icon');
@@ -1307,8 +1319,12 @@ class TransactionMapper extends QBMapper {
 		$qb->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
 			->from($this->getTableName(), 't')
 			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-			->innerJoin('t', 'budget_tx_splits', 's', $qb->expr()->eq('s.transaction_id', 't.id'))
-			->innerJoin('s', 'budget_categories', 'c', $qb->expr()->eq('s.category_id', 'c.id'));
+			->innerJoin('t', 'budget_tx_splits', 's', $qb->expr()->eq('s.transaction_id', 't.id'));
+		if ($includeUncategorized) {
+			$qb->leftJoin('s', 'budget_categories', 'c', $qb->expr()->eq('s.category_id', 'c.id'));
+		} else {
+			$qb->innerJoin('s', 'budget_categories', 'c', $qb->expr()->eq('s.category_id', 'c.id'));
+		}
 
 		ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, $accountId !== null);
 
@@ -1348,15 +1364,16 @@ class TransactionMapper extends QBMapper {
 	 */
 	private function mergeSpendingSummaries(array $direct, array $split): array {
 		if (empty($split)) {
-			return $direct;
+			return array_map(self::flagUncategorized(...), $direct);
 		}
 
+		// Uncategorised money (null id) keys as 0; category ids start at 1
 		$byId = [];
 		foreach ($direct as $row) {
-			$byId[(int)$row['id']] = $row;
+			$byId[(int)($row['id'] ?? 0)] = $row;
 		}
 		foreach ($split as $row) {
-			$id = (int)$row['id'];
+			$id = (int)($row['id'] ?? 0);
 			if (isset($byId[$id])) {
 				$byId[$id]['total'] = (float)$byId[$id]['total'] + (float)$row['total'];
 				$byId[$id]['count'] = (int)$byId[$id]['count'] + (int)$row['count'];
@@ -1365,10 +1382,23 @@ class TransactionMapper extends QBMapper {
 			}
 		}
 
-		$merged = array_values($byId);
+		$merged = array_map(self::flagUncategorized(...), array_values($byId));
 		usort($merged, fn ($a, $b) => (float)$b['total'] <=> (float)$a['total']);
 
 		return $merged;
+	}
+
+	/**
+	 * Mark the row getSpendingSummary(includeUncategorized: true) keeps for
+	 * money with no category. The label is the renderer's to translate.
+	 */
+	private static function flagUncategorized(array $row): array {
+		if (($row['id'] ?? null) === null) {
+			$row['id'] = null;
+			$row['name'] = null;
+			$row['uncategorized'] = true;
+		}
+		return $row;
 	}
 
 	/**

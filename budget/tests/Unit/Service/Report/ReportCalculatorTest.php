@@ -187,6 +187,10 @@ class ReportCalculatorTest extends TestCase {
 		// excludeTransfers is the 7th argument
 		$this->assertTrue($calls[0][6]);
 		$this->assertFalse($calls[1][6]);
+		// and money with no category is kept as its own row (11th), so the
+		// rows add up to the period's total
+		$this->assertTrue($calls[0][10]);
+		$this->assertTrue($calls[1][10]);
 	}
 
 	/**
@@ -198,7 +202,7 @@ class ReportCalculatorTest extends TestCase {
 		$this->reportQueries->expects($this->never())->method('getIncomeBySource');
 		$this->transactionMapper->expects($this->once())
 			->method('getSpendingSummary')
-			->with('user1', '2024-01-01', '2024-03-31', null, [], true, true, [1, 2], 'credit')
+			->with('user1', '2024-01-01', '2024-03-31', null, [], true, true, [1, 2], 'credit', false, true)
 			->willReturn($expected);
 
 		$this->assertSame($expected, $this->calculator->getIncomeByCategory('user1', null, '2024-01-01', '2024-03-31', [1, 2]));

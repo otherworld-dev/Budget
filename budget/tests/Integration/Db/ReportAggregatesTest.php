@@ -151,6 +151,33 @@ class ReportAggregatesTest extends IntegrationTestCase {
 		$this->assertSame(2, (int)$byCategory[$this->food]['count']);
 	}
 
+	/**
+	 * The Income & Expenses report reads this with includeUncategorized: salary
+	 * not filed yet, and a split part with no category, must land in one
+	 * null-id row so the report's total matches Cash Flow.
+	 */
+	public function testSpendingSummaryCanKeepUncategorisedMoneyAsOneRow(): void {
+		$this->makeTransaction($this->accountId, ['category_id' => $this->food, 'amount' => '10.00', 'type' => 'credit']);
+		$this->makeTransaction($this->accountId, ['amount' => '2000.00', 'type' => 'credit']);
+		$this->makeSplitTransaction($this->accountId, [[$this->food, '7.00'], [null, '3.00']], ['type' => 'credit']);
+		$this->makeTransaction($this->accountId, ['category_id' => $this->hidden, 'amount' => '99.00', 'type' => 'credit']);
+
+		$rows = $this->mapper->getSpendingSummary($this->userId, '2026-01-01', '2026-12-31', transactionType: 'credit', includeUncategorized: true);
+
+		$byKey = [];
+		foreach ($rows as $row) {
+			$byKey[$row['id'] === null ? 'none' : (int)$row['id']] = $row;
+		}
+		$this->assertEqualsWithDelta(17.0, (float)$byKey[$this->food]['total'], 0.001);
+		$this->assertTrue($byKey['none']['uncategorized']);
+		$this->assertEqualsWithDelta(2003.0, (float)$byKey['none']['total'], 0.001);
+		$this->assertArrayNotHasKey($this->hidden, $byKey);
+
+		// Without the flag the category grouping stays as it was
+		$plain = $this->mapper->getSpendingSummary($this->userId, '2026-01-01', '2026-12-31', transactionType: 'credit');
+		$this->assertSame([$this->food], array_map(static fn ($r) => (int)$r['id'], $plain));
+	}
+
 	public function testCashFlowByMonthDropsExcludedAccountsFutureScheduledRowsAndPensionLegs(): void {
 		$this->makeTransaction($this->accountId, ['amount' => '100.00', 'type' => 'credit', 'date' => '2026-02-01']);
 		$this->makeTransaction($this->accountId, ['amount' => '40.00', 'date' => '2026-02-03']);
