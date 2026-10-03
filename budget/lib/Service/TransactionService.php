@@ -1060,18 +1060,28 @@ class TransactionService {
 			return;
 		}
 
-		$running = 0.0;
+		// BCMath throughout (#274): each part is worked out at 10 places and
+		// rounded half away from zero, as round() did, then the last part
+		// takes the new total less the others, so the sum is exact.
+		$scale = 10;
+		// bcadd truncates toward zero, so nudging by half a penny away from
+		// zero first rounds to the nearest penny
+		$toPenny = static fn (string $exact): string => MoneyCalculator::add(
+			$exact,
+			MoneyCalculator::compare($exact, '0', $scale) < 0 ? '-0.005' : '0.005'
+		);
+		$proportional = MoneyCalculator::compare($oldAmount, '0', $scale) > 0;
+		$running = '0';
 		foreach (array_values($splits) as $i => $split) {
 			if ($i === $count - 1) {
-				$amount = round($newAmount - $running, 2);
+				$amount = $toPenny(MoneyCalculator::subtract($newAmount, $running, $scale));
 			} else {
-				$share = $oldAmount > 0
-					? ((float)$split->getAmount() / $oldAmount)
-					: (1.0 / $count);
-				$amount = round($newAmount * $share, 2);
-				$running += $amount;
+				$amount = $toPenny($proportional
+					? MoneyCalculator::divide(MoneyCalculator::multiply($newAmount, $split->getAmount(), $scale), $oldAmount, $scale)
+					: MoneyCalculator::divide($newAmount, (string)$count, $scale));
+				$running = MoneyCalculator::add($running, $amount);
 			}
-			$split->setAmount((string)$amount);
+			$split->setAmount($amount);
 			$this->splitMapper->update($split);
 		}
 	}
