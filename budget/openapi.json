@@ -1079,14 +1079,48 @@
             }
           },
           "400": {
-            "description": "The parts do not sum to the transaction amount, there are fewer than two, `splits` is not a usable array, or a part's `category_id` is not a category the account owner can use (\"Category not found\"). The message states which.",
+            "description": "The parts do not sum to the transaction amount, there are fewer than two, `splits` is not a usable array, or a part's `category_id` is not a category the account owner can use (\"Category not found\"). ocs.data.error states which. The same text is also sent as ocs.data.message, which older clients read.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "allOf": [
+                                {
+                                  "$ref": "#/components/schemas/Error"
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "message": {
+                                      "type": "string",
+                                      "description": "The same text as error. Kept for clients written before error was sent; read error.",
+                                      "deprecated": true
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
+          },
+          "403": {
+            "$ref": "#/components/responses/ReadOnly"
           },
           "404": {
             "description": "No such transaction for this user",

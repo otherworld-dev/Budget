@@ -628,10 +628,7 @@ class ApiV1TransactionController extends OCSController {
 	public function createSplits(int $id): DataResponse {
 		$splits = $this->readSplitsParam();
 		if ($splits === null) {
-			return new DataResponse(
-				['message' => $this->l->t('splits must be an array of {"amount", "category_id", "description"} objects')],
-				Http::STATUS_BAD_REQUEST
-			);
+			return $this->splitsRefused($this->l->t('splits must be an array of {"amount", "category_id", "description"} objects'));
 		}
 
 		try {
@@ -647,10 +644,19 @@ class ApiV1TransactionController extends OCSController {
 		} catch (\InvalidArgumentException $e) {
 			// "must equal transaction amount", "at least 2 parts" — the
 			// client's arithmetic, so the reason is safe and useful to return.
-			return new DataResponse(['message' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+			return $this->splitsRefused($e->getMessage());
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to split the transaction'));
 		}
+	}
+
+	/**
+	 * A 400 from createSplits. `error` is the documented envelope every
+	 * other endpoint uses; `message` is what this one sent before, kept so
+	 * clients written against it still read the reason.
+	 */
+	private function splitsRefused(string $reason): DataResponse {
+		return new DataResponse(['error' => $reason, 'message' => $reason], Http::STATUS_BAD_REQUEST);
 	}
 
 	/**

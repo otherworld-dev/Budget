@@ -981,9 +981,12 @@ class ApiV1TransactionControllerTest extends TestCase {
 			->willThrowException(new \InvalidArgumentException('Split amounts (3.00) must equal transaction amount (23.77)'));
 
 		$response = $this->controller->createSplits(5);
+		$data = $response->getData();
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
-		$this->assertStringContainsString('must equal transaction amount', $response->getData()['message']);
+		// `error` is the documented envelope; `message` stays for older clients
+		$this->assertStringContainsString('must equal transaction amount', $data['error']);
+		$this->assertSame($data['error'], $data['message']);
 	}
 
 	public function testMissingOrUnusableSplitsIsABadRequest(): void {
@@ -992,11 +995,14 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 		foreach (['', 'not json', json_encode([]), json_encode(['nope']), json_encode([['category_id' => 3]])] as $payload) {
 			$this->params = $this->captureParams($payload === '' ? [] : ['splits' => $payload]);
+			$response = $this->controller->createSplits(5);
 			$this->assertSame(
 				Http::STATUS_BAD_REQUEST,
-				$this->controller->createSplits(5)->getStatus(),
+				$response->getStatus(),
 				'payload: ' . var_export($payload, true)
 			);
+			$this->assertArrayHasKey('error', $response->getData());
+			$this->assertArrayHasKey('message', $response->getData());
 		}
 	}
 
