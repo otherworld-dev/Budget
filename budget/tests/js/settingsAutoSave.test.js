@@ -268,4 +268,19 @@ describe('admin settings', () => {
         expect(globalThis.fetch.mock.calls[0][0]).toContain('/apps/budget/api/admin/settings');
         expect(document.getElementById('admin-settings-section').style.display).toBe('block');
     });
+
+    it('point the receipt scanning docs link at the published page', async () => {
+        globalThis.OC.isUserAdmin = () => true;
+        document.body.insertAdjacentHTML('beforeend', `
+            <select id="setting-ocr-provider"><option value="none">None</option></select>
+            <input id="setting-ocr-endpoint"><input id="setting-ocr-model"><input id="setting-ocr-api-key">
+            <button id="setting-ocr-clear-key"></button><button id="setting-ocr-save"></button>
+            <a id="setting-ocr-docs-link"></a>`);
+        globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ocr: {} }) });
+
+        await makeModule().loadAdminSettings();
+
+        expect(document.getElementById('setting-ocr-docs-link').getAttribute('href'))
+            .toBe('https://budget.otherworld.dev/docs/receipt-scanning.html');
+    });
 });

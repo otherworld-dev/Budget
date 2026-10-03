@@ -4908,7 +4908,7 @@ style('budget', 'budget-app');
                                 <div>
                                     <strong><?php p($l->t('What gets sent')); ?></strong>
                                     <p id="setting-ocr-privacy-text"></p>
-                                    <a href="https://budget.otherworld.dev/docs/receipt-scanning.html" target="_blank" rel="noopener"><?php p($l->t('Receipt scanning documentation')); ?> &rarr;</a>
+                                    <a id="setting-ocr-docs-link" target="_blank" rel="noopener"><?php p($l->t('Receipt scanning documentation')); ?> &rarr;</a>
                                 </div>
                             </div>
                         </div>

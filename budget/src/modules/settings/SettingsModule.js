@@ -7,6 +7,7 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { initDatePickers } from '../../utils/datepicker.js';
 import { apiFetch } from '../../utils/api.js';
 import { refreshBankSyncNav } from '../bank-sync/bankSyncStatus.js';
+import { helpDocUrl } from '../help/HelpModule.js';
 
 export default class SettingsModule {
     constructor(app) {
@@ -99,6 +100,10 @@ export default class SettingsModule {
         const model = document.getElementById('setting-ocr-model');
         const apiKey = document.getElementById('setting-ocr-api-key');
         const clearKey = document.getElementById('setting-ocr-clear-key');
+
+        // Docs URLs come only from HelpModule, never the template.
+        const docsLink = document.getElementById('setting-ocr-docs-link');
+        if (docsLink) docsLink.href = helpDocUrl('receipt-scanning');
 
         provider.value = ocr.provider || 'none';
         endpoint.value = ocr.endpoint || '';
