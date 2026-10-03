@@ -98,8 +98,16 @@ describe('renderTransactionRow', () => {
     it('a scheduled row marks its balance as projected in both lists', () => {
         for (const variant of ['ledger', 'register']) {
             const tr = row({ ...base, status: 'scheduled' }, variant, { balance: 10 });
-            expect(tr.querySelector('.transaction-balance').className).toContain('projected');
+            const balance = tr.querySelector('.transaction-balance');
+            expect(balance.className).toContain('projected');
+            expect(balance.title).toBe('Projected balance');
             expect(tr.querySelector('.scheduled-badge')).not.toBeNull();
         }
+    });
+
+    it('a real row\'s balance is not labelled projected', () => {
+        const balance = row(base, 'register', { balance: 10 }).querySelector('.transaction-balance');
+        expect(balance.className).not.toContain('projected');
+        expect(balance.hasAttribute('title')).toBe(false);
     });
 });

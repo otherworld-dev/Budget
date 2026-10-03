@@ -5594,9 +5594,19 @@ button.danger:hover {
     color: var(--budget-color-negative);
 }
 
+/* A scheduled row's balance is a forecast (#414): smaller and grey so it
+   doesn't read as money already there, but red when it would go below zero,
+   which is the thing worth seeing coming. Never under 11px, as a phone
+   card's balance is already 12px. */
 .transaction-balance.projected {
-    opacity: 0.5;
+    color: var(--color-text-maxcontrast);
+    font-size: max(0.85em, 11px);
+    font-weight: normal;
     font-style: italic;
+}
+
+.transaction-balance.projected.negative {
+    color: var(--budget-color-negative);
 }
 
 .balance-amount.projected {
@@ -12528,13 +12538,19 @@ button.danger:hover {
     animation: highlight-flash 2s ease-out;
 }
 
-/* Scheduled transaction styling */
-.scheduled-transaction {
-    opacity: 0.65;
+/* Scheduled rows, in an account's register and the main transactions table.
+   The fade goes on the cells, not the row: a cell can't undo its row's
+   opacity, and the balance cell carries the projected balance (#414), which
+   has its own muted style and was unreadable faded twice. */
+tr.scheduled-transaction {
     font-style: italic;
 }
 
-.scheduled-transaction:hover {
+tr.scheduled-transaction > td:not(.balance-column) {
+    opacity: 0.65;
+}
+
+tr.scheduled-transaction:hover > td:not(.balance-column) {
     opacity: 0.85;
 }
 
@@ -12552,16 +12568,6 @@ button.danger:hover {
     letter-spacing: 0.5px;
     font-style: normal;
     margin-left: 6px;
-}
-
-/* Also style scheduled rows in the main transactions table (non-account view) */
-tr.scheduled-transaction {
-    opacity: 0.65;
-    font-style: italic;
-}
-
-tr.scheduled-transaction:hover {
-    opacity: 0.85;
 }
 
 /* Pending bank-sync holds: distinct (blue) badge. Unlike scheduled, pending

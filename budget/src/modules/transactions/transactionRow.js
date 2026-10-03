@@ -128,9 +128,15 @@ function splitCategoryParts(tx, currency, formatCurrency) {
     };
 }
 
+/**
+ * A scheduled row's balance is where the balance will be once it and the
+ * scheduled rows before it go through, so it is marked as projected (#414).
+ */
 function balanceCell(balance, projected, formatCurrency, currency) {
+    const classes = `transaction-balance ${balance >= 0 ? 'positive' : 'negative'}${projected ? ' projected' : ''}`;
+    const title = projected ? ` title="${t('budget', 'Projected balance')}"` : '';
     const content = balance !== undefined && balance !== null
-        ? `<span class="transaction-balance ${balance >= 0 ? 'positive' : 'negative'}${projected ? ' projected' : ''}">${formatCurrency(balance, currency)}</span>`
+        ? `<span class="${classes}"${title}>${formatCurrency(balance, currency)}</span>`
         : '';
     return `<td class="balance-column">${content}</td>`;
 }
