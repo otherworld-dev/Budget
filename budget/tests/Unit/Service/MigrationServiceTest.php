@@ -773,6 +773,12 @@ class MigrationServiceTest extends TestCase {
 				$this->assertArrayHasKey($fkSpec['map'], $produced,
 					"post-phase $key.$col references map '{$fkSpec['map']}' not yet produced");
 			}
+			foreach ($spec['jsonKeyFk'] ?? [] as $col => $keys) {
+				foreach ($keys as $ref => $fkSpec) {
+					$this->assertArrayHasKey($fkSpec['map'], $produced,
+						"post-phase $key.$col.$ref references map '{$fkSpec['map']}' not yet produced");
+				}
+			}
 			foreach ($spec['snapshotRefs'] ?? [] as $col => $refs) {
 				foreach ($refs as $ref => $map) {
 					$this->assertArrayHasKey($map, $produced,
@@ -1084,5 +1090,103 @@ class MigrationServiceTest extends TestCase {
 		$targets = MigrationService::bankMappingTargets($mappings, $archived, [7 => 70, 8 => 80]);
 
 		$this->assertSame([1 => 70, 2 => null, 3 => null], $targets);
+	}
+
+	/**
+	 * Import rules lost their group, kept tag ids that no longer existed (a
+	 * matching import row then failed after it was saved), and kept the old
+	 * account id in conditions on the account, so they never matched again.
+	 */
+	public function testImportRulesComeBackWithTheirGroupAndRestoredIds(): void {
+		$inserted = [];
+		$this->importRuleMapper->method('insert')->willReturnCallback(function (\OCA\Budget\Db\ImportRule $r) use (&$inserted) {
+			$r->setId(100 + count($inserted));
+			$inserted[] = $r;
+			return $r;
+		});
+		$idMaps = ['categories' => [3 => 30], 'accounts' => [1 => 10, 2 => 20], 'tags' => [7 => 70, 8 => 80]];
+		$rule = [
+			'id' => 5, 'name' => 'Coffee', 'pattern' => '', 'field' => 'description', 'matchType' => 'contains',
+			'schemaVersion' => 2, 'groupName' => 'Eating out', 'categoryId' => 3,
+			'actions' => ['version' => 2, 'actions' => [
+				['type' => 'set_category', 'value' => 3],
+				['type' => 'set_account', 'value' => 2],
+				['type' => 'add_tags', 'value' => [7, 8, 999], 'behavior' => 'merge'],
+				['type' => 'add_tags', 'value' => [999]],
+				['type' => 'set_category', 'value' => 999],
+				['type' => 'set_vendor', 'value' => 'Cafe'],
+			]],
+			'criteria' => ['version' => 2, 'root' => ['operator' => 'AND', 'conditions' => [
+				['type' => 'condition', 'field' => 'description', 'matchType' => 'contains', 'pattern' => '1'],
+				['type' => 'condition', 'field' => 'account', 'matchType' => 'equals', 'pattern' => '1'],
+				['operator' => 'OR', 'conditions' => [
+					['type' => 'condition', 'field' => 'account', 'matchType' => 'equals', 'pattern' => 2, 'negate' => true],
+					['type' => 'condition', 'field' => 'account', 'matchType' => 'equals', 'pattern' => '999'],
+				]],
+			]]],
+		];
+
+		$method = new \ReflectionMethod($this->service, 'importImportRules');
+		$method->invoke($this->service, 'user1', [$rule], $idMaps);
+
+		$restored = $inserted[0];
+		$this->assertSame('Eating out', $restored->getGroupName());
+		$this->assertSame(30, $restored->getCategoryId());
+		$this->assertSame([
+			['type' => 'set_category', 'value' => 30],
+			['type' => 'set_account', 'value' => 20],
+			['type' => 'add_tags', 'value' => [70, 80], 'behavior' => 'merge'],
+			['type' => 'set_vendor', 'value' => 'Cafe'],
+		], $restored->getParsedActions()['actions'], 'Targets that did not come back are left out');
+
+		$conditions = $restored->getParsedCriteria()['root']['conditions'];
+		$this->assertSame('1', $conditions[0]['pattern'], 'Only account conditions are ids');
+		$this->assertSame('10', $conditions[1]['pattern']);
+		$this->assertSame(20, $conditions[2]['conditions'][0]['pattern']);
+		$this->assertTrue($conditions[2]['conditions'][0]['negate']);
+		$this->assertSame('0', $conditions[2]['conditions'][1]['pattern'], 'An account the backup does not hold matches nothing');
+	}
+
+	public function testLegacyFlatRuleActionsAreRemappedToo(): void {
+		$inserted = [];
+		$this->importRuleMapper->method('insert')->willReturnCallback(function (\OCA\Budget\Db\ImportRule $r) use (&$inserted) {
+			$r->setId(100 + count($inserted));
+			$inserted[] = $r;
+			return $r;
+		});
+		$method = new \ReflectionMethod($this->service, 'importImportRules');
+		$method->invoke($this->service, 'user1', [
+			['id' => 1, 'name' => 'A', 'actions' => ['categoryId' => 3, 'vendor' => 'X']],
+			['id' => 2, 'name' => 'B', 'categoryId' => 999, 'actions' => ['categoryId' => 999, 'vendor' => 'Y']],
+		], ['categories' => [3 => 30], 'accounts' => []]);
+
+		$this->assertSame(['categoryId' => 30, 'vendor' => 'X'], $inserted[0]->getParsedActions());
+		$this->assertNull($inserted[1]->getCategoryId());
+		$this->assertSame(['vendor' => 'Y'], $inserted[1]->getParsedActions());
+		$this->assertNull($inserted[1]->getGroupName());
+	}
+
+	/**
+	 * A saved report's account and tag filters name ids, which a restore
+	 * changes; copied as they were the report filtered on nothing (or on
+	 * someone else's account on another server).
+	 */
+	public function testSavedReportFiltersFollowTheRestoredIds(): void {
+		$method = new \ReflectionMethod($this->service, 'remapRow');
+		$spec = MigrationService::EXTRA_TABLES_POST['saved_reports'];
+		$config = ['reportType' => 'summary', 'accountIds' => [1, 2, 999], 'tagIds' => [7, 999], 'includeUntagged' => true];
+
+		$row = $method->invoke($this->service, ['id' => 3, 'name' => 'Monthly', 'config' => json_encode($config)], $spec,
+			['accounts' => [1 => 10, 2 => 20], 'tags' => [7 => 70]]);
+
+		$restored = json_decode($row['config'], true);
+		$this->assertSame([10, 20], $restored['accountIds']);
+		$this->assertSame([70], $restored['tagIds']);
+		$this->assertSame('summary', $restored['reportType']);
+		$this->assertTrue($restored['includeUntagged']);
+
+		// An older config without the keys, or one that isn't JSON, is left alone
+		$row = $method->invoke($this->service, ['id' => 3, 'config' => '{"type":"summary"}'], $spec, ['accounts' => [], 'tags' => []]);
+		$this->assertSame(['type' => 'summary'], json_decode($row['config'], true));
 	}
 }

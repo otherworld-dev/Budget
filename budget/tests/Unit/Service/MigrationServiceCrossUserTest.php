@@ -322,4 +322,52 @@ class MigrationServiceCrossUserTest extends TestCase {
 		unlink($path);
 		return $content;
 	}
+
+	/**
+	 * Bob's rule files into Alice's Food category and posts into the joint
+	 * account, both still shared with him: restoring his backup keeps them.
+	 * A rule he never had here keeps nothing of Alice's.
+	 */
+	public function testARecipientsRuleKeepsWhatIsStillSharedWithThem(): void {
+		$this->links->tables['budget_import_rules'] = [
+			7 => ['user_id' => 'bob', 'name' => 'Lunch', 'created_at' => self::CREATED],
+		];
+		$this->bobRestores();
+		$inserted = [];
+		$this->importRuleMapper->method('insert')->willReturnCallback(function (ImportRule $r) use (&$inserted) {
+			$r->setId(70 + count($inserted));
+			$inserted[] = $r;
+			return $r;
+		});
+		$rule = fn (int $id, string $name) => [
+			'id' => $id, 'name' => $name, 'createdAt' => self::CREATED, 'schemaVersion' => 2,
+			'actions' => ['version' => 2, 'actions' => [
+				['type' => 'set_category', 'value' => 20],
+				['type' => 'set_account', 'value' => 10],
+			]],
+			'criteria' => ['version' => 2, 'root' => ['operator' => 'AND', 'conditions' => [
+				['type' => 'condition', 'field' => 'account', 'matchType' => 'equals', 'pattern' => '10'],
+			]]],
+		];
+
+		$this->invoke('importImportRules', 'bob', [$rule(7, 'Lunch'), $rule(8, 'Never here')], self::BOB_MAPS);
+
+		$this->assertSame([['type' => 'set_category', 'value' => 20], ['type' => 'set_account', 'value' => 10]], $inserted[0]->getParsedActions()['actions']);
+		$this->assertSame('10', $inserted[0]->getParsedCriteria()['root']['conditions'][0]['pattern']);
+		$this->assertSame([], $inserted[1]->getParsedActions()['actions']);
+		$this->assertSame('0', $inserted[1]->getParsedCriteria()['root']['conditions'][0]['pattern']);
+	}
+
+	/**
+	 * A saved report filtering on the joint account Alice shares with Bob
+	 * keeps it; one that is no longer shared goes.
+	 */
+	public function testASavedReportKeepsAnAccountStillSharedWithTheUser(): void {
+		$this->bobRestores();
+		$spec = MigrationService::EXTRA_TABLES_POST['saved_reports'];
+
+		$row = $this->invoke('remapRow', ['id' => 1, 'config' => json_encode(['accountIds' => [10, 50, 12345]])], $spec, self::BOB_MAPS);
+
+		$this->assertSame([10, 150], json_decode($row['config'], true)['accountIds']);
+	}
 }

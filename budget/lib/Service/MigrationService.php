@@ -58,6 +58,10 @@ class MigrationService {
 	 *           snapshot has, 'idLists' => keys holding transaction id lists,
 	 *           'accounts' => the row's account columns]: see
 	 *           remapUndoSnapshot()
+	 *   jsonKeyFk  [JSON column => [key => ['map' => idMapKey, 'shared' =>
+	 *           share item type of ids another user may share with this
+	 *           one]]]: id lists under keys of a JSON object; an id that
+	 *           didn't come back is left out, see remapJsonKeyIds()
 	 *   snapshotRefs  [JSON column => [key => idMapKey]]: an undo snapshot
 	 *           naming one row by id, moved to its restored id, or dropped
 	 *           whole when that row didn't come back: see remapSnapshotRefs()
@@ -203,6 +207,12 @@ class MigrationService {
 		'saved_reports' => [
 			'table' => 'budget_saved_reports',
 			'scope' => 'user',
+			// The report's account and tag filters (ReportsModule's
+			// getReportConfig())
+			'jsonKeyFk' => ['config' => [
+				'accountIds' => ['map' => 'accounts', 'shared' => ShareItem::TYPE_ACCOUNT],
+				'tagIds' => ['map' => 'tags'],
+			]],
 		],
 		'nw_snaps' => [
 			'table' => 'budget_nw_snaps',
@@ -1369,6 +1379,12 @@ class MigrationService {
 			}
 		}
 
+		foreach ($spec['jsonKeyFk'] ?? [] as $column => $keys) {
+			if (($row[$column] ?? null) !== null && $row[$column] !== '') {
+				$row[$column] = $this->remapJsonKeyIds((string)$row[$column], $keys, $idMaps);
+			}
+		}
+
 		foreach ($spec['snapshotRefs'] ?? [] as $column => $refs) {
 			if (($row[$column] ?? null) !== null && $row[$column] !== '') {
 				$row[$column] = $this->remapSnapshotRefs($row[$column], $refs, $idMaps);
@@ -1502,6 +1518,41 @@ class MigrationService {
 			$snapshot[$key] = $id;
 		}
 		return $snapshot;
+	}
+
+	/**
+	 * A JSON object's id lists moved to the restored ids. An id that didn't
+	 * come back is left out, unless it is another user's still shared with
+	 * this one. Copied as they were, a saved report's account and tag
+	 * filters named the ids from before the restore, which matched nothing
+	 * or, on another server, someone else's.
+	 *
+	 * @param array<string, array{map: string, shared?: string}> $keys
+	 */
+	private function remapJsonKeyIds(string $raw, array $keys, array $idMaps): string {
+		$decoded = json_decode($raw, true);
+		if (!is_array($decoded)) {
+			return $raw;
+		}
+		foreach ($keys as $key => $fkSpec) {
+			if (!isset($decoded[$key]) || !is_array($decoded[$key])) {
+				continue;
+			}
+			$ids = [];
+			foreach ($decoded[$key] as $oldId) {
+				if (!is_numeric($oldId)) {
+					continue;
+				}
+				$oldId = (int)$oldId;
+				if (isset($idMaps[$fkSpec['map']][$oldId])) {
+					$ids[] = $idMaps[$fkSpec['map']][$oldId];
+				} elseif (isset($fkSpec['shared']) && $this->crossUserLinks?->isSharedWithUser($fkSpec['shared'], $oldId)) {
+					$ids[] = $oldId;
+				}
+			}
+			$decoded[$key] = $ids;
+		}
+		return (string)json_encode($decoded);
 	}
 
 	/**
@@ -1941,45 +1992,29 @@ class MigrationService {
 			$rule->setSchemaVersion($ruleData['schemaVersion'] ?? 1);
 			$rule->setApplyOnImport(self::flag($ruleData, 'applyOnImport', true));
 			$rule->setStopProcessing(self::flag($ruleData, 'stopProcessing', true));
+			// Exported all along but never read back, so every rule group
+			// was lost by a restore
+			$groupName = $ruleData['groupName'] ?? null;
+			$rule->setGroupName(is_string($groupName) && $groupName !== '' ? $groupName : null);
 
 			// Remap legacy category ID
 			$oldCategoryId = $ruleData['categoryId'] ?? null;
-			if ($oldCategoryId !== null && isset($idMaps['categories'][$oldCategoryId])) {
-				$rule->setCategoryId($idMaps['categories'][$oldCategoryId]);
+			if ($oldCategoryId !== null) {
+				$rule->setCategoryId($this->restoredRuleReference($ruleData, 'categories', $oldCategoryId, $idMaps));
 			}
 
 			// Import actions with ID remapping
 			if (isset($ruleData['actions']) && is_array($ruleData['actions'])) {
-				$actions = $ruleData['actions'];
-
-				// Legacy v1 flat format: {categoryId: 5, vendor: "X"}
-				if (isset($actions['categoryId']) && isset($idMaps['categories'][$actions['categoryId']])) {
-					$actions['categoryId'] = $idMaps['categories'][$actions['categoryId']];
-				}
-
-				// v2 nested format: {version: 2, actions: [{type, value}, ...]}
-				if (isset($actions['actions']) && is_array($actions['actions'])) {
-					foreach ($actions['actions'] as &$action) {
-						$type = $action['type'] ?? null;
-						$value = $action['value'] ?? null;
-						if ($value === null) {
-							continue;
-						}
-						if ($type === 'set_category' && isset($idMaps['categories'][$value])) {
-							$action['value'] = $idMaps['categories'][$value];
-						} elseif ($type === 'set_account' && isset($idMaps['accounts'][$value])) {
-							$action['value'] = $idMaps['accounts'][$value];
-						}
-					}
-					unset($action);
-				}
-
-				$rule->setActionsFromArray($actions);
+				$rule->setActionsFromArray($this->remapRuleActions($ruleData, $ruleData['actions'], $idMaps));
 			}
 
-			// Import criteria (matching conditions, no ID remapping needed)
+			// Conditions on the account name it by id
 			if (isset($ruleData['criteria']) && is_array($ruleData['criteria'])) {
-				$rule->setCriteriaFromArray($ruleData['criteria']);
+				$criteria = $ruleData['criteria'];
+				if (isset($criteria['root']) && is_array($criteria['root'])) {
+					$criteria['root'] = $this->remapRuleCriteria($ruleData, $criteria['root'], $idMaps);
+				}
+				$rule->setCriteriaFromArray($criteria);
 			}
 
 			$inserted = $this->importRuleMapper->insert($rule);
@@ -1988,6 +2023,111 @@ class MigrationService {
 			}
 		}
 		return $map;
+	}
+
+	/**
+	 * A rule's actions with the accounts, categories and tags they name moved
+	 * to the restored ids. Copied as they were, a tag action named tags that
+	 * no longer existed and failed every import row it matched after the row
+	 * was saved, and a category or account action could name someone
+	 * else's. An action whose target didn't come back is left out.
+	 *
+	 * @param array<string, mixed> $actions
+	 * @return array<string, mixed>
+	 */
+	private function remapRuleActions(array $ruleData, array $actions, array $idMaps): array {
+		// Legacy v1 flat format: {categoryId: 5, vendor: "X"}
+		if (array_key_exists('categoryId', $actions) && $actions['categoryId'] !== null) {
+			$categoryId = $this->restoredRuleReference($ruleData, 'categories', $actions['categoryId'], $idMaps);
+			if ($categoryId === null) {
+				unset($actions['categoryId']);
+			} else {
+				$actions['categoryId'] = $categoryId;
+			}
+		}
+
+		// v2 nested format: {version: 2, actions: [{type, value}, ...]}
+		if (!isset($actions['actions']) || !is_array($actions['actions'])) {
+			return $actions;
+		}
+		$kept = [];
+		foreach ($actions['actions'] as $action) {
+			$type = is_array($action) ? ($action['type'] ?? null) : null;
+			$value = is_array($action) ? ($action['value'] ?? null) : null;
+			if ($value !== null && ($type === 'set_category' || $type === 'set_account')) {
+				$id = $this->restoredRuleReference($ruleData, $type === 'set_category' ? 'categories' : 'accounts', $value, $idMaps);
+				if ($id === null) {
+					continue;
+				}
+				$action['value'] = $id;
+			} elseif ($type === 'add_tags' && is_array($value)) {
+				$tagIds = [];
+				foreach ($value as $oldTagId) {
+					if (is_numeric($oldTagId) && isset($idMaps['tags'][(int)$oldTagId])) {
+						$tagIds[] = $idMaps['tags'][(int)$oldTagId];
+					}
+				}
+				if ($tagIds === [] && $value !== []) {
+					continue;
+				}
+				$action['value'] = $tagIds;
+			}
+			$kept[] = $action;
+		}
+		$actions['actions'] = $kept;
+		return $actions;
+	}
+
+	/**
+	 * A rule's condition tree with every condition on the account moved to
+	 * the restored account. Its pattern is the account's id
+	 * (CriteriaEvaluator::matchAccount()), so copied as it was the rule
+	 * never matched again. One whose account didn't come back is pointed at
+	 * no account (0), which never matches: dropping the condition instead
+	 * would widen the rule to every account.
+	 *
+	 * @param array<string, mixed> $node
+	 * @return array<string, mixed>
+	 */
+	private function remapRuleCriteria(array $ruleData, array $node, array $idMaps, int $depth = 0): array {
+		if ($depth > 10) {
+			return $node;
+		}
+		if (isset($node['conditions']) && is_array($node['conditions'])) {
+			foreach ($node['conditions'] as $i => $child) {
+				if (is_array($child)) {
+					$node['conditions'][$i] = $this->remapRuleCriteria($ruleData, $child, $idMaps, $depth + 1);
+				}
+			}
+			return $node;
+		}
+		if (($node['field'] ?? null) === 'account' && isset($node['pattern'])) {
+			$id = $this->restoredRuleReference($ruleData, 'accounts', $node['pattern'], $idMaps) ?? 0;
+			$node['pattern'] = is_string($node['pattern']) ? (string)$id : $id;
+		}
+		return $node;
+	}
+
+	/**
+	 * An account or category a restored rule names, at its restored id; the
+	 * id itself when it is another user's the rule may keep
+	 * (CrossUserLinks::ruleKeepsReference()); otherwise null.
+	 *
+	 * @param 'accounts'|'categories' $map
+	 */
+	private function restoredRuleReference(array $ruleData, string $map, mixed $oldId, array $idMaps): ?int {
+		if (!is_numeric($oldId)) {
+			return null;
+		}
+		$oldId = (int)$oldId;
+		if (isset($idMaps[$map][$oldId])) {
+			return $idMaps[$map][$oldId];
+		}
+		$type = $map === 'accounts' ? ShareItem::TYPE_ACCOUNT : ShareItem::TYPE_CATEGORY;
+		return $this->crossUserLinks !== null && isset($ruleData['id'])
+			&& $this->crossUserLinks->ruleKeepsReference((int)$ruleData['id'], $ruleData['name'] ?? null, $ruleData['createdAt'] ?? null, $type, $oldId)
+			? $oldId
+			: null;
 	}
 
 	/**
