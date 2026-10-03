@@ -222,6 +222,21 @@ class ReportAggregatesTest extends IntegrationTestCase {
 		$this->assertEqualsWithDelta(60.0, $flow[0]['net'], 0.001);
 	}
 
+	/**
+	 * The per-account cash flow (what multi-currency conversion and Year over
+	 * Year read) counts each transaction once, split or not.
+	 */
+	public function testCashFlowByMonthByAccountCountsEachTransactionOnce(): void {
+		$this->makeTransaction($this->accountId, ['amount' => '40.00', 'date' => '2026-02-03']);
+		$this->makeSplitTransaction($this->accountId, [[$this->food, '7.00'], [$this->food, '3.00']], ['date' => '2026-02-04']);
+
+		$rows = $this->reports->getCashFlowByMonthByAccount($this->userId, '2026-02-01', '2026-02-28');
+
+		$this->assertCount(1, $rows);
+		$this->assertSame(2, $rows[0]['count']);
+		$this->assertEqualsWithDelta(50.0, (float)$rows[0]['expenses'], 0.001);
+	}
+
 	public function testCashFlowByMonthCanDropLinkedTransfers(): void {
 		$savings = $this->makeAccount(['name' => 'Savings', 'type' => 'savings'])->getId();
 		$out = $this->makeTransaction($this->accountId, ['amount' => '25.00', 'date' => '2026-02-10']);

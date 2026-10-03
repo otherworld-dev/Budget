@@ -666,10 +666,12 @@ class ReportAggregator {
 			$expenses = $this->conversionService->convertToBaseFloat($row['expenses'], $accCurrency, $userId);
 
 			if (!isset($byMonth[$month])) {
-				$byMonth[$month] = ['month' => $month, 'income' => '0', 'expenses' => '0', 'net' => 0];
+				$byMonth[$month] = ['month' => $month, 'income' => '0', 'expenses' => '0', 'net' => 0, 'count' => 0];
 			}
 			$byMonth[$month]['income'] = MoneyCalculator::add($byMonth[$month]['income'], $income, self::SUM_SCALE);
 			$byMonth[$month]['expenses'] = MoneyCalculator::add($byMonth[$month]['expenses'], $expenses, self::SUM_SCALE);
+			// A transaction is in one account, so the per-account counts add up
+			$byMonth[$month]['count'] += (int)($row['count'] ?? 0);
 		}
 
 		// Recalculate net after aggregation

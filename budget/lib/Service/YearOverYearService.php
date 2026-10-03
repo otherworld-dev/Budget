@@ -7,6 +7,7 @@ namespace OCA\Budget\Service;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionReportQueries;
+use OCA\Budget\Service\Report\ReportAggregator;
 
 /**
  * Service for year-over-year comparison calculations.
@@ -28,6 +29,7 @@ class YearOverYearService {
 		CategoryMapper $categoryMapper,
 		TransactionReportQueries $reportQueries,
 		private ?UserClock $userClock = null,
+		private ?ReportAggregator $reportAggregator = null,
 	) {
 		$this->transactionMapper = $transactionMapper;
 		$this->categoryMapper = $categoryMapper;
@@ -293,14 +295,22 @@ class YearOverYearService {
 	 * 'YYYY-MM'. The all-accounts view leaves transfers out (#349); a single
 	 * account keeps its own legs, as the cash-flow report does.
 	 *
+	 * The all-accounts view is the Cash Flow report's own figures, converted
+	 * to the base currency when accounts are in more than one: summing the
+	 * raw amounts added euros to pounds, so a year here never matched Cash
+	 * Flow for a multi-currency user. A single account is in one currency.
+	 *
 	 * @param int[]|null $visibleAccountIds
 	 * @return array<string, array{month: string, income: float, expenses: float, net: float, count: int}>
 	 */
 	private function cashFlowByMonth(string $userId, string $startDate, string $endDate, ?int $accountId, ?array $visibleAccountIds): array {
+		$rows = $accountId === null && $this->reportAggregator !== null
+			? $this->reportAggregator->getCashFlowReport($userId, null, $startDate, $endDate, [], true, $visibleAccountIds)['data']
+			: $this->reportQueries->getCashFlowByMonth(
+				$userId, $accountId, $startDate, $endDate, [], true, $accountId === null, $visibleAccountIds
+			);
 		$byMonth = [];
-		foreach ($this->reportQueries->getCashFlowByMonth(
-			$userId, $accountId, $startDate, $endDate, [], true, $accountId === null, $visibleAccountIds
-		) as $row) {
+		foreach ($rows as $row) {
 			$byMonth[$row['month']] = $row;
 		}
 		return $byMonth;

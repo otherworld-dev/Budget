@@ -1024,6 +1024,31 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertSame(0.12345677, $result['totals']['netIncome']);
 	}
 
+	/**
+	 * Converted cash flow keeps each month's transaction count, as the
+	 * single-currency rows do (Year over Year reads it).
+	 */
+	public function testConvertedCashFlowKeepsTheTransactionCount(): void {
+		$this->accountMapper->method('findAll')->willReturn([
+			$this->makeAccount(1, 'GBP', 'checking', 0.0, 'GBP'),
+			$this->makeAccount(2, 'EUR', 'checking', 0.0, 'EUR'),
+		]);
+		$this->conversionService->method('needsConversion')->willReturn(true);
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->conversionService->method('getAccountCurrencyMap')->willReturn([1 => 'GBP', 2 => 'EUR']);
+		$this->conversionService->method('convertToBaseFloat')
+			->willReturnCallback(fn ($amount, $currency) => $currency === 'EUR' ? (float)$amount * 0.5 : (float)$amount);
+		$this->reportQueries->method('getCashFlowByMonthByAccount')->willReturn([
+			['month' => '2026-01', 'account_id' => 1, 'income' => 100.0, 'expenses' => 10.0, 'net' => 90.0, 'count' => 2],
+			['month' => '2026-01', 'account_id' => 2, 'income' => 100.0, 'expenses' => 0.0, 'net' => 100.0, 'count' => 1],
+		]);
+
+		$row = $this->aggregator->getCashFlowReport('user1', null, '2026-01-01', '2026-01-31')['data'][0];
+
+		$this->assertSame(150.0, $row['income']);
+		$this->assertSame(3, $row['count']);
+	}
+
 	public function testCashFlowTotalsAddWithoutFloatDrift(): void {
 		$this->reportQueries->method('getCashFlowByMonth')->willReturn([
 			['month' => '2026-01', 'income' => 0.1, 'expenses' => 0.2, 'net' => -0.1, 'count' => 2],
