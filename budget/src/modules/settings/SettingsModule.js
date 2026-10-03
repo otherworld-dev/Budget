@@ -7,6 +7,7 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { initDatePickers } from '../../utils/datepicker.js';
 import { apiFetch } from '../../utils/api.js';
 import { refreshBankSyncNav } from '../bank-sync/bankSyncStatus.js';
+import { helpDocUrl } from '../help/HelpModule.js';
 
 export default class SettingsModule {
     constructor(app) {
@@ -33,6 +34,13 @@ export default class SettingsModule {
     }
 
     async loadAdminSettings() {
+        // Only admins may read these. Asking anyway got everyone else a 403
+        // in the browser console on every visit to Settings, so skip the
+        // request when Nextcloud says this user isn't one.
+        if (typeof globalThis.OC?.isUserAdmin === 'function' && !globalThis.OC.isUserAdmin()) {
+            return;
+        }
+
         try {
             // Non-admin users get a 403 — hide the section
             const adminSettings = await apiFetch('/apps/budget/api/admin/settings').catch(() => null);
@@ -92,6 +100,10 @@ export default class SettingsModule {
         const model = document.getElementById('setting-ocr-model');
         const apiKey = document.getElementById('setting-ocr-api-key');
         const clearKey = document.getElementById('setting-ocr-clear-key');
+
+        // Docs URLs come only from HelpModule, never the template.
+        const docsLink = document.getElementById('setting-ocr-docs-link');
+        if (docsLink) docsLink.href = helpDocUrl('receipt-scanning');
 
         provider.value = ocr.provider || 'none';
         endpoint.value = ocr.endpoint || '';
@@ -311,9 +323,21 @@ export default class SettingsModule {
 
         view.addEventListener('change', (e) => {
             const el = e.target.closest('.setting-input');
-            if (el) this.saveSetting(el);
+            if (!el) return;
+            // The preview is the only feedback these controls give, so it
+            // follows the change at once rather than waiting for the save.
+            if (SettingsModule.PREVIEW_INPUTS.includes(el.id)) this.updateNumberFormatPreview();
+            this.saveSetting(el);
         });
     }
+
+    /** Controls the number format preview is drawn from. */
+    static PREVIEW_INPUTS = [
+        'setting-number-format-decimals',
+        'setting-number-format-decimal-sep',
+        'setting-number-format-thousands-sep',
+        'setting-default-currency',
+    ];
 
     /** Scroll to a section from the jump list at the top of the page. */
     setupJumpList() {
@@ -343,7 +367,43 @@ export default class SettingsModule {
         return [key, value];
     }
 
-    async saveSetting(element) {
+    /**
+     * One save in flight per setting. Arrowing through a select or toggling a
+     * checkbox twice fires several changes; sent side by side, their replies
+     * could land in any order and leave the stored value (and this.settings)
+     * on an older choice. A change made while a save is running is sent once
+     * that save finishes, and only if it differs from what was just stored.
+     */
+    saveSetting(element) {
+        const [key] = this.settingEntry(element);
+        this.savesInFlight = this.savesInFlight || {};
+        const running = this.savesInFlight[key];
+        if (running) {
+            running.element = element;
+            running.again = true;
+            return running.promise;
+        }
+
+        const slot = { element, again: false };
+        this.savesInFlight[key] = slot;
+        slot.promise = (async () => {
+            try {
+                let first = true;
+                while (first || slot.again) {
+                    const [, value] = this.settingEntry(slot.element);
+                    if (!first && value === String(this.settings?.[key])) break;
+                    first = false;
+                    slot.again = false;
+                    await this.sendSetting(slot.element, slot);
+                }
+            } finally {
+                delete this.savesInFlight[key];
+            }
+        })();
+        return slot.promise;
+    }
+
+    async sendSetting(element, slot) {
         const [key, value] = this.settingEntry(element);
         const item = element.closest('.setting-item') || element.parentElement;
 
@@ -355,7 +415,8 @@ export default class SettingsModule {
             });
             // The server may normalise a value (the receipts folder does).
             const saved = result?.settings?.[key] ?? value;
-            if (element.type !== 'checkbox' && saved !== value) element.value = saved;
+            // A newer change is queued; leave the control showing it.
+            if (!slot.again && element.type !== 'checkbox' && saved !== value) element.value = saved;
 
             this.settings[key] = saved;
             this.applySettingSideEffects({ [key]: saved });
@@ -363,6 +424,8 @@ export default class SettingsModule {
         } catch (error) {
             console.error('Error saving setting:', key, error);
             showError(error.message || t('budget', 'Failed to save settings'));
+            // A newer change is queued and will be sent next; don't undo it.
+            if (slot.again) return;
             // Put the control back to what is actually stored.
             const stored = this.settings?.[key];
             if (stored !== undefined) {

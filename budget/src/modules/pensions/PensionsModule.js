@@ -1109,7 +1109,8 @@ export default class PensionsModule {
             const account = s.sourceAccountId
                 ? (this.app.accounts || []).find(a => a.id === s.sourceAccountId)
                 : null;
-            const from = account ? ` · ${dom.escapeHtml(t('budget', 'from {account}', { account: account.name }))}` : '';
+            // t() escapes the account name itself.
+            const from = account ? ` · ${t('budget', 'from {account}', { account: account.name })}` : '';
             const status = state.statusText
                 ? ` <span class="recurring-status recurring-status-${state.status}">${dom.escapeHtml(state.statusText)}</span>`
                 : '';

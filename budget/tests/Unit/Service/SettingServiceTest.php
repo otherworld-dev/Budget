@@ -73,6 +73,24 @@ class SettingServiceTest extends TestCase {
 
 	// ===== getAll =====
 
+	public function testSetUpdatesRowAddedByAnOverlappingSave(): void {
+		$added = $this->makeSetting('theme', 'light');
+		$this->mapper->method('findByKey')
+			->willReturnOnConsecutiveCalls(
+				$this->throwException(new DoesNotExistException('')),
+				$added
+			);
+		$duplicate = $this->createMock(\OCP\DB\Exception::class);
+		$duplicate->method('getReason')->willReturn(\OCP\DB\Exception::REASON_UNIQUE_CONSTRAINT_VIOLATION);
+		$this->mapper->method('insert')->willThrowException($duplicate);
+		$this->mapper->expects($this->once())->method('update')->with($added)->willReturnArgument(0);
+
+		$result = $this->service->set('user1', 'theme', 'dark');
+
+		$this->assertSame($added, $result);
+		$this->assertSame('dark', $result->getValue());
+	}
+
 	public function testGetAllReturnsKeyValuePairs(): void {
 		$this->mapper->method('findAll')->willReturn([
 			$this->makeSetting('theme', 'dark'),

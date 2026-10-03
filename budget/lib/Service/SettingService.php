@@ -7,6 +7,7 @@ namespace OCA\Budget\Service;
 use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\DB\Exception as DbException;
 
 class SettingService {
 	private SettingMapper $mapper;
@@ -53,7 +54,18 @@ class SettingService {
 			$setting->setValue($value);
 			$setting->setCreatedAt(date('Y-m-d H:i:s'));
 			$setting->setUpdatedAt(date('Y-m-d H:i:s'));
-			return $this->mapper->insert($setting);
+			try {
+				return $this->mapper->insert($setting);
+			} catch (DbException $e) {
+				// An overlapping save added the row first: update that one
+				if ($e->getReason() !== DbException::REASON_UNIQUE_CONSTRAINT_VIOLATION) {
+					throw $e;
+				}
+				$setting = $this->mapper->findByKey($userId, $key);
+				$setting->setValue($value);
+				$setting->setUpdatedAt(date('Y-m-d H:i:s'));
+				return $this->mapper->update($setting);
+			}
 		}
 	}
 
