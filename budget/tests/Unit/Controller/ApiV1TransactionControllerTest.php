@@ -358,6 +358,28 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
+	public function testCreateRefusesANegativeAmount(): void {
+		// type carries the direction; a negative amount stored the row reversed
+		$this->service->expects($this->never())->method('create');
+
+		foreach (['-42.50', -1, '-0.01'] as $amount) {
+			$this->params = $this->captureParams(['amount' => $amount]);
+			$response = $this->controller->create();
+
+			$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus(), var_export($amount, true));
+			$this->assertSame('invalid_amount', $response->getData()['error_code']);
+		}
+	}
+
+	public function testCreateAcceptsAZeroAmountLikeTheWebForm(): void {
+		$this->params = $this->captureParams(['amount' => '0.00']);
+		$this->service->expects($this->once())->method('create')
+			->with('user1', 1, $this->anything(), $this->anything(), 0.0, 'debit')
+			->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_CREATED, $this->controller->create()->getStatus());
+	}
+
 	public function testCreateRequiresAnAccount(): void {
 		$this->params = $this->captureParams(['account_id' => '0']);
 		$this->service->expects($this->never())->method('create');
@@ -1324,6 +1346,34 @@ class ApiV1TransactionControllerTest extends TestCase {
 				json_encode($params)
 			);
 		}
+	}
+
+	public function testUpdateRefusesAnAmountThatIsNotMoreThanZero(): void {
+		// A negative amount answered 200 and moved the balance the wrong way,
+		// and on a split turned every part negative
+		$this->existing();
+		$this->service->expects($this->never())->method('update');
+
+		foreach (['-12.50', -42.5, '0', 0, '0.00'] as $amount) {
+			$this->params = ['amount' => $amount];
+			$response = $this->editor()->update(10);
+
+			$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus(), var_export($amount, true));
+			$this->assertSame('invalid_amount', $response->getData()['error_code']);
+		}
+	}
+
+	public function testUpdateAcceptsAStoredNegativeAmountSentBackUnchanged(): void {
+		// Imports can store a negative row; the read shape sent back with
+		// another field edited must not be refused for it
+		$this->existing(['amount' => -5.0]);
+		$this->params = ['amount' => '-5.00', 'notes' => 'Refund line'];
+
+		$this->service->expects($this->once())->method('update')
+			->with(10, 'user1', $this->callback(static fn (array $u): bool => $u['notes'] === 'Refund line'))
+			->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
 	}
 
 	public function testUpdateRejectsAnInvalidDate(): void {

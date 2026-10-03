@@ -1488,7 +1488,7 @@
           },
           "error_code": {
             "type": "string",
-            "description": "Stable machine-readable code, present on failures clients must distinguish programmatically: ocr_not_configured, ocr_quota_exhausted, ocr_extraction_failed, idempotency_key_conflict, request_in_flight, field_not_editable, transfer_leg, reconciled, split. Switch on this, never on the error text."
+            "description": "Stable machine-readable code, present on failures clients must distinguish programmatically: ocr_not_configured, ocr_quota_exhausted, ocr_extraction_failed, idempotency_key_conflict, request_in_flight, field_not_editable, invalid_amount, transfer_leg, reconciled, split. Switch on this, never on the error text."
           }
         }
       },
@@ -1906,7 +1906,7 @@
             "type": "string",
             "pattern": "^\\d+(\\.\\d{1,2})?$",
             "example": "42.50",
-            "description": "Always positive. Accepted as a number or a decimal string; always returned as a two-place string."
+            "description": "Always positive; `type` carries the direction. A negative amount is refused with 400 (error_code invalid_amount). Accepted as a number or a decimal string; always returned as a two-place string."
           },
           "type": {
             "type": "string",
@@ -2507,7 +2507,7 @@
               }
             ],
             "example": "42.50",
-            "description": "Always positive; `type` carries the direction. On a split transaction the parts are rescaled to keep summing to the new amount."
+            "description": "More than zero; `type` carries the direction. Zero or a negative amount is refused with 400 (error_code invalid_amount), unless it is the amount already stored, sent back unchanged. On a split transaction the parts are rescaled to keep summing to the new amount."
           },
           "type": {
             "type": "string",

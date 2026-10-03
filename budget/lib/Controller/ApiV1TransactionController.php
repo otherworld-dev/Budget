@@ -308,6 +308,11 @@ class ApiV1TransactionController extends OCSController {
 			return new DataResponse(['error' => $this->l->t('Amount must be a number')], Http::STATUS_BAD_REQUEST);
 		}
 		$amount = (float)$amountRaw;
+		// The direction is `type`'s job. A negative amount stored the row
+		// reversed; zero stays allowed, as in the web UI's form.
+		if ($amount < 0) {
+			return $this->badAmount($this->l->t('Amount cannot be negative. Use type to say which way the money went'));
+		}
 
 		if ($accountId <= 0) {
 			return new DataResponse(['error' => $this->l->t('An account is required')], Http::STATUS_BAD_REQUEST);
@@ -907,7 +912,14 @@ class ApiV1TransactionController extends OCSController {
 			if (!is_numeric(is_string($amount) ? trim($amount) : $amount)) {
 				return new DataResponse(['error' => $this->l->t('Amount must be a number')], Http::STATUS_BAD_REQUEST);
 			}
-			$updates['amount'] = (float)$amount;
+			$amount = (float)$amount;
+			// A negative amount reversed the row (and every split part) with a
+			// 200. Only a real change is refused: a stored negative amount from
+			// an import, sent back as read, still passes.
+			if ($amount <= 0 && !MoneyCalculator::equals($current->getAmount(), $amount, '0.001')) {
+				return $this->badAmount($this->l->t('Amount must be more than zero. Use type to say which way the money went'));
+			}
+			$updates['amount'] = $amount;
 		}
 
 		if (array_key_exists('type', $p)) {
@@ -1017,6 +1029,13 @@ class ApiV1TransactionController extends OCSController {
 		}
 
 		return (int)$raw > 0 ? (int)$raw : null;
+	}
+
+	private function badAmount(string $message): DataResponse {
+		return new DataResponse(
+			['error' => $message, 'error_code' => 'invalid_amount'],
+			Http::STATUS_BAD_REQUEST
+		);
 	}
 
 	private function badCategory(): DataResponse {
