@@ -672,7 +672,8 @@ class BudgetApp {
                 importDropzone.classList.remove('dragover');
                 const files = e.dataTransfer.files;
                 if (files.length > 0) {
-                    this.handleImportFile(files[0]);
+                    // A failure has already shown a message (lazyModule).
+                    this.handleImportFile(files[0]).catch(() => {});
                 }
             });
         }
@@ -687,7 +688,8 @@ class BudgetApp {
             importFileInput.addEventListener('change', (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                    this.handleImportFile(file);
+                    // A failure has already shown a message (lazyModule).
+                    this.handleImportFile(file).catch(() => {});
                 }
             });
         }
