@@ -1129,7 +1129,7 @@ class BillService {
 		} elseif ($recordPayment && $bill->getAccountId() !== null) {
 			try {
 				// Clear pre-existing scheduled transaction(s), or create new cleared one
-				$transaction = $this->transactionService->clearScheduledBillTransaction($userId, $bill->getId(), $paidDate, $statementAmount, (bool)($bill->getIsTransfer() ?? false));
+				$transaction = $this->transactionService->clearScheduledBillTransaction($userId, $bill->getId(), $paidDate, $statementAmount, (bool)($bill->getIsTransfer() ?? false), $bill);
 				if ($transaction) {
 					$hadScheduledTransaction = true;
 				} else {
