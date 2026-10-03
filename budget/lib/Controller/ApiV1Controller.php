@@ -60,6 +60,8 @@ class ApiV1Controller extends OCSController {
 				'categories' => true,
 				'transactions' => true,
 				'create_transaction' => true,
+				'edit_transaction' => true,
+				'delete_transaction' => true,
 				'receipt_upload' => true,
 				'budget_status' => true,
 				'upcoming_bills' => true,
@@ -99,6 +101,9 @@ class ApiV1Controller extends OCSController {
 			// transactions. Hard-coded like splits_available, for the same
 			// reason; an older server omits it and a client reads false.
 			'check_available' => true,
+			// Whether this server can edit and delete transactions, and undo
+			// a split (discussion 412). Hard-coded like the two above.
+			'edit_available' => true,
 			'currency' => $this->conversionService->getBaseCurrency($this->userId),
 			'version' => $this->appVersion(),
 		]);

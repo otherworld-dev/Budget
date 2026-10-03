@@ -475,10 +475,14 @@ return [
 		// Specific before {id}, as everywhere else in this file.
 		['name' => 'apiV1Transaction#recent', 'url' => '/api/v1/transactions/recent', 'verb' => 'GET'],
 		['name' => 'apiV1Transaction#show', 'url' => '/api/v1/transactions/{id}', 'verb' => 'GET'],
+		// Edit and delete, for full clients (discussion 412). Additive to v1.
+		['name' => 'apiV1Transaction#update', 'url' => '/api/v1/transactions/{id}', 'verb' => 'PATCH'],
+		['name' => 'apiV1Transaction#destroy', 'url' => '/api/v1/transactions/{id}', 'verb' => 'DELETE'],
 		// Per-item splits, for capture apps that read a receipt and let the
 		// user categorise each line. Additive to v1.
 		['name' => 'apiV1Transaction#splits', 'url' => '/api/v1/transactions/{id}/splits', 'verb' => 'GET'],
 		['name' => 'apiV1Transaction#createSplits', 'url' => '/api/v1/transactions/{id}/splits', 'verb' => 'POST'],
+		['name' => 'apiV1Transaction#unsplit', 'url' => '/api/v1/transactions/{id}/splits', 'verb' => 'DELETE'],
 		['name' => 'apiV1Transaction#receipts', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'GET'],
 		['name' => 'apiV1Transaction#uploadReceipt', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'POST'],
 

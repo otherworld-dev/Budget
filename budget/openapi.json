@@ -3,7 +3,7 @@
   "info": {
     "title": "Nextcloud Budget REST API",
     "version": "1.0",
-    "description": "Public, versioned API for reading a Budget instance and recording transactions from outside the web UI — a phone capture app, a script, or automation tooling.\n\nAuthenticate with a Nextcloud app password (personal settings > Security), or a token obtained through Nextcloud's Login flow v2. Every request must also send `OCS-APIRequest: true`; without it Nextcloud answers 412.\n\nEvery response is wrapped in an OCS envelope — the payload is at `ocs.data`, and `ocs.meta.statuscode` mirrors the HTTP status. Schemas below describe the contents of `ocs.data`.\n\nThe internal endpoints the web UI itself calls (under /apps/budget/api/..., without /ocs/) are not part of this contract and change without notice.",
+    "description": "Public, versioned API for reading a Budget instance and recording, editing and deleting transactions from outside the web UI — a phone capture app, a script, or automation tooling.\n\nAuthenticate with a Nextcloud app password (personal settings > Security), or a token obtained through Nextcloud's Login flow v2. Every request must also send `OCS-APIRequest: true`; without it Nextcloud answers 412.\n\nEvery response is wrapped in an OCS envelope — the payload is at `ocs.data`, and `ocs.meta.statuscode` mirrors the HTTP status. Schemas below describe the contents of `ocs.data`.\n\nThe internal endpoints the web UI itself calls (under /apps/budget/api/..., without /ocs/) are not part of this contract and change without notice.",
     "license": {
       "name": "AGPL-3.0",
       "url": "https://www.gnu.org/licenses/agpl-3.0.html"
@@ -466,6 +466,147 @@
             "$ref": "#/components/responses/MissingOcsHeader"
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "transactions"
+        ],
+        "operationId": "updateTransaction",
+        "summary": "Edit a transaction",
+        "description": "Changes only the fields sent, through the same service as the web UI: balances are recalculated from the ledger, and a split transaction's parts are rescaled when its amount changes.\n\nWhere the web UI would warn first, this refuses with a 409 instead: the amount, type or date of one side of a transfer (transfer_leg), the same on a reconciled transaction without confirm_reconciled (reconciled), and a category on a split transaction (split). A value sent back unchanged never triggers these.\n\nMoving a transaction to another account, and changing its status or reconciled flag, are web-only.\n\nSafe to retry: the values sent are absolute, so sending the same request twice gives the same result.\n\nOn a shared account the change is written to the owner's ledger; a read-only share gets 403.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionEdit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated transaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/Transaction"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed value, nothing editable in the body, or account_id, status or reconciled sent with a different value (error_code field_not_editable). A category_id the account owner cannot use answers \"Category not found\".",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReadOnly"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "transactions"
+        ],
+        "operationId": "deleteTransaction",
+        "summary": "Delete a transaction",
+        "description": "Deletes the transaction with its splits, tags and receipt links (the receipt files stay in the user's Files), and recalculates the balance.\n\nOne side of a transfer is deleted on its own, as in the web UI: the other side stays as a plain transaction and its id comes back as unlinked_transaction_id.\n\nA reconciled transaction needs confirm_reconciled=true (as a query parameter), or the answer is 409 reconciled.\n\nA retry after a lost response gets 404: treat that as already deleted.",
+        "parameters": [
+          {
+            "name": "confirm_reconciled",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Required to delete a reconciled transaction."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/Deletion"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReadOnly"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
       }
     },
     "/transactions/{id}/receipts": {
@@ -858,7 +999,7 @@
       },
       "post": {
         "summary": "Split a transaction into per-category parts",
-        "description": "Replaces any existing splits. The parts must sum to the transaction amount and there must be at least two. Intended for capture apps that read a receipt and let the user categorise each item.\n\nOwner-scoped: on a shared account the splits are written to the account owner's ledger, like the transaction and its receipts.",
+        "description": "Replaces any existing splits. The parts must sum to the transaction amount and there must be at least two. Intended for capture apps that read a receipt and let the user categorise each item.\n\nOwner-scoped: on a shared account the splits are written to the account owner's ledger, like the transaction and its receipts. A read-only share gets 403.",
         "operationId": "createSplits",
         "tags": [
           "transactions"
@@ -956,6 +1097,87 @@
                 }
               }
             }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "transactions"
+        ],
+        "operationId": "unsplitTransaction",
+        "summary": "Undo a split",
+        "description": "Removes the parts and gives the whole transaction category_id, or no category when it is left out. The amount is unchanged.\n\nA transaction that is not split comes back as it stands, so a retry after a lost response is harmless.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Category for the whole transaction once the parts are gone."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The transaction, no longer split",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/Transaction"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "category_id is not a number, or not a category the account owner can use (\"Category not found\").",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReadOnly"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -1154,6 +1376,16 @@
       },
       "MissingOcsHeader": {
         "description": "The OCS-APIRequest: true header is missing."
+      },
+      "Conflict": {
+        "description": "The change was refused because of what the transaction is; ocs.data.error_code says which. transfer_leg: one side of a transfer, whose amount, type and date cannot change on their own. reconciled: a reconciled row, whose amount, type or date (or the row itself) only changes with confirm_reconciled set. split: a split transaction, whose categories are changed through /transactions/{id}/splits.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
       }
     },
     "schemas": {
@@ -1256,7 +1488,7 @@
           },
           "error_code": {
             "type": "string",
-            "description": "Stable machine-readable code, present on failures clients must distinguish programmatically: ocr_not_configured, ocr_quota_exhausted, ocr_extraction_failed, idempotency_key_conflict, request_in_flight. Switch on this, never on the error text."
+            "description": "Stable machine-readable code, present on failures clients must distinguish programmatically: ocr_not_configured, ocr_quota_exhausted, ocr_extraction_failed, idempotency_key_conflict, request_in_flight, field_not_editable, transfer_leg, reconciled, split. Switch on this, never on the error text."
           }
         }
       },
@@ -1324,6 +1556,14 @@
               },
               "create_transaction": {
                 "type": "boolean"
+              },
+              "edit_transaction": {
+                "type": "boolean",
+                "description": "PATCH /transactions/{id}."
+              },
+              "delete_transaction": {
+                "type": "boolean",
+                "description": "DELETE /transactions/{id}."
               },
               "receipt_upload": {
                 "type": "boolean"
@@ -1871,6 +2111,11 @@
             "example": true,
             "description": "Whether this server has the read-only check routes: GET /budget/status, GET /bills/upcoming, GET /transactions/{id}/splits, and transfer links and split parts on transactions. Absent on older servers; treat absence as false."
           },
+          "edit_available": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether this server has PATCH and DELETE /transactions/{id} and DELETE /transactions/{id}/splits. Absent on older servers; treat absence as false."
+          },
           "currency": {
             "type": "string",
             "example": "GBP",
@@ -2240,6 +2485,90 @@
               "$ref": "#/components/schemas/Bill"
             },
             "description": "Overdue first, then by next_due_date."
+          }
+        }
+      },
+      "TransactionEdit": {
+        "type": "object",
+        "description": "Only the fields sent change. vendor, reference, notes and category_id sent as null (or an empty string) are cleared. The Transaction read shape can be sent back whole with a field edited: its read-only fields are ignored, and account_id, status and reconciled are refused (field_not_editable) only when they differ from what is stored.",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-09-28"
+          },
+          "amount": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "example": "42.50",
+            "description": "Always positive; `type` carries the direction. On a split transaction the parts are rescaled to keep summing to the new amount."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "debit",
+              "credit"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "example": "Supermarket"
+          },
+          "vendor": {
+            "type": "string",
+            "nullable": true,
+            "example": "Example Market"
+          },
+          "merchant": {
+            "type": "string",
+            "description": "Shorthand for description and vendor together, as on create. An explicit description or vendor wins over it."
+          },
+          "reference": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "category_id": {
+            "type": "integer",
+            "nullable": true,
+            "description": "null for uncategorised. Refused (409 split) on a split transaction."
+          },
+          "confirm_reconciled": {
+            "type": "boolean",
+            "description": "Required to change the amount, type or date of a reconciled transaction. The web UI asks the user first; a client should do the same before sending it."
+          }
+        }
+      },
+      "Deletion": {
+        "type": "object",
+        "required": [
+          "id",
+          "deleted",
+          "unlinked_transaction_id"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 123
+          },
+          "deleted": {
+            "type": "boolean",
+            "example": true
+          },
+          "unlinked_transaction_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": null,
+            "description": "When the deleted transaction was one side of a transfer, the other side, which survives as a plain transaction. A client can offer to delete it too."
           }
         }
       }

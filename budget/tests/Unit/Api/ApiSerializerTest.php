@@ -335,6 +335,19 @@ class ApiSerializerTest extends TestCase {
 		);
 	}
 
+	// ── deletion (discussion 412) ──────────────────────────────────
+
+	public function testDeletionKeysAreFixed(): void {
+		$this->assertSame(
+			['id' => 10, 'deleted' => true, 'unlinked_transaction_id' => 56],
+			ApiSerializer::deletion(10, 56)
+		);
+	}
+
+	public function testDeletionOfAPlainTransactionLeavesNothingUnlinked(): void {
+		$this->assertNull(ApiSerializer::deletion(10, null)['unlinked_transaction_id']);
+	}
+
 	// ── budget status (#767) ───────────────────────────────────────
 
 	public function testBudgetStatusKeysAreFixed(): void {

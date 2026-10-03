@@ -10,6 +10,7 @@ use OCA\Budget\Db\IdempotencyKey;
 use OCA\Budget\Db\IdempotencyKeyMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionSplit;
+use OCA\Budget\Exception\ReadOnlyShareException;
 use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\MoneyCalculator;
@@ -30,14 +31,15 @@ use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
 /**
- * Transactions over the public REST API (v1) — the capture half of the
- * surface: read recent activity, and record a new transaction with an
- * optional receipt photo.
+ * Transactions over the public REST API (v1): read recent activity, record
+ * a new transaction with an optional receipt photo, and edit or delete one.
  *
- * Editing and deleting are deliberately absent. A capture client only ever
- * appends, and every field it could get wrong is fixable in the web UI, so
- * keeping them out of v1 keeps the contract small enough to actually hold
- * still.
+ * Editing and deleting came later (discussion 412), for full clients whose
+ * users may never open the web UI. They run through the same services as
+ * the web UI, with one difference: where the web UI warns before a change,
+ * these refuse it with a 409 and an error_code, because a client has no
+ * dialog to show. Moving a transaction to another account, its status and
+ * its reconciled flag stay web-only.
  */
 class ApiV1TransactionController extends OCSController {
 	use ApiErrorHandlerTrait;
@@ -631,8 +633,7 @@ class ApiV1TransactionController extends OCSController {
 			// Splits belong to the ledger owner, like the transaction and its
 			// receipts — a write on a shared account must not scope to the
 			// acting user, or it lands in the wrong ledger (see #333/#334).
-			$transaction = $this->service->find($id, $this->getEffectiveUserId());
-			$ownerId = $this->service->findAccountById($transaction->getAccountId())->getUserId();
+			[, $ownerId] = $this->findWritable($id);
 			$created = $this->splitService->splitTransaction($id, $ownerId, $splits);
 
 			return new DataResponse(['splits' => ApiSerializer::splits($created)], Http::STATUS_CREATED);
@@ -742,6 +743,287 @@ class ApiV1TransactionController extends OCSController {
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to upload receipt'));
 		}
+	}
+
+	/**
+	 * Edit a transaction (discussion 412). Only the fields sent change: one
+	 * left out keeps its value, and vendor, reference, notes or category_id
+	 * sent as null (or '') is cleared.
+	 *
+	 * - date, amount, type, description, vendor, reference, notes, category_id
+	 * - merchant: create()'s shorthand for description and vendor together;
+	 *   either sent explicitly wins over it
+	 * - confirm_reconciled: true to change the money on a reconciled row
+	 *
+	 * The read shape can be sent back whole with a field edited. account_id,
+	 * status and reconciled are refused only when they differ from what is
+	 * stored, and the 409s below only fire on a real change.
+	 */
+	#[NoAdminRequired]
+	#[UserRateLimit(limit: 60, period: 60)]
+	public function update(int $id): DataResponse {
+		try {
+			[$transaction, $ownerId] = $this->findWritable($id);
+
+			$updates = $this->readUpdates($this->request->getParams(), $transaction);
+			if ($updates instanceof DataResponse) {
+				return $updates;
+			}
+			if ($updates === []) {
+				return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
+			}
+
+			$refusal = $this->refuseUpdate($transaction, $ownerId, $updates);
+			if ($refusal !== null) {
+				return $refusal;
+			}
+
+			if (array_key_exists('categoryId', $updates)) {
+				$this->granularShareService->requireUsableCategory($ownerId, $updates['categoryId']);
+			}
+
+			$updated = $this->service->update($id, $ownerId, $updates);
+
+			return new DataResponse($this->serializeOne($updated, $this->getEffectiveAccountIds()));
+		} catch (DoesNotExistException $e) {
+			return $this->notFound();
+		} catch (\InvalidArgumentException $e) {
+			return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to update transaction'));
+		}
+	}
+
+	/**
+	 * Delete a transaction (discussion 412), with everything hanging off it
+	 * (splits, tags, receipt links) and the balance recalculated.
+	 *
+	 * One side of a transfer goes on its own, as in the web UI: the other
+	 * side stays as a plain transaction and its id comes back as
+	 * unlinked_transaction_id. A retry after a lost response gets a 404,
+	 * which means it is already gone.
+	 */
+	#[NoAdminRequired]
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function destroy(int $id): DataResponse {
+		try {
+			[$transaction, $ownerId] = $this->findWritable($id);
+
+			if ($transaction->getReconciled() && !$this->reconciledChangeConfirmed()) {
+				return $this->reconciledConflict();
+			}
+
+			$partnerId = $transaction->getLinkedTransactionId();
+			$this->service->delete($id, $ownerId);
+
+			return new DataResponse(ApiSerializer::deletion($id, $partnerId));
+		} catch (DoesNotExistException $e) {
+			return $this->notFound();
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to delete transaction'));
+		}
+	}
+
+	/**
+	 * Undo a split (discussion 412): the parts go, and the transaction takes
+	 * category_id if one is sent, or none. A transaction that isn't split is
+	 * returned as it stands, so retrying a successful call is harmless.
+	 */
+	#[NoAdminRequired]
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function unsplit(int $id): DataResponse {
+		$categoryId = $this->readCategoryId($this->request->getParam('category_id'));
+		if ($categoryId === false) {
+			return $this->badCategory();
+		}
+
+		try {
+			[$transaction, $ownerId] = $this->findWritable($id);
+			if ($transaction->getIsSplit()) {
+				$transaction = $this->splitService->unsplitTransaction($id, $ownerId, $categoryId);
+			}
+
+			return new DataResponse($this->serializeOne($transaction, $this->getEffectiveAccountIds()));
+		} catch (DoesNotExistException $e) {
+			return $this->notFound();
+		} catch (\InvalidArgumentException $e) {
+			return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to update transaction'));
+		}
+	}
+
+	/**
+	 * A transaction the caller may change, and the user its rows belong to.
+	 *
+	 * Found among every account the caller can see, and held to write access
+	 * when that account is shared to them. The services scope every lookup to
+	 * the account's owner, so the writes run as the owner, never the acting
+	 * user (#333/#334).
+	 *
+	 * @return array{0: Transaction, 1: string}
+	 * @throws DoesNotExistException
+	 * @throws ReadOnlyShareException
+	 */
+	private function findWritable(int $id): array {
+		$transaction = $this->service->findForAccounts($id, $this->getEffectiveAccountIds());
+		$accountId = $transaction->getAccountId();
+		if (!in_array($accountId, $this->granularShareService->getOwnAccountIds($this->userId), true)) {
+			$this->requireWriteAccess('account', $accountId);
+		}
+
+		return [$transaction, $this->service->findAccountById($accountId)->getUserId()];
+	}
+
+	/** The service updates a PATCH body asks for, or the 400 that refuses it. */
+	private function readUpdates(array $p, Transaction $current): array|DataResponse {
+		$unchanged = [
+			'account_id' => static fn ($v): bool => (int)$v === $current->getAccountId(),
+			'status' => static fn ($v): bool => (string)$v === ($current->getStatus() ?? 'cleared'),
+			'reconciled' => static fn ($v): bool => filter_var($v, FILTER_VALIDATE_BOOLEAN) === (bool)$current->getReconciled(),
+		];
+		foreach ($unchanged as $field => $isUnchanged) {
+			if (array_key_exists($field, $p) && !$isUnchanged($p[$field])) {
+				return new DataResponse([
+					'error' => $this->l->t('%s cannot be changed through the API', [$field]),
+					'error_code' => 'field_not_editable',
+				], Http::STATUS_BAD_REQUEST);
+			}
+		}
+
+		$updates = [];
+
+		if (array_key_exists('date', $p)) {
+			$date = (string)$p['date'];
+			$result = $this->validationService->validateDate($date, $this->l->t('Date'), true);
+			if (!$result['valid']) {
+				return new DataResponse(['error' => $result['error']], Http::STATUS_BAD_REQUEST);
+			}
+			$updates['date'] = $date;
+		}
+
+		if (array_key_exists('amount', $p)) {
+			$amount = $p['amount'];
+			if (!is_numeric(is_string($amount) ? trim($amount) : $amount)) {
+				return new DataResponse(['error' => $this->l->t('Amount must be a number')], Http::STATUS_BAD_REQUEST);
+			}
+			$updates['amount'] = (float)$amount;
+		}
+
+		if (array_key_exists('type', $p)) {
+			if (!in_array($p['type'], ['credit', 'debit'], true)) {
+				return new DataResponse(
+					['error' => $this->l->t('Invalid transaction type. Must be credit or debit')],
+					Http::STATUS_BAD_REQUEST
+				);
+			}
+			$updates['type'] = $p['type'];
+		}
+
+		$text = [];
+		$merchant = isset($p['merchant']) ? trim((string)$p['merchant']) : '';
+		foreach (['description', 'vendor', 'reference', 'notes'] as $field) {
+			if (array_key_exists($field, $p)) {
+				$text[$field] = $p[$field] === null ? null : (string)$p[$field];
+			} elseif ($merchant !== '' && ($field === 'description' || $field === 'vendor')) {
+				$text[$field] = $merchant;
+			}
+		}
+		foreach ($text as $field => $value) {
+			$result = match ($field) {
+				'description' => $this->validationService->validateDescription($value, true),
+				'vendor' => $this->validationService->validateVendor($value),
+				'reference' => $this->validationService->validateReference($value),
+				'notes' => $this->validationService->validateNotes($value),
+			};
+			if (!$result['valid']) {
+				return new DataResponse(['error' => $result['error']], Http::STATUS_BAD_REQUEST);
+			}
+			$updates[$field] = $result['sanitized'];
+		}
+
+		if (array_key_exists('category_id', $p)) {
+			$categoryId = $this->readCategoryId($p['category_id']);
+			if ($categoryId === false) {
+				return $this->badCategory();
+			}
+			$updates['categoryId'] = $categoryId;
+		}
+
+		return $updates;
+	}
+
+	/**
+	 * The 409s that stand in for the web UI's warnings. Only a real change
+	 * counts, so values sent back as they were read are never refused.
+	 */
+	private function refuseUpdate(Transaction $current, string $ownerId, array $updates): ?DataResponse {
+		$moneyChanges = (array_key_exists('amount', $updates)
+				&& !MoneyCalculator::equals($current->getAmount(), $updates['amount'], '0.001'))
+			|| (array_key_exists('type', $updates) && $updates['type'] !== $current->getType())
+			|| (array_key_exists('date', $updates) && $updates['date'] !== substr((string)$current->getDate(), 0, 10));
+
+		// The other side would keep the old figure, and the transfer would
+		// stop adding up without anything saying so
+		if ($moneyChanges && $current->getLinkedTransactionId() !== null) {
+			return new DataResponse([
+				'error' => $this->l->t('This transaction is one side of a transfer, so its amount, type and date cannot be changed on their own'),
+				'error_code' => 'transfer_leg',
+			], Http::STATUS_CONFLICT);
+		}
+
+		if ($moneyChanges && $current->getReconciled() && !$this->reconciledChangeConfirmed()) {
+			return $this->reconciledConflict();
+		}
+
+		// A split's categories live on its parts, and the service would
+		// quietly drop this one. NULL predates is_split, so the parts decide
+		// (#360).
+		$categoryId = $updates['categoryId'] ?? null;
+		if ($categoryId !== null && $categoryId !== $current->getCategoryId()
+			&& $current->getIsSplit() !== false
+			&& $this->splitService->getSplits($current->getId(), $ownerId) !== []) {
+			return new DataResponse([
+				'error' => $this->l->t('This transaction is split, so its categories are changed through its splits'),
+				'error_code' => 'split',
+			], Http::STATUS_CONFLICT);
+		}
+
+		return null;
+	}
+
+	/** The request's go-ahead for a change the web UI would have warned about. */
+	private function reconciledChangeConfirmed(): bool {
+		return filter_var($this->request->getParam('confirm_reconciled', false), FILTER_VALIDATE_BOOLEAN);
+	}
+
+	private function reconciledConflict(): DataResponse {
+		return new DataResponse([
+			'error' => $this->l->t('This transaction has been reconciled against a statement. Send confirm_reconciled to go ahead'),
+			'error_code' => 'reconciled',
+		], Http::STATUS_CONFLICT);
+	}
+
+	/**
+	 * A category id from the wire: null for none (null, '' or 0), false when
+	 * it isn't a number.
+	 */
+	private function readCategoryId(mixed $raw): int|null|false {
+		if ($raw === null || $raw === '') {
+			return null;
+		}
+		if (!is_numeric($raw)) {
+			return false;
+		}
+
+		return (int)$raw > 0 ? (int)$raw : null;
+	}
+
+	private function badCategory(): DataResponse {
+		return new DataResponse(
+			['error' => $this->l->t('category_id must be a category id or null')],
+			Http::STATUS_BAD_REQUEST
+		);
 	}
 
 	private function notFound(?string $message = null): DataResponse {
