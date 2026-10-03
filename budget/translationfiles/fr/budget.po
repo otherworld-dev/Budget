@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-03 18:45+0000\n"
-"PO-Revision-Date: 2026-10-03 19:43+0000\n"
+"PO-Revision-Date: 2026-10-04 00:04+0000\n"
 "Last-Translator: Christophe <tophe.perso@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
@@ -431,40 +431,35 @@ msgstr "Échec de la suppression de l'opération"
 #: /app/lib/Controller/ApiV1TransactionController.php:888
 #, php-format
 msgid "%s cannot be changed through the API"
-msgstr ""
+msgstr "%s ne peut pas être modifié via l'API"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:970
-#, fuzzy
-#| msgid ""
-#| "This transaction is scheduled, so it is not on a statement yet and cannot "
-#| "be ticked."
 msgid ""
 "This transaction is one side of a transfer, so its amount, type and date "
 "cannot be changed on their own"
 msgstr ""
-"Cette opération est programmée ; elle n'apparaît donc pas encore sur le "
-"relevé et ne peut pas être cochée."
+"Cette opération constitue la contrepartie d'un virement ; par conséquent, "
+"son montant, son type et sa date ne peuvent pas être modifiés séparément"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:987
 msgid ""
 "This transaction is split, so its categories are changed through its splits"
 msgstr ""
+"Cette opération est ventilée ; ses catégories sont donc modifiées en "
+"fonction de ses ventilations"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1002
-#, fuzzy
-#| msgid ""
-#| "This transaction was reconciled against a bank statement. Deleting it "
-#| "will make past reconciliations no longer match."
 msgid ""
 "This transaction has been reconciled against a statement. Send "
 "confirm_reconciled to go ahead"
 msgstr ""
-"Cette opération a été rapprochée d'un relevé bancaire. Sa suppression rendra "
-"les rapprochements antérieurs incohérents."
+"Cette opération a été rapprochée par rapport à un relevé. Envoyez « "
+"confirm_reconciled » pour poursuivre"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1024
 msgid "category_id must be a category id or null"
 msgstr ""
+"category_id doit être un identifiant de catégorie ou une valeur \"null\""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1031
 #: /app/lib/Controller/AttachmentController.php:57
@@ -1825,10 +1820,8 @@ msgstr "Échec de la publication de la contribution"
 
 #: /app/lib/Controller/PensionController.php:690
 #: /app/src/modules/pensions/PensionsModule.js:1246
-#, fuzzy
-#| msgid "Failed to delete contribution"
 msgid "Failed to undo the contribution"
-msgstr "Impossible de supprimer la contribution"
+msgstr "Impossible d'annuler la contribution"
 
 #: /app/lib/Controller/PensionController.php:706
 msgid "Failed to retrieve pension summary"
@@ -2765,7 +2758,7 @@ msgstr "Année"
 #: /app/templates/index.php:5817 /app/templates/index.php:6814
 #: /app/templates/quick-add.php:35
 msgid "Income"
-msgstr "Revenu"
+msgstr "Revenus"
 
 #: /app/lib/Controller/YearOverYearController.php:249
 #: /app/lib/Service/Report/ReportExporter.php:188
@@ -3114,7 +3107,7 @@ msgstr "{user} a ajouté un justificatif à votre budget"
 
 #: /app/lib/Notification/Notifier.php:533
 msgid "{file} was saved to your Files for {transaction}."
-msgstr "{file} a été enregistré dans vos fichiers pour {transaction}"
+msgstr "{file} a été enregistré dans vos fichiers pour {transaction}."
 
 #. TRANSLATORS: {category} is replaced with the category name. Do NOT translate {category} — keep it exactly as-is.
 #: /app/lib/Notification/Notifier.php:560
@@ -3248,16 +3241,12 @@ msgid "Bill due: %1$s"
 msgstr "Facture à payer : %1$s"
 
 #: /app/lib/Service/BillService.php:126
-#, fuzzy
-#| msgid ""
-#| "The account linked to this bill no longer exists. Edit the bill and "
-#| "choose an account."
 msgid ""
 "This bill uses an account you can no longer change. Edit the bill and choose "
 "another account."
 msgstr ""
-"Le compte associé à cette facture n'existe plus. Modifiez la facture et "
-"choisissez un compte."
+"Cette facture est liée à un compte que vous ne pouvez plus modifier. "
+"Modifiez la facture et sélectionnez un autre compte."
 
 #: /app/lib/Service/BillService.php:173
 msgid "This amount type requires a transfer with a destination account"
@@ -3302,45 +3291,36 @@ msgid "A one-time bill needs its due date"
 msgstr "Une facture ponctuelle doit comporter une date d'échéance"
 
 #: /app/lib/Service/BillService.php:1004
-#, fuzzy
-#| msgid "This bill has no recorded payment to undo"
 msgid "This bill has nothing left to pay"
-msgstr "Cette facture n'a pas de paiement enregistré à annuler"
+msgstr "Il ne reste plus rien à payer sur cette facture"
 
 #: /app/lib/Service/BillService.php:1010
 #: /app/lib/Service/RecurringIncomeService.php:261
-#, fuzzy
-#| msgid "This page could not be loaded. Reload the page to try again."
 msgid "This payment was already recorded. Reload the page to see the next one."
-msgstr "Cette page n'a pas pu être chargée. Actualisez la page pour réessayer."
+msgstr ""
+"Ce paiement a déjà été enregistré. Actualisez la page pour afficher le "
+"suivant."
 
 #: /app/lib/Service/BillService.php:1056
-#, fuzzy
-#| msgid "Create future transaction for this bill"
 msgid "That transaction can't pay this bill"
-msgstr "Créer une opération à venir pour cette facture"
+msgstr "Cette opération ne permet pas de régler cette facture"
 
 #: /app/lib/Service/BillService.php:1096
-#, fuzzy
-#| msgid "Transactions linked as transfer"
 msgid "That transaction already pays another bill"
-msgstr "Opérations liées au virement"
+msgstr "Cette opération permet déjà de régler une autre facture"
 
 #: /app/lib/Service/BillService.php:1356 /app/lib/Service/BillService.php:1370
 msgid "This bill has no recorded payment to undo"
 msgstr "Cette facture n'a pas de paiement enregistré à annuler"
 
 #: /app/lib/Service/BillService.php:1379
-#, fuzzy
-#| msgid ""
-#| "This transaction was reconciled against a bank statement. Deleting it "
-#| "will make past reconciliations no longer match."
 msgid ""
 "This payment has been reconciled against a bank statement. Marking the bill "
 "unpaid deletes it, so the account will no longer match that statement."
 msgstr ""
-"Cette opération a été rapprochée d'un relevé bancaire. Sa suppression rendra "
-"les rapprochements antérieurs incohérents."
+"Ce paiement a été rapproché d'un relevé bancaire. Si vous marquez la facture "
+"comme non payée, celle-ci sera supprimée et le compte ne correspondra donc "
+"plus à ce relevé."
 
 #: /app/lib/Service/BillService.php:1408
 msgid "Cannot skip a one-time bill"
@@ -3378,10 +3358,8 @@ msgid "Bill has no account associated"
 msgstr "Aucun compte n'est associé à la facture"
 
 #: /app/lib/Service/BillService.php:2037
-#, fuzzy
-#| msgid "The receipt could not be read"
 msgid "The payment could not be recorded"
-msgstr "Le reçu n'a pas pu être lu"
+msgstr "Le paiement n'a pas pu être enregistré"
 
 #: /app/lib/Service/BillService.php:2042
 msgid "Bill auto-paid successfully"
@@ -3898,23 +3876,19 @@ msgstr ""
 "fichiers occupent plus de %1$s Mo"
 
 #: /app/lib/Service/PensionRecurringService.php:235
-#, fuzzy
-#| msgid "No scheduled contributions"
 msgid "This scheduled contribution is paused"
-msgstr "Aucune cotisation prévue"
+msgstr "Cette cotisation programmée est suspendue"
 
 #: /app/lib/Service/PensionRecurringService.php:238
-#, fuzzy
-#| msgid "This page could not be loaded. Reload the page to try again."
 msgid ""
 "This contribution was already posted. Reload the page to see the next one."
-msgstr "Cette page n'a pas pu être chargée. Actualisez la page pour réessayer."
+msgstr ""
+"Cette cotisation a déjà été publiée. Actualisez la page pour voir la "
+"suivante."
 
 #: /app/lib/Service/PensionRecurringService.php:270
-#, fuzzy
-#| msgid "No scheduled contributions"
 msgid "This scheduled contribution has no post to undo"
-msgstr "Aucune cotisation prévue"
+msgstr "Cette cotisation programmée ne comporte aucun message à annuler"
 
 #: /app/lib/Service/PensionRecurringService.php:376
 #, php-format
@@ -3941,16 +3915,12 @@ msgstr ""
 "transformer en retraite à prestations définies ou en retraite d'État"
 
 #: /app/lib/Service/PensionService.php:431
-#, fuzzy
-#| msgid ""
-#| "The account linked to this bill no longer exists. Edit the bill and "
-#| "choose an account."
 msgid ""
 "The account for this contribution no longer exists or is no longer shared "
 "with you"
 msgstr ""
-"Le compte associé à cette facture n'existe plus. Modifiez la facture et "
-"choisissez un compte."
+"Le compte associé à cette contribution n'existe plus ou n'est plus partagé "
+"avec vous"
 
 #: /app/lib/Service/PensionService.php:434
 #, php-format
@@ -3981,28 +3951,21 @@ msgid "No reconciliation in progress for this account"
 msgstr "Aucun rapprochement en cours pour ce compte"
 
 #: /app/lib/Service/RecurringIncomeService.php:211
-#, fuzzy
-#| msgid "No accounts to reconcile"
 msgid "No account set for income"
-msgstr "Aucun compte à rapprocher"
+msgstr "Aucun compte n'a été défini pour les revenus"
 
 #: /app/lib/Service/RecurringIncomeService.php:258
-#, fuzzy
-#| msgid "This income has no expected date to skip"
 msgid "This income has no payment to receive"
-msgstr "Il n'y a pas de date prévue pour la suspension de ce revenu"
+msgstr "Ce revenu ne donne lieu à aucun paiement à percevoir"
 
 #: /app/lib/Service/RecurringIncomeService.php:305
-#, fuzzy
-#| msgid "This bill has no recorded payment to undo"
 msgid "This income has no recorded receipt to undo"
-msgstr "Cette facture n'a pas de paiement enregistré à annuler"
+msgstr "Ce revenu n'a aucun reçu d'enregistré qui donne lieu à annulation"
 
 #: /app/lib/Service/RecurringIncomeService.php:410
-#, fuzzy
-#| msgid "Recurring income deleted"
 msgid "Recurring income cannot use a custom schedule"
-msgstr "Revenu récurrent supprimé"
+msgstr ""
+"Les revenus récurrents ne peuvent pas utiliser un calendrier personnalisé"
 
 #: /app/lib/Service/RecurringIncomeService.php:413
 msgid "A one-time income needs the date it is expected"
@@ -4010,16 +3973,12 @@ msgstr ""
 "Pour un revenu ponctuel, il faut indiquer la date à laquelle il est prévu"
 
 #: /app/lib/Service/RecurringIncomeService.php:426
-#, fuzzy
-#| msgid ""
-#| "The account linked to this bill no longer exists. Edit the bill and "
-#| "choose an account."
 msgid ""
 "This income uses an account you can no longer change. Edit it and choose "
 "another account."
 msgstr ""
-"Le compte associé à cette facture n'existe plus. Modifiez la facture et "
-"choisissez un compte."
+"Ces revenus sont liés à un compte que vous ne pouvez plus modifier. Modifiez-"
+"le et choisissez un autre compte."
 
 #: /app/lib/Service/RecurringIncomeService.php:452
 msgid "Cannot skip a one-time income"
@@ -4297,7 +4256,7 @@ msgstr "Moyennes mensuelles"
 #: /app/lib/Service/Report/ReportExporter.php:328
 #: /app/lib/Service/Report/ReportExporter.php:529
 msgid "Average Monthly Income"
-msgstr "Revenu mensuel moyen"
+msgstr "Revenus mensuels moyens"
 
 #: /app/lib/Service/Report/ReportExporter.php:329
 #: /app/lib/Service/Report/ReportExporter.php:531
@@ -5409,10 +5368,8 @@ msgid "Also recorded as {description} on {date}"
 msgstr "Également enregistré comme {description} le {date}"
 
 #: /app/src/main.js:1792
-#, fuzzy
-#| msgid "Unreconciled"
 msgid "reconciled"
-msgstr "Non rapprochée"
+msgstr "Rapprochée"
 
 #: /app/src/main.js:1808
 msgid "Duplicate Auto-Generated Transactions"
@@ -5441,10 +5398,8 @@ msgid "Paid: {date}"
 msgstr "Payé : {date}"
 
 #: /app/src/main.js:1826 /app/src/main.js:1870
-#, fuzzy
-#| msgid "Don't change"
 msgid "Check: not changed"
-msgstr "Ne pas modifier"
+msgstr "Vérification : pas de modification"
 
 #: /app/src/main.js:1830
 msgid ""
@@ -6689,7 +6644,7 @@ msgstr ""
 #: /app/src/modules/sharing/SharingModule.js:152 /app/templates/index.php:2778
 #: /app/templates/index.php:2791 /app/templates/index.php:6483
 msgid "Active"
-msgstr "Active"
+msgstr "Actif"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:142
 msgid "Awaiting Authorization"
@@ -7059,21 +7014,15 @@ msgid "One-Time"
 msgstr "Ponctuelle"
 
 #: /app/src/modules/bills/BillsModule.js:352
-#, fuzzy
-#| msgid ""
-#| "The account linked to this bill no longer exists. Edit the bill and "
-#| "choose an account."
 msgid ""
 "This date was filled in for the bill, not entered. Edit the bill to check it."
 msgstr ""
-"Le compte associé à cette facture n'existe plus. Modifiez la facture et "
-"choisissez un compte."
+"Cette date a été renseignée dans la facture, mais n'a pas été saisie. "
+"Modifiez la facture pour vérifier."
 
 #: /app/src/modules/bills/BillsModule.js:352
-#, fuzzy
-#| msgid "Next date"
 msgid "Check date"
-msgstr "Échéance"
+msgstr "Vérifier la date"
 
 #: /app/src/modules/bills/BillsModule.js:353 /app/templates/index.php:5872
 #: /app/templates/index.php:6266
@@ -7241,10 +7190,8 @@ msgid "{amount} over"
 msgstr "{amount} dépassé"
 
 #: /app/src/modules/bills/BillsModule.js:1101
-#, fuzzy
-#| msgid "How often this bill is due"
 msgid "Choose the date this bill is due"
-msgstr "Fréquence de paiement de cette facture"
+msgstr "Choisissez la date d'échéance de cette facture"
 
 #: /app/src/modules/bills/BillsModule.js:1124
 msgid "Please select at least one month for custom frequency"
@@ -8017,10 +7964,8 @@ msgid "Date Range"
 msgstr "Plage de dates"
 
 #: /app/src/modules/dashboard/DashboardModule.js:726
-#, fuzzy
-#| msgid "Exclude shared accounts"
 msgid "Exclude shared bills"
-msgstr "Exclure les comptes partagés"
+msgstr "Exclure les factures partagées"
 
 #: /app/src/modules/dashboard/DashboardModule.js:742
 msgid "Show bills overdue for more than a week"
@@ -8326,20 +8271,16 @@ msgid "No recurring income set up"
 msgstr "Aucun revenu récurrent configuré"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2733
-#, fuzzy
-#| msgid "Avg Monthly Income"
 msgid "Monthly income"
-msgstr "Revenu mensuel moyen"
+msgstr "Revenus mensuels"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2734
 msgid "{received} of {due} received this month"
 msgstr "{received} sur {due} perçu ce mois-ci"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2738
-#, fuzzy
-#| msgid "Received This Month"
 msgid "Income received this month"
-msgstr "Reçu ce mois-ci"
+msgstr "Revenus perçus ce mois-ci"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2757
 #: /app/src/modules/import/ImportModule.js:2633
@@ -8380,13 +8321,10 @@ msgid "Click to view transactions"
 msgstr "Cliquez pour afficher les opérations"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2982
-#, fuzzy
-#| msgid "%n category under budget"
-#| msgid_plural "%n categories under budget"
 msgid "%n category hidden"
 msgid_plural "%n categories hidden"
-msgstr[0] "%n catégorie en dessous du budget"
-msgstr[1] "%n catégories en dessous du budget"
+msgstr[0] "%n catégorie masquée"
+msgstr[1] "%n catégories masquées"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2987
 msgid "Total Spending"
@@ -8508,10 +8446,10 @@ msgstr ""
 "réorganiser les tuiles."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5062
-#, fuzzy
-#| msgid "Drag tiles to reorder your dashboard"
 msgid "Use the arrows on each tile to reorder your dashboard"
-msgstr "Faites glisser les tuiles pour réorganiser votre tableau de bord"
+msgstr ""
+"Utilisez les flèches situées sur chaque tuile pour réorganiser votre tableau "
+"de bord"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5063
 msgid "Drag tiles to reorder your dashboard"
@@ -8661,10 +8599,8 @@ msgstr ""
 "notifications."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5510
-#, fuzzy
-#| msgid "Categories to create:"
 msgid "Categories to show"
-msgstr "Catégories à créer :"
+msgstr "Catégories à afficher"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5511
 msgid ""
@@ -9695,12 +9631,8 @@ msgid "First payment date"
 msgstr "Date du premier versement"
 
 #: /app/src/modules/income/IncomeModule.js:406
-#, fuzzy
-#| msgid "The date this transfer is due. It can be in the past."
 msgid "The date this income is expected. It can be in the past."
-msgstr ""
-"La date à laquelle ce virement doit être effectué. Elle peut être antérieure "
-"à la date du présent document."
+msgstr "La date à laquelle ce revenu est prévu. Elle peut être antérieure."
 
 #: /app/src/modules/income/IncomeModule.js:407 /app/templates/index.php:6700
 msgid "Payments repeat from this date (optional)"
@@ -9719,10 +9651,8 @@ msgid "Day of the month when income is expected"
 msgstr "Jour du mois où le revenu est attendu"
 
 #: /app/src/modules/income/IncomeModule.js:498
-#, fuzzy
-#| msgid "Day of the month when income is expected"
 msgid "Choose the date this income is expected"
-msgstr "Jour du mois où le revenu est attendu"
+msgstr "Sélectionnez la date à laquelle ce revenu est prévu"
 
 #: /app/src/modules/income/IncomeModule.js:534
 msgid "Income source created successfully"
@@ -9916,16 +9846,12 @@ msgid "Read the getting started guide"
 msgstr "Lire le guide de démarrage"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:218
-#, fuzzy
-#| msgid "Failed to save dashboard layout"
 msgid "Hide the dashboard tiles"
-msgstr "Échec de l'enregistrement de la disposition du tableau de bord"
+msgstr "Masquer les tuiles du tableau de bord"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:219
-#, fuzzy
-#| msgid "Toggle dashboard lock"
 msgid "Show the dashboard tiles"
-msgstr "Activer/désactiver le verrouillage du tableau de bord"
+msgstr "Afficher les tuiles du tableau de bord"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:247
 msgid "(done)"
@@ -9951,10 +9877,8 @@ msgstr ""
 
 #: /app/src/modules/onboarding/OnboardingModule.js:303
 #: /app/src/modules/onboarding/OnboardingModule.js:390
-#, fuzzy
-#| msgid "Clear selection"
 msgid "Clear sample data"
-msgstr "Effacer la sélection"
+msgstr "Effacer les données de l'échantillon"
 
 #: /app/src/modules/onboarding/OnboardingModule.js:373
 msgid "Sample data added. Have a look around."
@@ -10182,16 +10106,12 @@ msgstr ""
 "compte."
 
 #: /app/src/modules/pensions/PensionsModule.js:873
-#, fuzzy
-#| msgid ""
-#| "This transaction was reconciled against a bank statement. Deleting it "
-#| "will make past reconciliations no longer match."
 msgid ""
 "Its bank transaction was reconciled against a bank statement. Deleting it "
 "will make past reconciliations no longer match."
 msgstr ""
-"Cette opération a été rapprochée d'un relevé bancaire. Sa suppression rendra "
-"les rapprochements antérieurs incohérents."
+"Cette opération bancaire a été rapprochée à l'aide d'un relevé bancaire. Si "
+"vous la supprimez, les rapprochements antérieurs ne correspondront plus."
 
 #: /app/src/modules/pensions/PensionsModule.js:892
 #: /app/src/modules/pensions/PensionsModule.js:1186
@@ -10238,10 +10158,8 @@ msgid "manual"
 msgstr "manuel"
 
 #: /app/src/modules/pensions/PensionsModule.js:1112
-#, fuzzy
-#| msgid "From: {account}"
 msgid "from {account}"
-msgstr "Depuis : {account}"
+msgstr "Depuis {account}"
 
 #: /app/src/modules/pensions/PensionsModule.js:1117
 #: /app/src/modules/pensions/PensionsModule.js:1223
@@ -10285,10 +10203,8 @@ msgid "Contribution posted"
 msgstr "Cotisation publiée"
 
 #: /app/src/modules/pensions/PensionsModule.js:1249
-#, fuzzy
-#| msgid "Contribution logged"
 msgid "Contribution undone"
-msgstr "Cotisation enregistrée"
+msgstr "Cotisation annulée"
 
 #: /app/src/modules/projects/ProjectsModule.js:86
 #: /app/src/utils/billDates.js:38 /app/src/utils/incomeStatus.js:55
@@ -10359,7 +10275,7 @@ msgstr "Aucun montant"
 
 #: /app/src/modules/projects/ProjectsModule.js:313
 msgid "The subcategory amounts are {amount} over the total"
-msgstr "Les montants des sous-catégories représentent {amount} du total"
+msgstr "Les montants des sous-catégories dépassent de {amount} du total"
 
 #: /app/src/modules/projects/ProjectsModule.js:314
 msgid "Unallocated: {amount}"
@@ -10474,7 +10390,7 @@ msgstr "Total des factures"
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:476
 #: /app/src/utils/billDates.js:35 /app/templates/index.php:2690
 msgid "Paid"
-msgstr "Payée"
+msgstr "Payées"
 
 #: /app/src/modules/reports/ReportsModule.js:1912
 msgid "No payment recorded - the bill has moved on from this date"
@@ -10499,22 +10415,19 @@ msgid "Monthly Totals"
 msgstr "Totaux mensuels"
 
 #: /app/src/modules/reports/ReportsModule.js:1962
-#, fuzzy
-#| msgid "The projected balance is only shown for the current year."
 msgid ""
 "The projected balance is only shown for your own accounts, not ones shared "
 "with you."
-msgstr "Le solde prévisionnel n'est affiché que pour l'année en cours."
+msgstr ""
+"Le solde prévisionnel n'apparaît que pour vos propres comptes, et non pour "
+"ceux que vous partagez avec d'autres personnes."
 
 #: /app/src/modules/reports/ReportsModule.js:1964
-#, fuzzy
-#| msgid ""
-#| "Pick an account above to see what is left in it after each month's bills."
 msgid ""
 "Pick an account above to see its projected balance for the rest of the year."
 msgstr ""
-"Choisissez un compte parmi ceux ci-dessus pour voir le solde restant après "
-"le paiement des factures mensuelles."
+"Sélectionnez un compte parmi ceux ci-dessus pour consulter son solde "
+"prévisionnel pour le reste de l'année."
 
 #: /app/src/modules/reports/ReportsModule.js:1967
 msgid "The projected balance is only shown for the current year."
@@ -10534,10 +10447,8 @@ msgstr ""
 "revenus récurrents encore à percevoir."
 
 #: /app/src/modules/reports/ReportsModule.js:1999
-#, fuzzy
-#| msgid "Your projected balance falls to {balance} in {month}."
 msgid "Lowest: {balance} in {month}."
-msgstr "Votre solde prévisionnel s'établit à {balance} en {month}."
+msgstr "Montant le plus bas : {balance} en {month}."
 
 #: /app/src/modules/reports/ReportsModule.js:2035
 #: /app/src/modules/reports/ReportsModule.js:2037
@@ -10659,8 +10570,6 @@ msgid "Vendor:"
 msgstr "Fournisseur :"
 
 #: /app/src/modules/rules/RulesModule.js:250
-#, fuzzy
-#| msgid "Set Description"
 msgid "Set description"
 msgstr "Définir la description"
 
@@ -11052,10 +10961,8 @@ msgstr "Remplacement par Regex"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:100
 #: /app/src/modules/rules/components/ActionBuilder.js:136
-#, fuzzy
-#| msgid "Change"
 msgid "Change Case"
-msgstr "Modifier"
+msgstr "Changer la casse"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:101
 #: /app/src/modules/rules/components/ActionBuilder.js:137
@@ -11098,16 +11005,12 @@ msgstr "Type d'action inconnu"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:199
 #: /app/src/modules/rules/components/CriteriaBuilder.js:187
-#, fuzzy
-#| msgid "Match Field"
 msgid "Field"
-msgstr "Champ de correspondance"
+msgstr "Champ"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:212
-#, fuzzy
-#| msgid "Behavior:"
 msgid "Behavior"
-msgstr "Comportement :"
+msgstr "Comportement"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:213
 #: /app/src/modules/rules/components/ActionBuilder.js:287
@@ -11131,10 +11034,8 @@ msgid "Pattern"
 msgstr "Occurence"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:219
-#, fuzzy
-#| msgid "Pattern"
 msgid "Pattern: /\\d+/"
-msgstr "Occurence"
+msgstr "Motif : /\\d+/"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:220
 msgid "Replacement"
@@ -11148,17 +11049,13 @@ msgstr "Remplacement : par exemple, X ou 1 $"
 #: /app/src/modules/rules/components/ActionBuilder.js:231
 #: /app/src/modules/rules/components/ActionBuilder.js:254
 #: /app/src/modules/rules/components/ActionBuilder.js:255
-#, fuzzy
-#| msgid "Match Field"
 msgid "Field:"
-msgstr "Champ de correspondance"
+msgstr "Champ :"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:239
 #: /app/src/modules/rules/components/ActionBuilder.js:240
-#, fuzzy
-#| msgid "Model"
 msgid "Mode:"
-msgstr "Modèle"
+msgstr "Mode :"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:241
 msgid "Uppercase"
@@ -11182,10 +11079,8 @@ msgid "Find:"
 msgstr "Rechercher :"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:263
-#, fuzzy
-#| msgid "e.g., 15"
 msgid "e.g., ACME"
-msgstr "par exemple, 15"
+msgstr "par exemple, ACME"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:266
 #: /app/src/modules/rules/components/ActionBuilder.js:267
@@ -11193,8 +11088,6 @@ msgid "Replace:"
 msgstr "Remplacer :"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:268
-#, fuzzy
-#| msgid "e.g., amazon"
 msgid "e.g., Amazon"
 msgstr "par ex. Amazon"
 
@@ -11379,41 +11272,29 @@ msgid "Action {number}: Reference value is empty"
 msgstr "Action {number} : La valeur de référence est vide"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:696
-#, fuzzy
-#| msgid "Action {number}: Reference value is empty"
 msgid "Action {number}: Regex field is invalid"
-msgstr "Action {number} : La valeur de référence est vide"
+msgstr "Action {number} : Le champ « Regex » n'est pas valide"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:699
-#, fuzzy
-#| msgid "Action {number}: Reference value is empty"
 msgid "Action {number}: Regex target field is invalid"
-msgstr "Action {number} : La valeur de référence est vide"
+msgstr "Action {number} : Le champ cible Regex n'est pas valide"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:702
-#, fuzzy
-#| msgid "Action {number}: Reference value is empty"
 msgid "Action {number}: Regex pattern is empty"
-msgstr "Action {number} : La valeur de référence est vide"
+msgstr "Action {number} : Le motif du Regex est vide"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:707
 #: /app/src/modules/rules/components/ActionBuilder.js:715
-#, fuzzy
-#| msgid "Action {number}: Notes text is empty"
 msgid "Action {number}: Text field is invalid"
-msgstr "Action {number} : Le texte des remarques est vide"
+msgstr "Action {number} : Le champ de texte n'est pas valide"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:710
-#, fuzzy
-#| msgid "Action {number}: Category not selected"
 msgid "Action {number}: Case mode is invalid"
-msgstr "Action {number} : Catégorie non sélectionnée"
+msgstr "Action {number} : Le mode case n'est pas valide"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:718
-#, fuzzy
-#| msgid "Action {number}: Notes text is empty"
 msgid "Action {number}: Replace text target is empty"
-msgstr "Action {number} : Le texte des remarques est vide"
+msgstr "Action {number} : La cible du remplacement du texte est vide"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:155
 msgid "How conditions combine"
@@ -11521,7 +11402,7 @@ msgstr "par ex : OFX Import"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:314
 msgid "e.g., amazon"
-msgstr "par ex. Amazon"
+msgstr "par ex., Amazon"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:412
 msgid ""
@@ -11759,10 +11640,8 @@ msgid "Failed to save settings"
 msgstr "Échec de l'enregistrement des paramètres"
 
 #: /app/src/modules/settings/SettingsModule.js:396
-#, fuzzy
-#| msgid "Save"
 msgid "Saved"
-msgstr "Sauvegarder"
+msgstr "Sauvegardé"
 
 #: /app/src/modules/settings/SettingsModule.js:407
 msgid "Settings saved successfully"
@@ -12049,10 +11928,8 @@ msgstr ""
 "budget auxquelles il peut accéder."
 
 #: /app/src/modules/sharing/SharingModule.js:95
-#, fuzzy
-#| msgid "Unable to share with this user"
 msgid "User to share with"
-msgstr "Impossible de partager avec cet utilisateur"
+msgstr "Utilisateur avec lequel partager"
 
 #: /app/src/modules/sharing/SharingModule.js:96
 msgid "Invite"
@@ -12778,10 +12655,8 @@ msgstr "Modifier l'opération"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2003
 #: /app/templates/index.php:5794
-#, fuzzy
-#| msgid "View transactions"
 msgid "New transaction"
-msgstr "Afficher les opérations"
+msgstr "Nouvelle opération"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2277
 #: /app/src/modules/transactions/TransactionsModule.js:2299
@@ -13461,7 +13336,7 @@ msgstr "Tous les virements"
 #: /app/src/modules/transfers/TransfersModule.js:143
 #: /app/src/utils/billDates.js:37 /app/templates/index.php:2688
 msgid "Due Soon"
-msgstr "Prochainement à échéance"
+msgstr "Échue prochainement"
 
 #: /app/src/modules/transfers/TransfersModule.js:145
 #: /app/src/utils/incomeStatus.js:43 /app/templates/index.php:1423
@@ -13716,16 +13591,12 @@ msgid "Failed to mark transfer as paid"
 msgstr "Échec du marquage du virement comme payé"
 
 #: /app/src/modules/transfers/TransfersModule.js:996
-#, fuzzy
-#| msgid ""
-#| "These bills were marked as paid, but no transaction was recorded — your "
-#| "account balance does not reflect these payments."
 msgid ""
 "The transfer was marked as paid, but no transactions were recorded. Check "
 "both accounts, or add the transfer manually."
 msgstr ""
-"Ces factures ont été marquées comme payées, mais aucune opération n'a été "
-"enregistrée : le solde de votre compte ne reflète pas ces paiements."
+"Le virement a été marqué comme payé, mais aucune opération n'a été "
+"enregistrée. Vérifiez les deux comptes ou ajoutez le virement manuellement."
 
 #: /app/src/modules/transfers/TransfersModule.js:998
 msgid "Transfer marked as paid"
@@ -13811,10 +13682,8 @@ msgid "Paid {paidDate}, next due {dueDate}"
 msgstr "Payé le {paidDate}, prochaine échéance le {dueDate}"
 
 #: /app/src/utils/billDates.js:100
-#, fuzzy
-#| msgid "Paid: {date}"
 msgid "Paid {date}"
-msgstr "Payé : {date}"
+msgstr "Payé {date}"
 
 #: /app/src/utils/dialogs.js:235
 msgid "Please confirm"
@@ -13833,16 +13702,12 @@ msgid "Notice"
 msgstr "Avis"
 
 #: /app/src/utils/dialogs.js:301
-#, fuzzy
-#| msgid "Categories with Budget"
 msgid "What's new in Budget"
-msgstr "Catégories avec budget"
+msgstr "Nouveautés de Budget"
 
 #: /app/src/utils/dialogs.js:332
-#, fuzzy
-#| msgid "Read only"
 msgid "Read more"
-msgstr "Lecture seule"
+msgstr "En savoir plus"
 
 #: /app/src/utils/dialogs.js:339
 msgid "Got it"
@@ -13853,10 +13718,8 @@ msgid "Mortgage"
 msgstr "Hypothèque"
 
 #: /app/src/utils/formatters.js:432
-#, fuzzy
-#| msgid "Due {date}"
 msgid "Week of {date}"
-msgstr "Échéance le {date}"
+msgstr "Semaine du {date}"
 
 #: /app/src/utils/incomeStatus.js:35
 msgid "Received {date}"
@@ -14146,10 +14009,8 @@ msgid "Date added"
 msgstr "Date d'ajout"
 
 #: /app/templates/index.php:1111
-#, fuzzy
-#| msgid "No description"
 msgid "Sort direction"
-msgstr "Aucune description"
+msgstr "Sens de tri"
 
 #: /app/templates/index.php:1112
 msgid "Ascending"
@@ -14400,10 +14261,9 @@ msgstr "Précédente"
 
 #: /app/templates/index.php:1557 /app/templates/index.php:1814
 #: /app/templates/index.php:1862
-#, fuzzy, php-format
-#| msgid "Period: %1$s to %2$s"
+#, php-format
 msgid "Page %1$s of %2$s"
-msgstr "Période : de %1$s à %2$s"
+msgstr "Page %1$s à %2$s"
 
 #: /app/templates/index.php:1578
 msgid "Bulk actions"
@@ -14489,10 +14349,8 @@ msgid "Show/Hide Columns"
 msgstr "Afficher/Masquer les colonnes"
 
 #: /app/templates/index.php:1806
-#, fuzzy
-#| msgid "25 per page"
 msgid "Rows per page"
-msgstr "25 par page"
+msgstr "Lignes par page"
 
 #: /app/templates/index.php:1807
 msgid "25 per page"
@@ -14654,10 +14512,8 @@ msgid "Previous month"
 msgstr "Mois précédent"
 
 #: /app/templates/index.php:2151
-#, fuzzy
-#| msgid "Budget this month"
 msgid "Budget month"
-msgstr "Budget de ce mois-ci"
+msgstr "Mois du budget"
 
 #: /app/templates/index.php:2154
 msgid "Next month"
@@ -14792,10 +14648,8 @@ msgstr ""
 "toutes les transactions » de Mint."
 
 #: /app/templates/index.php:2330
-#, fuzzy
-#| msgid "Failed to load transactions"
 msgid "Settings > Data > Download transactions."
-msgstr "Échec du chargement des opérations"
+msgstr "Paramètres > Données > Télécharger les opérations."
 
 #: /app/templates/index.php:2336
 msgid "Export your entries as a CSV file, covering all accounts."
@@ -15025,7 +14879,7 @@ msgstr ""
 
 #: /app/templates/index.php:2680
 msgid "Paid This Month"
-msgstr "Payé ce mois-ci"
+msgstr "Payées ce mois-ci"
 
 #: /app/templates/index.php:2687 /app/templates/index.php:3605
 msgid "All Bills"
@@ -15134,7 +14988,7 @@ msgstr "Reçu ce mois-ci"
 
 #: /app/templates/index.php:2879
 msgid "Active Sources"
-msgstr "Sources actives"
+msgstr "Sources de revenus actives"
 
 #: /app/templates/index.php:2886
 msgid "All Income"
@@ -15281,7 +15135,7 @@ msgstr "Tendances mensuelles"
 
 #: /app/templates/index.php:3086 /app/templates/index.php:3449
 msgid "Avg Monthly Income"
-msgstr "Revenu mensuel moyen"
+msgstr "Revenus mensuels moyens"
 
 #: /app/templates/index.php:3091 /app/templates/index.php:3455
 msgid "Avg Monthly Expenses"
@@ -15470,11 +15324,11 @@ msgstr "Statut de facturation"
 
 #: /app/templates/index.php:3603
 msgid "Active Only"
-msgstr "Actives uniquement"
+msgstr "Actif uniquement"
 
 #: /app/templates/index.php:3604
 msgid "Inactive Only"
-msgstr "Inactives uniquement"
+msgstr "Inactif uniquement"
 
 #: /app/templates/index.php:3611
 msgid "Include Recurring Transfers"
@@ -15912,10 +15766,8 @@ msgstr ""
 "effectuez."
 
 #: /app/templates/index.php:4399
-#, fuzzy
-#| msgid "Savings Projection"
 msgid "Settings sections"
-msgstr "Projection d'épargne"
+msgstr "Sections « Paramètres »"
 
 #: /app/templates/index.php:4400 /app/templates/index.php:4416
 msgid "General Settings"
@@ -16484,10 +16336,9 @@ msgid "Business — %s/month (1,500 scans)"
 msgstr "Entreprise — %s par mois (1 500 numérisations)"
 
 #: /app/templates/index.php:4896
-#, fuzzy, php-format
-#| msgid "Business — £79/year (1,500 scans a month)"
+#, php-format
 msgid "Business — %s/year (1,500 scans a month)"
-msgstr "Entreprise — 79 £/an (1 500 numérisations par mois)"
+msgstr "Entreprise — %s par an (1 500 numérisations par mois)"
 
 #: /app/templates/index.php:4898
 msgid "Subscribe"
@@ -16630,10 +16481,8 @@ msgstr ""
 "vos favoris ou à votre écran d'accueil."
 
 #: /app/templates/index.php:5031
-#, fuzzy
-#| msgid "Quick Add Page"
 msgid "Quick Add Page URL"
-msgstr "Page d'ajout rapide"
+msgstr "Ajout rapide de l'URL d'une page"
 
 #: /app/templates/index.php:5034
 msgid "Copy URL"
@@ -17163,10 +17012,8 @@ msgid "Merchant or person"
 msgstr "Commerçant ou particulier"
 
 #: /app/templates/index.php:5887
-#, fuzzy
-#| msgid "More actions"
 msgid "More options"
-msgstr "Plus d'actions"
+msgstr "Plus d'options"
 
 #: /app/templates/index.php:5893
 msgid "Scan a receipt"
@@ -17181,17 +17028,13 @@ msgid "Reading the receipt…"
 msgstr "Lis le reçu…"
 
 #: /app/templates/index.php:5906
-#, fuzzy
-#| msgid ""
-#| "The photo is read on your server and fills in the fields below for you to "
-#| "check. It is attached to the transaction when you save."
 msgid ""
 "The photo is read on your server and fills in the form for you to check. It "
 "is attached to the transaction when you save."
 msgstr ""
-"La photo est lue sur votre serveur et les champs ci-dessous sont remplis "
-"automatiquement pour que vous puissiez les vérifier. Elle est jointe à "
-"l'opération lorsque vous l'enregistrez."
+"La photo est lue sur votre serveur et le formulaire est rempli "
+"automatiquement pour que vous puissiez le vérifier. Elle est jointe à "
+"l'opérationlorsque vous l'enregistrez."
 
 #: /app/templates/index.php:5913
 msgid "Upload receipt"
@@ -18387,10 +18230,8 @@ msgid "Search banks..."
 msgstr "Recherche des banques..."
 
 #: /app/templates/index.php:7511
-#, fuzzy
-#| msgid "Search banks..."
 msgid "Search banks"
-msgstr "Recherche des banques..."
+msgstr "Recherche des banques"
 
 #: /app/templates/index.php:7515
 msgid "Loading banks..."
