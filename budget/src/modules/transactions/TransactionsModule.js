@@ -2110,45 +2110,12 @@ export default class TransactionsModule {
                 handleTypeChange();
             }
 
-            // Source or destination account change — check for cross-currency
-            const sourceAccountSelect = document.getElementById('transaction-account');
-            if (sourceAccountSelect) {
-                sourceAccountSelect.addEventListener('change', () => {
-                    this._checkCrossCurrencyTransfer();
-                    this._updateAmountStep();
-                });
-            }
-            const toAccountSelect2 = document.getElementById('transfer-to-account');
-            if (toAccountSelect2) {
-                toAccountSelect2.addEventListener('change', () => {
-                    this._checkCrossCurrencyTransfer();
-                    this._updateAmountStep();
-                });
-            }
+            // Source/destination account and amount listeners (bound once).
+            this._bindTransferAmountFields();
 
             // Match the amount inputs' step to the account currency's precision so
             // crypto accounts accept up to 8 decimals instead of just 2 (#331).
             this._updateAmountStep();
-
-            // Source amount change — update destination amount if cross-currency
-            // Source amount change — update destination amount if cross-currency
-            const amountInput = document.getElementById('transaction-amount');
-            if (amountInput) {
-                amountInput.addEventListener('input', () => {
-                    // Reset user-edited flag when source amount changes
-                    const destInput = document.getElementById('transfer-dest-amount');
-                    if (destInput) destInput.dataset.userEdited = '';
-                    this._updateDestAmountFromRate();
-                });
-            }
-
-            // Track manual edits to destination amount
-            const destAmountInput = document.getElementById('transfer-dest-amount');
-            if (destAmountInput) {
-                destAmountInput.addEventListener('input', () => {
-                    destAmountInput.dataset.userEdited = 'true';
-                });
-            }
 
             // Set up inline split toggle
             this.setupInlineSplitToggle();
@@ -3565,6 +3532,42 @@ export default class TransactionsModule {
         apply('transfer-dest-amount', 'transfer-to-account');
     }
 
+    /**
+     * The account and amount fields of the transaction form are permanent DOM,
+     * and the form opens many times per page load. Bind their listeners once:
+     * binding on every open stacked a handler per open, so after N opens each
+     * keystroke in a cross-currency transfer sent N conversion requests.
+     */
+    _bindTransferAmountFields() {
+        const bind = (id, event, handler) => {
+            const el = document.getElementById(id);
+            if (!el || el.dataset.transferFieldsBound) return;
+            el.dataset.transferFieldsBound = '1';
+            el.addEventListener(event, handler);
+        };
+
+        // Source or destination account change — check for cross-currency
+        const onAccountChange = () => {
+            this._checkCrossCurrencyTransfer();
+            this._updateAmountStep();
+        };
+        bind('transaction-account', 'change', onAccountChange);
+        bind('transfer-to-account', 'change', onAccountChange);
+
+        // Source amount change — update destination amount if cross-currency
+        bind('transaction-amount', 'input', () => {
+            // Reset user-edited flag when source amount changes
+            const destInput = document.getElementById('transfer-dest-amount');
+            if (destInput) destInput.dataset.userEdited = '';
+            this._updateDestAmountFromRate();
+        });
+
+        // Track manual edits to destination amount
+        bind('transfer-dest-amount', 'input', (e) => {
+            e.target.dataset.userEdited = 'true';
+        });
+    }
+
     _checkCrossCurrencyTransfer() {
         const destAmountWrapper = document.getElementById('transfer-dest-amount-wrapper');
         if (!destAmountWrapper) return;
@@ -3609,6 +3612,11 @@ export default class TransactionsModule {
      * Fetch exchange rate and update destination amount field.
      */
     async _updateDestAmountFromRate() {
+        // Only the latest request may fill the field: a slow earlier reply
+        // must not overwrite a newer conversion. Bumped before any early
+        // return so a reply for a form that has since changed is dropped too.
+        const seq = this._destRateSeq = (this._destRateSeq || 0) + 1;
+
         const destAmountWrapper = document.getElementById('transfer-dest-amount-wrapper');
         if (!destAmountWrapper || destAmountWrapper.style.display === 'none') return;
 
@@ -3624,6 +3632,7 @@ export default class TransactionsModule {
 
         try {
             const data = await apiFetch(`/apps/budget/api/exchange-rates/convert?from=${sourceAccount.currency}&to=${destAccount.currency}&amount=${sourceAmount}`).catch(() => null);
+            if (seq !== this._destRateSeq) return;
             if (data) {
                 const destInput = document.getElementById('transfer-dest-amount');
                 // Only auto-fill if user hasn't manually edited it
