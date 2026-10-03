@@ -243,20 +243,31 @@ class CategoryService extends AbstractCrudService {
 			throw new CategoryInUseException($this->l->t('Cannot delete this category because it has transactions assigned to it. Please reassign or delete them first.'));
 		}
 
-		// findByCategory() above is deliberately split-blind (a category used
-		// only by split parts must stay deletable, never guarded), so a
-		// category can reach here with budget_tx_splits rows still pointing at
-		// it -- degrade those to uncategorized rather than leave them dangling
-		// on a deleted category id (#360). This also covers deleteWithReassign()
-		// below, which calls delete() per category through the cascade above.
-		$this->splitMapper?->clearCategory([$entity->getId()]);
-		$this->releaseScheduleReferences($entity->getId());
+		$this->releaseReferences($entity->getId(), $userId);
+	}
+
+	/**
+	 * Everything that names a category and must not outlive it: split
+	 * parts, bills, income and split templates, budget snapshots, and its
+	 * tag sets. Run before any category row is deleted - by delete() and by
+	 * Setup's remove-duplicates and delete-all, which skipped the split
+	 * parts and left them on a dead id.
+	 */
+	private function releaseReferences(int $categoryId, string $userId): void {
+		// findByCategory() is deliberately split-blind (a category used only
+		// by split parts must stay deletable, never guarded), so a category
+		// can reach here with budget_tx_splits rows still pointing at it --
+		// degrade those to uncategorized rather than leave them dangling on a
+		// deleted category id (#360). This also covers deleteWithReassign()
+		// below, which calls delete() per category through the cascade.
+		$this->splitMapper?->clearCategory([$categoryId]);
+		$this->releaseScheduleReferences($categoryId);
 
 		// Cascade delete: Delete budget snapshots for this category
-		$this->budgetSnapshotMapper->deleteByCategory($entity->getId(), $userId);
+		$this->budgetSnapshotMapper->deleteByCategory($categoryId, $userId);
 
 		// Cascade delete: Delete all tag sets for this category
-		$tagSets = $this->tagSetMapper->findByCategory($entity->getId(), $userId);
+		$tagSets = $this->tagSetMapper->findByCategory($categoryId, $userId);
 		foreach ($tagSets as $tagSet) {
 			// Delete tags in this tag set
 			$tags = $this->tagMapper->findByTagSet($tagSet->getId());
@@ -1330,9 +1341,9 @@ class CategoryService extends AbstractCrudService {
 				if (empty($transactions)) {
 					// Check for children
 					$children = $this->getCategoryMapper()->findChildren($userId, $category->getId());
-					if (empty($children)) {
+					if (empty($children) && !$this->isUsedByProject($category->getId(), $userId)) {
 						// Safe to delete
-						$this->releaseScheduleReferences($category->getId());
+						$this->releaseReferences($category->getId(), $userId);
 						$this->mapper->delete($category);
 						$deleted[] = $category->getName();
 					}
@@ -1369,6 +1380,19 @@ class CategoryService extends AbstractCrudService {
 		return $this->categoryMuteMapper?->findMutedCategoryIds($userId) ?? [];
 	}
 
+	/**
+	 * Whether a project still points at the category, which delete() refuses
+	 * (#391); Setup's bulk deletes skip such a category instead.
+	 */
+	private function isUsedByProject(int $categoryId, string $userId): bool {
+		try {
+			$this->assertNotUsedByProject($categoryId, $userId);
+			return false;
+		} catch (\InvalidArgumentException $e) {
+			return true;
+		}
+	}
+
 	public function deleteAll(string $userId): int {
 		$categories = $this->findAll($userId);
 		$count = 0;
@@ -1388,8 +1412,8 @@ class CategoryService extends AbstractCrudService {
 		// Delete children first
 		foreach ($children as $category) {
 			$transactions = $this->transactionMapper->findByCategory($category->getId(), $userId, 1);
-			if (empty($transactions)) {
-				$this->releaseScheduleReferences($category->getId());
+			if (empty($transactions) && !$this->isUsedByProject($category->getId(), $userId)) {
+				$this->releaseReferences($category->getId(), $userId);
 				$this->mapper->delete($category);
 				$count++;
 			}
@@ -1399,8 +1423,8 @@ class CategoryService extends AbstractCrudService {
 		foreach ($parents as $category) {
 			$remainingChildren = $this->getCategoryMapper()->findChildren($userId, $category->getId());
 			$transactions = $this->transactionMapper->findByCategory($category->getId(), $userId, 1);
-			if (empty($remainingChildren) && empty($transactions)) {
-				$this->releaseScheduleReferences($category->getId());
+			if (empty($remainingChildren) && empty($transactions) && !$this->isUsedByProject($category->getId(), $userId)) {
+				$this->releaseReferences($category->getId(), $userId);
 				$this->mapper->delete($category);
 				$count++;
 			}
