@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Tests\Unit\Service;
 
+use OCA\Budget\Db\BudgetSnapshot;
 use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Db\Category;
 use OCA\Budget\Db\CategoryMapper;
@@ -32,6 +33,7 @@ class CategoryServiceTest extends TestCase {
 	private TagMapper $tagMapper;
 	private TransactionTagMapper $transactionTagMapper;
 	private TransactionSplitMapper $splitMapper;
+	private BudgetSnapshotMapper $budgetSnapshotMapper;
 	/** The budget month the mocked carryover service reports as current */
 	private string $currentBudgetMonth;
 	/** @var array<int, float> recurring budgets the mock returns */
@@ -58,7 +60,7 @@ class CategoryServiceTest extends TestCase {
 			}
 			return $text;
 		});
-		$budgetSnapshotMapper = $this->createMock(BudgetSnapshotMapper::class);
+		$this->budgetSnapshotMapper = $this->createMock(BudgetSnapshotMapper::class);
 
 		$this->currentBudgetMonth = date('Y-m');
 		$carryoverService = $this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class);
@@ -79,7 +81,7 @@ class CategoryServiceTest extends TestCase {
 		$this->service = new CategoryService(
 			$this->categoryMapper,
 			$this->transactionMapper,
-			$budgetSnapshotMapper,
+			$this->budgetSnapshotMapper,
 			$this->tagSetMapper,
 			$this->tagMapper,
 			$this->transactionTagMapper,
@@ -1425,4 +1427,34 @@ class CategoryServiceTest extends TestCase {
 
 		$this->serviceWithProjects($projects, $allocations)->delete(1, 'user1');
 	}
+
+	public function testUpdateSnapshotBudgetInsertsCategoryMissingFromExistingMonth(): void {
+		$existing = new BudgetSnapshot();
+		$existing->setCategoryId(1);
+		$this->budgetSnapshotMapper->method('findByMonth')
+			->with('user1', '2026-10')
+			->willReturn([$existing]);
+		$this->categoryMapper->expects($this->once())
+			->method('find')
+			->with(140, 'user1')
+			->willReturn($this->makeCategory(['id' => 140]));
+		$this->budgetSnapshotMapper->method('findEffective')
+			->with(140, 'user1', '2026-10')
+			->willReturn(null);
+		$this->budgetSnapshotMapper->expects($this->once())
+			->method('insert')
+			->willReturnCallback(function (BudgetSnapshot $snapshot): BudgetSnapshot {
+				$this->assertSame('user1', $snapshot->getUserId());
+				$this->assertSame(140, $snapshot->getCategoryId());
+				$this->assertSame('2026-10', $snapshot->getEffectiveFrom());
+				$this->assertSame(119.0, $snapshot->getAmount());
+				$this->assertSame('monthly', $snapshot->getPeriod());
+				return $snapshot;
+			});
+
+		$result = $this->service->updateSnapshotBudget('user1', 140, '2026-10', 119.0, 'monthly');
+
+		$this->assertSame(140, $result->getCategoryId());
+	}
+
 }

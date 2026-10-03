@@ -780,7 +780,22 @@ class CategoryService extends AbstractCrudService {
 			}
 		}
 
-		throw new \Exception($this->l->t('No budget snapshot found for this category and month'));
+		if ($snapshots === []) {
+			throw new \Exception($this->l->t('No budget snapshot found for this category and month'));
+		}
+
+		$category = $this->find($categoryId, $userId);
+		$effective = $this->budgetSnapshotMapper->findEffective($categoryId, $userId, $month);
+
+		$snapshot = new BudgetSnapshot();
+		$snapshot->setUserId($userId);
+		$snapshot->setCategoryId($categoryId);
+		$snapshot->setEffectiveFrom($month);
+		$snapshot->setAmount($amount ?? $effective?->getAmount() ?? $category->getBudgetAmount());
+		$snapshot->setPeriod($period ?? $effective?->getPeriod() ?? $category->getBudgetPeriod() ?? 'monthly');
+		$snapshot->setCreatedAt((new \DateTime())->format('Y-m-d H:i:s'));
+
+		return $this->budgetSnapshotMapper->insert($snapshot);
 	}
 
 	/**
