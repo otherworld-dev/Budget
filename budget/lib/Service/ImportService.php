@@ -1545,6 +1545,7 @@ class ImportService {
 						'type' => (string)$transaction['type'],
 						'date' => (string)$transaction['date'],
 						'peer' => (string)($transaction['_transferPeer'] ?? ''),
+						'pair' => (string)($transaction['_transferPair'] ?? ''),
 					];
 				}
 
@@ -1986,7 +1987,11 @@ class ImportService {
 	 * the other account, name each other's. The closest date wins. A side
 	 * with no partner stays an ordinary transaction.
 	 *
-	 * @param array<int, array{id: int, accountId: int, amount: float, type: string, date: string, peer: string}> $legs
+	 * Sides the file itself says are one transfer (the same 'pair' key, as
+	 * Firefly III's journal id gives both) are linked first, whatever their
+	 * amounts: across currencies they differ.
+	 *
+	 * @param array<int, array{id: int, accountId: int, amount: float, type: string, date: string, peer: string, pair?: string}> $legs
 	 * @param array<string, int> $accountIdsByName Accounts this import resolved, by name
 	 * @return int Transfers linked
 	 */
@@ -2009,6 +2014,31 @@ class ImportService {
 
 		$linked = 0;
 		$used = [];
+
+		$byPair = [];
+		foreach ($legs as $i => $leg) {
+			if (($leg['pair'] ?? '') !== '') {
+				$byPair[$leg['pair']][] = $i;
+			}
+		}
+		foreach ($byPair as $members) {
+			if (count($members) !== 2) {
+				continue;
+			}
+			[$i, $j] = $members;
+			if ($legs[$i]['accountId'] === $legs[$j]['accountId'] || $legs[$i]['type'] === $legs[$j]['type']) {
+				continue;
+			}
+			try {
+				$this->transactionService->linkTransactions($legs[$i]['id'], $legs[$j]['id'], $userId);
+				$used[$i] = true;
+				$used[$j] = true;
+				$linked++;
+			} catch (\Throwable $e) {
+				// Already linked by an import rule: left as it is
+			}
+		}
+
 		foreach ($legs as $i => $a) {
 			if (isset($used[$i])) {
 				continue;
