@@ -454,6 +454,9 @@ class ApiV1TransactionController extends OCSController {
 					$out['is_split'] = true;
 					$out['category_id'] = null;
 				} catch (\Throwable $e) {
+					// Stated rather than left to the snapshot: a client that
+					// checks splits_error sees no parts next to it, ever
+					$out['splits'] = [];
 					$out['splits_error'] = $e instanceof \InvalidArgumentException
 						? $e->getMessage()
 						: $this->l->t('The transaction was recorded, but it could not be split');

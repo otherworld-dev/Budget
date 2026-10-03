@@ -1890,11 +1890,11 @@
             "items": {
               "$ref": "#/components/schemas/Split"
             },
-            "description": "The parts of a split transaction, [] when it isn't split. On a create that supplied splits and they were accepted, the parts just created."
+            "description": "Always present. The parts of a split transaction, [] when it isn't split. On a create that supplied splits: the parts just created when they were accepted, or [] when they were rejected, in which case splits_error is also present and is_split is false. Check splits_error, not the presence of this field, to tell whether the split happened."
           },
           "splits_error": {
             "type": "string",
-            "description": "Present when the transaction was created but its splits were rejected: the parts do not add up, there are fewer than two, or a part names a category the account owner cannot use (\"Category not found\"). The transaction is correct and unsplit; do not retry the create.",
+            "description": "Create responses only. Present when the transaction was created but the splits sent with it were rejected: the parts do not add up, there are fewer than two, or a part names a category the account owner cannot use (\"Category not found\"). splits is then [] and is_split false: the transaction is recorded, correct and unsplit. Do not retry the create; split it with POST /transactions/{id}/splits instead.",
             "example": "Split amounts (3.00) must equal transaction amount (23.77)"
           }
         }

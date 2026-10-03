@@ -1039,6 +1039,9 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertStringContainsString('must equal transaction amount', $data['splits_error']);
 		// The transaction itself is still returned in full.
 		$this->assertSame(5, $data['id']);
+		// No parts beside the error, and the row says it is not split
+		$this->assertSame([], $data['splits']);
+		$this->assertFalse($data['is_split']);
 	}
 
 	// ── check: transfer links and split parts on list rows (#767) ──
