@@ -117,6 +117,9 @@ build: clean composer build-js
 	--exclude=".php-cs-fixer.cache" \
 	--exclude="*.log" \
 	--exclude=".htaccess" \
+	--exclude="translationfiles" \
+	--exclude="translationtool.phar" \
+	--exclude=".l10nignore" \
 	./ $(build_dir)/$(app_name)
 
 # Create tarball for app store
