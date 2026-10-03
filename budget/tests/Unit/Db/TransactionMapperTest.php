@@ -1317,6 +1317,18 @@ class TransactionMapperTest extends TestCase {
 		$this->assertArrayNotHasKey('uncategorized', $summary[1]);
 	}
 
+	/** Direct and split totals add through MoneyCalculator, never float + (#274). */
+	public function testGetSpendingSummaryMergesWithoutFloatDrift(): void {
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+			$this->resultOf([['id' => 5, 'name' => 'Food', 'color' => null, 'icon' => null, 'total' => '0.1', 'count' => '1']]),
+			$this->resultOf([['id' => 5, 'name' => 'Food', 'color' => null, 'icon' => null, 'total' => '0.2', 'count' => '1']])
+		);
+
+		$summary = $this->mapper->getSpendingSummary('user1', '2026-01-01', '2026-01-31');
+
+		$this->assertSame(0.3, $summary[0]['total']);
+	}
+
 	public function testGetSpendingSummaryStaysGrossByDefault(): void {
 		$eqCalls = [];
 		$this->expr->method('eq')->willReturnCallback(function (string $col, $val) use (&$eqCalls) {

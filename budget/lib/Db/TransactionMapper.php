@@ -1375,7 +1375,10 @@ class TransactionMapper extends QBMapper {
 		foreach ($split as $row) {
 			$id = (int)($row['id'] ?? 0);
 			if (isset($byId[$id])) {
-				$byId[$id]['total'] = (float)$byId[$id]['total'] + (float)$row['total'];
+				// Through MoneyCalculator, never a float + (#274)
+				$byId[$id]['total'] = MoneyCalculator::toFloat(MoneyCalculator::add(
+					ReportScope::sqlMoney($byId[$id]['total']), ReportScope::sqlMoney($row['total']), ReportScope::MERGE_SCALE
+				));
 				$byId[$id]['count'] = (int)$byId[$id]['count'] + (int)$row['count'];
 			} else {
 				$byId[$id] = $row;
