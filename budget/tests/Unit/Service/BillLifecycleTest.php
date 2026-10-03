@@ -417,6 +417,26 @@ class BillLifecycleTest extends TestCase {
 		$this->assertFalse($this->stored->getAutoPayEnabled());
 	}
 
+	public function testPayingAYearlyBillWithNoDayOrMonthKeepsItsStartDate(): void {
+		// Created due 14 March 2027 from its start date; Mark Paid moved it
+		// to 1 January 2028
+		$bill = $this->create('yearly', null, ['startDate' => '2027-03-14']);
+		$this->assertSame('2027-03-14', $bill->getNextDueDate());
+
+		$this->service->markPaid(1, 'user1', self::TODAY, false);
+
+		$this->assertSame('2028-03-14', $this->stored->getNextDueDate());
+	}
+
+	public function testSkippingAMonthlyBillWithNoDayKeepsItsStartDay(): void {
+		// Started on the 20th with no day set: Skip moved it to the 1st
+		$this->bill(['dueDay' => null, 'startDate' => '2026-08-20', 'nextDueDate' => '2026-10-20']);
+
+		$this->service->skipPayment(1, 'user1');
+
+		$this->assertSame('2026-11-20', $this->stored->getNextDueDate());
+	}
+
 	public function testAutoPayCatchesUpEveryOwedOccurrenceOnItsOwnDate(): void {
 		// A weekly bill three weeks behind paid one occurrence per run, every
 		// row dated the day of the run

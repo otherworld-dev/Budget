@@ -1175,7 +1175,11 @@ class BillService {
 				$bill->getDueMonth(),
 				$bill->getNextDueDate(),
 				$bill->getCustomRecurrencePattern(),
-				true // Always force advance — the bill was just paid
+				true, // Always force advance — the bill was just paid
+				// The start date supplies the day and month the form left
+				// out, as at creation and in the calendar: without it a
+				// yearly bill due 14 March moved to 1 January
+				$bill->getStartDate()
 			);
 			$bill->setNextDueDate($nextDue);
 
@@ -1439,7 +1443,8 @@ class BillService {
 			$bill->getDueMonth(),
 			$bill->getNextDueDate(),
 			$bill->getCustomRecurrencePattern(),
-			true // forceAdvance: always advance one cycle, even if not yet overdue
+			true, // forceAdvance: always advance one cycle, even if not yet overdue
+			$bill->getStartDate() // the same anchor creation and the calendar use
 		);
 		$bill->setNextDueDate($nextDue);
 
