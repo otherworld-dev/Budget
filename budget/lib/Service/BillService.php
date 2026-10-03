@@ -407,6 +407,13 @@ class BillService {
 	 * the bill near the paid date, within half the bill's interval (14 days
 	 * at most), so a weekly bill's previous payment isn't taken for this one.
 	 *
+	 * So are payments whose snapshot names no row of them: 2.54.0's Record
+	 * transaction booked the row without adding it to the snapshot, and the
+	 * card listed the payment again and Record booked it twice. The row must
+	 * then sit nearer this payment than the one before it, so an earlier
+	 * payment's row (two overdue occurrences paid the same day) still can't
+	 * stand in for this one.
+	 *
 	 * @param \OCA\Budget\Db\Transaction[] $rows the bill's non-scheduled transactions
 	 */
 	private function hasRecordedPayment(Bill $bill, array $rows): bool {
@@ -415,6 +422,7 @@ class BillService {
 			return false;
 		}
 
+		$previousPaid = null;
 		$snapshot = $this->paymentSnapshot($bill);
 		// Early snapshots didn't record a linked row at all
 		if ($snapshot !== null && array_key_exists('linkedTransactionId', $snapshot)) {
@@ -428,7 +436,8 @@ class BillService {
 					return true;
 				}
 			}
-			return false;
+			$previous = $snapshot['previousState']['lastPaidDate'] ?? null;
+			$previousPaid = is_string($previous) && $previous !== '' ? $previous : null;
 		}
 
 		$window = match ($bill->getFrequency()) {
@@ -438,9 +447,14 @@ class BillService {
 			default => 14,
 		};
 		foreach ($rows as $tx) {
-			if (abs(strtotime($tx->getDate()) - strtotime($paidDate)) <= $window * 86400) {
-				return true;
+			$distance = abs(strtotime($tx->getDate()) - strtotime($paidDate));
+			if ($distance > $window * 86400) {
+				continue;
 			}
+			if ($previousPaid !== null && $distance >= abs(strtotime($tx->getDate()) - strtotime($previousPaid))) {
+				continue;
+			}
+			return true;
 		}
 		return false;
 	}

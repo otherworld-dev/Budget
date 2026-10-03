@@ -2033,15 +2033,39 @@ class BillServiceTest extends TestCase {
 	}
 
 	public function testOverdueOccurrencesCaughtUpOnOneDayAreEachChecked(): void {
-		// Two paid today: the first with a transaction, the second without
+		// Two paid today: the first with a transaction, the second without.
+		// The second payment's snapshot remembers the first was paid today.
 		$paidDate = date('Y-m-d');
 		$bill = $this->makeBill(['id' => 7, 'lastPaidDate' => $paidDate]);
-		$bill->setPaidUndoState($this->paymentSnapshot($paidDate, []));
+		$snapshot = json_decode($this->paymentSnapshot($paidDate, []), true);
+		$snapshot['previousState']['lastPaidDate'] = $paidDate;
+		$bill->setPaidUndoState(json_encode($snapshot));
 		$this->mapper->method('findAll')->willReturn([$bill]);
 		$this->transactionService->method('findRecordedBillTransactions')
 			->willReturn([$this->billRow(800, 7, $paidDate)]);
 
 		$this->assertCount(1, $this->service->findUnrecordedPayments('user1'));
+	}
+
+	public function testARowRecordedBy254ButNotNamedInTheSnapshotCounts(): void {
+		// 2.54.0's Record transaction booked the row on the paid date and
+		// never added it to the snapshot: the card listed the payment again
+		// and Record booked it a second time
+		$paidDate = date('Y-m-d', strtotime('-3 days'));
+		$bill = $this->makeBill(['id' => 7, 'frequency' => 'weekly', 'lastPaidDate' => $paidDate]);
+		$snapshot = json_decode($this->paymentSnapshot($paidDate, []), true);
+		$snapshot['previousState']['lastPaidDate'] = date('Y-m-d', strtotime('-10 days'));
+		$bill->setPaidUndoState(json_encode($snapshot));
+		$this->mapper->method('findAll')->willReturn([$bill]);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->transactionService->method('findRecordedBillTransactions')
+			->willReturn([$this->billRow(903, 7, $paidDate)]);
+
+		$this->assertSame([], $this->service->findUnrecordedPayments('user1'));
+
+		$this->transactionService->expects($this->never())->method('createFromBill');
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->recordMissedPayment(7, 'user1');
 	}
 
 	public function testWithoutASnapshotAWeeklyBillsPreviousPaymentDoesNotCount(): void {
