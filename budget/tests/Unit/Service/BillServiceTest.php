@@ -1817,6 +1817,42 @@ class BillServiceTest extends TestCase {
 		$this->service->autoMatchPaidFromImport('user1', [$imported]);
 	}
 
+	public function testAnImportReplacesATransferPaymentMarkedLateRatherThanPayingTheNextOne(): void {
+		// The 1 October occurrence marked paid on the 20th moved the transfer
+		// to 1 November; the bank's withdrawal of the 20th fell inside
+		// November's window, so November was paid too and the money moved twice
+		$bill = $this->setupAutoMatchBill([
+			'isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null,
+			'nextDueDate' => '2026-11-01', 'lastPaidDate' => '2026-10-20',
+		]);
+		$bill->setTransferDescriptionPattern('NETFLIX');
+		$bill->setPaidUndoState(json_encode([
+			'previousState' => ['nextDueDate' => '2026-10-01'],
+			'createdTransactionIds' => [600, 601],
+			'scheduledTransactionIds' => [602, 603],
+			'linkedTransactionId' => null,
+			'paidDate' => '2026-10-20',
+		]));
+		$booked = $this->makeImportedTx(['id' => 600, 'date' => '2026-10-20', 'description' => '']);
+		$booked->setNotes('Auto-generated transfer: Netflix');
+		$booked->setBillId(1);
+		$booked->setLinkedTransactionId(601);
+		$imported = $this->makeImportedTx(['id' => 500, 'date' => '2026-10-20']);
+		$imported->setImportId('bank-1');
+		$this->linkable($booked, $imported);
+		$this->transactionService->expects($this->once())->method('deleteAsAccountOwner')->with(600, false, 1)->willReturn(true);
+		$this->transactionService->expects($this->once())->method('completeTransferPayment')
+			->with($imported, $this->isInstanceOf(Bill::class))->willReturn(905);
+
+		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$imported]));
+
+		$this->assertSame('2026-11-01', $bill->getNextDueDate(), 'Not paid a second time');
+		$this->assertSame('2026-10-20', $bill->getLastPaidDate());
+		$snapshot = json_decode($bill->getPaidUndoState(), true);
+		$this->assertSame(500, $snapshot['linkedTransactionId']);
+		$this->assertSame([905], $snapshot['createdTransactionIds']);
+	}
+
 	public function testAnImportedWithdrawalPaysARecurringTransfer(): void {
 		// The transfer form's description pattern was never read and transfers
 		// were left out of matching, so the statement's rows stayed apart and

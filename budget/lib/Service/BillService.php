@@ -1950,11 +1950,19 @@ class BillService {
 	 * place with the bill's category, splits and tags, and the snapshot
 	 * then names the bank row, so Mark Unpaid unlinks it rather than
 	 * deleting the bank's own record. The bill stays where it is.
+	 *
+	 * A recurring transfer's booked pair goes as a whole, and the bank row
+	 * gets its arrival as Mark Paid's link does: the bank's own credit in the
+	 * destination, or a deposit booked for it. Transfers used to skip this,
+	 * so the bank's copy of a payment marked late fell inside the next
+	 * occurrence's window and paid that one too.
 	 */
 	private function replaceBookedPayment(Bill $bill, \OCA\Budget\Db\Transaction $imported): bool {
-		if (($bill->getIsTransfer() ?? false) || !$this->importedTransactionLooksLikeBill($bill, $imported)) {
+		if (!$this->importedTransactionLooksLikeBill($bill, $imported)) {
 			return false;
 		}
+		$isTransfer = (bool)($bill->getIsTransfer() ?? false);
+		$generatedNote = $isTransfer ? 'Auto-generated transfer:' : 'Auto-generated from bill:';
 		$raw = $bill->getPaidUndoState();
 		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
 		$ids = is_array($snapshot) && is_array($snapshot['createdTransactionIds'] ?? null) ? $snapshot['createdTransactionIds'] : [];
@@ -1972,23 +1980,36 @@ class BillService {
 			}
 		}
 		if ($booked === null || $booked->getReconciled() || ($booked->getImportId() ?? '') !== ''
-			|| !str_starts_with((string)$booked->getNotes(), 'Auto-generated from bill:')
+			|| !str_starts_with((string)$booked->getNotes(), $generatedNote)
 			|| abs((float)$booked->getAmount() - (float)$imported->getAmount()) > (float)$bill->getAmount() * 0.1) {
 			return false;
 		}
 
+		$removed = [$booked->getId()];
+		if ($isTransfer && $booked->getLinkedTransactionId() !== null) {
+			// deleteAsAccountOwner() takes the booked deposit with it
+			$removed[] = $booked->getLinkedTransactionId();
+		}
+		$deposit = null;
 		try {
 			$linked = $this->transactionService->linkBillAsAccountOwner($imported->getId(), $bill);
 			if (!$linked->getIsSplit()) {
 				$this->applySplitTemplate($bill, $linked, $bill->getUserId());
 			}
 			$this->transactionService->deleteAsAccountOwner($booked->getId(), false, $bill->getId());
+			if ($isTransfer) {
+				$deposit = $this->transactionService->completeTransferPayment($linked, $bill);
+			}
 		} catch (\Exception $e) {
 			$this->logger->warning("Failed to put imported transaction {$imported->getId()} in place of bill {$bill->getId()}'s payment: {$e->getMessage()}");
 			return false;
 		}
 
-		$snapshot['createdTransactionIds'] = array_values(array_filter($ids, fn ($id) => (int)$id !== $booked->getId()));
+		$kept = array_values(array_filter($ids, fn ($id) => !in_array((int)$id, $removed, true)));
+		if ($deposit !== null) {
+			$kept[] = $deposit;
+		}
+		$snapshot['createdTransactionIds'] = $kept;
 		$snapshot['linkedTransactionId'] = $imported->getId();
 		$bill->setPaidUndoState(json_encode($snapshot));
 		$this->mapper->update($bill);
