@@ -371,13 +371,15 @@ class CategoryController extends Controller {
 	 * person's tree. Under someone else's category the user needs Full
 	 * control of it, as a write share covers name and colour, not the tree
 	 * (#402). Ownership never transfers, so a category only ever moves within
-	 * its owner's tree. A parent that isn't visible at all is left to the
-	 * service's not-found error.
+	 * its owner's tree. A parent this user can't see is refused too: the
+	 * service checks the parent against the owner, so a recipient could
+	 * otherwise file a category under one of the owner's that was never
+	 * shared with them.
 	 */
 	private function parentRefusal(int $parentId, string $categoryOwner): ?DataResponse {
 		$parentOwner = $this->granularShareService->resolveOwner($this->userId, 'category', $parentId);
 		if ($parentOwner === null) {
-			return null;
+			return new DataResponse(['error' => $this->l->t('Parent category not found')], Http::STATUS_BAD_REQUEST);
 		}
 		if ($parentOwner !== $this->userId
 			&& !$this->granularShareService->canManage($this->userId, 'category', $parentId)) {
@@ -461,9 +463,10 @@ class CategoryController extends Controller {
 	/**
 	 * Reorder a category relative to a target sibling (drag-and-drop). Renumbers
 	 * the sibling group so the order is deterministic. Own categories support all
-	 * positions; write-shared categories may be reordered (above/below) but not
-	 * nested (reparenting is owner-only) (#328), unless the share gives Full
-	 * control.
+	 * positions; write-shared categories may be reordered among their siblings
+	 * but not moved to another level (reparenting is owner-only) (#328), unless
+	 * the share gives Full control. The target must be a category this user
+	 * can see, in the same owner's tree.
 	 *
 	 * @NoAdminRequired
 	 */
@@ -480,16 +483,44 @@ class CategoryController extends Controller {
 			$this->requireWriteAccess('category', $id);
 			$owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id) ?? $this->userId;
 
-			// Reparenting is structural: the owner's, or a Full control
-			// recipient's. Write recipients may only reorder.
-			if ($position === 'child') {
+			// The target places the category, so it must be one this user can
+			// see, in the same tree. The service looks it up under the owner,
+			// where any of the owner's categories, shared or not, would do.
+			$targetOwner = $this->granularShareService->resolveOwner($this->userId, 'category', $targetId);
+			if ($targetOwner === null) {
+				return new DataResponse(
+					['error' => $this->l->t('%1$s not found', [$this->l->t('Category')])],
+					Http::STATUS_NOT_FOUND
+				);
+			}
+			if ($position !== 'child' && $targetOwner !== $owner) {
+				return new DataResponse(
+					['error' => $this->l->t('A category can only be moved next to another category with the same owner')],
+					Http::STATUS_FORBIDDEN
+				);
+			}
+
+			// Above or below a category on another level moves it to that
+			// level, which is as structural as nesting: the owner's, or a Full
+			// control recipient's, and only under a parent they could pick in
+			// an edit. Write recipients may only reorder among siblings.
+			$category = $this->service->find($id, $owner);
+			$newParentId = $position === 'child'
+				? $targetId
+				: $this->service->find($targetId, $owner)->getParentId();
+			if ($position === 'child' || $newParentId !== $category->getParentId()) {
 				if ($owner !== $this->userId
 					&& !$this->granularShareService->canManage($this->userId, 'category', $id)) {
-					return new DataResponse(['error' => $this->l->t('Shared categories cannot be nested')], Http::STATUS_FORBIDDEN);
+					$message = $position === 'child'
+						? $this->l->t('Shared categories cannot be nested')
+						: $this->l->t('Only the owner can move a shared category to another level');
+					return new DataResponse(['error' => $message], Http::STATUS_FORBIDDEN);
 				}
-				$refusal = $this->parentRefusal($targetId, $owner);
-				if ($refusal !== null) {
-					return $refusal;
+				if ($newParentId !== null) {
+					$refusal = $this->parentRefusal($newParentId, $owner);
+					if ($refusal !== null) {
+						return $refusal;
+					}
 				}
 			}
 
@@ -497,6 +528,10 @@ class CategoryController extends Controller {
 			return new DataResponse($category);
 		} catch (ReadOnlyShareException $e) {
 			return $this->handleError($e, $this->l->t('Failed to reorder category'), Http::STATUS_FORBIDDEN, ['categoryId' => $id]);
+		} catch (\InvalidArgumentException $e) {
+			// Curated refusals from the service, e.g. nesting a category
+			// inside its own branch
+			return $this->handleValidationError($e);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to reorder category'), Http::STATUS_BAD_REQUEST, ['categoryId' => $id]);
 		}
