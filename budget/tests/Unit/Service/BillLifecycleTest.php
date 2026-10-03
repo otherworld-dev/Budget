@@ -417,6 +417,33 @@ class BillLifecycleTest extends TestCase {
 		$this->assertFalse($this->stored->getAutoPayEnabled());
 	}
 
+	public function testAutoPayCatchesUpEveryOwedOccurrenceOnItsOwnDate(): void {
+		// A weekly bill three weeks behind paid one occurrence per run, every
+		// row dated the day of the run
+		$bill = $this->bill(['frequency' => 'weekly', 'dueDay' => 1, 'nextDueDate' => '2026-09-07']);
+		$bill->setAutoPayEnabled(true);
+
+		$result = $this->service->processAutoPay(1, 'user1');
+
+		$this->assertTrue($result['success']);
+		$this->assertSame(4, $result['count']);
+		$payments = array_values(array_filter($this->calls, fn (string $c) => str_starts_with($c, 'create:20')));
+		$this->assertSame(['create:2026-09-07', 'create:2026-09-14', 'create:2026-09-21', 'create:2026-09-28'], $payments);
+		$this->assertSame('2026-10-05', $this->stored->getNextDueDate());
+		$this->assertSame('2026-09-28', $this->stored->getLastPaidDate());
+	}
+
+	public function testAutoPayCatchUpStopsAtItsCap(): void {
+		// A daily bill a year behind books at most 60 rows in one run
+		$bill = $this->bill(['frequency' => 'daily', 'dueDay' => null, 'nextDueDate' => '2025-09-01']);
+		$bill->setAutoPayEnabled(true);
+
+		$result = $this->service->processAutoPay(1, 'user1');
+
+		$this->assertSame(60, $result['count']);
+		$this->assertSame('2025-10-31', $this->stored->getNextDueDate());
+	}
+
 	public function testPayingABillWithdrawsItsReminders(): void {
 		// A reminder or overdue notice stayed up after the bill was paid
 		$notifications = $this->createMock(\OCP\Notification\IManager::class);

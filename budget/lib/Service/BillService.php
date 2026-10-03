@@ -100,6 +100,8 @@ class BillService {
 
 	/** suggestion_type under which dismissed unrecorded payments are stored (#394) */
 	private const UNRECORDED_DISMISS_TYPE = 'unrecorded';
+	/** Most occurrences one auto-pay run pays for a bill that fell behind */
+	private const MAX_AUTO_PAY_CATCH_UP = 60;
 
 	/**
 	 * @throws DoesNotExistException
@@ -1992,9 +1994,13 @@ class BillService {
 	/**
 	 * Attempt to auto-pay a bill and handle success/failure.
 	 *
+	 * Pays every occurrence due by the owner's today (at most
+	 * MAX_AUTO_PAY_CATCH_UP), each dated on its own due date. Payments made
+	 * before a failure stay paid; auto-pay then switches itself off.
+	 *
 	 * @param int $id Bill ID
 	 * @param string $userId User ID
-	 * @return array ['success' => bool, 'message' => string, 'bill' => ?Bill]
+	 * @return array ['success' => bool, 'message' => string, 'bill' => ?Bill, 'count' => int occurrences paid (on success)]
 	 */
 	public function processAutoPay(int $id, string $userId): array {
 		try {
@@ -2022,25 +2028,42 @@ class BillService {
 				];
 			}
 
-			// Mark bill as paid
-			$result = $this->markPaid($id, $userId, null, true);
+			// Pay every occurrence owed by the owner's today, each on its own
+			// due date, as income auto-create and pension auto-post do. Paying
+			// one per run, dated the day of the run, left a weekly bill weeks
+			// behind and then caught it up in a burst of rows all dated today.
+			// The caller only asks for a bill already due, so the first
+			// occurrence is always paid (dated no later than today).
+			$today = $this->today($userId);
+			$paid = 0;
+			$result = null;
+			do {
+				$due = (string)$bill->getNextDueDate();
+				$result = $this->markPaid($id, $userId, min($due, $today), true, null, $due);
 
-			// Paid with nothing booked (the account is gone, the row failed):
-			// put the bill back and fail, rather than report success and move
-			// the bill on while the money never shows
-			if (!($result['paymentTransactionRecorded'] ?? false)) {
-				try {
-					$this->markUnpaid($id, $userId);
-				} catch (\Exception $e) {
-					$this->logger->warning("Failed to revert auto-pay of bill {$id}: {$e->getMessage()}");
+				// Paid with nothing booked (the account is gone, the row failed):
+				// put the bill back and fail, rather than report success and move
+				// the bill on while the money never shows
+				if (!($result['paymentTransactionRecorded'] ?? false)) {
+					try {
+						$this->markUnpaid($id, $userId);
+					} catch (\Exception $e) {
+						$this->logger->warning("Failed to revert auto-pay of bill {$id}: {$e->getMessage()}");
+					}
+					throw new \RuntimeException($this->l->t('The payment could not be recorded'));
 				}
-				throw new \RuntimeException($this->l->t('The payment could not be recorded'));
-			}
+				$paid++;
+				$bill = $result['bill'];
+			} while ($paid < self::MAX_AUTO_PAY_CATCH_UP
+				&& $bill->getIsActive()
+				&& $bill->getNextDueDate() !== null
+				&& $bill->getNextDueDate() <= $today);
 
 			return [
 				'success' => true,
 				'message' => $this->l->t('Bill auto-paid successfully'),
 				'bill' => $result['bill'],
+				'count' => $paid,
 			];
 
 		} catch (\Exception $e) {

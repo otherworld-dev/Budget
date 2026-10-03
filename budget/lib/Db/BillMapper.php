@@ -203,7 +203,7 @@ class BillMapper extends QBMapper {
 	/**
 	 * Find bills that are due for auto-payment today or earlier.
 	 * Returns only active bills with auto-pay enabled, valid account,
-	 * not already paid this month, and not in failed state.
+	 * not in failed state, whose next occurrence is due by $today.
 	 *
 	 * @return Bill[]
 	 */
