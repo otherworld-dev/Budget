@@ -2396,6 +2396,74 @@ class BillControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	/**
+	 * Rita has write on Owen's bill 7 and on his joint account 1; she can also
+	 * post to her own account 9, which Owen can't.
+	 */
+	private function controllerForRitaOnOwensBill(): BillController {
+		$writable = ['rita' => [1, 9], 'owen' => [1, 2]];
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canAccess')->willReturn(true);
+		$shares->method('resolveOwner')->willReturn('owen');
+		$shares->method('canWrite')->willReturnCallback(
+			fn (string $user, string $type, int $id) => $type !== 'account' || in_array($id, $writable[$user] ?? [], true)
+		);
+		$shares->method('requireWriteAccess')->willReturnCallback(function (string $user, string $type, int $id) use ($writable): void {
+			if ($type === 'account' && !in_array($id, $writable[$user] ?? [], true)) {
+				throw new \OCA\Budget\Exception\ReadOnlyShareException();
+			}
+		});
+		return new BillController(
+			$this->request, $this->service, $this->validationService, $shares,
+			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
+			$this->createMock(\OCA\Budget\Service\UpcomingBillsService::class),
+			$this->l, 'rita', $this->logger
+		);
+	}
+
+	public function testARecipientCannotMoveTheOwnersBillOntoAnAccountOnlySheCanUse(): void {
+		// Owen could no longer pay his own bill
+		$this->mockInput(json_encode(['accountId' => 9]));
+		$stored = new Bill();
+		$stored->setUserId('owen');
+		$stored->setAccountId(1);
+		$this->service->method('find')->willReturn($stored);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerForRitaOnOwensBill()->update(7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame("The owner of this bill can't use that account. Choose another one.", $response->getData()['error']);
+	}
+
+	public function testARecipientCannotPointTheOwnersTransferIntoAnAccountOnlySheCanUse(): void {
+		$this->mockInput(json_encode(['destinationAccountId' => 9]));
+		$stored = new Bill();
+		$stored->setUserId('owen');
+		$stored->setAccountId(1);
+		$stored->setIsTransfer(true);
+		$stored->setDestinationAccountId(2);
+		$this->service->method('find')->willReturn($stored);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerForRitaOnOwensBill()->update(7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testARecipientMayMoveTheOwnersBillToAnAccountTheyBothUse(): void {
+		$this->mockInput(json_encode(['accountId' => 1]));
+		$stored = new Bill();
+		$stored->setUserId('owen');
+		$stored->setAccountId(null);
+		$this->service->method('find')->willReturn($stored);
+		$this->service->expects($this->once())->method('update')->with(7, 'owen', ['accountId' => 1])->willReturn(new Bill());
+
+		$response = $this->controllerForRitaOnOwensBill()->update(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
 	public function testCreateFromDetectedRefusesAnAccountTheUserCannotPostTo(): void {
 		$this->mockInput(json_encode([
 			'bills' => [
