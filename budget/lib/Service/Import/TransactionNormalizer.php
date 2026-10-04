@@ -797,6 +797,15 @@ class TransactionNormalizer {
 			$amount = substr($amount, 1, -1);
 		}
 
+		// "45.00 DR": a debit marker after or before the amount, as a number
+		// of bank exports write it, was dropped with the currency symbols and
+		// read as income (R5-8). Only the sign is taken from it: the digits
+		// are read exactly as before, so no import id changes. CR (credit)
+		// already reads as positive, and IDR (a currency) is not a marker.
+		if (preg_match('/(?<![a-z])dr\.?$|^dr(?![a-z])/i', trim($amount)) === 1) {
+			$negative = true;
+		}
+
 		// Remove currency symbols and whitespace
 		$amount = preg_replace('/[^\d,.\-+]/', '', $amount);
 

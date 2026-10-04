@@ -144,6 +144,65 @@ class CategoryServiceTest extends TestCase {
 
 	// ===== create() =====
 
+	// ===== findOrCreate (importers) =====
+
+	private function category(int $id, string $name, string $type, ?int $parentId): Category {
+		$category = new Category();
+		$category->setId($id);
+		$category->setName($name);
+		$category->setType($type);
+		$category->setParentId($parentId);
+		return $category;
+	}
+
+	/**
+	 * An importer naming "Groceries" meant the user's Food > Groceries, but
+	 * only a top-level category was looked for, so a second top-level
+	 * "Groceries" was created beside it and the spending split in two (T3-7).
+	 */
+	public function testFindOrCreateReusesTheSubcategoryOfThatName(): void {
+		$this->categoryMapper->method('findByName')->willReturn(null);
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->category(1, 'Food', 'expense', null),
+			$this->category(2, 'Groceries', 'expense', 1),
+		]);
+		$this->categoryMapper->expects($this->never())->method('insert');
+
+		$this->assertSame(2, $this->service->findOrCreate('user1', 'Groceries', 'expense')->getId());
+	}
+
+	public function testFindOrCreateStillPrefersATopLevelCategory(): void {
+		$top = $this->category(5, 'Groceries', 'expense', null);
+		$this->categoryMapper->method('findByName')->with('user1', 'Groceries', 'expense', null)->willReturn($top);
+		$this->categoryMapper->expects($this->never())->method('insert');
+
+		$this->assertSame($top, $this->service->findOrCreate('user1', 'Groceries', 'expense'));
+	}
+
+	public function testFindOrCreateDoesNotGuessBetweenSubcategoriesOfOneName(): void {
+		// The default tree has Insurance under Housing and under Healthcare
+		$this->categoryMapper->method('findByName')->willReturn(null);
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->category(2, 'Insurance', 'expense', 1),
+			$this->category(4, 'Insurance', 'expense', 3),
+		]);
+		$this->categoryMapper->expects($this->once())->method('insert')->willReturnArgument(0);
+
+		$created = $this->service->findOrCreate('user1', 'Insurance', 'expense');
+
+		$this->assertNull($created->getParentId());
+	}
+
+	public function testFindOrCreateDoesNotReuseACategoryOfTheOtherType(): void {
+		$this->categoryMapper->method('findByName')->willReturn(null);
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->category(2, 'Salary', 'income', 1),
+		]);
+		$this->categoryMapper->expects($this->once())->method('insert')->willReturnArgument(0);
+
+		$this->service->findOrCreate('user1', 'Salary', 'expense');
+	}
+
 	public function testCreateBasicCategory(): void {
 		$this->categoryMapper->expects($this->once())
 			->method('insert')

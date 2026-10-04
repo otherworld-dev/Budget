@@ -1026,6 +1026,68 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
+	 * Every import ID an account holds, for an import to check its rows
+	 * against in memory instead of one query per row.
+	 *
+	 * @return string[]
+	 */
+	public function findImportIds(int $accountId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('import_id')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->isNotNull('import_id'));
+
+		$result = $qb->executeQuery();
+		$ids = [];
+		while (($importId = $result->fetchOne()) !== false) {
+			$ids[] = (string)$importId;
+		}
+		$result->closeCursor();
+
+		return $ids;
+	}
+
+	/**
+	 * An account's rows dated within [$from, $to], as plain arrays, for an
+	 * import to compare a file's rows against. Scheduled placeholders are left
+	 * out: a row read from a statement or an export is never one.
+	 *
+	 * @return array<int, array{id: int, date: string, amount: string, type: string, description: ?string, vendor: ?string, notes: ?string, import_id: ?string}>
+	 */
+	public function findImportComparables(int $accountId, string $from, string $to): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('id', 'date', 'amount', 'type', 'description', 'vendor', 'notes', 'import_id')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->gte('date', $qb->createNamedParameter($from)))
+			->andWhere($qb->expr()->lte('date', $qb->createNamedParameter($to)))
+			->andWhere($qb->expr()->orX(
+				$qb->expr()->isNull('status'),
+				$qb->expr()->neq('status', $qb->createNamedParameter('scheduled'))
+			))
+			->orderBy('id', 'ASC');
+
+		$result = $qb->executeQuery();
+		$rows = [];
+		while ($row = $result->fetch()) {
+			$rows[] = [
+				'id' => (int)$row['id'],
+				'date' => substr((string)$row['date'], 0, 10),
+				'amount' => (string)$row['amount'],
+				'type' => (string)$row['type'],
+				'description' => $row['description'] ?? null,
+				'vendor' => $row['vendor'] ?? null,
+				'notes' => $row['notes'] ?? null,
+				'import_id' => $row['import_id'] ?? null,
+			];
+		}
+		$result->closeCursor();
+
+		return $rows;
+	}
+
+	/**
 	 * Find pending transactions on an account that were imported by a given
 	 * provider (import_id prefixed with "provider:"). Used to reconcile
 	 * pending bank-sync holds against their later posted versions.

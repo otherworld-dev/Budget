@@ -456,6 +456,61 @@ class TransactionNormalizerTest extends TestCase {
 		$this->assertSame('credit', $result['type']);
 	}
 
+	public static function debitMarkers(): array {
+		return [
+			'suffix' => ['45.00 DR', 45.00],
+			'suffix, no space' => ['45.00DR', 45.00],
+			'lower case' => ['45.00 dr', 45.00],
+			'prefix' => ['DR 45.00', 45.00],
+			'European' => ['1.234,56 DR', 1234.56],
+			'with a currency' => ['£45.00 DR', 45.00],
+		];
+	}
+
+	/**
+	 * "45.00 DR" was read as income: the letters went with the currency
+	 * symbols and the sign with them (R5-8). Only the sign is taken from the
+	 * marker; the digits are read as before, so no import id changes.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('debitMarkers')]
+	public function testParseAmountDrMarkerIsDebit(string $value, float $amount): void {
+		$row = ['2024-01-01', $value, 'Test'];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertEqualsWithDelta($amount, $result['amount'], 0.001);
+		$this->assertSame('debit', $result['type']);
+	}
+
+	public function testParseAmountCrMarkerIsCredit(): void {
+		$row = ['2024-01-01', '45.00 CR', 'Test'];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertEqualsWithDelta(45.00, $result['amount'], 0.001);
+		$this->assertSame('credit', $result['type']);
+	}
+
+	public function testParseAmountACurrencyEndingInDrIsNotADebitMarker(): void {
+		// Indonesian rupiah
+		$row = ['2024-01-01', '45000 IDR', 'Test'];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertSame('credit', $result['type']);
+	}
+
+	public function testParseAmountDrMarkerKeepsTheImportId(): void {
+		// The id hashes the unsigned amount, which the marker must not change
+		$withMarker = $this->normalizer->mapRowToTransaction(['2024-01-01', '45.00 DR', 'Card payment'], ['date' => 0, 'amount' => 1, 'description' => 2]);
+		$plain = $this->normalizer->mapRowToTransaction(['2024-01-01', '45.00', 'Card payment'], ['date' => 0, 'amount' => 1, 'description' => 2]);
+
+		$this->assertSame(
+			$this->normalizer->generateImportId('f', 0, $plain),
+			$this->normalizer->generateImportId('f', 0, $withMarker)
+		);
+	}
+
 	public function testParseAmountTypeColumnStillWinsOverTrailingMinus(): void {
 		// #333's rule is unchanged: an explicit type column decides.
 		$row = ['2024-01-01', '91,29-', 'Income', 'Test'];

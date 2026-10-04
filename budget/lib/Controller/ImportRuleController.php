@@ -6,6 +6,8 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\ShareItem;
+use OCA\Budget\Db\TagMapper;
+use OCA\Budget\Db\TagSetMapper;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\Import\RegexPattern;
 use OCA\Budget\Service\ImportRuleService;
@@ -42,6 +44,8 @@ class ImportRuleController extends Controller {
 		IL10N $l,
 		string $userId,
 		LoggerInterface $logger,
+		private ?TagMapper $tagMapper = null,
+		private ?TagSetMapper $tagSetMapper = null,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 		$this->service = $service;
@@ -345,6 +349,10 @@ class ImportRuleController extends Controller {
 			$owner = $this->granularShareService->resolveOwner($this->userId, ShareItem::TYPE_IMPORT_RULE, $id)
 				?? $this->userId;
 
+			if (isset($updates['actions']) && $owner !== $this->userId) {
+				$updates['actions'] = $this->keepTagsTheEditorCannotSee($id, $owner, $updates['actions']);
+			}
+
 			$rule = $this->service->update($id, $owner, $updates);
 			return new DataResponse($rule);
 		} catch (\InvalidArgumentException $e) {
@@ -352,6 +360,106 @@ class ImportRuleController extends Controller {
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to update import rule'), Http::STATUS_BAD_REQUEST, ['ruleId' => $id]);
 		}
+	}
+
+	/**
+	 * The add-tags actions of a shared rule as someone other than its owner
+	 * saves it.
+	 *
+	 * The rule editor only shows the tags its user can see, and once they
+	 * tick a box in an action it saves just the ticked ones, so a
+	 * recipient's save stripped the owner's own tags off the rule. As with a
+	 * shared bill's tags: the tags in each add-tags action that the editor
+	 * can't see stay as they are (the k-th stored action's go to the k-th
+	 * one sent, or come back as their own action if the recipient removed
+	 * it), and only the ones they can see are replaced by what they sent. A
+	 * tag even the owner can't use any more is not kept. The owner's own
+	 * save still replaces the whole list.
+	 *
+	 * @param mixed $sent The actions the editor sent
+	 * @return mixed
+	 */
+	private function keepTagsTheEditorCannotSee(int $id, string $owner, mixed $sent): mixed {
+		if (!is_array($sent) || !isset($sent['actions']) || !is_array($sent['actions'])) {
+			return $sent;
+		}
+
+		$stored = $this->service->find($id, $owner)->getParsedActions();
+		$hiddenPerAction = [];
+		foreach (is_array($stored['actions'] ?? null) ? $stored['actions'] : [] as $action) {
+			if (!is_array($action) || ($action['type'] ?? null) !== 'add_tags') {
+				continue;
+			}
+			$ids = array_map('intval', is_array($action['value'] ?? null) ? $action['value'] : []);
+			$hidden = array_values(array_diff($ids, $this->usableTagIds($this->userId, $ids)));
+			$hidden = $hidden === [] ? [] : array_values(array_intersect($hidden, $this->usableTagIds($owner, $hidden)));
+			$hiddenPerAction[] = ['ids' => $hidden, 'action' => $action];
+		}
+		if ($hiddenPerAction === [] || array_merge(...array_column($hiddenPerAction, 'ids')) === []) {
+			return $sent;
+		}
+
+		$k = 0;
+		foreach ($sent['actions'] as $i => $action) {
+			if (!is_array($action) || ($action['type'] ?? null) !== 'add_tags' || !isset($hiddenPerAction[$k])) {
+				continue;
+			}
+			$given = array_map('intval', is_array($action['value'] ?? null) ? $action['value'] : []);
+			$sent['actions'][$i]['value'] = array_values(array_unique(array_merge($given, $hiddenPerAction[$k]['ids'])));
+			$k++;
+		}
+		// Actions the recipient removed: what they couldn't see stays
+		for (; $k < count($hiddenPerAction); $k++) {
+			if ($hiddenPerAction[$k]['ids'] === []) {
+				continue;
+			}
+			$sent['actions'][] = array_merge($hiddenPerAction[$k]['action'], ['value' => $hiddenPerAction[$k]['ids']]);
+		}
+		$sent['actions'] = array_values($sent['actions']);
+
+		return $sent;
+	}
+
+	/**
+	 * The tags among $tagIds that $userId can see and use: their own global
+	 * tags, and tags in a tag set whose category is theirs or shared with
+	 * them. The same rule as GranularShareService::getUsableTagIds() on the
+	 * D1 branch, which isn't on this one; switch to it once both are merged.
+	 *
+	 * @param int[] $tagIds
+	 * @return int[]
+	 */
+	protected function usableTagIds(string $userId, array $tagIds): array {
+		$tagIds = array_values(array_unique(array_map('intval', $tagIds)));
+		if ($tagIds === [] || $this->tagMapper === null) {
+			return [];
+		}
+
+		$visibleCategories = array_flip(array_map('intval', $this->granularShareService->getVisibleCategoryIds($userId)));
+		$categoryOfSet = [];
+		$usable = [];
+		foreach ($this->tagMapper->findByIds($tagIds) as $tag) {
+			$tagSetId = $tag->getTagSetId();
+			if ($tagSetId === null) {
+				if ($tag->getUserId() === $userId) {
+					$usable[] = (int)$tag->getId();
+				}
+				continue;
+			}
+			if (!array_key_exists($tagSetId, $categoryOfSet)) {
+				try {
+					$categoryOfSet[$tagSetId] = $this->tagSetMapper?->findById($tagSetId)->getCategoryId();
+				} catch (\OCP\AppFramework\Db\DoesNotExistException $e) {
+					$categoryOfSet[$tagSetId] = null;
+				}
+			}
+			$categoryId = $categoryOfSet[$tagSetId];
+			if ($categoryId !== null && isset($visibleCategories[(int)$categoryId])) {
+				$usable[] = (int)$tag->getId();
+			}
+		}
+
+		return $usable;
 	}
 
 	/**

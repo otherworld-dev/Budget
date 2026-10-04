@@ -198,6 +198,87 @@ class ImportRuleServiceTest extends TestCase {
 		$this->service->create('user1', 'With Actions', null, null, null, $criteria, 2, null, null, 0, $actions);
 	}
 
+	// ===== category actions must belong to the ledger (R6-4) =====
+
+	private function refusedActions(): array {
+		return ['valid' => false, 'errors' => ["Action 0: category 99 is not available to the rule's owner"]];
+	}
+
+	/**
+	 * A v1-schema rule stored its actions without validating them, so it
+	 * could carry another user's category, and switching it to v2 later
+	 * kept them unchecked.
+	 */
+	public function testCreateV1ValidatesItsActions(): void {
+		$actions = ['version' => 2, 'actions' => [['type' => 'set_category', 'value' => 99]]];
+		$this->actionApplicator->method('validateActions')->with($actions, 'user1')->willReturn($this->refusedActions());
+		$this->mapper->expects($this->never())->method('insert');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('category 99');
+		$this->service->create('user1', 'V1', 'shop', 'description', 'contains', null, 1, null, null, 0, $actions);
+	}
+
+	public function testCreateV2ValidatesTheCategoryColumn(): void {
+		$this->criteriaEvaluator->method('validate')->willReturn(['valid' => true]);
+		$this->actionApplicator->method('validateActions')->with(['categoryId' => 99], 'user1')->willReturn($this->refusedActions());
+		$this->mapper->expects($this->never())->method('insert');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->create('user1', 'V2', null, null, null, ['version' => 2, 'root' => []], 2, 99);
+	}
+
+	public function testUpdateV1ValidatesItsActions(): void {
+		$this->mapper->method('find')->willReturn($this->makeRule(['categoryId' => null]));
+		$actions = ['version' => 2, 'actions' => [['type' => 'set_category', 'value' => 99]]];
+		$this->actionApplicator->method('validateActions')->with($actions, 'user1')->willReturn($this->refusedActions());
+		$this->mapper->expects($this->never())->method('update');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->update(1, 'user1', ['actions' => $actions]);
+	}
+
+	public function testSwitchingToV2ChecksTheActionsItAlreadyHas(): void {
+		$rule = $this->makeRule(['categoryId' => null]);
+		$rule->setActionsFromArray(['version' => 2, 'actions' => [['type' => 'set_category', 'value' => 99]]]);
+		$this->mapper->method('find')->willReturn($rule);
+		$this->criteriaEvaluator->method('validate')->willReturn(['valid' => true]);
+		$this->actionApplicator->method('validateActions')
+			->with(['version' => 2, 'actions' => [['type' => 'set_category', 'value' => 99]]], 'user1')
+			->willReturn($this->refusedActions());
+		$this->mapper->expects($this->never())->method('update');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->update(1, 'user1', [
+			'schemaVersion' => 2,
+			'criteria' => ['version' => 2, 'root' => ['operator' => 'AND', 'conditions' => []]],
+		]);
+	}
+
+	public function testUpdateV2ValidatesACategoryColumnChange(): void {
+		$rule = $this->makeRule(['schemaVersion' => 2, 'categoryId' => null]);
+		$rule->setCriteriaFromArray(['version' => 2, 'root' => ['operator' => 'AND', 'conditions' => []]]);
+		$this->mapper->method('find')->willReturn($rule);
+		$this->actionApplicator->method('validateActions')->with(['categoryId' => 99], 'user1')->willReturn($this->refusedActions());
+		$this->mapper->expects($this->never())->method('update');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->update(1, 'user1', ['categoryId' => 99]);
+	}
+
+	public function testAnUnrelatedEditDoesNotRecheckStoredActions(): void {
+		// A rule whose category was unshared since must still be editable,
+		// not least to switch it off
+		$rule = $this->makeRule(['schemaVersion' => 2, 'categoryId' => null]);
+		$rule->setCriteriaFromArray(['version' => 2, 'root' => ['operator' => 'AND', 'conditions' => []]]);
+		$rule->setActionsFromArray(['version' => 2, 'actions' => [['type' => 'set_category', 'value' => 99]]]);
+		$this->mapper->method('find')->willReturn($rule);
+		$this->actionApplicator->expects($this->never())->method('validateActions');
+		$this->mapper->expects($this->once())->method('update')->willReturnCallback(fn ($r) => $r);
+
+		$this->service->update(1, 'user1', ['active' => false]);
+	}
+
 	// ===== update =====
 
 	public function testUpdateSetsTimestampAndCallsMapper(): void {
@@ -289,6 +370,129 @@ class ImportRuleServiceTest extends TestCase {
 
 		$stored = json_decode($updated->getCriteria(), true);
 		$this->assertSame(['min' => '2026-01-01', 'max' => '2026-12-31'], $stored['root']['conditions'][0]['pattern']);
+	}
+
+	// ===== default rules =====
+
+	/**
+	 * @return \OCA\Budget\Db\Category[] the default tree's categories the rules name
+	 */
+	private function defaultCategories(): array {
+		$tree = [
+			[10, 'Food', null], [11, 'Groceries', 10], [14, 'Dining Out', 10],
+			[12, 'Transportation', null], [13, 'Gas', 12],
+			[15, 'Shopping', null],
+			[16, 'Housing', null], [17, 'Utilities', 16],
+			[18, 'Income', null],
+		];
+		$categories = [];
+		foreach ($tree as [$id, $name, $parentId]) {
+			$category = new \OCA\Budget\Db\Category();
+			$category->setId($id);
+			$category->setName($name);
+			$category->setType($name === 'Income' ? 'income' : 'expense');
+			$category->setParentId($parentId);
+			$categories[] = $category;
+		}
+		return $categories;
+	}
+
+	/**
+	 * "Create default categories" also made six rules with no category, which
+	 * matched first, did nothing and stopped every rule after them (T3). Each
+	 * default rule now sets the category it is named for, found in the tree
+	 * the button has just made, subcategories included.
+	 */
+	public function testDefaultRulesSetTheCategoryTheyAreNamedFor(): void {
+		$this->categoryMapper->method('findAll')->willReturn($this->defaultCategories());
+		$this->mapper->method('findAll')->willReturn([]);
+		$this->criteriaEvaluator->method('validate')->willReturn(['valid' => true]);
+		$this->actionApplicator->method('validateActions')->willReturn(['valid' => true, 'errors' => []]);
+
+		$inserted = [];
+		$this->mapper->method('insert')->willReturnCallback(function (ImportRule $r) use (&$inserted) {
+			$r->setId(count($inserted) + 1);
+			$inserted[] = $r;
+			return $r;
+		});
+
+		$created = $this->service->createDefaultRules('user1');
+
+		$categoryByRule = [];
+		foreach ($created as $rule) {
+			$this->assertSame(2, $rule->getSchemaVersion());
+			$this->assertTrue($rule->getActive());
+			$actions = $rule->getParsedActions()['actions'];
+			$this->assertCount(1, $actions);
+			$this->assertSame('set_category', $actions[0]['type']);
+			$condition = $rule->getParsedCriteria()['root']['conditions'][0];
+			$this->assertSame('regex', $condition['matchType']);
+			$this->assertSame($rule->getPattern(), $condition['pattern']);
+			$categoryByRule[$rule->getName()] = $actions[0]['value'];
+		}
+
+		// No "Cash" category exists, so no ATM rule that could only block
+		// others. Created in the order they used to rank.
+		$this->assertSame([
+			'Grocery Stores' => 11,
+			'Gas Stations' => 13,
+			'Utilities' => 17,
+			'Restaurants' => 14,
+			'Online Shopping' => 15,
+		], $categoryByRule);
+	}
+
+	/**
+	 * At 5-10 the defaults outranked a rule made in the editor (which starts
+	 * at 1, and used to start at 0), so an overlapping rule of the user's
+	 * never ran. They now take the lowest priority there is.
+	 */
+	public function testDefaultRulesRankBelowTheUsersOwnRules(): void {
+		$this->categoryMapper->method('findAll')->willReturn($this->defaultCategories());
+		$this->mapper->method('findAll')->willReturn([]);
+		$this->criteriaEvaluator->method('validate')->willReturn(['valid' => true]);
+		$this->actionApplicator->method('validateActions')->willReturn(['valid' => true, 'errors' => []]);
+		$this->mapper->method('insert')->willReturnCallback(function (ImportRule $r) {
+			$r->setId(1);
+			return $r;
+		});
+
+		$created = $this->service->createDefaultRules('user1');
+
+		$this->assertNotEmpty($created);
+		$this->assertSame([0], array_values(array_unique(array_map(fn (ImportRule $r) => $r->getPriority(), $created))));
+		$this->assertSame(0, ImportRuleService::DEFAULT_RULE_PRIORITY);
+	}
+
+	public function testDefaultRulesAreNotAddedTwice(): void {
+		$this->categoryMapper->method('findAll')->willReturn($this->defaultCategories());
+		$this->criteriaEvaluator->method('validate')->willReturn(['valid' => true]);
+		$this->actionApplicator->method('validateActions')->willReturn(['valid' => true, 'errors' => []]);
+		$existing = $this->makeRule([
+			'name' => 'Grocery Stores',
+			'pattern' => 'grocery|supermarket|safeway|kroger|trader joe|whole foods',
+		]);
+		$this->mapper->method('findAll')->willReturn([$existing]);
+
+		$names = [];
+		$this->mapper->method('insert')->willReturnCallback(function (ImportRule $r) use (&$names) {
+			$names[] = $r->getName();
+			$r->setId(99);
+			return $r;
+		});
+
+		$this->service->createDefaultRules('user1');
+
+		$this->assertNotContains('Grocery Stores', $names);
+		$this->assertContains('Gas Stations', $names);
+	}
+
+	public function testNoDefaultRuleIsMadeWithoutItsCategory(): void {
+		$this->categoryMapper->method('findAll')->willReturn([]);
+		$this->mapper->method('findAll')->willReturn([]);
+		$this->mapper->expects($this->never())->method('insert');
+
+		$this->assertSame([], $this->service->createDefaultRules('user1'));
 	}
 
 	// ===== delete =====
@@ -499,6 +703,124 @@ class ImportRuleServiceTest extends TestCase {
 		);
 	}
 
+	// ===== a run over many rows (T6-3) =====
+
+	/**
+	 * @return ImportRuleService&\PHPUnit\Framework\MockObject\MockObject
+	 */
+	private function serviceWithRows(array ...$batches): ImportRuleService {
+		$transactionService = $this->createMock(\OCA\Budget\Service\TransactionService::class);
+		$transactionService->method('findAccountById')->willReturnCallback(function (int $id) {
+			$account = new \OCA\Budget\Db\Account();
+			$account->setUserId('user1');
+			return $account;
+		});
+		$service = $this->getMockBuilder(ImportRuleService::class)
+			->setConstructorArgs([
+				$this->mapper, $this->categoryMapper, $this->transactionMapper, $transactionService,
+				$this->db, $this->criteriaEvaluator, $this->actionApplicator, $this->granularShareService,
+			])
+			->onlyMethods(['findTransactionsForRules', 'findActiveIncludingShared'])
+			->getMock();
+		$service->method('findTransactionsForRules')->willReturnOnConsecutiveCalls(...$batches);
+		$service->method('findActiveIncludingShared')->willReturn([$this->makeRule(['schemaVersion' => 2])]);
+		$this->criteriaEvaluator->method('evaluate')->willReturn(true);
+
+		$result = $this->createMock(\OCP\DB\IResult::class);
+		$result->method('fetchOne')->willReturn('checking');
+		$qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
+		$qb->method('expr')->willReturn($this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class));
+		foreach (['select', 'from', 'where', 'andWhere', 'setMaxResults'] as $fluent) {
+			$qb->method($fluent)->willReturnSelf();
+		}
+		$qb->method('executeQuery')->willReturn($result);
+		$this->db->method('getQueryBuilder')->willReturn($qb);
+
+		return $service;
+	}
+
+	/** @return \OCA\Budget\Db\Transaction[] */
+	private function rows(int $count): array {
+		$rows = [];
+		for ($id = 1; $id <= $count; $id++) {
+			$tx = new \OCA\Budget\Db\Transaction();
+			$tx->setId($id);
+			$tx->setAccountId(3);
+			$tx->setDescription('grocery run');
+			$tx->setAmount(10.0);
+			$tx->setType('debit');
+			$tx->setDate('2026-09-01');
+			$rows[] = $tx;
+		}
+		return $rows;
+	}
+
+	/**
+	 * Every changed row was its own autocommitted UPDATE: 27,000 rows took
+	 * 96 s. Rows are now saved in chunks, one database transaction each.
+	 */
+	public function testARunSavesItsRowsInOneTransactionPerChunk(): void {
+		$service = $this->serviceWithRows($this->rows(3));
+		$this->actionApplicator->method('applyRules')->willReturn(['category' => ['old' => null, 'new' => 5]]);
+		$this->transactionMapper->expects($this->exactly(3))->method('update')->willReturnArgument(0);
+		$this->db->expects($this->once())->method('beginTransaction');
+		$this->db->expects($this->once())->method('commit');
+		$this->db->expects($this->never())->method('rollBack');
+
+		$outcome = $service->applyRulesToTransactions('user1', [], []);
+
+		$this->assertSame(3, $outcome['success']);
+	}
+
+	/**
+	 * After a failed statement PostgreSQL refuses the rest of the transaction,
+	 * and committing it then throws everything away: the chunk is rolled back
+	 * and done again one row at a time from the rows as stored, so only the
+	 * row that fails is lost, as it was before.
+	 */
+	public function testAFailedSaveRedoesTheChunkOneRowAtATime(): void {
+		$service = $this->serviceWithRows($this->rows(3), $this->rows(3));
+		$this->actionApplicator->method('applyRules')->willReturn(['category' => ['old' => null, 'new' => 5]]);
+		$this->transactionMapper->method('update')->willReturnCallback(function (\OCA\Budget\Db\Transaction $tx) {
+			if ($tx->getId() === 2) {
+				throw new \OCP\DB\Exception('value too long');
+			}
+			return $tx;
+		});
+		$this->db->method('inTransaction')->willReturn(true);
+		$this->db->expects($this->once())->method('beginTransaction');
+		$this->db->expects($this->never())->method('commit');
+		$this->db->expects($this->once())->method('rollBack');
+
+		$outcome = $service->applyRulesToTransactions('user1', [], []);
+
+		$this->assertSame(2, $outcome['success']);
+		$this->assertSame(1, $outcome['failed']);
+		$this->assertSame([1, 3], array_column($outcome['applied'], 'transactionId'));
+	}
+
+	public function testTheListOfChangedRowsIsCapped(): void {
+		$service = $this->serviceWithRows($this->rows(501), []);
+		$this->actionApplicator->method('applyRules')->willReturn(['category' => ['old' => null, 'new' => 5]]);
+		$this->transactionMapper->method('update')->willReturnArgument(0);
+
+		$outcome = $service->applyRulesToTransactions('user1', [], []);
+
+		$this->assertSame(501, $outcome['success']);
+		$this->assertCount(500, $outcome['applied']);
+		$this->assertTrue($outcome['appliedTruncated']);
+	}
+
+	public function testThePreviewListIsCapped(): void {
+		$service = $this->serviceWithRows($this->rows(501));
+
+		$preview = $service->previewRuleApplication('user1', [], []);
+
+		$this->assertSame(501, $preview['matchCount']);
+		$this->assertCount(500, $preview['preview']);
+		$this->assertTrue($preview['previewTruncated']);
+	}
+
 	/**
 	 * A bulk rule run recomputes each touched account's ledger once, after
 	 * the run — not once per changed row, which re-summed the whole account
@@ -512,6 +834,13 @@ class ImportRuleServiceTest extends TestCase {
 			->willReturnCallback(function (int $accountId, string $userId) use (&$recomputed) {
 				$recomputed[] = [$accountId, $userId];
 			});
+		// Balances are recomputed as each account's owner, whoever ran the rules
+		$transactionService->method('findAccountById')->willReturnCallback(function (int $id) {
+			$account = new \OCA\Budget\Db\Account();
+			$account->setId($id);
+			$account->setUserId($id === 7 ? 'owner7' : 'user1');
+			return $account;
+		});
 
 		$service = $this->getMockBuilder(ImportRuleService::class)
 			->setConstructorArgs([
@@ -564,6 +893,6 @@ class ImportRuleServiceTest extends TestCase {
 		$outcome = $service->applyRulesToTransactions('user1', [], []);
 
 		$this->assertSame(4, $outcome['success']);
-		$this->assertSame([[3, 'user1'], [7, 'user1']], $recomputed);
+		$this->assertSame([[3, 'user1'], [7, 'owner7']], $recomputed);
 	}
 }

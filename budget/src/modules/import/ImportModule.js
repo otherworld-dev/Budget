@@ -583,7 +583,7 @@ export default class ImportModule {
             // every later import. The server keeps only the four fields these
             // formats can resolve (#340).
             requestBody.mapping = this.getCurrentMapping();
-            requestBody.applyRules = true;
+            requestBody.applyRules = this.applyRulesChosen();
         }
 
         try {
@@ -1045,6 +1045,12 @@ export default class ImportModule {
             }
         }
 
+        // "Apply import rules" starts each new file from the user's setting
+        // (on unless they switched it off); a template may change it, and the
+        // box decides what the preview shows and the import does (T3-9)
+        const applyRules = document.getElementById('apply-rules');
+        if (applyRules) applyRules.checked = this.settings?.import_auto_apply_rules !== 'false';
+
         // Populate column mapping dropdowns
         this.populateColumnMappings(uploadResult.columns);
         this.applyFormatDefaults(uploadResult.format, uploadResult.columns || []);
@@ -1490,6 +1496,15 @@ export default class ImportModule {
         this.validateMappingStep();
     }
 
+    /**
+     * Whether this import runs the user's import rules: the "Apply import
+     * rules" box, on when there is no box to read.
+     */
+    applyRulesChosen() {
+        const box = document.getElementById('apply-rules');
+        return box ? box.checked : true;
+    }
+
     getCurrentMapping() {
         return {
             date: document.getElementById('map-date')?.value || null,
@@ -1668,6 +1683,8 @@ export default class ImportModule {
             fileId: this.currentImportData.fileId,
             mapping: mapping,
             skipDuplicates: false,
+            // The preview shows what the import will do (T3-9)
+            applyRules: this.applyRulesChosen(),
             delimiter: document.getElementById('csv-delimiter')?.value || ',',
             // Whatever the mapping screen was decoded with must be what gets
             // parsed and imported, or the preview lies about the result (#371)
@@ -2390,7 +2407,9 @@ export default class ImportModule {
             fileId: this.currentImportData.fileId,
             mapping: mapping,
             skipDuplicates: !(document.getElementById('import-duplicates')?.checked ?? false),
-            applyRules: true,
+            // The box was ignored and rules always ran (T3-9). A template's
+            // own choice is already in it, set when the template was picked.
+            applyRules: this.applyRulesChosen(),
             delimiter: document.getElementById('csv-delimiter')?.value || ',',
             // Whatever the mapping screen was decoded with must be what gets
             // parsed and imported, or the preview lies about the result (#371)
@@ -2405,11 +2424,6 @@ export default class ImportModule {
         // Include saved template ID if selected (server resolves the mapping/routing)
         if (this.selectedTemplate) {
             requestBody.templateId = this.selectedTemplate;
-            // OFX/QIF routing templates carry their own apply-rules option (no UI control).
-            const tpl = this.userTemplates.find(t => t.id === this.selectedTemplate);
-            if (tpl && typeof tpl.applyRules === 'boolean') {
-                requestBody.applyRules = tpl.applyRules;
-            }
         }
 
         // Check if preset has accountColumn or manual mapping has account column
