@@ -781,6 +781,24 @@ class BillController extends Controller {
 				$this->requireAccountsUsableByOwner($ownerId, ...$changedAccounts);
 			}
 
+			// A dynamic amount is read off the destination card, and the bill
+			// then shows it as its amount: switching a shared bill to one let
+			// a recipient read the balance of a card never shared with them.
+			// Only a change needs it; a form that sends back the stored type
+			// keeps saving.
+			if (isset($updates['amountType']) && $updates['amountType'] !== 'fixed') {
+				$storedBill = $storedBill ?? $this->service->find($id, $ownerId);
+				$destinationId = array_key_exists('destinationAccountId', $updates)
+					? $updates['destinationAccountId'] : $storedBill->getDestinationAccountId();
+				if ($updates['amountType'] !== ($storedBill->getAmountType() ?? 'fixed')
+					&& $destinationId !== null && !$this->canAccessEntity('account', (int)$destinationId)) {
+					return new DataResponse(
+						['error' => $this->l->t('This amount is read from an account that isn\'t shared with you. Choose a fixed amount.')],
+						Http::STATUS_BAD_REQUEST
+					);
+				}
+			}
+
 			if (empty($updates)) {
 				return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
 			}
