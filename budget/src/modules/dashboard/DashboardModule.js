@@ -21,6 +21,7 @@ import { groupProjects, progressFor } from '../projects/projectMath.js';
 import { progressBarAttrs, overBudgetText } from '../../utils/budgetProgress.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
 import { hiddenCategoryBranch, withoutHiddenCategories, categoryPickerRows } from '../../utils/categoryVisibility.js';
+import { rowCategoryName } from '../transactions/transactionRow.js';
 
 const GRIDSTACK_SIZE_MAP = {
     xs: { w: 1, h: 1 },
@@ -1341,10 +1342,12 @@ export default class DashboardModule {
             return cell(dot('#999'), dom.escapeHtml(t('budget', 'Split')), dom.escapeHtml(t('budget', 'Split transaction')));
         }
 
+        // A row in an account shared with you may be filed under an owner's
+        // category not shared with you: named as the row came (rowCategoryName)
         const category = this.categories?.find(c => c.id === tx.categoryId || c.id === tx.category_id);
         return cell(
             dot(category ? category.color : '#999'),
-            dom.escapeHtml(category ? category.name : uncategorized),
+            dom.escapeHtml(rowCategoryName(tx, category) ?? uncategorized),
             ''
         );
     }
