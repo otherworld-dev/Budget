@@ -340,6 +340,11 @@ class DebtPayoffService {
 				'name' => $debt['name'],
 				'type' => $debt['type'],
 				'originalBalance' => round($debt['originalBalance'], 2),
+				// What the plan pays on it each month before any extra: the
+				// account's minimum, 25 when none is set, or more when that
+				// would not cover the interest. The Debt Payoff page adds these
+				// up for its Monthly Payment, which read 0 without them.
+				'minimumPayment' => round($debt['minimumPayment'], 2),
 				'interestRate' => round($debt['interestRate'] * 100, 2),
 				'interestPaid' => round($debt['interestPaid'], 2),
 				'payoffMonth' => $debt['payoffMonth'],
