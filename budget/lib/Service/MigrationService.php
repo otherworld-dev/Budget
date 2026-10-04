@@ -497,12 +497,23 @@ class MigrationService {
 			// Point those links at the restored rows, or cut them
 			$links = $this->crossUserLinks?->apply($idMaps) ?? ['sharesDropped' => 0, 'othersDetached' => 0];
 
-			// Restore the ledger invariant for imported accounts:
-			// opening_balance := exported balance − net(imported transactions).
-			// This preserves the displayed balance exactly (even for exports
-			// from drifted instances) while keeping future recalculation sound.
+			// The ledger invariant, balance = opening balance + net(ledger),
+			// for every restored account. The opening balance is what the
+			// user set, so an account restored with one (every backup since
+			// March 2026) keeps it and has its balance rebuilt from the
+			// restored ledger, exactly as the next recalculation would. One
+			// from an older backup, which has none, keeps its balance and
+			// gets the opening balance that implies. Deriving the opening
+			// balance from a balance re-signed by "in credit" (which only
+			// describes the opening balance) restored any card or loan whose
+			// ledger had crossed zero on the wrong side.
+			$balances = new AccountBalanceCalculator($this->accountMapper, $this->transactionMapper);
 			foreach (($idMaps['accounts'] ?? []) as $newAccountId) {
 				$account = $this->accountMapper->findById($newAccountId);
+				if ($account->getOpeningBalance() !== null) {
+					$balances->recalculate($account);
+					continue;
+				}
 				$net = $this->transactionMapper->getNetChangeAll($newAccountId);
 				// At the account currency's precision: rounding to 2dp here
 				// shifted a restored crypto balance on its next recompute (#331).
@@ -983,7 +994,7 @@ class MigrationService {
 		$idMaps['categories'] = $this->importCategories($userId, $data['categories'] ?? []);
 
 		// 2. Import accounts
-		$idMaps['accounts'] = $this->importAccounts($userId, $data['accounts'] ?? []);
+		$idMaps['accounts'] = $this->importAccounts($userId, $data['accounts'] ?? [], version_compare(self::archiveVersion($data), '1.1.0', '<'));
 
 		// 2b. Tag sets and tags — before transactions/bills so tag references
 		// can be remapped (#351)
@@ -1139,11 +1150,22 @@ class MigrationService {
 
 	/**
 	 * Account properties importAccounts() sets itself rather than copying
-	 * from the archive: identity, and the balance pair, which is signed
-	 * through AccountType::signFor() and rebuilt from the imported ledger
-	 * afterwards (importAll()).
+	 * from the archive: identity, and the balance pair and in-credit flag,
+	 * which a backup older than format 1.1.0 holds in another sign
+	 * convention. The balance is rebuilt from the imported ledger afterwards
+	 * (importAll()).
 	 */
 	private const ACCOUNT_PROPERTIES_NOT_COPIED = ['id', 'userId', 'balance', 'openingBalance', 'liabilityInCredit'];
+
+	/**
+	 * The backup format version an archive declares, or "0" (older than any)
+	 * when it declares none that reads as a version.
+	 */
+	private static function archiveVersion(array $importData): string {
+		$manifest = $importData['manifest'] ?? null;
+		$version = is_array($manifest) ? ($manifest['version'] ?? null) : null;
+		return is_string($version) && preg_match('/^\d+(\.\d+)*$/', $version) === 1 ? $version : '0';
+	}
 
 	/**
 	 * Every other Account property, read off the entity itself.
@@ -1184,9 +1206,11 @@ class MigrationService {
 	/**
 	 * Import accounts.
 	 *
+	 * @param bool $legacySigns the archive predates format 1.1.0, when a
+	 *                          liability held what was owed as a positive number
 	 * @return array<int, int> Map of old ID => new ID
 	 */
-	private function importAccounts(string $userId, array $accounts): array {
+	private function importAccounts(string $userId, array $accounts, bool $legacySigns = false): array {
 		$idMap = [];
 		$fieldTypes = (new Account())->getFieldTypes();
 		$now = date('Y-m-d H:i:s');
@@ -1214,18 +1238,30 @@ class MigrationService {
 				$account->{'set' . ucfirst($property)}($value);
 			}
 
-			// Sign the balance through the single authority. Exports carrying an
-			// explicit in-credit declaration are honoured; legacy exports
-			// (pre-1.1.0 positive liability balances, and any export predating
-			// #353) fall back to "owed", which is what they meant.
+			// The archive's balances are already signed, and "in credit" is
+			// what the user declared about the opening balance: both come
+			// back as they were. Signing today's balance with that flag put
+			// a card or loan whose ledger had crossed zero on the wrong side.
+			// The balance is rebuilt from the opening balance and the ledger
+			// once the ledger is in (importAll()); an archive without an
+			// opening balance keeps its balance instead.
 			$type = (string)($accData['type'] ?? '');
+			$liability = AccountType::tryFrom($type)?->isLiability() ?? false;
 			$declared = array_key_exists('liabilityInCredit', $accData) && $accData['liabilityInCredit'] !== null
 				? filter_var($accData['liabilityInCredit'], FILTER_VALIDATE_BOOLEAN)
 				: null;
-			$account->setBalance(AccountType::signFor($type, (float)($accData['balance'] ?? 0), $declared ?? false));
-			$account->setLiabilityInCredit(
-				AccountType::tryFrom($type)?->isLiability() ? $declared : null
-			);
+			$balance = is_numeric($accData['balance'] ?? null) ? (float)$accData['balance'] : 0.0;
+			$opening = is_numeric($accData['openingBalance'] ?? null) ? (float)$accData['openingBalance'] : null;
+			if ($liability && $legacySigns) {
+				// Before format 1.1.0 a liability held what was owed as a
+				// positive number. The upgrade to 1.1.0 negated positive
+				// balances and opening balances, and so does this.
+				$balance = $balance > 0 ? -$balance : $balance;
+				$opening = $opening !== null && $opening > 0 ? -$opening : $opening;
+			}
+			$account->setBalance($balance);
+			$account->setOpeningBalance($opening);
+			$account->setLiabilityInCredit($liability ? $declared : null);
 
 			// Defaults for archives that predate a column (or hold null in a
 			// NOT NULL one)

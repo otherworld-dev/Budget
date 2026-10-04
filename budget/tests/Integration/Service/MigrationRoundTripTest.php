@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Integration\Service;
 
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Service\AccountBalanceCalculator;
 use OCA\Budget\Service\MigrationService;
 use OCA\Budget\Tests\Integration\DataModel;
 use OCA\Budget\Tests\Integration\FullDataset;
@@ -388,6 +389,37 @@ class MigrationRoundTripTest extends IntegrationTestCase {
 			array_diff_key($source->toArrayFull(), $ignore),
 			array_diff_key($restored[0]->toArrayFull(), $ignore)
 		);
+	}
+
+	/**
+	 * "In credit" describes a liability's opening balance, not today's
+	 * balance. The restore signed today's balance with it, so a card opened
+	 * at 0 owed that an overpayment had put 40.22 in credit came back 40.22
+	 * owed with an opening balance of -80.44 (T3-1), and a loan opened in
+	 * credit that now owes came back in credit.
+	 */
+	public function testLiabilitiesComeBackOnTheSameSideWhicheverWayTheirLedgerWent(): void {
+		$card = $this->makeAccount(['name' => 'Card', 'type' => 'credit_card', 'liabilityInCredit' => false])->getId();
+		$this->makeTransaction($card, ['type' => 'credit', 'amount' => '100.00']);
+		$this->makeTransaction($card, ['type' => 'debit', 'amount' => '59.78']);
+		$loan = $this->makeAccount(['name' => 'Loan', 'type' => 'loan', 'openingBalance' => 10.0, 'liabilityInCredit' => true])->getId();
+		$this->makeTransaction($loan, ['type' => 'debit', 'amount' => '30.00']);
+		$mortgage = $this->makeAccount(['name' => 'Mortgage', 'type' => 'mortgage', 'openingBalance' => -1000.0])->getId();
+		$this->makeTransaction($mortgage, ['type' => 'credit', 'amount' => '100.00']);
+		$accounts = $this->service(AccountMapper::class);
+		foreach ([$card, $loan, $mortgage] as $id) {
+			$this->service(AccountBalanceCalculator::class)->recalculate($accounts->findById($id));
+		}
+		$target = $this->newUserId();
+
+		$this->migration->importAll($target, $this->migration->exportAll($this->userId)['content']);
+
+		$restored = [];
+		foreach ($accounts->findAll($target) as $account) {
+			$restored[$account->getName()] = [(float)$account->getOpeningBalance(), (float)$account->getBalance(), $account->getLiabilityInCredit()];
+		}
+		ksort($restored);
+		$this->assertSame(['Card' => [0.0, 40.22, false], 'Loan' => [10.0, -20.0, true], 'Mortgage' => [-1000.0, -900.0, null]], $restored);
 	}
 
 	/**

@@ -1297,4 +1297,115 @@ class MigrationServiceTest extends TestCase {
 		$row = $method->invoke($this->service, ['id' => 3, 'config' => '{"type":"summary"}'], $spec, ['accounts' => [], 'tags' => []]);
 		$this->assertSame(['type' => 'summary'], json_decode($row['config'], true));
 	}
+
+	/**
+	 * "In credit" says which way a liability's OPENING balance points, not
+	 * today's balance. The restore signed today's balance with it and then
+	 * worked the opening balance out from that, so any card or loan whose
+	 * ledger had crossed zero came back on the wrong side: a card opened at
+	 * 0 owed and now 40.22 in credit came back 40.22 owed with an opening
+	 * balance of -80.44 (T3-1). The archive's own signed numbers stand, and
+	 * the balance is rebuilt from the opening balance and the ledger.
+	 */
+	public function testALiabilityComesBackOnTheSameSideWhicheverWayItsLedgerWent(): void {
+		$accounts = $this->restoreAccounts('1.3.0', [
+			// Opened at 0 owed, now in credit
+			['id' => 1, 'name' => 'Card', 'type' => 'credit_card', 'currency' => 'GBP', 'balance' => 40.22, 'openingBalance' => 0.0, 'liabilityInCredit' => false],
+			// Opened in credit, now owing
+			['id' => 2, 'name' => 'Loan', 'type' => 'loan', 'currency' => 'GBP', 'balance' => -20.0, 'openingBalance' => 10.0, 'liabilityInCredit' => true],
+			// Owed, never declared either way (2.54.0 and older)
+			['id' => 3, 'name' => 'Mortgage', 'type' => 'mortgage', 'currency' => 'GBP', 'balance' => -900.0, 'openingBalance' => -1000.0, 'liabilityInCredit' => null],
+			// An asset is left as it was
+			['id' => 4, 'name' => 'Current', 'type' => 'checking', 'currency' => 'GBP', 'balance' => -5.0, 'openingBalance' => 20.0],
+		], [1 => 40.22, 2 => -30.0, 3 => 100.0, 4 => -25.0]);
+
+		$this->assertSame(['opening' => 0.0, 'balance' => '40.22', 'inCredit' => false], $accounts['Card']);
+		$this->assertSame(['opening' => 10.0, 'balance' => '-20.00', 'inCredit' => true], $accounts['Loan']);
+		$this->assertSame(['opening' => -1000.0, 'balance' => '-900.00', 'inCredit' => null], $accounts['Mortgage']);
+		$this->assertSame(['opening' => 20.0, 'balance' => '-5.00', 'inCredit' => null], $accounts['Current']);
+	}
+
+	/**
+	 * Before format 1.1.0 a liability stored what was owed as a positive
+	 * number. The upgrade to 1.1.0 negated positive liability balances and
+	 * opening balances, and a restore of such a backup does the same, so it
+	 * ends up as the upgraded account would. A backup older still, with no
+	 * opening balance at all, keeps its balance and has the opening balance
+	 * worked out from the ledger.
+	 */
+	public function testALegacyBackupsPositiveDebtsComeBackAsOwed(): void {
+		$accounts = $this->restoreAccounts('1.0.0', [
+			['id' => 1, 'name' => 'Card', 'type' => 'credit_card', 'currency' => 'GBP', 'balance' => 150.0, 'openingBalance' => 200.0],
+			['id' => 2, 'name' => 'Loan', 'type' => 'loan', 'currency' => 'GBP', 'balance' => 300.0],
+			['id' => 3, 'name' => 'Current', 'type' => 'checking', 'currency' => 'GBP', 'balance' => 80.0, 'openingBalance' => 100.0],
+		], [1 => 50.0, 2 => 25.0, 3 => -20.0]);
+
+		$this->assertSame(['opening' => -200.0, 'balance' => '-150.00', 'inCredit' => null], $accounts['Card']);
+		$this->assertSame(['opening' => -325.0, 'balance' => '-300.00', 'inCredit' => null], $accounts['Loan']);
+		$this->assertSame(['opening' => 100.0, 'balance' => '80.00', 'inCredit' => null], $accounts['Current']);
+	}
+
+	/**
+	 * Restore $archived (accounts with no transactions in the archive; the
+	 * ledger's net per old account id is given) and report each account's
+	 * final opening balance, stored balance and in-credit flag by name.
+	 *
+	 * @param array<int, array<string, mixed>> $archived
+	 * @param array<int, float> $netByOldId
+	 * @return array<string, array{opening: float|null, balance: string|null, inCredit: bool|null}>
+	 */
+	private function restoreAccounts(string $version, array $archived, array $netByOldId): array {
+		$zipContent = $this->createTestZip([
+			'manifest.json' => json_encode(['version' => $version, 'appId' => 'budget']),
+			'categories.json' => '[]',
+			'accounts.json' => json_encode($archived),
+			'transactions.json' => '[]',
+		]);
+		foreach ([$this->transactionMapper, $this->billMapper, $this->importRuleMapper, $this->accountMapper, $this->categoryMapper] as $mapper) {
+			$mapper->method('findAll')->willReturn([]);
+		}
+
+		/** @var array<int, Account> $byNewId */
+		$byNewId = [];
+		$netByNewId = [];
+		$balances = [];
+		$this->accountMapper->method('insert')->willReturnCallback(function (Account $a) use (&$byNewId, &$netByNewId, $archived, $netByOldId) {
+			$id = 100 + count($byNewId);
+			$a->setId($id);
+			$byNewId[$id] = clone $a;
+			foreach ($archived as $row) {
+				if ($row['name'] === $a->getName()) {
+					$netByNewId[$id] = $netByOldId[$row['id']];
+				}
+			}
+			return $a;
+		});
+		$this->accountMapper->method('findById')->willReturnCallback(function (int $id) use (&$byNewId) {
+			return clone $byNewId[$id];
+		});
+		$this->accountMapper->method('update')->willReturnCallback(function (Account $a) use (&$byNewId, &$balances) {
+			$byNewId[$a->getId()] = clone $a;
+			$balances[$a->getId()] = sprintf('%.2f', $a->getBalance());
+			return $a;
+		});
+		$this->accountMapper->method('updateBalance')->willReturnCallback(function (int $id, $balance) use (&$byNewId, &$balances) {
+			$balances[$id] = (string)$balance;
+			return $byNewId[$id];
+		});
+		$this->transactionMapper->method('getNetChangeAll')->willReturnCallback(function (int $id) use (&$netByNewId) {
+			return $netByNewId[$id];
+		});
+
+		$this->service->importAll('user1', $zipContent);
+
+		$result = [];
+		foreach ($byNewId as $id => $account) {
+			$result[$account->getName()] = [
+				'opening' => $account->getOpeningBalance(),
+				'balance' => $balances[$id] ?? null,
+				'inCredit' => $account->getLiabilityInCredit(),
+			];
+		}
+		return $result;
+	}
 }
