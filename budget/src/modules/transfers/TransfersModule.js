@@ -14,7 +14,7 @@ import { isoWeekday } from '../../utils/helpers.js';
 import { apiFetch } from '../../utils/api.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { showLoadError } from '../../utils/loading.js';
-import { openAccounts, pickableAccounts, accountOptionLabel, accountCurrency } from '../../utils/accounts.js';
+import { openAccounts, pickableAccounts, accountOptionLabel, accountCurrency, linkableCandidates } from '../../utils/accounts.js';
 import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
 
 /**
@@ -960,8 +960,10 @@ export default class TransfersModule {
             // page does. Booking a new pair moved the money a second time.
             let choice = { action: 'create' };
             if (transfer.accountId || transfer.account_id) {
-                const candidates = await apiFetch(`/apps/budget/api/bills/${transferId}/matching-transactions`)
+                const found = await apiFetch(`/apps/budget/api/bills/${transferId}/matching-transactions`)
                     .catch(() => null);
+                // Only rows the payment can be linked to
+                const candidates = found ? linkableCandidates(found, this.accounts) : null;
                 if (candidates && candidates.length > 0) {
                     choice = await showMatchingTransactionDialog(transfer, candidates, this.settings);
                     if (choice === null) {

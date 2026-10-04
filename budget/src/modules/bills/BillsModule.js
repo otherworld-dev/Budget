@@ -13,7 +13,7 @@ import { apiFetch } from '../../utils/api.js';
 import { isoWeekday } from '../../utils/helpers.js';
 import { showMatchingTransactionDialog } from '../../utils/matchingDialog.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
-import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency } from '../../utils/accounts.js';
+import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency, linkableCandidates } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
 import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
 
@@ -1247,8 +1247,10 @@ export default class BillsModule {
 
             // Check for existing matching transactions before creating a new one
             if (bill.accountId || bill.account_id) {
-                const candidates = await apiFetch(`/apps/budget/api/bills/${billId}/matching-transactions`)
+                const found = await apiFetch(`/apps/budget/api/bills/${billId}/matching-transactions`)
                     .catch(() => null);
+                // Only rows the payment can be linked to
+                const candidates = found ? linkableCandidates(found, this.accounts) : null;
 
                 if (candidates) {
                     if (candidates.length > 0) {

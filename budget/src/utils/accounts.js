@@ -67,6 +67,25 @@ export function pickableAccounts(accounts, keepIds = [], { readOnlyShares = fals
     return list(accounts).filter(account => offered(account) || keep.has(String(account.id)));
 }
 
+/**
+ * The rows Mark Paid may offer to link the payment to. Linking writes the
+ * payment onto an existing row, which the server refuses in an account
+ * shared with you read-only, so only rows in accounts that take new
+ * activity are offered. A row in an account missing from the list is left
+ * for the server to judge, rather than booking a second payment beside it.
+ *
+ * @param {Array<{transaction: object}>|null} candidates
+ * @param {Array} accounts
+ * @returns {Array}
+ */
+export function linkableCandidates(candidates, accounts) {
+    const byId = new Map(list(accounts).map(account => [String(account.id), account]));
+    return (Array.isArray(candidates) ? candidates : []).filter(candidate => {
+        const account = byId.get(String(candidate?.transaction?.accountId));
+        return !account || takesNewActivity(account);
+    });
+}
+
 /** Display text for an account option; a closed one says so. */
 export function accountOptionLabel(account) {
     const name = account?.name ?? '';
