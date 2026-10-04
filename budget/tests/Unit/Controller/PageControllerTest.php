@@ -22,10 +22,11 @@ class PageControllerTest extends TestCase {
 	private IAppManager $appManager;
 	private CategoryMapper $categoryMapper;
 	private GranularShareService $granularShareService;
+	private AccountMapper $accountMapper;
 
 	protected function setUp(): void {
 		$request = $this->createMock(IRequest::class);
-		$accountMapper = $this->createMock(AccountMapper::class);
+		$accountMapper = $this->accountMapper = $this->createMock(AccountMapper::class);
 		$categoryMapper = $this->categoryMapper = $this->createMock(CategoryMapper::class);
 		$granularShareService = $this->granularShareService = $this->createMock(GranularShareService::class);
 		$schemaVersionService = $this->createMock(SchemaVersionService::class);
@@ -186,6 +187,25 @@ class PageControllerTest extends TestCase {
 			[2, 'Loop A', 0],
 			[3, 'Loop B', 1],
 		], $this->quickAddRows());
+	}
+
+	public function testQuickAddOffersOnlyAccountsTheUserCanWriteTo(): void {
+		// Saving into an account shared read-only was refused (R2-5)
+		$own = new \OCA\Budget\Db\Account();
+		$own->setId(1);
+		$own->setName('Current');
+		$this->accountMapper->method('findOpen')->with('user1')->willReturn([$own]);
+		$this->granularShareService->method('getSharedAccounts')->with('user1')->willReturn([
+			['id' => 4, 'name' => 'Joint', 'closed' => false],
+			['id' => 6, 'name' => 'Read only', 'closed' => false],
+			['id' => 7, 'name' => 'Closed joint', 'closed' => true],
+		]);
+		$this->granularShareService->method('canWrite')
+			->willReturnCallback(fn (string $user, string $type, int $id) => $type === 'account' && in_array($id, [4, 7], true));
+
+		$accounts = (new \ReflectionMethod(PageController::class, 'quickAddAccounts'))->invoke($this->controller);
+
+		$this->assertSame([['id' => 1, 'name' => 'Current'], ['id' => 4, 'name' => 'Joint']], $accounts);
 	}
 
 	/** @return list<array{int, string, int}> */

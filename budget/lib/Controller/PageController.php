@@ -93,24 +93,34 @@ class PageController extends Controller {
 	public function quickAdd(): TemplateResponse {
 		Util::addStyle(Application::APP_ID, 'style');
 
-		// Fetch minimal data needed for the form
-		// Quick-add creates a transaction, so closed accounts are not offered (#372)
-		$accounts = $this->accountMapper->findOpen($this->userId);
-		$sharedAccounts = $this->granularShareService->getSharedAccounts($this->userId);
+		return new TemplateResponse(Application::APP_ID, 'quick-add', [
+			'accounts' => json_encode($this->quickAddAccounts()),
+			'categories' => json_encode($this->quickAddCategories()),
+			'touchIcon' => $this->urlGenerator->imagePath(Application::APP_ID, 'quick-add-180.png'),
+		]);
+	}
 
-		$accountList = array_map(fn ($a) => ['id' => $a->getId(), 'name' => $a->getName()], $accounts);
-		foreach ($sharedAccounts as $sa) {
-			if (!empty($sa['closed'])) {
+	/**
+	 * The accounts the quick-add page offers. It only ever creates a
+	 * transaction, so like every picker for new activity it leaves out
+	 * closed accounts (#372) and accounts shared with the user read-only,
+	 * whose save was refused (R2-5).
+	 *
+	 * @return list<array{id: int, name: string}>
+	 */
+	private function quickAddAccounts(): array {
+		$accountList = array_map(
+			fn ($a) => ['id' => $a->getId(), 'name' => $a->getName()],
+			$this->accountMapper->findOpen($this->userId)
+		);
+		foreach ($this->granularShareService->getSharedAccounts($this->userId) as $sa) {
+			if (!empty($sa['closed'])
+				|| !$this->granularShareService->canWrite((string)$this->userId, 'account', (int)$sa['id'])) {
 				continue;
 			}
 			$accountList[] = ['id' => $sa['id'], 'name' => $sa['name']];
 		}
-
-		return new TemplateResponse(Application::APP_ID, 'quick-add', [
-			'accounts' => json_encode($accountList),
-			'categories' => json_encode($this->quickAddCategories()),
-			'touchIcon' => $this->urlGenerator->imagePath(Application::APP_ID, 'quick-add-180.png'),
-		]);
+		return $accountList;
 	}
 
 	/**
