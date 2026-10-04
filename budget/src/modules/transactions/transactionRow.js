@@ -189,6 +189,8 @@ export function renderTransactionRow(tx, ctx) {
     const isScheduled = tx.status === 'scheduled';
     const isLinked = tx.linkedTransactionId != null;
     const noDescription = t('budget', 'No description');
+    // The checkbox label below is escaped as a whole, so t() neither escapes
+    // nor sanitises the description ("&" showed as "&amp;")
     const amount = transactionAmountParts(tx, currency, formatCurrency);
     const split = isSplit ? splitCategoryParts(tx, currency, formatCurrency) : null;
     const badges = transactionBadges(tx, ctx);
@@ -257,7 +259,7 @@ export function renderTransactionRow(tx, ctx) {
         <tr class="${rowClasses.join(' ')}" data-transaction-id="${tx.id}"${readOnlyAttr}>
             <td class="select-column">
                 <input type="checkbox" class="transaction-checkbox"
-                       aria-label="${escapeHtml(t('budget', 'Select {description}', { description: tx.description || noDescription }, undefined, { escape: false }))}"
+                       aria-label="${escapeHtml(t('budget', 'Select {description}', { description: tx.description || noDescription }, undefined, { escape: false, sanitize: false }))}"
                        data-transaction-id="${tx.id}"
                        ${ctx.selected ? 'checked' : ''}>
             </td>

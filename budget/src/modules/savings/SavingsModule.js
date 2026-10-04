@@ -125,8 +125,10 @@ export default class SavingsModule {
                 footerAction = '<span></span>';
             }
 
+            // The title is escaped as a whole, so t() neither escapes nor
+            // sanitises the name ("&" showed as "&amp;")
             const sharedBadge = isShared
-                ? `<span class="goal-shared-badge" title="${dom.escapeHtml(t('budget', 'Shared by {owner}', { owner }, undefined, { escape: false }))}"><span class="icon-shared"></span> ${t('budget', 'Shared')}</span>`
+                ? `<span class="goal-shared-badge" title="${dom.escapeHtml(t('budget', 'Shared by {owner}', { owner }, undefined, { escape: false, sanitize: false }))}"><span class="icon-shared"></span> ${t('budget', 'Shared')}</span>`
                 : '';
 
             return `

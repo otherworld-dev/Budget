@@ -1923,6 +1923,8 @@ export default class ImportModule {
         }
 
         container.innerHTML = warnings.map(warning => {
+            // The context line is escaped as a whole below, so t() neither
+            // escapes nor sanitises the account name ("&" showed as "&amp;")
             const account = warning.accountName || t('budget', 'this account');
             let headline;
             let context;
@@ -1941,7 +1943,7 @@ export default class ImportModule {
                 context = /* xgettext:no-javascript-format */ t('budget', 'but {percent}% of what is already in {account} is an expense. If that looks wrong, go back and map the column holding the transaction type before importing.', {
                     percent: warning.existingOppositePercent,
                     account: account,
-                }, undefined, { escape: false });
+                }, undefined, { escape: false, sanitize: false });
             } else {
                 headline = t('budget', '{matching} of {total} rows would be added as an expense', {
                     matching: warning.matching,
@@ -1950,7 +1952,7 @@ export default class ImportModule {
                 context = /* xgettext:no-javascript-format */ t('budget', 'but {percent}% of what is already in {account} is income. If that looks wrong, go back and map the column holding the transaction type before importing.', {
                     percent: warning.existingOppositePercent,
                     account: account,
-                }, undefined, { escape: false });
+                }, undefined, { escape: false, sanitize: false });
             }
 
             return `<div class="import-direction-warning">
