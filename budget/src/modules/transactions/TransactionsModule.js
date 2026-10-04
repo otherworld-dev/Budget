@@ -1996,6 +1996,10 @@ export default class TransactionsModule {
     showTransactionModal(transaction = null, preSelectedAccountId = null) {
         const modal = document.getElementById('transaction-modal');
         if (modal) {
+            // The saved transaction being edited, wherever it was opened from
+            // (an account's register, a link): the list's page may not hold it.
+            this._formTransaction = transaction?.id ? transaction : null;
+
             const titleEl = document.getElementById('transaction-modal-title');
             if (titleEl) {
                 titleEl.textContent = transaction?.id
@@ -2976,9 +2980,22 @@ export default class TransactionsModule {
             }
         }
 
+        // Split unticked on a split transaction: unsplit it into the category
+        // picked. The update alone can't, as the server keeps a split
+        // transaction's category empty while its parts exist.
+        const edited = this._editedTransaction(id);
+        const unsplitting = !!(edited && (edited.isSplit || edited.is_split) && !splitToggleEl?.checked);
+
         try {
             let created = null;
             if (id) {
+                if (unsplitting) {
+                    await apiFetch(`/apps/budget/api/transactions/${id}/splits`, {
+                        method: 'DELETE',
+                        body: { categoryId: data.categoryId },
+                        errorMessage: t('budget', 'Failed to unsplit transaction'),
+                    });
+                }
                 // Update existing transaction
                 await apiFetch(`/apps/budget/api/transactions/${id}`, {
                     method: 'PUT',
@@ -3044,6 +3061,19 @@ export default class TransactionsModule {
         }
     }
 
+    /**
+     * The saved transaction the form is editing: the one it was opened with,
+     * else the list's copy. Null for a new transaction.
+     *
+     * @param {string|number} id - The form's transaction id
+     */
+    _editedTransaction(id) {
+        const txId = parseInt(id);
+        if (!txId) return null;
+        if (this._formTransaction?.id === txId) return this._formTransaction;
+        return this.transactions?.find(tx => tx.id === txId) || null;
+    }
+
     // ===========================
     // Inline Split UI
     // ===========================
@@ -3061,7 +3091,7 @@ export default class TransactionsModule {
         const isEdit = !!txId;
         const typeSelect = document.getElementById('transaction-type');
         const isTransfer = typeSelect?.value === 'transfer';
-        const transaction = isEdit ? this.transactions?.find(tx => tx.id === parseInt(txId)) : null;
+        const transaction = this._editedTransaction(txId);
         const isSplit = transaction?.isSplit || transaction?.is_split;
 
         // Reset state
