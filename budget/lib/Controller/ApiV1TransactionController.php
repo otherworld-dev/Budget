@@ -92,11 +92,14 @@ class ApiV1TransactionController extends OCSController {
 		?string $dateFrom = null,
 		?string $dateTo = null,
 		?string $search = null,
-		int $limit = self::DEFAULT_LIMIT,
-		int $offset = 0,
 	): DataResponse {
-		$limit = max(1, min($limit, self::MAX_LIMIT));
-		$offset = max(0, $offset);
+		// limit and offset are read by hand, like recent()'s: Nextcloud 35
+		// range-checks any bound parameter named `limit` (1-500) and answers
+		// an empty 400 before this runs, where the docs promise a clamp
+		$rawLimit = $this->request->getParam('limit');
+		$rawOffset = $this->request->getParam('offset');
+		$limit = max(1, min(is_numeric($rawLimit) ? (int)$rawLimit : self::DEFAULT_LIMIT, self::MAX_LIMIT));
+		$offset = max(0, is_numeric($rawOffset) ? (int)$rawOffset : 0);
 
 		foreach (['dateFrom' => $dateFrom, 'dateTo' => $dateTo] as $field => $value) {
 			if ($value !== null && !$this->validationService->validateDate($value, $field, false)['valid']) {

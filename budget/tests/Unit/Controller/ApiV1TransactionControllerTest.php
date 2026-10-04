@@ -133,7 +133,9 @@ class ApiV1TransactionControllerTest extends TestCase {
 			'total' => 137,
 		]);
 
-		$response = $this->controller->index(limit: 25, offset: 50);
+		$this->params = ['limit' => '25', 'offset' => '50'];
+
+		$response = $this->controller->index();
 		$data = $response->getData();
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
@@ -154,7 +156,9 @@ class ApiV1TransactionControllerTest extends TestCase {
 			)
 			->willReturn(['transactions' => [], 'total' => 0]);
 
-		$data = $this->controller->index(limit: 100000)->getData();
+		$this->params = ['limit' => '100000'];
+
+		$data = $this->controller->index()->getData();
 
 		$this->assertSame(ApiV1TransactionController::MAX_LIMIT, $data['limit']);
 	}
@@ -164,10 +168,41 @@ class ApiV1TransactionControllerTest extends TestCase {
 			->with('user1', $this->anything(), 1, 0, $this->anything())
 			->willReturn(['transactions' => [], 'total' => 0]);
 
-		$data = $this->controller->index(limit: -5, offset: -20)->getData();
+		$this->params = ['limit' => '-5', 'offset' => '-20'];
+
+		$data = $this->controller->index()->getData();
 
 		$this->assertSame(1, $data['limit']);
 		$this->assertSame(0, $data['offset']);
+	}
+
+	public function testIndexTreatsAGarbageLimitAndOffsetAsTheDefaults(): void {
+		$this->service->method('findWithFilters')
+			->with('user1', $this->anything(), ApiV1TransactionController::DEFAULT_LIMIT, 0, $this->anything())
+			->willReturn(['transactions' => [], 'total' => 0]);
+		$this->params = ['limit' => 'abc', 'offset' => ['x']];
+
+		$data = $this->controller->index()->getData();
+
+		$this->assertSame(ApiV1TransactionController::DEFAULT_LIMIT, $data['limit']);
+		$this->assertSame(0, $data['offset']);
+	}
+
+	/**
+	 * Nextcloud 35's dispatcher range-checks any controller parameter named
+	 * `limit` (1-500) and answers an empty 400 before the controller runs,
+	 * so limit=0, -1, 1000 or abc never reached the clamp the docs promise.
+	 * limit and offset are read from the request by hand instead, as
+	 * recent() always has.
+	 */
+	public function testIndexLeavesLimitAndOffsetOutOfTheFrameworkBinding(): void {
+		$names = array_map(
+			static fn (\ReflectionParameter $p) => $p->getName(),
+			(new \ReflectionMethod(ApiV1TransactionController::class, 'index'))->getParameters()
+		);
+
+		$this->assertNotContains('limit', $names);
+		$this->assertNotContains('offset', $names);
 	}
 
 	public function testIndexScopesToVisibleAccounts(): void {
