@@ -2263,9 +2263,12 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
-	 * Whether the account holds any real transaction dated after $afterDate.
-	 * Scheduled placeholders are not counted, matching getNetChangeAfterDate():
-	 * they belong to their bill, which the closure guard checks on its own (#372).
+	 * Whether the account holds any transaction booked for after $afterDate.
+	 * A bill's pre-booked payment (scheduled, with a bill) is not counted:
+	 * it belongs to its bill, which the closure guard checks on its own
+	 * (#372). Every other scheduled row is: a purchase entered for next week
+	 * is stored as scheduled, and skipping it let a zero-balance account
+	 * close and go negative when the row cleared.
 	 */
 	public function hasRowsAfterDate(int $accountId, string $afterDate): bool {
 		$qb = $this->db->getQueryBuilder();
@@ -2276,7 +2279,8 @@ class TransactionMapper extends QBMapper {
 			->andWhere(
 				$qb->expr()->orX(
 					$qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
-					$qb->expr()->isNull('t.status')
+					$qb->expr()->isNull('t.status'),
+					$qb->expr()->isNull('t.bill_id')
 				)
 			);
 
