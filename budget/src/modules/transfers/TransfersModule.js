@@ -1026,20 +1026,22 @@ export default class TransfersModule {
                 method: 'POST',
                 errorMessage: t('budget', 'Failed to skip transfer'),
             });
-            this._undoData = {
+            const undoData = {
                 transferId,
                 previousNextDueDate: result.previousNextDueDate ?? null,
                 action: 'skip'
             };
+            this._undoData = undoData;
 
             await this.loadTransfers();
             this.renderTransfers();
             this.updateSummary();
 
+            // The toast undoes this skip, whatever was done since
             showUndoNotification(
                 t('budget', 'Payment skipped. Advanced to next due date.'),
-                () => this.undoSkipTransfer(),
-                () => { this._undoData = null; }
+                () => this.undoSkipTransfer(undoData),
+                () => this._dropUndo(undoData)
             );
         } catch (error) {
             console.error('Failed to skip transfer:', error);
@@ -1047,20 +1049,34 @@ export default class TransfersModule {
         }
     }
 
-    async undoSkipTransfer() {
-        if (!this._undoData || this._undoData.action !== 'skip') {
+    /**
+     * An undo toast ran out: its action can't be undone any more. A later
+     * action may have replaced the latest undo data; only drop our own.
+     */
+    _dropUndo(undoData) {
+        undoData.spent = true;
+        if (this._undoData === undoData) this._undoData = null;
+    }
+
+    /**
+     * @param {object} undoData - The skip to undo; each toast passes its own,
+     *   so an older toast never reverts a later action
+     */
+    async undoSkipTransfer(undoData = this._undoData) {
+        if (!undoData || undoData.spent || undoData.action !== 'skip') {
             return;
         }
+        undoData.spent = true;
 
         try {
-            const { transferId, previousNextDueDate } = this._undoData;
+            const { transferId, previousNextDueDate } = undoData;
 
             await apiFetch(`/apps/budget/api/bills/${transferId}/undo-skip`, {
                 method: 'POST',
                 body: { previousNextDueDate },
             });
 
-            this._undoData = null;
+            if (this._undoData === undoData) this._undoData = null;
             await this.loadTransfers();
             this.renderTransfers();
             this.updateSummary();
