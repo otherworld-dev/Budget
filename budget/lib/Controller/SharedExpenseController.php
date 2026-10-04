@@ -50,6 +50,15 @@ class SharedExpenseController extends Controller {
 		$this->setGranularShareService($granularShareService);
 	}
 
+	/**
+	 * Every id here is looked up as the user's own, so another user's id, or
+	 * one that is gone, is simply not found: it was answered with a 500 and
+	 * an error in nextcloud.log.
+	 */
+	private function notFound(string $message): DataResponse {
+		return new DataResponse(['error' => $message], Http::STATUS_NOT_FOUND);
+	}
+
 	// ==================== Contact Endpoints ====================
 
 	/**
@@ -196,6 +205,8 @@ class SharedExpenseController extends Controller {
 		try {
 			$contact = $this->service->updateContact($id, $this->getEffectiveUserId(), $name, $email);
 			return new DataResponse($contact->jsonSerialize());
+		} catch (DoesNotExistException $e) {
+			return $this->notFound($this->l->t('Contact not found'));
 		} catch (\Exception $e) {
 			$this->logger->error('Failed to update contact', [
 				'exception' => $e,
@@ -218,6 +229,8 @@ class SharedExpenseController extends Controller {
 		try {
 			$this->service->deleteContact($id, $this->getEffectiveUserId());
 			return new DataResponse(['status' => 'deleted']);
+		} catch (DoesNotExistException $e) {
+			return $this->notFound($this->l->t('Contact not found'));
 		} catch (\Exception $e) {
 			$this->logger->error('Failed to delete contact', [
 				'exception' => $e,
@@ -240,6 +253,8 @@ class SharedExpenseController extends Controller {
 		try {
 			$details = $this->service->getContactDetails($id, $this->getEffectiveUserId(), $this->getVisibleAccountIds());
 			return new DataResponse($details);
+		} catch (DoesNotExistException $e) {
+			return $this->notFound($this->l->t('Contact not found'));
 		} catch (\Exception $e) {
 			$this->logger->error('Failed to get contact details', [
 				'exception' => $e,
@@ -349,6 +364,8 @@ class SharedExpenseController extends Controller {
 				['error' => $this->l->t('This transaction is already shared with this contact')],
 				Http::STATUS_BAD_REQUEST
 			);
+		} catch (DoesNotExistException $e) {
+			return $this->notFound($this->l->t('Transaction or contact not found'));
 		} catch (\Exception $e) {
 			$this->logger->error('Failed to share expense', [
 				'exception' => $e,
@@ -376,6 +393,8 @@ class SharedExpenseController extends Controller {
 				['error' => $this->l->t('This transaction is already shared with this contact')],
 				Http::STATUS_BAD_REQUEST
 			);
+		} catch (DoesNotExistException $e) {
+			return $this->notFound($this->l->t('Transaction or contact not found'));
 		} catch (\Exception $e) {
 			$this->logger->error('Failed to split 50/50', [
 				'exception' => $e,
@@ -464,6 +483,8 @@ class SharedExpenseController extends Controller {
 		try {
 			$share = $this->service->updateExpenseShare($id, $this->getEffectiveUserId(), $amount, $notes);
 			return new DataResponse($share->jsonSerialize());
+		} catch (DoesNotExistException $e) {
+			return $this->notFound($this->l->t('Shared expense not found'));
 		} catch (\Exception $e) {
 			$this->logger->error('Failed to update share', [
 				'exception' => $e,
@@ -486,6 +507,8 @@ class SharedExpenseController extends Controller {
 		try {
 			$share = $this->service->markShareSettled($id, $this->getEffectiveUserId());
 			return new DataResponse($share->jsonSerialize());
+		} catch (DoesNotExistException $e) {
+			return $this->notFound($this->l->t('Shared expense not found'));
 		} catch (\Exception $e) {
 			$this->logger->error('Failed to mark share settled', [
 				'exception' => $e,
@@ -508,6 +531,8 @@ class SharedExpenseController extends Controller {
 		try {
 			$this->service->deleteExpenseShare($id, $this->getEffectiveUserId());
 			return new DataResponse(['status' => 'deleted']);
+		} catch (DoesNotExistException $e) {
+			return $this->notFound($this->l->t('Shared expense not found'));
 		} catch (\Exception $e) {
 			$this->logger->error('Failed to delete share', [
 				'exception' => $e,
@@ -541,6 +566,8 @@ class SharedExpenseController extends Controller {
 				array_map(fn ($s) => $s->jsonSerialize(), $settlements),
 				Http::STATUS_CREATED
 			);
+		} catch (DoesNotExistException $e) {
+			return $this->notFound($this->l->t('Shared expense not found'));
 		} catch (\Exception $e) {
 			$this->logger->error('Failed to settle selected shares', [
 				'exception' => $e,
@@ -576,6 +603,8 @@ class SharedExpenseController extends Controller {
 				$currency
 			);
 			return new DataResponse($settlement->jsonSerialize(), Http::STATUS_CREATED);
+		} catch (DoesNotExistException $e) {
+			return $this->notFound($this->l->t('Contact not found'));
 		} catch (\Exception $e) {
 			$this->logger->error('Failed to record settlement', [
 				'exception' => $e,
@@ -645,6 +674,8 @@ class SharedExpenseController extends Controller {
 		try {
 			$this->service->deleteSettlement($id, $this->getEffectiveUserId());
 			return new DataResponse(['status' => 'deleted']);
+		} catch (DoesNotExistException $e) {
+			return $this->notFound($this->l->t('Settlement not found'));
 		} catch (\Exception $e) {
 			$this->logger->error('Failed to delete settlement', [
 				'exception' => $e,
