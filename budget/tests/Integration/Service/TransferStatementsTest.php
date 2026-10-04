@@ -224,6 +224,33 @@ class TransferStatementsTest extends IntegrationTestCase {
 	}
 
 	/**
+	 * The savings account was reconciled with the deposit Mark Paid booked;
+	 * the source's statement then swapped the booked pair out and deleted
+	 * that reconciled deposit.
+	 */
+	public function testAReconciledDepositStaysWhenTheSourcesStatementComesIn(): void {
+		$bill = $this->transfer();
+		$this->markPaid($bill);
+		$qb = $this->db()->getQueryBuilder();
+		$qb->select('id')->from('budget_transactions')
+			->where($qb->expr()->eq('account_id', $qb->createNamedParameter($this->savings, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('status', $qb->createNamedParameter('cleared')));
+		$deposit = (int)$qb->executeQuery()->fetchOne();
+		$qb = $this->db()->getQueryBuilder();
+		$qb->update('budget_transactions')->set('reconciled', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL))
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($deposit, IQueryBuilder::PARAM_INT)))->executeStatement();
+
+		$this->importCsv($this->checking, $this->day(-11) . ",SAVINGS TFR 0042,-200.00\n");
+
+		$row = $this->fetchRow('budget_transactions', $deposit);
+		$this->assertNotNull($row, 'The reconciled deposit stays');
+		$withdrawal = $this->fetchRow('budget_transactions', (int)$row['linked_transaction_id']);
+		$this->assertNotNull($withdrawal['import_id'], 'paired with the bank\'s withdrawal');
+		$this->assertSame(['800.00', '200.00'], [$this->balance($this->checking), $this->balance($this->savings)]);
+		$this->assertSame(0, $this->countRows('budget_audit_log', ['user_id' => $this->userId, 'action' => 'reconciled_tx_deleted']));
+	}
+
+	/**
 	 * GBP to EUR: the booked deposit is the app's estimate (117.65) and the
 	 * bank's own credit (117.40) takes its place, whichever statement comes
 	 * first.

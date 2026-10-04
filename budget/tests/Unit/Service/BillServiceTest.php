@@ -1927,6 +1927,50 @@ class BillServiceTest extends TestCase {
 		return [$booked, $deposit];
 	}
 
+	public function testAReconciledDepositStaysAndIsPairedWithTheBanksWithdrawal(): void {
+		// The savings account was reconciled with the booked deposit in it;
+		// the swap deleted it and booked another
+		$bill = $this->setupAutoMatchBill([
+			'isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null,
+			'nextDueDate' => '2026-11-01', 'lastPaidDate' => '2026-10-20',
+		]);
+		$bill->setTransferDescriptionPattern('NETFLIX');
+		$bill->setPaidUndoState(json_encode(['previousState' => [], 'createdTransactionIds' => [600, 601], 'linkedTransactionId' => null, 'paidDate' => '2026-10-20']));
+		[$booked, $deposit] = $this->bookedTransferPair('2026-10-20');
+		$deposit->setReconciled(true);
+		$imported = $this->makeImportedTx(['id' => 500, 'date' => '2026-10-20']);
+		$imported->setImportId('bank-1');
+		$this->linkable($booked, $deposit, $imported);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')
+			->with($booked, $imported, 'Auto-generated transfer: Netflix', true);
+		$this->transactionService->expects($this->never())->method('transferArrivalAmount');
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+
+		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$imported]));
+
+		$this->assertSame('2026-11-01', $bill->getNextDueDate());
+	}
+
+	public function testTheBanksCopyOfAReconciledPaymentPaysNothingElse(): void {
+		// Marked paid late (20 October for 1 October) and reconciled: the
+		// bank's row of it fell in November's window and paid November too
+		$bill = $this->setupAutoMatchBill(['nextDueDate' => '2026-11-01', 'lastPaidDate' => '2026-10-20']);
+		$bill->setPaidUndoState(json_encode(['previousState' => [], 'createdTransactionIds' => [600], 'linkedTransactionId' => null, 'paidDate' => '2026-10-20']));
+		$booked = $this->makeImportedTx(['id' => 600, 'date' => '2026-10-20', 'description' => '']);
+		$booked->setNotes('Auto-generated from bill: Netflix');
+		$booked->setBillId(1);
+		$booked->setReconciled(true);
+		$imported = $this->makeImportedTx(['id' => 500, 'date' => '2026-10-20']);
+		$this->linkable($booked, $imported);
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
+		$this->transactionService->expects($this->never())->method('linkBillAsAccountOwner');
+
+		$this->assertSame(0, $this->service->autoMatchPaidFromImport('user1', [$imported]));
+
+		$this->assertSame('2026-11-01', $bill->getNextDueDate());
+		$this->assertNull($imported->getBillId());
+	}
+
 	public function testWhatWasAddedToABookedDepositGoesToTheArrivalTheBankRowGets(): void {
 		$bill = $this->setupAutoMatchBill([
 			'isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null,

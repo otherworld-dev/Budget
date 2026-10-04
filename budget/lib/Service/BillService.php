@@ -103,6 +103,13 @@ class BillService {
 	/** Most occurrences one auto-pay run pays for a bill that fell behind */
 	private const MAX_AUTO_PAY_CATCH_UP = 60;
 
+	/** replaceBookedPayment(): the bill booked no payment near the bank row */
+	private const BOOKED_NONE = 0;
+	/** replaceBookedPayment(): the bank row took the booked payment's place */
+	private const BOOKED_REPLACED = 1;
+	/** replaceBookedPayment(): the bank row is the copy of a booked payment that stays */
+	private const BOOKED_KEPT = 2;
+
 	/**
 	 * @throws DoesNotExistException
 	 */
@@ -1869,9 +1876,15 @@ class BillService {
 				// The bank's copy of a payment already booked by Mark Paid or
 				// auto-pay takes that payment's place rather than sitting
 				// beside it, which booked the money twice
-				if ($this->replaceBookedPayment($bill, $transaction)) {
+				$booked = $this->replaceBookedPayment($bill, $transaction);
+				if ($booked === self::BOOKED_REPLACED) {
 					$marked++;
 					$bills[$key] = $this->find($bill->getId(), $userId);
+					break;
+				}
+				// The copy of a payment that has to stay (reconciled by hand)
+				// is not the next one's either: paying that with it paid twice
+				if ($booked === self::BOOKED_KEPT) {
 					break;
 				}
 				if (!$this->importedTransactionMatchesBill($bill, $transaction)) {
@@ -1996,23 +2009,35 @@ class BillService {
 	 * destination, or a deposit booked for it. Transfers used to skip this,
 	 * so the bank's copy of a payment marked late fell inside the next
 	 * occurrence's window and paid that one too.
+	 *
+	 * A reconciled row was matched to a statement by hand and stays: a
+	 * reconciled payment keeps its place, and the bank row then pays nothing
+	 * else (BOOKED_KEPT); a reconciled deposit stays as the transfer's
+	 * arrival, paired with the bank row, where the swap used to delete it.
+	 *
+	 * @return int BOOKED_REPLACED, BOOKED_KEPT, or BOOKED_NONE when the bill
+	 *             booked no payment near the row
 	 */
-	private function replaceBookedPayment(Bill $bill, \OCA\Budget\Db\Transaction $imported): bool {
+	private function replaceBookedPayment(Bill $bill, \OCA\Budget\Db\Transaction $imported): int {
 		if (!$this->importedTransactionLooksLikeBill($bill, $imported)) {
-			return false;
+			return self::BOOKED_NONE;
 		}
 		$isTransfer = (bool)($bill->getIsTransfer() ?? false);
 		$generatedNote = $isTransfer ? 'Auto-generated transfer:' : 'Auto-generated from bill:';
 		$booked = $this->bookedPaymentNear($bill, $imported, $generatedNote);
-		if ($booked === null || $booked->getReconciled()) {
-			return false;
+		if ($booked === null) {
+			return self::BOOKED_NONE;
+		}
+		if ($booked->getReconciled()) {
+			return self::BOOKED_KEPT;
 		}
 
 		// The deposit the app booked with a transfer's payment goes with it,
 		// and the bank row gets its own arrival. Any other row on the other
-		// side (the destination's own credit) stays, paired with the bank row.
+		// side (the destination's own credit, or a deposit reconciled by
+		// hand) stays, paired with the bank row.
 		$partner = $booked->getLinkedTransactionId() !== null ? $this->transactionService->findTransaction($booked->getLinkedTransactionId()) : null;
-		$bookedDeposit = ($isTransfer && $partner !== null && $partner->getBillId() === $bill->getId()
+		$bookedDeposit = ($isTransfer && $partner !== null && $partner->getBillId() === $bill->getId() && !$partner->getReconciled()
 			&& ($partner->getImportId() ?? '') === '' && str_starts_with((string)$partner->getNotes(), $generatedNote))
 			? $partner : null;
 		$removed = [$booked->getId()];
@@ -2029,7 +2054,7 @@ class BillService {
 				$arrivalAmount = $this->transactionService->transferArrivalAmount($current, $bill);
 			} catch (\Exception $e) {
 				$this->logger->warning("Imported transaction {$imported->getId()} can't take the place of bill {$bill->getId()}'s payment: {$e->getMessage()}");
-				return false;
+				return self::BOOKED_KEPT;
 			}
 		}
 		$deposit = null;
@@ -2058,7 +2083,7 @@ class BillService {
 			}
 		} catch (\Exception $e) {
 			$this->logger->warning("Failed to put imported transaction {$imported->getId()} in place of bill {$bill->getId()}'s payment: {$e->getMessage()}");
-			return false;
+			return self::BOOKED_KEPT;
 		}
 
 		// The last payment's snapshot names the bank row from now on; an
@@ -2081,7 +2106,7 @@ class BillService {
 			$bill->setPaidUndoState(json_encode($snapshot));
 			$this->mapper->update($bill);
 		}
-		return true;
+		return self::BOOKED_REPLACED;
 	}
 
 	/**
