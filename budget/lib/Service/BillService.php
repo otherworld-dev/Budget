@@ -1009,9 +1009,10 @@ class BillService {
 	 *                            with no upcoming row - while the placeholder for the occurrence
 	 *                            just paid stayed behind, still scheduled, still looking due (#376).
 	 * @param int|null $existingTransactionId Link an existing transaction instead of creating a new one
+	 * @param string|null $actingUserId The user paying, when it is a person (the bill may be shared with them)
 	 * @return array Updated bill with undo data
 	 */
-	public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $recordPayment = true, ?int $existingTransactionId = null, ?string $expectedDueDate = null): array {
+	public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $recordPayment = true, ?int $existingTransactionId = null, ?string $expectedDueDate = null, ?string $actingUserId = null): array {
 		$bill = $this->find($id, $userId);
 
 		// A paid one-time bill, an ended or paused one: a second click
@@ -1061,6 +1062,7 @@ class BillService {
 		// account, or for a bill with no account in one its owner can write
 		// to: the id comes from the browser and could name anyone's row.
 		$existingRow = null;
+		$linkCategory = true;
 		if ($existingTransactionId !== null) {
 			$existingRow = $this->transactionService->findTransaction($existingTransactionId);
 			$rowAccount = $existingRow?->getAccountId();
@@ -1068,9 +1070,19 @@ class BillService {
 				? $rowAccount === $bill->getAccountId()
 				: ($this->granularShareService === null
 					|| $this->granularShareService->canWrite($bill->getUserId(), ShareItem::TYPE_ACCOUNT, (int)$rowAccount)));
+			// ...and in one the user paying can see, as the Mark Paid dialog
+			// lists them: a share of the bill alone let them link, and change,
+			// a row of an account hidden from them
+			if ($allowed && $actingUserId !== null && $this->granularShareService !== null
+				&& !$this->granularShareService->canAccess($actingUserId, ShareItem::TYPE_ACCOUNT, (int)$rowAccount)) {
+				$allowed = false;
+			}
 			if (!$allowed) {
 				throw new \InvalidArgumentException($this->l->t('That transaction can\'t pay this bill'));
 			}
+			// A bill with no account pays from other people's accounts too:
+			// the row takes its category only when the row's ledger can use it
+			$linkCategory = $this->categoryUsableIn($bill->getCategoryId(), (int)$rowAccount);
 		}
 
 		// The payment's date: a linked row's own, else today so the payment
@@ -1107,7 +1119,7 @@ class BillService {
 			// a row in an account shared with the bill's owner can be linked,
 			// and gives the row the bill's category, tags and splits.
 			try {
-				$linked = $this->transactionService->linkBillAsAccountOwner($existingRow->getId(), $bill);
+				$linked = $this->transactionService->linkBillAsAccountOwner($existingRow->getId(), $bill, $linkCategory);
 			} catch (\InvalidArgumentException $e) {
 				throw new \InvalidArgumentException($this->l->t('That transaction already pays another bill'));
 			}
@@ -1666,6 +1678,23 @@ class BillService {
 			$this->splitService->splitTransaction($transaction->getId(), $ownerUserId, $splitData);
 		} catch (\Exception $e) {
 			$this->logger->warning("Failed to apply split template to transaction {$transaction->getId()}: {$e->getMessage()}");
+		}
+	}
+
+	/**
+	 * Whether a row in this account may be filed under the category: the
+	 * account owner's ledger has to be able to use it, as for any row they
+	 * keep. The split template is held to the same rule by the split itself.
+	 */
+	private function categoryUsableIn(?int $categoryId, int $accountId): bool {
+		if ($categoryId === null || $this->granularShareService === null) {
+			return true;
+		}
+		try {
+			$this->granularShareService->requireUsableCategory($this->accountMapper->findById($accountId)->getUserId(), $categoryId);
+			return true;
+		} catch (\Exception $e) {
+			return false;
 		}
 	}
 

@@ -830,6 +830,20 @@ class TransactionServiceTest extends TestCase {
 		$this->assertSame(5, $linked->getCategoryId());
 	}
 
+	public function testALinkCanLeaveTheBillsCategoryOff(): void {
+		// A bill with no account pays from someone else's account, whose
+		// ledger can't use the bill's category
+		$tx = $this->makeTransaction(['id' => 78, 'accountId' => 10, 'categoryId' => null]);
+		$this->mapper->method('findById')->willReturn($tx);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$linked = $this->service->linkBillAsAccountOwner(78, $this->makeBill(['id' => 9, 'categoryId' => 5]), false);
+
+		$this->assertSame(9, $linked->getBillId());
+		$this->assertNull($linked->getCategoryId());
+	}
+
 	public function testLinkingKeepsACategoryTheRowAlreadyHas(): void {
 		$tx = $this->makeTransaction(['id' => 79, 'accountId' => 10, 'categoryId' => 8]);
 		$this->mapper->method('findById')->willReturn($tx);

@@ -914,12 +914,13 @@ class TransactionService {
 	 * The row gets what the bill's own payment would have carried: its
 	 * category when the row has none, and its tags. Only the bill id used to
 	 * be set, so a payment linked from an import landed in Uncategorised.
-	 * A row already paying another bill is refused.
+	 * A row already paying another bill is refused. $withCategory false
+	 * leaves the category off, for a row whose ledger can't use it.
 	 *
 	 * @throws \InvalidArgumentException
 	 * @throws DoesNotExistException
 	 */
-	public function linkBillAsAccountOwner(int $id, Bill $bill): Transaction {
+	public function linkBillAsAccountOwner(int $id, Bill $bill, bool $withCategory = true): Transaction {
 		$transaction = $this->mapper->findById($id);
 		if ($transaction === null) {
 			throw new DoesNotExistException("Transaction {$id} does not exist");
@@ -929,7 +930,7 @@ class TransactionService {
 		}
 
 		$updates = ['billId' => $bill->getId()];
-		if ($transaction->getCategoryId() === null && !$transaction->getIsSplit() && $bill->getCategoryId() !== null) {
+		if ($withCategory && $transaction->getCategoryId() === null && !$transaction->getIsSplit() && $bill->getCategoryId() !== null) {
 			$updates['categoryId'] = $bill->getCategoryId();
 		}
 		$linked = $this->update($id, $this->ownerOf($transaction), $updates);
