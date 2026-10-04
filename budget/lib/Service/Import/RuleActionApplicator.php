@@ -389,8 +389,8 @@ class RuleActionApplicator {
 				if (!is_string($currentValue)) {
 					break;
 				}
-				$normalizedPattern = RegexPattern::toPcre($pattern);
-				if ($normalizedPattern === null || @preg_match($normalizedPattern, '') === false) {
+				$normalizedPattern = RegexPattern::forReplace($pattern);
+				if ($normalizedPattern === null) {
 					$this->logger->warning('Invalid regex replace pattern', ['pattern' => $pattern]);
 					break;
 				}
@@ -404,6 +404,11 @@ class RuleActionApplicator {
 					// No match means preg_replace handed back the source unchanged;
 					// writing that into a different target would copy it verbatim.
 					if ($matchCount === 0) {
+						break;
+					}
+					// Text that is not UTF-8 breaks every list it appears in
+					if (!mb_check_encoding($regex, 'UTF-8')) {
+						$this->logger->warning('Regex replace skipped: the result is not valid UTF-8', ['pattern' => $pattern]);
 						break;
 					}
 					$oldValue = match ($targetField) {

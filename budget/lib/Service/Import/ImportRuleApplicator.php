@@ -8,6 +8,7 @@ use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Service\GranularShareService;
+use Psr\Log\LoggerInterface;
 
 /**
  * Applies import rules to automatically categorize and tag transactions during import.
@@ -17,15 +18,18 @@ class ImportRuleApplicator {
 	private ImportRuleMapper $importRuleMapper;
 	private CriteriaEvaluator $criteriaEvaluator;
 	private GranularShareService $granularShareService;
+	private ?LoggerInterface $logger;
 
 	public function __construct(
 		ImportRuleMapper $importRuleMapper,
 		CriteriaEvaluator $criteriaEvaluator,
 		GranularShareService $granularShareService,
+		?LoggerInterface $logger = null,
 	) {
 		$this->importRuleMapper = $importRuleMapper;
 		$this->criteriaEvaluator = $criteriaEvaluator;
 		$this->granularShareService = $granularShareService;
+		$this->logger = $logger;
 	}
 
 	/**
@@ -280,8 +284,8 @@ class ImportRuleApplicator {
 					if ($pattern === '' || !is_string($current)) {
 						break;
 					}
-					$normalizedPattern = RegexPattern::toPcre($pattern);
-					if ($normalizedPattern === null || @preg_match($normalizedPattern, '') === false) {
+					$normalizedPattern = RegexPattern::forReplace($pattern);
+					if ($normalizedPattern === null) {
 						break;
 					}
 					$targetCurrent = $transaction[$targetField] ?? null;
@@ -290,6 +294,14 @@ class ImportRuleApplicator {
 						// No match means preg_replace handed back the source unchanged;
 						// writing that into a different target would copy it verbatim.
 						if ($updated === null || $matchCount === 0) {
+							break;
+						}
+						// Text that is not UTF-8 breaks every list it appears in
+						if (!mb_check_encoding($updated, 'UTF-8')) {
+							$this->logger?->warning('Regex replace skipped: the result is not valid UTF-8', [
+								'app' => 'budget',
+								'ruleId' => $rule->getId(),
+							]);
 							break;
 						}
 						$transaction[$targetField] = $updated;

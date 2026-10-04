@@ -223,6 +223,67 @@ class RuleActionApplicatorTest extends TestCase {
 		$this->assertArrayNotHasKey('notes', $changes);
 	}
 
+	/**
+	 * "Keep the first 20 characters" used to count bytes, so the cut split
+	 * "ü" in two and the stored description was no longer valid UTF-8 -- after
+	 * which the transactions list failed to load at all.
+	 */
+	public function testRegexReplaceCountsCharactersNotBytes(): void {
+		$transaction = $this->createTransaction(['description' => 'Zahlung Bäckerei Müller GmbH Berlin']);
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [[
+				'type' => 'regex_replace',
+				'field' => 'description',
+				'pattern' => '^(.{20}).+$',
+				'replacement' => '$1',
+			]],
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('Zahlung Bäckerei Mül', $transaction->getDescription());
+		$this->assertSame('Zahlung Bäckerei Mül', $changes['description']['new']);
+	}
+
+	public function testRegexReplaceTreatsAccentedLettersAsWordCharacters(): void {
+		$transaction = $this->createTransaction(['description' => 'CAFÉ 123']);
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [[
+				'type' => 'regex_replace',
+				'field' => 'description',
+				'pattern' => '^(\w+).*$',
+				'replacement' => '$1',
+			]],
+		]);
+
+		$this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('CAFÉ', $transaction->getDescription());
+	}
+
+	public function testRegexReplaceNeverStoresTextThatIsNotUtf8(): void {
+		// \C matches a single byte even on characters, so it can still cut
+		// "ü" in half; that result is dropped instead of saved
+		$transaction = $this->createTransaction(['description' => 'Zahlung Bäckerei Müller']);
+		$this->logger->expects($this->atLeastOnce())->method('warning');
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [[
+				'type' => 'regex_replace',
+				'field' => 'description',
+				'pattern' => '(?<=^.{18})\C',
+				'replacement' => '',
+			]],
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('Zahlung Bäckerei Müller', $transaction->getDescription());
+		$this->assertArrayNotHasKey('description', $changes);
+	}
+
 	public function testMultipleRegexReplacementsRunInPriorityOrder(): void {
 		$transaction = $this->createTransaction(['description' => 'Invoice 123']);
 		$rule = $this->createRule([

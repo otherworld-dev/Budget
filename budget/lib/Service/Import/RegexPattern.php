@@ -37,4 +37,31 @@ final class RegexPattern {
 		$pcre = self::toPcre($pattern);
 		return $pcre !== null && @preg_match($pcre, '') !== false;
 	}
+
+	/**
+	 * The PCRE string a regex replace action runs, or null when the pattern
+	 * is empty or broken.
+	 *
+	 * A replacement edits the text, so it works on characters (the u flag):
+	 * on bytes, "the first 20 characters" cut "ü" in half and the stored
+	 * text was no longer UTF-8, after which the transaction list failed to
+	 * load. Matching is left on toPcre(), so what a rule matches is
+	 * unchanged. A pattern that only compiles on bytes keeps working on
+	 * bytes; callers still check the result is valid UTF-8 before storing
+	 * it, because \C can split a character even on characters.
+	 */
+	public static function forReplace(string $pattern): ?string {
+		$pcre = self::toPcre($pattern);
+		if ($pcre === null) {
+			return null;
+		}
+
+		$flags = substr($pcre, strrpos($pcre, '/') + 1);
+		$unicode = str_contains($flags, 'u') ? $pcre : $pcre . 'u';
+		if (@preg_match($unicode, '') !== false) {
+			return $unicode;
+		}
+
+		return @preg_match($pcre, '') !== false ? $pcre : null;
+	}
 }

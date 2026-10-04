@@ -183,6 +183,51 @@ class ImportRuleApplicatorTest extends TestCase {
 		$this->assertSame('original notes', $result['notes']);
 	}
 
+	/**
+	 * The import path runs the same replacement as "Run rules": it has to
+	 * count characters too, or the row is stored with half a "ü" in it.
+	 */
+	public function testApplyRulesRegexReplaceCountsCharactersNotBytes(): void {
+		$rule = $this->makeRule([
+			'actions' => [
+				'version' => 2,
+				'actions' => [[
+					'type' => 'regex_replace',
+					'field' => 'description',
+					'pattern' => '^(.{20}).+$',
+					'replacement' => '$1',
+				]],
+			],
+		]);
+		$this->ruleMapper->method('findActive')->willReturn([$rule]);
+		$this->evaluator->method('evaluate')->willReturn(true);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'Zahlung Bäckerei Müller GmbH Berlin']);
+
+		$this->assertSame('Zahlung Bäckerei Mül', $result['description']);
+	}
+
+	public function testApplyRulesRegexReplaceNeverProducesTextThatIsNotUtf8(): void {
+		$rule = $this->makeRule([
+			'actions' => [
+				'version' => 2,
+				'actions' => [[
+					'type' => 'regex_replace',
+					'field' => 'description',
+					// \C matches one byte even on characters
+					'pattern' => '(?<=^.{18})\C',
+					'replacement' => '',
+				]],
+			],
+		]);
+		$this->ruleMapper->method('findActive')->willReturn([$rule]);
+		$this->evaluator->method('evaluate')->willReturn(true);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'Zahlung Bäckerei Müller']);
+
+		$this->assertSame('Zahlung Bäckerei Müller', $result['description']);
+	}
+
 	public function testApplyRulesRunsMultipleRegexReplacementsInPriorityOrder(): void {
 		$rule = $this->makeRule([
 			'actions' => [
