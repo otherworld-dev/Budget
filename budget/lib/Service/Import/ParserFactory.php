@@ -118,18 +118,7 @@ class ParserFactory {
 		$droppedHeader = false;
 		$count = 0;
 
-		foreach ($lines as $line) {
-			if (empty(trim($line))) {
-				continue;
-			}
-
-			$row = str_getcsv($line, $delimiter, '"', '');
-
-			// Skip rows that don't match the expected data width (metadata/preamble)
-			if (count($row) !== $dataWidth) {
-				continue;
-			}
-
+		foreach ($this->csvRows($lines, $delimiter, $dataWidth) as $row) {
 			if ($skipFirstRow && !$droppedHeader) {
 				$droppedHeader = true; // this line held the header text — discard it
 				continue;
@@ -144,6 +133,62 @@ class ParserFactory {
 		}
 
 		return $data;
+	}
+
+	/** Lines a quoted field may span before the record is given up on */
+	private const MAX_FIELD_LINES = 50;
+
+	/**
+	 * The rows of a CSV that have the data width, in file order. Rows of any
+	 * other width are metadata or preamble and are skipped.
+	 *
+	 * A line is a row, as it always has been, with one exception: a quoted
+	 * field spanning lines (a multi-line note) broke its record into
+	 * fragments of the wrong width, and the whole row was dropped without a
+	 * word (R5-8). Those fragments are joined back into one record. Only
+	 * lines that were dropped anyway are ever joined: a line that is a row
+	 * on its own is never swallowed, so every row imported before reads
+	 * exactly as it did, the trailing "\r" of a CRLF file included (it can
+	 * feed the import id).
+	 *
+	 * @param string[] $lines The content split on "\n"
+	 * @return \Generator<int, string[]>
+	 */
+	private function csvRows(array $lines, string $delimiter, int $dataWidth): \Generator {
+		$total = count($lines);
+		for ($i = 0; $i < $total; $i++) {
+			$line = $lines[$i];
+			if (empty(trim($line))) {
+				continue;
+			}
+
+			$row = str_getcsv($line, $delimiter, '"', '');
+			if (count($row) === $dataWidth) {
+				yield $row;
+				continue;
+			}
+
+			// Balanced quotes: not a field left open, just a line of another width
+			if (substr_count($line, '"') % 2 === 0) {
+				continue;
+			}
+			$record = $line;
+			for ($j = $i + 1; $j < $total && $j <= $i + self::MAX_FIELD_LINES; $j++) {
+				$next = $lines[$j];
+				if (trim($next) !== '' && count(str_getcsv($next, $delimiter, '"', '')) === $dataWidth) {
+					break;
+				}
+				$record .= "\n" . $next;
+				if (substr_count($record, '"') % 2 === 0) {
+					$joined = str_getcsv($record, $delimiter, '"', '');
+					if (count($joined) === $dataWidth) {
+						yield $joined;
+						$i = $j;
+					}
+					break;
+				}
+			}
+		}
 	}
 
 	/**
@@ -244,16 +289,8 @@ class ParserFactory {
 				return 0;
 			}
 
-			// Count non-empty lines matching the data width, minus 1 for the header (if any)
-			$count = 0;
-			foreach ($lines as $line) {
-				if (empty(trim($line))) {
-					continue;
-				}
-				if (count(str_getcsv($line, $delimiter, '"', '')) === $dataWidth) {
-					$count++;
-				}
-			}
+			// Count the rows matching the data width, minus 1 for the header (if any)
+			$count = iterator_count($this->csvRows($lines, $delimiter, $dataWidth));
 			return $skipFirstRow ? max(0, $count - 1) : $count;
 		}
 

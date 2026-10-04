@@ -303,6 +303,59 @@ class ParserFactoryTest extends TestCase {
 		$this->assertSame(1, $this->factory->countRows($xml, 'camt'));
 	}
 
+	// ===== a quoted field spanning lines, manual mapping (R5-8) =====
+
+	/**
+	 * A multi-line note in any column but the last broke its record into
+	 * fragments of the wrong width, and the whole row was dropped without a
+	 * word. Those fragments are joined back into one record.
+	 */
+	public function testParseCsvKeepsARowWhoseQuotedFieldSpansLines(): void {
+		$csv = "Date,Description,Amount\n2026-09-01,Before,-1.00\n2026-09-02,\"Multi\nline\",-2.00\n2026-09-03,After,-3.00\n";
+
+		$result = $this->factory->parse($csv, 'csv');
+
+		$this->assertSame([
+			['2026-09-01', 'Before', '-1.00'],
+			['2026-09-02', "Multi\nline", '-2.00'],
+			['2026-09-03', 'After', '-3.00'],
+		], $result);
+		$this->assertSame(3, $this->factory->countRows($csv, 'csv'));
+	}
+
+	public function testParseCsvJoinsACrlfFilesFieldTheSameWay(): void {
+		// Each line is still read on its own exactly as before (the reference
+		// column feeds the import id); the joined field keeps its own CRLF
+		$csv = "Date,Description,Amount,Ref\r\n2026-09-01,Before,-1.00,R1 \r\n2026-09-02,\"Multi\r\nline\",-2.00,R2\r\n";
+
+		$result = $this->factory->parse($csv, 'csv');
+
+		$this->assertSame([
+			['2026-09-01', 'Before', '-1.00', 'R1 '],
+			['2026-09-02', "Multi\r\nline", '-2.00', 'R2'],
+		], $result);
+	}
+
+	public function testParseCsvNeverSwallowsALineThatIsARowOnItsOwn(): void {
+		// An unclosed quote with the next line a whole row: that row imports
+		// as it always did, and the broken line is dropped as before
+		$csv = "Date,Description,Amount\n2026-09-01,\"Broken\n2026-09-02,Fine,-2.00\n";
+
+		$this->assertSame([['2026-09-02', 'Fine', '-2.00']], $this->factory->parse($csv, 'csv'));
+	}
+
+	public function testParseCsvLeavesAMultiLineLastColumnAsItWas(): void {
+		// The first line of a record whose LAST field spans lines already had
+		// the full width and imported (with the first line of the note); it
+		// still reads exactly the same, so its import id can't change
+		$csv = "Date,Description,Amount,Notes\n2026-09-02,Multi line,-2.00,\"first line\nsecond line\"\n2026-09-03,After,-3.00,plain\n";
+
+		$this->assertSame([
+			['2026-09-02', 'Multi line', '-2.00', 'first line'],
+			['2026-09-03', 'After', '-3.00', 'plain'],
+		], $this->factory->parse($csv, 'csv'));
+	}
+
 	// ===== parseCsvRecords (app-export presets) =====
 
 	public function testParseCsvRecordsKeepsAQuotedMultiLineFieldInItsRow(): void {
