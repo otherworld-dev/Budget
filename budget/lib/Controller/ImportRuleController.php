@@ -515,6 +515,10 @@ class ImportRuleController extends Controller {
 		?string $endDate = null,
 		bool $uncategorizedOnly = false,
 	): DataResponse {
+		$ruleIds = self::ruleIdList($ruleIds);
+		if ($ruleIds === null) {
+			return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
+		}
 		try {
 			$filters = [
 				'accountId' => $accountId,
@@ -570,6 +574,10 @@ class ImportRuleController extends Controller {
 		?string $endDate = null,
 		bool $uncategorizedOnly = false,
 	): DataResponse {
+		$ruleIds = self::ruleIdList($ruleIds);
+		if ($ruleIds === null) {
+			return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
+		}
 		try {
 			$filters = [
 				'accountId' => $accountId,
@@ -583,6 +591,27 @@ class ImportRuleController extends Controller {
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to apply rules to transactions'));
 		}
+	}
+
+	/**
+	 * The rule ids a preview or run names, as ints, or null when one of them
+	 * isn't a rule id. The service takes ints, so a null or a word in the
+	 * list ended in a TypeError and a 500.
+	 *
+	 * @return int[]|null
+	 */
+	private static function ruleIdList(array $ruleIds): ?array {
+		$ids = [];
+		foreach ($ruleIds as $id) {
+			if (is_int($id) && $id > 0) {
+				$ids[] = $id;
+			} elseif (is_string($id) && ctype_digit($id) && (int)$id > 0) {
+				$ids[] = (int)$id;
+			} else {
+				return null;
+			}
+		}
+		return $ids;
 	}
 
 	/**
