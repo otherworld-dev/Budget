@@ -2799,7 +2799,7 @@ class BillControllerTest extends TestCase {
 		);
 	}
 
-	private function owensBill(?int $accountId, ?int $destinationId = null): Bill {
+	private function owensBillOnAccount(?int $accountId, ?int $destinationId = null): Bill {
 		$bill = new Bill();
 		$bill->setUserId('owen');
 		$bill->setAccountId($accountId);
@@ -2828,7 +2828,7 @@ class BillControllerTest extends TestCase {
 	public function testPayingNeedsWriteOnTheBillsAccountNotJustTheBill(string $serviceMethod, \Closure $call): void {
 		$this->service->expects($this->never())->method($serviceMethod);
 
-		$hidden = $call($this->controllerForWendy($this->owensBill(2)));
+		$hidden = $call($this->controllerForWendy($this->owensBillOnAccount(2)));
 
 		$this->assertSame(Http::STATUS_FORBIDDEN, $hidden->getStatus());
 		$this->assertSame('This shared item is read-only', $hidden->getData()['error']);
@@ -2838,7 +2838,7 @@ class BillControllerTest extends TestCase {
 	public function testPayingNeedsWriteOnATransfersDestinationToo(string $serviceMethod, \Closure $call): void {
 		$this->service->expects($this->never())->method($serviceMethod);
 
-		$this->assertSame(Http::STATUS_FORBIDDEN, $call($this->controllerForWendy($this->owensBill(1, 3)))->getStatus());
+		$this->assertSame(Http::STATUS_FORBIDDEN, $call($this->controllerForWendy($this->owensBillOnAccount(1, 3)))->getStatus());
 	}
 
 	#[\PHPUnit\Framework\Attributes\DataProvider('paymentActions')]
@@ -2847,13 +2847,13 @@ class BillControllerTest extends TestCase {
 			in_array($serviceMethod, ['markUnpaid', 'undoSkip'], true) ? new Bill() : []
 		);
 
-		$this->assertSame(Http::STATUS_OK, $call($this->controllerForWendy($this->owensBill(1)))->getStatus());
+		$this->assertSame(Http::STATUS_OK, $call($this->controllerForWendy($this->owensBillOnAccount(1)))->getStatus());
 	}
 
 	public function testABillWithNoAccountIsPaidOnTheBillsShareAlone(): void {
 		$this->service->expects($this->once())->method('markPaid')->willReturn([]);
 
-		$this->assertSame(Http::STATUS_OK, $this->controllerForWendy($this->owensBill(null))->markPaid(7)->getStatus());
+		$this->assertSame(Http::STATUS_OK, $this->controllerForWendy($this->owensBillOnAccount(null))->markPaid(7)->getStatus());
 	}
 
 	public function testCreateFromDetectedRefusesAnAccountTheUserCannotPostTo(): void {
