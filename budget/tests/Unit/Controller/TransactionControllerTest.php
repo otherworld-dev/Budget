@@ -832,8 +832,20 @@ class TransactionControllerTest extends TestCase {
 	 * account 6 read-only; owner1's account 9 was never shared. The row the
 	 * single-transaction routes look at sits in $rowAccount.
 	 */
-	private function controllerForSharedRows(int $rowAccount = 4): TransactionController {
+	private function controllerForSharedRows(int $rowAccount = 4, ?int $rowCategory = null): TransactionController {
 		$shares = $this->createMock(GranularShareService::class);
+		// user1 sees owner1's shared categories 2-4 and their own 20-29;
+		// owner1's 5-9 were never shared with them
+		$shares->method('requireCategoryVisibleToWriter')->willReturnCallback(
+			function (string $owner, string $writer, ?int $categoryId, array $kept = []): void {
+				if ($categoryId === null || $writer === $owner || in_array($categoryId, $kept, true)) {
+					return;
+				}
+				if (!in_array($categoryId, array_merge([2, 3, 4], range(20, 29)), true)) {
+					throw new \InvalidArgumentException('Category not found');
+				}
+			}
+		);
 		$shares->method('getOwnAccountIds')->willReturn([1]);
 		$shares->method('getVisibleAccountIds')->willReturn([1, 4, 6]);
 		$shares->method('canWrite')->willReturnCallback(fn ($user, $type, $id) => in_array($id, [1, 4], true));
@@ -863,11 +875,21 @@ class TransactionControllerTest extends TestCase {
 				}
 			}
 		});
-		$this->service->method('findForAccounts')->willReturnCallback(function (int $id, array $visible) use ($rowAccount) {
+		$row = $this->transactionInAccount($rowAccount);
+		$row->setId(8);
+		$row->setCategoryId($rowCategory);
+		$this->service->method('findForAccounts')->willReturnCallback(function (int $id, array $visible) use ($rowAccount, $row) {
 			if (!in_array($rowAccount, $visible, true)) {
 				throw new \OCP\AppFramework\Db\DoesNotExistException('');
 			}
-			return $this->transactionInAccount($rowAccount);
+			return $row;
+		});
+		// The owner-scoped lookup only finds user1's own rows
+		$this->service->method('find')->willReturnCallback(function () use ($rowAccount, $row) {
+			if ($rowAccount !== 1) {
+				throw new \OCP\AppFramework\Db\DoesNotExistException('');
+			}
+			return $row;
 		});
 		$this->service->method('findAccountById')->willReturnCallback(function (int $accountId) {
 			$account = new \OCA\Budget\Db\Account();
@@ -885,6 +907,104 @@ class TransactionControllerTest extends TestCase {
 		);
 		return new TransactionController($this->request, $this->service, $this->splitService, $this->tagService,
 			$this->validationService, $shares, new TransactionCsvExporter($this->l), $this->l, 'user1', $this->logger);
+	}
+
+	// ── a write recipient and the owner's unshared categories ───────
+
+	public function testAWriteRecipientCannotFileARowUnderAnUnsharedCategoryOfTheOwners(): void {
+		// Category 6 is owner1's, never shared with user1: stored by id, its
+		// name then came back in her list and reports
+		$this->requestParams(['categoryId' => 6]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerForSharedRows(4)->update(8, categoryId: 6);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testARowTheOwnerFiledThatWayKeepsSaving(): void {
+		$this->requestParams(['categoryId' => 6, 'notes' => 'checked']);
+		$this->service->expects($this->once())->method('update')
+			->with(8, 'owner1', $this->anything())->willReturn(new Transaction());
+
+		$response = $this->controllerForSharedRows(4, 6)->update(8, categoryId: 6);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testAWriteRecipientMayStillUseASharedCategory(): void {
+		$this->requestParams(['categoryId' => 2]);
+		$this->service->expects($this->once())->method('update')->willReturn(new Transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->controllerForSharedRows(4, 6)->update(8, categoryId: 2)->getStatus());
+	}
+
+	public function testCreatingOnASharedAccountNeedsACategoryTheWriterCanSee(): void {
+		$this->service->expects($this->once())->method('create')->willReturn(new Transaction());
+		$controller = $this->controllerForSharedRows(4);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $controller->create(4, '2026-10-01', 'Shop', 5.0, 'debit', 6)->getStatus());
+		$this->assertSame(Http::STATUS_CREATED, $controller->create(4, '2026-10-01', 'Shop', 5.0, 'debit', 2)->getStatus());
+	}
+
+	public function testBulkActionsCannotUseAnUnsharedCategoryOfTheOwners(): void {
+		$this->service->expects($this->never())->method('bulkEdit');
+		$this->service->expects($this->never())->method('bulkCategorize');
+		$controller = $this->controllerForSharedRows();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $controller->bulkEdit([3], ['categoryId' => 6])->getStatus());
+		$this->assertSame(['success' => 0, 'failed' => 1], $controller->bulkCategorize([['id' => 3, 'categoryId' => 6]])->getData());
+	}
+
+	private function part(int $id, ?int $categoryId): \OCA\Budget\Db\TransactionSplit {
+		$part = new \OCA\Budget\Db\TransactionSplit();
+		$part->setId($id);
+		$part->setCategoryId($categoryId);
+		return $part;
+	}
+
+	public function testSplittingIntoAnUnsharedCategoryIsRefused(): void {
+		$this->requestParams(['splits' => [['amount' => 6, 'categoryId' => 6], ['amount' => 4, 'categoryId' => 2]]]);
+		$this->splitService->method('getSplits')->willReturn([]);
+		$this->splitService->expects($this->never())->method('splitTransaction');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controllerForSharedRows(4)->split(8)->getStatus());
+	}
+
+	public function testASplitAlreadyUsingAnUnsharedCategoryCanBeResaved(): void {
+		$this->requestParams(['splits' => [['amount' => 6, 'categoryId' => 6], ['amount' => 4, 'categoryId' => 2]]]);
+		$this->splitService->method('getSplits')->with(8, 'owner1')->willReturn([$this->part(30, 6), $this->part(31, 3)]);
+		$this->splitService->expects($this->once())->method('splitTransaction')->willReturn([]);
+
+		$this->assertSame(Http::STATUS_CREATED, $this->controllerForSharedRows(4)->split(8)->getStatus());
+	}
+
+	public function testUnsplittingKeepsOnlyACategoryTheRowAlreadyHasOrTheWriterCanSee(): void {
+		$this->splitService->method('getSplits')->willReturn([$this->part(30, 6), $this->part(31, 3)]);
+		$this->splitService->expects($this->once())->method('unsplitTransaction')
+			->with(8, 'owner1', 6)->willReturn(new Transaction());
+		$controller = $this->controllerForSharedRows(4);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $controller->unsplit(8, 7)->getStatus());
+		$this->assertSame(Http::STATUS_OK, $controller->unsplit(8, 6)->getStatus());
+	}
+
+	public function testAPartKeepsItsUnsharedCategoryButCannotMoveToOne(): void {
+		$this->splitService->method('getSplits')->willReturn([$this->part(30, 6), $this->part(31, 3)]);
+		$this->splitService->expects($this->once())->method('updateSplit')
+			->with(30, 'owner1', ['categoryId' => 6, 'description' => 'kept'])->willReturn($this->part(30, 6));
+		$controller = $this->controllerForSharedRows(4);
+
+		$this->requestParams(['categoryId' => 6, 'description' => 'kept']);
+		$this->assertSame(Http::STATUS_OK, $controller->updateSplit(8, 30)->getStatus());
+	}
+
+	public function testAPartCannotMoveToAnUnsharedCategory(): void {
+		$this->splitService->method('getSplits')->willReturn([$this->part(30, 6), $this->part(31, 3)]);
+		$this->splitService->expects($this->never())->method('updateSplit');
+
+		$this->requestParams(['categoryId' => 7]);
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controllerForSharedRows(4)->updateSplit(8, 31)->getStatus());
 	}
 
 	public function testAWriteRecipientSplitsAsTheAccountOwner(): void {

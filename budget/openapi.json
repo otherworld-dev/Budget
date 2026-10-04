@@ -362,7 +362,7 @@
                                     },
                                     "category_error": {
                                       "type": "string",
-                                      "description": "Present only when the category_id sent is not one the account owner can use. The transaction is recorded anyway, uncategorised (category_id null), so never re-post; set a category later with PATCH /transactions/{id}. A replay of the same idempotency_key returns the recorded transaction without this field.",
+                                      "description": "Present only when the category_id sent is not one the account owner can use or, on an account shared with you, not one you can see (one of the owner's categories that was never shared with you; the message is then \"Category not found\"). The transaction is recorded anyway, uncategorised (category_id null), so never re-post; set a category later with PATCH /transactions/{id}. A replay of the same idempotency_key returns the recorded transaction without this field.",
                                       "example": "Category not found. It must be one of the account owner's categories"
                                     }
                                   }
@@ -522,7 +522,7 @@
             }
           },
           "400": {
-            "description": "A malformed value (a list or an object for a field that takes one value: \"vendor must be a single value\"), nothing editable in the body, an amount that is not more than zero (error_code invalid_amount), or account_id, status or reconciled sent with a different value (error_code field_not_editable). A category_id the account owner cannot use answers \"Category not found. It must be one of the account owner's categories\".",
+            "description": "A malformed value (a list or an object for a field that takes one value: \"vendor must be a single value\"), nothing editable in the body, an amount that is not more than zero (error_code invalid_amount), or account_id, status or reconciled sent with a different value (error_code field_not_editable). A category_id the account owner cannot use answers \"Category not found. It must be one of the account owner's categories\"; on an account shared with you, a new category_id you cannot see (one of the owner's never shared with you) answers \"Category not found\". The category the transaction already has may always be sent back.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1104,7 +1104,7 @@
             }
           },
           "400": {
-            "description": "The parts do not sum to the transaction amount, there are fewer than two, a part's amount is zero or not a number, `splits` is not a usable array, or a part's `category_id` is not a category the account owner can use (\"Category not found\"). ocs.data.error states which. The same text is also sent as ocs.data.message, which older clients read. Nothing is changed: a split transaction keeps the parts it had.",
+            "description": "The parts do not sum to the transaction amount, there are fewer than two, a part's amount is zero or not a number, `splits` is not a usable array, or a part's `category_id` is not a category the account owner can use, or on an account shared with you one you cannot see and the transaction does not already carry (\"Category not found\"). ocs.data.error states which. The same text is also sent as ocs.data.message, which older clients read. Nothing is changed: a split transaction keeps the parts it had.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1226,7 +1226,7 @@
             }
           },
           "400": {
-            "description": "category_id is not a number, or not a category the account owner can use (\"Category not found\").",
+            "description": "category_id is not a number, or not a category the account owner can use, or on an account shared with you one you cannot see and the transaction's parts don't already carry (\"Category not found\").",
             "content": {
               "application/json": {
                 "schema": {
@@ -1772,7 +1772,7 @@
           "owner": {
             "type": "string",
             "example": "alice",
-            "description": "The Nextcloud user id of the account's owner: yours for your own accounts, the sharer's for one shared with you. A transaction is recorded in the owner's ledger, so its category_id must be one of the owner's categories: offer the categories whose owner matches this."
+            "description": "The Nextcloud user id of the account's owner: yours for your own accounts, the sharer's for one shared with you. A transaction is recorded in the owner's ledger, so its category_id must be one of the owner's categories: offer the categories whose owner matches this (the categories list only holds the owner's categories that were shared with you, which are the ones you may use)."
           },
           "closed": {
             "type": "boolean",
@@ -2021,7 +2021,7 @@
           },
           "category_id": {
             "type": "integer",
-            "description": "Omit to file as uncategorised. Must be a category the account owner can use: one of their own categories, or one shared with them. On an account shared with you that means the owner's categories, not yours (match Category.owner against Account.owner); any other id is left off: the transaction is recorded uncategorised and the response carries category_error."
+            "description": "Omit to file as uncategorised. Must be a category the account owner can use: one of their own categories, or one shared with them. On an account shared with you that means the owner's categories that were shared with you, not yours (match Category.owner against Account.owner); any other id is left off: the transaction is recorded uncategorised and the response carries category_error."
           },
           "description": {
             "type": "string",
@@ -2364,7 +2364,7 @@
           "category_id": {
             "type": "integer",
             "nullable": true,
-            "description": "Omit or null to leave the part uncategorised (useful for a tax line). Otherwise a category the account owner can use: one of their own categories, or one shared with them. On an account shared with you that means the owner's categories, not yours; any other id rejects the split set with the message \"Category not found\".",
+            "description": "Omit or null to leave the part uncategorised (useful for a tax line). Otherwise a category the account owner can use: one of their own categories, or one shared with them. On an account shared with you that means the owner's categories that were shared with you (or one the transaction already carries), not yours; any other id rejects the split set with the message \"Category not found\".",
             "example": 12
           },
           "description": {
