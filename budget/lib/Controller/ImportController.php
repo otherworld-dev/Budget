@@ -148,6 +148,7 @@ class ImportController extends Controller {
 		?string $presetId = null,
 		?int $templateId = null,
 		?string $encoding = null,
+		bool $applyRules = true,
 	): DataResponse {
 		try {
 			if ($templateId !== null) {
@@ -171,7 +172,8 @@ class ImportController extends Controller {
 				$skipDuplicates,
 				$delimiter,
 				$presetId,
-				$encoding
+				$encoding,
+				$applyRules
 			);
 			return new DataResponse($preview);
 		} catch (\Exception $e) {

@@ -1373,6 +1373,49 @@ class ImportServiceTest extends TestCase {
 		$this->assertEquals(1, $result['imported']);
 	}
 
+	/**
+	 * The import screen's "Apply import rules" box was ignored: the preview
+	 * showed rule categories whatever it said (T3-9). With it unticked the
+	 * preview shows what the import will store.
+	 */
+	public function testPreviewWithoutRulesShowsTheRowsUntouched(): void {
+		$this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', 'csv data');
+		$this->parserFactory->method('detectFormat')->willReturn('csv');
+		$this->parserFactory->method('parse')->willReturn([
+			['date' => '2025-01-01', 'amount' => '50', 'description' => 'Test'],
+		]);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(1, 'Checking'));
+		$this->normalizer->method('mapRowToTransaction')->willReturn([
+			'date' => '2025-01-01', 'amount' => 50.0, 'description' => 'Test', 'type' => 'credit',
+		]);
+		$this->normalizer->method('generateImportId')->willReturn('imp_nr');
+		$this->duplicateDetector->method('isDuplicate')->willReturn(false);
+		$this->ruleApplicator->expects($this->never())->method('applyRules');
+
+		$result = $this->service->previewImport(
+			'user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 'date'], 1,
+			null, true, ',', null, null, false
+		);
+
+		$this->assertSame(1, $result['validTransactions']);
+	}
+
+	public function testOfxPreviewWithoutRulesShowsTheRowsUntouched(): void {
+		$this->mockOfxFile($this->sampleOfxRow());
+		$this->normalizer->method('mapOfxTransaction')->willReturn([
+			'date' => '2026-07-03', 'amount' => 42.17, 'type' => 'debit', 'description' => 'POINT OF SALE PURCHASE',
+		]);
+		$ruleApplicator = $this->ruleApplicator;
+		$ruleApplicator->expects($this->never())->method('applyRules');
+
+		$result = $this->service->previewImport(
+			'user1', 'import_user1_0123456789abcdef0123456789abcdef.ofx', [], null, ['1234567' => 7],
+			true, ',', null, null, false
+		);
+
+		$this->assertSame(1, $result['validTransactions']);
+	}
+
 	// ===== countCategorized (#285 audit) =====
 
 	/**

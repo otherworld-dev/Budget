@@ -235,16 +235,17 @@ class ImportService {
 		string $delimiter = ',',
 		?string $presetId = null,
 		?string $encoding = null,
+		bool $applyRules = true,
 	): array {
 		$file = $this->getImportFile($userId, $fileId);
 		$format = $this->parserFactory->detectFormat($fileId);
 		$content = $this->ensureUtf8($file->getContent(), $encoding);
 
 		if ($this->isMultiAccountFormat($format) && !empty($accountMapping)) {
-			return $this->previewMultiAccountImport($userId, $content, $format, $accountMapping, $skipDuplicates, $mapping);
+			return $this->previewMultiAccountImport($userId, $content, $format, $accountMapping, $skipDuplicates, $mapping, $applyRules);
 		}
 
-		return $this->previewSingleAccountImport($userId, $content, $format, $mapping, $accountId, $skipDuplicates, $delimiter, $presetId);
+		return $this->previewSingleAccountImport($userId, $content, $format, $mapping, $accountId, $skipDuplicates, $delimiter, $presetId, $applyRules);
 	}
 
 	/**
@@ -750,7 +751,7 @@ class ImportService {
 		};
 	}
 
-	private function previewMultiAccountImport(string $userId, string $content, string $format, array $accountMapping, bool $skipDuplicates, array $mapping = []): array {
+	private function previewMultiAccountImport(string $userId, string $content, string $format, array $accountMapping, bool $skipDuplicates, array $mapping = [], bool $applyRules = true): array {
 		$parsedData = $this->parserFactory->parseFull($content, $format);
 		$transactions = [];
 		$duplicates = 0;
@@ -802,7 +803,9 @@ class ImportService {
 						continue;
 					}
 
-					if ($this->ruleApplicator) {
+					// Only when the import will run them, or the preview shows
+					// categories the import never sets (T3-9)
+					if ($applyRules) {
 						$transaction = $this->ruleApplicator->applyRules($userId, $this->withAccountContext($transaction, (int)$destAccountId, $userId));
 					}
 
@@ -845,7 +848,7 @@ class ImportService {
 		];
 	}
 
-	private function previewSingleAccountImport(string $userId, string $content, string $format, array $mapping, ?int $accountId, bool $skipDuplicates, string $delimiter = ',', ?string $presetId = null): array {
+	private function previewSingleAccountImport(string $userId, string $content, string $format, array $mapping, ?int $accountId, bool $skipDuplicates, string $delimiter = ',', ?string $presetId = null, bool $applyRules = true): array {
 		// Load preset if specified
 		$preset = $presetId ? $this->presetRegistry->get($presetId) : null;
 		$hasAccountColumn = ($preset && !empty($preset->getOptions()['accountColumn'])) || TransactionNormalizer::mapsColumn($mapping, 'account');
@@ -973,7 +976,10 @@ class ImportService {
 						continue;
 					}
 
-					$transaction = $this->ruleApplicator->applyRules($userId, $this->withAccountContext($transaction, $txAccountId, $userId));
+					// Only when the import will run them (T3-9)
+					if ($applyRules) {
+						$transaction = $this->ruleApplicator->applyRules($userId, $this->withAccountContext($transaction, $txAccountId, $userId));
+					}
 					// Preview what will actually be stored — see the identical
 					// clamp in executeSingleAccountImport (#340).
 					$transaction = $this->normalizer->clampTransactionText($transaction);
@@ -1019,7 +1025,9 @@ class ImportService {
 
 					// Account doesn't exist yet, so $txAccountId is null and no
 					// account context is added — an account-scoped rule won't match.
-					$transaction = $this->ruleApplicator->applyRules($userId, $this->withAccountContext($transaction, $txAccountId, $userId));
+					if ($applyRules) {
+						$transaction = $this->ruleApplicator->applyRules($userId, $this->withAccountContext($transaction, $txAccountId, $userId));
+					}
 					// Preview what will actually be stored — see the identical
 					// clamp in executeSingleAccountImport (#340).
 					$transaction = $this->normalizer->clampTransactionText($transaction);
