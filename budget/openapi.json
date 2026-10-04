@@ -2414,7 +2414,7 @@
           "currency": {
             "type": "string",
             "example": "GBP",
-            "description": "The user's base currency. Amounts are added up as stored, with no conversion, as on the Budget page."
+            "description": "The user's base currency. When the user's accounts are in more than one currency, spending in each is converted to this one at the user's rate before it is added up, as on the Budget page."
           },
           "totals": {
             "type": "object",

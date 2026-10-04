@@ -63,7 +63,7 @@ class ApiV1BudgetController extends OCSController {
 
 		try {
 			$status = $this->service->forMonth($this->userId, $month);
-			// Summed as stored, no conversion, as the Budget page's own totals are
+			// Accounts in other currencies are converted to it, as on the Budget page
 			$status['currency'] = $this->conversionService->getBaseCurrency($this->userId);
 
 			return new DataResponse(ApiSerializer::budgetStatus($status));

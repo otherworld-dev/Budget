@@ -53,6 +53,7 @@ class CategoryService extends AbstractCrudService {
 		private ?ProjectAllocationMapper $projectAllocationMapper = null,
 		private ?BillMapper $billMapper = null,
 		private ?RecurringIncomeMapper $incomeMapper = null,
+		private ?CurrencyTotals $currencyTotals = null,
 	) {
 		$this->mapper = $mapper;
 		$this->transactionMapper = $transactionMapper;
@@ -707,15 +708,28 @@ class CategoryService extends AbstractCrudService {
 	 * whose refunds exceed its spending is genuinely negative, and an abs()
 	 * here would flip it back into looking like money spent.
 	 *
+	 * Accounts in more than one currency are converted to the base currency
+	 * first, as Cash Flow converts them: summed as stored, a 12.99 dollar
+	 * subscription counted as 12.99 pounds against a budget in pounds, and
+	 * the API's budget status labelled the mixed sum with the base currency.
+	 * The Budget page, the API's budget status, Ready to Assign and the
+	 * dashboard's spending tiles all read their spending here.
+	 *
 	 * @param int[]|null $visibleAccountIds If provided, scope by account IDs for cross-user aggregation
 	 */
 	public function getAllCategorySpending(string $userId, string $startDate, string $endDate, ?array $visibleAccountIds = null, string $transactionType = 'debit'): array {
-		$summary = $this->transactionMapper->getSpendingSummary(
+		$query = fn (?array $accountIds): array => $this->transactionMapper->getSpendingSummary(
 			$userId, $startDate, $endDate,
-			visibleAccountIds: $visibleAccountIds,
+			visibleAccountIds: $accountIds,
 			transactionType: $transactionType,
 			netOpposite: true
 		);
+		if ($this->currencyTotals === null) {
+			$summary = $query($visibleAccountIds);
+		} else {
+			$summary = $this->currencyTotals->rowsInBase($userId, $visibleAccountIds, $query, ['id'], ['total'], ['count']);
+			usort($summary, static fn (array $a, array $b) => (float)$b['total'] <=> (float)$a['total']);
+		}
 
 		return array_map(fn ($item) => [
 			'categoryId' => (int)$item['id'],
@@ -1040,8 +1054,8 @@ class CategoryService extends AbstractCrudService {
 	 * earlier month's income, so counting it again would take it twice.
 	 * Rollover therefore never changes this figure.
 	 *
-	 * Amounts are summed as stored, with no currency conversion, as the
-	 * Budget page's own totals are.
+	 * Income from accounts in more than one currency is converted to the
+	 * base currency, as the Budget page's spending is (getAllCategorySpending()).
 	 *
 	 * @param int[]|null $visibleAccountIds account scope, as the page's other calls
 	 * @param array<int, array>|null $effectiveBudgets resolveEffectiveBudgets()
@@ -1077,20 +1091,16 @@ class CategoryService extends AbstractCrudService {
 			$budgeted[] = BudgetPeriod::monthlyEquivalent($base, (string)($entry['period'] ?? 'monthly'));
 		}
 
+		// The page's own income figures, in the base currency when the
+		// accounts hold more than one
 		$income = [];
-		$rows = $this->transactionMapper->getSpendingSummary(
-			$userId, $startDate, $endDate,
-			visibleAccountIds: $visibleAccountIds,
-			transactionType: 'credit',
-			netOpposite: true
-		);
-		foreach ($rows as $row) {
-			$catId = (int)($row['id'] ?? 0);
+		foreach ($this->getAllCategorySpending($userId, $startDate, $endDate, $visibleAccountIds, 'credit') as $row) {
+			$catId = $row['categoryId'];
 			$category = $byId[$catId] ?? null;
 			if ($category === null || $category->getType() !== 'income' || isset($outOfReports[$catId])) {
 				continue;
 			}
-			$income[] = (string)($row['total'] ?? 0);
+			$income[] = $row['spent'];
 		}
 
 		$incomeTotal = MoneyCalculator::sum($income, 6);

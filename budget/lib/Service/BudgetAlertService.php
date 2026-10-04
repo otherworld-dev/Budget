@@ -45,6 +45,7 @@ class BudgetAlertService {
 		private AmountFormatter $amountFormatter,
 		private ?GranularShareService $granularShareService = null,
 		private ?UserClock $userClock = null,
+		private ?CurrencyTotals $currencyTotals = null,
 	) {
 		$this->categoryMapper = $categoryMapper;
 		$this->budgetSnapshotMapper = $budgetSnapshotMapper;
@@ -693,7 +694,7 @@ class BudgetAlertService {
 
 		$spendingByPeriod = [];
 		foreach ($membersByPeriod as $period => $members) {
-			$spendingByPeriod[$period] = $this->transactionMapper->getCategorySpendingBatch(
+			$query = fn (?array $accountIds): array => $this->transactionMapper->getCategorySpendingBatch(
 				array_keys($members),
 				$periodRanges[$period]['start'],
 				$periodRanges[$period]['end'],
@@ -701,8 +702,12 @@ class BudgetAlertService {
 				null,
 				false,
 				$userId,
-				$visibleAccountIds
+				$accountIds
 			);
+			// In the base currency when the accounts hold more than one, as
+			// the Budget page's Spent is
+			$spendingByPeriod[$period] = $this->currencyTotals?->amountsInBase($userId, $visibleAccountIds, $query)
+				?? $query($visibleAccountIds);
 		}
 
 		$spent = [];

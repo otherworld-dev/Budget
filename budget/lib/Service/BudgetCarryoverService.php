@@ -58,6 +58,7 @@ class BudgetCarryoverService {
 		private RecurringBudgetService $recurringBudgetService,
 		private SettingService $settingService,
 		private ?UserClock $userClock = null,
+		private ?CurrencyTotals $currencyTotals = null,
 	) {
 	}
 
@@ -351,8 +352,7 @@ class BudgetCarryoverService {
 			$startDate = $firstMonth . '-01';
 			$endDate = date('Y-m-t', strtotime($lastMonth . '-01'));
 
-			$direct = $this->transactionMapper->getCategorySpendingByBucketBatch($userId, $startDate, $endDate, false, $visibleAccountIds);
-			$splits = $this->splitMapper->getCategoryTotalsByBucket($userId, $startDate, $endDate, false, $visibleAccountIds);
+			[$direct, $splits] = $this->bucketSpending($userId, $startDate, $endDate, false, $visibleAccountIds);
 
 			return $this->mergeSpending($categoryIds, $direct, $splits);
 		}
@@ -365,8 +365,7 @@ class BudgetCarryoverService {
 		$startDate = $ranges[$firstMonth][0];
 		$endDate = $ranges[$lastMonth][1];
 
-		$direct = $this->transactionMapper->getCategorySpendingByBucketBatch($userId, $startDate, $endDate, true, $visibleAccountIds);
-		$splits = $this->splitMapper->getCategoryTotalsByBucket($userId, $startDate, $endDate, true, $visibleAccountIds);
+		[$direct, $splits] = $this->bucketSpending($userId, $startDate, $endDate, true, $visibleAccountIds);
 
 		$spent = [];
 		foreach ([$direct, $splits] as $source) {
@@ -385,6 +384,27 @@ class BudgetCarryoverService {
 			}
 		}
 		return $spent;
+	}
+
+	/**
+	 * Both halves of the chain's spending (direct rows, split parts) per
+	 * category per bucket, in the base currency when the accounts in view
+	 * hold more than one, as the Budget page's Spent is
+	 * (CategoryService::getAllCategorySpending()).
+	 *
+	 * @param int[]|null $visibleAccountIds
+	 * @return array{0: array<int, array<string, float>>, 1: array<int, array<string, float>>}
+	 */
+	private function bucketSpending(string $userId, string $startDate, string $endDate, bool $byDay, ?array $visibleAccountIds): array {
+		$direct = fn (?array $accountIds): array => $this->transactionMapper->getCategorySpendingByBucketBatch($userId, $startDate, $endDate, $byDay, $accountIds);
+		$splits = fn (?array $accountIds): array => $this->splitMapper->getCategoryTotalsByBucket($userId, $startDate, $endDate, $byDay, $accountIds);
+		if ($this->currencyTotals === null) {
+			return [$direct($visibleAccountIds), $splits($visibleAccountIds)];
+		}
+		return [
+			$this->currencyTotals->amountsInBase($userId, $visibleAccountIds, $direct),
+			$this->currencyTotals->amountsInBase($userId, $visibleAccountIds, $splits),
+		];
 	}
 
 	/**

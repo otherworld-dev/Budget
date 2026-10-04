@@ -14,6 +14,7 @@ use OCA\Budget\Enum\Currency;
 use OCA\Budget\Service\BudgetCarryoverService;
 use OCA\Budget\Service\BudgetScope;
 use OCA\Budget\Service\CurrencyConversionService;
+use OCA\Budget\Service\CurrencyTotals;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\MoneyCalculator;
 use OCA\Budget\Service\RecurringBudgetService;
@@ -51,6 +52,7 @@ class ReportAggregator {
 		private ?GranularShareService $granularShareService = null,
 		private ?CategoryMuteMapper $categoryMuteMapper = null,
 		private ?UserClock $userClock = null,
+		private ?CurrencyTotals $currencyTotals = null,
 	) {
 		$this->accountMapper = $accountMapper;
 		$this->transactionMapper = $transactionMapper;
@@ -514,11 +516,18 @@ class ReportAggregator {
 			[], ...array_map(fn (int $id) => $branches[$id] ?? [$id], $roots)
 		)));
 		$spendingScope = !empty($visibleAccountIds) ? $visibleAccountIds : null;
-		$memberSpending = $this->transactionMapper->getCategorySpendingBatch(
-			$memberIds($expenseCategoryIds), $startDate, $endDate, 'debit', $accountId, false, $userId, $spendingScope
-		) + $this->transactionMapper->getCategorySpendingBatch(
-			$memberIds($incomeCategoryIds), $startDate, $endDate, 'credit', $accountId, false, $userId, $spendingScope
-		);
+		$spending = function (array $categoryIds, string $type) use ($startDate, $endDate, $accountId, $userId, $spendingScope): array {
+			$query = fn (?array $accountIds): array => $this->transactionMapper->getCategorySpendingBatch(
+				$categoryIds, $startDate, $endDate, $type, $accountId, false, $userId, $accountIds
+			);
+			// Across accounts in more than one currency, in the base currency
+			// as the Budget page's Spent is; one account is in one currency
+			return $accountId === null && $this->currencyTotals !== null
+				? $this->currencyTotals->amountsInBase($userId, $spendingScope, $query)
+				: $query($spendingScope);
+		};
+		$memberSpending = $spending($memberIds($expenseCategoryIds), 'debit')
+			+ $spending($memberIds($incomeCategoryIds), 'credit');
 		$categorySpending = [];
 		foreach ($categoryIds as $catId) {
 			$spent = '0';
