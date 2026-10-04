@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Enum\Frequency;
 use OCA\Budget\Service\Forecast\ForecastProjector;
 use OCA\Budget\Service\Forecast\PatternAnalyzer;
 use OCA\Budget\Service\Forecast\ScenarioBuilder;
@@ -20,6 +22,14 @@ use OCP\ICacheFactory;
 class ForecastService {
 	private const CACHE_PREFIX = 'budget_forecast_';
 	private const CACHE_TTL = 300; // 5 minutes
+
+	/**
+	 * Complete months of history a trend needs before the live forecast
+	 * extrapolates it, the same number the forecast calls reliable. A line
+	 * through two points is noise: one good month and one weak one took
+	 * projected income to zero.
+	 */
+	private const MIN_TREND_MONTHS = 3;
 
 	private AccountMapper $accountMapper;
 	private TransactionMapper $transactionMapper;
@@ -39,6 +49,7 @@ class ForecastService {
 		?ICacheFactory $cacheFactory = null,
 		private ?UserClock $userClock = null,
 		private ?CurrencyTotals $currencyTotals = null,
+		private ?RecurringIncomeMapper $incomeMapper = null,
 	) {
 		$this->accountMapper = $accountMapper;
 		$this->transactionMapper = $transactionMapper;
@@ -75,6 +86,37 @@ class ForecastService {
 			array_map(static fn ($a) => (int)$a->getId(), $accounts),
 			$today
 		);
+	}
+
+	/**
+	 * The user's active recurring income into the accounts forecast, as a
+	 * monthly amount in the forecast's currency. One-off income is not
+	 * recurring and a custom pattern has no monthly figure, so neither counts.
+	 *
+	 * @param array<int, string>|null $rates account id => multiplier, when converting
+	 */
+	private function recurringMonthlyIncome(string $userId, array $accounts, ?array $rates): float {
+		if ($this->incomeMapper === null) {
+			return 0.0;
+		}
+		$inForecast = [];
+		foreach ($accounts as $account) {
+			if ($rates === null || isset($rates[$account->getId()])) {
+				$inForecast[(int)$account->getId()] = true;
+			}
+		}
+
+		$total = 0.0;
+		foreach ($this->incomeMapper->findActive($userId) as $income) {
+			$accountId = (int)($income->getAccountId() ?? 0);
+			$frequency = Frequency::tryFrom((string)$income->getFrequency());
+			if (!isset($inForecast[$accountId]) || $frequency === null || $frequency === Frequency::ONE_TIME) {
+				continue;
+			}
+			$monthly = $frequency->toMonthlyAmount((float)$income->getAmount());
+			$total += $rates !== null ? (float)MoneyCalculator::multiply($monthly, $rates[$accountId], 10) : $monthly;
+		}
+		return $total;
 	}
 
 	/**
@@ -226,9 +268,13 @@ class ForecastService {
 			$primaryCurrency = array_key_first($currencyCounts);
 		}
 
-		// Get historical transactions
-		$endDate = $today;
-		$startDate = (new \DateTimeImmutable($today))->modify('-12 months')->format('Y-m-d');
+		// History: the twelve complete months before this one. The month in
+		// progress is not a month of income and spending yet; counted as one,
+		// four days of October read as a month in which almost nothing came
+		// in, and the trend through it projected no income at all.
+		$thisMonth = new \DateTimeImmutable(substr($today, 0, 8) . '01');
+		$endDate = $thisMonth->modify('-1 day')->format('Y-m-d');
+		$startDate = $thisMonth->modify('-12 months')->format('Y-m-d');
 		$transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate, null, $visibleAccountIds);
 		if ($rates !== null) {
 			// The history of an account left out above stays out with it
@@ -258,9 +304,17 @@ class ForecastService {
 		$avgExpenses = $months > 0 ? array_sum($expenseValues) / $months : 0;
 		$avgSavings = $avgIncome - $avgExpenses;
 
-		$incomeTrend = $this->trendCalculator->calculateTrend($incomeValues);
-		$expenseTrend = $this->trendCalculator->calculateTrend($expenseValues);
-		$savingsTrend = $this->trendCalculator->calculateTrend($savingsValues);
+		// Too few months for a trend: project the averages as they are
+		$withTrend = $months >= self::MIN_TREND_MONTHS;
+		$incomeTrend = $withTrend ? $this->trendCalculator->calculateTrend($incomeValues) : 0.0;
+		$expenseTrend = $withTrend ? $this->trendCalculator->calculateTrend($expenseValues) : 0.0;
+		$savingsTrend = $withTrend ? $this->trendCalculator->calculateTrend($savingsValues) : 0.0;
+
+		// Income the user has set up to recur is known to keep coming, so
+		// no trend takes projected income below it. Only with some history
+		// to set spending against: on its own it would project nothing but
+		// money coming in.
+		$recurringIncome = $months > 0 ? $this->recurringMonthlyIncome($userId, $accounts, $rates) : 0.0;
 
 		// Generate monthly projections
 		$monthlyProjections = [];
@@ -270,12 +324,11 @@ class ForecastService {
 
 		// Months after the user's own, stepped from the 1st: from the 31st,
 		// "+1 month" skipped any shorter month
-		$thisMonth = new \DateTimeImmutable(substr($today, 0, 8) . '01');
 		for ($i = 1; $i <= $forecastMonths; $i++) {
 			$projectionDate = $thisMonth->modify("+{$i} months");
 			$monthLabel = $projectionDate->format('M Y');
 
-			$projectedIncome = max(0, $avgIncome + ($incomeTrend * $i));
+			$projectedIncome = max(0, $recurringIncome, $avgIncome + ($incomeTrend * $i));
 			$projectedExpenses = max(0, $avgExpenses + ($expenseTrend * $i));
 			$monthlySavings = $projectedIncome - $projectedExpenses;
 
