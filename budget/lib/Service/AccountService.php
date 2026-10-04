@@ -626,19 +626,23 @@ class AccountService extends AbstractCrudService {
 		$balance = (float)($account->getBalance() ?? 0);
 		$history = [];
 
-		// Work backwards from current balance - O(days) instead of O(days × transactions)
+		// Work backwards from current balance - O(days) instead of O(days × transactions).
+		// Each date gets its balance at the END of the day, so today's is the
+		// current balance. Recording after reversing the day's change gave the
+		// day's opening balance instead: the line ended a day behind the
+		// account's own figure and never showed today.
 		for ($i = 0; $i < $days; $i++) {
 			$date = $today->modify("-{$i} days")->format('Y-m-d');
-
-			// Reverse the day's net change to get the balance at start of day
-			if (isset($dailyChanges[$date])) {
-				$balance = MoneyCalculator::subtract($balance, (float)$dailyChanges[$date], Currency::decimalsFor($account->getCurrency()));
-			}
 
 			$history[] = [
 				'date' => $date,
 				'balance' => (float)$balance
 			];
+
+			// Reverse the day's net change: the balance at the end of the day before
+			if (isset($dailyChanges[$date])) {
+				$balance = MoneyCalculator::subtract($balance, (float)$dailyChanges[$date], Currency::decimalsFor($account->getCurrency()));
+			}
 		}
 
 		return array_reverse($history);
