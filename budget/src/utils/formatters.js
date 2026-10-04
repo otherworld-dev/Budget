@@ -465,8 +465,9 @@ export function getPeriodDateRange(period, startDay = 1, referenceDate = null) {
                 const nextMonth = now.getMonth() + 1;
                 const daysInNextMonth = new Date(now.getFullYear(), nextMonth + 1, 0).getDate();
                 const nextStartDay = Math.min(startDay, daysInNextMonth);
-                const nextPeriodStart = new Date(now.getFullYear(), nextMonth, nextStartDay);
-                periodEnd = new Date(nextPeriodStart.getTime() - 86400000);
+                // The calendar day before, not 24 hours before: a clocks-
+                // forward day is 23 hours long, and that lost a day
+                periodEnd = new Date(now.getFullYear(), nextMonth, nextStartDay - 1);
             } else {
                 // Period started last month
                 const prevMonth = now.getMonth() - 1;
@@ -474,9 +475,8 @@ export function getPeriodDateRange(period, startDay = 1, referenceDate = null) {
                 const prevStartDay = Math.min(startDay, daysInPrevMonth);
                 periodStart = new Date(now.getFullYear(), prevMonth, prevStartDay);
 
-                // End is day before start day this month
-                const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), effectiveStartDay);
-                periodEnd = new Date(thisMonthStart.getTime() - 86400000);
+                // End is the calendar day before this month's start day
+                periodEnd = new Date(now.getFullYear(), now.getMonth(), effectiveStartDay - 1);
             }
 
             const label = periodStart.toLocaleDateString(userLocale(), { month: 'short', day: 'numeric' })
