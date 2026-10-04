@@ -150,8 +150,18 @@ class BillService {
 		}
 	}
 
-	/** Whether the bill's owner can still write to every account the bill posts into */
+	/**
+	 * Whether the bill's owner can still write to every account the bill
+	 * posts into. A transfer that has lost its destination can't: a share of
+	 * that account ended, its owner reset or was deleted, or it was closed,
+	 * and each lets go of it (CrossUserLinks, AccountClosureService). It
+	 * still said "transfer", so Mark Paid "paid" it with nothing recorded and
+	 * moved it on; now it is refused, saying why, until one is chosen.
+	 */
 	private function accountsWritable(Bill $bill): bool {
+		if (($bill->getIsTransfer() ?? false) && $bill->getDestinationAccountId() === null) {
+			return false;
+		}
 		if ($this->granularShareService === null) {
 			return true;
 		}
