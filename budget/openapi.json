@@ -1938,7 +1938,7 @@
         "properties": {
           "account_id": {
             "type": "integer",
-            "description": "Must be an account the user can write to."
+            "description": "Must be an account the user can write to. An account they cannot see answers 404 \"Account not found\"; one shared with them read-only answers 403."
           },
           "date": {
             "type": "string",

@@ -73,6 +73,10 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 		$this->granularShareService->method('getVisibleAccountIds')->willReturn([1, 2, 9]);
 		$this->granularShareService->method('getOwnAccountIds')->willReturn([1, 2]);
+		// Visible means the user's own accounts and the one shared with them
+		$this->granularShareService->method('canAccess')->willReturnCallback(
+			static fn (string $userId, string $type, int $id): bool => $type === 'account' && in_array($id, [1, 2, 9], true)
+		);
 
 		$this->controller = $this->buildController($this->idempotencyKeys, $this->validationService);
 	}
@@ -452,6 +456,24 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_FORBIDDEN, $this->controller->create()->getStatus());
 	}
 
+	/**
+	 * An account the caller cannot see answered 403 "This shared item is
+	 * read-only": wrong, and it confirmed nothing the caller could act on.
+	 * Not found, like every other id outside their accounts.
+	 */
+	public function testCreateToAnAccountTheCallerCannotSeeIsNotFound(): void {
+		$this->params = $this->captureParams(['account_id' => '999999']);
+		// As the real check answers for an account that is not theirs
+		$this->granularShareService->method('requireWriteAccess')
+			->willThrowException(new ReadOnlyShareException());
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+		$this->assertSame('Account not found', $response->getData()['error']);
+	}
+
 	public function testCreateRejectsAnUnknownType(): void {
 		$this->params = $this->captureParams(['type' => 'sideways']);
 		$this->service->expects($this->never())->method('create');
@@ -792,7 +814,6 @@ class ApiV1TransactionControllerTest extends TestCase {
 	 */
 	public function testARefusedAccountReleasesTheReservation(): void {
 		$this->params = $this->captureParams(['account_id' => '9', 'idempotency_key' => 'uuid-9']);
-		$this->granularShareService->method('canAccess')->willReturn(true);
 		$this->granularShareService->method('requireWriteAccess')
 			->willThrowException(new ReadOnlyShareException());
 
@@ -808,7 +829,6 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 	public function testAnAccountThatCannotBeFoundReleasesTheReservation(): void {
 		$this->params = $this->captureParams(['account_id' => '9', 'idempotency_key' => 'uuid-10']);
-		$this->granularShareService->method('canAccess')->willReturn(true);
 		$this->service->method('findAccountById')->willThrowException(new DoesNotExistException('gone'));
 
 		$keys = $this->createMock(IdempotencyKeyMapper::class);

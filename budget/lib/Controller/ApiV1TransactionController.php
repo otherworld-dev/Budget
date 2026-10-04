@@ -384,6 +384,11 @@ class ApiV1TransactionController extends OCSController {
 				// key like any other failure before the insert.
 				$effectiveUserId = $this->userId;
 				if (!in_array($accountId, $this->granularShareService->getOwnAccountIds($this->userId), true)) {
+					// One the caller can't see is not found, as every other id
+					// outside their accounts is; 403 is for a read-only share
+					if (!$this->canAccessEntity('account', $accountId)) {
+						throw new DoesNotExistException('Account not visible to the caller');
+					}
 					$this->requireWriteAccess('account', $accountId);
 					$effectiveUserId = $this->service->findAccountById($accountId)->getUserId();
 				}
