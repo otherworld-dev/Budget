@@ -40,6 +40,12 @@ class ForecastWarningService {
 	 */
 	public function checkAndNotify(string $userId): bool {
 		$forecast = $this->forecastService->getLiveForecast($userId, self::HORIZON_MONTHS);
+		// Only a projection the forecast itself calls reliable (enough months
+		// and transactions behind it) may warn: on a month or two of history
+		// a new user was told their balance would go negative months ahead
+		if (!($forecast['dataQuality']['isReliable'] ?? false)) {
+			return false;
+		}
 		$dip = $this->firstNegativeMonth($forecast['monthlyProjections'] ?? []);
 		if ($dip === null) {
 			return false;
