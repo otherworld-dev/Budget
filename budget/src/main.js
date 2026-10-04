@@ -77,7 +77,7 @@ import { initDatePickers } from './utils/datepicker.js';
 import { setupChartTheme } from './utils/chartTheme.js';
 import { setupHeaderMenus } from './utils/headerMenu.js';
 import { setupClickableCards } from './utils/clickableCards.js';
-import { transactionDisplayAmount } from './utils/helpers.js';
+import { transactionTotalsByCurrency } from './utils/helpers.js';
 import { apiFetch, ApiError } from './utils/api.js';
 
 // Configuration
@@ -1555,28 +1555,13 @@ class BudgetApp {
         }
 
         if (totalElement && this.transactions) {
-            const total = this.transactions.reduce((sum, tx) => {
-                // Scheduled rows are future placeholders (e.g. a bill's next
-                // occurrence) — no money has moved yet, so keep them out of
-                // the displayed total (#311).
-                if (tx.status === 'scheduled') return sum;
-                // Under a category filter a split row counts for its share of
-                // the transaction, so this total matches the spending chart it
-                // was opened from instead of the whole receipt (#359).
-                const amount = transactionDisplayAmount(tx);
-                return sum + (tx.type === 'credit' ? amount : -amount);
-            }, 0);
-
-            // Determine most common currency from displayed transactions
-            const currencyCounts = {};
-            this.transactions.forEach(tx => {
-                const currency = tx.accountCurrency || this.getPrimaryCurrency();
-                currencyCounts[currency] = (currencyCounts[currency] || 0) + 1;
-            });
-            const mostCommonCurrency = Object.entries(currencyCounts)
-                .sort((a, b) => b[1] - a[1])[0]?.[0] || this.getPrimaryCurrency();
-
-            totalElement.textContent = t('budget', 'Total: {amount}', { amount: this.formatCurrency(total, mostCommonCurrency) });
+            // One figure per currency: euro and pound rows added together
+            // gave a total in neither (see transactionTotalsByCurrency)
+            const totals = transactionTotalsByCurrency(this.transactions, this.getPrimaryCurrency());
+            const amount = totals.length > 0
+                ? totals.map(({ currency, total }) => this.formatCurrency(total, currency)).join(' · ')
+                : this.formatCurrency(0, this.getPrimaryCurrency());
+            totalElement.textContent = t('budget', 'Total: {amount}', { amount });
         }
     }
 
