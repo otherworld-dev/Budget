@@ -703,10 +703,10 @@ class ApiV1TransactionController extends OCSController {
 			}
 			$categoryId = $entry['category_id'] ?? $entry['categoryId'] ?? null;
 			$splits[] = [
-				// The service sums these, so they must be numeric; a
-				// non-numeric string would silently count as zero and let a
-				// set of parts "reconcile" that does not.
-				'amount' => (float)$entry['amount'],
+				// Anything that isn't a number goes on as sent: cast, it read
+				// as zero. The split service refuses both before it touches
+				// the parts already stored.
+				'amount' => is_numeric($entry['amount']) ? (float)$entry['amount'] : $entry['amount'],
 				'categoryId' => $categoryId === null || $categoryId === '' ? null : (int)$categoryId,
 				'description' => isset($entry['description']) && $entry['description'] !== ''
 					? mb_substr((string)$entry['description'], 0, 255)

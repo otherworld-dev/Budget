@@ -1006,6 +1006,27 @@ class ApiV1TransactionControllerTest extends TestCase {
 		}
 	}
 
+	/**
+	 * A part amount that isn't a number was cast to 0.0 here, so the service
+	 * could only call it zero. It goes on as sent, for the service to refuse
+	 * as what it is, before any stored part is touched.
+	 */
+	public function testANonNumericPartAmountIsHandedOnAsSentNotReadAsZero(): void {
+		$this->expectOwnerResolution();
+		$this->params = $this->captureParams([
+			'splits' => json_encode([['amount' => 'abc', 'category_id' => 12], ['amount' => '23.77']]),
+		]);
+		$this->splitService->expects($this->once())
+			->method('splitTransaction')
+			->with(5, 'owner1', $this->callback(static fn (array $s): bool => $s[0]['amount'] === 'abc' && $s[1]['amount'] === 23.77))
+			->willThrowException(new \InvalidArgumentException('Split 0: amount is required'));
+
+		$response = $this->controller->createSplits(5);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Split 0: amount is required', $response->getData()['error']);
+	}
+
 	public function testSplittingAnUnknownTransactionIsNotFound(): void {
 		$this->params = $this->captureParams([
 			'splits' => json_encode([['amount' => '1.00'], ['amount' => '2.00']]),
