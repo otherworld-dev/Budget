@@ -12,6 +12,7 @@ use OCA\Budget\Db\Category;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Db\ImportRuleMapper;
+use OCA\Budget\Db\LegacyBillRows;
 use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Db\ShareItem;
@@ -522,6 +523,16 @@ class MigrationService {
 				$this->accountMapper->update($account);
 			}
 
+			// A backup made before 3.0 holds the bill rows the upgrade to
+			// 3.0 repairs. Restored as they were, an unpaid occurrence
+			// counted as paid, and paying it booked it a second time. Run
+			// once the balances are in, so the repair moves them as the
+			// upgrade did, and after the links above, which point other
+			// users' bill snapshots at the restored rows.
+			if (version_compare(self::archiveVersion($importData), '1.3.0', '<')) {
+				$this->repairLegacyBillRows(array_values($idMaps['accounts'] ?? []), $balances);
+			}
+
 			$this->db->commit();
 
 			return [
@@ -533,6 +544,23 @@ class MigrationService {
 		} catch (\Exception $e) {
 			$this->db->rollBack();
 			throw $e;
+		}
+	}
+
+	/**
+	 * The upgrade's repairs of 2.54.0's bill rows (migrations 109 and 114,
+	 * LegacyBillRows), applied to the restored accounts' rows, with the
+	 * balances they move rebuilt.
+	 *
+	 * @param int[] $accountIds the restored accounts
+	 */
+	private function repairLegacyBillRows(array $accountIds, AccountBalanceCalculator $balances): void {
+		$pending = LegacyBillRows::unpaidPlaceholders($this->db, $accountIds);
+		$payments = LegacyBillRows::rescheduledPayments($this->db, $accountIds);
+		LegacyBillRows::setStatus($this->db, array_keys($pending), 'scheduled');
+		LegacyBillRows::setStatus($this->db, array_keys($payments), 'cleared');
+		foreach (array_unique(array_values($pending + $payments)) as $accountId) {
+			$balances->recalculate($this->accountMapper->findById($accountId));
 		}
 	}
 
