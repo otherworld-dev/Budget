@@ -259,6 +259,7 @@ class AccountService extends AbstractCrudService {
 	 * and use the actual owner's userId for the update.
 	 */
 	public function update(int $id, string $userId, array $updates): Entity {
+		$actingUserId = $userId;
 		// Try owner lookup first; fall back to ID-only for shared accounts
 		try {
 			$existing = $this->find($id, $userId);
@@ -272,10 +273,12 @@ class AccountService extends AbstractCrudService {
 		// Gated on the STORED state before anything is written, so a refusal
 		// leaves the account untouched. Reopening, and re-sending the flag for
 		// an account that is already closed, need no check.
+		$closing = false;
 		if (array_key_exists('closed', $updates)) {
 			$updates['closed'] = filter_var($updates['closed'], FILTER_VALIDATE_BOOLEAN);
 			if ($updates['closed'] && !($existing->getClosed() ?? false) && $this->closureService !== null) {
-				$this->closureService->assertClosable($existing);
+				$this->closureService->assertClosable($existing, $actingUserId);
+				$closing = true;
 			}
 		}
 		// -------------------------------------------------------------------
@@ -316,6 +319,10 @@ class AccountService extends AbstractCrudService {
 		// -------------------------------------------------------------------
 
 		$account = parent::update($id, $userId, $updates);
+		if ($closing) {
+			// What can no longer post into it lets go of it (#372)
+			$this->closureService?->detachStaleSchedules($existing);
+		}
 
 		if (isset($updates['openingBalance'])) {
 			$newBalance = $this->balanceCalculator->balanceFor($id, $account->getOpeningBalance(), $account->getCurrency());

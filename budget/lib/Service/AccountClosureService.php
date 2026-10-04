@@ -12,6 +12,7 @@ use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\PensionAccountMapper;
 use OCA\Budget\Db\PensionRecurringContributionMapper;
 use OCA\Budget\Db\RecurringIncomeMapper;
+use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Enum\Currency;
 use OCP\AppFramework\Db\DoesNotExistException;
@@ -41,6 +42,7 @@ class AccountClosureService {
 		private ImportRuleMapper $importRuleMapper,
 		private IL10N $l,
 		private ?TransactionService $transactionService = null,
+		private ?GranularShareService $granularShareService = null,
 	) {
 	}
 
@@ -49,9 +51,11 @@ class AccountClosureService {
 	 * be closed right now. Money first: a non-zero balance is the usual case and
 	 * the one the user must resolve before the rest even matters.
 	 *
+	 * @param string|null $actingUserId who is closing it, for whose items are
+	 *                                  named (the owner when null)
 	 * @throws \InvalidArgumentException
 	 */
-	public function assertClosable(Account $account): void {
+	public function assertClosable(Account $account, ?string $actingUserId = null): void {
 		$currency = $account->getCurrency();
 		$decimals = Currency::decimalsFor($currency);
 		$balance = (float)$account->getBalance();
@@ -71,10 +75,12 @@ class AccountClosureService {
 			));
 		}
 
-		$references = $this->findOpenReferences($account);
+		$references = $this->findOpenReferences($account, $actingUserId);
 		if ($references === []) {
 			return;
 		}
+		$others = $references['others'] ?? [];
+		unset($references['others']);
 
 		$labels = [
 			'bills' => $this->l->t('Bills'),
@@ -89,10 +95,17 @@ class AccountClosureService {
 			$parts[] = ($labels[$kind] ?? $kind) . ': ' . implode(', ', $names);
 		}
 
-		throw new \InvalidArgumentException($this->l->t(
-			'This account is still used by %1$s. Reassign or deactivate them, then close it.',
-			[implode('; ', $parts)]
-		));
+		$messages = [];
+		if ($parts !== []) {
+			$messages[] = $this->l->t(
+				'This account is still used by %1$s. Reassign or deactivate them, then close it.',
+				[implode('; ', $parts)]
+			);
+		}
+		if ($others !== []) {
+			$messages[] = $this->l->t('Items other people set up still use this account. They need to move or deactivate them before it can be closed.');
+		}
+		throw new \InvalidArgumentException(implode(' ', $messages));
 	}
 
 	/**
@@ -100,11 +113,18 @@ class AccountClosureService {
 	 * kinds with something in them, in a fixed order. A savings goal linked to
 	 * the account is deliberately absent: it reads the balance, it never writes.
 	 *
+	 * Only $viewerId's own items are named (the owner's when null). Anyone
+	 * else's are listed under 'others', by kind and without their names: a
+	 * name is someone else's text, and the refusal is shown verbatim, so the
+	 * owner read whatever a recipient had typed, and a write recipient read
+	 * the owner's bill, pension, bank and rule names.
+	 *
 	 * @return array<string, string[]>
 	 */
-	public function findOpenReferences(Account $account): array {
+	public function findOpenReferences(Account $account, ?string $viewerId = null): array {
 		$id = (int)$account->getId();
 		$userId = (string)$account->getUserId();
+		$viewer = $viewerId ?? $userId;
 
 		$refs = [
 			'bills' => [],
@@ -113,7 +133,15 @@ class AccountClosureService {
 			'pensions' => [],
 			'bankSync' => [],
 			'rules' => [],
+			'others' => [],
 		];
+		$add = static function (string $kind, string $owner, string $name) use (&$refs, $viewer): void {
+			if ($owner === $viewer) {
+				$refs[$kind][] = $name;
+			} else {
+				$refs['others'][] = $kind;
+			}
+		};
 
 		// Bills and transfers share a table; a transfer touches the account
 		// from either end. Everyone's: someone the account is shared with
@@ -123,12 +151,15 @@ class AccountClosureService {
 			if ((int)$bill->getAccountId() !== $id && (int)$bill->getDestinationAccountId() !== $id) {
 				continue;
 			}
-			$refs[$bill->getIsTransfer() ? 'transfers' : 'bills'][] = (string)$bill->getName();
+			if (!$this->canPostInto($account, (string)$bill->getUserId())) {
+				continue;
+			}
+			$add($bill->getIsTransfer() ? 'transfers' : 'bills', (string)$bill->getUserId(), (string)$bill->getName());
 		}
 
 		foreach ($this->recurringIncomeMapper->findActiveByAccount($id) as $income) {
-			if ((int)$income->getAccountId() === $id) {
-				$refs['income'][] = (string)$income->getName();
+			if ((int)$income->getAccountId() === $id && $this->canPostInto($account, (string)$income->getUserId())) {
+				$add('income', (string)$income->getUserId(), (string)$income->getName());
 			}
 		}
 
@@ -136,7 +167,7 @@ class AccountClosureService {
 			if ((int)$contribution->getSourceAccountId() !== $id) {
 				continue;
 			}
-			$refs['pensions'][] = $this->pensionName((int)$contribution->getPensionId(), $userId);
+			$add('pensions', $userId, $viewer === $userId ? $this->pensionName((int)$contribution->getPensionId(), $userId) : '');
 		}
 
 		foreach ($this->bankConnectionMapper->findAll($userId) as $connection) {
@@ -144,17 +175,72 @@ class AccountClosureService {
 				if ((int)$mapping->getBudgetAccountId() !== $id) {
 					continue;
 				}
-				$refs['bankSync'][] = (string)($mapping->getExternalAccountName() ?: $mapping->getExternalAccountId());
+				$add('bankSync', $userId, (string)($mapping->getExternalAccountName() ?: $mapping->getExternalAccountId()));
 			}
 		}
 
 		foreach ($this->importRuleMapper->findActive($userId) as $rule) {
 			if ($this->ruleRoutesInto($rule->getParsedActions(), $id)) {
-				$refs['rules'][] = (string)$rule->getName();
+				$add('rules', $userId, (string)$rule->getName());
 			}
 		}
 
 		return array_filter($refs, static fn (array $names) => $names !== []);
+	}
+
+	/**
+	 * Whether $userId's bills and income can still post into the account:
+	 * its owner always, anyone else while it is shared with them at write.
+	 * One that can't is refused every time it tries, so it doesn't keep the
+	 * account open; only its owner could have fixed it, and the account's
+	 * owner can't even see it.
+	 */
+	private function canPostInto(Account $account, string $userId): bool {
+		return $userId === $account->getUserId()
+			|| $this->granularShareService === null
+			|| $this->granularShareService->canWrite($userId, ShareItem::TYPE_ACCOUNT, (int)$account->getId());
+	}
+
+	/**
+	 * Once the account is closed, the bills, transfers and income of people
+	 * who can no longer post into it let go of it, as they do when a share
+	 * ends (CrossUserLinks::cutLostAccess()): they didn't block the close,
+	 * and left pointing at it they would post into a closed account the day
+	 * the share came back. A bill that does stops auto-paying and loses its
+	 * pending rows; it stays active, for its owner to point elsewhere.
+	 *
+	 * @return int how many let go
+	 */
+	public function detachStaleSchedules(Account $account): int {
+		$id = (int)$account->getId();
+		$detached = 0;
+
+		foreach ($this->billMapper->findActiveByAccount($id) as $bill) {
+			if ($this->canPostInto($account, (string)$bill->getUserId())) {
+				continue;
+			}
+			$this->transactionService?->deleteScheduledBillTransactions((int)$bill->getId());
+			if ((int)$bill->getAccountId() === $id) {
+				$bill->setAccountId(null);
+			}
+			if ((int)$bill->getDestinationAccountId() === $id) {
+				$bill->setDestinationAccountId(null);
+			}
+			$bill->setAutoPayEnabled(false);
+			$this->billMapper->update($bill);
+			$detached++;
+		}
+
+		foreach ($this->recurringIncomeMapper->findActiveByAccount($id) as $income) {
+			if ((int)$income->getAccountId() !== $id || $this->canPostInto($account, (string)$income->getUserId())) {
+				continue;
+			}
+			$income->setAccountId(null);
+			$this->recurringIncomeMapper->update($income);
+			$detached++;
+		}
+
+		return $detached;
 	}
 
 	/**
