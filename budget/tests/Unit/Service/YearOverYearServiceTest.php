@@ -191,6 +191,29 @@ class YearOverYearServiceTest extends TestCase {
 		$this->assertSame($expected, [$trend['totalIncome'], $trend['totalExpenses']]);
 	}
 
+	/**
+	 * Category spending across accounts in more than one currency is in the
+	 * base currency like the yearly figures; a single account is left as it is.
+	 */
+	public function testCategorySpendingAcrossCurrenciesIsConverted(): void {
+		$this->categoryMapper->method('findAll')->willReturn([$this->makeCategory(1, 'Food')]);
+		$this->transactionMapper->method('getCategorySpendingBatch')->willReturn([1 => 110.0]);
+		$currencies = $this->createMock(\OCA\Budget\Service\CurrencyTotals::class);
+		$currencies->method('reportCurrency')->willReturn('GBP');
+		$currencies->expects($this->once())->method('amountsInBase')
+			->with('user1', [4, 5], $this->isType('callable'))
+			->willReturn([1 => 93.5]);
+		$service = new YearOverYearService(
+			$this->transactionMapper, $this->categoryMapper, $this->reportQueries, null, null, $currencies
+		);
+
+		$all = $service->compareCategorySpending('user1', 1, null, [4, 5]);
+		$one = $service->compareCategorySpending('user1', 1, 4, [4, 5]);
+
+		$this->assertSame(93.5, $all['categories'][0]['years'][0]['spending']);
+		$this->assertSame(110.0, $one['categories'][0]['years'][0]['spending']);
+	}
+
 	public static function currencyCases(): array {
 		return [
 			'converted pounds round to the penny' => ['GBP', null, [3235.04999999, 580.29999999], [3235.05, 580.3]],

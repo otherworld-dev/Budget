@@ -188,7 +188,7 @@ class YearOverYearService {
 		for ($i = 0; $i < $years; $i++) {
 			$year = $currentYear - $i;
 			$range = $this->yearRange($year, $currentYear, $today);
-			$spendingByYear[$year] = $categoryIds === [] ? [] : $this->transactionMapper->getCategorySpendingBatch(
+			$query = fn (?array $accountIds): array => $this->transactionMapper->getCategorySpendingBatch(
 				$categoryIds,
 				$range['start'],
 				$range['end'],
@@ -197,10 +197,17 @@ class YearOverYearService {
 				// All accounts: a transfer is money moved, not spent (#349)
 				$accountId === null,
 				$userId,
-				$visibleAccountIds,
+				$accountIds,
 				// Categories kept out of reports stay out of this one (#219)
 				true
 			);
+			// Across accounts in more than one currency, in the base currency,
+			// as the yearly figures above are
+			$spendingByYear[$year] = match (true) {
+				$categoryIds === [] => [],
+				$accountId === null && $this->currencyTotals !== null => $this->currencyTotals->amountsInBase($userId, $visibleAccountIds, $query),
+				default => $query($visibleAccountIds),
+			};
 		}
 
 		$decimals = $this->decimals($userId, $accountId, $visibleAccountIds);
