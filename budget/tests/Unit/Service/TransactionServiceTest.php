@@ -806,6 +806,96 @@ class TransactionServiceTest extends TestCase {
 		$this->assertSame([55, 56, 59, 58], $deleted);
 	}
 
+	// ===== replaceBookedRow(): the bank's row in the place of the app's =====
+
+	/**
+	 * A booked payment (600) and the bank's row of it (500), served by the
+	 * mapper; the row deleted is recorded.
+	 *
+	 * @return Transaction[] [booked, bank]
+	 */
+	private function bookedAndBankRow(array $booked = [], array $bank = []): array {
+		$bookedRow = $this->makeTransaction(array_merge(['id' => 600, 'billId' => 9, 'notes' => 'Auto-generated from bill: Electric'], $booked));
+		$bankRow = $this->makeTransaction(array_merge(['id' => 500, 'importId' => 'hash_abc'], $bank));
+		$rows = [600 => $bookedRow, 500 => $bankRow];
+		$this->mapper->method('findById')->willReturnCallback(fn (int $id) => $rows[$id] ?? null);
+		$this->mapper->method('find')->willReturnCallback(fn (int $id) => $rows[$id]);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		return [$bookedRow, $bankRow];
+	}
+
+	private function tag(int $tagId): \OCA\Budget\Db\TransactionTag {
+		$tag = new \OCA\Budget\Db\TransactionTag();
+		$tag->setTagId($tagId);
+		return $tag;
+	}
+
+	/**
+	 * Splitting a booked bill with a contact, attaching its invoice or
+	 * tagging it was lost when the bank's row took its place: the shares,
+	 * attachments and tags were deleted with it.
+	 */
+	public function testTheBankRowGetsWhatTheUserAddedToTheBookedRow(): void {
+		[$booked, $bank] = $this->bookedAndBankRow(['categoryId' => 5, 'notes' => 'Auto-generated from bill: Electric - includes the late fee']);
+		$this->expenseShareMapper->expects($this->once())->method('moveToTransaction')->with(600, 500);
+		$this->attachmentMapper->expects($this->once())->method('moveToTransaction')->with(600, 500);
+		$this->transactionTagMapper->method('findByTransaction')
+			->willReturnCallback(fn (int $id) => $id === 600 ? [$this->tag(3), $this->tag(4)] : [$this->tag(4)]);
+		$tagged = [];
+		$this->transactionTagMapper->method('insert')->willReturnCallback(function ($tag) use (&$tagged) {
+			$tagged[] = [$tag->getTransactionId(), $tag->getTagId()];
+			return $tag;
+		});
+		$this->mapper->expects($this->once())->method('delete')->with($booked);
+
+		$this->service->replaceBookedRow($booked, $bank, 'Auto-generated from bill: Electric');
+
+		$this->assertSame([[500, 3]], $tagged, 'Only the tag the bank row lacked');
+		$this->assertSame('includes the late fee', $bank->getNotes());
+		$this->assertSame(5, $bank->getCategoryId());
+	}
+
+	public static function bookedNotes(): array {
+		return [
+			'only what the app wrote' => ['Auto-generated from bill: Electric', null],
+			'the user\'s words after it' => ['Auto-generated from bill: Electric; paid late', 'paid late'],
+			'a renamed bill\'s line and the user\'s' => ["Auto-generated from bill: Power\nPaid by card", 'Paid by card'],
+			'only a renamed bill\'s line' => ['Auto-generated from bill: Power', null],
+			'the user\'s own' => ['Shared with Sam', 'Shared with Sam'],
+		];
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('bookedNotes')]
+	public function testOnlyTheUsersOwnNotesGoToTheBankRow(string $notes, ?string $expected): void {
+		[$booked, $bank] = $this->bookedAndBankRow(['notes' => $notes]);
+
+		$this->service->replaceBookedRow($booked, $bank, 'Auto-generated from bill: Electric');
+
+		$this->assertSame($expected, $bank->getNotes());
+	}
+
+	public function testTheBookedRowsOtherSideIsPairedWithTheBankRow(): void {
+		// The destination's credit taking the booked deposit's place: the
+		// transfer's withdrawal stays and is paired with it
+		[$deposit, $credit] = $this->bookedAndBankRow(['type' => 'credit', 'linkedTransactionId' => 700], ['type' => 'credit']);
+		$this->mapper->expects($this->once())->method('unlinkTransaction')->with(600)
+			->willReturnCallback(fn () => $deposit->setLinkedTransactionId(null) ?? 700);
+		$this->mapper->expects($this->once())->method('linkTransactions')->with(500, 700);
+
+		$this->service->replaceBookedRow($deposit, $credit);
+	}
+
+	public function testAnOtherSideGoingTooIsOnlyLetGo(): void {
+		[$booked, $bank] = $this->bookedAndBankRow(['linkedTransactionId' => 601]);
+		$this->mapper->expects($this->once())->method('unlinkTransaction')->with(600)
+			->willReturnCallback(fn () => $booked->setLinkedTransactionId(null) ?? 601);
+		$this->mapper->expects($this->never())->method('linkTransactions');
+
+		$this->service->replaceBookedRow($booked, $bank, '', false);
+	}
+
 	public function testDeleteAsAccountOwnerThrowsWhenRowIsGone(): void {
 		$this->mapper->method('findById')->willReturn(null);
 

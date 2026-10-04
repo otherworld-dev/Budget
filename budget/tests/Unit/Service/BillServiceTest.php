@@ -1792,7 +1792,9 @@ class BillServiceTest extends TestCase {
 		$imported = $this->makeImportedTx(['id' => 500, 'date' => '2026-06-16']);
 		$imported->setImportId('bank-1');
 		$this->linkable($booked, $imported);
-		$this->transactionService->expects($this->once())->method('deleteAsAccountOwner')->with(600, false, 1)->willReturn(true);
+		// What the user added to the booked payment goes to the bank row
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')
+			->with($booked, $imported, 'Auto-generated from bill: Netflix', true);
 
 		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$imported]));
 
@@ -1812,6 +1814,7 @@ class BillServiceTest extends TestCase {
 		$booked->setReconciled(true);
 		$imported = $this->makeImportedTx(['id' => 500, 'date' => '2026-06-16']);
 		$this->linkable($booked, $imported);
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
 		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
 
 		$this->service->autoMatchPaidFromImport('user1', [$imported]);
@@ -1833,16 +1836,17 @@ class BillServiceTest extends TestCase {
 			'linkedTransactionId' => null,
 			'paidDate' => '2026-10-20',
 		]));
-		$booked = $this->makeImportedTx(['id' => 600, 'date' => '2026-10-20', 'description' => '']);
-		$booked->setNotes('Auto-generated transfer: Netflix');
-		$booked->setBillId(1);
-		$booked->setLinkedTransactionId(601);
+		[$booked, $deposit] = $this->bookedTransferPair('2026-10-20');
 		$imported = $this->makeImportedTx(['id' => 500, 'date' => '2026-10-20']);
 		$imported->setImportId('bank-1');
-		$this->linkable($booked, $imported);
-		$this->transactionService->expects($this->once())->method('deleteAsAccountOwner')->with(600, false, 1)->willReturn(true);
+		$this->linkable($booked, $deposit, $imported);
+		// The booked deposit isn't the bank row's other side: it goes, and
+		// the bank row gets its own arrival
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')
+			->with($booked, $imported, 'Auto-generated transfer: Netflix', false);
 		$this->transactionService->expects($this->once())->method('completeTransferPayment')
 			->with($imported, $this->isInstanceOf(Bill::class))->willReturn(905);
+		$this->transactionService->expects($this->once())->method('deleteAsAccountOwner')->with(601, false, 1)->willReturn(true);
 
 		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$imported]));
 
@@ -1851,6 +1855,51 @@ class BillServiceTest extends TestCase {
 		$snapshot = json_decode($bill->getPaidUndoState(), true);
 		$this->assertSame(500, $snapshot['linkedTransactionId']);
 		$this->assertSame([905], $snapshot['createdTransactionIds']);
+	}
+
+	/**
+	 * A transfer's withdrawal (600) and deposit (601) as Mark Paid books
+	 * them on $date
+	 *
+	 * @return \OCA\Budget\Db\Transaction[]
+	 */
+	private function bookedTransferPair(string $date): array {
+		$booked = $this->makeImportedTx(['id' => 600, 'date' => $date, 'description' => '']);
+		$booked->setNotes('Auto-generated transfer: Netflix');
+		$booked->setBillId(1);
+		$booked->setLinkedTransactionId(601);
+		$deposit = $this->makeImportedTx(['id' => 601, 'accountId' => 2, 'type' => 'credit', 'date' => $date, 'description' => '']);
+		$deposit->setNotes('Auto-generated transfer: Netflix');
+		$deposit->setBillId(1);
+		$deposit->setLinkedTransactionId(600);
+		return [$booked, $deposit];
+	}
+
+	public function testWhatWasAddedToABookedDepositGoesToTheArrivalTheBankRowGets(): void {
+		$bill = $this->setupAutoMatchBill([
+			'isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null,
+			'nextDueDate' => '2026-11-01', 'lastPaidDate' => '2026-10-20',
+		]);
+		$bill->setTransferDescriptionPattern('NETFLIX');
+		$bill->setPaidUndoState(json_encode(['previousState' => [], 'createdTransactionIds' => [600, 601], 'linkedTransactionId' => null, 'paidDate' => '2026-10-20']));
+		[$booked, $deposit] = $this->bookedTransferPair('2026-10-20');
+		$imported = $this->makeImportedTx(['id' => 500, 'date' => '2026-10-20']);
+		$imported->setImportId('bank-1');
+		$arrival = $this->makeImportedTx(['id' => 905, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-10-20']);
+		$this->linkable($booked, $deposit, $imported, $arrival);
+		$this->transactionService->method('completeTransferPayment')->willReturnCallback(function () use ($imported) {
+			$imported->setLinkedTransactionId(905);
+			return 905;
+		});
+		$replaced = [];
+		$this->transactionService->method('replaceBookedRow')->willReturnCallback(function ($from, $to) use (&$replaced) {
+			$replaced[] = [$from->getId(), $to->getId()];
+		});
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+
+		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$imported]));
+
+		$this->assertSame([[600, 500], [601, 905]], $replaced);
 	}
 
 	public function testAnImportedWithdrawalPaysARecurringTransfer(): void {

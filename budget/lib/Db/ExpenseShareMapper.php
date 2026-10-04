@@ -208,6 +208,22 @@ class ExpenseShareMapper extends QBMapper {
 	}
 
 	/**
+	 * Move every share of one transaction, whoever made it, settled or not,
+	 * onto another: the bank's own row of a payment taking the place of the
+	 * row the app booked for it, in the same account.
+	 *
+	 * @return int how many shares moved
+	 */
+	public function moveToTransaction(int $fromTransactionId, int $toTransactionId): int {
+		$qb = $this->db->getQueryBuilder();
+		$qb->update($this->getTableName())
+			->set('transaction_id', $qb->createNamedParameter($toTransactionId, IQueryBuilder::PARAM_INT))
+			->where($qb->expr()->eq('transaction_id', $qb->createNamedParameter($fromTransactionId, IQueryBuilder::PARAM_INT)));
+
+		return $qb->executeStatement();
+	}
+
+	/**
 	 * Get balance summary per contact, grouped by currency.
 	 *
 	 * @return array<int, array<string, float>> Contact ID => [currency => balance]

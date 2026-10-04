@@ -298,9 +298,11 @@ class RecurringIncomeLifecycleTest extends TestCase {
 		$generated = $this->bankCredit(['id' => 300, 'date' => '2026-09-03', 'description' => '']);
 		$generated->setNotes('Auto-generated from income: Salary');
 		$this->transactions->method('findGeneratedIncomeCredits')->willReturn([$generated]);
-		$this->transactions->expects($this->once())->method('deleteAsAccountOwner')->with(300);
+		$bank = $this->bankCredit(['date' => '2026-09-04']);
+		// What the user added to the app's credit goes to the bank's row
+		$this->transactions->expects($this->once())->method('replaceBookedRow')->with($generated, $bank, 'Auto-generated from income: Salary');
 
-		$matched = $this->service->autoMatchReceivedFromImport('user1', [$this->bankCredit(['date' => '2026-09-04'])]);
+		$matched = $this->service->autoMatchReceivedFromImport('user1', [$bank]);
 
 		$this->assertSame(1, $matched);
 		$this->assertSame('2026-10-03', $this->stored->getNextExpectedDate(), 'Not received a second time');

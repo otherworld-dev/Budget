@@ -1976,7 +1976,9 @@ class BillService {
 	 * not reconciled. The generated row goes, the bank row is linked in its
 	 * place with the bill's category, splits and tags, and the snapshot
 	 * then names the bank row, so Mark Unpaid unlinks it rather than
-	 * deleting the bank's own record. The bill stays where it is.
+	 * deleting the bank's own record. The bill stays where it is. What the
+	 * user added to the generated row (a split with a contact, a receipt,
+	 * tags, notes) moves to the bank row; it was deleted with it.
 	 *
 	 * A recurring transfer's booked pair goes as a whole, and the bank row
 	 * gets its arrival as Mark Paid's link does: the bank's own credit in the
@@ -2012,16 +2014,23 @@ class BillService {
 			return false;
 		}
 
+		// The deposit the app booked with a transfer's payment goes with it,
+		// and the bank row gets its own arrival. Any other row on the other
+		// side (the destination's own credit) stays, paired with the bank row.
+		$partner = $booked->getLinkedTransactionId() !== null ? $this->transactionService->findTransaction($booked->getLinkedTransactionId()) : null;
+		$bookedDeposit = ($isTransfer && $partner !== null && $partner->getBillId() === $bill->getId()
+			&& ($partner->getImportId() ?? '') === '' && str_starts_with((string)$partner->getNotes(), $generatedNote))
+			? $partner : null;
 		$removed = [$booked->getId()];
 		if ($isTransfer && $booked->getLinkedTransactionId() !== null) {
-			// deleteAsAccountOwner() takes the booked deposit with it
 			$removed[] = $booked->getLinkedTransactionId();
 		}
 		// The bank row's arrival is priced before the booked pair goes: with
 		// no rate between the two currencies it can't take the pair's place
 		$arrivalAmount = null;
 		$current = $this->transactionService->findTransaction($imported->getId()) ?? $imported;
-		if ($isTransfer && $bill->getDestinationAccountId() !== null && $current->getLinkedTransactionId() === null) {
+		if ($isTransfer && $bill->getDestinationAccountId() !== null && $current->getLinkedTransactionId() === null
+			&& ($partner === null || $bookedDeposit !== null)) {
 			try {
 				$arrivalAmount = $this->transactionService->transferArrivalAmount($current, $bill);
 			} catch (\Exception $e) {
@@ -2030,14 +2039,28 @@ class BillService {
 			}
 		}
 		$deposit = null;
+		$generated = $generatedNote . ' ' . $bill->getName();
 		try {
 			$linked = $this->transactionService->linkBillAsAccountOwner($imported->getId(), $bill);
 			if (!$linked->getIsSplit()) {
 				$this->applySplitTemplate($bill, $linked, $bill->getUserId());
 			}
-			$this->transactionService->deleteAsAccountOwner($booked->getId(), false, $bill->getId());
+			// What the user added to the booked payment (shares, receipts,
+			// tags, notes) moves to the bank row rather than going with it
+			$this->transactionService->replaceBookedRow($booked, $linked, $generated, $bookedDeposit === null);
 			if ($isTransfer) {
-				$deposit = $this->transactionService->completeTransferPayment($linked, $bill, $arrivalAmount);
+				$withdrawal = $this->transactionService->findTransaction($imported->getId()) ?? $linked;
+				$deposit = $this->transactionService->completeTransferPayment($withdrawal, $bill, $arrivalAmount);
+				if ($bookedDeposit !== null) {
+					// and what was added to the booked deposit, to the arrival
+					$arrivalId = $this->transactionService->findTransaction($imported->getId())?->getLinkedTransactionId();
+					$arrival = $arrivalId !== null ? $this->transactionService->findTransaction($arrivalId) : null;
+					if ($arrival !== null && $arrival->getId() !== $bookedDeposit->getId()) {
+						$this->transactionService->replaceBookedRow($bookedDeposit, $arrival, $generated);
+					} else {
+						$this->transactionService->deleteAsAccountOwner($bookedDeposit->getId(), false, $bill->getId());
+					}
+				}
 			}
 		} catch (\Exception $e) {
 			$this->logger->warning("Failed to put imported transaction {$imported->getId()} in place of bill {$bill->getId()}'s payment: {$e->getMessage()}");
@@ -2109,7 +2132,7 @@ class BillService {
 
 		try {
 			$linked = $this->transactionService->linkBillAsAccountOwner($current->getId(), $bill);
-			$this->transactionService->replaceBookedRow($deposit, $linked);
+			$this->transactionService->replaceBookedRow($deposit, $linked, 'Auto-generated transfer: ' . $bill->getName());
 		} catch (\Exception $e) {
 			$this->logger->warning("Failed to put imported transaction {$credit->getId()} in place of transfer {$bill->getId()}'s deposit: {$e->getMessage()}");
 			return false;

@@ -805,7 +805,9 @@ class RecurringIncomeService extends AbstractCrudService {
 	/**
 	 * Put the bank's row in place of a credit auto-create (or Mark Received)
 	 * already booked for the income's last payment: the app's credit goes,
-	 * the bank's stays, and the income isn't received a second time.
+	 * the bank's stays, and the income isn't received a second time. What
+	 * the user added to the app's credit (a split with a contact, a receipt,
+	 * tags), and its category, move to the bank's row.
 	 */
 	private function replaceGeneratedCredit(RecurringIncome $income, \OCA\Budget\Db\Transaction $imported): bool {
 		$last = $income->getLastReceivedDate();
@@ -820,7 +822,7 @@ class RecurringIncomeService extends AbstractCrudService {
 				|| abs((float)$generated->getAmount() - (float)$imported->getAmount()) > (float)$income->getAmount() * 0.2) {
 				continue;
 			}
-			$this->transactionService->deleteAsAccountOwner($generated->getId());
+			$this->transactionService->replaceBookedRow($generated, $imported, $prefix);
 			// The undo snapshot named the credit just removed
 			$income->setReceivedUndoState(null);
 			$this->writeFields($income->getId(), $income->getUserId(), ['received_undo_state' => null]);

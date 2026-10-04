@@ -987,18 +987,83 @@ class TransactionService {
 	 * (a transfer's withdrawal, when the booked row is its deposit) stays,
 	 * paired with the bank row instead.
 	 *
+	 * What the user added to the booked row moves to the bank row first:
+	 * expense shares (a split with a contact, settled or not), receipts, tags
+	 * and their own notes, and its category when the bank row has none. They
+	 * went with the delete, and a contact's share of a bill showed as settled.
+	 *
 	 * The delete goes through delete(), as the booked row's account owner.
+	 *
+	 * @param string $generatedNotes the notes the app wrote on the booked
+	 *                               row, which aren't the user's to carry
+	 * @param bool $pairWithPartner false when the booked row's other side is
+	 *                              going too and isn't the bank row's: it is
+	 *                              only unlinked, and left to the caller
 	 */
-	public function replaceBookedRow(Transaction $booked, Transaction $bank): void {
+	public function replaceBookedRow(Transaction $booked, Transaction $bank, string $generatedNotes = '', bool $pairWithPartner = true): void {
+		$this->moveUserAdditions($booked, $bank, $generatedNotes);
+
 		$partnerId = $booked->getLinkedTransactionId();
 		if ($partnerId !== null) {
 			$this->mapper->unlinkTransaction($booked->getId());
 			$current = $this->mapper->findById($bank->getId());
-			if ($current !== null && $current->getLinkedTransactionId() === null) {
+			if ($pairWithPartner && $current !== null && $current->getLinkedTransactionId() === null) {
 				$this->mapper->linkTransactions($bank->getId(), $partnerId);
 			}
 		}
 		$this->delete($booked->getId(), $this->ownerOf($booked));
+	}
+
+	/**
+	 * Move a booked row's expense shares, receipts and tags to the bank row
+	 * of the same money, add the user's own notes to the bank row's, and
+	 * give an uncategorised bank row the booked row's category.
+	 */
+	private function moveUserAdditions(Transaction $from, Transaction $to, string $generatedNotes): void {
+		$this->expenseShareMapper->moveToTransaction($from->getId(), $to->getId());
+		$this->attachmentMapper->moveToTransaction($from->getId(), $to->getId());
+
+		$tagIds = fn (int $id): array => array_map(fn ($tag) => (int)$tag->getTagId(), $this->transactionTagMapper->findByTransaction($id));
+		$missing = array_values(array_unique(array_diff($tagIds($from->getId()), $tagIds($to->getId()))));
+		if ($missing !== []) {
+			$this->applyTagsToTransaction($to->getId(), $missing);
+		}
+
+		$current = $this->mapper->findById($to->getId()) ?? $to;
+		$updates = [];
+		if ($current->getCategoryId() === null && !$current->getIsSplit()
+			&& $from->getCategoryId() !== null && !$from->getIsSplit()) {
+			$updates['categoryId'] = $from->getCategoryId();
+		}
+		$note = self::userNotes((string)$from->getNotes(), $generatedNotes);
+		if ($note !== '') {
+			$notes = trim((string)$current->getNotes());
+			$updates['notes'] = $notes === '' ? $note : $notes . "\n" . $note;
+		}
+		if ($updates !== []) {
+			$this->update($to->getId(), $this->ownerOf($to), $updates);
+		}
+	}
+
+	/**
+	 * What the user wrote in a booked row's notes: the notes less the text
+	 * the app put there when it booked the row. A bill renamed since wrote
+	 * its old name, so a first line in the app's words is the app's too.
+	 */
+	private static function userNotes(string $notes, string $generated): string {
+		if ($generated !== '' && str_starts_with($notes, $generated)) {
+			$notes = substr($notes, strlen($generated));
+		} else {
+			foreach (array_merge(TransactionMapper::GENERATED_NOTE_PREFIXES, self::BILL_BOOKED_NOTE_PREFIXES) as $prefix) {
+				if (str_starts_with($notes, $prefix)) {
+					$newline = strpos($notes, "\n");
+					$notes = $newline === false ? '' : substr($notes, $newline + 1);
+					break;
+				}
+			}
+		}
+		// The separator the user typed after the app's text
+		return trim(preg_replace('/^[\s\-–—:;,.]+/u', '', $notes) ?? ltrim($notes, " \t\r\n-:;,."));
 	}
 
 	/**
