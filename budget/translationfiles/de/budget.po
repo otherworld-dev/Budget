@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-03 23:35+0000\n"
-"PO-Revision-Date: 2026-10-03 19:43+0000\n"
+"PO-Revision-Date: 2026-10-05 01:42+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -337,6 +337,8 @@ msgstr "Betrag muss eine Zahl sein"
 #: /repo/budget/lib/Controller/ApiV1TransactionController.php:317
 msgid "Amount cannot be negative. Use type to say which way the money went"
 msgstr ""
+"Der Betrag darf nicht negativ sein. Verwende den Typ, um anzugeben, in "
+"welche Richtung das Geld geflossen ist"
 
 #: /repo/budget/lib/Controller/ApiV1TransactionController.php:321
 msgid "An account is required"
@@ -445,36 +447,45 @@ msgstr "Fehler beim Löschen der Buchung"
 #: /repo/budget/lib/Controller/ApiV1TransactionController.php:908
 msgid "Category not found. It must be one of the account owner's categories"
 msgstr ""
+"Kategorie nicht gefunden. Sie muss eine der Kategorien des Kontoinhabers sein"
 
 #: /repo/budget/lib/Controller/ApiV1TransactionController.php:925
 #, php-format
 msgid "%s cannot be changed through the API"
-msgstr ""
+msgstr "%s kann nicht über die API geändert werden"
 
 #: /repo/budget/lib/Controller/ApiV1TransactionController.php:952
 msgid "Amount must be more than zero. Use type to say which way the money went"
 msgstr ""
+"Der Betrag muss größer als null sein. Verwende `type`, um anzugeben, in "
+"welche Richtung das Geld geflossen ist"
 
 #: /repo/budget/lib/Controller/ApiV1TransactionController.php:1014
 msgid ""
 "This transaction is one side of a transfer, so its amount, type and date "
 "cannot be changed on their own"
 msgstr ""
+"Diese Buchung ist eine Seite einer Umbuchung. Betrag, Typ und Datum können "
+"daher nicht einzeln geändert werden"
 
 #: /repo/budget/lib/Controller/ApiV1TransactionController.php:1031
 msgid ""
 "This transaction is split, so its categories are changed through its splits"
 msgstr ""
+"Diese Buchung ist aufgeteilt. Ihre Kategorien werden über die Teilbuchungen "
+"geändert"
 
 #: /repo/budget/lib/Controller/ApiV1TransactionController.php:1046
 msgid ""
 "This transaction has been reconciled against a statement. Send "
 "confirm_reconciled to go ahead"
 msgstr ""
+"Diese Buchung wurde mit einem Kontoauszug abgeglichen. Sende `Abgleich "
+"bestätigen`, um fortzufahren"
 
 #: /repo/budget/lib/Controller/ApiV1TransactionController.php:1075
 msgid "category_id must be a category id or null"
-msgstr ""
+msgstr "`category_id` muss eine Kategorien-ID oder `null` sein"
 
 #: /repo/budget/lib/Controller/ApiV1TransactionController.php:1082
 #: /repo/budget/lib/Controller/AttachmentController.php:57
@@ -1158,10 +1169,8 @@ msgstr "Kategorie konnte nicht aktualisiert werden"
 
 #: /repo/budget/lib/Controller/CategoryController.php:382
 #: /repo/budget/lib/Service/CategoryService.php:217
-#, fuzzy
-#| msgid "Category not found"
 msgid "Parent category not found"
-msgstr "Kategorie nicht gefunden"
+msgstr "Übergeordnete Kategorie nicht gefunden"
 
 #: /repo/budget/lib/Controller/CategoryController.php:390
 msgid "A category can only be moved under another category with the same owner"
@@ -1190,13 +1199,10 @@ msgid "Invalid position"
 msgstr "Ungültige Position"
 
 #: /repo/budget/lib/Controller/CategoryController.php:498
-#, fuzzy
-#| msgid ""
-#| "A category can only be moved under another category with the same owner"
 msgid ""
 "A category can only be moved next to another category with the same owner"
 msgstr ""
-"Eine Kategorie kann nur unter eine andere Kategorie mit demselben Eigentümer "
+"Eine Kategorie kann nur neben eine andere Kategorie mit demselben Besitzer "
 "verschoben werden"
 
 #: /repo/budget/lib/Controller/CategoryController.php:515
@@ -1204,12 +1210,10 @@ msgid "Shared categories cannot be nested"
 msgstr "Geteilte Kategorien können nicht verschachtelt werden"
 
 #: /repo/budget/lib/Controller/CategoryController.php:516
-#, fuzzy
-#| msgid "Only the owner can add subcategories to a shared category"
 msgid "Only the owner can move a shared category to another level"
 msgstr ""
-"Nur der Eigentümer kann Unterkategorien zu einer geteilten Kategorie "
-"hinzufügen"
+"Nur der Besitzer kann eine geteilte Kategorie auf eine andere Ebene "
+"verschieben"
 
 #: /repo/budget/lib/Controller/CategoryController.php:530
 #: /repo/budget/lib/Controller/CategoryController.php:536
@@ -2994,13 +2998,10 @@ msgid "due today"
 msgstr "Heute fällig"
 
 #: /repo/budget/lib/Dashboard/UpcomingBillsWidget.php:126
-#, fuzzy
-#| msgid "Due in %n day"
-#| msgid_plural "Due in %n days"
 msgid "due in %n day"
 msgid_plural "due in %n days"
-msgstr[0] "Fällig in %n Tag"
-msgstr[1] "Fällig in %n Tagen"
+msgstr[0] "fällig in %n Tag"
+msgstr[1] "fällig in %n Tagen"
 
 #: /repo/budget/lib/Notification/Notifier.php:31
 #: /repo/budget/lib/Service/DigestService.php:172
@@ -3201,20 +3202,16 @@ msgstr ""
 "Limits)."
 
 #: /repo/budget/lib/Notification/Notifier.php:594
-#, fuzzy
-#| msgid "Current balance cannot be negative"
 msgid "Your balance is forecast to go negative"
-msgstr "Aktueller Kontostand kann nicht negativ sein"
+msgstr "Dein Kontostand wird voraussichtlich ins Minus rutschen"
 
 #: /repo/budget/lib/Notification/Notifier.php:598
 msgid "Your projected balance falls to {balance} in {month}."
 msgstr "Dein prognostizierter Kontostand fällt im {month} auf {balance}."
 
 #: /repo/budget/lib/Search/TransactionSearchProvider.php:39
-#, fuzzy
-#| msgid "Edit transaction"
 msgid "Budget transactions"
-msgstr "Buchung editieren"
+msgstr "Budget-Transaktionen"
 
 #: /repo/budget/lib/Service/AccountClosureService.php:63
 #, php-format
@@ -3227,16 +3224,12 @@ msgstr ""
 "beträgt. Anschließend kannst du das Konto schließen."
 
 #: /repo/budget/lib/Service/AccountClosureService.php:70
-#, fuzzy
-#| msgid ""
-#| "Are you sure you want to delete this account? This action cannot be "
-#| "undone."
 msgid ""
 "This account still has transactions dated after today. Delete or move them, "
 "then close it."
 msgstr ""
-"Möchtest du dieses Konto wirklich löschen? Diese Aktion kann nicht "
-"rückgängig gemacht werden."
+"Dieses Konto enthält noch Transaktionen mit einem Datum nach heute. Lösche "
+"oder verschiebe sie und schließe das Konto anschließend."
 
 #: /repo/budget/lib/Service/AccountClosureService.php:80
 #: /repo/budget/lib/Service/Bill/BillIcsService.php:54
@@ -3257,22 +3250,16 @@ msgid "Transfers"
 msgstr "Umbuchungen"
 
 #: /repo/budget/lib/Service/AccountClosureService.php:83
-#, fuzzy
-#| msgid "Log Contribution"
 msgid "Pension contributions"
-msgstr "Beitrag protokollieren"
+msgstr "Altersvorsorgebeiträge"
 
 #: /repo/budget/lib/Service/AccountClosureService.php:84
-#, fuzzy
-#| msgid "Bank Sync"
 msgid "Bank sync"
 msgstr "Banksynchronisierung"
 
 #: /repo/budget/lib/Service/AccountClosureService.php:85
-#, fuzzy
-#| msgid "Import rule"
 msgid "Import rules"
-msgstr "Importregel"
+msgstr "Importregeln"
 
 #: /repo/budget/lib/Service/AccountClosureService.php:93
 #, php-format
@@ -3338,10 +3325,8 @@ msgstr ""
 "Bearbeite die Rechnung und wähle ein anderes Konto."
 
 #: /repo/budget/lib/Service/BillService.php:175
-#, fuzzy
-#| msgid "Transfer requires a destination account"
 msgid "This amount type requires a transfer with a destination account"
-msgstr "Umbuchung erfordert ein Zielkonto"
+msgstr "Dieser Betragstyp erfordert eine Umbuchung mit einem Zielkonto"
 
 #: /repo/budget/lib/Service/BillService.php:179
 msgid "This amount type is only available for transfers to a credit card"
@@ -3372,10 +3357,8 @@ msgstr ""
 "Rechnung und wähle ein Konto aus."
 
 #: /repo/budget/lib/Service/BillService.php:348
-#, fuzzy
-#| msgid "A category with this name already exists at this level"
 msgid "A transaction for this payment already exists"
-msgstr "Eine Kategorie mit diesem Namen existiert bereits in dieser Ebene"
+msgstr "Für diese Zahlung existiert bereits eine Transaktion"
 
 #: /repo/budget/lib/Service/BillService.php:707
 #: /repo/budget/lib/Service/BillService.php:814
@@ -3388,26 +3371,18 @@ msgstr "Bei dieser Rechnung ist nichts mehr zu bezahlen"
 
 #: /repo/budget/lib/Service/BillService.php:1026
 #: /repo/budget/lib/Service/RecurringIncomeService.php:261
-#, fuzzy
-#| msgid ""
-#| "Your session has expired, so categories could not be loaded. Reload the "
-#| "page to restore them."
 msgid "This payment was already recorded. Reload the page to see the next one."
 msgstr ""
-"Deine Sitzung ist abgelaufen. Daher konnten die Kategorien nicht geladen "
-"werden. Lade die Seite neu, um sie wiederherzustellen."
+"Diese Zahlung wurde bereits erfasst. Lade die Seite neu, um die nächste "
+"Zahlung anzuzeigen."
 
 #: /repo/budget/lib/Service/BillService.php:1072
-#, fuzzy
-#| msgid "Create future transaction for this bill"
 msgid "That transaction can't pay this bill"
-msgstr "Erstelle zukünftige Buchung für diese Rechnung"
+msgstr "Diese Transaktion kann diese Rechnung nicht bezahlen"
 
 #: /repo/budget/lib/Service/BillService.php:1112
-#, fuzzy
-#| msgid "Transactions linked as transfer"
 msgid "That transaction already pays another bill"
-msgstr "Buchung als Transfer verknüpft"
+msgstr "Diese Transaktion bezahlt bereits eine andere Rechnung"
 
 #: /repo/budget/lib/Service/BillService.php:1376
 #: /repo/budget/lib/Service/BillService.php:1390
@@ -3475,28 +3450,22 @@ msgstr "Die Kategorie kann nicht sich selbst übergeordnet sein"
 
 #: /repo/budget/lib/Service/CategoryService.php:193
 #: /repo/budget/lib/Service/CategoryService.php:364
-#, fuzzy
-#| msgid "Category cannot be its own parent"
 msgid "A category cannot be nested inside itself"
-msgstr "Die Kategorie kann nicht sich selbst übergeordnet sein"
+msgstr "Eine Kategorie kann nicht in sich selbst verschachtelt werden"
 
 #: /repo/budget/lib/Service/CategoryService.php:243
-#, fuzzy
-#| msgid ""
-#| "Cannot delete account with existing transactions. Please delete all "
-#| "transactions first."
 msgid ""
 "Cannot delete this category because it has transactions assigned to it. "
 "Please reassign or delete them first."
 msgstr ""
-"Konto mit existierenden Buchungen kann nicht gelöscht werden. Bitte lösche "
-"zuerst alle Buchungen."
+"Diese Kategorie kann nicht gelöscht werden, da ihr Transaktionen zugeordnet "
+"sind. Weise sie zuerst neu zu oder lösche sie."
 
 #: /repo/budget/lib/Service/CategoryService.php:339
-#, fuzzy
-#| msgid "Only the category owner can delete it"
 msgid "This category has subcategories, so only its owner can delete it"
-msgstr "Nur der Eigentümer der Kategorie kann das löschen"
+msgstr ""
+"Diese Kategorie hat Unterkategorien und kann daher nur von ihrem Besitzer "
+"gelöscht werden"
 
 #: /repo/budget/lib/Service/CategoryService.php:342
 msgid "This category has transactions, so only its owner can delete it"
@@ -3523,10 +3492,8 @@ msgid "No budget snapshot found for this category and month"
 msgstr "Für diese Kategorie und diesen Monat sind keine Budgetdaten verfügbar"
 
 #: /repo/budget/lib/Service/CategoryTransferService.php:127
-#, fuzzy
-#| msgid "Only if empty"
 msgid "The file is empty"
-msgstr "Nur wenn leer"
+msgstr "Die Datei ist leer"
 
 #: /repo/budget/lib/Service/CategoryTransferService.php:139
 #: /repo/budget/lib/Service/CategoryTransferService.php:152
@@ -3544,10 +3511,8 @@ msgid "Categories are nested deeper than %1$d levels"
 msgstr "Kategorien sind tiefer als %1$d Ebenen verschachtelt"
 
 #: /repo/budget/lib/Service/CategoryTransferService.php:303
-#, fuzzy
-#| msgid "Save category first to manage tag sets"
 msgid "A category without a name was skipped"
-msgstr "Speichern Sie zuerst die Kategorie, um Tag-Gruppen zu verwalten"
+msgstr "Eine Kategorie ohne Namen wurde übersprungen"
 
 #: /repo/budget/lib/Service/CategoryTransferService.php:310
 #, php-format
@@ -3618,10 +3583,8 @@ msgid "Overdue bills"
 msgstr "Überfällige Rechnungen"
 
 #: /repo/budget/lib/Service/DigestService.php:189
-#, fuzzy
-#| msgid "Upcoming Bills"
 msgid "Upcoming bills"
-msgstr "Fällige Zahlungen"
+msgstr "Bevorstehende Rechnungen"
 
 #: /repo/budget/lib/Service/DigestService.php:194
 #, php-format
@@ -3631,14 +3594,10 @@ msgstr ""
 "bisher in diesem Monat)."
 
 #: /repo/budget/lib/Service/DigestService.php:199
-#, fuzzy
-#| msgid "Total Spending"
 msgid "Unusual spending"
-msgstr "Gesamtausgaben"
+msgstr "Ungewöhnliche Ausgaben"
 
 #: /repo/budget/lib/Service/DigestService.php:204
-#, fuzzy
-#| msgid "Savings Goals"
 msgid "Savings goals"
 msgstr "Sparziele"
 
@@ -3747,10 +3706,8 @@ msgid "Status"
 msgstr "Status"
 
 #: /repo/budget/lib/Service/Export/TransactionCsvExporter.php:41
-#, fuzzy
-#| msgid "Split"
 msgid "Split of"
-msgstr "Aufteilung"
+msgstr "Aufteilung von"
 
 #: /repo/budget/lib/Service/Export/TransactionCsvExporter.php:144
 #: /repo/budget/src/modules/categories/CategoriesModule.js:787
@@ -3982,27 +3939,20 @@ msgstr ""
 "entpackten Zustand insgesamt größer als %1$s MB"
 
 #: /repo/budget/lib/Service/PensionRecurringService.php:235
-#, fuzzy
-#| msgid "Failed to create contribution"
 msgid "This scheduled contribution is paused"
-msgstr "Beitrag konnte nicht erstellt werden"
+msgstr "Dieser geplante Beitrag ist pausiert"
 
 #: /repo/budget/lib/Service/PensionRecurringService.php:238
-#, fuzzy
-#| msgid ""
-#| "Your session has expired, so categories could not be loaded. Reload the "
-#| "page to restore them."
 msgid ""
 "This contribution was already posted. Reload the page to see the next one."
 msgstr ""
-"Deine Sitzung ist abgelaufen. Daher konnten die Kategorien nicht geladen "
-"werden. Lade die Seite neu, um sie wiederherzustellen."
+"Dieser Beitrag wurde bereits erfasst. Lade die Seite neu, um den nächsten "
+"Beitrag anzuzeigen."
 
 #: /repo/budget/lib/Service/PensionRecurringService.php:270
-#, fuzzy
-#| msgid "Failed to create contribution"
 msgid "This scheduled contribution has no post to undo"
-msgstr "Beitrag konnte nicht erstellt werden"
+msgstr ""
+"Für diesen geplanten Beitrag gibt es keinen Beitrag zum Rückgängigmachen"
 
 #: /repo/budget/lib/Service/PensionRecurringService.php:288
 msgid ""
@@ -4045,10 +3995,8 @@ msgstr ""
 
 #: /repo/budget/lib/Service/ReconciliationService.php:68
 #: /repo/budget/lib/Service/ReconciliationService.php:99
-#, fuzzy
-#| msgid "Invalid request data"
 msgid "Invalid statement date"
-msgstr "Ungültige Anfragedaten"
+msgstr "Ungültiges Kontoauszugsdatum"
 
 #: /repo/budget/lib/Service/ReconciliationService.php:118
 msgid "Too many transactions in one request (max 500)"
@@ -4066,10 +4014,8 @@ msgid "No reconciliation in progress for this account"
 msgstr "Für dieses Konto wird derzeit kein Abgleich durchgeführt"
 
 #: /repo/budget/lib/Service/RecurringIncomeService.php:211
-#, fuzzy
-#| msgid "No account selected for adjustment"
 msgid "No account set for income"
-msgstr "Kein Konto für die Korrekturbuchung ausgewählt"
+msgstr "Kein Konto für Einnahmen festgelegt"
 
 #: /repo/budget/lib/Service/RecurringIncomeService.php:258
 msgid "This income has no payment to receive"
@@ -4080,10 +4026,9 @@ msgid "This income has no recorded receipt to undo"
 msgstr "Transfer marked as paid"
 
 #: /repo/budget/lib/Service/RecurringIncomeService.php:410
-#, fuzzy
-#| msgid "Recurring income deleted"
 msgid "Recurring income cannot use a custom schedule"
-msgstr "Laufende Einnahme entfernt"
+msgstr ""
+"Wiederkehrende Einnahmen können keinen benutzerdefinierten Zeitplan verwenden"
 
 #: /repo/budget/lib/Service/RecurringIncomeService.php:413
 msgid "A one-time income needs the date it is expected"
@@ -4098,16 +4043,12 @@ msgstr ""
 "Bearbeite sie und wähle ein anderes Konto."
 
 #: /repo/budget/lib/Service/RecurringIncomeService.php:452
-#, fuzzy
-#| msgid "Cannot skip a one-time bill"
 msgid "Cannot skip a one-time income"
-msgstr "Einmalige Rechnung kann nicht übersprungen werden"
+msgstr "Einmalige Einnahmen können nicht übersprungen werden"
 
 #: /repo/budget/lib/Service/RecurringIncomeService.php:455
-#, fuzzy
-#| msgid "Cannot skip an inactive bill"
 msgid "Cannot skip an inactive income"
-msgstr "Ruhende Rechnung kann nicht übersprungen werden"
+msgstr "Inaktive Einnahmen können nicht übersprungen werden"
 
 #: /repo/budget/lib/Service/RecurringIncomeService.php:460
 msgid "This income has no expected date to skip"
@@ -4248,48 +4189,34 @@ msgid "Period: %1$s to %2$s"
 msgstr "Zeitraum: %1$s bis %2$s"
 
 #: /repo/budget/lib/Service/Report/ReportExporter.php:171
-#, fuzzy
-#| msgid "Saved Reports"
 msgid "Summary Report"
-msgstr "Gespeicherte Berichte"
+msgstr "Zusammenfassender Bericht"
 
 #: /repo/budget/lib/Service/Report/ReportExporter.php:172
-#, fuzzy
-#| msgid "Spending Velocity"
 msgid "Spending Report"
-msgstr "Ausgabenfrequenz"
+msgstr "Ausgabenbericht"
 
 #: /repo/budget/lib/Service/Report/ReportExporter.php:173
 #: /repo/budget/lib/Service/Report/ReportExporter.php:572
-#, fuzzy
-#| msgid "Income Details"
 msgid "Income Report"
-msgstr "Einnahmedetails"
+msgstr "Einnahmenbericht"
 
 #: /repo/budget/lib/Service/Report/ReportExporter.php:174
-#, fuzzy
-#| msgid "Cash Flow Forecast"
 msgid "Cash Flow Report"
-msgstr "Geldflussprognose"
+msgstr "Cashflow-Bericht"
 
 #: /repo/budget/lib/Service/Report/ReportExporter.php:175
 #: /repo/budget/lib/Service/Report/ReportExporter.php:640
-#, fuzzy
-#| msgid "Budget Alerts"
 msgid "Budget Report"
-msgstr "Budgetalarme"
+msgstr "Budgetbericht"
 
 #: /repo/budget/lib/Service/Report/ReportExporter.php:176
-#, fuzzy
-#| msgid "Category"
 msgid "Category by Month Report"
-msgstr "Kategorie"
+msgstr "Kategorie-nach-Monat-Bericht"
 
 #: /repo/budget/lib/Service/Report/ReportExporter.php:177
-#, fuzzy
-#| msgid "Income vs Expenses"
 msgid "Income & Expenses Report"
-msgstr "Einnahmen und Ausgaben im Vergleich"
+msgstr "Einnahmen- und Ausgabenbericht"
 
 #: /repo/budget/lib/Service/Report/ReportExporter.php:189
 #: /repo/budget/lib/Service/Report/ReportExporter.php:244
@@ -4304,10 +4231,8 @@ msgid "On track"
 msgstr "Im Plan"
 
 #: /repo/budget/lib/Service/Report/ReportExporter.php:210
-#, fuzzy
-#| msgid "Apply during import"
 msgid "Approaching limit"
-msgstr "Während Import anwenden"
+msgstr "Grenzwert wird erreicht"
 
 #: /repo/budget/lib/Service/Report/ReportExporter.php:211
 msgid "Near limit"
@@ -4386,10 +4311,8 @@ msgstr "Aktueller Kontostand"
 
 #: /repo/budget/lib/Service/Report/ReportExporter.php:250
 #: /repo/budget/lib/Service/Report/ReportExporter.php:455
-#, fuzzy
-#| msgid "Previous"
 msgid "vs Previous Period"
-msgstr "Zurück"
+msgstr "gegenüber dem vorherigen Zeitraum"
 
 #: /repo/budget/lib/Service/Report/ReportExporter.php:260
 #: /repo/budget/lib/Service/Report/ReportExporter.php:476
@@ -4441,17 +4364,13 @@ msgstr "Durchschnittliches Monatseinkommen"
 
 #: /repo/budget/lib/Service/Report/ReportExporter.php:333
 #: /repo/budget/lib/Service/Report/ReportExporter.php:535
-#, fuzzy
-#| msgid "Avg Monthly Expenses"
 msgid "Average Monthly Expenses"
-msgstr "Durchschnittliche Monatsausgaben"
+msgstr "Durchschnittliche monatliche Ausgaben"
 
 #: /repo/budget/lib/Service/Report/ReportExporter.php:334
 #: /repo/budget/lib/Service/Report/ReportExporter.php:537
-#, fuzzy
-#| msgid "Avg Monthly Income"
 msgid "Average Monthly Net"
-msgstr "Durchschnittliches Monatseinkommen"
+msgstr "Durchschnittlicher monatlicher Nettobetrag"
 
 #: /repo/budget/lib/Service/Report/ReportExporter.php:341
 #: /repo/budget/lib/Service/Report/ReportExporter.php:575
@@ -4496,10 +4415,8 @@ msgid "Remaining"
 msgstr "Verbleibend"
 
 #: /repo/budget/lib/Service/Report/ReportExporter.php:436
-#, fuzzy
-#| msgid "Financial Reports"
 msgid "Financial Summary"
-msgstr "Finanzberichte"
+msgstr "Finanzübersicht"
 
 #: /repo/budget/lib/Service/Report/ReportExporter.php:468
 #: /repo/budget/templates/index.php:3317
@@ -4533,17 +4450,13 @@ msgstr "Gesamt"
 #: /repo/budget/lib/Service/Report/ReportExporter.php:697
 #: /repo/budget/lib/Service/Report/ReportExporter.php:743
 #: /repo/budget/src/modules/reports/ReportsModule.js:1106
-#, fuzzy
-#| msgid "Net Worth"
 msgid "Net total"
-msgstr "Reinvermögen"
+msgstr "Nettosumme"
 
 #: /repo/budget/lib/Service/Report/ReportExporter.php:714
 #: /repo/budget/templates/index.php:3687
-#, fuzzy
-#| msgid "Income & Expenses by Year"
 msgid "Category Income & Expenses by Month"
-msgstr "Einnahmen & Ausgaben nach Jahr"
+msgstr "Einnahmen und Ausgaben nach Kategorie und Monat"
 
 #: /repo/budget/lib/Service/Report/ScheduledReportService.php:76
 #: /repo/budget/lib/Service/Report/ScheduledReportService.php:77
@@ -4563,10 +4476,8 @@ msgid "Please enter a name for the report"
 msgstr "Bitte gib einen Namen für den Bericht ein"
 
 #: /repo/budget/lib/Service/SavedReportService.php:81
-#, fuzzy
-#| msgid "A category with this name already exists at this level"
 msgid "A saved report with this name already exists"
-msgstr "Eine Kategorie mit diesem Namen existiert bereits in dieser Ebene"
+msgstr "Ein gespeicherter Bericht mit diesem Namen existiert bereits"
 
 #: /repo/budget/lib/Service/SavedReportService.php:89
 msgid "The report configuration is invalid or too large"
@@ -4744,10 +4655,8 @@ msgid "Invalid transaction type"
 msgstr "Ungültiger Buchungstyp"
 
 #: /repo/budget/lib/SetupChecks/BudgetSchemaCheck.php:35
-#, fuzzy
-#| msgid "Edit transaction"
 msgid "Budget database migrations"
-msgstr "Buchung editieren"
+msgstr "Budget-Datenbankmigrationen"
 
 #: /repo/budget/lib/SetupChecks/BudgetSchemaCheck.php:41
 msgid "Budget's database schema is up to date."
@@ -5096,10 +5005,8 @@ msgstr "Diagramm zur Schuldentilgung"
 
 #: /repo/budget/src/config/dashboardWidgets.js:57
 #: /repo/budget/templates/index.php:809
-#, fuzzy
-#| msgid "Budget Progress"
 msgid "Debt Progress"
-msgstr "Budgetfortschritt"
+msgstr "Schuldenfortschritt"
 
 #: /repo/budget/src/config/dashboardWidgets.js:66
 #: /repo/budget/templates/index.php:845
@@ -5132,10 +5039,8 @@ msgstr "Abstimmungsstatus"
 
 #: /repo/budget/src/config/dashboardWidgets.js:72
 #: /repo/budget/templates/index.php:899
-#, fuzzy
-#| msgid "Savings Projection"
 msgid "Pension Projection"
-msgstr "Einsparungsprognose"
+msgstr "Rentenprognose"
 
 #: /repo/budget/src/config/dashboardWidgets.js:75
 #: /repo/budget/templates/index.php:909
@@ -5210,10 +5115,8 @@ msgid "Show this help"
 msgstr "Diese Hilfe anzeigen"
 
 #: /repo/budget/src/core/KeyboardShortcuts.js:340
-#, fuzzy
-#| msgid "Close dialog"
 msgid "Close dialog / this help"
-msgstr "Dialog schließen"
+msgstr "Dialog bzw. diese Hilfe schließen"
 
 #: /repo/budget/src/core/KeyboardShortcuts.js:341
 msgid "Go to a page (see below)"
@@ -5330,10 +5233,8 @@ msgid "Settings"
 msgstr "Einstellungen"
 
 #: /repo/budget/src/core/KeyboardShortcuts.js:373
-#, fuzzy
-#| msgid "Transactions linked"
 msgid "Transactions list"
-msgstr "Buchungen wurden verknüpft"
+msgstr "Buchungsliste"
 
 #: /repo/budget/src/core/KeyboardShortcuts.js:375
 msgid "Move row cursor down / up"
@@ -5341,10 +5242,8 @@ msgstr "Zeilencursor nach unten / oben bewegen"
 
 #: /repo/budget/src/core/KeyboardShortcuts.js:376
 #: /repo/budget/src/core/KeyboardShortcuts.js:377
-#, fuzzy
-#| msgid "Edit Recurring Income"
 msgid "Edit the current row"
-msgstr "Laufende Einnahme bearbeiten"
+msgstr "Aktuelle Zeile bearbeiten"
 
 #: /repo/budget/src/core/KeyboardShortcuts.js:378
 msgid "Select / deselect the current row"
@@ -5399,14 +5298,10 @@ msgid "Close"
 msgstr "Schließen"
 
 #: /repo/budget/src/main.js:224
-#, fuzzy
-#| msgid ""
-#| "Your session has expired, so categories could not be loaded. Reload the "
-#| "page to restore them."
 msgid "This page could not be loaded. Reload the page to try again."
 msgstr ""
-"Deine Sitzung ist abgelaufen. Daher konnten die Kategorien nicht geladen "
-"werden. Lade die Seite neu, um sie wiederherzustellen."
+"Diese Seite konnte nicht geladen werden. Lade die Seite neu, um es erneut zu "
+"versuchen."
 
 #: /repo/budget/src/main.js:523
 #: /repo/budget/src/modules/import/ImportModule.js:1991
@@ -5581,16 +5476,12 @@ msgid "Failed to recalculate balances: {error}"
 msgstr "Neuberechnung Kontostände fehlgeschlagen: {error}"
 
 #: /repo/budget/src/main.js:1726
-#, fuzzy
-#| msgid "Saving..."
 msgid "Scanning..."
-msgstr "Speichern..."
+msgstr "Scanning..."
 
 #: /repo/budget/src/main.js:1736
-#, fuzzy
-#| msgid "Failed to save rule: {error}"
 msgid "Failed to scan for issues: {error}"
-msgstr "Fehler beim Speichern der Regel: {error}"
+msgstr "Fehler beim Scannen nach Problemen: {error}"
 
 #: /repo/budget/src/main.js:1767
 msgid "No data integrity issues found. Everything looks good!"
@@ -5616,16 +5507,12 @@ msgid "Also recorded as {description} on {date}"
 msgstr ""
 
 #: /repo/budget/src/main.js:1780
-#, fuzzy
-#| msgid "Unreconciled"
 msgid "reconciled"
-msgstr "Nicht abgeglichen"
+msgstr "Abgeglichen"
 
 #: /repo/budget/src/main.js:1796
-#, fuzzy
-#| msgid "Duplicate transaction"
 msgid "Duplicate Auto-Generated Transactions"
-msgstr "Doppelte Buchung"
+msgstr "Doppelte automatisch erstellte Buchungen"
 
 #: /repo/budget/src/main.js:1800
 msgid ""
@@ -5636,10 +5523,8 @@ msgid ""
 msgstr ""
 
 #: /repo/budget/src/main.js:1812
-#, fuzzy
-#| msgid "Due {date}"
 msgid "Due: {date}"
-msgstr "Fällig am {date}"
+msgstr "Fällig: {date}"
 
 #: /repo/budget/src/main.js:1813 /repo/budget/src/main.js:1837
 #, fuzzy
@@ -6777,16 +6662,12 @@ msgstr ""
 "mit dem Konto löschen? Dieser Vorgang kann nicht rückgängig gemacht werden."
 
 #: /repo/budget/src/modules/accounts/AccountsModule.js:3018
-#, fuzzy
-#| msgid ""
-#| "Are you sure you want to delete this account? This action cannot be "
-#| "undone."
 msgid ""
 "This account still has transactions. Delete them along with the account? "
 "This cannot be undone."
 msgstr ""
-"Möchtest du dieses Konto wirklich löschen? Diese Aktion kann nicht "
-"rückgängig gemacht werden."
+"Dieses Konto enthält noch Transaktionen. Möchtest du sie zusammen mit dem "
+"Konto löschen? Dies kann nicht rückgängig gemacht werden."
 
 #: /repo/budget/src/modules/accounts/AccountsModule.js:3026
 #, fuzzy
@@ -8791,10 +8672,8 @@ msgid "No recurring income set up"
 msgstr "Keine wiederkehrenden Einnahmen eingerichtet"
 
 #: /repo/budget/src/modules/dashboard/DashboardModule.js:2733
-#, fuzzy
-#| msgid "Avg Monthly Income"
 msgid "Monthly income"
-msgstr "Durchschnittliches Monatseinkommen"
+msgstr "Monatliche Einnahmen"
 
 #: /repo/budget/src/modules/dashboard/DashboardModule.js:2734
 msgid "{received} of {due} received this month"
@@ -10249,10 +10128,8 @@ msgstr "Laufende Einnahme hinzufügen"
 
 #: /repo/budget/src/modules/income/IncomeModule.js:403
 #: /repo/budget/templates/index.php:6698
-#, fuzzy
-#| msgid "Invalid request data"
 msgid "First payment date"
-msgstr "Ungültige Anfragedaten"
+msgstr "Datum der ersten Zahlung"
 
 #: /repo/budget/src/modules/income/IncomeModule.js:406
 msgid "The date this income is expected. It can be in the past."
@@ -10817,10 +10694,8 @@ msgid "Withdrawal recorded"
 msgstr "Auszahlung"
 
 #: /repo/budget/src/modules/pensions/PensionsModule.js:1093
-#, fuzzy
-#| msgid "Failed to create contribution"
 msgid "No scheduled contributions"
-msgstr "Beitrag konnte nicht erstellt werden"
+msgstr "Keine geplanten Beiträge"
 
 #: /repo/budget/src/modules/pensions/PensionsModule.js:1108
 #, fuzzy
@@ -12082,10 +11957,8 @@ msgid "Account Type"
 msgstr "Kontoart"
 
 #: /repo/budget/src/modules/rules/components/CriteriaBuilder.js:197
-#, fuzzy
-#| msgid "Import rule"
 msgid "Import Source"
-msgstr "Importregel"
+msgstr "Importquelle"
 
 #: /repo/budget/src/modules/rules/components/CriteriaBuilder.js:199
 #: /repo/budget/templates/index.php:6446
@@ -13476,8 +13349,6 @@ msgid "vendor"
 msgstr "Empfänger"
 
 #: /repo/budget/src/modules/transactions/TransactionsModule.js:2425
-#, fuzzy
-#| msgid "Category"
 msgid "category"
 msgstr "Kategorie"
 
@@ -15408,10 +15279,8 @@ msgid "Recently Added"
 msgstr "Kürzlich hinzugefügt"
 
 #: /repo/budget/templates/index.php:2150
-#, fuzzy
-#| msgid "Previous"
 msgid "Previous month"
-msgstr "Zurück"
+msgstr "Vormonat"
 
 #: /repo/budget/templates/index.php:2151
 msgid "Budget month"
@@ -16095,10 +15964,8 @@ msgid "Summary Dashboard"
 msgstr "Übersicht-Dashboard"
 
 #: /repo/budget/templates/index.php:3185
-#, fuzzy
-#| msgid "Income vs Expenses"
 msgid "Income & Expenses"
-msgstr "Einnahmen und Ausgaben im Vergleich"
+msgstr "Einnahmen & Ausgaben"
 
 #: /repo/budget/templates/index.php:3188
 msgid "Year over Year"
@@ -16109,10 +15976,8 @@ msgid "Bills Calendar"
 msgstr "Rechnungskalender"
 
 #: /repo/budget/templates/index.php:3190
-#, fuzzy
-#| msgid "Category"
 msgid "Category by Month"
-msgstr "Kategorie"
+msgstr "Kategorie nach Monat"
 
 #: /repo/budget/templates/index.php:3199
 msgid "Year to Date"
@@ -17450,10 +17315,8 @@ msgid ""
 msgstr ""
 
 #: /repo/budget/templates/index.php:5135
-#, fuzzy
-#| msgid "Category"
 msgid "Subcategory"
-msgstr "Kategorie"
+msgstr "Unterkategorie"
 
 #: /repo/budget/templates/index.php:5143
 #, fuzzy
@@ -17875,10 +17738,8 @@ msgid "Which month to apply the lump sum (1 = immediately)"
 msgstr ""
 
 #: /repo/budget/templates/index.php:5738
-#, fuzzy
-#| msgid "Income Details"
 msgid "Include Debts"
-msgstr "Einnahmedetails"
+msgstr "Schulden einbeziehen"
 
 #: /repo/budget/templates/index.php:5740
 msgid "Select which debts to include in this scenario"
