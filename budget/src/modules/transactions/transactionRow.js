@@ -147,6 +147,23 @@ function splitCategoryParts(tx, currency, formatCurrency) {
 }
 
 /**
+ * The name of a row's category: from the category list, or else the name
+ * the row came with. A row in an account someone shared with you can be
+ * filed under one of the owner's categories that wasn't shared with you;
+ * it isn't in your list, but the row is yours to see, so its category is
+ * named rather than called "Uncategorized" (the pickers still don't offer
+ * it).
+ *
+ * @param {object} tx
+ * @param {object|undefined} category The row's category from the list
+ * @returns {string|null}
+ */
+export function rowCategoryName(tx, category) {
+    if (category) return category.name;
+    return tx.categoryId != null && tx.categoryName ? String(tx.categoryName) : null;
+}
+
+/**
  * A scheduled row's balance is where the balance will be once it and the
  * scheduled rows before it go through, so it is marked as projected (#414).
  */
@@ -183,6 +200,7 @@ export function renderTransactionRow(tx, ctx) {
     const ledger = ctx.variant !== 'register';
 
     const category = (ctx.categories || []).find(c => c.id === tx.categoryId);
+    const categoryName = rowCategoryName(tx, category);
     const account = (ctx.accounts || []).find(a => a.id === tx.accountId);
     const isSplit = tx.isSplit || tx.is_split;
     const isSplitPortion = hasSplitPortion(tx);
@@ -211,7 +229,7 @@ export function renderTransactionRow(tx, ctx) {
             ? `<span class="category-name split-category" title="${split.title}">${split.label}</span>`
             : isSplit
                 ? `<span class="category-name split-category">${t('budget', 'Split')}</span>`
-                : `<span class="category-name ${category ? '' : 'uncategorized'}">${category ? escapeHtml(category.name) : t('budget', 'Uncategorized')}</span>`;
+                : `<span class="category-name ${categoryName !== null ? '' : 'uncategorized'}">${categoryName !== null ? escapeHtml(categoryName) : t('budget', 'Uncategorized')}</span>`;
 
         return `
             <tr class="${rowClasses.join(' ')}" data-transaction-id="${tx.id}"${readOnlyAttr}>
@@ -253,7 +271,7 @@ export function renderTransactionRow(tx, ctx) {
         ? `<span class="category-badge cell-display split-category">${split.label}</span>`
         : isSplit
             ? `<span class="category-badge cell-display split-category">${t('budget', 'Split')}</span>`
-            : `<span class="category-badge cell-display ${category ? 'categorized' : 'uncategorized'}">${category && category.color ? `<span class="category-dot" style="background-color: ${escapeHtml(category.color)}" aria-hidden="true"></span>` : ''}${category ? escapeHtml(category.name) : t('budget', 'Uncategorized')}</span>`;
+            : `<span class="category-badge cell-display ${categoryName !== null ? 'categorized' : 'uncategorized'}">${category && category.color ? `<span class="category-dot" style="background-color: ${escapeHtml(category.color)}" aria-hidden="true"></span>` : ''}${categoryName !== null ? escapeHtml(categoryName) : t('budget', 'Uncategorized')}</span>`;
 
     return `
         <tr class="${rowClasses.join(' ')}" data-transaction-id="${tx.id}"${readOnlyAttr}>

@@ -189,6 +189,27 @@ class TransactionServiceTest extends TestCase {
 		$this->service->find(999, 'user1');
 	}
 
+	// ===== categoryNameOf() =====
+
+	public function testCategoryNameOfReadsTheNameTheListShows(): void {
+		// A row in an account shared with the user may be filed under an
+		// owner's category not shared with them: the list names it, and so
+		// does a single row. Looked up within the row's own account.
+		$tx = $this->makeTransaction(['id' => 5, 'accountId' => 3, 'categoryId' => 77]);
+		$this->mapper->expects($this->once())
+			->method('findListRowsByIds')
+			->with('wendy', [5], [3])
+			->willReturn([5 => ['id' => 5, 'categoryName' => 'Secret Stuff']]);
+
+		$this->assertSame('Secret Stuff', $this->service->categoryNameOf($tx, 'wendy'));
+	}
+
+	public function testCategoryNameOfAnUncategorisedRowIsNull(): void {
+		$this->mapper->expects($this->never())->method('findListRowsByIds');
+
+		$this->assertNull($this->service->categoryNameOf($this->makeTransaction(['categoryId' => null]), 'wendy'));
+	}
+
 	// ===== findByAccount() =====
 
 	public function testFindByAccountDelegatesToMapper(): void {

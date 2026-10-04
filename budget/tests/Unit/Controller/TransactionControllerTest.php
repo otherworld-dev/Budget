@@ -281,6 +281,27 @@ class TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	public function testShowNamesTheRowsCategory(): void {
+		// Opened from a link, the form gets the row from here, not the list:
+		// it needs the category's name as the list gives it, also for an
+		// owner's category not shared with the user
+		$txn = new Transaction();
+		$txn->setId(5);
+		$txn->setAccountId(3);
+		$txn->setCategoryId(77);
+		$txn->setDescription('Secret joint');
+		$this->service->method('find')->willThrowException(new \RuntimeException('not own'));
+		$this->service->method('findForAccounts')->willReturn($txn);
+		$this->service->method('categoryNameOf')->with($txn, 'user1')->willReturn('Secret Stuff');
+
+		$data = $this->controller->show(5)->getData();
+
+		$this->assertSame('Secret Stuff', $data['categoryName']);
+		$this->assertSame(77, $data['categoryId']);
+		// Every field the entity has is still there
+		$this->assertSame([], array_diff(array_keys($txn->jsonSerialize()), array_keys($data)));
+	}
+
 	public function testShowReturnsNotFound(): void {
 		$this->service->method('find')->willThrowException(new \RuntimeException('not found'));
 		$this->service->method('findForAccounts')->willThrowException(new \RuntimeException('not found'));

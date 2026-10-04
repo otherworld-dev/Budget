@@ -73,6 +73,24 @@ class TransactionService {
 	}
 
 	/**
+	 * The name of the category a transaction is filed under, as the
+	 * transactions list shows it beside the row. On a row in an account
+	 * shared with the user it is the owner's category, named even when that
+	 * category isn't shared with them: the row is. The caller has already
+	 * found the transaction for the user, so it is looked up within the
+	 * row's own account.
+	 */
+	public function categoryNameOf(Transaction $transaction, string $userId): ?string {
+		if ($transaction->getCategoryId() === null) {
+			return null;
+		}
+		$id = $transaction->getId();
+		$rows = $this->mapper->findListRowsByIds($userId, [$id], [$transaction->getAccountId()]);
+		$name = $rows[$id]['categoryName'] ?? null;
+		return $name === null ? null : (string)$name;
+	}
+
+	/**
 	 * Find an account by ID without user scoping (for shared account resolution).
 	 *
 	 * @throws DoesNotExistException

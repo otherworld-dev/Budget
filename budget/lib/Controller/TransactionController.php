@@ -284,7 +284,12 @@ class TransactionController extends Controller {
 			} catch (\Exception $e) {
 				$transaction = $this->service->findForAccounts($id, $this->getVisibleAccountIds());
 			}
-			return new DataResponse($transaction);
+			// With its category's name, as the list gives every row: the form
+			// opened from a link to a row in a shared account names the
+			// owner's category even when it isn't shared with the user
+			return new DataResponse($transaction->jsonSerialize() + [
+				'categoryName' => $this->service->categoryNameOf($transaction, $this->userId),
+			]);
 		} catch (\Exception $e) {
 			return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['transactionId' => $id]);
 		}

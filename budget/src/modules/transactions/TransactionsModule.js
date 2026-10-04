@@ -18,7 +18,7 @@ import { setDateValue } from '../../utils/datepicker.js';
 import { downloadTransactionsCsv } from '../../utils/helpers.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
 import { once } from '../../utils/submitGuard.js';
-import { selectPossiblyUnavailable } from '../../utils/formSelects.js';
+import { selectPossiblyUnavailable, unavailableCategoryLabel } from '../../utils/formSelects.js';
 import { openAccounts, pickableAccounts, accountOptionLabel, selectAccountValue, usableCategories, categoryTreeOf, sharedAccountOwner, isReadOnlyShare } from '../../utils/accounts.js';
 import { offerableTags } from '../../utils/tags.js';
 import flatpickr from 'flatpickr';
@@ -2200,7 +2200,8 @@ export default class TransactionsModule {
      * offered and then refused on save ("Category not found"). The category
      * the transaction already has is always kept, even one its owner didn't
      * share with you: the server lets a row keep its category, and an empty
-     * select would have cleared it on save.
+     * select would have cleared it on save. Such a category is named, as
+     * the row came with its name, but not offered as a choice.
      *
      * @param {number|string|null} [recordCategoryId] The category of the
      *   saved transaction being opened; omitted when the account changes
@@ -2216,7 +2217,10 @@ export default class TransactionsModule {
         select.innerHTML = `<option value="">${t('budget', 'No category')}</option>`;
         dom.populateCategorySelect(select, scoped ? categoryTreeOf(scoped) : (this.categoryTree || this.categories));
         if (keepUnlisted) {
-            selectPossiblyUnavailable(select, current);
+            // Only the saved row's own category can be kept unlisted
+            const record = this._formTransaction;
+            const name = record && String(record.categoryId ?? '') === current ? record.categoryName : null;
+            selectPossiblyUnavailable(select, current, name ? unavailableCategoryLabel(name) : null);
         } else {
             select.value = current;
         }
@@ -2224,8 +2228,9 @@ export default class TransactionsModule {
         const type = document.getElementById('transaction-type')?.value;
         document.querySelectorAll('#inline-splits-container .inline-split-category').forEach(splitSelect => {
             const value = splitSelect.value;
+            const name = splitSelect.selectedOptions?.[0]?.dataset.categoryName || null;
             splitSelect.innerHTML = `<option value="">${t('budget', 'Uncategorized')}</option>`
-                + this.app.getCategoryOptions(value ? parseInt(value, 10) : null, type, account);
+                + this.app.getCategoryOptions(value ? parseInt(value, 10) : null, type, account, name);
             splitSelect.value = value;
         });
     }
@@ -3335,7 +3340,7 @@ export default class TransactionsModule {
                 <label>${t('budget', 'Category')}</label>
                 <select aria-label="${t('budget', 'Category')}" class="inline-split-category">
                     <option value="">${t('budget', 'Uncategorized')}</option>
-                    ${this.app.getCategoryOptions(existingSplit?.categoryId || null, transactionType, this._formAccount())}
+                    ${this.app.getCategoryOptions(existingSplit?.categoryId || null, transactionType, this._formAccount(), existingSplit?.categoryName || null)}
                 </select>
             </div>
             <div class="split-field split-description-field">
@@ -4810,11 +4815,12 @@ export default class TransactionsModule {
         const flatCategories = categoryData ? this.getFlatCategoryList(categoryData) : [];
 
         // Set current category name as value (one not shared with you is
-        // kept as it is; only a change is saved)
+        // kept as it is, named as the row came, as the cell shows it; only a
+        // change is saved)
         const currentCategory = flatCategories.find(c => c.id === parseInt(currentCategoryId));
         input.value = currentCategory
             ? currentCategory.name
-            : (currentCategoryId ? t('budget', 'Unavailable (not shared with you)') : '');
+            : (currentCategoryId ? (transaction?.categoryName || unavailableCategoryLabel(null)) : '');
         input.dataset.categoryId = currentCategoryId || '';
 
         const dropdown = document.createElement('div');

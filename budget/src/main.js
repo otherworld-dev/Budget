@@ -3678,10 +3678,10 @@ class BudgetApp {
     }
 
     /**
-     * Get category options HTML
+     * Get category options HTML (selectedName: see categoryOptionsHtml)
      */
-    getCategoryOptions(selectedId = null, transactionType = null, account = null) {
-        return categoryOptionsHtml(this.categories, selectedId, transactionType, account);
+    getCategoryOptions(selectedId = null, transactionType = null, account = null, selectedName = null) {
+        return categoryOptionsHtml(this.categories, selectedId, transactionType, account, selectedName);
     }
 
     /**
