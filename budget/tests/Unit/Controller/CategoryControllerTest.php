@@ -786,4 +786,60 @@ class CategoryControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
 	}
+
+	// ── a shared category shows only accounts the viewer can see (T4-2) ──
+
+	public function testDetailsReadsOnlyTheAccountsTheViewerCanSee(): void {
+		// owner1 shared category 137 and account 4 with user1, not account 2
+		$this->granularShareService->method('resolveOwner')
+			->with('user1', 'category', 137)->willReturn('owner1');
+		$this->granularShareService->method('getVisibleAccountIds')
+			->with('user1')->willReturn([1, 4]);
+		$this->service->expects($this->once())
+			->method('getCategoryDetails')
+			->with(137, 'owner1', null, null, null, 'user1', [1, 4])
+			->willReturn(['count' => 1, 'total' => 10.0]);
+
+		$response = $this->controller->details(137);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testDetailsRefusesAnAccountTheViewerCannotSee(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn('owner1');
+		$this->granularShareService->method('getVisibleAccountIds')->willReturn([1, 4]);
+		$this->service->expects($this->never())->method('getCategoryDetails');
+
+		$response = $this->controller->details(137, null, null, 2);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	public function testDetailsAcceptsASharedAccountTheViewerCanSee(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn('owner1');
+		$this->granularShareService->method('getVisibleAccountIds')->willReturn([1, 4]);
+		$this->service->expects($this->once())
+			->method('getCategoryDetails')
+			->with(137, 'owner1', '2026-01-01', '2026-03-31', 4, 'user1', [1, 4])
+			->willReturn(['count' => 0, 'total' => 0.0]);
+
+		$response = $this->controller->details(137, '2026-01-01', '2026-03-31', 4);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testTransactionsListsOnlyTheAccountsTheViewerCanSee(): void {
+		$this->granularShareService->method('resolveOwner')
+			->with('user1', 'category', 137)->willReturn('owner1');
+		$this->granularShareService->method('getVisibleAccountIds')
+			->with('user1')->willReturn([1, 4]);
+		$this->service->expects($this->once())
+			->method('getCategoryTransactions')
+			->with(137, 'owner1', 5, [1, 4])
+			->willReturn([]);
+
+		$response = $this->controller->transactions(137);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
 }

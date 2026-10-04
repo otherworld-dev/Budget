@@ -27,6 +27,8 @@ class TransactionControllerTest extends TestCase {
 	private IRequest $request;
 	private LoggerInterface $logger;
 	private IL10N $l;
+	/** @var list<array{0: string, 1: int[]}> requireUsableTags() calls in controllerForSharedRows() */
+	private array $tagChecks = [];
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
@@ -440,6 +442,8 @@ class TransactionControllerTest extends TestCase {
 
 	public function testBulkEditRejectsACategoryTheOwnerCannotSee(): void {
 		$this->service->expects($this->never())->method('bulkEdit');
+		// Both rows are in user1's own account 1
+		$this->service->method('findAccountIdsWithin')->willReturn([1 => 1, 2 => 1]);
 		$controller = $this->controllerWithCategories([1, 2, 3]);
 
 		$response = $controller->bulkEdit([1, 2], ['categoryId' => 999]);
@@ -757,6 +761,8 @@ class TransactionControllerTest extends TestCase {
 
 	public function testGetSplitsReturnsSplits(): void {
 		$splits = [['id' => 1, 'amount' => 50.00]];
+		// A row in one of user1's own accounts is read as user1
+		$this->service->method('findForAccounts')->willReturn($this->transactionInAccount(1));
 		$this->splitService->method('getSplits')->with(1, 'user1')->willReturn($splits);
 
 		$response = $this->controller->getSplits(1);
@@ -778,6 +784,7 @@ class TransactionControllerTest extends TestCase {
 	// ── clearTags ───────────────────────────────────────────────────
 
 	public function testClearTagsReturnsSuccess(): void {
+		$this->service->method('findForAccounts')->willReturn($this->transactionInAccount(1));
 		$this->tagService->expects($this->once())->method('clearTransactionTags')->with(1, 'user1');
 
 		$response = $this->controller->clearTags(1);
@@ -789,6 +796,360 @@ class TransactionControllerTest extends TestCase {
 	/** This suite drives IRequest directly; there is no shared params bag. */
 	private function requestParams(array $params): void {
 		$this->request->method('getParams')->willReturn($params);
+	}
+
+	// ── a write recipient works on a shared account as its owner (T4-3) ──
+
+	/**
+	 * user1 owns account 1. owner1 shared account 4 with them to write and
+	 * account 6 read-only; owner1's account 9 was never shared. The row the
+	 * single-transaction routes look at sits in $rowAccount.
+	 */
+	private function controllerForSharedRows(int $rowAccount = 4): TransactionController {
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('getOwnAccountIds')->willReturn([1]);
+		$shares->method('getVisibleAccountIds')->willReturn([1, 4, 6]);
+		$shares->method('canWrite')->willReturnCallback(fn ($user, $type, $id) => in_array($id, [1, 4], true));
+		$shares->method('requireWriteAccess')->willReturnCallback(function ($user, $type, $id) {
+			if (!in_array($id, [1, 4], true)) {
+				throw new \OCA\Budget\Exception\ReadOnlyShareException();
+			}
+		});
+		$shares->method('requireUsableCategory')->willReturnCallback(function (string $owner, ?int $categoryId): void {
+			// owner1 can use 1-9, user1 only their own 20-29
+			$usable = $owner === 'owner1' ? range(1, 9) : range(20, 29);
+			if ($categoryId !== null && !in_array($categoryId, $usable, true)) {
+				throw new \InvalidArgumentException('Category not found');
+			}
+		});
+		// user1 can see tags 1-9; owner1 can use those and their own 50-59
+		$shares->method('getUsableTagIds')->willReturnCallback(fn (string $user, array $ids) => array_values(array_filter(
+			array_map('intval', $ids),
+			fn (int $id) => $id < 10 || ($user === 'owner1' && $id >= 50 && $id < 60)
+		)));
+		$this->tagChecks = [];
+		$shares->method('requireUsableTags')->willReturnCallback(function (string $user, array $ids): void {
+			$this->tagChecks[] = [$user, array_values($ids)];
+			foreach ($ids as $id) {
+				if ($id >= 10) {
+					throw new \InvalidArgumentException('Invalid tag ID');
+				}
+			}
+		});
+		$this->service->method('findForAccounts')->willReturnCallback(function (int $id, array $visible) use ($rowAccount) {
+			if (!in_array($rowAccount, $visible, true)) {
+				throw new \OCP\AppFramework\Db\DoesNotExistException('');
+			}
+			return $this->transactionInAccount($rowAccount);
+		});
+		$this->service->method('findAccountById')->willReturnCallback(function (int $accountId) {
+			$account = new \OCA\Budget\Db\Account();
+			$account->setUserId($accountId === 1 ? 'user1' : 'owner1');
+			return $account;
+		});
+		// Rows 1-2 are user1's own, 3 and 4 sit in the write share, 5 in
+		// the read-only one; 7 is in owner1's unshared account 9
+		$this->service->method('findAccountIdsWithin')->willReturnCallback(
+			fn (array $ids, array $visible) => array_filter(
+				[1 => 1, 2 => 1, 3 => 4, 4 => 4, 5 => 6, 7 => 9],
+				fn (int $account, int $id) => in_array($id, $ids, true) && in_array($account, $visible, true),
+				ARRAY_FILTER_USE_BOTH
+			)
+		);
+		return new TransactionController($this->request, $this->service, $this->splitService, $this->tagService,
+			$this->validationService, $shares, new TransactionCsvExporter($this->l), $this->l, 'user1', $this->logger);
+	}
+
+	public function testAWriteRecipientSplitsAsTheAccountOwner(): void {
+		$this->requestParams(['splits' => [['amount' => 6, 'categoryId' => 2], ['amount' => 4, 'categoryId' => 3]]]);
+		$this->splitService->expects($this->once())->method('splitTransaction')
+			->with(8, 'owner1', $this->anything())
+			->willReturn([]);
+
+		$response = $this->controllerForSharedRows(4)->split(8);
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	public function testAReadOnlyRecipientCannotSplit(): void {
+		$this->requestParams(['splits' => [['amount' => 6, 'categoryId' => 2], ['amount' => 4, 'categoryId' => 3]]]);
+		$this->splitService->expects($this->never())->method('splitTransaction');
+
+		$response = $this->controllerForSharedRows(6)->split(8);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testARowInAnAccountNeverSharedCannotBeSplit(): void {
+		$this->requestParams(['splits' => [['amount' => 6, 'categoryId' => 2], ['amount' => 4, 'categoryId' => 3]]]);
+		$this->splitService->expects($this->never())->method('splitTransaction');
+
+		$response = $this->controllerForSharedRows(9)->split(8);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	public function testAReadOnlyRecipientCanReadTheSplits(): void {
+		$this->splitService->expects($this->once())->method('getSplits')
+			->with(8, 'owner1')->willReturn([]);
+
+		$response = $this->controllerForSharedRows(6)->getSplits(8);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testAWriteRecipientUnsplitsAsTheAccountOwner(): void {
+		$this->splitService->expects($this->once())->method('unsplitTransaction')
+			->with(8, 'owner1', 2)->willReturn(new Transaction());
+
+		$response = $this->controllerForSharedRows(4)->unsplit(8, 2);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testAReadOnlyRecipientCannotUnsplit(): void {
+		$this->splitService->expects($this->never())->method('unsplitTransaction');
+
+		$response = $this->controllerForSharedRows(6)->unsplit(8);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	private function splitPart(int $id): \OCA\Budget\Db\TransactionSplit {
+		$part = new \OCA\Budget\Db\TransactionSplit();
+		$part->setId($id);
+		return $part;
+	}
+
+	public function testAWriteRecipientEditsAPartAsTheAccountOwner(): void {
+		$this->requestParams(['description' => 'petrol']);
+		$this->splitService->method('getSplits')->with(8, 'owner1')
+			->willReturn([$this->splitPart(30), $this->splitPart(31)]);
+		$this->splitService->expects($this->once())->method('updateSplit')
+			->with(31, 'owner1', ['description' => 'petrol'])
+			->willReturn($this->splitPart(31));
+
+		$response = $this->controllerForSharedRows(4)->updateSplit(8, 31);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testAPartOfAnotherTransactionCannotBeEditedThroughThisOne(): void {
+		// Part 77 belongs to some other transaction of owner1's, maybe in an
+		// account never shared: the write check on transaction 8 says
+		// nothing about it
+		$this->requestParams(['description' => 'mine now']);
+		$this->splitService->method('getSplits')->willReturn([$this->splitPart(30), $this->splitPart(31)]);
+		$this->splitService->expects($this->never())->method('updateSplit');
+
+		$response = $this->controllerForSharedRows(4)->updateSplit(8, 77);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	public function testBulkDeleteRunsEachRowAsItsAccountOwner(): void {
+		$calls = [];
+		$this->service->method('bulkDelete')->willReturnCallback(function (string $owner, array $ids) use (&$calls) {
+			$calls[$owner] = $ids;
+			return ['success' => count($ids), 'failed' => 0, 'errors' => []];
+		});
+
+		$response = $this->controllerForSharedRows()->bulkDelete([1, 3, 5, 7, 2, 4]);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(['user1' => [1, 2], 'owner1' => [3, 4]], $calls);
+		$data = $response->getData();
+		$this->assertSame(4, $data['success']);
+		$this->assertSame(2, $data['failed']);
+		// A refusal says what it is, never the lookup query
+		$this->assertSame([5, 7], array_column($data['errors'], 'id'));
+		foreach ($data['errors'] as $error) {
+			$this->assertStringNotContainsString('SELECT', $error['message']);
+		}
+	}
+
+	public function testBulkReconcileRunsEachRowAsItsAccountOwner(): void {
+		$calls = [];
+		$this->service->method('bulkReconcile')->willReturnCallback(function (string $owner, array $ids, bool $reconciled) use (&$calls) {
+			$calls[$owner] = $ids;
+			return ['success' => count($ids), 'failed' => 0];
+		});
+
+		$response = $this->controllerForSharedRows()->bulkReconcile([3, 1, 5], true);
+
+		$this->assertSame(['owner1' => [3], 'user1' => [1]], $calls);
+		$this->assertSame(['success' => 2, 'failed' => 1], $response->getData());
+	}
+
+	public function testBulkEditRunsEachRowAsItsAccountOwner(): void {
+		$calls = [];
+		$this->service->method('bulkEdit')->willReturnCallback(function (string $owner, array $ids, array $updates) use (&$calls) {
+			$calls[$owner] = [$ids, $updates];
+			return ['success' => count($ids), 'failed' => 0, 'errors' => []];
+		});
+
+		$response = $this->controllerForSharedRows()->bulkEdit([3, 4, 5], ['notes' => 'checked']);
+
+		$this->assertSame(['owner1' => [[3, 4], ['notes' => 'Some notes']]], $calls);
+		$this->assertSame(2, $response->getData()['success']);
+		$this->assertSame(1, $response->getData()['failed']);
+	}
+
+	public function testBulkEditOfASharedRowNeedsACategoryItsOwnerCanUse(): void {
+		// 25 is user1's own category, which owner1 can't see
+		$this->service->expects($this->never())->method('bulkEdit');
+
+		$response = $this->controllerForSharedRows()->bulkEdit([1, 3], ['categoryId' => 25]);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString("account owner's categories", $response->getData()['error']);
+	}
+
+	// ── tags on a shared row: as its owner, only tags user1 can see ──
+
+	private function tag(int $id): \OCA\Budget\Db\Tag {
+		$tag = new \OCA\Budget\Db\Tag();
+		$tag->setId($id);
+		return $tag;
+	}
+
+	public function testAWriteRecipientTagsASharedRowAsItsOwner(): void {
+		$this->requestParams(['tagIds' => [3, 50]]);
+		// 50 is already on the row (the owner's own tag); only 3 is new
+		$this->tagService->method('getTransactionTags')->with(8, 'owner1')->willReturn([$this->tag(50)]);
+		$this->tagService->expects($this->once())->method('setTransactionTags')
+			->with(8, 'owner1', [3, 50])->willReturn([]);
+
+		$response = $this->controllerForSharedRows(4)->setTags(8);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame([['user1', [3]]], $this->tagChecks);
+	}
+
+	public function testARecipientsTagSaveKeepsTheOwnersTagsSheCannotSee(): void {
+		// 50 is owner1's own tag on the row; user1 sends only what she
+		// picked. 99 is an old id neither of them can use: it goes.
+		$this->requestParams(['tagIds' => [4]]);
+		$this->tagService->method('getTransactionTags')->with(8, 'owner1')
+			->willReturn([$this->tag(50), $this->tag(3), $this->tag(99)]);
+		$this->tagService->expects($this->once())->method('setTransactionTags')
+			->with(8, 'owner1', [4, 50])->willReturn([]);
+
+		$response = $this->controllerForSharedRows(4)->setTags(8);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testARecipientClearingTagsKeepsTheOwnersTagsSheCannotSee(): void {
+		$this->tagService->method('getTransactionTags')->with(8, 'owner1')
+			->willReturn([$this->tag(50), $this->tag(3)]);
+		$this->tagService->expects($this->never())->method('clearTransactionTags');
+		$this->tagService->expects($this->once())->method('setTransactionTags')
+			->with(8, 'owner1', [50])->willReturn([]);
+
+		$response = $this->controllerForSharedRows(4)->clearTags(8);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testTheOwnerReplacesAllOfARowsTags(): void {
+		$this->requestParams(['tagIds' => [4]]);
+		$this->tagService->method('getTransactionTags')->with(8, 'user1')
+			->willReturn([$this->tag(50), $this->tag(3)]);
+		$this->tagService->expects($this->once())->method('setTransactionTags')
+			->with(8, 'user1', [4])->willReturn([]);
+
+		$response = $this->controllerForSharedRows(1)->setTags(8);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testATagTheUserCannotSeeIsRefused(): void {
+		// Any id used to be stored, and its name read back off the row
+		$this->requestParams(['tagIds' => [42]]);
+		$this->tagService->method('getTransactionTags')->willReturn([]);
+		$this->tagService->expects($this->never())->method('setTransactionTags');
+
+		$response = $this->controllerForSharedRows(4)->setTags(8);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testAReadOnlyRecipientCannotTag(): void {
+		$this->requestParams(['tagIds' => [3]]);
+		$this->tagService->expects($this->never())->method('setTransactionTags');
+
+		$response = $this->controllerForSharedRows(6)->setTags(8);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testAWriteRecipientClearsTagsAsTheOwner(): void {
+		$this->tagService->expects($this->once())->method('clearTransactionTags')->with(8, 'owner1');
+
+		$response = $this->controllerForSharedRows(4)->clearTags(8);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testAReadOnlyRecipientCannotClearTags(): void {
+		$this->tagService->expects($this->never())->method('clearTransactionTags');
+
+		$response = $this->controllerForSharedRows(6)->clearTags(8);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	// ── bulk-categorize applies the ledger-category rule (R6-3) ─────
+
+	public function testBulkCategorizeRefusesAnotherUsersCategory(): void {
+		// 999 is nobody user1 can see: stored, its name came back in the list
+		$this->service->expects($this->never())->method('bulkCategorize');
+
+		$response = $this->controllerForSharedRows()->bulkCategorize([['id' => 1, 'categoryId' => 999]]);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(['success' => 0, 'failed' => 1], $response->getData());
+	}
+
+	public function testBulkCategorizeChecksEachRowAgainstItsOwner(): void {
+		$calls = [];
+		$this->service->method('bulkCategorize')->willReturnCallback(function (string $owner, array $updates) use (&$calls) {
+			$calls[$owner] = $updates;
+			return ['success' => count($updates), 'failed' => 0];
+		});
+
+		$response = $this->controllerForSharedRows()->bulkCategorize([
+			['id' => 1, 'categoryId' => 25],  // user1's row, user1's category
+			['id' => 3, 'categoryId' => 25],  // owner1's row: owner1 can't see 25
+			['id' => 4, 'categoryId' => 2],   // owner1's row, owner1's category
+			['id' => 5, 'categoryId' => 2],   // read-only share
+			['id' => 2, 'categoryId' => null],
+		]);
+
+		$this->assertSame([
+			'user1' => [['id' => 1, 'categoryId' => 25], ['id' => 2, 'categoryId' => null]],
+			'owner1' => [['id' => 4, 'categoryId' => 2]],
+		], $calls);
+		$this->assertSame(['success' => 3, 'failed' => 2], $response->getData());
+	}
+
+	public function testBulkCategorizeCountsAMalformedEntryAsFailed(): void {
+		$this->service->expects($this->never())->method('bulkCategorize');
+
+		$response = $this->controllerForSharedRows()->bulkCategorize([['categoryId' => 2], 'junk']);
+
+		$this->assertSame(['success' => 0, 'failed' => 2], $response->getData());
+	}
+
+	public function testBulkEditOfASharedRowWithTheOwnersCategory(): void {
+		$this->service->expects($this->once())->method('bulkEdit')
+			->with('owner1', [3], ['categoryId' => 2])
+			->willReturn(['success' => 1, 'failed' => 0, 'errors' => []]);
+
+		$response = $this->controllerForSharedRows()->bulkEdit([3], ['categoryId' => 2]);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
 	// ── negative parts: a receipt's savings line ────────────────────
@@ -805,8 +1166,10 @@ class TransactionControllerTest extends TestCase {
 				['amount' => -4.50, 'categoryId' => null, 'description' => 'Savings'],
 			],
 		]);
+		$this->service->method('findForAccounts')->willReturn($this->transactionInAccount(1));
 		$this->splitService->expects($this->once())
 			->method('splitTransaction')
+			->with(5, 'user1', $this->anything())
 			->willReturn([]);
 
 		$response = $this->controller->split(5);

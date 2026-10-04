@@ -294,6 +294,22 @@ class ReportControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
+	public function testTagTrendsOnlyNamesTagsTheUserCanSee(): void {
+		// The report answered with the name and colour of any tag id asked
+		// for, so walking the ids listed every user's tags (R6-2)
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('getUsableTagIds')->with('user1', [1, 2, 3])->willReturn([1, 3]);
+		$this->service->expects($this->once())->method('getTagTrendReport')
+			->with('user1', [1, 3], '2026-01-01', '2026-01-31', null, $this->anything())
+			->willReturn(['tags' => []]);
+		$controller = new ReportController($this->request, $this->service, $shares,
+			$this->createMock(IL10N::class), 'user1', $this->logger);
+
+		$response = $controller->tagTrends([1, 2, 3], '2026-01-01', '2026-01-31');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
 	// ── tagSetBreakdown ─────────────────────────────────────────────
 
 	public function testTagSetBreakdownReturnsData(): void {

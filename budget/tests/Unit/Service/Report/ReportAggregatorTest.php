@@ -1087,6 +1087,63 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertSame(3, $row['count']);
 	}
 
+	// ===== one account shared with the viewer in scope (T4-7) =====
+
+	public function testASummaryOfOneSharedAccountReadsIt(): void {
+		// Account 7 is someone else's, shared with user1: the owner-scoped
+		// find() threw, and the dashboard tiles set to it failed
+		$joint = $this->makeAccount(7, 'Joint', 'checking', 500.00, 'GBP');
+		$this->accountMapper->method('find')
+			->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException(''));
+		$this->accountMapper->method('findById')->with(7)->willReturn($joint);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([
+			7 => ['income' => 300, 'expenses' => 100, 'count' => 5],
+		]);
+		$this->setupDefaultMocks();
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+
+		$result = $this->aggregator->generateSummary('user1', 7, '2026-01-01', '2026-01-31', [], true, [1, 7]);
+
+		$this->assertSame('Joint', $result['accounts'][0]['name']);
+		$this->assertEquals(300, $result['totals']['totalIncome']);
+		$this->assertEquals(100, $result['totals']['totalExpenses']);
+	}
+
+	public function testASummaryOfAnAccountOutsideTheViewersAccountsIsRefused(): void {
+		$this->accountMapper->method('find')
+			->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException(''));
+		$this->accountMapper->expects($this->never())->method('findById');
+
+		$this->expectException(\OCP\AppFramework\Db\DoesNotExistException::class);
+		$this->aggregator->generateSummary('user1', 9, '2026-01-01', '2026-01-31', [], true, [1, 7]);
+	}
+
+	public function testASingleSharedAccountsTrendKeepsTheViewersScope(): void {
+		$joint = $this->makeAccount(7, 'Joint', 'checking', 500.00, 'GBP');
+		$this->accountMapper->method('findById')->willReturn($joint);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([]);
+		$this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
+		$this->transactionMapper->method('getSpendingSummary')->willReturn([]);
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->reportQueries->expects($this->once())->method('getMonthlyTrendData')
+			->with('user1', 7, '2026-01-01', '2026-01-31', [], true, false, [1, 7])
+			->willReturn([]);
+
+		$this->aggregator->generateSummary('user1', 7, '2026-01-01', '2026-01-31', [], true, [1, 7]);
+	}
+
+	public function testCashFlowOfOneSharedAccountKeepsTheViewersScope(): void {
+		// The single-account branch dropped the visible accounts, so the
+		// query fell back to the viewer's own and found nothing
+		$this->reportQueries->expects($this->once())->method('getCashFlowByMonth')
+			->with('user1', 7, '2026-01-01', '2026-01-31', [], true, false, [1, 7])
+			->willReturn([['month' => '2026-01', 'income' => 300.0, 'expenses' => 100.0, 'net' => 200.0, 'count' => 5]]);
+
+		$result = $this->aggregator->getCashFlowReport('user1', 7, '2026-01-01', '2026-01-31', [], true, [1, 7]);
+
+		$this->assertSame(300.0, $result['totals']['income']);
+	}
+
 	public function testCashFlowTotalsAddWithoutFloatDrift(): void {
 		$this->reportQueries->method('getCashFlowByMonth')->willReturn([
 			['month' => '2026-01', 'income' => 0.1, 'expenses' => 0.2, 'net' => -0.1, 'count' => 2],

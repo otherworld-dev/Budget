@@ -274,6 +274,162 @@ class BillControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	// ── a bill's tags must be ones the people involved can use (R6-2/T4-6) ──
+
+	/**
+	 * Bills are $billOwner's; account 4 is Alice's. Who may use which tag:
+	 * user1 tags 1-9, $billOwner (when someone else) tags 5-9, Alice 8-9.
+	 *
+	 * @param list<array{0: string, 1: int[]}> $checks the tag checks made
+	 */
+	private function controllerCheckingTags(string $billOwner = 'user1', ?array &$checks = null): BillController {
+		$checks = [];
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canAccess')->willReturn(true);
+		$shares->method('canWrite')->willReturn(true);
+		$shares->method('resolveOwner')->willReturnCallback(
+			fn ($user, $type, $id) => $type === 'account' ? ($id === 4 ? 'alice' : $user) : $billOwner
+		);
+		$usable = ['user1' => range(1, 9), $billOwner => $billOwner === 'user1' ? range(1, 9) : array_merge(range(5, 9), [42]), 'alice' => [8, 9]];
+		$shares->method('requireUsableTags')->willReturnCallback(function (string $user, array $ids) use ($usable, &$checks): void {
+			$checks[] = [$user, array_values($ids)];
+			if (array_diff($ids, $usable[$user] ?? []) !== []) {
+				throw new \InvalidArgumentException('Invalid tag ID');
+			}
+		});
+		$shares->method('getUsableTagIds')->willReturnCallback(
+			fn (string $user, array $ids) => array_values(array_intersect(array_map('intval', $ids), $usable[$user] ?? []))
+		);
+		return new BillController($this->request, $this->service, $this->validationService, $shares,
+			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class), $this->upcomingBills,
+			$this->l, 'user1', $this->logger);
+	}
+
+	private function storedBillWithTags(array $tagIds, ?int $accountId = 2): \OCA\Budget\Db\Bill {
+		$bill = new \OCA\Budget\Db\Bill();
+		$bill->setId(5);
+		$bill->setAccountId($accountId);
+		$bill->setIsTransfer(false);
+		$bill->setTagIdsArray($tagIds);
+		return $bill;
+	}
+
+	public function testABillCannotTakeATagItsCreatorCannotSee(): void {
+		// Any id was stored, then read back with its name off the payments
+		$this->mockInput(json_encode(['name' => 'Gym', 'amount' => 30, 'tagIds' => [3, 42]]));
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controllerCheckingTags()->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Invalid tag ID', $response->getData()['error']);
+	}
+
+	public function testABillOnAnotherUsersAccountNeedsTagsTheyCanUse(): void {
+		// The payments are booked into Alice's ledger with the bill's tags
+		$this->mockInput(json_encode(['name' => 'Gym', 'amount' => 30, 'accountId' => 4, 'tagIds' => [3]]));
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controllerCheckingTags()->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('cannot see one of the tags', $response->getData()['error']);
+	}
+
+	public function testABillOnAnotherUsersAccountMayUseTagsSharedWithThem(): void {
+		$this->mockInput(json_encode(['name' => 'Gym', 'amount' => 30, 'accountId' => 4, 'tagIds' => [8]]));
+		$this->service->expects($this->once())->method('create')->willReturn(new \OCA\Budget\Db\Bill());
+
+		$response = $this->controllerCheckingTags()->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	public function testAnEditChecksOnlyTheTagsNewToTheBill(): void {
+		// 42 is already on the bill (an old id user1 can't see): it may stay
+		$this->service->method('find')->willReturn($this->storedBillWithTags([42]));
+		$this->mockInput(json_encode(['tagIds' => [42, 3]]));
+		$this->service->expects($this->once())->method('update')->willReturn(new \OCA\Budget\Db\Bill());
+
+		$response = $this->controllerCheckingTags('user1', $checks)->update(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame([['user1', [3]]], $checks);
+	}
+
+	public function testARecipientCannotPutHerOwnTagOnTheOwnersBill(): void {
+		// Bill 5 is owen's, shared with user1 to write: user1's tag 3 is
+		// hers alone, so owen's payments would carry it into his ledger
+		$this->service->method('find')->willReturn($this->storedBillWithTags([]));
+		$this->mockInput(json_encode(['tagIds' => [3]]));
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerCheckingTags('owen')->update(5);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testARecipientMayUseATagTheyBothSee(): void {
+		$this->service->method('find')->willReturn($this->storedBillWithTags([]));
+		$this->mockInput(json_encode(['tagIds' => [6]]));
+		$this->service->expects($this->once())->method('update')->willReturn(new \OCA\Budget\Db\Bill());
+
+		$response = $this->controllerCheckingTags('owen', $checks)->update(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame([['user1', [6]], ['owen', [6]]], $checks);
+	}
+
+	public function testARecipientsSaveKeepsTheOwnersTagsSheCannotSee(): void {
+		// Bill 5 is owen's; 42 is his own tag, which user1's form never
+		// shows, so saving it sent only her ticked tags and dropped 42
+		$this->service->method('find')->willReturn($this->storedBillWithTags([42, 6]));
+		$this->mockInput(json_encode(['name' => 'Phone', 'tagIds' => [7]]));
+		$this->service->expects($this->once())->method('update')
+			->with(5, 'owen', $this->callback(fn (array $updates) => json_decode($updates['tagIds'], true) === [7, 42]))
+			->willReturn(new \OCA\Budget\Db\Bill());
+
+		$response = $this->controllerCheckingTags('owen')->update(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testARecipientClearingTheTagsOnlyClearsTheOnesSheCanSee(): void {
+		$this->service->method('find')->willReturn($this->storedBillWithTags([42, 6]));
+		$this->mockInput(json_encode(['tagIds' => []]));
+		$this->service->expects($this->once())->method('update')
+			->with(5, 'owen', $this->callback(fn (array $updates) => json_decode($updates['tagIds'], true) === [42]))
+			->willReturn(new \OCA\Budget\Db\Bill());
+
+		$response = $this->controllerCheckingTags('owen')->update(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testTheOwnerStillReplacesAllOfTheBillsTags(): void {
+		// An old id even the owner can't use goes when they save without it
+		$this->service->method('find')->willReturn($this->storedBillWithTags([42, 6]));
+		$this->mockInput(json_encode(['tagIds' => [7]]));
+		$this->service->expects($this->once())->method('update')
+			->with(5, 'user1', $this->callback(fn (array $updates) => json_decode($updates['tagIds'], true) === [7]))
+			->willReturn(new \OCA\Budget\Db\Bill());
+
+		$response = $this->controllerCheckingTags()->update(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testMovingATaggedBillOntoAnotherUsersAccountChecksItsTags(): void {
+		$this->service->method('find')->willReturn($this->storedBillWithTags([3], 2));
+		$this->mockInput(json_encode(['accountId' => 4]));
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerCheckingTags()->update(5);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('cannot see one of the tags', $response->getData()['error']);
+	}
+
 	public function testIndexFiltersSharedRowsLikeOwnOnes(): void {
 		// Shared rows were merged in unfiltered: shared transfers showed on
 		// the Bills page, shared bills on Transfers, ended ones everywhere

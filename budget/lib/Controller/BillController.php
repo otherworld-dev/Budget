@@ -406,6 +406,12 @@ class BillController extends Controller {
 				$categoryId,
 				[$accountId, $isTransfer ? $destinationAccountId : null]
 			);
+			$this->requireUsableBillTags(
+				$this->getEffectiveUserId(),
+				$tagIds,
+				$tagIds,
+				[$accountId, $isTransfer ? $destinationAccountId : null]
+			);
 
 			$bill = $this->service->create(
 				$this->getEffectiveUserId(),
@@ -820,6 +826,12 @@ class BillController extends Controller {
 				|| array_key_exists('isTransfer', $updates)) {
 				$storedBill = $storedBill ?? $this->service->find($id, $ownerId);
 				$this->requireChangedCategoryUsableByAccountOwners($ownerId, $storedBill, $updates);
+			}
+			if (array_key_exists('tagIds', $updates) || $accountInUpdates || $destinationInUpdates
+				|| array_key_exists('isTransfer', $updates)) {
+				$storedBill = $storedBill ?? $this->service->find($id, $ownerId);
+				$updates = $this->keepTagsTheEditorCannotSee($ownerId, $storedBill, $updates);
+				$this->requireChangedBillTagsUsable($ownerId, $storedBill, $updates);
 			}
 
 			$bill = $this->service->update($id, $ownerId, $updates);
@@ -1597,6 +1609,101 @@ class BillController extends Controller {
 		if ($changed) {
 			$this->requireCategoryUsableByAccountOwners($billOwner, $categoryId, [$accountId, $isTransfer ? $destinationId : null]);
 		}
+	}
+
+	/**
+	 * A bill's tags go onto every payment it books, in the ledger of the
+	 * account it pays from and, for a transfer, the one it pays into. Tag
+	 * ids were stored unchecked and read back off those payments with their
+	 * names, so anyone could read every user's tags by walking the ids.
+	 *
+	 * A tag new to the bill ($added) must be one the person setting it can
+	 * see and the bill's owner can use. Like the bill's category, every tag
+	 * it carries ($tagIds) must also be usable by the owner of an account it
+	 * books into when that is someone else.
+	 *
+	 * @param int[] $added
+	 * @param int[] $tagIds
+	 * @param array<int|null> $accountIds
+	 * @throws \InvalidArgumentException
+	 */
+	private function requireUsableBillTags(string $billOwner, array $added, array $tagIds, array $accountIds): void {
+		$this->granularShareService->requireUsableTags($this->userId, $added);
+		if ($billOwner !== $this->userId) {
+			$this->granularShareService->requireUsableTags($billOwner, $added);
+		}
+		if ($tagIds === []) {
+			return;
+		}
+		foreach (array_unique(array_filter($accountIds, static fn ($id) => $id !== null)) as $accountId) {
+			$accountOwner = $this->granularShareService->resolveOwner($billOwner, 'account', (int)$accountId);
+			if ($accountOwner === null || $accountOwner === $billOwner) {
+				continue;
+			}
+			try {
+				$this->granularShareService->requireUsableTags($accountOwner, $tagIds);
+			} catch (\InvalidArgumentException $e) {
+				throw new \InvalidArgumentException($this->l->t('This account belongs to someone else, who cannot see one of the tags. Choose tags from a category shared with them, or no tags.'));
+			}
+		}
+	}
+
+	/**
+	 * The tags of a shared bill as someone other than its owner saves it.
+	 *
+	 * The bill form only lists the tags its user can see and saves exactly
+	 * the ticked ones, so a recipient's save silently stripped the owner's
+	 * own tags off the bill. The tags the editor can't see stay as they are;
+	 * the ones they can see are replaced by what they sent. The owner's save
+	 * still replaces the whole list.
+	 *
+	 * @param array<string, mixed> $updates
+	 * @return array<string, mixed>
+	 */
+	private function keepTagsTheEditorCannotSee(string $billOwner, Bill $stored, array $updates): array {
+		if ($billOwner === $this->userId || !array_key_exists('tagIds', $updates)) {
+			return $updates;
+		}
+		$storedTags = $stored->getTagIdsArray();
+		$hidden = array_diff($storedTags, $this->granularShareService->getUsableTagIds($this->userId, $storedTags));
+		if ($hidden === []) {
+			return $updates;
+		}
+		$decoded = $updates['tagIds'] === null ? [] : json_decode((string)$updates['tagIds'], true);
+		$sent = array_map('intval', is_array($decoded) ? $decoded : []);
+		$updates['tagIds'] = json_encode(array_values(array_unique(array_merge($sent, $hidden))));
+		return $updates;
+	}
+
+	/**
+	 * requireUsableBillTags() for an edit: the tags a form sends back as
+	 * stored keep saving, and the account owners are asked again only when
+	 * the tags or an account change.
+	 *
+	 * @param array<string, mixed> $updates
+	 */
+	private function requireChangedBillTagsUsable(string $billOwner, Bill $stored, array $updates): void {
+		$storedTags = $stored->getTagIdsArray();
+		$tagIds = $storedTags;
+		if (array_key_exists('tagIds', $updates)) {
+			$decoded = $updates['tagIds'] === null ? [] : json_decode((string)$updates['tagIds'], true);
+			$tagIds = array_map('intval', is_array($decoded) ? $decoded : []);
+		}
+		$added = array_values(array_diff($tagIds, $storedTags));
+
+		$accountId = array_key_exists('accountId', $updates) ? $updates['accountId'] : $stored->getAccountId();
+		$isTransfer = array_key_exists('isTransfer', $updates) ? (bool)$updates['isTransfer'] : (bool)$stored->getIsTransfer();
+		$destinationId = array_key_exists('destinationAccountId', $updates) ? $updates['destinationAccountId'] : $stored->getDestinationAccountId();
+		$accountsChanged = $accountId !== $stored->getAccountId()
+			|| $isTransfer !== (bool)$stored->getIsTransfer()
+			|| ($isTransfer && $destinationId !== $stored->getDestinationAccountId());
+
+		$this->requireUsableBillTags(
+			$billOwner,
+			$added,
+			$added !== [] || $accountsChanged ? $tagIds : [],
+			[$accountId, $isTransfer ? $destinationId : null]
+		);
 	}
 
 	private function requireUsableCategories(string $ownerId, mixed $categoryId, ?array $splitTemplate): void {

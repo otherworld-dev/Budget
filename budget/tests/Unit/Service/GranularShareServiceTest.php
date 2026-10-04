@@ -238,6 +238,90 @@ class GranularShareServiceTest extends TestCase {
 	}
 
 	// =============================================
+	// usable tags (R6-2 / T4-6)
+	// =============================================
+
+	/**
+	 * alice owns categories 1 and 2 and has category 10 shared with her.
+	 * Tags: 100 alice's global, 101 bob's global, 102 in a set (50) on her
+	 * category 1, 103 in a set (51) on bob's shared category 10, 104 in a
+	 * set (52) on bob's unshared category 20, 105 in a set (53) that no
+	 * longer exists.
+	 */
+	private function serviceWithTags(): GranularShareService {
+		$this->aliceSeesCategories([1, 2], [10]);
+
+		$tag = function (int $id, ?int $tagSetId, string $userId): \OCA\Budget\Db\Tag {
+			$t = new \OCA\Budget\Db\Tag();
+			$t->setId($id);
+			$t->setTagSetId($tagSetId);
+			$t->setUserId($userId);
+			return $t;
+		};
+		$tags = [
+			100 => $tag(100, null, 'alice'),
+			101 => $tag(101, null, 'bob'),
+			102 => $tag(102, 50, 'alice'),
+			103 => $tag(103, 51, 'bob'),
+			104 => $tag(104, 52, 'bob'),
+			105 => $tag(105, 53, 'bob'),
+		];
+		$tagMapper = $this->createMock(\OCA\Budget\Db\TagMapper::class);
+		$tagMapper->method('findByIds')->willReturnCallback(
+			fn (array $ids) => array_intersect_key($tags, array_flip($ids))
+		);
+		$tagSetMapper = $this->createMock(\OCA\Budget\Db\TagSetMapper::class);
+		$tagSetMapper->method('findById')->willReturnCallback(function (int $id) {
+			$categoryOf = [50 => 1, 51 => 10, 52 => 20];
+			if (!isset($categoryOf[$id])) {
+				throw new \OCP\AppFramework\Db\DoesNotExistException('');
+			}
+			$set = new \OCA\Budget\Db\TagSet();
+			$set->setCategoryId($categoryOf[$id]);
+			return $set;
+		});
+
+		return new GranularShareService(
+			$this->shareMapper, $this->shareItemMapper, $this->accountMapper, $this->billMapper,
+			$this->categoryMapper, $this->recurringIncomeMapper, $this->savingsGoalMapper,
+			$this->importRuleMapper, $this->l, null, $this->projectMapper, $tagMapper, $tagSetMapper
+		);
+	}
+
+	public function testUsableTagsAreOwnGlobalTagsAndTagsOfVisibleCategories(): void {
+		$usable = $this->serviceWithTags()->getUsableTagIds('alice', [100, 101, 102, 103, 104, 105, 999]);
+
+		$this->assertEqualsCanonicalizing([100, 102, 103], $usable);
+	}
+
+	public function testRequireUsableTagsAcceptsUsableTags(): void {
+		$this->serviceWithTags()->requireUsableTags('alice', [100, 102, 103, '103']);
+		$this->serviceWithTags()->requireUsableTags('alice', []);
+		$this->addToAssertionCount(2);
+	}
+
+	public function testRequireUsableTagsRejectsAnotherUsersGlobalTag(): void {
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Invalid tag ID');
+		$this->serviceWithTags()->requireUsableTags('alice', [100, 101]);
+	}
+
+	public function testRequireUsableTagsRejectsATagOfACategoryNeverShared(): void {
+		$this->expectException(\InvalidArgumentException::class);
+		$this->serviceWithTags()->requireUsableTags('alice', [104]);
+	}
+
+	public function testRequireUsableTagsRejectsAnUnknownTag(): void {
+		$this->expectException(\InvalidArgumentException::class);
+		$this->serviceWithTags()->requireUsableTags('alice', [999]);
+	}
+
+	public function testNoTagIsUsableWithoutTheTagMappers(): void {
+		$this->aliceSeesCategories([1], []);
+		$this->assertSame([], $this->service->getUsableTagIds('alice', [100]));
+	}
+
+	// =============================================
 	// import rules
 	// =============================================
 
