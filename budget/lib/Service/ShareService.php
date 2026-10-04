@@ -149,6 +149,7 @@ class ShareService {
 		$share->setStatus(Share::STATUS_ACCEPTED);
 		$share->setUpdatedAt(date('Y-m-d H:i:s'));
 		$share = $this->mapper->update($share);
+		$this->dismissInvitation($recipientUserId, $shareId);
 
 		$this->auditService->log(
 			$recipientUserId,
@@ -178,6 +179,7 @@ class ShareService {
 		$share->setStatus(Share::STATUS_DECLINED);
 		$share->setUpdatedAt(date('Y-m-d H:i:s'));
 		$share = $this->mapper->update($share);
+		$this->dismissInvitation($recipientUserId, $shareId);
 
 		$this->auditService->log(
 			$recipientUserId,
@@ -235,6 +237,7 @@ class ShareService {
 		// Cascade delete share items before deleting the share
 		$this->shareItemMapper->deleteByShareId($shareId);
 		$this->mapper->delete($share);
+		$this->dismissInvitation($recipientUserId, $shareId);
 
 		$this->auditService->log(
 			$recipientUserId,
@@ -279,6 +282,24 @@ class ShareService {
 	 */
 	public function getAcceptedOwnerIds(string $recipientUserId): array {
 		return $this->mapper->findAcceptedOwnerIds($recipientUserId);
+	}
+
+	/**
+	 * Mark the share's invitation processed once it has been answered or
+	 * left, as revoke() does: it stayed in the recipient's notifications,
+	 * still asking them to accept or decline. Best-effort: the share has
+	 * already changed either way.
+	 */
+	private function dismissInvitation(string $recipientUserId, int $shareId): void {
+		try {
+			$notification = $this->notificationManager->createNotification();
+			$notification->setApp('budget')
+				->setUser($recipientUserId)
+				->setObject('share', (string)$shareId);
+			$this->notificationManager->markProcessed($notification);
+		} catch (\Throwable $e) {
+			// Nothing to undo: the notification just stays until dismissed
+		}
 	}
 
 	/**
