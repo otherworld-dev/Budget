@@ -316,4 +316,38 @@ class MigrationControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
+
+	/**
+	 * A PHP error from a damaged archive used to escape every catch and come
+	 * back as a 500 with the stack trace (R6-5). Every action answers a
+	 * plain 400 now, and the details only go to the log.
+	 */
+	public function testAPhpErrorIsAPlain400NotATrace(): void {
+		$tmpFile = tempnam(sys_get_temp_dir(), 'budget_test_');
+		file_put_contents($tmpFile, 'fake zip content');
+		$this->request->method('getUploadedFile')->with('file')->willReturn([
+			'name' => 'data.zip',
+			'tmp_name' => $tmpFile,
+			'error' => UPLOAD_ERR_OK,
+		]);
+		$this->request->method('getParam')->with('confirmed', false)->willReturn(true);
+		$error = new \TypeError('Cannot access offset of type array in isset or empty in /var/www/html/apps/budget/lib/Service/MigrationService.php:1157');
+		$this->migrationService->method('importAll')->willThrowException($error);
+		$this->migrationService->method('previewImport')->willThrowException($error);
+		$this->migrationService->method('exportToFile')->willThrowException($error);
+		$this->logger->expects($this->exactly(3))->method('error');
+
+		$responses = [
+			'import' => $this->controller->import(),
+			'preview' => $this->controller->preview(),
+			'export' => $this->controller->export(),
+		];
+
+		@unlink($tmpFile);
+		foreach ($responses as $action => $response) {
+			$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus(), $action);
+			$this->assertStringNotContainsString('MigrationService', json_encode($response->getData()), $action);
+		}
+		$this->assertSame('Failed to import data', $responses['import']->getData()['error']);
+	}
 }

@@ -541,7 +541,8 @@ class MigrationService {
 				'counts' => $this->countData($importData),
 				'warnings' => $this->restoreWarnings($links['sharesDropped'], $this->billsDetached, $links['othersDetached']),
 			];
-		} catch (\Exception $e) {
+		} catch (\Throwable $e) {
+			// PHP errors too: only \Exception used to roll back
 			$this->db->rollBack();
 			throw $e;
 		}
@@ -685,14 +686,15 @@ class MigrationService {
 
 		// Older formats import (missing data takes its defaults); a newer one
 		// may hold data this version can't restore
-		$version = (string)($importData['manifest']['version'] ?? 'unknown');
+		$manifest = is_array($importData['manifest'] ?? null) ? $importData['manifest'] : [];
+		$version = is_scalar($manifest['version'] ?? null) ? (string)$manifest['version'] : 'unknown';
 		if (version_compare($version, self::EXPORT_VERSION, '>')) {
 			$warnings[] = $this->t('This backup was made by a newer version of Budget (backup format %1$s, this server reads up to %2$s). Some of its data may not be restored. Update Budget first if you can.', [$version, self::EXPORT_VERSION]);
 		}
 
 		return [
 			'valid' => true,
-			'manifest' => $importData['manifest'] ?? [],
+			'manifest' => $manifest,
 			'counts' => $this->countData($importData),
 			'warnings' => $warnings
 		];
@@ -924,6 +926,19 @@ class MigrationService {
 	}
 
 	/**
+	 * Keys of the bespoke data sets that must hold a single value. The ids
+	 * become array keys and query parameters, so a list or an object there
+	 * crashed the restore part way with a PHP error and a stack trace.
+	 */
+	private const SCALAR_KEYS = [
+		'categories' => ['id', 'parentId', 'name', 'type'],
+		'accounts' => ['id', 'name', 'type', 'currency', 'balance', 'openingBalance'],
+		'transactions' => ['id', 'accountId', 'categoryId', 'billId', 'linkedTransactionId', 'reconSessionId', 'pensionContribId', 'amount', 'date', 'type'],
+		'bills' => ['id', 'accountId', 'destinationAccountId', 'categoryId', 'name'],
+		'import_rules' => ['id', 'categoryId', 'name'],
+	];
+
+	/**
 	 * Validate import data structure.
 	 */
 	private function validateImportData(array $data): void {
@@ -934,6 +949,8 @@ class MigrationService {
 		if (($data['manifest']['appId'] ?? '') !== self::APP_ID) {
 			throw new \InvalidArgumentException('Invalid export file: wrong application');
 		}
+
+		$this->validateShapes($data);
 
 		// Validate categories have required fields
 		foreach ($data['categories'] ?? [] as $i => $cat) {
@@ -955,6 +972,46 @@ class MigrationService {
 				throw new \InvalidArgumentException("Invalid transaction at index $i: missing required fields");
 			}
 		}
+	}
+
+	/**
+	 * Every data set is a list of objects (settings: an object of single
+	 * values), and every id a single value. An archive holding anything else
+	 * is refused before anything is touched, rather than failing part way.
+	 */
+	private function validateShapes(array $data): void {
+		$tables = self::EXTRA_TABLES_PRE + self::EXTRA_TABLES_POST;
+		foreach ($data as $key => $rows) {
+			if ($key === 'manifest') {
+				continue;
+			}
+			if (!is_array($rows)) {
+				throw $this->notInFormat($key);
+			}
+			if ($key === 'settings') {
+				foreach ($rows as $value) {
+					if ($value !== null && !is_scalar($value)) {
+						throw $this->notInFormat($key);
+					}
+				}
+				continue;
+			}
+			$scalarKeys = self::SCALAR_KEYS[$key] ?? ['id', ...array_keys($tables[$key]['fk'] ?? [])];
+			foreach ($rows as $row) {
+				if (!is_array($row)) {
+					throw $this->notInFormat($key);
+				}
+				foreach ($scalarKeys as $scalarKey) {
+					if (isset($row[$scalarKey]) && !is_scalar($row[$scalarKey])) {
+						throw $this->notInFormat($key);
+					}
+				}
+			}
+		}
+	}
+
+	private function notInFormat(string $key): \InvalidArgumentException {
+		return new \InvalidArgumentException($this->t('This backup cannot be imported: %1$s is not in the expected format', [$key . '.json']));
 	}
 
 	/**

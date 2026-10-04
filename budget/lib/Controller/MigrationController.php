@@ -62,7 +62,7 @@ class MigrationController extends Controller {
 			);
 
 			return $response;
-		} catch (\Exception $e) {
+		} catch (\Throwable $e) {
 			return $this->handleError($e, $this->l->t('Failed to export data'));
 		}
 	}
@@ -114,7 +114,9 @@ class MigrationController extends Controller {
 			return new DataResponse($preview);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleValidationError($e);
-		} catch (\Exception $e) {
+		} catch (\Throwable $e) {
+			// A PHP error from a damaged archive too: a plain 400, never a
+			// stack trace
 			return $this->handleError($e, $this->l->t('Failed to preview import'));
 		}
 	}
@@ -184,7 +186,7 @@ class MigrationController extends Controller {
 				['error' => $e->getMessage()]
 			);
 			return $this->handleValidationError($e);
-		} catch (\Exception $e) {
+		} catch (\Throwable $e) {
 			$this->auditService->log(
 				$this->userId,
 				'data_import_failed',

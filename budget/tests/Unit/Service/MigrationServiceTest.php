@@ -242,6 +242,69 @@ class MigrationServiceTest extends TestCase {
 		$this->service->importAll('user1', $zipContent);
 	}
 
+	/**
+	 * An archive whose files hold the wrong kinds of value (an id that is a
+	 * list, a data set that is a string, a setting that is an object) used
+	 * to crash the restore part way with a PHP TypeError: a 500 with a stack
+	 * trace (R6-5). It is refused up front now, before anything is touched.
+	 *
+	 * @param array<string, mixed> $files file name => decoded content
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('typeConfusedArchives')]
+	public function testImportRefusesATypeConfusedArchiveBeforeTouchingAnything(array $files): void {
+		$zipContent = $this->createTestZip(array_map('json_encode', $files + [
+			'manifest.json' => ['version' => '1.3.0', 'appId' => 'budget'],
+			'categories.json' => [],
+			'accounts.json' => [],
+			'transactions.json' => [],
+		]));
+		$this->db->expects($this->never())->method('beginTransaction');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->importAll('user1', $zipContent);
+	}
+
+	/**
+	 * @return array<string, array{0: array<string, mixed>}>
+	 */
+	public static function typeConfusedArchives(): array {
+		$account = ['id' => 1, 'name' => 'A', 'type' => 'checking'];
+		return [
+			'an account id that is a list' => [['accounts.json' => [['id' => [1]] + $account]]],
+			'a transaction account id that is an object' => [['accounts.json' => [$account], 'transactions.json' => [['accountId' => ['a' => 1], 'amount' => 1, 'date' => '2026-01-01']]]],
+			'a data set that is a string' => [['accounts.json' => 'not a list']],
+			'a category that is a string' => [['categories.json' => ['x']]],
+			'a setting that is an object' => [['settings.json' => ['k' => ['nested' => 1]]]],
+			'a bill whose account is a list' => [['bills.json' => [['id' => 1, 'name' => 'Rent', 'accountId' => [1]]]]],
+			'a table row whose foreign key is a list' => [['tx_splits.json' => [['id' => 1, 'transaction_id' => [5], 'amount' => '1.00']]]],
+			'a manifest that is a string' => [['manifest.json' => 'budget']],
+		];
+	}
+
+	/**
+	 * Whatever goes wrong part way, PHP errors included, the restore's
+	 * database transaction is rolled back: only \Exception used to be.
+	 */
+	public function testImportAllRollsBackOnAnyError(): void {
+		$zipContent = $this->createTestZip([
+			'manifest.json' => json_encode(['version' => '1.3.0', 'appId' => 'budget']),
+			'categories.json' => json_encode([]),
+			'accounts.json' => json_encode([]),
+			'transactions.json' => json_encode([]),
+		]);
+		foreach ([$this->transactionMapper, $this->billMapper, $this->importRuleMapper, $this->accountMapper] as $mapper) {
+			$mapper->method('findAll')->willReturn([]);
+		}
+		$this->categoryMapper->method('findAll')->willThrowException(new \TypeError('boom'));
+
+		$this->db->expects($this->once())->method('beginTransaction');
+		$this->db->expects($this->never())->method('commit');
+		$this->db->expects($this->once())->method('rollBack');
+
+		$this->expectException(\TypeError::class);
+		$this->service->importAll('user1', $zipContent);
+	}
+
 	public function testImportAllRejectsInvalidJson(): void {
 		$zipContent = $this->createTestZip([
 			'manifest.json' => '{invalid json',
