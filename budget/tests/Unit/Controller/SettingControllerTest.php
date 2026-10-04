@@ -83,6 +83,17 @@ class SettingControllerTest extends TestCase {
 		$this->assertSame('true', $data['notification_budget_alert']);
 	}
 
+	/**
+	 * The "Skip Duplicate Transactions" switch did nothing: duplicates are
+	 * skipped unless the import screen's own box says otherwise. The switch
+	 * is gone and the app no longer offers the setting.
+	 */
+	public function testTheSkipDuplicatesSettingIsNoLongerOffered(): void {
+		$this->mapper->method('findAll')->willReturn([]);
+
+		$this->assertArrayNotHasKey('import_skip_duplicates', $this->controller->index()->getData());
+	}
+
 	public function testIndexHandlesException(): void {
 		$this->mapper->method('findAll')->willThrowException(new \RuntimeException('DB error'));
 
@@ -214,7 +225,7 @@ class SettingControllerTest extends TestCase {
 			// The Settings page
 			'anomaly_alerts_enabled', 'budget_alert_threshold', 'budget_period', 'budget_start_day', 'date_format',
 			'default_currency', 'digest_email_enabled', 'digest_enabled', 'digest_frequency', 'export_default_format',
-			'first_day_of_week', 'import_auto_apply_rules', 'import_skip_duplicates', 'notification_budget_alert',
+			'first_day_of_week', 'import_auto_apply_rules', 'notification_budget_alert',
 			'notification_forecast_warning', 'number_format_decimal_sep', 'number_format_decimals',
 			'number_format_thousands_sep', 'receipt_folder', 'report_email_enabled', 'report_files_enabled',
 			// The dashboard
@@ -222,6 +233,8 @@ class SettingControllerTest extends TestCase {
 			'dashboard_grid_columns', 'dashboard_locked',
 			// The transaction list's columns and the What's new dialog
 			'transaction_columns_visible', 'whats_new_seen',
+			// A Settings page loaded before the switch was removed
+			'import_skip_duplicates',
 		];
 		return array_combine($keys, array_map(static fn (string $key) => [$key], $keys));
 	}

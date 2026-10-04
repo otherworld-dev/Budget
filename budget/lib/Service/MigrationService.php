@@ -21,6 +21,7 @@ use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Enum\AccountType;
 use OCA\Budget\Enum\Currency;
 use OCA\Budget\Migration\Version001000104Date20260916;
+use OCA\Budget\Service\Import\SetupDefaultRules;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use OCP\IL10N;
@@ -2389,6 +2390,14 @@ class MigrationService {
 					$criteria['root'] = $this->remapRuleCriteria($ruleData, $criteria['root'], $idMaps);
 				}
 				$rule->setCriteriaFromArray($criteria);
+			}
+
+			// A pre-3.0 archive brings back setup's empty default rules as
+			// they were: on, at priorities 5-10, and matching at import again
+			// they blocked the user's own rules. Treated as migration 122
+			// treats them on upgrade (V2-1).
+			if ($rule->getActive() && SetupDefaultRules::isUntouchedEmptyDefaultRule($rule)) {
+				SetupDefaultRules::retire($rule);
 			}
 
 			$inserted = $this->importRuleMapper->insert($rule);
