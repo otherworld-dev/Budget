@@ -11,12 +11,15 @@ return [
 
 		// Account routes
 		['name' => 'account#index', 'url' => '/api/accounts', 'verb' => 'GET'],
+		// Literal paths before {id}: the first match wins, and {id} matches
+		// any segment (these two answered 404 "Account not found" for years)
+		['name' => 'account#summary', 'url' => '/api/accounts/summary', 'verb' => 'GET'],
+		['name' => 'account#getBankingInstitutions', 'url' => '/api/accounts/banking-institutions', 'verb' => 'GET'],
 		['name' => 'account#show', 'url' => '/api/accounts/{id}', 'verb' => 'GET'],
 		['name' => 'account#create', 'url' => '/api/accounts', 'verb' => 'POST'],
 		['name' => 'account#update', 'url' => '/api/accounts/{id}', 'verb' => 'PUT'],
 		['name' => 'account#destroy', 'url' => '/api/accounts/{id}', 'verb' => 'DELETE'],
 		['name' => 'account#bulkDelete', 'url' => '/api/accounts/bulk-delete', 'verb' => 'POST'],
-		['name' => 'account#summary', 'url' => '/api/accounts/summary', 'verb' => 'GET'],
 		['name' => 'account#getBalanceHistory', 'url' => '/api/accounts/{id}/balance-history', 'verb' => 'GET'],
 		['name' => 'account#getMetrics', 'url' => '/api/accounts/{id}/metrics', 'verb' => 'GET'],
 		['name' => 'account#paymentTransfers', 'url' => '/api/accounts/{id}/payment-transfers', 'verb' => 'GET'],
@@ -48,7 +51,6 @@ return [
 		['name' => 'account#validateRoutingNumber', 'url' => '/api/accounts/validate/routing-number', 'verb' => 'POST'],
 		['name' => 'account#validateSortCode', 'url' => '/api/accounts/validate/sort-code', 'verb' => 'POST'],
 		['name' => 'account#validateSwiftBic', 'url' => '/api/accounts/validate/swift-bic', 'verb' => 'POST'],
-		['name' => 'account#getBankingInstitutions', 'url' => '/api/accounts/banking-institutions', 'verb' => 'GET'],
 		['name' => 'account#getBankingFieldRequirements', 'url' => '/api/accounts/banking-requirements/{currency}', 'verb' => 'GET'],
 
 		// Transaction routes
