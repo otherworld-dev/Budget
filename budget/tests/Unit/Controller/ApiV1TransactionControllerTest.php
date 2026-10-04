@@ -22,6 +22,7 @@ use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
 use OCP\IRequest;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -472,6 +473,35 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
 		$this->assertSame('Account not found', $response->getData()['error']);
+	}
+
+	/**
+	 * A list or an object where one value belongs was cast: text fields
+	 * saved the string "Array" (with a PHP warning), account_id [5] read as
+	 * account 1, and every such idempotency key was the same "Array".
+	 */
+	#[DataProvider('createValueFields')]
+	public function testCreateRefusesAListWhereOneValueBelongs(string $field): void {
+		$this->params = $this->captureParams([$field => ['x']]);
+		$this->service->expects($this->never())->method('create');
+		$this->idempotencyKeys->expects($this->never())->method('insert');
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame("{$field} must be a single value", $response->getData()['error']);
+	}
+
+	public static function createValueFields(): array {
+		$fields = ['account_id', 'accountId', 'date', 'merchant', 'description', 'vendor', 'type', 'reference', 'notes', 'idempotency_key'];
+		return array_combine($fields, array_map(static fn (string $f) => [$f], $fields));
+	}
+
+	public function testCreateRefusesAnObjectWhereOneValueBelongs(): void {
+		$this->params = $this->captureParams(['notes' => ['text' => 'x']]);
+		$this->service->expects($this->never())->method('create');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->create()->getStatus());
 	}
 
 	public function testCreateRejectsAnUnknownType(): void {
@@ -1119,6 +1149,47 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame('Split 0: amount is required', $response->getData()['error']);
 	}
 
+	/** Cast, a description read "Array" and a category id read 1 */
+	public function testASplitPartWithAListForAValueIsRefused(): void {
+		$this->expectOwnerResolution();
+		$this->splitService->expects($this->never())->method('splitTransaction');
+
+		foreach ([['description' => ['x']], ['category_id' => [12]], ['categoryId' => ['a' => 1]]] as $bad) {
+			$this->params = ['splits' => json_encode([['amount' => '20.00'] + $bad, ['amount' => '3.77']])];
+			$response = $this->controller->createSplits(5);
+
+			$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus(), json_encode($bad));
+			$this->assertSame('splits must be an array of {"amount", "category_id", "description"} objects', $response->getData()['error']);
+		}
+	}
+
+	/**
+	 * A splits field sent with a create but unusable was dropped without a
+	 * word: the capture came back unsplit and nothing said why. It is a
+	 * rejected split set like any other.
+	 */
+	public function testAnUnusableSplitsFieldOnCreateIsReportedNotDropped(): void {
+		$this->service->method('create')->willReturn($this->splitTransaction());
+		$this->splitService->expects($this->never())->method('splitTransaction');
+
+		foreach (['not json', json_encode(['nope']), json_encode([['amount' => '1', 'description' => ['x']], ['amount' => '22.77']])] as $payload) {
+			$this->params = $this->captureParams(['amount' => '23.77', 'splits' => $payload]);
+			$data = $this->controller->create()->getData();
+
+			$this->assertSame('splits must be an array of {"amount", "category_id", "description"} objects', $data['splits_error'] ?? null, $payload);
+			$this->assertSame([], $data['splits']);
+			$this->assertFalse($data['is_split']);
+		}
+	}
+
+	public function testAnEmptySplitsListOnCreateMeansNoSplits(): void {
+		$this->service->method('create')->willReturn($this->splitTransaction());
+		$this->splitService->expects($this->never())->method('splitTransaction');
+		$this->params = $this->captureParams(['amount' => '23.77', 'splits' => '[]']);
+
+		$this->assertArrayNotHasKey('splits_error', $this->controller->create()->getData());
+	}
+
 	public function testSplittingAnUnknownTransactionIsNotFound(): void {
 		$this->params = $this->captureParams([
 			'splits' => json_encode([['amount' => '1.00'], ['amount' => '2.00']]),
@@ -1518,6 +1589,32 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->service->expects($this->once())->method('update')
 			->with(10, 'user1', $this->callback(static fn (array $u): bool => $u['notes'] === 'Refund line'))
 			->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	#[DataProvider('editValueFields')]
+	public function testUpdateRefusesAListWhereOneValueBelongs(string $field): void {
+		$this->existing();
+		$this->params = ['id' => 10, $field => ['x']];
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->editor()->update(10);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame("{$field} must be a single value", $response->getData()['error']);
+	}
+
+	public static function editValueFields(): array {
+		$fields = ['date', 'type', 'description', 'vendor', 'reference', 'notes', 'merchant', 'account_id', 'status', 'reconciled'];
+		return array_combine($fields, array_map(static fn (string $f) => [$f], $fields));
+	}
+
+	/** The read shape carries `splits` as a list; sending it back stays fine */
+	public function testUpdateStillTakesTheReadShapeWithItsSplitsList(): void {
+		$this->existing();
+		$this->params = ['id' => 10, 'description' => 'Edited', 'splits' => [], 'account_id' => 1, 'reconciled' => false, 'status' => 'cleared'];
+		$this->service->expects($this->once())->method('update')->willReturn($this->transaction());
 
 		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
 	}

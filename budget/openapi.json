@@ -374,7 +374,7 @@
             }
           },
           "400": {
-            "description": "Invalid input; ocs.data.error says what. This includes a negative amount (error_code invalid_amount), and a `category_id` the account owner cannot use (see NewTransaction.category_id), answered with the error \"Category not found. It must be one of the account owner's categories\".",
+            "description": "Invalid input; ocs.data.error says what. This includes a list or an object sent for a field that takes one value (\"vendor must be a single value\"), a negative amount (error_code invalid_amount), and a `category_id` the account owner cannot use (see NewTransaction.category_id), answered with the error \"Category not found. It must be one of the account owner's categories\".",
             "content": {
               "application/json": {
                 "schema": {
@@ -514,7 +514,7 @@
             }
           },
           "400": {
-            "description": "A malformed value, nothing editable in the body, an amount that is not more than zero (error_code invalid_amount), or account_id, status or reconciled sent with a different value (error_code field_not_editable). A category_id the account owner cannot use answers \"Category not found. It must be one of the account owner's categories\".",
+            "description": "A malformed value (a list or an object for a field that takes one value: \"vendor must be a single value\"), nothing editable in the body, an amount that is not more than zero (error_code invalid_amount), or account_id, status or reconciled sent with a different value (error_code field_not_editable). A category_id the account owner cannot use answers \"Category not found. It must be one of the account owner's categories\".",
             "content": {
               "application/json": {
                 "schema": {
@@ -1993,7 +1993,7 @@
           },
           "splits": {
             "type": "string",
-            "description": "Optional per-item splits, as a JSON array of NewSplit objects. A string so it can ride in the same multipart body as `photo`. The parts must sum to `amount` and there must be at least two. If they are rejected the transaction is still created and the response carries `splits_error` — retrying would duplicate the transaction, which the idempotency key exists to prevent.",
+            "description": "Optional per-item splits, as a JSON array of NewSplit objects. A string so it can ride in the same multipart body as `photo`. The parts must sum to `amount` and there must be at least two. If they are rejected, or the field cannot be read as parts, the transaction is still created and the response carries `splits_error` — retrying would duplicate the transaction, which the idempotency key exists to prevent.",
             "example": "[{\"amount\":\"3.40\",\"category_id\":12},{\"amount\":\"20.37\",\"category_id\":13}]"
           }
         }

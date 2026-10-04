@@ -296,6 +296,11 @@ class ApiV1TransactionController extends OCSController {
 	public function create(): DataResponse {
 		$p = $this->request->getParams();
 
+		$listed = self::fieldWithAList($p, ['account_id', 'accountId', 'date', 'merchant', 'description', 'vendor', 'type', 'reference', 'notes', 'idempotency_key']);
+		if ($listed !== null) {
+			return $this->notASingleValue($listed);
+		}
+
 		$accountId = (int)($p['account_id'] ?? $p['accountId'] ?? 0);
 		// An empty category field means "uncategorised" (stored as NULL) —
 		// (int)'' would silently mean "category 0", which nothing can filter.
@@ -453,10 +458,12 @@ class ApiV1TransactionController extends OCSController {
 			// so a rejected split set reports itself rather than failing the
 			// request — a retry would duplicate the very thing the key guards.
 			// The total is unaffected either way, so the fallback state is a
-			// correct unsplit transaction the user can split later.
-			$splits = $this->readSplitsParam();
-			if ($splits !== null) {
-				try {
+			// correct unsplit transaction the user can split later. A splits
+			// field that can't be read as parts is a rejected set too, not
+			// one to drop without a word.
+			try {
+				$splits = $this->readSplitsParam();
+				if ($splits !== null) {
 					$created = $this->splitService->splitTransaction($transaction->getId(), $effectiveUserId, $splits);
 					$out['splits'] = ApiSerializer::splits($created);
 					// The transaction was serialised before the split ran, so
@@ -466,14 +473,14 @@ class ApiV1TransactionController extends OCSController {
 					// would otherwise believe the split never happened.
 					$out['is_split'] = true;
 					$out['category_id'] = null;
-				} catch (\Throwable $e) {
-					// Stated rather than left to the snapshot: a client that
-					// checks splits_error sees no parts next to it, ever
-					$out['splits'] = [];
-					$out['splits_error'] = $e instanceof \InvalidArgumentException
-						? $e->getMessage()
-						: $this->l->t('The transaction was recorded, but it could not be split');
 				}
+			} catch (\Throwable $e) {
+				// Stated rather than left to the snapshot: a client that
+				// checks splits_error sees no parts next to it, ever
+				$out['splits'] = [];
+				$out['splits_error'] = $e instanceof \InvalidArgumentException
+					? $e->getMessage()
+					: $this->l->t('The transaction was recorded, but it could not be split');
 			}
 
 			return new DataResponse($out, Http::STATUS_CREATED);
@@ -642,12 +649,12 @@ class ApiV1TransactionController extends OCSController {
 	#[NoAdminRequired]
 	#[UserRateLimit(limit: 60, period: 60)]
 	public function createSplits(int $id): DataResponse {
-		$splits = $this->readSplitsParam();
-		if ($splits === null) {
-			return $this->splitsRefused($this->l->t('splits must be an array of {"amount", "category_id", "description"} objects'));
-		}
-
 		try {
+			$splits = $this->readSplitsParam();
+			if ($splits === null) {
+				return $this->splitsRefused($this->unusableSplits()->getMessage());
+			}
+
 			// Splits belong to the ledger owner, like the transaction and its
 			// receipts — a write on a shared account must not scope to the
 			// acting user, or it lands in the wrong ledger (see #333/#334).
@@ -683,7 +690,8 @@ class ApiV1TransactionController extends OCSController {
 	 * are snake_case on the wire like the rest of v1; camelCase is tolerated
 	 * because the split service and the web UI already speak it.
 	 *
-	 * @return array|null null when the parameter is absent or unusable
+	 * @return array|null null when the parameter is absent or an empty list
+	 * @throws \InvalidArgumentException when it is sent but can't be read as parts
 	 */
 	private function readSplitsParam(): ?array {
 		$raw = $this->request->getParam('splits');
@@ -692,26 +700,27 @@ class ApiV1TransactionController extends OCSController {
 		}
 
 		if (is_string($raw)) {
-			$decoded = json_decode($raw, true);
-			if (!is_array($decoded)) {
-				return null;
-			}
-			$raw = $decoded;
+			$raw = json_decode($raw, true);
 		}
-
-		if (!is_array($raw) || $raw === []) {
+		if (!is_array($raw)) {
+			throw $this->unusableSplits();
+		}
+		if ($raw === []) {
 			return null;
 		}
 
 		$splits = [];
 		foreach ($raw as $entry) {
-			if (!is_array($entry)) {
-				return null;
-			}
-			if (!isset($entry['amount'])) {
-				return null;
+			if (!is_array($entry) || !isset($entry['amount'])) {
+				throw $this->unusableSplits();
 			}
 			$categoryId = $entry['category_id'] ?? $entry['categoryId'] ?? null;
+			// A list or an object where one value belongs: cast, the
+			// description read "Array" and the category id 1
+			if (($categoryId !== null && !is_scalar($categoryId))
+				|| (isset($entry['description']) && !is_scalar($entry['description']))) {
+				throw $this->unusableSplits();
+			}
 			$splits[] = [
 				// Anything that isn't a number goes on as sent: cast, it read
 				// as zero. The split service refuses both before it touches
@@ -725,6 +734,10 @@ class ApiV1TransactionController extends OCSController {
 		}
 
 		return $splits;
+	}
+
+	private function unusableSplits(): \InvalidArgumentException {
+		return new \InvalidArgumentException($this->l->t('splits must be an array of {"amount", "category_id", "description"} objects'));
 	}
 
 	/**
@@ -924,6 +937,13 @@ class ApiV1TransactionController extends OCSController {
 
 	/** The service updates a PATCH body asks for, or the 400 that refuses it. */
 	private function readUpdates(array $p, Transaction $current): array|DataResponse {
+		// Not `splits`: the read shape, which may be sent back whole, has it
+		// as a list
+		$listed = self::fieldWithAList($p, ['date', 'type', 'description', 'vendor', 'reference', 'notes', 'merchant', 'account_id', 'status', 'reconciled']);
+		if ($listed !== null) {
+			return $this->notASingleValue($listed);
+		}
+
 		$unchanged = [
 			'account_id' => static fn ($v): bool => (int)$v === $current->getAccountId(),
 			'status' => static fn ($v): bool => (string)$v === ($current->getStatus() ?? 'cleared'),
@@ -1071,6 +1091,30 @@ class ApiV1TransactionController extends OCSController {
 		}
 
 		return (int)$raw > 0 ? (int)$raw : null;
+	}
+
+	/**
+	 * The first of $fields sent as a list or an object, where one value
+	 * belongs, or null. Cast, a list read as the text "Array" (with a PHP
+	 * warning) and as id 1.
+	 *
+	 * @param string[] $fields
+	 */
+	private static function fieldWithAList(array $p, array $fields): ?string {
+		foreach ($fields as $field) {
+			if (isset($p[$field]) && !is_scalar($p[$field])) {
+				return $field;
+			}
+		}
+
+		return null;
+	}
+
+	private function notASingleValue(string $field): DataResponse {
+		return new DataResponse(
+			['error' => $this->l->t('%s must be a single value', [$field])],
+			Http::STATUS_BAD_REQUEST
+		);
 	}
 
 	private function badAmount(string $message): DataResponse {
