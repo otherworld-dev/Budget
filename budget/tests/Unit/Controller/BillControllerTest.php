@@ -2705,6 +2705,91 @@ class BillControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $this->controllerSeeing('rita', [1])->update(7)->getStatus());
 	}
 
+	/**
+	 * Wendy has write on Owen's bills, not on his private account 2 (hidden
+	 * from her) or his savings 3 (read-only to her). His joint account 1 is
+	 * hers to write to.
+	 */
+	private function controllerForWendy(Bill $owensBill): BillController {
+		$writable = ['wendy' => [1], 'owen' => [1, 2, 3]];
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canAccess')->willReturn(true);
+		$shares->method('resolveOwner')->willReturn('owen');
+		$shares->method('canWrite')->willReturnCallback(
+			fn (string $user, string $type, int $id) => $type !== 'account' || in_array($id, $writable[$user] ?? [], true)
+		);
+		$shares->method('requireWriteAccess')->willReturnCallback(function (string $user, string $type, int $id) use ($writable): void {
+			if ($type === 'account' && !in_array($id, $writable[$user] ?? [], true)) {
+				throw new \OCA\Budget\Exception\ReadOnlyShareException();
+			}
+		});
+		$this->service->method('find')->willReturn($owensBill);
+		$this->request->method('getParams')->willReturn(['recordPayment' => true, 'previousNextDueDate' => '2026-09-15']);
+		return new BillController(
+			$this->request, $this->service, $this->validationService, $shares,
+			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
+			$this->createMock(\OCA\Budget\Service\UpcomingBillsService::class),
+			$this->l, 'wendy', $this->logger
+		);
+	}
+
+	private function owensBill(?int $accountId, ?int $destinationId = null): Bill {
+		$bill = new Bill();
+		$bill->setUserId('owen');
+		$bill->setAccountId($accountId);
+		$bill->setIsTransfer($destinationId !== null);
+		$bill->setDestinationAccountId($destinationId);
+		return $bill;
+	}
+
+	public static function paymentActions(): array {
+		return [
+			'mark paid' => ['markPaid', fn (BillController $c) => $c->markPaid(7)],
+			'undo paid' => ['markUnpaid', fn (BillController $c) => $c->undoPaid(7)],
+			'mark unpaid' => ['markUnpaid', fn (BillController $c) => $c->markUnpaid(7)],
+			'skip' => ['skipPayment', fn (BillController $c) => $c->skipPayment(7)],
+			'undo skip' => ['undoSkip', fn (BillController $c) => $c->undoSkip(7)],
+			'record missed payment' => ['recordMissedPayment', fn (BillController $c) => $c->recordMissedPayment(7)],
+		];
+	}
+
+	/**
+	 * Each of these books into, or deletes from, the bill's account. A write
+	 * share of the bill alone let a recipient pay it into an account hidden
+	 * from her, or read-only to her.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('paymentActions')]
+	public function testPayingNeedsWriteOnTheBillsAccountNotJustTheBill(string $serviceMethod, \Closure $call): void {
+		$this->service->expects($this->never())->method($serviceMethod);
+
+		$hidden = $call($this->controllerForWendy($this->owensBill(2)));
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $hidden->getStatus());
+		$this->assertSame('This shared item is read-only', $hidden->getData()['error']);
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('paymentActions')]
+	public function testPayingNeedsWriteOnATransfersDestinationToo(string $serviceMethod, \Closure $call): void {
+		$this->service->expects($this->never())->method($serviceMethod);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $call($this->controllerForWendy($this->owensBill(1, 3)))->getStatus());
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('paymentActions')]
+	public function testPayingAnAccountTheRecipientCanWriteToStillWorks(string $serviceMethod, \Closure $call): void {
+		$this->service->expects($this->once())->method($serviceMethod)->willReturn(
+			in_array($serviceMethod, ['markUnpaid', 'undoSkip'], true) ? new Bill() : []
+		);
+
+		$this->assertSame(Http::STATUS_OK, $call($this->controllerForWendy($this->owensBill(1)))->getStatus());
+	}
+
+	public function testABillWithNoAccountIsPaidOnTheBillsShareAlone(): void {
+		$this->service->expects($this->once())->method('markPaid')->willReturn([]);
+
+		$this->assertSame(Http::STATUS_OK, $this->controllerForWendy($this->owensBill(null))->markPaid(7)->getStatus());
+	}
+
 	public function testCreateFromDetectedRefusesAnAccountTheUserCannotPostTo(): void {
 		$this->mockInput(json_encode([
 			'bills' => [
