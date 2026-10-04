@@ -2838,11 +2838,16 @@ export default class AccountsModule {
         return inCredit ? Math.abs(typed) : -Math.abs(typed);
     }
 
-    /** Refresh the read-only Current Balance field from the typed opening balance. */
+    /**
+     * Refresh the read-only Current Balance field from the typed opening
+     * balance. Editing only: on a new account that field is the starting
+     * balance being typed, and the hidden opening balance (0) overwrote it
+     * whenever the type, currency or "in credit" changed.
+     */
     updateOpeningBalancePreview() {
         const field = document.getElementById('account-opening-balance');
         const balanceField = document.getElementById('account-balance');
-        if (!field || !balanceField) {
+        if (!field || !balanceField || !document.getElementById('account-id')?.value) {
             return;
         }
         const netChange = parseFloat(field.dataset.netChange) || 0;
