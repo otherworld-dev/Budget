@@ -457,19 +457,19 @@ class MigrationService {
 				throw new \RuntimeException('Failed to create ZIP archive');
 			}
 
-			$result = [
+			return [
 				'path' => $zipPath,
 				'filename' => 'budget_export_' . date('Y-m-d_His') . '.zip',
 				'contentType' => 'application/zip',
 			];
-			$zipPath = null;
-			return $result;
+		} catch (\Throwable $e) {
+			if ($zipPath !== null) {
+				@unlink($zipPath);
+			}
+			throw $e;
 		} finally {
 			foreach ($parts as $path) {
 				@unlink($path);
-			}
-			if ($zipPath !== null) {
-				@unlink($zipPath);
 			}
 		}
 	}
@@ -2527,14 +2527,16 @@ class MigrationService {
 			}
 		}
 		if (($config->settings ?? null) instanceof \stdClass) {
-			foreach (get_object_vars($config->settings) as $name => $setting) {
+			foreach ((array)$config->settings as $name => $setting) {
+				// A numeric property name comes back as an int key
+				$name = (string)$name;
 				if ($name === 'accountsTile' && $setting instanceof \stdClass) {
 					foreach (['order', 'hidden'] as $list) {
 						if (isset($setting->{$list}) && is_array($setting->{$list})) {
 							$setting->{$list} = $this->restoredSettingIds($setting->{$list}, 'accounts', $idMaps);
 						}
 					}
-				} elseif (str_contains((string)$name, 'account') && str_ends_with((string)$name, '-select') && is_numeric($setting)) {
+				} elseif (str_contains($name, 'account') && str_ends_with($name, '-select') && is_numeric($setting)) {
 					$id = $this->restoredSettingId((int)$setting, 'accounts', $idMaps);
 					if ($id === null) {
 						unset($config->settings->{$name});
