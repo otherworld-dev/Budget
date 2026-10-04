@@ -540,6 +540,53 @@ class SharedExpenseServiceTest extends TestCase {
 		$this->service->settleWithContact('user1', 1, '2026-03-08');
 	}
 
+	/**
+	 * Settling a selection that spans two people recorded the whole sum
+	 * against the first one: one was shown as paid what both owed, the other
+	 * as having paid nothing.
+	 */
+	public function testSettleSelectedRecordsWhatEachPersonPaid(): void {
+		$doraGbp = $this->makeShare(6, 30.0, false, 5);
+		$doraGbp->setCurrency('GBP');
+		$walt = $this->makeShare(7, 40.0, false, 4);
+		$walt->setCurrency('GBP');
+		$doraUsd = $this->makeShare(8, 50.0, false, 5);
+		$doraUsd->setCurrency('USD');
+		$shares = [6 => $doraGbp, 7 => $walt, 8 => $doraUsd];
+		$this->expenseShareMapper->method('find')->willReturnCallback(fn (int $id) => $shares[$id]);
+		$this->expenseShareMapper->method('update')->willReturnArgument(0);
+		$this->contactMapper->method('find')->willReturnCallback(fn (int $id) => $this->makeContact($id));
+		$recorded = [];
+		$this->settlementMapper->method('insert')->willReturnCallback(function (Settlement $s) use (&$recorded) {
+			$recorded[] = [$s->getContactId(), $s->getCurrency(), $s->getAmount()];
+			return $s;
+		});
+
+		$this->service->settleSelectedShares('user1', [6, 7, 8], '2026-10-04');
+
+		$this->assertEqualsCanonicalizing([[5, 'GBP', 30.0], [5, 'USD', 50.0], [4, 'GBP', 40.0]], $recorded);
+		$this->assertTrue($doraGbp->getIsSettled() && $walt->getIsSettled() && $doraUsd->getIsSettled());
+	}
+
+	public function testSettleSelectedChangesNothingWhenOneIsNotTheUsers(): void {
+		$mine = $this->makeShare(6, 30.0, false, 5);
+		$this->expenseShareMapper->method('find')->willReturnCallback(function (int $id) use ($mine) {
+			if ($id !== 6) {
+				throw new DoesNotExistException('not yours');
+			}
+			return $mine;
+		});
+		$this->expenseShareMapper->expects($this->never())->method('update');
+		$this->settlementMapper->expects($this->never())->method('insert');
+
+		try {
+			$this->service->settleSelectedShares('user1', [6, 99], '2026-10-04');
+			$this->fail('expected a refusal');
+		} catch (DoesNotExistException $e) {
+			$this->assertFalse($mine->getIsSettled());
+		}
+	}
+
 	// ===== getBalanceSummary =====
 
 	public function testGetBalanceSummaryCalculatesDirections(): void {

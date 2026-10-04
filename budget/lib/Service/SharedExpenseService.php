@@ -489,10 +489,17 @@ class SharedExpenseService {
 	}
 
 	/**
-	 * Settle selected shares by ID, creating per-currency settlements.
+	 * Settle selected shares by ID, creating one settlement per person and
+	 * currency.
+	 *
+	 * A selection spanning two people was recorded in one sum against the
+	 * first of them. Every id is looked up before anything changes: one that
+	 * wasn't the user's came after the shares before it were already marked
+	 * settled. A share already settled, or picked twice, counts once.
 	 *
 	 * @param int[] $shareIds
-	 * @return Settlement[] One settlement per currency
+	 * @return Settlement[] One settlement per person and currency
+	 * @throws DoesNotExistException when a share is not the user's
 	 */
 	public function settleSelectedShares(
 		string $userId,
@@ -500,23 +507,37 @@ class SharedExpenseService {
 		string $date,
 		?string $notes = null,
 	): array {
-		$contactId = null;
-		$byCurrency = [];
-
-		foreach ($shareIds as $shareId) {
+		$shares = [];
+		foreach (array_unique(array_map('intval', $shareIds)) as $shareId) {
 			$share = $this->expenseShareMapper->find($shareId, $userId);
-			if ($contactId === null) {
-				$contactId = $share->getContactId();
+			if (!$share->getIsSettled()) {
+				$shares[] = $share;
 			}
+		}
+
+		$totals = [];
+		foreach ($shares as $share) {
 			$currency = $share->getCurrency() ?? 'USD';
-			$byCurrency[$currency] = ($byCurrency[$currency] ?? 0.0) + $share->getAmount();
-			$share->setIsSettled(true);
-			$this->expenseShareMapper->update($share);
+			$contactId = $share->getContactId();
+			$totals[$contactId][$currency] = MoneyCalculator::add($totals[$contactId][$currency] ?? '0', (float)$share->getAmount());
 		}
 
 		$settlements = [];
-		foreach ($byCurrency as $currency => $total) {
-			$settlements[] = $this->recordSettlement($userId, $contactId, $total, $date, $notes, $currency);
+		$this->db->beginTransaction();
+		try {
+			foreach ($shares as $share) {
+				$share->setIsSettled(true);
+				$this->expenseShareMapper->update($share);
+			}
+			foreach ($totals as $contactId => $byCurrency) {
+				foreach ($byCurrency as $currency => $total) {
+					$settlements[] = $this->recordSettlement($userId, (int)$contactId, MoneyCalculator::toFloat($total), $date, $notes, (string)$currency);
+				}
+			}
+			$this->db->commit();
+		} catch (\Throwable $e) {
+			$this->db->rollBack();
+			throw $e;
 		}
 
 		return $settlements;
