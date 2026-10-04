@@ -370,15 +370,15 @@ export default class BillsModule {
                                 ${t('budget', 'Skip')}
                             </button>
                         ` : ''}
-                        ${bill.canMarkUnpaid ? `
+                        ${bill.canMarkUnpaid && row.canWrite ? `
                             <button class="bill-action-btn bill-unpaid-btn" data-bill-id="${bill.id}" title="${t('budget', 'Revert the last payment')}">
                                 <span class="icon-history" aria-hidden="true"></span>
                                 ${t('budget', 'Mark Unpaid')}
                             </button>
                         ` : ''}
-                        <button class="bill-action-btn bill-edit-btn" data-bill-id="${bill.id}" title="${t('budget', 'Edit bill')}" aria-label="${t('budget', 'Edit bill')}">
+                        ${row.canWrite ? `<button class="bill-action-btn bill-edit-btn" data-bill-id="${bill.id}" title="${t('budget', 'Edit bill')}" aria-label="${t('budget', 'Edit bill')}">
                             <span class="icon-rename" aria-hidden="true"></span>
-                        </button>
+                        </button>` : ''}
                         ${bill._shared && !bill._canManage ? '' : `<button class="bill-action-btn bill-delete-btn" data-bill-id="${bill.id}" title="${t('budget', 'Delete bill')}" aria-label="${t('budget', 'Delete bill')}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>`}

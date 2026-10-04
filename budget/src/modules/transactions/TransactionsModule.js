@@ -4554,6 +4554,8 @@ export default class TransactionsModule {
             if (!row || e.target.closest('input, button, a, select, .linked-indicator, .cell-editing, .editing')) return;
             e.preventDefault();
             e.stopPropagation();
+            // A row in an account shared read-only can't be changed
+            if (row.dataset.readOnly) return;
             this.editTransaction(parseInt(row.dataset.transactionId, 10));
         }, true);
 

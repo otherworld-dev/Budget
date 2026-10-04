@@ -25,6 +25,8 @@ export function isClosedAccount(account) {
 /**
  * An account someone shared with you read-only: the server refuses anything
  * posted into it. An account with no _canWrite flag counts as writable.
+ * Shared bills and recurring income carry the same flags, and read the
+ * same way.
  */
 export function isReadOnlyShare(account) {
     return !!(account && account._shared && account._canWrite === false);

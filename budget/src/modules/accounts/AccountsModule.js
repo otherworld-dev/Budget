@@ -1619,6 +1619,8 @@ export default class AccountsModule {
                 if (!window.matchMedia?.(dom.PHONE_CARD_QUERY).matches) return;
                 const row = e.target.closest('tr.transaction-row');
                 if (!row || e.target.closest('input, button, a, select, .linked-indicator')) return;
+                // A row in an account shared read-only can't be changed
+                if (row.dataset.readOnly) return;
                 this.editTransaction(parseInt(row.dataset.transactionId, 10));
             });
         }

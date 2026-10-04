@@ -359,18 +359,18 @@ export default class TransfersModule {
                                 ${t('budget', 'Skip')}
                             </button>
                         ` : ''}
-                        ${transfer.canMarkUnpaid ? `
+                        ${transfer.canMarkUnpaid && row.canWrite ? `
                             <button class="bill-action-btn transfer-unpaid-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Revert the last payment')}">
                                 <span class="icon-history" aria-hidden="true"></span>
                                 ${t('budget', 'Mark Unpaid')}
                             </button>
                         ` : ''}
-                        <button class="bill-action-btn transfer-edit-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Edit transfer')}" aria-label="${t('budget', 'Edit transfer')}">
+                        ${row.canWrite ? `<button class="bill-action-btn transfer-edit-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Edit transfer')}" aria-label="${t('budget', 'Edit transfer')}">
                             <span class="icon-rename" aria-hidden="true"></span>
-                        </button>
-                        <button class="bill-action-btn transfer-delete-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Delete transfer')}" aria-label="${t('budget', 'Delete transfer')}">
+                        </button>` : ''}
+                        ${transfer._shared && !transfer._canManage ? '' : `<button class="bill-action-btn transfer-delete-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Delete transfer')}" aria-label="${t('budget', 'Delete transfer')}">
                             <span class="icon-delete" aria-hidden="true"></span>
-                        </button>
+                        </button>`}
                     </div>
                 </div>
             `;
