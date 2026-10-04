@@ -72,10 +72,10 @@ describe('saveCategoryBudget on a Full control category', () => {
         const mod = makeModule([category]);
         mod._currentMonthHasSnapshot = true;
         mod._effectiveBudgets = {};
-        mod.aggregateParentSpending = () => {};
+        mod.fetchEffectiveBudgets = async () => {};
+        mod.calculateCategorySpending = async () => {};
         mod.renderBudgetTree = () => {};
         mod.updateBudgetSummary = () => {};
-        mod.refreshReadyToAssign = () => {};
         return mod;
     }
 

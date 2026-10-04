@@ -5,6 +5,7 @@
 import { translate as t } from '@nextcloud/l10n';
 import * as formatters from './formatters.js';
 import { scheduleState } from './scheduleStatus.js';
+import { isReadOnlyShare } from './accounts.js';
 
 /**
  * The row follows the next expected occurrence, not the calendar month
@@ -12,13 +13,16 @@ import { scheduleState } from './scheduleStatus.js';
  * payment arrived within the past cycle and the next isn't close yet; Mark
  * Received stays hidden then, so it can't be booked twice by accident. A
  * one-time income that arrived is completed; a paused schedule inactive.
+ * Income shared with you read-only can't be received, skipped or edited:
+ * the server refuses all three.
  *
  * @param {object} income recurring income row
  * @param {string} today Y-m-d, the user's local date
  * @param {object} settings user settings, for date formatting
- * @return {{status: string, statusText: string, dateText: string, canReceive: boolean, canSkip: boolean}}
+ * @return {{status: string, statusText: string, dateText: string, canReceive: boolean, canSkip: boolean, canWrite: boolean}}
  */
 export function incomeRowState(income, today, settings) {
+    const canWrite = !isReadOnlyShare(income);
     const frequency = income.frequency || 'monthly';
     const isActive = income.isActive ?? income.is_active ?? true;
     const isOneTime = frequency === 'one-time';
@@ -44,6 +48,7 @@ export function incomeRowState(income, today, settings) {
             dateText,
             canReceive: false,
             canSkip: false,
+            canWrite,
         };
     }
 
@@ -62,12 +67,13 @@ export function incomeRowState(income, today, settings) {
         })
         : fmt(next);
 
-    const canReceive = key !== 'received';
+    const canReceive = key !== 'received' && canWrite;
     return {
         status: key,
         statusText,
         dateText,
         canReceive,
         canSkip: canReceive && !isOneTime,
+        canWrite,
     };
 }

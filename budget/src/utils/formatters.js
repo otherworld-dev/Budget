@@ -161,6 +161,8 @@ export function currencyDecimals(currency, settings = {}) {
     if (config && config.decimals !== undefined) {
         return config.decimals;
     }
+    // Decimal Places = 0 is a display choice (formatCurrency honours it); an
+    // amount field still takes pence, or 12.99 could not be entered at all.
     return parseInt(settings.number_format_decimals) || 2;
 }
 
@@ -179,8 +181,10 @@ export function currencyStep(currency, settings = {}) {
 export function formatCurrency(amount, currency, settings) {
     const currencyCode = currency || getPrimaryCurrency([], settings);
     const config = CURRENCY_CONFIG[currencyCode] || { symbol: currencyCode, position: 'prefix' };
-    // Use currency-native decimals for crypto, user setting for fiat
-    const decimals = config.decimals !== undefined ? config.decimals : (parseInt(settings.number_format_decimals) || 2);
+    // Use currency-native decimals for crypto, user setting for fiat. A
+    // setting of 0 is a choice, not "unset": `parseInt(...) || 2` read it as 2.
+    const chosen = parseInt(settings?.number_format_decimals, 10);
+    const decimals = config.decimals !== undefined ? config.decimals : (Number.isNaN(chosen) ? 2 : chosen);
     const decimalSep = settings.number_format_decimal_sep || '.';
     const thousandsSep = settings.number_format_thousands_sep ?? ',';
 
@@ -461,8 +465,9 @@ export function getPeriodDateRange(period, startDay = 1, referenceDate = null) {
                 const nextMonth = now.getMonth() + 1;
                 const daysInNextMonth = new Date(now.getFullYear(), nextMonth + 1, 0).getDate();
                 const nextStartDay = Math.min(startDay, daysInNextMonth);
-                const nextPeriodStart = new Date(now.getFullYear(), nextMonth, nextStartDay);
-                periodEnd = new Date(nextPeriodStart.getTime() - 86400000);
+                // The calendar day before, not 24 hours before: a clocks-
+                // forward day is 23 hours long, and that lost a day
+                periodEnd = new Date(now.getFullYear(), nextMonth, nextStartDay - 1);
             } else {
                 // Period started last month
                 const prevMonth = now.getMonth() - 1;
@@ -470,9 +475,8 @@ export function getPeriodDateRange(period, startDay = 1, referenceDate = null) {
                 const prevStartDay = Math.min(startDay, daysInPrevMonth);
                 periodStart = new Date(now.getFullYear(), prevMonth, prevStartDay);
 
-                // End is day before start day this month
-                const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), effectiveStartDay);
-                periodEnd = new Date(thisMonthStart.getTime() - 86400000);
+                // End is the calendar day before this month's start day
+                periodEnd = new Date(now.getFullYear(), now.getMonth(), effectiveStartDay - 1);
             }
 
             const label = periodStart.toLocaleDateString(userLocale(), { month: 'short', day: 'numeric' })

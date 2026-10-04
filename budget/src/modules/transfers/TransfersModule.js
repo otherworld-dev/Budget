@@ -14,7 +14,7 @@ import { isoWeekday } from '../../utils/helpers.js';
 import { apiFetch } from '../../utils/api.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { showLoadError } from '../../utils/loading.js';
-import { openAccounts, pickableAccounts, accountOptionLabel, accountCurrency } from '../../utils/accounts.js';
+import { openAccounts, pickableAccounts, accountOptionLabel, accountCurrency, linkableCandidates } from '../../utils/accounts.js';
 import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
 
 /**
@@ -359,18 +359,18 @@ export default class TransfersModule {
                                 ${t('budget', 'Skip')}
                             </button>
                         ` : ''}
-                        ${transfer.canMarkUnpaid ? `
+                        ${transfer.canMarkUnpaid && row.canWrite ? `
                             <button class="bill-action-btn transfer-unpaid-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Revert the last payment')}">
                                 <span class="icon-history" aria-hidden="true"></span>
                                 ${t('budget', 'Mark Unpaid')}
                             </button>
                         ` : ''}
-                        <button class="bill-action-btn transfer-edit-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Edit transfer')}" aria-label="${t('budget', 'Edit transfer')}">
+                        ${row.canWrite ? `<button class="bill-action-btn transfer-edit-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Edit transfer')}" aria-label="${t('budget', 'Edit transfer')}">
                             <span class="icon-rename" aria-hidden="true"></span>
-                        </button>
-                        <button class="bill-action-btn transfer-delete-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Delete transfer')}" aria-label="${t('budget', 'Delete transfer')}">
+                        </button>` : ''}
+                        ${transfer._shared && !transfer._canManage ? '' : `<button class="bill-action-btn transfer-delete-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Delete transfer')}" aria-label="${t('budget', 'Delete transfer')}">
                             <span class="icon-delete" aria-hidden="true"></span>
-                        </button>
+                        </button>`}
                     </div>
                 </div>
             `;
@@ -960,8 +960,10 @@ export default class TransfersModule {
             // page does. Booking a new pair moved the money a second time.
             let choice = { action: 'create' };
             if (transfer.accountId || transfer.account_id) {
-                const candidates = await apiFetch(`/apps/budget/api/bills/${transferId}/matching-transactions`)
+                const found = await apiFetch(`/apps/budget/api/bills/${transferId}/matching-transactions`)
                     .catch(() => null);
+                // Only rows the payment can be linked to
+                const candidates = found ? linkableCandidates(found, this.accounts) : null;
                 if (candidates && candidates.length > 0) {
                     choice = await showMatchingTransactionDialog(transfer, candidates, this.settings);
                     if (choice === null) {
@@ -1026,20 +1028,22 @@ export default class TransfersModule {
                 method: 'POST',
                 errorMessage: t('budget', 'Failed to skip transfer'),
             });
-            this._undoData = {
+            const undoData = {
                 transferId,
                 previousNextDueDate: result.previousNextDueDate ?? null,
                 action: 'skip'
             };
+            this._undoData = undoData;
 
             await this.loadTransfers();
             this.renderTransfers();
             this.updateSummary();
 
+            // The toast undoes this skip, whatever was done since
             showUndoNotification(
                 t('budget', 'Payment skipped. Advanced to next due date.'),
-                () => this.undoSkipTransfer(),
-                () => { this._undoData = null; }
+                () => this.undoSkipTransfer(undoData),
+                () => this._dropUndo(undoData)
             );
         } catch (error) {
             console.error('Failed to skip transfer:', error);
@@ -1047,20 +1051,34 @@ export default class TransfersModule {
         }
     }
 
-    async undoSkipTransfer() {
-        if (!this._undoData || this._undoData.action !== 'skip') {
+    /**
+     * An undo toast ran out: its action can't be undone any more. A later
+     * action may have replaced the latest undo data; only drop our own.
+     */
+    _dropUndo(undoData) {
+        undoData.spent = true;
+        if (this._undoData === undoData) this._undoData = null;
+    }
+
+    /**
+     * @param {object} undoData - The skip to undo; each toast passes its own,
+     *   so an older toast never reverts a later action
+     */
+    async undoSkipTransfer(undoData = this._undoData) {
+        if (!undoData || undoData.spent || undoData.action !== 'skip') {
             return;
         }
+        undoData.spent = true;
 
         try {
-            const { transferId, previousNextDueDate } = this._undoData;
+            const { transferId, previousNextDueDate } = undoData;
 
             await apiFetch(`/apps/budget/api/bills/${transferId}/undo-skip`, {
                 method: 'POST',
                 body: { previousNextDueDate },
             });
 
-            this._undoData = null;
+            if (this._undoData === undoData) this._undoData = null;
             await this.loadTransfers();
             this.renderTransfers();
             this.updateSummary();

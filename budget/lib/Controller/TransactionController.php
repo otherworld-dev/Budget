@@ -110,14 +110,19 @@ class TransactionController extends Controller {
 			$visibleAccountIds = $this->getEffectiveAccountIds((bool)$excludeShared);
 			$result = $this->service->findWithFilters($this->userId, $filters, $limit, $offset, $visibleAccountIds);
 
+			$transactions = TransactionService::hideUnseenLinkedAccounts(
+				$result['transactions'],
+				$this->getVisibleAccountIds()
+			);
 			$responseData = [
-				'transactions' => TransactionService::hideUnseenLinkedAccounts(
-					$result['transactions'],
-					$this->getVisibleAccountIds()
-				),
+				'transactions' => $transactions,
 				'total' => $result['total'],
 				'page' => $page,
-				'totalPages' => ceil($result['total'] / $limit)
+				'totalPages' => ceil($result['total'] / $limit),
+				// The page's tags, keyed by transaction id: the list fetched
+				// them with one request per row. The rows are the ones the
+				// user may see, so their tags are too.
+				'tags' => (object)$this->tagService->getTagsForTransactions(array_column($transactions, 'id')),
 			];
 
 			if (isset($result['runningBalances'])) {

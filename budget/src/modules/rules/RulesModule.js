@@ -6,6 +6,7 @@ import * as dom from '../../utils/dom.js';
 import { CriteriaBuilder, patternText } from './components/CriteriaBuilder.js';
 import { ActionBuilder } from './components/ActionBuilder.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { showLoadError } from '../../utils/loading.js';
@@ -848,11 +849,13 @@ export default class RulesModule {
             tagSetsWithGlobal.unshift({ id: 'global', name: t('budget', 'Tags'), tags: globalTags });
         }
 
-        // Create new ActionBuilder instance with app data
+        // Create new ActionBuilder instance with app data. Set Account may
+        // only name the rule owner's own accounts (a new rule is yours).
         this.actionBuilder = new ActionBuilder(container, initialActions, {
             categories: this.categories,
             categoryTree: this.app.categoryTree,
             accounts: this.accounts,
+            accountOwner: this.currentRule?.userId || null,
             tagSets: tagSetsWithGlobal
         });
     }
@@ -1198,7 +1201,12 @@ export default class RulesModule {
         previewSection.style.display = 'block';
     }
 
-    async saveRule() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveRule() {
+        return once('rule-save', document.querySelector('#rule-form [type="submit"]'), () => this._saveRule());
+    }
+
+    async _saveRule() {
         const ruleId = document.getElementById('rule-id').value;
         const isEdit = !!ruleId;
 

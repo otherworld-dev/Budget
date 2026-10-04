@@ -5,6 +5,7 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import Chart from '../../utils/chart.js';
@@ -353,7 +354,12 @@ export default class AssetsModule {
         modal.setAttribute('aria-hidden', 'true');
     }
 
-    async saveAsset() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveAsset() {
+        return once('asset-save', document.querySelector('#asset-form [type="submit"]'), () => this._saveAsset());
+    }
+
+    async _saveAsset() {
         const form = document.getElementById('asset-form');
         const formData = new FormData(form);
         const assetId = formData.get('id');
@@ -668,7 +674,12 @@ export default class AssetsModule {
         modal.setAttribute('aria-hidden', 'true');
     }
 
-    async saveValueUpdate() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveValueUpdate() {
+        return once('asset-value-save', document.querySelector('#asset-value-form [type="submit"]'), () => this._saveValueUpdate());
+    }
+
+    async _saveValueUpdate() {
         const form = document.getElementById('asset-value-form');
         const formData = new FormData(form);
         const assetId = formData.get('assetId');

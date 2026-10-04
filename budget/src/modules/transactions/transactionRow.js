@@ -16,6 +16,24 @@
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { escapeHtml } from '../../utils/dom.js';
 import { hasSplitPortion, transactionDisplayAmount } from '../../utils/helpers.js';
+import { isReadOnlyShare } from '../../utils/accounts.js';
+
+/**
+ * The items of a main-list row's ⋮ menu, in order. A transaction in an
+ * account shared with you read-only can't be changed (the server refuses),
+ * so it keeps only Share expense, which is your own record rather than a
+ * change to the row.
+ *
+ * @param {object} tx - Transaction row as the API returns it
+ * @param {object|undefined} account - The row's account
+ * @returns {Array<'duplicate'|'share'|'match'|'unlink'|'delete'>}
+ */
+export function transactionMenuActions(tx, account) {
+    if (isReadOnlyShare(account)) {
+        return ['share'];
+    }
+    return ['duplicate', 'share', tx?.linkedTransactionId != null ? 'unlink' : 'match', 'delete'];
+}
 
 /**
  * The badges shown under a transaction's description.
@@ -171,9 +189,16 @@ export function renderTransactionRow(tx, ctx) {
     const isScheduled = tx.status === 'scheduled';
     const isLinked = tx.linkedTransactionId != null;
     const noDescription = t('budget', 'No description');
+    // The checkbox label below is escaped as a whole, so t() neither escapes
+    // nor sanitises the description ("&" showed as "&amp;")
     const amount = transactionAmountParts(tx, currency, formatCurrency);
     const split = isSplit ? splitCategoryParts(tx, currency, formatCurrency) : null;
     const badges = transactionBadges(tx, ctx);
+    // An account shared with you read-only: the server refuses any change
+    // to its rows, so they offer no way to edit or delete one
+    const readOnly = isReadOnlyShare(account);
+    const readOnlyAttr = readOnly ? ' data-read-only="1"' : '';
+    const editable = readOnly ? '' : 'editable-cell';
 
     const rowClasses = ['transaction-row'];
     if (isLinked) rowClasses.push('is-linked');
@@ -189,7 +214,7 @@ export function renderTransactionRow(tx, ctx) {
                 : `<span class="category-name ${category ? '' : 'uncategorized'}">${category ? escapeHtml(category.name) : t('budget', 'Uncategorized')}</span>`;
 
         return `
-            <tr class="${rowClasses.join(' ')}" data-transaction-id="${tx.id}">
+            <tr class="${rowClasses.join(' ')}" data-transaction-id="${tx.id}"${readOnlyAttr}>
                 <td class="date-column">
                     <span class="transaction-date">${formatDate(tx.date)}</span>
                 </td>
@@ -212,12 +237,12 @@ export function renderTransactionRow(tx, ctx) {
                 ${balanceCell(ctx.balance, isScheduled, formatCurrency, currency)}
                 <td class="actions-column">
                     <div class="transaction-actions">
-                        <button class="icon-rename edit-transaction-btn"
+                        ${readOnly ? '' : `<button class="icon-rename edit-transaction-btn"
                                 data-transaction-id="${tx.id}"
                                 title="${t('budget', 'Edit transaction')}" aria-label="${t('budget', 'Edit transaction')}"></button>
                         <button class="icon-delete delete-transaction-btn"
                                 data-transaction-id="${tx.id}"
-                                title="${t('budget', 'Delete transaction')}" aria-label="${t('budget', 'Delete transaction')}"></button>
+                                title="${t('budget', 'Delete transaction')}" aria-label="${t('budget', 'Delete transaction')}"></button>`}
                     </div>
                 </td>
             </tr>
@@ -231,20 +256,20 @@ export function renderTransactionRow(tx, ctx) {
             : `<span class="category-badge cell-display ${category ? 'categorized' : 'uncategorized'}">${category && category.color ? `<span class="category-dot" style="background-color: ${escapeHtml(category.color)}" aria-hidden="true"></span>` : ''}${category ? escapeHtml(category.name) : t('budget', 'Uncategorized')}</span>`;
 
     return `
-        <tr class="${rowClasses.join(' ')}" data-transaction-id="${tx.id}">
+        <tr class="${rowClasses.join(' ')}" data-transaction-id="${tx.id}"${readOnlyAttr}>
             <td class="select-column">
                 <input type="checkbox" class="transaction-checkbox"
-                       aria-label="${escapeHtml(t('budget', 'Select {description}', { description: tx.description || noDescription }, undefined, { escape: false }))}"
+                       aria-label="${escapeHtml(t('budget', 'Select {description}', { description: tx.description || noDescription }, undefined, { escape: false, sanitize: false }))}"
                        data-transaction-id="${tx.id}"
                        ${ctx.selected ? 'checked' : ''}>
             </td>
-            <td class="date-column editable-cell"
+            <td class="date-column ${editable}"
                 data-field="date"
                 data-value="${tx.date}"
                 data-transaction-id="${tx.id}">
                 <span class="cell-display">${formatDate(tx.date)}</span>
             </td>
-            <td class="description-column editable-cell"
+            <td class="description-column ${editable}"
                 data-field="description"
                 data-value="${escapeHtml(tx.description)}"
                 data-transaction-id="${tx.id}">
@@ -254,20 +279,20 @@ export function renderTransactionRow(tx, ctx) {
                     ${badges}
                 </div>
             </td>
-            <td class="vendor-column editable-cell"
+            <td class="vendor-column ${editable}"
                 data-field="vendor"
                 data-value="${escapeHtml(tx.vendor || '')}"
                 data-transaction-id="${tx.id}">
                 <span class="cell-display">${escapeHtml(tx.vendor) || '-'}</span>
             </td>
-            <td class="category-column ${isSplit ? '' : 'editable-cell'}"
+            <td class="category-column ${isSplit ? '' : editable}"
                 data-field="categoryId"
                 data-value="${tx.categoryId || ''}"
                 data-transaction-id="${tx.id}"
                 ${split ? `title="${split.title}"` : ''}>
                 ${categoryContent}
             </td>
-            <td class="tags-column editable-cell"
+            <td class="tags-column ${editable}"
                 data-field="tags"
                 data-value="${(ctx.tagIds || []).join(',')}"
                 data-category-id="${tx.categoryId || ''}"
@@ -276,7 +301,7 @@ export function renderTransactionRow(tx, ctx) {
                     ${ctx.tagsHtml || ''}
                 </span>
             </td>
-            <td class="amount-column ${isSplitPortion ? 'split-portion' : 'editable-cell'}"
+            <td class="amount-column ${isSplitPortion ? 'split-portion' : editable}"
                 data-field="amount"
                 data-value="${tx.amount}"
                 data-type="${tx.type}"
@@ -286,7 +311,7 @@ export function renderTransactionRow(tx, ctx) {
                 ${amount.whole ? `<span class="amount-whole">${t('budget', 'of {total}', { total: amount.whole })}</span>` : ''}
             </td>
             ${balanceCell(ctx.balance, isScheduled, formatCurrency, currency)}
-            <td class="account-column editable-cell"
+            <td class="account-column ${editable}"
                 data-field="accountId"
                 data-value="${tx.accountId}"
                 data-transaction-id="${tx.id}">
@@ -294,12 +319,12 @@ export function renderTransactionRow(tx, ctx) {
             </td>
             <td class="actions-column">
                 <div class="transaction-actions">
-                    <button class="action-btn edit-btn transaction-edit-btn"
+                    ${readOnly ? '' : `<button class="action-btn edit-btn transaction-edit-btn"
                             data-transaction-id="${tx.id}"
                             title="${t('budget', 'Edit transaction')}"
                             aria-label="${t('budget', 'Edit transaction')}">
                         <span class="icon-rename" aria-hidden="true"></span>
-                    </button>
+                    </button>`}
                     <button class="action-btn more-actions-btn"
                             data-transaction-id="${tx.id}"
                             title="${t('budget', 'More actions')}"

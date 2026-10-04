@@ -1,7 +1,7 @@
 import './ActionBuilder.css';
 import { buildCategoryOptionsHtml, escapeHtml } from '../../../utils/dom.js';
 import { offerableTagSets } from '../../../utils/tags.js';
-import { pickableAccounts, accountOptionLabel } from '../../../utils/accounts.js';
+import { ruleTargetAccounts, accountOptionLabel } from '../../../utils/accounts.js';
 import { translate as t } from '@nextcloud/l10n';
 
 /**
@@ -384,8 +384,9 @@ export class ActionBuilder {
 	}
 
 	renderAccountAction(action, index) {
-		// A rule routes NEW transactions, so closed accounts are not offered (#372)
-		const accounts = pickableAccounts(this.options.accounts, action.value);
+		// A rule moves rows only into its owner's own open accounts (#372;
+		// the server refuses any other on save)
+		const accounts = ruleTargetAccounts(this.options.accounts, this.options.accountOwner || null, action.value);
 		return `
 			<div class="form-row">
 				<label>${t('budget', 'Account:')}</label>

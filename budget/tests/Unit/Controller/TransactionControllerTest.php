@@ -195,6 +195,33 @@ class TransactionControllerTest extends TestCase {
 		$this->assertSame([502, null, null], [$rows[1]['linkedTransactionId'], $rows[1]['linkedAccountId'], $rows[1]['linkedAccountName']]);
 	}
 
+	public function testIndexReturnsThePageRowsTagsInOneLookup(): void {
+		$this->service->method('findWithFilters')->willReturn(['transactions' => [
+			['id' => 7, 'accountId' => 1],
+			['id' => 8, 'accountId' => 2],
+		], 'total' => 2]);
+		$tag = new \OCA\Budget\Db\Tag();
+		$tag->setId(3);
+		$tag->setName('Holiday');
+		$this->tagService->expects($this->once())
+			->method('getTagsForTransactions')
+			->with([7, 8])
+			->willReturn([7 => [$tag]]);
+		$this->tagService->expects($this->never())->method('getTransactionTags');
+
+		$data = $this->controller->index()->getData();
+
+		$this->assertEquals((object)[7 => [$tag]], $data['tags']);
+		$this->assertSame('{"7":[{"id":3', substr(json_encode($data['tags']), 0, 13));
+	}
+
+	public function testIndexSendsAnEmptyTagMapAsAnObject(): void {
+		$this->service->method('findWithFilters')->willReturn(['transactions' => [], 'total' => 0]);
+		$this->tagService->method('getTagsForTransactions')->willReturn([]);
+
+		$this->assertSame('{}', json_encode($this->controller->index()->getData()['tags']));
+	}
+
 	public function testIndexHandlesError(): void {
 		$this->service->method('findWithFilters')->willThrowException(new \RuntimeException('error'));
 

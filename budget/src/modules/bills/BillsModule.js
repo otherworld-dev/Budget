@@ -13,7 +13,7 @@ import { apiFetch } from '../../utils/api.js';
 import { isoWeekday } from '../../utils/helpers.js';
 import { showMatchingTransactionDialog } from '../../utils/matchingDialog.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
-import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency } from '../../utils/accounts.js';
+import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency, linkableCandidates } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
 import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
 
@@ -370,15 +370,15 @@ export default class BillsModule {
                                 ${t('budget', 'Skip')}
                             </button>
                         ` : ''}
-                        ${bill.canMarkUnpaid ? `
+                        ${bill.canMarkUnpaid && row.canWrite ? `
                             <button class="bill-action-btn bill-unpaid-btn" data-bill-id="${bill.id}" title="${t('budget', 'Revert the last payment')}">
                                 <span class="icon-history" aria-hidden="true"></span>
                                 ${t('budget', 'Mark Unpaid')}
                             </button>
                         ` : ''}
-                        <button class="bill-action-btn bill-edit-btn" data-bill-id="${bill.id}" title="${t('budget', 'Edit bill')}" aria-label="${t('budget', 'Edit bill')}">
+                        ${row.canWrite ? `<button class="bill-action-btn bill-edit-btn" data-bill-id="${bill.id}" title="${t('budget', 'Edit bill')}" aria-label="${t('budget', 'Edit bill')}">
                             <span class="icon-rename" aria-hidden="true"></span>
-                        </button>
+                        </button>` : ''}
                         ${bill._shared && !bill._canManage ? '' : `<button class="bill-action-btn bill-delete-btn" data-bill-id="${bill.id}" title="${t('budget', 'Delete bill')}" aria-label="${t('budget', 'Delete bill')}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>`}
@@ -1247,8 +1247,10 @@ export default class BillsModule {
 
             // Check for existing matching transactions before creating a new one
             if (bill.accountId || bill.account_id) {
-                const candidates = await apiFetch(`/apps/budget/api/bills/${billId}/matching-transactions`)
+                const found = await apiFetch(`/apps/budget/api/bills/${billId}/matching-transactions`)
                     .catch(() => null);
+                // Only rows the payment can be linked to
+                const candidates = found ? linkableCandidates(found, this.accounts) : null;
 
                 if (candidates) {
                     if (candidates.length > 0) {
@@ -1341,10 +1343,17 @@ export default class BillsModule {
                 ? t('budget', 'Bill marked as paid. Future transaction created.')
                 : t('budget', 'Bill marked as paid. Transaction created.');
         }
-        // A later action may have replaced the undo data; only drop our own
-        showUndoNotification(message, () => this.undoMarkBillPaid(), () => {
-            if (this._undoData === undoData) this._undoData = null;
-        });
+        // The toast undoes this payment, whatever was done since
+        showUndoNotification(message, () => this.undoMarkBillPaid(undoData), () => this._dropUndo(undoData));
+    }
+
+    /**
+     * An undo toast ran out: its action can't be undone any more. A later
+     * action may have replaced the latest undo data; only drop our own.
+     */
+    _dropUndo(undoData) {
+        undoData.spent = true;
+        if (this._undoData === undoData) this._undoData = null;
     }
 
     /**
@@ -1355,20 +1364,25 @@ export default class BillsModule {
         return showMatchingTransactionDialog(bill, candidates, this.settings);
     }
 
-    async undoMarkBillPaid() {
-        if (!this._undoData) {
+    /**
+     * @param {object} undoData - The payment to undo; each toast passes its
+     *   own, so an older toast never reverts a later action
+     */
+    async undoMarkBillPaid(undoData = this._undoData) {
+        if (!undoData || undoData.spent || undoData.action !== 'markPaid') {
             return;
         }
+        undoData.spent = true;
 
         try {
             // The server reverts from the snapshot it stored on the bill
-            const { billId } = this._undoData;
+            const { billId } = undoData;
 
             await apiFetch(`/apps/budget/api/bills/${billId}/undo-paid`, {
                 method: 'POST',
             });
 
-            this._undoData = null;
+            if (this._undoData === undoData) this._undoData = null;
             await this.loadBillsView();
 
             showSuccess(t('budget', 'Action undone'));
@@ -1428,18 +1442,19 @@ export default class BillsModule {
             const result = await apiFetch(`/apps/budget/api/bills/${billId}/skip`, { method: 'POST' });
             const previousNextDueDate = result.previousNextDueDate ?? null;
 
-            this._undoData = {
+            const undoData = {
                 billId: billId,
                 previousNextDueDate: previousNextDueDate,
                 action: 'skip'
             };
+            this._undoData = undoData;
 
             await this.loadBillsView();
 
             showUndoNotification(
                 t('budget', 'Payment skipped. Advanced to next due date.'),
-                () => this.undoSkipPayment(),
-                () => { this._undoData = null; }
+                () => this.undoSkipPayment(undoData),
+                () => this._dropUndo(undoData)
             );
 
         } catch (error) {
@@ -1448,20 +1463,22 @@ export default class BillsModule {
         }
     }
 
-    async undoSkipPayment() {
-        if (!this._undoData || this._undoData.action !== 'skip') {
+    /** @param {object} undoData - The skip to undo (see undoMarkBillPaid) */
+    async undoSkipPayment(undoData = this._undoData) {
+        if (!undoData || undoData.spent || undoData.action !== 'skip') {
             return;
         }
+        undoData.spent = true;
 
         try {
-            const { billId, previousNextDueDate } = this._undoData;
+            const { billId, previousNextDueDate } = undoData;
 
             await apiFetch(`/apps/budget/api/bills/${billId}/undo-skip`, {
                 method: 'POST',
                 body: { previousNextDueDate: previousNextDueDate },
             });
 
-            this._undoData = null;
+            if (this._undoData === undoData) this._undoData = null;
             await this.loadBillsView();
 
             showSuccess(t('budget', 'Action undone'));

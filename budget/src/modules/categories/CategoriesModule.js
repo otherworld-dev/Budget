@@ -4,6 +4,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import Chart from '../../utils/chart.js';
@@ -1541,7 +1542,12 @@ export default class CategoriesModule {
         this.populateCategoryParentDropdown(excludeId ?? null, selectedId ?? null, scope);
     }
 
-    async saveCategory() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveCategory() {
+        return once('category-save', document.querySelector('#category-form [type="submit"]'), () => this._saveCategory());
+    }
+
+    async _saveCategory() {
         const categoryId = document.getElementById('category-id').value;
         const name = document.getElementById('category-name').value.trim();
         const type = document.getElementById('category-type').value;
@@ -2627,25 +2633,15 @@ export default class CategoriesModule {
                 Object.assign(category, updates);
             }
 
-            // Update effective budgets cache locally
-            if (this._effectiveBudgets) {
-                if (!this._effectiveBudgets[categoryId]) {
-                    this._effectiveBudgets[categoryId] = { amount: 0, period: 'monthly' };
-                }
-                if ('budgetAmount' in updates) {
-                    this._effectiveBudgets[categoryId].amount = updates.budgetAmount;
-                }
-                if ('budgetPeriod' in updates) {
-                    this._effectiveBudgets[categoryId].period = updates.budgetPeriod;
-                }
-            }
-
-            // Re-aggregate parent budgets and re-render
-            this.aggregateParentSpending(this.categoryTree || []);
-            this.renderBudgetTree();
+            // Every figure on the page reads the budget available as the
+            // server composed it (with any carryover), so patching the amount
+            // here left Remaining, the parent's total and the summary on the
+            // old budget. Fetch the composed budgets again and redraw, as the
+            // envelope toggle does; that also moves "Ready to assign".
+            await this.fetchEffectiveBudgets();
+            await this.calculateCategorySpending();
+            this._renderBudgetTreeKeepingInput();
             this.updateBudgetSummary();
-            // A budget change moves "Ready to assign"; not awaited
-            this.refreshReadyToAssign();
 
             // Refresh dashboard if currently viewing it
             if (window.location.hash === '' || window.location.hash === '#/dashboard') {
@@ -2657,6 +2653,24 @@ export default class CategoriesModule {
             console.error('Failed to save budget:', error);
             showError(t('budget', 'Failed to update budget: {message}', { message: error.message }));
         }
+    }
+
+    /**
+     * Redraw the budget rows, keeping the budget box being typed in: a save
+     * redraws every row, and after Tab the typing has already moved on to
+     * the next box.
+     */
+    _renderBudgetTreeKeepingInput() {
+        const active = document.activeElement;
+        const typing = active?.classList?.contains('budget-input')
+            ? { id: active.dataset.categoryId, value: active.value }
+            : null;
+        this.renderBudgetTree();
+        if (!typing) return;
+        const input = document.querySelector(`.budget-input[data-category-id="${typing.id}"]`);
+        if (!input || input.disabled) return;
+        input.value = typing.value;
+        input.focus();
     }
 
     updateBudgetSummary() {
@@ -2699,23 +2713,6 @@ export default class CategoriesModule {
         if (countEl) countEl.textContent = categoriesWithBudget;
 
         this.renderReadyToAssign();
-    }
-
-    /**
-     * Re-read the selected month's "Ready to assign" figure after a budget
-     * edit, leaving the locally updated budgets alone.
-     */
-    async refreshReadyToAssign() {
-        const month = this.budgetMonth;
-        try {
-            const data = await apiFetch(`/apps/budget/api/budget-snapshots/${month}/budgets`).catch(() => null);
-            if (!data) return;
-            if (this.budgetMonth !== month) return;
-            this._readyToAssign = data.readyToAssign || null;
-            this.renderReadyToAssign();
-        } catch (error) {
-            console.error('Failed to refresh ready to assign:', error);
-        }
     }
 
     /**

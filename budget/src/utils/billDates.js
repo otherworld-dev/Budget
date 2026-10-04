@@ -4,17 +4,19 @@
 import { translate as t } from '@nextcloud/l10n';
 import * as formatters from './formatters.js';
 import { scheduleState } from './scheduleStatus.js';
+import { isReadOnlyShare } from './accounts.js';
 
 /**
  * Status, date text and actions of a bill or transfer row, from its next
  * occurrence (see scheduleState()). An inactive bill only stays in the list
  * to be reverted (#365): it reads as paid, never with Mark Paid or Skip,
- * which would still execute on it.
+ * which would still execute on it. A bill shared with you read-only can't
+ * be paid, skipped or edited: the server refuses all three.
  *
  * @param {object} bill bill or transfer
  * @param {string} today the user's local date, Y-m-d
  * @param {object} settings user settings, for date formatting
- * @return {{status: string, statusText: string, dateText: string, dueDate: string|null, canPay: boolean, canSkip: boolean}}
+ * @return {{status: string, statusText: string, dateText: string, dueDate: string|null, canPay: boolean, canSkip: boolean, canWrite: boolean}}
  */
 export function billRowState(bill, today, settings) {
     const frequency = bill.frequency || 'monthly';
@@ -37,7 +39,8 @@ export function billRowState(bill, today, settings) {
         'due-soon': t('budget', 'Due Soon'),
         upcoming: t('budget', 'Upcoming'),
     }[key];
-    const canPay = key !== 'paid';
+    const canWrite = !isReadOnlyShare(bill);
+    const canPay = key !== 'paid' && canWrite;
     return {
         status: key,
         statusText,
@@ -45,6 +48,7 @@ export function billRowState(bill, today, settings) {
         dueDate,
         canPay,
         canSkip: canPay && frequency !== 'one-time',
+        canWrite,
         dateUnconfirmed: oneTimeDateUnconfirmed(bill),
     };
 }

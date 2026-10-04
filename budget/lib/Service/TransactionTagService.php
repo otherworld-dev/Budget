@@ -313,6 +313,42 @@ class TransactionTagService {
 	}
 
 	/**
+	 * The tags on each of the given transactions, in two queries for the
+	 * whole set: the transactions list drew a page's tags with one request
+	 * per row. Like getTransactionTagsUnscoped(), the caller must already
+	 * know the user may see these transactions.
+	 *
+	 * @param int[] $transactionIds
+	 * @return array<int, \OCA\Budget\Db\Tag[]> transactionId => its tags by id, for the transactions that have any
+	 */
+	public function getTagsForTransactions(array $transactionIds): array {
+		$tagIdsByTransaction = $this->transactionTagMapper->findTagIdsByTransactions($transactionIds);
+		if ($tagIdsByTransaction === []) {
+			return [];
+		}
+
+		$tags = [];
+		$allTagIds = array_values(array_unique(array_merge(...array_values($tagIdsByTransaction))));
+		foreach (array_chunk($allTagIds, 500) as $chunk) {
+			$tags += $this->tagMapper->findByIds($chunk);
+		}
+
+		$result = [];
+		foreach ($tagIdsByTransaction as $transactionId => $tagIds) {
+			$found = [];
+			foreach ($tagIds as $tagId) {
+				if (isset($tags[$tagId])) {
+					$found[] = $tags[$tagId];
+				}
+			}
+			if ($found !== []) {
+				$result[$transactionId] = $found;
+			}
+		}
+		return $result;
+	}
+
+	/**
 	 * Get tags for a transaction without user ownership check.
 	 * Caller must verify access separately (e.g. via visible account IDs).
 	 */

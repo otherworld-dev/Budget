@@ -141,9 +141,9 @@ export default class IncomeModule {
                                 ${t('budget', 'Skip')}
                             </button>
                         ` : ''}
-                        <button class="income-action-btn income-edit-btn" data-income-id="${income.id}" title="${t('budget', 'Edit income')}" aria-label="${t('budget', 'Edit income')}">
+                        ${row.canWrite ? `<button class="income-action-btn income-edit-btn" data-income-id="${income.id}" title="${t('budget', 'Edit income')}" aria-label="${t('budget', 'Edit income')}">
                             <span class="icon-rename" aria-hidden="true"></span>
-                        </button>
+                        </button>` : ''}
                         ${income._shared && !income._canManage ? '' : `<button class="income-action-btn income-delete-btn" data-income-id="${income.id}" title="${t('budget', 'Delete income')}" aria-label="${t('budget', 'Delete income')}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>`}
@@ -593,11 +593,11 @@ export default class IncomeModule {
             const message = income.accountId
                 ? t('budget', 'Income marked as received. Transaction created.')
                 : t('budget', 'Income marked as received.');
+            // The toast undoes this receipt, whatever was done since
             showUndoNotification(
                 message,
-                () => this.undoMarkReceived(),
-                // A later action may have replaced it; only drop our own
-                () => { if (this._undoData === undoData) this._undoData = null; }
+                () => this.undoMarkReceived(undoData),
+                () => this._dropUndo(undoData)
             );
 
         } catch (error) {
@@ -606,13 +606,27 @@ export default class IncomeModule {
         }
     }
 
-    async undoMarkReceived() {
-        if (!this._undoData || this._undoData.action !== 'markReceived') {
+    /**
+     * An undo toast ran out: its action can't be undone any more. A later
+     * action may have replaced the latest undo data; only drop our own.
+     */
+    _dropUndo(undoData) {
+        undoData.spent = true;
+        if (this._undoData === undoData) this._undoData = null;
+    }
+
+    /**
+     * @param {object} undoData - The receipt to undo; each toast passes its
+     *   own, so an older toast never reverts a later action
+     */
+    async undoMarkReceived(undoData = this._undoData) {
+        if (!undoData || undoData.spent || undoData.action !== 'markReceived') {
             return;
         }
+        undoData.spent = true;
 
         try {
-            const { incomeId } = this._undoData;
+            const { incomeId } = undoData;
 
             // The server puts back the dates and removes the credit it booked
             await apiFetch(`/apps/budget/api/recurring-income/${incomeId}/unreceived`, {
@@ -620,7 +634,7 @@ export default class IncomeModule {
             });
 
             // Clear undo data
-            this._undoData = null;
+            if (this._undoData === undoData) this._undoData = null;
 
             // Reload the view
             await this.loadIncomeView();
@@ -665,9 +679,8 @@ export default class IncomeModule {
 
             showUndoNotification(
                 t('budget', 'Payment skipped. Advanced to next expected date.'),
-                () => this.undoSkipIncome(),
-                // A later action may have replaced it; only drop our own
-                () => { if (this._undoData === undoData) this._undoData = null; }
+                () => this.undoSkipIncome(undoData),
+                () => this._dropUndo(undoData)
             );
         } catch (error) {
             console.error('Failed to skip income:', error);
@@ -675,20 +688,22 @@ export default class IncomeModule {
         }
     }
 
-    async undoSkipIncome() {
-        if (!this._undoData || this._undoData.action !== 'skip') {
+    /** @param {object} undoData - The skip to undo (see undoMarkReceived) */
+    async undoSkipIncome(undoData = this._undoData) {
+        if (!undoData || undoData.spent || undoData.action !== 'skip') {
             return;
         }
+        undoData.spent = true;
 
         try {
-            const { incomeId, previousNextExpectedDate } = this._undoData;
+            const { incomeId, previousNextExpectedDate } = undoData;
 
             await apiFetch(`/apps/budget/api/recurring-income/${incomeId}/undo-skip`, {
                 method: 'POST',
                 body: { previousNextExpectedDate },
             });
 
-            this._undoData = null;
+            if (this._undoData === undoData) this._undoData = null;
             await this.loadIncomeView();
 
             showSuccess(t('budget', 'Action undone'));
