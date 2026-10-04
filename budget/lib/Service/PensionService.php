@@ -673,8 +673,15 @@ class PensionService {
 	private function swapLeg(PensionContribution $contribution, int $oldLegId, int $newLegId, int $accountId): void {
 		$this->db->beginTransaction();
 		try {
-			// Deleting the old leg unlinks the entry from it first
-			$this->transactionService->deleteAsAccountOwner($oldLegId);
+			// What the user added to the app's leg (a receipt, tags, a split
+			// with a contact) moves to the bank's row, and deleting the old
+			// leg unlinks the entry from it first
+			$oldLeg = $this->transactionMapper->findById($oldLegId);
+			$newLeg = $this->transactionMapper->findById($newLegId);
+			if ($oldLeg === null || $newLeg === null) {
+				throw new DoesNotExistException("Pension leg {$oldLegId} or {$newLegId} no longer exists");
+			}
+			$this->transactionService->replaceBookedRow($oldLeg, $newLeg, (string)$contribution->getNote());
 			$contribution->setTransactionId($newLegId);
 			$this->contributionMapper->update($contribution);
 			$owner = $this->accountMapper->findById($accountId)->getUserId();

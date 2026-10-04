@@ -430,7 +430,8 @@ class PensionServiceTest extends TestCase {
 	public function testAnImportedRowReplacesTheLegTheAppBooked(): void {
 		$this->ownAccount();
 		$imported = $this->importedRow(900, '2026-10-02');
-		$this->transactionMapper->method('findById')->with(900)->willReturn($imported);
+		$appLeg = $this->leg(555, 10);
+		$this->transactionMapper->method('findById')->willReturnCallback(fn (int $id) => [900 => $imported, 555 => $appLeg][$id] ?? null);
 		$this->legQueries->method('findAppCreatedLegs')
 			->with(10, '2026-09-27', '2026-10-07')
 			->willReturn([$this->appLeg(555, '2026-10-01', 77)]);
@@ -441,7 +442,8 @@ class PensionServiceTest extends TestCase {
 		$this->contributionMapper->method('findById')->with(77)->willReturn($contribution);
 		$this->pensionMapper->method('find')->willReturn($this->makePension());
 
-		$this->transactionService->expects($this->once())->method('deleteAsAccountOwner')->with(555);
+		// What the user added to the app's leg goes to the bank's row
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')->with($appLeg, $imported);
 		$this->contributionMapper->expects($this->once())->method('update')
 			->with($this->callback(fn (PensionContribution $c) => $c->getTransactionId() === 900));
 		$this->transactionService->expects($this->once())->method('markPensionContribLink')->with(900, 'user1', 77);
@@ -473,7 +475,7 @@ class PensionServiceTest extends TestCase {
 		$imported->setDescription('CAR INSURANCE');
 		$imported->setCategoryId(4);
 		$this->adoptingSetup($imported);
-		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
 
 		$this->assertSame(0, $this->service->adoptImportedDuplicates('user1', [$imported]));
 	}
@@ -482,7 +484,7 @@ class PensionServiceTest extends TestCase {
 		$imported = $this->importedRow(900, '2026-10-05');
 		$imported->setDescription('DIRECT DEBIT');
 		$this->adoptingSetup($imported);
-		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
 
 		$this->assertSame(0, $this->service->adoptImportedDuplicates('user1', [$imported]));
 	}
@@ -492,7 +494,7 @@ class PensionServiceTest extends TestCase {
 		$imported->setDescription('NEST PENSIONS DD');
 		$imported->setCategoryId(4);
 		$this->adoptingSetup($imported, 'Nest');
-		$this->transactionService->expects($this->once())->method('deleteAsAccountOwner')->with(555);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow');
 
 		$this->assertSame(1, $this->service->adoptImportedDuplicates('user1', [$imported]));
 	}
@@ -514,7 +516,7 @@ class PensionServiceTest extends TestCase {
 		$imported->setDescription('AXA123456 PENSION');
 		$imported->setCategoryId(4);
 		$this->adoptingSetup($imported, 'AXA');
-		$this->transactionService->expects($this->once())->method('deleteAsAccountOwner')->with(555);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow');
 
 		$this->assertSame(1, $this->service->adoptImportedDuplicates('user1', [$imported]));
 	}
@@ -524,7 +526,7 @@ class PensionServiceTest extends TestCase {
 		$imported = $this->importedRow(900, '2026-10-02');
 		$this->transactionMapper->method('findById')->willReturn($imported);
 		$this->legQueries->method('findAppCreatedLegs')->willReturn([$this->appLeg(555, '2026-10-01', 77, true)]);
-		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
 
 		$this->assertSame(0, $this->service->adoptImportedDuplicates('user1', [$imported]));
 	}
@@ -542,7 +544,7 @@ class PensionServiceTest extends TestCase {
 		$contribution->setPensionId(1);
 		$this->contributionMapper->method('findById')->willReturn($contribution);
 		$this->pensionMapper->method('find')->willReturn($this->makePension());
-		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
 
 		$this->assertSame(0, $this->service->adoptImportedDuplicates('user1', [$imported]));
 	}

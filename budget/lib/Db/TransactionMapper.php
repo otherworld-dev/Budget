@@ -3137,9 +3137,12 @@ class TransactionMapper extends QBMapper {
 	 * amount between two dates: not linked to another row, not paying a bill,
 	 * not pending.
 	 *
+	 * @param float $margin how far the credit may be from $amount: half a
+	 *                      cent by default, more when the amount is a
+	 *                      conversion the bank made at its own rate
 	 * @return Transaction[] nearest-dated first is up to the caller
 	 */
-	public function findTransferArrivals(int $accountId, float $amount, string $from, string $to): array {
+	public function findTransferArrivals(int $accountId, float $amount, string $from, string $to, float $margin = 0.005): array {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')
 			->from($this->getTableName())
@@ -3151,12 +3154,46 @@ class TransactionMapper extends QBMapper {
 				$qb->expr()->isNull('status'),
 				$qb->expr()->neq('status', $qb->createNamedParameter('scheduled'))
 			))
-			// Decimal amounts compared with a half-cent margin, not as floats
-			->andWhere($qb->expr()->gte('amount', $qb->createNamedParameter(number_format($amount - 0.005, 3, '.', ''))))
-			->andWhere($qb->expr()->lte('amount', $qb->createNamedParameter(number_format($amount + 0.005, 3, '.', ''))))
+			// Decimal amounts compared within a margin, not as floats, at the
+			// column's eight places
+			->andWhere($qb->expr()->gte('amount', $qb->createNamedParameter(number_format($amount - $margin, 8, '.', ''))))
+			->andWhere($qb->expr()->lte('amount', $qb->createNamedParameter(number_format($amount + $margin, 8, '.', ''))))
 			->andWhere($qb->expr()->gte('date', $qb->createNamedParameter($from)))
 			->andWhere($qb->expr()->lte('date', $qb->createNamedParameter($to)))
 			->orderBy('date', 'ASC');
+
+		return $this->findEntities($qb);
+	}
+
+	/**
+	 * Rows a bill booked itself for its payments, of one type, between two
+	 * dates: carrying the bill and the notes it writes, with no import id,
+	 * and not a pending placeholder. These are what the bank's own row of
+	 * the same payment takes the place of.
+	 *
+	 * @param string $notesPrefix the notes the bill writes, e.g.
+	 *                            "Auto-generated transfer:"
+	 * @return Transaction[]
+	 */
+	public function findBookedBillRows(int $billId, string $type, string $notesPrefix, string $from, string $to): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('bill_id', $qb->createNamedParameter($billId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('type', $qb->createNamedParameter($type)))
+			->andWhere($qb->expr()->like('notes', $qb->createNamedParameter($this->db->escapeLikeParameter($notesPrefix) . '%')))
+			->andWhere($qb->expr()->orX(
+				$qb->expr()->isNull('import_id'),
+				$qb->expr()->eq('import_id', $qb->createNamedParameter(''))
+			))
+			->andWhere($qb->expr()->orX(
+				$qb->expr()->isNull('status'),
+				$qb->expr()->neq('status', $qb->createNamedParameter('scheduled'))
+			))
+			->andWhere($qb->expr()->gte('date', $qb->createNamedParameter($from)))
+			->andWhere($qb->expr()->lte('date', $qb->createNamedParameter($to)))
+			->orderBy('date', 'ASC')
+			->addOrderBy('id', 'ASC');
 
 		return $this->findEntities($qb);
 	}

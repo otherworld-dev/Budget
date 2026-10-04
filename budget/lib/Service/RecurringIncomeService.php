@@ -744,6 +744,11 @@ class RecurringIncomeService extends AbstractCrudService {
 			return 0;
 		}
 
+		// Oldest first, whatever order the statement lists them in: the
+		// bank's row of a payment already booked replaces it before a later
+		// row is taken for the next payment (newest-first files left it)
+		usort($transactions, fn ($a, $b) => [(string)$a->getDate(), (int)$a->getId()] <=> [(string)$b->getDate(), (int)$b->getId()]);
+
 		$matched = 0;
 		foreach ($transactions as $transaction) {
 			if ($transaction->getType() !== 'credit' || ($transaction->getStatus() ?? 'cleared') === 'scheduled'
@@ -753,6 +758,13 @@ class RecurringIncomeService extends AbstractCrudService {
 			foreach ($incomes as $key => $income) {
 				if (!$this->creditLooksLikeIncome($income, $transaction)) {
 					continue;
+				}
+				// The bill match runs first and may have taken it as a
+				// transfer's arrival since it was imported
+				$current = $this->transactionService->findTransaction($transaction->getId());
+				if ($current === null || $current->getBillId() !== null || $current->getLinkedTransactionId() !== null
+					|| $current->getPensionContribId() !== null) {
+					break;
 				}
 				try {
 					if ($this->replaceGeneratedCredit($income, $transaction)) {
@@ -794,41 +806,71 @@ class RecurringIncomeService extends AbstractCrudService {
 
 	/** Roughly half an interval either side of an expected date, at most two weeks */
 	private function withinExpectedWindow(RecurringIncome $income, string $date, string $expected): bool {
-		$tolerance = match ($income->getFrequency()) {
+		return abs((strtotime($date) - strtotime($expected)) / 86400) <= self::expectedWindowDays($income->getFrequency());
+	}
+
+	private static function expectedWindowDays(?string $frequency): int {
+		return match ($frequency) {
 			'daily' => 1,
 			'weekly' => 3,
 			'biweekly' => 6,
 			'semi-monthly' => 7,
 			default => 15,
 		};
-		return abs((strtotime($date) - strtotime($expected)) / 86400) <= $tolerance;
 	}
 
 	/**
 	 * Put the bank's row in place of a credit auto-create (or Mark Received)
-	 * already booked for the income's last payment: the app's credit goes,
-	 * the bank's stays, and the income isn't received a second time.
+	 * already booked for one of the income's payments: the app's credit goes,
+	 * the bank's stays, and the income isn't received a second time. What
+	 * the user added to the app's credit (a split with a contact, a receipt,
+	 * tags), and its category, move to the bank's row.
+	 *
+	 * The credit is the app's one nearest the bank row's own date, within
+	 * the income's window of it. Only the last payment's credit used to be
+	 * looked for, so a statement bringing several weeks of auto-created
+	 * wages, or listing the newest first, left the others beside the bank's.
 	 */
 	private function replaceGeneratedCredit(RecurringIncome $income, \OCA\Budget\Db\Transaction $imported): bool {
-		$last = $income->getLastReceivedDate();
-		if ($last === null || $income->getAccountId() === null
-			|| !$this->withinExpectedWindow($income, $imported->getDate(), $last)) {
+		if ($income->getAccountId() === null) {
 			return false;
 		}
+		$days = self::expectedWindowDays($income->getFrequency());
+		$on = new \DateTimeImmutable($imported->getDate());
 		$prefix = 'Auto-generated from income: ' . $income->getName();
-		foreach ($this->transactionService->findGeneratedIncomeCredits((int)$income->getAccountId(), $last, $last) as $generated) {
+		$nearest = null;
+		$rank = null;
+		$candidates = $this->transactionService->findGeneratedIncomeCredits(
+			(int)$income->getAccountId(),
+			$on->modify("-{$days} days")->format('Y-m-d'),
+			$on->modify("+{$days} days")->format('Y-m-d')
+		);
+		foreach ($candidates as $generated) {
+			$amountOff = abs((float)$generated->getAmount() - (float)$imported->getAmount());
 			if ($generated->getId() === $imported->getId() || $generated->getReconciled()
 				|| (string)$generated->getNotes() !== $prefix
-				|| abs((float)$generated->getAmount() - (float)$imported->getAmount()) > (float)$income->getAmount() * 0.2) {
+				|| $amountOff > (float)$income->getAmount() * 0.2) {
 				continue;
 			}
-			$this->transactionService->deleteAsAccountOwner($generated->getId());
-			// The undo snapshot named the credit just removed
+			$thisRank = [abs(strtotime($generated->getDate()) - $on->getTimestamp()), $amountOff];
+			if ($rank === null || $thisRank < $rank) {
+				[$nearest, $rank] = [$generated, $thisRank];
+			}
+		}
+		if ($nearest === null) {
+			return false;
+		}
+
+		$this->transactionService->replaceBookedRow($nearest, $imported, $prefix);
+		// Mark Unreceived can't take back a receipt whose credit is gone
+		$raw = $income->getReceivedUndoState();
+		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
+		$ids = is_array($snapshot) && is_array($snapshot['transactionIds'] ?? null) ? array_map('intval', $snapshot['transactionIds']) : [];
+		if (in_array($nearest->getId(), $ids, true)) {
 			$income->setReceivedUndoState(null);
 			$this->writeFields($income->getId(), $income->getUserId(), ['received_undo_state' => null]);
-			return true;
 		}
-		return false;
+		return true;
 	}
 
 	/**

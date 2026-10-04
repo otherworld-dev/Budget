@@ -561,6 +561,16 @@ class TransactionService {
 			$priced->setAmount($amount);
 			[$withdrawalAmount, $depositAmount] = $this->transferLegAmounts($priced, $userId, $clearedDate);
 			$legAmounts = ['debit' => $withdrawalAmount, 'credit' => $depositAmount];
+		} elseif ($isTransfer && $bill !== null && ($withdrawalLeg = $this->unconvertedPairWithdrawal($allScheduled)) !== null) {
+			// A pair 2.54.0 booked between two currencies carries the
+			// source's number on both legs, and was cleared as it stood:
+			// GBP 100 out, EUR 100 in. Its deposit is converted now, as a
+			// pair booked today is.
+			$priced = clone $bill;
+			$priced->setAmount((float)$withdrawalLeg->getAmount());
+			$priced->setAmountType('fixed');
+			[$withdrawalAmount, $depositAmount] = $this->transferLegAmounts($priced, $userId, $clearedDate);
+			$legAmounts = ['debit' => $withdrawalAmount, 'credit' => $depositAmount];
 		}
 
 		foreach ($allScheduled as $scheduled) {
@@ -571,8 +581,10 @@ class TransactionService {
 				// account — update under the owner (#334).
 				$ownerUserId = $this->accountMapper->findById($scheduled->getAccountId())->getUserId();
 				$updates = ['status' => 'cleared', 'date' => $clearedDate];
-				if ($amount !== null) {
-					$updates['amount'] = $legAmounts[$scheduled->getType()] ?? $amount;
+				if ($legAmounts !== null) {
+					$updates['amount'] = $legAmounts[$scheduled->getType()] ?? $amount ?? $scheduled->getAmount();
+				} elseif ($amount !== null) {
+					$updates['amount'] = $amount;
 				}
 				$updated = $this->update($scheduled->getId(), $ownerUserId, $updates);
 				if ($cleared === null) {
@@ -588,6 +600,34 @@ class TransactionService {
 		}
 
 		return $cleared;
+	}
+
+	/**
+	 * The withdrawal of the pre-booked transfer pair about to be cleared
+	 * (the first row and its partner) when both legs carry the same number
+	 * in two different currencies, as 2.54.0 booked them. Null for any other
+	 * pair, a converted one or one the user put right, which is cleared as
+	 * it stands.
+	 *
+	 * @param Transaction[] $scheduled
+	 */
+	private function unconvertedPairWithdrawal(array $scheduled): ?Transaction {
+		$first = $scheduled[0] ?? null;
+		if ($first === null || $first->getLinkedTransactionId() === null || $this->currencyConversion === null) {
+			return null;
+		}
+		$partner = null;
+		foreach ($scheduled as $row) {
+			if ($row->getId() === $first->getLinkedTransactionId()) {
+				$partner = $row;
+			}
+		}
+		if ($partner === null) {
+			return null;
+		}
+		[$withdrawal, $deposit] = $first->getType() === 'debit' ? [$first, $partner] : [$partner, $first];
+		[$from, $to] = $this->transferCurrencies($withdrawal->getAccountId(), $deposit->getAccountId());
+		return $from !== $to && abs((float)$withdrawal->getAmount() - (float)$deposit->getAmount()) < 0.005 ? $withdrawal : null;
 	}
 
 	/**
@@ -726,6 +766,11 @@ class TransactionService {
 	 * the same bill: a recurring transfer's deposit, or the other side Convert
 	 * to transfer created for a bill's payment. A row of that bill that is
 	 * already gone (deleted by hand, or with its other side) is nothing to do.
+	 * The other side goes only when the app booked it (bookedByApp()): the
+	 * bank's own row, or one the user entered, was linked as the payment and
+	 * records money that really moved, so it stays and only lets go of the
+	 * bill. Mark Unpaid on a transfer paid from the bank's withdrawal deleted
+	 * that withdrawal along with the deposit booked for it.
 	 *
 	 * Goes through delete() and thus deleteWithChildren() — never the mapper
 	 * directly (#359).
@@ -759,10 +804,40 @@ class TransactionService {
 			$partner = $this->mapper->findById($partnerId);
 			if ($partner !== null && $partner->getBillId() === $onlyForBillId
 				&& (!$onlyIfScheduled || ($partner->getStatus() ?? 'cleared') === 'scheduled')) {
-				$this->delete($partnerId, $this->ownerOf($partner));
+				if ($this->bookedByApp($partner)) {
+					$this->delete($partnerId, $this->ownerOf($partner));
+				} else {
+					$this->update($partnerId, $this->ownerOf($partner), ['billId' => null]);
+				}
 			}
 		}
 		return true;
+	}
+
+	/** Notes the app writes on the rows it books for a bill's payment */
+	private const BILL_BOOKED_NOTE_PREFIXES = [
+		'Auto-generated from bill:',
+		'Auto-generated transfer:',
+		// The other side Convert to transfer makes for a bill's payment
+		'Auto-created transfer counterpart',
+	];
+
+	/**
+	 * Whether the app booked this row for a bill, rather than an import or
+	 * bank sync bringing it in or the user entering it. Only such a row may
+	 * go with a bill's revert as the other side of one it deletes.
+	 */
+	private function bookedByApp(Transaction $row): bool {
+		if (($row->getImportId() ?? '') !== '') {
+			return false;
+		}
+		$notes = (string)$row->getNotes();
+		foreach (self::BILL_BOOKED_NOTE_PREFIXES as $prefix) {
+			if (str_starts_with($notes, $prefix)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -794,7 +869,7 @@ class TransactionService {
 			$rows = [$row];
 			if ($row->getLinkedTransactionId() !== null) {
 				$partner = $this->mapper->findById($row->getLinkedTransactionId());
-				if ($partner !== null && $partner->getBillId() === $billId) {
+				if ($partner !== null && $partner->getBillId() === $billId && $this->bookedByApp($partner)) {
 					$rows[] = $partner;
 				}
 			}
@@ -833,6 +908,45 @@ class TransactionService {
 	}
 
 	/**
+	 * What a recurring transfer's withdrawal arrives as in its destination:
+	 * the withdrawal's own amount between accounts in one currency, else that
+	 * amount converted at the bill owner's rate for the withdrawal's day, as
+	 * createFromBill() prices its deposit. The bank's withdrawal is in the
+	 * source's currency, and its number booked as the deposit turned GBP 100
+	 * out into EUR 100 in.
+	 *
+	 * @throws \Exception when no rate between the two currencies is known,
+	 *                    rather than booking the same number in both
+	 */
+	public function transferArrivalAmount(Transaction $withdrawal, Bill $bill): float {
+		$amount = (float)$withdrawal->getAmount();
+		[$from, $to] = $this->transferCurrencies($withdrawal->getAccountId(), (int)$bill->getDestinationAccountId());
+		if ($from === $to || $this->currencyConversion === null) {
+			return $amount;
+		}
+		$converted = $this->currencyConversion->convertBetween($amount, $from, $to, $bill->getUserId(), $withdrawal->getDate());
+		if ($converted === null) {
+			throw new \Exception("No exchange rate between {$from} and {$to} to book transfer {$bill->getName()}");
+		}
+		return round((float)$converted, Currency::decimalsFor($to));
+	}
+
+	/**
+	 * The currencies of a transfer's two accounts. One with no currency set
+	 * counts as the other's, as transferLegAmounts() treats it.
+	 *
+	 * @return array{0: string, 1: string}
+	 */
+	private function transferCurrencies(int $sourceAccountId, int $destinationAccountId): array {
+		$from = strtoupper((string)$this->accountMapper->findById($sourceAccountId)->getCurrency());
+		$to = strtoupper((string)$this->accountMapper->findById($destinationAccountId)->getCurrency());
+		if ($from === '' || $to === '') {
+			return [$from ?: $to, $from ?: $to];
+		}
+		return [$from, $to];
+	}
+
+	/**
 	 * Give a recurring transfer paid by linking its withdrawal the other leg.
 	 *
 	 * Linking only ever touched the withdrawal, so a transfer paid from an
@@ -842,10 +956,20 @@ class TransactionService {
 	 * of the arrival; or failing both, a deposit booked as the destination
 	 * account's owner on the withdrawal's date.
 	 *
+	 * Between two currencies the amount is the withdrawal's converted into
+	 * the destination's (transferArrivalAmount()), and the bank's own credit
+	 * is taken within a tenth of it, the nearest first: the bank converts at
+	 * its own rate, and charges.
+	 *
+	 * @param float|null $arrivalAmount what transferArrivalAmount() priced
+	 *                                  the arrival at, when the caller priced
+	 *                                  it before changing anything
 	 * @return int|null the id of a deposit booked here, so a revert can
 	 *                  remove it; null when an existing row was used
+	 * @throws \Exception when the arrival is between two currencies with no
+	 *                    rate known, before anything is booked
 	 */
-	public function completeTransferPayment(Transaction $withdrawal, Bill $bill): ?int {
+	public function completeTransferPayment(Transaction $withdrawal, Bill $bill, ?float $arrivalAmount = null): ?int {
 		if ($withdrawal->getLinkedTransactionId() !== null) {
 			$partner = $this->mapper->findById($withdrawal->getLinkedTransactionId());
 			if ($partner !== null && $partner->getBillId() === null) {
@@ -858,16 +982,21 @@ class TransactionService {
 			return null;
 		}
 
+		$arrivalAmount ??= $this->transferArrivalAmount($withdrawal, $bill);
+		[$from, $to] = $this->transferCurrencies($withdrawal->getAccountId(), $destination);
+		$margin = ($from === $to || $this->currencyConversion === null) ? 0.005 : abs($arrivalAmount) * 0.1;
 		$on = new \DateTimeImmutable($withdrawal->getDate());
 		$arrivals = $this->mapper->findTransferArrivals(
 			$destination,
-			(float)$withdrawal->getAmount(),
+			$arrivalAmount,
 			$on->modify('-3 days')->format('Y-m-d'),
-			$on->modify('+3 days')->format('Y-m-d')
+			$on->modify('+3 days')->format('Y-m-d'),
+			$margin
 		);
 		if ($arrivals !== []) {
 			usort($arrivals, fn (Transaction $a, Transaction $b)
-				=> abs(strtotime($a->getDate()) - $on->getTimestamp()) <=> abs(strtotime($b->getDate()) - $on->getTimestamp()));
+				=> [abs((float)$a->getAmount() - $arrivalAmount), abs(strtotime($a->getDate()) - $on->getTimestamp())]
+				<=> [abs((float)$b->getAmount() - $arrivalAmount), abs(strtotime($b->getDate()) - $on->getTimestamp())]);
 			$arrival = $arrivals[0];
 			$this->mapper->linkTransactions($withdrawal->getId(), $arrival->getId());
 			$this->update($arrival->getId(), $this->ownerOf($arrival), ['billId' => $bill->getId()]);
@@ -879,7 +1008,7 @@ class TransactionService {
 			accountId: $destination,
 			date: $withdrawal->getDate(),
 			description: $bill->getDescription() ?? '',
-			amount: (float)$withdrawal->getAmount(),
+			amount: $arrivalAmount,
 			type: 'credit',
 			categoryId: $bill->getCategoryId(),
 			vendor: $bill->getName(),
@@ -907,6 +1036,121 @@ class TransactionService {
 	 */
 	public function findGeneratedIncomeCredits(int $accountId, string $from, string $to): array {
 		return $this->mapper->findGeneratedIncomeCredits($accountId, $from, $to);
+	}
+
+	/**
+	 * Credits in an account between two dates, within $margin of an amount,
+	 * that are free to be a transfer's arrival.
+	 *
+	 * @return Transaction[]
+	 */
+	public function findTransferArrivals(int $accountId, float $amount, string $from, string $to, float $margin): array {
+		return $this->mapper->findTransferArrivals($accountId, $amount, $from, $to, $margin);
+	}
+
+	/**
+	 * Debits in an account within $days of a date that no bill pays (or
+	 * only a deleted one): the rows Mark Paid offers to link, as entities.
+	 *
+	 * @return Transaction[]
+	 */
+	public function findUnclaimedDebits(int $accountId, string $date, int $days): array {
+		return $this->mapper->findBillPaymentCandidates($accountId, $date, $days);
+	}
+
+	/**
+	 * Rows a bill booked for its payments between two dates, for matching
+	 * the bank's own row of the same payment.
+	 *
+	 * @return Transaction[]
+	 */
+	public function findBookedBillRows(int $billId, string $type, string $notesPrefix, string $from, string $to): array {
+		return $this->mapper->findBookedBillRows($billId, $type, $notesPrefix, $from, $to);
+	}
+
+	/**
+	 * Let the bank's own row of some money take the place of a row the app
+	 * booked for it, and delete the booked row. The booked row's other side
+	 * (a transfer's withdrawal, when the booked row is its deposit) stays,
+	 * paired with the bank row instead.
+	 *
+	 * What the user added to the booked row moves to the bank row first:
+	 * expense shares (a split with a contact, settled or not), receipts, tags
+	 * and their own notes, and its category when the bank row has none. They
+	 * went with the delete, and a contact's share of a bill showed as settled.
+	 *
+	 * The delete goes through delete(), as the booked row's account owner.
+	 *
+	 * @param string $generatedNotes the notes the app wrote on the booked
+	 *                               row, which aren't the user's to carry
+	 * @param bool $pairWithPartner false when the booked row's other side is
+	 *                              going too and isn't the bank row's: it is
+	 *                              only unlinked, and left to the caller
+	 */
+	public function replaceBookedRow(Transaction $booked, Transaction $bank, string $generatedNotes = '', bool $pairWithPartner = true): void {
+		$this->moveUserAdditions($booked, $bank, $generatedNotes);
+
+		$partnerId = $booked->getLinkedTransactionId();
+		if ($partnerId !== null) {
+			$this->mapper->unlinkTransaction($booked->getId());
+			$current = $this->mapper->findById($bank->getId());
+			if ($pairWithPartner && $current !== null && $current->getLinkedTransactionId() === null) {
+				$this->mapper->linkTransactions($bank->getId(), $partnerId);
+			}
+		}
+		$this->delete($booked->getId(), $this->ownerOf($booked));
+	}
+
+	/**
+	 * Move a booked row's expense shares, receipts and tags to the bank row
+	 * of the same money, add the user's own notes to the bank row's, and
+	 * give an uncategorised bank row the booked row's category.
+	 */
+	private function moveUserAdditions(Transaction $from, Transaction $to, string $generatedNotes): void {
+		$this->expenseShareMapper->moveToTransaction($from->getId(), $to->getId());
+		$this->attachmentMapper->moveToTransaction($from->getId(), $to->getId());
+
+		$tagIds = fn (int $id): array => array_map(fn ($tag) => (int)$tag->getTagId(), $this->transactionTagMapper->findByTransaction($id));
+		$missing = array_values(array_unique(array_diff($tagIds($from->getId()), $tagIds($to->getId()))));
+		if ($missing !== []) {
+			$this->applyTagsToTransaction($to->getId(), $missing);
+		}
+
+		$current = $this->mapper->findById($to->getId()) ?? $to;
+		$updates = [];
+		if ($current->getCategoryId() === null && !$current->getIsSplit()
+			&& $from->getCategoryId() !== null && !$from->getIsSplit()) {
+			$updates['categoryId'] = $from->getCategoryId();
+		}
+		$note = self::userNotes((string)$from->getNotes(), $generatedNotes);
+		if ($note !== '') {
+			$notes = trim((string)$current->getNotes());
+			$updates['notes'] = $notes === '' ? $note : $notes . "\n" . $note;
+		}
+		if ($updates !== []) {
+			$this->update($to->getId(), $this->ownerOf($to), $updates);
+		}
+	}
+
+	/**
+	 * What the user wrote in a booked row's notes: the notes less the text
+	 * the app put there when it booked the row. A bill renamed since wrote
+	 * its old name, so a first line in the app's words is the app's too.
+	 */
+	private static function userNotes(string $notes, string $generated): string {
+		if ($generated !== '' && str_starts_with($notes, $generated)) {
+			$notes = substr($notes, strlen($generated));
+		} else {
+			foreach (array_merge(TransactionMapper::GENERATED_NOTE_PREFIXES, self::BILL_BOOKED_NOTE_PREFIXES) as $prefix) {
+				if (str_starts_with($notes, $prefix)) {
+					$newline = strpos($notes, "\n");
+					$notes = $newline === false ? '' : substr($notes, $newline + 1);
+					break;
+				}
+			}
+		}
+		// The separator the user typed after the app's text
+		return trim(preg_replace('/^[\s\-–—:;,.]+/u', '', $notes) ?? ltrim($notes, " \t\r\n-:;,."));
 	}
 
 	/**

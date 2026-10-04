@@ -764,6 +764,138 @@ class TransactionServiceTest extends TestCase {
 		$this->assertTrue($this->service->deleteAsAccountOwner(58, false, 9));
 	}
 
+	/**
+	 * A transfer paid by linking the bank's withdrawal books its deposit,
+	 * and Mark Unpaid deletes that deposit. The withdrawal is its other
+	 * side and carries the bill, so it went too: the bank's own row.
+	 */
+	public function testARevertKeepsTheBanksOwnRowOfTheOtherSide(): void {
+		$deposit = $this->makeTransaction(['id' => 56, 'accountId' => 20, 'type' => 'credit', 'billId' => 9, 'linkedTransactionId' => 57, 'notes' => 'Auto-generated transfer: Savings']);
+		$withdrawal = $this->makeTransaction(['id' => 57, 'accountId' => 10, 'billId' => 9, 'linkedTransactionId' => 56, 'importId' => 'hash_abc']);
+		$rows = [56 => $deposit, 57 => $withdrawal];
+		$this->mapper->method('findById')->willReturnCallback(fn (int $id) => $rows[$id] ?? null);
+		$this->mapper->method('find')->willReturnCallback(fn (int $id) => $rows[$id]);
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		$this->mapper->expects($this->once())->method('delete')->with($deposit);
+
+		$this->assertTrue($this->service->deleteAsAccountOwner(56, false, 9));
+		$this->assertNull($withdrawal->getBillId(), 'It lets go of the bill instead');
+	}
+
+	public function testARevertTakesTheOtherSideTheAppBookedWithIt(): void {
+		$withdrawal = $this->makeTransaction(['id' => 55, 'billId' => 9, 'linkedTransactionId' => 56, 'notes' => 'Auto-generated transfer: Savings']);
+		$deposit = $this->makeTransaction(['id' => 56, 'accountId' => 20, 'type' => 'credit', 'billId' => 9, 'linkedTransactionId' => 55, 'notes' => 'Auto-generated transfer: Savings']);
+		$counterpart = $this->makeTransaction(['id' => 58, 'billId' => 9, 'linkedTransactionId' => 59, 'notes' => 'Auto-created transfer counterpart']);
+		$payment = $this->makeTransaction(['id' => 59, 'billId' => 9, 'linkedTransactionId' => 58, 'notes' => 'Auto-generated from bill: Card']);
+		$rows = [55 => $withdrawal, 56 => $deposit, 58 => $counterpart, 59 => $payment];
+		$this->mapper->method('findById')->willReturnCallback(fn (int $id) => $rows[$id] ?? null);
+		$this->mapper->method('find')->willReturnCallback(fn (int $id) => $rows[$id]);
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		$deleted = [];
+		$this->mapper->method('delete')->willReturnCallback(function (Transaction $tx) use (&$deleted) {
+			$deleted[] = $tx->getId();
+			return $tx;
+		});
+
+		$this->service->deleteAsAccountOwner(55, false, 9);
+		$this->service->deleteAsAccountOwner(59, false, 9);
+
+		$this->assertSame([55, 56, 59, 58], $deleted);
+	}
+
+	// ===== replaceBookedRow(): the bank's row in the place of the app's =====
+
+	/**
+	 * A booked payment (600) and the bank's row of it (500), served by the
+	 * mapper; the row deleted is recorded.
+	 *
+	 * @return Transaction[] [booked, bank]
+	 */
+	private function bookedAndBankRow(array $booked = [], array $bank = []): array {
+		$bookedRow = $this->makeTransaction(array_merge(['id' => 600, 'billId' => 9, 'notes' => 'Auto-generated from bill: Electric'], $booked));
+		$bankRow = $this->makeTransaction(array_merge(['id' => 500, 'importId' => 'hash_abc'], $bank));
+		$rows = [600 => $bookedRow, 500 => $bankRow];
+		$this->mapper->method('findById')->willReturnCallback(fn (int $id) => $rows[$id] ?? null);
+		$this->mapper->method('find')->willReturnCallback(fn (int $id) => $rows[$id]);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		return [$bookedRow, $bankRow];
+	}
+
+	private function tag(int $tagId): \OCA\Budget\Db\TransactionTag {
+		$tag = new \OCA\Budget\Db\TransactionTag();
+		$tag->setTagId($tagId);
+		return $tag;
+	}
+
+	/**
+	 * Splitting a booked bill with a contact, attaching its invoice or
+	 * tagging it was lost when the bank's row took its place: the shares,
+	 * attachments and tags were deleted with it.
+	 */
+	public function testTheBankRowGetsWhatTheUserAddedToTheBookedRow(): void {
+		[$booked, $bank] = $this->bookedAndBankRow(['categoryId' => 5, 'notes' => 'Auto-generated from bill: Electric - includes the late fee']);
+		$this->expenseShareMapper->expects($this->once())->method('moveToTransaction')->with(600, 500);
+		$this->attachmentMapper->expects($this->once())->method('moveToTransaction')->with(600, 500);
+		$this->transactionTagMapper->method('findByTransaction')
+			->willReturnCallback(fn (int $id) => $id === 600 ? [$this->tag(3), $this->tag(4)] : [$this->tag(4)]);
+		$tagged = [];
+		$this->transactionTagMapper->method('insert')->willReturnCallback(function ($tag) use (&$tagged) {
+			$tagged[] = [$tag->getTransactionId(), $tag->getTagId()];
+			return $tag;
+		});
+		$this->mapper->expects($this->once())->method('delete')->with($booked);
+
+		$this->service->replaceBookedRow($booked, $bank, 'Auto-generated from bill: Electric');
+
+		$this->assertSame([[500, 3]], $tagged, 'Only the tag the bank row lacked');
+		$this->assertSame('includes the late fee', $bank->getNotes());
+		$this->assertSame(5, $bank->getCategoryId());
+	}
+
+	public static function bookedNotes(): array {
+		return [
+			'only what the app wrote' => ['Auto-generated from bill: Electric', null],
+			'the user\'s words after it' => ['Auto-generated from bill: Electric; paid late', 'paid late'],
+			'a renamed bill\'s line and the user\'s' => ["Auto-generated from bill: Power\nPaid by card", 'Paid by card'],
+			'only a renamed bill\'s line' => ['Auto-generated from bill: Power', null],
+			'the user\'s own' => ['Shared with Sam', 'Shared with Sam'],
+		];
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('bookedNotes')]
+	public function testOnlyTheUsersOwnNotesGoToTheBankRow(string $notes, ?string $expected): void {
+		[$booked, $bank] = $this->bookedAndBankRow(['notes' => $notes]);
+
+		$this->service->replaceBookedRow($booked, $bank, 'Auto-generated from bill: Electric');
+
+		$this->assertSame($expected, $bank->getNotes());
+	}
+
+	public function testTheBookedRowsOtherSideIsPairedWithTheBankRow(): void {
+		// The destination's credit taking the booked deposit's place: the
+		// transfer's withdrawal stays and is paired with it
+		[$deposit, $credit] = $this->bookedAndBankRow(['type' => 'credit', 'linkedTransactionId' => 700], ['type' => 'credit']);
+		$this->mapper->expects($this->once())->method('unlinkTransaction')->with(600)
+			->willReturnCallback(fn () => $deposit->setLinkedTransactionId(null) ?? 700);
+		$this->mapper->expects($this->once())->method('linkTransactions')->with(500, 700);
+
+		$this->service->replaceBookedRow($deposit, $credit);
+	}
+
+	public function testAnOtherSideGoingTooIsOnlyLetGo(): void {
+		[$booked, $bank] = $this->bookedAndBankRow(['linkedTransactionId' => 601]);
+		$this->mapper->expects($this->once())->method('unlinkTransaction')->with(600)
+			->willReturnCallback(fn () => $booked->setLinkedTransactionId(null) ?? 601);
+		$this->mapper->expects($this->never())->method('linkTransactions');
+
+		$this->service->replaceBookedRow($booked, $bank, '', false);
+	}
+
 	public function testDeleteAsAccountOwnerThrowsWhenRowIsGone(): void {
 		$this->mapper->method('findById')->willReturn(null);
 
@@ -778,10 +910,12 @@ class TransactionServiceTest extends TestCase {
 	 * the statement.
 	 */
 	public function testCountsTheReconciledRowsABillRevertWouldDelete(): void {
-		$payment = $this->makeTransaction(['id' => 55, 'billId' => 9, 'reconciled' => false, 'linkedTransactionId' => 56]);
-		$deposit = $this->makeTransaction(['id' => 56, 'accountId' => 20, 'billId' => 9, 'reconciled' => true]);
+		$payment = $this->makeTransaction(['id' => 55, 'billId' => 9, 'reconciled' => false, 'linkedTransactionId' => 56, 'notes' => 'Auto-generated transfer: Savings']);
+		$deposit = $this->makeTransaction(['id' => 56, 'accountId' => 20, 'billId' => 9, 'reconciled' => true, 'notes' => 'Auto-generated transfer: Savings']);
 		$otherBill = $this->makeTransaction(['id' => 57, 'billId' => 4, 'reconciled' => true]);
-		$rows = [55 => $payment, 56 => $deposit, 57 => $otherBill];
+		$booked = $this->makeTransaction(['id' => 60, 'accountId' => 20, 'billId' => 9, 'linkedTransactionId' => 61, 'notes' => 'Auto-generated transfer: Savings']);
+		$bankRow = $this->makeTransaction(['id' => 61, 'billId' => 9, 'reconciled' => true, 'linkedTransactionId' => 60, 'importId' => 'hash_abc']);
+		$rows = [55 => $payment, 56 => $deposit, 57 => $otherBill, 60 => $booked, 61 => $bankRow];
 		$this->mapper->method('findById')->willReturnCallback(fn (int $id) => $rows[$id] ?? null);
 
 		// The deposit is counted even when only the withdrawal is named: a
@@ -789,6 +923,8 @@ class TransactionServiceTest extends TestCase {
 		$this->assertSame(1, $this->service->countReconciledBillRows([55], 9));
 		$this->assertSame(1, $this->service->countReconciledBillRows([55, 56, 57, 999], 9));
 		$this->assertSame(0, $this->service->countReconciledBillRows([57], 9));
+		// but not the bank's own row, which the revert leaves in place
+		$this->assertSame(0, $this->service->countReconciledBillRows([60], 9));
 	}
 
 	public function testDetachingABillsPaymentsClearsTheirBillLink(): void {
@@ -1508,7 +1644,8 @@ class TransactionServiceTest extends TestCase {
 
 	public function testABillRevertTakesTheOtherSideOfItsPaymentWithIt(): void {
 		$payment = $this->makeTransaction(['id' => 58, 'accountId' => 10, 'billId' => 9, 'linkedTransactionId' => 59]);
-		$otherSide = $this->makeTransaction(['id' => 59, 'accountId' => 20, 'type' => 'credit', 'billId' => 9]);
+		// What Convert to transfer creates for a bill's payment
+		$otherSide = $this->makeTransaction(['id' => 59, 'accountId' => 20, 'type' => 'credit', 'billId' => 9, 'notes' => 'Auto-created transfer counterpart']);
 		$rows = [58 => $payment, 59 => $otherSide];
 		$this->mapper->method('findById')->willReturnCallback(function (int $id) use (&$rows) {
 			return $rows[$id] ?? null;

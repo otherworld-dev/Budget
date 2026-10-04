@@ -75,6 +75,21 @@ class AttachmentMapper extends QBMapper {
 	}
 
 	/**
+	 * Move every attachment of one transaction, whoever added it, onto
+	 * another: the bank's own row of a payment taking the place of the row
+	 * the app booked for it, in the same account.
+	 *
+	 * @return int how many attachments moved
+	 */
+	public function moveToTransaction(int $fromTransactionId, int $toTransactionId): int {
+		$qb = $this->db->getQueryBuilder();
+		$qb->update($this->getTableName())
+			->set('transaction_id', $qb->createNamedParameter($toTransactionId, IQueryBuilder::PARAM_INT))
+			->where($qb->expr()->eq('transaction_id', $qb->createNamedParameter($fromTransactionId, IQueryBuilder::PARAM_INT)));
+		return $qb->executeStatement();
+	}
+
+	/**
 	 * Delete all attachment rows for a user (factory reset).
 	 */
 	public function deleteAll(string $userId): int {
