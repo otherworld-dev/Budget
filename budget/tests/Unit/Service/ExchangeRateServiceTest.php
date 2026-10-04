@@ -381,6 +381,73 @@ XML;
 
 	// ===== Helpers =====
 
+	// ===== Memo (getValuation: 7,564 queries for one account page) =====
+
+	/**
+	 * The investment valuation converts every row at its own date. A date
+	 * with no rate of its own (a weekend) ran the fallbacks again and fetched
+	 * the ECB 90-day feed again for every row, storing the same ~2,000 rates
+	 * each time. The feed is fetched once, and each date resolved once.
+	 */
+	public function testDatesWithoutARateFetchTheEcbHistoryOnceAndResolveOnce(): void {
+		$saturday = date('Y-m-d', strtotime('last saturday'));
+		$sunday = date('Y-m-d', strtotime($saturday . ' +1 day'));
+		$this->mapper->method('findByDate')->willReturn(null);
+		$this->mapper->expects($this->exactly(2))->method('findClosest')
+			->willReturn($this->makeRateEntity('USD', '1.0800000000', '2026-01-02'));
+		$response = $this->createMock(IResponse::class);
+		$response->method('getBody')->willReturn('<?xml version="1.0"?><Envelope><Cube></Cube></Envelope>');
+		$this->client->expects($this->once())->method('get')->willReturn($response);
+
+		foreach ([$saturday, $saturday, $sunday, $saturday, $sunday] as $date) {
+			$this->assertSame('1.0800000000', $this->service->getRate('USD', $date));
+		}
+	}
+
+	public function testACryptoDateIsAskedOfCoinGeckoOnce(): void {
+		$this->mapper->method('findByDate')->willReturn(null);
+		$this->mapper->method('findClosest')->willReturn($this->makeRateEntity('BTC', '0.0000150000', '2026-01-02'));
+		$this->client->expects($this->once())->method('get')->willThrowException(new \Exception('429 Too Many Requests'));
+
+		$date = date('Y-m-d', strtotime('-10 days'));
+		for ($i = 0; $i < 20; $i++) {
+			$this->assertSame('0.0000150000', $this->service->getRate('BTC', $date));
+		}
+	}
+
+	public function testALocalLookupWithoutTodaysRateRunsItsFallbacksOnce(): void {
+		$this->mapper->expects($this->once())->method('findByDate')->willReturn(null);
+		$this->mapper->expects($this->once())->method('findClosest')
+			->willReturn($this->makeRateEntity('USD', '1.0700000000', '2026-01-01'));
+
+		for ($i = 0; $i < 30; $i++) {
+			$this->assertSame('1.0700000000', $this->service->getRateLocal('USD'));
+		}
+	}
+
+	/**
+	 * A rate stored in the same request or cron run (the daily fetch, a
+	 * historical backfill) is seen by the next lookup.
+	 */
+	public function testAStoredRateIsSeenByTheNextLookup(): void {
+		$stored = null;
+		$this->mapper->method('findByDate')->willReturnCallback(function () use (&$stored) {
+			return $stored;
+		});
+		$this->mapper->method('findClosest')->willReturn($this->makeRateEntity('USD', '1.0700000000', '2026-01-01'));
+		$this->mapper->method('upsert')->willReturnCallback(function ($currency, $rate, $date) use (&$stored) {
+			$stored = $this->makeRateEntity($currency, $rate, $date);
+			return $stored;
+		});
+		$response = $this->createMock(IResponse::class);
+		$response->method('getBody')->willReturn(json_encode(['usd' => ['code' => 'USD', 'rate' => 1.0912]]));
+		$this->client->method('get')->willReturn($response);
+
+		$this->assertSame('1.0700000000', $this->service->getRateLocal('USD'));
+		$this->service->fetchFloatRates();
+		$this->assertSame('1.0912', $this->service->getRateLocal('USD'));
+	}
+
 	private function makeRateEntity(string $currency, string $rate, string $date): ExchangeRate {
 		$entity = new ExchangeRate();
 		$entity->setCurrency($currency);

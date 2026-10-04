@@ -22,6 +22,21 @@ class CurrencyConversionService {
 	private SettingService $settingService;
 	private ManualExchangeRateMapper $manualRateMapper;
 
+	/**
+	 * Bumped by every write to a user's settings or manual rates (the two
+	 * mappers, and UserTableCleaner for reset and restore). The memo below
+	 * holds only what was read since the last bump.
+	 */
+	private static int $userDataVersion = 0;
+
+	private int $memoVersion = -1;
+
+	/** @var array<string, string> user id => base currency */
+	private array $baseCurrencies = [];
+
+	/** @var array<string, array<string, string|null>> user id => currency => manual rate per EUR (null: none) */
+	private array $manualRates = [];
+
 	public function __construct(
 		ExchangeRateService $exchangeRateService,
 		SettingService $settingService,
@@ -166,7 +181,27 @@ class CurrencyConversionService {
 	 * Get the user's base/default currency.
 	 */
 	public function getBaseCurrency(string $userId): string {
-		return $this->settingService->get($userId, 'default_currency') ?? 'GBP';
+		$this->dropStaleMemo();
+		return $this->baseCurrencies[$userId]
+			??= ($this->settingService->get($userId, 'default_currency') ?? 'GBP');
+	}
+
+	/**
+	 * A user's settings or manual rates were written: what this service
+	 * memoized is read again. Reports convert a row at a time, and reading
+	 * the base currency and the manual rates for every conversion cost about
+	 * 3,000 queries for an all-time summary (T6-7).
+	 */
+	public static function userDataChanged(): void {
+		self::$userDataVersion++;
+	}
+
+	private function dropStaleMemo(): void {
+		if ($this->memoVersion !== self::$userDataVersion) {
+			$this->baseCurrencies = [];
+			$this->manualRates = [];
+			$this->memoVersion = self::$userDataVersion;
+		}
 	}
 
 	/**
@@ -241,17 +276,36 @@ class CurrencyConversionService {
 		}
 
 		// Check for user's manual rate override (standing rate, ignores date)
-		$manual = $this->manualRateMapper->findByUserAndCurrency($userId, $currency);
+		$manual = $this->manualRate($currency, $userId);
 		if ($manual !== null) {
-			$rate = $manual->getRatePerEur();
-			// Normalize in case of scientific notation from SQLite
-			if (is_float($rate) || (is_string($rate) && stripos($rate, 'e') !== false)) {
-				return number_format((float)$rate, 10, '.', '');
-			}
-			return (string)$rate;
+			return $manual;
 		}
 
 		// Fall back to automatic rate (FloatRates/CoinGecko/ECB)
 		return $this->exchangeRateService->getRateLocal($currency, $date);
+	}
+
+	/**
+	 * The user's standing rate for a currency, or null when they set none.
+	 * Memoized per user and currency, the absence included.
+	 */
+	private function manualRate(string $currency, string $userId): ?string {
+		$this->dropStaleMemo();
+		if (!array_key_exists($currency, $this->manualRates[$userId] ?? [])) {
+			$manual = $this->manualRateMapper->findByUserAndCurrency($userId, $currency);
+			$rate = null;
+			if ($manual !== null) {
+				$rate = $manual->getRatePerEur();
+				// Normalize in case of scientific notation from SQLite
+				if (is_float($rate) || (is_string($rate) && stripos($rate, 'e') !== false)) {
+					$rate = number_format((float)$rate, 10, '.', '');
+				} else {
+					$rate = (string)$rate;
+				}
+			}
+			$this->manualRates[$userId][$currency] = $rate;
+		}
+
+		return $this->manualRates[$userId][$currency];
 	}
 }

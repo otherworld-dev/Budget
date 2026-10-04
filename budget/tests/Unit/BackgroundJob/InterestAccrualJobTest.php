@@ -14,6 +14,7 @@ use OCP\DB\IResult;
 use OCP\DB\QueryBuilder\IExpressionBuilder;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
+use OCP\IUserManager;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -35,6 +36,8 @@ class InterestAccrualJobTest extends TestCase {
 
 		$container = $this->createMock(ContainerInterface::class);
 		$container->method('get')->willReturnMap([
+			// JobUsers keeps only users Nextcloud still knows
+			[IUserManager::class, $this->createConfiguredMock(IUserManager::class, ['userExists' => true])],
 			[InterestService::class, $this->interestService],
 			[AccountMapper::class, $this->accountMapper],
 			[IDBConnection::class, $this->db],

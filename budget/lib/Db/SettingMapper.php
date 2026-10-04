@@ -4,17 +4,37 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Db;
 
+use OCA\Budget\Service\CurrencyConversionService;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\AppFramework\Db\Entity;
 use OCP\AppFramework\Db\QBMapper;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 
 /**
+ * Every write here tells CurrencyConversionService, which memoizes each
+ * user's base currency for the request.
+ *
  * @template-extends QBMapper<Setting>
  */
 class SettingMapper extends QBMapper {
 	public function __construct(IDBConnection $db) {
 		parent::__construct($db, 'budget_settings', Setting::class);
+	}
+
+	public function insert(Entity $entity): Entity {
+		CurrencyConversionService::userDataChanged();
+		return parent::insert($entity);
+	}
+
+	public function update(Entity $entity): Entity {
+		CurrencyConversionService::userDataChanged();
+		return parent::update($entity);
+	}
+
+	public function delete(Entity $entity): Entity {
+		CurrencyConversionService::userDataChanged();
+		return parent::delete($entity);
 	}
 
 	/**
@@ -77,6 +97,7 @@ class SettingMapper extends QBMapper {
 	 * @return int Number of deleted rows
 	 */
 	public function deleteByKey(string $userId, string $key): int {
+		CurrencyConversionService::userDataChanged();
 		$qb = $this->db->getQueryBuilder();
 
 		$qb->delete($this->getTableName())
@@ -93,6 +114,7 @@ class SettingMapper extends QBMapper {
 	 * @return int Number of deleted rows
 	 */
 	public function deleteAll(string $userId): int {
+		CurrencyConversionService::userDataChanged();
 		$qb = $this->db->getQueryBuilder();
 
 		$qb->delete($this->getTableName())

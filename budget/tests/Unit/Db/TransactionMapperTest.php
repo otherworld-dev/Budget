@@ -1167,17 +1167,22 @@ class TransactionMapperTest extends TestCase {
 	// ===== deleteAll =====
 
 	public function testDeleteAllReturnsAffectedRows(): void {
-		// First call: select IDs returns rows
-		$this->result->method('fetchAll')->willReturn(
-			array_map(fn ($i) => ['id' => $i], range(1, 15))
-		);
-		$this->qb->method('executeQuery')->willReturn($this->result);
-		// Second call: delete by IDs
-		$this->qb->method('executeStatement')->willReturn(15);
+		// One statement, the user's accounts reached through a subquery: no
+		// id list, which broke PostgreSQL past 65,535 bound parameters
+		$this->db->expects($this->once())->method('executeStatement')
+			->with(
+				$this->logicalAnd(
+					$this->stringContains('DELETE FROM *PREFIX*budget_transactions'),
+					$this->stringContains('account_id IN (SELECT id FROM *PREFIX*budget_accounts WHERE user_id = ?)')
+				),
+				['user1']
+			)
+			->willReturn(70001);
+		$this->qb->expects($this->never())->method('executeQuery');
 
 		$count = $this->mapper->deleteAll('user1');
 
-		$this->assertEquals(15, $count);
+		$this->assertSame(70001, $count);
 	}
 
 	// ===== findScheduledDueForTransition =====

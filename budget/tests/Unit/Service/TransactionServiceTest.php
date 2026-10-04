@@ -2034,6 +2034,104 @@ class TransactionServiceTest extends TestCase {
 		$this->assertEquals(1, $result['failed']);
 	}
 
+	/** The service as the container builds it, with a database connection */
+	private function serviceWithConnection(\OCP\IDBConnection $db): TransactionService {
+		return new TransactionService(
+			$this->mapper,
+			$this->accountMapper,
+			$this->transactionTagMapper,
+			$this->splitMapper,
+			$this->expenseShareMapper,
+			$this->createMock(DismissedImportMapper::class),
+			$this->attachmentMapper,
+			$this->createMock(\OCA\Budget\Service\AuditService::class),
+			$this->createMock(\OCA\Budget\Db\PensionContributionMapper::class),
+			$this->userClock,
+			null,
+			$db,
+		);
+	}
+
+	/**
+	 * Each row's delete is a statement per child table, and committed one
+	 * at a time (each flushed to disk on MySQL) 10,000 rows took 56 s (T6-5).
+	 * They now go a chunk of 500 per database transaction.
+	 */
+	public function testBulkDeleteCommitsAChunkOfRowsAtATime(): void {
+		$this->mapper->method('find')->willReturnCallback(fn (int $id) => $this->makeTransaction(['id' => $id]));
+		$this->mapper->method('delete')->willReturnArgument(0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		$db = $this->createMock(\OCP\IDBConnection::class);
+		$open = 0;
+		$deletedWhileOpen = 0;
+		$db->expects($this->exactly(3))->method('beginTransaction')->willReturnCallback(function () use (&$open) {
+			$open++;
+		});
+		$db->expects($this->exactly(3))->method('commit')->willReturnCallback(function () use (&$open) {
+			$open--;
+		});
+		$db->expects($this->never())->method('rollBack');
+		$this->transactionTagMapper->method('deleteByTransaction')->willReturnCallback(function () use (&$open, &$deletedWhileOpen) {
+			$deletedWhileOpen += $open;
+			return 0;
+		});
+
+		$result = $this->serviceWithConnection($db)->bulkDelete('user1', range(1, 1200));
+
+		$this->assertSame(1200, $result['success']);
+		$this->assertSame(0, $result['failed']);
+		$this->assertSame(1200, $deletedWhileOpen, 'every row is deleted inside a chunk transaction');
+	}
+
+	public function testAnIdTheUserCannotSeeStillOnlyFailsItself(): void {
+		$this->mapper->method('find')->willReturnCallback(function (int $id) {
+			if ($id === 999) {
+				throw new DoesNotExistException('Not found');
+			}
+			return $this->makeTransaction(['id' => $id]);
+		});
+		$this->mapper->method('delete')->willReturnArgument(0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		$db = $this->createMock(\OCP\IDBConnection::class);
+		$db->expects($this->once())->method('commit');
+		$db->expects($this->never())->method('rollBack');
+
+		$result = $this->serviceWithConnection($db)->bulkDelete('user1', [1, 999, 3]);
+
+		$this->assertSame(2, $result['success']);
+		$this->assertSame(1, $result['failed']);
+		$this->assertSame(999, $result['errors'][0]['id']);
+	}
+
+	/**
+	 * A database error inside a chunk (a deadlock, or PostgreSQL refusing
+	 * every statement after one fails) voids the whole transaction: the
+	 * chunk is rolled back and done again a row at a time, as it always
+	 * was, so the counts still say what happened.
+	 */
+	public function testAChunkTheDatabaseFailsIsRolledBackAndDoneRowByRow(): void {
+		$this->mapper->method('find')->willReturnCallback(fn (int $id) => $this->makeTransaction(['id' => $id]));
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		$attempts = 0;
+		$this->mapper->method('delete')->willReturnCallback(function (Transaction $tx) use (&$attempts) {
+			$attempts++;
+			if ($attempts === 2) {
+				throw new \OCP\DB\Exception('Deadlock found when trying to get lock');
+			}
+			return $tx;
+		});
+		$db = $this->createMock(\OCP\IDBConnection::class);
+		$db->expects($this->once())->method('beginTransaction');
+		$db->expects($this->never())->method('commit');
+		$db->expects($this->once())->method('rollBack');
+
+		$result = $this->serviceWithConnection($db)->bulkDelete('user1', [1, 2, 3]);
+
+		$this->assertSame(3, $result['success']);
+		$this->assertSame(0, $result['failed']);
+		$this->assertSame(5, $attempts, 'two rows in the rolled-back chunk, then all three again');
+	}
+
 	// ===== findIdsWithFilters() =====
 
 	public function testFindIdsWithFiltersDelegatesToMapper(): void {
@@ -2864,5 +2962,88 @@ class TransactionServiceTest extends TestCase {
 		], [10, 20]);
 
 		$this->assertCount(1, $result['linked']);
+	}
+
+	// ===== findAllForExport =====
+
+	/**
+	 * Rows by id, in the database's order rather than the export's
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function listRows(array $ids): array {
+		$rows = [];
+		foreach (array_reverse($ids) as $id) {
+			$rows[$id] = ['id' => $id, 'isSplit' => false];
+		}
+		return $rows;
+	}
+
+	/**
+	 * The CSV export paged findWithFilters() with OFFSET and counted the
+	 * matches for every page, so each batch sorted the whole ledger again:
+	 * 12 s at 63,000 rows, 107 s at 136,000 (T6-2). It now reads the ordered
+	 * ids once and the rows by id, a batch at a time, in that order.
+	 */
+	public function testExportReadsTheOrderedIdsOnceThenTheRowsInThatOrder(): void {
+		$this->mapper->expects($this->never())->method('findWithFilters');
+		$this->mapper->expects($this->once())->method('findOrderedIdsWithFilters')
+			->with('user1', ['sort' => 'amount'], [1, 2])
+			->willReturn([30, 10, 20, 50, 40]);
+		$fetched = [];
+		$this->mapper->method('findListRowsByIds')
+			->willReturnCallback(function (string $userId, array $ids, ?array $visible) use (&$fetched) {
+				$this->assertSame('user1', $userId);
+				$this->assertSame([1, 2], $visible);
+				$fetched[] = $ids;
+				return $this->listRows($ids);
+			});
+
+		$batches = iterator_to_array($this->service->findAllForExport('user1', ['sort' => 'amount'], [1, 2], 2), false);
+
+		$this->assertSame([[30, 10], [20, 50], [40]], $fetched);
+		$this->assertSame([[30, 10], [20, 50], [40]], array_map(fn (array $b) => array_column($b, 'id'), $batches));
+	}
+
+	public function testExportStillListsARowTheTagFilterRepeats(): void {
+		// Two of the chosen tags on one row join it twice; the export always
+		// listed it twice, and the same file must come out
+		$this->mapper->method('findOrderedIdsWithFilters')->willReturn([7, 7, 3]);
+		$this->mapper->method('findListRowsByIds')
+			->willReturnCallback(fn (string $u, array $ids) => $this->listRows($ids));
+
+		$batches = iterator_to_array($this->service->findAllForExport('user1', ['tagIds' => [1, 2]], null), false);
+
+		$this->assertSame([7, 7, 3], array_column($batches[0], 'id'));
+	}
+
+	public function testExportLeavesOutARowDeletedWhileItRuns(): void {
+		$this->mapper->method('findOrderedIdsWithFilters')->willReturn([5, 6, 7]);
+		$this->mapper->method('findListRowsByIds')
+			->willReturnCallback(fn (string $u, array $ids) => array_diff_key($this->listRows($ids), [6 => true]));
+
+		$batches = iterator_to_array($this->service->findAllForExport('user1', [], null), false);
+
+		$this->assertSame([5, 7], array_column($batches[0], 'id'));
+	}
+
+	public function testExportOfNothingYieldsNoBatch(): void {
+		$this->mapper->method('findOrderedIdsWithFilters')->willReturn([]);
+		$this->mapper->expects($this->never())->method('findListRowsByIds');
+
+		$this->assertSame([], iterator_to_array($this->service->findAllForExport('user1', [], null), false));
+	}
+
+	public function testExportStillAttachesSplitParts(): void {
+		$this->mapper->method('findOrderedIdsWithFilters')->willReturn([9]);
+		$this->mapper->method('findListRowsByIds')->willReturn([9 => ['id' => 9, 'isSplit' => true]]);
+		$this->splitsByTransactionId = [9 => [
+			['id' => 1, 'transactionId' => 9, 'categoryId' => 4, 'categoryName' => 'Food', 'amount' => 6.0, 'description' => null],
+		]];
+
+		$batches = iterator_to_array($this->service->findAllForExport('user1', [], null), false);
+
+		$this->assertTrue($batches[0][0]['isSplit']);
+		$this->assertSame('Food', $batches[0][0]['splitCategories'][0]['categoryName']);
 	}
 }

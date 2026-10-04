@@ -28,6 +28,9 @@ class RepairServiceTest extends TestCase {
 
 	private const USER_ID = 'testuser';
 
+	/** @var list<array{int, string, string}> findByDateRange() calls the ledger answered */
+	private array $dateRangeReads = [];
+
 	protected function setUp(): void {
 		$this->transactionMapper = $this->createMock(TransactionMapper::class);
 		$this->billMapper = $this->createMock(BillMapper::class);
@@ -135,8 +138,21 @@ class RepairServiceTest extends TestCase {
 				&& str_starts_with($t->getNotes() ?? '', 'Auto-generated from bill:') && !$scheduled($t)))
 		);
 		$this->transactionMapper->method('findByDateRange')->willReturnCallback(
-			fn (int $accountId, string $from, string $to) => array_values(array_filter($ledger, fn (Transaction $t) => $t->getAccountId() === $accountId
-				&& $t->getDate() >= $from && $t->getDate() <= $to))
+			function (int $accountId, string $from, string $to) use ($ledger) {
+				$this->dateRangeReads[] = [$accountId, $from, $to];
+				return array_values(array_filter($ledger, fn (Transaction $t) => $t->getAccountId() === $accountId
+					&& $t->getDate() >= $from && $t->getDate() <= $to));
+			}
+		);
+		// As the database answers: plain rows, newest first, then by id
+		$this->transactionMapper->method('findRowsByDateRange')->willReturnCallback(
+			function (int $accountId, string $from, string $to) use ($ledger) {
+				$this->dateRangeReads[] = [$accountId, $from, $to];
+				$rows = array_map(fn (Transaction $t) => self::row($t), array_values(array_filter($ledger,
+					fn (Transaction $t) => $t->getAccountId() === $accountId && $t->getDate() >= $from && $t->getDate() <= $to)));
+				usort($rows, fn (array $a, array $b) => [$b['date'], $b['id']] <=> [$a['date'], $a['id']]);
+				return $rows;
+			}
 		);
 		$this->transactionMapper->method('findRecordedByBillIds')->willReturnCallback(
 			fn (array $billIds) => array_values(array_filter($ledger, fn (Transaction $t) => in_array($t->getBillId(), $billIds, true) && !$scheduled($t)))
@@ -152,6 +168,26 @@ class RepairServiceTest extends TestCase {
 			}
 			return null;
 		});
+	}
+
+	/** A transaction as a database row, as Transaction::fromRow() reads it back */
+	private static function row(Transaction $t): array {
+		return [
+			'id' => $t->getId(),
+			'account_id' => $t->getAccountId(),
+			'category_id' => $t->getCategoryId(),
+			'date' => $t->getDate(),
+			'amount' => $t->getAmount(),
+			'type' => $t->getType(),
+			'status' => $t->getStatus(),
+			'vendor' => $t->getVendor(),
+			'description' => $t->getDescription(),
+			'notes' => $t->getNotes(),
+			'created_at' => $t->getCreatedAt(),
+			'bill_id' => $t->getBillId(),
+			'reconciled' => $t->getReconciled(),
+			'import_id' => $t->getImportId(),
+		];
 	}
 
 	/**
@@ -577,6 +613,53 @@ class RepairServiceTest extends TestCase {
 
 		$result = $this->serviceOn('2026-09-30')->repair(self::USER_ID, ['duplicateTransactions'], ['transactionIds' => [801]]);
 		$this->assertSame(0, $result['duplicateTransactions']['deleted']);
+	}
+
+	/**
+	 * Each generated payment read the rows three days either side of it
+	 * with a query of its own: 859 queries for a long history (T6-9). The
+	 * rows are read once per year of payments now, with the same findings.
+	 */
+	public function testNearbyRowsAreReadOncePerYearOfPaymentsNotPerPayment(): void {
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([$this->makeBill(['id' => 22, 'name' => 'Netflix', 'amount' => '10.99', 'dueDay' => 5,
+			'lastPaidDate' => '2026-12-05', 'nextDueDate' => '2027-01-05'])]);
+		$ledger = [];
+		$expected = [];
+		foreach (['2025', '2026'] as $year) {
+			foreach (range(1, 12) as $month) {
+				$id = 1000 + count($ledger);
+				$ledger[] = $this->billPayment($id, 22, 'Netflix', sprintf('%s-%02d-05', $year, $month), 10.99);
+				$ledger[] = $this->makeTransaction(['id' => $id + 1, 'date' => sprintf('%s-%02d-04', $year, $month), 'amount' => '10.99',
+					'vendor' => 'NETFLIX.COM', 'description' => 'NETFLIX.COM AMSTERDAM', 'importId' => 'csv-' . $id]);
+				$expected[] = [$id, $id + 1];
+			}
+		}
+		$this->withLedger($ledger);
+
+		$found = $this->serviceOn('2026-12-31')->diagnose(self::USER_ID)['duplicateTransactions'];
+
+		$this->assertSame($expected, array_map(fn (array $f) => [$f['duplicateId'], $f['originalId']], $found));
+		$this->assertSame([
+			[1, '2024-12-29', '2026-01-03'],
+			[1, '2025-12-29', '2027-01-03'],
+		], array_values(array_filter($this->dateRangeReads, fn (array $r) => $r[1] <= '2026-12-31')), 'the future-dated check reads from tomorrow on');
+	}
+
+	public function testABankRowOverTheNewYearFromItsPaymentIsStillFound(): void {
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([$this->makeBill(['id' => 25, 'name' => 'Rent', 'amount' => '900.00', 'dueDay' => 1,
+			'lastPaidDate' => '2026-01-01', 'nextDueDate' => '2026-02-01'])]);
+		$this->withLedger([
+			$this->billPayment(901, 25, 'Rent', '2026-01-01', 900.0),
+			$this->makeTransaction(['id' => 902, 'date' => '2025-12-30', 'amount' => '900.00',
+				'vendor' => 'RENT', 'description' => 'RENT JAN', 'importId' => 'csv-9']),
+		]);
+
+		$found = $this->serviceOn('2026-01-31')->diagnose(self::USER_ID)['duplicateTransactions'];
+
+		$this->assertCount(1, $found);
+		$this->assertSame([901, 902], [$found[0]['duplicateId'], $found[0]['originalId']]);
 	}
 
 	// ---------------------------------------------------------------

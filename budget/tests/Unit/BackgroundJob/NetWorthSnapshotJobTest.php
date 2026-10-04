@@ -10,6 +10,7 @@ use OCA\Budget\Service\NetWorthService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJob;
 use OCP\IDBConnection;
+use OCP\IUserManager;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -29,6 +30,8 @@ class NetWorthSnapshotJobTest extends TestCase {
 
 		$container = $this->createMock(ContainerInterface::class);
 		$container->method('get')->willReturnMap([
+			// JobUsers keeps only users Nextcloud still knows
+			[IUserManager::class, $this->createConfiguredMock(IUserManager::class, ['userExists' => true])],
 			[NetWorthService::class, $this->netWorthService],
 			[IDBConnection::class, $this->db],
 			[LoggerInterface::class, $this->logger],

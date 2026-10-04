@@ -100,24 +100,25 @@ class FactoryResetService {
 		// shares that put it there still exist
 		$this->crossUserLinks?->capture($userId);
 
-		// Access goes before the data, and outside its transaction: if the
-		// reset fails part way, a re-created account with this uid must not
-		// be left holding it
-		if ($userDeleted) {
-			$this->shareMapper?->deleteAllForUser($userId);
-			$this->contactMapper?->unlinkNextcloudUser($userId);
-		}
-
 		// A bill can pre-book into another user's account shared with this
 		// one. The transactions delete below only reaches the user's own
 		// accounts, so those pending rows outlived the bill, and the
 		// scheduled job later booked them into the other user's balance.
-		$this->dropPendingBillRows($userId);
+		// Read here; deleted inside the transaction below.
+		$billIds = $this->findBillIds($userId);
 
-		// Use database transaction for atomicity - all deletions succeed or all rollback
+		// One transaction for everything, the deleted user's access included:
+		// a reset or purge that fails part way changes nothing and can simply
+		// be run again. Revoking access first, outside it, left the data of a
+		// failed purge behind with nobody's access to it, and took away the
+		// shared links a second run needed to find what to cut.
 		$this->db->beginTransaction();
 
 		try {
+			foreach ($billIds as $billId) {
+				$this->transactionService?->deleteScheduledBillTransactions($billId);
+			}
+
 			// 1. Every registry table. Join-scoped ones (transaction tags,
 			//    splits, tag sets, dismissed imports) find their rows through
 			//    transactions, accounts and categories, so they go first.
@@ -143,11 +144,20 @@ class FactoryResetService {
 			//    of this user's comes back, so every link is cut
 			$this->crossUserLinks?->apply([]);
 
+			// 6. A deleted user's access to other users' data: the shares
+			//    granted to them and the contacts linked to their uid. Left
+			//    in place, a re-created account with the same uid inherited
+			//    it. Last, so it goes exactly when the data goes.
+			if ($userDeleted) {
+				$this->shareMapper?->deleteAllForUser($userId);
+				$this->contactMapper?->unlinkNextcloudUser($userId);
+			}
+
 			// IMPORTANT: AuditLog is NOT deleted - preserved for compliance
 
 			// Commit the transaction - all deletions were successful
 			$this->db->commit();
-		} catch (\Exception $e) {
+		} catch (\Throwable $e) {
 			// Rollback on any error - ensures no partial deletion
 			$this->db->rollBack();
 			throw $e;
@@ -158,21 +168,26 @@ class FactoryResetService {
 		return $counts;
 	}
 
-	private function dropPendingBillRows(string $userId): void {
+	/**
+	 * The ids of the user's bills, whose pending rows the reset deletes.
+	 * Read before the transaction: a missing table is tolerated here, and on
+	 * PostgreSQL a failed statement inside the transaction would abort it.
+	 *
+	 * @return int[]
+	 */
+	private function findBillIds(string $userId): array {
 		if ($this->transactionService === null) {
-			return;
+			return [];
 		}
 		try {
 			$bills = $this->billMapper->findAll($userId);
 		} catch (\Exception $e) {
 			if (UserTableCleaner::isMissingTable($e)) {
-				return;
+				return [];
 			}
 			throw $e;
 		}
-		foreach ($bills as $bill) {
-			$this->transactionService->deleteScheduledBillTransactions($bill->getId());
-		}
+		return array_map(static fn ($bill) => $bill->getId(), $bills);
 	}
 
 	/**

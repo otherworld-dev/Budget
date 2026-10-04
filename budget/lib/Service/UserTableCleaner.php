@@ -128,6 +128,8 @@ class UserTableCleaner {
 	 * @return array<string, int>
 	 */
 	private function clearTables(string $userId, array $specs, bool $skipMissingTables): array {
+		// The manual rates are among these tables (reset and restore)
+		CurrencyConversionService::userDataChanged();
 		$counts = [];
 		foreach ($specs as $key => $spec) {
 			try {

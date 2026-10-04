@@ -64,42 +64,6 @@
       <code><![CDATA[array_values]]></code>
     </RedundantFunctionCall>
   </file>
-  <file src="lib/Migration/Version001000011Date20260117.php">
-    <UndefinedInterfaceMethod>
-      <code><![CDATA[getConfig]]></code>
-      <code><![CDATA[getDatabaseConnection]]></code>
-    </UndefinedInterfaceMethod>
-  </file>
-  <file src="lib/Migration/Version001000012Date20260117.php">
-    <UndefinedInterfaceMethod>
-      <code><![CDATA[getConfig]]></code>
-      <code><![CDATA[getDatabaseConnection]]></code>
-    </UndefinedInterfaceMethod>
-  </file>
-  <file src="lib/Migration/Version001000015Date20260117.php">
-    <UndefinedInterfaceMethod>
-      <code><![CDATA[getConfig]]></code>
-      <code><![CDATA[getDatabaseConnection]]></code>
-    </UndefinedInterfaceMethod>
-  </file>
-  <file src="lib/Migration/Version001000016Date20260118.php">
-    <UndefinedInterfaceMethod>
-      <code><![CDATA[getConfig]]></code>
-      <code><![CDATA[getDatabaseConnection]]></code>
-    </UndefinedInterfaceMethod>
-  </file>
-  <file src="lib/Migration/Version001000018Date20260118.php">
-    <UndefinedInterfaceMethod>
-      <code><![CDATA[getConfig]]></code>
-      <code><![CDATA[getDatabaseConnection]]></code>
-    </UndefinedInterfaceMethod>
-  </file>
-  <file src="lib/Migration/Version001000028Date20260207.php">
-    <UndefinedInterfaceMethod>
-      <code><![CDATA[getConfig]]></code>
-      <code><![CDATA[getDatabaseConnection]]></code>
-    </UndefinedInterfaceMethod>
-  </file>
   <file src="lib/Migration/Version001000065Date20260521.php">
     <UndefinedInterfaceMethod>
       <code><![CDATA[renameTable]]></code>
