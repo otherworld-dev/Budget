@@ -654,6 +654,60 @@ class AppExportImportTest extends TestCase {
 		$this->assertSame(1, $again['imported']);
 	}
 
+	// ===== a re-exported register (V2-2) =====
+
+	private const MINT_HEADER = "\"Date\",\"Description\",\"Original Description\",\"Amount\",\"Transaction Type\",\"Category\",\"Account Name\",\"Labels\",\"Notes\"\n";
+
+	private function mintRow(string $original): string {
+		return "\"9/01/2026\",\"Netflix\",\"{$original}\",\"9.99\",\"debit\",\"Entertainment\",\"Card\",\"\",\"\"\n";
+	}
+
+	private function importText(string $content, string $presetId): array {
+		$this->fileContent = $content;
+		return $this->service->processImport('user1', self::FILE_ID, [], null, null, true, true, ',', $presetId);
+	}
+
+	/**
+	 * A new charge listed above one already imported, same payee, day and
+	 * amount: the new row took the stored row that belonged to the old one,
+	 * so both were skipped and the new charge was never stored. Each stored
+	 * row now goes to the file row that carries its import id first.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('rowOrders')]
+	public function testANewRowNeverTakesTheStoredRowOfAnOldOne(bool $newFirst): void {
+		$this->importText(self::MINT_HEADER . $this->mintRow('NETFLIX.COM 111'), 'mint');
+		$this->assertCount(1, $this->ledger);
+
+		$rows = [$this->mintRow('NETFLIX.COM 222'), $this->mintRow('NETFLIX.COM 111')];
+		$content = self::MINT_HEADER . implode('', $newFirst ? $rows : array_reverse($rows));
+		$this->fileContent = $content;
+		$preview = $this->service->previewImport('user1', self::FILE_ID, [], null, null, false, ',', 'mint');
+		$again = $this->importText($content, 'mint');
+
+		$this->assertSame(1, $preview['duplicates']);
+		$this->assertSame(1, $again['imported']);
+		$this->assertCount(2, $this->ledger);
+	}
+
+	public static function rowOrders(): array {
+		return ['new row first' => [true], 'old row first' => [false]];
+	}
+
+	/**
+	 * Two payees with the same memo are two transactions: matching on the
+	 * memo alone hid Spotify behind Netflix.
+	 */
+	public function testAMemoAloneDoesNotMakeTwoRowsTheSame(): void {
+		$header = "\"Account\",\"Flag\",\"Date\",\"Payee\",\"Category Group/Category\",\"Category Group\",\"Category\",\"Memo\",\"Outflow\",\"Inflow\",\"Cleared\"\n";
+		$row = fn (string $payee) => "\"Current\",\"\",\"09/01/2026\",\"{$payee}\",\"Bills: Subscriptions\",\"Bills\",\"Subscriptions\",\"Subscription\",\"£9.99\",\"£0.00\",\"Cleared\"\n";
+		$this->importText($header . $row('Netflix'), 'ynab');
+
+		$again = $this->importText($header . $row('Spotify') . $row('Netflix'), 'ynab');
+
+		$this->assertSame(1, $again['imported']);
+		$this->assertSame(['Netflix', 'Spotify'], array_column($this->ledger, 'description'));
+	}
+
 	public function testImportIdsDoNotDependOnTheMappingSentWithTheRequest(): void {
 		$this->fileContent = (string)file_get_contents(self::FIXTURES . 'mint-transactions.csv');
 		$this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', [], null, null, true, true, ',', 'mint');
