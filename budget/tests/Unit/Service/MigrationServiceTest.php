@@ -1362,6 +1362,68 @@ class MigrationServiceTest extends TestCase {
 	}
 
 	/**
+	 * The calendar feed token opens the user's bills feed without a login, so
+	 * it has to be unique. It travelled in backups, and a restore into
+	 * another account (or on another server) duplicated it: the feed then
+	 * answered 404 for both users. It is never exported now.
+	 */
+	public function testTheCalendarFeedTokenIsNeverExported(): void {
+		foreach ([$this->categoryMapper, $this->accountMapper, $this->transactionMapper, $this->billMapper, $this->importRuleMapper] as $mapper) {
+			$mapper->method('findAll')->willReturn([]);
+		}
+		$this->settingMapper->method('findAll')->willReturn([
+			$this->setting('bills_feed_token', str_repeat('a', 64)),
+			$this->setting('default_currency', 'GBP'),
+		]);
+
+		$archive = $this->readTestZip($this->service->exportAll('user1')['content']);
+
+		$this->assertSame(['default_currency' => 'GBP'], json_decode($archive['settings.json'], true));
+		$this->assertSame(1, json_decode($archive['manifest.json'], true)['counts']['settings']);
+	}
+
+	/**
+	 * A token in an older backup is ignored, and the user's own token stays
+	 * through the restore, so their calendar subscription keeps working.
+	 */
+	public function testARestoreIgnoresAnArchivedFeedTokenAndKeepsTheUsersOwn(): void {
+		$zipContent = $this->createTestZip([
+			'manifest.json' => json_encode(['version' => '1.3.0', 'appId' => 'budget']),
+			'categories.json' => '[]',
+			'accounts.json' => '[]',
+			'transactions.json' => '[]',
+			'settings.json' => json_encode(['bills_feed_token' => str_repeat('x', 64), 'default_currency' => 'GBP']),
+		]);
+		foreach ([$this->categoryMapper, $this->accountMapper, $this->transactionMapper, $this->billMapper, $this->importRuleMapper] as $mapper) {
+			$mapper->method('findAll')->willReturn([]);
+		}
+		$this->settingMapper->method('findAll')->with('user1')->willReturn([$this->setting('bills_feed_token', str_repeat('m', 64))]);
+		$inserted = [];
+		$this->settingMapper->method('insert')->willReturnCallback(function (Setting $s) use (&$inserted) {
+			$inserted[$s->getKey()] = $s->getValue();
+			return $s;
+		});
+
+		$this->service->importAll('user1', $zipContent);
+
+		$this->assertSame(['default_currency' => 'GBP', 'bills_feed_token' => str_repeat('m', 64)], $inserted);
+	}
+
+	public function testTheFeedTokenKeyIsTheOneTheFeedUses(): void {
+		$feedKey = (new \ReflectionClassConstant(\OCA\Budget\Controller\CalendarFeedController::class, 'TOKEN_KEY'))->getValue();
+		$serverSettings = (new \ReflectionClassConstant(MigrationService::class, 'SERVER_SETTINGS'))->getValue();
+
+		$this->assertContains($feedKey, $serverSettings);
+	}
+
+	private function setting(string $key, string $value): Setting {
+		$setting = new Setting();
+		$setting->setKey($key);
+		$setting->setValue($value);
+		return $setting;
+	}
+
+	/**
 	 * Settings that name accounts and categories by id were restored as
 	 * they were, so on another server the dashboard's filters and the alert
 	 * mutes pointed at whatever held those ids there, and on the same server

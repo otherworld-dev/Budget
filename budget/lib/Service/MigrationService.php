@@ -50,6 +50,16 @@ class MigrationService {
 	public const MAX_TOTAL_BYTES = 500 * 1024 * 1024;
 
 	/**
+	 * Settings that belong to this server, not to the user's data: never
+	 * exported, ignored in an older archive, and kept through a restore. The
+	 * calendar feed token (CalendarFeedController::TOKEN_KEY) opens the
+	 * user's bills feed without a login and must be unique; restored from
+	 * someone else's backup, or one from another server, it duplicated a
+	 * token and the feed answered 404 for both users.
+	 */
+	private const SERVER_SETTINGS = ['bills_feed_token'];
+
+	/**
 	 * Table-level round-trip specs (#351): everything beyond the five bespoke
 	 * entity types (categories, accounts, transactions, bills, import rules)
 	 * and settings. Each entry becomes <key>.json in the archive. Keys:
@@ -415,7 +425,9 @@ class MigrationService {
 			// Settings are one JSON object of key => value
 			$settings = [];
 			foreach ($this->settingMapper->findAll($userId) as $setting) {
-				$settings[$setting->getKey()] = $setting->getValue();
+				if (!in_array($setting->getKey(), self::SERVER_SETTINGS, true)) {
+					$settings[$setting->getKey()] = $setting->getValue();
+				}
 			}
 			$parts['settings'] = self::tempPath();
 			self::writeFile($parts['settings'], self::encodeJson($settings));
@@ -437,7 +449,7 @@ class MigrationService {
 				// instance-specific fileId — the files themselves are not part of
 				// this archive, and attachment links are not restored on import.
 				'attachmentsNote' => 'Receipt files are not included; file references do not survive export/import.',
-				'excluded' => 'Not exported: audit log and idempotency keys (instance state), bank-sync connections (provider agreements and credentials are instance-specific and must be re-established), shares (reference users on the old server), receipt attachments (see attachmentsNote), fetched exchange-rate cache (manual rates are included).',
+				'excluded' => 'Not exported: audit log and idempotency keys (instance state), bank-sync connections (provider agreements and credentials are instance-specific and must be re-established), the calendar feed link (instance-specific), shares (reference users on the old server), receipt attachments (see attachmentsNote), fetched exchange-rate cache (manual rates are included).',
 			]));
 
 			$zipPath = self::tempPath();
@@ -498,12 +510,15 @@ class MigrationService {
 			// Bank connections stay through a restore, so their account
 			// mappings must follow the accounts to their new ids
 			$bankMappings = $this->readBankMappings($userId);
+			// So does the calendar feed link (SERVER_SETTINGS)
+			$serverSettings = $this->readServerSettings($userId);
 
 			// Delete all existing data for user
 			$this->clearUserData($userId);
 
 			// Import in dependency order with ID remapping
 			$idMaps = $this->importData($userId, $importData);
+			$this->restoreServerSettings($userId, $serverSettings);
 
 			$bankTargets = self::bankMappingTargets($bankMappings, $importData['accounts'] ?? [], $idMaps['accounts'] ?? []);
 			$this->rePointBankMappings($bankTargets);
@@ -559,6 +574,37 @@ class MigrationService {
 			// PHP errors too: only \Exception used to roll back
 			$this->db->rollBack();
 			throw $e;
+		}
+	}
+
+	/**
+	 * The user's SERVER_SETTINGS, read before the restore clears them.
+	 *
+	 * @return array<string, string> key => value
+	 */
+	private function readServerSettings(string $userId): array {
+		$kept = [];
+		foreach ($this->settingMapper->findAll($userId) as $setting) {
+			if (in_array($setting->getKey(), self::SERVER_SETTINGS, true)) {
+				$kept[$setting->getKey()] = (string)$setting->getValue();
+			}
+		}
+		return $kept;
+	}
+
+	/**
+	 * @param array<string, string> $settings key => value, from readServerSettings()
+	 */
+	private function restoreServerSettings(string $userId, array $settings): void {
+		$now = date('Y-m-d H:i:s');
+		foreach ($settings as $key => $value) {
+			$setting = new Setting();
+			$setting->setUserId($userId);
+			$setting->setKey($key);
+			$setting->setValue($value);
+			$setting->setCreatedAt($now);
+			$setting->setUpdatedAt($now);
+			$this->settingMapper->insert($setting);
 		}
 	}
 
@@ -2461,6 +2507,10 @@ class MigrationService {
 		$now = date('Y-m-d H:i:s');
 
 		foreach ($settings as $key => $value) {
+			// This server's own, kept through the restore (importAll())
+			if (in_array((string)$key, self::SERVER_SETTINGS, true)) {
+				continue;
+			}
 			$setting = new Setting();
 			$setting->setUserId($userId);
 			$setting->setKey($key);

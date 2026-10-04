@@ -414,6 +414,59 @@ class MigrationRoundTripTest extends IntegrationTestCase {
 	}
 
 	/**
+	 * The calendar feed token opens the user's bills feed without a login
+	 * and must be unique. A backup carried it, so restoring one into another
+	 * account duplicated it and the feed answered 404 for both. It isn't
+	 * exported, an older archive's copy is ignored, and the user's own token
+	 * stays through their restore, so their subscription keeps working.
+	 */
+	public function testTheCalendarFeedLinkStaysWithItsOwner(): void {
+		$token = bin2hex(random_bytes(32));
+		$settings = $this->service(SettingService::class);
+		$settings->set($this->userId, 'bills_feed_token', $token);
+		$settings->set($this->userId, 'default_currency', 'EUR');
+		$archive = $this->migration->exportAll($this->userId)['content'];
+		$this->assertArrayNotHasKey('bills_feed_token', $this->archivedSettings($archive));
+
+		$other = $this->newUserId();
+		$this->migration->importAll($other, $this->withArchivedSetting($archive, 'bills_feed_token', $token));
+		$this->migration->importAll($this->userId, $archive);
+
+		$this->assertNull($settings->get($other, 'bills_feed_token'));
+		$this->assertSame('EUR', $settings->get($other, 'default_currency'));
+		$this->assertSame($token, $settings->get($this->userId, 'bills_feed_token'));
+		$this->assertSame($this->userId, $this->service(\OCA\Budget\Db\SettingMapper::class)->findByKeyValue('bills_feed_token', $token)->getUserId());
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function archivedSettings(string $zipContent): array {
+		$path = tempnam(sys_get_temp_dir(), 'budget-it-');
+		file_put_contents($path, $zipContent);
+		$zip = new \ZipArchive();
+		$zip->open($path);
+		$settings = json_decode((string)$zip->getFromName('settings.json'), true);
+		$zip->close();
+		unlink($path);
+		return $settings;
+	}
+
+	private function withArchivedSetting(string $zipContent, string $key, string $value): string {
+		$path = tempnam(sys_get_temp_dir(), 'budget-it-');
+		file_put_contents($path, $zipContent);
+		$zip = new \ZipArchive();
+		$zip->open($path);
+		$settings = json_decode((string)$zip->getFromName('settings.json'), true);
+		$settings[$key] = $value;
+		$zip->addFromString('settings.json', json_encode($settings));
+		$zip->close();
+		$content = (string)file_get_contents($path);
+		unlink($path);
+		return $content;
+	}
+
+	/**
 	 * The dashboard's tile filters, the Accounts tile's order and the muted
 	 * budget alerts name accounts and categories by id, and a restore copied
 	 * them as they were: on another server they named whatever held those
