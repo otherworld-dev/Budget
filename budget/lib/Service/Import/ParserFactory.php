@@ -152,7 +152,7 @@ class ParserFactory {
 	 * feed the import id).
 	 *
 	 * @param string[] $lines The content split on "\n"
-	 * @return \Generator<int, string[]>
+	 * @return \Generator<int, list<?string>, mixed, void>
 	 */
 	private function csvRows(array $lines, string $delimiter, int $dataWidth): \Generator {
 		$total = count($lines);

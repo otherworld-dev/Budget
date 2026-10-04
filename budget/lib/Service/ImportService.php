@@ -984,7 +984,7 @@ class ImportService {
 					// A preset's ids differ from the ones a manual mapping of
 					// the same file stored (R5-4)
 					if ($preset !== null) {
-						$isDuplicate = $this->matchesStoredRow($storedRows, (int)$txAccountId, $transaction, $importId, $isDuplicate);
+						$isDuplicate = $this->matchesStoredRow($storedRows, $txAccountId, $transaction, $importId, $isDuplicate);
 					}
 
 					if ($skipDuplicates && $isDuplicate) {

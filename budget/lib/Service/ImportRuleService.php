@@ -450,7 +450,7 @@ class ImportRuleService extends AbstractCrudService {
 		// rules that kept their own rules from ever running (T3). A rule whose
 		// category the user doesn't have is not created at all.
 		$categories = $this->categoryMapper->findAll($userId);
-		$existingRules = $this->mapper->findAll($userId);
+		$existingRules = $this->findAll($userId);
 
 		$created = [];
 		foreach ($defaultRules as $ruleData) {
