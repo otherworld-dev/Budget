@@ -7,6 +7,7 @@ namespace OCA\Budget\Migration;
 use Closure;
 use OCP\DB\ISchemaWrapper;
 use OCP\DB\Types;
+use OCP\IConfig;
 use OCP\IDBConnection;
 use OCP\Migration\IOutput;
 use OCP\Migration\SimpleMigrationStep;
@@ -16,13 +17,19 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000015Date20260117 extends SimpleMigrationStep {
 
+	public function __construct(
+		private IDBConnection $db,
+		private IConfig $config,
+	) {
+	}
+
 	/**
 	 * Drop broken tables entirely to avoid schema reconciliation issues
 	 */
 	public function preSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
 		/** @var IDBConnection $connection */
-		$connection = \OC::$server->getDatabaseConnection();
-		$prefix = \OC::$server->getConfig()->getSystemValue('dbtableprefix', 'oc_');
+		$connection = $this->db;
+		$prefix = $this->config->getSystemValueString('dbtableprefix', 'oc_');
 
 		// Drop entire tables if they exist - will be recreated with correct defaults
 		$tablesToDrop = [
