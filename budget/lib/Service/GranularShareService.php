@@ -15,7 +15,10 @@ use OCA\Budget\Db\Share;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Db\ShareItemMapper;
 use OCA\Budget\Db\ShareMapper;
+use OCA\Budget\Db\TagMapper;
+use OCA\Budget\Db\TagSetMapper;
 use OCA\Budget\Exception\ReadOnlyShareException;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IL10N;
 use OCP\IUserManager;
 
@@ -53,6 +56,8 @@ class GranularShareService {
 		IL10N $l,
 		?IUserManager $userManager = null,
 		?ProjectMapper $projectMapper = null,
+		private ?TagMapper $tagMapper = null,
+		private ?TagSetMapper $tagSetMapper = null,
 	) {
 		$this->shareMapper = $shareMapper;
 		$this->shareItemMapper = $shareItemMapper;
@@ -144,6 +149,68 @@ class GranularShareService {
 		$visible = array_map('intval', $this->getVisibleCategoryIds($ownerId));
 		if (!in_array($categoryId, $visible, true)) {
 			throw new \InvalidArgumentException($this->l->t('Category not found'));
+		}
+	}
+
+	/**
+	 * The ids among $tagIds that belong to $userId's ledger or to one shared
+	 * with them: their own global tags, and the tags of categories they can
+	 * see (their own, and ones shared with them).
+	 *
+	 * A tag id arriving from a client used to be stored unchecked, on a bill
+	 * or a goal, and read back by id with its name and colour, so any user
+	 * could attach and then read every other user's tags by walking the ids.
+	 * Unknown ids are left out.
+	 *
+	 * @param array<int|string> $tagIds
+	 * @return int[]
+	 */
+	public function getUsableTagIds(string $userId, array $tagIds): array {
+		$tagIds = array_values(array_unique(array_map('intval', $tagIds)));
+		if ($tagIds === [] || $this->tagMapper === null) {
+			return [];
+		}
+
+		$visibleCategories = array_flip(array_map('intval', $this->getVisibleCategoryIds($userId)));
+		$categoryOfSet = [];
+		$usable = [];
+		foreach ($this->tagMapper->findByIds($tagIds) as $tag) {
+			$tagSetId = $tag->getTagSetId();
+			if ($tagSetId === null) {
+				if ($tag->getUserId() === $userId) {
+					$usable[] = (int)$tag->getId();
+				}
+				continue;
+			}
+			if (!array_key_exists($tagSetId, $categoryOfSet)) {
+				try {
+					$categoryOfSet[$tagSetId] = $this->tagSetMapper?->findById($tagSetId)->getCategoryId();
+				} catch (DoesNotExistException $e) {
+					$categoryOfSet[$tagSetId] = null;
+				}
+			}
+			$categoryId = $categoryOfSet[$tagSetId];
+			if ($categoryId !== null && isset($visibleCategories[(int)$categoryId])) {
+				$usable[] = (int)$tag->getId();
+			}
+		}
+
+		return $usable;
+	}
+
+	/**
+	 * Refuse any tag id that isn't in getUsableTagIds() for $userId.
+	 *
+	 * @param array<int|string> $tagIds
+	 * @throws \InvalidArgumentException
+	 */
+	public function requireUsableTags(string $userId, array $tagIds): void {
+		$tagIds = array_values(array_unique(array_map('intval', $tagIds)));
+		if ($tagIds === []) {
+			return;
+		}
+		if (count($this->getUsableTagIds($userId, $tagIds)) !== count($tagIds)) {
+			throw new \InvalidArgumentException($this->l->t('Invalid tag ID'));
 		}
 	}
 

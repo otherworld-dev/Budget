@@ -1242,7 +1242,15 @@ class TransactionController extends Controller {
 			}
 
 			$tagIds = array_map('intval', $data['tagIds']);
-			$transactionTags = $this->tagService->setTransactionTags($id, $this->getEffectiveUserId(), $tagIds);
+			// A row in an account shared with this user is tagged as its
+			// owner, after the write check, like every other write to it
+			[, $owner] = $this->findWithOwner($id, true);
+			// A tag the row doesn't carry yet has to be one this user can see:
+			// as the owner, any of the owner's tags passed, and its name then
+			// came back on the row. Tags already on it may stay.
+			$current = array_map(static fn ($tag) => (int)$tag->getId(), $this->tagService->getTransactionTags($id, $owner));
+			$this->granularShareService->requireUsableTags($this->userId, array_values(array_diff($tagIds, $current)));
+			$transactionTags = $this->tagService->setTransactionTags($id, $owner, $tagIds);
 
 			return new DataResponse([
 				'status' => 'success',
@@ -1261,7 +1269,8 @@ class TransactionController extends Controller {
 	#[UserRateLimit(limit: 60, period: 60)]
 	public function clearTags(int $id): DataResponse {
 		try {
-			$this->tagService->clearTransactionTags($id, $this->getEffectiveUserId());
+			[, $owner] = $this->findWithOwner($id, true);
+			$this->tagService->clearTransactionTags($id, $owner);
 			return new DataResponse(['status' => 'success']);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to clear transaction tags'), Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);

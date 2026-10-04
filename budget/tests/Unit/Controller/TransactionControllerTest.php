@@ -27,6 +27,8 @@ class TransactionControllerTest extends TestCase {
 	private IRequest $request;
 	private LoggerInterface $logger;
 	private IL10N $l;
+	/** @var list<array{0: string, 1: int[]}> requireUsableTags() calls in controllerForSharedRows() */
+	private array $tagChecks = [];
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
@@ -782,6 +784,7 @@ class TransactionControllerTest extends TestCase {
 	// ── clearTags ───────────────────────────────────────────────────
 
 	public function testClearTagsReturnsSuccess(): void {
+		$this->service->method('findForAccounts')->willReturn($this->transactionInAccount(1));
 		$this->tagService->expects($this->once())->method('clearTransactionTags')->with(1, 'user1');
 
 		$response = $this->controller->clearTags(1);
@@ -817,6 +820,16 @@ class TransactionControllerTest extends TestCase {
 			$usable = $owner === 'owner1' ? range(1, 9) : range(20, 29);
 			if ($categoryId !== null && !in_array($categoryId, $usable, true)) {
 				throw new \InvalidArgumentException('Category not found');
+			}
+		});
+		// user1 can see tags 1-9
+		$this->tagChecks = [];
+		$shares->method('requireUsableTags')->willReturnCallback(function (string $user, array $ids): void {
+			$this->tagChecks[] = [$user, array_values($ids)];
+			foreach ($ids as $id) {
+				if ($id >= 10) {
+					throw new \InvalidArgumentException('Invalid tag ID');
+				}
 			}
 		});
 		$this->service->method('findForAccounts')->willReturnCallback(function (int $id, array $visible) use ($rowAccount) {
@@ -986,6 +999,63 @@ class TransactionControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 		$this->assertStringContainsString("account owner's categories", $response->getData()['error']);
+	}
+
+	// ── tags on a shared row: as its owner, only tags user1 can see ──
+
+	private function tag(int $id): \OCA\Budget\Db\Tag {
+		$tag = new \OCA\Budget\Db\Tag();
+		$tag->setId($id);
+		return $tag;
+	}
+
+	public function testAWriteRecipientTagsASharedRowAsItsOwner(): void {
+		$this->requestParams(['tagIds' => [3, 50]]);
+		// 50 is already on the row (the owner's own tag); only 3 is new
+		$this->tagService->method('getTransactionTags')->with(8, 'owner1')->willReturn([$this->tag(50)]);
+		$this->tagService->expects($this->once())->method('setTransactionTags')
+			->with(8, 'owner1', [3, 50])->willReturn([]);
+
+		$response = $this->controllerForSharedRows(4)->setTags(8);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame([['user1', [3]]], $this->tagChecks);
+	}
+
+	public function testATagTheUserCannotSeeIsRefused(): void {
+		// Any id used to be stored, and its name read back off the row
+		$this->requestParams(['tagIds' => [42]]);
+		$this->tagService->method('getTransactionTags')->willReturn([]);
+		$this->tagService->expects($this->never())->method('setTransactionTags');
+
+		$response = $this->controllerForSharedRows(4)->setTags(8);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testAReadOnlyRecipientCannotTag(): void {
+		$this->requestParams(['tagIds' => [3]]);
+		$this->tagService->expects($this->never())->method('setTransactionTags');
+
+		$response = $this->controllerForSharedRows(6)->setTags(8);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testAWriteRecipientClearsTagsAsTheOwner(): void {
+		$this->tagService->expects($this->once())->method('clearTransactionTags')->with(8, 'owner1');
+
+		$response = $this->controllerForSharedRows(4)->clearTags(8);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testAReadOnlyRecipientCannotClearTags(): void {
+		$this->tagService->expects($this->never())->method('clearTransactionTags');
+
+		$response = $this->controllerForSharedRows(6)->clearTags(8);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
 	}
 
 	// ── bulk-categorize applies the ledger-category rule (R6-3) ─────

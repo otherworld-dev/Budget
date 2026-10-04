@@ -472,7 +472,9 @@ class ReportController extends Controller {
 			[$accountId, $visibleAccountIds] = $this->resolveAccountScope($accountId, $accountIds, (bool)$excludeShared);
 			$trends = $this->service->getTagTrendReport(
 				$this->getEffectiveUserId(),
-				$tagIds ?? [],
+				// The report names every tag it is asked about, so only ones
+				// this user can see: any id came back with its name and colour
+				$this->granularShareService->getUsableTagIds($this->userId, $tagIds ?? []),
 				$startDate,
 				$endDate,
 				$accountId,
