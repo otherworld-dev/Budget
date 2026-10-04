@@ -16,6 +16,7 @@ use OCA\Budget\Db\TransactionMapper;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use OCP\Notification\IManager as INotificationManager;
+use Psr\Log\LoggerInterface;
 
 /**
  * Service for performing a complete factory reset - deleting all user data except audit logs.
@@ -57,6 +58,7 @@ class FactoryResetService {
 		private ?ShareMapper $shareMapper = null,
 		private ?ContactMapper $contactMapper = null,
 		private ?CrossUserLinks $crossUserLinks = null,
+		private ?LoggerInterface $logger = null,
 	) {
 		$this->tableCleaner = new UserTableCleaner($db);
 	}
@@ -108,10 +110,11 @@ class FactoryResetService {
 		$billIds = $this->findBillIds($userId);
 
 		// One transaction for everything, the deleted user's access included:
-		// a reset or purge that fails part way changes nothing and can simply
-		// be run again. Revoking access first, outside it, left the data of a
-		// failed purge behind with nobody's access to it, and took away the
-		// shared links a second run needed to find what to cut.
+		// a reset or purge that fails part way leaves the data as it was and
+		// can simply be run again. Deleting the shares first, outside it, left
+		// the data of a failed purge behind and took away the shared links a
+		// second run needed to find what to cut. The access other users gave
+		// a deleted uid is still cut when the purge fails (see the catch).
 		$this->db->beginTransaction();
 
 		try {
@@ -160,12 +163,39 @@ class FactoryResetService {
 		} catch (\Throwable $e) {
 			// Rollback on any error - ensures no partial deletion
 			$this->db->rollBack();
+			if ($userDeleted) {
+				$this->revokeAccessGivenTo($userId);
+			}
 			throw $e;
 		}
 
 		$this->dismissShareInvitations($grantedShares);
 
 		return $counts;
+	}
+
+	/**
+	 * A deleted user's purge failed and was rolled back: their data stays
+	 * for a second run, but the access other users gave them can't wait for
+	 * it, or a re-created account with the same uid inherits it. The shares
+	 * granted TO the uid and the contacts linked to it go now, each on its
+	 * own. The shares the uid granted are its data and stay with the rest.
+	 */
+	private function revokeAccessGivenTo(string $userId): void {
+		try {
+			$this->shareMapper?->deleteSharedWithUser($userId);
+		} catch (\Throwable $e) {
+			$this->logger?->error('Could not revoke the Budget shares given to deleted user {user}: {error}', [
+				'app' => 'budget', 'user' => $userId, 'error' => $e->getMessage(), 'exception' => $e,
+			]);
+		}
+		try {
+			$this->contactMapper?->unlinkNextcloudUser($userId);
+		} catch (\Throwable $e) {
+			$this->logger?->error('Could not unlink the Budget contacts of deleted user {user}: {error}', [
+				'app' => 'budget', 'user' => $userId, 'error' => $e->getMessage(), 'exception' => $e,
+			]);
+		}
 	}
 
 	/**

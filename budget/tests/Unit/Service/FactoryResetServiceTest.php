@@ -22,6 +22,7 @@ use OCP\DB\QueryBuilder\IExpressionBuilder;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class FactoryResetServiceTest extends TestCase {
 	private FactoryResetService $service;
@@ -240,12 +241,13 @@ class FactoryResetServiceTest extends TestCase {
 	}
 
 	/**
-	 * A purge that fails part way must change nothing, so it can be run
-	 * again (`occ budget:purge-deleted-users`). Revoking the shares first,
-	 * outside the transaction, left the data behind with nobody's access to
-	 * it and hid the shared links a second run needs to cut.
+	 * A purge that fails part way must leave the data as it was, so it can
+	 * be run again (`occ budget:purge-deleted-users`). Deleting the shares
+	 * first, outside the transaction, left the data behind and took away
+	 * the shared links a second run needs to cut. (The access others gave
+	 * the uid is still cut: see the next test.)
 	 */
-	public function testAFailedPurgeChangesNothingSoItCanBeRunAgain(): void {
+	public function testAFailedPurgeLeavesTheDataSoItCanBeRunAgain(): void {
 		$rent = new Bill();
 		$rent->setId(4);
 		$this->billMapper->method('findAll')->willReturn([$rent]);
@@ -261,9 +263,9 @@ class FactoryResetServiceTest extends TestCase {
 		$this->db->expects($this->once())->method('rollBack');
 		$this->failingTables['budget_expense_shares'] = 'DB error';
 		$shares = $this->createMock(ShareMapper::class);
+		// Shares the uid granted are its data: they stay for the second run
 		$shares->expects($this->never())->method('deleteAllForUser');
 		$contacts = $this->createMock(ContactMapper::class);
-		$contacts->expects($this->never())->method('unlinkNextcloudUser');
 		$service = new FactoryResetService(
 			$this->accountMapper, $this->transactionMapper, $this->billMapper, $this->categoryMapper,
 			$this->importRuleMapper, $this->settingMapper, $this->attachmentMapper, $this->db,
@@ -279,6 +281,80 @@ class FactoryResetServiceTest extends TestCase {
 
 		// The pending bill rows went inside the transaction that rolled back
 		$this->assertSame(['BEGIN', 'pending bill rows'], array_slice($this->deletedTables(), 0, 2));
+	}
+
+	/**
+	 * The data of a failed purge stays for a second run, but the access
+	 * other users gave the deleted uid must not wait for it: a re-created
+	 * account with the same uid would inherit it. After the rollback the
+	 * shares granted to them and the contacts linked to them go on their
+	 * own; the shares they granted are their data and stay with it.
+	 */
+	public function testAFailedPurgeStillCutsTheAccessOtherUsersGaveTheUid(): void {
+		$this->billMapper->method('findAll')->willReturn([]);
+		$this->failingTables['budget_expense_shares'] = 'DB error';
+		$steps = [];
+		$this->db->method('rollBack')->willReturnCallback(function () use (&$steps) {
+			$steps[] = 'rollback';
+		});
+		$this->db->expects($this->never())->method('commit');
+		$shares = $this->createMock(ShareMapper::class);
+		$shares->expects($this->never())->method('deleteAllForUser');
+		$shares->expects($this->once())->method('deleteSharedWithUser')->with('gone')
+			->willReturnCallback(function () use (&$steps) {
+				$steps[] = 'shares to the uid';
+				return 1;
+			});
+		$contacts = $this->createMock(ContactMapper::class);
+		$contacts->expects($this->once())->method('unlinkNextcloudUser')->with('gone')
+			->willReturnCallback(function () use (&$steps) {
+				$steps[] = 'contact links';
+				return 2;
+			});
+
+		try {
+			$this->purgingService($shares, $contacts)->purgeDeletedUser('gone');
+			$this->fail('the failure must reach the caller');
+		} catch (\Exception $e) {
+			$this->assertSame('DB error', $e->getMessage());
+		}
+
+		$this->assertSame(['rollback', 'shares to the uid', 'contact links'], $steps);
+	}
+
+	public function testAFailingRevocationIsLoggedAndTheOtherStillRuns(): void {
+		$this->billMapper->method('findAll')->willReturn([]);
+		$this->failingTables['budget_expense_shares'] = 'DB error';
+		$shares = $this->createMock(ShareMapper::class);
+		$shares->method('deleteSharedWithUser')->willThrowException(new \RuntimeException('shares table locked'));
+		$contacts = $this->createMock(ContactMapper::class);
+		$contacts->expects($this->once())->method('unlinkNextcloudUser')->with('gone');
+		$logger = $this->createMock(LoggerInterface::class);
+		$logger->expects($this->once())->method('error')
+			->with($this->stringContains('shares'), $this->callback(
+				fn (array $context) => ($context['app'] ?? null) === 'budget' && ($context['user'] ?? null) === 'gone'
+			));
+		$service = new FactoryResetService(
+			$this->accountMapper, $this->transactionMapper, $this->billMapper, $this->categoryMapper,
+			$this->importRuleMapper, $this->settingMapper, $this->attachmentMapper, $this->db,
+			null, $this->createMock(TransactionService::class), $shares, $contacts, null, $logger,
+		);
+
+		$this->expectExceptionMessage('DB error');
+		$service->purgeDeletedUser('gone');
+	}
+
+	public function testAFailedFactoryResetRevokesNothing(): void {
+		// The user still exists: their access is theirs to keep
+		$this->billMapper->method('findAll')->willReturn([]);
+		$this->failingTables['budget_expense_shares'] = 'DB error';
+		$shares = $this->createMock(ShareMapper::class);
+		$shares->expects($this->never())->method('deleteSharedWithUser');
+		$contacts = $this->createMock(ContactMapper::class);
+		$contacts->expects($this->never())->method('unlinkNextcloudUser');
+
+		$this->expectExceptionMessage('DB error');
+		$this->purgingService($shares, $contacts)->executeFactoryReset('user1');
 	}
 
 	public function testAResetLeavesContactLinksToTheUserAlone(): void {
