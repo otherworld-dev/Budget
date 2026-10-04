@@ -366,6 +366,133 @@ class ImportRuleControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	// ── a shared rule's tags the editor can't see ───────────────────
+
+	/**
+	 * Rule 7 is owen's, shared with user1 at Read & Write. 42 is one of
+	 * owen's tags user1's rule editor never shows; ticking a box in that
+	 * action sent only her ticked tags, and owen's tag was dropped.
+	 *
+	 * @param array<string, int[]> $usable tag ids each user can use
+	 */
+	private function sharedRuleWithTags(array $storedActions, array $usable, string $owner = 'owen'): void {
+		$this->granularShareService->method('resolveOwner')->willReturn($owner);
+		// Every tag sits in a tag set of the same id, under a category of
+		// the same id; a user can use the tags whose category they see
+		$this->granularShareService->method('getVisibleCategoryIds')->willReturnCallback(fn (string $user) => $usable[$user] ?? []);
+		$tagMapper = $this->createMock(\OCA\Budget\Db\TagMapper::class);
+		$tagMapper->method('findByIds')->willReturnCallback(fn (array $ids) => array_map(function (int $id) {
+			$tag = new \OCA\Budget\Db\Tag();
+			$tag->setId($id);
+			$tag->setTagSetId($id);
+			return $tag;
+		}, $ids));
+		$tagSetMapper = $this->createMock(\OCA\Budget\Db\TagSetMapper::class);
+		$tagSetMapper->method('findById')->willReturnCallback(function (int $id) {
+			$set = new \OCA\Budget\Db\TagSet();
+			$set->setId($id);
+			$set->setCategoryId($id);
+			return $set;
+		});
+		$l = $this->createMock(IL10N::class);
+		$this->controller = new ImportRuleController(
+			$this->request, $this->service, $this->validationService, $this->granularShareService,
+			$l, 'user1', $this->logger, $tagMapper, $tagSetMapper
+		);
+
+		$stored = new ImportRule();
+		$stored->setActionsFromArray(['version' => 2, 'actions' => $storedActions]);
+		$this->service->method('find')->with(7, $owner)->willReturn($stored);
+	}
+
+	private function expectSavedActions(string $owner, array $expected): void {
+		$this->service->expects($this->once())->method('update')
+			->with(7, $owner, $this->callback(function (array $updates) use ($expected) {
+				$this->assertSame($expected, $updates['actions']['actions']);
+				return true;
+			}))
+			->willReturn(new ImportRule());
+	}
+
+	public function testARecipientsSaveKeepsTheOwnersTagsSheCannotSee(): void {
+		$this->sharedRuleWithTags(
+			[['type' => 'add_tags', 'value' => [42, 6], 'behavior' => 'merge']],
+			['user1' => [6, 7], 'owen' => [6, 7, 42]]
+		);
+		$this->expectSavedActions('owen', [['type' => 'add_tags', 'value' => [7, 42], 'behavior' => 'merge']]);
+
+		$response = $this->controller->update(7, actions: ['version' => 2, 'actions' => [
+			['type' => 'add_tags', 'value' => [7], 'behavior' => 'merge'],
+		]]);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testEachAddTagsActionKeepsItsOwnHiddenTags(): void {
+		$this->sharedRuleWithTags(
+			[
+				['type' => 'set_vendor', 'value' => 'Shop'],
+				['type' => 'add_tags', 'value' => [42], 'behavior' => 'merge'],
+				['type' => 'add_tags', 'value' => [6, 43], 'behavior' => 'replace'],
+			],
+			['user1' => [6, 7], 'owen' => [6, 7, 42, 43]]
+		);
+		$this->expectSavedActions('owen', [
+			['type' => 'set_vendor', 'value' => 'Shop'],
+			['type' => 'add_tags', 'value' => [42], 'behavior' => 'merge'],
+			['type' => 'add_tags', 'value' => [43], 'behavior' => 'replace'],
+		]);
+
+		// She unticked 6 in the second action; the first showed her nothing
+		$this->controller->update(7, actions: ['version' => 2, 'actions' => [
+			['type' => 'set_vendor', 'value' => 'Shop'],
+			['type' => 'add_tags', 'value' => [42], 'behavior' => 'merge'],
+			['type' => 'add_tags', 'value' => [], 'behavior' => 'replace'],
+		]]);
+	}
+
+	public function testAnAddTagsActionShesRemovedKeepsTheTagsSheCouldNotSee(): void {
+		// She can't clear what she can't see, by deleting its action either
+		$this->sharedRuleWithTags(
+			[['type' => 'add_tags', 'value' => [42, 6], 'behavior' => 'merge', 'priority' => 40]],
+			['user1' => [6], 'owen' => [6, 42]]
+		);
+		$this->expectSavedActions('owen', [
+			['type' => 'set_vendor', 'value' => 'Shop'],
+			['type' => 'add_tags', 'value' => [42], 'behavior' => 'merge', 'priority' => 40],
+		]);
+
+		$this->controller->update(7, actions: ['version' => 2, 'actions' => [
+			['type' => 'set_vendor', 'value' => 'Shop'],
+		]]);
+	}
+
+	public function testATagEvenTheOwnerCannotUseIsNotKept(): void {
+		$this->sharedRuleWithTags(
+			[['type' => 'add_tags', 'value' => [42, 99], 'behavior' => 'merge']],
+			['user1' => [7], 'owen' => [7, 42]]
+		);
+		$this->expectSavedActions('owen', [['type' => 'add_tags', 'value' => [7, 42], 'behavior' => 'merge']]);
+
+		$this->controller->update(7, actions: ['version' => 2, 'actions' => [
+			['type' => 'add_tags', 'value' => [7], 'behavior' => 'merge'],
+		]]);
+	}
+
+	public function testTheOwnerStillReplacesAllOfTheRulesTags(): void {
+		$this->sharedRuleWithTags(
+			[['type' => 'add_tags', 'value' => [42, 6], 'behavior' => 'merge']],
+			['user1' => [6, 7, 42]],
+			'user1'
+		);
+		$this->service->expects($this->never())->method('find');
+		$this->expectSavedActions('user1', [['type' => 'add_tags', 'value' => [7], 'behavior' => 'merge']]);
+
+		$this->controller->update(7, actions: ['version' => 2, 'actions' => [
+			['type' => 'add_tags', 'value' => [7], 'behavior' => 'merge'],
+		]]);
+	}
+
 	public function testUpdateRejectsEmptyUpdates(): void {
 		$response = $this->controller->update(1);
 
