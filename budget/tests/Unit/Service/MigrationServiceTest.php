@@ -43,7 +43,7 @@ class MigrationServiceTest extends TestCase {
 			$expr = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
 			$expr->method('eq')->willReturn('eq');
 			$qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
-			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin', 'leftJoin', 'delete', 'insert', 'update', 'set', 'setValue'] as $m) {
+			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin', 'leftJoin', 'delete', 'insert', 'update', 'set', 'setValue', 'orderBy', 'setMaxResults'] as $m) {
 				$qb->method($m)->willReturnSelf();
 			}
 			$qb->method('expr')->willReturn($expr);
@@ -239,6 +239,69 @@ class MigrationServiceTest extends TestCase {
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessage('Invalid transaction');
 
+		$this->service->importAll('user1', $zipContent);
+	}
+
+	/**
+	 * An archive whose files hold the wrong kinds of value (an id that is a
+	 * list, a data set that is a string, a setting that is an object) used
+	 * to crash the restore part way with a PHP TypeError: a 500 with a stack
+	 * trace (R6-5). It is refused up front now, before anything is touched.
+	 *
+	 * @param array<string, mixed> $files file name => decoded content
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('typeConfusedArchives')]
+	public function testImportRefusesATypeConfusedArchiveBeforeTouchingAnything(array $files): void {
+		$zipContent = $this->createTestZip(array_map('json_encode', $files + [
+			'manifest.json' => ['version' => '1.3.0', 'appId' => 'budget'],
+			'categories.json' => [],
+			'accounts.json' => [],
+			'transactions.json' => [],
+		]));
+		$this->db->expects($this->never())->method('beginTransaction');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->importAll('user1', $zipContent);
+	}
+
+	/**
+	 * @return array<string, array{0: array<string, mixed>}>
+	 */
+	public static function typeConfusedArchives(): array {
+		$account = ['id' => 1, 'name' => 'A', 'type' => 'checking'];
+		return [
+			'an account id that is a list' => [['accounts.json' => [['id' => [1]] + $account]]],
+			'a transaction account id that is an object' => [['accounts.json' => [$account], 'transactions.json' => [['accountId' => ['a' => 1], 'amount' => 1, 'date' => '2026-01-01']]]],
+			'a data set that is a string' => [['accounts.json' => 'not a list']],
+			'a category that is a string' => [['categories.json' => ['x']]],
+			'a setting that is an object' => [['settings.json' => ['k' => ['nested' => 1]]]],
+			'a bill whose account is a list' => [['bills.json' => [['id' => 1, 'name' => 'Rent', 'accountId' => [1]]]]],
+			'a table row whose foreign key is a list' => [['tx_splits.json' => [['id' => 1, 'transaction_id' => [5], 'amount' => '1.00']]]],
+			'a manifest that is a string' => [['manifest.json' => 'budget']],
+		];
+	}
+
+	/**
+	 * Whatever goes wrong part way, PHP errors included, the restore's
+	 * database transaction is rolled back: only \Exception used to be.
+	 */
+	public function testImportAllRollsBackOnAnyError(): void {
+		$zipContent = $this->createTestZip([
+			'manifest.json' => json_encode(['version' => '1.3.0', 'appId' => 'budget']),
+			'categories.json' => json_encode([]),
+			'accounts.json' => json_encode([]),
+			'transactions.json' => json_encode([]),
+		]);
+		foreach ([$this->transactionMapper, $this->billMapper, $this->importRuleMapper, $this->accountMapper] as $mapper) {
+			$mapper->method('findAll')->willReturn([]);
+		}
+		$this->categoryMapper->method('findAll')->willThrowException(new \TypeError('boom'));
+
+		$this->db->expects($this->once())->method('beginTransaction');
+		$this->db->expects($this->never())->method('commit');
+		$this->db->expects($this->once())->method('rollBack');
+
+		$this->expectException(\TypeError::class);
 		$this->service->importAll('user1', $zipContent);
 	}
 
@@ -516,6 +579,86 @@ class MigrationServiceTest extends TestCase {
 
 		$zip->close();
 		unlink($tempFile);
+	}
+
+	/**
+	 * The export used to load every transaction as an entity and encode the
+	 * lot in one go, so a ledger of about 110,000 rows ran out of a 512 MB
+	 * memory limit and no backup could be made (T6-1). It now reads the
+	 * ledger a page at a time, after the last id it wrote, and never asks
+	 * the mapper for everything.
+	 */
+	public function testExportReadsTheLedgerAPageAtATime(): void {
+		$this->transactionMapper->expects($this->never())->method('findAll');
+		foreach ([$this->categoryMapper, $this->accountMapper, $this->billMapper, $this->importRuleMapper, $this->settingMapper] as $mapper) {
+			$mapper->method('findAll')->willReturn([]);
+		}
+		$total = 1500;
+		$pagesAfter = [];
+		$db = $this->createMock(IDBConnection::class);
+		$db->method('getQueryBuilder')->willReturnCallback(function () use ($total, &$pagesAfter) {
+			$state = ['table' => null, 'params' => []];
+			$qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
+			foreach (['select', 'where', 'andWhere', 'innerJoin', 'orderBy', 'setMaxResults'] as $m) {
+				$qb->method($m)->willReturnSelf();
+			}
+			$qb->method('from')->willReturnCallback(function (string $table) use (&$state, $qb) {
+				$state['table'] = $table;
+				return $qb;
+			});
+			$qb->method('expr')->willReturn($this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class));
+			$qb->method('createNamedParameter')->willReturnCallback(function ($value) use (&$state) {
+				$state['params'][] = $value;
+				return ':p';
+			});
+			$qb->method('executeQuery')->willReturnCallback(function () use (&$state, $total, &$pagesAfter) {
+				$rows = [];
+				if ($state['table'] === 'budget_transactions') {
+					$after = (int)end($state['params']);
+					$pagesAfter[] = $after;
+					for ($id = $after + 1; $id <= min($total, $after + 1000); $id++) {
+						$rows[] = ['id' => $id, 'account_id' => 7, 'date' => '2026-01-01', 'description' => "Row $id",
+							'amount' => '1.50', 'type' => 'debit', 'status' => 'cleared', 'is_split' => 0, 'reconciled' => 0];
+					}
+				}
+				$result = $this->createMock(\OCP\DB\IResult::class);
+				$result->method('fetch')->willReturnOnConsecutiveCalls(...array_merge($rows, [false]));
+				return $result;
+			});
+			return $qb;
+		});
+		$service = new MigrationService($this->accountMapper, $this->transactionMapper, $this->categoryMapper,
+			$this->billMapper, $this->importRuleMapper, $this->settingMapper, $db);
+
+		$archive = $this->readTestZip($service->exportAll('user1')['content']);
+
+		$this->assertSame([0, 1000], $pagesAfter, 'Two pages, the second one after the last id of the first');
+		$transactions = json_decode($archive['transactions.json'], true);
+		$this->assertCount($total, $transactions);
+		$this->assertSame(range(1, $total), array_column($transactions, 'id'));
+		// The same shape the archive always had
+		$this->assertSame(array_keys((new Transaction())->jsonSerialize()), array_keys($transactions[0]));
+		$this->assertSame(1.5, $transactions[0]['amount']);
+		$this->assertSame(7, $transactions[0]['accountId']);
+		$this->assertSame($total, json_decode($archive['manifest.json'], true)['counts']['transactions']);
+	}
+
+	/**
+	 * @return array<string, string> entry name => contents
+	 */
+	private function readTestZip(string $content): array {
+		$path = tempnam(sys_get_temp_dir(), 'test_export_');
+		file_put_contents($path, $content);
+		$zip = new \ZipArchive();
+		$zip->open($path);
+		$entries = [];
+		for ($i = 0; $i < $zip->numFiles; $i++) {
+			$name = $zip->getNameIndex($i);
+			$entries[$name] = $zip->getFromName($name);
+		}
+		$zip->close();
+		unlink($path);
+		return $entries;
 	}
 
 	// ===== Helpers =====
@@ -1216,5 +1359,249 @@ class MigrationServiceTest extends TestCase {
 		// An older config without the keys, or one that isn't JSON, is left alone
 		$row = $method->invoke($this->service, ['id' => 3, 'config' => '{"type":"summary"}'], $spec, ['accounts' => [], 'tags' => []]);
 		$this->assertSame(['type' => 'summary'], json_decode($row['config'], true));
+	}
+
+	/**
+	 * The calendar feed token opens the user's bills feed without a login, so
+	 * it has to be unique. It travelled in backups, and a restore into
+	 * another account (or on another server) duplicated it: the feed then
+	 * answered 404 for both users. It is never exported now.
+	 */
+	public function testTheCalendarFeedTokenIsNeverExported(): void {
+		foreach ([$this->categoryMapper, $this->accountMapper, $this->transactionMapper, $this->billMapper, $this->importRuleMapper] as $mapper) {
+			$mapper->method('findAll')->willReturn([]);
+		}
+		$this->settingMapper->method('findAll')->willReturn([
+			$this->setting('bills_feed_token', str_repeat('a', 64)),
+			$this->setting('default_currency', 'GBP'),
+		]);
+
+		$archive = $this->readTestZip($this->service->exportAll('user1')['content']);
+
+		$this->assertSame(['default_currency' => 'GBP'], json_decode($archive['settings.json'], true));
+		$this->assertSame(1, json_decode($archive['manifest.json'], true)['counts']['settings']);
+	}
+
+	/**
+	 * A token in an older backup is ignored, and the user's own token stays
+	 * through the restore, so their calendar subscription keeps working.
+	 */
+	public function testARestoreIgnoresAnArchivedFeedTokenAndKeepsTheUsersOwn(): void {
+		$zipContent = $this->createTestZip([
+			'manifest.json' => json_encode(['version' => '1.3.0', 'appId' => 'budget']),
+			'categories.json' => '[]',
+			'accounts.json' => '[]',
+			'transactions.json' => '[]',
+			'settings.json' => json_encode(['bills_feed_token' => str_repeat('x', 64), 'default_currency' => 'GBP']),
+		]);
+		foreach ([$this->categoryMapper, $this->accountMapper, $this->transactionMapper, $this->billMapper, $this->importRuleMapper] as $mapper) {
+			$mapper->method('findAll')->willReturn([]);
+		}
+		$this->settingMapper->method('findAll')->with('user1')->willReturn([$this->setting('bills_feed_token', str_repeat('m', 64))]);
+		$inserted = [];
+		$this->settingMapper->method('insert')->willReturnCallback(function (Setting $s) use (&$inserted) {
+			$inserted[$s->getKey()] = $s->getValue();
+			return $s;
+		});
+
+		$this->service->importAll('user1', $zipContent);
+
+		$this->assertSame(['default_currency' => 'GBP', 'bills_feed_token' => str_repeat('m', 64)], $inserted);
+	}
+
+	public function testTheFeedTokenKeyIsTheOneTheFeedUses(): void {
+		$feedKey = (new \ReflectionClassConstant(\OCA\Budget\Controller\CalendarFeedController::class, 'TOKEN_KEY'))->getValue();
+		$serverSettings = (new \ReflectionClassConstant(MigrationService::class, 'SERVER_SETTINGS'))->getValue();
+
+		$this->assertContains($feedKey, $serverSettings);
+	}
+
+	private function setting(string $key, string $value): Setting {
+		$setting = new Setting();
+		$setting->setKey($key);
+		$setting->setValue($value);
+		return $setting;
+	}
+
+	/**
+	 * Settings that name accounts and categories by id were restored as
+	 * they were, so on another server the dashboard's filters and the alert
+	 * mutes pointed at whatever held those ids there, and on the same server
+	 * at nothing (R1-6). They follow the restored ids now; an id that didn't
+	 * come back is dropped, and everything else in them is left alone.
+	 */
+	public function testSettingsThatNameAccountsAndCategoriesFollowTheRestoredIds(): void {
+		$idMaps = ['accounts' => [3 => 30, 4 => 40], 'categories' => [12 => 120, 13 => 130]];
+		$widgets = '{"order":["spendingChart","accounts"],"visibility":{"spendingChart":true},"instances":{},'
+			. '"tileSettings":{"spendingChart":{"accountId":"3","hiddenCategories":[12,13,99],"dateRange":"30"},'
+			. '"recentTransactions":{"accountId":99,"rowCount":5},"trendChart":{"accountId":""},"budgetProgress":{}},'
+			. '"settings":{"trend-account-select":"4","net-worth-account-select":"99","accountsTile":{"order":[4,3,99],"hidden":[99,3]}}}';
+		$hero = '{"order":["accountIncome"],"settings":{"hero-account-income-select":"3"}}';
+
+		$settings = $this->importedSettings([
+			'dashboard_widgets_config' => $widgets,
+			'dashboard_hero_config' => $hero,
+			'budget_alert_muted_categories' => '[12,"13",99]',
+			'budget_alert_notified' => '{"12":"warning:2026-10-01","99":"danger:2026-10-01"}',
+			'anomaly_notified' => '{"13":"2026-09"}',
+			'default_currency' => 'GBP',
+			'transaction_columns_visible' => '{"date":true}',
+		], $idMaps);
+
+		$this->assertSame(
+			'{"order":["spendingChart","accounts"],"visibility":{"spendingChart":true},"instances":{},'
+			. '"tileSettings":{"spendingChart":{"accountId":"30","hiddenCategories":[120,130],"dateRange":"30"},'
+			. '"recentTransactions":{"rowCount":5},"trendChart":{"accountId":""},"budgetProgress":{}},'
+			. '"settings":{"trend-account-select":"40","accountsTile":{"order":[40,30],"hidden":[30]}}}',
+			$settings['dashboard_widgets_config']
+		);
+		$this->assertSame('{"order":["accountIncome"],"settings":{"hero-account-income-select":"30"}}', $settings['dashboard_hero_config']);
+		$this->assertSame('[120,130]', $settings['budget_alert_muted_categories']);
+		$this->assertSame(['120' => 'warning:2026-10-01'], json_decode($settings['budget_alert_notified'], true));
+		$this->assertSame(['130' => '2026-09'], json_decode($settings['anomaly_notified'], true));
+		$this->assertSame('GBP', $settings['default_currency']);
+		$this->assertSame('{"date":true}', $settings['transaction_columns_visible']);
+	}
+
+	/**
+	 * A setting that doesn't read as what it should be is restored as it
+	 * was rather than refused or emptied.
+	 */
+	public function testSettingsThatDontParseAreRestoredAsTheyWere(): void {
+		$settings = $this->importedSettings([
+			'dashboard_widgets_config' => 'not json',
+			'budget_alert_muted_categories' => '{"a":1}',
+			'anomaly_notified' => '"x"',
+		], ['accounts' => [], 'categories' => []]);
+
+		$this->assertSame('not json', $settings['dashboard_widgets_config']);
+		$this->assertSame('{"a":1}', $settings['budget_alert_muted_categories']);
+		$this->assertSame('"x"', $settings['anomaly_notified']);
+	}
+
+	/**
+	 * @param array<string, string> $archived
+	 * @return array<string, string> key => value as inserted
+	 */
+	private function importedSettings(array $archived, array $idMaps): array {
+		$inserted = [];
+		$this->settingMapper->method('insert')->willReturnCallback(function (Setting $s) use (&$inserted) {
+			$inserted[$s->getKey()] = $s->getValue();
+			return $s;
+		});
+		$method = new \ReflectionMethod($this->service, 'importSettings');
+		$method->invoke($this->service, 'user1', $archived, $idMaps);
+		return $inserted;
+	}
+
+	/**
+	 * "In credit" says which way a liability's OPENING balance points, not
+	 * today's balance. The restore signed today's balance with it and then
+	 * worked the opening balance out from that, so any card or loan whose
+	 * ledger had crossed zero came back on the wrong side: a card opened at
+	 * 0 owed and now 40.22 in credit came back 40.22 owed with an opening
+	 * balance of -80.44 (T3-1). The archive's own signed numbers stand, and
+	 * the balance is rebuilt from the opening balance and the ledger.
+	 */
+	public function testALiabilityComesBackOnTheSameSideWhicheverWayItsLedgerWent(): void {
+		$accounts = $this->restoreAccounts('1.3.0', [
+			// Opened at 0 owed, now in credit
+			['id' => 1, 'name' => 'Card', 'type' => 'credit_card', 'currency' => 'GBP', 'balance' => 40.22, 'openingBalance' => 0.0, 'liabilityInCredit' => false],
+			// Opened in credit, now owing
+			['id' => 2, 'name' => 'Loan', 'type' => 'loan', 'currency' => 'GBP', 'balance' => -20.0, 'openingBalance' => 10.0, 'liabilityInCredit' => true],
+			// Owed, never declared either way (2.54.0 and older)
+			['id' => 3, 'name' => 'Mortgage', 'type' => 'mortgage', 'currency' => 'GBP', 'balance' => -900.0, 'openingBalance' => -1000.0, 'liabilityInCredit' => null],
+			// An asset is left as it was
+			['id' => 4, 'name' => 'Current', 'type' => 'checking', 'currency' => 'GBP', 'balance' => -5.0, 'openingBalance' => 20.0],
+		], [1 => 40.22, 2 => -30.0, 3 => 100.0, 4 => -25.0]);
+
+		$this->assertSame(['opening' => 0.0, 'balance' => '40.22', 'inCredit' => false], $accounts['Card']);
+		$this->assertSame(['opening' => 10.0, 'balance' => '-20.00', 'inCredit' => true], $accounts['Loan']);
+		$this->assertSame(['opening' => -1000.0, 'balance' => '-900.00', 'inCredit' => null], $accounts['Mortgage']);
+		$this->assertSame(['opening' => 20.0, 'balance' => '-5.00', 'inCredit' => null], $accounts['Current']);
+	}
+
+	/**
+	 * Before format 1.1.0 a liability stored what was owed as a positive
+	 * number. The upgrade to 1.1.0 negated positive liability balances and
+	 * opening balances, and a restore of such a backup does the same, so it
+	 * ends up as the upgraded account would. A backup older still, with no
+	 * opening balance at all, keeps its balance and has the opening balance
+	 * worked out from the ledger.
+	 */
+	public function testALegacyBackupsPositiveDebtsComeBackAsOwed(): void {
+		$accounts = $this->restoreAccounts('1.0.0', [
+			['id' => 1, 'name' => 'Card', 'type' => 'credit_card', 'currency' => 'GBP', 'balance' => 150.0, 'openingBalance' => 200.0],
+			['id' => 2, 'name' => 'Loan', 'type' => 'loan', 'currency' => 'GBP', 'balance' => 300.0],
+			['id' => 3, 'name' => 'Current', 'type' => 'checking', 'currency' => 'GBP', 'balance' => 80.0, 'openingBalance' => 100.0],
+		], [1 => 50.0, 2 => 25.0, 3 => -20.0]);
+
+		$this->assertSame(['opening' => -200.0, 'balance' => '-150.00', 'inCredit' => null], $accounts['Card']);
+		$this->assertSame(['opening' => -325.0, 'balance' => '-300.00', 'inCredit' => null], $accounts['Loan']);
+		$this->assertSame(['opening' => 100.0, 'balance' => '80.00', 'inCredit' => null], $accounts['Current']);
+	}
+
+	/**
+	 * Restore $archived (accounts with no transactions in the archive; the
+	 * ledger's net per old account id is given) and report each account's
+	 * final opening balance, stored balance and in-credit flag by name.
+	 *
+	 * @param array<int, array<string, mixed>> $archived
+	 * @param array<int, float> $netByOldId
+	 * @return array<string, array{opening: float|null, balance: string|null, inCredit: bool|null}>
+	 */
+	private function restoreAccounts(string $version, array $archived, array $netByOldId): array {
+		$zipContent = $this->createTestZip([
+			'manifest.json' => json_encode(['version' => $version, 'appId' => 'budget']),
+			'categories.json' => '[]',
+			'accounts.json' => json_encode($archived),
+			'transactions.json' => '[]',
+		]);
+		foreach ([$this->transactionMapper, $this->billMapper, $this->importRuleMapper, $this->accountMapper, $this->categoryMapper] as $mapper) {
+			$mapper->method('findAll')->willReturn([]);
+		}
+
+		/** @var array<int, Account> $byNewId */
+		$byNewId = [];
+		$netByNewId = [];
+		$balances = [];
+		$this->accountMapper->method('insert')->willReturnCallback(function (Account $a) use (&$byNewId, &$netByNewId, $archived, $netByOldId) {
+			$id = 100 + count($byNewId);
+			$a->setId($id);
+			$byNewId[$id] = clone $a;
+			foreach ($archived as $row) {
+				if ($row['name'] === $a->getName()) {
+					$netByNewId[$id] = $netByOldId[$row['id']];
+				}
+			}
+			return $a;
+		});
+		$this->accountMapper->method('findById')->willReturnCallback(function (int $id) use (&$byNewId) {
+			return clone $byNewId[$id];
+		});
+		$this->accountMapper->method('update')->willReturnCallback(function (Account $a) use (&$byNewId, &$balances) {
+			$byNewId[$a->getId()] = clone $a;
+			$balances[$a->getId()] = sprintf('%.2f', $a->getBalance());
+			return $a;
+		});
+		$this->accountMapper->method('updateBalance')->willReturnCallback(function (int $id, $balance) use (&$byNewId, &$balances) {
+			$balances[$id] = (string)$balance;
+			return $byNewId[$id];
+		});
+		$this->transactionMapper->method('getNetChangeAll')->willReturnCallback(function (int $id) use (&$netByNewId) {
+			return $netByNewId[$id];
+		});
+
+		$this->service->importAll('user1', $zipContent);
+
+		$result = [];
+		foreach ($byNewId as $id => $account) {
+			$result[$account->getName()] = [
+				'opening' => $account->getOpeningBalance(),
+				'balance' => $balances[$id] ?? null,
+				'inCredit' => $account->getLiabilityInCredit(),
+			];
+		}
+		return $result;
 	}
 }

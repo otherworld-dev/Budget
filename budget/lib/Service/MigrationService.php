@@ -12,6 +12,7 @@ use OCA\Budget\Db\Category;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Db\ImportRuleMapper;
+use OCA\Budget\Db\LegacyBillRows;
 use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Db\ShareItem;
@@ -49,6 +50,16 @@ class MigrationService {
 	public const MAX_TOTAL_BYTES = 500 * 1024 * 1024;
 
 	/**
+	 * Settings that belong to this server, not to the user's data: never
+	 * exported, ignored in an older archive, and kept through a restore. The
+	 * calendar feed token (CalendarFeedController::TOKEN_KEY) opens the
+	 * user's bills feed without a login and must be unique; restored from
+	 * someone else's backup, or one from another server, it duplicated a
+	 * token and the feed answered 404 for both users.
+	 */
+	private const SERVER_SETTINGS = ['bills_feed_token'];
+
+	/**
 	 * Table-level round-trip specs (#351): everything beyond the five bespoke
 	 * entity types (categories, accounts, transactions, bills, import rules)
 	 * and settings. Each entry becomes <key>.json in the archive. Keys:
@@ -75,6 +86,9 @@ class MigrationService {
 	 *           whole when that row didn't come back: see remapSnapshotRefs()
 	 *   billKeyedType  dismissals of this suggestion_type are keyed by a
 	 *           bill id: see remapBillKeyedDismissal()
+	 *   userLink  a column naming a Nextcloud user the row is linked to,
+	 *           kept only when the restoring user could link it today
+	 *           (ContactLinkPolicy)
 	 *
 	 * PRE entries import after categories/accounts, before transactions and
 	 * bills (bills remap their tagIds through the tags map). POST entries
@@ -254,6 +268,8 @@ class MigrationService {
 			'table' => 'budget_contacts',
 			'scope' => 'user',
 			'idMap' => 'contacts',
+			// A linked contact's shared expenses reach that user
+			'userLink' => 'nextcloud_user_id',
 		],
 		'expense_shares' => [
 			'table' => 'budget_expense_shares',
@@ -305,6 +321,9 @@ class MigrationService {
 	/** Restored bills that lost an account they used, per restore */
 	private int $billsDetached = 0;
 
+	/** Restored contacts whose link to a Nextcloud user was removed, per restore */
+	private int $userLinksRemoved = 0;
+
 	public function __construct(
 		private AccountMapper $accountMapper,
 		private TransactionMapper $transactionMapper,
@@ -318,6 +337,9 @@ class MigrationService {
 		// Always wired through DI; without it a restore leaves links to
 		// other users' data out, as it did before
 		private ?CrossUserLinks $crossUserLinks = null,
+		// Always wired through DI; without it no contact keeps its link to
+		// a Nextcloud user
+		private ?ContactLinkPolicy $contactLinks = null,
 	) {
 		$this->tableCleaner = new UserTableCleaner($db);
 	}
@@ -335,19 +357,133 @@ class MigrationService {
 	}
 
 	/**
-	 * Export all user data as a ZIP archive.
+	 * Rows read per query, and per write, while exporting. The export used to
+	 * load every transaction as an entity, then encode each data set whole,
+	 * pretty-printed, and build the zip as one string: a ledger of about
+	 * 110,000 transactions ran out of a 512 MB memory limit, so no backup
+	 * could be made at all.
+	 */
+	private const EXPORT_BATCH = 1000;
+
+	/**
+	 * Export all user data as a ZIP archive, returned as a string.
 	 *
 	 * @return array{content: string, filename: string, contentType: string}
 	 */
 	public function exportAll(string $userId): array {
-		$exportData = $this->gatherExportData($userId);
-		$zipContent = $this->createZipArchive($exportData);
+		$export = $this->exportToFile($userId);
+		try {
+			$content = file_get_contents($export['path']);
+		} finally {
+			@unlink($export['path']);
+		}
+		if ($content === false) {
+			throw new \RuntimeException('Failed to read the export archive');
+		}
 
 		return [
-			'content' => $zipContent,
-			'filename' => 'budget_export_' . date('Y-m-d_His') . '.zip',
-			'contentType' => 'application/zip'
+			'content' => $content,
+			'filename' => $export['filename'],
+			'contentType' => $export['contentType'],
 		];
+	}
+
+	/**
+	 * Export all user data as a ZIP archive in a temporary file, which the
+	 * caller must delete.
+	 *
+	 * Memory stays flat whatever the size of the ledger: each data set is
+	 * read a batch of rows at a time and written straight to its own
+	 * temporary JSON file, and the zip is put together from those files. The
+	 * archive holds the same files with the same JSON as before, only not
+	 * pretty-printed, so every restore that read the old one reads this.
+	 *
+	 * @return array{path: string, filename: string, contentType: string}
+	 */
+	public function exportToFile(string $userId): array {
+		$parts = [];
+		$counts = [];
+		$zipPath = null;
+		try {
+			$writeList = function (string $key, iterable $rows) use (&$parts, &$counts): void {
+				$parts[$key] = self::tempPath();
+				$counts[$key] = self::writeJsonList($parts[$key], $rows);
+			};
+
+			$writeList('categories', self::mapEach($this->categoryMapper->findAll($userId), fn (Category $c) => $c->jsonSerialize()));
+			// Accounts with full (decrypted) data
+			$writeList('accounts', self::mapEach($this->accountMapper->findAll($userId), fn (Account $a) => $a->toArrayFull()));
+			$writeList('transactions', $this->exportTransactionRows($userId));
+			// The undo snapshot of the last payment stays out of the API's
+			// JSON, so the backup adds it: without it no restored bill could
+			// be marked unpaid (#365).
+			$writeList('bills', self::mapEach($this->billMapper->findAll($userId), fn (Bill $b) => $b->jsonSerialize() + [
+				'paidUndoState' => self::decodeJsonColumn($b->getPaidUndoState()),
+			]));
+			$writeList('import_rules', self::mapEach($this->importRuleMapper->findAll($userId), fn (ImportRule $r) => $r->jsonSerialize()));
+
+			// Settings are one JSON object of key => value
+			$settings = [];
+			foreach ($this->settingMapper->findAll($userId) as $setting) {
+				if (!in_array($setting->getKey(), self::SERVER_SETTINGS, true)) {
+					$settings[$setting->getKey()] = $setting->getValue();
+				}
+			}
+			$parts['settings'] = self::tempPath();
+			self::writeFile($parts['settings'], self::encodeJson($settings));
+			$counts['settings'] = count($settings);
+
+			// Everything else round-trips at the table level (#351)
+			foreach (self::EXTRA_TABLES_PRE + self::EXTRA_TABLES_POST as $key => $spec) {
+				$writeList($key, $this->exportTableRows($userId, $spec));
+			}
+
+			$manifestPath = self::tempPath();
+			$parts = ['manifest' => $manifestPath] + $parts;
+			self::writeFile($manifestPath, self::encodeJson([
+				'version' => self::EXPORT_VERSION,
+				'appId' => self::APP_ID,
+				'exportedAt' => date('c'),
+				'counts' => $counts,
+				// Receipt attachments reference files in the user's Files space by
+				// instance-specific fileId — the files themselves are not part of
+				// this archive, and attachment links are not restored on import.
+				'attachmentsNote' => 'Receipt files are not included; file references do not survive export/import.',
+				'excluded' => 'Not exported: audit log and idempotency keys (instance state), bank-sync connections (provider agreements and credentials are instance-specific and must be re-established), the calendar feed link (instance-specific), shares (reference users on the old server), receipt attachments (see attachmentsNote), fetched exchange-rate cache (manual rates are included).',
+			]));
+
+			$zipPath = self::tempPath();
+			$zip = new \ZipArchive();
+			if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+				throw new \RuntimeException('Failed to create ZIP archive');
+			}
+			// One JSON file per data set, manifest first. Each is read from
+			// its file when the archive is written out.
+			foreach ($parts as $key => $path) {
+				if (!$zip->addFile($path, $key . '.json')) {
+					$zip->close();
+					throw new \RuntimeException('Failed to create ZIP archive');
+				}
+			}
+			if (!$zip->close()) {
+				throw new \RuntimeException('Failed to create ZIP archive');
+			}
+
+			return [
+				'path' => $zipPath,
+				'filename' => 'budget_export_' . date('Y-m-d_His') . '.zip',
+				'contentType' => 'application/zip',
+			];
+		} catch (\Throwable $e) {
+			if ($zipPath !== null) {
+				@unlink($zipPath);
+			}
+			throw $e;
+		} finally {
+			foreach ($parts as $path) {
+				@unlink($path);
+			}
+		}
 	}
 
 	/**
@@ -370,27 +506,44 @@ class MigrationService {
 			// shared accounts), read before it is deleted
 			$this->crossUserLinks?->capture($userId);
 			$this->billsDetached = 0;
+			$this->userLinksRemoved = 0;
 			// Bank connections stay through a restore, so their account
 			// mappings must follow the accounts to their new ids
 			$bankMappings = $this->readBankMappings($userId);
+			// So does the calendar feed link (SERVER_SETTINGS)
+			$serverSettings = $this->readServerSettings($userId);
 
 			// Delete all existing data for user
 			$this->clearUserData($userId);
 
 			// Import in dependency order with ID remapping
 			$idMaps = $this->importData($userId, $importData);
+			$this->restoreServerSettings($userId, $serverSettings);
 
-			$this->rePointBankMappings(self::bankMappingTargets($bankMappings, $importData['accounts'] ?? [], $idMaps['accounts'] ?? []));
+			$bankTargets = self::bankMappingTargets($bankMappings, $importData['accounts'] ?? [], $idMaps['accounts'] ?? []);
+			$this->rePointBankMappings($bankTargets);
+			$bankLinksRemoved = count(array_filter($bankTargets, static fn ($accountId): bool => $accountId === null));
 
 			// Point those links at the restored rows, or cut them
 			$links = $this->crossUserLinks?->apply($idMaps) ?? ['sharesDropped' => 0, 'othersDetached' => 0];
 
-			// Restore the ledger invariant for imported accounts:
-			// opening_balance := exported balance − net(imported transactions).
-			// This preserves the displayed balance exactly (even for exports
-			// from drifted instances) while keeping future recalculation sound.
+			// The ledger invariant, balance = opening balance + net(ledger),
+			// for every restored account. The opening balance is what the
+			// user set, so an account restored with one (every backup since
+			// March 2026) keeps it and has its balance rebuilt from the
+			// restored ledger, exactly as the next recalculation would. One
+			// from an older backup, which has none, keeps its balance and
+			// gets the opening balance that implies. Deriving the opening
+			// balance from a balance re-signed by "in credit" (which only
+			// describes the opening balance) restored any card or loan whose
+			// ledger had crossed zero on the wrong side.
+			$balances = new AccountBalanceCalculator($this->accountMapper, $this->transactionMapper);
 			foreach (($idMaps['accounts'] ?? []) as $newAccountId) {
 				$account = $this->accountMapper->findById($newAccountId);
+				if ($account->getOpeningBalance() !== null) {
+					$balances->recalculate($account);
+					continue;
+				}
 				$net = $this->transactionMapper->getNetChangeAll($newAccountId);
 				// At the account currency's precision: rounding to 2dp here
 				// shifted a restored crypto balance on its next recompute (#331).
@@ -399,17 +552,76 @@ class MigrationService {
 				$this->accountMapper->update($account);
 			}
 
+			// A backup made before 3.0 holds the bill rows the upgrade to
+			// 3.0 repairs. Restored as they were, an unpaid occurrence
+			// counted as paid, and paying it booked it a second time. Run
+			// once the balances are in, so the repair moves them as the
+			// upgrade did, and after the links above, which point other
+			// users' bill snapshots at the restored rows.
+			if (version_compare(self::archiveVersion($importData), '1.3.0', '<')) {
+				$this->repairLegacyBillRows(array_values($idMaps['accounts'] ?? []), $balances);
+			}
+
 			$this->db->commit();
 
 			return [
 				'success' => true,
 				'message' => 'Import completed successfully',
 				'counts' => $this->countData($importData),
-				'warnings' => $this->restoreWarnings($links['sharesDropped'], $this->billsDetached, $links['othersDetached']),
+				'warnings' => $this->restoreWarnings($links['sharesDropped'], $this->billsDetached, $links['othersDetached'], $this->userLinksRemoved, $bankLinksRemoved),
 			];
-		} catch (\Exception $e) {
+		} catch (\Throwable $e) {
+			// PHP errors too: only \Exception used to roll back
 			$this->db->rollBack();
 			throw $e;
+		}
+	}
+
+	/**
+	 * The user's SERVER_SETTINGS, read before the restore clears them.
+	 *
+	 * @return array<string, string> key => value
+	 */
+	private function readServerSettings(string $userId): array {
+		$kept = [];
+		foreach ($this->settingMapper->findAll($userId) as $setting) {
+			if (in_array($setting->getKey(), self::SERVER_SETTINGS, true)) {
+				$kept[$setting->getKey()] = (string)$setting->getValue();
+			}
+		}
+		return $kept;
+	}
+
+	/**
+	 * @param array<string, string> $settings key => value, from readServerSettings()
+	 */
+	private function restoreServerSettings(string $userId, array $settings): void {
+		$now = date('Y-m-d H:i:s');
+		foreach ($settings as $key => $value) {
+			$setting = new Setting();
+			$setting->setUserId($userId);
+			$setting->setKey($key);
+			$setting->setValue($value);
+			$setting->setCreatedAt($now);
+			$setting->setUpdatedAt($now);
+			$this->settingMapper->insert($setting);
+		}
+	}
+
+	/**
+	 * The upgrade's repairs of 2.54.0's bill rows (migrations 109 and 114,
+	 * LegacyBillRows), applied to the restored accounts' rows, with the
+	 * balances they move rebuilt.
+	 *
+	 * @param int[] $accountIds the restored accounts
+	 */
+	private function repairLegacyBillRows(array $accountIds, AccountBalanceCalculator $balances): void {
+		$pending = LegacyBillRows::unpaidPlaceholders($this->db, $accountIds);
+		$payments = LegacyBillRows::rescheduledPayments($this->db, $accountIds);
+		LegacyBillRows::setStatus($this->db, array_keys($pending), 'scheduled');
+		LegacyBillRows::setStatus($this->db, array_keys($payments), 'cleared');
+		foreach (array_unique(array_values($pending + $payments)) as $accountId) {
+			$balances->recalculate($this->accountMapper->findById($accountId));
 		}
 	}
 
@@ -497,7 +709,7 @@ class MigrationService {
 	 *
 	 * @return string[]
 	 */
-	private function restoreWarnings(int $sharesDropped, int $billsDetached, int $othersDetached): array {
+	private function restoreWarnings(int $sharesDropped, int $billsDetached, int $othersDetached, int $userLinksRemoved = 0, int $bankLinksRemoved = 0): array {
 		$warnings = [];
 		if ($sharesDropped > 0) {
 			$warnings[] = $this->n(
@@ -520,6 +732,21 @@ class MigrationService {
 				$othersDetached
 			);
 		}
+		if ($userLinksRemoved > 0) {
+			$warnings[] = $this->n(
+				'%n contact was linked to a Nextcloud user you can\'t share with on this server, so the link was removed.',
+				'%n contacts were linked to Nextcloud users you can\'t share with on this server, so the links were removed.',
+				$userLinksRemoved
+			);
+		}
+		if ($bankLinksRemoved > 0) {
+			// bankMappingTargets(): a feed only follows the same account
+			$warnings[] = $this->n(
+				'%n bank account link could not be matched to an account in this backup, so Bank Sync no longer imports into it. Choose the account again in Bank Sync.',
+				'%n bank account links could not be matched to accounts in this backup, so Bank Sync no longer imports into them. Choose the accounts again in Bank Sync.',
+				$bankLinksRemoved
+			);
+		}
 		return $warnings;
 	}
 
@@ -534,14 +761,15 @@ class MigrationService {
 
 		// Older formats import (missing data takes its defaults); a newer one
 		// may hold data this version can't restore
-		$version = (string)($importData['manifest']['version'] ?? 'unknown');
+		$manifest = is_array($importData['manifest'] ?? null) ? $importData['manifest'] : [];
+		$version = is_scalar($manifest['version'] ?? null) ? (string)$manifest['version'] : 'unknown';
 		if (version_compare($version, self::EXPORT_VERSION, '>')) {
 			$warnings[] = $this->t('This backup was made by a newer version of Budget (backup format %1$s, this server reads up to %2$s). Some of its data may not be restored. Update Budget first if you can.', [$version, self::EXPORT_VERSION]);
 		}
 
 		return [
 			'valid' => true,
-			'manifest' => $importData['manifest'] ?? [],
+			'manifest' => $manifest,
 			'counts' => $this->countData($importData),
 			'warnings' => $warnings
 		];
@@ -563,96 +791,116 @@ class MigrationService {
 	}
 
 	/**
-	 * Gather all exportable data for a user.
+	 * The user's transactions as the archive holds them
+	 * (Transaction::jsonSerialize()), read EXPORT_BATCH rows at a time in id
+	 * order.
+	 *
+	 * @return \Generator<int, array<string, mixed>>
 	 */
-	private function gatherExportData(string $userId): array {
-		// Get categories
-		$categories = $this->categoryMapper->findAll($userId);
-		$categoriesData = array_map(fn (Category $c) => $c->jsonSerialize(), $categories);
-
-		// Get accounts with full (decrypted) data
-		$accounts = $this->accountMapper->findAll($userId);
-		$accountsData = array_map(fn (Account $a) => $a->toArrayFull(), $accounts);
-
-		// Get transactions
-		$transactions = $this->transactionMapper->findAll($userId);
-		$transactionsData = array_map(fn (Transaction $t) => $t->jsonSerialize(), $transactions);
-
-		// Get bills. The undo snapshot of the last payment stays out of the
-		// API's JSON, so the backup adds it: without it no restored bill
-		// could be marked unpaid (#365).
-		$bills = $this->billMapper->findAll($userId);
-		$billsData = array_map(fn (Bill $b) => $b->jsonSerialize() + [
-			'paidUndoState' => self::decodeJsonColumn($b->getPaidUndoState()),
-		], $bills);
-
-		// Get import rules
-		$importRules = $this->importRuleMapper->findAll($userId);
-		$importRulesData = array_map(fn (ImportRule $r) => $r->jsonSerialize(), $importRules);
-
-		// Get settings
-		$settings = $this->settingMapper->findAll($userId);
-		$settingsData = [];
-		foreach ($settings as $setting) {
-			$settingsData[$setting->getKey()] = $setting->getValue();
-		}
-
-		$data = [
-			'categories' => $categoriesData,
-			'accounts' => $accountsData,
-			'transactions' => $transactionsData,
-			'bills' => $billsData,
-			'import_rules' => $importRulesData,
-			'settings' => $settingsData
-		];
-
-		// Everything else round-trips at the table level (#351)
-		foreach (self::EXTRA_TABLES_PRE + self::EXTRA_TABLES_POST as $key => $spec) {
-			$data[$key] = $this->exportTable($userId, $spec);
-		}
-
-		$counts = [];
-		foreach ($data as $key => $rows) {
-			$counts[$key] = count($rows);
-		}
-
-		$manifest = [
-			'version' => self::EXPORT_VERSION,
-			'appId' => self::APP_ID,
-			'exportedAt' => date('c'),
-			'counts' => $counts,
-			// Receipt attachments reference files in the user's Files space by
-			// instance-specific fileId — the files themselves are not part of
-			// this archive, and attachment links are not restored on import.
-			'attachmentsNote' => 'Receipt files are not included; file references do not survive export/import.',
-			'excluded' => 'Not exported: audit log and idempotency keys (instance state), bank-sync connections (provider agreements and credentials are instance-specific and must be re-established), shares (reference users on the old server), receipt attachments (see attachmentsNote), fetched exchange-rate cache (manual rates are included).',
-		];
-
-		return ['manifest' => $manifest] + $data;
+	private function exportTransactionRows(string $userId): \Generator {
+		$lastId = 0;
+		do {
+			$qb = $this->db->getQueryBuilder();
+			$qb->select('t.*')
+				->from('budget_transactions', 't')
+				->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+				->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+				->andWhere($qb->expr()->gt('t.id', $qb->createNamedParameter($lastId, IQueryBuilder::PARAM_INT)))
+				->orderBy('t.id', 'ASC')
+				->setMaxResults(self::EXPORT_BATCH);
+			$rows = $this->fetchBatch($qb);
+			foreach ($rows as $row) {
+				$lastId = (int)$row['id'];
+				yield Transaction::fromRow($row)->jsonSerialize();
+			}
+		} while (count($rows) === self::EXPORT_BATCH);
 	}
 
 	/**
-	 * Create a ZIP archive from export data.
+	 * @return list<array<string, mixed>>
 	 */
-	private function createZipArchive(array $data): string {
-		$tempFile = tempnam(sys_get_temp_dir(), 'budget_export_');
-
-		$zip = new \ZipArchive();
-		if ($zip->open($tempFile, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
-			throw new \RuntimeException('Failed to create ZIP archive');
+	private function fetchBatch(IQueryBuilder $qb): array {
+		$result = $qb->executeQuery();
+		$rows = [];
+		while ($row = $result->fetch()) {
+			$rows[] = $row;
 		}
+		$result->closeCursor();
+		return $rows;
+	}
 
-		// One JSON file per data set, manifest included
-		foreach ($data as $key => $payload) {
-			$zip->addFromString($key . '.json', json_encode($payload, JSON_PRETTY_PRINT));
+	/**
+	 * Apply $fn to each item, lazily.
+	 *
+	 * @template T
+	 * @param iterable<T> $items
+	 * @param callable(T): mixed $fn
+	 */
+	private static function mapEach(iterable $items, callable $fn): \Generator {
+		foreach ($items as $item) {
+			yield $fn($item);
 		}
+	}
 
-		$zip->close();
+	/**
+	 * Write a JSON list to $path one item at a time.
+	 *
+	 * @param iterable<mixed> $items
+	 * @return int the number of items written
+	 */
+	private static function writeJsonList(string $path, iterable $items): int {
+		$handle = fopen($path, 'wb');
+		if ($handle === false) {
+			throw new \RuntimeException('Failed to write the export');
+		}
+		$count = 0;
+		try {
+			self::writeBytes($handle, '[');
+			foreach ($items as $item) {
+				self::writeBytes($handle, ($count > 0 ? ',' : '') . self::encodeJson($item));
+				$count++;
+			}
+			self::writeBytes($handle, ']');
+		} finally {
+			fclose($handle);
+		}
+		return $count;
+	}
 
-		$content = file_get_contents($tempFile);
-		unlink($tempFile);
+	private static function writeFile(string $path, string $content): void {
+		if (file_put_contents($path, $content) !== strlen($content)) {
+			throw new \RuntimeException('Failed to write the export');
+		}
+	}
 
-		return $content;
+	/**
+	 * @param resource $handle
+	 */
+	private static function writeBytes($handle, string $bytes): void {
+		if (fwrite($handle, $bytes) !== strlen($bytes)) {
+			throw new \RuntimeException('Failed to write the export');
+		}
+	}
+
+	/**
+	 * A value as JSON. Bytes that aren't valid UTF-8 (which SQLite will
+	 * store) become U+FFFD: json_encode() refuses them otherwise, and the
+	 * whole export failed over one bad character.
+	 */
+	private static function encodeJson(mixed $value): string {
+		$json = json_encode($value, JSON_INVALID_UTF8_SUBSTITUTE);
+		if ($json === false) {
+			throw new \RuntimeException('Failed to encode the export: ' . json_last_error_msg());
+		}
+		return $json;
+	}
+
+	private static function tempPath(): string {
+		$path = tempnam(sys_get_temp_dir(), 'budget_export_');
+		if ($path === false) {
+			throw new \RuntimeException('Failed to create a temporary file for the export');
+		}
+		return $path;
 	}
 
 	/**
@@ -753,6 +1001,19 @@ class MigrationService {
 	}
 
 	/**
+	 * Keys of the bespoke data sets that must hold a single value. The ids
+	 * become array keys and query parameters, so a list or an object there
+	 * crashed the restore part way with a PHP error and a stack trace.
+	 */
+	private const SCALAR_KEYS = [
+		'categories' => ['id', 'parentId', 'name', 'type'],
+		'accounts' => ['id', 'name', 'type', 'currency', 'balance', 'openingBalance'],
+		'transactions' => ['id', 'accountId', 'categoryId', 'billId', 'linkedTransactionId', 'reconSessionId', 'pensionContribId', 'amount', 'date', 'type'],
+		'bills' => ['id', 'accountId', 'destinationAccountId', 'categoryId', 'name'],
+		'import_rules' => ['id', 'categoryId', 'name'],
+	];
+
+	/**
 	 * Validate import data structure.
 	 */
 	private function validateImportData(array $data): void {
@@ -763,6 +1024,8 @@ class MigrationService {
 		if (($data['manifest']['appId'] ?? '') !== self::APP_ID) {
 			throw new \InvalidArgumentException('Invalid export file: wrong application');
 		}
+
+		$this->validateShapes($data);
 
 		// Validate categories have required fields
 		foreach ($data['categories'] ?? [] as $i => $cat) {
@@ -784,6 +1047,46 @@ class MigrationService {
 				throw new \InvalidArgumentException("Invalid transaction at index $i: missing required fields");
 			}
 		}
+	}
+
+	/**
+	 * Every data set is a list of objects (settings: an object of single
+	 * values), and every id a single value. An archive holding anything else
+	 * is refused before anything is touched, rather than failing part way.
+	 */
+	private function validateShapes(array $data): void {
+		$tables = self::EXTRA_TABLES_PRE + self::EXTRA_TABLES_POST;
+		foreach ($data as $key => $rows) {
+			if ($key === 'manifest') {
+				continue;
+			}
+			if (!is_array($rows)) {
+				throw $this->notInFormat($key);
+			}
+			if ($key === 'settings') {
+				foreach ($rows as $value) {
+					if ($value !== null && !is_scalar($value)) {
+						throw $this->notInFormat($key);
+					}
+				}
+				continue;
+			}
+			$scalarKeys = self::SCALAR_KEYS[$key] ?? ['id', ...array_keys($tables[$key]['fk'] ?? [])];
+			foreach ($rows as $row) {
+				if (!is_array($row)) {
+					throw $this->notInFormat($key);
+				}
+				foreach ($scalarKeys as $scalarKey) {
+					if (isset($row[$scalarKey]) && !is_scalar($row[$scalarKey])) {
+						throw $this->notInFormat($key);
+					}
+				}
+			}
+		}
+	}
+
+	private function notInFormat(string $key): \InvalidArgumentException {
+		return new \InvalidArgumentException($this->t('This backup cannot be imported: %1$s is not in the expected format', [$key . '.json']));
 	}
 
 	/**
@@ -851,7 +1154,7 @@ class MigrationService {
 		$idMaps['categories'] = $this->importCategories($userId, $data['categories'] ?? []);
 
 		// 2. Import accounts
-		$idMaps['accounts'] = $this->importAccounts($userId, $data['accounts'] ?? []);
+		$idMaps['accounts'] = $this->importAccounts($userId, $data['accounts'] ?? [], version_compare(self::archiveVersion($data), '1.1.0', '<'));
 
 		// 2b. Tag sets and tags — before transactions/bills so tag references
 		// can be remapped (#351)
@@ -884,7 +1187,7 @@ class MigrationService {
 		$idMaps['import_rules'] = $this->importImportRules($userId, $data['import_rules'] ?? [], $idMaps);
 
 		// 6. Import settings
-		$this->importSettings($userId, $data['settings'] ?? []);
+		$this->importSettings($userId, $data['settings'] ?? [], $idMaps);
 
 		// 7. Everything else, table-level in dependency order (#351)
 		foreach (self::EXTRA_TABLES_POST as $key => $spec) {
@@ -1007,11 +1310,22 @@ class MigrationService {
 
 	/**
 	 * Account properties importAccounts() sets itself rather than copying
-	 * from the archive: identity, and the balance pair, which is signed
-	 * through AccountType::signFor() and rebuilt from the imported ledger
-	 * afterwards (importAll()).
+	 * from the archive: identity, and the balance pair and in-credit flag,
+	 * which a backup older than format 1.1.0 holds in another sign
+	 * convention. The balance is rebuilt from the imported ledger afterwards
+	 * (importAll()).
 	 */
 	private const ACCOUNT_PROPERTIES_NOT_COPIED = ['id', 'userId', 'balance', 'openingBalance', 'liabilityInCredit'];
+
+	/**
+	 * The backup format version an archive declares, or "0" (older than any)
+	 * when it declares none that reads as a version.
+	 */
+	private static function archiveVersion(array $importData): string {
+		$manifest = $importData['manifest'] ?? null;
+		$version = is_array($manifest) ? ($manifest['version'] ?? null) : null;
+		return is_string($version) && preg_match('/^\d+(\.\d+)*$/', $version) === 1 ? $version : '0';
+	}
 
 	/**
 	 * Every other Account property, read off the entity itself.
@@ -1052,9 +1366,11 @@ class MigrationService {
 	/**
 	 * Import accounts.
 	 *
+	 * @param bool $legacySigns the archive predates format 1.1.0, when a
+	 *                          liability held what was owed as a positive number
 	 * @return array<int, int> Map of old ID => new ID
 	 */
-	private function importAccounts(string $userId, array $accounts): array {
+	private function importAccounts(string $userId, array $accounts, bool $legacySigns = false): array {
 		$idMap = [];
 		$fieldTypes = (new Account())->getFieldTypes();
 		$now = date('Y-m-d H:i:s');
@@ -1082,18 +1398,30 @@ class MigrationService {
 				$account->{'set' . ucfirst($property)}($value);
 			}
 
-			// Sign the balance through the single authority. Exports carrying an
-			// explicit in-credit declaration are honoured; legacy exports
-			// (pre-1.1.0 positive liability balances, and any export predating
-			// #353) fall back to "owed", which is what they meant.
+			// The archive's balances are already signed, and "in credit" is
+			// what the user declared about the opening balance: both come
+			// back as they were. Signing today's balance with that flag put
+			// a card or loan whose ledger had crossed zero on the wrong side.
+			// The balance is rebuilt from the opening balance and the ledger
+			// once the ledger is in (importAll()); an archive without an
+			// opening balance keeps its balance instead.
 			$type = (string)($accData['type'] ?? '');
+			$liability = AccountType::tryFrom($type)?->isLiability() ?? false;
 			$declared = array_key_exists('liabilityInCredit', $accData) && $accData['liabilityInCredit'] !== null
 				? filter_var($accData['liabilityInCredit'], FILTER_VALIDATE_BOOLEAN)
 				: null;
-			$account->setBalance(AccountType::signFor($type, (float)($accData['balance'] ?? 0), $declared ?? false));
-			$account->setLiabilityInCredit(
-				AccountType::tryFrom($type)?->isLiability() ? $declared : null
-			);
+			$balance = is_numeric($accData['balance'] ?? null) ? (float)$accData['balance'] : 0.0;
+			$opening = is_numeric($accData['openingBalance'] ?? null) ? (float)$accData['openingBalance'] : null;
+			if ($liability && $legacySigns) {
+				// Before format 1.1.0 a liability held what was owed as a
+				// positive number. The upgrade to 1.1.0 negated positive
+				// balances and opening balances, and so does this.
+				$balance = $balance > 0 ? -$balance : $balance;
+				$opening = $opening !== null && $opening > 0 ? -$opening : $opening;
+			}
+			$account->setBalance($balance);
+			$account->setOpeningBalance($opening);
+			$account->setLiabilityInCredit($liability ? $declared : null);
 
 			// Defaults for archives that predate a column (or hold null in a
 			// NOT NULL one)
@@ -1629,34 +1957,41 @@ class MigrationService {
 	}
 
 	/**
-	 * Export one registry table's rows for the user (raw columns, snake_case).
-	 * user_id is dropped (reassigned on import); id is kept for remapping.
+	 * Export one registry table's rows for the user (raw columns, snake_case),
+	 * EXPORT_BATCH rows at a time in id order. user_id is dropped (reassigned
+	 * on import); id is kept for remapping.
+	 *
+	 * @return \Generator<int, array<string, mixed>>
 	 */
-	private function exportTable(string $userId, array $spec): array {
-		$qb = $this->db->getQueryBuilder();
-		$qb->select('t.*')->from($spec['table'], 't');
-		if (($spec['scope'] ?? 'user') === 'user') {
-			$qb->where($qb->expr()->eq('t.user_id', $qb->createNamedParameter($userId)));
-		} else {
-			// Chain of joins ending at a table that has user_id
-			$prev = 't';
-			$alias = 't';
-			foreach ($spec['scope']['joins'] as $i => [$joinTable, $localColumn]) {
-				$alias = 'j' . $i;
-				$qb->innerJoin($prev, $joinTable, $alias, $qb->expr()->eq($prev . '.' . $localColumn, $alias . '.id'));
-				$prev = $alias;
+	private function exportTableRows(string $userId, array $spec): \Generator {
+		$lastId = 0;
+		do {
+			$qb = $this->db->getQueryBuilder();
+			$qb->select('t.*')->from($spec['table'], 't');
+			if (($spec['scope'] ?? 'user') === 'user') {
+				$qb->where($qb->expr()->eq('t.user_id', $qb->createNamedParameter($userId)));
+			} else {
+				// Chain of joins ending at a table that has user_id
+				$prev = 't';
+				$alias = 't';
+				foreach ($spec['scope']['joins'] as $i => [$joinTable, $localColumn]) {
+					$alias = 'j' . $i;
+					$qb->innerJoin($prev, $joinTable, $alias, $qb->expr()->eq($prev . '.' . $localColumn, $alias . '.id'));
+					$prev = $alias;
+				}
+				$qb->where($qb->expr()->eq($alias . '.user_id', $qb->createNamedParameter($userId)));
 			}
-			$qb->where($qb->expr()->eq($alias . '.user_id', $qb->createNamedParameter($userId)));
-		}
+			$qb->andWhere($qb->expr()->gt('t.id', $qb->createNamedParameter($lastId, IQueryBuilder::PARAM_INT)))
+				->orderBy('t.id', 'ASC')
+				->setMaxResults(self::EXPORT_BATCH);
 
-		$result = $qb->executeQuery();
-		$rows = [];
-		while ($row = $result->fetch()) {
-			unset($row['user_id']);
-			$rows[] = $row;
-		}
-		$result->closeCursor();
-		return $rows;
+			$rows = $this->fetchBatch($qb);
+			foreach ($rows as $row) {
+				$lastId = (int)$row['id'];
+				unset($row['user_id']);
+				yield $row;
+			}
+		} while (count($rows) === self::EXPORT_BATCH);
 	}
 
 	/**
@@ -1678,6 +2013,7 @@ class MigrationService {
 			if ($row === null) {
 				continue;
 			}
+			$row = $this->checkUserLink($userId, $spec, $row);
 			$oldId = isset($row['id']) ? (int)$row['id'] : null;
 			unset($row['id'], $row['user_id']);
 			// Archive content is user-supplied: its keys become SQL column
@@ -1706,6 +2042,28 @@ class MigrationService {
 			}
 		}
 		return $count;
+	}
+
+	/**
+	 * A row's link to a Nextcloud user (the spec's 'userLink' column), kept
+	 * only when the restoring user could make that link today. Copied as it
+	 * was, a crafted backup linked a contact to anyone on the server, past
+	 * the sharing settings creating a contact enforces, and that user was
+	 * shown the contact's shared expenses.
+	 *
+	 * @param array<string, mixed> $row
+	 * @return array<string, mixed>
+	 */
+	private function checkUserLink(string $userId, array $spec, array $row): array {
+		$column = $spec['userLink'] ?? null;
+		if ($column === null || ($row[$column] ?? null) === null || $row[$column] === '') {
+			return $row;
+		}
+		if ($this->contactLinks === null || !is_string($row[$column]) || !$this->contactLinks->mayLink($userId, $row[$column])) {
+			$row[$column] = null;
+			$this->userLinksRemoved++;
+		}
+		return $row;
 	}
 
 	/**
@@ -1856,6 +2214,13 @@ class MigrationService {
 			// last sent; without this every bill inside its reminder window
 			// got the same reminder again after a restore.
 			$bill->setLastReminderSent($billData['lastReminderSent'] ?? null);
+			// Which occurrence that was (migration 121). Guarded until that
+			// column's entity field is merged: the setters are magic, so
+			// method_exists() can't see them.
+			if (property_exists($bill, 'lastReminderDue')) {
+				$lastReminderDue = $billData['lastReminderDue'] ?? null;
+				$bill->{'setLastReminderDue'}(is_string($lastReminderDue) && $lastReminderDue !== '' ? $lastReminderDue : null);
+			}
 			$bill->setExcludedFromForecast(filter_var($billData['excludedFromForecast'] ?? false, FILTER_VALIDATE_BOOLEAN));
 			$bill->setCreateTransaction(filter_var($billData['createTransaction'] ?? true, FILTER_VALIDATE_BOOLEAN));
 			$bill->setCreatedAt($billData['createdAt'] ?? date('Y-m-d H:i:s'));
@@ -2140,19 +2505,169 @@ class MigrationService {
 	}
 
 	/**
-	 * Import settings.
+	 * Import settings. The ones that name accounts or categories by id move
+	 * to the restored ids (remapSettingIds()).
+	 *
+	 * @param array<string, array<int, int>> $idMaps
 	 */
-	private function importSettings(string $userId, array $settings): void {
+	private function importSettings(string $userId, array $settings, array $idMaps = []): void {
 		$now = date('Y-m-d H:i:s');
 
 		foreach ($settings as $key => $value) {
+			// This server's own, kept through the restore (importAll())
+			if (in_array((string)$key, self::SERVER_SETTINGS, true)) {
+				continue;
+			}
 			$setting = new Setting();
 			$setting->setUserId($userId);
 			$setting->setKey($key);
-			$setting->setValue((string)$value);
+			$setting->setValue($this->remapSettingIds((string)$key, (string)$value, $idMaps));
 			$setting->setCreatedAt($now);
 			$setting->setUpdatedAt($now);
 			$this->settingMapper->insert($setting);
 		}
+	}
+
+	/**
+	 * A setting's value with the account and category ids it names moved to
+	 * the restored ids. Restored as they were, the dashboard's account
+	 * filters, the categories a tile hides and the muted budget alerts named
+	 * the ids from before the restore: nothing on the same server, and on
+	 * another server whatever held those ids there. An id that didn't come
+	 * back is dropped. A value that doesn't read as expected is left alone.
+	 *
+	 * @param array<string, array<int, int>> $idMaps
+	 */
+	private function remapSettingIds(string $key, string $value, array $idMaps): string {
+		return match ($key) {
+			'dashboard_widgets_config', 'dashboard_hero_config' => $this->remapDashboardConfig($value, $idMaps),
+			// BudgetAlertService: the categories muted on the alerts tile
+			'budget_alert_muted_categories' => $this->remapSettingIdList($value, $idMaps),
+			// BudgetAlertService and AnomalyDetectionService: what was last
+			// notified, per category
+			'budget_alert_notified', 'anomaly_notified' => $this->remapSettingIdKeys($value, $idMaps),
+			default => $value,
+		};
+	}
+
+	/**
+	 * The dashboard layout (DashboardModule). Ids sit in each tile's settings
+	 * (an account filter, the categories it hides), in the account pickers
+	 * ("trend-account-select", "hero-account-income-select" and so on) and
+	 * in the Accounts tile's order and hidden list.
+	 * Read as objects, not arrays, so an empty {} stays one: an array would
+	 * come back as [], and the dashboard's next save of it would be lost.
+	 *
+	 * @param array<string, array<int, int>> $idMaps
+	 */
+	private function remapDashboardConfig(string $value, array $idMaps): string {
+		$config = json_decode($value);
+		if (!$config instanceof \stdClass) {
+			return $value;
+		}
+		if (($config->tileSettings ?? null) instanceof \stdClass) {
+			foreach (get_object_vars($config->tileSettings) as $tile) {
+				if (!$tile instanceof \stdClass) {
+					continue;
+				}
+				if (isset($tile->accountId) && is_numeric($tile->accountId)) {
+					$id = $this->restoredSettingId((int)$tile->accountId, 'accounts', $idMaps);
+					if ($id === null) {
+						unset($tile->accountId);
+					} else {
+						$tile->accountId = is_string($tile->accountId) ? (string)$id : $id;
+					}
+				}
+				if (isset($tile->hiddenCategories) && is_array($tile->hiddenCategories)) {
+					$tile->hiddenCategories = $this->restoredSettingIds($tile->hiddenCategories, 'categories', $idMaps);
+				}
+			}
+		}
+		if (($config->settings ?? null) instanceof \stdClass) {
+			foreach ((array)$config->settings as $name => $setting) {
+				// A numeric property name comes back as an int key
+				$name = (string)$name;
+				if ($name === 'accountsTile' && $setting instanceof \stdClass) {
+					foreach (['order', 'hidden'] as $list) {
+						if (isset($setting->{$list}) && is_array($setting->{$list})) {
+							$setting->{$list} = $this->restoredSettingIds($setting->{$list}, 'accounts', $idMaps);
+						}
+					}
+				} elseif (str_contains($name, 'account') && str_ends_with($name, '-select') && is_numeric($setting)) {
+					$id = $this->restoredSettingId((int)$setting, 'accounts', $idMaps);
+					if ($id === null) {
+						unset($config->settings->{$name});
+					} else {
+						$config->settings->{$name} = is_string($setting) ? (string)$id : $id;
+					}
+				}
+			}
+		}
+		return (string)json_encode($config, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+	}
+
+	/**
+	 * A JSON list of category ids, moved to the restored ids.
+	 *
+	 * @param array<string, array<int, int>> $idMaps
+	 */
+	private function remapSettingIdList(string $value, array $idMaps): string {
+		$ids = json_decode($value, true);
+		if (!is_array($ids) || !array_is_list($ids)) {
+			return $value;
+		}
+		return (string)json_encode($this->restoredSettingIds($ids, 'categories', $idMaps));
+	}
+
+	/**
+	 * A JSON object keyed by category id, with the keys moved to the
+	 * restored ids.
+	 *
+	 * @param array<string, array<int, int>> $idMaps
+	 */
+	private function remapSettingIdKeys(string $value, array $idMaps): string {
+		$entries = json_decode($value, true);
+		if (!is_array($entries)) {
+			return $value;
+		}
+		$restored = [];
+		foreach ($entries as $oldId => $entry) {
+			$id = is_numeric($oldId) ? $this->restoredSettingId((int)$oldId, 'categories', $idMaps) : null;
+			if ($id !== null) {
+				$restored[(string)$id] = $entry;
+			}
+		}
+		return (string)json_encode((object)$restored, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+	}
+
+	/**
+	 * @param list<mixed> $ids
+	 * @param 'accounts'|'categories' $map
+	 * @return list<int>
+	 */
+	private function restoredSettingIds(array $ids, string $map, array $idMaps): array {
+		$restored = [];
+		foreach ($ids as $oldId) {
+			$id = is_numeric($oldId) ? $this->restoredSettingId((int)$oldId, $map, $idMaps) : null;
+			if ($id !== null) {
+				$restored[] = $id;
+			}
+		}
+		return $restored;
+	}
+
+	/**
+	 * An account or category a setting names, at its restored id; the id
+	 * itself when it is another user's still shared with this one (as a
+	 * saved report's filter keeps it); null when it didn't come back.
+	 *
+	 * @param 'accounts'|'categories' $map
+	 */
+	private function restoredSettingId(int $oldId, string $map, array $idMaps): ?int {
+		if (isset($idMaps[$map][$oldId])) {
+			return (int)$idMaps[$map][$oldId];
+		}
+		$type = $map === 'accounts' ? ShareItem::TYPE_ACCOUNT : ShareItem::TYPE_CATEGORY;
+		return $this->crossUserLinks?->isSharedWithUser($type, $oldId) ? $oldId : null;
 	}
 }

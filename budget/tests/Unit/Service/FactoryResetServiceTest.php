@@ -317,6 +317,21 @@ class FactoryResetServiceTest extends TestCase {
 		$this->assertStringContainsString('budget_accounts WHERE user_id = ?', $tagDelete['sql']);
 	}
 
+	/**
+	 * A write recipient's tags on the owner's rows are found through the
+	 * tags, not the user's transactions, so they go while the tags are still
+	 * there (T4-11).
+	 */
+	public function testTheUsersTagsOnOtherUsersRowsAreClearedBeforeTheTags(): void {
+		$this->service->executeFactoryReset('user1');
+
+		$byTag = array_keys(array_filter($this->deletes, fn ($d) => $d['table'] === 'budget_transaction_tags'
+			&& str_contains((string)$d['sql'], 'tag_id IN (SELECT id FROM *PREFIX*budget_tags WHERE user_id = ?)')));
+		$tags = array_keys(array_filter($this->deletes, fn ($d) => $d['table'] === 'budget_tags'));
+		$this->assertCount(1, $byTag);
+		$this->assertLessThan($tags[0], $byTag[0]);
+	}
+
 	public function testExecuteFactoryResetCommitsAndReportsCounts(): void {
 		$this->db->expects($this->once())->method('beginTransaction');
 		$this->db->expects($this->once())->method('commit');

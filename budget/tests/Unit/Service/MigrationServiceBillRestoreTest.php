@@ -43,7 +43,7 @@ class MigrationServiceBillRestoreTest extends TestCase {
 			$expr = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
 			$expr->method('eq')->willReturn('eq');
 			$qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
-			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin'] as $m) {
+			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin', 'orderBy', 'setMaxResults'] as $m) {
 				$qb->method($m)->willReturnSelf();
 			}
 			$qb->method('expr')->willReturn($expr);
@@ -114,6 +114,23 @@ class MigrationServiceBillRestoreTest extends TestCase {
 
 		$this->assertSame('2026-09-30 06:00:00', $this->inserted[0]->getLastReminderSent());
 		$this->assertNull($this->inserted[1]->getLastReminderSent());
+	}
+
+	/**
+	 * Which occurrence the last reminder was for (migration 121) comes back
+	 * too, or each one would be reminded about again after a restore.
+	 */
+	public function testTheLastRemindedOccurrenceSurvivesARestore(): void {
+		if (!property_exists(Bill::class, 'lastReminderDue')) {
+			$this->markTestSkipped('budget_bills.last_reminder_due arrives with migration 121 (fix/r2-a2-schedules)');
+		}
+		$this->importBills([
+			['id' => 40, 'name' => 'Rent', 'amount' => 800.0, 'lastReminderDue' => '2026-10-03'],
+			['id' => 41, 'name' => 'Phone', 'amount' => 20.0],
+		], []);
+
+		$this->assertSame('2026-10-03', $this->inserted[0]->{'getLastReminderDue'}());
+		$this->assertNull($this->inserted[1]->{'getLastReminderDue'}());
 	}
 
 	/**
