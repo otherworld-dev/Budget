@@ -77,6 +77,33 @@ class ImportRuleApplicatorTest extends TestCase {
 	 * row, whose name the list then showed. Every rule's category must now be
 	 * one the importer's ledger can use.
 	 */
+	/**
+	 * An import loads the active rules once and hands them in for every row:
+	 * loading them per row was one query, plus hydrating and sorting every
+	 * rule, for each row of the file (T6-4).
+	 */
+	public function testRulesHandedInAreUsedWithoutLoadingThem(): void {
+		$rule = $this->makeRule([
+			'actions' => ['version' => 2, 'actions' => [['type' => 'set_vendor', 'value' => 'Shop']]],
+		]);
+		$this->ruleMapper->expects($this->never())->method('findActive');
+		$this->evaluator->method('evaluate')->willReturn(true);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'x'], [$rule]);
+
+		$this->assertSame('Shop', $result['vendor']);
+	}
+
+	public function testRulesForLoadsOwnAndSharedRulesByPriority(): void {
+		$low = $this->makeRule(['id' => 1]);
+		$low->setPriority(1);
+		$high = $this->makeRule(['id' => 2]);
+		$high->setPriority(9);
+		$this->ruleMapper->expects($this->once())->method('findActive')->with('user1')->willReturn([$low, $high]);
+
+		$this->assertSame([$high, $low], $this->applicator->rulesFor('user1'));
+	}
+
 	public function testOwnRuleSetCategorySkippedWhenTheCategoryIsNotUsable(): void {
 		$rule = $this->makeRule([
 			'actions' => ['version' => 2, 'actions' => [['type' => 'set_category', 'value' => 99]]],

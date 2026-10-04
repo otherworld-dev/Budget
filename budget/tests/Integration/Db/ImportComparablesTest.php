@@ -38,4 +38,23 @@ class ImportComparablesTest extends IntegrationTestCase {
 		$this->assertSame('note', $byId[$last]['notes']);
 		$this->assertNull($byId[$last]['import_id']);
 	}
+
+	/**
+	 * TransactionMapper::findImportIds(), which an import reads once per
+	 * account instead of asking about every row (T6-4).
+	 */
+	public function testFindImportIdsListsOneAccountsIdsOnly(): void {
+		$account = $this->makeAccount()->getId();
+		$other = $this->makeAccount(['name' => 'Other'])->getId();
+		$this->makeTransaction($account, ['import_id' => 'hash_a']);
+		$this->makeTransaction($account, ['import_id' => 'ofx_fitid_12345']);
+		$this->makeTransaction($account, ['import_id' => '0042']);
+		$this->makeTransaction($account);
+		$this->makeTransaction($other, ['import_id' => 'hash_b']);
+
+		$ids = $this->service(TransactionMapper::class)->findImportIds($account);
+
+		sort($ids);
+		$this->assertSame(['0042', 'hash_a', 'ofx_fitid_12345'], $ids);
+	}
 }

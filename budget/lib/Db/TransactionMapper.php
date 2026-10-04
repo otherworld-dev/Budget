@@ -947,6 +947,29 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
+	 * Every import ID an account holds, for an import to check its rows
+	 * against in memory instead of one query per row.
+	 *
+	 * @return string[]
+	 */
+	public function findImportIds(int $accountId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('import_id')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->isNotNull('import_id'));
+
+		$result = $qb->executeQuery();
+		$ids = [];
+		while (($importId = $result->fetchOne()) !== false) {
+			$ids[] = (string)$importId;
+		}
+		$result->closeCursor();
+
+		return $ids;
+	}
+
+	/**
 	 * An account's rows dated within [$from, $to], as plain arrays, for an
 	 * import to compare a file's rows against. Scheduled placeholders are left
 	 * out: a row read from a statement or an export is never one.

@@ -1416,6 +1416,87 @@ class ImportServiceTest extends TestCase {
 		$this->assertSame(1, $result['validTransactions']);
 	}
 
+	// ===== one query, not one per row (T6-4) =====
+
+	private function mockThreeCsvRows(): void {
+		$this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', 'csv data');
+		$this->parserFactory->method('detectFormat')->willReturn('csv');
+		$this->parserFactory->method('parse')->willReturn([['a'], ['b'], ['c']]);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(1, 'Checking'));
+		$this->normalizer->method('mapRowToTransaction')->willReturnCallback(fn (array $row) => [
+			'date' => '2025-01-01', 'amount' => 5.0, 'description' => $row[0], 'type' => 'debit',
+		]);
+		$this->normalizer->method('generateImportId')->willReturnCallback(fn ($file, $index, array $tx) => 'hash_' . $tx['description']);
+	}
+
+	/**
+	 * Each row loaded every active rule again (a query, then hydrating and
+	 * sorting them all), and asked the database whether its import id was
+	 * taken: 10,000 rows took 56 s. The rules are loaded once per import,
+	 * and the import-id checks run as one batch, told about every row the
+	 * import adds.
+	 */
+	public function testAnImportLoadsTheRulesOnceAndChecksIdsAsABatch(): void {
+		$this->mockThreeCsvRows();
+		$rules = [new \OCA\Budget\Db\ImportRule()];
+		$this->ruleApplicator->expects($this->once())->method('rulesFor')->with('user1')->willReturn($rules);
+		$given = [];
+		$this->ruleApplicator->method('applyRules')->willReturnCallback(function ($userId, array $tx, $loaded = null) use (&$given) {
+			$given[] = $loaded;
+			return $tx;
+		});
+		$this->duplicateDetector->method('isDuplicateByImportId')->willReturn(false);
+		$this->duplicateDetector->expects($this->once())->method('beginBatch');
+		$this->duplicateDetector->expects($this->once())->method('endBatch');
+		$remembered = [];
+		$this->duplicateDetector->method('remember')->willReturnCallback(function (int $accountId, string $importId) use (&$remembered) {
+			$remembered[] = $importId;
+		});
+		$this->transactionService->method('create')->willReturnCallback(function () {
+			$tx = new Transaction();
+			$tx->setId(1);
+			return $tx;
+		});
+
+		$result = $this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 0], 1);
+
+		$this->assertSame(3, $result['imported']);
+		$this->assertSame([$rules, $rules, $rules], $given);
+		$this->assertSame(['hash_a', 'hash_b', 'hash_c'], $remembered);
+	}
+
+	public function testAPreviewLoadsTheRulesOnce(): void {
+		$this->mockThreeCsvRows();
+		$this->ruleApplicator->expects($this->once())->method('rulesFor')->willReturn([]);
+		$this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+		$this->duplicateDetector->method('isDuplicate')->willReturn(false);
+		$this->duplicateDetector->expects($this->once())->method('beginBatch');
+		$this->duplicateDetector->expects($this->once())->method('endBatch');
+
+		$result = $this->service->previewImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 0], 1);
+
+		$this->assertSame(3, $result['validTransactions']);
+	}
+
+	public function testAnImportWithoutRulesDoesNotLoadThem(): void {
+		$this->mockThreeCsvRows();
+		$this->ruleApplicator->expects($this->never())->method('rulesFor');
+		$this->duplicateDetector->method('isDuplicateByImportId')->willReturn(false);
+
+		$this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 0], 1, null, true, false);
+	}
+
+	public function testAFailedImportStillEndsTheBatch(): void {
+		$this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.csv', 'csv data');
+		$this->parserFactory->method('detectFormat')->willReturn('csv');
+		$this->parserFactory->method('parse')->willThrowException(new \Exception('Unreadable file'));
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(1, 'Checking'));
+		$this->duplicateDetector->expects($this->once())->method('endBatch');
+
+		$this->expectException(\Exception::class);
+		$this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv', ['date' => 0], 1);
+	}
+
 	// ===== countCategorized (#285 audit) =====
 
 	/**

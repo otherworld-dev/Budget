@@ -49,14 +49,26 @@ class ImportRuleApplicator {
 	}
 
 	/**
+	 * The rules an import of $userId's runs, to load once and hand to
+	 * applyRules() for every row: loading them per row cost a query plus
+	 * hydrating and sorting every rule, for each row of the file (T6-4).
+	 *
+	 * @return ImportRule[]
+	 */
+	public function rulesFor(string $userId): array {
+		return $this->activeRulesFor($userId);
+	}
+
+	/**
 	 * Apply matching rules to a single transaction.
 	 *
 	 * @param string $userId The user ID
 	 * @param array $transaction Transaction data
+	 * @param ImportRule[]|null $rules From rulesFor(); loaded here when not given
 	 * @return array Transaction data with rules applied
 	 */
-	public function applyRules(string $userId, array $transaction): array {
-		$rules = $this->activeRulesFor($userId);
+	public function applyRules(string $userId, array $transaction, ?array $rules = null): array {
+		$rules ??= $this->activeRulesFor($userId);
 
 		foreach ($rules as $rule) {
 			// Skip rules not meant for import
