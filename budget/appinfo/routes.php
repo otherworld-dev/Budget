@@ -461,6 +461,10 @@ return [
 	 */
 	'ocs' => [
 		['name' => 'apiV1#info', 'url' => '/api/v1', 'verb' => 'GET'],
+		// openapi.json has info at "/" under the server .../api/v1, which a
+		// generated client requests as .../api/v1/ (the postfix keeps the
+		// route name unique, or this one would replace the one above)
+		['name' => 'apiV1#info', 'url' => '/api/v1/', 'verb' => 'GET', 'postfix' => 'Slash'],
 		// The capture app's minimal discovery call (its handoff contract).
 		['name' => 'apiV1#capabilities', 'url' => '/api/v1/capabilities', 'verb' => 'GET'],
 

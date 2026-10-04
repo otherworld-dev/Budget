@@ -53,6 +53,36 @@ class RouteOrderTest extends TestCase {
 		$this->assertLessThan($show, array_search('GET /api/accounts/banking-institutions', $urls, true));
 	}
 
+	/**
+	 * Nextcloud names a route after its controller and action (plus any
+	 * postfix), and a second route with the same name replaces the first
+	 * without a word.
+	 */
+	public function testEveryRouteHasItsOwnName(): void {
+		$routes = require self::ROUTES;
+		foreach (['routes', 'ocs'] as $block) {
+			$names = array_map(
+				static fn (array $r): string => strtolower($r['name'] . ($r['postfix'] ?? '')),
+				$routes[$block] ?? []
+			);
+			$this->assertSame([], array_values(array_unique(array_diff_assoc($names, array_unique($names)))), $block);
+		}
+	}
+
+	/**
+	 * openapi.json puts the info call at "/" under the server URL
+	 * .../api/v1, which a generated client requests as .../api/v1/. Only
+	 * the form without the slash was routed, so discovery failed with 404.
+	 */
+	public function testTheV1InfoCallAnswersWithAndWithoutATrailingSlash(): void {
+		$info = array_values(array_filter(
+			(require self::ROUTES)['ocs'],
+			static fn (array $r): bool => $r['name'] === 'apiV1#info'
+		));
+
+		$this->assertEqualsCanonicalizing(['/api/v1', '/api/v1/'], array_column($info, 'url'));
+	}
+
 	private static function pattern(array $route): string {
 		$requirements = $route['requirements'] ?? [];
 		$parts = preg_split('/(\{[^}]+\})/', $route['url'], -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);

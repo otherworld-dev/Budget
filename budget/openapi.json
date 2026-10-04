@@ -63,7 +63,7 @@
         ],
         "operationId": "getInfo",
         "summary": "Server info and capabilities",
-        "description": "Call this first. Confirms the app is installed and the credentials work, and reports which optional features this instance has.",
+        "description": "Call this first. Confirms the app is installed and the credentials work, and reports which optional features this instance has. Answers at the server URL with or without a trailing slash (.../api/v1 and .../api/v1/).",
         "responses": {
           "200": {
             "description": "Server info",
