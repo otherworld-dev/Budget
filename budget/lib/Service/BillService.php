@@ -313,6 +313,10 @@ class BillService {
 				'amount' => (float)$bill->getAmount(),
 				'lastPaidDate' => $bill->getLastPaidDate(),
 				'accountId' => $bill->getAccountId(),
+				// A transfer posts into both: the card offers its actions
+				// only when the user can write each
+				'isTransfer' => (bool)($bill->getIsTransfer() ?? false),
+				'destinationAccountId' => $bill->getDestinationAccountId(),
 				'currency' => $bill->getAccountId() !== null
 					? ($currencyMap[$bill->getAccountId()] ?? null)
 					: null,

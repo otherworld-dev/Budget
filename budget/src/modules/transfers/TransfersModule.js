@@ -306,7 +306,7 @@ export default class TransfersModule {
             // Status, date and actions follow the transfer's next occurrence,
             // not the calendar month (#399); an inactive transfer offers
             // nothing to pay, which markPaid would still execute (#365)
-            const row = billRowState(transfer, today, this.settings);
+            const row = billRowState(transfer, today, this.settings, this.accounts);
             const statusClass = row.status;
             const statusText = row.statusText;
 
@@ -346,6 +346,7 @@ export default class TransfersModule {
                             ${autoPayFailed ? `<span class="status-badge badge-extra auto-pay-failed" title="${t('budget', 'Auto-pay failed - disabled')}"><span class="icon-error"></span> ${t('budget', 'Auto-pay Failed')}</span>` : ''}
                         </div>
                     </div>
+                    ${row.accountHint ? `<p class="bill-account-hint">${dom.escapeHtml(row.accountHint)}</p>` : ''}
                     <div class="bill-actions">
                         ${row.canPay ? `
                             <button class="bill-action-btn transfer-paid-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Mark as paid')}">
@@ -359,7 +360,7 @@ export default class TransfersModule {
                                 ${t('budget', 'Skip')}
                             </button>
                         ` : ''}
-                        ${transfer.canMarkUnpaid && row.canWrite ? `
+                        ${row.canUnpay ? `
                             <button class="bill-action-btn transfer-unpaid-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Revert the last payment')}">
                                 <span class="icon-history" aria-hidden="true"></span>
                                 ${t('budget', 'Mark Unpaid')}

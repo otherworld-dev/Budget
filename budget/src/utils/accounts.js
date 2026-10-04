@@ -166,6 +166,63 @@ export function linkableCandidates(candidates, accounts) {
     });
 }
 
+/**
+ * Whether you can post into the account with this id: your own, or one
+ * shared with you to write. An id missing from your accounts (its share
+ * ended, or it is someone else's you were never shown) counts as not
+ * writable.
+ *
+ * @param {Array} accounts
+ * @param {number|string} accountId
+ * @returns {boolean}
+ */
+export function canWriteAccountId(accounts, accountId) {
+    const account = list(accounts).find(candidate => String(candidate.id) === String(accountId));
+    return !!account && !isReadOnlyShare(account);
+}
+
+function hasId(id) {
+    return id !== null && id !== undefined && id !== '';
+}
+
+/**
+ * Whether a bill's or recurring transfer's payment actions (Mark Paid, Mark
+ * Unpaid and its undo, Skip and Undo skip, Record missed payment) may write
+ * into its accounts: it has no account or one you can write, and a transfer
+ * also has a destination you can write. A transfer whose destination is gone
+ * (a share ended) is refused by the server, so it can't either. Whether you
+ * can write the bill itself is a separate check (isReadOnlyShare).
+ *
+ * @param {object} bill bill or transfer
+ * @param {Array} accounts
+ * @returns {boolean}
+ */
+export function billAccountsWritable(bill, accounts) {
+    const accountId = bill?.accountId ?? bill?.account_id ?? null;
+    if (hasId(accountId) && !canWriteAccountId(accounts, accountId)) {
+        return false;
+    }
+    if (bill?.isTransfer ?? bill?.is_transfer ?? false) {
+        const destinationId = bill.destinationAccountId ?? bill.destination_account_id ?? null;
+        return hasId(destinationId) && canWriteAccountId(accounts, destinationId);
+    }
+    return true;
+}
+
+/**
+ * Whether Mark Received on a recurring income (it always books the payment)
+ * and its undo may write into its account: it has none, or one you can
+ * write. Skip and Undo skip don't touch the account.
+ *
+ * @param {object} income
+ * @param {Array} accounts
+ * @returns {boolean}
+ */
+export function incomeAccountWritable(income, accounts) {
+    const accountId = income?.accountId ?? income?.account_id ?? null;
+    return !hasId(accountId) || canWriteAccountId(accounts, accountId);
+}
+
 /** Display text for an account option; a closed one says so. */
 export function accountOptionLabel(account) {
     const name = account?.name ?? '';

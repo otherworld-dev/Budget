@@ -13,7 +13,7 @@ import { apiFetch } from '../../utils/api.js';
 import { isoWeekday } from '../../utils/helpers.js';
 import { showMatchingTransactionDialog } from '../../utils/matchingDialog.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
-import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency, linkableCandidates } from '../../utils/accounts.js';
+import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency, linkableCandidates, billAccountsWritable } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
 import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
 
@@ -98,23 +98,30 @@ export default class BillsModule {
             const countBadge = document.getElementById('unrecorded-payments-count');
             if (countBadge) countBadge.textContent = String(data.count);
 
-            list.innerHTML = items.map(item => `
+            list.innerHTML = items.map(item => {
+                // Recording or reverting writes into the bill's accounts
+                // (a transfer's destination too): only into ones you can
+                // still write. Dismiss only notes it on your side.
+                const writable = this.accounts === undefined || billAccountsWritable(item, this.accounts);
+                return `
                 <div class="unrecorded-payment-row">
                     <div class="bill-suggestion-info">
                         <strong>${dom.escapeHtml(item.name)}</strong>
                         <span class="bill-suggestion-meta">${t('budget', 'Marked paid on {date}', { date: formatters.formatDate(item.lastPaidDate, this.settings) })} &middot; ${formatters.formatCurrency(item.amount, item.currency, this.settings)}</span>
+                        ${item.accountId && !writable ? `<span class="bill-account-hint">${t('budget', 'This bill uses an account you can no longer change. Edit the bill and choose another account.')}</span>` : ''}
                     </div>
                     <div class="bill-suggestion-actions">
                         ${item.accountId
-                            ? `<button class="primary unrecorded-payment-record" data-bill-id="${item.billId}">${t('budget', 'Record transaction')}</button>`
+                            ? (writable ? `<button class="primary unrecorded-payment-record" data-bill-id="${item.billId}">${t('budget', 'Record transaction')}</button>` : '')
                             : `<button class="unrecorded-payment-assign" data-bill-id="${item.billId}" title="${t('budget', 'One-time bills leave the list after payment — open it here to assign an account')}">${t('budget', 'Assign an account')}</button>`}
-                        ${item.canMarkUnpaid
+                        ${item.canMarkUnpaid && writable
                             ? `<button class="unrecorded-payment-unpaid" data-bill-id="${item.billId}" title="${t('budget', 'Revert the last payment')}">${t('budget', 'Mark Unpaid')}</button>`
                             : ''}
                         <button class="secondary unrecorded-payment-dismiss" data-bill-id="${item.billId}" title="${t('budget', 'Keep the bill as paid and stop listing this payment')}">${t('budget', 'Dismiss')}</button>
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
 
             list.querySelectorAll('.unrecorded-payment-record').forEach(btn => {
                 btn.addEventListener('click', (e) => this.recordMissedPayment(parseInt(e.currentTarget.dataset.billId)));
@@ -310,7 +317,7 @@ export default class BillsModule {
             // Status, date and actions follow the bill's next occurrence, not
             // the calendar month (#399); an inactive bill only stays in this
             // list to be reverted (#365) and offers nothing to pay
-            const row = billRowState(bill, today, this.settings);
+            const row = billRowState(bill, today, this.settings, this.accounts);
             const statusClass = row.status;
             const statusText = row.statusText;
 
@@ -357,6 +364,7 @@ export default class BillsModule {
                             ${endDate ? `<span class="status-badge badge-extra badge-neutral" title="${t('budget', 'Ends {date}', { date: formatters.formatDate(endDate, this.settings) })}">${t('budget', 'Ends {date}', { date: formatters.formatDate(endDate, this.settings) })}</span>` : ''}
                         </div>
                     </div>
+                    ${row.accountHint ? `<p class="bill-account-hint">${dom.escapeHtml(row.accountHint)}</p>` : ''}
                     <div class="bill-actions">
                         ${row.canPay ? `
                             <button class="bill-action-btn bill-paid-btn" data-bill-id="${bill.id}" title="${t('budget', 'Mark as paid')}">
@@ -370,7 +378,7 @@ export default class BillsModule {
                                 ${t('budget', 'Skip')}
                             </button>
                         ` : ''}
-                        ${bill.canMarkUnpaid && row.canWrite ? `
+                        ${row.canUnpay ? `
                             <button class="bill-action-btn bill-unpaid-btn" data-bill-id="${bill.id}" title="${t('budget', 'Revert the last payment')}">
                                 <span class="icon-history" aria-hidden="true"></span>
                                 ${t('budget', 'Mark Unpaid')}

@@ -9240,6 +9240,20 @@ button.danger:hover {
     align-items: center;
 }
 
+/* Why a bill, transfer or income offers no payment actions */
+.bill-account-hint {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--color-warning-text, var(--color-warning));
+}
+
+/* On its own line along the bottom of the card */
+.bill-card > .bill-account-hint,
+.income-card > .bill-account-hint {
+    flex-basis: 100%;
+    order: 1;
+}
+
 .bill-action-btn {
     display: flex;
     align-items: center;

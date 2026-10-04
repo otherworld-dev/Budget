@@ -89,7 +89,7 @@ export default class IncomeModule {
         incomeList.innerHTML = incomeItems.map(income => {
             // Status, date and actions follow the next expected occurrence,
             // not the calendar month (#399)
-            const row = incomeRowState(income, today, this.settings);
+            const row = incomeRowState(income, today, this.settings, this.accounts);
             const statusClass = row.status;
             const statusText = row.statusText;
 
@@ -128,6 +128,7 @@ export default class IncomeModule {
                             ${autoCreateEnabled ? `<span class="status-badge badge-extra auto-create" title="${t('budget', 'Auto-create enabled')}"><span class="icon-checkmark"></span> ${t('budget', 'Auto-create')}</span>` : ''}
                         </div>
                     </div>
+                    ${row.accountHint ? `<p class="bill-account-hint">${dom.escapeHtml(row.accountHint)}</p>` : ''}
                     <div class="income-actions">
                         ${row.canReceive ? `
                             <button class="income-action-btn income-received-btn" data-income-id="${income.id}" title="${t('budget', 'Mark as received')}">
